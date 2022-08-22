@@ -90,27 +90,26 @@ namespace Squirrel.CommandLine.Sync
                 throw new Exception("There are no nupkg's in the releases directory to upload");
 
             var ver = Enumerable.MaxBy(releases, x => x.Version);
-            if(ver == null)
+            if (ver == null)
                 throw new Exception("There are no nupkg's in the releases directory to upload");
             var semVer = ver.Version;
 
             Log.Info($"Preparing to upload latest local release to GitHub");
 
-
             var newReleaseReq = new NewRelease(semVer.ToString()) {
-                Body = _options.body + "\r\n" + ver.GetReleaseNotes(releaseDirectoryInfo.FullName),
-                Draft = _options.draft,
+                Body = "", // ver.GetReleaseNotes(releaseDirectoryInfo.FullName),
+                Draft = true,
                 Prerelease = semVer.HasMetadata || semVer.IsPrerelease,
-                Name = string.IsNullOrWhiteSpace(_options.name) 
-                    ? semVer.ToString() 
-                    : _options.name,
+                Name = string.IsNullOrWhiteSpace(_options.releaseName)
+                    ? semVer.ToString()
+                    : _options.releaseName,
             };
 
             Log.Info($"Creating draft release titled '{semVer.ToString()}'");
 
             var existingReleases = await client.Repository.Release.GetAll(repoOwner, repoName);
             if (existingReleases.Any(r => r.TagName == semVer.ToString())) {
-                throw new Exception($"There is already an existing release titled '{semVer}'. Please delete this release or choose a new version number.");
+                throw new Exception($"There is already an existing release tagged '{semVer}'. Please delete this release or choose a new version number.");
             }
 
             var release = await client.Repository.Release.Create(repoOwner, repoName, newReleaseReq);
@@ -142,6 +141,15 @@ namespace Squirrel.CommandLine.Sync
             await client.Repository.Release.UploadAsset(release, data, CancellationToken.None);
 
             Log.Info($"Done creating draft GitHub release.");
+
+            // convert draft to full release
+            if (_options.publish) {
+                Log.Info("Converting draft to full published release.");
+                var upd = release.ToUpdate();
+                upd.Draft = false;
+                release = await client.Repository.Release.Edit(repoOwner, repoName, release.Id, upd);
+            }
+            
             Log.Info("Release URL: " + release.HtmlUrl);
         }
 

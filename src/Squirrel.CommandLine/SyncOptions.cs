@@ -42,8 +42,8 @@ namespace Squirrel.CommandLine
             Add("endpoint=", "Custom service {URL} (backblaze, digital ocean, etc)", v => endpoint = v);
             Add("bucket=", "{NAME} of the S3 bucket", v => bucket = v);
             Add("pathPrefix=", "A sub-folder {PATH} used for files in the bucket, for creating release channels (eg. 'stable' or 'dev')", v => pathPrefix = v);
-            Add("overwrite", "Replace existing files if source has changed", v => overwrite = true);
-            Add("keepMaxReleases=", "Applies a retention policy during upload which keeps only the specified {NUMBER} of old versions",
+            Add("overwrite", "(up only) Replace existing files if source has changed", v => overwrite = true);
+            Add("keepMaxReleases=", "(up only) Applies a retention policy during upload which keeps only the specified {NUMBER} of old versions",
                 v => keepMaxReleases = ParseIntArg(nameof(keepMaxReleases), v));
         }
 
@@ -85,18 +85,16 @@ namespace Squirrel.CommandLine
         public string repoUrl { get; private set; }
         public string token { get; private set; }
         public bool pre { get; private set; }
-        public bool draft { get; private set; }
-        public string name { get; private set; }
-        public string body { get; private set; }
+        public bool publish { get; private set; }
+        public string releaseName { get; private set; }
 
         public SyncGithubOptions()
         {
             Add("repoUrl=", "Full url to the github repository\nexample: 'https://github.com/myname/myrepo'", v => repoUrl = v);
             Add("token=", "OAuth token to use as login credentials", v => token = v);
-            Add("pre", "Download pre-release instead of stable", _ => pre = true);
-            Add("draft", "(up only) Mark release as draft", _ => draft = true);
-            Add("name=", "(up only) Name of the release", v => name = v);
-            Add("body=", "(up only) Body of the release, will be written before the release notes.", v => body = v);
+            Add("pre", "(down only) Get latest pre-release instead of stable", v => pre = true);
+            Add("publish", "(up only) Publish release instead of creating draft", v => publish = true);
+            Add("releaseName=", "(up only) A custom {NAME} for created release", v => releaseName = v);
         }
 
         public override void Validate()
