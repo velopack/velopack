@@ -43,6 +43,7 @@ namespace Squirrel.NuGet
         public SemanticVersion Version { get; private set; }
         public Uri ProjectUrl { get; private set; }
         public string ReleaseNotes { get; private set; }
+        public string ReleaseNotesHtml { get; private set; }
         public Uri IconUrl { get; private set; }
         public string Language { get; private set; }
         public IEnumerable<string> Tags { get; private set; } = Enumerable.Empty<string>();
@@ -204,6 +205,9 @@ namespace Squirrel.NuGet
                 break;
             case "runtimeDependencies":
                 RuntimeDependencies = getCommaDelimitedValue(value);
+                break;
+            case "releaseNotesHtml":
+                ReleaseNotesHtml = value;
                 break;
             }
         }

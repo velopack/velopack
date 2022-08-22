@@ -172,7 +172,6 @@ namespace Squirrel.CommandLine
             var doc = new XmlDocument();
             doc.Load(specPath);
 
-            // XXX: This code looks full tart
             var metadata = doc.DocumentElement.ChildNodes
                 .OfType<XmlElement>()
                 .First(x => x.Name.ToLowerInvariant() == "metadata");
@@ -181,13 +180,15 @@ namespace Squirrel.CommandLine
                 .OfType<XmlElement>()
                 .FirstOrDefault(x => x.Name.ToLowerInvariant() == "releasenotes");
 
-            if (releaseNotes == null) {
+            if (releaseNotes == null || String.IsNullOrWhiteSpace(releaseNotes.InnerText)) {
                 this.Log().Info("No release notes found in {0}", specPath);
                 return;
             }
 
-            releaseNotes.InnerText = String.Format("<![CDATA[\n" + "{0}\n" + "]]>",
+            var releaseNotesHtml = doc.CreateElement("releaseNotesHtml");
+            releaseNotesHtml.InnerText = String.Format("<![CDATA[\n" + "{0}\n" + "]]>",
                 releaseNotesProcessor(releaseNotes.InnerText));
+            metadata.AppendChild(releaseNotesHtml);
 
             doc.Save(specPath);
         }

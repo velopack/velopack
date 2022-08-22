@@ -97,7 +97,7 @@ namespace Squirrel.CommandLine.Sync
             Log.Info($"Preparing to upload latest local release to GitHub");
 
             var newReleaseReq = new NewRelease(semVer.ToString()) {
-                Body = "", // ver.GetReleaseNotes(releaseDirectoryInfo.FullName),
+                Body = ver.GetReleaseNotes(releaseDirectoryInfo.FullName, ReleaseNotesFormat.Markdown),
                 Draft = true,
                 Prerelease = semVer.HasMetadata || semVer.IsPrerelease,
                 Name = string.IsNullOrWhiteSpace(_options.releaseName)

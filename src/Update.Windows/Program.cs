@@ -339,8 +339,7 @@ namespace Squirrel.Update
             using var mgr = new UpdateManager(updateUrl);
             var updateInfo = await mgr.CheckForUpdate(intention: UpdaterIntention.Update, progress: x => Console.WriteLine(x / 3));
             await mgr.DownloadReleases(updateInfo.ReleasesToApply, x => Console.WriteLine(33 + x / 3));
-
-            var releaseNotes = updateInfo.FetchReleaseNotes();
+            var releaseNotes = updateInfo.FetchReleaseNotes(ReleaseNotesFormat.Html);
 
             var sanitizedUpdateInfo = new {
                 currentVersion = updateInfo.LatestLocalReleaseEntry.Version.ToString(),
@@ -359,7 +358,7 @@ namespace Squirrel.Update
             Log.Info("Fetching update information, downloading from " + updateUrl);
             using var mgr = new UpdateManager(updateUrl);
             var updateInfo = await mgr.CheckForUpdate(intention: UpdaterIntention.Update, progress: x => Console.WriteLine(x));
-            var releaseNotes = updateInfo.FetchReleaseNotes();
+            var releaseNotes = updateInfo.FetchReleaseNotes(ReleaseNotesFormat.Html);
 
             var sanitizedUpdateInfo = new {
                 currentVersion = updateInfo.LatestLocalReleaseEntry.Version.ToString(),

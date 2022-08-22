@@ -15,6 +15,17 @@ using NuGet.Versioning;
 namespace Squirrel
 {
     /// <summary>
+    /// Describes the requested release notes text format.
+    /// </summary>
+    public enum ReleaseNotesFormat
+    {
+        /// <summary> The original markdown release notes. </summary>
+        Markdown = 0,
+        /// <summary> Release notes translated into HTML. </summary>
+        Html = 1,
+    }
+    
+    /// <summary>
     /// Represents a Squirrel release, as described in a RELEASES file - usually also with an 
     /// accompanying package containing the files needed to apply the release.
     /// </summary>
@@ -51,7 +62,7 @@ namespace Squirrel
         /// Given a local directory containing a package corresponding to this release, returns the 
         /// correspoding release notes from within the package.
         /// </summary>
-        string GetReleaseNotes(string packageDirectory);
+        string GetReleaseNotes(string packageDirectory, ReleaseNotesFormat format);
 
         /// <summary>
         /// Given a local directory containing a package corresponding to this release, 
@@ -118,15 +129,14 @@ namespace Squirrel
         public string PackageName { get; }
 
         /// <inheritdoc />
-        public string GetReleaseNotes(string packageDirectory)
+        public string GetReleaseNotes(string packageDirectory, ReleaseNotesFormat format)
         {
             var zp = new ZipPackage(Path.Combine(packageDirectory, Filename));
-
-            if (String.IsNullOrWhiteSpace(zp.ReleaseNotes)) {
-                throw new Exception(String.Format("Invalid 'ReleaseNotes' value in nuspec file at '{0}'", Path.Combine(packageDirectory, Filename)));
-            }
-
-            return zp.ReleaseNotes;
+            return format switch {
+                ReleaseNotesFormat.Markdown => zp.ReleaseNotes,
+                ReleaseNotesFormat.Html => zp.ReleaseNotesHtml,
+                _ => null,
+            };
         }
 
         /// <inheritdoc />

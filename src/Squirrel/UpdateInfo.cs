@@ -54,12 +54,12 @@ namespace Squirrel
         /// <summary>
         /// Retrieves all the release notes for pending packages (ie. <see cref="ReleasesToApply"/>)
         /// </summary>
-        public Dictionary<ReleaseEntry, string> FetchReleaseNotes()
+        public Dictionary<ReleaseEntry, string> FetchReleaseNotes(ReleaseNotesFormat format)
         {
             return ReleasesToApply
                 .SelectMany(x => {
                     try {
-                        var releaseNotes = x.GetReleaseNotes(PackageDirectory);
+                        var releaseNotes = x.GetReleaseNotes(PackageDirectory, format);
                         return EnumerableExtensions.Return(Tuple.Create(x, releaseNotes));
                     } catch (Exception ex) {
                         this.Log().WarnException("Couldn't get release notes for:" + x.Filename, ex);

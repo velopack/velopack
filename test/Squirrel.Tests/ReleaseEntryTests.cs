@@ -154,21 +154,12 @@ namespace Squirrel.Tests
             }
         }
 
-
         [Fact]
         public void CanParseGeneratedReleaseEntryAsString()
         {
             var path = IntegrationTestHelper.GetPath("fixtures", "Squirrel.Core.1.1.0.0.nupkg");
             var entryAsString = ReleaseEntry.GenerateFromFile(path).EntryAsString;
             ReleaseEntry.ParseReleaseEntry(entryAsString);
-        }
-
-        [Fact]
-        public void InvalidReleaseNotesThrowsException()
-        {
-            var path = IntegrationTestHelper.GetPath("fixtures", "Squirrel.Core.1.0.0.0.nupkg");
-            var fixture = ReleaseEntry.GenerateFromFile(path);
-            Assert.Throws<Exception>(() => fixture.GetReleaseNotes(IntegrationTestHelper.GetPath("fixtures")));
         }
 
         [Fact]
