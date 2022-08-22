@@ -131,14 +131,12 @@ namespace Squirrel.Tests
                     BindingFlags.NonPublic | BindingFlags.Instance);
                 renderMinfo.Invoke(fixture, new object[] { targetFile, processor });
 
-                var doc = XDocument.Load(targetFile);
-                XNamespace ns = "http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd";
-                var relNotesElement = doc.Descendants(ns + "releaseNotes").First();
-                var htmlText = relNotesElement.Value;
-
-                this.Log().Info("HTML Text:\n{0}", htmlText);
-
-                htmlText.Contains("## Release Notes").ShouldBeFalse();
+                var mani = NuspecManifest.ParseFromFile(targetFile);
+                this.Log().Info("HTML Text:\n{0}", mani.ReleaseNotesHtml);
+                
+                mani.ReleaseNotes.Contains("## Release Notes").ShouldBeTrue();
+                mani.ReleaseNotesHtml.Contains("## Release Notes").ShouldBeFalse();
+                mani.ReleaseNotesHtml.Contains("<h2>Release Notes").ShouldBeTrue();
             } finally {
                 File.Delete(targetFile);
             }
