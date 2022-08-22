@@ -29,6 +29,10 @@ namespace Squirrel.Update
         [STAThread]
         public static int Main(string[] args)
         {
+            // if Update.exe is double clicked from explorer, we do not want to attach a console etc.
+            if (args.Length == 0)
+                return -1;
+            
             try {
                 return main(args);
             } catch (Exception ex) {
