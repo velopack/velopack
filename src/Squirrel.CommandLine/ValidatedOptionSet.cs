@@ -105,12 +105,13 @@ namespace Squirrel.CommandLine
                     throw new OptionValidationException(propertyName, "Must start with http or https and be a valid URI.");
         }
 
-        protected virtual int ParseIntArg(string propertyName, string propertyValue)
+        protected virtual int ParseIntArg(string propertyName, string v, int min = Int32.MinValue, int max = Int32.MaxValue)
         {
-            if (int.TryParse(propertyValue, out var value))
-                return value;
+            if (!int.TryParse(v, out var i) || i < min || i > max) {
+                throw new OptionValidationException(propertyName, $"Must be an integer between {min} and {max}.");
+            }
 
-            throw new OptionValidationException(propertyName, "Must be a valid integer.");
+            return i;
         }
 
         public abstract void Validate();

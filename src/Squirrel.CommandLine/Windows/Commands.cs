@@ -75,9 +75,6 @@ namespace Squirrel.CommandLine.Windows
             if (!DotnetUtil.IsSingleFileBundle(updatePath))
                 throw new InvalidOperationException("Update.exe is corrupt. Broken Squirrel install?");
 
-            // Sign Update.exe so that virus scanners don't think we're pulling one over on them
-            options.SignPEFile(updatePath);
-
             // copy input package to target output directory
             File.Copy(package, Path.Combine(targetDir.FullName, Path.GetFileName(package)), true);
 
@@ -174,20 +171,25 @@ namespace Squirrel.CommandLine.Windows
                     var exesToCreateStubFor = new DirectoryInfo(pkgPath).GetAllFilesRecursively()
                         .Where(x => x.Name.EndsWith(".exe", StringComparison.InvariantCultureIgnoreCase))
                         .Where(x => !x.Name.Equals("squirrel.exe", StringComparison.InvariantCultureIgnoreCase))
+                        .Where(x => !x.Name.Equals("createdump.exe", StringComparison.InvariantCultureIgnoreCase))
                         .Where(x => Utility.IsFileTopLevelInPackage(x.FullName, pkgPath))
                         .ToArray(); // materialize the IEnumerable so we never end up creating stubs for stubs
 
                     Log.Info($"Creating {exesToCreateStubFor.Length} stub executables");
                     exesToCreateStubFor.ForEach(x => createExecutableStubForExe(x.FullName));
 
-                    // sign all exe's in this package
-                    new DirectoryInfo(pkgPath).GetAllFilesRecursively()
-                        .Where(x => Utility.FileIsLikelyPEImage(x.Name))
-                        .ForEachAsync(x => options.SignPEFile(x.FullName))
-                        .Wait();
-
                     // copy Update.exe into package, so it can also be updated in both full/delta packages
+                    // and do it before signing so that Update.exe will also be signed. It is renamed to
+                    // 'Squirrel.exe' only because Squirrel.Windows expects it to be called this.
                     File.Copy(updatePath, Path.Combine(libDir, "Squirrel.exe"), true);
+                    
+                    // sign all exe's in this package
+                    var filesToSign = new DirectoryInfo(libDir).GetAllFilesRecursively()
+                        .Where(x => options.signSkipDll ? Utility.PathPartEndsWith(x.Name, ".exe") : Utility.FileIsLikelyPEImage(x.Name))
+                        .Select(x => x.FullName)
+                        .ToArray();
+                    
+                    options.SignFiles(libDir, filesToSign);
 
                     // copy app icon to 'lib/fx/app.ico'
                     var iconTarget = Path.Combine(libDir, "app.ico");
@@ -261,8 +263,9 @@ namespace Squirrel.CommandLine.Windows
             Log.Info($"Creating Setup bundle");
             var bundleOffset = SetupBundle.CreatePackageBundle(targetSetupExe, newestReleasePath);
             Log.Info("Bundle package offset is " + bundleOffset);
-            options.SignPEFile(targetSetupExe);
 
+            List<string> setupFilesToSign = new() { targetSetupExe };
+            
             Log.Info($"Setup bundle created at '{targetSetupExe}'.");
 
             // this option is used for debugging a local Setup.exe
@@ -275,11 +278,13 @@ namespace Squirrel.CommandLine.Windows
                 if (SquirrelRuntimeInfo.IsWindows) {
                     bool x64 = options.msi.Equals("x64");
                     var msiPath = createMsiPackage(targetSetupExe, bundledzp, x64);
-                    options.SignPEFile(msiPath);                    
+                    setupFilesToSign.Add(msiPath);
                 } else {
                     Log.Warn("Unable to create MSI (only supported on windows).");
                 }
             }
+            
+            options.SignFiles(targetDir.FullName, setupFilesToSign.ToArray());                    
 
             Log.Info("Done");
         }

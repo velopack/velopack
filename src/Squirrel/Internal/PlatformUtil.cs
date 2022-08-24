@@ -435,14 +435,16 @@ namespace Squirrel
         {
             var psi = CreateProcessStartInfo(fileName, workingDirectory);
 
-            string displayArgs;
+            string displayArgs = "";
 
+            if (args != null) {
 #if NET5_0_OR_GREATER
-            foreach (var a in args) psi.ArgumentList.Add(a);
-            displayArgs = $"['{String.Join("', '", args)}']";
+                foreach (var a in args) psi.ArgumentList.Add(a);
+                displayArgs = $"['{String.Join("', '", args)}']";
 #else
-            psi.Arguments = displayArgs = SquirrelRuntimeInfo.IsWindows ? ArgsToCommandLine(args) : ArgsToCommandLineUnix(args);
+                psi.Arguments = displayArgs = SquirrelRuntimeInfo.IsWindows ? ArgsToCommandLine(args) : ArgsToCommandLineUnix(args);
 #endif
+            }
 
             return (psi, fileName + " " + displayArgs);
         }

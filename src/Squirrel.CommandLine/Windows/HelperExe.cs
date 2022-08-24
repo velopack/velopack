@@ -14,8 +14,10 @@ namespace Squirrel.CommandLine.Windows
     internal class HelperExe : HelperFile
     {
         public static string SetupPath => FindHelperFile("Setup.exe");
+
         public static string UpdatePath
             => FindHelperFile("Update.exe", p => Microsoft.NET.HostModel.AppHost.HostWriter.IsBundle(p, out var _));
+
         public static string StubExecutablePath => FindHelperFile("StubExecutable.exe");
 
         // private so we don't expose paths to internal tools. these should be exposed as a helper function
@@ -48,46 +50,73 @@ namespace Squirrel.CommandLine.Windows
         }
 
         [SupportedOSPlatform("windows")]
-        public static void SignPEFilesWithSignTool(string filePath, string signArguments)
+        public static void SignPEFilesWithSignTool(string rootDir, string[] filePaths, string signArguments, int parallelism)
         {
-            if (CheckIsAlreadySigned(filePath)) return;
+            Queue<string> pendingSign = new Queue<string>();
 
-            List<string> args = new List<string>();
-            args.Add("sign");
-            args.AddRange(PlatformUtil.CommandLineToArgvW(signArguments));
-            args.Add(filePath);
-
-            var result = PlatformUtil.InvokeProcess(SignToolPath, args, null, CancellationToken.None);
-            if (result.ExitCode != 0) {
-                var cmdWithPasswordHidden = new Regex(@"\/p\s+?[^\s]+").Replace(result.Command, "/p ********");
-                throw new Exception(
-                    $"Command failed:\n{cmdWithPasswordHidden}\n\n" +
-                    $"Output was:\n" + result.StdOutput);
-            } else {
-                Log.Info("Sign successful: " + result.StdOutput);
+            foreach (var f in filePaths) {
+                if (!CheckIsAlreadySigned(f)) {
+                    // try to find the path relative to rootDir
+                    if (String.IsNullOrEmpty(rootDir)) {
+                        pendingSign.Enqueue(f);
+                    } else {
+                        var partialPath = Utility.NormalizePath(f).Substring(Utility.NormalizePath(rootDir).Length).Trim('/', '\\');
+                        pendingSign.Enqueue(partialPath);
+                    }
+                } else {
+                    Log.Debug($"'{f}' is already signed, and will not be signed again.");
+                }
             }
+
+            if (filePaths.Length != pendingSign.Count) {
+                var diff = filePaths.Length - pendingSign.Count;
+                Log.Info($"{pendingSign.Count} files will be signed, {diff} will be skipped because they are already signed.");
+            }
+
+            var totalToSign = pendingSign.Count;
+            var baseSignArgs = PlatformUtil.CommandLineToArgvW(signArguments);
+
+            do {
+                List<string> args = new List<string>();
+                args.Add("sign");
+                args.AddRange(baseSignArgs);
+                for (int i = Math.Min(pendingSign.Count, parallelism); i > 0; i--) {
+                    args.Add(pendingSign.Dequeue());
+                }
+                
+                var result = PlatformUtil.InvokeProcess(SignToolPath, args, rootDir, CancellationToken.None);
+                if (result.ExitCode != 0) {
+                    var cmdWithPasswordHidden = new Regex(@"\/p\s+?[^\s]+").Replace(result.Command, "/p ********");
+                    Log.Debug($"Signing command failed: {cmdWithPasswordHidden}");
+                    throw new Exception(
+                        $"Signing command failed. Specify --verbose argument to print signing command.\n\n" +
+                        $"Output was:\n" + result.StdOutput);
+                }
+                
+                Log.Info($"Signed {totalToSign - pendingSign.Count}/{totalToSign} successfully.\r\n" + result.StdOutput);
+
+            } while (pendingSign.Count > 0);
         }
 
-        [SupportedOSPlatform("windows")]
-        public static void SignPEFilesWithTemplate(string filePath, string signTemplate)
+        public static void SignPEFileWithTemplate(string filePath, string signTemplate)
         {
-            if (CheckIsAlreadySigned(filePath)) return;
+            if (SquirrelRuntimeInfo.IsWindows && CheckIsAlreadySigned(filePath)) {
+                Log.Debug($"'{filePath}' is already signed, and will not be signed again.");
+                return;
+            }
 
             var command = signTemplate.Replace("\"{{file}}\"", "{{file}}").Replace("{{file}}", $"\"{filePath}\"");
-            var args = PlatformUtil.CommandLineToArgvW(command);
 
-            if (args.Length < 2)
-                throw new OptionValidationException("Invalid signing template");
-
-            var result = PlatformUtil.InvokeProcess(args[0], args.Skip(1), null, CancellationToken.None);
+            var result = PlatformUtil.InvokeProcess(command, null, null, CancellationToken.None);
             if (result.ExitCode != 0) {
                 var cmdWithPasswordHidden = new Regex(@"\/p\s+?[^\s]+").Replace(result.Command, "/p ********");
+                Log.Debug($"Signing command failed: {cmdWithPasswordHidden}");
                 throw new Exception(
-                    $"Command failed:\n{cmdWithPasswordHidden}\n\n" +
+                    $"Signing command failed. Specify --verbose argument to print signing command.\n\n" +
                     $"Output was:\n" + result.StdOutput);
-            } else {
-                Log.Info("Sign successful: " + result.StdOutput);
             }
+
+            Log.Info("Sign successful: " + result.StdOutput);
         }
 
         [SupportedOSPlatform("windows")]

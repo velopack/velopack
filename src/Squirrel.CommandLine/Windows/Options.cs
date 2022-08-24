@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.Versioning;
@@ -12,27 +12,43 @@ namespace Squirrel.CommandLine.Windows
     {
         public string signParams { get; private set; }
         public string signTemplate { get; private set; }
+        public bool signSkipDll { get; private set; }
+        public int signParallel { get; private set; } = 10;
 
         public SigningOptions()
         {
             if (SquirrelRuntimeInfo.IsWindows) {
-                Add("n=|signParams=", "Sign files via SignTool.exe using these {PARAMETERS}",
+                Add("n=|signParams=", "Sign files via signtool.exe using these {PARAMETERS}",
                     v => signParams = v);
-                Add("signTemplate=", "Use a custom signing {COMMAND}. '{{{{file}}}}' will be replaced by the path of the file to sign.",
-                    v => signTemplate = v);
+                Add("signSkipDll", "Only signs EXE files, and skips signing DLL files.", v => signSkipDll = true);
+                Add("signParallel=", "The number of files to sign in each call to signtool.exe",
+                    v => signParallel = ParseIntArg(nameof(signParallel), v, 1, 1000));
             }
+
+            Add("signTemplate=", "Use a custom signing {COMMAND}. '{{{{file}}}}' will be replaced by the path of the file to sign.", v => signTemplate = v);
         }
 
-        public void SignPEFile(string filePath)
+        public void SignFiles(string rootDir, params string[] filePaths)
         {
+            if (String.IsNullOrEmpty(signParams) && String.IsNullOrEmpty(signTemplate)) {
+                Log.Debug($"No signing paramaters provided, {filePaths.Length} file(s) will not be signed.");
+                return;
+            }
+
+            if (!String.IsNullOrEmpty(signTemplate)) {
+                Log.Info($"Preparing to sign {filePaths.Length} files with custom signing template");
+                foreach (var f in filePaths) {
+                    HelperExe.SignPEFileWithTemplate(f, signTemplate);
+                }
+                return;
+            }
+
+            // signtool.exe does not work if we're not on windows.
             if (!SquirrelRuntimeInfo.IsWindows) return;
-            
+
             if (!String.IsNullOrEmpty(signParams)) {
-                HelperExe.SignPEFilesWithSignTool(filePath, signParams);
-            } else if (!String.IsNullOrEmpty(signTemplate)) {
-                HelperExe.SignPEFilesWithTemplate(filePath, signTemplate);
-            } else {
-                Log.Debug($"No signing paramaters, file will not be signed: '{filePath}'.");
+                Log.Info($"Preparing to sign {filePaths.Length} files with embedded signtool.exe with parallelism of {signParallel}");
+                HelperExe.SignPEFilesWithSignTool(rootDir, filePaths, signParams, signParallel);
             }
         }
 
@@ -43,7 +59,8 @@ namespace Squirrel.CommandLine.Windows
             }
 
             if (!String.IsNullOrEmpty(signTemplate) && !signTemplate.Contains("{{file}}")) {
-                throw new OptionValidationException($"Argument 'signTemplate': Must contain '{{{{file}}}}' in template string (replaced with the file to sign). Current value is '{signTemplate}'");
+                throw new OptionValidationException(
+                    $"Argument 'signTemplate': Must contain '{{{{file}}}}' in template string (replaced with the file to sign). Current value is '{signTemplate}'");
             }
         }
     }
@@ -70,7 +87,7 @@ namespace Squirrel.CommandLine.Windows
             Add("addSearchPath=", "Add additional search directories when looking for helper exe's such as Setup.exe, Update.exe, etc",
                 HelperExe.AddSearchPath, true);
             Add("debugSetupExe=", "Uses the Setup.exe at this {PATH} to create the bundle, and then replaces it with the bundle. " +
-                "Used for locally debugging Setup.exe with a real bundle attached.", v => debugSetupExe = v, true);
+                                  "Used for locally debugging Setup.exe with a real bundle attached.", v => debugSetupExe = v, true);
 
             // public arguments
             InsertAt(1, "p=|package=", "{PATH} to a '.nupkg' package to releasify", v => package = v);
@@ -128,7 +145,10 @@ namespace Squirrel.CommandLine.Windows
 
             // hidden arguments
             Add("packName=", "The name of the package to create",
-                v => { packId = v; Log.Warn("--packName is deprecated. Use --packId instead."); }, true);
+                v => {
+                    packId = v;
+                    Log.Warn("--packName is deprecated. Use --packId instead.");
+                }, true);
             Add("packDirectory=", "", v => packDirectory = v, true);
 
             // public arguments, with indexes so they appear before ReleasifyOptions
