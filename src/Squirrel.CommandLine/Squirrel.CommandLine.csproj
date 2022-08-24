@@ -5,7 +5,7 @@
     <OutputType>Exe</OutputType>
     <UseAppHost>false</UseAppHost>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <NoWarn>$(NoWarn);CA2007</NoWarn>
+    <NoWarn>$(NoWarn);CA2007;CS8002</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
