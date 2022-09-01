@@ -1,12 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.CommandLine;
+using System.CommandLine.Invocation;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 using Microsoft.Build.Construction;
-using Mono.Options;
 using Squirrel.CommandLine;
 using LogLevel = Squirrel.SimpleSplat.LogLevel;
 
@@ -18,31 +21,39 @@ namespace Squirrel.Tool
 
         private static ConsoleLogger _logger;
 
-        static int Main(string[] inargs)
+        private static Option<string> CsqVersion { get; } 
+            = new Option<string>("--csq-version");
+        private static Option<FileInfo> CsqSolutionPath { get; } 
+            = new Option<FileInfo>(new[] { "--csq-sln", "--csq-solution" }).ExistingOnly();
+        private static Option<bool> Verbose { get; }
+            = new Option<bool>("--verbose");
+
+        static Task<int> Main(string[] inargs)
         {
             _logger = ConsoleLogger.RegisterLogger();
-            try {
-                return MainInner(inargs);
-            } catch (Exception ex) {
-                Console.WriteLine("csq error: " + ex.Message);
-                return -1;
-            }
+
+            RootCommand rootCommand = new RootCommand() {
+                CsqVersion,
+                CsqSolutionPath,
+                Verbose
+            };
+            rootCommand.TreatUnmatchedTokensAsErrors = false;
+
+            rootCommand.SetHandler(MainInner);
+            return rootCommand.InvokeAsync(inargs);
         }
 
-        static int MainInner(string[] inargs)
+        static async Task MainInner(InvocationContext context)
         {
-            bool verbose = false;
-            string explicitSolutionPath = null;
-            string explicitSquirrelVersion = null;
-            var toolOptions = new OptionSet() {
-                { "csq-version=", v => explicitSquirrelVersion = v },
-                { "csq-sln=", v => explicitSolutionPath = v },
-                { "verbose", _ => verbose = true },
-            };
+            bool verbose = context.ParseResult.GetValueForOption(Verbose);
+            FileInfo explicitSolutionPath = context.ParseResult.GetValueForOption(CsqSolutionPath);
+            string explicitSquirrelVersion = context.ParseResult.GetValueForOption(CsqVersion);
 
             // we want to forward the --verbose argument to Squirrel, too.
-            var verboseArgs = verbose ? new string[] { "--verbose" } : new string[0];
-            string[] restArgs = toolOptions.Parse(inargs).Concat(verboseArgs).ToArray();
+            var verboseArgs = verbose ? new string[] { "--verbose" } : Array.Empty<string>();
+            string[] restArgs = context.ParseResult.UnmatchedTokens
+                .Concat(verboseArgs)
+                .ToArray();
 
             if (verbose) {
                 _logger.Level = LogLevel.Debug;
@@ -50,12 +61,13 @@ namespace Squirrel.Tool
 
             Console.WriteLine($"Squirrel Locator 'csq' {SquirrelRuntimeInfo.SquirrelDisplayVersion}");
             _logger.Write($"Entry EXE: {SquirrelRuntimeInfo.EntryExePath}", LogLevel.Debug);
+            CancellationToken cancellationToken = context.GetCancellationToken();
 
-            CheckForUpdates();
+            await CheckForUpdates(cancellationToken).ConfigureAwait(false);
 
-            var solutionDir = FindSolutionDirectory(explicitSolutionPath);
+            var solutionDir = FindSolutionDirectory(explicitSolutionPath?.FullName);
             var nugetPackagesDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
-            var cacheDir = Path.GetFullPath(solutionDir == null ? ".squirrel" : Path.Combine(solutionDir, ".squirrel"));
+            var cacheDir = Path.GetFullPath(solutionDir is null ? ".squirrel" : Path.Combine(solutionDir, ".squirrel"));
 
             Dictionary<string, string> packageSearchPaths = new();
             packageSearchPaths.Add("nuget user profile cache", Path.Combine(nugetPackagesDir, CLOWD_PACKAGE_NAME.ToLower(), "{0}", "tools"));
@@ -63,7 +75,7 @@ namespace Squirrel.Tool
                 packageSearchPaths.Add("visual studio packages cache", Path.Combine(solutionDir, "packages", CLOWD_PACKAGE_NAME + ".{0}", "tools"));
             packageSearchPaths.Add("squirrel cache", Path.Combine(cacheDir, "{0}", "tools"));
 
-            int runSquirrel(string version)
+            async Task<int> runSquirrel(string version, CancellationToken cancellationToken)
             {
                 foreach (var kvp in packageSearchPaths) {
                     var path = String.Format(kvp.Value, version);
@@ -75,7 +87,7 @@ namespace Squirrel.Tool
 
                 // we did not find it locally on first pass, search for the package online
                 var dl = new NugetDownloader(_logger);
-                var package = dl.GetPackageMetadata(CLOWD_PACKAGE_NAME, version);
+                var package = await dl.GetPackageMetadata(CLOWD_PACKAGE_NAME, version, cancellationToken).ConfigureAwait(false);
 
                 // search one more time now that we've potentially resolved the nuget version
                 foreach (var kvp in packageSearchPaths) {
@@ -88,14 +100,15 @@ namespace Squirrel.Tool
 
                 // let's try to download it from NuGet.org
                 var versionDir = Path.Combine(cacheDir, package.Identity.Version.ToString());
-                if (!Directory.Exists(cacheDir)) Directory.CreateDirectory(cacheDir);
-                if (!Directory.Exists(versionDir)) Directory.CreateDirectory(versionDir);
+                Directory.CreateDirectory(cacheDir);
+                Directory.CreateDirectory(versionDir);
 
                 _logger.Write($"Downloading {package.Identity} from NuGet.", LogLevel.Info);
 
                 var filePath = Path.Combine(versionDir, package.Identity + ".nupkg");
-                using (var fs = File.Create(filePath))
-                    dl.DownloadPackageToStream(package, fs);
+                using (var fs = File.Create(filePath)) {
+                    await dl.DownloadPackageToStream(package, fs, cancellationToken).ConfigureAwait(false);
+                }
 
                 EasyZip.ExtractZipToDirectory(filePath, versionDir);
 
@@ -104,11 +117,12 @@ namespace Squirrel.Tool
             }
 
             if (explicitSquirrelVersion != null) {
-                return runSquirrel(explicitSquirrelVersion);
+                context.ExitCode = await runSquirrel(explicitSquirrelVersion, cancellationToken).ConfigureAwait(false);
+                return;
             }
 
-            if (solutionDir == null) {
-                throw new Exception("Could not find '.sln'. Specify solution with '--csq-sln=', or specify version of squirrel to use with '--csq-version='.");
+            if (solutionDir is null) {
+                throw new Exception($"Could not find '.sln'. Specify solution with '{CsqSolutionPath.Aliases.First()}=', or specify version of squirrel to use with '{CsqVersion.Aliases.First()}='.");
             }
 
             _logger.Write("Solution dir found at: " + solutionDir, LogLevel.Debug);
@@ -117,28 +131,28 @@ namespace Squirrel.Tool
             var dependencies = GetPackageVersionsFromDir(solutionDir, CLOWD_PACKAGE_NAME).Distinct().ToArray();
 
             if (dependencies.Length == 0) {
-                throw new Exception("Clowd.Squirrel nuget package was not found installed in solution.");
+                throw new Exception($"{CLOWD_PACKAGE_NAME} nuget package was not found installed in solution.");
             }
 
             if (dependencies.Length > 1) {
-                throw new Exception($"Found multiple versions of Clowd.Squirrel installed in solution ({string.Join(", ", dependencies)}). " +
-                                    "Please consolidate the following to a single version, or specify the version to use with '--csq-version='");
+                throw new Exception($"Found multiple versions of {CLOWD_PACKAGE_NAME} installed in solution ({string.Join(", ", dependencies)}). " +
+                                    $"Please consolidate the following to a single version, or specify the version to use with '{CsqVersion.Aliases.First()}='");
             }
 
             var targetVersion = dependencies.Single();
 
-            return runSquirrel(targetVersion);
+            context.ExitCode = await runSquirrel(targetVersion, cancellationToken).ConfigureAwait(false);
         }
 
-        static void CheckForUpdates()
+        static async Task CheckForUpdates(CancellationToken cancellationToken)
         {
             try {
                 var myVer = SquirrelRuntimeInfo.SquirrelNugetVersion;
                 var dl = new NugetDownloader(_logger);
-                var package = dl.GetPackageMetadata("csq", (myVer.IsPrerelease || myVer.HasMetadata) ? "pre" : "latest");
+                var package = await dl.GetPackageMetadata("csq", (myVer.IsPrerelease || myVer.HasMetadata) ? "pre" : "latest", cancellationToken).ConfigureAwait(false);
                 if (package.Identity.Version > myVer)
                     _logger.Write($"There is a new version of csq available ({package.Identity.Version})", LogLevel.Warn);
-            } catch { ; }
+            } catch { }
         }
 
         static string FindSolutionDirectory(string slnArgument)
@@ -217,7 +231,7 @@ namespace Squirrel.Tool
 
                 _logger.Write($"{packageName} {ver.Value} referenced in {packagesFile}", LogLevel.Debug);
 
-                if (ver.Value.Contains("*"))
+                if (ver.Value.Contains('*'))
                     throw new Exception(
                         $"Wildcard versions are not supported in packages.config. Remove wildcard or upgrade csproj format to use PackageReference.");
 
@@ -228,7 +242,7 @@ namespace Squirrel.Tool
             foreach (var projFile in EnumerateFilesUntilSpecificDepth(rootDir, "*.csproj", 3)) {
                 var proj = ProjectRootElement.Open(projFile);
                 if (proj == null) continue;
-
+                
                 ProjectItemElement item = proj.Items.FirstOrDefault(i => i.ItemType == "PackageReference" && i.Include == packageName);
                 if (item == null) continue;
 
