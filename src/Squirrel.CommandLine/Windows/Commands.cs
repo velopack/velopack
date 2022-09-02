@@ -1,25 +1,103 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.CommandLine;
+using System.CommandLine.Invocation;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.Versioning;
-using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using NuGet.Versioning;
 using Squirrel.NuGet;
 using Squirrel.SimpleSplat;
 
 namespace Squirrel.CommandLine.Windows
 {
+    public interface ICommand
+    {
+        string HelpGroupName { get; }
+    }
+
+    enum Bitness
+    {
+        Unknown,
+        x86,
+        x64
+    }
+
+    class PackCommand : Command, ICommand
+    {
+        string ICommand.HelpGroupName => "Package Authoring";
+
+
+        public Option<DirectoryInfo> ReleaseDirectory { get; }
+        public Option<string> PackId { get; }
+        public Option<bool> IncludePdb { get; }
+        public Option<Bitness> BuildMsi { get; }
+
+
+        public PackCommand()
+            : base("pack", "Creates a Squirrel release from a folder containing application files")
+        {
+            ReleaseDirectory = new Option<DirectoryInfo>(new[] { "-r", "--releaseDir" }, "Output DIRECTORY for releasified packages") {
+                ArgumentHelpName = "DIRECTORY"
+            };
+            PackId = new Option<string>(new[] { "-u", "--packId" }, "Unique ID for release");
+            IncludePdb = new Option<bool>("--includePdb");
+            BuildMsi = new Option<Bitness>("--msi", "Compile a .msi machine-wide deployment tool with the specified BITNESS.");
+            BuildMsi.FromAmong("Foo", "Bar");
+            Add(ReleaseDirectory);
+            Add(PackId);
+            Add(IncludePdb);
+            Add(BuildMsi);
+
+            this.SetHandler(Execute);
+
+            /*
+            -v, --packVersion=VERSION       Current VERSION for release
+            -p, --packDir=DIRECTORY         DIRECTORY containing application files for release
+                --packTitle=NAME            Optional display/friendly NAME for release
+                --packAuthors=AUTHORS       Optional company or list of release AUTHORS
+                --releaseNotes=PATH         PATH to file with markdown notes for version
+            -n, --signParams=PARAMETERS     Sign files via signtool.exe using these PARAMETERS
+                --signSkipDll               Only signs EXE files, and skips signing DLL files.
+                --signParallel=VALUE        The number of files to sign in each call to signtool.exe
+                --signTemplate=COMMAND      Use a custom signing COMMAND. '{{file}}' will be
+                                              replaced by the path of the file to sign.
+                --noDelta                   Skip the generation of delta packages
+            -f, --framework=RUNTIMES        List of required RUNTIMES to install during setup
+                                              example: 'net6,vcredist143'
+            -s, --splashImage=PATH          PATH to image/gif displayed during installation
+            -i, --icon=PATH                 PATH to .ico for Setup.exe and Update.exe
+            -e, --mainExe=NAME              NAME of one or more SquirrelAware executables
+                --appIcon=PATH              PATH to .ico for 'Apps and Features' list
+             */
+        }
+
+        private void Execute(InvocationContext context)
+        {
+            //TODO: Fix option's naming and types
+            PackOptions packOptions = new PackOptions() {
+                releaseDir = context.ParseResult.GetValueForOption(ReleaseDirectory)?.FullName,
+                packId = context.ParseResult.GetValueForOption(PackId),
+                includePdb = context.ParseResult.GetValueForOption(IncludePdb),
+                msi = context.ParseResult.GetValueForOption(BuildMsi).ToString()
+            };
+            Commands.Pack(packOptions);
+        }
+    }
+
     class Commands : IEnableLogger
     {
         static IFullLogger Log => SquirrelLocator.Current.GetService<ILogManager>().GetLogger(typeof(Commands));
 
-        public static CommandSet GetCommands()
+        public static IEnumerable<Command> GetCommands()
+        {
+            yield return new PackCommand();
+        }
+
+        public static CommandSet GetCommands_old()
         {
             return new CommandSet {
                 "[ Package Authoring ]",
@@ -28,7 +106,7 @@ namespace Squirrel.CommandLine.Windows
             };
         }
 
-        static void Pack(PackOptions options)
+        public static void Pack(PackOptions options)
         {
             using (Utility.GetTempDirectory(out var tmp)) {
                 var nupkgPath = NugetConsole.CreatePackageFromMetadata(

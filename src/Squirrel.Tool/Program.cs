@@ -59,7 +59,7 @@ namespace Squirrel.Tool
                 _logger.Level = LogLevel.Debug;
             }
 
-            Console.WriteLine($"Squirrel Locator 'csq' {SquirrelRuntimeInfo.SquirrelDisplayVersion}");
+            context.Console.WriteLine($"Squirrel Locator 'csq' {SquirrelRuntimeInfo.SquirrelDisplayVersion}");
             _logger.Write($"Entry EXE: {SquirrelRuntimeInfo.EntryExePath}", LogLevel.Debug);
             CancellationToken cancellationToken = context.GetCancellationToken();
 

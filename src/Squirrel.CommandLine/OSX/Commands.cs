@@ -1,14 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.CommandLine;
 using System.IO;
-using System.Linq;
-using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
-using Microsoft.NET.HostModel.AppHost;
 using NuGet.Versioning;
-using Squirrel.NuGet;
-using Squirrel.PropertyList;
 using Squirrel.SimpleSplat;
 
 namespace Squirrel.CommandLine.OSX
@@ -17,7 +13,12 @@ namespace Squirrel.CommandLine.OSX
     {
         static IFullLogger Log => SquirrelLocator.Current.GetService<ILogManager>().GetLogger(typeof(Commands));
 
-        public static CommandSet GetCommands()
+        public static IEnumerable<Command> GetCommands()
+        {
+            yield break;
+        }
+
+        public static CommandSet GetCommands_old()
         {
             return new CommandSet {
                 "[ Package Authoring ]",

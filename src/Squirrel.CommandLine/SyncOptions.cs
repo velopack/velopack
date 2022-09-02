@@ -5,7 +5,7 @@ namespace Squirrel.CommandLine
 {
     internal abstract class BaseOptions : ValidatedOptionSet
     {
-        protected string releaseDir { get; private set; }
+        public string releaseDir { get; set; }
 
         protected static IFullLogger Log = SquirrelLocator.CurrentMutable.GetService<ILogManager>().GetLogger(typeof(BaseOptions));
 

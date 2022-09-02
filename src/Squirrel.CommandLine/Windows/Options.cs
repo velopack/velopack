@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.Versioning;
@@ -68,14 +68,14 @@ namespace Squirrel.CommandLine.Windows
     internal class ReleasifyOptions : SigningOptions
     {
         public string package { get; set; }
-        public string baseUrl { get; private set; }
-        public string framework { get; private set; }
-        public string splashImage { get; private set; }
-        public string icon { get; private set; }
-        public string appIcon { get; private set; }
-        public bool noDelta { get; private set; }
-        public string msi { get; private set; }
-        public string debugSetupExe { get; private set; }
+        public string baseUrl { get; set; }
+        public string framework { get; set; }
+        public string splashImage { get; set; }
+        public string icon { get; set; }
+        public string appIcon { get; set; }
+        public bool noDelta { get; set; }
+        public string msi { get; set; }
+        public string debugSetupExe { get; set; }
         public string[] mainExes => _mainExes.ToArray();
 
         private List<string> _mainExes = new();
@@ -129,13 +129,13 @@ namespace Squirrel.CommandLine.Windows
 
     internal class PackOptions : ReleasifyOptions
     {
-        public string packId { get; private set; }
-        public string packTitle { get; private set; }
-        public string packVersion { get; private set; }
-        public string packAuthors { get; private set; }
-        public string packDirectory { get; private set; }
-        public bool includePdb { get; private set; }
-        public string releaseNotes { get; private set; }
+        public string packId { get; set; }
+        public string packTitle { get; set; }
+        public string packVersion { get; set; }
+        public string packAuthors { get; set; }
+        public string packDirectory { get; set; }
+        public bool includePdb { get; set; }
+        public string releaseNotes { get; set; }
 
         public PackOptions()
         {
