@@ -128,3 +128,31 @@ void simple_zip::extract_updater_to_file(std::wstring filePath)
         throwLastMzError(&zip_archive, L"Unable to extract updater from archive.");
     }
 }
+
+std::wstring simple_zip::get_machine_architecture()
+{
+    if (has_manifest) {
+        auto select = manifest.select_node(L"//machineArchitecture/text()");
+        if (select != nullptr) {
+            auto node = select.node();
+            if (node != nullptr) {
+                return node.value();
+            }
+        }
+    }
+    return L"";
+}
+
+std::wstring simple_zip::get_minimum_windows_version()
+{
+    if (has_manifest) {
+        auto select = manifest.select_node(L"//minimumWindowsVersion/text()");
+        if (select != nullptr) {
+            auto node = select.node();
+            if (node != nullptr) {
+                return node.value();
+            }
+        }
+    }
+    return L"";
+}

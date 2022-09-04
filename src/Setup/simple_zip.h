@@ -18,15 +18,17 @@ private:
     void load_manifest();
     const mz_zip_archive_file_stat* find_zip_entry(std::string endsWith);
     FILE* init_file;
+    bool has_manifest;
 
 public:
-    bool has_manifest;
     int64_t uncompressed_size;
     int64_t compressed_size;
     simple_zip(void* zipBuf, size_t cZipBuf);
     simple_zip(std::wstring filePath);
     ~simple_zip();
     void extract_updater_to_file(std::wstring filePath);
+    std::wstring get_machine_architecture();
+    std::wstring get_minimum_windows_version();
 
 };
 

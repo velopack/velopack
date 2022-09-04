@@ -46,13 +46,26 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 #endif
 
         if (!zip) {
-            throw wstring(L"The embedded package containing the application to install was not found. Please contact the application author.");
+            throw wstring(L"The embedded package containing the application to install was not found. Please contact the application distributor.");
         }
 
         // do we have enough disk space?
         int64_t requiredSpace = (50 * 1000 * 1000) + (zip->compressed_size * 2) + zip->uncompressed_size; // archive + squirrel overhead
         if (!util::check_diskspace(requiredSpace)) {
             throw wstring(L"Insufficient disk space. This application requires at least " + util::pretty_bytes(requiredSpace) + L" free space to be installed.");
+        }
+
+        // does this app support this OS?
+        auto minVer = zip->get_minimum_windows_version();
+        if (!minVer.empty() && !util::is_os_version_or_greater(minVer)) {
+            throw wstring(L"This application requires Windows " + minVer + L" or later and cannot be installed.");
+        }
+
+        // does this app support this CPU architecture?
+        auto arch = zip->get_machine_architecture();
+        if (!arch.empty() && !util::is_cpu_architecture_supported(arch)) {
+            throw wstring(L"This application can only be installed on a " + arch
+                + L" CPU architecture. You can check with the appplication distributor to see if they provide a version which is compatible with your computer");
         }
 
         // run installer and forward our command line arguments
@@ -64,7 +77,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
         util::show_error_dialog(L"An error occurred while running setup. " + wsx);
     }
     catch (...) {
-        util::show_error_dialog(L"An unknown error occurred while running setup. Please contact the application author.");
+        util::show_error_dialog(L"An unknown error occurred while running setup. Please contact the application distributor.");
     }
 
     // clean-up resources

@@ -1,5 +1,6 @@
 #include "platform_util.h"
 #include <Windows.h>
+#include <VersionHelpers.h>
 #include <ShlObj_core.h>
 #include <tchar.h>
 #include <string>
@@ -200,4 +201,84 @@ wstring util::pretty_bytes(uint64_t bytes)
         swprintf(buf, 128, L"%.1f %s", count, suffixes[s]);
 
     return wstring(buf);
+}
+
+bool util::is_os_version_or_greater(std::wstring version)
+{
+    int major = -1, minor = -1, build = -1;
+    swscanf_s(version.c_str(), L"%d.%d.%d", &major, &minor, &build);
+
+    if (major < 8) {
+        return IsWindows7SP1OrGreater();
+    }
+
+    if (major == 8) {
+        return minor >= 1 ? IsWindows8Point1OrGreater() : IsWindows8OrGreater();
+    }
+
+    // https://en.wikipedia.org/wiki/List_of_Microsoft_Windows_versions
+    if (major == 11 && build < 22000) {
+        build = 22000;
+    }
+
+    if (build < 0) {
+        return IsWindows10OrGreater();
+    }
+
+    DWORDLONG mask = 0;
+    mask = VerSetConditionMask(mask, VER_MAJORVERSION, VER_GREATER_EQUAL);
+    mask = VerSetConditionMask(mask, VER_BUILDNUMBER, VER_GREATER_EQUAL);
+
+    OSVERSIONINFOEXW osvi = { sizeof(osvi), 0, 0, 0, 0, {0}, 0, 0 };
+    osvi.dwMajorVersion = 10;
+    osvi.dwBuildNumber = build;
+
+    return VerifyVersionInfoW(&osvi, VER_MAJORVERSION | VER_BUILDNUMBER, mask) != FALSE;
+}
+
+typedef BOOL(WINAPI* LPFN_ISWOW64PROCESS2) (HANDLE, PUSHORT, PUSHORT);
+
+wstring get_current_cpu_architecture()
+{
+    auto proc = GetCurrentProcess();
+
+    USHORT process, machine;
+    LPFN_ISWOW64PROCESS2 fnIsWow64Process2 = (LPFN_ISWOW64PROCESS2)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "IsWow64Process2");
+    if (fnIsWow64Process2 && fnIsWow64Process2(proc, &process, &machine)) {
+        if (machine == IMAGE_FILE_MACHINE_ARM64) {
+            return L"arm64";
+        }
+
+        if (machine == IMAGE_FILE_MACHINE_AMD64) {
+            return L"x64";
+        }
+
+        if (machine == IMAGE_FILE_MACHINE_I386) {
+            return L"x86";
+        }
+
+        return L"";
+    }
+
+    BOOL isWow64;
+    if (IsWow64Process(proc, &isWow64) && isWow64) {
+        return L"x64";
+    }
+
+    return L"x86";
+}
+
+bool util::is_cpu_architecture_supported(std::wstring architecture)
+{
+    auto machine = get_current_cpu_architecture();
+    bool isWin11 = is_os_version_or_greater(L"11");
+
+    if (machine.empty() || architecture.empty()) return true;
+
+    if (machine == L"x86") return architecture == L"x86";
+    if (machine == L"x64") return architecture == L"x86" || architecture == L"x64";
+    if (machine == L"arm64") return architecture == L"x86" || (architecture == L"x64" && isWin11) || architecture == L"arm64";
+
+    // if we don't recognize the 'machine' architecture, just ignore this check.
+    return true;
 }

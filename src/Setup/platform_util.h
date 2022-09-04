@@ -13,6 +13,8 @@ namespace util
     uint8_t* mmap_read(const std::wstring& filePath, size_t* length);
     bool munmap(uint8_t* addr);
     std::wstring pretty_bytes(uint64_t bytes);
+    bool is_os_version_or_greater(std::wstring version);
+    bool is_cpu_architecture_supported(std::wstring architecture);
 }
 
 #endif // __PLATFORM_UTIL_H__
