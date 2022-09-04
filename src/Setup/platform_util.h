@@ -12,7 +12,6 @@ namespace util
     void show_error_dialog(std::wstring msg);
     uint8_t* mmap_read(const std::wstring& filePath, size_t* length);
     bool munmap(uint8_t* addr);
-    void extractUpdateExe(void* zipBuf, size_t cZipBuf, std::wstring fileLocation);
     std::wstring pretty_bytes(uint64_t bytes);
 }
 

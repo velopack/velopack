@@ -4,6 +4,7 @@
 #include <string>
 #include <fstream>
 #include "bundle_marker.h"
+#include "simple_zip.h"
 #include "platform_util.h"
 
 using namespace std;
@@ -15,8 +16,9 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
     SetDllDirectory(L"");
     SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32);
 
+    // squirrel supports Win7 with ESU Y3, but we can't detect ESU easily.
     if (!IsWindows7SP1OrGreater()) {
-        util::show_error_dialog(L"This application requires Windows 7 SP1 or later and cannot be installed on this computer.");
+        util::show_error_dialog(L"This installer requires Windows 7 SP1 or later and cannot run.");
         return 0;
     }
 
@@ -49,7 +51,8 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
         }
 
         // extract Update.exe and embedded nuget package
-        util::extractUpdateExe(pkgStart, (size_t)packageLength, updaterPath);
+        simple_zip zip(pkgStart, (size_t)packageLength);
+        zip.extract_updater_to_file(updaterPath);
 
         // run installer and forward our command line arguments
         wstring cmd = L"\"" + updaterPath + L"\" --setup \"" + myPath + L"\" --setupOffset " + to_wstring(packageOffset) + L" " + pCmdLine;

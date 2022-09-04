@@ -7,7 +7,7 @@
 
 using namespace std;
 
-void throwLastWin32Error(wstring addedInfo)
+void throw_last_win32_error(wstring addedInfo)
 {
     HRESULT hr = GetLastError();
     if (hr == 0) return;
@@ -29,7 +29,7 @@ void throwLastWin32Error(wstring addedInfo)
     else throw wstring(addedInfo + L" " + message);
 }
 
-wstring getProcessPath()
+wstring get_process_path()
 {
     wchar_t ourFile[MAX_PATH];
     HMODULE hMod = GetModuleHandle(NULL);
@@ -48,7 +48,7 @@ void wexec(const wchar_t* cmd)
 
     PROCESS_INFORMATION pi = { 0 };
     if (!CreateProcess(NULL, szCmdline, NULL, NULL, false, 0, NULL, NULL, &si, &pi)) {
-        throwLastWin32Error(L"Unable to start process.");
+        throw_last_win32_error(L"Unable to start process.");
     }
 
     CloseHandle(pi.hProcess);
@@ -56,7 +56,7 @@ void wexec(const wchar_t* cmd)
 }
 
 vector<wchar_t> commandChars{ L' ', L'"', L'\n', L'\t', L'\v' };
-wstring argsToCommandLine(const vector<wstring>& args)
+wstring args_to_command_line(const vector<wstring>& args)
 {
     wstringstream ss;
     for (unsigned int i = 0; i < args.size(); i++) {
@@ -117,7 +117,7 @@ bool replace(std::wstring& str, const std::wstring& from, const std::wstring& to
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
     try {
-        wstring myexepath = getProcessPath();
+        wstring myexepath = get_process_path();
         wstring arguments(lpCmdLine);
         bool dryRun = replace(arguments, L"--stub-dry-run", L"");
 
@@ -144,7 +144,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             nargs.push_back(arguments);
         }
 
-        wstring cmd = argsToCommandLine(nargs);
+        wstring cmd = args_to_command_line(nargs);
 
         if (dryRun) MessageBox(0, cmd.c_str(), L"Stub Test Run", MB_OK);
         else wexec(cmd.c_str());
