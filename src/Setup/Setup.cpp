@@ -11,11 +11,6 @@ using namespace std;
 
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ PWSTR pCmdLine, _In_ int nCmdShow)
 {
-    // https://docs.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-security
-    SetSearchPathMode(BASE_SEARCH_PATH_ENABLE_SAFE_SEARCHMODE | BASE_SEARCH_PATH_PERMANENT);
-    SetDllDirectory(L"");
-    SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32);
-
     // squirrel supports Win7 with ESU Y3, but we can't detect ESU easily.
     if (!IsWindows7SP1OrGreater()) {
         util::show_error_dialog(L"This installer requires Windows 7 SP1 or later and cannot run.");
