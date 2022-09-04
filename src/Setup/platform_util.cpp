@@ -1,18 +1,11 @@
 #include "platform_util.h"
 #include "miniz.h"
-#include "LzmaDec.h"
 #include <Windows.h>
 #include <ShlObj_core.h>
 #include <tchar.h>
 #include <string>
 #include <functional>
 #include <memory>
-
-#define MZ_LZMA 14
-
-static void* AllocForLzma(ISzAllocPtr p, size_t size) { (void)p; return malloc(size); }
-static void FreeForLzma(ISzAllocPtr p, void* address) { (void)p; free(address); }
-static ISzAlloc SzAllocForLzma = { &AllocForLzma, &FreeForLzma };
 
 using namespace std;
 
@@ -189,7 +182,7 @@ void throwLastMzError(mz_zip_archive* archive, wstring message)
     int errCode = mz_zip_get_last_error(archive);
     if (errCode == MZ_ZIP_NO_ERROR)
         return;
-    
+
     throw wstring(L"MZ Error Code: " + to_wstring(errCode) + L". " + message);
 }
 
@@ -200,7 +193,7 @@ void extractSingleFile(void* zipBuf, size_t cZipBuf, wstring fileLocation, std::
 
     try {
         memset(&zip_archive, 0, sizeof(zip_archive));
-        
+
         if (!mz_zip_reader_init_mem(&zip_archive, zipBuf, cZipBuf, 0))
             throwLastMzError(&zip_archive, L"Unable to open archive.");
 
@@ -233,34 +226,8 @@ void extractSingleFile(void* zipBuf, size_t cZipBuf, wstring fileLocation, std::
         if (!pFile)
             throw wstring(L"Unable to open temp file for writing.");
 
-        if (file_stat.m_method == MZ_DEFLATED) {
-            if (!mz_zip_reader_extract_to_cfile(&zip_archive, file_stat.m_file_index, pFile, 0))
-                throwLastMzError(&zip_archive, L"Unable to extract selected file from archive (DEFLATE).");
-        }
-        else if (file_stat.m_method == MZ_LZMA) {
-
-            // miniz does not support LZMA, so we will extract as compressed data 
-            // using MZ_ZIP_FLAG_COMPRESSED_DATA and then decode after using LZMA SDK
-            auto dataCompr = std::vector<Byte>((size_t)file_stat.m_comp_size);
-            if (!mz_zip_reader_extract_to_mem(&zip_archive, file_stat.m_file_index, &dataCompr[0], (size_t)file_stat.m_comp_size, MZ_ZIP_FLAG_COMPRESSED_DATA))
-                throwLastMzError(&zip_archive, L"Unable to extract selected file from archive (LZMA).");
-
-            // LZMA stream in zip container starts with 4 bytes: 0x09, 0x14, 0x05, 0x00
-            // after that, there are 5 bytes that make up the LZMA decode properties
-            size_t szCompr = (size_t)file_stat.m_comp_size - LZMA_PROPS_SIZE - 4;
-            size_t szDecompr = (size_t)file_stat.m_uncomp_size;
-            auto dataDecompr = std::vector<Byte>((size_t)file_stat.m_uncomp_size);
-
-            ELzmaStatus status;
-            SRes lzr = LzmaDecode(&dataDecompr[0], &szDecompr, &dataCompr[LZMA_PROPS_SIZE + 4],
-                &szCompr, &dataCompr[4], LZMA_PROPS_SIZE, LZMA_FINISH_ANY, &status, &SzAllocForLzma);
-
-            if (SZ_OK != lzr)
-                throw wstring(L"LZMA decode failed. Error code: " + to_wstring(lzr));
-
-            if (fwrite(&dataDecompr[0], 1, szDecompr, pFile) != szDecompr)
-                throw wstring(L"Failed to write uncompressed stream to file.");
-        }
+        if (!mz_zip_reader_extract_to_cfile(&zip_archive, file_stat.m_file_index, pFile, 0))
+            throwLastMzError(&zip_archive, L"Unable to extract selected file from archive (DEFLATE).");
     }
     catch (...) {
         if (pFile) fclose(pFile);
