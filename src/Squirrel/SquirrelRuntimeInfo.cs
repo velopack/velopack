@@ -65,10 +65,10 @@ namespace Squirrel
     public static class SquirrelRuntimeInfo
     {
         /// <summary> The current compiled Squirrel display version. </summary>
-        public static string SquirrelDisplayVersion => ThisAssembly.AssemblyInformationalVersion + (ThisAssembly.IsPublicRelease ? "" : " (prerelease)");
+        public static string SquirrelDisplayVersion { get; }
 
         /// <summary> The current compiled Squirrel NuGetVersion. </summary>
-        public static NuGetVersion SquirrelNugetVersion => NuGetVersion.Parse(ThisAssembly.AssemblyInformationalVersion);
+        public static NuGetVersion SquirrelNugetVersion { get; }
 
         /// <summary> The current compiled Squirrel assembly file version. </summary>
         public static string SquirrelFileVersion => ThisAssembly.AssemblyFileVersion;
@@ -78,9 +78,6 @@ namespace Squirrel
 
         /// <summary> Gets the directory that the assembly resolver uses to probe for assemblies. </summary>
         public static string BaseDirectory { get; }
-
-        /// <summary> The name of the currently executing assembly. </summary>
-        public static AssemblyName ExecutingAssemblyName => Assembly.GetExecutingAssembly().GetName();
 
         /// <summary> Check if the current application is a published SingleFileBundle. </summary>
         public static bool IsSingleFile { get; }
@@ -125,6 +122,14 @@ namespace Squirrel
             if (String.IsNullOrEmpty(assyPath) || !File.Exists(assyPath))
                 IsSingleFile = true;
 
+            // get git/nuget version from nbgv metadata
+            var SquirrelNugetVersion = NuGetVersion.Parse(ThisAssembly.AssemblyInformationalVersion);
+            if (SquirrelNugetVersion.HasMetadata) {
+                SquirrelNugetVersion = NuGetVersion.Parse(SquirrelNugetVersion.ToNormalizedString() + "-g" + SquirrelNugetVersion.Metadata);
+            }
+            SquirrelDisplayVersion = SquirrelNugetVersion.ToNormalizedString() + (SquirrelNugetVersion.IsPrerelease ? " (prerelease)" : "");
+
+            // get real cpu architecture, even when virtualised by Wow64
 #if NETFRAMEWORK
             CheckArchitectureWindows();
 #else
@@ -141,71 +146,6 @@ namespace Squirrel
 
         [DllImport("kernel32")]
         private static extern IntPtr GetCurrentProcess();
-
-        /// <summary>
-        /// Given a list of machine architectures, this function will try to select the best 
-        /// architecture for a Squirrel package to maximize compatibility.
-        /// </summary>
-        public static RuntimeCpu SelectPackageArchitecture(IEnumerable<RuntimeCpu> peparsed)
-        {
-            var pearchs = peparsed
-                .Where(m => m != RuntimeCpu.Unknown)
-                .Distinct()
-                .ToArray();
-
-            if (pearchs.Length > 1) {
-                Log.Warn(
-                    "Multiple squirrel aware binaries were detected with different machine architectures. " +
-                    "This could result in the application failing to install or run.");
-            }
-
-            // CS: the first will be selected for the "package" architecture. this order is important,
-            // because of emulation support. Arm64 generally supports x86/x64 emulation, and x64
-            // often supports x86 emulation, so we want to pick the least compatible architecture
-            // for the package.
-            var archOrder = new[] { RuntimeCpu.arm64, RuntimeCpu.x64, RuntimeCpu.x86 };
-
-            var pkg = archOrder.FirstOrDefault(o => pearchs.Contains(o));
-            if (pkg == RuntimeCpu.arm64) {
-                Log.Warn("arm64 support in Squirrel has not been tested and may have bugs.");
-            }
-
-            return pkg;
-        }
-
-        /// <summary>
-        /// Checks a given package architecture against the current executing OS to detect
-        /// if it can be properly installed and run.
-        /// </summary>
-        public static bool? IsPackageCompatibleWithCurrentOS(RuntimeCpu architecture)
-        {
-            if (SystemArchitecture == RuntimeCpu.Unknown || architecture == RuntimeCpu.Unknown)
-                return null;
-
-            if (IsWindows) {
-                if (SystemArchitecture == RuntimeCpu.arm64) {
-                    // x86 can be virtualized on windows arm64
-                    if (architecture == RuntimeCpu.arm64) return true;
-                    if (architecture == RuntimeCpu.x86) return true;
-                    // x64 virtualisation is only avaliable on windows 11
-                    // https://stackoverflow.com/questions/69038560/detect-windows-11-with-net-framework-or-windows-api
-                    if (architecture == RuntimeCpu.x64 && Environment.OSVersion.Version.Build >= 22000) return true;
-                }
-
-                if (SystemArchitecture == RuntimeCpu.x64) {
-                    if (architecture == RuntimeCpu.x64) return true;
-                    if (architecture == RuntimeCpu.x86) return true;
-                }
-
-                if (SystemArchitecture == RuntimeCpu.x86) {
-                    if (architecture == RuntimeCpu.x86) return true;
-                }
-            } else {
-                throw new NotImplementedException("This check currently only supports Windows.");
-            }
-
-            return false;
-        }
 
         private static void CheckArchitectureWindows()
         {
