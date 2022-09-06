@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.CommandLine;
-using System.CommandLine.Builder;
 using System.CommandLine.Parsing;
 using Squirrel.CommandLine.Sync;
 using Squirrel.SimpleSplat;
@@ -11,8 +10,10 @@ namespace Squirrel.CommandLine
     public class SquirrelHost
     {
         public static Option<bool> VerboseOption { get; } = new Option<bool>("--verbose", "Print all diagnostic messages");
-        public static Option<string> PlatformOption { get; } 
-            = new Option<string>(new[] { "-x", "--xplat" }, "Select {PLATFORM} to cross-compile for (eg. win, osx)");
+        public static Option<string> PlatformOption { get; }
+            = new Option<string>(new[] { "-x", "--xplat" }, "Select {PLATFORM} to cross-compile for (eg. win, osx)") {
+                ArgumentHelpName = "PLATFORM"
+            };
 
         public static int Main(string[] args)
         {
@@ -26,7 +27,6 @@ namespace Squirrel.CommandLine
             //string sqUsage = $"Squirrel {SquirrelRuntimeInfo.SquirrelDisplayVersion} for creating and distributing Squirrel releases.";
             //Console.WriteLine(sqUsage);
 
-            PlatformOption.ArgumentHelpName = "PLATFORM";
             RootCommand platformRootCommand = new RootCommand() {
                 PlatformOption,
                 VerboseOption
@@ -92,11 +92,7 @@ namespace Squirrel.CommandLine
             foreach (var command in packageCommands) {
                 rootCommand.Add(command);
             }
-            CommandLineBuilder builder = new CommandLineBuilder(rootCommand);
-            builder.UseDefaults();
-            builder.UseHelpBuilder(bindingContext => new HelpBuilder(bindingContext.ParseResult.CommandResult.LocalizationResources));
-            
-            return builder.Build().Invoke(args);
+            return rootCommand.Invoke(args);
             
 
             //if (help) {

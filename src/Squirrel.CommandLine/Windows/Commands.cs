@@ -32,10 +32,25 @@ namespace Squirrel.CommandLine.Windows
 
 
         public Option<DirectoryInfo> ReleaseDirectory { get; }
+        //Question: Since these are already inside of the PackCommand should we drop the "PAck" prefix from the property names?
         public Option<string> PackId { get; }
+        public Option<string> PackVersion { get; }
+        public Option<string> PackTitle { get; }
+        public Option<DirectoryInfo> PackDirectory { get; }
+        public Option<string> PackAuthors { get; }
+        public Option<FileInfo> ReleaseNotes { get; }
         public Option<bool> IncludePdb { get; }
         public Option<Bitness> BuildMsi { get; }
-
+        public Option<string> SignParameters { get; }
+        public Option<bool> SignSkipDll { get; }
+        public Option<int> SignParallel { get; }
+        public Option<string> SignTemplate { get; }
+        public Option<bool> NoDelta { get; }
+        public Option<string> Runtimes { get; }
+        public Option<FileInfo> SplashImage { get; }
+        public Option<FileInfo> Icon { get; }
+        public Option<FileInfo> AppIcon { get; }
+        public Option<string> SquirrelAwareExecutable { get; }
 
         public PackCommand()
             : base("pack", "Creates a Squirrel release from a folder containing application files")
@@ -43,36 +58,85 @@ namespace Squirrel.CommandLine.Windows
             ReleaseDirectory = new Option<DirectoryInfo>(new[] { "-r", "--releaseDir" }, "Output DIRECTORY for releasified packages") {
                 ArgumentHelpName = "DIRECTORY"
             };
-            PackId = new Option<string>(new[] { "-u", "--packId" }, "Unique ID for release");
-            IncludePdb = new Option<bool>("--includePdb");
-            BuildMsi = new Option<Bitness>("--msi", "Compile a .msi machine-wide deployment tool with the specified BITNESS.");
-            BuildMsi.FromAmong("Foo", "Bar");
             Add(ReleaseDirectory);
+            
+            PackId = new Option<string>(new[] { "-u", "--packId" }, "Unique ID for release");
             Add(PackId);
+
+            PackVersion = new Option<string>(new[] { "-v", "--packVersion" }, "Current VERSION for release") {
+                ArgumentHelpName = "VERSION"
+            };
+            Add(PackVersion);
+
+            PackDirectory = new Option<DirectoryInfo>(new[] { "-p", "--packDir" }, "DIRECTORY containing application files for release") {
+                ArgumentHelpName = "DIRECTORY"
+            };
+            Add(PackDirectory);
+
+            PackTitle = new Option<string>("--packTitle", "Optional display/friendly NAME for release") {
+                ArgumentHelpName = "NAME"
+            };
+            Add(PackTitle);
+
+            PackAuthors = new Option<string>("--packAuthors", "Optional company or list of release AUTHORS") {
+                ArgumentHelpName = "AUTHORS"
+            };
+            Add(PackAuthors);
+
+            ReleaseNotes = new Option<FileInfo>("--releaseNotes", "PATH to file with markdown notes for version") {
+                ArgumentHelpName = "PATH"
+            };
+            Add(ReleaseNotes);
+
+            SignParameters = new Option<string>(new[] { "-n", "--signParams" }, "Sign files via signtool.exe using these PARAMETERS") {
+                ArgumentHelpName = "PARAMETERS"
+            };
+            Add(SignParameters);
+
+            SignSkipDll = new Option<bool>("--signSkipDll", "Only signs EXE files, and skips signing DLL files.");
+            Add(SignSkipDll);
+
+            SignParallel = new Option<int>("--signParallel", "The number of files to sign in each call to signtool.exe") {
+                ArgumentHelpName = "VALUE"
+            };
+            Add(SignParallel);
+
+            SignTemplate = new Option<string>("--signTemplate", "Use a custom signing COMMAND. '{{file}}' will be replaced by the path of the file to sign.") {
+                ArgumentHelpName = "COMMAND"
+            };
+            Add(SignTemplate);
+
+            IncludePdb = new Option<bool>("--includePdb");
             Add(IncludePdb);
+
+            NoDelta = new Option<bool>("--noDelta", "Skip the generation of delta packages");
+            Add(NoDelta);
+
+            Runtimes = new Option<string>(new[] { "-f", "--framework" }, "List of required RUNTIMES to install during setup. example: 'net6,vcredist143'") {
+                ArgumentHelpName = "RUNTIMES"
+            };
+            Add(Runtimes);
+
+            BuildMsi = new Option<Bitness>("--msi", "Compile a .msi machine-wide deployment tool with the specified BITNESS.");
             Add(BuildMsi);
 
-            this.SetHandler(Execute);
+            SplashImage = new Option<FileInfo>(new[] { "-s", "--splashImage" }, "PATH to image/gif displayed during installation") {
+                ArgumentHelpName = "PATH"
+            };
+            Add(SplashImage);
 
-            /*
-            -v, --packVersion=VERSION       Current VERSION for release
-            -p, --packDir=DIRECTORY         DIRECTORY containing application files for release
-                --packTitle=NAME            Optional display/friendly NAME for release
-                --packAuthors=AUTHORS       Optional company or list of release AUTHORS
-                --releaseNotes=PATH         PATH to file with markdown notes for version
-            -n, --signParams=PARAMETERS     Sign files via signtool.exe using these PARAMETERS
-                --signSkipDll               Only signs EXE files, and skips signing DLL files.
-                --signParallel=VALUE        The number of files to sign in each call to signtool.exe
-                --signTemplate=COMMAND      Use a custom signing COMMAND. '{{file}}' will be
-                                              replaced by the path of the file to sign.
-                --noDelta                   Skip the generation of delta packages
-            -f, --framework=RUNTIMES        List of required RUNTIMES to install during setup
-                                              example: 'net6,vcredist143'
-            -s, --splashImage=PATH          PATH to image/gif displayed during installation
-            -i, --icon=PATH                 PATH to .ico for Setup.exe and Update.exe
-            -e, --mainExe=NAME              NAME of one or more SquirrelAware executables
-                --appIcon=PATH              PATH to .ico for 'Apps and Features' list
-             */
+            Icon = new Option<FileInfo>(new[] { "-i", "--icon" }, "PATH to .ico for Setup.exe and Update.exe");
+            Add(Icon);
+
+            AppIcon = new Option<FileInfo>("--appIcon", "PATH to .ico for 'Apps and Features' list");
+            Add(AppIcon);
+
+            SquirrelAwareExecutable = new Option<string>(new[] { "-e", "--mainExe" }, "NAME of one or more SquirrelAware executables") {
+                ArgumentHelpName = "NAME"
+            };
+            Add(SquirrelAwareExecutable);
+            
+            this.SetHandler(Execute);
         }
 
         private void Execute(InvocationContext context)
