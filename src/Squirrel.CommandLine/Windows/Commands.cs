@@ -14,141 +14,37 @@ using Squirrel.SimpleSplat;
 
 namespace Squirrel.CommandLine.Windows
 {
+    //TODO: Remove
     public interface ICommand
     {
         string HelpGroupName { get; }
     }
 
-    enum Bitness
+    internal enum Bitness
     {
         Unknown,
         x86,
         x64
     }
 
-    class PackCommand : Command, ICommand
+    public class ReleasifyCommand : Command
     {
-        string ICommand.HelpGroupName => "Package Authoring";
-
-
-        public Option<DirectoryInfo> ReleaseDirectory { get; }
-        //Question: Since these are already inside of the PackCommand should we drop the "PAck" prefix from the property names?
-        public Option<string> PackId { get; }
-        public Option<string> PackVersion { get; }
-        public Option<string> PackTitle { get; }
-        public Option<DirectoryInfo> PackDirectory { get; }
-        public Option<string> PackAuthors { get; }
-        public Option<FileInfo> ReleaseNotes { get; }
-        public Option<bool> IncludePdb { get; }
-        public Option<Bitness> BuildMsi { get; }
-        public Option<string> SignParameters { get; }
-        public Option<bool> SignSkipDll { get; }
-        public Option<int> SignParallel { get; }
-        public Option<string> SignTemplate { get; }
-        public Option<bool> NoDelta { get; }
-        public Option<string> Runtimes { get; }
-        public Option<FileInfo> SplashImage { get; }
-        public Option<FileInfo> Icon { get; }
-        public Option<FileInfo> AppIcon { get; }
-        public Option<string> SquirrelAwareExecutable { get; }
-
-        public PackCommand()
-            : base("pack", "Creates a Squirrel release from a folder containing application files")
+        public ReleasifyCommand()
+            : base("releasify", "Take an existing nuget package and convert it into a Squirrel release")
         {
-            ReleaseDirectory = new Option<DirectoryInfo>(new[] { "-r", "--releaseDir" }, "Output DIRECTORY for releasified packages") {
-                ArgumentHelpName = "DIRECTORY"
-            };
-            Add(ReleaseDirectory);
-            
-            PackId = new Option<string>(new[] { "-u", "--packId" }, "Unique ID for release");
-            Add(PackId);
 
-            PackVersion = new Option<string>(new[] { "-v", "--packVersion" }, "Current VERSION for release") {
-                ArgumentHelpName = "VERSION"
-            };
-            Add(PackVersion);
-
-            PackDirectory = new Option<DirectoryInfo>(new[] { "-p", "--packDir" }, "DIRECTORY containing application files for release") {
-                ArgumentHelpName = "DIRECTORY"
-            };
-            Add(PackDirectory);
-
-            PackTitle = new Option<string>("--packTitle", "Optional display/friendly NAME for release") {
-                ArgumentHelpName = "NAME"
-            };
-            Add(PackTitle);
-
-            PackAuthors = new Option<string>("--packAuthors", "Optional company or list of release AUTHORS") {
-                ArgumentHelpName = "AUTHORS"
-            };
-            Add(PackAuthors);
-
-            ReleaseNotes = new Option<FileInfo>("--releaseNotes", "PATH to file with markdown notes for version") {
-                ArgumentHelpName = "PATH"
-            };
-            Add(ReleaseNotes);
-
-            SignParameters = new Option<string>(new[] { "-n", "--signParams" }, "Sign files via signtool.exe using these PARAMETERS") {
-                ArgumentHelpName = "PARAMETERS"
-            };
-            Add(SignParameters);
-
-            SignSkipDll = new Option<bool>("--signSkipDll", "Only signs EXE files, and skips signing DLL files.");
-            Add(SignSkipDll);
-
-            SignParallel = new Option<int>("--signParallel", "The number of files to sign in each call to signtool.exe") {
-                ArgumentHelpName = "VALUE"
-            };
-            Add(SignParallel);
-
-            SignTemplate = new Option<string>("--signTemplate", "Use a custom signing COMMAND. '{{file}}' will be replaced by the path of the file to sign.") {
-                ArgumentHelpName = "COMMAND"
-            };
-            Add(SignTemplate);
-
-            IncludePdb = new Option<bool>("--includePdb");
-            Add(IncludePdb);
-
-            NoDelta = new Option<bool>("--noDelta", "Skip the generation of delta packages");
-            Add(NoDelta);
-
-            Runtimes = new Option<string>(new[] { "-f", "--framework" }, "List of required RUNTIMES to install during setup. example: 'net6,vcredist143'") {
-                ArgumentHelpName = "RUNTIMES"
-            };
-            Add(Runtimes);
-
-            BuildMsi = new Option<Bitness>("--msi", "Compile a .msi machine-wide deployment tool with the specified BITNESS.");
-            Add(BuildMsi);
-
-            SplashImage = new Option<FileInfo>(new[] { "-s", "--splashImage" }, "PATH to image/gif displayed during installation") {
-                ArgumentHelpName = "PATH"
-            };
-            Add(SplashImage);
-
-            Icon = new Option<FileInfo>(new[] { "-i", "--icon" }, "PATH to .ico for Setup.exe and Update.exe");
-            Add(Icon);
-
-            AppIcon = new Option<FileInfo>("--appIcon", "PATH to .ico for 'Apps and Features' list");
-            Add(AppIcon);
-
-            SquirrelAwareExecutable = new Option<string>(new[] { "-e", "--mainExe" }, "NAME of one or more SquirrelAware executables") {
-                ArgumentHelpName = "NAME"
-            };
-            Add(SquirrelAwareExecutable);
-            
             this.SetHandler(Execute);
         }
 
         private void Execute(InvocationContext context)
         {
-            //TODO: Fix option's naming and types
-            PackOptions packOptions = new PackOptions() {
-                releaseDir = context.ParseResult.GetValueForOption(ReleaseDirectory)?.FullName,
-                packId = context.ParseResult.GetValueForOption(PackId),
-                includePdb = context.ParseResult.GetValueForOption(IncludePdb),
-                msi = context.ParseResult.GetValueForOption(BuildMsi).ToString()
+            ReleasifyOptions releasifyOptions = new ReleasifyOptions {
+
             };
-            Commands.Pack(packOptions);
+
+
+
+            Commands.Releasify(releasifyOptions);
         }
     }
 
@@ -182,7 +78,7 @@ namespace Squirrel.CommandLine.Windows
             }
         }
 
-        static void Releasify(ReleasifyOptions options)
+        public static void Releasify(ReleasifyOptions options)
         {
             var targetDir = options.GetReleaseDirectory();
             var package = options.package;
@@ -285,9 +181,9 @@ namespace Squirrel.CommandLine.Windows
                     }
 
                     var peArch = from pe in peparsed
-                        let machine = pe.Value?.ImageNtHeaders?.FileHeader?.Machine ?? 0
-                        let arch = parseMachine(machine)
-                        select new { Name = Path.GetFileName(pe.Key), Architecture = arch };
+                                 let machine = pe.Value?.ImageNtHeaders?.FileHeader?.Machine ?? 0
+                                 let arch = parseMachine(machine)
+                                 select new { Name = Path.GetFileName(pe.Key), Architecture = arch };
 
                     if (awareExes.Count > 0) {
                         Log.Info($"There are {awareExes.Count} SquirrelAwareApp's. Binaries will be executed during install/update/uninstall hooks.");
@@ -324,13 +220,13 @@ namespace Squirrel.CommandLine.Windows
                     // and do it before signing so that Update.exe will also be signed. It is renamed to
                     // 'Squirrel.exe' only because Squirrel.Windows expects it to be called this.
                     File.Copy(updatePath, Path.Combine(libDir, "Squirrel.exe"), true);
-                    
+
                     // sign all exe's in this package
                     var filesToSign = new DirectoryInfo(libDir).GetAllFilesRecursively()
                         .Where(x => options.signSkipDll ? Utility.PathPartEndsWith(x.Name, ".exe") : Utility.FileIsLikelyPEImage(x.Name))
                         .Select(x => x.FullName)
                         .ToArray();
-                    
+
                     options.SignFiles(libDir, filesToSign);
 
                     // copy app icon to 'lib/fx/app.ico'
@@ -407,7 +303,7 @@ namespace Squirrel.CommandLine.Windows
             Log.Info("Bundle package offset is " + bundleOffset);
 
             List<string> setupFilesToSign = new() { targetSetupExe };
-            
+
             Log.Info($"Setup bundle created at '{targetSetupExe}'.");
 
             // this option is used for debugging a local Setup.exe
@@ -425,8 +321,8 @@ namespace Squirrel.CommandLine.Windows
                     Log.Warn("Unable to create MSI (only supported on windows).");
                 }
             }
-            
-            options.SignFiles(targetDir.FullName, setupFilesToSign.ToArray());                    
+
+            options.SignFiles(targetDir.FullName, setupFilesToSign.ToArray());
 
             Log.Info("Done");
         }

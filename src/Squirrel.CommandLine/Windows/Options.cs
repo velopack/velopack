@@ -1,19 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Runtime.Versioning;
-using System.Text.RegularExpressions;
-using System.Threading;
-using Squirrel.Lib;
 
 namespace Squirrel.CommandLine.Windows
 {
     internal class SigningOptions : BaseOptions
     {
-        public string signParams { get; private set; }
-        public string signTemplate { get; private set; }
-        public bool signSkipDll { get; private set; }
-        public int signParallel { get; private set; } = 10;
+        public const int SignParallelDefault = 10;
+
+        public string signParams { get; set; }
+        public string signTemplate { get; set; }
+        public bool signSkipDll { get; set; }
+        public int signParallel { get; set; }
 
         public SigningOptions()
         {
