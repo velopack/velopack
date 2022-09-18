@@ -15,18 +15,10 @@ namespace Squirrel.CommandLine.OSX
 
         public static IEnumerable<Command> GetCommands()
         {
-            yield break;
+            yield return new PackCommand();
         }
 
-        public static CommandSet GetCommands_old()
-        {
-            return new CommandSet {
-                "[ Package Authoring ]",
-                { "pack", "Convert a build or '.app' dir into a Squirrel release", new PackOptions(), Pack },
-            };
-        }
-
-        private static void Pack(PackOptions options)
+        public static void Pack(PackOptions options)
         {
             var releaseDir = options.GetReleaseDirectory();
             string appBundlePath;

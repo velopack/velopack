@@ -1,4 +1,4 @@
-﻿namespace Squirrel.CommandLine.Windows
+﻿namespace Squirrel.CommandLine
 {
     public enum Bitness
     {

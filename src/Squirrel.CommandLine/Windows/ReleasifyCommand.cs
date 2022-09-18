@@ -7,7 +7,7 @@ namespace Squirrel.CommandLine.Windows
     public class ReleasifyCommand : ReleaseCommand
     {
         private Option<FileInfo> Package { get; }
-        
+
         public ReleasifyCommand()
             : base("releasify", "Take an existing nuget package and convert it into a Squirrel release")
         {
@@ -30,7 +30,7 @@ namespace Squirrel.CommandLine.Windows
 
         private void Execute(InvocationContext context)
         {
-            ReleasifyOptions releasifyOptions = new ReleasifyOptions();
+            var releasifyOptions = new ReleasifyOptions();
             SetOptionsValues(context, releasifyOptions);
 
             Commands.Releasify(releasifyOptions);

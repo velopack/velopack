@@ -87,7 +87,7 @@ namespace Squirrel.CommandLine.Windows
             options.baseUrl = context.ParseResult.GetValueForOption(BaseUrl)?.AbsoluteUri;
             //TODO: This is a little awkward to set a value as part of parsing
             if (context.ParseResult.GetValueForOption(AddSearchPath) is { } searchPath) {
-                HelperExe.AddSearchPath(searchPath);
+                HelperFile.AddSearchPath(searchPath);
             }
             options.debugSetupExe = context.ParseResult.GetValueForOption(DebugSetupExe)?.FullName;
             options.noDelta = context.ParseResult.GetValueForOption(NoDelta);
@@ -102,12 +102,12 @@ namespace Squirrel.CommandLine.Windows
 
             if (SquirrelRuntimeInfo.IsWindows) {
                 switch (context.ParseResult.GetValueForOption(BuildMsi)) {
-                    case Bitness.x86:
-                        options.msi = "x86";
-                        break;
-                    case Bitness.x64:
-                        options.msi = "x64";
-                        break;
+                case Bitness.x86:
+                    options.msi = "x86";
+                    break;
+                case Bitness.x64:
+                    options.msi = "x64";
+                    break;
                 }
             }
         }

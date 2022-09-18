@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using Octokit;
 using Squirrel.NuGet;
 using Squirrel.SimpleSplat;
+using FileMode = System.IO.FileMode;
 
 namespace Squirrel.CommandLine.Windows
 {

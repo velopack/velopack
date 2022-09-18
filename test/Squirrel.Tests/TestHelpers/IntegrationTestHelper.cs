@@ -61,7 +61,6 @@ namespace Squirrel.Tests.TestHelpers
             }
         }
 
-        static object gate = 42;
         public static IDisposable WithFakeInstallDirectory(string packageFileName, out string path)
         {
             var ret = Utility.GetTempDirectory(out path);
@@ -75,8 +74,8 @@ namespace Squirrel.Tests.TestHelpers
 
         public static string CreateFakeInstalledApp(string version, string outputDir, string nuspecFile = null)
         {
-            var targetDir = default(string);
-
+            string targetDir;
+            
             nuspecFile = nuspecFile ?? "SquirrelInstalledApp.nuspec";
 
             using (var clearTemp = Utility.GetTempDirectory(out targetDir)) {

@@ -3,7 +3,7 @@ using System.CommandLine.Invocation;
 using System.IO;
 using Squirrel.SimpleSplat;
 
-namespace Squirrel.CommandLine.Windows
+namespace Squirrel.CommandLine
 {
     public class BaseCommand : Command
     {

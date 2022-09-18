@@ -10,12 +10,12 @@ namespace Squirrel.CommandLine.Windows
         //Question: Since these are already inside of the PackCommand should we drop the "Pack" prefix from the property names?
         protected Option<string> PackName { get; }
         protected Option<DirectoryInfo> PackDirectory { get; }
-        public Option<string> PackId { get; }
-        public Option<string> PackVersion { get; }
-        public Option<string> PackTitle { get; }
-        public Option<string> PackAuthors { get; }
-        public Option<bool> IncludePdb { get; }
-        public Option<FileInfo> ReleaseNotes { get; }
+        protected Option<string> PackId { get; }
+        protected Option<string> PackVersion { get; }
+        protected Option<string> PackTitle { get; }
+        protected Option<string> PackAuthors { get; }
+        protected Option<bool> IncludePdb { get; }
+        protected Option<FileInfo> ReleaseNotes { get; }
 
         public PackCommand()
             : base("pack", "Creates a Squirrel release from a folder containing application files")
@@ -26,6 +26,7 @@ namespace Squirrel.CommandLine.Windows
             };
             Add(PackName);
 
+            //Question: I included --packDirectory here even though it should be "hidden" how important is it to deprecate this alias?
             PackDirectory = new Option<DirectoryInfo>(new[] { "-p", "--packDir", "--packDirectory" }, "{DIRECTORY} containing application files for release") {
                 ArgumentHelpName = "DIRECTORY",
                 IsRequired = true,
@@ -56,16 +57,16 @@ namespace Squirrel.CommandLine.Windows
             };
             Add(PackAuthors);
 
-            IncludePdb = new Option<bool>("--includePdb");
+            IncludePdb = new Option<bool>("--includePdb", "Add *.pdb files to release package");
             Add(IncludePdb);
-            
-            ReleaseNotes = new Option<FileInfo>("--releaseNotes", "PATH to file with markdown notes for version") {
+
+            ReleaseNotes = new Option<FileInfo>("--releaseNotes", "{PATH} to file with markdown notes for version") {
                 ArgumentHelpName = "PATH"
             };
             ReleaseNotes.ExistingOnly();
             Add(ReleaseNotes);
 
-            
+
             this.SetHandler(Execute);
         }
 
@@ -86,13 +87,13 @@ namespace Squirrel.CommandLine.Windows
 
         private void Execute(InvocationContext context)
         {
-            PackOptions packOptions = new PackOptions();
+            var packOptions = new PackOptions();
             SetOptionsValues(context, packOptions);
             //TODO: Would be nice to just be able to make the option required, but the requirement from the
             // previous code allows multiple options to set the packId property.
             if (string.IsNullOrEmpty(packOptions.packId))
                 throw new InvalidOperationException($"'{PackId.Name}' is required");
-            
+
             Commands.Pack(packOptions);
         }
     }
