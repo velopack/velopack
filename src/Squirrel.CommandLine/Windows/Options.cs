@@ -73,9 +73,8 @@ namespace Squirrel.CommandLine.Windows
         public bool noDelta { get; set; }
         public string msi { get; set; }
         public string debugSetupExe { get; set; }
-        public string[] mainExes => _mainExes.ToArray();
 
-        private List<string> _mainExes = new();
+        public List<string> mainExes { get; } = new();
 
         public ReleasifyOptions()
         {

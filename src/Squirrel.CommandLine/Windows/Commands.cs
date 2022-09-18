@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
@@ -9,45 +8,12 @@ using System.Linq;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
+using Octokit;
 using Squirrel.NuGet;
 using Squirrel.SimpleSplat;
 
 namespace Squirrel.CommandLine.Windows
 {
-    //TODO: Remove
-    public interface ICommand
-    {
-        string HelpGroupName { get; }
-    }
-
-    internal enum Bitness
-    {
-        Unknown,
-        x86,
-        x64
-    }
-
-    public class ReleasifyCommand : Command
-    {
-        public ReleasifyCommand()
-            : base("releasify", "Take an existing nuget package and convert it into a Squirrel release")
-        {
-
-            this.SetHandler(Execute);
-        }
-
-        private void Execute(InvocationContext context)
-        {
-            ReleasifyOptions releasifyOptions = new ReleasifyOptions {
-
-            };
-
-
-
-            Commands.Releasify(releasifyOptions);
-        }
-    }
-
     class Commands : IEnableLogger
     {
         static IFullLogger Log => SquirrelLocator.Current.GetService<ILogManager>().GetLogger(typeof(Commands));
@@ -55,15 +21,7 @@ namespace Squirrel.CommandLine.Windows
         public static IEnumerable<Command> GetCommands()
         {
             yield return new PackCommand();
-        }
-
-        public static CommandSet GetCommands_old()
-        {
-            return new CommandSet {
-                "[ Package Authoring ]",
-                { "pack", "Creates a Squirrel release from a folder containing application files", new PackOptions(), Pack },
-                { "releasify", "Take an existing nuget package and convert it into a Squirrel release", new ReleasifyOptions(), Releasify },
-            };
+            yield return new ReleasifyCommand();
         }
 
         public static void Pack(PackOptions options)
