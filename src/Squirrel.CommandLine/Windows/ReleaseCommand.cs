@@ -26,7 +26,7 @@ namespace Squirrel.CommandLine.Windows
             BaseUrl = new Option<Uri>(new[] { "-b", "--baseUrl" }, "Provides a base URL to prefix the RELEASES file packages with") {
                 IsHidden = true
             };
-            BaseUrl.RequiresAbsolute().RequiresScheme(Uri.UriSchemeHttp, Uri.UriSchemeHttps);
+            BaseUrl.MustBeValidHttpUri();
             Add(BaseUrl);
 
             AddSearchPath = new Option<string>("--addSearchPath", "Add additional search directories when looking for helper exe's such as Setup.exe, Update.exe, etc") {

@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using NuGet.Versioning;
 using Squirrel.NuGet;
-using static NuGet.Client.ManagedCodeConventions;
 
 namespace Squirrel.CommandLine
 {
@@ -14,6 +13,12 @@ namespace Squirrel.CommandLine
         public static Option<int> MustBeBetween(this Option<int> option, int minimum, int maximum)
         {
             option.AddValidator(x => Validate.MustBeBetween(x, minimum, maximum));
+            return option;
+        }
+
+        public static Option<Uri> MustBeValidHttpUri(this Option<Uri> option)
+        {
+            option.RequiresAbsolute().RequiresScheme(Uri.UriSchemeHttp, Uri.UriSchemeHttps);
             return option;
         }
 
@@ -26,6 +31,12 @@ namespace Squirrel.CommandLine
         public static Command AreMutuallyExclusive(this Command command, params Option[] options)
         {
             command.AddValidator(x => Validate.AreMutuallyExclusive(x, options));
+            return command;
+        }
+
+        public static Command AtLeastOneRequired(this Command command, params Option[] options)
+        {
+            command.AddValidator(x => Validate.AtLeastOneRequired(x, options));
             return command;
         }
 
@@ -97,6 +108,16 @@ namespace Squirrel.CommandLine
                 if (specifiedOptions.Count > 1) {
                     string optionsString = string.Join(" and ", specifiedOptions.Select(x => $"'{x.Name}'"));
                     result.ErrorMessage = $"Cannot use {optionsString} options together, please choose one.";
+                }
+            }
+
+            public static void AtLeastOneRequired(CommandResult result, Option[] options)
+            {
+                var anySpecifiedOptions = options
+                    .Any(x => result.FindResultFor(x) is not null);
+                if (!anySpecifiedOptions) {
+                    string optionsString = string.Join(" and ", options.Select(x => $"'{x.Name}'"));
+                    result.ErrorMessage = $"At least one of the following options are required {optionsString}.";
                 }
             }
 

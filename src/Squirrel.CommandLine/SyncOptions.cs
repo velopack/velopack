@@ -20,48 +20,19 @@ namespace Squirrel.CommandLine
 
     internal class SyncS3Options : BaseOptions
     {
-        public string keyId { get; private set; }
-        public string secret { get; private set; }
-        public string region { get; private set; }
-        public string endpoint { get; private set; }
-        public string bucket { get; private set; }
-        public string pathPrefix { get; private set; }
-        public bool overwrite { get; private set; }
-        public int keepMaxReleases { get; private set; }
-
-        public SyncS3Options()
-        {
-            //Add("keyId=", "Authentication {IDENTIFIER} or access key", v => keyId = v);
-            //Add("secret=", "Authentication secret {KEY}", v => secret = v);
-            //Add("region=", "AWS service {REGION} (eg. us-west-1)", v => region = v);
-            //Add("endpoint=", "Custom service {URL} (backblaze, digital ocean, etc)", v => endpoint = v);
-            //Add("bucket=", "{NAME} of the S3 bucket", v => bucket = v);
-            //Add("pathPrefix=", "A sub-folder {PATH} used for files in the bucket, for creating release channels (eg. 'stable' or 'dev')", v => pathPrefix = v);
-            //Add("overwrite", "(up only) Replace existing files if source has changed", v => overwrite = true);
-            //Add("keepMaxReleases=", "(up only) Applies a retention policy during upload which keeps only the specified {NUMBER} of old versions",
-            //    v => keepMaxReleases = ParseIntArg(nameof(keepMaxReleases), v));
-        }
-
-        //public override void Validate()
-        //{
-        //    IsRequired(nameof(secret), nameof(keyId), nameof(bucket));
-        //
-        //    if ((region == null) == (endpoint == null)) {
-        //        throw new OptionValidationException(
-        //            "One of 'region' and 'endpoint' arguments is required and are also mutually exclusive. Specify only one of these. ");
-        //    }
-        //
-        //    if (region != null) {
-        //        var r = Amazon.RegionEndpoint.GetBySystemName(region);
-        //        if (r.DisplayName == "Unknown")
-        //            Log.Warn($"Region '{region}' lookup failed, is this a valid AWS region?");
-        //    }
-        //}
+        public string keyId { get; set; }
+        public string secret { get; set; }
+        public string region { get; set; }
+        public string endpoint { get; set; }
+        public string bucket { get; set; }
+        public string pathPrefix { get; set; }
+        public bool overwrite { get; set; }
+        public int keepMaxReleases { get; set; }
     }
 
     internal class SyncHttpOptions : BaseOptions
     {
-        public string url { get; private set; }
+        public string url { get; set; }
 
         //public SyncHttpOptions()
         //{

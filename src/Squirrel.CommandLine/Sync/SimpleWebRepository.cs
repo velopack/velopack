@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
-using System.Runtime.InteropServices.ComTypes;
 using System.Threading.Tasks;
 
 namespace Squirrel.CommandLine.Sync

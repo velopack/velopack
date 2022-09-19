@@ -92,6 +92,12 @@ namespace Squirrel.CommandLine
             foreach (var command in packageCommands) {
                 rootCommand.Add(command);
             }
+            Command deploymentCommand = new("deployment") {
+                new SyncHttpCommand(),
+                new S3Command()
+            };
+            rootCommand.Add(deploymentCommand);
+            
             return rootCommand.Invoke(args);
             
 
