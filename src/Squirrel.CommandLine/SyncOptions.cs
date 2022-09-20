@@ -48,11 +48,11 @@ namespace Squirrel.CommandLine
 
     internal class SyncGithubOptions : BaseOptions
     {
-        public string repoUrl { get; private set; }
-        public string token { get; private set; }
-        public bool pre { get; private set; }
-        public bool publish { get; private set; }
-        public string releaseName { get; private set; }
+        public string repoUrl { get; set; }
+        public string token { get; set; }
+        public bool pre { get; set; }
+        public bool publish { get; set; }
+        public string releaseName { get; set; }
 
         //public SyncGithubOptions()
         //{

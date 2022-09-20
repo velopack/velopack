@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.CommandLine;
 using System.CommandLine.Parsing;
-using Squirrel.CommandLine.Sync;
+using Squirrel.CommandLine.Deployment;
 using Squirrel.SimpleSplat;
 
 namespace Squirrel.CommandLine
@@ -38,8 +38,6 @@ namespace Squirrel.CommandLine
             string xplat = parseResult.GetValueForOption(PlatformOption);
             bool verbose = parseResult.GetValueForOption(VerboseOption);
 
-            //var restArgs = globalOptions.Parse(args);
-
             if (xplat == null)
                 xplat = SquirrelRuntimeInfo.SystemOsName;
 
@@ -65,23 +63,6 @@ namespace Squirrel.CommandLine
                 throw new NotSupportedException("Unsupported OS platform: " + xplat);
             }
 
-
-
-            //var commands = new CommandSet {
-            //        "",
-            //        "[ Global Options ]",
-            //        globalOptions.GetHelpText().TrimEnd(),
-            //        "",
-            //        packageCommands,
-            //        "",
-            //        "[ Package Deployment / Syncing ]",
-            //        { "http-down", "Download latest release from HTTP", new SyncHttpOptions(), o => Download(new SimpleWebRepository(o)) },
-            //        { "s3-down", "Download latest release from S3 API", new SyncS3Options(), o => Download(new S3Repository(o)) },
-            //        { "s3-up", "Upload releases to S3 API", new SyncS3Options(), o => Upload(new S3Repository(o)) },
-            //        { "github-down", "Download latest release from GitHub", new SyncGithubOptions(), o => Download(new GitHubRepository(o)) },
-            //        { "github-up", "Upload latest release to GitHub", new SyncGithubOptions(), o => Upload(new GitHubRepository(o)) },
-            //    };
-
             if (verbose) {
                 logger.Level = LogLevel.Debug;
             }
@@ -94,35 +75,12 @@ namespace Squirrel.CommandLine
             }
             Command deploymentCommand = new("deployment") {
                 new SyncHttpCommand(),
-                new S3Command()
+                new S3Command(),
+                new GitHubCommand()
             };
             rootCommand.Add(deploymentCommand);
             
             return rootCommand.Invoke(args);
-            
-
-            //if (help) {
-            //    commands.WriteHelp();
-            //    return 0;
-            //}
-
-            //try {
-            //    // parse cli and run command
-            //    commands.Execute(restArgs.ToArray());
-            //    return 0;
-            //} catch (Exception ex) when (ex is OptionValidationException || ex is OptionException) {
-            //    // if the arguments fail to validate, print argument help
-            //    Console.WriteLine();
-            //    logger.Write(ex.Message, LogLevel.Error);
-            //    commands.WriteHelp();
-            //    Console.WriteLine();
-            //    logger.Write(ex.Message, LogLevel.Error);
-            //    return -1;
-            //}
         }
-
-        static void Upload<T>(T repo) where T : IPackageRepository => repo.UploadMissingPackages().GetAwaiter().GetResult();
-
-        static void Download<T>(T repo) where T : IPackageRepository => repo.DownloadRecentPackages().GetAwaiter().GetResult();
     }
 }

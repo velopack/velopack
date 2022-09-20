@@ -48,7 +48,7 @@ namespace Squirrel.CommandLine.OSX
                 Log.Info("Pack directory is not a bundle. Will generate new '.app' bundle from a directory of application files.");
 
                 if (options.icon == null || !File.Exists(options.icon))
-                    throw new OptionValidationException("--icon is required when generating a new app bundle.");
+                    throw new ArgumentException("--icon is required when generating a new app bundle.");
 
                 // auto-discover exe if it's the same as packId
                 var exeName = options.mainExe;
@@ -56,11 +56,11 @@ namespace Squirrel.CommandLine.OSX
                     exeName = options.packId;
 
                 if (exeName == null)
-                    throw new OptionValidationException("--exeName is required when generating a new app bundle.");
+                    throw new ArgumentException("--exeName is required when generating a new app bundle.");
 
                 var mainExePath = Path.Combine(options.packDirectory, exeName);
                 if (!File.Exists(mainExePath) || !PlatformUtil.IsMachOImage(mainExePath))
-                    throw new OptionValidationException($"--exeName '{mainExePath}' does not exist or is not a mach-o executable.");
+                    throw new ArgumentException($"--exeName '{mainExePath}' does not exist or is not a mach-o executable.");
 
                 var appleId = $"com.{options.packAuthors ?? options.packId}.{options.packId}";
                 var escapedAppleId = Regex.Replace(appleId, @"[^\w\.]", "_");

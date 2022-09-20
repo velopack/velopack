@@ -4,12 +4,12 @@ using System.CommandLine.Invocation;
 using System.Threading.Tasks;
 using Squirrel.CommandLine.Sync;
 
-namespace Squirrel.CommandLine
+namespace Squirrel.CommandLine.Deployment
 {
     internal class SyncHttpCommand : BaseCommand
     {
         public Option<Uri> Url { get; }
-        
+
         public SyncHttpCommand()
             : base("http-down", "Download latest release from HTTP")
         {
@@ -33,9 +33,7 @@ namespace Squirrel.CommandLine
         {
             SyncHttpOptions options = new();
             SetOptionsValues(context, options);
-            await Download(new SimpleWebRepository(options));
+            await new SimpleWebRepository(options).DownloadRecentPackages();
         }
-        
-        private static Task Download<T>(T repo) where T : IPackageRepository => repo.DownloadRecentPackages();
     }
 }

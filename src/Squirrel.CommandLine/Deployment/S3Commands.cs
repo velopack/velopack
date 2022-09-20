@@ -3,7 +3,7 @@ using System.CommandLine.Invocation;
 using System.Threading.Tasks;
 using Squirrel.CommandLine.Sync;
 
-namespace Squirrel.CommandLine
+namespace Squirrel.CommandLine.Deployment
 {
     public class S3Command : Command
     {
@@ -42,8 +42,8 @@ namespace Squirrel.CommandLine
                 ArgumentHelpName = "REGION"
             };
             Region.AddValidator(result => {
-                for (int i = 0; i < result.Tokens.Count; i++) {
-                    string region = result.Tokens[i].Value;
+                for (var i = 0; i < result.Tokens.Count; i++) {
+                    var region = result.Tokens[i].Value;
                     if (!string.IsNullOrWhiteSpace(region)) {
                         var r = Amazon.RegionEndpoint.GetBySystemName(result.Tokens[0].Value);
                         if (r is null || r.DisplayName == "Unknown") {
@@ -117,7 +117,23 @@ namespace Squirrel.CommandLine
                 ArgumentHelpName = "NUMBER"
             };
             Add(KeepMaxReleases);
-            //TODO
+
+            this.SetHandler(Execute);
+        }
+
+        //Intentionally hiding base member
+        private protected new void SetOptionsValues(InvocationContext context, SyncS3Options options)
+        {
+            base.SetOptionsValues(context, options);
+            options.overwrite = context.ParseResult.GetValueForOption(Overwrite);
+            options.keepMaxReleases = context.ParseResult.GetValueForOption(KeepMaxReleases);
+        }
+
+        private async Task Execute(InvocationContext context)
+        {
+            SyncS3Options options = new();
+            SetOptionsValues(context, options);
+            await new S3Repository(options).UploadMissingPackages();
         }
     }
 }
