@@ -126,6 +126,8 @@ namespace Squirrel.CommandLine.OSX
                     }
                 }
             });
+            //Question: is this a reasonable way to describe this option to a user?
+            PackageContent.ArgumentHelpName = "key=<FILE>";
             Add(PackageContent);
 
             SigningAppIdentity = new Option<string>("--signAppIdentity", "The {SUBJECT} name of the cert to use for app code signing") {

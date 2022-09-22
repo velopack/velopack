@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.CommandLine;
+using System.CommandLine.Builder;
 using System.CommandLine.Invocation;
+using System.CommandLine.Parsing;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -23,8 +25,8 @@ namespace Squirrel.Tool
 
         private static Option<string> CsqVersion { get; } 
             = new Option<string>("--csq-version");
-        private static Option<FileInfo> CsqSolutionPath { get; } 
-            = new Option<FileInfo>(new[] { "--csq-sln", "--csq-solution" }).ExistingOnly();
+        private static Option<FileSystemInfo> CsqSolutionPath { get; } 
+            = new Option<FileSystemInfo>(new[] { "--csq-sln", "--csq-solution" }).ExistingOnly();
         private static Option<bool> Verbose { get; }
             = new Option<bool>("--verbose");
 
@@ -40,13 +42,28 @@ namespace Squirrel.Tool
             rootCommand.TreatUnmatchedTokensAsErrors = false;
 
             rootCommand.SetHandler(MainInner);
-            return rootCommand.InvokeAsync(inargs);
+
+            ParseResult parseResult = rootCommand.Parse(inargs);
+
+            CommandLineBuilder builder = new CommandLineBuilder(rootCommand);
+
+            if (parseResult.Directives.Contains("local")) {
+                builder.UseDefaults();
+            } else {
+                builder
+                    .UseParseErrorReporting()
+                    .UseExceptionHandler()
+                    .CancelOnProcessTermination();
+            }
+
+
+            return builder.Build().InvokeAsync(inargs);
         }
 
         static async Task MainInner(InvocationContext context)
         {
             bool verbose = context.ParseResult.GetValueForOption(Verbose);
-            FileInfo explicitSolutionPath = context.ParseResult.GetValueForOption(CsqSolutionPath);
+            FileSystemInfo explicitSolutionPath = context.ParseResult.GetValueForOption(CsqSolutionPath);
             string explicitSquirrelVersion = context.ParseResult.GetValueForOption(CsqVersion);
 
             // we want to forward the --verbose argument to Squirrel, too.
@@ -62,7 +79,7 @@ namespace Squirrel.Tool
             context.Console.WriteLine($"Squirrel Locator 'csq' {SquirrelRuntimeInfo.SquirrelDisplayVersion}");
             _logger.Write($"Entry EXE: {SquirrelRuntimeInfo.EntryExePath}", LogLevel.Debug);
             CancellationToken cancellationToken = context.GetCancellationToken();
-
+            
             await CheckForUpdates(cancellationToken).ConfigureAwait(false);
 
             var solutionDir = FindSolutionDirectory(explicitSolutionPath?.FullName);
