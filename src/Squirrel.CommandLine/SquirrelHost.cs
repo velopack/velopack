@@ -73,8 +73,8 @@ namespace Squirrel.CommandLine
             foreach (var command in packageCommands) {
                 rootCommand.Add(command);
             }
-            Command deploymentCommand = new("deployment") {
-                new SyncHttpCommand(),
+            Command deploymentCommand = new("deployment", "Command for deploying Squirrel releases") {
+                new HttpCommand(),
                 new S3Command(),
                 new GitHubCommand()
             };

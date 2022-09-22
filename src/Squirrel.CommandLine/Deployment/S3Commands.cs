@@ -7,7 +7,7 @@ namespace Squirrel.CommandLine.Deployment
 {
     public class S3Command : Command
     {
-        public S3Command() : base("s3")
+        public S3Command() : base("s3", "Upload or download from S3 API")
         {
             Add(new S3DownloadCommand());
             Add(new S3UploadCommand());

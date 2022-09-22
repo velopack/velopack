@@ -8,7 +8,7 @@ namespace Squirrel.CommandLine.Deployment
 {
     public class GitHubCommand : Command
     {
-        public GitHubCommand() : base("github")
+        public GitHubCommand() : base("github", "Upload or download from GitHub")
         {
             Add(new GitHubDownloadCommand());
             Add(new GitHubUploadCommand());

@@ -58,7 +58,7 @@ namespace Squirrel.CommandLine.Windows
             Icon = new Option<FileInfo>(new[] { "-i", "--icon" }, "{PATH} to .ico for Setup.exe and Update.exe") {
                 ArgumentHelpName = "PATH"
             };
-            AppIcon.ExistingOnly().RequiresExtension("ico");
+            Icon.ExistingOnly().RequiresExtension("ico");
             Add(Icon);
 
             SquirrelAwareExecutable = new Option<string>(new[] { "-e", "--mainExe" }, "{NAME} of one or more SquirrelAware executables") {

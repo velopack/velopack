@@ -6,12 +6,20 @@ using Squirrel.CommandLine.Sync;
 
 namespace Squirrel.CommandLine.Deployment
 {
-    internal class SyncHttpCommand : BaseCommand
+    public class HttpCommand : Command
+    {
+        public HttpCommand() : base("http", "Download from HTTP")
+        {
+            Add(new HttpDownloadCommand());
+        }
+    }
+
+    internal class HttpDownloadCommand : BaseCommand
     {
         public Option<Uri> Url { get; }
 
-        public SyncHttpCommand()
-            : base("http-down", "Download latest release from HTTP")
+        public HttpDownloadCommand()
+            : base("down", "Download latest release from HTTP")
         {
             Url = new Option<Uri>("--url", "URL to download from") {
                 ArgumentHelpName = "URL",

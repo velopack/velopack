@@ -20,6 +20,12 @@ namespace Squirrel.CommandLine.Windows
         public PackCommand()
             : base("pack", "Creates a Squirrel release from a folder containing application files")
         {
+            PackId = new Option<string>(new[] { "-u", "--packId" }, "Unique {ID} for release") {
+                ArgumentHelpName = "ID"
+            };
+            PackId.RequiresValidNuGetId();
+            Add(PackId);
+
             //TODO: do we need to bring this forward since it is deprecated? Can we just remove it and make PackId a required option?
             PackName = new Option<string>("--packName", $"The name of the package to create. This is deprecated, use {PackId.Name} instead.") {
                 IsHidden = true,
@@ -33,12 +39,6 @@ namespace Squirrel.CommandLine.Windows
             };
             PackDirectory.ExistingOnly().MustNotBeEmpty();
             Add(PackDirectory);
-
-            PackId = new Option<string>(new[] { "-u", "--packId" }, "Unique {ID} for release") {
-                ArgumentHelpName = "ID"
-            };
-            PackId.RequiresValidNuGetId();
-            Add(PackId);
 
             PackVersion = new Option<string>(new[] { "-v", "--packVersion" }, "Current {VERSION} for release") {
                 ArgumentHelpName = "VERSION",
