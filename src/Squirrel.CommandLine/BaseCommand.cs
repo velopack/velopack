@@ -9,7 +9,7 @@ namespace Squirrel.CommandLine
     {
         protected static IFullLogger Log = SquirrelLocator.CurrentMutable.GetService<ILogManager>().GetLogger(typeof(BaseOptions));
 
-        protected Option<DirectoryInfo> ReleaseDirectory { get; }
+        public Option<DirectoryInfo> ReleaseDirectory { get; }
         protected BaseCommand(string name, string description)
             : base(name, description)
         {

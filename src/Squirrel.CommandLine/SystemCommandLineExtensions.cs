@@ -94,7 +94,7 @@ namespace Squirrel.CommandLine
 
             public static void RequiresExtension(OptionResult result, string extension) {
                 for (int i = 0; i < result.Tokens.Count; i++) {
-                    if (string.Equals(Path.GetExtension(result.Tokens[i].Value), extension, StringComparison.InvariantCultureIgnoreCase)) {
+                    if (!string.Equals(Path.GetExtension(result.Tokens[i].Value), extension, StringComparison.InvariantCultureIgnoreCase)) {
                         result.ErrorMessage = $"{result.Tokens[i].Value} for {result.Option.Name} does not have an {extension} extension";
                     }
                 }
@@ -178,7 +178,8 @@ namespace Squirrel.CommandLine
                 for (int i = 0; i < result.Tokens.Count; i++) {
                     var token = result.Tokens[i];
 
-                    if (!Directory.EnumerateFileSystemEntries(token.Value).Any()) {
+                    if (!Directory.Exists(token.Value) ||
+                        !Directory.EnumerateFileSystemEntries(token.Value).Any()) {
                         result.ErrorMessage = $"{result.Option.Name} must a non-empty directory, but the specified directory '{token.Value}' was empty.";
                         return;
                     }

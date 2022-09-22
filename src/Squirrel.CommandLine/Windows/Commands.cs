@@ -8,7 +8,6 @@ using System.Linq;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
-using Octokit;
 using Squirrel.NuGet;
 using Squirrel.SimpleSplat;
 using FileMode = System.IO.FileMode;

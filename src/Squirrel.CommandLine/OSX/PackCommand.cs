@@ -10,23 +10,23 @@ namespace Squirrel.CommandLine.OSX
     public class PackCommand : BaseCommand
     {
         //Question: Since these are already inside of the PackCommand should we drop the "Pack" prefix from the property names?
-        protected Option<string> PackId { get; }
-        protected Option<string> PackVersion { get; }
-        protected Option<DirectoryInfo> PackDirectory { get; }
-        protected Option<string> PackAuthors { get; }
-        protected Option<string> PackTitle { get; }
-        protected Option<bool> IncludePdb { get; }
-        protected Option<FileInfo> ReleaseNotes { get; }
-        protected Option<string> SquirrelAwareExecutable { get; }
-        protected Option<FileInfo> Icon { get; }
-        protected Option<string> BundleId { get; }
-        protected Option<bool> NoDelta { get; }
-        protected Option<bool> NoPackage { get; }
+        public Option<string> PackId { get; }
+        public Option<string> PackVersion { get; }
+        public Option<DirectoryInfo> PackDirectory { get; }
+        public Option<string> PackAuthors { get; }
+        public Option<string> PackTitle { get; }
+        public Option<bool> IncludePdb { get; }
+        public Option<FileInfo> ReleaseNotes { get; }
+        public Option<string> SquirrelAwareExecutable { get; }
+        public Option<FileInfo> Icon { get; }
+        public Option<string> BundleId { get; }
+        public Option<bool> NoDelta { get; }
+        public Option<bool> NoPackage { get; }
         public Option<KeyValuePair<string, FileInfo>[]> PackageContent { get; }
-        protected Option<string> SigningAppIdentity { get; }
-        protected Option<string> SigningInstallIdentity { get; }
-        protected Option<FileInfo> SigningEntitlements { get; }
-        protected Option<string> NotaryProfile { get; }
+        public Option<string> SigningAppIdentity { get; }
+        public Option<string> SigningInstallIdentity { get; }
+        public Option<FileInfo> SigningEntitlements { get; }
+        public Option<string> NotaryProfile { get; }
 
         public PackCommand()
             : base("pack", "Creates a Squirrel release from a folder containing application files")
@@ -49,7 +49,7 @@ namespace Squirrel.CommandLine.OSX
                 ArgumentHelpName = "DIRECTORY",
                 IsRequired = true
             };
-            PackDirectory.ExistingOnly().MustNotBeEmpty();
+            PackDirectory.MustNotBeEmpty();
             Add(PackDirectory);
 
             PackAuthors = new Option<string>("--packAuthors", "Optional company or list of release {AUTHORS}") {
@@ -68,6 +68,7 @@ namespace Squirrel.CommandLine.OSX
             ReleaseNotes = new Option<FileInfo>("--releaseNotes", "{PATH} to file with markdown notes for version") {
                 ArgumentHelpName = "PATH"
             };
+            ReleaseNotes.ExistingOnly();
             Add(ReleaseNotes);
 
             SquirrelAwareExecutable = new Option<string>(new[] { "-e", "--mainExe" }, "The file {NAME} of the main executable") {
@@ -78,6 +79,7 @@ namespace Squirrel.CommandLine.OSX
             Icon = new Option<FileInfo>(new[] { "-i", "--icon" }, "{PATH} to .ico for Setup.exe and Update.exe") {
                 ArgumentHelpName = "PATH"
             };
+            Icon.ExistingOnly().RequiresExtension(".ico");
             Add(Icon);
 
             BundleId = new Option<string>("--bundleId", "Override the apple unique {ID} when generating bundles") {
