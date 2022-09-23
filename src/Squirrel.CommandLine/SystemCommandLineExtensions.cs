@@ -34,9 +34,15 @@ namespace Squirrel.CommandLine
             return command;
         }
 
+        public static Command RequiredAllowObsoleteFallback(this Command command, Option option, Option obsoleteOption)
+        {
+            command.AddValidator(x => Validate.AtLeastOneRequired(x, new[] { option, obsoleteOption }, true));
+            return command;
+        }
+
         public static Command AtLeastOneRequired(this Command command, params Option[] options)
         {
-            command.AddValidator(x => Validate.AtLeastOneRequired(x, options));
+            command.AddValidator(x => Validate.AtLeastOneRequired(x, options, false));
             return command;
         }
 
@@ -57,7 +63,7 @@ namespace Squirrel.CommandLine
             option.AddValidator(Validate.RequiresAbsolute);
             return option;
         }
-        
+
         public static Option<string> RequiresValidNuGetId(this Option<string> option)
         {
             option.AddValidator(Validate.RequiresValidNuGetId);
@@ -92,7 +98,8 @@ namespace Squirrel.CommandLine
                 }
             }
 
-            public static void RequiresExtension(OptionResult result, string extension) {
+            public static void RequiresExtension(OptionResult result, string extension)
+            {
                 for (int i = 0; i < result.Tokens.Count; i++) {
                     if (!string.Equals(Path.GetExtension(result.Tokens[i].Value), extension, StringComparison.InvariantCultureIgnoreCase)) {
                         result.ErrorMessage = $"{result.Tokens[i].Value} for {result.Option.Name} does not have an {extension} extension";
@@ -111,13 +118,17 @@ namespace Squirrel.CommandLine
                 }
             }
 
-            public static void AtLeastOneRequired(CommandResult result, Option[] options)
+            public static void AtLeastOneRequired(CommandResult result, Option[] options, bool onlyShowFirst = false)
             {
                 var anySpecifiedOptions = options
                     .Any(x => result.FindResultFor(x) is not null);
                 if (!anySpecifiedOptions) {
-                    string optionsString = string.Join(" and ", options.Select(x => $"'{x.Name}'"));
-                    result.ErrorMessage = $"At least one of the following options are required {optionsString}.";
+                    if (onlyShowFirst) {
+                        result.ErrorMessage = $"Required argument missing for option: {options.First().Name}";
+                    } else {
+                        string optionsString = string.Join(" and ", options.Select(x => $"'{x.Name}'"));
+                        result.ErrorMessage = $"At least one of the following options are required {optionsString}.";
+                    }
                 }
             }
 
@@ -134,7 +145,7 @@ namespace Squirrel.CommandLine
             {
                 for (int i = 0; i < result.Tokens.Count; i++) {
                     if (Uri.TryCreate(result.Tokens[i].Value, UriKind.RelativeOrAbsolute, out Uri uri) &&
-                        !validSchemes.Contains(uri.Scheme)){
+                        !validSchemes.Contains(uri.Scheme)) {
                         result.ErrorMessage = $"{result.Option.Name} must contain a Uri with one of the following schems: {string.Join(", ", validSchemes)}. Current value is '{result.Tokens[i].Value}'";
                     }
                 }

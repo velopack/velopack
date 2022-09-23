@@ -7,18 +7,18 @@ namespace Squirrel.CommandLine.Windows
 {
     public class ReleaseCommand : SigningCommand
     {
-        protected Option<Uri> BaseUrl { get; }
+        public Option<Uri> BaseUrl { get; }
         //Question this appears to only have an arity of 1, should you be able to specify it multiple times?
-        protected Option<string> AddSearchPath { get; }
-        protected Option<FileInfo> DebugSetupExe { get; }
+        public Option<string> AddSearchPath { get; }
+        public Option<FileInfo> DebugSetupExe { get; }
 
-        protected Option<bool> NoDelta { get; }
-        protected Option<string> Runtimes { get; }
-        protected Option<FileInfo> SplashImage { get; }
-        protected Option<FileInfo> Icon { get; }
-        protected Option<string> SquirrelAwareExecutable { get; }
-        protected Option<FileInfo> AppIcon { get; }
-        protected Option<Bitness> BuildMsi { get; }
+        public Option<bool> NoDelta { get; }
+        public Option<string> Runtimes { get; }
+        public Option<FileInfo> SplashImage { get; }
+        public Option<FileInfo> Icon { get; }
+        public Option<string> SquirrelAwareExecutable { get; }
+        public Option<FileInfo> AppIcon { get; }
+        public Option<Bitness> BuildMsi { get; }
 
         protected ReleaseCommand(string name, string description)
             : base(name, description)

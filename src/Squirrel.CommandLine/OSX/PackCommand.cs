@@ -90,7 +90,7 @@ namespace Squirrel.CommandLine.OSX
             NoDelta = new Option<bool>("--noDelta", "Skip the generation of delta packages");
             Add(NoDelta);
 
-            NoPackage = new Option<bool>("--nopkg", "Skip generating a .pkg installer");
+            NoPackage = new Option<bool>("--noPkg", "Skip generating a .pkg installer");
             Add(NoPackage);
 
             //TODO: Would be nice to setup completions at least for the keys of this option
@@ -145,7 +145,7 @@ namespace Squirrel.CommandLine.OSX
             SigningEntitlements = new Option<FileInfo>("--signEntitlements", "{PATH} to entitlements file for hardened runtime") {
                 ArgumentHelpName = "PATH"
             };
-            SigningEntitlements.ExistingOnly().RequiresExtension("entitlements");
+            SigningEntitlements.ExistingOnly().RequiresExtension(".entitlements");
             Add(SigningEntitlements);
 
             NotaryProfile = new Option<string>("--notaryProfile", "{NAME} of profile containing Apple credentials stored with notarytool") {

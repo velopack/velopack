@@ -1,9 +1,9 @@
 ﻿using Xunit;
-using Squirrel.CommandLine.OSX;
+using Squirrel.CommandLine.Windows;
 using System.CommandLine;
 using System.CommandLine.Parsing;
 
-namespace Squirrel.CommandLine.Tests.OSX
+namespace Squirrel.CommandLine.Tests.Windows
 {
     public class PackCommandTests : TempFileTestBase
     {
@@ -14,7 +14,7 @@ namespace Squirrel.CommandLine.Tests.OSX
             CreateTempFile(packDir);
             var command = new PackCommand();
 
-            ParseResult parseResult = command.Parse($"--packId Clowd.Squirrel -v 1.2.3 -p \"{packDir.FullName}\"");
+            ParseResult parseResult = command.Parse($"-u Clowd.Squirrel -v 1.2.3 -p \"{packDir.FullName}\"");
 
             Assert.Empty(parseResult.Errors);
             Assert.Equal("Clowd.Squirrel", parseResult.GetValueForOption(command.PackId));
@@ -196,117 +196,6 @@ namespace Squirrel.CommandLine.Tests.OSX
 
             Assert.True(parseResult.GetValueForOption(command.NoDelta));
         }
-
-        [Fact]
-        public void NoPackage_BareOption_SetsFlag()
-        {
-            var command = new PackCommand();
-
-            string cli = GetRequiredDefaultOptions() + "--noPkg";
-            ParseResult parseResult = command.Parse(cli);
-
-            Assert.True(parseResult.GetValueForOption(command.NoPackage));
-        }
-
-        [Fact]
-        public void PackageContent_CanSpecifyMultipleValues()
-        {
-            DirectoryInfo packDir = CreateTempDirectory();
-            FileInfo testFile1 = CreateTempFile(packDir);
-            FileInfo testFile2 = CreateTempFile(packDir);
-            PackCommand command = new PackCommand();
-            string cli = $"-u clowd.squirrel -v 1.0.0 -p \"{packDir.FullName}\"";
-            cli += $" --pkgContent welcome={testFile1.FullName}";
-            cli += $" --pkgContent license={testFile2.FullName}";
-            ParseResult parseResult = command.Parse(cli);
-
-            Assert.Empty(parseResult.Errors);
-            var packageContent = parseResult.GetValueForOption(command.PackageContent);
-            Assert.Equal(2, packageContent?.Length);
-            
-            Assert.Equal("welcome", packageContent![0].Key);
-            Assert.Equal(testFile1.FullName, packageContent![0].Value.FullName);
-
-            Assert.Equal("license", packageContent![1].Key);
-            Assert.Equal(testFile2.FullName, packageContent![1].Value.FullName);
-        }
-
-        [Fact]
-        public void PackageContent_WihtInvalidKey_DisplaysError()
-        {
-            DirectoryInfo packDir = CreateTempDirectory();
-            FileInfo testFile1 = CreateTempFile(packDir);
-            PackCommand command = new PackCommand();
-            string cli = $"-u clowd.squirrel -v 1.0.0 -p \"{packDir.FullName}\"";
-            cli += $" --pkgContent unknown={testFile1.FullName}";
-            ParseResult parseResult = command.Parse(cli);
-
-            ParseError error = parseResult.Errors.Single();
-            Assert.Equal("Invalid pkgContent key: unknown. Must be one of: welcome, readme, license, conclusion", error.Message);
-        }
-
-        [Fact]
-        public void SigningAppIdentity_WithSubject_ParsesValue()
-        {
-            var command = new PackCommand();
-
-            string cli = GetRequiredDefaultOptions() + $"--signAppIdentity \"Mac Developer\"";
-            ParseResult parseResult = command.Parse(cli);
-
-            Assert.Equal("Mac Developer", parseResult.GetValueForOption(command.SigningAppIdentity));
-        }
-
-        [Fact]
-        public void SigningInstallIdentity_WithSubject_ParsesValue()
-        {
-            var command = new PackCommand();
-
-            string cli = GetRequiredDefaultOptions() + $"--signInstallIdentity \"Mac Developer\"";
-            ParseResult parseResult = command.Parse(cli);
-
-            Assert.Equal("Mac Developer", parseResult.GetValueForOption(command.SigningInstallIdentity));
-        }
-
-        [Fact]
-        public void SigningEntitlements_WithValidFile_ParsesValue()
-        {
-            FileInfo fileInfo = CreateTempFile(name: Path.ChangeExtension(Path.GetRandomFileName(), ".entitlements"));
-            var command = new PackCommand();
-
-            string cli = GetRequiredDefaultOptions() + $"--signEntitlements \"{fileInfo.FullName}\"";
-            ParseResult parseResult = command.Parse(cli);
-
-            Assert.Equal(fileInfo.FullName, parseResult.GetValueForOption(command.SigningEntitlements)?.FullName);
-        }
-
-        [Fact]
-        public void SigningEntitlements_WithBadFileExtension_ShowsError()
-        {
-            FileInfo fileInfo = CreateTempFile(name: Path.ChangeExtension(Path.GetRandomFileName(), ".wrong"));
-            var command = new PackCommand();
-
-            string cli = GetRequiredDefaultOptions() + $"--signEntitlements \"{fileInfo.FullName}\"";
-            ParseResult parseResult = command.Parse(cli);
-
-            Assert.Equal(1, parseResult.Errors.Count);
-            Assert.Equal($"{fileInfo.FullName} for signEntitlements does not have an .entitlements extension", parseResult.Errors[0].Message);
-        }
-
-        [Fact]
-        public void SigningEntitlements_WithoutFile_ShowsError()
-        {
-            string file = Path.GetFullPath(Path.ChangeExtension(Path.GetRandomFileName(), ".entitlements"));
-            var command = new PackCommand();
-
-            string cli = GetRequiredDefaultOptions() + $"--signEntitlements \"{file}\"";
-            ParseResult parseResult = command.Parse(cli);
-
-            Assert.Equal(1, parseResult.Errors.Count);
-            Assert.Equal(command.SigningEntitlements, parseResult.Errors[0].SymbolResult?.Symbol.Parents.Single());
-            Assert.Contains(file, parseResult.Errors[0].Message);
-        }
-
-        
         private string GetRequiredDefaultOptions()
         {
             DirectoryInfo packDir = CreateTempDirectory();

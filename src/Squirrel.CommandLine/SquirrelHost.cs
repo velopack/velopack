@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.CommandLine;
-using System.CommandLine.IO;
 using System.CommandLine.Parsing;
 using Squirrel.CommandLine.Deployment;
 using Squirrel.SimpleSplat;
@@ -69,7 +68,7 @@ namespace Squirrel.CommandLine
                 new GitHubCommand()
             };
             rootCommand.Add(deploymentCommand);
-            
+
             return rootCommand.Invoke(args);
         }
     }

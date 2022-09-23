@@ -5,17 +5,17 @@ using System.IO;
 
 namespace Squirrel.CommandLine.Windows
 {
-    internal class PackCommand : ReleaseCommand
+    public class PackCommand : ReleaseCommand
     {
         //Question: Since these are already inside of the PackCommand should we drop the "Pack" prefix from the property names?
-        protected Option<string> PackName { get; }
-        protected Option<DirectoryInfo> PackDirectory { get; }
-        protected Option<string> PackId { get; }
-        protected Option<string> PackVersion { get; }
-        protected Option<string> PackTitle { get; }
-        protected Option<string> PackAuthors { get; }
-        protected Option<bool> IncludePdb { get; }
-        protected Option<FileInfo> ReleaseNotes { get; }
+        public Option<string> PackName { get; }
+        public Option<DirectoryInfo> PackDirectory { get; }
+        public Option<string> PackId { get; }
+        public Option<string> PackVersion { get; }
+        public Option<string> PackTitle { get; }
+        public Option<string> PackAuthors { get; }
+        public Option<bool> IncludePdb { get; }
+        public Option<FileInfo> ReleaseNotes { get; }
 
         public PackCommand()
             : base("pack", "Creates a Squirrel release from a folder containing application files")
@@ -26,13 +26,15 @@ namespace Squirrel.CommandLine.Windows
             PackId.RequiresValidNuGetId();
             Add(PackId);
 
-            //TODO: do we need to bring this forward since it is deprecated? Can we just remove it and make PackId a required option?
             PackName = new Option<string>("--packName", $"The name of the package to create. This is deprecated, use {PackId.Name} instead.") {
                 IsHidden = true,
             };
             Add(PackName);
 
-            //Question: I included --packDirectory here even though it should be "hidden" how important is it to deprecate this alias?
+            this.RequiredAllowObsoleteFallback(PackId, PackName);
+
+            //Question: I included --packDirectory here even though it should be "hidden".
+            // To deprecate how important is it to deprecate this alias?
             PackDirectory = new Option<DirectoryInfo>(new[] { "-p", "--packDir", "--packDirectory" }, "{DIRECTORY} containing application files for release") {
                 ArgumentHelpName = "DIRECTORY",
                 IsRequired = true,
