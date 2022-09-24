@@ -5,7 +5,7 @@ using System.CommandLine.Parsing;
 
 namespace Squirrel.CommandLine.Tests.Windows
 {
-    public class ReleasifyCommandTests : TempFileTestBase
+    public class ReleasifyCommandTests : BaseCommandTests<ReleasifyCommand>
     {
         [Fact]
         public void Command_WithValidRequiredArguments_Parses()
@@ -325,19 +325,7 @@ namespace Squirrel.CommandLine.Tests.Windows
             Assert.Equal($"abc is not a valid integer for --signParallel", parseResult.Errors[0].Message);
         }
 
-        [Fact]
-        public void ReleaseDirectory_WithDirectory_ParsesValue()
-        {
-            string releaseDirectory = CreateTempDirectory().FullName;
-            var command = new ReleasifyCommand();
-
-            string cli = GetRequiredDefaultOptions() + $"--releaseDir \"{releaseDirectory}\"";
-            ParseResult parseResult = command.Parse(cli);
-
-            Assert.Equal(releaseDirectory, parseResult.GetValueForOption(command.ReleaseDirectory)?.FullName);
-        }
-
-        private string GetRequiredDefaultOptions()
+        protected override string GetRequiredDefaultOptions()
         {
             FileInfo package = CreateTempFile(name: Path.ChangeExtension(Path.GetRandomFileName(), ".nupkg"));
 

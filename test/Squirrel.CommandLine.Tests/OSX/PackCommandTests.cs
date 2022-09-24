@@ -5,7 +5,7 @@ using System.CommandLine.Parsing;
 
 namespace Squirrel.CommandLine.Tests.OSX
 {
-    public class PackCommandTests : TempFileTestBase
+    public class PackCommandTests : BaseCommandTests<PackCommand>
     {
         [Fact]
         public void Command_WithValidRequiredArguments_Parses()
@@ -314,8 +314,7 @@ namespace Squirrel.CommandLine.Tests.OSX
             Assert.Equal("profile name", parseResult.GetValueForOption(command.NotaryProfile));
         }
 
-
-        private string GetRequiredDefaultOptions()
+        protected override string GetRequiredDefaultOptions()
         {
             DirectoryInfo packDir = CreateTempDirectory();
             CreateTempFile(packDir);

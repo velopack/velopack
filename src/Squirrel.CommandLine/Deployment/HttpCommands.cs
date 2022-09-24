@@ -14,7 +14,7 @@ namespace Squirrel.CommandLine.Deployment
         }
     }
 
-    internal class HttpDownloadCommand : BaseCommand
+    public class HttpDownloadCommand : BaseCommand
     {
         public Option<Uri> Url { get; }
 

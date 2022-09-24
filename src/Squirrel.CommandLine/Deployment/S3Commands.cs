@@ -49,6 +49,8 @@ namespace Squirrel.CommandLine.Deployment
                         if (r is null || r.DisplayName == "Unknown") {
                             result.ErrorMessage = $"Region '{region}' lookup failed, is this a valid AWS region?";
                         }
+                    } else {
+                        result.ErrorMessage = "A region value is required";
                     }
                 }
             });
