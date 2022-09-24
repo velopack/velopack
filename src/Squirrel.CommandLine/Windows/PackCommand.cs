@@ -7,7 +7,6 @@ namespace Squirrel.CommandLine.Windows
 {
     public class PackCommand : ReleaseCommand
     {
-        //Question: Since these are already inside of the PackCommand should we drop the "Pack" prefix from the property names?
         public Option<string> PackName { get; }
         public Option<DirectoryInfo> PackDirectoryObsolete { get; }
         public Option<DirectoryInfo> PackDirectory { get; }

@@ -8,7 +8,6 @@ namespace Squirrel.CommandLine.Windows
     public class ReleaseCommand : SigningCommand
     {
         public Option<Uri> BaseUrl { get; }
-        //Question this appears to only have an arity of 1, should you be able to specify it multiple times?
         public Option<string> AddSearchPath { get; }
         public Option<FileInfo> DebugSetupExe { get; }
 

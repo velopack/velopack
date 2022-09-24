@@ -9,7 +9,6 @@ namespace Squirrel.CommandLine.OSX
 {
     public class PackCommand : BaseCommand
     {
-        //Question: Since these are already inside of the PackCommand should we drop the "Pack" prefix from the property names?
         public Option<string> PackId { get; }
         public Option<string> PackVersion { get; }
         public Option<DirectoryInfo> PackDirectory { get; }
@@ -128,7 +127,6 @@ namespace Squirrel.CommandLine.OSX
                     }
                 }
             });
-            //Question: is this a reasonable way to describe this option to a user?
             PackageContent.ArgumentHelpName = "key=<FILE>";
             Add(PackageContent);
 
