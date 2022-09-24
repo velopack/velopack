@@ -19,7 +19,6 @@ namespace Squirrel.CommandLine.Windows
             SignTemplate.MustContain("{{file}}");
 
             if (SquirrelRuntimeInfo.IsWindows) {
-                //TODO: Cannot be used with sign template
                 SignParameters = new Option<string>(new[] { "--signParams", "-n" }, "Sign files via signtool.exe using these {PARAMETERS}") {
                     ArgumentHelpName = "PARAMETERS"
                 };
