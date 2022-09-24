@@ -17,8 +17,6 @@ namespace Squirrel.Update
         static AppDescOsx _app;
         static ILogger _logger;
 
-        //TODO: IMO it would be better to have there simply be one option for the process to start and a second flag indicating if you should wait
-        //We could then just make the process option required, cleaning up the code and the API a bit.
         private static readonly Option<string> ProcessStartOption = new("--processStart", "Start an executable in the current version of the app package");
         private static readonly Option<string> ProcessStartAndWaitOption = new("--processStartAndWait", "Start an executable in the current version of the app package");
         private static readonly Option<bool> ForceLatestOption = new("--forceLatest", "Force updates the current version folder");
