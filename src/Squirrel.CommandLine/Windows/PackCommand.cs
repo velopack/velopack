@@ -35,13 +35,13 @@ namespace Squirrel.CommandLine.Windows
             this.RequiredAllowObsoleteFallback(PackId, PackName);
 
             PackDirectoryObsolete = new Option<DirectoryInfo>("--packDirectory", "Obsolete, use --packDir instead");
-            PackDirectoryObsolete.ExistingOnly().MustNotBeEmpty();
+            PackDirectoryObsolete.MustNotBeEmpty();
             Add(PackDirectoryObsolete);
             
-            PackDirectory = new Option<DirectoryInfo>(new[] { "--packDir", "-p", "" }, "{DIRECTORY} containing application files for release") {
+            PackDirectory = new Option<DirectoryInfo>(new[] { "--packDir", "-p" }, "{DIRECTORY} containing application files for release") {
                 ArgumentHelpName = "DIRECTORY"
             };
-            PackDirectory.ExistingOnly().MustNotBeEmpty();
+            PackDirectory.MustNotBeEmpty();
             Add(PackDirectory);
 
             PackVersion = new Option<string>(new[] { "-v", "--packVersion" }, "Current {VERSION} for release") {

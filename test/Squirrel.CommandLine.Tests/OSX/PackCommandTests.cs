@@ -97,7 +97,7 @@ namespace Squirrel.CommandLine.Tests.OSX
         }
 
         [Fact]
-        public void ReleaseNode_WithExistingFile_ParsesValue()
+        public void ReleaseNotes_WithExistingFile_ParsesValue()
         {
             FileInfo releaseNotes = CreateTempFile();
             var command = new PackCommand();
@@ -109,7 +109,7 @@ namespace Squirrel.CommandLine.Tests.OSX
         }
 
         [Fact]
-        public void ReleaseNode_WithoutFile_ShowsError()
+        public void ReleaseNotes_WithoutFile_ShowsError()
         {
             string releaseNotes = Path.GetFullPath(Path.GetRandomFileName());
             var command = new PackCommand();

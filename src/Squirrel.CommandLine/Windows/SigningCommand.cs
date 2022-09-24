@@ -20,7 +20,7 @@ namespace Squirrel.CommandLine.Windows
 
             if (SquirrelRuntimeInfo.IsWindows) {
                 //TODO: Cannot be used with sign template
-                SignParameters = new Option<string>(new[] { "-n", "--signParams" }, "Sign files via signtool.exe using these {PARAMETERS}") {
+                SignParameters = new Option<string>(new[] { "--signParams", "-n" }, "Sign files via signtool.exe using these {PARAMETERS}") {
                     ArgumentHelpName = "PARAMETERS"
                 };
                 this.AreMutuallyExclusive(SignParameters, SignTemplate);

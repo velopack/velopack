@@ -69,7 +69,7 @@ namespace Squirrel.CommandLine.Windows
             AppIcon = new Option<FileInfo>("--appIcon", "{PATH} to .ico for 'Apps and Features' list") {
                 ArgumentHelpName = "PATH"
             };
-            AppIcon.ExistingOnly().RequiresExtension("ico");
+            AppIcon.ExistingOnly().RequiresExtension(".ico");
             Add(AppIcon);
 
             if (SquirrelRuntimeInfo.IsWindows) {

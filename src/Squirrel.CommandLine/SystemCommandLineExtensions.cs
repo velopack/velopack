@@ -18,7 +18,7 @@ namespace Squirrel.CommandLine
 
         public static Option<Uri> MustBeValidHttpUri(this Option<Uri> option)
         {
-            option.RequiresAbsolute().RequiresScheme(Uri.UriSchemeHttp, Uri.UriSchemeHttps);
+            option.RequiresScheme(Uri.UriSchemeHttp, Uri.UriSchemeHttps).RequiresAbsolute();
             return option;
         }
 
@@ -149,6 +149,7 @@ namespace Squirrel.CommandLine
             {
                 for (int i = 0; i < result.Tokens.Count; i++) {
                     if (Uri.TryCreate(result.Tokens[i].Value, UriKind.RelativeOrAbsolute, out Uri uri) &&
+                        uri.IsAbsoluteUri &&
                         !validSchemes.Contains(uri.Scheme)) {
                         result.ErrorMessage = $"{result.Token.Value} must contain a Uri with one of the following schems: {string.Join(", ", validSchemes)}. Current value is '{result.Tokens[i].Value}'";
                         break;

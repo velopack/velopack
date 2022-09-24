@@ -2,6 +2,7 @@
 
 namespace Squirrel.CommandLine.Tests
 {
+
     public abstract class TempFileTestBase : IDisposable
     {
         private readonly Lazy<DirectoryInfo> _WorkingDirectory = new(() => {
