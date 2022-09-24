@@ -9,6 +9,7 @@ namespace Squirrel.CommandLine.Windows
     {
         //Question: Since these are already inside of the PackCommand should we drop the "Pack" prefix from the property names?
         public Option<string> PackName { get; }
+        public Option<DirectoryInfo> PackDirectoryObsolete { get; }
         public Option<DirectoryInfo> PackDirectory { get; }
         public Option<string> PackId { get; }
         public Option<string> PackVersion { get; }
@@ -33,11 +34,12 @@ namespace Squirrel.CommandLine.Windows
 
             this.RequiredAllowObsoleteFallback(PackId, PackName);
 
-            //Question: I included --packDirectory here even though it should be "hidden".
-            // To deprecate how important is it to deprecate this alias?
-            PackDirectory = new Option<DirectoryInfo>(new[] { "-p", "--packDir", "--packDirectory" }, "{DIRECTORY} containing application files for release") {
-                ArgumentHelpName = "DIRECTORY",
-                IsRequired = true,
+            PackDirectoryObsolete = new Option<DirectoryInfo>("--packDirectory", "Obsolete, use --packDir instead");
+            PackDirectoryObsolete.ExistingOnly().MustNotBeEmpty();
+            Add(PackDirectoryObsolete);
+            
+            PackDirectory = new Option<DirectoryInfo>(new[] { "--packDir", "-p", "" }, "{DIRECTORY} containing application files for release") {
+                ArgumentHelpName = "DIRECTORY"
             };
             PackDirectory.ExistingOnly().MustNotBeEmpty();
             Add(PackDirectory);

@@ -90,10 +90,12 @@ namespace Squirrel.CommandLine
                 for (int i = 0; i < result.Tokens.Count; i++) {
                     if (int.TryParse(result.Tokens[i].Value, out int value)) {
                         if (value is < 1 or > 1000) {
-                            result.ErrorMessage = $"The value for {result.Option.Name} must be greater than {minimum} and less than {maximum}";
+                            result.ErrorMessage = $"The value for {result.Token.Value} must be greater than {minimum} and less than {maximum}";
+                            break;
                         }
                     } else {
-                        result.ErrorMessage = $"{result.Tokens[i].Value} is not a valid integer for {result.Option.Name}";
+                        result.ErrorMessage = $"{result.Tokens[i].Value} is not a valid integer for {result.Token.Value}";
+                        break;
                     }
                 }
             }
@@ -102,7 +104,8 @@ namespace Squirrel.CommandLine
             {
                 for (int i = 0; i < result.Tokens.Count; i++) {
                     if (!string.Equals(Path.GetExtension(result.Tokens[i].Value), extension, StringComparison.InvariantCultureIgnoreCase)) {
-                        result.ErrorMessage = $"{result.Tokens[i].Value} for {result.Option.Name} does not have an {extension} extension";
+                        result.ErrorMessage = $"{result.Tokens[i].Value} for {result.Token.Value} does not have an {extension} extension";
+                        break;
                     }
                 }
             }
@@ -113,7 +116,7 @@ namespace Squirrel.CommandLine
                     .Where(x => result.FindResultFor(x) is not null)
                     .ToList();
                 if (specifiedOptions.Count > 1) {
-                    string optionsString = string.Join(" and ", specifiedOptions.Select(x => $"'{x.Name}'"));
+                    string optionsString = string.Join(" and ", specifiedOptions.Select(x => $"'{x.Aliases.First()}'"));
                     result.ErrorMessage = $"Cannot use {optionsString} options together, please choose one.";
                 }
             }
@@ -124,9 +127,9 @@ namespace Squirrel.CommandLine
                     .Any(x => result.FindResultFor(x) is not null);
                 if (!anySpecifiedOptions) {
                     if (onlyShowFirst) {
-                        result.ErrorMessage = $"Required argument missing for option: {options.First().Name}";
+                        result.ErrorMessage = $"Required argument missing for option: {options.First().Aliases.First()}";
                     } else {
-                        string optionsString = string.Join(" and ", options.Select(x => $"'{x.Name}'"));
+                        string optionsString = string.Join(" and ", options.Select(x => $"'{x.Aliases.First()}'"));
                         result.ErrorMessage = $"At least one of the following options are required {optionsString}.";
                     }
                 }
@@ -136,7 +139,8 @@ namespace Squirrel.CommandLine
             {
                 for (int i = 0; i < result.Tokens.Count; i++) {
                     if (result.Tokens[i].Value?.Contains(value) == false) {
-                        result.ErrorMessage = $"{result.Option.Name} must contain '{value}'. Current value is '{result.Tokens[i].Value}'";
+                        result.ErrorMessage = $"{result.Token.Value} must contain '{value}'. Current value is '{result.Tokens[i].Value}'";
+                        break;
                     }
                 }
             }
@@ -146,7 +150,8 @@ namespace Squirrel.CommandLine
                 for (int i = 0; i < result.Tokens.Count; i++) {
                     if (Uri.TryCreate(result.Tokens[i].Value, UriKind.RelativeOrAbsolute, out Uri uri) &&
                         !validSchemes.Contains(uri.Scheme)) {
-                        result.ErrorMessage = $"{result.Option.Name} must contain a Uri with one of the following schems: {string.Join(", ", validSchemes)}. Current value is '{result.Tokens[i].Value}'";
+                        result.ErrorMessage = $"{result.Token.Value} must contain a Uri with one of the following schems: {string.Join(", ", validSchemes)}. Current value is '{result.Tokens[i].Value}'";
+                        break;
                     }
                 }
             }
@@ -155,7 +160,8 @@ namespace Squirrel.CommandLine
             {
                 for (int i = 0; i < result.Tokens.Count; i++) {
                     if (!Uri.TryCreate(result.Tokens[i].Value, UriKind.Absolute, out Uri _)) {
-                        result.ErrorMessage = $"{result.Option.Name} must contain an absolute Uri. Current value is '{result.Tokens[i].Value}'";
+                        result.ErrorMessage = $"{result.Token.Value} must contain an absolute Uri. Current value is '{result.Tokens[i].Value}'";
+                        break;
                     }
                 }
             }
@@ -164,22 +170,27 @@ namespace Squirrel.CommandLine
             {
                 for (int i = 0; i < result.Tokens.Count; i++) {
                     if (!NugetUtil.IsValidNuGetId(result.Tokens[i].Value)) {
-                        result.ErrorMessage = $"{result.Option.Name} is an invalid NuGet package id. It must contain only alphanumeric characters, underscores, dashes, and dots.. Current value is '{result.Tokens[i].Value}'";
+                        result.ErrorMessage = $"{result.Token.Value} is an invalid NuGet package id. It must contain only alphanumeric characters, underscores, dashes, and dots.. Current value is '{result.Tokens[i].Value}'";
+                        break;
                     }
                 }
             }
 
             public static void RequiresSemverCompliant(OptionResult result)
             {
+                string specifiedAlias = result.Token.Value;
+
                 for (int i = 0; i < result.Tokens.Count; i++) {
                     string version = result.Tokens[i].Value;
                     //TODO: This is duplicating NugetUtil.ThrowIfVersionNotSemverCompliant
                     if (SemanticVersion.TryParse(version, out var parsed)) {
                         if (parsed < new SemanticVersion(0, 0, 1)) {
-                            result.ErrorMessage = $"{result.Option.Name} contains an invalid package version '{version}', it must be >= 0.0.1.";
+                            result.ErrorMessage = $"{result.Token.Value} contains an invalid package version '{version}', it must be >= 0.0.1.";
+                            break;
                         }
                     } else {
-                        result.ErrorMessage = $"{result.Option.Name} contains an invalid package version '{version}', it must be a 3-part SemVer2 compliant version string.";
+                        result.ErrorMessage = $"{result.Token.Value} contains an invalid package version '{version}', it must be a 3-part SemVer2 compliant version string.";
+                        break;
                     }
                 }
             }
@@ -191,7 +202,7 @@ namespace Squirrel.CommandLine
 
                     if (!Directory.Exists(token.Value) ||
                         !Directory.EnumerateFileSystemEntries(token.Value).Any()) {
-                        result.ErrorMessage = $"{result.Option.Name} must a non-empty directory, but the specified directory '{token.Value}' was empty.";
+                        result.ErrorMessage = $"{result.Token.Value} must a non-empty directory, but the specified directory '{token.Value}' was empty.";
                         return;
                     }
                 }

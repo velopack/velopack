@@ -32,21 +32,21 @@ namespace Squirrel.CommandLine.Tests.OSX
             ParseResult parseResult = command.Parse($"--packId $42@ -v 1.0.0 -p \"{packDir.FullName}\"");
 
             Assert.Equal(1, parseResult.Errors.Count);
-            Assert.StartsWith("packId is an invalid NuGet package id.", parseResult.Errors[0].Message);
+            Assert.StartsWith("--packId is an invalid NuGet package id.", parseResult.Errors[0].Message);
             Assert.Contains("$42@", parseResult.Errors[0].Message);
         }
 
         [Fact]
-        public void PackId_WithInvalidVersion_ShowsError()
+        public void PackVersion_WithInvalidVersion_ShowsError()
         {
             DirectoryInfo packDir = CreateTempDirectory();
             CreateTempFile(packDir);
             var command = new PackCommand();
 
-            ParseResult parseResult = command.Parse($"-u Clowd.Squirrel -v 1.a.c -p \"{packDir.FullName}\"");
+            ParseResult parseResult = command.Parse($"-u Clowd.Squirrel --packVersion 1.a.c -p \"{packDir.FullName}\"");
 
             Assert.Equal(1, parseResult.Errors.Count);
-            Assert.StartsWith("packVersion contains an invalid package version", parseResult.Errors[0].Message);
+            Assert.StartsWith("--packVersion contains an invalid package version", parseResult.Errors[0].Message);
             Assert.Contains("1.a.c", parseResult.Errors[0].Message);
         }
 
@@ -56,10 +56,10 @@ namespace Squirrel.CommandLine.Tests.OSX
             DirectoryInfo packDir = CreateTempDirectory();
             var command = new PackCommand();
 
-            ParseResult parseResult = command.Parse($"-u Clowd.Squirrel -v 1.0.0 -p \"{packDir.FullName}\"");
+            ParseResult parseResult = command.Parse($"-u Clowd.Squirrel -v 1.0.0 --packDir \"{packDir.FullName}\"");
 
             Assert.Equal(1, parseResult.Errors.Count);
-            Assert.StartsWith("packDir must a non-empty directory", parseResult.Errors[0].Message);
+            Assert.StartsWith("--packDir must a non-empty directory", parseResult.Errors[0].Message);
             Assert.Contains(packDir.FullName, parseResult.Errors[0].Message);
         }
 
@@ -155,7 +155,7 @@ namespace Squirrel.CommandLine.Tests.OSX
             ParseResult parseResult = command.Parse(cli);
 
             Assert.Equal(1, parseResult.Errors.Count);
-            Assert.Equal($"{fileInfo.FullName} for icon does not have an .ico extension", parseResult.Errors[0].Message);
+            Assert.Equal($"{fileInfo.FullName} for --icon does not have an .ico extension", parseResult.Errors[0].Message);
         }
 
         [Fact]
@@ -173,17 +173,14 @@ namespace Squirrel.CommandLine.Tests.OSX
         }
 
         [Fact]
-        public void BundleId_WithoutId_ShowsError()
+        public void BundleId_WithValue_ParsesValue()
         {
-            string file = Path.GetFullPath(Path.ChangeExtension(Path.GetRandomFileName(), ".ico"));
             var command = new PackCommand();
 
-            string cli = GetRequiredDefaultOptions() + $"--icon \"{file}\"";
+            string cli = GetRequiredDefaultOptions() + $"--bundleId \"some id\"";
             ParseResult parseResult = command.Parse(cli);
 
-            Assert.Equal(1, parseResult.Errors.Count);
-            Assert.Equal(command.Icon, parseResult.Errors[0].SymbolResult?.Symbol.Parents.Single());
-            Assert.Contains(file, parseResult.Errors[0].Message);
+            Assert.Equal("some id", parseResult.GetValueForOption(command.BundleId));
         }
 
         [Fact]
@@ -289,7 +286,7 @@ namespace Squirrel.CommandLine.Tests.OSX
             ParseResult parseResult = command.Parse(cli);
 
             Assert.Equal(1, parseResult.Errors.Count);
-            Assert.Equal($"{fileInfo.FullName} for signEntitlements does not have an .entitlements extension", parseResult.Errors[0].Message);
+            Assert.Equal($"{fileInfo.FullName} for --signEntitlements does not have an .entitlements extension", parseResult.Errors[0].Message);
         }
 
         [Fact]
@@ -306,7 +303,18 @@ namespace Squirrel.CommandLine.Tests.OSX
             Assert.Contains(file, parseResult.Errors[0].Message);
         }
 
-        
+        [Fact]
+        public void NotaryProfile_WithName_ParsesValue()
+        {
+            var command = new PackCommand();
+
+            string cli = GetRequiredDefaultOptions() + $"--notaryProfile \"profile name\"";
+            ParseResult parseResult = command.Parse(cli);
+
+            Assert.Equal("profile name", parseResult.GetValueForOption(command.NotaryProfile));
+        }
+
+
         private string GetRequiredDefaultOptions()
         {
             DirectoryInfo packDir = CreateTempDirectory();
