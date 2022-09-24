@@ -155,7 +155,7 @@ namespace Squirrel.CommandLine.Tests.OSX
             ParseResult parseResult = command.Parse(cli);
 
             Assert.Equal(1, parseResult.Errors.Count);
-            Assert.Equal($"{fileInfo.FullName} for --icon does not have an .ico extension", parseResult.Errors[0].Message);
+            Assert.Equal($"--icon does not have an .ico extension", parseResult.Errors[0].Message);
         }
 
         [Fact]
@@ -286,7 +286,7 @@ namespace Squirrel.CommandLine.Tests.OSX
             ParseResult parseResult = command.Parse(cli);
 
             Assert.Equal(1, parseResult.Errors.Count);
-            Assert.Equal($"{fileInfo.FullName} for --signEntitlements does not have an .entitlements extension", parseResult.Errors[0].Message);
+            Assert.Equal($"--signEntitlements does not have an .entitlements extension", parseResult.Errors[0].Message);
         }
 
         [Fact]

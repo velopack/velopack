@@ -104,7 +104,7 @@ namespace Squirrel.CommandLine
             {
                 for (int i = 0; i < result.Tokens.Count; i++) {
                     if (!string.Equals(Path.GetExtension(result.Tokens[i].Value), extension, StringComparison.InvariantCultureIgnoreCase)) {
-                        result.ErrorMessage = $"{result.Tokens[i].Value} for {result.Token.Value} does not have an {extension} extension";
+                        result.ErrorMessage = $"{result.Token.Value} does not have an {extension} extension";
                         break;
                     }
                 }
