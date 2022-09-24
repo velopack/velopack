@@ -33,17 +33,6 @@ namespace Squirrel.CommandLine
     internal class SyncHttpOptions : BaseOptions
     {
         public string url { get; set; }
-
-        //public SyncHttpOptions()
-        //{
-        //    Add("url=", "Base url to the http location with hosted releases", v => url = v);
-        //}
-
-        //public override void Validate()
-        //{
-        //    IsRequired(nameof(url));
-        //    IsValidUrl(nameof(url));
-        //}
     }
 
     internal class SyncGithubOptions : BaseOptions
@@ -53,20 +42,5 @@ namespace Squirrel.CommandLine
         public bool pre { get; set; }
         public bool publish { get; set; }
         public string releaseName { get; set; }
-
-        //public SyncGithubOptions()
-        //{
-        //    Add("repoUrl=", "Full url to the github repository\nexample: 'https://github.com/myname/myrepo'", v => repoUrl = v);
-        //    Add("token=", "OAuth token to use as login credentials", v => token = v);
-        //    Add("pre", "(down only) Get latest pre-release instead of stable", v => pre = true);
-        //    Add("publish", "(up only) Publish release instead of creating draft", v => publish = true);
-        //    Add("releaseName=", "(up only) A custom {NAME} for created release", v => releaseName = v);
-        //}
-
-        //public override void Validate()
-        //{
-        //    IsRequired(nameof(repoUrl));
-        //    IsValidUrl(nameof(repoUrl));
-        //}
     }
 }
