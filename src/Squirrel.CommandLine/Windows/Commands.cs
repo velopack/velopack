@@ -133,39 +133,39 @@ namespace Squirrel.CommandLine.Windows
                     }
 
                     // parse the PE header of every squirrel aware app
-                    var peparsed = awareExes.ToDictionary(path => path, path => new PeNet.PeFile(path));
+                    //var peparsed = awareExes.ToDictionary(path => path, path => new PeNet.PeFile(path));
 
                     // record architecture of squirrel aware binaries so setup can fast fail if unsupported
-                    RuntimeCpu parseMachine(PeNet.Header.Pe.MachineType machine)
-                    {
-                        Utility.TryParseEnumU16<RuntimeCpu>((ushort) machine, out var cpu);
-                        return cpu;
-                    }
+                    //RuntimeCpu parseMachine(PeNet.Header.Pe.MachineType machine)
+                    //{
+                    //    Utility.TryParseEnumU16<RuntimeCpu>((ushort) machine, out var cpu);
+                    //    return cpu;
+                    //}
 
-                    var peArch = from pe in peparsed
-                        let machine = pe.Value?.ImageNtHeaders?.FileHeader?.Machine ?? 0
-                        let arch = parseMachine(machine)
-                        select new { Name = Path.GetFileName(pe.Key), Architecture = arch };
+                    //var peArch = from pe in peparsed
+                    //    let machine = pe.Value?.ImageNtHeaders?.FileHeader?.Machine ?? 0
+                    //    let arch = parseMachine(machine)
+                    //    select new { Name = Path.GetFileName(pe.Key), Architecture = arch };
 
-                    if (awareExes.Count > 0) {
-                        Log.Info($"There are {awareExes.Count} SquirrelAwareApp's. Binaries will be executed during install/update/uninstall hooks.");
-                        foreach (var pe in peArch) {
-                            Log.Info($"  Detected SquirrelAwareApp '{pe.Name}' (arch: {pe.Architecture})");
-                        }
-                    } else {
-                        Log.Warn("There are no SquirrelAwareApp's. No hooks will be executed during install/update/uninstall. " +
-                                 "Shortcuts will be created for every binary in package.");
-                    }
+                    //if (awareExes.Count > 0) {
+                    //    Log.Info($"There are {awareExes.Count} SquirrelAwareApp's. Binaries will be executed during install/update/uninstall hooks.");
+                    //    foreach (var pe in peArch) {
+                    //        Log.Info($"  Detected SquirrelAwareApp '{pe.Name}' (arch: {pe.Architecture})");
+                    //    }
+                    //} else {
+                    //    Log.Warn("There are no SquirrelAwareApp's. No hooks will be executed during install/update/uninstall. " +
+                    //             "Shortcuts will be created for every binary in package.");
+                    //}
 
-                    var pkgarch = SquirrelRuntimeInfo.SelectPackageArchitecture(peArch.Select(f => f.Architecture));
-                    Log.Write($"Program: Package Architecture (detected from SquirrelAwareApp's): {pkgarch}",
-                        pkgarch == RuntimeCpu.Unknown ? LogLevel.Warn : LogLevel.Info);
+                    //var pkgarch = SquirrelRuntimeInfo.SelectPackageArchitecture(peArch.Select(f => f.Architecture));
+                    //Log.Write($"Program: Package Architecture (detected from SquirrelAwareApp's): {pkgarch}",
+                    //    pkgarch == RuntimeCpu.Unknown ? LogLevel.Warn : LogLevel.Info);
 
                     // check dependencies of squirrel aware binaries for potential issues
                     // peparsed.ForEach(kvp => DotnetUtil.CheckDotnetReferences(kvp.Key, kvp.Value, requiredFrameworks));
 
                     // store the runtime dependencies and the package architecture in nuspec (read by installer)
-                    ZipPackage.SetSquirrelMetadata(nuspecPath, pkgarch, requiredFrameworks.Select(r => r.Id));
+                    //ZipPackage.SetSquirrelMetadata(nuspecPath, pkgarch, requiredFrameworks.Select(r => r.Id));
 
                     // create stub executable for all exe's in this package (except Squirrel!)
                     var exesToCreateStubFor = new DirectoryInfo(pkgPath).GetAllFilesRecursively()
