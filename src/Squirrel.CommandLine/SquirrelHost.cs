@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.CommandLine;
+using System.CommandLine.Builder;
 using System.CommandLine.Parsing;
 using Squirrel.CommandLine.Deployment;
 using Squirrel.SimpleSplat;
@@ -13,7 +14,7 @@ namespace Squirrel.CommandLine
             = new Option<string>(new[] { "-x", "--xplat" }, "Select {PLATFORM} to cross-compile for (eg. win, osx)") {
                 ArgumentHelpName = "PLATFORM"
             };
-        public static Option<bool> VerboseOption { get; } = new Option<bool>("--verbose", "Print all diagnostic messages");
+        public static Option<bool> VerboseOption { get; } = new Option<bool>("--verbose", "Print diagnostic messages.");
 
         public static int Main(string[] args)
         {
@@ -59,15 +60,24 @@ namespace Squirrel.CommandLine
             RootCommand rootCommand = new RootCommand($"Squirrel {SquirrelRuntimeInfo.SquirrelDisplayVersion} for creating and distributing Squirrel releases.");
             rootCommand.AddGlobalOption(PlatformOption);
             rootCommand.AddGlobalOption(VerboseOption);
+
             foreach (var command in packageCommands) {
                 rootCommand.Add(command);
             }
-            Command deploymentCommand = new("deployment", "Command for deploying Squirrel releases") {
-                new HttpCommand(),
-                new S3Command(),
-                new GitHubCommand()
+
+            Command uploadCommand = new("upload", "Upload local package(s) to a remote update source.") {
+                new S3UploadCommand(),
+                new GitHubUploadCommand(),
             };
-            rootCommand.Add(deploymentCommand);
+
+            Command downloadCommand = new("download", "Download's the latest release from a remote update source.") {
+                new HttpDownloadCommand(),
+                new S3DownloadCommand(),
+                new GitHubDownloadCommand(),
+            };
+
+            rootCommand.Add(uploadCommand);
+            rootCommand.Add(downloadCommand);
 
             return rootCommand.Invoke(args);
         }

@@ -5,15 +5,6 @@ using Squirrel.CommandLine.Sync;
 
 namespace Squirrel.CommandLine.Deployment
 {
-    public class S3Command : Command
-    {
-        public S3Command() : base("s3", "Upload or download from S3 API")
-        {
-            Add(new S3DownloadCommand());
-            Add(new S3UploadCommand());
-        }
-    }
-
     public class S3BaseCommand : BaseCommand
     {
         public Option<string> KeyId { get; }
@@ -26,19 +17,19 @@ namespace Squirrel.CommandLine.Deployment
         protected S3BaseCommand(string name, string description)
             : base(name, description)
         {
-            KeyId = new Option<string>("--keyId", "Authentication {IDENTIFIER} or access key") {
+            KeyId = new Option<string>("--keyId", "Authentication identifier or access key.") {
                 ArgumentHelpName = "IDENTIFIER",
                 IsRequired = true
             };
             Add(KeyId);
 
-            Secret = new Option<string>("--secret", "Authentication secret {KEY}") {
+            Secret = new Option<string>("--secret", "Authentication secret key.") {
                 ArgumentHelpName = "KEY",
                 IsRequired = true
             };
             Add(Secret);
 
-            Region = new Option<string>("--region", "AWS service {REGION} (eg. us-west-1)") {
+            Region = new Option<string>("--region", "AWS service region (eg. us-west-1).") {
                 ArgumentHelpName = "REGION"
             };
             Region.AddValidator(result => {
@@ -56,19 +47,19 @@ namespace Squirrel.CommandLine.Deployment
             });
             Add(Region);
 
-            Endpoint = new Option<string>("--endpoint", "Custom service {URL} (backblaze, digital ocean, etc)") {
+            Endpoint = new Option<string>("--endpoint", "Custom service url (backblaze, digital ocean, etc).") {
                 ArgumentHelpName = "URL"
             };
             Add(Endpoint);
 
-            Bucket = new Option<string>("--bucket", "{NAME} of the S3 bucket") {
+            Bucket = new Option<string>("--bucket", "Name of the S3 bucket.") {
                 ArgumentHelpName = "NAME",
                 IsRequired = true
             };
             Add(Bucket);
 
-            PathPrefix = new Option<string>("--pathPrefix", "A sub-folder {PATH} used for files in the bucket, for creating release channels (eg. 'stable' or 'dev')") {
-                ArgumentHelpName = "PATH"
+            PathPrefix = new Option<string>("--pathPrefix", "A sub-folder used for files in the bucket, for creating release channels (eg. 'stable' or 'dev').") {
+                ArgumentHelpName = "PREFIX"
             };
             Add(PathPrefix);
 
@@ -91,7 +82,7 @@ namespace Squirrel.CommandLine.Deployment
     public class S3DownloadCommand : S3BaseCommand
     {
         public S3DownloadCommand()
-            : base("down", "Download latest release from S3 API")
+            : base("s3", "Download latest release from an S3 bucket.")
         {
             this.SetHandler(Execute);
         }
@@ -110,12 +101,12 @@ namespace Squirrel.CommandLine.Deployment
         public Option<int> KeepMaxReleases { get; }
 
         public S3UploadCommand()
-            : base("up", "Upload releases to S3 API")
+            : base("s3", "Upload releases to an S3 bucket.")
         {
-            Overwrite = new Option<bool>("--overwrite", "Replace existing files if source has changed");
+            Overwrite = new Option<bool>("--overwrite", "Replace remote files if local files have changed.");
             Add(Overwrite);
 
-            KeepMaxReleases = new Option<int>("--keepMaxReleases", "Applies a retention policy during upload which keeps only the specified {NUMBER} of old versions") {
+            KeepMaxReleases = new Option<int>("--keepMaxReleases", "Apply a retention policy which keeps only the specified number of old versions in remote source.") {
                 ArgumentHelpName = "NUMBER"
             };
             Add(KeepMaxReleases);

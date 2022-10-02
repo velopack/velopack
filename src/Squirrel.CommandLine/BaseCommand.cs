@@ -10,10 +10,11 @@ namespace Squirrel.CommandLine
         protected static IFullLogger Log = SquirrelLocator.CurrentMutable.GetService<ILogManager>().GetLogger(typeof(BaseOptions));
 
         public Option<DirectoryInfo> ReleaseDirectory { get; }
+
         protected BaseCommand(string name, string description)
             : base(name, description)
         {
-            ReleaseDirectory = new Option<DirectoryInfo>(new[] { "-r", "--releaseDir" }, "Output {DIRECTORY} for releasified packages") {
+            ReleaseDirectory = new Option<DirectoryInfo>(new[] { "-r", "--releaseDir" }, "Output directory for Squirrel packages") {
                 ArgumentHelpName = "DIRECTORY"
             };
             Add(ReleaseDirectory);

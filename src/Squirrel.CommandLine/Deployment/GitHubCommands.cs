@@ -6,15 +6,6 @@ using System;
 
 namespace Squirrel.CommandLine.Deployment
 {
-    public class GitHubCommand : Command
-    {
-        public GitHubCommand() : base("github", "Upload or download from GitHub")
-        {
-            Add(new GitHubDownloadCommand());
-            Add(new GitHubUploadCommand());
-        }
-    }
-
     public class GitHubBaseCommand : BaseCommand
     {
         public Option<Uri> RepoUrl { get; }
@@ -23,13 +14,13 @@ namespace Squirrel.CommandLine.Deployment
         protected GitHubBaseCommand(string name, string description)
             : base(name, description)
         {
-            RepoUrl = new Option<Uri>("--repoUrl", "Full url to the github repository\nexample: 'https://github.com/myname/myrepo'") {
+            RepoUrl = new Option<Uri>("--repoUrl", "Full url to the github repository\nexample: 'https://github.com/myname/myrepo'.") {
                 IsRequired = true
             };
             RepoUrl.MustBeValidHttpUri();
             Add(RepoUrl);
 
-            Token = new Option<string>("--token", "OAuth token to use as login credentials");
+            Token = new Option<string>("--token", "OAuth token to use as login credentials.");
             Add(Token);
         }
 
@@ -44,13 +35,13 @@ namespace Squirrel.CommandLine.Deployment
     public class GitHubDownloadCommand : GitHubBaseCommand
     {
         public Option<bool> Pre { get; }
-        
+
         public GitHubDownloadCommand()
-            : base("down", "Download latest release from GitHub")
+            : base("github", "Download latest release from GitHub repository.")
         {
-            Pre = new Option<bool>("--pre", "Get latest pre-release instead of stable");
+            Pre = new Option<bool>("--pre", "Get latest pre-release instead of stable.");
             Add(Pre);
-            
+
             this.SetHandler(Execute);
         }
 
@@ -74,12 +65,12 @@ namespace Squirrel.CommandLine.Deployment
         public Option<string> ReleaseName { get; }
 
         public GitHubUploadCommand()
-            : base("up", "Upload latest release to GitHub")
+            : base("github", "Upload latest release to a GitHub repository.")
         {
-            Publish = new Option<bool>("--publish", "Publish release instead of creating draft");
+            Publish = new Option<bool>("--publish", "Publish release instead of creating draft.");
             Add(Publish);
 
-            ReleaseName = new Option<string>("--releaseName", "A custom {NAME} for created release") {
+            ReleaseName = new Option<string>("--releaseName", "A custom {NAME} for created release.") {
                 ArgumentHelpName = "NAME"
             };
             Add(ReleaseName);
