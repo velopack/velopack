@@ -1,5 +1,6 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Parsing;
+using Squirrel.CommandLine.Commands;
 using Xunit;
 
 namespace Squirrel.CommandLine.Tests

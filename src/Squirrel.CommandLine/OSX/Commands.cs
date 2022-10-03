@@ -5,6 +5,7 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using NuGet.Versioning;
+using Squirrel.CommandLine.Commands;
 using Squirrel.SimpleSplat;
 
 namespace Squirrel.CommandLine.OSX
@@ -13,12 +14,7 @@ namespace Squirrel.CommandLine.OSX
     {
         static IFullLogger Log => SquirrelLocator.Current.GetService<ILogManager>().GetLogger(typeof(Commands));
 
-        public static IEnumerable<Command> GetCommands()
-        {
-            yield return new PackCommand();
-        }
-
-        public static void Pack(PackOptions options)
+        public static void Pack(PackOsxCommand options)
         {
             var releaseDir = options.GetReleaseDirectory();
             string appBundlePath;
