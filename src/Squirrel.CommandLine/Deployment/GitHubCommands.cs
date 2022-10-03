@@ -24,7 +24,7 @@ namespace Squirrel.CommandLine.Deployment
             Add(Token);
         }
 
-        private protected void SetOptionsValues(InvocationContext context, SyncGithubOptions options)
+        private protected virtual void SetOptionsValues(InvocationContext context, SyncGithubOptions options)
         {
             base.SetOptionsValues(context, options);
             options.repoUrl = context.ParseResult.GetValueForOption(RepoUrl)?.AbsoluteUri;
@@ -45,7 +45,7 @@ namespace Squirrel.CommandLine.Deployment
             this.SetHandler(Execute);
         }
 
-        private protected new void SetOptionsValues(InvocationContext context, SyncGithubOptions options)
+        private protected override void SetOptionsValues(InvocationContext context, SyncGithubOptions options)
         {
             base.SetOptionsValues(context, options);
             options.pre = context.ParseResult.GetValueForOption(Pre);
@@ -77,9 +77,8 @@ namespace Squirrel.CommandLine.Deployment
 
             this.SetHandler(Execute);
         }
-
-        //Intentionally hiding base member
-        private protected new void SetOptionsValues(InvocationContext context, SyncGithubOptions options)
+        
+        private protected override void SetOptionsValues(InvocationContext context, SyncGithubOptions options)
         {
             base.SetOptionsValues(context, options);
             options.publish = context.ParseResult.GetValueForOption(Publish);

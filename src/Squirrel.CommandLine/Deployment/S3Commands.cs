@@ -67,7 +67,7 @@ namespace Squirrel.CommandLine.Deployment
                 .AtLeastOneRequired(Region, Endpoint);
         }
 
-        private protected void SetOptionsValues(InvocationContext context, SyncS3Options options)
+        private protected virtual void SetOptionsValues(InvocationContext context, SyncS3Options options)
         {
             base.SetOptionsValues(context, options);
             options.keyId = context.ParseResult.GetValueForOption(KeyId);
@@ -78,7 +78,7 @@ namespace Squirrel.CommandLine.Deployment
             options.pathPrefix = context.ParseResult.GetValueForOption(PathPrefix);
         }
     }
-
+    
     public class S3DownloadCommand : S3BaseCommand
     {
         public S3DownloadCommand()
@@ -113,9 +113,8 @@ namespace Squirrel.CommandLine.Deployment
 
             this.SetHandler(Execute);
         }
-
-        //Intentionally hiding base member
-        private protected new void SetOptionsValues(InvocationContext context, SyncS3Options options)
+        
+        private protected override void SetOptionsValues(InvocationContext context, SyncS3Options options)
         {
             base.SetOptionsValues(context, options);
             options.overwrite = context.ParseResult.GetValueForOption(Overwrite);
