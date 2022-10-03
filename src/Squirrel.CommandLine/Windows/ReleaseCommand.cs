@@ -8,14 +8,14 @@ namespace Squirrel.CommandLine.Windows
     public class ReleaseCommand : SigningCommand
     {
         public Option<Uri> BaseUrl { get; }
-        public Option<string> AddSearchPath { get; }
+        public Option<string[]> AddSearchPath { get; }
         public Option<FileInfo> DebugSetupExe { get; }
 
         public Option<bool> NoDelta { get; }
         public Option<string> Runtimes { get; }
         public Option<FileInfo> SplashImage { get; }
         public Option<FileInfo> Icon { get; }
-        public Option<string> SquirrelAwareExecutable { get; }
+        public Option<string[]> SquirrelAwareExecutable { get; }
         public Option<FileInfo> AppIcon { get; }
         public Option<Bitness> BuildMsi { get; }
 
@@ -28,7 +28,7 @@ namespace Squirrel.CommandLine.Windows
             BaseUrl.MustBeValidHttpUri();
             Add(BaseUrl);
 
-            AddSearchPath = new Option<string>("--addSearchPath", "Add additional search directories when looking for helper exe's such as Setup.exe, Update.exe, etc") {
+            AddSearchPath = new Option<string[]>("--addSearchPath", "Add additional search directories when looking for helper exe's such as Setup.exe, Update.exe, etc") {
                 IsHidden = true
             };
             Add(AddSearchPath);
@@ -60,7 +60,7 @@ namespace Squirrel.CommandLine.Windows
             Icon.ExistingOnly().RequiresExtension(".ico");
             Add(Icon);
 
-            SquirrelAwareExecutable = new Option<string>(new[] { "-e", "--mainExe" }, "{NAME} of one or more SquirrelAware executables") {
+            SquirrelAwareExecutable = new Option<string[]>(new[] { "-e", "--mainExe" }, "{NAME} of one or more SquirrelAware executables") {
                 ArgumentHelpName = "NAME"
             };
             Add(SquirrelAwareExecutable);
@@ -94,8 +94,8 @@ namespace Squirrel.CommandLine.Windows
             options.splashImage = context.ParseResult.GetValueForOption(SplashImage)?.FullName;
             options.icon = context.ParseResult.GetValueForOption(Icon)?.FullName;
             //TODO: This is a little awkward to set a value as part of parsing
-            if (context.ParseResult.GetValueForOption(SquirrelAwareExecutable) is { } mainExe) {
-                options.mainExes.Add(mainExe);
+            if (context.ParseResult.GetValueForOption(SquirrelAwareExecutable) is { } mainExes) {
+                options.mainExes.AddRange(mainExes);
             }
             options.appIcon = context.ParseResult.GetValueForOption(AppIcon)?.FullName;
 
