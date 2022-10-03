@@ -10,6 +10,30 @@ namespace Squirrel.CommandLine
 {
     internal static class SystemCommandLineExtensions
     {
+        public static Option<T> SetDescription<T>(this Option<T> option, string description)
+        {
+            option.Description = description;
+            return option;
+        }
+
+        public static Option<T> SetHidden<T>(this Option<T> option, bool isHidden = true)
+        {
+            option.IsHidden = isHidden;
+            return option;
+        }
+
+        public static Option<T> SetRequired<T>(this Option<T> option, bool isRequired = true)
+        {
+            option.IsRequired = isRequired;
+            return option;
+        }
+
+        public static Option<T> SetArgumentHelpName<T>(this Option<T> option, string argumentHelpName)
+        {
+            option.ArgumentHelpName = argumentHelpName;
+            return option;
+        }
+
         public static Option<int> MustBeBetween(this Option<int> option, int minimum, int maximum)
         {
             option.AddValidator(x => Validate.MustBeBetween(x, minimum, maximum));
@@ -34,11 +58,11 @@ namespace Squirrel.CommandLine
             return command;
         }
 
-        public static Command RequiredAllowObsoleteFallback(this Command command, Option option, Option obsoleteOption)
-        {
-            command.AddValidator(x => Validate.AtLeastOneRequired(x, new[] { option, obsoleteOption }, true));
-            return command;
-        }
+        //public static Command RequiredAllowObsoleteFallback(this Command command, Option option, Option obsoleteOption)
+        //{
+        //    command.AddValidator(x => Validate.AtLeastOneRequired(x, new[] { option, obsoleteOption }, true));
+        //    return command;
+        //}
 
         public static Command AtLeastOneRequired(this Command command, params Option[] options)
         {
