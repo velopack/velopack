@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.CommandLine;
 using System.CommandLine.Builder;
+using System.CommandLine.Help;
 using System.CommandLine.Parsing;
 using Squirrel.CommandLine.Deployment;
 using Squirrel.SimpleSplat;
@@ -79,7 +80,14 @@ namespace Squirrel.CommandLine
             rootCommand.Add(uploadCommand);
             rootCommand.Add(downloadCommand);
 
-            return rootCommand.Invoke(args);
+
+            var builder = new CommandLineBuilder(rootCommand)
+                //This is to work around an issue with UseHelp(80) not properly overriding the max width
+                //https://github.com/dotnet/command-line-api/pull/1864
+                .UseHelpBuilder(context => new HelpBuilder(context.ParseResult.Parser.Configuration.LocalizationResources, 80))
+                .UseDefaults();
+            var parser = builder.Build();
+            return parser.Invoke(args);
         }
     }
 }
