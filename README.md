@@ -48,6 +48,7 @@ Apps should be as fast easy to install. Update should be seamless like Google Ch
 1. Install the [Clowd.Squirrel Nuget Package](https://www.nuget.org/packages/Clowd.Squirrel/)
 
 2. Add SquirrelAwareVersion to your assembly manifest to indicate that your exe supports Squirrel. 
+Note: In newer .NET Core versions you first need to add the Application Manifest through New Item window.
 
    ```xml
    <?xml version="1.0" encoding="utf-8"?>
