@@ -7,14 +7,15 @@ namespace Squirrel.CommandLine.Commands
 {
     public class HttpDownloadCommand : BaseCommand
     {
-        public string Url { get; private set; }
+        public Uri Url { get; private set; }
 
         public HttpDownloadCommand()
             : base("http", "Download latest release from a HTTP source.")
         {
-            AddOption<Uri>("--url", (v) => Url = v?.AbsoluteUri)
+            AddOption<Uri>("--url", (v) => Url = v)
                 .SetDescription("Url to download remote releases from.")
-                .MustBeValidHttpUri();
+                .MustBeValidHttpUri()
+                .SetRequired();
         }
     }
 }

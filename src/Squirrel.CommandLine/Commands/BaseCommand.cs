@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.CommandLine.Parsing;
@@ -12,16 +11,25 @@ namespace Squirrel.CommandLine.Commands
     {
         public DirectoryInfo ReleaseDirectory { get; private set; }
 
+        protected Option<DirectoryInfo> ReleaseDirectoryOption { get; private set; }
+
         protected static IFullLogger Log = SquirrelLocator.CurrentMutable.GetService<ILogManager>().GetLogger(typeof(BaseCommand));
         private Action<InvocationContext> _setters;
 
-        protected BaseCommand(string name, string description)
+        protected BaseCommand(string name, string description, bool releaseDirMustNotBeEmpty = false)
             : base(name, description)
         {
-            AddOption<DirectoryInfo>(new[] { "-r", "--releaseDir" }, (v) => ReleaseDirectory = v)
+            ReleaseDirectoryOption = AddOption<DirectoryInfo>(new[] { "-r", "--releaseDir" }, (v) => ReleaseDirectory = v)
                 .SetDescription("Output directory for Squirrel packages.")
-                .SetArgumentHelpName("DIRECTORY")
-                .ExistingOnly();
+                .SetArgumentHelpName("DIRECTORY");
+            ReleaseDirectoryOption.SetDefaultValue(new DirectoryInfo(".\\Releases"));
+        }
+
+        public DirectoryInfo GetReleaseDirectory()
+        {
+            if (ReleaseDirectory == null) ReleaseDirectory = new DirectoryInfo(".\\Releases");
+            if (!ReleaseDirectory.Exists) ReleaseDirectory.Create();
+            return ReleaseDirectory;
         }
 
         protected virtual Option<T> AddOption<T>(string alias, Action<T> setValue)

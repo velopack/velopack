@@ -10,47 +10,48 @@ using System.Threading.Tasks;
 using Amazon;
 using Amazon.S3;
 using Amazon.S3.Model;
+using Squirrel.CommandLine.Commands;
 using Squirrel.SimpleSplat;
 
 namespace Squirrel.CommandLine.Sync
 {
-    internal class S3Repository : IPackageRepository
+    internal static class S3Repository
     {
-        private readonly SyncS3Options _options;
-        private readonly AmazonS3Client _client;
-        private readonly string _prefix;
-
         private readonly static IFullLogger Log = SquirrelLocator.Current.GetService<ILogManager>().GetLogger(typeof(S3Repository));
 
-        public S3Repository(SyncS3Options options)
+        private static AmazonS3Client GetS3Client(S3BaseCommand options)
         {
-            _options = options;
-            if (options.region != null) {
-                var r = RegionEndpoint.GetBySystemName(options.region);
-                _client = new AmazonS3Client(_options.keyId, _options.secret, r);
-            } else if (options.endpoint != null) {
-                var config = new AmazonS3Config() { ServiceURL = _options.endpoint };
-                _client = new AmazonS3Client(_options.keyId, _options.secret, config);
+            if (options.Region != null) {
+                var r = RegionEndpoint.GetBySystemName(options.Region);
+                return new AmazonS3Client(options.KeyId, options.Secret, r);
+            } else if (options.Endpoint != null) {
+                var config = new AmazonS3Config() { ServiceURL = options.Endpoint };
+                return new AmazonS3Client(options.KeyId, options.Secret, config);
             } else {
                 throw new InvalidOperationException("Missing endpoint");
             }
-
-            var prefix = _options.pathPrefix?.Replace('\\', '/') ?? "";
-            if (!String.IsNullOrWhiteSpace(prefix) && !prefix.EndsWith("/")) prefix += "/";
-            _prefix = prefix;
         }
 
-        public async Task DownloadRecentPackages()
+        private static string GetPrefix(S3BaseCommand options)
         {
-            var releasesDir = _options.GetReleaseDirectory();
+            var prefix = options.PathPrefix?.Replace('\\', '/') ?? "";
+            if (!String.IsNullOrWhiteSpace(prefix) && !prefix.EndsWith("/")) prefix += "/";
+            return prefix;
+        }
+
+        public static async Task DownloadRecentPackages(S3DownloadCommand options)
+        {
+            var _client = GetS3Client(options);
+            var _prefix = GetPrefix(options);
+            var releasesDir = options.GetReleaseDirectory();
             var releasesPath = Path.Combine(releasesDir.FullName, "RELEASES");
 
-            Log.Info($"Downloading latest release to '{releasesDir.FullName}' from S3 bucket '{_options.bucket}'"
+            Log.Info($"Downloading latest release to '{releasesDir.FullName}' from S3 bucket '{options.Bucket}'"
                      + (String.IsNullOrWhiteSpace(_prefix) ? "" : " with prefix '" + _prefix + "'"));
 
             try {
                 Log.Info("Downloading RELEASES");
-                using (var obj = await _client.GetObjectAsync(_options.bucket, _prefix + "RELEASES"))
+                using (var obj = await _client.GetObjectAsync(options.Bucket, _prefix + "RELEASES"))
                     await obj.WriteResponseStreamToFileAsync(releasesPath, false, CancellationToken.None);
             } catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound) {
                 Log.Warn("RELEASES file not found. No releases to download.");
@@ -68,18 +69,18 @@ namespace Squirrel.CommandLine.Sync
 
             foreach (var releaseToDownload in releasesToDownload) {
                 Log.Info("Downloading " + releaseToDownload.Filename);
-                using (var pkgobj = await _client.GetObjectAsync(_options.bucket, _prefix + releaseToDownload.Filename))
+                using (var pkgobj = await _client.GetObjectAsync(options.Bucket, _prefix + releaseToDownload.Filename))
                     await pkgobj.WriteResponseStreamToFileAsync(releaseToDownload.LocalPath, false, CancellationToken.None);
             }
         }
 
-        public async Task UploadMissingPackages()
+        public static async Task UploadMissingPackages(S3UploadCommand options)
         {
-            var releasesDir = _options.GetReleaseDirectory(createIfMissing: false);
-            if (!releasesDir.Exists)
-                throw new Exception($"Release directory '{releasesDir.FullName}' does not exist.");
+            var _client = GetS3Client(options);
+            var _prefix = GetPrefix(options);
+            var releasesDir = options.GetReleaseDirectory();
 
-            Log.Info($"Uploading releases from '{releasesDir.FullName}' to S3 bucket '{_options.bucket}'"
+            Log.Info($"Uploading releases from '{releasesDir.FullName}' to S3 bucket '{options.Bucket}'"
                      + (String.IsNullOrWhiteSpace(_prefix) ? "" : " with prefix '" + _prefix + "'"));
 
             // locate files to upload
@@ -95,7 +96,7 @@ namespace Squirrel.CommandLine.Sync
             string remoteReleasesContent = null;
             try {
                 Log.Info("Downloading remote RELEASES file");
-                using (var obj = await _client.GetObjectAsync(_options.bucket, _prefix + "RELEASES"))
+                using (var obj = await _client.GetObjectAsync(options.Bucket, _prefix + "RELEASES"))
                 using (var sr = new StreamReader(obj.ResponseStream, Encoding.UTF8, true))
                     remoteReleasesContent = await sr.ReadToEndAsync();
                 Log.Info("Merging remote and local RELEASES files");
@@ -125,13 +126,13 @@ namespace Squirrel.CommandLine.Sync
             }
 
             var fullCount = releaseEntries.Where(r => !r.IsDelta).Count();
-            if (_options.keepMaxReleases > 0 && fullCount > _options.keepMaxReleases) {
-                Log.Info($"Retention Policy: {fullCount - _options.keepMaxReleases} releases will be removed from RELEASES file.");
+            if (options.KeepMaxReleases > 0 && fullCount > options.KeepMaxReleases) {
+                Log.Info($"Retention Policy: {fullCount - options.KeepMaxReleases} releases will be removed from RELEASES file.");
 
                 var fullReleases = releaseEntries
                     .OrderByDescending(k => k.Version)
                     .Where(k => !k.IsDelta)
-                    .Take(_options.keepMaxReleases)
+                    .Take(options.KeepMaxReleases)
                     .ToArray();
 
                 var deltaReleases = releaseEntries
@@ -148,6 +149,50 @@ namespace Squirrel.CommandLine.Sync
                 ReleaseEntry.WriteReleaseFile(releaseEntries, releasesFile.FullName);
             }
 
+
+            async Task UploadFile(FileInfo f, bool overwriteRemote)
+            {
+                string key = _prefix + f.Name;
+                string deleteOldVersionId = null;
+
+                // try to detect an existing remote file of the same name
+                try {
+                    var metadata = await _client.GetObjectMetadataAsync(options.Bucket, key);
+                    var md5 = GetFileMD5Checksum(f.FullName);
+                    var stored = metadata?.ETag?.Trim().Trim('"');
+
+                    if (stored != null) {
+                        if (stored.Equals(md5, StringComparison.InvariantCultureIgnoreCase)) {
+                            Log.Info($"Upload file '{f.Name}' skipped (already exists in remote)");
+                            return;
+                        } else if (overwriteRemote) {
+                            Log.Info($"File '{f.Name}' exists in remote, replacing...");
+                            deleteOldVersionId = metadata.VersionId;
+                        } else {
+                            Log.Warn($"File '{f.Name}' exists in remote and checksum does not match local file. Use 'overwrite' argument to replace remote file.");
+                            return;
+                        }
+                    }
+                } catch {
+                    // don't care if this check fails. worst case, we end up re-uploading a file that
+                    // already exists. storage providers should prefer the newer file of the same name.
+                }
+
+                var req = new PutObjectRequest {
+                    BucketName = options.Bucket,
+                    FilePath = f.FullName,
+                    Key = key,
+                };
+
+                await RetryAsync(() => _client.PutObjectAsync(req), "Uploading " + f.Name);
+
+                if (deleteOldVersionId != null) {
+                    await RetryAsync(() => _client.DeleteObjectAsync(options.Bucket, key, deleteOldVersionId),
+                        "Removing old version of " + f.Name,
+                        throwIfFail: false);
+                }
+            }
+
             // we need to upload things in a certain order. If we upload 'RELEASES' first, for example, a client
             // might try to request a nupkg that does not yet exist.
 
@@ -158,7 +203,7 @@ namespace Squirrel.CommandLine.Sync
                     continue;
                 }
 
-                await UploadFile(f, _options.overwrite);
+                await UploadFile(f, options.Overwrite);
             }
 
             // next upload setup files
@@ -169,11 +214,11 @@ namespace Squirrel.CommandLine.Sync
             await UploadFile(releasesFile, true);
 
             // ignore dead package cleanup if there is no retention policy
-            if (_options.keepMaxReleases > 0) {
+            if (options.KeepMaxReleases > 0) {
                 // remove any dead packages (not in RELEASES) as they are undiscoverable anyway
                 Log.Info("Searching for remote dead packages (not in RELEASES file)");
 
-                var objects = await ListBucketContentsAsync(_client, _options.bucket, _prefix).ToArrayAsync();
+                var objects = await ListBucketContentsAsync(_client, options.Bucket, _prefix).ToArrayAsync();
 
                 var deadObjectQuery =
                     from o in objects
@@ -190,20 +235,20 @@ namespace Squirrel.CommandLine.Sync
 
                 Log.Info($"Found {deadObj.Length} dead packages.");
                 foreach (var s3obj in deadObj) {
-                    var req = new DeleteObjectRequest { BucketName = _options.bucket, Key = s3obj.key, VersionId = s3obj.versionId };
+                    var req = new DeleteObjectRequest { BucketName = options.Bucket, Key = s3obj.key, VersionId = s3obj.versionId };
                     await RetryAsync(() => _client.DeleteObjectAsync(req), "Deleting dead package: " + s3obj, throwIfFail: false);
                 }
             }
 
             Log.Info("Done");
 
-            var endpointHost = _options.endpoint ?? RegionEndpoint.GetBySystemName(_options.region).GetEndpointForService("s3").Hostname;
+            var endpointHost = options.Endpoint ?? RegionEndpoint.GetBySystemName(options.Region).GetEndpointForService("s3").Hostname;
 
             if (Regex.IsMatch(endpointHost, @"^https?:\/\/", RegexOptions.IgnoreCase)) {
                 endpointHost = new Uri(endpointHost, UriKind.Absolute).Host;
             }
 
-            var baseurl = $"https://{_options.bucket}.{endpointHost}/{_prefix}";
+            var baseurl = $"https://{options.Bucket}.{endpointHost}/{_prefix}";
             Log.Info($"Bucket URL:  {baseurl}");
             Log.Info($"Setup URL:   {baseurl}{setupFile.Name}");
         }
@@ -230,50 +275,7 @@ namespace Squirrel.CommandLine.Sync
             } while (response.IsTruncated);
         }
 
-        private async Task UploadFile(FileInfo f, bool overwriteRemote)
-        {
-            string key = _prefix + f.Name;
-            string deleteOldVersionId = null;
-
-            // try to detect an existing remote file of the same name
-            try {
-                var metadata = await _client.GetObjectMetadataAsync(_options.bucket, key);
-                var md5 = GetFileMD5Checksum(f.FullName);
-                var stored = metadata?.ETag?.Trim().Trim('"');
-
-                if (stored != null) {
-                    if (stored.Equals(md5, StringComparison.InvariantCultureIgnoreCase)) {
-                        Log.Info($"Upload file '{f.Name}' skipped (already exists in remote)");
-                        return;
-                    } else if (overwriteRemote) {
-                        Log.Info($"File '{f.Name}' exists in remote, replacing...");
-                        deleteOldVersionId = metadata.VersionId;
-                    } else {
-                        Log.Warn($"File '{f.Name}' exists in remote and checksum does not match local file. Use 'overwrite' argument to replace remote file.");
-                        return;
-                    }
-                }
-            } catch {
-                // don't care if this check fails. worst case, we end up re-uploading a file that
-                // already exists. storage providers should prefer the newer file of the same name.
-            }
-
-            var req = new PutObjectRequest {
-                BucketName = _options.bucket,
-                FilePath = f.FullName,
-                Key = key,
-            };
-
-            await RetryAsync(() => _client.PutObjectAsync(req), "Uploading " + f.Name);
-
-            if (deleteOldVersionId != null) {
-                await RetryAsync(() => _client.DeleteObjectAsync(_options.bucket, key, deleteOldVersionId),
-                    "Removing old version of " + f.Name,
-                    throwIfFail: false);
-            }
-        }
-
-        private async Task RetryAsync(Func<Task> block, string message, bool throwIfFail = true, bool showMessageFirst = true)
+        private static async Task RetryAsync(Func<Task> block, string message, bool throwIfFail = true, bool showMessageFirst = true)
         {
             int ctry = 0;
             while (true) {

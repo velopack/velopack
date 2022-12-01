@@ -14,9 +14,14 @@ namespace Squirrel.CommandLine.OSX
     {
         static IFullLogger Log => SquirrelLocator.Current.GetService<ILogManager>().GetLogger(typeof(Commands));
 
-        public static void Pack(PackOsxCommand options)
+        public static void Bundle(BundleOsxCommand options)
         {
-            var releaseDir = options.GetReleaseDirectory();
+
+        }
+
+        public static void Releasify(ReleasifyOsxCommand options)
+        {
+            var releaseDir = options.ReleaseDirectory;
             string appBundlePath;
 
             if (options.packDirectory.EndsWith(".app", StringComparison.InvariantCultureIgnoreCase)) {

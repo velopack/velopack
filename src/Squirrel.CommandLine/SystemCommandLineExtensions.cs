@@ -52,6 +52,12 @@ namespace Squirrel.CommandLine
             return option;
         }
 
+        public static Option<DirectoryInfo> RequiresExtension(this Option<DirectoryInfo> option, string extension)
+        {
+            option.AddValidator(x => Validate.RequiresExtension(x, extension));
+            return option;
+        }
+
         public static Command AreMutuallyExclusive(this Command command, params Option[] options)
         {
             command.AddValidator(x => Validate.AreMutuallyExclusive(x, options));

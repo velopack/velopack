@@ -7,7 +7,7 @@ using System.IO;
 
 namespace Squirrel.CommandLine.Commands
 {
-    public class PackOsxCommand : BaseCommand, INugetPackCommand
+    public class BundleOsxCommand : BaseCommand, INugetPackCommand
     {
         public string PackId { get; private set; }
 
@@ -29,22 +29,8 @@ namespace Squirrel.CommandLine.Commands
 
         public string BundleId { get; private set; }
 
-        public bool NoDelta { get; private set; }
-
-        public bool NoPackage { get; private set; }
-
-        public Dictionary<string, FileInfo> PackageExtraContent { get; private set; }
-
-        public string SigningAppIdentity { get; private set; }
-
-        public string SigningInstallIdentity { get; private set; }
-
-        public FileInfo SigningEntitlements { get; private set; }
-
-        public string NotaryProfile { get; private set; }
-
-        public PackOsxCommand()
-            : base("packosx", "Creates a Squirrel release from a folder containing application files.")
+        public BundleOsxCommand()
+            : base("bundle", "Create's an OSX .app bundle from a folder containing application files.")
         {
             AddOption<string>(new[] { "--packId", "-u" }, (v) => PackId = v)
                 .SetDescription("Unique Id for application bundle.")
@@ -52,7 +38,7 @@ namespace Squirrel.CommandLine.Commands
                 .SetRequired()
                 .RequiresValidNuGetId();
 
-            // TODO add parser straight to SemanticVersion
+            // TODO add parser straight to SemanticVersion?
             AddOption<string>(new[] { "--packVersion", "-v" }, (v) => PackVersion = v)
                 .SetDescription("Current version for application bundle.")
                 .SetArgumentHelpName("VERSION")
@@ -83,17 +69,55 @@ namespace Squirrel.CommandLine.Commands
 
             AddOption<string>(new[] { "-e", "--mainExe" }, (v) => EntryExecutableName = v)
                 .SetDescription("The file name of the main/entry executable.")
-                .SetArgumentHelpName("NAME");
+                .SetArgumentHelpName("NAME")
+                .SetRequired();
 
             AddOption<FileInfo>(new[] { "-i", "--icon" }, (v) => Icon = v)
                 .SetDescription("Path to the .icns file for this bundle.")
                 .SetArgumentHelpName("PATH")
                 .ExistingOnly()
+                .SetRequired()
                 .RequiresExtension(".icns");
 
             AddOption<string>("--bundleId", (v) => BundleId = v)
                 .SetDescription("Override the apple unique Id when generating bundles.")
                 .SetArgumentHelpName("ID");
+        }
+    }
+
+    public class ReleasifyOsxCommand : BaseCommand
+    {
+        public DirectoryInfo BundleDirectory { get; private set; }
+
+        public bool NoDelta { get; private set; }
+
+        public bool NoPackage { get; private set; }
+
+        public FileInfo PackageWelcome { get; private set; }
+
+        public FileInfo PackageReadme { get; private set; }
+
+        public FileInfo PackageLicense { get; private set; }
+
+        public FileInfo PackageConclusion { get; private set; }
+
+        public string SigningAppIdentity { get; private set; }
+
+        public string SigningInstallIdentity { get; private set; }
+
+        public FileInfo SigningEntitlements { get; private set; }
+
+        public string NotaryProfile { get; private set; }
+
+        public ReleasifyOsxCommand()
+            : base("releasify", "Converts an OSX .app bundle into a Squirrel release and installer.")
+        {
+            AddOption<DirectoryInfo>(new[] { "-b", "--bundle" }, (v) => BundleDirectory = v)
+                .SetDescription("The bundle to convert into a Squirrel release.")
+                .SetArgumentHelpName("DIRECTORY")
+                .MustNotBeEmpty()
+                .RequiresExtension(".app")
+                .SetRequired();
 
             AddOption<bool>("--noDelta", (v) => NoDelta = v)
                 .SetDescription("Skip the generation of delta packages.");
@@ -101,46 +125,25 @@ namespace Squirrel.CommandLine.Commands
             AddOption<bool>("--noPkg", (v) => NoPackage = v)
                 .SetDescription("Skip generating a .pkg installer.");
 
-            ParseArgument<Dictionary<string, FileInfo>> parsePkgContent = (ArgumentResult value) => {
-                var splitCharacters = new[] { '=', ':' };
-                var results = new Dictionary<string, FileInfo>();
-                for (int i = 0; i < value.Tokens.Count; i++) {
-                    string token = value.Tokens[i].Value;
-                    string[] parts = token.Split(splitCharacters, 2);
-                    switch (parts.Length) {
-                    case 1:
-                        results[parts[0]] = new FileInfo("");
-                        break;
-                    case 2:
-                        results[parts[0]] = new FileInfo(parts[1]);
-                        break;
-                    }
-                }
-                return results;
-            };
+            AddOption<FileInfo>("--pkgWelcome", (v) => PackageWelcome = v)
+                .SetDescription("Set the installer package welcome content.")
+                .SetArgumentHelpName("PATH")
+                .ExistingOnly();
 
-            //TODO: Would be nice to setup completions at least for the keys of this option
-            var pkgContent = AddOption<Dictionary<string, FileInfo>>("--pkgContent", (v) => PackageExtraContent = v, parsePkgContent)
-                .SetDescription("Add content files (eg. readme, license) to pkg installer.")
-                .SetArgumentHelpName("key=<FILE>");
+            AddOption<FileInfo>("--pkgReadme", (v) => PackageReadme = v)
+                .SetDescription("Set the installer package readme content.")
+                .SetArgumentHelpName("PATH")
+                .ExistingOnly();
 
-            pkgContent.AddValidator((OptionResult result) => {
-                var validContentKeys = new HashSet<string> {
-                    "welcome",
-                    "readme",
-                    "license",
-                    "conclusion",
-                };
-                foreach (var kvp in result.GetValueForOption(pkgContent)) {
-                    if (!validContentKeys.Contains(kvp.Key)) {
-                        result.ErrorMessage = $"Invalid {pkgContent.Name} key: {kvp.Key}. Must be one of: " + string.Join(", ", validContentKeys);
-                    }
+            AddOption<FileInfo>("--pkgLicense", (v) => PackageLicense = v)
+                .SetDescription("Set the installer package license content.")
+                .SetArgumentHelpName("PATH")
+                .ExistingOnly();
 
-                    if (!kvp.Value.Exists) {
-                        result.ErrorMessage = $"{pkgContent.Name} file not found: {kvp.Value}";
-                    }
-                }
-            });
+            AddOption<FileInfo>("--pkgConclusion", (v) => PackageConclusion = v)
+                .SetDescription("Set the installer package conclusion content.")
+                .SetArgumentHelpName("PATH")
+                .ExistingOnly();
 
             AddOption<string>("--signAppIdentity", (v) => SigningAppIdentity = v)
                 .SetDescription("The subject name of the cert to use for app code signing.")

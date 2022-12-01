@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.CommandLine;
-using System.CommandLine.Builder;
-using System.CommandLine.Help;
 using System.CommandLine.Parsing;
 using System.Threading.Tasks;
 using Squirrel.CommandLine.Commands;
@@ -52,8 +49,7 @@ namespace Squirrel.CommandLine
             case "win":
             case "windows":
                 if (!SquirrelRuntimeInfo.IsWindows)
-                    logger.Write("Cross-compiling will cause some features of Squirrel to be disabled.", LogLevel.Warn);
-
+                    logger.Write("Cross-compiling will cause some command and options of Squirrel to be unavailable.", LogLevel.Warn);
                 rootCommand.AddCommandWithHandler(new PackWindowsCommand(), Windows.Commands.Pack);
                 rootCommand.AddCommandWithHandler(new ReleasifyWindowsCommand(), Windows.Commands.Releasify);
                 break;
@@ -62,9 +58,9 @@ namespace Squirrel.CommandLine
             case "osx":
             case "macos":
                 if (!SquirrelRuntimeInfo.IsOSX)
-                    logger.Write("Cross-compiling will cause some features of Squirrel to be disabled.", LogLevel.Warn);
-
-                rootCommand.AddCommandWithHandler(new PackOsxCommand(), OSX.Commands.Pack);
+                    logger.Write("Cross-compiling will cause some command and options of Squirrel to be unavailable.", LogLevel.Warn);
+                rootCommand.AddCommandWithHandler(new BundleOsxCommand(), OSX.Commands.Bundle);
+                rootCommand.AddCommandWithHandler(new ReleasifyOsxCommand(), OSX.Commands.Releasify);
                 break;
 
             default:
@@ -76,24 +72,17 @@ namespace Squirrel.CommandLine
             }
 
             Command uploadCommand = new Command("upload", "Upload local package(s) to a remote update source.")
-                .AddCommandWithHandler(new S3UploadCommand(), options => new S3Repository(options).UploadMissingPackages())
-                .AddCommandWithHandler(new GitHubUploadCommand(), options => new GitHubRepository(options).UploadMissingPackages());
+                .AddCommandWithHandler(new S3UploadCommand(), options => S3Repository.UploadMissingPackages(options))
+                .AddCommandWithHandler(new GitHubUploadCommand(), options => GitHubRepository.UploadMissingPackages(options));
 
             Command downloadCommand = new Command("download", "Download's the latest release from a remote update source.")
-                .AddCommandWithHandler(new HttpDownloadCommand(), options => new SimpleWebRepository(options).DownloadPackages())
-                .AddCommandWithHandler(new S3DownloadCommand(), options => new S3Repository(options).DownloadPackages())
-                .AddCommandWithHandler(new GitHubDownloadCommand(), options => new GitHubRepository(options).DownloadPackages());
+                .AddCommandWithHandler(new HttpDownloadCommand(), options => SimpleWebRepository.DownloadRecentPackages(options))
+                .AddCommandWithHandler(new S3DownloadCommand(), options => S3Repository.DownloadRecentPackages(options))
+                .AddCommandWithHandler(new GitHubDownloadCommand(), options => GitHubRepository.DownloadRecentPackages(options));
 
             rootCommand.Add(uploadCommand);
             rootCommand.Add(downloadCommand);
-
-            var builder = new CommandLineBuilder(rootCommand)
-                //This is to work around an issue with UseHelp(80) not properly overriding the max width
-                //https://github.com/dotnet/command-line-api/pull/1864
-                .UseHelpBuilder(context => new HelpBuilder(context.ParseResult.Parser.Configuration.LocalizationResources, 80))
-                .UseDefaults();
-            var parser = builder.Build();
-            return parser.Invoke(args);
+            return rootCommand.Invoke(args);
         }
     }
 

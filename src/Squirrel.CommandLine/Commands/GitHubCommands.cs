@@ -1,7 +1,4 @@
-﻿using System.CommandLine;
-using System.CommandLine.Invocation;
-using System.Threading.Tasks;
-using System;
+﻿using System;
 
 namespace Squirrel.CommandLine.Commands
 {
@@ -51,6 +48,8 @@ namespace Squirrel.CommandLine.Commands
             AddOption<string>("--releaseName", (v) => ReleaseName = v)
                 .SetDescription("A custom name for created release.")
                 .SetArgumentHelpName("NAME");
+
+            ReleaseDirectoryOption.MustNotBeEmpty();
         }
     }
 }

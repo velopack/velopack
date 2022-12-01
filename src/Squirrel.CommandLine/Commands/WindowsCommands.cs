@@ -24,15 +24,15 @@ namespace Squirrel.CommandLine.Commands
                 .SetArgumentHelpName("COMMAND")
                 .MustContain("{{file}}");
 
+            AddOption<bool>("--signSkipDll", (v) => SignSkipDll = v)
+                .SetDescription("Only signs EXE files, and skips signing DLL files.");
+
             if (SquirrelRuntimeInfo.IsWindows) {
                 var signParams = AddOption<string>(new[] { "--signParams", "-n" }, (v) => SignParameters = v)
                     .SetDescription("Sign files via signtool.exe using these parameters.")
                     .SetArgumentHelpName("PARAMS");
 
                 this.AreMutuallyExclusive(signTemplate, signParams);
-
-                AddOption<bool>("--signSkipDll", (v) => SignSkipDll = v)
-                    .SetDescription("Only signs EXE files, and skips signing DLL files.");
 
                 AddOption<int>("--signParallel", (v) => SignParallel = v)
                     .SetDescription("The number of files to sign in each call to signtool.exe.")
