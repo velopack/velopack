@@ -39,7 +39,7 @@ namespace Squirrel.CommandLine.Commands
 
             AddOption<DirectoryInfo>(new[] { "--packDir", "-p" }, (v) => PackDirectory = v)
                 .SetDescription("Directory containing application files for release.")
-                .SetArgumentHelpName("DIRECTORY")
+                .SetArgumentHelpName("DIR")
                 .SetRequired()
                 .MustNotBeEmpty();
 

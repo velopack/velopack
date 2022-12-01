@@ -21,7 +21,7 @@ namespace Squirrel.CommandLine.Commands
         {
             ReleaseDirectoryOption = AddOption<DirectoryInfo>(new[] { "-r", "--releaseDir" }, (v) => ReleaseDirectory = v)
                 .SetDescription("Output directory for Squirrel packages.")
-                .SetArgumentHelpName("DIRECTORY");
+                .SetArgumentHelpName("DIR");
             ReleaseDirectoryOption.SetDefaultValue(new DirectoryInfo(".\\Releases"));
         }
 
