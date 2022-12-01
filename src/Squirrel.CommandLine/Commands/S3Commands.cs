@@ -1,7 +1,4 @@
-﻿using System.CommandLine;
-using System.CommandLine.Invocation;
-using System.CommandLine.Parsing;
-using System.Threading.Tasks;
+﻿using System.CommandLine.Parsing;
 
 namespace Squirrel.CommandLine.Commands
 {
@@ -94,6 +91,9 @@ namespace Squirrel.CommandLine.Commands
             AddOption<int>("--keepMaxReleases", (v) => KeepMaxReleases = v)
                 .SetDescription("Apply a retention policy which keeps only the specified number of old versions in remote source.")
                 .SetArgumentHelpName("NUMBER");
+
+            ReleaseDirectoryOption.SetRequired();
+            ReleaseDirectoryOption.MustNotBeEmpty();
         }
     }
 }

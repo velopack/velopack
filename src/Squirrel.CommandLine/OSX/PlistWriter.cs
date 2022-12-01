@@ -1,8 +1,6 @@
 ﻿// https://raw.githubusercontent.com/egramtel/dotnet-bundle/master/DotNet.Bundle/PlistWriter.cs
 using System;
-using System.Collections;
 using System.IO;
-using System.Linq;
 using System.Xml;
 using Squirrel.SimpleSplat;
 
@@ -45,8 +43,16 @@ namespace Squirrel.CommandLine.OSX
                 xmlWriter.WriteAttributeString("version", "1.0");
                 xmlWriter.WriteStartElement("dict");
 
+                if (!String.IsNullOrEmpty(_task.SQPackId))
+                    WriteProperty(xmlWriter, nameof(_task.SQPackId), _task.SQPackId);
+
+                if (!String.IsNullOrEmpty(_task.SQPackAuthors))
+                    WriteProperty(xmlWriter, nameof(_task.SQPackAuthors), _task.SQPackAuthors);
+
+                if (!String.IsNullOrEmpty(_task.CFBundleDisplayName))
+                    WriteProperty(xmlWriter, nameof(_task.CFBundleDisplayName), _task.CFBundleDisplayName);
+
                 WriteProperty(xmlWriter, nameof(_task.CFBundleName), _task.CFBundleName);
-                WriteProperty(xmlWriter, nameof(_task.CFBundleDisplayName), _task.CFBundleDisplayName);
                 WriteProperty(xmlWriter, nameof(_task.CFBundleIdentifier), _task.CFBundleIdentifier);
                 WriteProperty(xmlWriter, nameof(_task.CFBundleVersion), _task.CFBundleVersion);
                 WriteProperty(xmlWriter, nameof(_task.CFBundlePackageType), _task.CFBundlePackageType);

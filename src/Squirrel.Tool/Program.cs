@@ -56,7 +56,6 @@ namespace Squirrel.Tool
                     .CancelOnProcessTermination();
             }
 
-
             return builder.Build().InvokeAsync(inargs);
         }
 

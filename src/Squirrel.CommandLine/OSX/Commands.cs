@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.CommandLine;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using NuGet.Versioning;
 using Squirrel.CommandLine.Commands;
+using Squirrel.PropertyList;
 using Squirrel.SimpleSplat;
 
 namespace Squirrel.CommandLine.OSX
@@ -16,120 +16,114 @@ namespace Squirrel.CommandLine.OSX
 
         public static void Bundle(BundleOsxCommand options)
         {
+            var icon = options.Icon.FullName;
+            var packId = options.PackId;
+            var packDirectory = options.PackDirectory.FullName;
+            var packVersion = options.PackVersion;
+            var exeName = options.EntryExecutableName;
+            var packAuthors = options.PackAuthors;
+            var packTitle = options.PackTitle;
 
+            var releaseDir = options.GetReleaseDirectory();
+
+            Log.Info("Generating new '.app' bundle from a directory of application files.");
+
+            var mainExePath = Path.Combine(packDirectory, exeName);
+            if (!File.Exists(mainExePath))// || !PlatformUtil.IsMachOImage(mainExePath))
+                throw new ArgumentException($"--exeName '{mainExePath}' does not exist or is not a mach-o executable.");
+
+            var appleId = $"com.{packAuthors ?? packId}.{packId}";
+            var escapedAppleId = Regex.Replace(appleId, @"[^\w\.]", "_");
+            var appleSafeVersion = NuGetVersion.Parse(packVersion).Version.ToString();
+
+            var info = new AppInfo {
+                SQPackId = packId,
+                SQPackAuthors = packAuthors,
+                CFBundleName = packTitle ?? packId,
+                //CFBundleDisplayName = packTitle ?? packId,
+                CFBundleExecutable = exeName,
+                CFBundleIdentifier = options.BundleId ?? escapedAppleId,
+                CFBundlePackageType = "APPL",
+                CFBundleShortVersionString = appleSafeVersion,
+                CFBundleVersion = packVersion,
+                CFBundleSignature = "????",
+                NSPrincipalClass = "NSApplication",
+                NSHighResolutionCapable = true,
+                CFBundleIconFile = Path.GetFileName(icon),
+            };
+
+            Log.Info("Creating '.app' directory structure");
+            var builder = new StructureBuilder(packId, releaseDir.FullName);
+            if (Directory.Exists(builder.AppDirectory)) Utility.DeleteFileOrDirectoryHard(builder.AppDirectory);
+            builder.Build();
+
+            Log.Info("Writing Info.plist");
+            var plist = new PlistWriter(info, builder.ContentsDirectory);
+            plist.Write();
+
+            Log.Info("Copying resources into new '.app' bundle");
+            File.Copy(icon, Path.Combine(builder.ResourcesDirectory, Path.GetFileName(icon)));
+
+            Log.Info("Copying application files into new '.app' bundle");
+            Utility.CopyFiles(new DirectoryInfo(packDirectory), new DirectoryInfo(builder.MacosDirectory));
         }
 
         public static void Releasify(ReleasifyOsxCommand options)
         {
-            var releaseDir = options.ReleaseDirectory;
-            string appBundlePath;
+            var releaseDir = options.GetReleaseDirectory();
 
-            if (options.packDirectory.EndsWith(".app", StringComparison.InvariantCultureIgnoreCase)) {
-                Log.Info("Pack directory is already a '.app' bundle. Converting to Squirrel app.");
+            var appBundlePath = options.BundleDirectory?.FullName;
+            Log.Info("Creating Squirrel application from app bundle at: " + appBundlePath);
 
-                if (options.icon != null)
-                    Log.Warn("--icon is ignored if the pack directory is a '.app' bundle.");
+            //if (Utility.PathPartStartsWith(releaseDir.FullName, appBundlePath))
+            //    throw new Exception("Pack directory is inside release directory. Please move the app bundle outside of the release directory first.");
 
-                if (options.mainExe != null)
-                    Log.Warn("--exeName is ignored if the pack directory is a '.app' bundle.");
-
-                if (options.bundleId != null)
-                    Log.Warn("--bundleId is ignored if the pack directory is a '.app' bundle.");
-
-                appBundlePath = Path.Combine(releaseDir.FullName, options.packId + ".app");
-
-                if (Utility.PathPartStartsWith(releaseDir.FullName, appBundlePath))
-                    throw new Exception("Pack directory is inside release directory. Please move the app bundle outside of the release directory first.");
-
-                Log.Info("Copying app to release directory");
-                if (Directory.Exists(appBundlePath)) Utility.DeleteFileOrDirectoryHard(appBundlePath);
-                Directory.CreateDirectory(appBundlePath);
-                Utility.CopyFiles(new DirectoryInfo(options.packDirectory), new DirectoryInfo(appBundlePath));
-            } else {
-                Log.Info("Pack directory is not a bundle. Will generate new '.app' bundle from a directory of application files.");
-
-                if (options.icon == null || !File.Exists(options.icon))
-                    throw new ArgumentException("--icon is required when generating a new app bundle.");
-
-                // auto-discover exe if it's the same as packId
-                var exeName = options.mainExe;
-                if (exeName == null && File.Exists(Path.Combine(options.packDirectory, options.packId)))
-                    exeName = options.packId;
-
-                if (exeName == null)
-                    throw new ArgumentException("--exeName is required when generating a new app bundle.");
-
-                var mainExePath = Path.Combine(options.packDirectory, exeName);
-                if (!File.Exists(mainExePath) || !PlatformUtil.IsMachOImage(mainExePath))
-                    throw new ArgumentException($"--exeName '{mainExePath}' does not exist or is not a mach-o executable.");
-
-                var appleId = $"com.{options.packAuthors ?? options.packId}.{options.packId}";
-                var escapedAppleId = Regex.Replace(appleId, @"[^\w\.]", "_");
-                var appleSafeVersion = NuGetVersion.Parse(options.packVersion).Version.ToString();
-
-                var info = new AppInfo {
-                    CFBundleName = options.packTitle ?? options.packId,
-                    CFBundleDisplayName = options.packTitle ?? options.packId,
-                    CFBundleExecutable = options.mainExe,
-                    CFBundleIdentifier = options.bundleId ?? escapedAppleId,
-                    CFBundlePackageType = "APPL",
-                    CFBundleShortVersionString = appleSafeVersion,
-                    CFBundleVersion = options.packVersion,
-                    CFBundleSignature = "????",
-                    NSPrincipalClass = "NSApplication",
-                    NSHighResolutionCapable = true,
-                    CFBundleIconFile = Path.GetFileName(options.icon),
-                };
-
-                Log.Info("Creating '.app' directory structure");
-                var builder = new StructureBuilder(options.packId, releaseDir.FullName);
-                if (Directory.Exists(builder.AppDirectory)) Utility.DeleteFileOrDirectoryHard(builder.AppDirectory);
-                builder.Build();
-
-                Log.Info("Writing Info.plist");
-                var plist = new PlistWriter(info, builder.ContentsDirectory);
-                plist.Write();
-
-                Log.Info("Copying resources into new '.app' bundle");
-                File.Copy(options.icon, Path.Combine(builder.ResourcesDirectory, Path.GetFileName(options.icon)));
-
-                Log.Info("Copying application files into new '.app' bundle");
-                Utility.CopyFiles(new DirectoryInfo(options.packDirectory), new DirectoryInfo(builder.MacosDirectory));
-
-                appBundlePath = builder.AppDirectory;
-            }
-
-            Log.Info("Adding Squirrel resources to bundle.");
+            Log.Info("Parsing app Info.plist");
             var contentsDir = Path.Combine(appBundlePath, "Contents");
 
             if (!Directory.Exists(contentsDir))
                 throw new Exception("Invalid bundle structure (missing Contents dir)");
 
-            if (!File.Exists(Path.Combine(contentsDir, "Info.plist")))
+            var plistPath = Path.Combine(contentsDir, "Info.plist");
+            if (!File.Exists(plistPath))
                 throw new Exception("Invalid bundle structure (missing Info.plist)");
 
-            var pkgTitle = options.packTitle ?? options.packId;
+            NSDictionary rootDict = (NSDictionary) PropertyListParser.Parse(plistPath);
+            var packId = rootDict.ObjectForKey(nameof(AppInfo.SQPackId)).ToString();
+            if (String.IsNullOrWhiteSpace(packId))
+                packId = rootDict.ObjectForKey(nameof(AppInfo.CFBundleIdentifier)).ToString();
+
+            var packAuthors = rootDict.ObjectForKey(nameof(AppInfo.SQPackAuthors)).ToString();
+            if (String.IsNullOrWhiteSpace(packId))
+                packAuthors = packId;
+
+            var packTitle = rootDict.ObjectForKey(nameof(AppInfo.CFBundleName)).ToString();
+            var packVersion = rootDict.ObjectForKey(nameof(AppInfo.CFBundleVersion)).ToString();
+
+            Log.Info($"Package valid: '{packId}', Name: '{packTitle}', Version: {packVersion}");
+
+            Log.Info("Adding Squirrel resources to bundle.");
             var nuspecText = NugetConsole.CreateNuspec(
-                options.packId, pkgTitle, options.packAuthors, options.packVersion, options.releaseNotes, options.includePdb, "osx");
+                packId, packTitle, packAuthors, packVersion, options.ReleaseNotes?.FullName, options.IncludePdb, "osx");
             var nuspecPath = Path.Combine(contentsDir, Utility.SpecVersionFileName);
 
             // nuspec and UpdateMac need to be in contents dir or this package can't update
             File.WriteAllText(nuspecPath, nuspecText);
             File.Copy(HelperExe.UpdateMacPath, Path.Combine(contentsDir, "UpdateMac"));
 
-            var zipPath = Path.Combine(releaseDir.FullName, options.packId + ".zip");
+            var zipPath = Path.Combine(releaseDir.FullName, packId + ".zip");
             if (File.Exists(zipPath)) File.Delete(zipPath);
 
             // code signing all mach-o binaries
-            if (SquirrelRuntimeInfo.IsOSX && !String.IsNullOrEmpty(options.signAppIdentity) && !String.IsNullOrEmpty(options.notaryProfile)) {
-                HelperExe.CodeSign(options.signAppIdentity, options.signEntitlements, appBundlePath);
+            if (SquirrelRuntimeInfo.IsOSX && !String.IsNullOrEmpty(options.SigningAppIdentity) && !String.IsNullOrEmpty(options.NotaryProfile)) {
+                HelperExe.CodeSign(options.SigningAppIdentity, options.SigningEntitlements?.FullName, appBundlePath);
                 HelperExe.CreateDittoZip(appBundlePath, zipPath);
-                HelperExe.Notarize(zipPath, options.notaryProfile);
+                HelperExe.Notarize(zipPath, options.NotaryProfile);
                 HelperExe.Staple(appBundlePath);
                 HelperExe.SpctlAssess(appBundlePath);
                 File.Delete(zipPath);
-            } else if (SquirrelRuntimeInfo.IsOSX && !String.IsNullOrEmpty(options.signAppIdentity)) {
-                HelperExe.CodeSign(options.signAppIdentity, options.signEntitlements, appBundlePath);
+            } else if (SquirrelRuntimeInfo.IsOSX && !String.IsNullOrEmpty(options.SigningAppIdentity)) {
+                HelperExe.CodeSign(options.SigningAppIdentity, options.SigningEntitlements?.FullName, appBundlePath);
                 Log.Warn("Package was signed but will not be notarized or verified. Must supply the --notaryProfile option.");
             } else if (SquirrelRuntimeInfo.IsOSX) {
                 Log.Warn("Package will not be signed or notarized. Requires the --signAppIdentity and --notaryProfile options.");
@@ -160,7 +154,7 @@ namespace Squirrel.CommandLine.OSX
 
             Log.Info("Creating Delta Packages");
             var prev = ReleasePackageBuilder.GetPreviousRelease(releases, rp, releaseDir.FullName);
-            if (prev != null && !options.noDelta) {
+            if (prev != null && !options.NoDelta) {
                 var deltaBuilder = new DeltaPackageBuilder();
                 var deltaFile = Path.Combine(releaseDir.FullName, rp.SuggestedReleaseFileName.Replace("-full", "-delta"));
                 var dp = deltaBuilder.CreateDeltaPackage(prev, rp, deltaFile);
@@ -171,12 +165,19 @@ namespace Squirrel.CommandLine.OSX
             ReleaseEntry.WriteReleaseFile(releases, releaseFilePath);
 
             // create installer package, sign and notarize
-            if (!options.noPkg) {
+            if (!options.NoPackage) {
                 if (SquirrelRuntimeInfo.IsOSX) {
-                    var pkgPath = Path.Combine(releaseDir.FullName, options.packId + ".pkg");
-                    HelperExe.CreateInstallerPkg(appBundlePath, pkgTitle, options.pkgContent, pkgPath, options.signInstallIdentity);
-                    if (!String.IsNullOrEmpty(options.signInstallIdentity) && !String.IsNullOrEmpty(options.notaryProfile)) {
-                        HelperExe.Notarize(pkgPath, options.notaryProfile);
+                    var pkgPath = Path.Combine(releaseDir.FullName, packId + ".pkg");
+
+                    Dictionary<string, string> pkgContent = new();
+                    if (options.PackageWelcome?.Exists == true) pkgContent["welcome"] = options.PackageWelcome.FullName;
+                    if (options.PackageLicense?.Exists == true) pkgContent["license"] = options.PackageLicense.FullName;
+                    if (options.PackageReadme?.Exists == true) pkgContent["readme"] = options.PackageReadme.FullName;
+                    if (options.PackageConclusion?.Exists == true) pkgContent["conclusion"] = options.PackageConclusion.FullName;
+
+                    HelperExe.CreateInstallerPkg(appBundlePath, packTitle, pkgContent, pkgPath, options.SigningInstallIdentity);
+                    if (!String.IsNullOrEmpty(options.SigningInstallIdentity) && !String.IsNullOrEmpty(options.NotaryProfile)) {
+                        HelperExe.Notarize(pkgPath, options.NotaryProfile);
                         HelperExe.Staple(pkgPath);
                     } else {
                         Log.Warn("Package installer (.pkg) will not be Notarized. " +

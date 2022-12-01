@@ -1,13 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.CommandLine;
-using System.CommandLine.Invocation;
-using System.CommandLine.Parsing;
+﻿using System.CommandLine;
 using System.IO;
 
 namespace Squirrel.CommandLine.Commands
 {
-    public class BundleOsxCommand : BaseCommand, INugetPackCommand
+    public class BundleOsxCommand : BaseCommand
     {
         public string PackId { get; private set; }
 
@@ -19,10 +15,6 @@ namespace Squirrel.CommandLine.Commands
 
         public string PackTitle { get; private set; }
 
-        public bool IncludePdb { get; private set; }
-
-        public FileInfo ReleaseNotes { get; private set; }
-
         public string EntryExecutableName { get; private set; }
 
         public FileInfo Icon { get; private set; }
@@ -33,7 +25,7 @@ namespace Squirrel.CommandLine.Commands
             : base("bundle", "Create's an OSX .app bundle from a folder containing application files.")
         {
             AddOption<string>(new[] { "--packId", "-u" }, (v) => PackId = v)
-                .SetDescription("Unique Id for application bundle.")
+                .SetDescription("Unique Squirrel Id for application bundle.")
                 .SetArgumentHelpName("ID")
                 .SetRequired()
                 .RequiresValidNuGetId();
@@ -59,14 +51,6 @@ namespace Squirrel.CommandLine.Commands
                 .SetDescription("Display/friendly name for application.")
                 .SetArgumentHelpName("NAME");
 
-            AddOption<bool>("--includePdb", (v) => IncludePdb = v)
-                .SetDescription("Add *.pdb files to release package.");
-
-            AddOption<FileInfo>("--releaseNotes", (v) => ReleaseNotes = v)
-                .SetDescription("File with markdown-formatted notes for this version.")
-                .SetArgumentHelpName("PATH")
-                .ExistingOnly();
-
             AddOption<string>(new[] { "-e", "--mainExe" }, (v) => EntryExecutableName = v)
                 .SetDescription("The file name of the main/entry executable.")
                 .SetArgumentHelpName("NAME")
@@ -80,7 +64,7 @@ namespace Squirrel.CommandLine.Commands
                 .RequiresExtension(".icns");
 
             AddOption<string>("--bundleId", (v) => BundleId = v)
-                .SetDescription("Override the apple unique Id when generating bundles.")
+                .SetDescription("Optional Apple bundle Id.")
                 .SetArgumentHelpName("ID");
         }
     }
@@ -88,6 +72,10 @@ namespace Squirrel.CommandLine.Commands
     public class ReleasifyOsxCommand : BaseCommand
     {
         public DirectoryInfo BundleDirectory { get; private set; }
+
+        public bool IncludePdb { get; private set; }
+
+        public FileInfo ReleaseNotes { get; private set; }
 
         public bool NoDelta { get; private set; }
 
@@ -110,14 +98,22 @@ namespace Squirrel.CommandLine.Commands
         public string NotaryProfile { get; private set; }
 
         public ReleasifyOsxCommand()
-            : base("releasify", "Converts an OSX .app bundle into a Squirrel release and installer.")
+            : base("releasify", "Converts an application bundle into a Squirrel release and installer.")
         {
             AddOption<DirectoryInfo>(new[] { "-b", "--bundle" }, (v) => BundleDirectory = v)
                 .SetDescription("The bundle to convert into a Squirrel release.")
-                .SetArgumentHelpName("DIRECTORY")
+                .SetArgumentHelpName("PATH")
                 .MustNotBeEmpty()
                 .RequiresExtension(".app")
                 .SetRequired();
+
+            AddOption<bool>("--includePdb", (v) => IncludePdb = v)
+                .SetDescription("Add *.pdb files to release package.");
+
+            AddOption<FileInfo>("--releaseNotes", (v) => ReleaseNotes = v)
+                .SetDescription("File with markdown-formatted notes for this version.")
+                .SetArgumentHelpName("PATH")
+                .ExistingOnly();
 
             AddOption<bool>("--noDelta", (v) => NoDelta = v)
                 .SetDescription("Skip the generation of delta packages.");

@@ -49,6 +49,7 @@ namespace Squirrel.CommandLine.Commands
                 .SetDescription("A custom name for created release.")
                 .SetArgumentHelpName("NAME");
 
+            ReleaseDirectoryOption.SetRequired();
             ReleaseDirectoryOption.MustNotBeEmpty();
         }
     }

@@ -17,7 +17,8 @@ namespace Squirrel.CommandLine
             = new Option<bool>("--verbose", "Print diagnostic messages.");
 
         public static Option<string[]> AddSearchPathOption { get; }
-            = new Option<string[]>("--addSearchPath", "Add additional search directories when looking for helper exe's.");
+            = new Option<string[]>("--addSearchPath", "Add additional search directories when looking for helper exe's.")
+            .SetArgumentHelpName("DIR");
 
         public static int Main(string[] args)
         {
@@ -71,14 +72,14 @@ namespace Squirrel.CommandLine
                 logger.Level = LogLevel.Debug;
             }
 
-            Command uploadCommand = new Command("upload", "Upload local package(s) to a remote update source.")
-                .AddCommandWithHandler(new S3UploadCommand(), options => S3Repository.UploadMissingPackages(options))
-                .AddCommandWithHandler(new GitHubUploadCommand(), options => GitHubRepository.UploadMissingPackages(options));
+            Command uploadCommand = new Command("upload", "Upload local package(s) to a remote update source.");
+            uploadCommand.AddCommandWithHandler(new S3UploadCommand(), options => S3Repository.UploadMissingPackages(options));
+            uploadCommand.AddCommandWithHandler(new GitHubUploadCommand(), options => GitHubRepository.UploadMissingPackages(options));
 
-            Command downloadCommand = new Command("download", "Download's the latest release from a remote update source.")
-                .AddCommandWithHandler(new HttpDownloadCommand(), options => SimpleWebRepository.DownloadRecentPackages(options))
-                .AddCommandWithHandler(new S3DownloadCommand(), options => S3Repository.DownloadRecentPackages(options))
-                .AddCommandWithHandler(new GitHubDownloadCommand(), options => GitHubRepository.DownloadRecentPackages(options));
+            Command downloadCommand = new Command("download", "Download's the latest release from a remote update source.");
+            downloadCommand.AddCommandWithHandler(new HttpDownloadCommand(), options => SimpleWebRepository.DownloadRecentPackages(options));
+            downloadCommand.AddCommandWithHandler(new S3DownloadCommand(), options => S3Repository.DownloadRecentPackages(options));
+            downloadCommand.AddCommandWithHandler(new GitHubDownloadCommand(), options => GitHubRepository.DownloadRecentPackages(options));
 
             rootCommand.Add(uploadCommand);
             rootCommand.Add(downloadCommand);

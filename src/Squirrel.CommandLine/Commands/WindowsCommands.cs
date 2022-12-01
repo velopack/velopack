@@ -1,6 +1,5 @@
 ﻿using System;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.CommandLine.Parsing;
 using System.IO;
 
@@ -20,7 +19,7 @@ namespace Squirrel.CommandLine.Commands
             : base(name, description)
         {
             var signTemplate = AddOption<string>("--signTemplate", (v) => SignTemplate = v)
-                .SetDescription("Use a custom signing command. '{{file}}' will be replaced by the path of the file to sign.")
+                .SetDescription("Use a custom signing command. {{file}} will be replaced by the path to sign.")
                 .SetArgumentHelpName("COMMAND")
                 .MustContain("{{file}}");
 
