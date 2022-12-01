@@ -23,9 +23,12 @@ namespace Squirrel.NuGet
 
         public static void ThrowIfInvalidNugetId(string id)
         {
-            if (!System.Text.RegularExpressions.Regex.IsMatch(id, @"^[\w\.-]*$"))
+            if (!IsValidNuGetId(id))
                 throw new ArgumentException($"Invalid package Id '{id}', it must contain only alphanumeric characters, underscores, dashes, and dots.");
         }
+
+        public static bool IsValidNuGetId(string id)
+            => System.Text.RegularExpressions.Regex.IsMatch(id, @"^[\w\.-]*$");
 
         public static void ThrowIfVersionNotSemverCompliant(string version)
         {
@@ -38,10 +41,7 @@ namespace Squirrel.NuGet
             }
         }
 
-        public static string SafeTrim(this string value)
-        {
-            return value == null ? null : value.Trim();
-        }
+        public static string SafeTrim(this string value) => value?.Trim();
 
         public static string GetOptionalAttributeValue(this XElement element, string localName, string namespaceName = null)
         {

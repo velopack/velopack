@@ -3,28 +3,24 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
-using System.Runtime.InteropServices.ComTypes;
 using System.Threading.Tasks;
+using Squirrel.CommandLine.Commands;
 
 namespace Squirrel.CommandLine.Sync
 {
-    internal class SimpleWebRepository : IPackageRepository
+    internal class SimpleWebRepository
     {
-        private readonly SyncHttpOptions options;
+        private readonly HttpDownloadCommand options;
 
-        public SimpleWebRepository(SyncHttpOptions options)
+        public SimpleWebRepository(HttpDownloadCommand options)
         {
             this.options = options;
         }
 
-        public Task DownloadRecentPackages()
+        public static async Task DownloadRecentPackages(HttpDownloadCommand options)
         {
-            return SyncRemoteReleases(new Uri(options.url), options.GetReleaseDirectory());
-        }
-
-        static async Task SyncRemoteReleases(Uri targetUri, DirectoryInfo releasesDir)
-        {
-            var releasesUri = Utility.AppendPathToUri(targetUri, "RELEASES");
+            var releasesDir = options.GetReleaseDirectory();
+            var releasesUri = Utility.AppendPathToUri(options.Url, "RELEASES");
             var releasesIndex = await retryAsync(3, () => downloadReleasesIndex(releasesUri));
 
             File.WriteAllText(Path.Combine(releasesDir.FullName, "RELEASES"), releasesIndex);
@@ -35,7 +31,7 @@ namespace Squirrel.CommandLine.Sync
                 .Take(1)
                 .Select(x => new {
                     LocalPath = Path.Combine(releasesDir.FullName, x.Filename),
-                    RemoteUrl = new Uri(Utility.EnsureTrailingSlash(targetUri), x.BaseUrl + x.Filename + x.Query)
+                    RemoteUrl = new Uri(Utility.EnsureTrailingSlash(options.Url), x.BaseUrl + x.Filename + x.Query)
                 });
 
             foreach (var releaseToDownload in releasesToDownload) {
@@ -83,11 +79,6 @@ namespace Squirrel.CommandLine.Sync
         static async Task retryAsync(int count, Func<Task> block)
         {
             await retryAsync(count, async () => { await block(); return false; });
-        }
-
-        public Task UploadMissingPackages()
-        {
-            throw new NotSupportedException();
         }
     }
 }

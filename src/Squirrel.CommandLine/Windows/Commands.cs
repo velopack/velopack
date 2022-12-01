@@ -5,13 +5,12 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.Versioning;
-using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using NuGet.Versioning;
+using Squirrel.CommandLine.Commands;
 using Squirrel.NuGet;
 using Squirrel.SimpleSplat;
+using FileMode = System.IO.FileMode;
 
 namespace Squirrel.CommandLine.Windows
 {
@@ -19,41 +18,26 @@ namespace Squirrel.CommandLine.Windows
     {
         static IFullLogger Log => SquirrelLocator.Current.GetService<ILogManager>().GetLogger(typeof(Commands));
 
-        public static CommandSet GetCommands()
-        {
-            return new CommandSet {
-                "[ Package Authoring ]",
-                { "pack", "Creates a Squirrel release from a folder containing application files", new PackOptions(), Pack },
-                { "releasify", "Take an existing nuget package and convert it into a Squirrel release", new ReleasifyOptions(), Releasify },
-            };
-        }
-
-        static void Pack(PackOptions options)
+        public static void Pack(PackWindowsCommand options)
         {
             using (Utility.GetTempDirectory(out var tmp)) {
-                var nupkgPath = NugetConsole.CreatePackageFromMetadata(
-                    tmp, options.packDirectory, options.packId, options.packTitle,
-                    options.packAuthors, options.packVersion, options.releaseNotes, options.includePdb, "win");
-
-                options.package = nupkgPath;
+                var nupkgPath = NugetConsole.CreatePackageFromOptions(tmp, options, "win");
+                options.Package = new FileInfo(nupkgPath);
                 Releasify(options);
             }
         }
 
-        static void Releasify(ReleasifyOptions options)
+        public static void Releasify(ReleasifyWindowsCommand options)
         {
-            var targetDir = options.GetReleaseDirectory();
-            var package = options.package;
-            var baseUrl = options.baseUrl;
-            var generateDeltas = !options.noDelta;
-            var backgroundGif = options.splashImage;
-            var setupIcon = options.icon ?? options.appIcon;
-
-            if (!package.EndsWith(".nupkg", StringComparison.InvariantCultureIgnoreCase))
-                throw new ArgumentException("package must be packed with nuget and end in '.nupkg'");
+            var targetDir = options.ReleaseDirectory;
+            var package = options.Package;
+            var baseUrl = options.BaseUrl;
+            var generateDeltas = !options.NoDelta;
+            var backgroundGif = options.SplashImage?.FullName;
+            var setupIcon = options.Icon?.FullName ?? options.AppIcon?.FullName;
 
             // normalize and validate that the provided frameworks are supported 
-            var requiredFrameworks = Runtimes.ParseDependencyString(options.framework);
+            var requiredFrameworks = Runtimes.ParseDependencyString(options.Runtimes);
             if (requiredFrameworks.Any())
                 Log.Info("Package dependencies (from '--framework' argument) resolved as: " + String.Join(", ", requiredFrameworks.Select(r => r.Id)));
 
@@ -76,7 +60,7 @@ namespace Squirrel.CommandLine.Windows
                 throw new InvalidOperationException("Update.exe is corrupt. Broken Squirrel install?");
 
             // copy input package to target output directory
-            File.Copy(package, Path.Combine(targetDir.FullName, Path.GetFileName(package)), true);
+            File.Copy(package.FullName, Path.Combine(targetDir.FullName, package.Name), true);
 
             var allNuGetFiles = targetDir.EnumerateFiles()
                 .Where(x => x.Name.EndsWith(".nupkg", StringComparison.InvariantCultureIgnoreCase));
@@ -100,7 +84,7 @@ namespace Squirrel.CommandLine.Windows
                     var libDir = Directory.GetDirectories(Path.Combine(pkgPath, "lib"))
                         .ContextualSingle("package", "'lib' folder");
 
-                    foreach (var exename in options.mainExes) {
+                    foreach (var exename in options.SquirrelAwareExecutableNames) {
                         var exepath = Path.GetFullPath(Path.Combine(libDir, exename));
                         if (!File.Exists(exepath)) {
                             throw new Exception($"Could not find main exe '{exename}' in package.");
@@ -133,39 +117,39 @@ namespace Squirrel.CommandLine.Windows
                     }
 
                     // parse the PE header of every squirrel aware app
-                    //var peparsed = awareExes.ToDictionary(path => path, path => new PeNet.PeFile(path));
+                    var peparsed = awareExes.ToDictionary(path => path, path => new PeNet.PeFile(path));
 
                     // record architecture of squirrel aware binaries so setup can fast fail if unsupported
-                    //RuntimeCpu parseMachine(PeNet.Header.Pe.MachineType machine)
-                    //{
-                    //    Utility.TryParseEnumU16<RuntimeCpu>((ushort) machine, out var cpu);
-                    //    return cpu;
-                    //}
+                    RuntimeCpu parseMachine(PeNet.Header.Pe.MachineType machine)
+                    {
+                        Utility.TryParseEnumU16<RuntimeCpu>((ushort) machine, out var cpu);
+                        return cpu;
+                    }
 
-                    //var peArch = from pe in peparsed
-                    //    let machine = pe.Value?.ImageNtHeaders?.FileHeader?.Machine ?? 0
-                    //    let arch = parseMachine(machine)
-                    //    select new { Name = Path.GetFileName(pe.Key), Architecture = arch };
+                    var peArch = from pe in peparsed
+                                 let machine = pe.Value?.ImageNtHeaders?.FileHeader?.Machine ?? 0
+                                 let arch = parseMachine(machine)
+                                 select new { Name = Path.GetFileName(pe.Key), Architecture = arch };
 
-                    //if (awareExes.Count > 0) {
-                    //    Log.Info($"There are {awareExes.Count} SquirrelAwareApp's. Binaries will be executed during install/update/uninstall hooks.");
-                    //    foreach (var pe in peArch) {
-                    //        Log.Info($"  Detected SquirrelAwareApp '{pe.Name}' (arch: {pe.Architecture})");
-                    //    }
-                    //} else {
-                    //    Log.Warn("There are no SquirrelAwareApp's. No hooks will be executed during install/update/uninstall. " +
-                    //             "Shortcuts will be created for every binary in package.");
-                    //}
+                    if (awareExes.Count > 0) {
+                        Log.Info($"There are {awareExes.Count} SquirrelAwareApp's. Binaries will be executed during install/update/uninstall hooks.");
+                        foreach (var pe in peArch) {
+                            Log.Info($"  Detected SquirrelAwareApp '{pe.Name}' (arch: {pe.Architecture})");
+                        }
+                    } else {
+                        Log.Warn("There are no SquirrelAwareApp's. No hooks will be executed during install/update/uninstall. " +
+                                 "Shortcuts will be created for every binary in package.");
+                    }
 
-                    //var pkgarch = SquirrelRuntimeInfo.SelectPackageArchitecture(peArch.Select(f => f.Architecture));
-                    //Log.Write($"Program: Package Architecture (detected from SquirrelAwareApp's): {pkgarch}",
-                    //    pkgarch == RuntimeCpu.Unknown ? LogLevel.Warn : LogLevel.Info);
+                    var pkgarch = SquirrelRuntimeInfo.SelectPackageArchitecture(peArch.Select(f => f.Architecture));
+                    Log.Write($"Program: Package Architecture (detected from SquirrelAwareApp's): {pkgarch}",
+                        pkgarch == RuntimeCpu.Unknown ? LogLevel.Warn : LogLevel.Info);
 
                     // check dependencies of squirrel aware binaries for potential issues
                     // peparsed.ForEach(kvp => DotnetUtil.CheckDotnetReferences(kvp.Key, kvp.Value, requiredFrameworks));
 
                     // store the runtime dependencies and the package architecture in nuspec (read by installer)
-                    //ZipPackage.SetSquirrelMetadata(nuspecPath, pkgarch, requiredFrameworks.Select(r => r.Id));
+                    ZipPackage.SetSquirrelMetadata(nuspecPath, pkgarch, requiredFrameworks.Select(r => r.Id));
 
                     // create stub executable for all exe's in this package (except Squirrel!)
                     var exesToCreateStubFor = new DirectoryInfo(pkgPath).GetAllFilesRecursively()
@@ -182,21 +166,21 @@ namespace Squirrel.CommandLine.Windows
                     // and do it before signing so that Update.exe will also be signed. It is renamed to
                     // 'Squirrel.exe' only because Squirrel.Windows expects it to be called this.
                     File.Copy(updatePath, Path.Combine(libDir, "Squirrel.exe"), true);
-                    
+
                     // sign all exe's in this package
                     var filesToSign = new DirectoryInfo(libDir).GetAllFilesRecursively()
-                        .Where(x => options.signSkipDll ? Utility.PathPartEndsWith(x.Name, ".exe") : Utility.FileIsLikelyPEImage(x.Name))
+                        .Where(x => options.SignSkipDll ? Utility.PathPartEndsWith(x.Name, ".exe") : Utility.FileIsLikelyPEImage(x.Name))
                         .Select(x => x.FullName)
                         .ToArray();
-                    
-                    options.SignFiles(libDir, filesToSign);
+
+                    signFiles(options, libDir, filesToSign);
 
                     // copy app icon to 'lib/fx/app.ico'
                     var iconTarget = Path.Combine(libDir, "app.ico");
-                    if (options.appIcon != null) {
+                    if (options.AppIcon?.Exists == true) {
                         // icon was specified on the command line
                         Log.Info("Using app icon from command line arguments");
-                        File.Copy(options.appIcon, iconTarget, true);
+                        File.Copy(options.AppIcon.FullName, iconTarget, true);
                     } else if (!File.Exists(iconTarget) && zpkg.IconUrl != null) {
                         // icon was provided in the nuspec. download it and possibly convert it from a different image format
                         Log.Info($"Downloading app icon from '{zpkg.IconUrl}'.");
@@ -247,9 +231,9 @@ namespace Squirrel.CommandLine.Windows
 
             ReleaseEntry.WriteReleaseFile(releaseEntries, releaseFilePath);
 
-            var bundledzp = new ZipPackage(package);
+            var bundledzp = new ZipPackage(package.FullName);
             var targetSetupExe = Path.Combine(targetDir.FullName, $"{bundledzp.Id}Setup.exe");
-            File.Copy(options.debugSetupExe ?? HelperExe.SetupPath, targetSetupExe, true);
+            File.Copy(options.DebugSetupExe?.FullName ?? HelperExe.SetupPath, targetSetupExe, true);
 
             if (SquirrelRuntimeInfo.IsWindows) {
                 HelperExe.SetPEVersionBlockFromPackageInfo(targetSetupExe, bundledzp, setupIcon);
@@ -265,28 +249,56 @@ namespace Squirrel.CommandLine.Windows
             Log.Info("Bundle package offset is " + bundleOffset);
 
             List<string> setupFilesToSign = new() { targetSetupExe };
-            
+
             Log.Info($"Setup bundle created at '{targetSetupExe}'.");
 
             // this option is used for debugging a local Setup.exe
-            if (options.debugSetupExe != null) {
-                File.Copy(targetSetupExe, options.debugSetupExe, true);
-                Log.Warn($"DEBUG OPTION: Setup bundle copied on top of '{options.debugSetupExe}'. Recompile before creating a new bundle.");
+            if (options.DebugSetupExe?.Exists == true) {
+                File.Copy(targetSetupExe, options.DebugSetupExe.FullName, true);
+                Log.Warn($"DEBUG OPTION: Setup bundle copied on top of '{options.DebugSetupExe.FullName}'. Recompile before creating a new bundle.");
             }
 
-            if (!String.IsNullOrEmpty(options.msi)) {
+            if (!String.IsNullOrEmpty(options.BuildMsi)) {
                 if (SquirrelRuntimeInfo.IsWindows) {
-                    bool x64 = options.msi.Equals("x64");
+                    bool x64 = options.BuildMsi.Equals("x64");
                     var msiPath = createMsiPackage(targetSetupExe, bundledzp, x64);
                     setupFilesToSign.Add(msiPath);
                 } else {
                     Log.Warn("Unable to create MSI (only supported on windows).");
                 }
             }
-            
-            options.SignFiles(targetDir.FullName, setupFilesToSign.ToArray());                    
+
+            signFiles(options, targetDir.FullName, setupFilesToSign.ToArray());
 
             Log.Info("Done");
+        }
+
+        private static void signFiles(SigningCommand options, string rootDir, params string[] filePaths)
+        {
+            var signParams = options.SignParameters;
+            var signTemplate = options.SignTemplate;
+            var signParallel = options.SignParallel;
+
+            if (String.IsNullOrEmpty(signParams) && String.IsNullOrEmpty(signTemplate)) {
+                Log.Debug($"No signing paramaters provided, {filePaths.Length} file(s) will not be signed.");
+                return;
+            }
+
+            if (!String.IsNullOrEmpty(signTemplate)) {
+                Log.Info($"Preparing to sign {filePaths.Length} files with custom signing template");
+                foreach (var f in filePaths) {
+                    HelperExe.SignPEFileWithTemplate(f, signTemplate);
+                }
+                return;
+            }
+
+            // signtool.exe does not work if we're not on windows.
+            if (!SquirrelRuntimeInfo.IsWindows) return;
+
+            if (!String.IsNullOrEmpty(signParams)) {
+                Log.Info($"Preparing to sign {filePaths.Length} files with embedded signtool.exe with parallelism of {signParallel}");
+                HelperExe.SignPEFilesWithSignTool(rootDir, filePaths, signParams, signParallel);
+            }
         }
 
         [SupportedOSPlatform("windows")]

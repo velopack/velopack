@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 using NuGet.Common;
 using NuGet.Configuration;
 using NuGet.Packaging.Core;
@@ -27,18 +28,18 @@ namespace Squirrel.Tool
             _sourceCacheContext = new SourceCacheContext();
         }
 
-        public IPackageSearchMetadata GetPackageMetadata(string packageName, string version)
+        public async Task<IPackageSearchMetadata> GetPackageMetadata(string packageName, string version, CancellationToken cancellationToken)
         {
             PackageMetadataResource packageMetadataResource = _sourceRepository.GetResource<PackageMetadataResource>();
             FindPackageByIdResource packageByIdResource = _sourceRepository.GetResource<FindPackageByIdResource>();
             IPackageSearchMetadata package = null;
 
             var prerelease = version?.Equals("pre", StringComparison.InvariantCultureIgnoreCase) == true;
-            if (version == null || version.Equals("latest", StringComparison.InvariantCultureIgnoreCase) || prerelease) {
+            if (version is null || version.Equals("latest", StringComparison.InvariantCultureIgnoreCase) || prerelease) {
                 // get latest (or prerelease) version
-                IEnumerable<IPackageSearchMetadata> metadata = packageMetadataResource
-                    .GetMetadataAsync(packageName, true, true, _sourceCacheContext, _logger, CancellationToken.None)
-                    .GetAwaiter().GetResult();
+                IEnumerable<IPackageSearchMetadata> metadata = await packageMetadataResource
+                    .GetMetadataAsync(packageName, true, true, _sourceCacheContext, _logger, cancellationToken)
+                    .ConfigureAwait(false);
                 package = metadata
                     .Where(x => x.IsListed)
                     .Where(x => prerelease || !x.Identity.Version.IsPrerelease)
@@ -46,30 +47,30 @@ namespace Squirrel.Tool
                     .FirstOrDefault();
             } else {
                 // resolve version ranges and wildcards
-                var versions = packageByIdResource.GetAllVersionsAsync(packageName, _sourceCacheContext, _logger, CancellationToken.None)
-                    .GetAwaiter().GetResult();
+                var versions = await packageByIdResource.GetAllVersionsAsync(packageName, _sourceCacheContext, _logger, cancellationToken)
+                    .ConfigureAwait(false);
                 var resolved = versions.FindBestMatch(VersionRange.Parse(version), version => version);
 
                 // get exact version
                 var packageIdentity = new PackageIdentity(packageName, resolved);
-                package = packageMetadataResource
-                    .GetMetadataAsync(packageIdentity, _sourceCacheContext, _logger, CancellationToken.None)
-                    .GetAwaiter().GetResult();
+                package = await packageMetadataResource
+                    .GetMetadataAsync(packageIdentity, _sourceCacheContext, _logger, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
-            if (package == null) {
+            if (package is null) {
                 throw new Exception($"Unable to locate {packageName} {version} on NuGet.org");
             }
 
             return package;
         }
 
-        public void DownloadPackageToStream(IPackageSearchMetadata package, Stream targetStream)
+        public async Task DownloadPackageToStream(IPackageSearchMetadata package, Stream targetStream, CancellationToken cancellationToken)
         {
             FindPackageByIdResource packageByIdResource = _sourceRepository.GetResource<FindPackageByIdResource>();
-            packageByIdResource
-                .CopyNupkgToStreamAsync(package.Identity.Id, package.Identity.Version, targetStream, _sourceCacheContext, _logger, CancellationToken.None)
-                .GetAwaiter().GetResult();
+            await packageByIdResource
+                .CopyNupkgToStreamAsync(package.Identity.Id, package.Identity.Version, targetStream, _sourceCacheContext, _logger, cancellationToken)
+                .ConfigureAwait(false);
         }
     }
 }
