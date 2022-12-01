@@ -4,31 +4,25 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Octokit;
+using Squirrel.CommandLine.Commands;
 using Squirrel.SimpleSplat;
 using Squirrel.Sources;
 
 namespace Squirrel.CommandLine.Sync
 {
-    internal class GitHubRepository : IPackageRepository
+    internal static class GitHubRepository
     {
-        private SyncGithubOptions _options;
-
         internal readonly static IFullLogger Log = SquirrelLocator.Current.GetService<ILogManager>().GetLogger(typeof(GitHubRepository));
 
-        public GitHubRepository(SyncGithubOptions options)
+        public static async Task DownloadRecentPackages(GitHubDownloadCommand options)
         {
-            _options = options;
-        }
+            var releaseDirectoryInfo = options.GetReleaseDirectory();
 
-        public async Task DownloadRecentPackages()
-        {
-            var releaseDirectoryInfo = _options.GetReleaseDirectory();
-
-            if (String.IsNullOrWhiteSpace(_options.token))
+            if (String.IsNullOrWhiteSpace(options.Token))
                 Log.Warn("No GitHub access token provided. Unauthenticated requests will be limited to 60 per hour.");
 
             Log.Info("Fetching RELEASES...");
-            var source = new GithubSource(_options.repoUrl, _options.token, _options.pre);
+            var source = new GithubSource(options.RepoUrl, options.Token, options.Pre);
             var latestReleaseEntries = await source.GetReleaseFeed();
 
             if (latestReleaseEntries == null || latestReleaseEntries.Length == 0) {
@@ -62,14 +56,14 @@ namespace Squirrel.CommandLine.Sync
             Log.Info("Done.");
         }
 
-        public async Task UploadMissingPackages()
+        public static async Task UploadMissingPackages(GitHubUploadCommand options)
         {
-            if (String.IsNullOrWhiteSpace(_options.token))
+            if (String.IsNullOrWhiteSpace(options.Token))
                 throw new InvalidOperationException("Must provide access token to create a GitHub release.");
 
-            var releaseDirectoryInfo = _options.GetReleaseDirectory();
+            var releaseDirectoryInfo = options.GetReleaseDirectory();
 
-            var repoUri = new Uri(_options.repoUrl);
+            var repoUri = new Uri(options.RepoUrl);
             var repoParts = repoUri.AbsolutePath.Trim('/').Split('/');
             if (repoParts.Length != 2)
                 throw new Exception($"Invalid GitHub URL, '{repoUri.AbsolutePath}' should be in the format 'owner/repo'");
@@ -78,7 +72,7 @@ namespace Squirrel.CommandLine.Sync
             var repoName = repoParts[1];
 
             var client = new GitHubClient(new ProductHeaderValue("Clowd.Squirrel")) {
-                Credentials = new Credentials(_options.token)
+                Credentials = new Credentials(options.Token)
             };
 
             var releasesPath = Path.Combine(releaseDirectoryInfo.FullName, "RELEASES");
@@ -100,9 +94,9 @@ namespace Squirrel.CommandLine.Sync
                 Body = ver.GetReleaseNotes(releaseDirectoryInfo.FullName, ReleaseNotesFormat.Markdown),
                 Draft = true,
                 Prerelease = semVer.HasMetadata || semVer.IsPrerelease,
-                Name = string.IsNullOrWhiteSpace(_options.releaseName)
+                Name = string.IsNullOrWhiteSpace(options.ReleaseName)
                     ? semVer.ToString()
-                    : _options.releaseName,
+                    : options.ReleaseName,
             };
 
             Log.Info($"Creating draft release titled '{semVer.ToString()}'");
@@ -143,17 +137,17 @@ namespace Squirrel.CommandLine.Sync
             Log.Info($"Done creating draft GitHub release.");
 
             // convert draft to full release
-            if (_options.publish) {
+            if (options.Publish) {
                 Log.Info("Converting draft to full published release.");
                 var upd = release.ToUpdate();
                 upd.Draft = false;
                 release = await client.Repository.Release.Edit(repoOwner, repoName, release.Id, upd);
             }
-            
+
             Log.Info("Release URL: " + release.HtmlUrl);
         }
 
-        private async Task UploadFileAsAsset(GitHubClient client, Release release, string filePath)
+        private static async Task UploadFileAsAsset(GitHubClient client, Release release, string filePath)
         {
             Log.Info($"Uploading asset '{Path.GetFileName(filePath)}'");
             using var stream = File.OpenRead(filePath);

@@ -1,13 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Squirrel.CommandLine.OSX
+﻿namespace Squirrel.CommandLine.OSX
 {
     internal class AppInfo
     {
+        public string SQPackId { get; set; }
+
+        public string SQPackAuthors { get; set; }
+
         public string CFBundleName { get; set; }
 
         public string CFBundleDisplayName { get; set; }
@@ -31,5 +29,6 @@ namespace Squirrel.CommandLine.OSX
         public bool NSHighResolutionCapable { get; set; }
 
         public bool? NSRequiresAquaSystemAppearance { get; private set; }
+
     }
 }

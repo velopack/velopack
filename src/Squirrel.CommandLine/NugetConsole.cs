@@ -4,6 +4,7 @@ using System.Linq;
 using System.Security;
 using System.Threading.Tasks;
 using NuGet.Commands;
+using Squirrel.CommandLine.Commands;
 using Squirrel.SimpleSplat;
 using NG = NuGet.Common;
 
@@ -43,7 +44,7 @@ namespace Squirrel.CommandLine
         {
             var nup = Path.Combine(tempDir, "squirreltemp.nuspec");
             File.Copy(nuspecPath, nup);
-            
+
             new NugetConsole().Pack(nup, packDir, tempDir);
 
             var nupkgPath = Directory.EnumerateFiles(tempDir).Where(f => f.EndsWith(".nupkg")).FirstOrDefault();
@@ -53,6 +54,12 @@ namespace Squirrel.CommandLine
             return nupkgPath;
         }
 
+        public static string CreatePackageFromOptions(string tempDir, INugetPackCommand command, string libFolderName)
+        {
+            return CreatePackageFromMetadata(tempDir, command.PackDirectory.FullName, command.PackId, command.PackTitle,
+                command.PackAuthors, command.PackVersion, command.ReleaseNotes.FullName, command.IncludePdb, libFolderName);
+        }
+
         public static string CreatePackageFromMetadata(
             string tempDir, string packDir, string packId, string packTitle, string packAuthors,
             string packVersion, string releaseNotes, bool includePdb, string libFolderName)
@@ -60,7 +67,7 @@ namespace Squirrel.CommandLine
             string nuspec = CreateNuspec(packId, packTitle, packAuthors, packVersion, releaseNotes, includePdb, libFolderName);
             var nuspecPath = Path.Combine(tempDir, packId + ".nuspec");
             File.WriteAllText(nuspecPath, nuspec);
-            return CreatePackageFromNuspecPath(tempDir, packDir, nuspecPath);          
+            return CreatePackageFromNuspecPath(tempDir, packDir, nuspecPath);
         }
 
         public void Pack(string nuspecPath, string baseDirectory, string outputDirectory)

@@ -59,7 +59,7 @@ namespace Squirrel.CommandLine.OSX
         }
 
         [SupportedOSPlatform("osx")]
-        public static void CreateInstallerPkg(string appBundlePath, string appTitle, KeyValuePair<string, string>[] extraContent,
+        public static void CreateInstallerPkg(string appBundlePath, string appTitle, IEnumerable<KeyValuePair<string, string>> extraContent,
             string pkgOutputPath, string signIdentity)
         {
             // https://matthew-brett.github.io/docosx/flat_packages.html

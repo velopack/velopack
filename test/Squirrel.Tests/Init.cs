@@ -19,11 +19,5 @@ namespace Squirrel.Tests
             HelperFile.AddSearchPath(Path.Combine(baseDir, "..", "..", "..", "..", "..", "vendor", "7zip"));
             HelperFile.AddSearchPath(Path.Combine(baseDir, "..", "..", "..", "..", "..", "vendor", "wix"));
         }
-
-        public new void Dispose()
-        {
-            // Place tear down code here
-            base.Dispose();
-        }
     }
 }

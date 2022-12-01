@@ -1,10 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
+using System.CommandLine;
+using System.CommandLine.Parsing;
 using System.Threading.Tasks;
-using Mono.Options;
+using Squirrel.CommandLine.Commands;
 using Squirrel.CommandLine.Sync;
 using Squirrel.SimpleSplat;
 
@@ -12,100 +10,105 @@ namespace Squirrel.CommandLine
 {
     public class SquirrelHost
     {
+        public static Option<string> PlatformOption { get; }
+            = new Option<string>(new[] { "-x", "--xplat" }, "Select {PLATFORM} to cross-compile for (eg. win, osx).") { ArgumentHelpName = "PLATFORM" };
+
+        public static Option<bool> VerboseOption { get; }
+            = new Option<bool>("--verbose", "Print diagnostic messages.");
+
+        public static Option<string[]> AddSearchPathOption { get; }
+            = new Option<string[]>("--addSearchPath", "Add additional search directories when looking for helper exe's.")
+            .SetArgumentHelpName("DIR");
+
         public static int Main(string[] args)
         {
             var logger = ConsoleLogger.RegisterLogger();
 
-            bool help = false;
-            bool verbose = false;
-            string xplat = null;
-            var globalOptions = new OptionSet() {
-                { "h|?|help", "Ignores all other arguments and shows help text", _ => help = true },
-                { "x|xplat=", "Select {PLATFORM} to cross-compile for (eg. win, osx)", v => xplat = v },
-                { "verbose", "Print all diagnostic messages", _ => verbose = true },
+            RootCommand platformRootCommand = new RootCommand() {
+                PlatformOption,
+                VerboseOption,
+                AddSearchPathOption,
             };
+            platformRootCommand.TreatUnmatchedTokensAsErrors = false;
 
-            string sqUsage = $"Squirrel {SquirrelRuntimeInfo.SquirrelDisplayVersion} for creating and distributing Squirrel releases.";
-            Console.WriteLine(sqUsage);
+            ParseResult parseResult = platformRootCommand.Parse(args);
 
-            try {
-                var restArgs = globalOptions.Parse(args);
-
-                if (xplat == null)
-                    xplat = SquirrelRuntimeInfo.SystemOsName;
-
-                CommandSet packageCommands;
-
-                switch (xplat.ToLower()) {
-                case "win":
-                case "windows":
-                    if (!SquirrelRuntimeInfo.IsWindows)
-                        logger.Write("Cross-compiling will cause some features of Squirrel to be disabled.", LogLevel.Warn);
-                    packageCommands = Windows.Commands.GetCommands();
-                    break;
-
-                case "mac":
-                case "osx":
-                case "macos":
-                    if (!SquirrelRuntimeInfo.IsOSX)
-                        logger.Write("Cross-compiling will cause some features of Squirrel to be disabled.", LogLevel.Warn);
-                    packageCommands = OSX.Commands.GetCommands();
-                    break;
-
-                default:
-                    throw new NotSupportedException("Unsupported OS platform: " + xplat);
+            string xplat = parseResult.GetValueForOption(PlatformOption) ?? SquirrelRuntimeInfo.SystemOsName;
+            bool verbose = parseResult.GetValueForOption(VerboseOption);
+            if (parseResult.GetValueForOption(AddSearchPathOption) is { } searchPath) {
+                foreach (var v in searchPath) {
+                    HelperFile.AddSearchPath(v);
                 }
-
-                var commands = new CommandSet {
-                    "",
-                    "[ Global Options ]",
-                    globalOptions.GetHelpText().TrimEnd(),
-                    "",
-                    packageCommands,
-                    "",
-                    "[ Package Deployment / Syncing ]",
-                    { "http-down", "Download latest release from HTTP", new SyncHttpOptions(), o => Download(new SimpleWebRepository(o)) },
-                    { "s3-down", "Download latest release from S3 API", new SyncS3Options(), o => Download(new S3Repository(o)) },
-                    { "s3-up", "Upload releases to S3 API", new SyncS3Options(), o => Upload(new S3Repository(o)) },
-                    { "github-down", "Download latest release from GitHub", new SyncGithubOptions(), o => Download(new GitHubRepository(o)) },
-                    { "github-up", "Upload latest release to GitHub", new SyncGithubOptions(), o => Upload(new GitHubRepository(o)) },
-                };
-
-                if (verbose) {
-                    logger.Level = LogLevel.Debug;
-                }
-
-                if (help) {
-                    commands.WriteHelp();
-                    return 0;
-                }
-
-                try {
-                    // parse cli and run command
-                    commands.Execute(restArgs.ToArray());
-                    return 0;
-                } catch (Exception ex) when (ex is OptionValidationException || ex is OptionException) {
-                    // if the arguments fail to validate, print argument help
-                    Console.WriteLine();
-                    logger.Write(ex.Message, LogLevel.Error);
-                    commands.WriteHelp();
-                    Console.WriteLine();
-                    logger.Write(ex.Message, LogLevel.Error);
-                    return -1;
-                }
-            } catch (Exception ex) {
-                // for other errors, just print the error and short usage instructions
-                Console.WriteLine();
-                logger.Write(ex.ToString(), LogLevel.Error);
-                Console.WriteLine();
-                Console.WriteLine(sqUsage);
-                Console.WriteLine($" > 'csq -h' to see program help.");
-                return -1;
             }
+
+            RootCommand rootCommand = new RootCommand($"Squirrel {SquirrelRuntimeInfo.SquirrelDisplayVersion} for creating and distributing Squirrel releases.");
+            rootCommand.AddGlobalOption(PlatformOption);
+            rootCommand.AddGlobalOption(VerboseOption);
+            rootCommand.AddGlobalOption(AddSearchPathOption);
+
+            switch (xplat.ToLower()) {
+            case "win":
+            case "windows":
+                if (!SquirrelRuntimeInfo.IsWindows)
+                    logger.Write("Cross-compiling will cause some command and options of Squirrel to be unavailable.", LogLevel.Warn);
+                rootCommand.AddCommandWithHandler(new PackWindowsCommand(), Windows.Commands.Pack);
+                rootCommand.AddCommandWithHandler(new ReleasifyWindowsCommand(), Windows.Commands.Releasify);
+                break;
+
+            case "mac":
+            case "osx":
+            case "macos":
+                if (!SquirrelRuntimeInfo.IsOSX)
+                    logger.Write("Cross-compiling will cause some command and options of Squirrel to be unavailable.", LogLevel.Warn);
+                rootCommand.AddCommandWithHandler(new BundleOsxCommand(), OSX.Commands.Bundle);
+                rootCommand.AddCommandWithHandler(new ReleasifyOsxCommand(), OSX.Commands.Releasify);
+                break;
+
+            default:
+                throw new NotSupportedException("Unsupported OS platform: " + xplat);
+            }
+
+            if (verbose) {
+                logger.Level = LogLevel.Debug;
+            }
+
+            Command uploadCommand = new Command("upload", "Upload local package(s) to a remote update source.");
+            uploadCommand.AddCommandWithHandler(new S3UploadCommand(), options => S3Repository.UploadMissingPackages(options));
+            uploadCommand.AddCommandWithHandler(new GitHubUploadCommand(), options => GitHubRepository.UploadMissingPackages(options));
+
+            Command downloadCommand = new Command("download", "Download's the latest release from a remote update source.");
+            downloadCommand.AddCommandWithHandler(new HttpDownloadCommand(), options => SimpleWebRepository.DownloadRecentPackages(options));
+            downloadCommand.AddCommandWithHandler(new S3DownloadCommand(), options => S3Repository.DownloadRecentPackages(options));
+            downloadCommand.AddCommandWithHandler(new GitHubDownloadCommand(), options => GitHubRepository.DownloadRecentPackages(options));
+
+            rootCommand.Add(uploadCommand);
+            rootCommand.Add(downloadCommand);
+            return rootCommand.Invoke(args);
+        }
+    }
+
+    public static class SquirrelHostExtensions
+    {
+        public static Command AddCommandWithHandler<T>(this Command root, T command, Action<T> execute)
+            where T : BaseCommand
+        {
+            command.SetHandler((ctx) => {
+                command.SetProperties(ctx);
+                execute(command);
+            });
+            root.AddCommand(command);
+            return command;
         }
 
-        static void Upload<T>(T repo) where T : IPackageRepository => repo.UploadMissingPackages().GetAwaiter().GetResult();
-
-        static void Download<T>(T repo) where T : IPackageRepository => repo.DownloadRecentPackages().GetAwaiter().GetResult();
+        public static Command AddCommandWithHandler<T>(this Command root, T command, Func<T, Task> execute)
+          where T : BaseCommand
+        {
+            command.SetHandler((ctx) => {
+                command.SetProperties(ctx);
+                return execute(command);
+            });
+            root.AddCommand(command);
+            return command;
+        }
     }
 }
