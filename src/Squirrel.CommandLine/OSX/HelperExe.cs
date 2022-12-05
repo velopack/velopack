@@ -112,14 +112,15 @@ namespace Squirrel.CommandLine.OSX
 
             // disable local system installation (install to home dir)
             distXml.Insert(2, "<domains enable_anywhere=\"false\" enable_currentUserHome=\"true\" enable_localSystem=\"false\" />");
-            File.WriteAllLines(distributionPath, distXml);
-            
+
             // add extra landing content (eg. license, readme)
             foreach (var kvp in extraContent) {
                 var fileName = Path.GetFileName(kvp.Value);
                 File.Copy(kvp.Value, Path.Combine(tmpResources, fileName));
                 distXml.Insert(2, $"<{kvp.Key} file=\"{fileName}\" />");
             }
+
+            File.WriteAllLines(distributionPath, distXml);
 
             List<string> args2 = new() {
                 "--distribution", distributionPath,
