@@ -1,12 +1,10 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-using Squirrel;
-using Squirrel.Tests.TestHelpers;
-using Xunit;
-using Squirrel.NuGet;
 using NuGet.Versioning;
 using Squirrel.CommandLine;
+using Squirrel.Tests.TestHelpers;
+using Xunit;
 
 namespace Squirrel.Tests
 {
@@ -23,10 +21,17 @@ namespace Squirrel.Tests
         public void ParseValidReleaseEntryLines(string releaseEntry, string fileName, long fileSize, string baseUrl, string query)
         {
             var fixture = ReleaseEntry.ParseReleaseEntry(releaseEntry);
+
             Assert.Equal(fileName, fixture.Filename);
             Assert.Equal(fileSize, fixture.Filesize);
             Assert.Equal(baseUrl, fixture.BaseUrl);
             Assert.Equal(query, fixture.Query);
+
+            var old = Legacy.ReleaseEntry.ParseReleaseEntry(releaseEntry);
+            Assert.Equal(fileName, old.Filename);
+            Assert.Equal(fileSize, old.Filesize);
+            Assert.Equal(baseUrl, old.BaseUrl);
+            Assert.Equal(query, old.Query);
         }
 
         [Theory]
@@ -102,12 +107,19 @@ namespace Squirrel.Tests
         [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2.3.4-beta1.nupkg        123", 1, 2, 3, 4, "beta1", false)]
         [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2.3.4-beta1-full.nupkg   123", 1, 2, 3, 4, "beta1", false)]
         [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2.3.4-beta1-delta.nupkg  123", 1, 2, 3, 4, "beta1", true)]
+        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2.3-beta1-win7-x64.nupkg          123", 1, 2, 3, 0, "beta1-win7-x64", false)]
+        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2.3-beta1-win7-x64-full.nupkg     123", 1, 2, 3, 0, "beta1-win7-x64", false)]
+        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2.3-beta1-win7-x64-delta.nupkg    123", 1, 2, 3, 0, "beta1-win7-x64", true)]
         public void ParseVersionTest(string releaseEntry, int major, int minor, int patch, int revision, string prerelease, bool isDelta)
         {
             var fixture = ReleaseEntry.ParseReleaseEntry(releaseEntry);
 
             Assert.Equal(new NuGetVersion(major, minor, patch, revision, prerelease, null), fixture.Version);
             Assert.Equal(isDelta, fixture.IsDelta);
+
+            var old = Legacy.ReleaseEntry.ParseReleaseEntry(releaseEntry);
+            Assert.Equal(new NuGetVersion(major, minor, patch, revision, prerelease, null), new NuGetVersion(old.Version.ToString()));
+            Assert.Equal(isDelta, old.IsDelta);
         }
 
         [Theory]
@@ -133,6 +145,9 @@ namespace Squirrel.Tests
         {
             var fixture = ReleaseEntry.ParseReleaseEntry(releaseEntry);
             Assert.Equal(expected, fixture.PackageName);
+
+            var old = Legacy.ReleaseEntry.ParseReleaseEntry(releaseEntry);
+            Assert.Equal(expected, old.PackageName);
         }
 
         [Theory]
@@ -140,6 +155,8 @@ namespace Squirrel.Tests
         [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-full.nupkg             123 # 90%", 1, 2, 0, 0, "", false, 0.9f)]
         [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-delta.nupkg            123", 1, 2, 0, 0, "", true, null)]
         [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-delta.nupkg            123 # 5%", 1, 2, 0, 0, "", true, 0.05f)]
+        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-win7-x64-delta.nupkg            123", 1, 2, 0, 0, "win7-x64", true, null)]
+        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-win7-x64-full.nupkg            123 # 5%", 1, 2, 0, 0, "win7-x64", false, 0.05f)]
         public void ParseStagingPercentageTest(string releaseEntry, int major, int minor, int patch, int revision, string prerelease, bool isDelta, float? stagingPercentage)
         {
             var fixture = ReleaseEntry.ParseReleaseEntry(releaseEntry);
@@ -151,6 +168,16 @@ namespace Squirrel.Tests
                 Assert.True(Math.Abs(fixture.StagingPercentage.Value - stagingPercentage.Value) < 0.001);
             } else {
                 Assert.Null(fixture.StagingPercentage);
+            }
+
+            var old = Legacy.ReleaseEntry.ParseReleaseEntry(releaseEntry);
+            Assert.Equal(new NuGetVersion(major, minor, patch, revision, prerelease, null), new NuGetVersion(old.Version.ToString()));
+            Assert.Equal(isDelta, old.IsDelta);
+
+            if (stagingPercentage.HasValue) {
+                Assert.True(Math.Abs(old.StagingPercentage.Value - stagingPercentage.Value) < 0.001);
+            } else {
+                Assert.Null(old.StagingPercentage);
             }
         }
 
