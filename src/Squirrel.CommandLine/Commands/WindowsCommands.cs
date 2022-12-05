@@ -1,6 +1,5 @@
 ﻿using System;
 using System.CommandLine;
-using System.CommandLine.Parsing;
 using System.IO;
 
 namespace Squirrel.CommandLine.Commands
@@ -64,6 +63,8 @@ namespace Squirrel.CommandLine.Commands
 
         public string BuildMsi { get; private set; }
 
+        public string MsiVersion { get; private set; }
+
         public ReleasifyWindowsCommand()
             : this("releasify", "Take an existing nuget package and convert it into a Squirrel release.")
         {
@@ -98,11 +99,10 @@ namespace Squirrel.CommandLine.Commands
             AddOption<bool>("--noDelta", (v) => NoDelta = v)
                 .SetDescription("Skip the generation of delta packages.");
 
-            var framework = AddOption<string>(new[] { "-f", "--framework" }, (v) => Runtimes = v)
+            AddOption<string>(new[] { "-f", "--framework" }, (v) => Runtimes = v)
                 .SetDescription("List of required runtimes to install during setup. example: 'net6,vcredist143'.")
-                .SetArgumentHelpName("RUNTIMES");
-
-            framework.AddValidator(MustBeValidFrameworkString);
+                .SetArgumentHelpName("RUNTIMES")
+                .MustBeValidFrameworkString();
 
             AddOption<FileInfo>(new[] { "-s", "--splashImage" }, (v) => SplashImage = v)
                 .SetDescription("Path to image displayed during installation.")
@@ -130,18 +130,11 @@ namespace Squirrel.CommandLine.Commands
                 AddOption<string>("--msi", (v) => BuildMsi = v)
                     .SetDescription("Compile a .msi machine-wide deployment tool with the specified bitness.")
                     .SetArgumentHelpName("BITNESS");
-            }
-        }
 
-        protected static void MustBeValidFrameworkString(OptionResult result)
-        {
-            for (var i = 0; i < result.Tokens.Count; i++) {
-                var framework = result.Tokens[i].Value;
-                try {
-                    Squirrel.Runtimes.ParseDependencyString(framework);
-                } catch (Exception e) {
-                    result.ErrorMessage = e.Message;
-                }
+                AddOption<string>("--msiVersion", (v) => MsiVersion = v)
+                    .SetDescription("Override the product version for the generated msi.")
+                    .SetArgumentHelpName("VERSION")
+                    .MustBeValidMsiVersion();
             }
         }
     }

@@ -47,6 +47,7 @@ namespace Squirrel.CommandLine.OSX
             Log.Info("codesign completed successfully");
         }
 
+        [SupportedOSPlatform("osx")]
         public static void SpctlAssess(string filePath)
         {
             var args2 = new List<string> {

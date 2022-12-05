@@ -113,6 +113,18 @@ namespace Squirrel.CommandLine
             return option;
         }
 
+        public static Option<string> MustBeValidFrameworkString(this Option<string> option)
+        {
+            option.AddValidator(Validate.MustBeValidFrameworkString);
+            return option;
+        }
+
+        public static Option<string> MustBeValidMsiVersion(this Option<string> option)
+        {
+            option.AddValidator(Validate.MustBeValidMsiVersion);
+            return option;
+        }
+
         private static class Validate
         {
             public static void MustBeBetween(OptionResult result, int minimum, int maximum)
@@ -235,6 +247,33 @@ namespace Squirrel.CommandLine
                         !Directory.EnumerateFileSystemEntries(token.Value).Any()) {
                         result.ErrorMessage = $"{result.Token.Value} must a non-empty directory, but the specified directory '{token.Value}' was empty.";
                         return;
+                    }
+                }
+            }
+
+            public static void MustBeValidFrameworkString(OptionResult result)
+            {
+                for (var i = 0; i < result.Tokens.Count; i++) {
+                    var framework = result.Tokens[i].Value;
+                    try {
+                        Runtimes.ParseDependencyString(framework);
+                    } catch (Exception e) {
+                        result.ErrorMessage = e.Message;
+                    }
+                }
+            }
+
+            public static void MustBeValidMsiVersion(OptionResult result)
+            {
+                for (var i = 0; i < result.Tokens.Count; i++) {
+                    var version = result.Tokens[i].Value;
+                    if (Version.TryParse(version, out var parsed)) {
+                        if (parsed.Major > 255 || parsed.Minor > 255 || parsed.Build > 65535 || parsed.Revision > 0) {
+                            result.ErrorMessage = $"MSI ProductVersion out of bounds '{version}'. Valid range is [0-255].[0-255].[0-65535].[0]";
+                        }
+                    } else {
+                        result.ErrorMessage = "Version string is invalid / could not be parsed.";
+                        break;
                     }
                 }
             }

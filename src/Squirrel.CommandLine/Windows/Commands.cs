@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.CommandLine;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
@@ -262,7 +261,7 @@ namespace Squirrel.CommandLine.Windows
             if (!String.IsNullOrEmpty(options.BuildMsi)) {
                 if (SquirrelRuntimeInfo.IsWindows) {
                     bool x64 = options.BuildMsi.Equals("x64");
-                    var msiPath = createMsiPackage(targetSetupExe, bundledzp, x64);
+                    var msiPath = createMsiPackage(targetSetupExe, bundledzp, x64, options.MsiVersion);
                     setupFilesToSign.Add(msiPath);
                 } else {
                     Log.Warn("Unable to create MSI (only supported on windows).");
@@ -303,7 +302,7 @@ namespace Squirrel.CommandLine.Windows
         }
 
         [SupportedOSPlatform("windows")]
-        static string createMsiPackage(string setupExe, IPackage package, bool packageAs64Bit)
+        static string createMsiPackage(string setupExe, IPackage package, bool packageAs64Bit, string msiVersionOverride)
         {
             Log.Info($"Compiling machine-wide msi deployment tool in {(packageAs64Bit ? "64-bit" : "32-bit")} mode");
 
@@ -321,7 +320,7 @@ namespace Squirrel.CommandLine.Windows
                 { "Id", wixId },
                 { "Title", package.ProductName },
                 { "Author", package.ProductCompany },
-                { "Version", $"{package.Version.Major}.{package.Version.Minor}.{package.Version.Patch}.0" },
+                { "Version", msiVersionOverride ?? $"{package.Version.Major}.{package.Version.Minor}.{package.Version.Patch}.0" },
                 { "Summary", package.ProductDescription },
                 { "Codepage", $"{culture}" },
                 { "Platform", packageAs64Bit ? "x64" : "x86" },
