@@ -1,6 +1,5 @@
 ﻿using System;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.CommandLine.Parsing;
 using System.IO;
 using Squirrel.SimpleSplat;
@@ -14,7 +13,7 @@ namespace Squirrel.CommandLine.Commands
         protected Option<DirectoryInfo> ReleaseDirectoryOption { get; private set; }
 
         protected static IFullLogger Log = SquirrelLocator.CurrentMutable.GetService<ILogManager>().GetLogger(typeof(BaseCommand));
-        private Action<InvocationContext> _setters;
+        private Action<ParseResult> _setters;
 
         protected BaseCommand(string name, string description, bool releaseDirMustNotBeEmpty = false)
             : base(name, description)
@@ -54,14 +53,21 @@ namespace Squirrel.CommandLine.Commands
 
         protected virtual Option<T> AddOption<T>(Option<T> opt, Action<T> setValue)
         {
-            _setters += (ctx) => setValue(ctx.ParseResult.GetValueForOption(opt));
+            _setters += (ctx) => setValue(ctx.GetValueForOption(opt));
             Add(opt);
             return opt;
         }
 
-        public virtual void SetProperties(InvocationContext context)
+        public virtual void SetProperties(ParseResult context)
         {
             _setters?.Invoke(context);
+        }
+
+        public virtual ParseResult ParseAndApply(string command)
+        {
+            var x = this.Parse(command);
+            SetProperties(x);
+            return x;
         }
     }
 

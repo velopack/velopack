@@ -93,7 +93,7 @@ namespace Squirrel.CommandLine
             where T : BaseCommand
         {
             command.SetHandler((ctx) => {
-                command.SetProperties(ctx);
+                command.SetProperties(ctx.ParseResult);
                 execute(command);
             });
             root.AddCommand(command);
@@ -104,7 +104,7 @@ namespace Squirrel.CommandLine
           where T : BaseCommand
         {
             command.SetHandler((ctx) => {
-                command.SetProperties(ctx);
+                command.SetProperties(ctx.ParseResult);
                 return execute(command);
             });
             root.AddCommand(command);

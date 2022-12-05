@@ -17,7 +17,7 @@ namespace Squirrel.CommandLine.Tests
             var cli = GetRequiredDefaultOptions() + $"--releaseDir \"{releaseDirectory}\"";
             var parseResult = command.Parse(cli);
 
-            Assert.Equal(releaseDirectory, parseResult.GetValueForOption(command.ReleaseDirectory)?.FullName);
+            Assert.Equal(releaseDirectory, command.ReleaseDirectory?.FullName);
         }
 
         protected virtual string GetRequiredDefaultOptions() => "";

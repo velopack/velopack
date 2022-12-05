@@ -1,9 +1,8 @@
-﻿using System.CommandLine;
-using System.CommandLine.Parsing;
-using Squirrel.CommandLine.Deployment;
+﻿using System.CommandLine.Parsing;
+using Squirrel.CommandLine.Commands;
 using Xunit;
 
-namespace Squirrel.CommandLine.Tests.Deployment
+namespace Squirrel.CommandLine.Tests.Commands
 {
     public class HttpDownloadCommandTests : BaseCommandTests<HttpDownloadCommand>
     {
@@ -12,10 +11,10 @@ namespace Squirrel.CommandLine.Tests.Deployment
         {
             var command = new HttpDownloadCommand();
 
-            ParseResult parseResult = command.Parse($"--url \"http://clowd.squirrel.com\"");
+            ParseResult parseResult = command.ParseAndApply($"--url \"http://clowd.squirrel.com\"");
 
             Assert.Empty(parseResult.Errors);
-            Assert.Equal("http://clowd.squirrel.com/", parseResult.GetValueForOption(command.Url)?.AbsoluteUri);
+            Assert.Equal("http://clowd.squirrel.com/", command.Url?.AbsoluteUri);
         }
 
         [Fact]
@@ -23,10 +22,10 @@ namespace Squirrel.CommandLine.Tests.Deployment
         {
             var command = new HttpDownloadCommand();
 
-            ParseResult parseResult = command.Parse($"--url \"file://clowd.squirrel.com\"");
+            ParseResult parseResult = command.ParseAndApply($"--url \"file://clowd.squirrel.com\"");
 
             Assert.Equal(1, parseResult.Errors.Count);
-            Assert.Equal(command.Url, parseResult.Errors[0].SymbolResult?.Symbol);
+            //Assert.Equal(command.Url, parseResult.Errors[0].SymbolResult?.Symbol);
             Assert.StartsWith("--url must contain a Uri with one of the following schems: http, https.", parseResult.Errors[0].Message);
         }
 
@@ -35,10 +34,10 @@ namespace Squirrel.CommandLine.Tests.Deployment
         {
             var command = new HttpDownloadCommand();
 
-            ParseResult parseResult = command.Parse($"--url \"clowd.squirrel.com\"");
+            ParseResult parseResult = command.ParseAndApply($"--url \"clowd.squirrel.com\"");
 
             Assert.Equal(1, parseResult.Errors.Count);
-            Assert.Equal(command.Url, parseResult.Errors[0].SymbolResult?.Symbol);
+            //Assert.Equal(command.Url, parseResult.Errors[0].SymbolResult?.Symbol);
             Assert.StartsWith("--url must contain an absolute Uri.", parseResult.Errors[0].Message);
         }
 
