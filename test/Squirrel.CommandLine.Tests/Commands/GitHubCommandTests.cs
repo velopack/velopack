@@ -15,7 +15,7 @@ namespace Squirrel.CommandLine.Tests.Commands
             ParseResult parseResult = command.ParseAndApply($"--repoUrl \"http://clowd.squirrel.com\"");
 
             Assert.Empty(parseResult.Errors);
-            Assert.Equal("http://clowd.squirrel.com/", command.RepoUrl);
+            Assert.Equal("http://clowd.squirrel.com/", command.RepoUrl.AbsoluteUri);
         }
 
         [Fact]
@@ -75,6 +75,8 @@ namespace Squirrel.CommandLine.Tests.Commands
 
     public class GitHubUploadCommandTests : GitHubCommandTests<GitHubUploadCommand>
     {
+        public override bool ShouldBeNonEmptyReleaseDir => true;
+
         [Fact]
         public void Publish_BareOption_SetsFlag()
         {

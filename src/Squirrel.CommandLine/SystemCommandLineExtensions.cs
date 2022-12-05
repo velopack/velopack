@@ -245,7 +245,7 @@ namespace Squirrel.CommandLine
 
                     if (!Directory.Exists(token.Value) ||
                         !Directory.EnumerateFileSystemEntries(token.Value).Any()) {
-                        result.ErrorMessage = $"{result.Token.Value} must a non-empty directory, but the specified directory '{token.Value}' was empty.";
+                        result.ErrorMessage = $"{result.Token.Value} must be a non-empty directory, but the specified directory '{token.Value}' was empty.";
                         return;
                     }
                 }

@@ -4,14 +4,14 @@ namespace Squirrel.CommandLine.Commands
 {
     public class GitHubBaseCommand : BaseCommand
     {
-        public string RepoUrl { get; private set; }
+        public Uri RepoUrl { get; private set; }
 
         public string Token { get; private set; }
 
         protected GitHubBaseCommand(string name, string description)
             : base(name, description)
         {
-            AddOption<Uri>("--repoUrl", (v) => RepoUrl = v?.AbsoluteUri)
+            AddOption<Uri>("--repoUrl", (v) => RepoUrl = v)
                 .SetDescription("Full url to the github repository (eg. 'https://github.com/myname/myrepo').")
                 .SetRequired()
                 .MustBeValidHttpUri();

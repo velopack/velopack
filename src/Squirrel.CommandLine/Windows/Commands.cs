@@ -223,7 +223,7 @@ namespace Squirrel.CommandLine.Windows
             }
 
             var newReleaseEntries = processed
-                .Select(packageFilename => ReleaseEntry.GenerateFromFile(packageFilename, baseUrl))
+                .Select(packageFilename => ReleaseEntry.GenerateFromFile(packageFilename, baseUrl?.AbsoluteUri))
                 .ToList();
             var distinctPreviousReleases = previousReleases
                 .Where(x => !newReleaseEntries.Select(e => e.Version).Contains(x.Version));

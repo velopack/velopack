@@ -22,7 +22,7 @@ namespace Squirrel.CommandLine.Sync
                 Log.Warn("No GitHub access token provided. Unauthenticated requests will be limited to 60 per hour.");
 
             Log.Info("Fetching RELEASES...");
-            var source = new GithubSource(options.RepoUrl, options.Token, options.Pre);
+            var source = new GithubSource(options.RepoUrl.AbsoluteUri, options.Token, options.Pre);
             var latestReleaseEntries = await source.GetReleaseFeed();
 
             if (latestReleaseEntries == null || latestReleaseEntries.Length == 0) {
@@ -63,7 +63,7 @@ namespace Squirrel.CommandLine.Sync
 
             var releaseDirectoryInfo = options.GetReleaseDirectory();
 
-            var repoUri = new Uri(options.RepoUrl);
+            var repoUri = options.RepoUrl;
             var repoParts = repoUri.AbsolutePath.Trim('/').Split('/');
             if (repoParts.Length != 2)
                 throw new Exception($"Invalid GitHub URL, '{repoUri.AbsolutePath}' should be in the format 'owner/repo'");

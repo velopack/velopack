@@ -12,10 +12,10 @@ namespace Squirrel.CommandLine.Tests.Commands
         {
             var command = new T();
 
-            string cli = GetRequiredDefaultOptions() + $"--baseUrl \"https://clowd.squirell.com\"";
+            string cli = GetRequiredDefaultOptions() + $"--baseUrl \"https://clowd.squirrel.com\"";
             ParseResult parseResult = command.ParseAndApply(cli);
 
-            Assert.Equal("https://clowd.squirell.com/", command.BaseUrl);
+            Assert.Equal("https://clowd.squirrel.com/", command.BaseUrl?.AbsoluteUri);
         }
 
         [Fact]
@@ -46,7 +46,7 @@ namespace Squirrel.CommandLine.Tests.Commands
         [Fact]
         public void DebugSetupExe_WithFilePath_ParsesValue()
         {
-            string debugExe = CreateTempFile().FullName;
+            string debugExe = CreateTempFile(name: "Blah.exe").FullName;
             var command = new T();
             string cli = GetRequiredDefaultOptions() + $"--debugSetupExe \"{debugExe}\"";
             ParseResult parseResult = command.ParseAndApply(cli);
@@ -293,7 +293,8 @@ namespace Squirrel.CommandLine.Tests.Commands
 
             Assert.Equal(1, parseResult.Errors.Count);
             Assert.Equal(command, parseResult.Errors[0].SymbolResult?.Symbol);
-            Assert.StartsWith("Cannot use '--signParams' and '--signTemplate' options together", parseResult.Errors[0].Message);
+            Assert.Contains("Cannot use", parseResult.Errors[0].Message);
+            Assert.Contains("options together", parseResult.Errors[0].Message);
         }
 
         [WindowsOnlyFact]
@@ -396,44 +397,6 @@ namespace Squirrel.CommandLine.Tests.Commands
             ParseResult parseResult = command.ParseAndApply($"--packTitle Clowd.Squirrel -v 1.0.0 -p \"{packDir.FullName}\"");
 
             Assert.Equal("Clowd.Squirrel", command.PackTitle);
-        }
-
-        [Fact]
-        public void ObsoletePackDirectory_WithNonEmptyFolder_ParsesValue()
-        {
-            DirectoryInfo packDir = CreateTempDirectory();
-            CreateTempFile(packDir);
-            var command = new PackWindowsCommand();
-
-            ParseResult parseResult = command.ParseAndApply($"-u Clowd.Squirrel -v 1.0.0 --packDirectory \"{packDir.FullName}\"");
-
-            Assert.Equal(packDir.FullName, command.PackDirectory?.FullName);
-        }
-
-        [Fact]
-        public void ObsoletePackDirectory_WithEmptyFolder_ShowsError()
-        {
-            DirectoryInfo packDir = CreateTempDirectory();
-            var command = new PackWindowsCommand();
-
-            ParseResult parseResult = command.ParseAndApply($"-u Clowd.Squirrel -v 1.0.0 --packDirectory \"{packDir.FullName}\"");
-
-            Assert.Equal(1, parseResult.Errors.Count);
-            Assert.StartsWith("--packDirectory must a non-empty directory", parseResult.Errors[0].Message);
-            Assert.Contains(packDir.FullName, parseResult.Errors[0].Message);
-        }
-
-        [Fact]
-        public void PackDirectory_WithEmptyFolder_ShowsError()
-        {
-            DirectoryInfo packDir = CreateTempDirectory();
-            var command = new PackWindowsCommand();
-
-            ParseResult parseResult = command.ParseAndApply($"-u Clowd.Squirrel -v 1.0.0 --packDir \"{packDir.FullName}\"");
-
-            Assert.Equal(1, parseResult.Errors.Count);
-            Assert.StartsWith("--packDir must a non-empty directory", parseResult.Errors[0].Message);
-            Assert.Contains(packDir.FullName, parseResult.Errors[0].Message);
         }
 
         [Fact]
@@ -555,7 +518,8 @@ namespace Squirrel.CommandLine.Tests.Commands
 
             Assert.Equal(1, parseResult.Errors.Count);
             Assert.Equal(command, parseResult.Errors[0].SymbolResult?.Symbol);
-            Assert.StartsWith("Cannot use '--signParams' and '--signTemplate' options together", parseResult.Errors[0].Message);
+            Assert.Contains("Cannot use", parseResult.Errors[0].Message);
+            Assert.Contains("options together", parseResult.Errors[0].Message);
         }
 
         [WindowsOnlyFact]

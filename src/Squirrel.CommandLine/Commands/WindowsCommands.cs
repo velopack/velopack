@@ -45,7 +45,7 @@ namespace Squirrel.CommandLine.Commands
     {
         public FileInfo Package { get; set; }
 
-        public string BaseUrl { get; private set; }
+        public Uri BaseUrl { get; private set; }
 
         public FileInfo DebugSetupExe { get; private set; }
 
@@ -83,7 +83,7 @@ namespace Squirrel.CommandLine.Commands
         protected ReleasifyWindowsCommand(string name, string description)
             : base(name, description)
         {
-            AddOption<Uri>(new[] { "-b", "--baseUrl" }, (v) => BaseUrl = v?.AbsoluteUri)
+            AddOption<Uri>(new[] { "-b", "--baseUrl" }, (v) => BaseUrl = v)
                 .SetDescription("Provides a base URL to prefix the RELEASES file packages with.")
                 .SetHidden()
                 .MustBeValidHttpUri();

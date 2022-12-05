@@ -98,6 +98,8 @@ namespace Squirrel.CommandLine.Tests.Commands
 
     public class S3UploadCommandTests : S3CommandTests<S3UploadCommand>
     {
+        public override bool ShouldBeNonEmptyReleaseDir => true;
+
         [Fact]
         public void Overwrite_BareOption_SetsFlag()
         {
