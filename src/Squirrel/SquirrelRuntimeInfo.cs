@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -123,7 +121,7 @@ namespace Squirrel
                 IsSingleFile = true;
 
             // get git/nuget version from nbgv metadata
-            var SquirrelNugetVersion = NuGetVersion.Parse(ThisAssembly.AssemblyInformationalVersion);
+            SquirrelNugetVersion = NuGetVersion.Parse(ThisAssembly.AssemblyInformationalVersion);
             if (SquirrelNugetVersion.HasMetadata) {
                 SquirrelNugetVersion = NuGetVersion.Parse(SquirrelNugetVersion.ToNormalizedString() + "-g" + SquirrelNugetVersion.Metadata);
             }
