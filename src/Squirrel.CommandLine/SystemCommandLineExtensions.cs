@@ -3,6 +3,7 @@ using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using NuGet.Versioning;
 using Squirrel.NuGet;
 
@@ -125,6 +126,12 @@ namespace Squirrel.CommandLine
             return option;
         }
 
+        public static Option<string> MustBeSupportedRid(this Option<string> option)
+        {
+            option.AddValidator(Validate.MustBeSupportedRid);
+            return option;
+        }
+
         private static class Validate
         {
             public static void MustBeBetween(OptionResult result, int minimum, int maximum)
@@ -132,7 +139,7 @@ namespace Squirrel.CommandLine
                 for (int i = 0; i < result.Tokens.Count; i++) {
                     if (int.TryParse(result.Tokens[i].Value, out int value)) {
                         if (value is < 1 or > 1000) {
-                            result.ErrorMessage = $"The value for {result.Token.Value} must be greater than {minimum} and less than {maximum}";
+                            result.ErrorMessage = $"The value '{result.Token.Value}' must be greater than {minimum} and less than {maximum}";
                             break;
                         }
                     } else {
@@ -146,7 +153,7 @@ namespace Squirrel.CommandLine
             {
                 for (int i = 0; i < result.Tokens.Count; i++) {
                     if (!string.Equals(Path.GetExtension(result.Tokens[i].Value), extension, StringComparison.InvariantCultureIgnoreCase)) {
-                        result.ErrorMessage = $"{result.Token.Value} does not have an {extension} extension";
+                        result.ErrorMessage = $"'{result.Token.Value}' does not have an {extension} extension";
                         break;
                     }
                 }
@@ -275,6 +282,15 @@ namespace Squirrel.CommandLine
                         result.ErrorMessage = "Version string is invalid / could not be parsed.";
                         break;
                     }
+                }
+            }
+
+            public static void MustBeSupportedRid(OptionResult result)
+            {
+                for (int i = 0; i < result.Tokens.Count; i++) {
+                    if (!Regex.IsMatch(result.Tokens[i].Value, @"(?<os>osx|win)\.?(?<ver>[\d\.]+)?(?:-(?<arch>(?:x|arm)\d+))?"))
+                        result.ErrorMessage = $"Invalid or unsupported runtime '{result.Token.Value}'. Valid example: win-x64, osx-arm64.";
+                    break;
                 }
             }
         }

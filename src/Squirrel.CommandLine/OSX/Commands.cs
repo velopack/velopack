@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.NETCore.Platforms.BuildTasks;
 using NuGet.Versioning;
 using Squirrel.CommandLine.Commands;
 using Squirrel.PropertyList;
@@ -149,14 +150,30 @@ namespace Squirrel.CommandLine.OSX
                 releases.AddRange(ReleaseEntry.ParseReleaseFile(File.ReadAllText(releaseFilePath, Encoding.UTF8)));
             }
 
+            RuntimeCpu pkgArch = RuntimeCpu.Unknown;
+            string pkgMinver = null;
+            string fullRidString = "osx";
+            if (!String.IsNullOrEmpty(options.TargetRuntime)) {
+                var rid = RID.Parse(options.TargetRuntime);
+                if (rid.HasVersion) {
+                    pkgMinver = rid.Version.To3Part();
+                    fullRidString += rid.Version.Major;
+                }
+                if (rid.HasArchitecture && Enum.TryParse<RuntimeCpu>(rid.Architecture, true, out var rcparsed)) {
+                    pkgArch = rcparsed;
+                    fullRidString += "-" + rcparsed.ToString();
+                }
+            }
+
             var rp = new ReleasePackageBuilder(nupkgPath);
-            var newPkgPath = rp.CreateReleasePackage(Path.Combine(releaseDir.FullName, rp.SuggestedReleaseFileName));
+            var suggestedName = ReleasePackageBuilder.GetSuggestedFileName(packId, packVersion, fullRidString);
+            var newPkgPath = rp.CreateReleasePackage((i, pkg) => Path.Combine(releaseDir.FullName, suggestedName));
 
             Log.Info("Creating Delta Packages");
             var prev = ReleasePackageBuilder.GetPreviousRelease(releases, rp, releaseDir.FullName);
             if (prev != null && !options.NoDelta) {
                 var deltaBuilder = new DeltaPackageBuilder();
-                var deltaFile = Path.Combine(releaseDir.FullName, rp.SuggestedReleaseFileName.Replace("-full", "-delta"));
+                var deltaFile = rp.ReleasePackageFile.Replace("-full", "-delta");
                 var dp = deltaBuilder.CreateDeltaPackage(prev, rp, deltaFile);
                 releases.Add(ReleaseEntry.GenerateFromFile(deltaFile));
             }

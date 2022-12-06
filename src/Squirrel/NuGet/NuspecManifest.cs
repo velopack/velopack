@@ -2,11 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Xml.Linq;
 using NuGet.Versioning;
-using SharpCompress.Archives.Zip;
 
 namespace Squirrel.NuGet
 {
@@ -23,7 +20,7 @@ namespace Squirrel.NuGet
         string ReleaseNotes { get; }
         Uri IconUrl { get; }
         IEnumerable<string> Tags { get; }
-        RuntimeCpu MachineArchitecture { get; }
+        RuntimeCpu Architecture { get; }
         IEnumerable<FrameworkAssemblyReference> FrameworkAssemblies { get; }
         IEnumerable<PackageDependencySet> DependencySets { get; }
         IEnumerable<string> RuntimeDependencies { get; }
@@ -35,9 +32,8 @@ namespace Squirrel.NuGet
         public string ProductDescription => Description ?? Summary ?? Title ?? Id;
         public string ProductCompany => (Authors.Any() ? String.Join(", ", Authors) : Owners) ?? ProductName;
         public string ProductCopyright => Copyright ?? "Copyright © " + DateTime.Now.Year.ToString() + " " + ProductCompany;
-        public string FullReleaseFilename => String.Format("{0}-{1}-full.nupkg", Id, Version);
 
-        public string FilePath { get; private set; }
+        //public string FilePath { get; private set; }
 
         public string Id { get; private set; }
         public SemanticVersion Version { get; private set; }
@@ -47,10 +43,13 @@ namespace Squirrel.NuGet
         public Uri IconUrl { get; private set; }
         public string Language { get; private set; }
         public IEnumerable<string> Tags { get; private set; } = Enumerable.Empty<string>();
-        public RuntimeCpu MachineArchitecture { get; private set; }
         public IEnumerable<string> RuntimeDependencies { get; private set; } = Enumerable.Empty<string>();
         public IEnumerable<FrameworkAssemblyReference> FrameworkAssemblies { get; private set; } = Enumerable.Empty<FrameworkAssemblyReference>();
         public IEnumerable<PackageDependencySet> DependencySets { get; private set; } = Enumerable.Empty<PackageDependencySet>();
+
+        public string OperatingSystem { get; private set; }
+        public string MinOperatingSystemVersion { get; private set; }
+        public RuntimeCpu Architecture { get; private set; }
 
         protected string Description { get; private set; }
         protected IEnumerable<string> Authors { get; private set; } = Enumerable.Empty<string>();
@@ -58,7 +57,6 @@ namespace Squirrel.NuGet
         protected string Title { get; private set; }
         protected string Summary { get; private set; }
         protected string Copyright { get; private set; }
-
 
         private static readonly string[] ExcludePaths = new[] { "_rels", "package" };
 
@@ -69,7 +67,7 @@ namespace Squirrel.NuGet
             using var fs = File.OpenRead(filePath);
             var nu = new NuspecManifest();
             nu.ReadManifest(fs);
-            nu.FilePath = filePath;
+            //nu.FilePath = filePath;
             return nu;
         }
 
@@ -84,13 +82,18 @@ namespace Squirrel.NuGet
             }
         }
 
-        public static void SetSquirrelMetadata(string nuspecPath, RuntimeCpu architecture, IEnumerable<string> runtimes)
+        public static void SetWindowsMetadata(string nuspecPath, IEnumerable<string> runtimes, string os, string osMinVer, RuntimeCpu arch)
         {
             Dictionary<string, string> toSet = new();
-            if (architecture != RuntimeCpu.Unknown)
-                toSet.Add("machineArchitecture", architecture.ToString());
+
             if (runtimes.Any())
                 toSet.Add("runtimeDependencies", String.Join(",", runtimes));
+            if (osMinVer != null)
+                toSet.Add("os", os);
+            if (osMinVer != null)
+                toSet.Add("osMinVer", osMinVer);
+            if (arch != RuntimeCpu.Unknown)
+                toSet.Add("arch", arch.ToString());
 
             if (!toSet.Any())
                 return;
@@ -198,17 +201,22 @@ namespace Squirrel.NuGet
             // ===
             // the following metadata elements are added by squirrel and are not
             // used by nuget.
-            case "machineArchitecture":
-                if (Enum.TryParse(value, true, out RuntimeCpu ma)) {
-                    MachineArchitecture = ma;
-                }
-                break;
             case "runtimeDependencies":
                 RuntimeDependencies = getCommaDelimitedValue(value);
                 break;
             case "releaseNotesHtml":
                 ReleaseNotesHtml = value;
                 break;
+            case "arch":
+                if (Enum.TryParse(value, true, out RuntimeCpu ma)) Architecture = ma;
+                break;
+            case "os":
+                OperatingSystem = value;
+                break;
+            case "osMinVer":
+                MinOperatingSystemVersion = value;
+                break;
+
             }
         }
 

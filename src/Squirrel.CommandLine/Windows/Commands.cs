@@ -7,6 +7,7 @@ using System.Linq;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.NETCore.Platforms.BuildTasks;
 using Squirrel.CommandLine.Commands;
 using Squirrel.NuGet;
 using Squirrel.SimpleSplat;
@@ -78,11 +79,13 @@ namespace Squirrel.CommandLine.Windows
                 Log.Info("Creating release for package: " + file.FullName);
 
                 var rp = new ReleasePackageBuilder(file.FullName);
-                rp.CreateReleasePackage(Path.Combine(targetDir.FullName, rp.SuggestedReleaseFileName), contentsPostProcessHook: (pkgPath, zpkg) => {
+                rp.CreateReleasePackage(contentsPostProcessHook: (pkgPath, zpkg) => {
                     var nuspecPath = Directory.GetFiles(pkgPath, "*.nuspec", SearchOption.TopDirectoryOnly)
                         .ContextualSingle("package", "*.nuspec", "top level directory");
                     var libDir = Directory.GetDirectories(Path.Combine(pkgPath, "lib"))
                         .ContextualSingle("package", "'lib' folder");
+
+                    var spec = NuspecManifest.ParseFromFile(nuspecPath);
 
                     foreach (var exename in options.SquirrelAwareExecutableNames) {
                         var exepath = Path.GetFullPath(Path.Combine(libDir, exename));
@@ -141,15 +144,37 @@ namespace Squirrel.CommandLine.Windows
                                  "Shortcuts will be created for every binary in package.");
                     }
 
-                    var pkgarch = SquirrelRuntimeInfo.SelectPackageArchitecture(peArch.Select(f => f.Architecture));
-                    Log.Write($"Program: Package Architecture (detected from SquirrelAwareApp's): {pkgarch}",
-                        pkgarch == RuntimeCpu.Unknown ? LogLevel.Warn : LogLevel.Info);
+                    // parse runtime information
+                    RuntimeCpu pkgArch = RuntimeCpu.Unknown;
+                    string pkgMinver = null;
+                    string fullRidString = "win";
 
-                    // check dependencies of squirrel aware binaries for potential issues
-                    // peparsed.ForEach(kvp => DotnetUtil.CheckDotnetReferences(kvp.Key, kvp.Value, requiredFrameworks));
+                    if (!String.IsNullOrEmpty(options.TargetRuntime)) {
+                        var rid = RID.Parse(options.TargetRuntime);
 
-                    // store the runtime dependencies and the package architecture in nuspec (read by installer)
-                    ZipPackage.SetSquirrelMetadata(nuspecPath, pkgarch, requiredFrameworks.Select(r => r.Id));
+                        if (rid.HasVersion) {
+                            pkgMinver = rid.Version.To3Part();
+                            fullRidString += rid.Version.Major;
+                        }
+
+                        if (rid.HasArchitecture && Enum.TryParse<RuntimeCpu>(rid.Architecture, true, out var rcparsed)) {
+                            pkgArch = rcparsed;
+                            fullRidString += "-" + rcparsed.ToString();
+                        }
+                    }
+
+                    // try to auto-detect architecture as it was not specified.
+                    if (pkgArch == RuntimeCpu.Unknown) {
+                        var pkgarchs = peArch.Select(f => f.Architecture).Distinct().ToArray();
+                        if (pkgarchs.Length == 1) {
+                            pkgArch = pkgarchs[0];
+                            fullRidString += "-" + pkgArch;
+                        } else {
+                            Log.Error("Could not determine package CPU architecture. This will therefore not be validated during install. Fix this via the target runtime argument eg. '--runtime win-x64'");
+                        }
+                    }
+
+                    ZipPackage.SetWindowsMetadata(nuspecPath, requiredFrameworks.Select(r => r.Id), "win", pkgMinver, pkgArch);
 
                     // create stub executable for all exe's in this package (except Squirrel!)
                     var exesToCreateStubFor = new DirectoryInfo(pkgPath).GetAllFilesRecursively()
@@ -205,6 +230,8 @@ namespace Squirrel.CommandLine.Windows
                     // copy other images to root (used by setup)
                     if (setupIcon != null) File.Copy(setupIcon, Path.Combine(pkgPath, "setup.ico"), true);
                     if (backgroundGif != null) File.Copy(backgroundGif, Path.Combine(pkgPath, "splashimage" + Path.GetExtension(backgroundGif)));
+
+                    return Path.Combine(targetDir.FullName, ReleasePackageBuilder.GetSuggestedFileName(spec.Id, spec.Version.ToString(), fullRidString));
                 });
 
                 processed.Add(rp.ReleasePackageFile);
@@ -212,8 +239,8 @@ namespace Squirrel.CommandLine.Windows
                 var prev = ReleasePackageBuilder.GetPreviousRelease(previousReleases, rp, targetDir.FullName);
                 if (prev != null && generateDeltas) {
                     var deltaBuilder = new DeltaPackageBuilder();
-                    var dp = deltaBuilder.CreateDeltaPackage(prev, rp,
-                        Path.Combine(targetDir.FullName, rp.SuggestedReleaseFileName.Replace("full", "delta")));
+                    var deltaOutputPath = rp.ReleasePackageFile.Replace("-full", "-delta");
+                    var dp = deltaBuilder.CreateDeltaPackage(prev, rp, deltaOutputPath);
                     processed.Insert(0, dp.InputPackageFile);
                 }
             }

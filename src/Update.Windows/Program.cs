@@ -1,19 +1,13 @@
-﻿using Squirrel.SimpleSplat;
-using Squirrel.Json;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
-using System.Reflection;
 using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
-using Squirrel.NuGet;
+using Squirrel.Json;
 using Squirrel.Lib;
+using Squirrel.NuGet;
+using Squirrel.SimpleSplat;
 using Squirrel.Sources;
 using static Squirrel.Runtimes.RuntimeInstallResult;
 
@@ -23,7 +17,7 @@ namespace Squirrel.Update
     {
         private static StartupOption opt;
         private static SetupLogLogger _log;
-        
+
         static IFullLogger Log => SquirrelLocator.Current.GetService<ILogManager>().GetLogger(typeof(Program));
 
         [STAThread]
@@ -32,7 +26,7 @@ namespace Squirrel.Update
             // if Update.exe is double clicked from explorer, we do not want to attach a console etc.
             if (args.Length == 0)
                 return -1;
-            
+
             try {
                 return main(args);
             } catch (Exception ex) {
@@ -180,14 +174,6 @@ namespace Squirrel.Update
             using var _t = Utility.GetTempDirectory(out var tempFolder);
             using ISplashWindow splash = new ComposedWindow(appname, silentInstall, zp.SetupIconBytes, zp.SetupSplashBytes);
 
-            // verify that this package can be installed on this cpu architecture
-            if (SquirrelRuntimeInfo.IsPackageCompatibleWithCurrentOS(zp.MachineArchitecture) == false) {
-                splash.ShowErrorDialog("Incompatible System",
-                    $"The current operating system uses the {SquirrelRuntimeInfo.SystemArchitecture} cpu architecture, " +
-                    $"but this package is for {zp.MachineArchitecture} and cannot be installed on this computer.");
-                return;
-            }
-
             var missingFrameworks = getMissingRuntimes(zp);
 
             // prompt user to install missing dependencies
@@ -212,7 +198,7 @@ namespace Squirrel.Update
             splash.SetProgressIndeterminate();
 
             // copy package to directory
-            string packagePath = Path.Combine(tempFolder, zp.FullReleaseFilename);
+            string packagePath = Path.Combine(tempFolder, String.Format("{0}-{1}-bundled.nupkg", zp.Id, zp.Version));
             fs.Position = 0;
             using (var writeStream = File.Open(packagePath, FileMode.Create, FileAccess.ReadWrite))
                 fs.CopyTo(writeStream);
@@ -260,7 +246,7 @@ namespace Squirrel.Update
                 .First().PackageName;
 
             var rootAppDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), ourAppName);
-  
+
             Log.Info("About to install to: " + rootAppDir);
             if (Directory.Exists(rootAppDir)) {
                 Log.Warn("Install path {0} already exists, burning it to the ground", rootAppDir);
@@ -297,7 +283,7 @@ namespace Squirrel.Update
             bool ignoreDeltaUpdates = false;
             Log.Info("About to update to: " + mgr.Config.RootAppDir);
 
-            retry:
+        retry:
             try {
                 // 3 % (3 stages)
                 var updateInfo = await mgr.CheckForUpdate(intention: UpdaterIntention.Update, ignoreDeltaUpdates: ignoreDeltaUpdates,

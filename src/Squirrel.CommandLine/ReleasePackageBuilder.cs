@@ -1,19 +1,16 @@
 ﻿using System;
-using System.Diagnostics.Contracts;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using System.Xml;
+using NuGet.Versioning;
+using SharpCompress.Archives.Zip;
+using SharpCompress.Readers;
 using Squirrel.MarkdownSharp;
 using Squirrel.NuGet;
 using Squirrel.SimpleSplat;
-using System.Threading.Tasks;
-using SharpCompress.Archives.Zip;
-using SharpCompress.Readers;
-using NuGet.Versioning;
-using System.Runtime.Versioning;
-using System.Collections.Generic;
-using System.Text.RegularExpressions;
 
 namespace Squirrel.CommandLine
 {
@@ -21,29 +18,26 @@ namespace Squirrel.CommandLine
     {
         string InputPackageFile { get; }
         string ReleasePackageFile { get; }
-        string SuggestedReleaseFileName { get; }
         SemanticVersion Version { get; }
     }
 
     internal class ReleasePackageBuilder : IEnableLogger, IReleasePackage
     {
         private Lazy<ZipPackage> _package;
-        
+
         public ReleasePackageBuilder(string inputPackageFile, bool isReleasePackage = false)
         {
             InputPackageFile = inputPackageFile;
             _package = new Lazy<ZipPackage>(() => new ZipPackage(inputPackageFile));
-            
+
             if (isReleasePackage) {
                 ReleasePackageFile = inputPackageFile;
             }
         }
 
         public string InputPackageFile { get; protected set; }
-        
-        public string ReleasePackageFile { get; protected set; }
 
-        public string SuggestedReleaseFileName => _package.Value.FullReleaseFilename;
+        public string ReleasePackageFile { get; protected set; }
 
         public string Id => ReleaseEntry.ParseEntryFileName(InputPackageFile).PackageName;
 
@@ -51,7 +45,14 @@ namespace Squirrel.CommandLine
 
         internal string CreateReleasePackage(string outputFile, Func<string, string> releaseNotesProcessor = null, Action<string, ZipPackage> contentsPostProcessHook = null)
         {
-            Contract.Requires(!String.IsNullOrEmpty(outputFile));
+            return CreateReleasePackage((i, p) => {
+                contentsPostProcessHook?.Invoke(i, p);
+                return outputFile;
+            }, releaseNotesProcessor);
+        }
+
+        internal string CreateReleasePackage(Func<string, ZipPackage, string> contentsPostProcessHook, Func<string, string> releaseNotesProcessor = null)
+        {
             releaseNotesProcessor = releaseNotesProcessor ?? (x => (new Markdown()).Transform(x));
 
             if (ReleasePackageFile != null) {
@@ -63,20 +64,6 @@ namespace Squirrel.CommandLine
             // just in-case our parsing is more-strict than nuget.exe and
             // the 'releasify' command was used instead of 'pack'.
             NugetUtil.ThrowIfInvalidNugetId(package.Id);
-
-            // NB: Our test fixtures use packages that aren't SemVer compliant, 
-            // we don't really care that they aren't valid
-            if (!ModeDetector.InUnitTestRunner()) {
-                // verify that the .nuspec version is semver compliant
-                NugetUtil.ThrowIfVersionNotSemverCompliant(package.Version.ToString());
-
-                // verify that the suggested filename can be round-tripped as an assurance 
-                // someone won't run across an edge case and install a broken app somehow
-                var idtest = ReleaseEntry.ParseEntryFileName(SuggestedReleaseFileName);
-                if (idtest.PackageName != package.Id || idtest.Version != package.Version) {
-                    throw new Exception($"The package id/version could not be properly parsed, are you using special characters?");
-                }
-            }
 
             // we can tell from here what platform(s) the package targets but given this is a
             // simple package we only ever expect one entry here (crash hard otherwise)
@@ -99,8 +86,7 @@ namespace Squirrel.CommandLine
                      "The input package file {0} must have no dependencies.", InputPackageFile));
             }
 
-
-            this.Log().Info("Creating release package: {0} => {1}", InputPackageFile, outputFile);
+            this.Log().Info("Creating release from input package {0}", InputPackageFile);
 
             using (Utility.GetTempDirectory(out var tempPath)) {
                 var tempDir = new DirectoryInfo(tempPath);
@@ -118,12 +104,24 @@ namespace Squirrel.CommandLine
 
                 addDeltaFilesToContentTypes(tempDir.FullName);
 
-                contentsPostProcessHook?.Invoke(tempPath, package);
+                var outputFile = contentsPostProcessHook.Invoke(tempPath, package);
 
                 EasyZip.CreateZipFromDirectory(outputFile, tempPath);
 
                 ReleasePackageFile = outputFile;
+
+                this.Log().Info("Package created at {0}", outputFile);
                 return ReleasePackageFile;
+            }
+        }
+
+        internal static string GetSuggestedFileName(string id, string version, string runtime, bool delta = false)
+        {
+            var tail = delta ? "delta" : "full";
+            if (String.IsNullOrEmpty(runtime)) {
+                return String.Format("{0}-{1}-{2}.nupkg", id, version, tail);
+            } else {
+                return String.Format("{0}-{1}-{2}-{3}.nupkg", id, version, runtime, tail);
             }
         }
 

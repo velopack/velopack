@@ -10,6 +10,8 @@ namespace Squirrel.CommandLine.Commands
 {
     public class BaseCommand : Command
     {
+        public string TargetRuntime { get; set; }
+
         public DirectoryInfo ReleaseDirectory { get; private set; }
 
         protected Option<DirectoryInfo> ReleaseDirectoryOption { get; private set; }
@@ -20,7 +22,7 @@ namespace Squirrel.CommandLine.Commands
         protected BaseCommand(string name, string description, bool releaseDirMustNotBeEmpty = false)
             : base(name, description)
         {
-            ReleaseDirectoryOption = AddOption<DirectoryInfo>(new[] { "-r", "--releaseDir" }, (v) => ReleaseDirectory = v)
+            ReleaseDirectoryOption = AddOption<DirectoryInfo>(new[] { "-o", "--outputDir" }, (v) => ReleaseDirectory = v)
                 .SetDescription("Output directory for Squirrel packages.")
                 .SetArgumentHelpName("DIR");
             ReleaseDirectoryOption.SetDefaultValue(new DirectoryInfo(".\\Releases"));

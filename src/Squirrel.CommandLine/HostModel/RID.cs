@@ -11,6 +11,8 @@ namespace Microsoft.NETCore.Platforms.BuildTasks
     /// </summary>
     public sealed class RuntimeVersion : IComparable, IComparable<RuntimeVersion>, IEquatable<RuntimeVersion>
     {
+        public int Major => version.Major;
+
         private string versionString;
         private Version version;
         private bool hasMinor;
@@ -34,6 +36,11 @@ namespace Microsoft.NETCore.Platforms.BuildTasks
             }
 
             version = Version.Parse(toParse);
+        }
+
+        public string To3Part()
+        {
+            return $"{Math.Max(0, version.Major)}.{Math.Max(0, version.Minor)}.{Math.Max(0, version.Build)}";
         }
 
         public int CompareTo(object obj)

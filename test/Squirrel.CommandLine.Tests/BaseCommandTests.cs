@@ -18,7 +18,7 @@ namespace Squirrel.CommandLine.Tests
 
             BaseCommand command = new T();
 
-            var cli = GetRequiredDefaultOptions() + $"--releaseDir \"{releaseDirectory.FullName}\"";
+            var cli = GetRequiredDefaultOptions() + $"--outputDir \"{releaseDirectory.FullName}\"";
             var parseResult = command.ParseAndApply(cli);
 
             Assert.Equal(releaseDirectory.FullName, command.ReleaseDirectory?.FullName);

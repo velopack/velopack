@@ -10,8 +10,10 @@ namespace Squirrel.CommandLine
 {
     public class SquirrelHost
     {
-        public static Option<string> PlatformOption { get; }
-            = new Option<string>(new[] { "-x", "--xplat" }, "Select {PLATFORM} to cross-compile for (eg. win, osx).") { ArgumentHelpName = "PLATFORM" };
+        public static Option<string> TargetRuntime { get; }
+            = new Option<string>(new[] { "-r", "--runtime" }, "The target runtime to build packages for.")
+            .SetArgumentHelpName("RID")
+            .MustBeSupportedRid();
 
         public static Option<bool> VerboseOption { get; }
             = new Option<bool>("--verbose", "Print diagnostic messages.");
@@ -25,7 +27,7 @@ namespace Squirrel.CommandLine
             var logger = ConsoleLogger.RegisterLogger();
 
             RootCommand platformRootCommand = new RootCommand() {
-                PlatformOption,
+                TargetRuntime,
                 VerboseOption,
                 AddSearchPathOption,
             };
@@ -33,7 +35,7 @@ namespace Squirrel.CommandLine
 
             ParseResult parseResult = platformRootCommand.Parse(args);
 
-            string xplat = parseResult.GetValueForOption(PlatformOption) ?? SquirrelRuntimeInfo.SystemOsName;
+            string xplat = parseResult.GetValueForOption(TargetRuntime) ?? SquirrelRuntimeInfo.SystemOsName;
             bool verbose = parseResult.GetValueForOption(VerboseOption);
             if (parseResult.GetValueForOption(AddSearchPathOption) is { } searchPath) {
                 foreach (var v in searchPath) {
@@ -42,7 +44,7 @@ namespace Squirrel.CommandLine
             }
 
             RootCommand rootCommand = new RootCommand($"Squirrel {SquirrelRuntimeInfo.SquirrelDisplayVersion} for creating and distributing Squirrel releases.");
-            rootCommand.AddGlobalOption(PlatformOption);
+            rootCommand.AddGlobalOption(TargetRuntime);
             rootCommand.AddGlobalOption(VerboseOption);
             rootCommand.AddGlobalOption(AddSearchPathOption);
 
@@ -51,8 +53,8 @@ namespace Squirrel.CommandLine
             case "windows":
                 if (!SquirrelRuntimeInfo.IsWindows)
                     logger.Write("Cross-compiling will cause some command and options of Squirrel to be unavailable.", LogLevel.Warn);
-                rootCommand.AddCommandWithHandler(new PackWindowsCommand(), Windows.Commands.Pack);
-                rootCommand.AddCommandWithHandler(new ReleasifyWindowsCommand(), Windows.Commands.Releasify);
+                Add(rootCommand, new PackWindowsCommand(), Windows.Commands.Pack);
+                Add(rootCommand, new ReleasifyWindowsCommand(), Windows.Commands.Releasify);
                 break;
 
             case "mac":
@@ -60,8 +62,8 @@ namespace Squirrel.CommandLine
             case "macos":
                 if (!SquirrelRuntimeInfo.IsOSX)
                     logger.Write("Cross-compiling will cause some command and options of Squirrel to be unavailable.", LogLevel.Warn);
-                rootCommand.AddCommandWithHandler(new BundleOsxCommand(), OSX.Commands.Bundle);
-                rootCommand.AddCommandWithHandler(new ReleasifyOsxCommand(), OSX.Commands.Releasify);
+                Add(rootCommand, new BundleOsxCommand(), OSX.Commands.Bundle);
+                Add(rootCommand, new ReleasifyOsxCommand(), OSX.Commands.Releasify);
                 break;
 
             default:
@@ -73,41 +75,40 @@ namespace Squirrel.CommandLine
             }
 
             Command uploadCommand = new Command("upload", "Upload local package(s) to a remote update source.");
-            uploadCommand.AddCommandWithHandler(new S3UploadCommand(), options => S3Repository.UploadMissingPackages(options));
-            uploadCommand.AddCommandWithHandler(new GitHubUploadCommand(), options => GitHubRepository.UploadMissingPackages(options));
+            Add(uploadCommand, new S3UploadCommand(), options => S3Repository.UploadMissingPackages(options));
+            Add(uploadCommand, new GitHubUploadCommand(), options => GitHubRepository.UploadMissingPackages(options));
 
             Command downloadCommand = new Command("download", "Download's the latest release from a remote update source.");
-            downloadCommand.AddCommandWithHandler(new HttpDownloadCommand(), options => SimpleWebRepository.DownloadRecentPackages(options));
-            downloadCommand.AddCommandWithHandler(new S3DownloadCommand(), options => S3Repository.DownloadRecentPackages(options));
-            downloadCommand.AddCommandWithHandler(new GitHubDownloadCommand(), options => GitHubRepository.DownloadRecentPackages(options));
+            Add(downloadCommand, new HttpDownloadCommand(), options => SimpleWebRepository.DownloadRecentPackages(options));
+            Add(downloadCommand, new S3DownloadCommand(), options => S3Repository.DownloadRecentPackages(options));
+            Add(downloadCommand, new GitHubDownloadCommand(), options => GitHubRepository.DownloadRecentPackages(options));
 
             rootCommand.Add(uploadCommand);
             rootCommand.Add(downloadCommand);
             return rootCommand.Invoke(args);
         }
-    }
 
-    public static class SquirrelHostExtensions
-    {
-        public static Command AddCommandWithHandler<T>(this Command root, T command, Action<T> execute)
-            where T : BaseCommand
+        private static Command Add<T>(Command parent, T command, Action<T> execute)
+           where T : BaseCommand
         {
             command.SetHandler((ctx) => {
                 command.SetProperties(ctx.ParseResult);
+                command.TargetRuntime = ctx.ParseResult.GetValueForOption(TargetRuntime);
                 execute(command);
             });
-            root.AddCommand(command);
+            parent.AddCommand(command);
             return command;
         }
 
-        public static Command AddCommandWithHandler<T>(this Command root, T command, Func<T, Task> execute)
+        private static Command Add<T>(Command parent, T command, Func<T, Task> execute)
           where T : BaseCommand
         {
             command.SetHandler((ctx) => {
                 command.SetProperties(ctx.ParseResult);
+                command.TargetRuntime = ctx.ParseResult.GetValueForOption(TargetRuntime);
                 return execute(command);
             });
-            root.AddCommand(command);
+            parent.AddCommand(command);
             return command;
         }
     }
