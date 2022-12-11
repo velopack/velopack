@@ -1,16 +1,16 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using NuGet.Versioning;
 using Squirrel.NuGet;
 using Squirrel.SimpleSplat;
-using System.Runtime.Serialization;
-using System.Threading.Tasks;
-using System.Collections.Concurrent;
-using NuGet.Versioning;
 
 namespace Squirrel
 {
@@ -24,7 +24,7 @@ namespace Squirrel
         /// <summary> Release notes translated into HTML. </summary>
         Html = 1,
     }
-    
+
     /// <summary>
     /// Represents a Squirrel release, as described in a RELEASES file - usually also with an 
     /// accompanying package containing the files needed to apply the release.
@@ -139,7 +139,7 @@ namespace Squirrel
             };
         }
 
-        /// <inheritdoc />
+        /// <inheritdoc />  
         public Uri GetIconUrl(string packageDirectory)
         {
             var zp = new ZipPackage(Path.Combine(packageDirectory, Filename));

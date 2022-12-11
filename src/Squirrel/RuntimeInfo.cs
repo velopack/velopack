@@ -1,17 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Runtime.Versioning;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Win32;
 using NuGet.Versioning;
-using Squirrel.SimpleSplat;
 using Squirrel.Sources;
 
 namespace Squirrel
@@ -163,14 +159,12 @@ namespace Squirrel
         public class DotnetInfo : RuntimeInfo
         {
             /// <inheritdoc/>
-            public override string Id => MinVersion.Major >= 5
-                ? $"net{TrimVersion(MinVersion)}-{CpuArchitecture.ToString().ToLower()}"
-                : $"netcoreapp{TrimVersion(MinVersion)}-{CpuArchitecture.ToString().ToLower()}";
+            public override string Id =>
+                 $"{(MinVersion.Major >= 5 ? "net" : "netcoreapp")}{TrimVersion(MinVersion)}-{CpuArchitecture.ToString().ToLower()}-{_runtimeShortForm[RuntimeType]}";
 
             /// <inheritdoc/>
-            public override string DisplayName => MinVersion.Major >= 5
-                ? $".NET {TrimVersion(MinVersion)} Desktop Runtime ({CpuArchitecture.ToString().ToLower()})"
-                : $".NET Core {TrimVersion(MinVersion)} Desktop Runtime ({CpuArchitecture.ToString().ToLower()})";
+            public override string DisplayName =>
+                 $"{(MinVersion.Major >= 5 ? ".NET" : ".NET Core")} {TrimVersion(MinVersion)} {RuntimeType} ({CpuArchitecture.ToString().ToLower()})";
 
             /// <summary> The minimum compatible version that must be installed. </summary>
             public NuGetVersion MinVersion { get; }
@@ -179,11 +173,22 @@ namespace Squirrel
             /// For example, if the Squirrel app was deployed with 'win-x64', this must be X64 also. </summary>
             public RuntimeCpu CpuArchitecture { get; }
 
+            /// <summary> The type of runtime required, eg. Windows Desktop, AspNetCore, Sdk.</summary>
+            public DotnetRuntimeType RuntimeType { get; }
+
+            private static readonly Dictionary<DotnetRuntimeType, string> _runtimeShortForm = new() {
+                { DotnetRuntimeType.DotNet, "base" },
+                { DotnetRuntimeType.SDK, "sdk" },
+                { DotnetRuntimeType.WindowsDesktop, "desktop" },
+                { DotnetRuntimeType.AspNetCore, "asp" },
+            };
+
             /// <inheritdoc/>
-            protected DotnetInfo(Version minversion, RuntimeCpu architecture)
+            protected DotnetInfo(Version minversion, RuntimeCpu architecture, DotnetRuntimeType runtimeType = DotnetRuntimeType.WindowsDesktop)
             {
                 MinVersion = new NuGetVersion(minversion);
                 CpuArchitecture = architecture;
+                RuntimeType = runtimeType;
                 if (minversion.Major == 6 && minversion.Build < 0) {
                     Log.Warn(
                         $"Automatically upgrading minimum dotnet version from net{minversion} to net6.0.2, " +
@@ -193,8 +198,8 @@ namespace Squirrel
                 }
             }
 
-            internal DotnetInfo(string minversion, RuntimeCpu architecture)
-                : this(ParseVersion(minversion), architecture)
+            internal DotnetInfo(string minversion, RuntimeCpu architecture, DotnetRuntimeType runtimeType = DotnetRuntimeType.WindowsDesktop)
+                : this(ParseVersion(minversion), architecture, runtimeType)
             {
             }
 
@@ -205,71 +210,83 @@ namespace Squirrel
             [SupportedOSPlatform("windows")]
             public override Task<bool> CheckIsInstalled()
             {
-                switch (CpuArchitecture) {
+                var versionDir = GetDotnetVersionDir(CpuArchitecture, RuntimeType);
+                if (!Directory.Exists(versionDir))
+                    return Task.FromResult(false);
 
-                case RuntimeCpu.x64: return Task.FromResult(CheckIsInstalledX64());
-                case RuntimeCpu.x86: return Task.FromResult(CheckIsInstalledX86());
-                default: return Task.FromResult(false);
+                var dirs = Directory.EnumerateDirectories(versionDir)
+                    .Select(d => Path.GetFileName(d))
+                    .Where(d => NuGetVersion.TryParse(d, out var _))
+                    .Select(d => NuGetVersion.Parse(d));
 
-                }
+                var foundCompatibleVer = dirs.Any(v => v.Major == MinVersion.Major && v.Minor == MinVersion.Minor && v >= MinVersion);
+                return Task.FromResult(foundCompatibleVer);
             }
 
             /// <inheritdoc/>
             [SupportedOSPlatform("windows")]
             public override Task<bool> CheckIsSupported()
             {
-                if (CpuArchitecture == RuntimeCpu.x64 && !Environment.Is64BitOperatingSystem)
-                    return Task.FromResult(false);
-
                 // TODO use IsWindowsVersionOrGreater function to verify it can be installed on this machine
-                return Task.FromResult(true);
+
+                // arm64 windows supports everything
+                if (SquirrelRuntimeInfo.SystemArchitecture == RuntimeCpu.arm64)
+                    return Task.FromResult(true);
+
+                // if the desired architecture is same as system
+                if (SquirrelRuntimeInfo.SystemArchitecture == CpuArchitecture)
+                    return Task.FromResult(true);
+
+                // x64 also supports x86
+                if (SquirrelRuntimeInfo.SystemArchitecture == RuntimeCpu.x64 && CpuArchitecture == RuntimeCpu.x86)
+                    return Task.FromResult(true);
+
+                return Task.FromResult(false);
             }
 
             [SupportedOSPlatform("windows")]
-            private bool CheckIsInstalledX86()
+            private static string GetDotnetVersionDir(RuntimeCpu runtimeArch, DotnetRuntimeType runtimeType)
             {
+                var baseDir = GetDotnetBaseDir(runtimeArch);
+                if (String.IsNullOrEmpty(baseDir))
+                    return null;
+
+                return runtimeType switch {
+                    DotnetRuntimeType.DotNet => Path.Combine(baseDir, "shared", "Microsoft.NETCore.App"),
+                    DotnetRuntimeType.AspNetCore => Path.Combine(baseDir, "shared", "Microsoft.AspNetCore.App"),
+                    DotnetRuntimeType.WindowsDesktop => Path.Combine(baseDir, "shared", "Microsoft.WindowsDesktop.App"),
+                    DotnetRuntimeType.SDK => Path.Combine(baseDir, "sdk"),
+                    _ => throw new ArgumentOutOfRangeException(nameof(DotnetRuntimeType)),
+                };
+            }
+
+            [SupportedOSPlatform("windows")]
+            private static string GetDotnetBaseDir(RuntimeCpu runtime)
+            {
+                var system = SquirrelRuntimeInfo.SystemArchitecture;
                 var pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-                return CheckIsInstalledInBaseDirectory(pf86);
-            }
 
-            [SupportedOSPlatform("windows")]
-            private bool CheckIsInstalledX64()
-            {
-                if (!Environment.Is64BitOperatingSystem)
-                    return false;
+                if (runtime == RuntimeCpu.x86)
+                    return Path.Combine(pf86, "dotnet");
 
-                // we are probably an x86 process, and I don't know of any great ways to
-                // get the x64 ProgramFiles directory from an x86 process, so this code
-                // is extremely unfortunate.
+                // this only works in a 64 bit process, otherwise it points to ProgramFilesX86
+                var pf64 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
 
-                if (Environment.Is64BitProcess) {
-                    // this only works in a 64 bit process, otherwise it points to ProgramFilesX86
-                    var pf64 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-                    if (CheckIsInstalledInBaseDirectory(pf64))
-                        return true;
-                }
-
-                // https://docs.microsoft.com/en-us/windows/win32/winprog64/wow64-implementation-details
+                // try to get the real 64 bit program files directory
                 var pf64compat = Environment.GetEnvironmentVariable("ProgramW6432");
                 if (Directory.Exists(pf64compat))
-                    return CheckIsInstalledInBaseDirectory(pf64compat);
+                    pf64 = pf64compat;
 
-                return false;
-            }
+                if (runtime == system) {
+                    // looking for x64 on an x64 system will always be in pf64.
+                    // it's the same when looking for arm64 on an arm64 system
+                    return Path.Combine(pf64, "dotnet");
+                } else if (runtime == RuntimeCpu.x64 && system == RuntimeCpu.arm64) {
+                    // if looking for x64 on an arm64 system, it will be in a sub-directory
+                    return Path.Combine(pf64, "dotnet", "x64");
+                }
 
-            [SupportedOSPlatform("windows")]
-            private bool CheckIsInstalledInBaseDirectory(string baseDirectory)
-            {
-                var directory = Path.Combine(baseDirectory, "dotnet", "shared", "Microsoft.WindowsDesktop.App");
-                if (!Directory.Exists(directory))
-                    return false;
-
-                var dirs = Directory.EnumerateDirectories(directory)
-                    .Select(d => Path.GetFileName(d))
-                    .Where(d => NuGetVersion.TryParse(d, out var _))
-                    .Select(d => NuGetVersion.Parse(d));
-
-                return dirs.Any(v => v.Major == MinVersion.Major && v.Minor == MinVersion.Minor && v >= MinVersion);
+                return null;
             }
 
             /// <inheritdoc/>
@@ -279,13 +296,14 @@ namespace Squirrel
                 var architecture = CpuArchitecture switch {
                     RuntimeCpu.x86 => "x86",
                     RuntimeCpu.x64 => "x64",
+                    RuntimeCpu.arm64 => "arm64",
                     _ => throw new ArgumentOutOfRangeException(nameof(CpuArchitecture)),
                 };
 
                 return GetDotNetDownloadUrl(DotnetRuntimeType.WindowsDesktop, latest, architecture);
             }
 
-            private static Regex _dotnetRegex = new Regex(@"^net(?:coreapp)?(?<version>[\d\.]{1,6})(?:-(?<arch>[\w\d]+))?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            private static Regex _dotnetRegex = new Regex(@"^net(?:coreapp)?(?<version>[\d\.]{1,7})(?:-(?<arch>[\w\d]+))?(?:-(?<type>\w+))?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
             /// <summary>
             /// Parses a string such as 'net6' or net5.0.14-x86 into a DotnetInfo class capable of checking
@@ -299,13 +317,26 @@ namespace Squirrel
 
                 var verstr = match.Groups["version"].Value;
                 var archstr = match.Groups["arch"].Value; // default is x64 if not specified
+                var typestr = match.Groups["type"].Value; // default is WindowsDesktop
 
                 var archValid = Enum.TryParse<RuntimeCpu>(String.IsNullOrWhiteSpace(archstr) ? "x64" : archstr, true, out var cpu);
                 if (!archValid)
-                    throw new ArgumentException($"Invalid machine architecture '{archstr}'.");
+                    throw new ArgumentException($"Invalid machine architecture '{archstr}'. Valid values: {String.Join(", ", Enum.GetValues(typeof(RuntimeCpu)))}");
+
+                var type = DotnetRuntimeType.WindowsDesktop;
+                if (!String.IsNullOrEmpty(typestr)) {
+                    var q = _runtimeShortForm.Where(kvp => kvp.Value.Equals(typestr, StringComparison.InvariantCultureIgnoreCase));
+                    if (Enum.TryParse<DotnetRuntimeType>(typestr, true, out var parsed)) {
+                        type = parsed;
+                    } else if (q.Any()) {
+                        type = q.First().Key;
+                    } else {
+                        throw new ArgumentException($"Invalid dotnet runtime sku '{typestr}'. Valid values: {String.Join(", ", _runtimeShortForm.Values)}");
+                    }
+                }
 
                 var ver = ParseVersion(verstr);
-                return new DotnetInfo(ver, cpu);
+                return new DotnetInfo(ver, cpu, type);
             }
 
             /// <inheritdoc cref="Parse(string)"/>
@@ -334,7 +365,7 @@ namespace Squirrel
                         throw new ArgumentException("Version must only be a 3-part version string.", nameof(input));
 
                     if ((v.Major == 3 && v.Minor == 1) || v.Major >= 5) {
-                        if (v.Major > 7) {
+                        if (v.Major > 8) {
                             Log.Warn(
                                 $"Runtime version '{input}' was resolved to major version '{v.Major}', but this is greater than any known dotnet version, " +
                                 $"and if this version does not exist this package may fail to install.");
@@ -440,11 +471,21 @@ namespace Squirrel
             [SupportedOSPlatform("windows")]
             public override Task<bool> CheckIsSupported()
             {
-                if (CpuArchitecture == RuntimeCpu.x64 && !Environment.Is64BitOperatingSystem)
-                    return Task.FromResult(false);
-
                 // TODO use IsWindowsVersionOrGreater function to verify it can be installed on this machine
-                return Task.FromResult(true);
+
+                // arm64 windows supports everything
+                if (SquirrelRuntimeInfo.SystemArchitecture == RuntimeCpu.arm64)
+                    return Task.FromResult(true);
+
+                // if the desired architecture is same as system
+                if (SquirrelRuntimeInfo.SystemArchitecture == CpuArchitecture)
+                    return Task.FromResult(true);
+
+                // x64 also supports x86
+                if (SquirrelRuntimeInfo.SystemArchitecture == RuntimeCpu.x64 && CpuArchitecture == RuntimeCpu.x86)
+                    return Task.FromResult(true);
+
+                return Task.FromResult(false);
             }
 
             const string UninstallRegSubKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall";
@@ -466,9 +507,9 @@ namespace Squirrel
                         if (name != null && name.Contains("Microsoft Visual C++") && name.Contains("Redistributable")) {
                             var version = subKey.GetValue("DisplayVersion") as string;
                             if (NuGetVersion.TryParse(version, out var v)) {
-                                // these entries do not get added into the correct registry hive, so we need to determine
-                                // the cpu architecture from the name. I hate this but what can I do?
-                                if (name.Contains("x64") && Environment.Is64BitOperatingSystem) {
+                                if (name.IndexOf("arm64", StringComparison.InvariantCultureIgnoreCase) >= 0) {
+                                    results.Add((v, RuntimeCpu.arm64));
+                                } else if (name.IndexOf("x64", StringComparison.InvariantCultureIgnoreCase) >= 0) {
                                     results.Add((v, RuntimeCpu.x64));
                                 } else {
                                     results.Add((v, RuntimeCpu.x86));
@@ -510,6 +551,7 @@ namespace Squirrel
                 return Task.FromResult(CpuArchitecture switch {
                     RuntimeCpu.x86 => "https://aka.ms/vs/17/release/vc_redist.x86.exe",
                     RuntimeCpu.x64 => "https://aka.ms/vs/17/release/vc_redist.x64.exe",
+                    RuntimeCpu.arm64 => "https://aka.ms/vs/17/release/vc_redist.arm64.exe",
                     _ => throw new ArgumentOutOfRangeException(nameof(CpuArchitecture)),
                 });
             }
