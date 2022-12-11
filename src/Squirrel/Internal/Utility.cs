@@ -279,6 +279,10 @@ namespace Squirrel
                 throw new NotSupportedException();
             }
 
+            if (Environment.GetEnvironmentVariable("CLOWD_SQUIRREL_TEMP") is var squirrlTmp
+                && !string.IsNullOrWhiteSpace(squirrlTmp))
+                tempDir = squirrlTmp;
+
             var di = new DirectoryInfo(tempDir);
             if (!di.Exists) di.Create();
 

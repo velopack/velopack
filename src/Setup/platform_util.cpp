@@ -6,6 +6,12 @@
 #include <string>
 #include <functional>
 #include <memory>
+#include <cstdlib>
+#include <cerrno>
+#include <climits>
+#include <filesystem>
+#include <fstream>
+#include <cwchar>
 
 using namespace std;
 
@@ -52,20 +58,68 @@ void throw_last_win32_error(wstring addedInfo)
     throw_win32_error(::GetLastError(), addedInfo);
 }
 
+bool directory_exists(const std::wstring& path)
+{
+    // Check if the specified path exists and is a directory
+    return std::filesystem::status(path).type() == std::filesystem::file_type::directory;
+}
+
+bool directory_is_writable(const std::wstring& path)
+{
+    // Check if the specified path exists and is a directory
+    if (std::filesystem::status(path).type() != std::filesystem::file_type::directory)
+        return false;
+
+    // Try to create a temporary file in the specified directory
+    std::wstring temp_file = path + L"\\temp.txt";
+    std::ofstream out_file(temp_file);
+    if (!out_file)
+        return false;
+
+    // Close the temporary file and delete it
+    out_file.close();
+    std::filesystem::remove(temp_file);
+
+    // If we reached this point, the specified directory is writable
+    return true;
+}
+
+std::wstring get_env_var(const std::wstring& name)
+{
+    // Check if the environment variable is set
+    wchar_t value[MAX_PATH];
+    size_t length = 0;
+    errno_t result = _wgetenv_s(&length, value, MAX_PATH, name.c_str());
+    if (result != 0 || length == 0)
+        return L"";
+
+    // Convert the value of the environment variable to a wide string
+    std::wstring wvalue(value);
+    return wvalue;
+}
+
 std::wstring util::get_temp_file_path(wstring extension)
 {
-    wchar_t tempFolderBuf[MAX_PATH];
-    DWORD cTempFolder = GetTempPath(MAX_PATH, tempFolderBuf);
+    std::wstring tempFolderBuf = get_env_var(L"CLOWD_SQUIRREL_TEMP");
+    if (tempFolderBuf == L""
+        || !directory_exists(tempFolderBuf)
+        || !directory_is_writable(tempFolderBuf)) 
+    {
+        wchar_t tempBuf[MAX_PATH];
+        DWORD cTempFolder = GetTempPath(MAX_PATH, tempBuf);
+        tempFolderBuf = std::wstring(tempBuf);
+    }
+
     wchar_t tempFileBuf[MAX_PATH];
-    GetTempFileName(tempFolderBuf, L"squirrel", 0, tempFileBuf);
+    GetTempFileName(tempFolderBuf.c_str(), L"squirrel", 0, tempFileBuf);
     DeleteFile(tempFileBuf);
     wstring tempFile(tempFileBuf);
 
     if (!extension.empty())
         tempFile += L"." + extension;
-
     return tempFile;
 }
+
 
 bool util::check_diskspace(uint64_t requiredSpace)
 {
