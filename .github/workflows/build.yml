@@ -20,8 +20,10 @@ jobs:
       - name: Build
         shell: pwsh
         run: .\build.ps1
-      - name: Test
+      - name: Test Core
         run: dotnet test --no-build test\Squirrel.Tests\Squirrel.Tests.csproj -c Release -l "console;verbosity=detailed"
+      - name: Test CLI
+        run: dotnet test --no-build test\Squirrel.CommandLine.Tests\Squirrel.CommandLine.Tests.csproj -c Release -l "console;verbosity=detailed"
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
