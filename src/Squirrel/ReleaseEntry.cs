@@ -58,6 +58,12 @@ namespace Squirrel
         /// </summary>
         float? StagingPercentage { get; }
 
+        /// <summary> 
+        /// The runtime identifier parsed from the file name. 
+        /// Used to determine if this package is suitable for the current operating system.
+        /// </summary>
+        string Rid { get; }
+
         /// <summary>
         /// Given a local directory containing a package corresponding to this release, returns the 
         /// correspoding release notes from within the package.
@@ -89,6 +95,8 @@ namespace Squirrel
         [DataMember] public bool IsDelta { get; protected set; }
         /// <inheritdoc />
         [DataMember] public float? StagingPercentage { get; protected set; }
+        /// <inheritdoc />
+        [DataMember] public string Rid { get; protected set; }
 
         /// <summary>
         /// Create a new instance of <see cref="ReleaseEntry"/>.
@@ -106,6 +114,7 @@ namespace Squirrel
             Version = identity.Version;
             PackageName = identity.PackageName;
             IsDelta = identity.IsDelta;
+            Rid = identity.Rid;
         }
 
         /// <inheritdoc />
@@ -375,16 +384,17 @@ namespace Squirrel
 
         static readonly Regex _suffixRegex = new Regex(@"(-full|-delta)?\.nupkg$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex _versionStartRegex = new Regex(@"[\.-](0|[1-9]\d*)\.(0|[1-9]\d*)($|[^\d])", RegexOptions.Compiled);
+        static readonly Regex _ridRegex = new Regex(@"-(?<os>osx|win)\.?(?<ver>[\d\.]+)?(?:-(?<arch>(?:x|arm)\d{2}))?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         /// <summary>
         /// Takes a filename such as 'My-Cool3-App-1.0.1-build.23-full.nupkg' and separates it into 
         /// it's name and version (eg. 'My-Cool3-App', and '1.0.1-build.23'). Returns null values if 
         /// the filename can not be parsed.
         /// </summary>
-        internal static (string PackageName, SemanticVersion Version, bool IsDelta) ParseEntryFileName(string fileName)
+        internal static (string PackageName, SemanticVersion Version, bool IsDelta, string Rid) ParseEntryFileName(string fileName)
         {
             if (!fileName.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase))
-                return (null, null, false);
+                return (null, null, false, null);
 
             bool delta = Path.GetFileNameWithoutExtension(fileName).EndsWith("-delta", StringComparison.OrdinalIgnoreCase);
 
@@ -392,14 +402,22 @@ namespace Squirrel
 
             var match = _versionStartRegex.Match(nameAndVer);
             if (!match.Success)
-                return (null, null, delta);
+                return (null, null, delta, null);
 
             var verIdx = match.Index;
             var name = nameAndVer.Substring(0, verIdx);
             var version = nameAndVer.Substring(verIdx + 1);
 
+            string rid = null;
+            var ridMatch = _ridRegex.Match(version);
+
+            if (ridMatch.Success) {
+                rid = ridMatch.Value.TrimStart('-');
+                version = version.Substring(0, ridMatch.Index);
+            }
+
             var semVer = NuGetVersion.Parse(version);
-            return (name, semVer, delta);
+            return (name, semVer, delta, rid);
         }
     }
 }
