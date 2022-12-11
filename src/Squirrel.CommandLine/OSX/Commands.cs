@@ -121,7 +121,7 @@ namespace Squirrel.CommandLine.OSX
                 HelperExe.CreateDittoZip(appBundlePath, zipPath);
                 HelperExe.Notarize(zipPath, options.NotaryProfile);
                 HelperExe.Staple(appBundlePath);
-                HelperExe.SpctlAssess(appBundlePath);
+                HelperExe.SpctlAssessCode(appBundlePath);
                 File.Delete(zipPath);
             } else if (SquirrelRuntimeInfo.IsOSX && !String.IsNullOrEmpty(options.SigningAppIdentity)) {
                 HelperExe.CodeSign(options.SigningAppIdentity, options.SigningEntitlements, appBundlePath);
@@ -197,6 +197,7 @@ namespace Squirrel.CommandLine.OSX
                     if (!String.IsNullOrEmpty(options.SigningInstallIdentity) && !String.IsNullOrEmpty(options.NotaryProfile)) {
                         HelperExe.Notarize(pkgPath, options.NotaryProfile);
                         HelperExe.Staple(pkgPath);
+                        HelperExe.SpctlAssessInstaller(pkgPath);
                     } else {
                         Log.Warn("Package installer (.pkg) will not be Notarized. " +
                                  "This is supported with the --signInstallIdentity and --notaryProfile arguments.");

@@ -48,7 +48,7 @@ namespace Squirrel.CommandLine.OSX
         }
 
         [SupportedOSPlatform("osx")]
-        public static void SpctlAssess(string filePath)
+        public static void SpctlAssessCode(string filePath)
         {
             var args2 = new List<string> {
                 "--assess",
@@ -56,6 +56,21 @@ namespace Squirrel.CommandLine.OSX
                 filePath
             };
 
+            Log.Info($"Verifying signature/notarization for code using spctl...");
+            Console.WriteLine(InvokeAndThrowIfNonZero("spctl", args2, null));
+        }
+
+        [SupportedOSPlatform("osx")]
+        public static void SpctlAssessInstaller(string filePath)
+        {
+            var args2 = new List<string> {
+                "--assess",
+                "-vvv",
+                "-t", "install",
+                filePath
+            };
+
+            Log.Info($"Verifying signature/notarization for installer package using spctl...");
             Console.WriteLine(InvokeAndThrowIfNonZero("spctl", args2, null));
         }
 
