@@ -22,7 +22,7 @@ namespace Squirrel.CommandLine.Windows
         public static void Pack(PackWindowsCommand options)
         {
             using (Utility.GetTempDirectory(out var tmp)) {
-                var nupkgPath = NugetConsole.CreatePackageFromOptions(tmp, options, "win");
+                var nupkgPath = NugetConsole.CreatePackageFromOptions(tmp, options);
                 options.Package = nupkgPath;
                 Releasify(options);
             }

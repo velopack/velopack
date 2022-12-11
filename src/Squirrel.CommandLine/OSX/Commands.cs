@@ -105,7 +105,7 @@ namespace Squirrel.CommandLine.OSX
 
             Log.Info("Adding Squirrel resources to bundle.");
             var nuspecText = NugetConsole.CreateNuspec(
-                packId, packTitle, packAuthors, packVersion, options.ReleaseNotes, options.IncludePdb, "osx");
+                packId, packTitle, packAuthors, packVersion, options.ReleaseNotes, options.IncludePdb);
             var nuspecPath = Path.Combine(contentsDir, Utility.SpecVersionFileName);
 
             // nuspec and UpdateMac need to be in contents dir or this package can't update

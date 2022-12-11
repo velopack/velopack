@@ -14,7 +14,7 @@ namespace Squirrel.CommandLine
     {
         public static string CreateNuspec(
             string packId, string packTitle, string packAuthors,
-            string packVersion, string releaseNotes, bool includePdb, string libFolderName)
+            string packVersion, string releaseNotes, bool includePdb)
         {
             var releaseNotesText = String.IsNullOrEmpty(releaseNotes)
                 ? "" // no releaseNotes
@@ -32,7 +32,7 @@ namespace Squirrel.CommandLine
     {releaseNotesText}
   </metadata>
   <files>
-    <file src=""**"" target=""lib\{libFolderName}\"" exclude=""{(includePdb ? "" : "*.pdb;")}*.nupkg;*.vshost.*;**\createdump.exe""/>
+    <file src=""**"" target=""lib\squirrel\"" exclude=""{(includePdb ? "" : "*.pdb;")}*.nupkg;*.vshost.*;**\createdump.exe""/>
   </files>
 </package>
 ".Trim();
@@ -54,17 +54,17 @@ namespace Squirrel.CommandLine
             return nupkgPath;
         }
 
-        public static string CreatePackageFromOptions(string tempDir, INugetPackCommand command, string libFolderName)
+        public static string CreatePackageFromOptions(string tempDir, INugetPackCommand command)
         {
             return CreatePackageFromMetadata(tempDir, command.PackDirectory, command.PackId, command.PackTitle,
-                command.PackAuthors, command.PackVersion, command.ReleaseNotes, command.IncludePdb, libFolderName);
+                command.PackAuthors, command.PackVersion, command.ReleaseNotes, command.IncludePdb);
         }
 
         public static string CreatePackageFromMetadata(
             string tempDir, string packDir, string packId, string packTitle, string packAuthors,
-            string packVersion, string releaseNotes, bool includePdb, string libFolderName)
+            string packVersion, string releaseNotes, bool includePdb)
         {
-            string nuspec = CreateNuspec(packId, packTitle, packAuthors, packVersion, releaseNotes, includePdb, libFolderName);
+            string nuspec = CreateNuspec(packId, packTitle, packAuthors, packVersion, releaseNotes, includePdb);
             var nuspecPath = Path.Combine(tempDir, packId + ".nuspec");
             File.WriteAllText(nuspecPath, nuspec);
             return CreatePackageFromNuspecPath(tempDir, packDir, nuspecPath);
