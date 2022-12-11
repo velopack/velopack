@@ -34,7 +34,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Squirrel.Tool", "src\Squirr
 		{611A03D4-4CDE-4DA0-B151-DE6FAFFB8B8C} = {611A03D4-4CDE-4DA0-B151-DE6FAFFB8B8C}
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Squirrel.CommandLine.Tests", "test\Squirrel.CommandLine.Tests\Squirrel.CommandLine.Tests.csproj", "{519EAB50-47B8-425F-8B20-AB9548F220B4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Squirrel.CommandLine.Tests", "test\Squirrel.CommandLine.Tests\Squirrel.CommandLine.Tests.csproj", "{519EAB50-47B8-425F-8B20-AB9548F220B4}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{7AC3A776-B582-4B65-9D03-BD52332B5CA3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -81,6 +83,10 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{98AEB048-E27D-42F4-9440-505B7F78BAFD} = {7AC3A776-B582-4B65-9D03-BD52332B5CA3}
+		{519EAB50-47B8-425F-8B20-AB9548F220B4} = {7AC3A776-B582-4B65-9D03-BD52332B5CA3}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {68CA987A-9BAB-4C75-8EEB-4596BA6BBD07}
