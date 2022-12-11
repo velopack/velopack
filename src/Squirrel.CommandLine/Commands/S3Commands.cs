@@ -1,4 +1,5 @@
-﻿using System.CommandLine.Parsing;
+﻿using System;
+using System.CommandLine.Parsing;
 
 namespace Squirrel.CommandLine.Commands
 {
@@ -19,40 +20,41 @@ namespace Squirrel.CommandLine.Commands
         protected S3BaseCommand(string name, string description)
             : base(name, description)
         {
-            AddOption<string>("--keyId", (v) => KeyId = v)
+            AddOption<string>((v) => KeyId = v, "--keyId")
                 .SetDescription("Authentication identifier or access key.")
-                .SetArgumentHelpName("IDENTIFIER")
+                .SetArgumentHelpName("KEYID")
                 .SetRequired();
 
-            AddOption<string>("--secret", (v) => Secret = v)
+            AddOption<string>((v) => Secret = v, "--secret")
                 .SetDescription("Authentication secret key.")
                 .SetArgumentHelpName("KEY")
                 .SetRequired();
 
-            var region = AddOption<string>("--region", (v) => Region = v)
+            var region = AddOption<string>((v) => Region = v, "--region")
                 .SetDescription("AWS service region (eg. us-west-1).")
                 .SetArgumentHelpName("REGION");
 
             region.AddValidator(MustBeValidAwsRegion);
 
-            var endpoint = AddOption<string>("--endpoint", (v) => Endpoint = v)
+            var endpoint = AddOption<Uri>((v) => Endpoint = v.ToAbsoluteOrNull(), "--endpoint")
                 .SetDescription("Custom service url (backblaze, digital ocean, etc).")
-                .SetArgumentHelpName("URL");
+                .SetArgumentHelpName("URL")
+                .MustBeValidHttpUri();
 
             this.AreMutuallyExclusive(region, endpoint);
             this.AtLeastOneRequired(region, endpoint);
 
-            AddOption<string>("--bucket", (v) => Bucket = v)
+            AddOption<string>((v) => Bucket = v, "--bucket")
                 .SetDescription("Name of the S3 bucket.")
                 .SetArgumentHelpName("NAME")
                 .SetRequired();
 
-            AddOption<string>("--pathPrefix", (v) => PathPrefix = v)
+            AddOption<string>((v) => PathPrefix = v, "--pathPrefix")
                 .SetDescription("A sub-folder used for files in the bucket, for creating release channels (eg. 'stable' or 'dev').")
                 .SetArgumentHelpName("PREFIX");
         }
 
-        protected static void MustBeValidAwsRegion(OptionResult result)
+        private static void MustBeValidAwsRegion(OptionResult result)
         {
             for (var i = 0; i < result.Tokens.Count; i++) {
                 var region = result.Tokens[i].Value;
@@ -85,10 +87,10 @@ namespace Squirrel.CommandLine.Commands
         public S3UploadCommand()
             : base("s3", "Upload releases to a S3 bucket.")
         {
-            AddOption<bool>("--overwrite", (v) => Overwrite = v)
+            AddOption<bool>((v) => Overwrite = v, "--overwrite")
                 .SetDescription("Replace remote files if local files have changed.");
 
-            AddOption<int>("--keepMaxReleases", (v) => KeepMaxReleases = v)
+            AddOption<int>((v) => KeepMaxReleases = v, "--keepMaxReleases")
                 .SetDescription("Apply a retention policy which keeps only the specified number of old versions in remote source.")
                 .SetArgumentHelpName("NUMBER");
 

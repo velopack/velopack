@@ -56,8 +56,8 @@ namespace Squirrel.CommandLine
 
         public static string CreatePackageFromOptions(string tempDir, INugetPackCommand command, string libFolderName)
         {
-            return CreatePackageFromMetadata(tempDir, command.PackDirectory.FullName, command.PackId, command.PackTitle,
-                command.PackAuthors, command.PackVersion, command.ReleaseNotes?.FullName ?? "", command.IncludePdb, libFolderName);
+            return CreatePackageFromMetadata(tempDir, command.PackDirectory, command.PackId, command.PackTitle,
+                command.PackAuthors, command.PackVersion, command.ReleaseNotes, command.IncludePdb, libFolderName);
         }
 
         public static string CreatePackageFromMetadata(

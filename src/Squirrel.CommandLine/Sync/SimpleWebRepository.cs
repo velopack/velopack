@@ -19,8 +19,9 @@ namespace Squirrel.CommandLine.Sync
 
         public static async Task DownloadRecentPackages(HttpDownloadCommand options)
         {
+            var uri = new Uri(options.Url);
             var releasesDir = options.GetReleaseDirectory();
-            var releasesUri = Utility.AppendPathToUri(options.Url, "RELEASES");
+            var releasesUri = Utility.AppendPathToUri(uri, "RELEASES");
             var releasesIndex = await retryAsync(3, () => downloadReleasesIndex(releasesUri));
 
             File.WriteAllText(Path.Combine(releasesDir.FullName, "RELEASES"), releasesIndex);
@@ -31,7 +32,7 @@ namespace Squirrel.CommandLine.Sync
                 .Take(1)
                 .Select(x => new {
                     LocalPath = Path.Combine(releasesDir.FullName, x.Filename),
-                    RemoteUrl = new Uri(Utility.EnsureTrailingSlash(options.Url), x.BaseUrl + x.Filename + x.Query)
+                    RemoteUrl = new Uri(Utility.EnsureTrailingSlash(uri), x.BaseUrl + x.Filename + x.Query)
                 });
 
             foreach (var releaseToDownload in releasesToDownload) {

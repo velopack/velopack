@@ -15,7 +15,7 @@ namespace Squirrel.CommandLine.Tests.Commands
             string cli = GetRequiredDefaultOptions() + $"--baseUrl \"https://clowd.squirrel.com\"";
             ParseResult parseResult = command.ParseAndApply(cli);
 
-            Assert.Equal("https://clowd.squirrel.com/", command.BaseUrl?.AbsoluteUri);
+            Assert.Equal("https://clowd.squirrel.com/", command.BaseUrl);
         }
 
         [Fact]
@@ -51,7 +51,7 @@ namespace Squirrel.CommandLine.Tests.Commands
             string cli = GetRequiredDefaultOptions() + $"--debugSetupExe \"{debugExe}\"";
             ParseResult parseResult = command.ParseAndApply(cli);
 
-            Assert.Equal(debugExe, command.DebugSetupExe?.FullName);
+            Assert.Equal(debugExe, command.DebugSetupExe);
         }
 
 
@@ -85,7 +85,7 @@ namespace Squirrel.CommandLine.Tests.Commands
             string cli = GetRequiredDefaultOptions() + $"--splashImage \"{fileInfo.FullName}\"";
             ParseResult parseResult = command.ParseAndApply(cli);
 
-            Assert.Equal(fileInfo.FullName, command.SplashImage?.FullName);
+            Assert.Equal(fileInfo.FullName, command.SplashImage);
         }
 
         [Fact]
@@ -111,7 +111,7 @@ namespace Squirrel.CommandLine.Tests.Commands
             string cli = GetRequiredDefaultOptions() + $"--icon \"{fileInfo.FullName}\"";
             ParseResult parseResult = command.ParseAndApply(cli);
 
-            Assert.Equal(fileInfo.FullName, command.Icon?.FullName);
+            Assert.Equal(fileInfo.FullName, command.Icon);
         }
 
         [Fact]
@@ -164,7 +164,7 @@ namespace Squirrel.CommandLine.Tests.Commands
             string cli = GetRequiredDefaultOptions() + $"--appIcon \"{fileInfo.FullName}\"";
             ParseResult parseResult = command.ParseAndApply(cli);
 
-            Assert.Equal(fileInfo.FullName, command.AppIcon?.FullName);
+            Assert.Equal(fileInfo.FullName, command.AppIcon);
         }
 
         [Fact]
@@ -219,7 +219,7 @@ namespace Squirrel.CommandLine.Tests.Commands
             ParseResult parseResult = command.ParseAndApply($"--package \"{package.FullName}\"");
 
             Assert.Empty(parseResult.Errors);
-            Assert.Equal(package.FullName, command.Package?.FullName);
+            Assert.Equal(package.FullName, command.Package);
         }
 
         [Fact]
@@ -370,7 +370,7 @@ namespace Squirrel.CommandLine.Tests.Commands
             Assert.Empty(parseResult.Errors);
             Assert.Equal("Clowd.Squirrel", command.PackId);
             Assert.Equal("1.2.3", command.PackVersion);
-            Assert.Equal(packDir.FullName, command.PackDirectory?.FullName);
+            Assert.Equal(packDir.FullName, command.PackDirectory);
         }
 
         [Fact]
@@ -455,7 +455,7 @@ namespace Squirrel.CommandLine.Tests.Commands
             string cli = GetRequiredDefaultOptions() + $"--releaseNotes \"{releaseNotes.FullName}\"";
             ParseResult parseResult = command.ParseAndApply(cli);
 
-            Assert.Equal(releaseNotes.FullName, command.ReleaseNotes?.FullName);
+            Assert.Equal(releaseNotes.FullName, command.ReleaseNotes);
         }
 
         [Fact]

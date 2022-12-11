@@ -17,9 +17,9 @@ namespace Squirrel.CommandLine.OSX
 
         public static void Bundle(BundleOsxCommand options)
         {
-            var icon = options.Icon.FullName;
+            var icon = options.Icon;
             var packId = options.PackId;
-            var packDirectory = options.PackDirectory.FullName;
+            var packDirectory = options.PackDirectory;
             var packVersion = options.PackVersion;
             var exeName = options.EntryExecutableName;
             var packAuthors = options.PackAuthors;
@@ -73,7 +73,7 @@ namespace Squirrel.CommandLine.OSX
         {
             var releaseDir = options.GetReleaseDirectory();
 
-            var appBundlePath = options.BundleDirectory?.FullName;
+            var appBundlePath = options.BundleDirectory;
             Log.Info("Creating Squirrel application from app bundle at: " + appBundlePath);
 
             //if (Utility.PathPartStartsWith(releaseDir.FullName, appBundlePath))
@@ -105,7 +105,7 @@ namespace Squirrel.CommandLine.OSX
 
             Log.Info("Adding Squirrel resources to bundle.");
             var nuspecText = NugetConsole.CreateNuspec(
-                packId, packTitle, packAuthors, packVersion, options.ReleaseNotes?.FullName, options.IncludePdb, "osx");
+                packId, packTitle, packAuthors, packVersion, options.ReleaseNotes, options.IncludePdb, "osx");
             var nuspecPath = Path.Combine(contentsDir, Utility.SpecVersionFileName);
 
             // nuspec and UpdateMac need to be in contents dir or this package can't update
@@ -117,14 +117,14 @@ namespace Squirrel.CommandLine.OSX
 
             // code signing all mach-o binaries
             if (SquirrelRuntimeInfo.IsOSX && !String.IsNullOrEmpty(options.SigningAppIdentity) && !String.IsNullOrEmpty(options.NotaryProfile)) {
-                HelperExe.CodeSign(options.SigningAppIdentity, options.SigningEntitlements?.FullName, appBundlePath);
+                HelperExe.CodeSign(options.SigningAppIdentity, options.SigningEntitlements, appBundlePath);
                 HelperExe.CreateDittoZip(appBundlePath, zipPath);
                 HelperExe.Notarize(zipPath, options.NotaryProfile);
                 HelperExe.Staple(appBundlePath);
                 HelperExe.SpctlAssess(appBundlePath);
                 File.Delete(zipPath);
             } else if (SquirrelRuntimeInfo.IsOSX && !String.IsNullOrEmpty(options.SigningAppIdentity)) {
-                HelperExe.CodeSign(options.SigningAppIdentity, options.SigningEntitlements?.FullName, appBundlePath);
+                HelperExe.CodeSign(options.SigningAppIdentity, options.SigningEntitlements, appBundlePath);
                 Log.Warn("Package was signed but will not be notarized or verified. Must supply the --notaryProfile option.");
             } else if (SquirrelRuntimeInfo.IsOSX) {
                 Log.Warn("Package will not be signed or notarized. Requires the --signAppIdentity and --notaryProfile options.");
@@ -186,11 +186,12 @@ namespace Squirrel.CommandLine.OSX
                 if (SquirrelRuntimeInfo.IsOSX) {
                     var pkgPath = Path.Combine(releaseDir.FullName, packId + ".pkg");
 
-                    Dictionary<string, string> pkgContent = new();
-                    if (options.PackageWelcome?.Exists == true) pkgContent["welcome"] = options.PackageWelcome.FullName;
-                    if (options.PackageLicense?.Exists == true) pkgContent["license"] = options.PackageLicense.FullName;
-                    if (options.PackageReadme?.Exists == true) pkgContent["readme"] = options.PackageReadme.FullName;
-                    if (options.PackageConclusion?.Exists == true) pkgContent["conclusion"] = options.PackageConclusion.FullName;
+                    Dictionary<string, string> pkgContent = new() {
+                        {"welcome", options.PackageWelcome },
+                        {"license", options.PackageLicense },
+                        {"readme", options.PackageReadme },
+                        {"conclusion", options.PackageConclusion },
+                    };
 
                     HelperExe.CreateInstallerPkg(appBundlePath, packTitle, pkgContent, pkgPath, options.SigningInstallIdentity);
                     if (!String.IsNullOrEmpty(options.SigningInstallIdentity) && !String.IsNullOrEmpty(options.NotaryProfile)) {

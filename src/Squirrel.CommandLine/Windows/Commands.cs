@@ -23,7 +23,7 @@ namespace Squirrel.CommandLine.Windows
         {
             using (Utility.GetTempDirectory(out var tmp)) {
                 var nupkgPath = NugetConsole.CreatePackageFromOptions(tmp, options, "win");
-                options.Package = new FileInfo(nupkgPath);
+                options.Package = nupkgPath;
                 Releasify(options);
             }
         }
@@ -34,8 +34,8 @@ namespace Squirrel.CommandLine.Windows
             var package = options.Package;
             var baseUrl = options.BaseUrl;
             var generateDeltas = !options.NoDelta;
-            var backgroundGif = options.SplashImage?.FullName;
-            var setupIcon = options.Icon?.FullName ?? options.AppIcon?.FullName;
+            var backgroundGif = options.SplashImage;
+            var setupIcon = options.Icon ?? options.AppIcon;
 
             // normalize and validate that the provided frameworks are supported 
             var requiredFrameworks = Runtimes.ParseDependencyString(options.Runtimes);
@@ -61,15 +61,15 @@ namespace Squirrel.CommandLine.Windows
                 throw new InvalidOperationException("Update.exe is corrupt. Broken Squirrel install?");
 
             // copy input package to target output directory
-            File.Copy(package.FullName, Path.Combine(targetDir.FullName, package.Name), true);
+            File.Copy(package, Path.Combine(targetDir, Path.GetFileName(package)), true);
 
-            var allNuGetFiles = targetDir.EnumerateFiles()
-                .Where(x => x.Name.EndsWith(".nupkg", StringComparison.InvariantCultureIgnoreCase));
+            var allNuGetFiles = Directory.EnumerateFiles(targetDir)
+                .Where(x => x.EndsWith(".nupkg", StringComparison.InvariantCultureIgnoreCase));
 
-            var toProcess = allNuGetFiles.Where(x => !x.Name.Contains("-delta") && !x.Name.Contains("-full"));
+            var toProcess = allNuGetFiles.Select(p => new FileInfo(p)).Where(x => !x.Name.Contains("-delta") && !x.Name.Contains("-full"));
             var processed = new List<string>();
 
-            var releaseFilePath = Path.Combine(targetDir.FullName, "RELEASES");
+            var releaseFilePath = Path.Combine(targetDir, "RELEASES");
             var previousReleases = new List<ReleaseEntry>();
             if (File.Exists(releaseFilePath)) {
                 previousReleases.AddRange(ReleaseEntry.ParseReleaseFile(File.ReadAllText(releaseFilePath, Encoding.UTF8)));
@@ -202,10 +202,10 @@ namespace Squirrel.CommandLine.Windows
 
                     // copy app icon to 'lib/fx/app.ico'
                     var iconTarget = Path.Combine(libDir, "app.ico");
-                    if (options.AppIcon?.Exists == true) {
+                    if (options.AppIcon != null) {
                         // icon was specified on the command line
                         Log.Info("Using app icon from command line arguments");
-                        File.Copy(options.AppIcon.FullName, iconTarget, true);
+                        File.Copy(options.AppIcon, iconTarget, true);
                     } else if (!File.Exists(iconTarget) && zpkg.IconUrl != null) {
                         // icon was provided in the nuspec. download it and possibly convert it from a different image format
                         Log.Info($"Downloading app icon from '{zpkg.IconUrl}'.");
@@ -231,12 +231,12 @@ namespace Squirrel.CommandLine.Windows
                     if (setupIcon != null) File.Copy(setupIcon, Path.Combine(pkgPath, "setup.ico"), true);
                     if (backgroundGif != null) File.Copy(backgroundGif, Path.Combine(pkgPath, "splashimage" + Path.GetExtension(backgroundGif)));
 
-                    return Path.Combine(targetDir.FullName, ReleasePackageBuilder.GetSuggestedFileName(spec.Id, spec.Version.ToString(), fullRidString));
+                    return Path.Combine(targetDir, ReleasePackageBuilder.GetSuggestedFileName(spec.Id, spec.Version.ToString(), fullRidString));
                 });
 
                 processed.Add(rp.ReleasePackageFile);
 
-                var prev = ReleasePackageBuilder.GetPreviousRelease(previousReleases, rp, targetDir.FullName);
+                var prev = ReleasePackageBuilder.GetPreviousRelease(previousReleases, rp, targetDir);
                 if (prev != null && generateDeltas) {
                     var deltaBuilder = new DeltaPackageBuilder();
                     var deltaOutputPath = rp.ReleasePackageFile.Replace("-full", "-delta");
@@ -250,7 +250,7 @@ namespace Squirrel.CommandLine.Windows
             }
 
             var newReleaseEntries = processed
-                .Select(packageFilename => ReleaseEntry.GenerateFromFile(packageFilename, baseUrl?.AbsoluteUri))
+                .Select(packageFilename => ReleaseEntry.GenerateFromFile(packageFilename, baseUrl))
                 .ToList();
             var distinctPreviousReleases = previousReleases
                 .Where(x => !newReleaseEntries.Select(e => e.Version).Contains(x.Version));
@@ -258,9 +258,9 @@ namespace Squirrel.CommandLine.Windows
 
             ReleaseEntry.WriteReleaseFile(releaseEntries, releaseFilePath);
 
-            var bundledzp = new ZipPackage(package.FullName);
-            var targetSetupExe = Path.Combine(targetDir.FullName, $"{bundledzp.Id}Setup.exe");
-            File.Copy(options.DebugSetupExe?.FullName ?? HelperExe.SetupPath, targetSetupExe, true);
+            var bundledzp = new ZipPackage(package);
+            var targetSetupExe = Path.Combine(targetDir, $"{bundledzp.Id}Setup.exe");
+            File.Copy(options.DebugSetupExe ?? HelperExe.SetupPath, targetSetupExe, true);
 
             if (SquirrelRuntimeInfo.IsWindows) {
                 HelperExe.SetPEVersionBlockFromPackageInfo(targetSetupExe, bundledzp, setupIcon);
@@ -269,7 +269,7 @@ namespace Squirrel.CommandLine.Windows
             }
 
             var newestFullRelease = Squirrel.EnumerableExtensions.MaxBy(releaseEntries, x => x.Version).Where(x => !x.IsDelta).First();
-            var newestReleasePath = Path.Combine(targetDir.FullName, newestFullRelease.Filename);
+            var newestReleasePath = Path.Combine(targetDir, newestFullRelease.Filename);
 
             Log.Info($"Creating Setup bundle");
             var bundleOffset = SetupBundle.CreatePackageBundle(targetSetupExe, newestReleasePath);
@@ -280,9 +280,9 @@ namespace Squirrel.CommandLine.Windows
             Log.Info($"Setup bundle created at '{targetSetupExe}'.");
 
             // this option is used for debugging a local Setup.exe
-            if (options.DebugSetupExe?.Exists == true) {
-                File.Copy(targetSetupExe, options.DebugSetupExe.FullName, true);
-                Log.Warn($"DEBUG OPTION: Setup bundle copied on top of '{options.DebugSetupExe.FullName}'. Recompile before creating a new bundle.");
+            if (options.DebugSetupExe != null) {
+                File.Copy(targetSetupExe, options.DebugSetupExe, true);
+                Log.Warn($"DEBUG OPTION: Setup bundle copied on top of '{options.DebugSetupExe}'. Recompile before creating a new bundle.");
             }
 
             if (!String.IsNullOrEmpty(options.BuildMsi)) {
@@ -295,7 +295,7 @@ namespace Squirrel.CommandLine.Windows
                 }
             }
 
-            signFiles(options, targetDir.FullName, setupFilesToSign.ToArray());
+            signFiles(options, targetDir, setupFilesToSign.ToArray());
 
             Log.Info("Done");
         }

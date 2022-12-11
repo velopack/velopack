@@ -14,7 +14,7 @@ namespace Squirrel.CommandLine.Tests.Commands
             ParseResult parseResult = command.ParseAndApply($"--url \"http://clowd.squirrel.com\"");
 
             Assert.Empty(parseResult.Errors);
-            Assert.Equal("http://clowd.squirrel.com/", command.Url?.AbsoluteUri);
+            Assert.Equal("http://clowd.squirrel.com/", command.Url);
         }
 
         [Fact]

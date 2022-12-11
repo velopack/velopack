@@ -4,7 +4,6 @@ using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.IO;
 using System.Linq;
-using Squirrel.SimpleSplat;
 
 namespace Squirrel.CommandLine.Commands
 {
@@ -12,50 +11,35 @@ namespace Squirrel.CommandLine.Commands
     {
         public string TargetRuntime { get; set; }
 
-        public DirectoryInfo ReleaseDirectory { get; private set; }
+        public string ReleaseDirectory { get; private set; }
 
         protected Option<DirectoryInfo> ReleaseDirectoryOption { get; private set; }
 
-        protected static IFullLogger Log = SquirrelLocator.CurrentMutable.GetService<ILogManager>().GetLogger(typeof(BaseCommand));
+        //protected static IFullLogger Log = SquirrelLocator.CurrentMutable.GetService<ILogManager>().GetLogger(typeof(BaseCommand));
         private Dictionary<Option, Action<ParseResult>> _setters = new();
 
-        protected BaseCommand(string name, string description, bool releaseDirMustNotBeEmpty = false)
+        protected BaseCommand(string name, string description)
             : base(name, description)
         {
-            ReleaseDirectoryOption = AddOption<DirectoryInfo>(new[] { "-o", "--outputDir" }, (v) => ReleaseDirectory = v)
+            ReleaseDirectoryOption = AddOption<DirectoryInfo>((v) => ReleaseDirectory = v.ToFullNameOrNull(), "-o", "--outputDir")
                 .SetDescription("Output directory for Squirrel packages.")
-                .SetArgumentHelpName("DIR");
-            ReleaseDirectoryOption.SetDefaultValue(new DirectoryInfo(".\\Releases"));
+                .SetArgumentHelpName("DIR")
+                .SetDefault(new DirectoryInfo(".\\Releases"));
         }
 
         public DirectoryInfo GetReleaseDirectory()
         {
-            if (ReleaseDirectory == null) ReleaseDirectory = new DirectoryInfo(".\\Releases");
-            if (!ReleaseDirectory.Exists) ReleaseDirectory.Create();
-            return ReleaseDirectory;
+            var di = new DirectoryInfo(ReleaseDirectory);
+            if (!di.Exists) di.Create();
+            return di;
         }
 
-        protected virtual Option<T> AddOption<T>(string alias, Action<T> setValue)
+        protected virtual Option<T> AddOption<T>(Action<T> setValue, params string[] aliases)
         {
-            return AddOption(new[] { alias }, setValue);
+            return AddOption(setValue, new Option<T>(aliases));
         }
 
-        protected virtual Option<T> AddOption<T>(string[] aliases, Action<T> setValue)
-        {
-            return AddOption(new Option<T>(aliases), setValue);
-        }
-
-        protected virtual Option<T> AddOption<T>(string alias, Action<T> setValue, ParseArgument<T> parseArgument)
-        {
-            return AddOption(new[] { alias }, setValue, parseArgument);
-        }
-
-        protected virtual Option<T> AddOption<T>(string[] aliases, Action<T> setValue, ParseArgument<T> parseArgument)
-        {
-            return AddOption(new Option<T>(aliases, parseArgument), setValue);
-        }
-
-        protected virtual Option<T> AddOption<T>(Option<T> opt, Action<T> setValue)
+        protected virtual Option<T> AddOption<T>(Action<T> setValue, Option<T> opt)
         {
             _setters[opt] = (ctx) => setValue(ctx.GetValueForOption(opt));
             Add(opt);
@@ -84,10 +68,10 @@ namespace Squirrel.CommandLine.Commands
     {
         string PackId { get; }
         string PackVersion { get; }
-        DirectoryInfo PackDirectory { get; }
+        string PackDirectory { get; }
         string PackAuthors { get; }
         string PackTitle { get; }
         bool IncludePdb { get; }
-        FileInfo ReleaseNotes { get; }
+        string ReleaseNotes { get; }
     }
 }

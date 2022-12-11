@@ -116,9 +116,11 @@ namespace Squirrel.CommandLine.OSX
 
             // add extra landing content (eg. license, readme)
             foreach (var kvp in extraContent) {
-                var fileName = Path.GetFileName(kvp.Value);
-                File.Copy(kvp.Value, Path.Combine(tmpResources, fileName));
-                distXml.Insert(2, $"<{kvp.Key} file=\"{fileName}\" />");
+                if (!String.IsNullOrEmpty(kvp.Value) && File.Exists(kvp.Value)) {
+                    var fileName = Path.GetFileName(kvp.Value);
+                    File.Copy(kvp.Value, Path.Combine(tmpResources, fileName));
+                    distXml.Insert(2, $"<{kvp.Key} file=\"{fileName}\" />");
+                }
             }
 
             File.WriteAllLines(distributionPath, distXml);

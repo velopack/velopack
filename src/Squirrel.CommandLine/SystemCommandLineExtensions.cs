@@ -11,6 +11,17 @@ namespace Squirrel.CommandLine
 {
     internal static class SystemCommandLineExtensions
     {
+        public static string ToFullNameOrNull(this FileSystemInfo fsi)
+        {
+            return fsi?.FullName;
+        }
+
+        public static string ToAbsoluteOrNull(this Uri uri)
+        {
+            if (uri?.IsAbsoluteUri == true) return uri.AbsoluteUri;
+            return null;
+        }
+
         public static Option<T> SetDescription<T>(this Option<T> option, string description)
         {
             option.Description = description;
@@ -26,6 +37,12 @@ namespace Squirrel.CommandLine
         public static Option<T> SetRequired<T>(this Option<T> option, bool isRequired = true)
         {
             option.IsRequired = isRequired;
+            return option;
+        }
+
+        public static Option<T> SetDefault<T>(this Option<T> option, T defaultValue)
+        {
+            option.SetDefaultValue(defaultValue);
             return option;
         }
 
@@ -139,7 +156,7 @@ namespace Squirrel.CommandLine
                 for (int i = 0; i < result.Tokens.Count; i++) {
                     if (int.TryParse(result.Tokens[i].Value, out int value)) {
                         if (value is < 1 or > 1000) {
-                            result.ErrorMessage = $"The value '{result.Token.Value}' must be greater than {minimum} and less than {maximum}";
+                            result.ErrorMessage = $"The value for {result.Token.Value} must be greater than {minimum} and less than {maximum}";
                             break;
                         }
                     } else {
@@ -153,7 +170,7 @@ namespace Squirrel.CommandLine
             {
                 for (int i = 0; i < result.Tokens.Count; i++) {
                     if (!string.Equals(Path.GetExtension(result.Tokens[i].Value), extension, StringComparison.InvariantCultureIgnoreCase)) {
-                        result.ErrorMessage = $"'{result.Token.Value}' does not have an {extension} extension";
+                        result.ErrorMessage = $"{result.Token.Value} does not have an {extension} extension";
                         break;
                     }
                 }

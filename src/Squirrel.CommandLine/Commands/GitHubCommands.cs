@@ -4,19 +4,19 @@ namespace Squirrel.CommandLine.Commands
 {
     public class GitHubBaseCommand : BaseCommand
     {
-        public Uri RepoUrl { get; private set; }
+        public string RepoUrl { get; private set; }
 
         public string Token { get; private set; }
 
         protected GitHubBaseCommand(string name, string description)
             : base(name, description)
         {
-            AddOption<Uri>("--repoUrl", (v) => RepoUrl = v)
+            AddOption<Uri>((v) => RepoUrl = v.ToAbsoluteOrNull(), "--repoUrl")
                 .SetDescription("Full url to the github repository (eg. 'https://github.com/myname/myrepo').")
                 .SetRequired()
                 .MustBeValidHttpUri();
 
-            AddOption<string>("--token", (v) => Token = v)
+            AddOption<string>((v) => Token = v, "--token")
                 .SetDescription("OAuth token to use as login credentials.");
         }
     }
@@ -28,7 +28,7 @@ namespace Squirrel.CommandLine.Commands
         public GitHubDownloadCommand()
             : base("github", "Download latest release from GitHub repository.")
         {
-            AddOption<bool>("--pre", (v) => Pre = v)
+            AddOption<bool>((v) => Pre = v, "--pre")
                 .SetDescription("Get latest pre-release instead of stable.");
         }
     }
@@ -42,10 +42,10 @@ namespace Squirrel.CommandLine.Commands
         public GitHubUploadCommand()
             : base("github", "Upload releases to a GitHub repository.")
         {
-            AddOption<bool>("--publish", (v) => Publish = v)
+            AddOption<bool>((v) => Publish = v, "--publish")
                 .SetDescription("Publish release instead of creating draft.");
 
-            AddOption<string>("--releaseName", (v) => ReleaseName = v)
+            AddOption<string>((v) => ReleaseName = v, "--releaseName")
                 .SetDescription("A custom name for created release.")
                 .SetArgumentHelpName("NAME");
 

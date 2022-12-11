@@ -18,7 +18,7 @@ namespace Squirrel.CommandLine.Tests.Commands
             Assert.Empty(parseResult.Errors);
             Assert.Equal("some key", command.KeyId);
             Assert.Equal("shhhh", command.Secret);
-            Assert.Equal("http://endpoint", command.Endpoint);
+            Assert.Equal("http://endpoint/", command.Endpoint);
             Assert.Equal("a-bucket", command.Bucket);
         }
 

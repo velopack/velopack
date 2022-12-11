@@ -21,7 +21,7 @@ namespace Squirrel.CommandLine.Tests
             var cli = GetRequiredDefaultOptions() + $"--outputDir \"{releaseDirectory.FullName}\"";
             var parseResult = command.ParseAndApply(cli);
 
-            Assert.Equal(releaseDirectory.FullName, command.ReleaseDirectory?.FullName);
+            Assert.Equal(releaseDirectory.FullName, command.ReleaseDirectory);
         }
 
         protected virtual string GetRequiredDefaultOptions() => "";

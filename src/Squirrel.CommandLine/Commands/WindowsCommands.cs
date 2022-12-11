@@ -17,22 +17,22 @@ namespace Squirrel.CommandLine.Commands
         protected SigningCommand(string name, string description)
             : base(name, description)
         {
-            var signTemplate = AddOption<string>("--signTemplate", (v) => SignTemplate = v)
+            var signTemplate = AddOption<string>((v) => SignTemplate = v, "--signTemplate")
                 .SetDescription("Use a custom signing command. {{file}} will be replaced by the path to sign.")
                 .SetArgumentHelpName("COMMAND")
                 .MustContain("{{file}}");
 
-            AddOption<bool>("--signSkipDll", (v) => SignSkipDll = v)
+            AddOption<bool>((v) => SignSkipDll = v, "--signSkipDll")
                 .SetDescription("Only signs EXE files, and skips signing DLL files.");
 
             if (SquirrelRuntimeInfo.IsWindows) {
-                var signParams = AddOption<string>(new[] { "--signParams", "-n" }, (v) => SignParameters = v)
+                var signParams = AddOption<string>((v) => SignParameters = v, "--signParams", "-n")
                     .SetDescription("Sign files via signtool.exe using these parameters.")
                     .SetArgumentHelpName("PARAMS");
 
                 this.AreMutuallyExclusive(signTemplate, signParams);
 
-                AddOption<int>("--signParallel", (v) => SignParallel = v)
+                AddOption<int>((v) => SignParallel = v, "--signParallel")
                     .SetDescription("The number of files to sign in each call to signtool.exe.")
                     .SetArgumentHelpName("NUM")
                     .MustBeBetween(1, 1000)
@@ -43,23 +43,23 @@ namespace Squirrel.CommandLine.Commands
 
     public class ReleasifyWindowsCommand : SigningCommand
     {
-        public FileInfo Package { get; set; }
+        public string Package { get; set; }
 
-        public Uri BaseUrl { get; private set; }
+        public string BaseUrl { get; private set; }
 
-        public FileInfo DebugSetupExe { get; private set; }
+        public string DebugSetupExe { get; private set; }
 
         public bool NoDelta { get; private set; }
 
         public string Runtimes { get; private set; }
 
-        public FileInfo SplashImage { get; private set; }
+        public string SplashImage { get; private set; }
 
-        public FileInfo Icon { get; private set; }
+        public string Icon { get; private set; }
 
         public string[] SquirrelAwareExecutableNames { get; private set; }
 
-        public FileInfo AppIcon { get; private set; }
+        public string AppIcon { get; private set; }
 
         public string BuildMsi { get; private set; }
 
@@ -68,7 +68,7 @@ namespace Squirrel.CommandLine.Commands
         public ReleasifyWindowsCommand()
             : this("releasify", "Take an existing nuget package and convert it into a Squirrel release.")
         {
-            AddOption<FileInfo>(new[] { "-p", "--package" }, (v) => Package = v)
+            AddOption<FileInfo>((v) => Package = v.ToFullNameOrNull(), "-p", "--package")
                 .SetDescription("Path to a '.nupkg' package to releasify.")
                 .SetArgumentHelpName("PATH")
                 .SetRequired()
@@ -83,12 +83,12 @@ namespace Squirrel.CommandLine.Commands
         protected ReleasifyWindowsCommand(string name, string description)
             : base(name, description)
         {
-            AddOption<Uri>(new[] { "-b", "--baseUrl" }, (v) => BaseUrl = v)
+            AddOption<Uri>((v) => BaseUrl = v.ToAbsoluteOrNull(), "-b", "--baseUrl")
                 .SetDescription("Provides a base URL to prefix the RELEASES file packages with.")
                 .SetHidden()
                 .MustBeValidHttpUri();
 
-            AddOption<FileInfo>("--debugSetupExe", (v) => DebugSetupExe = v)
+            AddOption<FileInfo>((v) => DebugSetupExe = v.ToFullNameOrNull(), "--debugSetupExe")
                 .SetDescription("Uses the Setup.exe at this {PATH} to create the bundle, and then replaces it with the bundle. " +
                                 "Used for locally debugging Setup.exe with a real bundle attached.")
                 .SetArgumentHelpName("PATH")
@@ -96,30 +96,30 @@ namespace Squirrel.CommandLine.Commands
                 .ExistingOnly()
                 .RequiresExtension(".exe");
 
-            AddOption<bool>("--noDelta", (v) => NoDelta = v)
+            AddOption<bool>((v) => NoDelta = v, "--noDelta")
                 .SetDescription("Skip the generation of delta packages.");
 
-            AddOption<string>(new[] { "-f", "--framework" }, (v) => Runtimes = v)
+            AddOption<string>((v) => Runtimes = v, "-f", "--framework")
                 .SetDescription("List of required runtimes to install during setup. example: 'net6,vcredist143'.")
                 .SetArgumentHelpName("RUNTIMES")
                 .MustBeValidFrameworkString();
 
-            AddOption<FileInfo>(new[] { "-s", "--splashImage" }, (v) => SplashImage = v)
+            AddOption<FileInfo>((v) => SplashImage = v.ToFullNameOrNull(), "-s", "--splashImage")
                 .SetDescription("Path to image displayed during installation.")
                 .SetArgumentHelpName("PATH")
                 .ExistingOnly();
 
-            AddOption<FileInfo>(new[] { "-i", "--icon" }, (v) => Icon = v)
+            AddOption<FileInfo>((v) => Icon = v.ToFullNameOrNull(), "-i", "--icon")
                 .SetDescription("Path to .ico for Setup.exe and Update.exe.")
                 .SetArgumentHelpName("PATH")
                 .ExistingOnly()
                 .RequiresExtension(".ico");
 
-            AddOption<string[]>(new[] { "-e", "--mainExe" }, (v) => SquirrelAwareExecutableNames = v ?? new string[0])
+            AddOption<string[]>((v) => SquirrelAwareExecutableNames = v ?? new string[0], "-e", "--mainExe")
                 .SetDescription("Name of one or more SquirrelAware executables.")
                 .SetArgumentHelpName("NAME");
 
-            AddOption<FileInfo>("--appIcon", (v) => AppIcon = v)
+            AddOption<FileInfo>((v) => AppIcon = v.ToFullNameOrNull(), "--appIcon")
                 .SetDescription("Path to .ico for 'Apps and Features' list.")
                 .SetArgumentHelpName("PATH")
                 .ExistingOnly()
@@ -127,11 +127,11 @@ namespace Squirrel.CommandLine.Commands
 
             if (SquirrelRuntimeInfo.IsWindows) {
 
-                AddOption<string>("--msi", (v) => BuildMsi = v)
+                AddOption<string>((v) => BuildMsi = v, "--msi")
                     .SetDescription("Compile a .msi machine-wide deployment tool with the specified bitness.")
                     .SetArgumentHelpName("BITNESS");
 
-                AddOption<string>("--msiVersion", (v) => MsiVersion = v)
+                AddOption<string>((v) => MsiVersion = v, "--msiVersion")
                     .SetDescription("Override the product version for the generated msi.")
                     .SetArgumentHelpName("VERSION")
                     .MustBeValidMsiVersion();
@@ -145,7 +145,7 @@ namespace Squirrel.CommandLine.Commands
 
         public string PackVersion { get; private set; }
 
-        public DirectoryInfo PackDirectory { get; private set; }
+        public string PackDirectory { get; private set; }
 
         public string PackAuthors { get; private set; }
 
@@ -153,42 +153,42 @@ namespace Squirrel.CommandLine.Commands
 
         public bool IncludePdb { get; private set; }
 
-        public FileInfo ReleaseNotes { get; private set; }
+        public string ReleaseNotes { get; private set; }
 
         public PackWindowsCommand()
             : base("pack", "Creates a Squirrel release from a folder containing application files.")
         {
-            AddOption<string>(new[] { "--packId", "-u" }, (v) => PackId = v)
+            AddOption<string>((v) => PackId = v, "--packId", "-u")
                 .SetDescription("Unique Id for application bundle.")
                 .SetArgumentHelpName("ID")
                 .SetRequired()
                 .RequiresValidNuGetId();
 
             // TODO add parser straight to SemanticVersion
-            AddOption<string>(new[] { "--packVersion", "-v" }, (v) => PackVersion = v)
+            AddOption<string>((v) => PackVersion = v, "--packVersion", "-v")
                 .SetDescription("Current version for application bundle.")
                 .SetArgumentHelpName("VERSION")
                 .SetRequired()
                 .RequiresSemverCompliant();
 
-            AddOption<DirectoryInfo>(new[] { "--packDir", "-p" }, (v) => PackDirectory = v)
+            AddOption<DirectoryInfo>((v) => PackDirectory = v.ToFullNameOrNull(), "--packDir", "-p")
                 .SetDescription("Directory containing application files for release.")
                 .SetArgumentHelpName("DIR")
                 .SetRequired()
                 .MustNotBeEmpty();
 
-            AddOption<string>("--packAuthors", (v) => PackAuthors = v)
+            AddOption<string>((v) => PackAuthors = v, "--packAuthors")
                 .SetDescription("Company name or comma-delimited list of authors.")
                 .SetArgumentHelpName("AUTHORS");
 
-            AddOption<string>("--packTitle", (v) => PackTitle = v)
+            AddOption<string>((v) => PackTitle = v, "--packTitle")
                 .SetDescription("Display/friendly name for application.")
                 .SetArgumentHelpName("NAME");
 
-            AddOption<bool>("--includePdb", (v) => IncludePdb = v)
+            AddOption<bool>((v) => IncludePdb = v, "--includePdb")
                 .SetDescription("Add *.pdb files to release package");
 
-            AddOption<FileInfo>("--releaseNotes", (v) => ReleaseNotes = v)
+            AddOption<FileInfo>((v) => ReleaseNotes = v.ToFullNameOrNull(), "--releaseNotes")
                 .SetDescription("File with markdown-formatted notes for this version.")
                 .SetArgumentHelpName("PATH")
                 .ExistingOnly();
