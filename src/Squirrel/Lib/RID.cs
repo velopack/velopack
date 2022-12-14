@@ -4,7 +4,7 @@ using System;
 using System.Diagnostics;
 using System.Text;
 
-namespace Microsoft.NETCore.Platforms.BuildTasks
+namespace Squirrel
 {
     /// <summary>
     /// A Version class that also supports a single integer (major only)
@@ -38,10 +38,10 @@ namespace Microsoft.NETCore.Platforms.BuildTasks
             version = Version.Parse(toParse);
         }
 
-        public string To3Part()
-        {
-            return $"{Math.Max(0, version.Major)}.{Math.Max(0, version.Minor)}.{Math.Max(0, version.Build)}";
-        }
+        //public string To3Part()
+        //{
+        //    return $"{Math.Max(0, version.Major)}.{Math.Max(0, version.Minor)}.{Math.Max(0, version.Build)}";
+        //}
 
         public int CompareTo(object obj)
         {
@@ -137,26 +137,39 @@ namespace Microsoft.NETCore.Platforms.BuildTasks
 
     public class RID
     {
+        public string StringWithFullVersion => ToString(true, false);
+
+        public string StringWithShortVersion => ToString(true, true);
+
+        public string StringWithNoVersion => ToString(false, false);
+
         internal const char VersionDelimiter = '.';
         internal const char ArchitectureDelimiter = '-';
         internal const char QualifierDelimiter = '-';
 
-        public string BaseRID { get; set; }
-        public bool OmitVersionDelimiter { get; set; }
+        public RuntimeOs BaseRID { get; set; }
+        //public bool OmitVersionDelimiter { get; set; }
         public RuntimeVersion Version { get; set; }
-        public string Architecture { get; set; }
+        public RuntimeCpu Architecture { get; set; }
         public string Qualifier { get; set; }
 
-        public override string ToString()
+        public override string ToString() => ToString(true, false);
+
+        private string ToString(bool withVersion, bool shortVersion)
         {
-            StringBuilder builder = new StringBuilder(BaseRID);
+            if (!IsValid) return "";
+            StringBuilder builder = new StringBuilder(BaseRID.GetOsShortName());
 
-            if (HasVersion) {
-                if (!OmitVersionDelimiter) {
-                    builder.Append(VersionDelimiter);
+            if (withVersion && HasVersion) {
+                //if (!OmitVersionDelimiter) {
+                //    builder.Append(VersionDelimiter);
+                //}
+
+                if (shortVersion) {
+                    builder.Append(Version.Major);
+                } else {
+                    builder.Append(Version);
                 }
-
-                builder.Append(Version);
             }
 
             if (HasArchitecture) {
@@ -184,7 +197,7 @@ namespace Microsoft.NETCore.Platforms.BuildTasks
         public static RID Parse(string runtimeIdentifier)
         {
             string[] parts = new string[(int) RIDPart.Max + 1];
-            bool omitVersionDelimiter = true;
+            //bool omitVersionDelimiter = true;
             RIDPart parseState = RIDPart.Base;
 
             int partStart = 0, partLength;
@@ -203,7 +216,7 @@ namespace Microsoft.NETCore.Platforms.BuildTasks
                         SetPart();
                         partStart = i;
                         if (current == VersionDelimiter) {
-                            omitVersionDelimiter = false;
+                            //omitVersionDelimiter = false;
                             partStart = i + 1;
                         }
 
@@ -264,24 +277,43 @@ namespace Microsoft.NETCore.Platforms.BuildTasks
 
             string version = GetPart(RIDPart.Version);
 
-            if (version == null) {
-                omitVersionDelimiter = false;
+            //if (version == null) {
+            //    omitVersionDelimiter = false;
+            //}
+
+            RuntimeCpu arch = RuntimeCpu.Unknown;
+            var archPart = GetPart(RIDPart.Architecture);
+            if (archPart != null && Enum.TryParse<RuntimeCpu>(archPart, true, out var parsed)) {
+                arch = parsed;
             }
 
+            var systemPart = GetPart(RIDPart.Base);
+            RuntimeOs system = systemPart.ToLower() switch {
+                "win" => RuntimeOs.Windows,
+                "windows" => RuntimeOs.Windows,
+                "linux" => RuntimeOs.Linux,
+                "mac" => RuntimeOs.OSX,
+                "osx" => RuntimeOs.OSX,
+                "macos" => RuntimeOs.OSX,
+                _ => RuntimeOs.Unknown,
+            };
+
             return new RID() {
-                BaseRID = GetPart(RIDPart.Base),
-                OmitVersionDelimiter = omitVersionDelimiter,
+                BaseRID = system,
+                //OmitVersionDelimiter = omitVersionDelimiter,
                 Version = version == null ? null : new RuntimeVersion(version),
-                Architecture = GetPart(RIDPart.Architecture),
+                Architecture = arch,
                 Qualifier = GetPart(RIDPart.Qualifier)
             };
         }
 
         public bool HasVersion => Version != null;
 
-        public bool HasArchitecture => Architecture != null;
+        public bool HasArchitecture => Architecture != RuntimeCpu.Unknown;
 
         public bool HasQualifier => Qualifier != null;
+
+        public bool IsValid => BaseRID != RuntimeOs.Unknown;
 
         public override bool Equals(object obj)
         {
@@ -293,7 +325,7 @@ namespace Microsoft.NETCore.Platforms.BuildTasks
             return object.ReferenceEquals(obj, this) ||
                    (obj is not null &&
                     BaseRID == obj.BaseRID &&
-                    (Version == null || OmitVersionDelimiter == obj.OmitVersionDelimiter) &&
+                    //(Version == null || OmitVersionDelimiter == obj.OmitVersionDelimiter) &&
                     Version == obj.Version &&
                     Architecture == obj.Architecture &&
                     Qualifier == obj.Qualifier);
@@ -301,7 +333,7 @@ namespace Microsoft.NETCore.Platforms.BuildTasks
 
         public override int GetHashCode()
         {
-#if NETFRAMEWORK
+#if NETFRAMEWORK || NETSTANDARD
             return BaseRID.GetHashCode();
 #else
             HashCode hashCode = default;

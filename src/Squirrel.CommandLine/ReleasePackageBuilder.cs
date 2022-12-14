@@ -129,10 +129,10 @@ namespace Squirrel.CommandLine
         /// Given a list of releases and a specified release package, returns the release package
         /// directly previous to the specified version.
         /// </summary>
-        internal static ReleasePackageBuilder GetPreviousRelease(IEnumerable<ReleaseEntry> releaseEntries, IReleasePackage package, string targetDir)
+        internal static ReleasePackageBuilder GetPreviousRelease(IEnumerable<ReleaseEntry> releaseEntries, IReleasePackage package, string targetDir, RID compatibleRid)
         {
             if (releaseEntries == null || !releaseEntries.Any()) return null;
-            return releaseEntries
+            return Utility.FindCompatibleVersions(releaseEntries, compatibleRid)
                 .Where(x => x.IsDelta == false)
                 .Where(x => x.Version < package.Version)
                 .OrderByDescending(x => x.Version)

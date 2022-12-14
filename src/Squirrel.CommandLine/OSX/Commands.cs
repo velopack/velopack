@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
-using Microsoft.NETCore.Platforms.BuildTasks;
 using NuGet.Versioning;
 using Squirrel.CommandLine.Commands;
 using Squirrel.PropertyList;
@@ -76,9 +75,6 @@ namespace Squirrel.CommandLine.OSX
             var appBundlePath = options.BundleDirectory;
             Log.Info("Creating Squirrel application from app bundle at: " + appBundlePath);
 
-            //if (Utility.PathPartStartsWith(releaseDir.FullName, appBundlePath))
-            //    throw new Exception("Pack directory is inside release directory. Please move the app bundle outside of the release directory first.");
-
             Log.Info("Parsing app Info.plist");
             var contentsDir = Path.Combine(appBundlePath, "Contents");
 
@@ -150,27 +146,12 @@ namespace Squirrel.CommandLine.OSX
                 releases.AddRange(ReleaseEntry.ParseReleaseFile(File.ReadAllText(releaseFilePath, Encoding.UTF8)));
             }
 
-            RuntimeCpu pkgArch = RuntimeCpu.Unknown;
-            string pkgMinver = null;
-            string fullRidString = "osx";
-            if (!String.IsNullOrEmpty(options.TargetRuntime)) {
-                var rid = RID.Parse(options.TargetRuntime);
-                if (rid.HasVersion) {
-                    pkgMinver = rid.Version.To3Part();
-                    fullRidString += rid.Version.Major;
-                }
-                if (rid.HasArchitecture && Enum.TryParse<RuntimeCpu>(rid.Architecture, true, out var rcparsed)) {
-                    pkgArch = rcparsed;
-                    fullRidString += "-" + rcparsed.ToString();
-                }
-            }
-
             var rp = new ReleasePackageBuilder(nupkgPath);
-            var suggestedName = ReleasePackageBuilder.GetSuggestedFileName(packId, packVersion, fullRidString);
+            var suggestedName = ReleasePackageBuilder.GetSuggestedFileName(packId, packVersion, options.TargetRuntime.StringWithNoVersion);
             var newPkgPath = rp.CreateReleasePackage((i, pkg) => Path.Combine(releaseDir.FullName, suggestedName));
 
             Log.Info("Creating Delta Packages");
-            var prev = ReleasePackageBuilder.GetPreviousRelease(releases, rp, releaseDir.FullName);
+            var prev = ReleasePackageBuilder.GetPreviousRelease(releases, rp, releaseDir.FullName, options.TargetRuntime);
             if (prev != null && !options.NoDelta) {
                 var deltaBuilder = new DeltaPackageBuilder();
                 var deltaFile = rp.ReleasePackageFile.Replace("-full", "-delta");
@@ -184,7 +165,7 @@ namespace Squirrel.CommandLine.OSX
             // create installer package, sign and notarize
             if (!options.NoPackage) {
                 if (SquirrelRuntimeInfo.IsOSX) {
-                    var pkgPath = Path.Combine(releaseDir.FullName, packId + ".pkg");
+                    var pkgPath = Path.Combine(releaseDir.FullName, $"{packId}-{options.TargetRuntime.StringWithNoVersion}.pkg");
 
                     Dictionary<string, string> pkgContent = new() {
                         {"welcome", options.PackageWelcome },

@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Threading.Tasks;
@@ -27,7 +25,7 @@ namespace Squirrel
 
             var releaseContent = File.ReadAllText(_config.ReleasesFilePath, Encoding.UTF8);
             var releases = ReleaseEntry.ParseReleaseFile(releaseContent);
-            var latest = Utility.FindCurrentVersion(releases);
+            var latest = Utility.FindLatestFullVersion(releases, null);
             var pkgPath = Path.Combine(_config.PackagesDir, latest.Filename);
             var zp = new ZipPackage(pkgPath);
 
@@ -50,7 +48,7 @@ namespace Squirrel
                 new { Key = "Publisher", Value = zp.ProductCompany },
                 new { Key = "QuietUninstallString", Value = String.Format("{0} {1}", uninstallCmd, quietSwitch) },
                 new { Key = "UninstallString", Value = uninstallCmd },
-                new { Key = "URLUpdateInfo", Value = zp.ProjectUrl != null ? zp.ProjectUrl.ToString() : "", }
+                new { Key = "URLUpdateInfo", Value = zp.ProjectUrl?.ToString() ?? "" }
             };
 
             // CS: very rough estimate of installed size. based on a few assumptions:

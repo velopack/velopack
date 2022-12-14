@@ -62,7 +62,7 @@ namespace Squirrel
         /// The runtime identifier parsed from the file name. 
         /// Used to determine if this package is suitable for the current operating system.
         /// </summary>
-        string Rid { get; }
+        RID Rid { get; }
 
         /// <summary>
         /// Given a local directory containing a package corresponding to this release, returns the 
@@ -96,7 +96,7 @@ namespace Squirrel
         /// <inheritdoc />
         [DataMember] public float? StagingPercentage { get; protected set; }
         /// <inheritdoc />
-        [DataMember] public string Rid { get; protected set; }
+        [DataMember] public RID Rid { get; protected set; }
 
         /// <summary>
         /// Create a new instance of <see cref="ReleaseEntry"/>.
@@ -391,7 +391,7 @@ namespace Squirrel
         /// it's name and version (eg. 'My-Cool3-App', and '1.0.1-build.23'). Returns null values if 
         /// the filename can not be parsed.
         /// </summary>
-        internal static (string PackageName, SemanticVersion Version, bool IsDelta, string Rid) ParseEntryFileName(string fileName)
+        internal static (string PackageName, SemanticVersion Version, bool IsDelta, RID Rid) ParseEntryFileName(string fileName)
         {
             if (!fileName.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase))
                 return (null, null, false, null);
@@ -417,7 +417,7 @@ namespace Squirrel
             }
 
             var semVer = NuGetVersion.Parse(version);
-            return (name, semVer, delta, rid);
+            return (name, semVer, delta, RID.Parse(rid));
         }
     }
 }

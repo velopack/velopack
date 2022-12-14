@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using Squirrel.SimpleSplat;
@@ -43,11 +42,11 @@ namespace Squirrel
             }
 
             if (shouldInitialize) initializeClientAppDirectory();
-            
+
             var stagingId = intention == UpdaterIntention.Install ? null : getOrCreateStagedUserId();
 
             var latestLocalRelease = localReleases.Count() > 0
-                ? localReleases.MaxBy(v => v.Version).First() 
+                ? localReleases.MaxBy(v => v.Version).First()
                 : null;
 
             progress(33);
@@ -86,8 +85,8 @@ namespace Squirrel
                 throw new Exception("Remote release File is empty or corrupted");
             }
 
-            var latestFullRelease = Utility.FindCurrentVersion(remoteReleases);
-            var currentRelease = Utility.FindCurrentVersion(localReleases);
+            var currentRelease = Utility.FindLatestFullVersion(localReleases, null);
+            var latestFullRelease = Utility.FindLatestFullVersion(remoteReleases, currentRelease.Rid);
 
             if (latestFullRelease == currentRelease) {
                 this.Log().Info("No updates, remote and local are the same");
@@ -112,7 +111,7 @@ namespace Squirrel
 
             if (localReleases.Max(x => x.Version) > remoteReleases.Max(x => x.Version)) {
                 this.Log().Warn("hwhat, local version is greater than remote version");
-                return UpdateInfo.Create(Utility.FindCurrentVersion(localReleases), new[] { latestFullRelease }, packageDirectory);
+                return UpdateInfo.Create(currentRelease, new[] { latestFullRelease }, packageDirectory);
             }
 
             return UpdateInfo.Create(currentRelease, remoteReleases, packageDirectory);

@@ -9,7 +9,7 @@ namespace Squirrel.CommandLine.Commands
 {
     public class BaseCommand : Command
     {
-        public string TargetRuntime { get; set; }
+        public RID TargetRuntime { get; set; }
 
         public string ReleaseDirectory { get; private set; }
 

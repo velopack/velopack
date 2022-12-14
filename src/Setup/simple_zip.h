@@ -27,8 +27,7 @@ public:
     simple_zip(std::wstring filePath);
     ~simple_zip();
     void extract_updater_to_file(std::wstring filePath);
-    std::wstring get_machine_architecture();
-    std::wstring get_minimum_windows_version();
+    std::wstring get_package_rid();
 
 };
 

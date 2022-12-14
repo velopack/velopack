@@ -4,6 +4,7 @@
 #include <ShlObj_core.h>
 #include <tchar.h>
 #include <string>
+#include <regex>
 #include <functional>
 #include <memory>
 #include <cstdlib>
@@ -103,8 +104,7 @@ std::wstring util::get_temp_file_path(wstring extension)
     std::wstring tempFolderBuf = get_env_var(L"CLOWD_SQUIRREL_TEMP");
     if (tempFolderBuf == L""
         || !directory_exists(tempFolderBuf)
-        || !directory_is_writable(tempFolderBuf)) 
-    {
+        || !directory_is_writable(tempFolderBuf)) {
         wchar_t tempBuf[MAX_PATH];
         DWORD cTempFolder = GetTempPath(MAX_PATH, tempBuf);
         tempFolderBuf = std::wstring(tempBuf);
@@ -262,6 +262,10 @@ bool util::is_os_version_or_greater(std::wstring version)
     int major = -1, minor = -1, build = -1;
     swscanf_s(version.c_str(), L"%d.%d.%d", &major, &minor, &build);
 
+    if (major > 11) {
+        return false;
+    }
+
     if (major < 8) {
         return IsWindows7SP1OrGreater();
     }
@@ -275,7 +279,7 @@ bool util::is_os_version_or_greater(std::wstring version)
         build = 22000;
     }
 
-    if (build < 0) {
+    if (build <= 0) {
         return IsWindows10OrGreater();
     }
 
@@ -334,5 +338,27 @@ bool util::is_cpu_architecture_supported(std::wstring architecture)
     if (machine == L"arm64") return architecture == L"x86" || (architecture == L"x64" && isWin11) || architecture == L"arm64";
 
     // if we don't recognize the 'machine' architecture, just ignore this check.
+    return true;
+}
+
+bool util::is_rid_supported(std::wstring runtime)
+{
+    const std::wregex ridreg(LR"rgx(^(\w+?)\.?([\d\.]+)?(-((x|arm)\d{2}))$)rgx", std::regex_constants::icase | std::regex_constants::ECMAScript);
+    std::wsmatch match;
+    if (std::regex_search(runtime, match, ridreg) && match.size() > 4) {
+        auto minVer = match.str(2);
+        if (!minVer.empty() && !is_os_version_or_greater(minVer)) {
+            // the RID has a version in it, and the current system version is not recent enough.
+            return false;
+        }
+
+        auto arch = match.str(4);
+        if (!arch.empty() && !is_cpu_architecture_supported(arch)) {
+            // the RID has a cpu architecture, and the current system does not support it.
+            return false;
+        }
+    }
+
+    // if the checks were not performed or they passed, return true.
     return true;
 }

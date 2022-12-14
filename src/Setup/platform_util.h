@@ -15,6 +15,7 @@ namespace util
     std::wstring pretty_bytes(uint64_t bytes);
     bool is_os_version_or_greater(std::wstring version);
     bool is_cpu_architecture_supported(std::wstring architecture);
+    bool is_rid_supported(std::wstring runtime);
 }
 
 #endif // __PLATFORM_UTIL_H__

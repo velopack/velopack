@@ -194,14 +194,14 @@ namespace Squirrel.Tests
         public void GetLatestReleaseWithNullCollectionReturnsNull()
         {
             Assert.Null(ReleasePackageBuilder.GetPreviousRelease(
-                null, null, null));
+                null, null, null, null));
         }
 
         [Fact]
         public void GetLatestReleaseWithEmptyCollectionReturnsNull()
         {
             Assert.Null(ReleasePackageBuilder.GetPreviousRelease(
-                Enumerable.Empty<ReleaseEntry>(), null, null));
+                Enumerable.Empty<ReleaseEntry>(), null, null, null));
         }
 
         [Fact]
@@ -213,7 +213,7 @@ namespace Squirrel.Tests
                 ReleaseEntry.ParseReleaseEntry(MockReleaseEntry("Espera-1.7.6-beta.nupkg"))
             };
             Assert.Null(ReleasePackageBuilder.GetPreviousRelease(
-                releaseEntries, package, @"C:\temp\somefolder"));
+                releaseEntries, package, @"C:\temp\somefolder", null));
         }
 
         [Fact]
@@ -230,7 +230,7 @@ namespace Squirrel.Tests
             var actual = ReleasePackageBuilder.GetPreviousRelease(
                 releaseEntries,
                 package,
-                @"C:\temp\");
+                @"C:\temp\", null);
 
             Assert.Equal(expected, actual.Version);
         }
@@ -249,7 +249,7 @@ namespace Squirrel.Tests
             var actual = ReleasePackageBuilder.GetPreviousRelease(
                 releaseEntries,
                 input,
-                @"C:\temp\");
+                @"C:\temp\", null);
 
             Assert.Equal(expected, actual.Version);
         }
@@ -268,7 +268,7 @@ namespace Squirrel.Tests
             var actual = ReleasePackageBuilder.GetPreviousRelease(
                 releaseEntries,
                 input,
-                @"C:\temp\");
+                @"C:\temp\", null);
 
             Assert.Equal(expected, actual.Version);
         }
@@ -418,6 +418,40 @@ namespace Squirrel.Tests
         {
             Assert.True(ReleaseEntry.ParseReleaseFile("").Count() == 0);
             Assert.True(ReleaseEntry.ParseReleaseFile(null).Count() == 0);
+        }
+
+        [Fact]
+        public void FindCurrentVersionWithExactRidMatch()
+        {
+            string _ridReleaseEntries = """
+0000000000000000000000000000000000000000  MyApp-1.3-win-x86.nupkg  123
+0000000000000000000000000000000000000000  MyApp-1.4.nupkg  123
+0000000000000000000000000000000000000000  MyApp-1.4-win-x64.nupkg  123
+0000000000000000000000000000000000000000  MyApp-1.4-win-x86.nupkg  123
+0000000000000000000000000000000000000000  MyApp-1.4-osx-x86.nupkg  123
+""";
+
+            var entries = ReleaseEntry.ParseReleaseFile(_ridReleaseEntries);
+
+            var e = Utility.FindLatestFullVersion(entries, RID.Parse("win-x86"));
+            Assert.Equal("MyApp-1.4-win-x86.nupkg", e.Filename);
+        }
+
+        [Fact]
+        public void FindCurrentVersionWithExactRidMatchNotLatest()
+        {
+            string _ridReleaseEntries = """
+0000000000000000000000000000000000000000  MyApp-1.3-win-x86.nupkg  123
+0000000000000000000000000000000000000000  MyApp-1.4.nupkg  123
+0000000000000000000000000000000000000000  MyApp-1.4-win-x64.nupkg  123
+0000000000000000000000000000000000000000  MyApp-1.4-win.nupkg  123
+0000000000000000000000000000000000000000  MyApp-1.4-osx-x86.nupkg  123
+""";
+
+            var entries = ReleaseEntry.ParseReleaseFile(_ridReleaseEntries);
+
+            var e = Utility.FindLatestFullVersion(entries, RID.Parse("win-x86"));
+            Assert.Equal("MyApp-1.3-win.nupkg", e.Filename);
         }
 
         static string MockReleaseEntry(string name, float? percentage = null)

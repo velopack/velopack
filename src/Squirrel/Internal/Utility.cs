@@ -1,19 +1,15 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
-using System.Threading;
-using Squirrel.SimpleSplat;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Concurrent;
-using System.Diagnostics;
 using Squirrel.NuGet;
-using System.Runtime.Versioning;
+using Squirrel.SimpleSplat;
 
 namespace Squirrel
 {
@@ -39,7 +35,7 @@ namespace Squirrel
 
             return (int) totalPercentage;
         }
-        
+
         public static string RemoveByteOrderMarkerIfPresent(string content)
         {
             return string.IsNullOrEmpty(content)
@@ -81,7 +77,7 @@ namespace Squirrel
                 output = content;
             }
 
-            done:
+        done:
             if (output.Length > 0) {
                 Buffer.BlockCopy(content, content.Length - output.Length, output, 0, output.Length);
             }
@@ -270,7 +266,7 @@ namespace Squirrel
         public static string GetDefaultTempBaseDirectory()
         {
             string tempDir;
-            
+
             if (SquirrelRuntimeInfo.IsOSX) {
                 tempDir = "/tmp/clowd.squirrel";
             } else if (SquirrelRuntimeInfo.IsWindows) {
@@ -458,13 +454,25 @@ namespace Squirrel
             }
         }
 
-        public static ReleaseEntry FindCurrentVersion(IEnumerable<ReleaseEntry> localReleases)
+        public static ReleaseEntry FindLatestFullVersion(IEnumerable<ReleaseEntry> localReleases, RID compatibleRid)
+        {
+            return FindCompatibleVersions(localReleases, compatibleRid).FirstOrDefault(f => !f.IsDelta);
+        }
+
+        public static IEnumerable<ReleaseEntry> FindCompatibleVersions(IEnumerable<ReleaseEntry> localReleases, RID compatibleRid)
         {
             if (!localReleases.Any()) {
                 return null;
             }
 
-            return localReleases.OrderByDescending(x => x.Version).FirstOrDefault(x => !x.IsDelta);
+            if (compatibleRid == null || !compatibleRid.IsValid) {
+                return localReleases.OrderByDescending(x => x.Version);
+            }
+
+            return localReleases
+                .Where(r => r.Rid.BaseRID == compatibleRid.BaseRID)
+                .Where(r => r.Rid.Architecture == compatibleRid.Architecture)
+                .OrderByDescending(x => x.Version);
         }
 
         public static string GetAppUserModelId(string packageId, string exeName)
@@ -785,7 +793,7 @@ namespace Squirrel
 
             return null;
         }
-        
+
         public static void CopyFiles(DirectoryInfo source, DirectoryInfo target)
         {
             Directory.CreateDirectory(target.FullName);

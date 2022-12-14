@@ -7,7 +7,6 @@ using System.Linq;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
-using Microsoft.NETCore.Platforms.BuildTasks;
 using Squirrel.CommandLine.Commands;
 using Squirrel.NuGet;
 using Squirrel.SimpleSplat;
@@ -144,37 +143,7 @@ namespace Squirrel.CommandLine.Windows
                                  "Shortcuts will be created for every binary in package.");
                     }
 
-                    // parse runtime information
-                    RuntimeCpu pkgArch = RuntimeCpu.Unknown;
-                    string pkgMinver = null;
-                    string fullRidString = "win";
-
-                    if (!String.IsNullOrEmpty(options.TargetRuntime)) {
-                        var rid = RID.Parse(options.TargetRuntime);
-
-                        if (rid.HasVersion) {
-                            pkgMinver = rid.Version.To3Part();
-                            fullRidString += rid.Version.Major;
-                        }
-
-                        if (rid.HasArchitecture && Enum.TryParse<RuntimeCpu>(rid.Architecture, true, out var rcparsed)) {
-                            pkgArch = rcparsed;
-                            fullRidString += "-" + rcparsed.ToString();
-                        }
-                    }
-
-                    // try to auto-detect architecture as it was not specified.
-                    if (pkgArch == RuntimeCpu.Unknown) {
-                        var pkgarchs = peArch.Select(f => f.Architecture).Distinct().ToArray();
-                        if (pkgarchs.Length == 1) {
-                            pkgArch = pkgarchs[0];
-                            fullRidString += "-" + pkgArch;
-                        } else {
-                            Log.Error("Could not determine package CPU architecture. This will therefore not be validated during install. Fix this via the target runtime argument eg. '--runtime win-x64'");
-                        }
-                    }
-
-                    ZipPackage.SetWindowsMetadata(nuspecPath, requiredFrameworks.Select(r => r.Id), "win", pkgMinver, pkgArch);
+                    ZipPackage.SetMetadata(nuspecPath, requiredFrameworks.Select(r => r.Id), options.TargetRuntime);
 
                     // create stub executable for all exe's in this package (except Squirrel!)
                     var exesToCreateStubFor = new DirectoryInfo(pkgPath).GetAllFilesRecursively()
@@ -231,12 +200,12 @@ namespace Squirrel.CommandLine.Windows
                     if (setupIcon != null) File.Copy(setupIcon, Path.Combine(pkgPath, "setup.ico"), true);
                     if (backgroundGif != null) File.Copy(backgroundGif, Path.Combine(pkgPath, "splashimage" + Path.GetExtension(backgroundGif)));
 
-                    return Path.Combine(targetDir, ReleasePackageBuilder.GetSuggestedFileName(spec.Id, spec.Version.ToString(), fullRidString));
+                    return Path.Combine(targetDir, ReleasePackageBuilder.GetSuggestedFileName(spec.Id, spec.Version.ToString(), options.TargetRuntime.StringWithNoVersion));
                 });
 
                 processed.Add(rp.ReleasePackageFile);
 
-                var prev = ReleasePackageBuilder.GetPreviousRelease(previousReleases, rp, targetDir);
+                var prev = ReleasePackageBuilder.GetPreviousRelease(previousReleases, rp, targetDir, options.TargetRuntime);
                 if (prev != null && generateDeltas) {
                     var deltaBuilder = new DeltaPackageBuilder();
                     var deltaOutputPath = rp.ReleasePackageFile.Replace("-full", "-delta");
@@ -259,7 +228,7 @@ namespace Squirrel.CommandLine.Windows
             ReleaseEntry.WriteReleaseFile(releaseEntries, releaseFilePath);
 
             var bundledzp = new ZipPackage(package);
-            var targetSetupExe = Path.Combine(targetDir, $"{bundledzp.Id}Setup.exe");
+            var targetSetupExe = Path.Combine(targetDir, $"{bundledzp.Id}Setup-{options.TargetRuntime.StringWithNoVersion}.exe");
             File.Copy(options.DebugSetupExe ?? HelperExe.SetupPath, targetSetupExe, true);
 
             if (SquirrelRuntimeInfo.IsWindows) {

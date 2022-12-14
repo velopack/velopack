@@ -20,7 +20,7 @@ namespace Squirrel.NuGet
         string ReleaseNotes { get; }
         Uri IconUrl { get; }
         IEnumerable<string> Tags { get; }
-        RuntimeCpu Architecture { get; }
+        RID Rid { get; }
         IEnumerable<FrameworkAssemblyReference> FrameworkAssemblies { get; }
         IEnumerable<PackageDependencySet> DependencySets { get; }
         IEnumerable<string> RuntimeDependencies { get; }
@@ -46,10 +46,7 @@ namespace Squirrel.NuGet
         public IEnumerable<string> RuntimeDependencies { get; private set; } = Enumerable.Empty<string>();
         public IEnumerable<FrameworkAssemblyReference> FrameworkAssemblies { get; private set; } = Enumerable.Empty<FrameworkAssemblyReference>();
         public IEnumerable<PackageDependencySet> DependencySets { get; private set; } = Enumerable.Empty<PackageDependencySet>();
-
-        public string OperatingSystem { get; private set; }
-        public string MinOperatingSystemVersion { get; private set; }
-        public RuntimeCpu Architecture { get; private set; }
+        public RID Rid { get; private set; }
 
         protected string Description { get; private set; }
         protected IEnumerable<string> Authors { get; private set; } = Enumerable.Empty<string>();
@@ -82,18 +79,14 @@ namespace Squirrel.NuGet
             }
         }
 
-        public static void SetWindowsMetadata(string nuspecPath, IEnumerable<string> runtimes, string os, string osMinVer, RuntimeCpu arch)
+        public static void SetMetadata(string nuspecPath, IEnumerable<string> runtimes, RID rid)
         {
             Dictionary<string, string> toSet = new();
 
             if (runtimes.Any())
                 toSet.Add("runtimeDependencies", String.Join(",", runtimes));
-            if (osMinVer != null)
-                toSet.Add("os", os);
-            if (osMinVer != null)
-                toSet.Add("osMinVer", osMinVer);
-            if (arch != RuntimeCpu.Unknown)
-                toSet.Add("arch", arch.ToString());
+            if (rid?.IsValid == true)
+                toSet.Add("rid", rid.StringWithFullVersion);
 
             if (!toSet.Any())
                 return;
@@ -207,14 +200,8 @@ namespace Squirrel.NuGet
             case "releaseNotesHtml":
                 ReleaseNotesHtml = value;
                 break;
-            case "arch":
-                if (Enum.TryParse(value, true, out RuntimeCpu ma)) Architecture = ma;
-                break;
-            case "os":
-                OperatingSystem = value;
-                break;
-            case "osMinVer":
-                MinOperatingSystemVersion = value;
+            case "rid":
+                Rid = RID.Parse(value);
                 break;
 
             }
