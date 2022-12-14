@@ -2,9 +2,9 @@
 using System.IO;
 using System.Threading.Tasks;
 using Squirrel.SimpleSplat;
+using NugetLevel = NuGet.Common.LogLevel;
 using NugetLogger = NuGet.Common.ILogger;
 using NugetMessage = NuGet.Common.ILogMessage;
-using NugetLevel = NuGet.Common.LogLevel;
 
 namespace Squirrel.CommandLine
 {

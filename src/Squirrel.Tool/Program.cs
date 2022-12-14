@@ -23,9 +23,9 @@ namespace Squirrel.Tool
 
         private static ConsoleLogger _logger;
 
-        private static Option<string> CsqVersion { get; } 
+        private static Option<string> CsqVersion { get; }
             = new Option<string>("--csq-version");
-        private static Option<FileSystemInfo> CsqSolutionPath { get; } 
+        private static Option<FileSystemInfo> CsqSolutionPath { get; }
             = new Option<FileSystemInfo>(new[] { "--csq-sln", "--csq-solution" }).ExistingOnly();
         private static Option<bool> Verbose { get; }
             = new Option<bool>("--verbose");
@@ -78,8 +78,15 @@ namespace Squirrel.Tool
             context.Console.WriteLine($"Squirrel Locator 'csq' {SquirrelRuntimeInfo.SquirrelDisplayVersion}");
             _logger.Write($"Entry EXE: {SquirrelRuntimeInfo.EntryExePath}", LogLevel.Debug);
             CancellationToken cancellationToken = context.GetCancellationToken();
-            
+
             await CheckForUpdates(cancellationToken).ConfigureAwait(false);
+
+#if DEBUG && false
+            var devcsproj = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "src", "Squirrel.CommandLine", "Squirrel.CommandLine.csproj");
+            var devargs = new[] { "run", "--no-build", "-v", "q", "--project", devcsproj, "--" }.Concat(restArgs).ToArray();
+            context.ExitCode = RunProcess("dotnet", devargs);
+            return;
+#endif
 
             var solutionDir = FindSolutionDirectory(explicitSolutionPath?.FullName);
             var nugetPackagesDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
@@ -164,7 +171,7 @@ namespace Squirrel.Tool
         {
             try {
                 var myVer = SquirrelRuntimeInfo.SquirrelNugetVersion;
-                var dl = new NugetDownloader(_logger);
+                var dl = new NugetDownloader(new NullNugetLogger());
                 var package = await dl.GetPackageMetadata("csq", (myVer.IsPrerelease || myVer.HasMetadata) ? "pre" : "latest", cancellationToken).ConfigureAwait(false);
                 if (package.Identity.Version > myVer)
                     _logger.Write($"There is a new version of csq available ({package.Identity.Version})", LogLevel.Warn);
@@ -258,7 +265,7 @@ namespace Squirrel.Tool
             foreach (var projFile in EnumerateFilesUntilSpecificDepth(rootDir, "*.csproj", 3)) {
                 var proj = ProjectRootElement.Open(projFile);
                 if (proj == null) continue;
-                
+
                 ProjectItemElement item = proj.Items.FirstOrDefault(i => i.ItemType == "PackageReference" && i.Include == packageName);
                 if (item == null) continue;
 
