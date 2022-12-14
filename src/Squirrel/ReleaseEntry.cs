@@ -408,16 +408,16 @@ namespace Squirrel
             var name = nameAndVer.Substring(0, verIdx);
             var version = nameAndVer.Substring(verIdx + 1);
 
-            string rid = null;
+            RID rid = null;
             var ridMatch = _ridRegex.Match(version);
 
             if (ridMatch.Success) {
-                rid = ridMatch.Value.TrimStart('-');
+                rid = RID.Parse(ridMatch.Value.TrimStart('-'));
                 version = version.Substring(0, ridMatch.Index);
             }
 
             var semVer = NuGetVersion.Parse(version);
-            return (name, semVer, delta, RID.Parse(rid));
+            return (name, semVer, delta, rid);
         }
     }
 }

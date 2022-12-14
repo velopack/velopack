@@ -53,7 +53,7 @@ namespace Squirrel.CommandLine
             switch (runtime.BaseRID) {
             case RuntimeOs.Windows:
                 if (!SquirrelRuntimeInfo.IsWindows)
-                    logger.Write("Cross-compiling will cause some command and options of Squirrel to be unavailable.", LogLevel.Warn);
+                    logger.Write("Cross-compiling will cause some commands and options of Squirrel to be unavailable.", LogLevel.Warn);
                 Add(rootCommand, new PackWindowsCommand(), Windows.Commands.Pack);
                 Add(rootCommand, new ReleasifyWindowsCommand(), Windows.Commands.Releasify);
 
@@ -66,7 +66,7 @@ namespace Squirrel.CommandLine
                 break;
             case RuntimeOs.OSX:
                 if (!SquirrelRuntimeInfo.IsOSX)
-                    logger.Write("Cross-compiling will cause some command and options of Squirrel to be unavailable.", LogLevel.Warn);
+                    logger.Write("Cross-compiling will cause some commands and options of Squirrel to be unavailable.", LogLevel.Warn);
                 Add(rootCommand, new BundleOsxCommand(), OSX.Commands.Bundle);
                 Add(rootCommand, new ReleasifyOsxCommand(), OSX.Commands.Releasify);
                 break;

@@ -118,46 +118,48 @@ namespace Squirrel.CommandLine.Commands
             AddOption<bool>((v) => NoDelta = v, "--noDelta")
                 .SetDescription("Skip the generation of delta packages.");
 
-            AddOption<bool>((v) => NoPackage = v, "--noPkg")
-                .SetDescription("Skip generating a .pkg installer.");
+            if (SquirrelRuntimeInfo.IsOSX) {
+                AddOption<bool>((v) => NoPackage = v, "--noPkg")
+                    .SetDescription("Skip generating a .pkg installer.");
 
-            AddOption<FileInfo>((v) => PackageWelcome = v.ToFullNameOrNull(), "--pkgWelcome")
-                .SetDescription("Set the installer package welcome content.")
-                .SetArgumentHelpName("PATH")
-                .ExistingOnly();
+                AddOption<FileInfo>((v) => PackageWelcome = v.ToFullNameOrNull(), "--pkgWelcome")
+                    .SetDescription("Set the installer package welcome content.")
+                    .SetArgumentHelpName("PATH")
+                    .ExistingOnly();
 
-            AddOption<FileInfo>((v) => PackageReadme = v.ToFullNameOrNull(), "--pkgReadme")
-                .SetDescription("Set the installer package readme content.")
-                .SetArgumentHelpName("PATH")
-                .ExistingOnly();
+                AddOption<FileInfo>((v) => PackageReadme = v.ToFullNameOrNull(), "--pkgReadme")
+                    .SetDescription("Set the installer package readme content.")
+                    .SetArgumentHelpName("PATH")
+                    .ExistingOnly();
 
-            AddOption<FileInfo>((v) => PackageLicense = v.ToFullNameOrNull(), "--pkgLicense")
-                .SetDescription("Set the installer package license content.")
-                .SetArgumentHelpName("PATH")
-                .ExistingOnly();
+                AddOption<FileInfo>((v) => PackageLicense = v.ToFullNameOrNull(), "--pkgLicense")
+                    .SetDescription("Set the installer package license content.")
+                    .SetArgumentHelpName("PATH")
+                    .ExistingOnly();
 
-            AddOption<FileInfo>((v) => PackageConclusion = v.ToFullNameOrNull(), "--pkgConclusion")
-                .SetDescription("Set the installer package conclusion content.")
-                .SetArgumentHelpName("PATH")
-                .ExistingOnly();
+                AddOption<FileInfo>((v) => PackageConclusion = v.ToFullNameOrNull(), "--pkgConclusion")
+                    .SetDescription("Set the installer package conclusion content.")
+                    .SetArgumentHelpName("PATH")
+                    .ExistingOnly();
 
-            AddOption<string>((v) => SigningAppIdentity = v, "--signAppIdentity")
-                .SetDescription("The subject name of the cert to use for app code signing.")
-                .SetArgumentHelpName("SUBJECT");
+                AddOption<string>((v) => SigningAppIdentity = v, "--signAppIdentity")
+                    .SetDescription("The subject name of the cert to use for app code signing.")
+                    .SetArgumentHelpName("SUBJECT");
 
-            AddOption<string>((v) => SigningInstallIdentity = v, "--signInstallIdentity")
-                .SetDescription("The subject name of the cert to use for installation packages.")
-                .SetArgumentHelpName("SUBJECT");
+                AddOption<string>((v) => SigningInstallIdentity = v, "--signInstallIdentity")
+                    .SetDescription("The subject name of the cert to use for installation packages.")
+                    .SetArgumentHelpName("SUBJECT");
 
-            AddOption<FileInfo>((v) => SigningEntitlements = v.ToFullNameOrNull(), "--signEntitlements")
-                .SetDescription("Path to entitlements file for hardened runtime signing.")
-                .SetArgumentHelpName("PATH")
-                .ExistingOnly()
-                .RequiresExtension(".entitlements");
+                AddOption<FileInfo>((v) => SigningEntitlements = v.ToFullNameOrNull(), "--signEntitlements")
+                    .SetDescription("Path to entitlements file for hardened runtime signing.")
+                    .SetArgumentHelpName("PATH")
+                    .ExistingOnly()
+                    .RequiresExtension(".entitlements");
 
-            AddOption<string>((v) => NotaryProfile = v, "--notaryProfile")
-                .SetDescription("Name of profile containing Apple credentials stored with notarytool.")
-                .SetArgumentHelpName("NAME");
+                AddOption<string>((v) => NotaryProfile = v, "--notaryProfile")
+                    .SetDescription("Name of profile containing Apple credentials stored with notarytool.")
+                    .SetArgumentHelpName("NAME");
+            }
         }
     }
 }

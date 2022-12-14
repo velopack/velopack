@@ -54,7 +54,11 @@ namespace Squirrel.CommandLine.OSX
 
             Log.Info("Creating '.app' directory structure");
             var builder = new StructureBuilder(packId, releaseDir.FullName);
-            if (Directory.Exists(builder.AppDirectory)) Utility.DeleteFileOrDirectoryHard(builder.AppDirectory);
+            if (Directory.Exists(builder.AppDirectory)) {
+                Log.Warn(builder.AppDirectory + " already exists, deleting...");
+                Utility.DeleteFileOrDirectoryHard(builder.AppDirectory);
+            }
+
             builder.Build();
 
             Log.Info("Writing Info.plist");
@@ -66,6 +70,8 @@ namespace Squirrel.CommandLine.OSX
 
             Log.Info("Copying application files into new '.app' bundle");
             Utility.CopyFiles(new DirectoryInfo(packDirectory), new DirectoryInfo(builder.MacosDirectory));
+
+            Log.Info("Bundle created successfully: " + builder.AppDirectory);
         }
 
         public static void Releasify(ReleasifyOsxCommand options)
@@ -86,16 +92,25 @@ namespace Squirrel.CommandLine.OSX
                 throw new Exception("Invalid bundle structure (missing Info.plist)");
 
             NSDictionary rootDict = (NSDictionary) PropertyListParser.Parse(plistPath);
-            var packId = rootDict.ObjectForKey(nameof(AppInfo.SQPackId)).ToString();
+            var packId = rootDict.ObjectForKey(nameof(AppInfo.SQPackId))?.ToString();
             if (String.IsNullOrWhiteSpace(packId))
-                packId = rootDict.ObjectForKey(nameof(AppInfo.CFBundleIdentifier)).ToString();
+                packId = rootDict.ObjectForKey(nameof(AppInfo.CFBundleIdentifier))?.ToString();
 
-            var packAuthors = rootDict.ObjectForKey(nameof(AppInfo.SQPackAuthors)).ToString();
-            if (String.IsNullOrWhiteSpace(packId))
+            var packAuthors = rootDict.ObjectForKey(nameof(AppInfo.SQPackAuthors))?.ToString();
+            if (String.IsNullOrWhiteSpace(packAuthors))
                 packAuthors = packId;
 
-            var packTitle = rootDict.ObjectForKey(nameof(AppInfo.CFBundleName)).ToString();
-            var packVersion = rootDict.ObjectForKey(nameof(AppInfo.CFBundleVersion)).ToString();
+            var packTitle = rootDict.ObjectForKey(nameof(AppInfo.CFBundleName))?.ToString();
+            var packVersion = rootDict.ObjectForKey(nameof(AppInfo.CFBundleVersion))?.ToString();
+
+            if (String.IsNullOrWhiteSpace(packId))
+                throw new InvalidOperationException($"Invalid CFBundleIdentifier in Info.plist: '{packId}'");
+
+            if (String.IsNullOrWhiteSpace(packTitle))
+                throw new InvalidOperationException($"Invalid CFBundleName in Info.plist: '{packTitle}'");
+
+            if (String.IsNullOrWhiteSpace(packVersion) || !NuGetVersion.TryParse(packVersion, out var _))
+                throw new InvalidOperationException($"Invalid CFBundleVersion in Info.plist: '{packVersion}'");
 
             Log.Info($"Package valid: '{packId}', Name: '{packTitle}', Version: {packVersion}");
 
@@ -106,9 +121,9 @@ namespace Squirrel.CommandLine.OSX
 
             // nuspec and UpdateMac need to be in contents dir or this package can't update
             File.WriteAllText(nuspecPath, nuspecText);
-            File.Copy(HelperExe.UpdateMacPath, Path.Combine(contentsDir, "UpdateMac"));
+            File.Copy(HelperExe.UpdateMacPath, Path.Combine(contentsDir, "UpdateMac"), true);
 
-            var zipPath = Path.Combine(releaseDir.FullName, packId + ".zip");
+            var zipPath = Path.Combine(releaseDir.FullName, $"{packId}-{options.TargetRuntime.StringWithNoVersion}.zip");
             if (File.Exists(zipPath)) File.Delete(zipPath);
 
             // code signing all mach-o binaries
@@ -129,9 +144,11 @@ namespace Squirrel.CommandLine.OSX
             }
 
             // create a portable zip package from signed/notarized bundle
+            Log.Info("Creating final application artifact (zip)");
             if (SquirrelRuntimeInfo.IsOSX) {
                 HelperExe.CreateDittoZip(appBundlePath, zipPath);
             } else {
+                Log.Warn("Could not create executable zip with ditto. Only supported on OSX.");
                 EasyZip.CreateZipFromDirectory(zipPath, appBundlePath, nestDirectory: true);
             }
 
@@ -141,9 +158,11 @@ namespace Squirrel.CommandLine.OSX
             var nupkgPath = NugetConsole.CreatePackageFromNuspecPath(tmp, appBundlePath, nuspecPath);
 
             var releaseFilePath = Path.Combine(releaseDir.FullName, "RELEASES");
-            var releases = new List<ReleaseEntry>();
-            if (File.Exists(releaseFilePath)) {
-                releases.AddRange(ReleaseEntry.ParseReleaseFile(File.ReadAllText(releaseFilePath, Encoding.UTF8)));
+            var releases = new Dictionary<string, ReleaseEntry>();
+
+            ReleaseEntry.BuildReleasesFile(releaseDir.FullName);
+            foreach (var rel in ReleaseEntry.ParseReleaseFile(File.ReadAllText(releaseFilePath, Encoding.UTF8))) {
+                releases[rel.Filename] = rel;
             }
 
             var rp = new ReleasePackageBuilder(nupkgPath);
@@ -151,16 +170,19 @@ namespace Squirrel.CommandLine.OSX
             var newPkgPath = rp.CreateReleasePackage((i, pkg) => Path.Combine(releaseDir.FullName, suggestedName));
 
             Log.Info("Creating Delta Packages");
-            var prev = ReleasePackageBuilder.GetPreviousRelease(releases, rp, releaseDir.FullName, options.TargetRuntime);
+            var prev = ReleasePackageBuilder.GetPreviousRelease(releases.Values, rp, releaseDir.FullName, options.TargetRuntime);
             if (prev != null && !options.NoDelta) {
                 var deltaBuilder = new DeltaPackageBuilder();
                 var deltaFile = rp.ReleasePackageFile.Replace("-full", "-delta");
                 var dp = deltaBuilder.CreateDeltaPackage(prev, rp, deltaFile);
-                releases.Add(ReleaseEntry.GenerateFromFile(deltaFile));
+                var deltaEntry = ReleaseEntry.GenerateFromFile(deltaFile);
+                releases[deltaEntry.Filename] = deltaEntry;
             }
 
-            releases.Add(ReleaseEntry.GenerateFromFile(newPkgPath));
-            ReleaseEntry.WriteReleaseFile(releases, releaseFilePath);
+            var fullEntry = ReleaseEntry.GenerateFromFile(newPkgPath);
+            releases[fullEntry.Filename] = fullEntry;
+
+            ReleaseEntry.WriteReleaseFile(releases.Values, releaseFilePath);
 
             // create installer package, sign and notarize
             if (!options.NoPackage) {
