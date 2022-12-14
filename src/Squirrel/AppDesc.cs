@@ -26,7 +26,7 @@ namespace Squirrel
             if (SquirrelRuntimeInfo.IsOSX)
                 return new AppDescOsx();
 
-            throw new NotSupportedException($"OS platform '{SquirrelRuntimeInfo.SystemOsName}' is not supported.");
+            throw new NotSupportedException($"OS platform '{SquirrelRuntimeInfo.SystemOs.GetOsLongName()}' is not supported.");
         }
 
         /// <summary>
@@ -88,9 +88,9 @@ namespace Squirrel
         internal List<(string PackagePath, SemanticVersion PackageVersion, bool IsDelta)> GetLocalPackages()
         {
             var query = from x in Directory.EnumerateFiles(PackagesDir, "*.nupkg")
-                let re = ReleaseEntry.ParseEntryFileName(x)
-                where re.Version != null
-                select (x, re.Version, re.IsDelta);
+                        let re = ReleaseEntry.ParseEntryFileName(x)
+                        where re.Version != null
+                        select (x, re.Version, re.IsDelta);
             return query.ToList();
         }
 
@@ -262,7 +262,7 @@ namespace Squirrel
 
         /// <inheritdoc />
         public override bool IsUpdateExe { get; }
-        
+
         /// <summary> True if Update.exe is currently performing first app install. </summary>
         public bool IsInstalling { get; }
 

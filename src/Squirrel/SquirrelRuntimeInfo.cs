@@ -4,7 +4,6 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using NuGet.Versioning;
-using Squirrel.SimpleSplat;
 
 #if !NETFRAMEWORK
 using InteropArchitecture = System.Runtime.InteropServices.Architecture;
@@ -56,6 +55,22 @@ namespace Squirrel
         arm64 = 0xAA64,
     }
 
+    /// <summary> The Runtime OS </summary>
+    public enum RuntimeOs
+    {
+        /// <summary> Unknown or unsupported </summary>
+        Unknown = 0,
+
+        /// <summary> Windows </summary>
+        Windows = 1,
+
+        /// <summary> Linux </summary>
+        Linux = 2,
+
+        /// <summary> OSX </summary>
+        OSX = 3,
+    }
+
     /// <summary>
     /// Convenience class which provides runtime information about the current executing process, 
     /// in a way that is safe in older and newer versions of the framework.
@@ -81,22 +96,25 @@ namespace Squirrel
         public static bool IsSingleFile { get; }
 
         /// <summary> The current machine architecture, ignoring the current process / pe architecture. </summary>
-        public static RuntimeCpu SystemArchitecture { get; private set; }
+        public static RuntimeCpu SystemArch { get; private set; }
 
         /// <summary> The name of the current OS - eg. 'windows', 'linux', or 'osx'. </summary>
-        public static string SystemOsName { get; private set; }
+        public static RuntimeOs SystemOs { get; private set; }
+
+        /// <summary> The current system RID. </summary>
+        public static string SystemRid => $"{SystemOs.GetOsShortName()}-{SystemArch}";
 
         /// <summary> True if executing on a Windows platform. </summary>
         [SupportedOSPlatformGuard("windows")]
-        public static bool IsWindows => SystemOsName == "windows";
+        public static bool IsWindows => SystemOs == RuntimeOs.Windows;
 
         /// <summary> True if executing on a Linux platform. </summary>
         [SupportedOSPlatformGuard("linux")]
-        public static bool IsLinux => SystemOsName == "linux";
+        public static bool IsLinux => SystemOs == RuntimeOs.Linux;
 
         /// <summary> True if executing on a MacOS / OSX platform. </summary>
         [SupportedOSPlatformGuard("osx")]
-        public static bool IsOSX => SystemOsName == "osx";
+        public static bool IsOSX => SystemOs == RuntimeOs.OSX;
 
         /// <summary> The <see cref="StringComparer"/> that should be used when comparing local file-system paths. </summary>
         public static StringComparer PathStringComparer =>
@@ -105,8 +123,6 @@ namespace Squirrel
         /// <summary> The <see cref="StringComparison"/> that should be used when comparing local file-system paths. </summary>
         public static StringComparison PathStringComparison =>
             IsWindows ? StringComparison.InvariantCultureIgnoreCase : StringComparison.InvariantCulture;
-
-        private static IFullLogger Log => SquirrelLocator.Current.GetService<ILogManager>().GetLogger(typeof(SquirrelRuntimeInfo));
 
         static SquirrelRuntimeInfo()
         {
@@ -139,6 +155,32 @@ namespace Squirrel
 #endif
         }
 
+        /// <summary>
+        /// Returns the shortened OS name as a string, suitable for creating an RID.
+        /// </summary>
+        public static string GetOsShortName(this RuntimeOs os)
+        {
+            return os switch {
+                RuntimeOs.Windows => "win",
+                RuntimeOs.Linux => "linux",
+                RuntimeOs.OSX => "osx",
+                _ => "",
+            };
+        }
+
+        /// <summary>
+        /// Returns the long OS name, suitable for showing to a human.
+        /// </summary>
+        public static string GetOsLongName(this RuntimeOs os)
+        {
+            return os switch {
+                RuntimeOs.Windows => "Windows",
+                RuntimeOs.Linux => "Linux",
+                RuntimeOs.OSX => "OSX",
+                _ => "",
+            };
+        }
+
         [DllImport("kernel32", EntryPoint = "IsWow64Process2", SetLastError = true)]
         private static extern bool IsWow64Process2(IntPtr hProcess, out ushort pProcessMachine, out ushort pNativeMachine);
 
@@ -147,7 +189,7 @@ namespace Squirrel
 
         private static void CheckArchitectureWindows()
         {
-            SystemOsName = "windows";
+            SystemOs = RuntimeOs.Windows;
 
             // find the actual OS architecture. We can't rely on the framework alone for this on Windows
             // because Wow64 virtualisation is good enough to trick us to believing we're running natively
@@ -156,14 +198,14 @@ namespace Squirrel
             try {
                 if (IsWow64Process2(GetCurrentProcess(), out var _, out var nativeMachine)) {
                     if (Utility.TryParseEnumU16<RuntimeCpu>(nativeMachine, out var val)) {
-                        SystemArchitecture = val;
+                        SystemArch = val;
                     }
                 }
             } catch {
                 // don't care if this function is missing
             }
 
-            if (SystemArchitecture != RuntimeCpu.Unknown) {
+            if (SystemArch != RuntimeCpu.Unknown) {
                 return;
             }
 
@@ -175,20 +217,20 @@ namespace Squirrel
             if (!String.IsNullOrEmpty(pf64compat)) {
                 switch (pf64compat) {
                 case "ARM64":
-                    SystemArchitecture = RuntimeCpu.arm64;
+                    SystemArch = RuntimeCpu.arm64;
                     break;
                 case "AMD64":
-                    SystemArchitecture = RuntimeCpu.x64;
+                    SystemArch = RuntimeCpu.x64;
                     break;
                 }
             }
 
-            if (SystemArchitecture != RuntimeCpu.Unknown) {
+            if (SystemArch != RuntimeCpu.Unknown) {
                 return;
             }
 
 #if NETFRAMEWORK
-            SystemArchitecture = Environment.Is64BitOperatingSystem ? RuntimeCpu.x64 : RuntimeCpu.x86;
+            SystemArch = Environment.Is64BitOperatingSystem ? RuntimeCpu.x64 : RuntimeCpu.x86;
 #else
             CheckArchitectureOther();
 #endif
@@ -198,14 +240,14 @@ namespace Squirrel
         private static void CheckArchitectureOther()
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
-                SystemOsName = "windows";
+                SystemOs = RuntimeOs.Windows;
             } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) {
-                SystemOsName = "linux";
+                SystemOs = RuntimeOs.Linux;
             } else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
-                SystemOsName = "osx";
+                SystemOs = RuntimeOs.OSX;
             }
 
-            SystemArchitecture = RuntimeInformation.OSArchitecture switch {
+            SystemArch = RuntimeInformation.OSArchitecture switch {
                 InteropArchitecture.X86 => RuntimeCpu.x86,
                 InteropArchitecture.X64 => RuntimeCpu.x64,
                 InteropArchitecture.Arm64 => RuntimeCpu.arm64,

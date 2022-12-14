@@ -230,15 +230,15 @@ namespace Squirrel
                 // TODO use IsWindowsVersionOrGreater function to verify it can be installed on this machine
 
                 // arm64 windows supports everything
-                if (SquirrelRuntimeInfo.SystemArchitecture == RuntimeCpu.arm64)
+                if (SquirrelRuntimeInfo.SystemArch == RuntimeCpu.arm64)
                     return Task.FromResult(true);
 
                 // if the desired architecture is same as system
-                if (SquirrelRuntimeInfo.SystemArchitecture == CpuArchitecture)
+                if (SquirrelRuntimeInfo.SystemArch == CpuArchitecture)
                     return Task.FromResult(true);
 
                 // x64 also supports x86
-                if (SquirrelRuntimeInfo.SystemArchitecture == RuntimeCpu.x64 && CpuArchitecture == RuntimeCpu.x86)
+                if (SquirrelRuntimeInfo.SystemArch == RuntimeCpu.x64 && CpuArchitecture == RuntimeCpu.x86)
                     return Task.FromResult(true);
 
                 return Task.FromResult(false);
@@ -263,7 +263,7 @@ namespace Squirrel
             [SupportedOSPlatform("windows")]
             private static string GetDotnetBaseDir(RuntimeCpu runtime)
             {
-                var system = SquirrelRuntimeInfo.SystemArchitecture;
+                var system = SquirrelRuntimeInfo.SystemArch;
                 var pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
 
                 if (runtime == RuntimeCpu.x86)
@@ -474,15 +474,15 @@ namespace Squirrel
                 // TODO use IsWindowsVersionOrGreater function to verify it can be installed on this machine
 
                 // arm64 windows supports everything
-                if (SquirrelRuntimeInfo.SystemArchitecture == RuntimeCpu.arm64)
+                if (SquirrelRuntimeInfo.SystemArch == RuntimeCpu.arm64)
                     return Task.FromResult(true);
 
                 // if the desired architecture is same as system
-                if (SquirrelRuntimeInfo.SystemArchitecture == CpuArchitecture)
+                if (SquirrelRuntimeInfo.SystemArch == CpuArchitecture)
                     return Task.FromResult(true);
 
                 // x64 also supports x86
-                if (SquirrelRuntimeInfo.SystemArchitecture == RuntimeCpu.x64 && CpuArchitecture == RuntimeCpu.x86)
+                if (SquirrelRuntimeInfo.SystemArch == RuntimeCpu.x64 && CpuArchitecture == RuntimeCpu.x86)
                     return Task.FromResult(true);
 
                 return Task.FromResult(false);

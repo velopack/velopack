@@ -35,7 +35,7 @@ namespace Squirrel.CommandLine
 
             ParseResult parseResult = platformRootCommand.Parse(args);
 
-            string xplat = parseResult.GetValueForOption(TargetRuntime) ?? SquirrelRuntimeInfo.SystemOsName;
+            string xplat = parseResult.GetValueForOption(TargetRuntime) ?? SquirrelRuntimeInfo.SystemOs.GetOsShortName();
             bool verbose = parseResult.GetValueForOption(VerboseOption);
             if (parseResult.GetValueForOption(AddSearchPathOption) is { } searchPath) {
                 foreach (var v in searchPath) {
