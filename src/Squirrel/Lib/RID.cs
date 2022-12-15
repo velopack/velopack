@@ -1,4 +1,5 @@
-﻿// https://github.com/dotnet/runtime/tree/main/src/libraries/Microsoft.NETCore.Platforms
+﻿#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+// https://github.com/dotnet/runtime/tree/main/src/libraries/Microsoft.NETCore.Platforms
 
 using System;
 using System.Diagnostics;

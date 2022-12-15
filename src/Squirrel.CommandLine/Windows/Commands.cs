@@ -254,10 +254,9 @@ namespace Squirrel.CommandLine.Windows
                 Log.Warn($"DEBUG OPTION: Setup bundle copied on top of '{options.DebugSetupExe}'. Recompile before creating a new bundle.");
             }
 
-            if (!String.IsNullOrEmpty(options.BuildMsi)) {
+            if (options.BuildMsi) {
                 if (SquirrelRuntimeInfo.IsWindows) {
-                    bool x64 = options.BuildMsi.Equals("x64");
-                    var msiPath = createMsiPackage(targetSetupExe, bundledzp, x64, options.MsiVersion);
+                    var msiPath = createMsiPackage(targetSetupExe, bundledzp, options.TargetRuntime.Architecture == RuntimeCpu.x64, options.MsiVersion);
                     setupFilesToSign.Add(msiPath);
                 } else {
                     Log.Warn("Unable to create MSI (only supported on windows).");

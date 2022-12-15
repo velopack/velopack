@@ -193,19 +193,6 @@ namespace Squirrel.CommandLine.Tests.Commands
             //Assert.Equal(command.AppIcon, parseResult.Errors[0].SymbolResult?.Symbol.Parents.Single());
             Assert.Contains(file, parseResult.Errors[0].Message);
         }
-
-        [WindowsOnlyTheory]
-        [InlineData("x86")]
-        [InlineData("x64")]
-        public void BuildMsi_WithBitness_ParsesValue(string bitness)
-        {
-            var command = new T();
-
-            string cli = GetRequiredDefaultOptions() + $"--msi \"{bitness}\"";
-            ParseResult parseResult = command.ParseAndApply(cli);
-
-            Assert.Equal(bitness, command.BuildMsi);
-        }
     }
 
     public class ReleasifyWindowsCommandTests : ReleaseCommandTests<ReleasifyWindowsCommand>

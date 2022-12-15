@@ -61,7 +61,7 @@ namespace Squirrel.CommandLine.Commands
 
         public string AppIcon { get; private set; }
 
-        public string BuildMsi { get; private set; }
+        public bool BuildMsi { get; private set; }
 
         public string MsiVersion { get; private set; }
 
@@ -126,9 +126,8 @@ namespace Squirrel.CommandLine.Commands
                 .RequiresExtension(".ico");
 
             if (SquirrelRuntimeInfo.IsWindows) {
-
-                AddOption<string>((v) => BuildMsi = v, "--msi")
-                    .SetDescription("Compile a .msi machine-wide deployment tool with the specified bitness.")
+                AddOption<bool>((v) => BuildMsi = v, "--msi")
+                    .SetDescription("Compile a .msi machine-wide deployment tool.")
                     .SetArgumentHelpName("BITNESS");
 
                 AddOption<string>((v) => MsiVersion = v, "--msiVersion")
