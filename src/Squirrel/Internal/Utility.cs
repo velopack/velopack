@@ -402,12 +402,12 @@ namespace Squirrel
 
                     // Directory.CreateDirectory will work even if the directory already exists. If two instances of 
                     // Squirrel attempt to create the same temp directory at the same time, they can end up reading
-                    // and writing on top of each other. So, here we create a new file in the temp folder we've selected
-                    // and attempt to open it exclusively. This will act like a mutex as only one Squirre instance will
-                    // be able to open this file. 
+                    // and writing on top of each other. So, here we create a new file of the same name as the temp
+                    // folder we've selected and attempt to open it exclusively. This will act like a mutex as only
+                    // one Squirrel instance will be able to open this file. 
 
                     try {
-                        folderMutex = File.Create(Path.Combine(tempDir.FullName, "lock"), 1, FileOptions.DeleteOnClose);
+                        folderMutex = File.Create(tempDir.FullName + "_lock", 1, FileOptions.DeleteOnClose);
                         break;
                     } catch (IOException ex) {
                         Log().WarnException($"Selected temp folder '{tempDir.FullName}' but unable to open file mutex.", ex);
