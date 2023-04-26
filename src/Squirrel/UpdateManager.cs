@@ -8,8 +8,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Win32;
 using Squirrel.NuGet;
-using Squirrel.SimpleSplat;
 using Squirrel.Shell;
+using Squirrel.SimpleSplat;
 using Squirrel.Sources;
 
 namespace Squirrel
@@ -323,7 +323,7 @@ namespace Squirrel
             var argsArg = arguments != null ?
                 String.Format("-a \"{0}\"", arguments) : "";
 
-            var updateProcess = Process.Start(getUpdateExe(), String.Format("--processStartAndWait {0} {1}", exeToStart, argsArg));
+            var updateProcess = Process.Start(getUpdateExe(), String.Format("--processStartAndWait \"{0}\" {1}", exeToStart, argsArg));
 
             await Task.Delay(500).ConfigureAwait(false);
 
