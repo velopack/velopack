@@ -242,9 +242,9 @@ namespace Squirrel.CommandLine.Windows
 
             Log.Info($"Creating Setup bundle");
             var bundleOffset = SetupBundle.CreatePackageBundle(targetSetupExe, newestReleasePath);
+            Log.Info("Signing Setup bundle");
+            signFiles(options, targetDir, targetSetupExe);
             Log.Info("Bundle package offset is " + bundleOffset);
-
-            List<string> setupFilesToSign = new() { targetSetupExe };
 
             Log.Info($"Setup bundle created at '{targetSetupExe}'.");
 
@@ -257,13 +257,12 @@ namespace Squirrel.CommandLine.Windows
             if (options.BuildMsi) {
                 if (SquirrelRuntimeInfo.IsWindows) {
                     var msiPath = createMsiPackage(targetSetupExe, bundledzp, options.TargetRuntime.Architecture == RuntimeCpu.x64, options.MsiVersion);
-                    setupFilesToSign.Add(msiPath);
+                    Log.Info("Signing MSI package");
+                    signFiles(options, targetDir, msiPath);
                 } else {
                     Log.Warn("Unable to create MSI (only supported on windows).");
                 }
             }
-
-            signFiles(options, targetDir, setupFilesToSign.ToArray());
 
             Log.Info("Done");
         }
