@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.Contracts;
@@ -391,25 +391,42 @@ namespace Squirrel
 
             var names = Enumerable.Range(0, 1 << 20).Select(x => tempNameForIndex(x, "temp"));
 
+            IDisposable folderMutex = null;
+
             foreach (var name in names) {
                 var target = Path.Combine(di.FullName, name);
 
                 if (!File.Exists(target) && !Directory.Exists(target)) {
                     Directory.CreateDirectory(target);
                     tempDir = new DirectoryInfo(target);
-                    break;
+
+                    // Directory.CreateDirectory will work even if the directory already exists. If two instances of 
+                    // Squirrel attempt to create the same temp directory at the same time, they can end up reading
+                    // and writing on top of each other. So, here we create a new file in the temp folder we've selected
+                    // and attempt to open it exclusively. This will act like a mutex as only one Squirre instance will
+                    // be able to open this file. 
+
+                    try {
+                        folderMutex = File.Create(Path.Combine(tempDir.FullName, "lock"), 1, FileOptions.DeleteOnClose);
+                        break;
+                    } catch (IOException ex) {
+                        Log().WarnException($"Selected temp folder '{tempDir.FullName}' but unable to open file mutex.", ex);
+                    }
                 }
             }
 
             path = tempDir.FullName;
 
-            return Disposable.Create(() => DeleteFileOrDirectoryHardOrGiveUp(tempDir.FullName));
+            return Disposable.Create(() => {
+                folderMutex?.Dispose();
+                DeleteFileOrDirectoryHardOrGiveUp(tempDir.FullName);
+            });
         }
 
         public static IDisposable WithTempFile(out string path, string localAppDirectory = null)
         {
             var di = GetTempDirectory(localAppDirectory);
-            var names = Enumerable.Range(0, 1 << 20).Select(x => tempNameForIndex(x, "temp"));
+            var names = Enumerable.Range(0, 1 << 20).Select(x => tempNameForIndex(x, "tempfile"));
 
             path = "";
             foreach (var name in names) {
