@@ -17,31 +17,47 @@
     <iconUrl>https://user-images.githubusercontent.com/1287295/131249078-9e131e51-0b66-4dc7-8c0a-99cbea6bcf80.png</iconUrl>
 
     <dependencies>
+      <group targetFramework=".NETFramework4.6">
+        <dependency id="SharpCompress" version="0.26.0" exclude="Build,Analyzers" />
+        <dependency id="System.ValueTuple" version="4.5.0" exclude="Build,Analyzers" />
+      </group>
       <group targetFramework=".NETFramework4.6.1">
-        <dependency id="SharpCompress" version="0.31.0" />
-        <dependency id="System.ValueTuple" version="4.5.0" />
+        <dependency id="SharpCompress" version="0.32.2" exclude="Build,Analyzers" />
+        <dependency id="System.ValueTuple" version="4.5.0" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETFramework4.6.2">
+        <dependency id="SharpCompress" version="0.33.0" exclude="Build,Analyzers" />
+        <dependency id="System.ValueTuple" version="4.5.0" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETFramework4.8">
+        <dependency id="SharpCompress" version="0.33.0" exclude="Build,Analyzers" />
+        <dependency id="System.ValueTuple" version="4.5.0" exclude="Build,Analyzers" />
       </group>
       <group targetFramework="net5.0">
-        <dependency id="Microsoft.Win32.Registry" version="5.0.0" />
-        <dependency id="SharpCompress" version="0.31.0" />
+        <dependency id="Microsoft.Win32.Registry" version="5.0.0" exclude="Build,Analyzers" />
+        <dependency id="SharpCompress" version="0.33.0" exclude="Build,Analyzers" />
       </group>
       <group targetFramework="net6.0">
-        <dependency id="SharpCompress" version="0.31.0" />
+        <dependency id="SharpCompress" version="0.33.0" exclude="Build,Analyzers" />
       </group>
       <group targetFramework=".NETStandard2.0">
-        <dependency id="Microsoft.Win32.Registry" version="5.0.0" />
-        <dependency id="SharpCompress" version="0.31.0" />
+        <dependency id="Microsoft.Win32.Registry" version="5.0.0" exclude="Build,Analyzers" />
+        <dependency id="SharpCompress" version="0.33.0" exclude="Build,Analyzers" />
       </group>
     </dependencies>
+    
     <frameworkAssemblies>
-      <frameworkAssembly assemblyName="System.Net.Http" targetFramework=".NETFramework4.6.1" />
-      <frameworkAssembly assemblyName="System.Web" targetFramework=".NETFramework4.6.1" />
+      <frameworkAssembly assemblyName="System.Net.Http" targetFramework=".NETFramework4.6, .NETFramework4.6.1, .NETFramework4.6.2, .NETFramework4.8" />
+      <frameworkAssembly assemblyName="System.Web" targetFramework=".NETFramework4.6, .NETFramework4.6.1, .NETFramework4.6.2, .NETFramework4.8" />
     </frameworkAssemblies>
 
   </metadata>
   <files>
     <!-- Include all target frameworks -->
+    <file src="..\build\Release\net46\SquirrelLib.*" target="lib\net46" />
     <file src="..\build\Release\net461\SquirrelLib.*" target="lib\net461" />
+    <file src="..\build\Release\net462\SquirrelLib.*" target="lib\net462" />
+    <file src="..\build\Release\net48\SquirrelLib.*" target="lib\net48" />
     <file src="..\build\Release\net5.0\SquirrelLib.*" target="lib\net5.0" />
     <file src="..\build\Release\net6.0\SquirrelLib.*" target="lib\net6.0" />
     <file src="..\build\Release\netstandard2.0\SquirrelLib.*" target="lib\netstandard2.0" />
