@@ -99,7 +99,7 @@ namespace Squirrel.CommandLine.Windows
                     // do not allow the creation of packages without a SquirrelAwareApp inside
                     if (!awareExes.Any()) {
                         throw new ArgumentException(
-                            "There are no SquirreAwareApps in the provided package. Please mark an exe " +
+                            "There are no SquirrelAwareApps in the provided package. Please mark an exe " +
                             "as aware using the '-e' argument, or the assembly manifest.");
                     }
 
