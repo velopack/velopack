@@ -99,7 +99,7 @@ namespace Squirrel.CommandLine.Windows
                     // do not allow the creation of packages without a SquirrelAwareApp inside
                     if (!awareExes.Any()) {
                         throw new ArgumentException(
-                            "There are no SquirreAwareApp's in the provided package. Please mark an exe " +
+                            "There are no SquirreAwareApps in the provided package. Please mark an exe " +
                             "as aware using the '-e' argument, or the assembly manifest.");
                     }
 
@@ -134,12 +134,12 @@ namespace Squirrel.CommandLine.Windows
                                  select new { Name = Path.GetFileName(pe.Key), Architecture = arch };
 
                     if (awareExes.Count > 0) {
-                        Log.Info($"There are {awareExes.Count} SquirrelAwareApp's. Binaries will be executed during install/update/uninstall hooks.");
+                        Log.Info($"There are {awareExes.Count} SquirrelAwareApps. Binaries will be executed during install/update/uninstall hooks.");
                         foreach (var pe in peArch) {
                             Log.Info($"  Detected SquirrelAwareApp '{pe.Name}' (arch: {pe.Architecture})");
                         }
                     } else {
-                        Log.Warn("There are no SquirrelAwareApp's. No hooks will be executed during install/update/uninstall. " +
+                        Log.Warn("There are no SquirrelAwareApps. No hooks will be executed during install/update/uninstall. " +
                                  "Shortcuts will be created for every binary in package.");
                     }
 
