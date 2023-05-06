@@ -155,7 +155,7 @@ namespace Squirrel.CommandLine
             {
                 for (int i = 0; i < result.Tokens.Count; i++) {
                     if (int.TryParse(result.Tokens[i].Value, out int value)) {
-                        if (value is < 1 or > 1000) {
+                        if (value < minimum || value > maximum) {
                             result.ErrorMessage = $"The value for {result.Token.Value} must be greater than {minimum} and less than {maximum}";
                             break;
                         }
