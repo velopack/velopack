@@ -152,14 +152,12 @@ namespace Squirrel
         public class DotnetInfo : RuntimeInfo
         {
             /// <inheritdoc/>
-            public override string Id => MinVersion.Major >= 5
-                ? $"net{TrimVersion(MinVersion)}-{CpuArchitecture.ToString().ToLower()}"
-                : $"netcoreapp{TrimVersion(MinVersion)}-{CpuArchitecture.ToString().ToLower()}";
+            public override string Id =>
+                             $"{(MinVersion.Major >= 5 ? "net" : "netcoreapp")}{TrimVersion(MinVersion)}-{CpuArchitecture.ToString().ToLower()}-{_runtimeShortForm[RuntimeType]}";
 
             /// <inheritdoc/>
-            public override string DisplayName => MinVersion.Major >= 5
-                ? $".NET {TrimVersion(MinVersion)} Desktop Runtime ({CpuArchitecture.ToString().ToLower()})"
-                : $".NET Core {TrimVersion(MinVersion)} Desktop Runtime ({CpuArchitecture.ToString().ToLower()})";
+            public override string DisplayName =>
+                 $"{(MinVersion.Major >= 5 ? ".NET" : ".NET Core")} {TrimVersion(MinVersion)} {RuntimeType} ({CpuArchitecture.ToString().ToLower()})";
 
             /// <summary> The minimum compatible version that must be installed. </summary>
             public SemanticVersion MinVersion { get; }
