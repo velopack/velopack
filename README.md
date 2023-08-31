@@ -89,7 +89,7 @@ Note: In newer .NET Core versions you first need to add the Application Manifest
    }
    ```
    
-   When installed, uninstalled or updated, these methods will be executed, giving your app a chance to add or remove application shortcuts or perform other tasks. 
+   When installed, uninstalled or updated, these methods will be executed, giving your app a chance to add or remove application shortcuts or perform other tasks. You should not update your app from the hooks.
 
 4. Build/Publish your app (with `msbuild`, `dotnet publish` or similar)
 
