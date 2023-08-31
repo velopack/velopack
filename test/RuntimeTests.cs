@@ -23,6 +23,10 @@ namespace Squirrel.Tests
         [InlineData("net6.0.2-x86", "net6.0.2-x86")]
         [InlineData("net6.0.1-x86", "net6.0.1-x86")]
         [InlineData("net6.0.0", "net6-x64")]
+        [InlineData("net6.0-x64-desktop", "net6.0.2-x64-desktop")]
+        [InlineData("net7.0-x64-base", "net7-x64-base")]
+        [InlineData("net7.0-x64-asp", "net7-x64-asp")]
+        [InlineData("net7.0-x64-sdk", "net7-x64-sdk")]
         public void DotnetParsesValidVersions(string input, string expected)
         {
             var p = Runtimes.DotnetInfo.Parse(input);
@@ -33,6 +37,8 @@ namespace Squirrel.Tests
         [InlineData("net3.2")]
         [InlineData("net4.9")]
         [InlineData("net6.0.0.4")]
+        [InlineData("net6-basd")]
+        [InlineData("net6-x64-aakaka")]
         public void DotnetParseThrowsInvalidVersion(string input)
         {
             Assert.ThrowsAny<Exception>(() => Runtimes.DotnetInfo.Parse(input));
@@ -54,6 +60,8 @@ namespace Squirrel.Tests
         [InlineData("asd", false)]
         [InlineData("", false)]
         [InlineData(null, false)]
+        [InlineData("net6-x64", true)]
+        [InlineData("net6-x64-sdk", true)]
         public void GetRuntimeTests(string input, bool expected)
         {
             var dn = Runtimes.GetRuntimeByName(input);
