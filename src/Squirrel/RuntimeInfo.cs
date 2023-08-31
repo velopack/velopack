@@ -281,14 +281,14 @@ namespace Squirrel
             /// <inheritdoc/>
             public override async Task<string> GetDownloadUrl()
             {
-                var latest = await GetLatestDotNetVersion(DotnetRuntimeType.WindowsDesktop, $"{MinVersion.Major}.{MinVersion.Minor}").ConfigureAwait(false);
+                var latest = await GetLatestDotNetVersion(RuntimeType, $"{MinVersion.Major}.{MinVersion.Minor}").ConfigureAwait(false);
                 var architecture = CpuArchitecture switch {
                     RuntimeCpu.x86 => "x86",
                     RuntimeCpu.x64 => "x64",
                     _ => throw new ArgumentOutOfRangeException(nameof(CpuArchitecture)),
                 };
 
-                return GetDotNetDownloadUrl(DotnetRuntimeType.WindowsDesktop, latest, architecture);
+                return GetDotNetDownloadUrl(RuntimeType, latest, architecture);
             }
 
             private static Regex _dotnetRegex = new Regex(@"^net(?:coreapp)?(?<version>[\d\.]{1,6})(?:-(?<arch>[\w\d]+))?(?:-(?<type>\w+))?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
