@@ -281,7 +281,7 @@ namespace Squirrel
             /// <inheritdoc/>
             public override async Task<string> GetDownloadUrl()
             {
-                var latest = await GetLatestDotNetVersion(RuntimeType, $"{MinVersion.Major}.{MinVersion.Minor}").ConfigureAwait(false);
+                var latest = await GetLatestDotNetVersion(DotnetRuntimeType.WindowsDesktop, $"{MinVersion.Major}.{MinVersion.Minor}").ConfigureAwait(false);
                 var architecture = CpuArchitecture switch {
                     RuntimeCpu.x86 => "x86",
                     RuntimeCpu.x64 => "x64",
