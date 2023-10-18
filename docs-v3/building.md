@@ -13,6 +13,7 @@ You can compile Squirrel on the command line, or via an alternative IDE like VSC
     - **Individual**: .NET Framework 4.6.1 targeting pack
 - [dotnet 5.0 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/5.0)
 - [dotnet 6.0 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/6.0)
+- dotnet tool install -g [nbgv](https://github.com/dotnet/Nerdbank.GitVersioning/blob/main/doc/nbgv-cli.md)
 
 ## Components
 - `/vendor` - third party binaries
