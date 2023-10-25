@@ -159,7 +159,7 @@ namespace Squirrel.Sources
         public Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress)
         {
             if (Release == null) {
-                throw new InvalidOperationException("No GiitLab Release specified. Call GetReleaseFeed or set " +
+                throw new InvalidOperationException("No GitLab Release specified. Call GetReleaseFeed or set " +
                     "GitLabSource.Release before calling this function.");
             }
 
@@ -172,12 +172,12 @@ namespace Squirrel.Sources
         {
             var releases = await GetReleases(UpcomingRelease).ConfigureAwait(false);
             if (releases == null || releases.Count() == 0)
-                throw new Exception($"No GitHub releases found at '{RepoUri}'.");
+                throw new Exception($"No Gitlab releases found at '{RepoUri}'.");
 
             // CS: we 'cache' the release here, so subsequent calls to DownloadReleaseEntry
             // will download assets from the same release in which we returned ReleaseEntry's
-            // from. A better architecture would be to return an array of "GithubReleaseEntry"
-            // containing a reference to the GithubReleaseAsset instead.
+            // from. A better architecture would be to return an array of "GitlabReleaseEntry"
+            // containing a reference to the GitlabReleaseAsset instead.
             Release = releases.First();
 
             var assetUrl = GetAssetUrlFromName(Release, "RELEASES");
@@ -196,7 +196,7 @@ namespace Squirrel.Sources
         {
             if (release.Assets == null || release.Assets.Count == 0) 
             {
-                throw new ArgumentException($"No assets found in Github Release '{release.Name}'.");
+                throw new ArgumentException($"No assets found in Gitlab Release '{release.Name}'.");
             }
 
             GitlabReleaseLink packageFile =
