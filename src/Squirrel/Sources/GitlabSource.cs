@@ -85,11 +85,10 @@ namespace Squirrel.Sources
 
         /// <summary>
         /// The category type that the asset is listed under.
-        /// Examples: 'Packages', 'Runbook', 'Other'
+        /// Options: 'Package', 'Image', 'Runbook', 'Other'
         /// </summary>
         [DataMember(Name = "link_type")]
         public string Type { get; set; }
-
     }
 
     /// <summary>
@@ -195,19 +194,24 @@ namespace Squirrel.Sources
         /// </summary>
         protected virtual string GetAssetUrlFromName(GitlabRelease release, string assetName)
         {
-            if (release.Assets == null || release.Assets.Count == 0) {
+            if (release.Assets == null || release.Assets.Count == 0) 
+            {
                 throw new ArgumentException($"No assets found in Github Release '{release.Name}'.");
             }
 
             GitlabReleaseLink packageFile =
                 release.Assets.Links.FirstOrDefault(a => a.Name.Equals(assetName, StringComparison.InvariantCultureIgnoreCase));
-            if (packageFile == null) {
+            if (packageFile == null) 
+            {
                 throw new ArgumentException($"Could not find asset called '{assetName}' in GitLab Release '{release.Name}'.");
             }
 
-            if (String.IsNullOrWhiteSpace(AccessToken)) {
+            if (String.IsNullOrWhiteSpace(AccessToken)) 
+            {
                 return packageFile.DirectAssetUrl;
-            } else {
+            } 
+            else 
+            {
                 return packageFile.Url;
             }
         }
