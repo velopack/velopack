@@ -486,7 +486,7 @@ namespace Squirrel.Update
                     Utility.AppDirForRelease(appDir, x),
                     Utility.AppDirForVersion(appDir, new SemanticVersion(x.Version.Version.Major, x.Version.Version.Minor, x.Version.Version.Build, ""))
                 })
-                .FirstOrDefault(x => Directory.Exists(x));
+                .FirstOrDefault(x => Directory.Exists(x) && !File.Exists(Path.Combine(x, ".not-finished")));
 
             // Check for the EXE name they want
             var targetExe = new FileInfo(Path.Combine(latestAppDir, exeName.Replace("%20", " ")));
