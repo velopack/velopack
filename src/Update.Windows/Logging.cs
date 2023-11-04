@@ -1,8 +1,11 @@
 ﻿using System;
 using System.IO;
+using NLog;
 using NLog.Config;
 using NLog.Targets;
 using Squirrel.SimpleSplat;
+using LogLevel = Squirrel.SimpleSplat.LogLevel;
+using ILogger = Squirrel.SimpleSplat.ILogger;
 
 namespace Squirrel.Update
 {
@@ -11,7 +14,7 @@ namespace Squirrel.Update
         public LogLevel Level { get; set; } = LogLevel.Info;
 
         public string LogFilePath { get; }
-        
+
         private readonly NLog.Logger _log;
 
         public SetupLogLogger(UpdateAction action)
@@ -24,30 +27,27 @@ namespace Squirrel.Update
                 action == UpdateAction.Setup ||
                 action == UpdateAction.Install;
 
-            var logDirectory = logToTemp 
-                ? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) 
+            var logDirectory = logToTemp
+                ? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)
                 : SquirrelRuntimeInfo.BaseDirectory;
             var logName = logToTemp ? "Squirrel.log" : $"Squirrel-{action}.log";
             var logArchiveName = logToTemp ? "Squirrel.{###}.log" : $"Squirrel-{action}.{{###}}.log";
 
             LogFilePath = Path.Combine(logDirectory, logName);
-            
-            // https://gist.github.com/chrisortman/1092889
-            SimpleConfigurator.ConfigureForTargetLogging(
-                new FileTarget() {
-                    FileName = LogFilePath,
-                    Layout = new NLog.Layouts.SimpleLayout("${longdate} [${level:uppercase=true}] - ${message}"),
-                    ArchiveFileName = Path.Combine(logDirectory, logArchiveName),
-                    ArchiveAboveSize = 1_000_000,
-                    ArchiveNumbering = ArchiveNumberingMode.Sequence,
-                    ConcurrentWrites = true, // should allow multiple processes to use the same file
-                    KeepFileOpen = true,
-                    MaxArchiveFiles = 1 ,
-                },
-                NLog.LogLevel.Debug
-            );
 
-            _log = NLog.LogManager.GetLogger("SetupLogLogger");
+            var fileTarget = new FileTarget() {
+                FileName = LogFilePath,
+                Layout = new NLog.Layouts.SimpleLayout("${longdate} [${level:uppercase=true}] - ${message}"),
+                ArchiveFileName = Path.Combine(logDirectory, logArchiveName),
+                ArchiveAboveSize = 1_000_000,
+                ArchiveNumbering = ArchiveNumberingMode.Sequence,
+                ConcurrentWrites = true, // should allow multiple processes to use the same file
+                KeepFileOpen = true,
+                MaxArchiveFiles = 1,
+            };
+
+            LogManager.Setup().LoadConfiguration(c => c.ForLogger(NLog.LogLevel.Debug).WriteTo(fileTarget));
+            _log = LogManager.GetLogger("SetupLogLogger");
         }
 
         public void Write(string message, LogLevel logLevel)

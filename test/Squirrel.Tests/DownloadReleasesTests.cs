@@ -16,7 +16,7 @@ namespace Squirrel.Tests
         [Fact(Skip = "Rewrite this to be an integration test")]
         public void ChecksumShouldFailIfFilesAreMissing()
         {
-            Assert.False(true, "Rewrite this to be an integration test");
+            Assert.Fail("Rewrite this to be an integration test");
 
             /*
             var filename = "Squirrel.Core.1.0.0.0.nupkg";
@@ -54,7 +54,7 @@ namespace Squirrel.Tests
         [Fact(Skip = "Rewrite this to be an integration test")]
         public void ChecksumShouldFailIfFilesAreBogus()
         {
-            Assert.False(true, "Rewrite this to be an integration test");
+            Assert.Fail("Rewrite this to be an integration test");
 
             /*
             var filename = "Squirrel.Core.1.0.0.0.nupkg";
@@ -94,7 +94,7 @@ namespace Squirrel.Tests
         [Fact(Skip = "Rewrite this to be an integration test")]
         public async Task DownloadReleasesFromHttpServerIntegrationTest()
         {
-            Assert.False(true, "Rewrite this to not use the SampleUpdatingApp");
+            Assert.Fail("Rewrite this to not use the SampleUpdatingApp");
 
             /*
             string tempDir = null;
@@ -148,7 +148,7 @@ namespace Squirrel.Tests
         [Fact(Skip = "Rewrite this to be an integration test")]
         public async Task DownloadReleasesFromFileDirectoryIntegrationTest()
         {
-            Assert.False(true, "Rewrite this to not use the SampleUpdatingApp");
+            Assert.Fail("Rewrite this to not use the SampleUpdatingApp");
 
             /*
             string tempDir = null;

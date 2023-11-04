@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.Http;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Squirrel.Tests
@@ -87,10 +88,10 @@ namespace Squirrel.Tests
         [InlineData("7.0", RuntimeCpu.x64, Runtimes.DotnetRuntimeType.WindowsDesktop)]
         [InlineData("7.0", RuntimeCpu.x64, Runtimes.DotnetRuntimeType.Runtime)]
         [InlineData("7.0", RuntimeCpu.x64, Runtimes.DotnetRuntimeType.AspNetCore)]
-        public void MicrosoftReturnsValidDotnetDownload(string minversion, RuntimeCpu architecture, Runtimes.DotnetRuntimeType runtimeType)
+        public async Task MicrosoftReturnsValidDotnetDownload(string minversion, RuntimeCpu architecture, Runtimes.DotnetRuntimeType runtimeType)
         {
             var dni = new Runtimes.DotnetInfo(minversion, architecture, runtimeType);
-            var url = dni.GetDownloadUrl().Result;
+            var url = await dni.GetDownloadUrl();
 
             Assert.Contains(minversion, url, StringComparison.OrdinalIgnoreCase);
             Assert.Contains(architecture.ToString(), url, StringComparison.OrdinalIgnoreCase);
@@ -103,7 +104,7 @@ namespace Squirrel.Tests
                 Assert.Matches(@"/windowsdesktop-runtime-\d", url);
 
             using var hc = new HttpClient();
-            var result = hc.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).Result;
+            var result = await hc.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
             result.EnsureSuccessStatusCode();
         }
     }

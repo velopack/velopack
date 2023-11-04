@@ -11,6 +11,7 @@ using Xunit;
 using Squirrel.Shell;
 using System.Collections.Generic;
 using Xunit.Abstractions;
+using System.Threading.Tasks;
 
 namespace Squirrel.Tests
 {
@@ -184,7 +185,7 @@ namespace Squirrel.Tests
         }
 
         [Fact(Skip = "Only really need to run this test after changes to FileDownloader")]
-        public void DownloaderReportsProgress()
+        public async Task DownloaderReportsProgress()
         {
             // this probably should use a local http server instead.
             const string testUrl = "http://speedtest.tele2.net/1MB.zip";
@@ -193,7 +194,7 @@ namespace Squirrel.Tests
 
             List<int> prog = new List<int>();
             using (Utility.GetTempFileName(out var tempPath))
-                dl.DownloadFile(testUrl, tempPath, prog.Add).Wait();
+                await dl.DownloadFile(testUrl, tempPath, prog.Add);
 
             Assert.True(prog.Count > 10);
             Assert.Equal(100, prog.Last());
