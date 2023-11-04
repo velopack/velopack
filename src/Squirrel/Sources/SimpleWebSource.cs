@@ -67,7 +67,6 @@ namespace Squirrel.Sources
             if (releaseEntry == null) throw new ArgumentNullException(nameof(releaseEntry));
             if (localFile == null) throw new ArgumentNullException(nameof(localFile));
 
-
             var releaseUri = releaseEntry.BaseUrl == null
                 ? releaseEntry.Filename
                 : Utility.AppendPathToUri(new Uri(releaseEntry.BaseUrl), releaseEntry.Filename).ToString();
@@ -79,7 +78,10 @@ namespace Squirrel.Sources
             // releaseUri can be a relative url (eg. "MyPackage.nupkg") or it can be an 
             // absolute url (eg. "https://example.com/MyPackage.nupkg"). In the former case
             var sourceBaseUri = Utility.EnsureTrailingSlash(BaseUri);
-            var source = new Uri(sourceBaseUri, releaseUri).ToString();
+
+            var source = Utility.IsHttpUrl(releaseUri) 
+                ? new Uri(sourceBaseUri, releaseUri).ToString()
+                : Utility.AppendPathToUri(sourceBaseUri, releaseUri).ToString();
 
             this.Log().Info($"Downloading '{releaseEntry.Filename}' from '{source}'.");
             return Downloader.DownloadFile(source, localFile, progress);

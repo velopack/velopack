@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web;
 using Squirrel.Tests.TestHelpers;
 using Xunit;
 
@@ -142,6 +143,36 @@ namespace Squirrel.Tests
 
             await source.DownloadReleaseEntry(releases[0], "test", null);
             Assert.Equal(baseUrl + "/" + releases[0].Filename, new Uri(dl.LastUrl).GetLeftPart(UriPartial.Path));
+        }
+
+        [Theory]
+        [InlineData("http://example.com", "MyPackage.nupkg", "http://example.com/MyPackage.nupkg")]
+        [InlineData("http://example.com?auth=hello", "MyPackage.nupkg", "http://example.com/MyPackage.nupkg?auth=hello")]
+        [InlineData("http://example.com?auth=hello", "https://my.packages.domain/MyPackage-1.0.0.nupkg", "https://my.packages.domain/MyPackage-1.0.0.nupkg")]
+        public async Task SimpleWebSourcePreservesQueryParametersAndAbsoluteReleaseUri(string baseUri, string releaseUri, string expectedPackageUrl)
+        {
+            var dl = new FakeDownloader();
+            var source = new Sources.SimpleWebSource(baseUri, dl);
+            var baseKvp = HttpUtility.ParseQueryString(new Uri(baseUri).Query);
+            var baseDict = baseKvp.AllKeys.Where(k => k != null).ToDictionary(k => k, k => baseKvp[k]);
+
+            var releaseEntry = $"94689fede03fed7ab59c24337673a27837f0c3ec {releaseUri} 1004502";
+            dl.MockedResponseBytes = Encoding.UTF8.GetBytes(releaseEntry);
+
+            var releases = await source.GetReleaseFeed();
+            var expected = new Uri(baseUri).GetLeftPart(UriPartial.Path).TrimEnd('/') + "/RELEASES";
+            Assert.StartsWith(expected, dl.LastUrl);
+
+            // check that each query parameter in base url is in the releases string
+            var releasesUri = new Uri(dl.LastUrl);
+            var releasesKvp = HttpUtility.ParseQueryString(releasesUri.Query);
+            var releasesDict = releasesKvp.AllKeys.Where(k => k != null).ToDictionary(k => k, k => releasesKvp[k]);
+            foreach (var kvp in baseDict) {
+                Assert.Equal(releasesDict[kvp.Key], kvp.Value);
+            }
+
+            await source.DownloadReleaseEntry(releases[0], "test", null);
+            Assert.Equal(expectedPackageUrl, dl.LastUrl);
         }
     }
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -271,8 +271,8 @@ namespace Squirrel.Update.Windows
             _signal.Set(); // signal to calling thread that the window has been created
 
             using (StartGifAnimation()) {
-                bool bRet;
-                while ((bRet = GetMessage(out msg, HWND.NULL, 0, 0)) != false) {
+                int bRet;
+                while ((bRet = GetMessage(out msg, HWND.NULL, 0, 0)) != 0) {
                     if (msg.message == (uint) WM_QUIT)
                         break;
 

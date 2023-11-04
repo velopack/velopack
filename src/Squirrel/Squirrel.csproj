@@ -2,18 +2,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net461;netstandard2.0;net5.0;net6.0</TargetFrameworks>
+    <TargetFrameworks>net462;net48;netstandard2.0;net5.0;net6.0</TargetFrameworks>
     <AssemblyName>Squirrel.Core</AssemblyName>
+    <Description>Squirrel</Description>
+    <Title>Squirrel</Title>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Clowd.Squirrel</PackageId>
     <Title>Squirrel Updater</Title>
     <Description>Quick and easy installer and automatic updates for desktop applications</Description>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageIcon>Clowd_200.png</PackageIcon>
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SharpCompress" Version="0.32.2" />
     <PackageReference Include="NuGet.Versioning" Version="6.4.0" />
   </ItemGroup>
 
@@ -21,12 +24,22 @@
     <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
   </ItemGroup>
 
-  <ItemGroup Condition=" $(TargetFramework) == 'net461' ">
-    <PackageReference Include="System.ValueTuple" Version="4.5" />
-    <Reference Include="System.Web" />
-    <Reference Include="System.Net.Http" />
-  </ItemGroup>
-  
+  <Choose>
+    <When Condition=" $(TargetFramework.StartsWith('net4')) ">
+      <ItemGroup>
+        <PackageReference Include="SharpCompress" Version="0.33.0" />
+        <PackageReference Include="System.ValueTuple" Version="4.5" />
+        <Reference Include="System.Web" />
+        <Reference Include="System.Net.Http" />
+      </ItemGroup>
+    </When>
+    <Otherwise>
+      <ItemGroup>
+        <PackageReference Include="SharpCompress" Version="0.34.1" />
+      </ItemGroup>
+    </Otherwise>
+  </Choose>
+
   <ItemGroup>
     <None Include="..\..\docs\artwork\Clowd_200.png" Pack="true" PackagePath="\" />
   </ItemGroup>
