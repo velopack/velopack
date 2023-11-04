@@ -8,7 +8,7 @@
     <title>Squirrel for Windows</title>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>Quick and easy installer and automatic updates for desktop applications</description>
-    <copyright>Copyright © Caelan Sayler 2021</copyright>
+    <copyright>Copyright © Caelan Sayler 2021-2023</copyright>
     <authors>Anaïs Betts, Caelan Sayler, GitHub, others</authors>
     <owners>Caelan Sayler</owners>
     <license type="expression">MIT</license>
@@ -35,14 +35,14 @@
       </group>
       <group targetFramework="net5.0">
         <dependency id="Microsoft.Win32.Registry" version="5.0.0" exclude="Build,Analyzers" />
-        <dependency id="SharpCompress" version="0.33.0" exclude="Build,Analyzers" />
+        <dependency id="SharpCompress" version="0.34.1" exclude="Build,Analyzers" />
       </group>
       <group targetFramework="net6.0">
-        <dependency id="SharpCompress" version="0.33.0" exclude="Build,Analyzers" />
+        <dependency id="SharpCompress" version="0.34.1" exclude="Build,Analyzers" />
       </group>
       <group targetFramework=".NETStandard2.0">
         <dependency id="Microsoft.Win32.Registry" version="5.0.0" exclude="Build,Analyzers" />
-        <dependency id="SharpCompress" version="0.33.0" exclude="Build,Analyzers" />
+        <dependency id="SharpCompress" version="0.34.1" exclude="Build,Analyzers" />
       </group>
     </dependencies>
     
