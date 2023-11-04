@@ -16,13 +16,11 @@ namespace Squirrel
         public enum DotnetRuntimeType
         {
             /// <summary> The .NET Runtime contains just the components needed to run a console app </summary>
-            DotNet = 1,
+            Runtime = 1,
             /// <summary> The The ASP.NET Core Runtime enables you to run existing web/server applications </summary>
             AspNetCore,
             /// <summary> The .NET Desktop Runtime enables you to run existing Windows desktop applications </summary>
             WindowsDesktop,
-            /// <summary> The .NET SDK enables you to compile dotnet applications you intend to run on other systems </summary>
-            SDK,
         }
 
         /// <summary> Runtime installation result code </summary>
@@ -170,8 +168,7 @@ namespace Squirrel
             public DotnetRuntimeType RuntimeType { get; }
 
             private static readonly Dictionary<DotnetRuntimeType, string> _runtimeShortForm = new() {
-                { DotnetRuntimeType.DotNet, "base" },
-                { DotnetRuntimeType.SDK, "sdk" },
+                { DotnetRuntimeType.Runtime, "runtime" },
                 { DotnetRuntimeType.WindowsDesktop, "desktop" },
                 { DotnetRuntimeType.AspNetCore, "asp" },
             };
@@ -232,10 +229,9 @@ namespace Squirrel
                     return null;
 
                 return runtimeType switch {
-                    DotnetRuntimeType.DotNet => Path.Combine(baseDir, "shared", "Microsoft.NETCore.App"),
+                    DotnetRuntimeType.Runtime => Path.Combine(baseDir, "shared", "Microsoft.NETCore.App"),
                     DotnetRuntimeType.AspNetCore => Path.Combine(baseDir, "shared", "Microsoft.AspNetCore.App"),
                     DotnetRuntimeType.WindowsDesktop => Path.Combine(baseDir, "shared", "Microsoft.WindowsDesktop.App"),
-                    DotnetRuntimeType.SDK => Path.Combine(baseDir, "sdk"),
                     _ => throw new ArgumentOutOfRangeException(nameof(DotnetRuntimeType)),
                 };
             }
@@ -281,6 +277,8 @@ namespace Squirrel
             /// <inheritdoc/>
             public override async Task<string> GetDownloadUrl()
             {
+                // Note that GetLatestDotNetVersion should still be fixed for WindowsDesktop as it is the only url that the azure
+                // blob responds with the latest version. This doesn't matter as all dotnet needed runtimes will have the same latest version.
                 var latest = await GetLatestDotNetVersion(DotnetRuntimeType.WindowsDesktop, $"{MinVersion.Major}.{MinVersion.Minor}").ConfigureAwait(false);
                 var architecture = CpuArchitecture switch {
                     RuntimeCpu.x86 => "x86",
@@ -291,7 +289,7 @@ namespace Squirrel
                 return GetDotNetDownloadUrl(RuntimeType, latest, architecture);
             }
 
-            private static Regex _dotnetRegex = new Regex(@"^net(?:coreapp)?(?<version>[\d\.]{1,6})(?:-(?<arch>[\w\d]+))?(?:-(?<type>\w+))?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            private static Regex _dotnetRegex = new Regex(@"^net(?:coreapp)?(?<version>[\d\.]{1,6})(?:-(?<arch>[a-zA-Z]+\d\d))?(?:-(?<type>[a-zA-Z]+))?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
             /// <summary>
             /// Parses a string such as 'net6' or net5.0.14-x86 into a DotnetInfo class capable of checking
@@ -353,11 +351,6 @@ namespace Squirrel
                         throw new ArgumentException("Version must only be a 3-part version string.", nameof(input));
 
                     if ((v.Major == 3 && v.Minor == 1) || v.Major >= 5) {
-                        if (v.Major > 8) {
-                            Log.Warn(
-                                $"Runtime version '{input}' was resolved to major version '{v.Major}', but this is greater than any known dotnet version, " +
-                                $"and if this version does not exist this package may fail to install.");
-                        }
                         return v;
                     }
                     throw new ArgumentException($"Version must be 3.1 or >= 5.0. (Actual: {v})", nameof(input));
@@ -392,10 +385,9 @@ namespace Squirrel
                 // https://github.com/dotnet/install-scripts/blob/main/src/dotnet-install.ps1#L427
                 // these are case sensitive
                 string runtime = runtimeType switch {
-                    DotnetRuntimeType.DotNet => "dotnet",
+                    DotnetRuntimeType.Runtime => "dotnet",
                     DotnetRuntimeType.AspNetCore => "aspnetcore",
                     DotnetRuntimeType.WindowsDesktop => "WindowsDesktop",
-                    DotnetRuntimeType.SDK => "Sdk",
                     _ => throw new NotImplementedException(),
                 };
 
@@ -417,13 +409,12 @@ namespace Squirrel
             {
                 // https://github.com/dotnet/install-scripts/blob/main/src/dotnet-install.ps1#L619
                 return runtimeType switch {
-                    DotnetRuntimeType.DotNet => $"{DotNetFeed}/Runtime/{version}/dotnet-runtime-{version}-win-{cpuarch}.exe",
+                    DotnetRuntimeType.Runtime => $"{DotNetFeed}/Runtime/{version}/dotnet-runtime-{version}-win-{cpuarch}.exe",
                     DotnetRuntimeType.AspNetCore => $"{DotNetFeed}/aspnetcore/Runtime/{version}/aspnetcore-runtime-{version}-win-{cpuarch}.exe",
                     DotnetRuntimeType.WindowsDesktop =>
                         new Version(version).Major >= 5
                             ? $"{DotNetFeed}/WindowsDesktop/{version}/windowsdesktop-runtime-{version}-win-{cpuarch}.exe"
                             : $"{DotNetFeed}/Runtime/{version}/windowsdesktop-runtime-{version}-win-{cpuarch}.exe",
-                    DotnetRuntimeType.SDK => $"{DotNetFeed}/Sdk/{version}/dotnet-sdk-{version}-win-{cpuarch}.exe",
                     _ => throw new NotImplementedException(),
                 };
             }

@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -24,9 +26,10 @@ namespace Squirrel.Tests
         [InlineData("net6.0.1-x86", "net6.0.1-x86-desktop")]
         [InlineData("net6.0.0", "net6-x64-desktop")]
         [InlineData("net6.0-x64-desktop", "net6.0.2-x64-desktop")]
-        [InlineData("net7.0-x64-base", "net7-x64-base")]
+        [InlineData("net7.0-x64-runtime", "net7-x64-runtime")]
         [InlineData("net7.0-x64-asp", "net7-x64-asp")]
-        [InlineData("net7.0-x64-sdk", "net7-x64-sdk")]
+        [InlineData("net7.0-desktop", "net7-x64-desktop")]
+        [InlineData("net7.0-runtime", "net7-x64-runtime")]
         public void DotnetParsesValidVersions(string input, string expected)
         {
             var p = Runtimes.DotnetInfo.Parse(input);
@@ -37,6 +40,7 @@ namespace Squirrel.Tests
         [InlineData("net3.2")]
         [InlineData("net4.9")]
         [InlineData("net6.0.0.4")]
+        [InlineData("net7.0-x64-base")]
         [InlineData("net6-basd")]
         [InlineData("net6-x64-aakaka")]
         public void DotnetParseThrowsInvalidVersion(string input)
@@ -61,11 +65,51 @@ namespace Squirrel.Tests
         [InlineData("", false)]
         [InlineData(null, false)]
         [InlineData("net6-x64", true)]
-        [InlineData("net6-x64-sdk", true)]
+        [InlineData("net6-x64-runtime", true)]
+        [InlineData("net6-x64-desktop", true)]
         public void GetRuntimeTests(string input, bool expected)
         {
             var dn = Runtimes.GetRuntimeByName(input);
             Assert.Equal(expected, dn != null);
+        }
+
+        [Theory]
+        [InlineData("3.1", RuntimeCpu.x86, Runtimes.DotnetRuntimeType.WindowsDesktop)]
+        [InlineData("3.1", RuntimeCpu.x86, Runtimes.DotnetRuntimeType.Runtime)]
+        [InlineData("3.1", RuntimeCpu.x86, Runtimes.DotnetRuntimeType.AspNetCore)]
+        [InlineData("3.1", RuntimeCpu.x64, Runtimes.DotnetRuntimeType.WindowsDesktop)]
+        [InlineData("3.1", RuntimeCpu.x64, Runtimes.DotnetRuntimeType.Runtime)]
+        [InlineData("3.1", RuntimeCpu.x64, Runtimes.DotnetRuntimeType.AspNetCore)]
+        [InlineData("5.0", RuntimeCpu.x86, Runtimes.DotnetRuntimeType.WindowsDesktop)]
+        [InlineData("5.0", RuntimeCpu.x86, Runtimes.DotnetRuntimeType.Runtime)]
+        [InlineData("5.0", RuntimeCpu.x86, Runtimes.DotnetRuntimeType.AspNetCore)]
+        [InlineData("5.0", RuntimeCpu.x64, Runtimes.DotnetRuntimeType.WindowsDesktop)]
+        [InlineData("5.0", RuntimeCpu.x64, Runtimes.DotnetRuntimeType.Runtime)]
+        [InlineData("5.0", RuntimeCpu.x64, Runtimes.DotnetRuntimeType.AspNetCore)]
+        [InlineData("7.0", RuntimeCpu.x86, Runtimes.DotnetRuntimeType.WindowsDesktop)]
+        [InlineData("7.0", RuntimeCpu.x86, Runtimes.DotnetRuntimeType.Runtime)]
+        [InlineData("7.0", RuntimeCpu.x86, Runtimes.DotnetRuntimeType.AspNetCore)]
+        [InlineData("7.0", RuntimeCpu.x64, Runtimes.DotnetRuntimeType.WindowsDesktop)]
+        [InlineData("7.0", RuntimeCpu.x64, Runtimes.DotnetRuntimeType.Runtime)]
+        [InlineData("7.0", RuntimeCpu.x64, Runtimes.DotnetRuntimeType.AspNetCore)]
+        public void MicrosoftReturnsValidDotnetDownload(string minversion, RuntimeCpu architecture, Runtimes.DotnetRuntimeType runtimeType)
+        {
+            var dni = new Runtimes.DotnetInfo(minversion, architecture, runtimeType);
+            var url = dni.GetDownloadUrl().Result;
+
+            Assert.Contains(minversion, url, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(architecture.ToString(), url, StringComparison.OrdinalIgnoreCase);
+
+            if (runtimeType == Runtimes.DotnetRuntimeType.Runtime)
+                Assert.Matches(@"/dotnet-runtime-\d", url);
+            else if (runtimeType == Runtimes.DotnetRuntimeType.AspNetCore)
+                Assert.Matches(@"/aspnetcore-runtime-\d", url);
+            else if (runtimeType == Runtimes.DotnetRuntimeType.WindowsDesktop)
+                Assert.Matches(@"/windowsdesktop-runtime-\d", url);
+
+            using var hc = new HttpClient();
+            var result = hc.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).Result;
+            result.EnsureSuccessStatusCode();
         }
     }
 }
