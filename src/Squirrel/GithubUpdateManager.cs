@@ -18,6 +18,8 @@ namespace Squirrel
 #if NET5_0_OR_GREATER
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
 #endif
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Use 'new UpdateManager(new GithubSource(...))' instead")]
     public class GithubUpdateManager : UpdateManager
     {
         /// <inheritdoc cref="UpdateManager(string, string, string, IFileDownloader)"/>
@@ -64,7 +66,7 @@ namespace Squirrel
     {
         /// <summary>
         /// This function is obsolete and will be removed in a future version,
-        /// see the <see cref="GithubUpdateManager" /> class for a replacement.
+        /// see the <see cref="GithubSource" /> class for a replacement.
         /// </summary>
         [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
         [Obsolete("Use 'new UpdateManager(new GithubSource(...))' instead")]
