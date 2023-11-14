@@ -47,11 +47,25 @@ namespace Squirrel
             FileDate = fileDate;
         }
 
+        public class VersionInfoItem
+        {
+            public uint CodePage { get; set; }
+            public string Key { get; set; }
+            public string Value { get; set; }
+
+            public VersionInfoItem(uint codePage, string key, string value)
+            {
+                CodePage = codePage;
+                Key = key;
+                Value = value;
+            }
+        }
+
         // vi can be null on exit
         // Item1 = language | codepage
         // Item2 = Key
         // Item3 = Value
-        public static IEnumerable<(uint CodePage, string Key, string Value)> ReadVersionInfo(string fileName, out StringFileInfo vi)
+        public static IEnumerable<VersionInfoItem> ReadVersionInfo(string fileName, out StringFileInfo vi)
         {
             int num;
             int size = GetFileVersionInfoSize(fileName, out num);
@@ -75,7 +89,7 @@ namespace Squirrel
         // Item1 = language | codepage
         // Item2 = Key
         // Item3 = Value
-        public static IEnumerable<(uint CodePage, string Key, string Value)> ReadVersionInfo(byte[] buffer, out StringFileInfo vi)
+        public static IEnumerable<VersionInfoItem> ReadVersionInfo(byte[] buffer, out StringFileInfo vi)
         {
             int offset;
             // The offset calculated here is unused
@@ -118,7 +132,7 @@ namespace Squirrel
             return ReadVersionInfoInternal(buffer, fibs);
         }
 
-        protected static IEnumerable<(uint CodePage, string Key, string Value)> ReadVersionInfoInternal(byte[] buffer, FileInfoBaseStruct fibs)
+        protected static IEnumerable<VersionInfoItem> ReadVersionInfoInternal(byte[] buffer, FileInfoBaseStruct fibs)
         {
             int sfiOrValOffset = (fibs.ValueOffset + fibs.ValueLength + 3) & (~3);
 
@@ -148,7 +162,7 @@ namespace Squirrel
                             int len = FindLengthUnicodeSZ(buffer, stri.ValueOffset, stri.ValueOffset + (stri.ValueLength * 2));
                             string value = Encoding.Unicode.GetString(buffer, stri.ValueOffset, len * 2);
 
-                            yield return (langCharset, stri.Key, value);
+                            yield return new VersionInfoItem(langCharset, stri.Key, value);
 
                             striOffset = nextStriOffset;
                         }

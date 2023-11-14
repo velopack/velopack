@@ -98,7 +98,9 @@ namespace Squirrel
                 if (!releases.Any())
                     return;
 
-                var (currentRelease, currentVersion) = releases.OrderByDescending(x => x.Version).FirstOrDefault();
+                var currentLocalRelease = releases.OrderByDescending(x => x.Version).FirstOrDefault();
+                var currentRelease = currentLocalRelease.Directory;
+                var currentVersion = currentLocalRelease.Version;
 
                 this.Log().Info("Starting full uninstall");
                 if (currentRelease.Exists) {
@@ -630,7 +632,7 @@ namespace Squirrel
                 // Finally, clean up the app-X.Y.Z directories
                 await toCleanup.ForEachAsync(x => {
                     try {
-                        if (runningProcesses.All(p => p.Item1 == null || !p.Item1.StartsWith(x.FullName, StringComparison.OrdinalIgnoreCase))) {
+                        if (runningProcesses.All(p => p.ProcessExePath == null || !p.ProcessExePath.StartsWith(x.FullName, StringComparison.OrdinalIgnoreCase))) {
                             Utility.DeleteFileOrDirectoryHardOrGiveUp(x.FullName);
                         }
 
@@ -681,15 +683,27 @@ namespace Squirrel
                 return await Task.Run(() => ReleaseEntry.BuildReleasesFile(Utility.PackageDirectoryForAppDir(rootAppDirectory))).ConfigureAwait(false);
             }
 
-            IEnumerable<(DirectoryInfo Directory, SemanticVersion Version)> getReleases()
+            class LocalReleaseDirectory
+            {
+                public DirectoryInfo Directory { get; set; }
+                public SemanticVersion Version { get; set; }
+
+                public LocalReleaseDirectory(DirectoryInfo directory, SemanticVersion version)
+                {
+                    Directory = directory;
+                    Version = version;
+                }
+            }
+
+            IEnumerable<LocalReleaseDirectory> getReleases()
             {
                 var rootDirectory = new DirectoryInfo(rootAppDirectory);
 
-                if (!rootDirectory.Exists) return Enumerable.Empty<(DirectoryInfo Directory, SemanticVersion Version)>();
+                if (!rootDirectory.Exists) return Enumerable.Empty<LocalReleaseDirectory>();
 
                 return rootDirectory.GetDirectories()
                     .Where(x => x.Name.StartsWith("app-", StringComparison.InvariantCultureIgnoreCase))
-                    .Select(x => (x, new SemanticVersion(x.Name.Substring(4))));
+                    .Select(x => new LocalReleaseDirectory(x, new SemanticVersion(x.Name.Substring(4))));
             }
 
             DirectoryInfo getDirectoryForRelease(SemanticVersion releaseVersion)

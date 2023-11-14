@@ -108,22 +108,22 @@ namespace Squirrel
                     .Where(x => {
                         // Processes we can't query will have an empty process name, we can't kill them
                         // anyways
-                        if (String.IsNullOrWhiteSpace(x.Item1)) return false;
+                        if (String.IsNullOrWhiteSpace(x.ProcessExePath)) return false;
 
                         // Files that aren't in our root app directory are untouched
                         if (!Utility.IsFileInDirectory(x.ProcessExePath, rootAppDirectory)) return false;
 
                         // Never kill our own EXE
-                        if (ourExePath != null && x.Item1.Equals(ourExePath, StringComparison.OrdinalIgnoreCase)) return false;
+                        if (ourExePath != null && x.ProcessExePath.Equals(ourExePath, StringComparison.OrdinalIgnoreCase)) return false;
 
-                        var name = Path.GetFileName(x.Item1).ToLowerInvariant();
+                        var name = Path.GetFileName(x.ProcessExePath).ToLowerInvariant();
                         if (name == "squirrel.exe" || name == "update.exe") return false;
 
                         return true;
                     })
                     .ForEach(x => {
                         try {
-                            this.WarnIfThrows(() => Process.GetProcessById(x.Item2).Kill());
+                            this.WarnIfThrows(() => Process.GetProcessById(x.ProcessId).Kill());
                         } catch { }
                     });
             }

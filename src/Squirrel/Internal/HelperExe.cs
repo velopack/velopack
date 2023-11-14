@@ -94,10 +94,10 @@ namespace Squirrel
                 var candleParams = new string[] { "-nologo", "-ext", "WixNetFxExtension", "-out", objFile, wxsTarget };
                 var processResult = await Utility.InvokeProcessAsync(WixCandlePath, candleParams, CancellationToken.None, workingDir).ConfigureAwait(false);
 
-                if (processResult.Item1 != 0) {
+                if (processResult.ExitCode != 0) {
                     var msg = String.Format(
                         "Failed to compile WiX template, command invoked was: '{0} {1}'\n\nOutput was:\n{2}",
-                        "candle.exe", Utility.ArgsToCommandLine(candleParams), processResult.Item2);
+                        "candle.exe", Utility.ArgsToCommandLine(candleParams), processResult.StdOutput);
                     throw new Exception(msg);
                 }
 
@@ -105,10 +105,10 @@ namespace Squirrel
                 var lightParams = new string[] { "-ext", "WixNetFxExtension", "-spdb", "-sval", "-out", outputFile, objFile };
                 processResult = await Utility.InvokeProcessAsync(WixLightPath, lightParams, CancellationToken.None, workingDir).ConfigureAwait(false);
 
-                if (processResult.Item1 != 0) {
+                if (processResult.ExitCode != 0) {
                     var msg = String.Format(
                         "Failed to link WiX template, command invoked was: '{0} {1}'\n\nOutput was:\n{2}",
-                        "light.exe", Utility.ArgsToCommandLine(lightParams), processResult.Item2);
+                        "light.exe", Utility.ArgsToCommandLine(lightParams), processResult.StdOutput);
                     throw new Exception(msg);
                 }
             } finally {

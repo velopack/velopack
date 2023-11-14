@@ -280,11 +280,23 @@ namespace Squirrel
             return result.ToString();
         }
 
+        public class ProcessResult
+        {
+            public int ExitCode { get; set; }
+            public string StdOutput { get; set; }
+
+            public ProcessResult(int exitCode, string stdOutput)
+            {
+                ExitCode = exitCode;
+                StdOutput = stdOutput;
+            }
+        }
+
         /// <summary>
         /// This function will escape command line arguments such that CommandLineToArgvW is guarenteed to produce the same output as the 'args' parameter. 
         /// It also will automatically execute wine if trying to run an exe while not on windows.
         /// </summary>
-        public static Task<(int ExitCode, string StdOutput)> InvokeProcessAsync(string fileName, IEnumerable<string> args, CancellationToken ct, string workingDirectory = "")
+        public static Task<ProcessResult> InvokeProcessAsync(string fileName, IEnumerable<string> args, CancellationToken ct, string workingDirectory = "")
         {
             if (Environment.OSVersion.Platform != PlatformID.Win32NT && fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) {
                 return InvokeProcessUnsafeAsync(CreateProcessStartInfo("wine", ArgsToCommandLine(new string[] { fileName }.Concat(args)), workingDirectory), ct);
@@ -306,7 +318,7 @@ namespace Squirrel
             return psi;
         }
 
-        public static async Task<(int ExitCode, string StdOutput)> InvokeProcessUnsafeAsync(ProcessStartInfo psi, CancellationToken ct)
+        public static async Task<ProcessResult> InvokeProcessUnsafeAsync(ProcessStartInfo psi, CancellationToken ct)
         {
             var pi = Process.Start(psi);
             await Task.Run(() => {
@@ -329,7 +341,7 @@ namespace Squirrel
                 }
             }
 
-            return (pi.ExitCode, textResult.Trim());
+            return new ProcessResult(pi.ExitCode, textResult.Trim());
         }
 
         public static Task ForEachAsync<T>(this IEnumerable<T> source, Action<T> body, int degreeOfParallelism = 4)
@@ -870,10 +882,22 @@ namespace Squirrel
         }
 #endif
 
+        public class ProcessInfo
+        {
+            public string ProcessExePath { get; set; }
+            public int ProcessId { get; set; }
+
+            public ProcessInfo(string processExePath, int processId)
+            {
+                ProcessExePath = processExePath;
+                ProcessId = processId;
+            }
+        }
+
 #if NET5_0_OR_GREATER
         [System.Runtime.Versioning.SupportedOSPlatform("windows")]
 #endif
-        public static List<(string ProcessExePath, int ProcessId)> EnumerateProcesses()
+        public static List<ProcessInfo> EnumerateProcesses()
         {
             var pids = new int[2048];
             var gch = GCHandle.Alloc(pids, GCHandleType.Pinned);
@@ -884,7 +908,7 @@ namespace Squirrel
                 if (bytesReturned < 1)
                     throw new Exception("Failed to enumerate processes");
 
-                List<(string ProcessExePath, int ProcessId)> ret = new();
+                List<ProcessInfo> ret = new();
 
                 for (int i = 0; i < bytesReturned / sizeof(int); i++) {
                     IntPtr hProcess = IntPtr.Zero;
@@ -902,7 +926,7 @@ namespace Squirrel
                         if (String.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
                             continue;
 
-                        ret.Add((sb.ToString(), pids[i]));
+                        ret.Add(new ProcessInfo(sb.ToString(), pids[i]));
                     } catch (Exception) {
                         // don't care
                     } finally {

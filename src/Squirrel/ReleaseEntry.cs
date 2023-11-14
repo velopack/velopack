@@ -386,15 +386,33 @@ namespace Squirrel
         static readonly Regex _suffixRegex = new Regex(@"(-full|-delta)?\.nupkg$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex _versionStartRegex = new Regex(@"[\.-](0|[1-9]\d*)\.(0|[1-9]\d*)($|[^\d])", RegexOptions.Compiled);
 
+        internal class EntryNameInfo
+        {
+            public string PackageName { get; set; }
+            public SemanticVersion Version { get; set; }
+            public bool IsDelta { get; set; }
+
+            public EntryNameInfo()
+            {
+            }
+
+            public EntryNameInfo(string packageName, SemanticVersion version, bool isDelta)
+            {
+                PackageName = packageName;
+                Version = version;
+                IsDelta = isDelta;
+            }
+        }
+
         /// <summary>
         /// Takes a filename such as 'My-Cool3-App-1.0.1-build.23-full.nupkg' and separates it into 
         /// it's name and version (eg. 'My-Cool3-App', and '1.0.1-build.23'). Returns null values if 
         /// the filename can not be parsed.
         /// </summary>
-        internal static (string PackageName, SemanticVersion Version, bool IsDelta) ParseEntryFileName(string fileName)
+        internal static EntryNameInfo ParseEntryFileName(string fileName)
         {
             if (!fileName.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase))
-                return (null, null, false);
+                return new EntryNameInfo();
 
             bool delta = Path.GetFileNameWithoutExtension(fileName).EndsWith("-delta", StringComparison.OrdinalIgnoreCase);
 
@@ -402,14 +420,14 @@ namespace Squirrel
 
             var match = _versionStartRegex.Match(nameAndVer);
             if (!match.Success)
-                return (null, null, delta);
+                return new EntryNameInfo(null, null, delta);
 
             var verIdx = match.Index;
             var name = nameAndVer.Substring(0, verIdx);
             var version = nameAndVer.Substring(verIdx + 1);
 
             var semVer = new SemanticVersion(version);
-            return (name, semVer, delta);
+            return new EntryNameInfo(name, semVer, delta);
         }
     }
 }

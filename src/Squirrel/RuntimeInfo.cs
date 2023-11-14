@@ -457,13 +457,25 @@ namespace Squirrel
 
             const string UninstallRegSubKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall";
 
+            private class VCVersion
+            {
+                public SemanticVersion Ver { get; set; }
+                public RuntimeCpu Cpu { get; set; }
+
+                public VCVersion(SemanticVersion ver, RuntimeCpu cpu)
+                {
+                    Ver = ver;
+                    Cpu = cpu;
+                }
+            }
+
             /// <summary>
             /// Returns the list of currently installed VC++ redistributables, as reported by the
             /// Windows Programs &amp; Features dialog.
             /// </summary>
-            public static (SemanticVersion Ver, RuntimeCpu Cpu)[] GetInstalledVCVersions()
+            private static VCVersion[] GetInstalledVCVersions()
             {
-                List<(SemanticVersion Ver, RuntimeCpu Cpu)> results = new List<(SemanticVersion Ver, RuntimeCpu Cpu)>();
+                List<VCVersion> results = new();
 
                 void searchreg(RegistryKey view)
                 {
@@ -476,9 +488,9 @@ namespace Squirrel
                                 // these entries do not get added into the correct registry hive, so we need to determine
                                 // the cpu architecture from the name. I hate this but what can I do?
                                 if (name.Contains("x64") && Environment.Is64BitOperatingSystem) {
-                                    results.Add((v, RuntimeCpu.x64));
+                                    results.Add(new VCVersion(v, RuntimeCpu.x64));
                                 } else {
-                                    results.Add((v, RuntimeCpu.x86));
+                                    results.Add(new VCVersion(v, RuntimeCpu.x86));
                                 }
                             }
                         }
