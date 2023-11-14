@@ -17,36 +17,22 @@
     <iconUrl>https://user-images.githubusercontent.com/1287295/131249078-9e131e51-0b66-4dc7-8c0a-99cbea6bcf80.png</iconUrl>
 
     <dependencies>
-      <group targetFramework=".NETFramework4.6">
-        <dependency id="SharpCompress" version="0.26.0" exclude="Build,Analyzers" />
-        <dependency id="System.ValueTuple" version="4.5.0" exclude="Build,Analyzers" />
-      </group>
-      <group targetFramework=".NETFramework4.6.1">
-        <dependency id="SharpCompress" version="0.32.2" exclude="Build,Analyzers" />
-        <dependency id="System.ValueTuple" version="4.5.0" exclude="Build,Analyzers" />
-      </group>
-      <group targetFramework=".NETFramework4.6.2">
-        <dependency id="SharpCompress" version="0.33.0" exclude="Build,Analyzers" />
-        <dependency id="System.ValueTuple" version="4.5.0" exclude="Build,Analyzers" />
-      </group>
-      <group targetFramework=".NETFramework4.8">
-        <dependency id="SharpCompress" version="0.33.0" exclude="Build,Analyzers" />
-        <dependency id="System.ValueTuple" version="4.5.0" exclude="Build,Analyzers" />
-      </group>
+      <group targetFramework=".NETFramework4.6" />
+      <group targetFramework=".NETFramework4.6.1" />
+      <group targetFramework=".NETFramework4.6.2" />
+      <group targetFramework=".NETFramework4.8" />
       <group targetFramework="net5.0">
         <dependency id="Microsoft.Win32.Registry" version="5.0.0" exclude="Build,Analyzers" />
-        <dependency id="SharpCompress" version="0.34.1" exclude="Build,Analyzers" />
       </group>
-      <group targetFramework="net6.0">
-        <dependency id="SharpCompress" version="0.34.1" exclude="Build,Analyzers" />
-      </group>
+      <group targetFramework="net6.0" />
       <group targetFramework=".NETStandard2.0">
         <dependency id="Microsoft.Win32.Registry" version="5.0.0" exclude="Build,Analyzers" />
-        <dependency id="SharpCompress" version="0.34.1" exclude="Build,Analyzers" />
       </group>
     </dependencies>
-    
+
     <frameworkAssemblies>
+      <frameworkAssembly assemblyName="System.IO.Compression" targetFramework=".NETFramework4.6, .NETFramework4.6.1, .NETFramework4.6.2, .NETFramework4.8" />
+      <frameworkAssembly assemblyName="System.IO.Compression.FileSystem" targetFramework=".NETFramework4.6, .NETFramework4.6.1, .NETFramework4.6.2, .NETFramework4.8" />
       <frameworkAssembly assemblyName="System.Net.Http" targetFramework=".NETFramework4.6, .NETFramework4.6.1, .NETFramework4.6.2, .NETFramework4.8" />
       <frameworkAssembly assemblyName="System.Web" targetFramework=".NETFramework4.6, .NETFramework4.6.1, .NETFramework4.6.2, .NETFramework4.8" />
     </frameworkAssemblies>
