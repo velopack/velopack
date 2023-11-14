@@ -1,18 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO.Compression;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using SharpCompress.Archives;
-using SharpCompress.Archives.Zip;
-using SharpCompress.Common;
 using Squirrel.SimpleSplat;
 
 namespace Squirrel
 {
-    internal class EasyZip
+    internal static class EasyZip
     {
         private static IFullLogger Log = SquirrelLocator.CurrentMutable.GetService<ILogManager>().GetLogger(typeof(EasyZip));
 
@@ -21,13 +19,10 @@ namespace Squirrel
             if (Extract7z(inputFile, outputDirectory))
                 return;
 
-            Log.Info($"Extracting '{inputFile}' to '{outputDirectory}' using SharpCompress...");
-            using var archive = ZipArchive.Open(inputFile);
-            archive.WriteToDirectory(outputDirectory, new() {
-                PreserveFileTime = false,
-                Overwrite = true,
-                ExtractFullPath = true
-            });
+            Log.Info($"Extracting '{inputFile}' to '{outputDirectory}' using System.IO.Compression...");
+
+            Utility.DeleteFileOrDirectoryHard(outputDirectory);
+            ZipFile.ExtractToDirectory(inputFile, outputDirectory);
         }
 
         public static void CreateZipFromDirectory(string outputFile, string directoryToCompress)
@@ -35,10 +30,8 @@ namespace Squirrel
             if (Compress7z(outputFile, directoryToCompress))
                 return;
 
-            Log.Info($"Compressing '{directoryToCompress}' to '{outputFile}' using SharpCompress...");
-            using var archive = ZipArchive.Create();
-            archive.AddAllFromDirectory(directoryToCompress);
-            archive.SaveTo(outputFile, CompressionType.Deflate);
+            Log.Info($"Compressing '{directoryToCompress}' to '{outputFile}' using System.IO.Compression...");
+            ZipFile.CreateFromDirectory(directoryToCompress, outputFile);
         }
 
         private static bool Extract7z(string zipFilePath, string outFolder)
@@ -79,6 +72,11 @@ namespace Squirrel
                 Log.Warn("Unable to create archive with 7z.exe\n" + ex.Message);
                 return false;
             }
+        }
+
+        public static bool IsDirectory(this ZipArchiveEntry entry)
+        {
+            return entry.FullName.EndsWith("/") || entry.FullName.EndsWith("\\") || String.IsNullOrEmpty(entry.Name);
         }
     }
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.Contracts;
@@ -847,6 +847,28 @@ namespace Squirrel
             guid[left] = guid[right];
             guid[right] = temp;
         }
+
+
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+        public static bool ByteArrayCompareFast(ReadOnlySpan<byte> a1, ReadOnlySpan<byte> a2)
+        {
+            return a1.SequenceEqual(a2);
+        }
+#elif NETFRAMEWORK
+        [DllImport("msvcrt.dll", CallingConvention = CallingConvention.Cdecl)]
+        static extern int memcmp(byte[] b1, byte[] b2, long count);
+        public static bool ByteArrayCompareFast(byte[] b1, byte[] b2)
+        {
+            // Validate buffers are the same length.
+            // This also ensures that the count does not exceed the length of either buffer.  
+            return b1.Length == b2.Length && memcmp(b1, b2, b1.Length) == 0;
+        }
+#else
+        public static bool ByteArrayCompareFast(byte[] a1, byte[] a2)
+        {
+            return a1.SequenceEqual(a2);
+        }
+#endif
 
 #if NET5_0_OR_GREATER
         [System.Runtime.Versioning.SupportedOSPlatform("windows")]

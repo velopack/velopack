@@ -9,8 +9,7 @@ using Squirrel.MarkdownSharp;
 using Squirrel.NuGet;
 using Squirrel.SimpleSplat;
 using System.Threading.Tasks;
-using SharpCompress.Archives.Zip;
-using SharpCompress.Readers;
+using System.IO.Compression;
 
 namespace Squirrel
 {
@@ -127,25 +126,25 @@ namespace Squirrel
         static Task extractZipWithEscaping(string zipFilePath, string outFolder)
         {
             return Task.Run(() => {
-                using (var za = ZipArchive.Open(zipFilePath))
-                using (var reader = za.ExtractAllEntries()) {
-                    while (reader.MoveToNextEntry()) {
-                        var parts = reader.Entry.Key.Split('\\', '/').Select(x => Uri.UnescapeDataString(x));
+                using (var fs = File.OpenRead(zipFilePath))
+                using (var za = new ZipArchive(fs))
+                    foreach (var entry in za.Entries) {
+                        var parts = entry.FullName.Split('\\', '/').Select(x => Uri.UnescapeDataString(x));
                         var decoded = String.Join(Path.DirectorySeparatorChar.ToString(), parts);
 
                         var fullTargetFile = Path.Combine(outFolder, decoded);
                         var fullTargetDir = Path.GetDirectoryName(fullTargetFile);
                         Directory.CreateDirectory(fullTargetDir);
+                        var isDirectory = entry.IsDirectory();
 
                         Utility.Retry(() => {
-                            if (reader.Entry.IsDirectory) {
-                                Directory.CreateDirectory(Path.Combine(outFolder, decoded));
+                            if (isDirectory) {
+                                Directory.CreateDirectory(fullTargetFile);
                             } else {
-                                reader.WriteEntryToFile(Path.Combine(outFolder, decoded));
+                                entry.ExtractToFile(fullTargetFile, true);
                             }
                         }, 5);
                     }
-                }
             });
         }
 
@@ -159,18 +158,18 @@ namespace Squirrel
             var re = new Regex(@"lib[\\\/][^\\\/]*[\\\/]", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
             return Task.Run(() => {
-                using (var za = ZipArchive.Open(zipFilePath))
-                using (var reader = za.ExtractAllEntries()) {
+                using (var fs = File.OpenRead(zipFilePath))
+                using (var za = new ZipArchive(fs)) {
                     var totalItems = za.Entries.Count;
                     var currentItem = 0;
 
-                    while (reader.MoveToNextEntry()) {
+                    foreach (var entry in za.Entries) {
                         // Report progress early since we might be need to continue for non-matches
                         currentItem++;
                         var percentage = (currentItem * 100d) / totalItems;
                         progress((int) percentage);
 
-                        var parts = reader.Entry.Key.Split('\\', '/').Select(x => Uri.UnescapeDataString(x));
+                        var parts = entry.FullName.Split('\\', '/').Select(x => Uri.UnescapeDataString(x));
                         var decoded = String.Join(Path.DirectorySeparatorChar.ToString(), parts);
 
                         if (!re.IsMatch(decoded)) continue;
@@ -179,9 +178,10 @@ namespace Squirrel
                         var fullTargetFile = Path.Combine(outFolder, decoded);
                         var fullTargetDir = Path.GetDirectoryName(fullTargetFile);
                         Directory.CreateDirectory(fullTargetDir);
+                        var isDirectory = entry.IsDirectory();
 
                         var failureIsOkay = false;
-                        if (!reader.Entry.IsDirectory && decoded.Contains("_ExecutionStub.exe")) {
+                        if (!isDirectory && decoded.Contains("_ExecutionStub.exe")) {
                             // NB: On upgrade, many of these stubs will be in-use, nbd tho.
                             failureIsOkay = true;
 
@@ -194,10 +194,10 @@ namespace Squirrel
 
                         try {
                             Utility.Retry(() => {
-                                if (reader.Entry.IsDirectory) {
+                                if (isDirectory) {
                                     Directory.CreateDirectory(fullTargetFile);
                                 } else {
-                                    reader.WriteEntryToFile(fullTargetFile);
+                                    entry.ExtractToFile(fullTargetFile, true);
                                 }
                             }, 5);
                         } catch (Exception e) {

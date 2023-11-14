@@ -7,13 +7,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Squirrel.SimpleSplat;
 using Squirrel.Bsdiff;
-using SharpCompress.Archives;
-using SharpCompress.Archives.Zip;
-using SharpCompress.Common;
-using SharpCompress.Readers;
-using SharpCompress.Compressors.Deflate;
 using System.Threading.Tasks;
 using System.Threading;
+using System.IO.Compression;
 using System.Runtime.InteropServices;
 
 namespace Squirrel
@@ -89,11 +85,6 @@ namespace Squirrel
 
                 int fNew = 0, fSame = 0, fChanged = 0, fWarnings = 0;
 
-                bool bytesAreIdentical(ReadOnlySpan<byte> a1, ReadOnlySpan<byte> a2)
-                {
-                    return a1.SequenceEqual(a2);
-                }
-
                 void createDeltaForSingleFile(FileInfo targetFile, DirectoryInfo workingDirectory)
                 {
                     // NB: There are three cases here that we'll handle:
@@ -121,7 +112,7 @@ namespace Squirrel
                         var oldData = File.ReadAllBytes(oldFilePath);
                         var newData = File.ReadAllBytes(targetFile.FullName);
 
-                        if (bytesAreIdentical(oldData, newData)) {
+                        if (Utility.ByteArrayCompareFast(oldData, newData)) {
                             // 2. exists in both, keep it the same
                             this.Log().Debug("{0} hasn't changed, writing dummy file", relativePath);
                             File.Create(targetFile.FullName + ".bsdiff").Dispose();
@@ -212,19 +203,12 @@ namespace Squirrel
 
             using (Utility.WithTempDirectory(out deltaPath, localAppDirectory))
             using (Utility.WithTempDirectory(out workingPath, localAppDirectory)) {
-                var opts = new ExtractionOptions() { ExtractFullPath = true, Overwrite = true, PreserveFileTime = true };
 
-                using (var za = ZipArchive.Open(deltaPackage.InputPackageFile))
-                using (var reader = za.ExtractAllEntries()) {
-                    reader.WriteAllToDirectory(deltaPath, opts);
-                }
+                ZipFile.ExtractToDirectory(deltaPackage.InputPackageFile, deltaPath);
 
                 progress(25);
 
-                using (var za = ZipArchive.Open(basePackage.InputPackageFile))
-                using (var reader = za.ExtractAllEntries()) {
-                    reader.WriteAllToDirectory(workingPath, opts);
-                }
+                ZipFile.ExtractToDirectory(basePackage.InputPackageFile, workingPath);
 
                 progress(50);
 
@@ -269,12 +253,7 @@ namespace Squirrel
                     });
 
                 this.Log().Info("Repacking into full package: {0}", outputFile);
-                using (var za = ZipArchive.Create())
-                using (var tgt = File.OpenWrite(outputFile)) {
-                    za.DeflateCompressionLevel = CompressionLevel.BestSpeed;
-                    za.AddAllFromDirectory(workingPath);
-                    za.SaveTo(tgt);
-                }
+                ZipFile.CreateFromDirectory(workingPath, outputFile);
 
                 progress(100);
             }

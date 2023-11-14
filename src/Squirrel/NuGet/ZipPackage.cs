@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Xml;
 using System.Xml.Linq;
-using SharpCompress.Archives.Zip;
 
 namespace Squirrel.NuGet
 {
@@ -70,16 +70,16 @@ namespace Squirrel.NuGet
 
         public ZipPackage(Stream zipStream, bool leaveOpen = false)
         {
-            using var zip = ZipArchive.Open(zipStream, new() { LeaveStreamOpen = leaveOpen });
-            using var manifest = GetManifestEntry(zip).OpenEntryStream();
+            using var zip = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen);
+            using var manifest = GetManifestEntry(zip).Open();
             ReadManifest(manifest);
             Files = GetPackageFiles(zip).ToArray();
             Frameworks = GetFrameworks(Files);
 
             // we pre-load some images so the zip doesn't need to be opened again later
-            SetupSplashBytes = ReadFileToBytes(zip, z => Path.GetFileNameWithoutExtension(z.Key) == "splashimage");
-            SetupIconBytes = ReadFileToBytes(zip, z => z.Key == "setup.ico");
-            AppIconBytes = ReadFileToBytes(zip, z => z.Key == "app.ico") ?? ReadFileToBytes(zip, z => z.Key.EndsWith("app.ico"));
+            SetupSplashBytes = ReadFileToBytes(zip, z => Path.GetFileNameWithoutExtension(z.FullName) == "splashimage");
+            SetupIconBytes = ReadFileToBytes(zip, z => z.FullName == "setup.ico");
+            AppIconBytes = ReadFileToBytes(zip, z => z.FullName == "app.ico") ?? ReadFileToBytes(zip, z => z.FullName.EndsWith("app.ico"));
         }
 
         private byte[] ReadFileToBytes(ZipArchive archive, Func<ZipArchiveEntry, bool> predicate)
@@ -88,7 +88,7 @@ namespace Squirrel.NuGet
             if (f == null)
                 return null;
 
-            using var stream = f.OpenEntryStream();
+            using var stream = f.Open();
             if (stream == null)
                 return null;
 
@@ -130,8 +130,8 @@ namespace Squirrel.NuGet
         private IEnumerable<ZipPackageFile> GetPackageFiles(ZipArchive zip)
         {
             return from entry in zip.Entries
-                   where !entry.IsDirectory
-                   let uri = new Uri(entry.Key, UriKind.Relative)
+                   where !entry.IsDirectory()
+                   let uri = new Uri(entry.FullName, UriKind.Relative)
                    let path = NugetUtil.GetPath(uri)
                    where IsPackageFile(path)
                    select new ZipPackageFile(uri);
@@ -150,7 +150,7 @@ namespace Squirrel.NuGet
         private ZipArchiveEntry GetManifestEntry(ZipArchive zip)
         {
             var manifest = zip.Entries
-              .FirstOrDefault(f => f.Key.EndsWith(NugetUtil.ManifestExtension, StringComparison.OrdinalIgnoreCase));
+              .FirstOrDefault(f => f.FullName.EndsWith(NugetUtil.ManifestExtension, StringComparison.OrdinalIgnoreCase));
 
             if (manifest == null)
                 throw new InvalidDataException("PackageDoesNotContainManifest");
