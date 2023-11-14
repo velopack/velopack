@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using SharpCompress.Archives.Zip;
-using SharpCompress.Readers;
 using Squirrel.SimpleSplat;
 
 namespace Squirrel.NuGet
@@ -32,16 +31,16 @@ namespace Squirrel.NuGet
 
         public ZipPackage(Stream zipStream, bool leaveOpen = false)
         {
-            using var zip = ZipArchive.Open(zipStream, new() { LeaveStreamOpen = leaveOpen });
-            using var manifest = GetManifestEntry(zip).OpenEntryStream();
+            using var zip = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen);
+            using var manifest = GetManifestEntry(zip).Open();
             ReadManifest(manifest);
             Files = GetPackageFiles(zip).ToArray();
             Frameworks = GetFrameworks(Files);
 
             // we pre-load some images so the zip doesn't need to be opened again later
-            SetupSplashBytes = ReadFileToBytes(zip, z => Path.GetFileNameWithoutExtension(z.Key) == "splashimage");
-            SetupIconBytes = ReadFileToBytes(zip, z => z.Key == "setup.ico");
-            AppIconBytes = ReadFileToBytes(zip, z => z.Key == "app.ico") ?? ReadFileToBytes(zip, z => z.Key.EndsWith("app.ico"));
+            SetupSplashBytes = ReadFileToBytes(zip, z => Path.GetFileNameWithoutExtension(z.FullName) == "splashimage");
+            SetupIconBytes = ReadFileToBytes(zip, z => z.FullName == "setup.ico");
+            AppIconBytes = ReadFileToBytes(zip, z => z.FullName == "app.ico") ?? ReadFileToBytes(zip, z => z.FullName.EndsWith("app.ico"));
         }
 
         private byte[] ReadFileToBytes(ZipArchive archive, Func<ZipArchiveEntry, bool> predicate)
@@ -50,7 +49,7 @@ namespace Squirrel.NuGet
             if (f == null)
                 return null;
 
-            using var stream = f.OpenEntryStream();
+            using var stream = f.Open();
             if (stream == null)
                 return null;
 
@@ -63,7 +62,7 @@ namespace Squirrel.NuGet
         private ZipArchiveEntry GetManifestEntry(ZipArchive zip)
         {
             var manifest = zip.Entries
-                .FirstOrDefault(f => f.Key.EndsWith(NugetUtil.ManifestExtension, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(f => f.FullName.EndsWith(NugetUtil.ManifestExtension, StringComparison.OrdinalIgnoreCase));
 
             if (manifest == null)
                 throw new InvalidDataException("Invalid nupkg. Does not contain required '.nuspec' manifest.");
@@ -74,11 +73,11 @@ namespace Squirrel.NuGet
         private IEnumerable<ZipPackageFile> GetPackageFiles(ZipArchive zip)
         {
             return from entry in zip.Entries
-                where !entry.IsDirectory
-                let uri = new Uri(entry.Key, UriKind.Relative)
-                let path = NugetUtil.GetPath(uri)
-                where IsPackageFile(path)
-                select new ZipPackageFile(uri);
+                   where !entry.IsDirectory()
+                   let uri = new Uri(entry.FullName, UriKind.Relative)
+                   let path = NugetUtil.GetPath(uri)
+                   where IsPackageFile(path)
+                   select new ZipPackageFile(uri);
         }
 
         private string[] GetFrameworks(IEnumerable<ZipPackageFile> files)
@@ -110,21 +109,27 @@ namespace Squirrel.NuGet
         {
             if (!File.Exists(zipFilePath)) throw new ArgumentException("zipFilePath must exist");
             progress ??= ((_) => { });
-            
+
             return Task.Run(() => {
                 using (Utility.GetTempDirectory(out var tmp))
-                using (var za = ZipArchive.Open(zipFilePath))
-                using (var reader = za.ExtractAllEntries()) {
+                using (var fs = File.OpenRead(zipFilePath))
+                using (var za = new ZipArchive(fs)) {
                     var totalItems = za.Entries.Count;
                     var currentItem = 0;
 
-                    while (reader.MoveToNextEntry()) {
+                    foreach (var entry in za.Entries) {
                         // Report progress early since we might be need to continue for non-matches
                         currentItem++;
                         var percentage = (currentItem * 100d) / totalItems;
                         progress((int) percentage);
 
-                        var parts = reader.Entry.Key.Split('\\', '/').Select(x => Uri.UnescapeDataString(x));
+                        // extract .nuspec to app directory as '.version'
+                        if (Utility.FileHasExtension(entry.FullName, NugetUtil.ManifestExtension)) {
+                            Utility.Retry(() => entry.ExtractToFile(Path.Combine(tmp, Utility.SpecVersionFileName), true));
+                            continue;
+                        }
+
+                        var parts = entry.FullName.Split('\\', '/').Select(x => Uri.UnescapeDataString(x));
                         var decoded = String.Join(Path.DirectorySeparatorChar.ToString(), parts);
 
                         if (!libFolderPattern.IsMatch(decoded)) continue;
@@ -135,18 +140,18 @@ namespace Squirrel.NuGet
                         Directory.CreateDirectory(fullTargetDir);
 
                         Utility.Retry(() => {
-                            if (reader.Entry.IsDirectory) {
+                            if (entry.IsDirectory()) {
                                 Directory.CreateDirectory(fullTargetFile);
                             } else {
-                                reader.WriteEntryToFile(fullTargetFile);
+                                entry.ExtractToFile(fullTargetFile, true);
                             }
                         });
 
-                        if (!reader.Entry.IsDirectory && PlatformUtil.IsMachOImage(fullTargetFile)) {
+                        if (!entry.IsDirectory() && PlatformUtil.IsMachOImage(fullTargetFile)) {
                             PlatformUtil.ChmodFileAsExecutable(fullTargetFile);
                         }
                     }
-                    
+
                     Utility.DeleteFileOrDirectoryHard(outFinalFolder, renameFirst: true);
                     Directory.Move(tmp, outFinalFolder);
                 }
@@ -163,24 +168,24 @@ namespace Squirrel.NuGet
 
             return Task.Run(() => {
                 using (Utility.GetTempDirectory(out var tmp))
-                using (var za = ZipArchive.Open(zipFilePath))
-                using (var reader = za.ExtractAllEntries()) {
+                using (var fs = File.OpenRead(zipFilePath))
+                using (var za = new ZipArchive(fs)) {
                     var totalItems = za.Entries.Count;
                     var currentItem = 0;
 
-                    while (reader.MoveToNextEntry()) {
+                    foreach (var entry in za.Entries) {
                         // Report progress early since we might be need to continue for non-matches
                         currentItem++;
                         var percentage = (currentItem * 100d) / totalItems;
                         progress((int) percentage);
 
                         // extract .nuspec to app directory as '.version'
-                        if (Utility.FileHasExtension(reader.Entry.Key, NugetUtil.ManifestExtension)) {
-                            Utility.Retry(() => reader.WriteEntryToFile(Path.Combine(tmp, Utility.SpecVersionFileName)));
+                        if (Utility.FileHasExtension(entry.FullName, NugetUtil.ManifestExtension)) {
+                            Utility.Retry(() => entry.ExtractToFile(Path.Combine(tmp, Utility.SpecVersionFileName), true));
                             continue;
                         }
 
-                        var parts = reader.Entry.Key.Split('\\', '/').Select(x => Uri.UnescapeDataString(x));
+                        var parts = entry.FullName.Split('\\', '/').Select(x => Uri.UnescapeDataString(x));
                         var decoded = String.Join(Path.DirectorySeparatorChar.ToString(), parts);
 
                         if (!libFolderPattern.IsMatch(decoded)) continue;
@@ -191,7 +196,7 @@ namespace Squirrel.NuGet
                         Directory.CreateDirectory(fullTargetDir);
 
                         var failureIsOkay = false;
-                        if (!reader.Entry.IsDirectory && decoded.Contains("_ExecutionStub.exe")) {
+                        if (!entry.IsDirectory() && decoded.Contains("_ExecutionStub.exe")) {
                             // NB: On upgrade, many of these stubs will be in-use, nbd tho.
                             failureIsOkay = true;
 
@@ -209,10 +214,10 @@ namespace Squirrel.NuGet
 
                         try {
                             Utility.Retry(() => {
-                                if (reader.Entry.IsDirectory) {
+                                if (entry.IsDirectory()) {
                                     Directory.CreateDirectory(fullTargetFile);
                                 } else {
-                                    reader.WriteEntryToFile(fullTargetFile);
+                                    entry.ExtractToFile(fullTargetFile, true);
                                 }
                             });
                         } catch (Exception e) {
@@ -220,7 +225,7 @@ namespace Squirrel.NuGet
                             LogHost.Default.WarnException("Can't write execution stub, probably in use", e);
                         }
                     }
-                    
+
                     Utility.DeleteFileOrDirectoryHard(outFinalFolder, renameFirst: true);
                     Directory.Move(tmp, outFinalFolder);
                 }

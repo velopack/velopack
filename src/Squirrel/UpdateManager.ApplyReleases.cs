@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using Squirrel.SimpleSplat;
 using System.Threading;
 using System.Runtime.Versioning;
-using SharpCompress.Compressors.Deflate;
 using Squirrel.NuGet;
 
 namespace Squirrel

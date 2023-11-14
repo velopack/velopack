@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using NuGet.Versioning;
-using SharpCompress.Archives.Zip;
-using SharpCompress.Readers;
 using Squirrel.MarkdownSharp;
 using Squirrel.NuGet;
 using Squirrel.SimpleSplat;
@@ -143,25 +142,25 @@ namespace Squirrel.CommandLine
         static Task extractZipWithEscaping(string zipFilePath, string outFolder)
         {
             return Task.Run(() => {
-                using (var za = ZipArchive.Open(zipFilePath))
-                using (var reader = za.ExtractAllEntries()) {
-                    while (reader.MoveToNextEntry()) {
-                        var parts = reader.Entry.Key.Split('\\', '/').Select(x => Uri.UnescapeDataString(x));
+                using (var fs = File.OpenRead(zipFilePath))
+                using (var za = new ZipArchive(fs))
+                    foreach (var entry in za.Entries) {
+                        var parts = entry.FullName.Split('\\', '/').Select(x => Uri.UnescapeDataString(x));
                         var decoded = String.Join(Path.DirectorySeparatorChar.ToString(), parts);
 
                         var fullTargetFile = Path.Combine(outFolder, decoded);
                         var fullTargetDir = Path.GetDirectoryName(fullTargetFile);
                         Directory.CreateDirectory(fullTargetDir);
+                        var isDirectory = entry.IsDirectory();
 
                         Utility.Retry(() => {
-                            if (reader.Entry.IsDirectory) {
-                                Directory.CreateDirectory(Path.Combine(outFolder, decoded));
+                            if (isDirectory) {
+                                Directory.CreateDirectory(fullTargetFile);
                             } else {
-                                reader.WriteEntryToFile(Path.Combine(outFolder, decoded));
+                                entry.ExtractToFile(fullTargetFile, true);
                             }
                         }, 5);
                     }
-                }
             });
         }
 

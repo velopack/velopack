@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using SharpCompress.Archives.Zip;
 
 namespace Squirrel.NuGet
 {
@@ -41,13 +40,6 @@ namespace Squirrel.NuGet
             TargetFramework = NugetUtil.ParseFrameworkNameFromFilePath(Path, out var effectivePath);
             EffectivePath = effectivePath;
         }
-
-        //public Stream GetEntryStream(Stream archiveStream)
-        //{
-        //    using var zip = ZipArchive.Open(archiveStream, new() { LeaveStreamOpen = true });
-        //    var entry = zip.Entries.FirstOrDefault(f => new Uri(f.Key, UriKind.Relative) == _entryKey);
-        //    return entry?.OpenEntryStream();
-        //}
 
         public bool IsLibFile() => IsFileInTopDirectory(NugetUtil.LibDirectory);
         public bool IsContentFile() => IsFileInTopDirectory(NugetUtil.ContentDirectory);

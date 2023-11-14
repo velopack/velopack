@@ -481,14 +481,26 @@ namespace Squirrel
 
             const string UninstallRegSubKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall";
 
+            private class VCVersion
+            {
+                public SemanticVersion Ver { get; set; }
+                public RuntimeCpu Cpu { get; set; }
+
+                public VCVersion(SemanticVersion ver, RuntimeCpu cpu)
+                {
+                    Ver = ver;
+                    Cpu = cpu;
+                }
+            }
+
             /// <summary>
             /// Returns the list of currently installed VC++ redistributables, as reported by the
             /// Windows Programs &amp; Features dialog.
             /// </summary>
             [SupportedOSPlatform("windows")]
-            public static (NuGetVersion Ver, RuntimeCpu Cpu)[] GetInstalledVCVersions()
+            private static VCVersion[] GetInstalledVCVersions()
             {
-                List<(NuGetVersion Ver, RuntimeCpu Cpu)> results = new List<(NuGetVersion Ver, RuntimeCpu Cpu)>();
+                List<VCVersion> results = new();
 
                 void searchreg(RegistryKey view)
                 {
@@ -499,11 +511,11 @@ namespace Squirrel
                             var version = subKey.GetValue("DisplayVersion") as string;
                             if (NuGetVersion.TryParse(version, out var v)) {
                                 if (name.IndexOf("arm64", StringComparison.InvariantCultureIgnoreCase) >= 0) {
-                                    results.Add((v, RuntimeCpu.arm64));
+                                    results.Add(new VCVersion(v, RuntimeCpu.arm64));
                                 } else if (name.IndexOf("x64", StringComparison.InvariantCultureIgnoreCase) >= 0) {
-                                    results.Add((v, RuntimeCpu.x64));
+                                    results.Add(new VCVersion(v, RuntimeCpu.x64));
                                 } else {
-                                    results.Add((v, RuntimeCpu.x86));
+                                    results.Add(new VCVersion(v, RuntimeCpu.x86));
                                 }
                             }
                         }

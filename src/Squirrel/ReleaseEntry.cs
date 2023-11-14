@@ -386,15 +386,35 @@ namespace Squirrel
         static readonly Regex _versionStartRegex = new Regex(@"[\.-](0|[1-9]\d*)\.(0|[1-9]\d*)($|[^\d])", RegexOptions.Compiled);
         static readonly Regex _ridRegex = new Regex(@"-(?<os>osx|win)\.?(?<ver>[\d\.]+)?(?:-(?<arch>(?:x|arm)\d{2}))?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+        internal class EntryNameInfo
+        {
+            public string PackageName { get; set; }
+            public SemanticVersion Version { get; set; }
+            public bool IsDelta { get; set; }
+            public RID Rid { get; set; }
+
+            public EntryNameInfo()
+            {
+            }
+
+            public EntryNameInfo(string packageName, SemanticVersion version, bool isDelta, RID rid)
+            {
+                PackageName = packageName;
+                Version = version;
+                IsDelta = isDelta;
+                Rid = rid;
+            }
+        }
+
         /// <summary>
         /// Takes a filename such as 'My-Cool3-App-1.0.1-build.23-full.nupkg' and separates it into 
         /// it's name and version (eg. 'My-Cool3-App', and '1.0.1-build.23'). Returns null values if 
         /// the filename can not be parsed.
         /// </summary>
-        internal static (string PackageName, SemanticVersion Version, bool IsDelta, RID Rid) ParseEntryFileName(string fileName)
+        internal static EntryNameInfo ParseEntryFileName(string fileName)
         {
             if (!fileName.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase))
-                return (null, null, false, null);
+                return new EntryNameInfo(null, null, false, null);
 
             bool delta = Path.GetFileNameWithoutExtension(fileName).EndsWith("-delta", StringComparison.OrdinalIgnoreCase);
 
@@ -402,7 +422,7 @@ namespace Squirrel
 
             var match = _versionStartRegex.Match(nameAndVer);
             if (!match.Success)
-                return (null, null, delta, null);
+                return new EntryNameInfo(null, null, delta, null);
 
             var verIdx = match.Index;
             var name = nameAndVer.Substring(0, verIdx);
@@ -417,7 +437,7 @@ namespace Squirrel
             }
 
             var semVer = NuGetVersion.Parse(version);
-            return (name, semVer, delta, rid);
+            return new EntryNameInfo(name, semVer, delta, rid);
         }
     }
 }
