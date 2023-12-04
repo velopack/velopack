@@ -23,10 +23,10 @@ namespace Squirrel.CommandLine.Sync
         {
             if (options.Region != null) {
                 var r = RegionEndpoint.GetBySystemName(options.Region);
-                return new AmazonS3Client(options.KeyId, options.Secret, r);
+                return new AmazonS3Client(options.KeyId, options.Secret, options.Session, r);
             } else if (options.Endpoint != null) {
                 var config = new AmazonS3Config() { ServiceURL = options.Endpoint };
-                return new AmazonS3Client(options.KeyId, options.Secret, config);
+                return new AmazonS3Client(options.KeyId, options.Secret, options.Session, config);
             } else {
                 throw new InvalidOperationException("Missing endpoint");
             }

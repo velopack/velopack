@@ -9,6 +9,8 @@ namespace Squirrel.CommandLine.Commands
 
         public string Secret { get; private set; }
 
+        public string Session { get; private set; }
+
         public string Region { get; private set; }
 
         public string Endpoint { get; private set; }
@@ -29,6 +31,10 @@ namespace Squirrel.CommandLine.Commands
                 .SetDescription("Authentication secret key.")
                 .SetArgumentHelpName("KEY")
                 .SetRequired();
+
+            AddOption<string>((v) => Session = v, "--session")
+                .SetDescription("Authentication session token.")
+                .SetArgumentHelpName("SESSION");
 
             var region = AddOption<string>((v) => Region = v, "--region")
                 .SetDescription("AWS service region (eg. us-west-1).")
