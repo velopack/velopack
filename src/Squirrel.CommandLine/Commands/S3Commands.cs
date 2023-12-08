@@ -24,13 +24,11 @@ namespace Squirrel.CommandLine.Commands
         {
             AddOption<string>((v) => KeyId = v, "--keyId")
                 .SetDescription("Authentication identifier or access key.")
-                .SetArgumentHelpName("KEYID")
-                .SetRequired();
+                .SetArgumentHelpName("KEYID");
 
             AddOption<string>((v) => Secret = v, "--secret")
                 .SetDescription("Authentication secret key.")
-                .SetArgumentHelpName("KEY")
-                .SetRequired();
+                .SetArgumentHelpName("KEY");
 
             AddOption<string>((v) => Session = v, "--session")
                 .SetDescription("Authentication session token.")

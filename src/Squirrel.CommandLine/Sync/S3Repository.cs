@@ -23,6 +23,11 @@ namespace Squirrel.CommandLine.Sync
         {
             if (options.Region != null) {
                 var r = RegionEndpoint.GetBySystemName(options.Region);
+
+                if (string.IsNullOrWhiteSpace(options.KeyId)) {
+                    return new AmazonS3Client(r);
+                }
+
                 return new AmazonS3Client(options.KeyId, options.Secret, options.Session, r);
             } else if (options.Endpoint != null) {
                 var config = new AmazonS3Config() { ServiceURL = options.Endpoint };
