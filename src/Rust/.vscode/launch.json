@@ -1,0 +1,85 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'setup'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=setup",
+                    "--package=clowd_squirrel"
+                ],
+                "filter": {
+                    "name": "setup",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "--debug", "C:\\Source\\rust setup testing\\Clowd-3.4.439-full.nupkg", "--installto", "C:\\Source\\rust setup testing\\install"
+
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'setup'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=setup",
+                    "--package=clowd_squirrel"
+                ],
+                "filter": {
+                    "name": "setup",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'update'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=update",
+                    "--package=clowd_squirrel"
+                ],
+                "filter": {
+                    "name": "update",
+                    "kind": "bin"
+                }
+            },
+            "args": ["start", "hello"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'update'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=update",
+                    "--package=clowd_squirrel"
+                ],
+                "filter": {
+                    "name": "update",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

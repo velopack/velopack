@@ -1,0 +1,11 @@
+# Windows 64 bit programs
+[target.x86_64-pc-windows-msvc]
+rustflags = [
+	"-C", "link-arg=libvcruntime.lib"
+]
+
+# Windows 32 bit programs
+[target.i686-pc-windows-msvc]
+rustflags = [
+	"-C", "link-arg=libvcruntime.lib"
+]
