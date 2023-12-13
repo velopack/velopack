@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -6,7 +6,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Squirrel.SimpleSplat;
 using Squirrel.Sources;
 using NuGet.Versioning;
 using System.Runtime.Versioning;
@@ -83,15 +82,6 @@ namespace Squirrel
         public async Task<string> ApplyReleases(UpdateInfo updateInfo, Action<int> progress = null)
         {
             return await ApplyReleases(updateInfo, false, false, progress).ConfigureAwait(false);
-        }
-
-        /// <inheritdoc/>
-        [SupportedOSPlatform("windows")]
-        public async Task FullInstall(bool silentInstall = false, Action<int> progress = null)
-        {
-            var updateInfo = await CheckForUpdate(intention: UpdaterIntention.Install).ConfigureAwait(false);
-            await DownloadReleases(updateInfo.ReleasesToApply).ConfigureAwait(false);
-            await ApplyReleases(updateInfo, silentInstall, true, progress).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>

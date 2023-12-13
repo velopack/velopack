@@ -75,66 +75,6 @@ namespace Squirrel
             return newVersionDir;
         }
 
-        /// <inheritdoc/>
-        [SupportedOSPlatform("windows")]
-        public async Task FullUninstall()
-        {
-            var rootAppDirectory = _config.RootAppDir;
-            await acquireUpdateLock().ConfigureAwait(false);
-
-            this.Log().Info("Starting full uninstall");
-            KillAllExecutablesBelongingToPackage();
-
-            try {
-                var releases = _config.GetVersions().ToArray();
-                if (releases.Any()) {
-                    var latest = releases.OrderByDescending(x => x.Version).FirstOrDefault();
-                    var currentRelease = new DirectoryInfo(latest.DirectoryPath);
-                    var currentVersion = latest.Version;
-
-                    if (currentRelease.Exists) {
-                        if (isAppFolderDead(currentRelease.FullName)) throw new Exception("App folder is dead, but we're trying to uninstall it?");
-                        var squirrelAwareApps = SquirrelAwareExecutableDetector.GetAllSquirrelAwareApps(currentRelease.FullName);
-                        foreach (var exe in squirrelAwareApps) {
-                            using (var cts = new CancellationTokenSource()) {
-                                cts.CancelAfter(10 * 1000);
-                                try {
-                                    var args = new string[] { "--squirrel-uninstall", currentVersion.ToString() };
-                                    await PlatformUtil.InvokeProcessAsync(exe, args, Path.GetDirectoryName(exe), cts.Token).ConfigureAwait(false);
-                                } catch (Exception ex) {
-                                    this.Log().ErrorException("Failed to run cleanup hook, continuing: " + exe, ex);
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (Exception ex) {
-                this.Log().WarnException("Unable to run uninstall hooks", ex);
-            }
-
-            try {
-                RemoveAllShortcutsForPackage();
-                RemoveUninstallerRegistryEntry();
-            } catch (Exception ex) {
-                this.Log().WarnException("Unable to uninstall shortcuts or registry entry. Continuing anyway...", ex);
-            }
-
-            this.Log().Info("Deleting files in app directory: " + rootAppDirectory);
-            this.ErrorIfThrows(() => Utility.DeleteFileOrDirectoryHard(rootAppDirectory, throwOnFailure: false),
-                "Failed to delete app directory: " + rootAppDirectory);
-
-            // NB: We drop this file here so that --checkInstall will ignore 
-            // this folder - if we don't do this, users who "accidentally" run as 
-            // administrator will find the app reinstalling itself on every
-            // reboot
-            if (!Directory.Exists(rootAppDirectory)) {
-                Directory.CreateDirectory(rootAppDirectory);
-            }
-
-            File.WriteAllText(Path.Combine(rootAppDirectory, ".dead"), " ");
-            this.Log().Info("Done full uninstall.");
-        }
-
         Task<string> installPackageToStagingDir(UpdateInfo updateInfo, ReleaseEntry release, Action<int> progressCallback)
         {
             return Task.Run(async () => {
