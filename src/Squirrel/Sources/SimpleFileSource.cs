@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Squirrel.SimpleSplat;
+using Microsoft.Extensions.Logging;
 
 namespace Squirrel.Sources
 {
@@ -13,13 +13,16 @@ namespace Squirrel.Sources
     /// </summary>
     public class SimpleFileSource : IUpdateSource
     {
+        private readonly ILogger _logger;
+
         /// <summary> The local directory containing packages to update to. </summary>
         public virtual DirectoryInfo BaseDirectory { get; }
 
         /// <inheritdoc cref="SimpleFileSource" />
         /// <param name="baseDirectory">The directory where to search for packages.</param>
-        public SimpleFileSource(DirectoryInfo baseDirectory)
+        public SimpleFileSource(ILogger logger, DirectoryInfo baseDirectory)
         {
+            _logger = logger;
             BaseDirectory = baseDirectory;
         }
 
@@ -30,7 +33,7 @@ namespace Squirrel.Sources
                 throw new Exception($"The local update directory '{BaseDirectory.FullName}' does not exist.");
 
             var releasesPath = Path.Combine(BaseDirectory.FullName, "RELEASES");
-            this.Log().Info($"Reading RELEASES from '{releasesPath}'");
+            _logger.Info($"Reading RELEASES from '{releasesPath}'");
             var fi = new FileInfo(releasesPath);
 
             if (fi.Exists) {
@@ -39,7 +42,7 @@ namespace Squirrel.Sources
             } else {
                 var packages = BaseDirectory.EnumerateFiles("*.nupkg");
                 if (packages.Any()) {
-                    this.Log().Warn($"The file '{releasesPath}' does not exist but directory contains packages. " +
+                    _logger.Warn($"The file '{releasesPath}' does not exist but directory contains packages. " +
                         $"This is not valid but attempting to proceed anyway by writing new file.");
                     return Task.FromResult(ReleaseEntry.BuildReleasesFile(BaseDirectory.FullName).ToArray());
                 } else {

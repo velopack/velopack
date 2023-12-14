@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Runtime.Serialization;
-using Squirrel.SimpleSplat;
 
 namespace Squirrel
 {
@@ -11,7 +10,7 @@ namespace Squirrel
     /// Holds information about the current version and pending updates, such as how many there are, and access to release notes.
     /// </summary>
     [DataContract]
-    public class UpdateInfo : IEnableLogger
+    public class UpdateInfo
     {
         /// <summary>
         /// The currently executing version of the application, or null if not currently installed.
@@ -62,7 +61,6 @@ namespace Squirrel
                         var releaseNotes = x.GetReleaseNotes(PackageDirectory, format);
                         return EnumerableExtensions.Return(Tuple.Create(x, releaseNotes));
                     } catch (Exception ex) {
-                        this.Log().WarnException("Couldn't get release notes for:" + x.Filename, ex);
                         return Enumerable.Empty<Tuple<ReleaseEntry, string>>();
                     }
                 })

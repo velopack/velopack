@@ -10,7 +10,6 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NuGet.Versioning;
 using Squirrel.NuGet;
-using Squirrel.SimpleSplat;
 
 namespace Squirrel
 {
@@ -79,7 +78,7 @@ namespace Squirrel
 
     /// <inheritdoc cref="IReleaseEntry" />
     [DataContract]
-    public class ReleaseEntry : IEnableLogger, IReleaseEntry
+    public class ReleaseEntry : IReleaseEntry
     {
         /// <inheritdoc />
         [DataMember] public string SHA1 { get; protected set; }

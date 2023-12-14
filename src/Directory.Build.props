@@ -9,7 +9,7 @@
     <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     
-    <LangVersion>9</LangVersion>
+    <LangVersion>latest</LangVersion>
     <SignAssembly>True</SignAssembly>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <AssemblyOriginatorKeyFile>..\..\Squirrel.snk</AssemblyOriginatorKeyFile>

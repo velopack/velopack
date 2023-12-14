@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
@@ -8,8 +8,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Squirrel.NuGet;
-using Squirrel.SimpleSplat;
 
 namespace Squirrel
 {
@@ -180,7 +180,7 @@ namespace Squirrel
             Contract.Requires(!String.IsNullOrEmpty(to));
 
             if (!File.Exists(from)) {
-                Log().Warn("The file {0} does not exist", from);
+                //Log().Warn("The file {0} does not exist", from);
 
                 // TODO: should we fail this operation?
                 return;
@@ -198,7 +198,7 @@ namespace Squirrel
             }, retries, retryDelay);
         }
 
-        public static T Retry<T>(this Func<T> block, int retries = 4, int retryDelay = 250)
+        public static T Retry<T>(this Func<T> block, int retries = 4, int retryDelay = 250, ILogger logger = null)
         {
             Contract.Requires(retries > 0);
 
@@ -208,7 +208,7 @@ namespace Squirrel
                     return ret;
                 } catch (Exception ex) {
                     if (retries == 0) throw;
-                    Log().Warn($"Operation failed ({ex.Message}). Retrying {retries} more times...");
+                    logger?.Warn($"Operation failed ({ex.Message}). Retrying {retries} more times...");
                     retries--;
                     Thread.Sleep(retryDelay);
                 }
@@ -223,14 +223,14 @@ namespace Squirrel
             }, retries, retryDelay);
         }
 
-        public static async Task<T> RetryAsync<T>(this Func<Task<T>> block, int retries = 4, int retryDelay = 250)
+        public static async Task<T> RetryAsync<T>(this Func<Task<T>> block, int retries = 4, int retryDelay = 250, ILogger logger = null)
         {
             while (true) {
                 try {
                     return await block().ConfigureAwait(false);
                 } catch (Exception ex) {
                     if (retries == 0) throw;
-                    Log().Warn($"Operation failed ({ex.Message}). Retrying {retries} more times...");
+                    logger?.Warn($"Operation failed ({ex.Message}). Retrying {retries} more times...");
                     retries--;
                     await Task.Delay(retryDelay).ConfigureAwait(false);
                 }
@@ -346,14 +346,14 @@ namespace Squirrel
         /// <param name="throwOnFailure">Whether this function should throw if the delete fails.</param>
         /// <param name="renameFirst">Try to rename this object first before deleting. Can help prevent partial delete of folders.</param>
         /// <returns>True if the file system object was deleted, false otherwise.</returns>
-        public static bool DeleteFileOrDirectoryHard(string path, bool throwOnFailure = true, bool renameFirst = false)
+        public static bool DeleteFileOrDirectoryHard(string path, bool throwOnFailure = true, bool renameFirst = false, ILogger logger = null)
         {
             Contract.Requires(!String.IsNullOrEmpty(path));
-            Log().Debug("Starting to delete: {0}", path);
+            logger?.Debug($"Starting to delete: {path}");
 
             try {
                 if (File.Exists(path)) {
-                    DeleteFsiVeryHard(new FileInfo(path));
+                    DeleteFsiVeryHard(new FileInfo(path), logger);
                 } else if (Directory.Exists(path)) {
                     if (renameFirst) {
                         // if there are locked files in a directory, we will not attempt to delte it
@@ -362,26 +362,26 @@ namespace Squirrel
                         path = oldPath;
                     }
 
-                    DeleteFsiTree(new DirectoryInfo(path));
+                    DeleteFsiTree(new DirectoryInfo(path), logger);
                 } else {
                     if (throwOnFailure)
-                        Log().Warn($"Cannot delete '{path}' if it does not exist.");
+                        logger?.Warn($"Cannot delete '{path}' if it does not exist.");
                 }
 
                 return true;
             } catch (Exception ex) {
-                Log().ErrorException($"Unable to delete '{path}'", ex);
+                logger?.Error(ex, $"Unable to delete '{path}'");
                 if (throwOnFailure)
                     throw;
                 return false;
             }
         }
 
-        private static void DeleteFsiTree(FileSystemInfo fileSystemInfo)
+        private static void DeleteFsiTree(FileSystemInfo fileSystemInfo, ILogger logger)
         {
             // if junction / symlink, don't iterate, just delete it.
             if (fileSystemInfo.Attributes.HasFlag(FileAttributes.ReparsePoint)) {
-                DeleteFsiVeryHard(fileSystemInfo);
+                DeleteFsiVeryHard(fileSystemInfo, logger);
                 return;
             }
 
@@ -390,19 +390,19 @@ namespace Squirrel
                 var directoryInfo = fileSystemInfo as DirectoryInfo;
                 if (directoryInfo != null) {
                     foreach (FileSystemInfo childInfo in directoryInfo.GetFileSystemInfos()) {
-                        DeleteFsiTree(childInfo);
+                        DeleteFsiTree(childInfo, logger);
                     }
                 }
             } catch (Exception ex) {
-                Log().WarnException($"Unable to traverse children of '{fileSystemInfo.FullName}'", ex);
+                logger?.Warn(ex, $"Unable to traverse children of '{fileSystemInfo.FullName}'");
             }
 
             // finally, delete myself, we should try this even if deleting children failed
             // because Directory.Delete can also be recursive
-            DeleteFsiVeryHard(fileSystemInfo);
+            DeleteFsiVeryHard(fileSystemInfo, logger);
         }
 
-        private static void DeleteFsiVeryHard(FileSystemInfo fileSystemInfo)
+        private static void DeleteFsiVeryHard(FileSystemInfo fileSystemInfo, ILogger logger)
         {
             // don't try to delete the running process
             if (FullPathEquals(fileSystemInfo.FullName, SquirrelRuntimeInfo.EntryExePath))
@@ -429,7 +429,7 @@ namespace Squirrel
                     }
                 }, retries: 4, retryDelay: 50);
             } catch (Exception ex) {
-                Log().WarnException($"Unable to delete child '{fileSystemInfo.FullName}'", ex);
+                logger?.Warn(ex, $"Unable to delete child '{fileSystemInfo.FullName}'");
                 throw;
             }
         }
@@ -539,152 +539,12 @@ namespace Squirrel
             return relativePath.Split(Path.DirectorySeparatorChar).Length == 4;
         }
 
-        public static void LogIfThrows(this IFullLogger This, LogLevel level, string message, Action block)
-        {
-            try {
-                block();
-            } catch (Exception ex) {
-                switch (level) {
-                case LogLevel.Debug:
-                    This.DebugException(message ?? "", ex);
-                    break;
-                case LogLevel.Info:
-                    This.InfoException(message ?? "", ex);
-                    break;
-                case LogLevel.Warn:
-                    This.WarnException(message ?? "", ex);
-                    break;
-                case LogLevel.Error:
-                    This.ErrorException(message ?? "", ex);
-                    break;
-                }
-
-                throw;
-            }
-        }
-
-        public static async Task LogIfThrows(this IFullLogger This, LogLevel level, string message, Func<Task> block)
-        {
-            try {
-                await block().ConfigureAwait(false);
-            } catch (Exception ex) {
-                switch (level) {
-                case LogLevel.Debug:
-                    This.DebugException(message ?? "", ex);
-                    break;
-                case LogLevel.Info:
-                    This.InfoException(message ?? "", ex);
-                    break;
-                case LogLevel.Warn:
-                    This.WarnException(message ?? "", ex);
-                    break;
-                case LogLevel.Error:
-                    This.ErrorException(message ?? "", ex);
-                    break;
-                }
-
-                throw;
-            }
-        }
-
-        public static async Task<T> LogIfThrows<T>(this IFullLogger This, LogLevel level, string message, Func<Task<T>> block)
-        {
-            try {
-                return await block().ConfigureAwait(false);
-            } catch (Exception ex) {
-                switch (level) {
-                case LogLevel.Debug:
-                    This.DebugException(message ?? "", ex);
-                    break;
-                case LogLevel.Info:
-                    This.InfoException(message ?? "", ex);
-                    break;
-                case LogLevel.Warn:
-                    This.WarnException(message ?? "", ex);
-                    break;
-                case LogLevel.Error:
-                    This.ErrorException(message ?? "", ex);
-                    break;
-                }
-
-                throw;
-            }
-        }
-
-        public static void WarnIfThrows(this IEnableLogger This, Action block, string message = null)
-        {
-            This.Log().LogIfThrows(LogLevel.Warn, message, block);
-        }
-
-        public static Task WarnIfThrows(this IEnableLogger This, Func<Task> block, string message = null)
-        {
-            return This.Log().LogIfThrows(LogLevel.Warn, message, block);
-        }
-
-        public static Task<T> WarnIfThrows<T>(this IEnableLogger This, Func<Task<T>> block, string message = null)
-        {
-            return This.Log().LogIfThrows(LogLevel.Warn, message, block);
-        }
-
-        public static void ErrorIfThrows(this IEnableLogger This, Action block, string message = null)
-        {
-            This.Log().LogIfThrows(LogLevel.Error, message, block);
-        }
-
-        public static Task ErrorIfThrows(this IEnableLogger This, Func<Task> block, string message = null)
-        {
-            return This.Log().LogIfThrows(LogLevel.Error, message, block);
-        }
-
-        public static Task<T> ErrorIfThrows<T>(this IEnableLogger This, Func<Task<T>> block, string message = null)
-        {
-            return This.Log().LogIfThrows(LogLevel.Error, message, block);
-        }
-
-        public static void WarnIfThrows(this IFullLogger This, Action block, string message = null)
-        {
-            This.LogIfThrows(LogLevel.Warn, message, block);
-        }
-
-        public static Task WarnIfThrows(this IFullLogger This, Func<Task> block, string message = null)
-        {
-            return This.LogIfThrows(LogLevel.Warn, message, block);
-        }
-
-        public static Task<T> WarnIfThrows<T>(this IFullLogger This, Func<Task<T>> block, string message = null)
-        {
-            return This.LogIfThrows(LogLevel.Warn, message, block);
-        }
-
-        public static void ErrorIfThrows(this IFullLogger This, Action block, string message = null)
-        {
-            This.LogIfThrows(LogLevel.Error, message, block);
-        }
-
-        public static Task ErrorIfThrows(this IFullLogger This, Func<Task> block, string message = null)
-        {
-            return This.LogIfThrows(LogLevel.Error, message, block);
-        }
-
-        public static Task<T> ErrorIfThrows<T>(this IFullLogger This, Func<Task<T>> block, string message = null)
-        {
-            return This.LogIfThrows(LogLevel.Error, message, block);
-        }
-
         public static void ConsoleWriteWithColor(string text, ConsoleColor color)
         {
             var fc = Console.ForegroundColor;
             Console.ForegroundColor = color;
             Console.Write(text);
             Console.ForegroundColor = fc;
-        }
-
-        static IFullLogger logger;
-
-        static IFullLogger Log()
-        {
-            return logger ??
-                   (logger = SquirrelLocator.CurrentMutable.GetService<ILogManager>().GetLogger(typeof(Utility)));
         }
 
         public static Guid CreateGuidFromHash(string text)

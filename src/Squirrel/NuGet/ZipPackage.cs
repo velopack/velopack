@@ -6,7 +6,7 @@ using System.Linq;
 using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Squirrel.SimpleSplat;
+using Microsoft.Extensions.Logging;
 
 namespace Squirrel.NuGet
 {
@@ -90,13 +90,13 @@ namespace Squirrel.NuGet
                 .ToArray();
         }
 
-        public static Task ExtractZipReleaseForInstall(string zipFilePath, string outFolder, string rootPackageFolder, Action<int> progress)
+        public static Task ExtractZipReleaseForInstall(ILogger logger, string zipFilePath, string outFolder, string rootPackageFolder, Action<int> progress)
         {
             if (SquirrelRuntimeInfo.IsWindows)
-                return ExtractZipReleaseForInstallWindows(zipFilePath, outFolder, rootPackageFolder, progress);
+                return ExtractZipReleaseForInstallWindows(logger, zipFilePath, outFolder, rootPackageFolder, progress);
 
             if (SquirrelRuntimeInfo.IsOSX)
-                return ExtractZipReleaseForInstallOSX(zipFilePath, outFolder, progress);
+                return ExtractZipReleaseForInstallOSX(logger, zipFilePath, outFolder, progress);
 
             throw new NotSupportedException("Platform not supported.");
         }
@@ -105,7 +105,7 @@ namespace Squirrel.NuGet
             new Regex(@"lib[\\\/][^\\\/]*[\\\/]", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         [SupportedOSPlatform("macos")]
-        public static Task ExtractZipReleaseForInstallOSX(string zipFilePath, string outFinalFolder, Action<int> progress)
+        public static Task ExtractZipReleaseForInstallOSX(ILogger logger, string zipFilePath, string outFinalFolder, Action<int> progress)
         {
             if (!File.Exists(zipFilePath)) throw new ArgumentException("zipFilePath must exist");
             progress ??= ((_) => { });
@@ -161,7 +161,7 @@ namespace Squirrel.NuGet
         }
 
         [SupportedOSPlatform("windows")]
-        public static Task ExtractZipReleaseForInstallWindows(string zipFilePath, string outFinalFolder, string rootPackageFolder, Action<int> progress)
+        public static Task ExtractZipReleaseForInstallWindows(ILogger logger, string zipFilePath, string outFinalFolder, string rootPackageFolder, Action<int> progress)
         {
             if (!File.Exists(zipFilePath)) throw new ArgumentException("zipFilePath must exist");
             progress ??= ((_) => { });
@@ -198,13 +198,15 @@ namespace Squirrel.NuGet
                         var failureIsOkay = false;
                         if (!entry.IsDirectory() && decoded.Contains("_ExecutionStub.exe")) {
                             // NB: On upgrade, many of these stubs will be in-use, nbd tho.
-                            failureIsOkay = true;
+                            //failureIsOkay = true;
 
-                            fullTargetFile = Path.Combine(
-                                rootPackageFolder,
-                                Path.GetFileName(decoded).Replace("_ExecutionStub.exe", ".exe"));
+                            //fullTargetFile = Path.Combine(
+                            //    rootPackageFolder,
+                            //    Path.GetFileName(decoded).Replace("_ExecutionStub.exe", ".exe"));
 
-                            LogHost.Default.Info("Rigging execution stub for {0} to {1}", decoded, fullTargetFile);
+                            //logger.Info($"Rigging execution stub for {decoded} to {fullTargetFile}");
+                            logger.Info($"Skipping obsolete stub {decoded}");
+                            continue;
                         }
 
                         if (Utility.PathPartEquals(parts.Last(), "app.ico")) {
@@ -222,7 +224,7 @@ namespace Squirrel.NuGet
                             });
                         } catch (Exception e) {
                             if (!failureIsOkay) throw;
-                            LogHost.Default.WarnException("Can't write execution stub, probably in use", e);
+                            logger.Warn(e, "Can't write execution stub, probably in use");
                         }
                     }
 

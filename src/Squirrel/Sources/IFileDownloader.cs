@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Squirrel.SimpleSplat;
 
 namespace Squirrel.Sources
 {
     /// <summary>
     /// A simple abstractable file downloader
     /// </summary>
-    public interface IFileDownloader : IEnableLogger
+    public interface IFileDownloader
     {
         /// <summary>
         /// Downloads a remote file to the specified local path

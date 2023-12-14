@@ -9,98 +9,18 @@ using System.Runtime.Versioning;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Squirrel.SimpleSplat;
+using Microsoft.Extensions.Logging;
 
 namespace Squirrel
 {
     internal static class PlatformUtil
     {
-        static IFullLogger Log => SquirrelLocator.Current.GetService<ILogManager>().GetLogger(typeof(PlatformUtil));
-
         private const string OSX_CSTD_LIB = "libSystem.dylib";
         private const string NIX_CSTD_LIB = "libc";
         private const string WIN_KERNEL32 = "kernel32.dll";
         private const string WIN_SHELL32 = "shell32.dll";
         private const string WIN_NTDLL = "NTDLL.DLL";
         private const string WIN_PSAPI = "psapi.dll";
-
-        [SupportedOSPlatform("linux")]
-        [DllImport(NIX_CSTD_LIB, EntryPoint = "getppid")]
-        private static extern int nix_getppid();
-
-        [SupportedOSPlatform("osx")]
-        [DllImport(OSX_CSTD_LIB, EntryPoint = "getppid")]
-        private static extern int osx_getppid();
-
-        [SupportedOSPlatform("windows")]
-        [DllImport(WIN_KERNEL32)]
-        private static extern IntPtr GetCurrentProcess();
-
-        [SupportedOSPlatform("windows")]
-        [DllImport(WIN_NTDLL, SetLastError = true)]
-        private static extern int NtQueryInformationProcess(IntPtr hProcess, int pic, ref PROCESS_BASIC_INFORMATION pbi, int cb, out int pSize);
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        private struct PROCESS_BASIC_INFORMATION
-        {
-            public nint ExitStatus;
-            public nint PebBaseAddress;
-            public nint AffinityMask;
-            public nint BasePriority;
-            public nuint UniqueProcessId;
-            public nint InheritedFromUniqueProcessId;
-        }
-
-        public static Process GetParentProcess()
-        {
-            int parentId;
-
-            if (SquirrelRuntimeInfo.IsWindows) {
-                var pbi = new PROCESS_BASIC_INFORMATION();
-                NtQueryInformationProcess(GetCurrentProcess(), 0, ref pbi, Marshal.SizeOf(typeof(PROCESS_BASIC_INFORMATION)), out _);
-                parentId = (int) pbi.InheritedFromUniqueProcessId;
-            } else if (SquirrelRuntimeInfo.IsLinux) {
-                parentId = nix_getppid();
-            } else if (SquirrelRuntimeInfo.IsOSX) {
-                parentId = osx_getppid();
-            } else {
-                throw new PlatformNotSupportedException();
-            }
-
-            // the parent process has exited (nix/osx)
-            if (parentId <= 1)
-                return null;
-
-            try {
-                var p = Process.GetProcessById(parentId);
-
-                // the retrieved process is not our parent, the pid has been reused
-                if (p.StartTime > Process.GetCurrentProcess().StartTime)
-                    return null;
-
-                return p;
-            } catch (ArgumentException) {
-                // the process has exited (windows)
-                return null;
-            }
-        }
-
-        public static void WaitForParentProcessToExit()
-        {
-            var p = GetParentProcess();
-            if (p == null) {
-                Log.Warn("Will not wait. Parent process has already exited.");
-                return;
-            }
-
-            Log.Info($"Waiting for PID {p.Id} to exit (60s timeout)...");
-            var exited = p.WaitForExit(60_000);
-            if (!exited) {
-                throw new Exception("Parent wait timed out.");
-            }
-
-            Log.Info($"PID {p.Id} has exited.");
-        }
 
         [SupportedOSPlatform("osx")]
         [DllImport(OSX_CSTD_LIB, EntryPoint = "chmod", SetLastError = true)]
@@ -257,14 +177,14 @@ namespace Squirrel
                 .ToList();
         }
 
-        public static void KillProcessesInDirectory(string directoryToKill)
+        public static void KillProcessesInDirectory(ILogger logger, string directoryToKill)
         {
-            Log.Info("Killing all processes in " + directoryToKill);
+            logger.Info("Killing all processes in " + directoryToKill);
             var myPid = Process.GetCurrentProcess().Id;
             int c = 0;
             foreach (var x in GetRunningProcessesInDirectory(directoryToKill)) {
                 if (myPid == x.ProcessId) {
-                    Log.Info($"Skipping '{x.ProcessExePath}' (is current process)");
+                    logger.Info($"Skipping '{x.ProcessExePath}' (is current process)");
                     continue;
                 }
 
@@ -272,11 +192,11 @@ namespace Squirrel
                     Process.GetProcessById(x.ProcessId).Kill();
                     c++;
                 } catch (Exception ex) {
-                    Log.WarnException($"Unable to terminate process (pid.{x.ProcessId})", ex);
+                    logger.Warn(ex, $"Unable to terminate process (pid.{x.ProcessId})");
                 }
             }
 
-            Log.Info($"Terminated {c} processes successfully.");
+            logger.Info($"Terminated {c} processes successfully.");
         }
         
         [SupportedOSPlatform("windows")]

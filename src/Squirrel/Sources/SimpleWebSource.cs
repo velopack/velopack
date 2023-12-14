@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Squirrel.SimpleSplat;
+using Microsoft.Extensions.Logging;
 
 namespace Squirrel.Sources
 {
@@ -13,6 +13,8 @@ namespace Squirrel.Sources
     /// </summary>
     public class SimpleWebSource : IUpdateSource
     {
+        private readonly ILogger _logger;
+
         /// <summary> The URL of the server hosting packages to update to. </summary>
         public virtual Uri BaseUri { get; }
 
@@ -20,13 +22,14 @@ namespace Squirrel.Sources
         public virtual IFileDownloader Downloader { get; }
 
         /// <inheritdoc cref="SimpleWebSource" />
-        public SimpleWebSource(string baseUrl, IFileDownloader downloader = null)
-            : this(new Uri(baseUrl), downloader)
+        public SimpleWebSource(ILogger logger, string baseUrl, IFileDownloader downloader = null)
+            : this(logger, new Uri(baseUrl), downloader)
         { }
 
         /// <inheritdoc cref="SimpleWebSource" />
-        public SimpleWebSource(Uri baseUri, IFileDownloader downloader = null)
+        public SimpleWebSource(ILogger logger, Uri baseUri, IFileDownloader downloader = null)
         {
+            _logger = logger;
             BaseUri = baseUri;
             Downloader = downloader ?? Utility.CreateDefaultDownloader();
         }
@@ -54,7 +57,7 @@ namespace Squirrel.Sources
 
             var uriAndQuery = Utility.AddQueryParamsToUri(uri, args);
 
-            this.Log().Info($"Downloading RELEASES from '{uriAndQuery}'.");
+            _logger.Info($"Downloading RELEASES from '{uriAndQuery}'.");
 
             var bytes = await Downloader.DownloadBytes(uriAndQuery.ToString()).ConfigureAwait(false);
             var txt = Utility.RemoveByteOrderMarkerIfPresent(bytes);
@@ -83,7 +86,7 @@ namespace Squirrel.Sources
                 ? new Uri(sourceBaseUri, releaseUri).ToString()
                 : Utility.AppendPathToUri(sourceBaseUri, releaseUri).ToString();
 
-            this.Log().Info($"Downloading '{releaseEntry.Filename}' from '{source}'.");
+            _logger.Info($"Downloading '{releaseEntry.Filename}' from '{source}'.");
             return Downloader.DownloadFile(source, localFile, progress);
         }
     }

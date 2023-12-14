@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Squirrel.SimpleSplat;
 
 namespace Squirrel.Sources
 {
@@ -9,7 +8,7 @@ namespace Squirrel.Sources
     /// An implementation may copy a file from a local repository, download from a web address, 
     /// or even use third party services and parse proprietary data to produce a package feed.
     /// </summary>
-    public interface IUpdateSource : IEnableLogger
+    public interface IUpdateSource
     {
         /// <summary>
         /// Retrieve the list of available remote releases from the package source. These releases
