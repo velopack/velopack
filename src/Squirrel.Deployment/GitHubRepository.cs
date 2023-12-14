@@ -1,9 +1,30 @@
 ﻿using Microsoft.Extensions.Logging;
 using Octokit;
-using Squirrel.Extensions;
 using Squirrel.Sources;
 
-namespace Squirrel.CommandLine.Sync;
+namespace Squirrel.Deployment;
+
+public class GitHubOptions
+{
+    public DirectoryInfo ReleaseDir { get; set; }
+    public string RepoUrl { get; set; }
+
+    public string Token { get; set; }
+}
+
+public class GitHubDownloadOptions : GitHubOptions
+{
+    public bool Pre { get; set; }
+
+}
+
+public class GitHubUploadOptions : GitHubOptions
+{
+    public bool Publish { get; set; }
+
+    public string ReleaseName { get; set; }
+
+}
 
 public class GitHubRepository
 {
@@ -14,13 +35,14 @@ public class GitHubRepository
         _log = logger;
     }
 
-    public async Task DownloadRecentPackages(DirectoryInfo releaseDirectoryInfo, string repoUrl, string token, bool asPrerelease)
+    public async Task DownloadRecentPackages(GitHubDownloadOptions options)
     {
-        if (String.IsNullOrWhiteSpace(token))
+        var releaseDirectoryInfo = options.ReleaseDir;
+        if (String.IsNullOrWhiteSpace(options.Token))
             _log.Warn("No GitHub access token provided. Unauthenticated requests will be limited to 60 per hour.");
 
         _log.Info("Fetching RELEASES...");
-        var source = new GithubSource(repoUrl, token, asPrerelease);
+        var source = new GithubSource(options.RepoUrl, options.Token, options.Pre);
         var latestReleaseEntries = await source.GetReleaseFeed();
 
         if (latestReleaseEntries == null || latestReleaseEntries.Length == 0) {
@@ -54,12 +76,12 @@ public class GitHubRepository
         _log.Info("Done.");
     }
 
-    public static async Task UploadMissingPackages(GitHubUploadCommand options)
+    public async Task UploadMissingPackages(GitHubUploadOptions options)
     {
         if (String.IsNullOrWhiteSpace(options.Token))
             throw new InvalidOperationException("Must provide access token to create a GitHub release.");
 
-        var releaseDirectoryInfo = options.GetReleaseDirectory();
+        var releaseDirectoryInfo = options.ReleaseDir;
 
         var repoUri = new Uri(options.RepoUrl);
         var repoParts = repoUri.AbsolutePath.Trim('/').Split('/');
@@ -145,7 +167,7 @@ public class GitHubRepository
         _log.Info("Release URL: " + release.HtmlUrl);
     }
 
-    private static async Task UploadFileAsAsset(GitHubClient client, Release release, string filePath)
+    private async Task UploadFileAsAsset(GitHubClient client, Release release, string filePath)
     {
         _log.Info($"Uploading asset '{Path.GetFileName(filePath)}'");
         using var stream = File.OpenRead(filePath);

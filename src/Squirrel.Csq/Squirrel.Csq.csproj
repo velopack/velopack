@@ -29,4 +29,10 @@
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.23407.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Squirrel.Deployment\Squirrel.Deployment.csproj" />
+    <ProjectReference Include="..\Squirrel.Packaging.OSX\Squirrel.Packaging.OSX.csproj" />
+    <ProjectReference Include="..\Squirrel.Packaging.Windows\Squirrel.Packaging.Windows.csproj" />
+  </ItemGroup>
+
 </Project>

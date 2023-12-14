@@ -116,7 +116,7 @@ using System.Text.RegularExpressions;
 using System.Xml;
 
 // ASCIIPropertyListParser.cs
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     /// <summary>
     ///     <para>
@@ -900,7 +900,7 @@ namespace Squirrel.PropertyList
 }
 
 // BinaryPropertyListParser.cs
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     /// <summary>
     ///     <para>
@@ -1467,7 +1467,7 @@ namespace Squirrel.PropertyList
 }
 
 // BinaryPropertyListWriter.AddObjectEqualityComparer.cs
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     internal partial class BinaryPropertyListWriter
     {
@@ -1504,7 +1504,7 @@ namespace Squirrel.PropertyList
 }
 
 // BinaryPropertyListWriter.cs
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     /// <summary>
     ///     <para>A BinaryPropertyListWriter is a helper class for writing out binary property list files.</para>
@@ -1899,7 +1899,7 @@ namespace Squirrel.PropertyList
 }
 
 // BinaryPropertyListWriter.GetObjectEqualityComparer.cs
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     internal partial class BinaryPropertyListWriter
     {
@@ -1938,7 +1938,7 @@ namespace Squirrel.PropertyList
 }
 
 // NSArray.cs
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     /// <summary>Represents an Array.</summary>
     /// @author Daniel Dreibrodt
@@ -2273,7 +2273,7 @@ namespace Squirrel.PropertyList
 }
 
 // NSArray.IList.cs
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     partial class NSArray : IList<NSObject>
     {
@@ -2331,7 +2331,7 @@ namespace Squirrel.PropertyList
 }
 
 // NSData.cs
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     /// <summary>NSData objects are wrappers for byte buffers</summary>
     /// @author Daniel Dreibrodt
@@ -2488,7 +2488,7 @@ namespace Squirrel.PropertyList
 }
 
 // NSDate.cs
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     /// <summary>Represents a date</summary>
     /// @author Daniel Dreibrodt
@@ -2638,7 +2638,7 @@ namespace Squirrel.PropertyList
 }
 
 // NSDictionary.cs
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     /// <summary>
     ///     <para>
@@ -3164,7 +3164,7 @@ namespace Squirrel.PropertyList
 }
 
 // NSNumber.cs
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     /// <summary>A number whose value is either an integer, a real number or bool.</summary>
     /// @author Daniel Dreibrodt
@@ -3682,7 +3682,7 @@ namespace Squirrel.PropertyList
 }
 
 // NSObject.cs
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     /// <summary>
     ///     <para>Abstract interface for any object contained in a property list.</para>
@@ -4099,7 +4099,7 @@ namespace Squirrel.PropertyList
 }
 
 // NSSet.cs
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     /// <summary>
     ///     <para>A set is an interface to an unordered collection of objects.</para>
@@ -4472,7 +4472,7 @@ namespace Squirrel.PropertyList
 }
 
 // NSString.cs
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     /// <summary>A NSString contains a string.</summary>
     /// @author Daniel Dreibrodt
@@ -4717,7 +4717,7 @@ namespace Squirrel.PropertyList
 }
 
 // PropertyListException.cs
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     /// <summary>The exception that is thrown when an property list file could not be processed correctly.</summary>
     [Serializable]
@@ -4767,7 +4767,7 @@ namespace Squirrel.PropertyList
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     /// <summary>
     ///     A PropertyListFormatException is thrown by the various property list format parsers when an error in the
@@ -4784,7 +4784,7 @@ namespace Squirrel.PropertyList
 }
 
 // PropertyListParser.cs
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     /// <summary>
     ///     This class provides methods to parse property lists. It can handle files, input streams and byte arrays. All
@@ -5156,7 +5156,7 @@ namespace Squirrel.PropertyList
 }
 
 // UID.cs
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     /// <summary>An UID. Only found in binary property lists that are keyed archives.</summary>
     /// @author Daniel Dreibrodt
@@ -5341,7 +5341,7 @@ namespace Squirrel.PropertyList
 }
 
 // XmlPropertyListParser.cs
-namespace Squirrel.PropertyList
+namespace Squirrel.Packaging.OSX
 {
     /// <summary>Parses XML property lists.</summary>
     /// @author Daniel Dreibrodt

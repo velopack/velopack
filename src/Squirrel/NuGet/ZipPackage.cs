@@ -1,4 +1,5 @@
-﻿using System;
+﻿#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -10,13 +11,13 @@ using Microsoft.Extensions.Logging;
 
 namespace Squirrel.NuGet
 {
-    internal interface IZipPackage : IPackage
+    public interface IZipPackage : IPackage
     {
         IEnumerable<string> Frameworks { get; }
         IEnumerable<ZipPackageFile> Files { get; }
     }
 
-    internal class ZipPackage : NuspecManifest, IZipPackage
+    public class ZipPackage : NuspecManifest, IZipPackage
     {
         public IEnumerable<string> Frameworks { get; private set; } = Enumerable.Empty<string>();
         public IEnumerable<ZipPackageFile> Files { get; private set; } = Enumerable.Empty<ZipPackageFile>();

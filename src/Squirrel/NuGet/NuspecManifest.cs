@@ -1,4 +1,5 @@
-﻿using System;
+﻿#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -7,7 +8,7 @@ using NuGet.Versioning;
 
 namespace Squirrel.NuGet
 {
-    internal interface IPackage
+    public interface IPackage
     {
         string Id { get; }
         string ProductName { get; }
@@ -26,7 +27,7 @@ namespace Squirrel.NuGet
         IEnumerable<string> RuntimeDependencies { get; }
     }
 
-    internal class NuspecManifest : IPackage
+    public class NuspecManifest : IPackage
     {
         public string ProductName => Title ?? Id;
         public string ProductDescription => Description ?? Summary ?? Title ?? Id;

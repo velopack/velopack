@@ -5,8 +5,14 @@ using System.Collections.Generic;
 
 namespace Squirrel
 {
+    /// <summary>
+    /// Useful enumerable extensions used by Squirrel
+    /// </summary>
     internal static class EnumerableExtensions
     {
+        /// <summary>
+        /// Turn a single value into an IEnumerable of that value.
+        /// </summary>
         public static IEnumerable<T> Return<T>(T value)
         {
             yield return value;

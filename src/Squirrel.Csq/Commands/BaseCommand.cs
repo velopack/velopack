@@ -8,7 +8,6 @@ public class BaseCommand : CliCommand
 
     protected CliOption<DirectoryInfo> ReleaseDirectoryOption { get; private set; }
 
-    //protected static IFullLogger Log = SquirrelLocator.CurrentMutable.GetService<ILogManager>().GetLogger(typeof(BaseCommand));
     private Dictionary<CliOption, Action<ParseResult>> _setters = new();
 
     protected BaseCommand(string name, string description)
@@ -29,7 +28,7 @@ public class BaseCommand : CliCommand
 
     protected virtual CliOption<T> AddOption<T>(Action<T> setValue, params string[] aliases)
     {
-        return AddOption(setValue, new CliOption<T>(aliases));
+        return AddOption(setValue, new CliOption<T>(aliases.OrderBy(a => a.Length).First(), aliases));
     }
 
     protected virtual CliOption<T> AddOption<T>(Action<T> setValue, CliOption<T> opt)
@@ -42,7 +41,7 @@ public class BaseCommand : CliCommand
     public virtual void SetProperties(ParseResult context)
     {
         foreach (var kvp in _setters) {
-            if (context.Errors.Any(e => e.SymbolResult?.Symbol?.Equals(kvp.Key) == true)) {
+            if (context.Errors.Any(e => e.SymbolResult?.Tokens?.Any(t => t.Equals(kvp.Key)) == true)) {
                 continue; // skip setting values for options with errors
             }
             kvp.Value(context);
@@ -55,15 +54,4 @@ public class BaseCommand : CliCommand
         SetProperties(x);
         return x;
     }
-}
-
-public interface INugetPackCommand
-{
-    string PackId { get; }
-    string PackVersion { get; }
-    string PackDirectory { get; }
-    string PackAuthors { get; }
-    string PackTitle { get; }
-    bool IncludePdb { get; }
-    string ReleaseNotes { get; }
 }

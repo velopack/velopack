@@ -1,10 +1,11 @@
-﻿// Parts of this file have been used from
+﻿#if false
+
+// Parts of this file have been used from
 // https://github.com/icsharpcode/ILSpy/blob/f7460a041ea8fb8b0abf8527b97a5b890eb94eea/ICSharpCode.Decompiler/SingleFileBundle.cs
 
 using Microsoft.NET.HostModel.AppHost;
 using Microsoft.NET.HostModel.Bundle;
 using NuGet.Versioning;
-using Squirrel.SimpleSplat;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -304,3 +305,4 @@ namespace Squirrel.CommandLine.Windows
         }
     }
 }
+#endif

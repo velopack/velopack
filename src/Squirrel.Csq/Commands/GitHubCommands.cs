@@ -1,6 +1,9 @@
-﻿namespace Squirrel.Csq.Commands;
+﻿using Microsoft.Extensions.Logging;
+using Squirrel.Deployment;
 
-public class GitHubBaseCommand : BaseCommand
+namespace Squirrel.Csq.Commands;
+
+public abstract class GitHubBaseCommand : BaseCommand
 {
     public string RepoUrl { get; private set; }
 

@@ -1,4 +1,5 @@
-﻿using System;
+﻿#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -6,12 +7,12 @@ using System.Linq;
 
 namespace Squirrel.NuGet
 {
-    internal interface IFrameworkTargetable
+    public interface IFrameworkTargetable
     {
         IEnumerable<string> SupportedFrameworks { get; }
     }
 
-    internal class PackageDependency
+    public class PackageDependency
     {
         public PackageDependency(string id)
             : this(id, versionSpec: null)
@@ -47,7 +48,7 @@ namespace Squirrel.NuGet
         }
     }
 
-    internal class PackageDependencySet : IFrameworkTargetable
+    public class PackageDependencySet : IFrameworkTargetable
     {
         private readonly string _targetFramework;
         private readonly ReadOnlyCollection<PackageDependency> _dependencies;
@@ -85,7 +86,7 @@ namespace Squirrel.NuGet
         }
     }
 
-    internal class FrameworkAssemblyReference : IFrameworkTargetable
+    public class FrameworkAssemblyReference : IFrameworkTargetable
     {
         public FrameworkAssemblyReference(string assemblyName)
             : this(assemblyName, Enumerable.Empty<string>())

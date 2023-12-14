@@ -2,10 +2,10 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-namespace Squirrel.Lib
+namespace Squirrel.Packaging.Windows
 {
     [SupportedOSPlatform("windows")]
-    internal static class AuthenticodeTools
+    public static class AuthenticodeTools
     {
         [DllImport("Wintrust.dll", PreserveSig = true, SetLastError = false)]
         static extern uint WinVerifyTrust(IntPtr hWnd, IntPtr pgActionID, IntPtr pWinTrustData);
