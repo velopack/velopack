@@ -16,9 +16,22 @@
     <LangVersion>latest</LangVersion>
     <NoWarn>$(NoWarn);CA2007;CS8002</NoWarn>
   </PropertyGroup>
-  
+
   <ItemGroup>
     <None Include="..\..\docs\artwork\Clowd_200.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <None Include="..\Rust\target\debug\update.exe" CopyToOutputDirectory="Always" />
+    <None Include="..\Rust\target\debug\setup.exe" CopyToOutputDirectory="Always" />
+    <None Include="..\..\vendor\rcedit.exe" CopyToOutputDirectory="Always" />
+    <None Include="..\..\vendor\signtool.exe" CopyToOutputDirectory="Always" />
+    <None Include="..\..\Squirrel.entitlements" CopyToOutputDirectory="Always" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <None Include="..\Rust\target\release\update.exe" Pack="true" PackagePath="vendor" />
+    <None Include="..\Rust\target\release\setup.exe" Pack="true" PackagePath="vendor" />
     <None Include="..\..\vendor\rcedit.exe" Pack="true" PackagePath="vendor" />
     <None Include="..\..\vendor\signtool.exe" Pack="true" PackagePath="vendor" />
     <None Include="..\..\Squirrel.entitlements" Pack="true" PackagePath="vendor" />
