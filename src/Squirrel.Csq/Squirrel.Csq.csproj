@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>net6.0</TargetFrameworks>
+    <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
     <IsPackable>true</IsPackable>
     <AssemblyName>csq</AssemblyName>
     <PackageId>csq</PackageId>
@@ -19,6 +19,9 @@
   
   <ItemGroup>
     <None Include="..\..\docs\artwork\Clowd_200.png" Pack="true" PackagePath="\" />
+    <None Include="..\..\vendor\rcedit.exe" Pack="true" PackagePath="vendor" />
+    <None Include="..\..\vendor\signtool.exe" Pack="true" PackagePath="vendor" />
+    <None Include="..\..\Squirrel.entitlements" Pack="true" PackagePath="vendor" />
   </ItemGroup>
 
   <ItemGroup>
