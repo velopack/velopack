@@ -4,10 +4,6 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
 {
     public string Package { get; set; }
 
-    public string BaseUrl { get; private set; }
-
-    public string DebugSetupExe { get; private set; }
-
     public bool NoDelta { get; private set; }
 
     public string Runtimes { get; private set; }
@@ -16,9 +12,7 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
 
     public string Icon { get; private set; }
 
-    public string[] SquirrelAwareExecutableNames { get; private set; }
-
-    public string AppIcon { get; private set; }
+    public string EntryExecutableName { get; private set; }
 
     public WindowsReleasifyCommand()
         : this("releasify", "Take an existing nuget package and convert it into a Squirrel release.")
@@ -38,19 +32,6 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
     protected WindowsReleasifyCommand(string name, string description)
         : base(name, description)
     {
-        AddOption<Uri>((v) => BaseUrl = v.ToAbsoluteOrNull(), "-b", "--baseUrl")
-            .SetDescription("Provides a base URL to prefix the RELEASES file packages with.")
-            .SetHidden()
-            .MustBeValidHttpUri();
-
-        AddOption<FileInfo>((v) => DebugSetupExe = v.ToFullNameOrNull(), "--debugSetupExe")
-            .SetDescription("Uses the Setup.exe at this {PATH} to create the bundle, and then replaces it with the bundle. " +
-                            "Used for locally debugging Setup.exe with a real bundle attached.")
-            .SetArgumentHelpName("PATH")
-            .SetHidden()
-            .AcceptExistingOnly()
-            .RequiresExtension(".exe");
-
         AddOption<bool>((v) => NoDelta = v, "--noDelta")
             .SetDescription("Skip the generation of delta packages.");
 
@@ -70,14 +51,9 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
             .AcceptExistingOnly()
             .RequiresExtension(".ico");
 
-        AddOption<string[]>((v) => SquirrelAwareExecutableNames = v ?? new string[0], "-e", "--mainExe")
-            .SetDescription("Name of one or more SquirrelAware executables.")
-            .SetArgumentHelpName("NAME");
-
-        AddOption<FileInfo>((v) => AppIcon = v.ToFullNameOrNull(), "--appIcon")
-            .SetDescription("Path to .ico for 'Apps and Features' list.")
-            .SetArgumentHelpName("PATH")
-            .AcceptExistingOnly()
-            .RequiresExtension(".ico");
+        AddOption<string>((v) => EntryExecutableName = v, "-e", "--mainExe")
+            .SetDescription("The file name of the main/entry executable.")
+            .SetArgumentHelpName("NAME")
+            .SetRequired();
     }
 }

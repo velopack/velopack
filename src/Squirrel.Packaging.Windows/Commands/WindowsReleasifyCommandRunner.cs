@@ -4,87 +4,24 @@ using Microsoft.Extensions.Logging;
 using Squirrel.NuGet;
 using FileMode = System.IO.FileMode;
 
-namespace Squirrel.Packaging.Windows;
+namespace Squirrel.Packaging.Windows.Commands;
 
-public class SigningOptions
+public class WindowsReleasifyCommandRunner
 {
-    public string SignParameters { get; set; }
+    private readonly ILogger _logger;
 
-    public bool SignSkipDll { get; set; }
-
-    public int SignParallel { get; set; }
-
-    public string SignTemplate { get; set; }
-}
-
-public class ReleasifyWindowsOptions : SigningOptions
-{
-    public DirectoryInfo ReleaseDir { get; set; }
-
-    public RID TargetRuntime { get; set; }
-
-    public string Package { get; set; }
-
-    public string BaseUrl { get; set; }
-
-    public string DebugSetupExe { get; set; }
-
-    public bool NoDelta { get; set; }
-
-    public string Runtimes { get; set; }
-
-    public string SplashImage { get; set; }
-
-    public string Icon { get; set; }
-
-    public string[] MainExe { get; set; }
-
-    public string AppIcon { get; set; }
-}
-
-public class PackWindowsOptions : ReleasifyWindowsOptions, INugetPackCommand
-{
-    public string PackId { get; set; }
-
-    public string PackVersion { get; set; }
-
-    public string PackDirectory { get; set; }
-
-    public string PackAuthors { get; set; }
-
-    public string PackTitle { get; set; }
-
-    public bool IncludePdb { get; set; }
-
-    public string ReleaseNotes { get; set; }
-}
-
-public class WindowsCommands
-{
-    private readonly ILogger Log;
-
-    public WindowsCommands(ILogger logger)
+    public WindowsReleasifyCommandRunner(ILogger logger)
     {
-        Log = logger;
+        _logger = logger;
     }
 
-    public void Pack(PackWindowsOptions options)
-    {
-        using (Utility.GetTempDirectory(out var tmp)) {
-            var nupkgPath = new NugetConsole(Log).CreatePackageFromOptions(tmp, options);
-            options.Package = nupkgPath;
-            Releasify(options);
-        }
-    }
-
-    public void Releasify(ReleasifyWindowsOptions options)
+    public void Releasify(WindowsReleasifyOptions options)
     {
         var targetDir = options.ReleaseDir.FullName;
         var package = options.Package;
-        var baseUrl = options.BaseUrl;
         var generateDeltas = !options.NoDelta;
         var backgroundGif = options.SplashImage;
-        var setupIcon = options.Icon ?? options.AppIcon;
+        var setupIcon = options.Icon;
 
         // normalize and validate that the provided frameworks are supported 
         var requiredFrameworks = options.Runtimes
@@ -97,14 +34,14 @@ public class WindowsCommands
         using var ud = Utility.GetTempDirectory(out var tempDir);
 
         // update icon for Update.exe if requested
-        var helper = new HelperExe(Log);
+        var helper = new HelperExe(_logger);
         var updatePath = Path.Combine(tempDir, "Update.exe");
         File.Copy(HelperExe.UpdatePath, updatePath, true);
 
         if (setupIcon != null && SquirrelRuntimeInfo.IsWindows) {
             helper.SetExeIcon(updatePath, setupIcon);
         } else if (setupIcon != null) {
-            Log.Warn("Unable to set icon for Update.exe (only supported on windows).");
+            _logger.Warn("Unable to set icon for Update.exe (only supported on windows).");
         }
 
         // copy input package to target output directory
@@ -123,9 +60,9 @@ public class WindowsCommands
         }
 
         foreach (var file in toProcess) {
-            Log.Info("Creating release for package: " + file.FullName);
+            _logger.Info("Creating release for package: " + file.FullName);
 
-            var rp = new ReleasePackageBuilder(Log, file.FullName);
+            var rp = new ReleasePackageBuilder(_logger, file.FullName);
             rp.CreateReleasePackage(contentsPostProcessHook: (pkgPath, zpkg) => {
                 var nuspecPath = Directory.GetFiles(pkgPath, "*.nuspec", SearchOption.TopDirectoryOnly)
                     .ContextualSingle("package", "*.nuspec", "top level directory");
@@ -140,7 +77,7 @@ public class WindowsCommands
                 Directory.EnumerateFiles(libDir, "*", SearchOption.AllDirectories)
                     .Select(f => f.Substring(libDir.Length).Trim(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
                     .Where(f => f.Length >= 200)
-                    .ForEach(f => Log.Warn($"File path in package exceeds 200 characters ({f.Length}) and may cause issues on Windows: '{f}'."));
+                    .ForEach(f => _logger.Warn($"File path in package exceeds 200 characters ({f.Length}) and may cause issues on Windows: '{f}'."));
 
                 // fail the release if this is a clickonce application
                 if (Directory.EnumerateFiles(libDir, "*.application").Any(f => File.ReadAllText(f).Contains("clickonce"))) {
@@ -149,7 +86,7 @@ public class WindowsCommands
                         "Please publish your application to a folder without ClickOnce.");
                 }
 
-                ZipPackage.SetMetadata(nuspecPath, requiredFrameworks.Select(r => r.Id), options.TargetRuntime);
+                NuspecManifest.SetMetadata(nuspecPath, requiredFrameworks.Select(r => r.Id), options.TargetRuntime);
 
                 // copy Update.exe into package, so it can also be updated in both full/delta packages
                 // and do it before signing so that Update.exe will also be signed. It is renamed to
@@ -164,33 +101,6 @@ public class WindowsCommands
 
                 signFiles(options, libDir, filesToSign);
 
-                // copy app icon to 'lib/fx/app.ico'
-                var iconTarget = Path.Combine(libDir, "app.ico");
-                if (options.AppIcon != null) {
-                    // icon was specified on the command line
-                    Log.Info("Using app icon from command line arguments");
-                    File.Copy(options.AppIcon, iconTarget, true);
-                } else if (!File.Exists(iconTarget) && zpkg.IconUrl != null) {
-                    // icon was provided in the nuspec. download it and possibly convert it from a different image format
-                    Log.Info($"Downloading app icon from '{zpkg.IconUrl}'.");
-                    var fd = Utility.CreateDefaultDownloader();
-                    var imgBytes = fd.DownloadBytes(zpkg.IconUrl.ToString()).Result;
-                    if (zpkg.IconUrl.AbsolutePath.EndsWith(".ico")) {
-                        File.WriteAllBytes(iconTarget, imgBytes);
-                    } else {
-                        if (SquirrelRuntimeInfo.IsWindows) {
-                            using var imgStream = new MemoryStream(imgBytes);
-                            using var bmp = (Bitmap) Image.FromStream(imgStream);
-                            using var ico = Icon.FromHandle(bmp.GetHicon());
-                            using var fs = File.Open(iconTarget, FileMode.Create, FileAccess.Write);
-                            ico.Save(fs);
-                        } else {
-                            Log.Warn($"App icon is currently {Path.GetExtension(zpkg.IconUrl.AbsolutePath)} and can not be automatically " +
-                                     $"converted to .ico (only supported on windows). Supply a .ico image instead.");
-                        }
-                    }
-                }
-
                 // copy other images to root (used by setup)
                 if (setupIcon != null) File.Copy(setupIcon, Path.Combine(pkgPath, "setup.ico"), true);
                 if (backgroundGif != null) File.Copy(backgroundGif, Path.Combine(pkgPath, "splashimage" + Path.GetExtension(backgroundGif)));
@@ -200,9 +110,9 @@ public class WindowsCommands
 
             processed.Add(rp.ReleasePackageFile);
 
-            var prev = ReleasePackageBuilder.GetPreviousRelease(Log, previousReleases, rp, targetDir, options.TargetRuntime);
+            var prev = ReleasePackageBuilder.GetPreviousRelease(_logger, previousReleases, rp, targetDir, options.TargetRuntime);
             if (prev != null && generateDeltas) {
-                var deltaBuilder = new DeltaPackageBuilder(Log);
+                var deltaBuilder = new DeltaPackageBuilder(_logger);
                 var deltaOutputPath = rp.ReleasePackageFile.Replace("-full", "-delta");
                 var dp = deltaBuilder.CreateDeltaPackage(prev, rp, deltaOutputPath);
                 processed.Insert(0, dp.InputPackageFile);
@@ -214,7 +124,7 @@ public class WindowsCommands
         }
 
         var newReleaseEntries = processed
-            .Select(packageFilename => ReleaseEntry.GenerateFromFile(packageFilename, baseUrl))
+            .Select(packageFilename => ReleaseEntry.GenerateFromFile(packageFilename))
             .ToList();
         var distinctPreviousReleases = previousReleases
             .Where(x => !newReleaseEntries.Select(e => e.Version).Contains(x.Version));
@@ -224,48 +134,42 @@ public class WindowsCommands
 
         var bundledzp = new ZipPackage(package);
         var targetSetupExe = Path.Combine(targetDir, $"{bundledzp.Id}Setup-{options.TargetRuntime.StringWithNoVersion}.exe");
-        File.Copy(options.DebugSetupExe ?? HelperExe.SetupPath, targetSetupExe, true);
+        File.Copy(HelperExe.SetupPath, targetSetupExe, true);
 
         if (SquirrelRuntimeInfo.IsWindows) {
             helper.SetPEVersionBlockFromPackageInfo(targetSetupExe, bundledzp, setupIcon);
         } else {
-            Log.Warn("Unable to set Setup.exe icon (only supported on windows)");
+            _logger.Warn("Unable to set Setup.exe icon (only supported on windows)");
         }
 
-        var newestFullRelease = Squirrel.EnumerableExtensions.MaxBy(releaseEntries, x => x.Version).Where(x => !x.IsDelta).First();
+        var newestFullRelease = releaseEntries.MaxBy(x => x.Version).Where(x => !x.IsDelta).First();
         var newestReleasePath = Path.Combine(targetDir, newestFullRelease.Filename);
 
-        Log.Info($"Creating Setup bundle");
+        _logger.Info($"Creating Setup bundle");
         var bundleOffset = SetupBundle.CreatePackageBundle(targetSetupExe, newestReleasePath);
-        Log.Info("Signing Setup bundle");
+        _logger.Info("Signing Setup bundle");
         signFiles(options, targetDir, targetSetupExe);
-        Log.Info("Bundle package offset is " + bundleOffset);
+        _logger.Info("Bundle package offset is " + bundleOffset);
 
-        Log.Info($"Setup bundle created at '{targetSetupExe}'.");
+        _logger.Info($"Setup bundle created at '{targetSetupExe}'.");
 
-        // this option is used for debugging a local Setup.exe
-        if (options.DebugSetupExe != null) {
-            File.Copy(targetSetupExe, options.DebugSetupExe, true);
-            Log.Warn($"DEBUG OPTION: Setup bundle copied on top of '{options.DebugSetupExe}'. Recompile before creating a new bundle.");
-        }
-
-        Log.Info("Done");
+        _logger.Info("Done");
     }
 
-    private void signFiles(SigningOptions options, string rootDir, params string[] filePaths)
+    private void signFiles(WindowsSigningOptions options, string rootDir, params string[] filePaths)
     {
         var signParams = options.SignParameters;
         var signTemplate = options.SignTemplate;
         var signParallel = options.SignParallel;
-        var helper = new HelperExe(Log);
+        var helper = new HelperExe(_logger);
 
-        if (String.IsNullOrEmpty(signParams) && String.IsNullOrEmpty(signTemplate)) {
-            Log.Debug($"No signing paramaters provided, {filePaths.Length} file(s) will not be signed.");
+        if (string.IsNullOrEmpty(signParams) && string.IsNullOrEmpty(signTemplate)) {
+            _logger.Debug($"No signing paramaters provided, {filePaths.Length} file(s) will not be signed.");
             return;
         }
 
-        if (!String.IsNullOrEmpty(signTemplate)) {
-            Log.Info($"Preparing to sign {filePaths.Length} files with custom signing template");
+        if (!string.IsNullOrEmpty(signTemplate)) {
+            _logger.Info($"Preparing to sign {filePaths.Length} files with custom signing template");
             foreach (var f in filePaths) {
                 helper.SignPEFileWithTemplate(f, signTemplate);
             }
@@ -275,8 +179,8 @@ public class WindowsCommands
         // signtool.exe does not work if we're not on windows.
         if (!SquirrelRuntimeInfo.IsWindows) return;
 
-        if (!String.IsNullOrEmpty(signParams)) {
-            Log.Info($"Preparing to sign {filePaths.Length} files with embedded signtool.exe with parallelism of {signParallel}");
+        if (!string.IsNullOrEmpty(signParams)) {
+            _logger.Info($"Preparing to sign {filePaths.Length} files with embedded signtool.exe with parallelism of {signParallel}");
             helper.SignPEFilesWithSignTool(rootDir, filePaths, signParams, signParallel);
         }
     }

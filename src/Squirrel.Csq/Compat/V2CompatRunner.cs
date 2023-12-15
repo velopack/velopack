@@ -25,11 +25,9 @@ public class V2CompatRunner : ICommandRunner
         var options = new PackOptions {
             releaseDir = command.GetReleaseDirectory().FullName,
             package = command.Package,
-            baseUrl = command.BaseUrl,
             framework = command.Runtimes,
             splashImage = command.SplashImage,
             icon = command.Icon,
-            appIcon = command.AppIcon,
             noDelta = command.NoDelta,
             allowUnaware = false,
             signParams = command.SignParameters,
@@ -58,11 +56,9 @@ public class V2CompatRunner : ICommandRunner
         var options = new ReleasifyOptions {
             releaseDir = command.GetReleaseDirectory().FullName,
             package = command.Package,
-            baseUrl = command.BaseUrl,
             framework = command.Runtimes,
             splashImage = command.SplashImage,
             icon = command.Icon,
-            appIcon = command.AppIcon,
             noDelta = command.NoDelta,
             allowUnaware = false,
             signParams = command.SignParameters,
