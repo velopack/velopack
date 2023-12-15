@@ -22,11 +22,6 @@ public class V2CompatRunner : ICommandRunner
             throw new NotSupportedException("Squirrel v2.x is only supported on/for Windows.");
         }
 
-        string msi = null;
-        if (command.BuildMsi) {
-            msi = command.TargetRuntime.Architecture.ToString();
-        }
-
         var options = new PackOptions {
             releaseDir = command.GetReleaseDirectory().FullName,
             package = command.Package,
@@ -37,7 +32,6 @@ public class V2CompatRunner : ICommandRunner
             appIcon = command.AppIcon,
             noDelta = command.NoDelta,
             allowUnaware = false,
-            msi = msi,
             signParams = command.SignParameters,
             signTemplate = command.SignTemplate,
             packId = command.PackId,
@@ -61,11 +55,6 @@ public class V2CompatRunner : ICommandRunner
             throw new NotSupportedException("Squirrel v2.x is only supported on/for Windows.");
         }
 
-        string msi = null;
-        if (command.BuildMsi) {
-            msi = command.TargetRuntime.Architecture.ToString();
-        }
-
         var options = new ReleasifyOptions {
             releaseDir = command.GetReleaseDirectory().FullName,
             package = command.Package,
@@ -76,7 +65,6 @@ public class V2CompatRunner : ICommandRunner
             appIcon = command.AppIcon,
             noDelta = command.NoDelta,
             allowUnaware = false,
-            msi = msi,
             signParams = command.SignParameters,
             signTemplate = command.SignTemplate,
         };

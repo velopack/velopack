@@ -20,10 +20,6 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
 
     public string AppIcon { get; private set; }
 
-    public bool BuildMsi { get; private set; }
-
-    public string MsiVersion { get; private set; }
-
     public WindowsReleasifyCommand()
         : this("releasify", "Take an existing nuget package and convert it into a Squirrel release.")
     {
@@ -83,16 +79,5 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
             .SetArgumentHelpName("PATH")
             .AcceptExistingOnly()
             .RequiresExtension(".ico");
-
-        if (SquirrelRuntimeInfo.IsWindows) {
-            AddOption<bool>((v) => BuildMsi = v, "--msi")
-                .SetDescription("Compile a .msi machine-wide deployment tool.")
-                .SetArgumentHelpName("BITNESS");
-
-            AddOption<string>((v) => MsiVersion = v, "--msiVersion")
-                .SetDescription("Override the product version for the generated msi.")
-                .SetArgumentHelpName("VERSION")
-                .MustBeValidMsiVersion();
-        }
     }
 }
