@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 
 [assembly: ComVisible(false)]
 [assembly: InternalsVisibleTo("Squirrel.Tests, PublicKey=" + SNK.SHA1)]
+[assembly: InternalsVisibleTo("Squirrel.Integration.Tests, PublicKey=" + SNK.SHA1)]
 [assembly: InternalsVisibleTo("Squirrel, PublicKey=" + SNK.SHA1)]
 [assembly: InternalsVisibleTo("Squirrel.Deployment, PublicKey=" + SNK.SHA1)]
 [assembly: InternalsVisibleTo("Squirrel.Packaging, PublicKey=" + SNK.SHA1)]

@@ -10,20 +10,24 @@ public class HelperFile
 
     static HelperFile()
     {
-        AddSearchPath(SquirrelRuntimeInfo.BaseDirectory, "wix");
-        
-#if DEBUG
-        AddSearchPath(SquirrelRuntimeInfo.BaseDirectory, "..", "..", "..", "build", "publish");
-        AddSearchPath(SquirrelRuntimeInfo.BaseDirectory, "..", "..", "..", "build", "Release", "squirrel", "tools");
-        AddSearchPath(SquirrelRuntimeInfo.BaseDirectory, "..", "..", "..", "vendor");
-        AddSearchPath(SquirrelRuntimeInfo.BaseDirectory, "..", "..", "..", "vendor", "wix");
-#endif
+        //        AddSearchPath(SquirrelRuntimeInfo.BaseDirectory, "wix");
+
+        //#if DEBUG
+        //        AddSearchPath(SquirrelRuntimeInfo.BaseDirectory, "..", "..", "..", "build", "publish");
+        //        AddSearchPath(SquirrelRuntimeInfo.BaseDirectory, "..", "..", "..", "build", "Release", "squirrel", "tools");
+        //        AddSearchPath(SquirrelRuntimeInfo.BaseDirectory, "..", "..", "..", "vendor");
+        //        AddSearchPath(SquirrelRuntimeInfo.BaseDirectory, "..", "..", "..", "vendor", "wix");
+        //#endif
     }
 
     public HelperFile(ILogger logger)
     {
         Log = logger;
     }
+
+#if DEBUG
+    public static string FindTestFile(string toFind) => FindHelperFile(toFind, throwWhenNotFound: true);
+#endif
 
     public static void AddSearchPath(params string[] pathParts)
     {
@@ -97,7 +101,7 @@ public class ProcessFailedException : Exception
     public string Command { get; }
     public string StdOutput { get; }
 
-    public ProcessFailedException(string command, string stdOutput) 
+    public ProcessFailedException(string command, string stdOutput)
         : base($"Command failed:\n{command}\n\nOutput was:\n{stdOutput}")
     {
         Command = command;

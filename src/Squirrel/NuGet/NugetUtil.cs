@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Xml;
 using System.Xml.Linq;
@@ -20,6 +21,11 @@ namespace Squirrel.NuGet
         public static readonly string SettingsFileName = "NuGet.Config";
         public static readonly string PackageReferenceFile = "packages.config";
         public static readonly string MirroringReferenceFile = "mirroring.config";
+
+        public static bool IsDirectory(this ZipArchiveEntry entry)
+        {
+            return entry.FullName.EndsWith("/") || entry.FullName.EndsWith("\\") || String.IsNullOrEmpty(entry.Name);
+        }
 
         public static void ThrowIfInvalidNugetId(string id)
         {
