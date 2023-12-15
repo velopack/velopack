@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using Squirrel.SimpleSplat;
 using Squirrel;
 using Squirrel.Tests.TestHelpers;
 using Xunit;
@@ -15,10 +14,13 @@ using System.Threading.Tasks;
 
 namespace Squirrel.Tests
 {
-    public class UtilityTests : TestLoggingBase
+    public class UtilityTests
     {
-        public UtilityTests(ITestOutputHelper log) : base(log)
+        private readonly ITestOutputHelper _output;
+
+        public UtilityTests(ITestOutputHelper output)
         {
+            _output = output;
         }
 
         [Theory]
@@ -122,6 +124,7 @@ namespace Squirrel.Tests
         [Fact]
         public void CanDeleteDeepRecursiveDirectoryStructure()
         {
+            using var logger = _output.BuildLoggerFor<UtilityTests>();
             string tempDir;
             using (Utility.GetTempDirectory(out tempDir)) {
                 for (var i = 0; i < 50; i++) {
@@ -133,27 +136,27 @@ namespace Squirrel.Tests
 
                 var count = files.Count();
 
-                this.Log().Info("Created {0} files under directory {1}", count, tempDir);
+                logger.Info($"Created {count} files under directory {tempDir}");
 
                 var sw = new Stopwatch();
                 sw.Start();
                 Utility.DeleteFileOrDirectoryHard(tempDir);
                 sw.Stop();
-                this.Log().Info("Delete took {0}ms", sw.ElapsedMilliseconds);
+                logger.Info($"Delete took {sw.ElapsedMilliseconds}ms");
 
                 Assert.False(Directory.Exists(tempDir));
             }
         }
 
-        [Fact]
-        public void CreateFakePackageSmokeTest()
-        {
-            string path;
-            using (Utility.GetTempDirectory(out path)) {
-                var output = IntegrationTestHelper.CreateFakeInstalledApp("0.3.0", path);
-                Assert.True(File.Exists(output));
-            }
-        }
+        //[Fact]
+        //public void CreateFakePackageSmokeTest()
+        //{
+        //    string path;
+        //    using (Utility.GetTempDirectory(out path)) {
+        //        var output = IntegrationTestHelper.CreateFakeInstalledApp("0.3.0", path);
+        //        Assert.True(File.Exists(output));
+        //    }
+        //}
 
         [Theory]
         [InlineData("foo.dll", true)]

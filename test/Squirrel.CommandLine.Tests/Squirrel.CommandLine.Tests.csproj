@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Squirrel.CommandLine\Squirrel.CommandLine.csproj" />
+    <ProjectReference Include="..\..\src\Squirrel.Csq\Squirrel.Csq.csproj" />
   </ItemGroup>
 
 </Project>

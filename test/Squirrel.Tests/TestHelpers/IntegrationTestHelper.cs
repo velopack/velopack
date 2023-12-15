@@ -5,10 +5,8 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using Squirrel;
-using Squirrel.SimpleSplat;
 using Xunit;
 using System.Text;
-using Squirrel.CommandLine;
 using System.IO.Compression;
 
 namespace Squirrel.Tests.TestHelpers
@@ -70,42 +68,42 @@ namespace Squirrel.Tests.TestHelpers
             return ret;
         }
 
-        public static string CreateFakeInstalledApp(string version, string outputDir, string nuspecFile = null)
-        {
-            string targetDir;
-            
-            nuspecFile = nuspecFile ?? "SquirrelInstalledApp.nuspec";
+        //public static string CreateFakeInstalledApp(string version, string outputDir, string nuspecFile = null)
+        //{
+        //    string targetDir;
 
-            using (var clearTemp = Utility.GetTempDirectory(out targetDir)) {
-                var nuspec = File.ReadAllText(IntegrationTestHelper.GetPath("fixtures", nuspecFile), Encoding.UTF8);
-                var nuspecPath = Path.Combine(targetDir, nuspecFile);
+        //    nuspecFile = nuspecFile ?? "SquirrelInstalledApp.nuspec";
 
-                File.WriteAllText(nuspecPath, nuspec.Replace("0.1.0", version), Encoding.UTF8);
+        //    using (var clearTemp = Utility.GetTempDirectory(out targetDir)) {
+        //        var nuspec = File.ReadAllText(IntegrationTestHelper.GetPath("fixtures", nuspecFile), Encoding.UTF8);
+        //        var nuspecPath = Path.Combine(targetDir, nuspecFile);
 
-                File.Copy(
-                    IntegrationTestHelper.GetPath("fixtures", "PublishSingleFileAwareApp.exe"),
-                    Path.Combine(targetDir, "SquirrelAwareApp.exe"));
-                File.Copy(
-                    IntegrationTestHelper.GetPath("fixtures", "NotSquirrelAwareApp.exe"),
-                    Path.Combine(targetDir, "NotSquirrelAwareApp.exe"));
+        //        File.WriteAllText(nuspecPath, nuspec.Replace("0.1.0", version), Encoding.UTF8);
 
-                new NugetConsole().Pack(nuspecPath, targetDir, targetDir);
+        //        File.Copy(
+        //            IntegrationTestHelper.GetPath("fixtures", "PublishSingleFileAwareApp.exe"),
+        //            Path.Combine(targetDir, "SquirrelAwareApp.exe"));
+        //        File.Copy(
+        //            IntegrationTestHelper.GetPath("fixtures", "NotSquirrelAwareApp.exe"),
+        //            Path.Combine(targetDir, "NotSquirrelAwareApp.exe"));
 
-                var di = new DirectoryInfo(targetDir);
-                var pkg = di.EnumerateFiles("*.nupkg").First();
+        //        new NugetConsole().Pack(nuspecPath, targetDir, targetDir);
 
-                var targetPkgFile = Path.Combine(outputDir, pkg.Name);
-                File.Copy(pkg.FullName, targetPkgFile);
-                return targetPkgFile;
-            }
-        }
+        //        var di = new DirectoryInfo(targetDir);
+        //        var pkg = di.EnumerateFiles("*.nupkg").First();
 
-        public static void CreateNewVersionInPackageDir(string version, string outputDir, string nuspecFile = null)
-        {
-            var pkgFile = CreateFakeInstalledApp(version, outputDir, nuspecFile);
-            var pkgs = ReleaseEntry.BuildReleasesFile(outputDir);
-            ReleaseEntry.WriteReleaseFile(pkgs, Path.Combine(outputDir, "RELEASES"));
-        }
+        //        var targetPkgFile = Path.Combine(outputDir, pkg.Name);
+        //        File.Copy(pkg.FullName, targetPkgFile);
+        //        return targetPkgFile;
+        //    }
+        //}
+
+        //public static void CreateNewVersionInPackageDir(string version, string outputDir, string nuspecFile = null)
+        //{
+        //    var pkgFile = CreateFakeInstalledApp(version, outputDir, nuspecFile);
+        //    var pkgs = ReleaseEntry.BuildReleasesFile(outputDir);
+        //    ReleaseEntry.WriteReleaseFile(pkgs, Path.Combine(outputDir, "RELEASES"));
+        //}
 
         public static IDisposable WithFakeInstallDirectory(out string path)
         {

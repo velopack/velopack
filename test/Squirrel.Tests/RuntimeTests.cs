@@ -7,13 +7,11 @@ namespace Squirrel.Tests
 {
     public class RuntimeTests
     {
-        // we are upgrading net6 to a minimum version of 6.0.2 to work
-        // around a dotnet SDK bug right now.
         [Theory]
-        [InlineData("net6", "net6.0.2-x64-desktop")]
-        [InlineData("net6.0", "net6.0.2-x64-desktop")]
-        [InlineData("net6-x64", "net6.0.2-x64-desktop")]
-        [InlineData("net6-x86", "net6.0.2-x86-desktop")]
+        [InlineData("net6", "net6-x64-desktop")]
+        [InlineData("net6.0", "net6-x64-desktop")]
+        [InlineData("net6-x64", "net6-x64-desktop")]
+        [InlineData("net6-x86", "net6-x86-desktop")]
         [InlineData("net3.1", "netcoreapp3.1-x64-desktop")]
         [InlineData("netcoreapp3.1", "netcoreapp3.1-x64-desktop")]
         [InlineData("net3.1-x86", "netcoreapp3.1-x86-desktop")]
@@ -21,7 +19,7 @@ namespace Squirrel.Tests
         [InlineData("net6.0.2-x86", "net6.0.2-x86-desktop")]
         [InlineData("net6.0.1-x86", "net6.0.1-x86-desktop")]
         [InlineData("net6.0.0", "net6-x64-desktop")]
-        [InlineData("net6.0-x64-desktop", "net6.0.2-x64-desktop")]
+        [InlineData("net6.0-x64-desktop", "net6-x64-desktop")]
         [InlineData("net7.0-x64-runtime", "net7-x64-runtime")]
         [InlineData("net7.0-x64-asp", "net7-x64-asp")]
         [InlineData("net7.0-desktop", "net7-x64-desktop")]

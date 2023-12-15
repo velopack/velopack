@@ -5,7 +5,7 @@ using Squirrel.Compression;
 using Squirrel.Packaging;
 using Squirrel.Packaging.Windows.Commands;
 
-namespace Squirrel.Integration.Tests;
+namespace Squirrel.Packaging.Tests;
 
 public class WindowsPackTests
 {

@@ -1,15 +1,13 @@
 ﻿using System.Runtime.InteropServices;
-using Xunit;
 
-namespace Squirrel.CommandLine.Tests
+namespace Squirrel.CommandLine.Tests;
+
+public class WindowsOnlyFactAttribute : FactAttribute
 {
-    public class WindowsOnlyFactAttribute : FactAttribute
+    public WindowsOnlyFactAttribute()
     {
-        public WindowsOnlyFactAttribute()
-        {
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
-                Skip = "Only run on Windows";
-            }
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+            Skip = "Only run on Windows";
         }
     }
 }

@@ -1,102 +1,97 @@
-﻿using System.CommandLine.Parsing;
-using Squirrel.CommandLine.Commands;
-using Xunit;
+﻿namespace Squirrel.CommandLine.Tests.Commands;
 
-namespace Squirrel.CommandLine.Tests.Commands
+public abstract class GitHubCommandTests<T> : BaseCommandTests<T>
+    where T : GitHubBaseCommand, new()
 {
-    public abstract class GitHubCommandTests<T> : BaseCommandTests<T>
-        where T : GitHubBaseCommand, new()
+    [Fact]
+    public void RepoUrl_WithUrl_ParsesValue()
     {
-        [Fact]
-        public void RepoUrl_WithUrl_ParsesValue()
-        {
-            GitHubBaseCommand command = new T();
+        GitHubBaseCommand command = new T();
 
-            ParseResult parseResult = command.ParseAndApply($"--repoUrl \"http://clowd.squirrel.com\"");
+        ParseResult parseResult = command.ParseAndApply($"--repoUrl \"http://clowd.squirrel.com\"");
 
-            Assert.Empty(parseResult.Errors);
-            Assert.Equal("http://clowd.squirrel.com/", command.RepoUrl);
-        }
-
-        [Fact]
-        public void RepoUrl_WithNonHttpValue_ShowsError()
-        {
-            GitHubBaseCommand command = new T();
-
-            ParseResult parseResult = command.ParseAndApply($"--repoUrl \"file://clowd.squirrel.com\"");
-
-            Assert.Equal(1, parseResult.Errors.Count);
-            //Assert.Equal(command.RepoUrl, parseResult.Errors[0].SymbolResult?.Symbol);
-            Assert.StartsWith("--repoUrl must contain a Uri with one of the following schems: http, https.", parseResult.Errors[0].Message);
-        }
-
-        [Fact]
-        public void RepoUrl_WithRelativeUrl_ShowsError()
-        {
-            GitHubBaseCommand command = new T();
-
-            ParseResult parseResult = command.ParseAndApply($"--repoUrl \"clowd.squirrel.com\"");
-
-            Assert.Equal(1, parseResult.Errors.Count);
-            //Assert.Equal(command.RepoUrl, parseResult.Errors[0].SymbolResult?.Symbol);
-            Assert.StartsWith("--repoUrl must contain an absolute Uri.", parseResult.Errors[0].Message);
-        }
-
-        [Fact]
-        public void Token_WithValue_ParsesValue()
-        {
-            GitHubBaseCommand command = new T();
-
-            string cli = GetRequiredDefaultOptions() + $"--token \"abc\"";
-            ParseResult parseResult = command.ParseAndApply(cli);
-
-            Assert.Equal("abc", command.Token);
-        }
-
-        protected override string GetRequiredDefaultOptions()
-        {
-            return $"--repoUrl \"https://clowd.squirrel.com\" ";
-        }
+        Assert.Empty(parseResult.Errors);
+        Assert.Equal("http://clowd.squirrel.com/", command.RepoUrl);
     }
 
-    public class GitHubDownloadCommandTests : GitHubCommandTests<GitHubDownloadCommand>
+    [Fact]
+    public void RepoUrl_WithNonHttpValue_ShowsError()
     {
-        [Fact]
-        public void Pre_BareOption_SetsFlag()
-        {
-            var command = new GitHubDownloadCommand();
+        GitHubBaseCommand command = new T();
 
-            string cli = GetRequiredDefaultOptions() + "--pre";
-            ParseResult parseResult = command.ParseAndApply(cli);
+        ParseResult parseResult = command.ParseAndApply($"--repoUrl \"file://clowd.squirrel.com\"");
 
-            Assert.True(command.Pre);
-        }
+        Assert.Equal(1, parseResult.Errors.Count);
+        //Assert.Equal(command.RepoUrl, parseResult.Errors[0].SymbolResult?.Symbol);
+        Assert.StartsWith("--repoUrl must contain a Uri with one of the following schems: http, https.", parseResult.Errors[0].Message);
     }
 
-    public class GitHubUploadCommandTests : GitHubCommandTests<GitHubUploadCommand>
+    [Fact]
+    public void RepoUrl_WithRelativeUrl_ShowsError()
     {
-        public override bool ShouldBeNonEmptyReleaseDir => true;
+        GitHubBaseCommand command = new T();
 
-        [Fact]
-        public void Publish_BareOption_SetsFlag()
-        {
-            var command = new GitHubUploadCommand();
+        ParseResult parseResult = command.ParseAndApply($"--repoUrl \"clowd.squirrel.com\"");
 
-            string cli = GetRequiredDefaultOptions() + "--publish";
-            ParseResult parseResult = command.ParseAndApply(cli);
+        Assert.Equal(1, parseResult.Errors.Count);
+        //Assert.Equal(command.RepoUrl, parseResult.Errors[0].SymbolResult?.Symbol);
+        Assert.StartsWith("--repoUrl must contain an absolute Uri.", parseResult.Errors[0].Message);
+    }
 
-            Assert.True(command.Publish);
-        }
+    [Fact]
+    public void Token_WithValue_ParsesValue()
+    {
+        GitHubBaseCommand command = new T();
 
-        [Fact]
-        public void ReleaseName_WithName_ParsesValue()
-        {
-            var command = new GitHubUploadCommand();
+        string cli = GetRequiredDefaultOptions() + $"--token \"abc\"";
+        ParseResult parseResult = command.ParseAndApply(cli);
 
-            string cli = GetRequiredDefaultOptions() + $"--releaseName \"my release\"";
-            ParseResult parseResult = command.ParseAndApply(cli);
+        Assert.Equal("abc", command.Token);
+    }
 
-            Assert.Equal("my release", command.ReleaseName);
-        }
+    protected override string GetRequiredDefaultOptions()
+    {
+        return $"--repoUrl \"https://clowd.squirrel.com\" ";
+    }
+}
+
+public class GitHubDownloadCommandTests : GitHubCommandTests<GitHubDownloadCommand>
+{
+    [Fact]
+    public void Pre_BareOption_SetsFlag()
+    {
+        var command = new GitHubDownloadCommand();
+
+        string cli = GetRequiredDefaultOptions() + "--pre";
+        ParseResult parseResult = command.ParseAndApply(cli);
+
+        Assert.True(command.Pre);
+    }
+}
+
+public class GitHubUploadCommandTests : GitHubCommandTests<GitHubUploadCommand>
+{
+    public override bool ShouldBeNonEmptyReleaseDir => true;
+
+    [Fact]
+    public void Publish_BareOption_SetsFlag()
+    {
+        var command = new GitHubUploadCommand();
+
+        string cli = GetRequiredDefaultOptions() + "--publish";
+        ParseResult parseResult = command.ParseAndApply(cli);
+
+        Assert.True(command.Publish);
+    }
+
+    [Fact]
+    public void ReleaseName_WithName_ParsesValue()
+    {
+        var command = new GitHubUploadCommand();
+
+        string cli = GetRequiredDefaultOptions() + $"--releaseName \"my release\"";
+        ParseResult parseResult = command.ParseAndApply(cli);
+
+        Assert.Equal("my release", command.ReleaseName);
     }
 }

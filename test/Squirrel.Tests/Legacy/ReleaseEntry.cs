@@ -6,7 +6,6 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
-using Squirrel.SimpleSplat;
 
 namespace Squirrel.Tests.Legacy
 {
@@ -25,7 +24,7 @@ namespace Squirrel.Tests.Legacy
     }
 
     [DataContract]
-    public class ReleaseEntry : IEnableLogger, IReleaseEntry
+    public class ReleaseEntry : IReleaseEntry
     {
         [DataMember] public string SHA1 { get; protected set; }
         [DataMember] public string BaseUrl { get; protected set; }

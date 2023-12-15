@@ -4,9 +4,9 @@ using Squirrel.Packaging;
 using Xunit.Abstractions;
 using Xunit.Sdk;
 
-[assembly: Xunit.TestFramework("Squirrel.Integration.Tests.TestsInit", "Squirrel.Integration.Tests")]
+[assembly: Xunit.TestFramework("Squirrel.Packaging.Tests.TestsInit", "Squirrel.Packaging.Tests")]
 
-namespace Squirrel.Integration.Tests
+namespace Squirrel.Packaging.Tests
 {
     public class TestsInit : XunitTestFramework
     {
