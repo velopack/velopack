@@ -1,4 +1,6 @@
 ﻿
+using Squirrel.Packaging;
+
 namespace Squirrel.Csq.Commands;
 
 public class SigningCommand : BaseCommand

@@ -1,5 +1,7 @@
 ﻿using System.Text.RegularExpressions;
+using NuGet.Common;
 using NuGet.Versioning;
+using Squirrel.NuGet;
 
 namespace Squirrel.Csq.Commands;
 
@@ -36,7 +38,7 @@ internal static class SystemCommandLineExtensions
 
     public static CliOption<T> SetDefault<T>(this CliOption<T> option, T defaultValue)
     {
-        option.SetDefault(defaultValue);
+        option.DefaultValueFactory = (r) => defaultValue;
         return option;
     }
 
@@ -273,10 +275,9 @@ internal static class SystemCommandLineExtensions
         {
             for (var i = 0; i < result.Tokens.Count; i++) {
                 var framework = result.Tokens[i].Value;
-                try {
-                    Runtimes.ParseDependencyString(framework);
-                } catch (Exception e) {
-                    result.AddError(e.Message);
+                bool valid = framework.Split(",").Select(Runtimes.GetRuntimeByName).All(x => x != null);
+                if (!valid) {
+                    result.AddError($"Invalid target dependency string: {framework}.");
                 }
             }
         }

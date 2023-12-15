@@ -14,6 +14,7 @@
     <Description>A .NET Core Tool that uses the Squirrel framework to create installers and update packages for dotnet applications.</Description>
     <PackageIcon>Clowd_200.png</PackageIcon>
     <LangVersion>latest</LangVersion>
+    <NoWarn>$(NoWarn);CA2007;CS8002</NoWarn>
   </PropertyGroup>
   
   <ItemGroup>
@@ -27,6 +28,7 @@
     <PackageReference Include="Serilog.Extensions.Hosting" Version="7.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.23407.1" />
+    <PackageReference Include="System.Xml.XDocument" Version="4.3.0" />
   </ItemGroup>
 
   <ItemGroup>
