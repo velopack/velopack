@@ -76,14 +76,14 @@ public class Program
         case RuntimeOs.Windows:
             if (!SquirrelRuntimeInfo.IsWindows)
                 logger.Warn("Cross-compiling will cause some commands and options of Squirrel to be unavailable.");
-            Add(rootCommand, new PackWindowsCommand(), nameof(ICommandRunner.ExecutePackWindows));
-            Add(rootCommand, new ReleasifyWindowsCommand(), nameof(ICommandRunner.ExecuteReleasifyWindows));
+            Add(rootCommand, new WindowsPackCommand(), nameof(ICommandRunner.ExecutePackWindows));
+            Add(rootCommand, new WindowsReleasifyCommand(), nameof(ICommandRunner.ExecuteReleasifyWindows));
             break;
         case RuntimeOs.OSX:
             if (!SquirrelRuntimeInfo.IsOSX)
                 throw new NotSupportedException("Cannot create OSX packages on non-OSX platforms.");
-            Add(rootCommand, new BundleOsxCommand(), nameof(ICommandRunner.ExecuteBundleOsx));
-            Add(rootCommand, new ReleasifyOsxCommand(), nameof(ICommandRunner.ExecuteReleasifyOsx));
+            Add(rootCommand, new OsxBundleCommand(), nameof(ICommandRunner.ExecuteBundleOsx));
+            Add(rootCommand, new OsxReleasifyCommand(), nameof(ICommandRunner.ExecuteReleasifyOsx));
             break;
         default:
             throw new NotSupportedException("Unsupported OS platform: " + runtime.BaseRID.GetOsLongName());

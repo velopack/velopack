@@ -10,8 +10,8 @@ public interface ICommandRunner
     public Task ExecuteHttpDownload(HttpDownloadCommand command);
     public Task ExecuteS3Download(S3DownloadCommand command);
     public Task ExecuteS3Upload(S3UploadCommand command);
-    public Task ExecuteBundleOsx(BundleOsxCommand command);
-    public Task ExecuteReleasifyOsx(ReleasifyOsxCommand command);
-    public Task ExecuteReleasifyWindows(ReleasifyWindowsCommand command);
-    public Task ExecutePackWindows(PackWindowsCommand command);
+    public Task ExecuteBundleOsx(OsxBundleCommand command);
+    public Task ExecuteReleasifyOsx(OsxReleasifyCommand command);
+    public Task ExecuteReleasifyWindows(WindowsReleasifyCommand command);
+    public Task ExecutePackWindows(WindowsPackCommand command);
 }

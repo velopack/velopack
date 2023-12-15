@@ -15,7 +15,7 @@ public class EmbeddedRunner : ICommandRunner
     }
 
     [SupportedOSPlatform("osx")]
-    public Task ExecuteBundleOsx(BundleOsxCommand command)
+    public Task ExecuteBundleOsx(OsxBundleCommand command)
     {
         var options = new BundleOsxOptions {
             BundleId = command.BundleId,
@@ -64,18 +64,18 @@ public class EmbeddedRunner : ICommandRunner
         return new SimpleWebRepository(_logger).DownloadRecentPackages(options);
     }
 
-    public Task ExecutePackWindows(PackWindowsCommand command)
+    public Task ExecutePackWindows(WindowsPackCommand command)
     {
         throw new NotImplementedException();
     }
 
     [SupportedOSPlatform("osx")]
-    public Task ExecuteReleasifyOsx(ReleasifyOsxCommand command)
+    public Task ExecuteReleasifyOsx(OsxReleasifyCommand command)
     {
         throw new NotImplementedException();
     }
 
-    public Task ExecuteReleasifyWindows(ReleasifyWindowsCommand command)
+    public Task ExecuteReleasifyWindows(WindowsReleasifyCommand command)
     {
         throw new NotImplementedException();
     }

@@ -16,7 +16,7 @@ public class V2CompatRunner : ICommandRunner
         _embedded = new EmbeddedRunner(logger);
     }
 
-    public async Task ExecutePackWindows(PackWindowsCommand command)
+    public async Task ExecutePackWindows(WindowsPackCommand command)
     {
         if (!SquirrelRuntimeInfo.IsWindows || command.TargetRuntime.BaseRID != RuntimeOs.Windows) {
             throw new NotSupportedException("Squirrel v2.x is only supported on/for Windows.");
@@ -55,7 +55,7 @@ public class V2CompatRunner : ICommandRunner
         await Process.Start(_squirrelExePath, args).WaitForExitAsync();
     }
 
-    public async Task ExecuteReleasifyWindows(ReleasifyWindowsCommand command)
+    public async Task ExecuteReleasifyWindows(WindowsReleasifyCommand command)
     {
         if (!SquirrelRuntimeInfo.IsWindows || command.TargetRuntime.BaseRID != RuntimeOs.Windows) {
             throw new NotSupportedException("Squirrel v2.x is only supported on/for Windows.");
@@ -87,12 +87,12 @@ public class V2CompatRunner : ICommandRunner
         await Process.Start(_squirrelExePath, args).WaitForExitAsync();
     }
 
-    public Task ExecuteBundleOsx(BundleOsxCommand command)
+    public Task ExecuteBundleOsx(OsxBundleCommand command)
     {
         throw new NotSupportedException("Squirrel v2.x is only supported on/for Windows.");
     }
 
-    public Task ExecuteReleasifyOsx(ReleasifyOsxCommand command)
+    public Task ExecuteReleasifyOsx(OsxReleasifyCommand command)
     {
         throw new NotSupportedException("Squirrel v2.x is only supported on/for Windows.");
     }
