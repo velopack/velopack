@@ -1,4 +1,6 @@
-﻿namespace Squirrel.CommandLine.Tests;
+﻿using Squirrel.Csq.Commands;
+
+namespace Squirrel.CommandLine.Tests;
 
 public abstract class BaseCommandTests<T> : TempFileTestBase
     where T : BaseCommand, new()

@@ -154,7 +154,7 @@ namespace Squirrel.Sources
 
             // this might be a browser url or an api url (depending on whether we have a AccessToken or not)
             // https://docs.github.com/en/rest/reference/releases#get-a-release-asset
-            var assetUrl = GetAssetUrlFromName(Release, releaseEntry.Filename);
+            var assetUrl = GetAssetUrlFromName(Release, releaseEntry.OriginalFilename);
             return Downloader.DownloadFile(assetUrl, localFile, progress, Authorization, "application/octet-stream");
         }
 

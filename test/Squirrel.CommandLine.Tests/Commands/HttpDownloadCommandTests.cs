@@ -1,4 +1,7 @@
 ﻿
+using System.CommandLine;
+using Squirrel.Csq.Commands;
+
 namespace Squirrel.CommandLine.Tests.Commands;
 
 public class HttpDownloadCommandTests : BaseCommandTests<HttpDownloadCommand>

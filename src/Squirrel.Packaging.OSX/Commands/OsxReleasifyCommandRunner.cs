@@ -65,7 +65,7 @@ public class OsxReleasifyCommandRunner
         File.WriteAllText(nuspecPath, nuspecText);
         File.Copy(helper.UpdateMacPath, Path.Combine(contentsDir, "UpdateMac"), true);
 
-        var zipPath = Path.Combine(releaseDir.FullName, $"{packId}-{options.TargetRuntime.StringWithNoVersion}.zip");
+        var zipPath = Path.Combine(releaseDir.FullName, $"{packId}-{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}.zip");
         if (File.Exists(zipPath)) File.Delete(zipPath);
 
         // code signing all mach-o binaries

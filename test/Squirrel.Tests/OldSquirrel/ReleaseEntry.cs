@@ -3,28 +3,17 @@ using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
+using NuGet;
+using System.Runtime.Serialization;
+using System.Threading.Tasks;
+using System.Collections.Concurrent;
 
-namespace Squirrel.Tests.Legacy
+namespace Squirrel.Tests.OldSquirrel
 {
-    public interface IReleaseEntry
-    {
-        string SHA1 { get; }
-        string Filename { get; }
-        long Filesize { get; }
-        bool IsDelta { get; }
-        string EntryAsString { get; }
-        SemanticVersion Version { get; }
-        string PackageName { get; }
-        float? StagingPercentage { get; }
-        //string GetReleaseNotes(string packageDirectory);
-        //Uri GetIconUrl(string packageDirectory);
-    }
-
     [DataContract]
-    public class ReleaseEntry : IReleaseEntry
+    public class ReleaseEntry
     {
         [DataMember] public string SHA1 { get; protected set; }
         [DataMember] public string BaseUrl { get; protected set; }
@@ -55,18 +44,8 @@ namespace Squirrel.Tests.Legacy
             }
         }
 
-        static readonly Regex _suffixRegex = new Regex(@"(-full|-delta)?\.nupkg$", RegexOptions.Compiled);
-        static readonly Regex _versionRegex = new Regex(@"\d+(\.\d+){0,3}(-[A-Za-z][0-9A-Za-z-]*)?$", RegexOptions.Compiled);
-
-        public static SemanticVersion ToSemanticVersion(string fileName)
-        {
-            var name = _suffixRegex.Replace(fileName, "");
-            var version = _versionRegex.Match(name).Value;
-            return new SemanticVersion(version);
-        }
-
         [IgnoreDataMember]
-        public SemanticVersion Version { get { return ToSemanticVersion(Filename); } }
+        public SemanticVersion Version { get { return Filename.ToSemanticVersion(); } }
 
         static readonly Regex packageNameRegex = new Regex(@"^([\w-]+)-\d+\..+\.nupkg$");
         [IgnoreDataMember]
@@ -179,7 +158,7 @@ namespace Squirrel.Tests.Legacy
                 return new ReleaseEntry[0];
             }
 
-            fileContents = Utility.RemoveByteOrderMarkerIfPresent(fileContents);
+            //fileContents = Utility.RemoveByteOrderMarkerIfPresent(fileContents);
 
             var ret = fileContents.Split('\n')
                 .Where(x => !String.IsNullOrWhiteSpace(x))
@@ -196,7 +175,7 @@ namespace Squirrel.Tests.Legacy
                 return new ReleaseEntry[0];
             }
 
-            fileContents = Utility.RemoveByteOrderMarkerIfPresent(fileContents);
+            //fileContents = Utility.RemoveByteOrderMarkerIfPresent(fileContents);
 
             var ret = fileContents.Split('\n')
                 .Where(x => !String.IsNullOrWhiteSpace(x))
@@ -208,44 +187,44 @@ namespace Squirrel.Tests.Legacy
         }
 
 
-        public static void WriteReleaseFile(IEnumerable<ReleaseEntry> releaseEntries, Stream stream)
-        {
-            Contract.Requires(releaseEntries != null && releaseEntries.Any());
-            Contract.Requires(stream != null);
+        //public static void WriteReleaseFile(IEnumerable<ReleaseEntry> releaseEntries, Stream stream)
+        //{
+        //    Contract.Requires(releaseEntries != null && releaseEntries.Any());
+        //    Contract.Requires(stream != null);
 
-            using (var sw = new StreamWriter(stream, Encoding.UTF8)) {
-                sw.Write(String.Join("\n", releaseEntries
-                    .OrderBy(x => x.Version)
-                    .ThenByDescending(x => x.IsDelta)
-                    .Select(x => x.EntryAsString)));
-            }
-        }
+        //    using (var sw = new StreamWriter(stream, Encoding.UTF8)) {
+        //        sw.Write(String.Join("\n", releaseEntries
+        //            .OrderBy(x => x.Version)
+        //            .ThenByDescending(x => x.IsDelta)
+        //            .Select(x => x.EntryAsString)));
+        //    }
+        //}
 
-        public static void WriteReleaseFile(IEnumerable<ReleaseEntry> releaseEntries, string path)
-        {
-            Contract.Requires(releaseEntries != null && releaseEntries.Any());
-            Contract.Requires(!String.IsNullOrEmpty(path));
+        //public static void WriteReleaseFile(IEnumerable<ReleaseEntry> releaseEntries, string path)
+        //{
+        //    Contract.Requires(releaseEntries != null && releaseEntries.Any());
+        //    Contract.Requires(!String.IsNullOrEmpty(path));
 
-            using (var f = File.Open(path, FileMode.Create, FileAccess.Write, FileShare.None)) {
-                WriteReleaseFile(releaseEntries, f);
-            }
-        }
+        //    using (var f = File.Open(path, FileMode.Create, FileAccess.Write, FileShare.None)) {
+        //        WriteReleaseFile(releaseEntries, f);
+        //    }
+        //}
 
-        public static ReleaseEntry GenerateFromFile(Stream file, string filename, string baseUrl = null)
-        {
-            Contract.Requires(file != null && file.CanRead);
-            Contract.Requires(!String.IsNullOrEmpty(filename));
+        //public static ReleaseEntry GenerateFromFile(Stream file, string filename, string baseUrl = null)
+        //{
+        //    Contract.Requires(file != null && file.CanRead);
+        //    Contract.Requires(!String.IsNullOrEmpty(filename));
 
-            var hash = Utility.CalculateStreamSHA1(file);
-            return new ReleaseEntry(hash, filename, file.Length, filenameIsDeltaFile(filename), baseUrl);
-        }
+        //    var hash = Utility.CalculateStreamSHA1(file);
+        //    return new ReleaseEntry(hash, filename, file.Length, filenameIsDeltaFile(filename), baseUrl);
+        //}
 
-        public static ReleaseEntry GenerateFromFile(string path, string baseUrl = null)
-        {
-            using (var inf = File.OpenRead(path)) {
-                return GenerateFromFile(inf, Path.GetFileName(path), baseUrl);
-            }
-        }
+        //public static ReleaseEntry GenerateFromFile(string path, string baseUrl = null)
+        //{
+        //    using (var inf = File.OpenRead(path)) {
+        //        return GenerateFromFile(inf, Path.GetFileName(path), baseUrl);
+        //    }
+        //}
 
         //public static List<ReleaseEntry> BuildReleasesFile(string releasePackagesDir)
         //{
@@ -300,7 +279,7 @@ namespace Squirrel.Tests.Legacy
         //    return releaseEntries
         //        .Where(x => x.IsDelta == false)
         //        .Where(x => x.Version < package.ToSemanticVersion())
-        //    .OrderByDescending(x => x.Version)
+        //        .OrderByDescending(x => x.Version)
         //        .Select(x => new ReleasePackage(Path.Combine(targetDir, x.Filename), true))
         //        .FirstOrDefault();
         //}

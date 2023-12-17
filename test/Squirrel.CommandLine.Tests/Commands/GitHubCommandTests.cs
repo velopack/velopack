@@ -1,4 +1,7 @@
-﻿namespace Squirrel.CommandLine.Tests.Commands;
+﻿using System.CommandLine;
+using Squirrel.Csq.Commands;
+
+namespace Squirrel.CommandLine.Tests.Commands;
 
 public abstract class GitHubCommandTests<T> : BaseCommandTests<T>
     where T : GitHubBaseCommand, new()

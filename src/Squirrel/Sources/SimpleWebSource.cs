@@ -51,7 +51,7 @@ namespace Squirrel.Sources
             }
 
             if (latestLocalRelease != null) {
-                args.Add("id", latestLocalRelease.PackageName);
+                args.Add("id", latestLocalRelease.PackageId);
                 args.Add("localVersion", latestLocalRelease.Version.ToString());
             }
 
@@ -71,8 +71,8 @@ namespace Squirrel.Sources
             if (localFile == null) throw new ArgumentNullException(nameof(localFile));
 
             var releaseUri = releaseEntry.BaseUrl == null
-                ? releaseEntry.Filename
-                : Utility.AppendPathToUri(new Uri(releaseEntry.BaseUrl), releaseEntry.Filename).ToString();
+                ? releaseEntry.OriginalFilename
+                : Utility.AppendPathToUri(new Uri(releaseEntry.BaseUrl), releaseEntry.OriginalFilename).ToString();
 
             if (!String.IsNullOrEmpty(releaseEntry.Query)) {
                 releaseUri += releaseEntry.Query;
@@ -82,11 +82,11 @@ namespace Squirrel.Sources
             // absolute url (eg. "https://example.com/MyPackage.nupkg"). In the former case
             var sourceBaseUri = Utility.EnsureTrailingSlash(BaseUri);
 
-            var source = Utility.IsHttpUrl(releaseUri) 
+            var source = Utility.IsHttpUrl(releaseUri)
                 ? new Uri(sourceBaseUri, releaseUri).ToString()
                 : Utility.AppendPathToUri(sourceBaseUri, releaseUri).ToString();
 
-            _logger.Info($"Downloading '{releaseEntry.Filename}' from '{source}'.");
+            _logger.Info($"Downloading '{releaseEntry.OriginalFilename}' from '{source}'.");
             return Downloader.DownloadFile(source, localFile, progress);
         }
     }

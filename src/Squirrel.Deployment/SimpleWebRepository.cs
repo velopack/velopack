@@ -32,8 +32,8 @@ public class SimpleWebRepository
             .OrderByDescending(x => x.Version)
             .Take(1)
             .Select(x => new {
-                LocalPath = Path.Combine(releasesDir.FullName, x.Filename),
-                RemoteUrl = new Uri(Utility.EnsureTrailingSlash(uri), x.BaseUrl + x.Filename + x.Query)
+                LocalPath = Path.Combine(releasesDir.FullName, x.OriginalFilename),
+                RemoteUrl = new Uri(Utility.EnsureTrailingSlash(uri), x.BaseUrl + x.OriginalFilename + x.Query)
             });
 
         foreach (var releaseToDownload in releasesToDownload) {

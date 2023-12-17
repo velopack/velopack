@@ -1,14 +1,49 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using NuGet.Versioning;
 using Squirrel.Tests.TestHelpers;
 using Xunit;
+using OldReleaseEntry = Squirrel.Tests.OldSquirrel.ReleaseEntry;
+using OldSemanticVersion = Squirrel.Tests.OldSquirrel.SemanticVersion;
 
 namespace Squirrel.Tests
 {
     public class ReleaseEntryTests
     {
+        [Theory]
+        [InlineData(@"MyCoolApp-1.0-full.nupkg", "MyCoolApp", "1.0", "")]
+        [InlineData(@"MyCoolApp-1.0.0-full.nupkg", "MyCoolApp", "1.0.0", "")]
+        [InlineData(@"MyCoolApp-1.0.0-delta.nupkg", "MyCoolApp", "1.0.0", "")]
+        [InlineData(@"MyCoolApp-1.0.0-win-x64-full.nupkg", "MyCoolApp", "1.0.0", "win-x64")]
+        [InlineData(@"MyCoolApp-123.456.789-win-x64-full.nupkg", "MyCoolApp", "123.456.789", "win-x64")]
+        [InlineData(@"MyCoolApp-123.456.789-hello-win-x64-full.nupkg", "MyCoolApp", "123.456.789", "hello-win-x64")]
+        public void NewEntryCanRoundTripToOldSquirrel(string fileName, string id, string version, string metadata)
+        {
+            var size = 80396;
+            var sha = "14db31d2647c6d2284882a2e101924a9c409ee67";
+            var re = new ReleaseEntry(sha, fileName, size, null, null, null);
+            StringBuilder file = new StringBuilder();
+            file.AppendLine(re.EntryAsString);
+
+            var parsed = OldReleaseEntry.ParseReleaseFile(file.ToString());
+            Assert.True(parsed.Count() == 1);
+
+            var oldEntry = parsed.First();
+
+            Assert.Equal(fileName, oldEntry.Filename);
+            Assert.Equal(id, oldEntry.PackageName);
+            Assert.Equal(size, oldEntry.Filesize);
+            Assert.Equal(sha, oldEntry.SHA1);
+            Assert.Null(oldEntry.BaseUrl);
+            Assert.Null(oldEntry.Query);
+            Assert.True(oldEntry.Version.Version == OldSemanticVersion.Parse(version).Version);
+            Assert.Equal(oldEntry.Version.SpecialVersion, metadata);
+
+        }
+
         [Theory]
         [InlineData(@"94689fede03fed7ab59c24337673a27837f0c3ec MyCoolApp-1.0.nupkg 1004502", "MyCoolApp-1.0.nupkg", 1004502, null, null)]
         [InlineData(@"3a2eadd15dd984e4559f2b4d790ec8badaeb6a39   MyCoolApp-1.1.nupkg   1040561", "MyCoolApp-1.1.nupkg", 1040561, null, null)]
@@ -21,12 +56,12 @@ namespace Squirrel.Tests
         {
             var fixture = ReleaseEntry.ParseReleaseEntry(releaseEntry);
 
-            Assert.Equal(fileName, fixture.Filename);
+            Assert.Equal(fileName, fixture.OriginalFilename);
             Assert.Equal(fileSize, fixture.Filesize);
             Assert.Equal(baseUrl, fixture.BaseUrl);
             Assert.Equal(query, fixture.Query);
 
-            var old = Legacy.ReleaseEntry.ParseReleaseEntry(releaseEntry);
+            var old = OldReleaseEntry.ParseReleaseEntry(releaseEntry);
             Assert.Equal(fileName, old.Filename);
             Assert.Equal(fileSize, old.Filesize);
             Assert.Equal(baseUrl, old.BaseUrl);
@@ -40,7 +75,7 @@ namespace Squirrel.Tests
         public void ParseValidReleaseEntryLinesWithDots(string releaseEntry, string packageName)
         {
             var fixture = ReleaseEntry.ParseReleaseEntry(releaseEntry);
-            Assert.Equal(packageName, fixture.PackageName);
+            Assert.Equal(packageName, fixture.PackageId);
         }
 
         [Theory]
@@ -50,7 +85,7 @@ namespace Squirrel.Tests
         public void ParseValidReleaseEntryLinesWithDashes(string releaseEntry, string packageName)
         {
             var fixture = ReleaseEntry.ParseReleaseEntry(releaseEntry);
-            Assert.Equal(packageName, fixture.PackageName);
+            Assert.Equal(packageName, fixture.PackageId);
         }
 
         [Theory]
@@ -106,10 +141,7 @@ namespace Squirrel.Tests
         [InlineData("0600000000000000000000000000000000000000  MyCoolApp-1.2.3.4-beta1.nupkg        123", 1, 2, 3, 4, "beta1", false)]
         [InlineData("0700000000000000000000000000000000000000  MyCoolApp-1.2.3.4-beta1-full.nupkg   123", 1, 2, 3, 4, "beta1", false)]
         [InlineData("0800000000000000000000000000000000000000  MyCoolApp-1.2.3.4-beta1-delta.nupkg  123", 1, 2, 3, 4, "beta1", true)]
-        [InlineData("0900000000000000000000000000000000000000  MyCoolApp-1.2.3-beta1-win7-x64.nupkg          123", 1, 2, 3, 0, "beta1-win7-x64", false)]
-        [InlineData("0010000000000000000000000000000000000000  MyCoolApp-1.2.3-beta1-win7-x64-full.nupkg     123", 1, 2, 3, 0, "beta1-win7-x64", false)]
-        [InlineData("0020000000000000000000000000000000000000  MyCoolApp-1.2.3-beta1-win7-x64-delta.nupkg    123", 1, 2, 3, 0, "beta1-win7-x64", true)]
-        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-beta.22-win7-x64-full.nupkg     123", 1, 2, 3, 0, "beta1-win7-x64", false)]
+
         public void ParseVersionTest(string releaseEntry, int major, int minor, int patch, int revision, string prerelease, bool isDelta)
         {
             var fixture = ReleaseEntry.ParseReleaseEntry(releaseEntry);
@@ -117,9 +149,46 @@ namespace Squirrel.Tests
             Assert.Equal(new NuGetVersion(major, minor, patch, revision, prerelease, null), fixture.Version);
             Assert.Equal(isDelta, fixture.IsDelta);
 
-            var old = Legacy.ReleaseEntry.ParseReleaseEntry(releaseEntry);
+            var old = OldReleaseEntry.ParseReleaseEntry(releaseEntry);
             Assert.Equal(new NuGetVersion(major, minor, patch, revision, prerelease, null), new NuGetVersion(old.Version.ToString()));
             Assert.Equal(isDelta, old.IsDelta);
+        }
+
+        [Theory]
+        [InlineData("0900000000000000000000000000000000000000  MyCoolApp-1.2.3-beta1-win7-x64.nupkg          123", 1, 2, 3, 0, "beta1", "win7-x64", false)]
+        [InlineData("0010000000000000000000000000000000000000  MyCoolApp-1.2.3-beta1-win7-x64-full.nupkg     123", 1, 2, 3, 0, "beta1", "win7-x64", false)]
+        [InlineData("0020000000000000000000000000000000000000  MyCoolApp-1.2.3-beta1-win7-x64-delta.nupkg    123", 1, 2, 3, 0, "beta1", "win7-x64", true)]
+        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-osx-full.nupkg     123", 1, 2, 3, 0, "", "osx", false)]
+        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-osx-arm64-full.nupkg     123", 1, 2, 3, 0, "", "osx-arm64", false)]
+        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-hello-osx-arm64-full.nupkg     123", 1, 2, 3, 0, "hello", "osx-arm64", false)]
+        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-x86-full.nupkg     123", 1, 2, 3, 0, "", "x86", false)]
+        public void ParseVersionWithRidTest(string releaseEntry, int major, int minor, int patch, int revision, string prerelease, string rid, bool isDelta)
+        {
+            var fixture = ReleaseEntry.ParseReleaseEntry(releaseEntry);
+            Assert.Equal(new NuGetVersion(major, minor, patch, revision, prerelease, null), fixture.Version);
+            Assert.Equal(isDelta, fixture.IsDelta);
+            if (!String.IsNullOrEmpty(rid))
+                Assert.Equal(RID.Parse(rid), fixture.Rid);
+
+            var old = OldReleaseEntry.ParseReleaseEntry(releaseEntry);
+            var legacyPre = !String.IsNullOrEmpty(prerelease) && !String.IsNullOrEmpty(rid) ? $"{prerelease}-{rid}" : String.IsNullOrEmpty(prerelease) ? rid : prerelease;
+            Assert.Equal(new NuGetVersion(major, minor, patch, revision, legacyPre, null), new NuGetVersion(old.Version.ToString()));
+            Assert.Equal(isDelta, old.IsDelta);
+        }
+
+        [Theory]
+        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-beta.22-win7-x64-full.nupkg     123", 1, 2, 3, 0, "beta.22", "win7-x64", false)]
+        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-beta.22-x64-full.nupkg     123", 1, 2, 3, 0, "beta.22", "x64", false)]
+        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-beta.22-win-full.nupkg     123", 1, 2, 3, 0, "beta.22", "win", false)]
+        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-hello.55-osx-arm64-full.nupkg     123", 1, 2, 3, 0, "hello.55", "osx-arm64", false)]
+        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-hello.55-full.nupkg     123", 1, 2, 3, 0, "hello.55", "", false)]
+        public void ParseVersionWithSemVer2(string releaseEntry, int major, int minor, int patch, int revision, string prerelease, string rid, bool isDelta)
+        {
+            var fixture = ReleaseEntry.ParseReleaseEntry(releaseEntry);
+            Assert.Equal(new NuGetVersion(major, minor, patch, revision, prerelease, null), fixture.Version);
+            Assert.Equal(isDelta, fixture.IsDelta);
+            if (!String.IsNullOrEmpty(rid))
+                Assert.Equal(RID.Parse(rid), fixture.Rid);
         }
 
         [Theory]
@@ -144,20 +213,20 @@ namespace Squirrel.Tests
         public void CheckPackageName(string releaseEntry, string expected)
         {
             var fixture = ReleaseEntry.ParseReleaseEntry(releaseEntry);
-            Assert.Equal(expected, fixture.PackageName);
+            Assert.Equal(expected, fixture.PackageId);
 
-            var old = Legacy.ReleaseEntry.ParseReleaseEntry(releaseEntry);
+            var old = OldReleaseEntry.ParseReleaseEntry(releaseEntry);
             Assert.Equal(expected, old.PackageName);
         }
 
         [Theory]
-        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2.nupkg                  123 # 10%", 1, 2, 0, 0, "", false, 0.1f)]
-        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-full.nupkg             123 # 90%", 1, 2, 0, 0, "", false, 0.9f)]
-        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-delta.nupkg            123", 1, 2, 0, 0, "", true, null)]
-        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-delta.nupkg            123 # 5%", 1, 2, 0, 0, "", true, 0.05f)]
-        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-win7-x64-delta.nupkg            123", 1, 2, 0, 0, "win7-x64", true, null)]
-        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-win7-x64-full.nupkg            123 # 5%", 1, 2, 0, 0, "win7-x64", false, 0.05f)]
-        public void ParseStagingPercentageTest(string releaseEntry, int major, int minor, int patch, int revision, string prerelease, bool isDelta, float? stagingPercentage)
+        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2.nupkg                  123 # 10%", 1, 2, 0, 0, "", "", false, 0.1f)]
+        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-full.nupkg             123 # 90%", 1, 2, 0, 0, "", "", false, 0.9f)]
+        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-delta.nupkg            123", 1, 2, 0, 0, "", "", true, null)]
+        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-delta.nupkg            123 # 5%", 1, 2, 0, 0, "", "", true, 0.05f)]
+        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-win7-x64-delta.nupkg            123", 1, 2, 0, 0, "", "win7-x64", true, null)]
+        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-win7-x64-full.nupkg            123 # 5%", 1, 2, 0, 0, "", "win7-x64", false, 0.05f)]
+        public void ParseStagingPercentageTest(string releaseEntry, int major, int minor, int patch, int revision, string prerelease, string rid, bool isDelta, float? stagingPercentage)
         {
             var fixture = ReleaseEntry.ParseReleaseEntry(releaseEntry);
 
@@ -170,8 +239,9 @@ namespace Squirrel.Tests
                 Assert.Null(fixture.StagingPercentage);
             }
 
-            var old = Legacy.ReleaseEntry.ParseReleaseEntry(releaseEntry);
-            Assert.Equal(new NuGetVersion(major, minor, patch, revision, prerelease, null), new NuGetVersion(old.Version.ToString()));
+            var old = OldReleaseEntry.ParseReleaseEntry(releaseEntry);
+            var legacyPre = !String.IsNullOrEmpty(prerelease) && !String.IsNullOrEmpty(rid) ? $"{prerelease}-{rid}" : String.IsNullOrEmpty(prerelease) ? rid : prerelease;
+            Assert.Equal(new NuGetVersion(major, minor, patch, revision, legacyPre, null), new NuGetVersion(old.Version.ToString()));
             Assert.Equal(isDelta, old.IsDelta);
 
             if (stagingPercentage.HasValue) {
@@ -433,7 +503,7 @@ namespace Squirrel.Tests
             var entries = ReleaseEntry.ParseReleaseFile(_ridReleaseEntries);
 
             var e = Utility.FindLatestFullVersion(entries, RID.Parse("win-x86"));
-            Assert.Equal("MyApp-1.4-win-x86.nupkg", e.Filename);
+            Assert.Equal("MyApp-1.4-win-x86.nupkg", e.OriginalFilename);
         }
 
         [Fact]
@@ -450,7 +520,24 @@ namespace Squirrel.Tests
             var entries = ReleaseEntry.ParseReleaseFile(_ridReleaseEntries);
 
             var e = Utility.FindLatestFullVersion(entries, RID.Parse("win-x86"));
-            Assert.Equal("MyApp-1.3-win.nupkg", e.Filename);
+            Assert.Equal("MyApp-1.3-win.nupkg", e.OriginalFilename);
+        }
+
+        [Fact]
+        public void FindCurrentVersionWithExactRidMatchOnlyArchitecture()
+        {
+            string _ridReleaseEntries = """
+0000000000000000000000000000000000000000  MyApp-1.3-win-x86.nupkg  123
+0000000000000000000000000000000000000000  MyApp-1.4.nupkg  123
+0000000000000000000000000000000000000000  MyApp-1.4-win-x64.nupkg  123
+0000000000000000000000000000000000000000  MyApp-1.4-win.nupkg  123
+0000000000000000000000000000000000000000  MyApp-1.4-osx-x86.nupkg  123
+""";
+
+            var entries = ReleaseEntry.ParseReleaseFile(_ridReleaseEntries);
+
+            var e = Utility.FindLatestFullVersion(entries, RID.Parse("win-x86"));
+            Assert.Equal("MyApp-1.3-win.nupkg", e.OriginalFilename);
         }
 
         static string MockReleaseEntry(string name, float? percentage = null)

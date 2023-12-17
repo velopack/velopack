@@ -163,7 +163,7 @@ namespace Squirrel.Sources
                     "GitLabSource.Release before calling this function.");
             }
 
-            var assetUrl = GetAssetUrlFromName(Release, releaseEntry.Filename);
+            var assetUrl = GetAssetUrlFromName(Release, releaseEntry.OriginalFilename);
             return Downloader.DownloadFile(assetUrl, localFile, progress, Authorization, "application/octet-stream");
         }
 

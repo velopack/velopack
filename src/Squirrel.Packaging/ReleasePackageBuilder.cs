@@ -8,14 +8,7 @@ using Squirrel.NuGet;
 
 namespace Squirrel.Packaging;
 
-public interface IReleasePackage
-{
-    string InputPackageFile { get; }
-    string ReleasePackageFile { get; }
-    SemanticVersion Version { get; }
-}
-
-public class ReleasePackageBuilder : IReleasePackage
+public class ReleasePackageBuilder
 {
     private Lazy<ZipPackage> _package;
     private readonly ILogger _logger;
@@ -35,9 +28,7 @@ public class ReleasePackageBuilder : IReleasePackage
 
     public string ReleasePackageFile { get; protected set; }
 
-    public string Id => ReleaseEntry.ParseEntryFileName(InputPackageFile).PackageName;
-
-    public SemanticVersion Version => ReleaseEntry.ParseEntryFileName(InputPackageFile).Version;
+    public SemanticVersion Version => _package.Value.Version;
 
     public string CreateReleasePackage(string outputFile, Func<string, string> releaseNotesProcessor = null, Action<string, ZipPackage> contentsPostProcessHook = null)
     {
@@ -111,30 +102,30 @@ public class ReleasePackageBuilder : IReleasePackage
         }
     }
 
-    public static string GetSuggestedFileName(string id, string version, string runtime, bool delta = false)
-    {
-        var tail = delta ? "delta" : "full";
-        if (String.IsNullOrEmpty(runtime)) {
-            return String.Format("{0}-{1}-{2}.nupkg", id, version, tail);
-        } else {
-            return String.Format("{0}-{1}-{2}-{3}.nupkg", id, version, runtime, tail);
-        }
-    }
+    //public static string GetSuggestedFileName(string id, string version, string runtime, bool delta = false)
+    //{
+    //    var tail = delta ? "delta" : "full";
+    //    if (String.IsNullOrEmpty(runtime)) {
+    //        return String.Format("{0}-{1}-{2}.nupkg", id, version, tail);
+    //    } else {
+    //        return String.Format("{0}-{1}-{2}-{3}.nupkg", id, version, runtime, tail);
+    //    }
+    //}
 
     /// <summary>
     /// Given a list of releases and a specified release package, returns the release package
     /// directly previous to the specified version.
     /// </summary>
-    public static ReleasePackageBuilder GetPreviousRelease(ILogger logger, IEnumerable<ReleaseEntry> releaseEntries, IReleasePackage package, string targetDir, RID compatibleRid)
-    {
-        if (releaseEntries == null || !releaseEntries.Any()) return null;
-        return Utility.FindCompatibleVersions(releaseEntries, compatibleRid)
-            .Where(x => x.IsDelta == false)
-            .Where(x => x.Version < package.Version)
-            .OrderByDescending(x => x.Version)
-            .Select(x => new ReleasePackageBuilder(logger, Path.Combine(targetDir, x.Filename), true))
-            .FirstOrDefault();
-    }
+    //public static ReleasePackageBuilder GetPreviousRelease(ILogger logger, IEnumerable<ReleaseEntry> releaseEntries, ReleasePackageBuilder package, string targetDir, RID compatibleRid)
+    //{
+    //    if (releaseEntries == null || !releaseEntries.Any()) return null;
+    //    return Utility.FindCompatibleVersions(releaseEntries, compatibleRid)
+    //        .Where(x => x.IsDelta == false)
+    //        .Where(x => x.Version < package.Version)
+    //        .OrderByDescending(x => x.Version)
+    //        .Select(x => new ReleasePackageBuilder(logger, Path.Combine(targetDir, x.Filename), true))
+    //        .FirstOrDefault();
+    //}
 
     static Task extractZipWithEscaping(string zipFilePath, string outFolder)
     {

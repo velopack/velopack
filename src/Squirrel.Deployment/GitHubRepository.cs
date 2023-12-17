@@ -58,8 +58,8 @@ public class GitHubRepository
             .Take(1)
             .Select(x => new {
                 Obj = x,
-                LocalPath = Path.Combine(releaseDirectoryInfo.FullName, x.Filename),
-                Filename = x.Filename,
+                LocalPath = Path.Combine(releaseDirectoryInfo.FullName, x.OriginalFilename),
+                Filename = x.OriginalFilename,
             });
 
         foreach (var entry in releasesToDownload) {
@@ -111,7 +111,7 @@ public class GitHubRepository
         _log.Info($"Preparing to upload latest local release to GitHub");
 
         var newReleaseReq = new NewRelease(semVer.ToString()) {
-            Body = ver.GetReleaseNotes(releaseDirectoryInfo.FullName, ReleaseNotesFormat.Markdown),
+            //Body = ver.GetReleaseNotes(releaseDirectoryInfo.FullName, ReleaseNotesFormat.Markdown),
             Draft = true,
             Prerelease = semVer.HasMetadata || semVer.IsPrerelease,
             Name = string.IsNullOrWhiteSpace(options.ReleaseName)
@@ -141,7 +141,7 @@ public class GitHubRepository
 
         // upload nupkg's
         foreach (var r in releasesToUpload) {
-            var path = Path.Combine(releaseDirectoryInfo.FullName, r.Filename);
+            var path = Path.Combine(releaseDirectoryInfo.FullName, r.OriginalFilename);
             await UploadFileAsAsset(client, release, path);
         }
 

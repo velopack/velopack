@@ -28,131 +28,99 @@ namespace Squirrel
     /// Represents a Squirrel release, as described in a RELEASES file - usually also with an 
     /// accompanying package containing the files needed to apply the release.
     /// </summary>
-    public interface IReleaseEntry
+    [DataContract]
+    public class ReleaseEntry
     {
-        /// <summary> The SHA1 checksum of the update package containing this release. </summary>
-        string SHA1 { get; }
-
-        /// <summary> The filename of the update package containing this release. </summary>
-        string Filename { get; }
-
-        /// <summary> The size in bytes of the update package containing this release. </summary>
-        long Filesize { get; }
-
-        /// <summary> Whether this package represents a full update, or a delta update. </summary>
-        bool IsDelta { get; }
-
-        /// <summary> The unparsed text used to construct this release. </summary>
-        string EntryAsString { get; }
-
-        /// <summary> The version of this release. </summary>
-        SemanticVersion Version { get; }
+        /// <summary> The release identity - including id, version and so forth. </summary>*
+        [IgnoreDataMember] public ReleaseEntryName Identity { get; protected set; }
 
         /// <summary> The name or Id of the package containing this release. </summary>
-        string PackageName { get; }
+        [DataMember] public string PackageId => Identity.PackageId;
 
-        /// <summary> 
-        /// The percentage of users this package has been released to. This release
-        /// may or may not be applied if the current user is not in the staging group.
-        /// </summary>
-        float? StagingPercentage { get; }
+        /// <summary> The version of this release. </summary>
+        [DataMember] public SemanticVersion Version => Identity.Version;
+
+        /// <summary> Whether this package represents a full update, or a delta update. </summary>
+        [DataMember] public bool IsDelta => Identity.IsDelta;
 
         /// <summary> 
         /// The runtime identifier parsed from the file name. 
         /// Used to determine if this package is suitable for the current operating system.
         /// </summary>
-        RID Rid { get; }
+        [DataMember] public RID Rid => Identity.Rid;
 
-        /// <summary>
-        /// Given a local directory containing a package corresponding to this release, returns the 
-        /// correspoding release notes from within the package.
-        /// </summary>
-        string GetReleaseNotes(string packageDirectory, ReleaseNotesFormat format);
-
-        /// <summary>
-        /// Given a local directory containing a package corresponding to this release, 
-        /// returns the iconUrl specified in the package.
-        /// </summary>
-        Uri GetIconUrl(string packageDirectory);
-    }
-
-    /// <inheritdoc cref="IReleaseEntry" />
-    [DataContract]
-    public class ReleaseEntry : IReleaseEntry
-    {
-        /// <inheritdoc />
+        /// <summary> The SHA1 checksum of the update package containing this release. </summary>
         [DataMember] public string SHA1 { get; protected set; }
-        /// <inheritdoc />
+
+        /// <summary> If the release corresponds to a remote http location, this will be the base url. </summary>
         [DataMember] public string BaseUrl { get; protected set; }
-        /// <inheritdoc />
-        [DataMember] public string Filename { get; protected set; }
-        /// <inheritdoc />
+
+        /// <summary> The http url query (if applicable). </summary>
         [DataMember] public string Query { get; protected set; }
-        /// <inheritdoc />
+
+        /// <summary> The size in bytes of the update package containing this release. </summary>
         [DataMember] public long Filesize { get; protected set; }
-        /// <inheritdoc />
-        [DataMember] public bool IsDelta { get; protected set; }
-        /// <inheritdoc />
+
+        /// <summary> 
+        /// The percentage of users this package has been released to. This release
+        /// may or may not be applied if the current user is not in the staging group.
+        /// </summary>
         [DataMember] public float? StagingPercentage { get; protected set; }
-        /// <inheritdoc />
-        [DataMember] public RID Rid { get; protected set; }
+
+        /// <summary> The filename of the update package containing this release. </summary>
+        [DataMember] public string OriginalFilename { get; protected set; }
+
+        /// <summary> The unparsed text used to construct this release. </summary>
+        [IgnoreDataMember]
+        public string EntryAsString {
+            get {
+                if (StagingPercentage != null) {
+                    return String.Format("{0} {1}{2} {3} # {4}", SHA1, BaseUrl, OriginalFilename, Filesize, stagingPercentageAsString(StagingPercentage.Value));
+                } else {
+                    return String.Format("{0} {1}{2} {3}", SHA1, BaseUrl, OriginalFilename, Filesize);
+                }
+            }
+        }
 
         /// <summary>
         /// Create a new instance of <see cref="ReleaseEntry"/>.
         /// </summary>
-        protected ReleaseEntry(string sha1, string filename, long filesize, string baseUrl = null, string query = null, float? stagingPercentage = null)
+        protected internal ReleaseEntry(string sha1, string filename, long filesize, string baseUrl = null, string query = null, float? stagingPercentage = null)
         {
             Contract.Requires(sha1 != null && sha1.Length == 40);
             Contract.Requires(filename != null);
             Contract.Requires(filename.Contains(Path.DirectorySeparatorChar) == false);
             Contract.Requires(filesize > 0);
 
-            SHA1 = sha1; BaseUrl = baseUrl; Filename = filename; Query = query; Filesize = filesize; StagingPercentage = stagingPercentage;
-
-            var identity = ParseEntryFileName(Filename);
-            Version = identity.Version;
-            PackageName = identity.PackageName;
-            IsDelta = identity.IsDelta;
-            Rid = identity.Rid;
+            SHA1 = sha1;
+            BaseUrl = baseUrl;
+            Query = query;
+            Filesize = filesize;
+            StagingPercentage = stagingPercentage;
+            OriginalFilename = filename;
+            Identity = ReleaseEntryName.FromEntryFileName(filename);
         }
 
-        /// <inheritdoc />
-        [IgnoreDataMember]
-        public string EntryAsString {
-            get {
-                if (StagingPercentage != null) {
-                    return String.Format("{0} {1}{2} {3} # {4}", SHA1, BaseUrl, Filename, Filesize, stagingPercentageAsString(StagingPercentage.Value));
-                } else {
-                    return String.Format("{0} {1}{2} {3}", SHA1, BaseUrl, Filename, Filesize);
-                }
-            }
-        }
+        ///// <summary>
+        ///// Given a local directory containing a package corresponding to this release, returns the 
+        ///// correspoding release notes from within the package.
+        ///// </summary>
+        //public string GetReleaseNotes(string packageDirectory, ReleaseNotesFormat format)
+        //{
+        //    var zp = new ZipPackage(Path.Combine(packageDirectory, Filename));
+        //    return format switch {
+        //        ReleaseNotesFormat.Markdown => zp.ReleaseNotes,
+        //        ReleaseNotesFormat.Html => zp.ReleaseNotesHtml,
+        //        _ => null,
+        //    };
+        //}
 
-        /// <inheritdoc />
-        [IgnoreDataMember]
-        public SemanticVersion Version { get; }
-
-        /// <inheritdoc />
-        [IgnoreDataMember]
-        public string PackageName { get; }
-
-        /// <inheritdoc />
-        public string GetReleaseNotes(string packageDirectory, ReleaseNotesFormat format)
-        {
-            var zp = new ZipPackage(Path.Combine(packageDirectory, Filename));
-            return format switch {
-                ReleaseNotesFormat.Markdown => zp.ReleaseNotes,
-                ReleaseNotesFormat.Html => zp.ReleaseNotesHtml,
-                _ => null,
-            };
-        }
-
-        /// <inheritdoc />  
-        public Uri GetIconUrl(string packageDirectory)
-        {
-            var zp = new ZipPackage(Path.Combine(packageDirectory, Filename));
-            return zp.IconUrl;
-        }
+        ///// <inheritdoc />  
+        //public Uri GetIconUrl(string packageDirectory)
+        //{
+        //    var zp = new ZipPackage(Path.Combine(packageDirectory, Filename));
+        //    return zp.IconUrl;
+        //}
 
         static readonly Regex entryRegex = new Regex(@"^([0-9a-fA-F]{40})\s+(\S+)\s+(\d+)[\r]*$");
         static readonly Regex commentRegex = new Regex(@"\s*#.*$");
@@ -370,73 +338,9 @@ namespace Squirrel
         }
 
         /// <inheritdoc />
-        public override string ToString()
-        {
-            return Filename;
-        }
+        public override string ToString() => Identity.ToFileName();
 
         /// <inheritdoc />
-        public override int GetHashCode()
-        {
-            return Filename.GetHashCode();
-        }
-
-        static readonly Regex _suffixRegex = new Regex(@"(-full|-delta)?\.nupkg$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        static readonly Regex _versionStartRegex = new Regex(@"[\.-](0|[1-9]\d*)\.(0|[1-9]\d*)($|[^\d])", RegexOptions.Compiled);
-        static readonly Regex _ridRegex = new Regex(@"-(?<os>osx|win)\.?(?<ver>[\d\.]+)?(?:-(?<arch>(?:x|arm)\d{2}))?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-        internal class EntryNameInfo
-        {
-            public string PackageName { get; set; }
-            public SemanticVersion Version { get; set; }
-            public bool IsDelta { get; set; }
-            public RID Rid { get; set; }
-
-            public EntryNameInfo()
-            {
-            }
-
-            public EntryNameInfo(string packageName, SemanticVersion version, bool isDelta, RID rid)
-            {
-                PackageName = packageName;
-                Version = version;
-                IsDelta = isDelta;
-                Rid = rid;
-            }
-        }
-
-        /// <summary>
-        /// Takes a filename such as 'My-Cool3-App-1.0.1-build.23-full.nupkg' and separates it into 
-        /// it's name and version (eg. 'My-Cool3-App', and '1.0.1-build.23'). Returns null values if 
-        /// the filename can not be parsed.
-        /// </summary>
-        internal static EntryNameInfo ParseEntryFileName(string fileName)
-        {
-            if (!fileName.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase))
-                return new EntryNameInfo(null, null, false, null);
-
-            bool delta = Path.GetFileNameWithoutExtension(fileName).EndsWith("-delta", StringComparison.OrdinalIgnoreCase);
-
-            var nameAndVer = _suffixRegex.Replace(Path.GetFileName(fileName), "");
-
-            var match = _versionStartRegex.Match(nameAndVer);
-            if (!match.Success)
-                return new EntryNameInfo(null, null, delta, null);
-
-            var verIdx = match.Index;
-            var name = nameAndVer.Substring(0, verIdx);
-            var version = nameAndVer.Substring(verIdx + 1);
-
-            RID rid = null;
-            var ridMatch = _ridRegex.Match(version);
-
-            if (ridMatch.Success) {
-                rid = RID.Parse(ridMatch.Value.TrimStart('-'));
-                version = version.Substring(0, ridMatch.Index);
-            }
-
-            var semVer = NuGetVersion.Parse(version);
-            return new EntryNameInfo(name, semVer, delta, rid);
-        }
+        public override int GetHashCode() => Identity.GetHashCode();
     }
 }

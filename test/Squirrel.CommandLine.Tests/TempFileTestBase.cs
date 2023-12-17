@@ -1,4 +1,5 @@
-﻿using Xunit.Sdk;
+﻿using System.Threading;
+using Xunit.Sdk;
 
 namespace Squirrel.CommandLine.Tests;
 

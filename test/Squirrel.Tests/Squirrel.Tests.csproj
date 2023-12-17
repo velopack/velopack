@@ -3,25 +3,10 @@
 
   <PropertyGroup>
     <TargetFramework>net6.0-windows</TargetFramework>
-    <Description>Squirrel.Tests</Description>
-    <Title>Squirrel.Tests</Title>
-    <IsPackable>false</IsPackable>
-    <LangVersion>latest</LangVersion>
-    <IsTest>true</IsTest>
-    <NoWarn>CS1998,xUnit2015,xUnit2017,xUnit2005,xUnit2009,xUnit2013,xUnit2004</NoWarn>
-    <SignAssembly>True</SignAssembly>
-    <AssemblyOriginatorKeyFile>..\..\Squirrel.snk</AssemblyOriginatorKeyFile>
-    <NoWarn>$(NoWarn);CA2007</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
-    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-    <PackageReference Include="xunit" Version="2.6.3" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.5" PrivateAssets="All" />
     <PackageReference Include="System.IO.Packaging" Version="8.0.0" />
-    <PackageReference Include="Xunit.SkippableFact" Version="1.4.13" />
-    <PackageReference Include="Divergic.Logging.Xunit" Version="4.3.0" />
   </ItemGroup>
 
   <ItemGroup>

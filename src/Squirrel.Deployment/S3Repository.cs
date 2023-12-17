@@ -84,8 +84,8 @@ public class S3Repository
             .OrderByDescending(x => x.Version)
             .Take(1)
             .Select(x => new {
-                LocalPath = Path.Combine(releasesDir.FullName, x.Filename),
-                Filename = x.Filename,
+                LocalPath = Path.Combine(releasesDir.FullName, x.OriginalFilename),
+                Filename = x.OriginalFilename,
             });
 
         foreach (var releaseToDownload in releasesToDownload) {
@@ -131,7 +131,7 @@ public class S3Repository
         // apply retention policy. count '-full' versions only, then also remove corresponding delta packages
         var releaseEntries = localReleases
             .Concat(remoteReleases)
-            .DistinctBy(r => r.Filename) // will preserve the local entries because they appear first
+            .DistinctBy(r => r.OriginalFilename) // will preserve the local entries because they appear first
             .OrderBy(k => k.Version)
             .ThenBy(k => !k.IsDelta)
             .ToArray();
@@ -141,7 +141,7 @@ public class S3Repository
             return;
         }
 
-        if (!releaseEntries.All(f => f.PackageName == releaseEntries.First().PackageName)) {
+        if (!releaseEntries.All(f => f.PackageId == releaseEntries.First().PackageId)) {
             throw new Exception("There are mix-matched package Id's in local/remote RELEASES file. " +
                                 "Please fix the release files manually so there is only one consistent package Id present.");
         }
@@ -219,7 +219,7 @@ public class S3Repository
 
         // upload nupkg's first
         foreach (var f in nupkgFiles) {
-            if (!releaseEntries.Any(r => r.Filename.Equals(f.Name, StringComparison.InvariantCultureIgnoreCase))) {
+            if (!releaseEntries.Any(r => r.OriginalFilename.Equals(f.Name, StringComparison.InvariantCultureIgnoreCase))) {
                 Log.Warn($"Upload file '{f.Name}' skipped (not in RELEASES file)");
                 continue;
             }
@@ -248,7 +248,7 @@ public class S3Repository
                 where key.StartsWith(_prefix, StringComparison.InvariantCultureIgnoreCase)
                 let fileName = key.Substring(_prefix.Length)
                 where !fileName.Contains('/') // filters out objects in folders if _prefix is empty
-                where !releaseEntries.Any(r => r.Filename.Equals(fileName, StringComparison.InvariantCultureIgnoreCase))
+                where !releaseEntries.Any(r => r.OriginalFilename.Equals(fileName, StringComparison.InvariantCultureIgnoreCase))
                 orderby o.LastModified ascending
                 select new { key, fileName, versionId = o.VersionId };
 

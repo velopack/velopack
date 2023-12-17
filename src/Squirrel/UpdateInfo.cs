@@ -50,22 +50,22 @@ namespace Squirrel
             this.PackageDirectory = packageDirectory;
         }
 
-        /// <summary>
-        /// Retrieves all the release notes for pending packages (ie. <see cref="ReleasesToApply"/>)
-        /// </summary>
-        public Dictionary<ReleaseEntry, string> FetchReleaseNotes(ReleaseNotesFormat format)
-        {
-            return ReleasesToApply
-                .SelectMany(x => {
-                    try {
-                        var releaseNotes = x.GetReleaseNotes(PackageDirectory, format);
-                        return EnumerableExtensions.Return(Tuple.Create(x, releaseNotes));
-                    } catch (Exception ex) {
-                        return Enumerable.Empty<Tuple<ReleaseEntry, string>>();
-                    }
-                })
-                .ToDictionary(k => k.Item1, v => v.Item2);
-        }
+        // /// <summary>
+        // /// Retrieves all the release notes for pending packages (ie. <see cref="ReleasesToApply"/>)
+        // /// </summary>
+        // public Dictionary<ReleaseEntry, string> FetchReleaseNotes(ReleaseNotesFormat format)
+        // {
+        //    return ReleasesToApply
+        //        .SelectMany(x => {
+        //            try {
+        //                var releaseNotes = x.GetReleaseNotes(PackageDirectory, format);
+        //                return EnumerableExtensions.Return(Tuple.Create(x, releaseNotes));
+        //            } catch (Exception ex) {
+        //                return Enumerable.Empty<Tuple<ReleaseEntry, string>>();
+        //            }
+        //        })
+        //        .ToDictionary(k => k.Item1, v => v.Item2);
+        // }
 
         /// <summary>
         /// Create a new <see cref="UpdateInfo"/> from a current release and a list of future releases

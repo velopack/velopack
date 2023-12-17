@@ -54,7 +54,7 @@ namespace Squirrel.Sources
         /// <inheritdoc />
         public virtual Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress)
         {
-            var releasePath = Path.Combine(BaseDirectory.FullName, releaseEntry.Filename);
+            var releasePath = Path.Combine(BaseDirectory.FullName, releaseEntry.OriginalFilename);
             if (!File.Exists(releasePath))
                 throw new Exception($"The file '{releasePath}' does not exist. The packages directory is invalid.");
 

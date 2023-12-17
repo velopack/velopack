@@ -80,14 +80,25 @@ namespace Squirrel.NuGet
             }
         }
 
-        public static void SetMetadata(string nuspecPath, IEnumerable<string> runtimes, RID rid)
+        public static void SetMetadata(string nuspecPath, string mainExe, IEnumerable<string> runtimes, RID rid)
         {
             Dictionary<string, string> toSet = new();
 
-            if (runtimes.Any())
+            if (runtimes.Any()) {
                 toSet.Add("runtimeDependencies", String.Join(",", runtimes));
-            if (rid?.IsValid == true)
-                toSet.Add("rid", rid.StringWithFullVersion);
+            }
+
+            if (rid?.IsValid == true) {
+                toSet.Add("rid", rid.ToDisplay(RidDisplayType.FullVersion));
+                toSet.Add("os", rid.BaseRID.GetOsShortName());
+                if (rid.HasVersion)
+                    toSet.Add("osMinVersion", rid.Version.ToString());
+                if (rid.HasArchitecture)
+                    toSet.Add("machineArchitecture", rid.Architecture.ToString());
+            }
+
+            if (!String.IsNullOrEmpty(mainExe))
+                toSet.Add("mainExe", mainExe);
 
             if (!toSet.Any())
                 return;

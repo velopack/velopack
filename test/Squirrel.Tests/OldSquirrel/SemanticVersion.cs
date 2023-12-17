@@ -1,8 +1,10 @@
-﻿using System;
+﻿
+using System;
+using System.ComponentModel;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
-namespace Squirrel.Tests.Legacy
+namespace Squirrel.Tests.OldSquirrel
 {
     /// <summary>
     /// A hybrid implementation of SemVer that supports semantic versioning as described at http://semver.org while not strictly enforcing it to 
@@ -118,7 +120,7 @@ namespace Squirrel.Tests.Legacy
         public static SemanticVersion Parse(string version)
         {
             if (String.IsNullOrEmpty(version)) {
-                throw new ArgumentException("Argument_Cannot_Be_Null_Or_Empty");
+                throw new ArgumentException("Argument_Cannot_Be_Null_Or_Empty", "version");
             }
 
             SemanticVersion semVer;
@@ -187,7 +189,7 @@ namespace Squirrel.Tests.Legacy
             }
             SemanticVersion other = obj as SemanticVersion;
             if (other == null) {
-                throw new ArgumentException("TypeMustBeASemanticVersion");
+                throw new ArgumentException("TypeMustBeASemanticVersion", "obj");
             }
             return CompareTo(other);
         }

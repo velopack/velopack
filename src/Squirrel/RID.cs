@@ -136,14 +136,15 @@ namespace Squirrel
         public static bool operator >=(RuntimeVersion v1, RuntimeVersion v2) => v2 <= v1;
     }
 
+    public enum RidDisplayType
+    {
+        NoVersion,
+        ShortVersion,
+        FullVersion,
+    }
+
     public class RID
     {
-        public string StringWithFullVersion => ToString(true, false);
-
-        public string StringWithShortVersion => ToString(true, true);
-
-        public string StringWithNoVersion => ToString(false, false);
-
         internal const char VersionDelimiter = '.';
         internal const char ArchitectureDelimiter = '-';
         internal const char QualifierDelimiter = '-';
@@ -154,22 +155,22 @@ namespace Squirrel
         public RuntimeCpu Architecture { get; set; }
         public string Qualifier { get; set; }
 
-        public override string ToString() => ToString(true, false);
+        public override string ToString() => ToDisplay(RidDisplayType.FullVersion);
 
-        private string ToString(bool withVersion, bool shortVersion)
+        public string ToDisplay(RidDisplayType type)
         {
             if (!IsValid) return "";
             StringBuilder builder = new StringBuilder(BaseRID.GetOsShortName());
 
-            if (withVersion && HasVersion) {
+            if (HasVersion) {
                 //if (!OmitVersionDelimiter) {
                 //    builder.Append(VersionDelimiter);
                 //}
 
-                if (shortVersion) {
-                    builder.Append(Version.Major);
-                } else {
+                if (type == RidDisplayType.FullVersion) {
                     builder.Append(Version);
+                } else if (type == RidDisplayType.ShortVersion) {
+                    builder.Append(Version.Major);
                 }
             }
 
