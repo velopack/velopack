@@ -63,15 +63,15 @@ pub fn is_dir_empty(path: &PathBuf) -> bool {
 }
 
 pub fn trace_logger() {
-    TermLogger::init(LevelFilter::Trace, Config::default(), TerminalMode::Mixed, ColorChoice::Auto).unwrap();
+    TermLogger::init(LevelFilter::Trace, Config::default(), TerminalMode::Mixed, ColorChoice::Never).unwrap();
 }
 
-pub fn setup_logging(file: Option<&PathBuf>, console: bool, verbose: bool) -> Result<()> {
+pub fn setup_logging(file: Option<&PathBuf>, console: bool, verbose: bool, nocolor: bool) -> Result<()> {
     let mut loggers: Vec<Box<dyn SharedLogger>> = Vec::new();
-
+    let color_choice = if nocolor { ColorChoice::Never } else { ColorChoice::Auto };
     if console {
         let console_level = if verbose { LevelFilter::Debug } else { LevelFilter::Info };
-        loggers.push(TermLogger::new(console_level, Config::default(), TerminalMode::Mixed, ColorChoice::Auto));
+        loggers.push(TermLogger::new(console_level, Config::default(), TerminalMode::Mixed, color_choice));
     }
 
     if let Some(f) = file {

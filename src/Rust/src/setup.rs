@@ -34,7 +34,8 @@ fn main() -> Result<()> {
         .arg(arg!(-s --silent "Hides all dialogs and answers 'yes' to all prompts"))
         .arg(arg!(-v --verbose "Print debug messages to console"))
         .arg(arg!(-l --log <FILE> "Enable file logging and set location").required(false).value_parser(value_parser!(PathBuf)))
-        .arg(arg!(-t --installto <DIR> "Installation directory to install the application").required(false).value_parser(value_parser!(PathBuf)));
+        .arg(arg!(-t --installto <DIR> "Installation directory to install the application").required(false).value_parser(value_parser!(PathBuf)))
+        .arg(arg!(--nocolor "Disable colored output").hide(true));
 
     if cfg!(debug_assertions) {
         arg_config = arg_config.arg(arg!(-d --debug <FILE> "Debug mode, install from a nupkg file").required(false).value_parser(value_parser!(PathBuf)));
@@ -46,9 +47,10 @@ fn main() -> Result<()> {
     let debug = matches.get_one::<PathBuf>("debug");
     let logfile = matches.get_one::<PathBuf>("log");
     let installto = matches.get_one::<PathBuf>("installto");
+    let nocolor = matches.get_flag("nocolor");
 
     platform::set_silent(silent);
-    util::setup_logging(logfile, true, verbose)?;
+    util::setup_logging(logfile, true, verbose, nocolor)?;
 
     info!("Starting Clowd.Squirrel Setup ({})", env!("CARGO_PKG_VERSION"));
     info!("    Location: {:?}", std::env::current_exe()?);

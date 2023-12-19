@@ -61,6 +61,7 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
 
         AddOption<string>((v) => Channel = v, "-c", "--channel")
             .SetDescription("Release channel to use when creating the package.")
+            .RequiresValidNuGetId()
             .SetArgumentHelpName("NAME");
     }
 }

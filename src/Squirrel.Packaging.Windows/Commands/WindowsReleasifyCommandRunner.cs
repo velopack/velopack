@@ -22,9 +22,12 @@ public class WindowsReleasifyCommandRunner
         var setupIcon = options.Icon;
 
         // normalize and validate that the provided frameworks are supported 
-        var requiredFrameworks = options.Runtimes
-            .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-            .Select(Runtimes.GetRuntimeByName);
+        IEnumerable<Runtimes.RuntimeInfo> requiredFrameworks = Enumerable.Empty<Runtimes.RuntimeInfo>();
+        if (!string.IsNullOrWhiteSpace(options.Runtimes)) {
+            requiredFrameworks = options.Runtimes
+                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(Runtimes.GetRuntimeByName);
+        }
 
         if (requiredFrameworks.Where(f => f == null).Any())
             throw new ArgumentException("Invalid target frameworks string.");
@@ -49,7 +52,7 @@ public class WindowsReleasifyCommandRunner
             .ToArray();
         if (mismatchedRid.Any()) {
             var message = $"Previous releases were built for a different runtime ({String.Join(", ", mismatchedRid)}) " +
-                $"than the current one. Please use the same runtime for all releases in a channel.";
+                $"than current ({options.TargetRuntime}). Please use the same runtime for all releases in a channel.";
             throw new ArgumentException(message);
         }
 

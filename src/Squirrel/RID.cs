@@ -143,7 +143,7 @@ namespace Squirrel
         FullVersion,
     }
 
-    public class RID
+    public class RID : IEquatable<RID>
     {
         internal const char VersionDelimiter = '.';
         internal const char ArchitectureDelimiter = '-';
@@ -333,18 +333,27 @@ namespace Squirrel
                     Qualifier == obj.Qualifier);
         }
 
+        public static bool operator ==(RID obj1, RID obj2)
+        {
+            if (ReferenceEquals(obj1, obj2))
+                return true;
+            if (ReferenceEquals(obj1, null))
+                return false;
+            if (ReferenceEquals(obj2, null))
+                return false;
+            return obj1.Equals(obj2);
+        }
+        public static bool operator !=(RID obj1, RID obj2) => !(obj1 == obj2);
+
         public override int GetHashCode()
         {
-#if NETFRAMEWORK || NETSTANDARD
-            return BaseRID.GetHashCode();
-#else
-            HashCode hashCode = default;
-            hashCode.Add(BaseRID);
-            hashCode.Add(Version);
-            hashCode.Add(Architecture);
-            hashCode.Add(Qualifier);
-            return hashCode.ToHashCode();
-#endif
+            unchecked {
+                int hashCode = BaseRID.GetHashCode();
+                if (Version != null) hashCode = (hashCode * 397) ^ Version.GetHashCode();
+                hashCode = (hashCode * 397) ^ Architecture.GetHashCode();
+                if (Qualifier != null) hashCode = (hashCode * 397) ^ Qualifier.GetHashCode();
+                return hashCode;
+            }
         }
     }
 }

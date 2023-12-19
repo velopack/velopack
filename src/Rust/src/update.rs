@@ -43,6 +43,7 @@ fn root_command() -> Command {
         .long_flag_alias("uninstall")
     )
     .arg(arg!(--verbose "Print debug messages to console / log"))
+    .arg(arg!(--nocolor "Disable colored output").hide(true))
     .arg(arg!(-s --silent "Don't show any prompts / dialogs"))
     .arg(arg!(-l --log <PATH> "Override the default log file location").value_parser(value_parser!(PathBuf)))
     .disable_help_subcommand(true)
@@ -71,10 +72,11 @@ fn main() -> Result<()> {
 
     let verbose = matches.get_flag("verbose");
     let silent = matches.get_flag("silent");
+    let nocolor = matches.get_flag("nocolor");
     let log_file = matches.get_one("log").unwrap_or(&default_log_file);
 
     platform::set_silent(silent);
-    util::setup_logging(Some(&log_file), true, verbose)?;
+    util::setup_logging(Some(&log_file), true, verbose, nocolor)?;
 
     info!("Starting Clowd.Squirrel Updater ({})", env!("CARGO_PKG_VERSION"));
     info!("    Location: {}", env::current_exe()?.to_string_lossy());
@@ -99,10 +101,10 @@ fn main() -> Result<()> {
 }
 
 fn get_my_root_dir() -> Result<PathBuf> {
-    Ok(Path::new(r"C:\Source\rust setup testing\install").to_path_buf())
-    // let mut my_dir = env::current_exe()?;
-    // my_dir.pop();
-    // Ok(my_dir)
+    // Ok(Path::new(r"C:\Source\rust setup testing\install").to_path_buf())
+    let mut my_dir = env::current_exe()?;
+    my_dir.pop();
+    Ok(my_dir)
 }
 
 fn start(matches: &ArgMatches) -> Result<()> {
@@ -234,7 +236,9 @@ fn uninstall(_matches: &ArgMatches, log_file: &PathBuf) -> Result<()> {
 
     let dead_path = root_path.join(".dead");
     let _ = File::create(dead_path);
-    platform::register_intent_to_delete_self(5, &root_path)?;
+    if let Err(e) = platform::register_intent_to_delete_self(5, &root_path) {
+        warn!("Unable to schedule self delete ({}).", e);
+    }
 
     Ok(())
 }
