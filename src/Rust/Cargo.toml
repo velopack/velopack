@@ -15,6 +15,10 @@ path = "src/update.rs"
 name = "testapp"
 path = "src/testapp.rs"
 
+[[bin]]
+name = "stub"
+path = "src/stub.rs"
+
 [profile.release]
 opt-level = "z"          # optimize for size
 lto = true               # link-time optimization
