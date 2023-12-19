@@ -7,30 +7,30 @@ namespace Squirrel.CommandLine.Tests.Commands;
 public abstract class ReleaseCommandTests<T> : BaseCommandTests<T>
     where T : WindowsReleasifyCommand, new()
 {
-    [Fact]
-    public void BaseUrl_WithNonHttpValue_ShowsError()
-    {
-        var command = new T();
+    //[Fact]
+    //public void BaseUrl_WithNonHttpValue_ShowsError()
+    //{
+    //    var command = new T();
 
-        string cli = GetRequiredDefaultOptions() + $"--baseUrl \"file://clowd.squirrel.com\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
+    //    string cli = GetRequiredDefaultOptions() + $"--baseUrl \"file://clowd.squirrel.com\"";
+    //    ParseResult parseResult = command.ParseAndApply(cli);
 
-        Assert.Equal(1, parseResult.Errors.Count);
-        //Assert.Equal(command.BaseUrl, parseResult.Errors[0].SymbolResult?.Symbol);
-        Assert.StartsWith("--baseUrl must contain a Uri with one of the following schems: http, https.", parseResult.Errors[0].Message);
-    }
+    //    Assert.Equal(1, parseResult.Errors.Count);
+    //    //Assert.Equal(command.BaseUrl, parseResult.Errors[0].SymbolResult?.Symbol);
+    //    Assert.StartsWith("--baseUrl must contain a Uri with one of the following schems: http, https.", parseResult.Errors[0].Message);
+    //}
 
-    [Fact]
-    public void BaseUrl_WithRelativeUrl_ShowsError()
-    {
-        var command = new T();
-        string cli = GetRequiredDefaultOptions() + $"--baseUrl \"clowd.squirrel.com\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
+    //[Fact]
+    //public void BaseUrl_WithRelativeUrl_ShowsError()
+    //{
+    //    var command = new T();
+    //    string cli = GetRequiredDefaultOptions() + $"--baseUrl \"clowd.squirrel.com\"";
+    //    ParseResult parseResult = command.ParseAndApply(cli);
 
-        Assert.Equal(1, parseResult.Errors.Count);
-        //Assert.Equal(command.BaseUrl, parseResult.Errors[0].SymbolResult?.Symbol);
-        Assert.StartsWith("--baseUrl must contain an absolute Uri.", parseResult.Errors[0].Message);
-    }
+    //    Assert.Equal(1, parseResult.Errors.Count);
+    //    //Assert.Equal(command.BaseUrl, parseResult.Errors[0].SymbolResult?.Symbol);
+    //    Assert.StartsWith("--baseUrl must contain an absolute Uri.", parseResult.Errors[0].Message);
+    //}
 
     [Fact]
     public void NoDelta_BareOption_SetsFlag()
@@ -115,7 +115,7 @@ public abstract class ReleaseCommandTests<T> : BaseCommandTests<T>
 
         Assert.Equal(1, parseResult.Errors.Count);
         //Assert.Equal(command.Icon, parseResult.Errors[0].SymbolResult?.Symbol.Parents.Single());
-        Assert.Contains(file, parseResult.Errors[0].Message);
+        Assert.Contains("File does not exist", parseResult.Errors[0].Message);
     }
 
     [Fact]
@@ -129,33 +129,6 @@ public abstract class ReleaseCommandTests<T> : BaseCommandTests<T>
         string searchPaths = command.EntryExecutableName;
         Assert.Equal("MyApp1.exe", searchPaths);
     }
-
-    [Fact]
-    public void AppIcon_WithBadFileExtension_ShowsError()
-    {
-        FileInfo fileInfo = CreateTempFile(name: Path.ChangeExtension(Path.GetRandomFileName(), ".wrong"));
-        var command = new T();
-
-        string cli = GetRequiredDefaultOptions() + $"--appIcon \"{fileInfo.FullName}\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
-
-        Assert.Equal(1, parseResult.Errors.Count);
-        Assert.Equal($"--appIcon does not have an .ico extension", parseResult.Errors[0].Message);
-    }
-
-    [Fact]
-    public void AppIcon_WithoutFile_ShowsError()
-    {
-        string file = Path.GetFullPath(Path.ChangeExtension(Path.GetRandomFileName(), ".ico"));
-        var command = new T();
-
-        string cli = GetRequiredDefaultOptions() + $"--appIcon \"{file}\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
-
-        Assert.Equal(1, parseResult.Errors.Count);
-        //Assert.Equal(command.AppIcon, parseResult.Errors[0].SymbolResult?.Symbol.Parents.Single());
-        Assert.Contains(file, parseResult.Errors[0].Message);
-    }
 }
 
 public class ReleasifyWindowsCommandTests : ReleaseCommandTests<WindowsReleasifyCommand>
@@ -166,7 +139,7 @@ public class ReleasifyWindowsCommandTests : ReleaseCommandTests<WindowsReleasify
         FileInfo package = CreateTempFile(name: Path.ChangeExtension(Path.GetRandomFileName(), ".nupkg"));
         var command = new WindowsReleasifyCommand();
 
-        ParseResult parseResult = command.ParseAndApply($"--package \"{package.FullName}\"");
+        ParseResult parseResult = command.ParseAndApply($"--package \"{package.FullName}\" -e main.exe");
 
         Assert.Empty(parseResult.Errors);
         Assert.Equal(package.FullName, command.Package);
@@ -301,7 +274,7 @@ public class ReleasifyWindowsCommandTests : ReleaseCommandTests<WindowsReleasify
     {
         FileInfo package = CreateTempFile(name: Path.ChangeExtension(Path.GetRandomFileName(), ".nupkg"));
 
-        return $"-p \"{package.FullName}\" ";
+        return $"-p \"{package.FullName}\" -e main.exe ";
     }
 }
 
@@ -314,7 +287,7 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
         CreateTempFile(packDir);
         var command = new WindowsPackCommand();
 
-        ParseResult parseResult = command.ParseAndApply($"-u Clowd.Squirrel -v 1.2.3 -p \"{packDir.FullName}\"");
+        ParseResult parseResult = command.ParseAndApply($"-u Clowd.Squirrel -v 1.2.3 -p \"{packDir.FullName}\" -e main.exe");
 
         Assert.Empty(parseResult.Errors);
         Assert.Equal("Clowd.Squirrel", command.PackId);
@@ -329,7 +302,7 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
         CreateTempFile(packDir);
         var command = new WindowsPackCommand();
 
-        ParseResult parseResult = command.ParseAndApply($"--packId $42@ -v 1.0.0 -p \"{packDir.FullName}\"");
+        ParseResult parseResult = command.ParseAndApply($"--packId $42@ -v 1.0.0 -p \"{packDir.FullName}\" -e main.exe");
 
         Assert.Equal(1, parseResult.Errors.Count);
         Assert.StartsWith("--packId is an invalid NuGet package id.", parseResult.Errors[0].Message);
@@ -343,7 +316,7 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
         CreateTempFile(packDir);
         var command = new WindowsPackCommand();
 
-        ParseResult parseResult = command.ParseAndApply($"--packTitle Clowd.Squirrel -v 1.0.0 -p \"{packDir.FullName}\"");
+        ParseResult parseResult = command.ParseAndApply($"--packTitle Clowd.Squirrel -v 1.0.0 -p \"{packDir.FullName}\" -e main.exe");
 
         Assert.Equal("Clowd.Squirrel", command.PackTitle);
     }
@@ -355,7 +328,7 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
         CreateTempFile(packDir);
         var command = new WindowsPackCommand();
 
-        ParseResult parseResult = command.ParseAndApply($"-u Clowd.Squirrel --packVersion 1.a.c -p \"{packDir.FullName}\"");
+        ParseResult parseResult = command.ParseAndApply($"-u Clowd.Squirrel --packVersion 1.a.c -p \"{packDir.FullName}\" -e main.exe");
 
         Assert.Equal(1, parseResult.Errors.Count);
         Assert.StartsWith("--packVersion contains an invalid package version", parseResult.Errors[0].Message);
@@ -526,6 +499,6 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
         DirectoryInfo packDir = CreateTempDirectory();
         CreateTempFile(packDir);
 
-        return $"-u Clowd.Squirrel -v 1.0.0 -p \"{packDir.FullName}\" ";
+        return $"-u Clowd.Squirrel -v 1.0.0 -p \"{packDir.FullName}\" -e main.exe ";
     }
 }

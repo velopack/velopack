@@ -9,7 +9,7 @@ public abstract class GitHubBaseCommand : BaseCommand
     protected GitHubBaseCommand(string name, string description)
         : base(name, description)
     {
-        AddOption<Uri>((v) => RepoUrl = v.ToAbsoluteOrNull(), "--repoUrl")
+        var repoUrl = AddOption<Uri>((v) => RepoUrl = v.ToAbsoluteOrNull(), "--repoUrl")
             .SetDescription("Full url to the github repository (eg. 'https://github.com/myname/myrepo').")
             .SetRequired()
             .MustBeValidHttpUri();

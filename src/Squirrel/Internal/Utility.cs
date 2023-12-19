@@ -444,36 +444,36 @@ namespace Squirrel
         //    return Path.Combine(PackageDirectoryForAppDir(rootAppDirectory), "RELEASES");
         //}
 
-        public static IEnumerable<ReleaseEntry> LoadLocalReleases(string localReleaseFile)
-        {
-            var file = File.OpenRead(localReleaseFile);
+        //public static IEnumerable<ReleaseEntry> LoadLocalReleases(string localReleaseFile)
+        //{
+        //    var file = File.OpenRead(localReleaseFile);
 
-            // NB: sr disposes file
-            using (var sr = new StreamReader(file, Encoding.UTF8)) {
-                return ReleaseEntry.ParseReleaseFile(sr.ReadToEnd());
-            }
-        }
+        //    // NB: sr disposes file
+        //    using (var sr = new StreamReader(file, Encoding.UTF8)) {
+        //        return ReleaseEntry.ParseReleaseFile(sr.ReadToEnd());
+        //    }
+        //}
 
-        public static ReleaseEntry FindLatestFullVersion(IEnumerable<ReleaseEntry> localReleases, RID compatibleRid)
-        {
-            return FindCompatibleVersions(localReleases, compatibleRid).FirstOrDefault(f => !f.IsDelta);
-        }
+        //public static ReleaseEntry FindLatestFullVersion(IEnumerable<ReleaseEntry> localReleases, RID compatibleRid)
+        //{
+        //    return FindCompatibleVersions(localReleases, compatibleRid).FirstOrDefault(f => !f.IsDelta);
+        //}
 
-        public static IEnumerable<ReleaseEntry> FindCompatibleVersions(IEnumerable<ReleaseEntry> localReleases, RID compatibleRid)
-        {
-            if (!localReleases.Any()) {
-                return null;
-            }
+        //public static IEnumerable<ReleaseEntry> FindCompatibleVersions(IEnumerable<ReleaseEntry> localReleases, RID compatibleRid)
+        //{
+        //    if (!localReleases.Any()) {
+        //        return null;
+        //    }
 
-            if (compatibleRid == null || !compatibleRid.IsValid) {
-                return localReleases.OrderByDescending(x => x.Version);
-            }
+        //    if (compatibleRid == null || !compatibleRid.IsValid) {
+        //        return localReleases.OrderByDescending(x => x.Version);
+        //    }
 
-            return localReleases
-                .Where(r => r.Rid.BaseRID == compatibleRid.BaseRID)
-                .Where(r => r.Rid.Architecture == compatibleRid.Architecture)
-                .OrderByDescending(x => x.Version);
-        }
+        //    return localReleases
+        //        .Where(r => r.Rid.BaseRID == compatibleRid.BaseRID)
+        //        .Where(r => r.Rid.Architecture == compatibleRid.Architecture)
+        //        .OrderByDescending(x => x.Version);
+        //}
 
         public static string GetAppUserModelId(string packageId, string exeName)
         {

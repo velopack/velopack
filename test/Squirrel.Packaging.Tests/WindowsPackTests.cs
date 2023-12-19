@@ -51,8 +51,10 @@ public class WindowsPackTests
         runner.Pack(options);
 
         var nupkgPath = Path.Combine(tmpReleaseDir, $"{id}-{version}-win-x64-full.nupkg");
-
         Assert.True(File.Exists(nupkgPath));
+
+        var setupPath = Path.Combine(tmpReleaseDir, $"{id}-Setup-[win-x64].exe");
+        Assert.True(File.Exists(setupPath));
 
         EasyZip.ExtractZipToDirectory(logger, nupkgPath, unzipDir);
 
@@ -67,7 +69,7 @@ public class WindowsPackTests
         Assert.Equal("Test Squirrel App", xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("title").Single().Value);
         Assert.Equal("author", xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("authors").Single().Value);
         Assert.Equal("x64", xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("machineArchitecture").Single().Value);
-        Assert.Equal("net6.0-x64-desktop", xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("runtimeDependencies").Single().Value);
+        Assert.Equal("net6-x64-desktop", xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("runtimeDependencies").Single().Value);
         Assert.Equal("win", xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("os").Single().Value);
         Assert.Equal("10.0.19043", xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("osMinVersion").Single().Value);
 

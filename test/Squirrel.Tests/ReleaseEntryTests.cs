@@ -489,56 +489,56 @@ namespace Squirrel.Tests
             Assert.True(ReleaseEntry.ParseReleaseFile(null).Count() == 0);
         }
 
-        [Fact]
-        public void FindCurrentVersionWithExactRidMatch()
-        {
-            string _ridReleaseEntries = """
-0000000000000000000000000000000000000000  MyApp-1.3-win-x86.nupkg  123
-0000000000000000000000000000000000000000  MyApp-1.4.nupkg  123
-0000000000000000000000000000000000000000  MyApp-1.4-win-x64.nupkg  123
-0000000000000000000000000000000000000000  MyApp-1.4-win-x86.nupkg  123
-0000000000000000000000000000000000000000  MyApp-1.4-osx-x86.nupkg  123
-""";
+        //        [Fact]
+        //        public void FindCurrentVersionWithExactRidMatch()
+        //        {
+        //            string _ridReleaseEntries = """
+        //0000000000000000000000000000000000000000  MyApp-1.3-win-x86.nupkg  123
+        //0000000000000000000000000000000000000000  MyApp-1.4.nupkg  123
+        //0000000000000000000000000000000000000000  MyApp-1.4-win-x64.nupkg  123
+        //0000000000000000000000000000000000000000  MyApp-1.4-win-x86.nupkg  123
+        //0000000000000000000000000000000000000000  MyApp-1.4-osx-x86.nupkg  123
+        //""";
 
-            var entries = ReleaseEntry.ParseReleaseFile(_ridReleaseEntries);
+        //            var entries = ReleaseEntry.ParseReleaseFile(_ridReleaseEntries);
 
-            var e = Utility.FindLatestFullVersion(entries, RID.Parse("win-x86"));
-            Assert.Equal("MyApp-1.4-win-x86.nupkg", e.OriginalFilename);
-        }
+        //            var e = Utility.FindLatestFullVersion(entries, RID.Parse("win-x86"));
+        //            Assert.Equal("MyApp-1.4-win-x86.nupkg", e.OriginalFilename);
+        //        }
 
-        [Fact]
-        public void FindCurrentVersionWithExactRidMatchNotLatest()
-        {
-            string _ridReleaseEntries = """
-0000000000000000000000000000000000000000  MyApp-1.3-win-x86.nupkg  123
-0000000000000000000000000000000000000000  MyApp-1.4.nupkg  123
-0000000000000000000000000000000000000000  MyApp-1.4-win-x64.nupkg  123
-0000000000000000000000000000000000000000  MyApp-1.4-win.nupkg  123
-0000000000000000000000000000000000000000  MyApp-1.4-osx-x86.nupkg  123
-""";
+        //        [Fact]
+        //        public void FindCurrentVersionWithExactRidMatchNotLatest()
+        //        {
+        //            string _ridReleaseEntries = """
+        //0000000000000000000000000000000000000000  MyApp-1.3-win-x86.nupkg  123
+        //0000000000000000000000000000000000000000  MyApp-1.4.nupkg  123
+        //0000000000000000000000000000000000000000  MyApp-1.4-win-x64.nupkg  123
+        //0000000000000000000000000000000000000000  MyApp-1.4-win.nupkg  123
+        //0000000000000000000000000000000000000000  MyApp-1.4-osx-x86.nupkg  123
+        //""";
 
-            var entries = ReleaseEntry.ParseReleaseFile(_ridReleaseEntries);
+        //            var entries = ReleaseEntry.ParseReleaseFile(_ridReleaseEntries);
 
-            var e = Utility.FindLatestFullVersion(entries, RID.Parse("win-x86"));
-            Assert.Equal("MyApp-1.3-win.nupkg", e.OriginalFilename);
-        }
+        //            var e = Utility.FindLatestFullVersion(entries, RID.Parse("win-x86"));
+        //            Assert.Equal("MyApp-1.3-win.nupkg", e.OriginalFilename);
+        //        }
 
-        [Fact]
-        public void FindCurrentVersionWithExactRidMatchOnlyArchitecture()
-        {
-            string _ridReleaseEntries = """
-0000000000000000000000000000000000000000  MyApp-1.3-win-x86.nupkg  123
-0000000000000000000000000000000000000000  MyApp-1.4.nupkg  123
-0000000000000000000000000000000000000000  MyApp-1.4-win-x64.nupkg  123
-0000000000000000000000000000000000000000  MyApp-1.4-win.nupkg  123
-0000000000000000000000000000000000000000  MyApp-1.4-osx-x86.nupkg  123
-""";
+        //        [Fact]
+        //        public void FindCurrentVersionWithExactRidMatchOnlyArchitecture()
+        //        {
+        //            string _ridReleaseEntries = """
+        //0000000000000000000000000000000000000000  MyApp-1.3-win-x86.nupkg  123
+        //0000000000000000000000000000000000000000  MyApp-1.4.nupkg  123
+        //0000000000000000000000000000000000000000  MyApp-1.4-win-x64.nupkg  123
+        //0000000000000000000000000000000000000000  MyApp-1.4-win.nupkg  123
+        //0000000000000000000000000000000000000000  MyApp-1.4-osx-x86.nupkg  123
+        //""";
 
-            var entries = ReleaseEntry.ParseReleaseFile(_ridReleaseEntries);
+        //            var entries = ReleaseEntry.ParseReleaseFile(_ridReleaseEntries);
 
-            var e = Utility.FindLatestFullVersion(entries, RID.Parse("win-x86"));
-            Assert.Equal("MyApp-1.3-win.nupkg", e.OriginalFilename);
-        }
+        //            var e = Utility.FindLatestFullVersion(entries, RID.Parse("win-x86"));
+        //            Assert.Equal("MyApp-1.3-win.nupkg", e.OriginalFilename);
+        //        }
 
         static string MockReleaseEntry(string name, float? percentage = null)
         {

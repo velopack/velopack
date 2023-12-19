@@ -56,6 +56,7 @@ internal static class SystemCommandLineExtensions
 
     public static CliOption<Uri> MustBeValidHttpUri(this CliOption<Uri> option)
     {
+        option.CustomParser = (v) => new Uri(v.Tokens.Single().Value, UriKind.RelativeOrAbsolute);
         option.RequiresScheme(Uri.UriSchemeHttp, Uri.UriSchemeHttps).RequiresAbsolute();
         return option;
     }

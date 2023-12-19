@@ -144,7 +144,7 @@ public class WindowsReleasifyCommandRunner
         ReleaseEntry.WriteReleaseFile(releaseEntries, releaseFilePath);
 
         var bundledzp = new ZipPackage(package);
-        var targetSetupExe = Path.Combine(targetDir, $"{bundledzp.Id}-Setup-[{options.TargetRuntime.ToDisplay(RidDisplayType.ShortVersion)}].exe");
+        var targetSetupExe = Path.Combine(targetDir, $"{bundledzp.Id}-Setup-[{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}].exe");
         File.Copy(HelperExe.SetupPath, targetSetupExe, true);
 
         if (SquirrelRuntimeInfo.IsWindows) {
