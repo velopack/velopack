@@ -1,4 +1,5 @@
 ﻿using System.IO.Compression;
+using System.Linq;
 using System.Text;
 using System.Xml;
 using Microsoft.Extensions.Logging;
@@ -116,16 +117,16 @@ public class ReleasePackageBuilder
     /// Given a list of releases and a specified release package, returns the release package
     /// directly previous to the specified version.
     /// </summary>
-    //public static ReleasePackageBuilder GetPreviousRelease(ILogger logger, IEnumerable<ReleaseEntry> releaseEntries, ReleasePackageBuilder package, string targetDir, RID compatibleRid)
-    //{
-    //    if (releaseEntries == null || !releaseEntries.Any()) return null;
-    //    return Utility.FindCompatibleVersions(releaseEntries, compatibleRid)
-    //        .Where(x => x.IsDelta == false)
-    //        .Where(x => x.Version < package.Version)
-    //        .OrderByDescending(x => x.Version)
-    //        .Select(x => new ReleasePackageBuilder(logger, Path.Combine(targetDir, x.Filename), true))
-    //        .FirstOrDefault();
-    //}
+    public static ReleasePackageBuilder GetPreviousRelease(ILogger logger, IEnumerable<ReleaseEntry> releaseEntries, ReleasePackageBuilder package, string targetDir)
+    {
+        if (releaseEntries == null || !releaseEntries.Any()) return null;
+        return releaseEntries
+            .Where(x => x.IsDelta == false)
+            .Where(x => x.Version < package.Version)
+            .OrderByDescending(x => x.Version)
+            .Select(x => new ReleasePackageBuilder(logger, Path.Combine(targetDir, x.OriginalFilename), true))
+            .FirstOrDefault();
+    }
 
     static Task extractZipWithEscaping(string zipFilePath, string outFolder)
     {

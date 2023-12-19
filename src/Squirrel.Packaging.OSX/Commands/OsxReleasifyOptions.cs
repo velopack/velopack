@@ -31,4 +31,6 @@ public class OsxReleasifyOptions
     public string SigningEntitlements { get; set; }
 
     public string NotaryProfile { get; set; }
+
+    public string Channel { get; set; }
 }

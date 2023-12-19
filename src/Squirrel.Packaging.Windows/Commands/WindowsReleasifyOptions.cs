@@ -17,4 +17,6 @@ public class WindowsReleasifyOptions : WindowsSigningOptions
     public string Icon { get; set; }
 
     public string EntryExecutableName { get; set; }
+
+    public string Channel { get; set; }
 }

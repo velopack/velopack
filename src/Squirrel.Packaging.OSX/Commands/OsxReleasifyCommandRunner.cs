@@ -18,6 +18,29 @@ public class OsxReleasifyCommandRunner
     {
         var releaseDir = options.ReleaseDir;
 
+        // parse releases in curent channel, and if there are any that don't match the current rid we should bail
+        var releaseFilePath = Path.Combine(releaseDir.FullName, "RELEASES");
+        if (!String.IsNullOrWhiteSpace(options.Channel))
+            releaseFilePath = Path.Combine(releaseDir.FullName, $"RELEASES-{options.Channel}");
+
+        var previousReleases = new List<ReleaseEntry>();
+        if (File.Exists(releaseFilePath)) {
+            previousReleases.AddRange(ReleaseEntry.ParseReleaseFile(File.ReadAllText(releaseFilePath, Encoding.UTF8)));
+        }
+
+        var mismatchedRid = previousReleases
+            .Select(p => p.Rid)
+            .Where(p => p != options.TargetRuntime)
+            .Distinct()
+            .Select(p => p.ToString())
+            .ToArray();
+
+        if (mismatchedRid.Any()) {
+            var message = $"Previous releases were built for a different runtime ({String.Join(", ", mismatchedRid)}) " +
+                $"than the current one. Please use the same runtime for all releases in a channel.";
+            throw new ArgumentException(message);
+        }
+
         var appBundlePath = options.BundleDirectory;
         _logger.Info("Creating Squirrel application from app bundle at: " + appBundlePath);
 
@@ -90,37 +113,36 @@ public class OsxReleasifyCommandRunner
         var nuget = new NugetConsole(_logger);
         var nupkgPath = nuget.CreatePackageFromNuspecPath(tmp, appBundlePath, nuspecPath);
 
-        var releaseFilePath = Path.Combine(releaseDir.FullName, "RELEASES");
         var releases = new Dictionary<string, ReleaseEntry>();
 
         ReleaseEntry.BuildReleasesFile(releaseDir.FullName);
         foreach (var rel in ReleaseEntry.ParseReleaseFile(File.ReadAllText(releaseFilePath, Encoding.UTF8))) {
-            releases[rel.Filename] = rel;
+            releases[rel.OriginalFilename] = rel;
         }
 
         var rp = new ReleasePackageBuilder(_logger, nupkgPath);
-        var suggestedName = ReleasePackageBuilder.GetSuggestedFileName(packId, packVersion, options.TargetRuntime.StringWithNoVersion);
+        var suggestedName = new ReleaseEntryName(packId, SemanticVersion.Parse(packVersion), false, options.TargetRuntime).ToFileName();
         var newPkgPath = rp.CreateReleasePackage((i, pkg) => Path.Combine(releaseDir.FullName, suggestedName));
 
         _logger.Info("Creating Delta Packages");
-        var prev = ReleasePackageBuilder.GetPreviousRelease(_logger, releases.Values, rp, releaseDir.FullName, options.TargetRuntime);
+        var prev = ReleasePackageBuilder.GetPreviousRelease(_logger, releases.Values, rp, releaseDir.FullName);
         if (prev != null && !options.NoDelta) {
             var deltaBuilder = new DeltaPackageBuilder(_logger);
             var deltaFile = rp.ReleasePackageFile.Replace("-full", "-delta");
             var dp = deltaBuilder.CreateDeltaPackage(prev, rp, deltaFile);
             var deltaEntry = ReleaseEntry.GenerateFromFile(deltaFile);
-            releases[deltaEntry.Filename] = deltaEntry;
+            releases[deltaEntry.OriginalFilename] = deltaEntry;
         }
 
         var fullEntry = ReleaseEntry.GenerateFromFile(newPkgPath);
-        releases[fullEntry.Filename] = fullEntry;
+        releases[fullEntry.OriginalFilename] = fullEntry;
 
         ReleaseEntry.WriteReleaseFile(releases.Values, releaseFilePath);
 
         // create installer package, sign and notarize
         if (!options.NoPackage) {
             if (SquirrelRuntimeInfo.IsOSX) {
-                var pkgPath = Path.Combine(releaseDir.FullName, $"{packId}-{options.TargetRuntime.StringWithNoVersion}.pkg");
+                var pkgPath = Path.Combine(releaseDir.FullName, $"{packId}-Setup-[{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}].pkg");
 
                 Dictionary<string, string> pkgContent = new() {
                     {"welcome", options.PackageWelcome },

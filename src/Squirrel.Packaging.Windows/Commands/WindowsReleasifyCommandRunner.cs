@@ -1,8 +1,6 @@
-﻿using System.Drawing;
-using System.Text;
+﻿using System.Text;
 using Microsoft.Extensions.Logging;
 using Squirrel.NuGet;
-using FileMode = System.IO.FileMode;
 
 namespace Squirrel.Packaging.Windows.Commands;
 
@@ -33,11 +31,33 @@ public class WindowsReleasifyCommandRunner
 
         using var ud = Utility.GetTempDirectory(out var tempDir);
 
-        // update icon for Update.exe if requested
+        // parse releases in curent channel, and if there are any that don't match the current rid we should bail
+        var releaseFilePath = Path.Combine(targetDir, "RELEASES");
+        if (!String.IsNullOrWhiteSpace(options.Channel))
+            releaseFilePath = Path.Combine(targetDir, $"RELEASES-{options.Channel}");
+
+        var previousReleases = new List<ReleaseEntry>();
+        if (File.Exists(releaseFilePath)) {
+            previousReleases.AddRange(ReleaseEntry.ParseReleaseFile(File.ReadAllText(releaseFilePath, Encoding.UTF8)));
+        }
+
+        var mismatchedRid = previousReleases
+            .Select(p => p.Rid)
+            .Where(p => p != options.TargetRuntime)
+            .Distinct()
+            .Select(p => p.ToString())
+            .ToArray();
+        if (mismatchedRid.Any()) {
+            var message = $"Previous releases were built for a different runtime ({String.Join(", ", mismatchedRid)}) " +
+                $"than the current one. Please use the same runtime for all releases in a channel.";
+            throw new ArgumentException(message);
+        }
+
         var helper = new HelperExe(_logger);
         var updatePath = Path.Combine(tempDir, "Update.exe");
         File.Copy(HelperExe.UpdatePath, updatePath, true);
 
+        // update icon for Update.exe if requested
         if (setupIcon != null && SquirrelRuntimeInfo.IsWindows) {
             helper.SetExeIcon(updatePath, setupIcon);
         } else if (setupIcon != null) {
@@ -45,83 +65,74 @@ public class WindowsReleasifyCommandRunner
         }
 
         // copy input package to target output directory
-        File.Copy(package, Path.Combine(targetDir, Path.GetFileName(package)), true);
+        var fileToProcess = Path.Combine(targetDir, Path.GetFileName(package));
+        File.Copy(package, fileToProcess, true);
 
-        var allNuGetFiles = Directory.EnumerateFiles(targetDir)
-            .Where(x => x.EndsWith(".nupkg", StringComparison.InvariantCultureIgnoreCase));
+        _logger.Info("Creating release for package: " + fileToProcess);
 
-        var toProcess = allNuGetFiles.Select(p => new FileInfo(p)).Where(x => !x.Name.Contains("-delta") && !x.Name.Contains("-full"));
         var processed = new List<string>();
+        var rp = new ReleasePackageBuilder(_logger, fileToProcess);
+        rp.CreateReleasePackage(contentsPostProcessHook: (pkgPath, zpkg) => {
+            var nuspecPath = Directory.GetFiles(pkgPath, "*.nuspec", SearchOption.TopDirectoryOnly)
+                .ContextualSingle("package", "*.nuspec", "top level directory");
+            var libDir = Directory.GetDirectories(Path.Combine(pkgPath, "lib"))
+                .ContextualSingle("package", "'lib' folder");
 
-        var releaseFilePath = Path.Combine(targetDir, "RELEASES");
-        var previousReleases = new List<ReleaseEntry>();
-        if (File.Exists(releaseFilePath)) {
-            previousReleases.AddRange(ReleaseEntry.ParseReleaseFile(File.ReadAllText(releaseFilePath, Encoding.UTF8)));
-        }
+            var mainExe = Path.Combine(libDir, options.EntryExecutableName);
+            if (!File.Exists(mainExe))
+                throw new ArgumentException($"--exeName '{options.EntryExecutableName}' does not exist in package. Searched at: '{mainExe}'");
 
-        foreach (var file in toProcess) {
-            _logger.Info("Creating release for package: " + file.FullName);
+            var spec = NuspecManifest.ParseFromFile(nuspecPath);
 
-            var rp = new ReleasePackageBuilder(_logger, file.FullName);
-            rp.CreateReleasePackage(contentsPostProcessHook: (pkgPath, zpkg) => {
-                var nuspecPath = Directory.GetFiles(pkgPath, "*.nuspec", SearchOption.TopDirectoryOnly)
-                    .ContextualSingle("package", "*.nuspec", "top level directory");
-                var libDir = Directory.GetDirectories(Path.Combine(pkgPath, "lib"))
-                    .ContextualSingle("package", "'lib' folder");
+            // warning if there are long paths (>200 char) in this package. 260 is max path
+            // but with the %localappdata% + user name + app name this can add up quickly.
+            // eg. 'C:\Users\SamanthaJones\AppData\Local\Application\app-1.0.1\' is 60 characters.
+            Directory.EnumerateFiles(libDir, "*", SearchOption.AllDirectories)
+                .Select(f => f.Substring(libDir.Length).Trim(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+                .Where(f => f.Length >= 200)
+                .ForEach(f => _logger.Warn($"File path in package exceeds 200 characters ({f.Length}) and may cause issues on Windows: '{f}'."));
 
-                var spec = NuspecManifest.ParseFromFile(nuspecPath);
-
-                // warning if there are long paths (>200 char) in this package. 260 is max path
-                // but with the %localappdata% + user name + app name this can add up quickly.
-                // eg. 'C:\Users\SamanthaJones\AppData\Local\Application\app-1.0.1\' is 60 characters.
-                Directory.EnumerateFiles(libDir, "*", SearchOption.AllDirectories)
-                    .Select(f => f.Substring(libDir.Length).Trim(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
-                    .Where(f => f.Length >= 200)
-                    .ForEach(f => _logger.Warn($"File path in package exceeds 200 characters ({f.Length}) and may cause issues on Windows: '{f}'."));
-
-                // fail the release if this is a clickonce application
-                if (Directory.EnumerateFiles(libDir, "*.application").Any(f => File.ReadAllText(f).Contains("clickonce"))) {
-                    throw new ArgumentException(
-                        "Squirrel does not support building releases for ClickOnce applications. " +
-                        "Please publish your application to a folder without ClickOnce.");
-                }
-
-                NuspecManifest.SetMetadata(nuspecPath, requiredFrameworks.Select(r => r.Id), options.TargetRuntime);
-
-                // copy Update.exe into package, so it can also be updated in both full/delta packages
-                // and do it before signing so that Update.exe will also be signed. It is renamed to
-                // 'Squirrel.exe' only because Squirrel.Windows expects it to be called this.
-                File.Copy(updatePath, Path.Combine(libDir, "Squirrel.exe"), true);
-
-                // sign all exe's in this package
-                var filesToSign = new DirectoryInfo(libDir).GetAllFilesRecursively()
-                    .Where(x => options.SignSkipDll ? Utility.PathPartEndsWith(x.Name, ".exe") : Utility.FileIsLikelyPEImage(x.Name))
-                    .Select(x => x.FullName)
-                    .ToArray();
-
-                signFiles(options, libDir, filesToSign);
-
-                // copy other images to root (used by setup)
-                if (setupIcon != null) File.Copy(setupIcon, Path.Combine(pkgPath, "setup.ico"), true);
-                if (backgroundGif != null) File.Copy(backgroundGif, Path.Combine(pkgPath, "splashimage" + Path.GetExtension(backgroundGif)));
-
-                return Path.Combine(targetDir, ReleasePackageBuilder.GetSuggestedFileName(spec.Id, spec.Version.ToString(), options.TargetRuntime.StringWithNoVersion));
-            });
-
-            processed.Add(rp.ReleasePackageFile);
-
-            var prev = ReleasePackageBuilder.GetPreviousRelease(_logger, previousReleases, rp, targetDir, options.TargetRuntime);
-            if (prev != null && generateDeltas) {
-                var deltaBuilder = new DeltaPackageBuilder(_logger);
-                var deltaOutputPath = rp.ReleasePackageFile.Replace("-full", "-delta");
-                var dp = deltaBuilder.CreateDeltaPackage(prev, rp, deltaOutputPath);
-                processed.Insert(0, dp.InputPackageFile);
+            // fail the release if this is a clickonce application
+            if (Directory.EnumerateFiles(libDir, "*.application").Any(f => File.ReadAllText(f).Contains("clickonce"))) {
+                throw new ArgumentException(
+                    "Squirrel does not support building releases for ClickOnce applications. " +
+                    "Please publish your application to a folder without ClickOnce.");
             }
+
+            NuspecManifest.SetMetadata(nuspecPath, options.EntryExecutableName, requiredFrameworks.Select(r => r.Id), options.TargetRuntime);
+
+            // copy Update.exe into package, so it can also be updated in both full/delta packages
+            // and do it before signing so that Update.exe will also be signed. It is renamed to
+            // 'Squirrel.exe' only because Squirrel.Windows expects it to be called this.
+            File.Copy(updatePath, Path.Combine(libDir, "Squirrel.exe"), true);
+
+            // sign all exe's in this package
+            var filesToSign = new DirectoryInfo(libDir).GetAllFilesRecursively()
+                .Where(x => options.SignSkipDll ? Utility.PathPartEndsWith(x.Name, ".exe") : Utility.FileIsLikelyPEImage(x.Name))
+                .Select(x => x.FullName)
+                .ToArray();
+
+            signFiles(options, libDir, filesToSign);
+
+            // copy other images to root (used by setup)
+            if (setupIcon != null) File.Copy(setupIcon, Path.Combine(pkgPath, "setup.ico"), true);
+            if (backgroundGif != null) File.Copy(backgroundGif, Path.Combine(pkgPath, "splashimage" + Path.GetExtension(backgroundGif)));
+
+            var releaseName = new ReleaseEntryName(spec.Id, spec.Version, false, options.TargetRuntime);
+            return Path.Combine(targetDir, releaseName.ToFileName());
+        });
+
+        processed.Add(rp.ReleasePackageFile);
+
+        var prev = ReleasePackageBuilder.GetPreviousRelease(_logger, previousReleases, rp, targetDir);
+        if (prev != null && generateDeltas) {
+            var deltaBuilder = new DeltaPackageBuilder(_logger);
+            var deltaOutputPath = rp.ReleasePackageFile.Replace("-full", "-delta");
+            var dp = deltaBuilder.CreateDeltaPackage(prev, rp, deltaOutputPath);
+            processed.Insert(0, dp.InputPackageFile);
         }
 
-        foreach (var file in toProcess) {
-            File.Delete(file.FullName);
-        }
+        File.Delete(fileToProcess);
 
         var newReleaseEntries = processed
             .Select(packageFilename => ReleaseEntry.GenerateFromFile(packageFilename))
@@ -133,7 +144,7 @@ public class WindowsReleasifyCommandRunner
         ReleaseEntry.WriteReleaseFile(releaseEntries, releaseFilePath);
 
         var bundledzp = new ZipPackage(package);
-        var targetSetupExe = Path.Combine(targetDir, $"{bundledzp.Id}Setup-{options.TargetRuntime.StringWithNoVersion}.exe");
+        var targetSetupExe = Path.Combine(targetDir, $"{bundledzp.Id}-Setup-[{options.TargetRuntime.ToDisplay(RidDisplayType.ShortVersion)}].exe");
         File.Copy(HelperExe.SetupPath, targetSetupExe, true);
 
         if (SquirrelRuntimeInfo.IsWindows) {
@@ -143,13 +154,12 @@ public class WindowsReleasifyCommandRunner
         }
 
         var newestFullRelease = releaseEntries.MaxBy(x => x.Version).Where(x => !x.IsDelta).First();
-        var newestReleasePath = Path.Combine(targetDir, newestFullRelease.Filename);
+        var newestReleasePath = Path.Combine(targetDir, newestFullRelease.OriginalFilename);
 
         _logger.Info($"Creating Setup bundle");
         var bundleOffset = SetupBundle.CreatePackageBundle(targetSetupExe, newestReleasePath);
         _logger.Info("Signing Setup bundle");
         signFiles(options, targetDir, targetSetupExe);
-        _logger.Info("Bundle package offset is " + bundleOffset);
 
         _logger.Info($"Setup bundle created at '{targetSetupExe}'.");
 
