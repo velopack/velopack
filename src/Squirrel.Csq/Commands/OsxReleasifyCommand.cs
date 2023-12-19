@@ -46,7 +46,7 @@ public class OsxReleasifyCommand : BaseCommand
         AddOption<FileInfo>((v) => ReleaseNotes = v.ToFullNameOrNull(), "--releaseNotes")
             .SetDescription("File with markdown-formatted notes for this version.")
             .SetArgumentHelpName("PATH")
-            .AcceptExistingOnly();
+            .MustExist();
 
         AddOption<bool>((v) => NoDelta = v, "--noDelta")
             .SetDescription("Skip the generation of delta packages.");
@@ -61,22 +61,22 @@ public class OsxReleasifyCommand : BaseCommand
         AddOption<FileInfo>((v) => PackageWelcome = v.ToFullNameOrNull(), "--pkgWelcome")
             .SetDescription("Set the installer package welcome content.")
             .SetArgumentHelpName("PATH")
-            .AcceptExistingOnly();
+            .MustExist();
 
         AddOption<FileInfo>((v) => PackageReadme = v.ToFullNameOrNull(), "--pkgReadme")
             .SetDescription("Set the installer package readme content.")
             .SetArgumentHelpName("PATH")
-            .AcceptExistingOnly();
+            .MustExist();
 
         AddOption<FileInfo>((v) => PackageLicense = v.ToFullNameOrNull(), "--pkgLicense")
             .SetDescription("Set the installer package license content.")
             .SetArgumentHelpName("PATH")
-            .AcceptExistingOnly();
+            .MustExist();
 
         AddOption<FileInfo>((v) => PackageConclusion = v.ToFullNameOrNull(), "--pkgConclusion")
             .SetDescription("Set the installer package conclusion content.")
             .SetArgumentHelpName("PATH")
-            .AcceptExistingOnly();
+            .MustExist();
 
         AddOption<string>((v) => SigningAppIdentity = v, "--signAppIdentity")
             .SetDescription("The subject name of the cert to use for app code signing.")
@@ -89,7 +89,7 @@ public class OsxReleasifyCommand : BaseCommand
         AddOption<FileInfo>((v) => SigningEntitlements = v.ToFullNameOrNull(), "--signEntitlements")
             .SetDescription("Path to entitlements file for hardened runtime signing.")
             .SetArgumentHelpName("PATH")
-            .AcceptExistingOnly()
+            .MustExist()
             .RequiresExtension(".entitlements");
 
         AddOption<string>((v) => NotaryProfile = v, "--notaryProfile")

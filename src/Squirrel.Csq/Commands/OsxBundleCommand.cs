@@ -56,7 +56,7 @@ public class OsxBundleCommand : BaseCommand
         AddOption<FileInfo>((v) => Icon = v.ToFullNameOrNull(), "-i", "--icon")
             .SetDescription("Path to the .icns file for this bundle.")
             .SetArgumentHelpName("PATH")
-            .AcceptExistingOnly()
+            .MustExist()
             .SetRequired()
             .RequiresExtension(".icns");
 

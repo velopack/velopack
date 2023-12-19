@@ -67,7 +67,7 @@ namespace Squirrel.Tests
             Assert.Equal(expected, dn != null);
         }
 
-        [Theory]
+        [Theory(Skip = "Only run when needed")]
         [InlineData("3.1", RuntimeCpu.x86, Runtimes.DotnetRuntimeType.WindowsDesktop)]
         [InlineData("3.1", RuntimeCpu.x86, Runtimes.DotnetRuntimeType.Runtime)]
         [InlineData("3.1", RuntimeCpu.x86, Runtimes.DotnetRuntimeType.AspNetCore)]

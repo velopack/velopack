@@ -73,6 +73,12 @@ internal static class SystemCommandLineExtensions
         return option;
     }
 
+    public static CliOption<string> RequiresExtension(this CliOption<string> option, string extension)
+    {
+        option.Validators.Add(x => Validate.RequiresExtension(x, extension));
+        return option;
+    }
+
     public static CliCommand AreMutuallyExclusive(this CliCommand command, params CliOption[] options)
     {
         command.Validators.Add(x => Validate.AreMutuallyExclusive(x, options));
@@ -146,6 +152,18 @@ internal static class SystemCommandLineExtensions
         return option;
     }
 
+    public static CliOption<FileInfo> MustExist(this CliOption<FileInfo> option)
+    {
+        option.Validators.Add(Validate.FileMustExist);
+        return option;
+    }
+
+    public static CliOption<DirectoryInfo> MustExist(this CliOption<DirectoryInfo> option)
+    {
+        option.Validators.Add(Validate.DirectoryMustExist);
+        return option;
+    }
+
     private static class Validate
     {
         public static void MustBeBetween(OptionResult result, int minimum, int maximum)
@@ -168,6 +186,28 @@ internal static class SystemCommandLineExtensions
             for (int i = 0; i < result.Tokens.Count; i++) {
                 if (!string.Equals(Path.GetExtension(result.Tokens[i].Value), extension, StringComparison.InvariantCultureIgnoreCase)) {
                     result.AddError($"{result.IdentifierToken.Value} does not have an {extension} extension");
+                    break;
+                }
+            }
+        }
+
+        public static void FileMustExist(OptionResult result)
+        {
+            for (int i = 0; i < result.Tokens.Count; i++) {
+                var fsi = new FileInfo(result.Tokens[i].Value);
+                if (!fsi.Exists) {
+                    result.AddError($"{result.IdentifierToken.Value} file is not found, but must exist");
+                    break;
+                }
+            }
+        }
+
+        public static void DirectoryMustExist(OptionResult result)
+        {
+            for (int i = 0; i < result.Tokens.Count; i++) {
+                var fsi = new DirectoryInfo(result.Tokens[i].Value);
+                if (!fsi.Exists) {
+                    result.AddError($"{result.IdentifierToken.Value} directory is not found, but must exist");
                     break;
                 }
             }

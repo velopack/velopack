@@ -55,6 +55,6 @@ public class WindowsPackCommand : WindowsReleasifyCommand, INugetPackCommand
         AddOption<FileInfo>((v) => ReleaseNotes = v.ToFullNameOrNull(), "--releaseNotes")
             .SetDescription("File with markdown-formatted notes for this version.")
             .SetArgumentHelpName("PATH")
-            .AcceptExistingOnly();
+            .MustExist();
     }
 }

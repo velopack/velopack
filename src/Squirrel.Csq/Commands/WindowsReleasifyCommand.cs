@@ -23,7 +23,7 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
             .SetDescription("Path to a '.nupkg' package to releasify.")
             .SetArgumentHelpName("PATH")
             .SetRequired()
-            .AcceptExistingOnly()
+            .MustExist()
             .RequiresExtension(".nupkg");
     }
 
@@ -45,17 +45,18 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
         AddOption<FileInfo>((v) => SplashImage = v.ToFullNameOrNull(), "-s", "--splashImage")
             .SetDescription("Path to image displayed during installation.")
             .SetArgumentHelpName("PATH")
-            .AcceptExistingOnly();
+            .MustExist();
 
         AddOption<FileInfo>((v) => Icon = v.ToFullNameOrNull(), "-i", "--icon")
             .SetDescription("Path to .ico for Setup.exe and Update.exe.")
             .SetArgumentHelpName("PATH")
-            .AcceptExistingOnly()
+            .MustExist()
             .RequiresExtension(".ico");
 
         AddOption<string>((v) => EntryExecutableName = v, "-e", "--mainExe")
             .SetDescription("The file name of the main/entry executable.")
             .SetArgumentHelpName("NAME")
+            .RequiresExtension(".exe")
             .SetRequired();
 
         AddOption<string>((v) => Channel = v, "-c", "--channel")
