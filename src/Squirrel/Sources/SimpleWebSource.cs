@@ -33,7 +33,7 @@ namespace Squirrel.Sources
         }
 
         /// <inheritdoc />
-        public override async Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntry latestLocalRelease = null)
+        public override async Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null)
         {
             var uri = Utility.AppendPathToUri(BaseUri, GetReleasesFileName());
             var args = new Dictionary<string, string>();

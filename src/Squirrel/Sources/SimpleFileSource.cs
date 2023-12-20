@@ -24,7 +24,7 @@ namespace Squirrel.Sources
         }
 
         /// <inheritdoc />
-        public override Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntry latestLocalRelease = null)
+        public override Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null)
         {
             if (!BaseDirectory.Exists)
                 throw new Exception($"The local update directory '{BaseDirectory.FullName}' does not exist.");

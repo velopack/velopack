@@ -27,7 +27,7 @@ namespace Squirrel.Sources
         protected virtual string GetReleasesFileName() => String.IsNullOrWhiteSpace(Channel) ? "RELEASES" : $"RELEASES-{Channel}";
 
         /// <inheritdoc/>
-        public abstract Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntry latestLocalRelease = null);
+        public abstract Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null);
 
         /// <inheritdoc/>
         public abstract Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress);

@@ -23,7 +23,7 @@ namespace Squirrel.Sources
         /// </param>
         /// <returns>An array of <see cref="ReleaseEntry"/> objects that are available for download
         /// and are applicable to this user.</returns>
-        Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntry latestLocalRelease = null);
+        Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null);
 
         /// <summary>
         /// Download the specified <see cref="ReleaseEntry"/> to the provided local file path.

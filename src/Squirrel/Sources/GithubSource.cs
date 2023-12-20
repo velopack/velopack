@@ -140,7 +140,7 @@ namespace Squirrel.Sources
         }
 
         /// <inheritdoc />
-        public override async Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntry latestLocalRelease = null)
+        public override async Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null)
         {
             var releases = await GetReleases(Prerelease).ConfigureAwait(false);
             if (releases == null || releases.Count() == 0)
