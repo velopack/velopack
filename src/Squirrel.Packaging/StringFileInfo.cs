@@ -9,12 +9,12 @@ using System.Runtime.Versioning;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Squirrel
+namespace Squirrel.Packaging
 {
     // https://stackoverflow.com/a/43229358/184746
 
     [SupportedOSPlatform("windows")]
-    internal class StringFileInfo
+    public class StringFileInfo
     {
         [DllImport("version.dll", CharSet = CharSet.Auto, SetLastError = true)]
         public static extern int GetFileVersionInfoSize(string lptstrFilename, out int lpdwHandle);

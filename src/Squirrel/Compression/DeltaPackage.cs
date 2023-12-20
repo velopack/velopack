@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Squirrel.Compression
 {
-    public class DeltaPackage
+    internal class DeltaPackage
     {
         private readonly ILogger _log;
         private readonly string _baseTempDir;

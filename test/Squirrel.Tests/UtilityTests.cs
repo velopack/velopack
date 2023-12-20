@@ -7,10 +7,11 @@ using System.Text;
 using Squirrel;
 using Squirrel.Tests.TestHelpers;
 using Xunit;
-using Squirrel.Shell;
+using Squirrel.Windows;
 using System.Collections.Generic;
 using Xunit.Abstractions;
 using System.Threading.Tasks;
+using System.Runtime.Versioning;
 
 namespace Squirrel.Tests
 {
@@ -29,7 +30,7 @@ namespace Squirrel.Tests
         [InlineData("/file", "\\file")]
         [InlineData("/file/", "\\file")]
         [InlineData("one\\two\\..\\file", "one\\file")]
-        [InlineData("C:/AnApp/file/", "C:\\AnApp\\file")]
+        [InlineData("C:/AnApp/file/", "C:\\AnApp\\file")] 
         public void PathIsNormalized(string input, string expected)
         {
             var exp = Path.GetFullPath(expected);
@@ -53,9 +54,11 @@ namespace Squirrel.Tests
             Assert.Equal(isIn, fileInDir);
         }
 
-        [Fact]
+        [SkippableFact]
+        [SupportedOSPlatform("windows")]
         public void SetAppIdOnShortcutTest()
         {
+            Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
             var sl = new ShellLink() {
                 Target = @"C:\Windows\Notepad.exe",
                 Description = "It's Notepad",

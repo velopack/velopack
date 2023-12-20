@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Squirrel.Compression
 {
-    public static class EasyZip
+    internal static class EasyZip
     {
         public static void ExtractZipToDirectory(ILogger logger, string inputFile, string outputDirectory)
         {

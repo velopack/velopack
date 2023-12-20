@@ -2,6 +2,7 @@
 using NuGet.Common;
 using NuGet.Versioning;
 using Squirrel.NuGet;
+using Squirrel.Windows;
 
 namespace Squirrel.Csq.Commands;
 

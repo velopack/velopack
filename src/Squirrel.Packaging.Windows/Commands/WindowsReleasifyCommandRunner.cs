@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using Microsoft.Extensions.Logging;
 using Squirrel.NuGet;
+using Squirrel.Windows;
 
 namespace Squirrel.Packaging.Windows.Commands;
 

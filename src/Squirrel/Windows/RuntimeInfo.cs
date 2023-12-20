@@ -11,7 +11,7 @@ using Microsoft.Win32;
 using NuGet.Versioning;
 using Squirrel.Sources;
 
-namespace Squirrel
+namespace Squirrel.Windows
 {
     public static partial class Runtimes
     {

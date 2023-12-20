@@ -9,7 +9,7 @@ using System.Runtime.Versioning;
 namespace Squirrel.Compression
 {
     [SupportedOSPlatform("windows")]
-    public class MsDeltaCompression
+    internal class MsDeltaCompression
     {
         /// <summary>
         ///     The ApplyDelta function use the specified delta and source files to create a new copy of the target file.
@@ -66,7 +66,7 @@ namespace Squirrel.Compression
             IntPtr targetFileTime,
             [MarshalAs(UnmanagedType.U4)] HashAlgId hashAlgId,
             string deltaName);
-        
+
         private enum HashAlgId
         {
             /// <summary>No signature.</summary>
@@ -75,7 +75,7 @@ namespace Squirrel.Compression
             /// <summary>32-bit CRC defined in msdelta.dll.</summary>
             Crc32 = 32,
         }
-        
+
         /// <remarks>
         ///     http://msdn.microsoft.com/en-us/library/bb417345.aspx#deltaflagtypeflags
         /// </remarks>
@@ -130,7 +130,7 @@ namespace Squirrel.Compression
             /// </summary>
             [MarshalAs(UnmanagedType.Bool)] public bool Editable;
         }
-        
+
         //public void CreateDelta(string oldFilePath, string newFilePath, string deltaFilePath)
         //{
         //    const string? sourceOptionsName = null;

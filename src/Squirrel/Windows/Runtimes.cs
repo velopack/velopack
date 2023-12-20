@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Versioning;
 using NuGet.Versioning;
 
-namespace Squirrel
+namespace Squirrel.Windows
 {
     /// <summary>
     /// Contains static properties to access common supported runtimes, and a function to search for a runtime by name
