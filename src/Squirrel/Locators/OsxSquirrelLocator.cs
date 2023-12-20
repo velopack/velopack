@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Runtime.Versioning;
+using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 using Squirrel.NuGet;
 
@@ -35,15 +36,21 @@ namespace Squirrel.Locators
         /// Creates a new <see cref="OsxSquirrelLocator"/> and auto-detects the
         /// app information from metadata embedded in the .app.
         /// </summary>
-        public OsxSquirrelLocator()
+        public OsxSquirrelLocator(ILogger logger)
+            : base(logger)
         {
             if (!SquirrelRuntimeInfo.IsOSX)
                 throw new NotSupportedException("Cannot instantiate OsxLocator on a non-osx system.");
 
+            Log.Info("Initialising OsxSquirrelLocator");
+
             // are we inside a .app?
             var ourPath = SquirrelRuntimeInfo.EntryExePath;
             var ix = ourPath.IndexOf(".app/", StringComparison.InvariantCultureIgnoreCase);
-            if (ix <= 0) return;
+            if (ix <= 0) {
+                Log.Warn($"Unable to locate .app root from '{ourPath}'");
+                return;
+            }
 
             var appPath = ourPath.Substring(0, ix + 4);
             var contentsDir = Path.Combine(appPath, "Contents");
@@ -51,6 +58,7 @@ namespace Squirrel.Locators
             var metadataPath = Path.Combine(contentsDir, "sq.version");
 
             if (File.Exists(updateExe) && NuspecManifest.TryParseFromFile(metadataPath, out var manifest)) {
+                Log.Info("Located valid manifest file at: " + metadataPath);
                 AppId = manifest.Id;
                 RootAppDir = appPath;
                 UpdateExePath = updateExe;

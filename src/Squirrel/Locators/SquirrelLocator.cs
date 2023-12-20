@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
+using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 
 namespace Squirrel.Locators
@@ -17,13 +19,13 @@ namespace Squirrel.Locators
         /// <summary>
         /// Auto-detect the platform from the current operating system.
         /// </summary>
-        public static SquirrelLocator GetDefault()
+        public static SquirrelLocator GetDefault(ILogger logger)
         {
             if (SquirrelRuntimeInfo.IsWindows)
-                return _current ??= new WindowsSquirrelLocator();
+                return _current ??= new WindowsSquirrelLocator(logger);
 
             if (SquirrelRuntimeInfo.IsOSX)
-                return _current ??= new OsxSquirrelLocator();
+                return _current ??= new OsxSquirrelLocator(logger);
 
             throw new NotSupportedException($"OS platform '{SquirrelRuntimeInfo.SystemOs.GetOsLongName()}' is not supported.");
         }
@@ -45,6 +47,15 @@ namespace Squirrel.Locators
 
         /// <inheritdoc/>
         public abstract SemanticVersion CurrentlyInstalledVersion { get; }
+
+        /// <summary> The log interface to use for diagnostic messages. </summary>
+        protected ILogger Log { get; }
+
+        /// <inheritdoc cref="SquirrelLocator"/>
+        protected SquirrelLocator(ILogger logger)
+        {
+            Log = logger;
+        }
 
         /// <inheritdoc/>
         public virtual List<ReleaseEntryName> GetLocalPackages()
@@ -75,6 +86,41 @@ namespace Squirrel.Locators
             var info = new DirectoryInfo(Path.Combine(baseDir, newDir));
             if (!info.Exists) info.Create();
             return info.FullName;
+        }
+
+        /// <inheritdoc/>
+        public Guid? GetOrCreateStagedUserId()
+        {
+            var stagedUserIdFile = Path.Combine(PackagesDir, ".betaId");
+            var ret = default(Guid);
+
+            if (File.Exists(stagedUserIdFile)) {
+                try {
+                    if (!Guid.TryParse(File.ReadAllText(stagedUserIdFile, Encoding.UTF8), out ret)) {
+                        throw new Exception("File was read but contents were invalid");
+                    }
+                    Log.Info($"Loaded existing staging userId: {ret}");
+                    return ret;
+                } catch (Exception ex) {
+                    Log.Debug(ex, "Couldn't read staging userId, creating a new one");
+                }
+            } else {
+                Log.Warn($"No userId could not be parsed from '{stagedUserIdFile}', creating a new one.");
+            }
+
+            var prng = new Random();
+            var buf = new byte[4096];
+            prng.NextBytes(buf);
+
+            ret = Utility.CreateGuidFromHash(buf);
+            try {
+                File.WriteAllText(stagedUserIdFile, ret.ToString(), Encoding.UTF8);
+                Log.Info($"Generated new staging userId: {ret}");
+                return ret;
+            } catch (Exception ex) {
+                Log.Warn(ex, "Couldn't write out staging userId.");
+                return null;
+            }
         }
 
         // /// <summary>

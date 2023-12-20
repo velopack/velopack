@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using NuGet.Versioning;
 
 namespace Squirrel.Locators
@@ -38,5 +39,11 @@ namespace Squirrel.Locators
         /// Finds latest .nupkg file in the PackagesDir or null if not found.
         /// </summary>
         public ReleaseEntryName GetLatestLocalPackage();
+
+        /// <summary>
+        /// Unique identifier for this user which is used to calculate whether this user is eligible for 
+        /// staged roll outs.
+        /// </summary>
+        public Guid? GetOrCreateStagedUserId();
     }
 }
