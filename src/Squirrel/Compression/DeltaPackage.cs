@@ -202,12 +202,12 @@ namespace Squirrel.Compression
 
             if (expectedReleaseEntry.Filesize != actualReleaseEntry.Filesize) {
                 _log.Warn($"Patched file {relativeFilePath} has incorrect size, expected {expectedReleaseEntry.Filesize}, got {actualReleaseEntry.Filesize}");
-                throw new ChecksumFailedException() { Filename = relativeFilePath };
+                throw new ChecksumFailedException(relativeFilePath);
             }
 
             if (expectedReleaseEntry.SHA1 != actualReleaseEntry.SHA1) {
                 _log.Warn($"Patched file {relativeFilePath} has incorrect SHA1, expected {expectedReleaseEntry.SHA1}, got {actualReleaseEntry.SHA1}");
-                throw new ChecksumFailedException() { Filename = relativeFilePath };
+                throw new ChecksumFailedException(relativeFilePath);
             }
         }
     }

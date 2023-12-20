@@ -154,8 +154,8 @@ namespace Squirrel
         public static string CalculateFileSHA1(string filePath)
         {
             Contract.Requires(filePath != null);
-
-            using (var stream = File.OpenRead(filePath)) {
+            var bufferSize = 1000000; // 1mb
+            using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize)) {
                 return CalculateStreamSHA1(stream);
             }
         }
