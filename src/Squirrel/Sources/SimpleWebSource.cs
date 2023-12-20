@@ -11,10 +11,8 @@ namespace Squirrel.Sources
     /// Will perform a request for '{baseUri}/RELEASES' to locate the available packages,
     /// and provides query parameters to specify the name of the requested package.
     /// </summary>
-    public class SimpleWebSource : IUpdateSource
+    public class SimpleWebSource : SourceBase
     {
-        private readonly ILogger _logger;
-
         /// <summary> The URL of the server hosting packages to update to. </summary>
         public virtual Uri BaseUri { get; }
 
@@ -22,23 +20,22 @@ namespace Squirrel.Sources
         public virtual IFileDownloader Downloader { get; }
 
         /// <inheritdoc cref="SimpleWebSource" />
-        public SimpleWebSource(ILogger logger, string baseUrl, IFileDownloader downloader = null)
-            : this(logger, new Uri(baseUrl), downloader)
+        public SimpleWebSource(string baseUrl, string channel = null, IFileDownloader downloader = null, ILogger logger = null)
+            : this(new Uri(baseUrl), channel, downloader, logger)
         { }
 
         /// <inheritdoc cref="SimpleWebSource" />
-        public SimpleWebSource(ILogger logger, Uri baseUri, IFileDownloader downloader = null)
+        public SimpleWebSource(Uri baseUri, string channel = null, IFileDownloader downloader = null, ILogger logger = null)
+            : base(channel, logger)
         {
-            _logger = logger;
             BaseUri = baseUri;
             Downloader = downloader ?? Utility.CreateDefaultDownloader();
         }
 
         /// <inheritdoc />
-        public virtual async Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntry latestLocalRelease = null)
+        public override async Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntry latestLocalRelease = null)
         {
-            var uri = Utility.AppendPathToUri(BaseUri, "RELEASES");
-
+            var uri = Utility.AppendPathToUri(BaseUri, GetReleasesFileName());
             var args = new Dictionary<string, string>();
 
             if (SquirrelRuntimeInfo.SystemArch != RuntimeCpu.Unknown) {
@@ -57,7 +54,7 @@ namespace Squirrel.Sources
 
             var uriAndQuery = Utility.AddQueryParamsToUri(uri, args);
 
-            _logger.Info($"Downloading RELEASES from '{uriAndQuery}'.");
+            Log.Info($"Downloading RELEASES from '{uriAndQuery}'.");
 
             var bytes = await Downloader.DownloadBytes(uriAndQuery.ToString()).ConfigureAwait(false);
             var txt = Utility.RemoveByteOrderMarkerIfPresent(bytes);
@@ -65,7 +62,7 @@ namespace Squirrel.Sources
         }
 
         /// <inheritdoc />
-        public virtual Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress)
+        public override Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress)
         {
             if (releaseEntry == null) throw new ArgumentNullException(nameof(releaseEntry));
             if (localFile == null) throw new ArgumentNullException(nameof(localFile));
@@ -86,7 +83,7 @@ namespace Squirrel.Sources
                 ? new Uri(sourceBaseUri, releaseUri).ToString()
                 : Utility.AppendPathToUri(sourceBaseUri, releaseUri).ToString();
 
-            _logger.Info($"Downloading '{releaseEntry.OriginalFilename}' from '{source}'.");
+            Log.Info($"Downloading '{releaseEntry.OriginalFilename}' from '{source}'.");
             return Downloader.DownloadFile(source, localFile, progress);
         }
     }

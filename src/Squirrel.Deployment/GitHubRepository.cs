@@ -50,7 +50,7 @@ public class GitHubRepository
             return;
         }
 
-        _log.Info($"Found {latestReleaseEntries.Length} assets in RELEASES file for GitHub version {source.Release.Name}.");
+        _log.Info($"Found {latestReleaseEntries.Length} assets in latest RELEASES file.");
 
         var releasesToDownload = latestReleaseEntries
             .Where(x => !x.IsDelta)

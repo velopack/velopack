@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Squirrel.Json;
 
 namespace Squirrel.Sources
@@ -92,10 +93,26 @@ namespace Squirrel.Sources
     }
 
     /// <summary>
+    /// Provides a wrapper around <see cref="ReleaseEntry"/> which also contains a <see cref="GitlabRelease"/>.
+    /// </summary>
+    public class GitlabReleaseEntry : ReleaseEntry
+    {
+        /// <summary> The Github release which contains this release package. </summary>
+        public GitlabRelease Release { get; }
+
+        /// <inheritdoc cref="GitlabReleaseEntry"/>
+        public GitlabReleaseEntry(ReleaseEntry entry, GitlabRelease release)
+            : base(entry.SHA1, entry.OriginalFilename, entry.Filesize, entry.BaseUrl, entry.Query, entry.StagingPercentage)
+        {
+            Release = release;
+        }
+    }
+
+    /// <summary>
     /// Retrieves available releases from a GitLab repository. This class only
     /// downloads assets from the very latest GitLab release.
     /// </summary>
-    public class GitlabSource : IUpdateSource
+    public class GitlabSource : SourceBase
     {
         /// <summary> 
         /// The URL of the GitLab repository to download releases from 
@@ -113,14 +130,6 @@ namespace Squirrel.Sources
         /// The file downloader used to perform HTTP requests. 
         /// </summary>
         public virtual IFileDownloader Downloader { get; }
-
-        /// <summary>  
-        /// The GitLab release which this class should download assets from when 
-        /// executing <see cref="DownloadReleaseEntry"/>. This property can be set
-        /// explicitly, otherwise it will also be set automatically when executing
-        /// <see cref="GetReleaseFeed(Guid?, ReleaseEntry)"/>.
-        /// </summary>
-        public virtual GitlabRelease Release { get; set; }
 
         /// <summary>
         /// The GitLab access token to use with the request to download releases.
@@ -147,7 +156,14 @@ namespace Squirrel.Sources
         /// <param name="downloader">
         /// The file downloader used to perform HTTP requests. 
         /// </param>
-        public GitlabSource(string repoUrl, string accessToken, bool upcomingRelease, IFileDownloader downloader = null)
+        /// <param name="channel">
+        /// The release channel to search for releases. Can be null to search the default channel.
+        /// </param>
+        /// <param name="logger">
+        /// The ILogger to use when printing diagnostic messages
+        /// </param>
+        public GitlabSource(string repoUrl, string accessToken, bool upcomingRelease, string channel = null, IFileDownloader downloader = null, ILogger logger = null)
+            : base(channel, logger)
         {
             RepoUri = new Uri(repoUrl);
             AccessToken = accessToken;
@@ -156,34 +172,35 @@ namespace Squirrel.Sources
         }
 
         /// <inheritdoc />
-        public Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress)
+        public override Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress)
         {
-            if (Release == null) {
-                throw new InvalidOperationException("No GitLab Release specified. Call GetReleaseFeed or set " +
-                    "GitLabSource.Release before calling this function.");
+            if (releaseEntry is GitlabReleaseEntry githubEntry) {
+                // this might be a browser url or an api url (depending on whether we have a AccessToken or not)
+                // https://docs.github.com/en/rest/reference/releases#get-a-release-asset
+                var assetUrl = GetAssetUrlFromName(githubEntry.Release, releaseEntry.OriginalFilename);
+                return Downloader.DownloadFile(assetUrl, localFile, progress, Authorization, "application/octet-stream");
             }
 
-            var assetUrl = GetAssetUrlFromName(Release, releaseEntry.OriginalFilename);
-            return Downloader.DownloadFile(assetUrl, localFile, progress, Authorization, "application/octet-stream");
+            throw new ArgumentException($"Expected releaseEntry to be {nameof(GitlabReleaseEntry)} but got {releaseEntry.GetType().Name}.");
         }
 
         /// <inheritdoc />
-        public async Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntry latestLocalRelease = null)
+        public override async Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntry latestLocalRelease = null)
         {
             var releases = await GetReleases(UpcomingRelease).ConfigureAwait(false);
             if (releases == null || releases.Count() == 0)
                 throw new Exception($"No Gitlab releases found at '{RepoUri}'.");
 
-            // CS: we 'cache' the release here, so subsequent calls to DownloadReleaseEntry
-            // will download assets from the same release in which we returned ReleaseEntry's
-            // from. A better architecture would be to return an array of "GitlabReleaseEntry"
-            // containing a reference to the GitlabReleaseAsset instead.
-            Release = releases.First();
+            // for now, we only search for Squirrel packages in the latest Github release.
+            // in the future, we might want to search through more than one for delta's.
+            var release = releases.First();
 
-            var assetUrl = GetAssetUrlFromName(Release, "RELEASES");
+            var assetUrl = GetAssetUrlFromName(release, GetReleasesFileName());
             var releaseBytes = await Downloader.DownloadBytes(assetUrl, Authorization, "application/octet-stream").ConfigureAwait(false);
             var txt = Utility.RemoveByteOrderMarkerIfPresent(releaseBytes);
-            return ReleaseEntry.ParseReleaseFileAndApplyStaging(txt, stagingId).ToArray();
+            return ReleaseEntry.ParseReleaseFileAndApplyStaging(txt, stagingId)
+                .Select(r => new GitlabReleaseEntry(r, release))
+                .ToArray();
         }
 
         /// <summary>
@@ -194,24 +211,19 @@ namespace Squirrel.Sources
         /// </summary>
         protected virtual string GetAssetUrlFromName(GitlabRelease release, string assetName)
         {
-            if (release.Assets == null || release.Assets.Count == 0) 
-            {
+            if (release.Assets == null || release.Assets.Count == 0) {
                 throw new ArgumentException($"No assets found in Gitlab Release '{release.Name}'.");
             }
 
             GitlabReleaseLink packageFile =
                 release.Assets.Links.FirstOrDefault(a => a.Name.Equals(assetName, StringComparison.InvariantCultureIgnoreCase));
-            if (packageFile == null) 
-            {
+            if (packageFile == null) {
                 throw new ArgumentException($"Could not find asset called '{assetName}' in GitLab Release '{release.Name}'.");
             }
 
-            if (String.IsNullOrWhiteSpace(AccessToken)) 
-            {
+            if (String.IsNullOrWhiteSpace(AccessToken)) {
                 return packageFile.DirectAssetUrl;
-            } 
-            else 
-            {
+            } else {
                 return packageFile.Url;
             }
         }
