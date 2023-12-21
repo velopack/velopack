@@ -36,26 +36,26 @@ namespace Squirrel.Tests.TestHelpers
             return (osVersion < 601);
         }
 
-        public static void RunBlockAsSTA(Action block)
-        {
-            Exception ex = null;
-            var t = new Thread(() => {
-                try {
-                    block();
-                } catch (Exception e) {
-                    ex = e;
-                }
-            });
+        //public static void RunBlockAsSTA(Action block)
+        //{
+        //    Exception ex = null;
+        //    var t = new Thread(() => {
+        //        try {
+        //            block();
+        //        } catch (Exception e) {
+        //            ex = e;
+        //        }
+        //    });
 
-            t.SetApartmentState(ApartmentState.STA);
-            t.Start();
-            t.Join();
+        //    t.SetApartmentState(ApartmentState.STA);
+        //    t.Start();
+        //    t.Join();
 
-            if (ex != null) {
-                // NB: If we don't do this, the test silently passes
-                throw new Exception("", ex);
-            }
-        }
+        //    if (ex != null) {
+        //        // NB: If we don't do this, the test silently passes
+        //        throw new Exception("", ex);
+        //    }
+        //}
 
         public static IDisposable WithFakeInstallDirectory(string packageFileName, out string path)
         {

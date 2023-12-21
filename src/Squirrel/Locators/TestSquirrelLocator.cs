@@ -31,17 +31,18 @@ namespace Squirrel.Locators
         public override string UpdateExePath => throw new NotSupportedException("TestSquirrelLocator does not support this operation.");
 
         /// <inheritdoc />
-        public override SemanticVersion CurrentlyInstalledVersion => new SemanticVersion(0, 0, 0);
+        public override SemanticVersion CurrentlyInstalledVersion { get; }
 
         /// <inheritdoc />
         public override string AppContentDir => AppContext.BaseDirectory;
 
         /// <inheritdoc cref="TestSquirrelLocator" />
-        public TestSquirrelLocator(string appId, string packagesDir, ILogger logger)
+        public TestSquirrelLocator(string appId, string version, string packagesDir, ILogger logger)
             : base(logger)
         {
             AppId = appId;
             PackagesDir = packagesDir;
+            CurrentlyInstalledVersion = SemanticVersion.Parse(version);
         }
     }
 }

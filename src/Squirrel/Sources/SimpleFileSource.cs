@@ -29,7 +29,7 @@ namespace Squirrel.Sources
             if (!BaseDirectory.Exists)
                 throw new Exception($"The local update directory '{BaseDirectory.FullName}' does not exist.");
 
-            var releasesPath = Path.Combine(BaseDirectory.FullName, "RELEASES");
+            var releasesPath = Path.Combine(BaseDirectory.FullName, GetReleasesFileName());
             Log.Info($"Reading RELEASES from '{releasesPath}'");
             var fi = new FileInfo(releasesPath);
 
