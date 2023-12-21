@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Runtime.Serialization;
 
@@ -9,45 +8,33 @@ namespace Squirrel
     /// <summary>
     /// Holds information about the current version and pending updates, such as how many there are, and access to release notes.
     /// </summary>
-    [DataContract]
     public class UpdateInfo
     {
         /// <summary>
-        /// The currently executing version of the application, or null if not currently installed.
+        /// The available version that we are updating to.
         /// </summary>
-        [DataMember] public ReleaseEntry LatestLocalReleaseEntry { get; protected set; }
+        public ReleaseEntry TargetFullRelease { get; }
 
         /// <summary>
-        /// The same as <see cref="LatestLocalReleaseEntry"/> if there are no updates available, otherwise
-        /// this will be the version that we are updating to.
+        /// The base release that we are to apply delta updates from. If null, we can try doing a delta update from
+        /// the currently installed version.
         /// </summary>
-        [DataMember] public ReleaseEntry FutureReleaseEntry { get; protected set; }
+        public ReleaseEntry BaseRelease { get; }
 
         /// <summary>
-        /// The list of versions between the <see cref="LatestLocalReleaseEntry"/> and <see cref="FutureReleaseEntry"/>.
-        /// These will all be applied in order.
+        /// The list of delta versions between the current version and <see cref="TargetFullRelease"/>.
+        /// These will attempt to be tried applied in order.
         /// </summary>
-        [DataMember] public List<ReleaseEntry> ReleasesToApply { get; protected set; }
-
-        /// <summary>
-        /// Path to folder containing local/downloaded packages
-        /// </summary>
-        [IgnoreDataMember]
-        public string PackageDirectory { get; protected set; }
+        public ReleaseEntry[] DeltasToTarget { get; } = new ReleaseEntry[0];
 
         /// <summary>
         /// Create a new instance of <see cref="UpdateInfo"/>
         /// </summary>
-        protected UpdateInfo(ReleaseEntry currentlyInstalledVersion, IEnumerable<ReleaseEntry> releasesToApply, string packageDirectory)
+        public UpdateInfo(ReleaseEntry targetRelease, ReleaseEntry deltaBaseRelease = null, ReleaseEntry[] deltasToTarget = null)
         {
-            // NB: When bootstrapping, CurrentlyInstalledVersion is null!
-            LatestLocalReleaseEntry = currentlyInstalledVersion;
-            ReleasesToApply = (releasesToApply ?? Enumerable.Empty<ReleaseEntry>()).ToList();
-            FutureReleaseEntry = ReleasesToApply.Any() ?
-                ReleasesToApply.MaxBy(x => x.Version).FirstOrDefault() :
-                LatestLocalReleaseEntry;
-
-            this.PackageDirectory = packageDirectory;
+            TargetFullRelease = targetRelease;
+            BaseRelease = deltaBaseRelease;
+            DeltasToTarget = deltasToTarget ?? new ReleaseEntry[0];
         }
 
         // /// <summary>
@@ -66,45 +53,5 @@ namespace Squirrel
         //        })
         //        .ToDictionary(k => k.Item1, v => v.Item2);
         // }
-
-        /// <summary>
-        /// Create a new <see cref="UpdateInfo"/> from a current release and a list of future releases
-        /// yet to be installed.
-        /// </summary>
-        /// <exception cref="Exception">When availableReleases is null or empty</exception>
-        public static UpdateInfo Create(ReleaseEntry currentVersion, IEnumerable<ReleaseEntry> availableReleases, string packageDirectory)
-        {
-            Contract.Requires(availableReleases != null);
-            Contract.Requires(!String.IsNullOrEmpty(packageDirectory));
-
-            var latestFull = availableReleases.MaxBy(x => x.Version).FirstOrDefault(x => !x.IsDelta);
-            if (latestFull == null) {
-                throw new Exception("There should always be at least one full release");
-            }
-
-            if (currentVersion == null) {
-                return new UpdateInfo(null, new[] { latestFull }, packageDirectory);
-            }
-
-            if (currentVersion.Version >= latestFull.Version) {
-                return new UpdateInfo(currentVersion, Enumerable.Empty<ReleaseEntry>(), packageDirectory);
-            }
-
-            var newerThanUs = availableReleases
-                .Where(x => x.Version > currentVersion.Version)
-                .OrderBy(v => v.Version)
-                .ToArray();
-
-            var deltasSize = newerThanUs.Where(x => x.IsDelta).Sum(x => x.Filesize);
-            var deltasCount = newerThanUs.Count(x => x.IsDelta);
-
-            // delta's are cheap to download, but really expensive to apply.
-            // full packages are more expensive to download, but really cheap to apply.
-            // this tries to find a good balance of both. we will go for the full if
-            // there are too many delta's or if their file size is too large.
-            return (deltasSize > 0 && (deltasSize * 10) < latestFull.Filesize && deltasCount <= 10) ?
-                new UpdateInfo(currentVersion, newerThanUs.Where(x => x.IsDelta).ToArray(), packageDirectory) :
-                new UpdateInfo(currentVersion, new[] { latestFull }, packageDirectory);
-        }
     }
 }
