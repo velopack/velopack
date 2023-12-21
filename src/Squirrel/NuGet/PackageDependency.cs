@@ -7,11 +7,6 @@ using System.Linq;
 
 namespace Squirrel.NuGet
 {
-    public interface IFrameworkTargetable
-    {
-        IEnumerable<string> SupportedFrameworks { get; }
-    }
-
     public class PackageDependency
     {
         public PackageDependency(string id)
@@ -48,7 +43,7 @@ namespace Squirrel.NuGet
         }
     }
 
-    public class PackageDependencySet : IFrameworkTargetable
+    public class PackageDependencySet
     {
         private readonly string _targetFramework;
         private readonly ReadOnlyCollection<PackageDependency> _dependencies;
@@ -86,7 +81,7 @@ namespace Squirrel.NuGet
         }
     }
 
-    public class FrameworkAssemblyReference : IFrameworkTargetable
+    public class FrameworkAssemblyReference
     {
         public FrameworkAssemblyReference(string assemblyName)
             : this(assemblyName, Enumerable.Empty<string>())
