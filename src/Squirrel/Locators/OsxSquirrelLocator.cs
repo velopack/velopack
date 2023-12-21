@@ -27,6 +27,9 @@ namespace Squirrel.Locators
         public override SemanticVersion CurrentlyInstalledVersion { get; }
 
         /// <inheritdoc />
+        public override string AppContentDir => RootAppDir;
+
+        /// <inheritdoc />
         public override string AppTempDir => CreateSubDirIfDoesNotExist(Utility.GetDefaultTempBaseDirectory(), AppId);
 
         /// <inheritdoc />

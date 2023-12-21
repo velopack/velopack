@@ -21,6 +21,9 @@ namespace Squirrel.Locators
         /// <summary> The directory in which nupkg files are stored for this application. </summary>
         public string PackagesDir { get; }
 
+        /// <summary> The directory in which versioned application files are stored. </summary>
+        public string AppContentDir { get; }
+
         /// <summary> The temporary directory for this application. </summary>
         public string AppTempDir { get; }
 
@@ -33,12 +36,12 @@ namespace Squirrel.Locators
         /// <summary>
         /// Finds .nupkg files in the PackagesDir and returns a list of ReleaseEntryName objects.
         /// </summary>
-        public List<ReleaseEntryName> GetLocalPackages();
+        public List<ReleaseEntry> GetLocalPackages();
 
         /// <summary>
         /// Finds latest .nupkg file in the PackagesDir or null if not found.
         /// </summary>
-        public ReleaseEntryName GetLatestLocalPackage();
+        public ReleaseEntry GetLatestLocalPackage();
 
         /// <summary>
         /// Unique identifier for this user which is used to calculate whether this user is eligible for 

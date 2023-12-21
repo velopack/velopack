@@ -24,6 +24,9 @@ namespace Squirrel.Locators
         public override string UpdateExePath { get; }
 
         /// <inheritdoc />
+        public override string AppContentDir { get; }
+
+        /// <inheritdoc />
         public override SemanticVersion CurrentlyInstalledVersion { get; }
 
         /// <inheritdoc />
@@ -71,6 +74,7 @@ namespace Squirrel.Locators
                     CurrentlyInstalledVersion = manifest.Version;
                     RootAppDir = Path.GetDirectoryName(possibleUpdateExe);
                     UpdateExePath = possibleUpdateExe;
+                    AppContentDir = myDirPath;
                 } else if (Utility.PathPartStartsWith(myDirName, "app-") && NuGetVersion.TryParse(myDirName.Substring(4), out var version)) {
                     // this is a legacy case, where we're running in an 'root/app-*/' directory, and there is no manifest.
                     Log.Warn("Legacy app-* directory detected, sq.version not found. Using directory name for AppId and Version.");
@@ -78,6 +82,7 @@ namespace Squirrel.Locators
                     CurrentlyInstalledVersion = version;
                     RootAppDir = Path.GetDirectoryName(possibleUpdateExe);
                     UpdateExePath = possibleUpdateExe;
+                    AppContentDir = myDirPath;
                 }
             } else if (ixCurrent > 0) {
                 // this is an attempt to handle the case where we are running in a nested current directory.
@@ -93,6 +98,7 @@ namespace Squirrel.Locators
                     UpdateExePath = possibleUpdateExe;
                     AppId = manifest.Id;
                     CurrentlyInstalledVersion = manifest.Version;
+                    AppContentDir = currentDir;
                 }
             }
         }

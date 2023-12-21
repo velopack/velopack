@@ -46,6 +46,9 @@ namespace Squirrel.Locators
         public abstract string UpdateExePath { get; }
 
         /// <inheritdoc/>
+        public abstract string AppContentDir { get; }
+
+        /// <inheritdoc/>
         public abstract SemanticVersion CurrentlyInstalledVersion { get; }
 
         /// <summary> The log interface to use for diagnostic messages. </summary>
@@ -58,20 +61,20 @@ namespace Squirrel.Locators
         }
 
         /// <inheritdoc/>
-        public virtual List<ReleaseEntryName> GetLocalPackages()
+        public virtual List<ReleaseEntry> GetLocalPackages()
         {
-            var query = from x in Directory.EnumerateFiles(PackagesDir, "*.nupkg")
-                        let re = ReleaseEntryName.FromEntryFileName(Path.GetFileName(x))
-                        where re.Version != null
-                        select re;
-            return query.ToList();
+            return Directory.EnumerateFiles(PackagesDir, "*.nupkg")
+                .Select(x => ReleaseEntry.GenerateFromFile(x))
+                .Where(x => x?.Version != null)
+                .ToList();
         }
 
         /// <inheritdoc/>
-        public ReleaseEntryName GetLatestLocalPackage()
+        public ReleaseEntry GetLatestLocalPackage()
         {
-            var packages = GetLocalPackages();
-            return packages.OrderByDescending(x => x.Version).FirstOrDefault();
+            return GetLocalPackages()
+                .OrderByDescending(x => x.Version)
+                .FirstOrDefault();
         }
 
         /// <summary>
