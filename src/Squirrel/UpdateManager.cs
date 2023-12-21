@@ -117,77 +117,81 @@ namespace Squirrel
         public virtual async Task DownloadAndPrepareUpdatesAsync(
             UpdateInfo updates, Action<int> progress = null, bool ignoreDeltas = false, CancellationToken cancelToken = default)
         {
-            progress ??= (_ => { });
-            var targetRelease = updates?.TargetFullRelease;
-            if (targetRelease == null) {
-                throw new ArgumentException("Must pass a valid UpdateInfo object with a non-null TargetFullRelease", nameof(updates));
-            }
-
-            EnsureInstalled();
-            using var _mut = AcquireUpdateLock();
-
-            var completeFile = Path.Combine(Locator.PackagesDir, targetRelease.OriginalFilename);
-            var incompleteFile = completeFile + ".downloading";
-
-            if (File.Exists(completeFile)) {
-                Log.Info($"Package already exists on disk: '{completeFile}', verifying checksum...");
-                try {
-                    VerifyPackageChecksum(targetRelease);
-                } catch (ChecksumFailedException ex) {
-                    Log.Warn(ex, $"Checksum failed for file '{completeFile}'. Deleting and starting over.");
-                }
-            }
-
-            var deltasSize = updates.DeltasToTarget.Sum(x => x.Filesize);
-            var deltasCount = updates.DeltasToTarget.Count();
-
             try {
-                if (deltasCount > 0) {
-                    if (ignoreDeltas) {
-                        Log.Info("Ignoring delta updates (ignoreDeltas parameter)");
-                    } else {
-                        if (deltasSize > 10 || deltasSize > targetRelease.Filesize) {
-                            Log.Info($"There are too many delta's ({deltasCount} > 10) or the sum of their size ({deltasSize}) is too large. " +
-                                $"Only full update will be available.");
-                        } else {
-                            var _1 = Utility.GetTempDirectory(out var deltaStagingDir, Locator.AppTempDir);
-                            if (updates.BaseRelease?.OriginalFilename != null) {
-                                string basePackagePath = Path.Combine(Locator.PackagesDir, updates.BaseRelease.OriginalFilename);
-                                if (!File.Exists(basePackagePath))
-                                    throw new Exception($"Unable to find base package {basePackagePath} for delta update.");
-                                EasyZip.ExtractZipToDirectory(Log, basePackagePath, deltaStagingDir);
-                            } else {
-                                Log.Warn("No base package available. Attempting delta update using application files.");
-                                Utility.CopyFiles(Locator.AppContentDir, deltaStagingDir);
-                            }
-                            progress(10);
-                            await DownloadAndApplyDeltaUpdates(deltaStagingDir, updates, x => Utility.CalculateProgress(x, 10, 90))
-                                .ConfigureAwait(false);
-                            progress(90);
+                progress ??= (_ => { });
+                var targetRelease = updates?.TargetFullRelease;
+                if (targetRelease == null) {
+                    throw new ArgumentException("Must pass a valid UpdateInfo object with a non-null TargetFullRelease", nameof(updates));
+                }
 
-                            Log.Info("Delta updates completed, creating final update package.");
-                            File.Delete(incompleteFile);
-                            EasyZip.CreateZipFromDirectory(Log, incompleteFile, deltaStagingDir);
-                            File.Delete(completeFile);
-                            File.Move(incompleteFile, completeFile);
-                            Log.Info("Delta release preparations complete. Package moved to: " + completeFile);
-                            progress(100);
-                            return; // success!
-                        }
+                EnsureInstalled();
+                using var _mut = AcquireUpdateLock();
+
+                var completeFile = Path.Combine(Locator.PackagesDir, targetRelease.OriginalFilename);
+                var incompleteFile = completeFile + ".partial";
+
+                if (File.Exists(completeFile)) {
+                    Log.Info($"Package already exists on disk: '{completeFile}', verifying checksum...");
+                    try {
+                        VerifyPackageChecksum(targetRelease);
+                    } catch (ChecksumFailedException ex) {
+                        Log.Warn(ex, $"Checksum failed for file '{completeFile}'. Deleting and starting over.");
                     }
                 }
-            } catch (Exception ex) {
-                Log.Warn(ex, "Unable to apply delta updates, falling back to full update.");
-            }
 
-            Log.Info($"Downloading full release ({targetRelease.OriginalFilename})");
-            File.Delete(incompleteFile);
-            await Source.DownloadReleaseEntry(targetRelease, incompleteFile, progress).ConfigureAwait(false);
-            Log.Info("Verifying package checksum...");
-            VerifyPackageChecksum(targetRelease, incompleteFile);
-            File.Delete(completeFile);
-            File.Move(incompleteFile, completeFile);
-            Log.Info("Full release download complete. Package moved to: " + completeFile);
+                var deltasSize = updates.DeltasToTarget.Sum(x => x.Filesize);
+                var deltasCount = updates.DeltasToTarget.Count();
+
+                try {
+                    if (deltasCount > 0) {
+                        if (ignoreDeltas) {
+                            Log.Info("Ignoring delta updates (ignoreDeltas parameter)");
+                        } else {
+                            if (deltasCount > 10 || deltasSize > targetRelease.Filesize) {
+                                Log.Info($"There are too many delta's ({deltasCount} > 10) or the sum of their size ({deltasSize} > {targetRelease.Filesize}) is too large. " +
+                                    $"Only full update will be available.");
+                            } else {
+                                var _1 = Utility.GetTempDirectory(out var deltaStagingDir, Locator.AppTempDir);
+                                if (updates.BaseRelease?.OriginalFilename != null) {
+                                    string basePackagePath = Path.Combine(Locator.PackagesDir, updates.BaseRelease.OriginalFilename);
+                                    if (!File.Exists(basePackagePath))
+                                        throw new Exception($"Unable to find base package {basePackagePath} for delta update.");
+                                    EasyZip.ExtractZipToDirectory(Log, basePackagePath, deltaStagingDir);
+                                } else {
+                                    Log.Warn("No base package available. Attempting delta update using application files.");
+                                    Utility.CopyFiles(Locator.AppContentDir, deltaStagingDir);
+                                }
+                                progress(10);
+                                await DownloadAndApplyDeltaUpdates(deltaStagingDir, updates, x => Utility.CalculateProgress(x, 10, 90))
+                                    .ConfigureAwait(false);
+                                progress(90);
+
+                                Log.Info("Delta updates completed, creating final update package.");
+                                File.Delete(incompleteFile);
+                                EasyZip.CreateZipFromDirectory(Log, incompleteFile, deltaStagingDir);
+                                File.Delete(completeFile);
+                                File.Move(incompleteFile, completeFile);
+                                Log.Info("Delta release preparations complete. Package moved to: " + completeFile);
+                                progress(100);
+                                return; // success!
+                            }
+                        }
+                    }
+                } catch (Exception ex) {
+                    Log.Warn(ex, "Unable to apply delta updates, falling back to full update.");
+                }
+
+                Log.Info($"Downloading full release ({targetRelease.OriginalFilename})");
+                File.Delete(incompleteFile);
+                await Source.DownloadReleaseEntry(targetRelease, incompleteFile, progress).ConfigureAwait(false);
+                Log.Info("Verifying package checksum...");
+                VerifyPackageChecksum(targetRelease, incompleteFile);
+                File.Delete(completeFile);
+                File.Move(incompleteFile, completeFile);
+                Log.Info("Full release download complete. Package moved to: " + completeFile);
+            } finally {
+                CleanIncompleteAndDeltaPackages();
+            }
         }
 
         protected virtual async Task DownloadAndApplyDeltaUpdates(string extractedBasePackage, UpdateInfo updates, Action<int> progress)
@@ -232,7 +236,36 @@ namespace Squirrel
             progress(100);
         }
 
-        protected virtual void VerifyPackageChecksum(ReleaseEntry release, string filePathOverride = null)
+        protected void CleanIncompleteAndDeltaPackages()
+        {
+            try {
+                Log.Info("Cleaning up incomplete and delta packages from packages directory.");
+                foreach (var l in Locator.GetLocalPackages()) {
+                    if (l.IsDelta) {
+                        try {
+                            var pkgPath = Path.Combine(Locator.PackagesDir, l.OriginalFilename);
+                            File.Delete(pkgPath);
+                            Log.Trace(pkgPath + " deleted.");
+                        } catch (Exception ex) {
+                            Log.Warn(ex, "Failed to delete delta package: " + l.OriginalFilename);
+                        }
+                    }
+                }
+
+                foreach (var l in Directory.EnumerateFiles(Locator.PackagesDir, "*.partial").ToArray()) {
+                    try {
+                        File.Delete(l);
+                        Log.Trace(l + " deleted.");
+                    } catch (Exception ex) {
+                        Log.Warn(ex, "Failed to delete partial package: " + l);
+                    }
+                }
+            } catch (Exception ex) {
+                Log.Warn(ex, "Failed to clean up incomplete and delta packages.");
+            }
+        }
+
+        protected internal virtual void VerifyPackageChecksum(ReleaseEntry release, string filePathOverride = null)
         {
             var targetPackage = filePathOverride == null
                 ? new FileInfo(Path.Combine(Locator.PackagesDir, release.OriginalFilename))
@@ -243,13 +276,11 @@ namespace Squirrel
             }
 
             if (targetPackage.Length != release.Filesize) {
-                targetPackage.Delete();
                 throw new ChecksumFailedException(targetPackage.FullName, $"Size doesn't match ({targetPackage.Length} != {release.Filesize}).");
             }
 
             var hash = Utility.CalculateFileSHA1(targetPackage.FullName);
             if (!hash.Equals(release.SHA1, StringComparison.OrdinalIgnoreCase)) {
-                targetPackage.Delete();
                 throw new ChecksumFailedException(targetPackage.FullName, $"SHA1 doesn't match ({release.SHA1} != {hash}).");
             }
         }

@@ -300,9 +300,8 @@ namespace Squirrel
         /// package files. Also writes/updates a RELEASES file in the specified directory
         /// to match the packages the are currently present.
         /// </summary>
-        /// <param name="releasePackagesDir">The local directory to read and update</param>
         /// <returns>The list of packages in the directory</returns>
-        public static List<ReleaseEntry> BuildReleasesFile(string releasePackagesDir)
+        public static List<ReleaseEntry> BuildReleasesFile(string releasePackagesDir, bool writeToDisk = true)
         {
             var packagesDir = new DirectoryInfo(releasePackagesDir);
 
@@ -317,18 +316,20 @@ namespace Squirrel
             // Write the new RELEASES file to a temp file then move it into
             // place
             var entries = entriesQueue.ToList();
-            using var _ = Utility.GetTempFileName(out var tempFile);
 
-            using (var of = File.OpenWrite(tempFile)) {
-                if (entries.Count > 0) WriteReleaseFile(entries, of);
+            if (writeToDisk) {
+                using var _ = Utility.GetTempFileName(out var tempFile);
+                using (var of = File.OpenWrite(tempFile)) {
+                    if (entries.Count > 0) WriteReleaseFile(entries, of);
+                }
+                var target = Path.Combine(packagesDir.FullName, "RELEASES");
+                if (File.Exists(target)) {
+                    File.Delete(target);
+                }
+
+                File.Move(tempFile, target);
             }
 
-            var target = Path.Combine(packagesDir.FullName, "RELEASES");
-            if (File.Exists(target)) {
-                File.Delete(target);
-            }
-
-            File.Move(tempFile, target);
             return entries;
         }
 

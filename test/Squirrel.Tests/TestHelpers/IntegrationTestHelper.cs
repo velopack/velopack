@@ -30,6 +30,8 @@ namespace Squirrel.Tests.TestHelpers
             return di.FullName;
         }
 
+        public static string GetFixturesPath() => GetPath("fixtures");
+
         public static bool SkipTestOnXPAndVista()
         {
             int osVersion = Environment.OSVersion.Version.Major * 100 + Environment.OSVersion.Version.Minor;

@@ -19,7 +19,7 @@ namespace Squirrel.Locators
         public override string AppId { get; }
 
         /// <inheritdoc />
-        public override string RootAppDir => AppContext.BaseDirectory;
+        public override string RootAppDir { get; }
 
         /// <inheritdoc />
         public override string PackagesDir { get; }
@@ -34,15 +34,23 @@ namespace Squirrel.Locators
         public override SemanticVersion CurrentlyInstalledVersion { get; }
 
         /// <inheritdoc />
-        public override string AppContentDir => AppContext.BaseDirectory;
+        public override string AppContentDir { get; }
 
         /// <inheritdoc cref="TestSquirrelLocator" />
-        public TestSquirrelLocator(string appId, string version, string packagesDir, ILogger logger)
+        public TestSquirrelLocator(string appId, string version, string packagesDir, ILogger logger = null)
+            : this(appId, version, packagesDir, AppContext.BaseDirectory, AppContext.BaseDirectory, logger)
+        {
+        }
+
+        /// <inheritdoc cref="TestSquirrelLocator" />
+        public TestSquirrelLocator(string appId, string version, string packagesDir, string appDir, string rootDir, ILogger logger = null)
             : base(logger)
         {
             AppId = appId;
             PackagesDir = packagesDir;
             CurrentlyInstalledVersion = SemanticVersion.Parse(version);
+            RootAppDir = rootDir;
+            AppContentDir = appDir;
         }
     }
 }

@@ -2,11 +2,13 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using NuGet.Versioning;
 using Squirrel.Locators;
 using Squirrel.Sources;
+using Squirrel.Tests.TestHelpers;
 
 namespace Squirrel.Tests
 {
@@ -151,6 +153,59 @@ namespace Squirrel.Tests
             var um = new UpdateManager(tempPath, null, logger, locator);
             var info = um.CheckForUpdates();
             Assert.Null(info);
+        }
+
+        [Theory]
+        [InlineData("Clowd", "3.4.287")]
+        [InlineData("slack", "1.1.8")]
+        public void DownloadsLatestFullVersion(string id, string version)
+        {
+            using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
+            using var _1 = Utility.GetTempDirectory(out var packagesDir);
+            var repo = new FakeFixtureRepository(id, false);
+            var source = new SimpleWebSource("http://any.com", null, repo, logger);
+            var locator = new TestSquirrelLocator(id, "1.0.0", packagesDir, logger);
+            var um = new UpdateManager(source, logger, locator);
+
+            var info = um.CheckForUpdates();
+            Assert.NotNull(info);
+            Assert.True(SemanticVersion.Parse(version) == info.TargetFullRelease.Version);
+            Assert.Equal(0, info.DeltasToTarget.Count());
+
+            um.DownloadAndPrepareUpdates(info);
+
+            var target = Path.Combine(packagesDir, $"{id}-{version}-full.nupkg");
+            Assert.True(File.Exists(target));
+            um.VerifyPackageChecksum(info.TargetFullRelease);
+        }
+
+        [Theory]
+        [InlineData("Clowd", "3.4.287", "3.4.292")]
+        //[InlineData("slack", "1.1.8", "1.2.2")]
+        public async Task DownloadsDeltasAndCreatesFullVersion(string id, string fromVersion, string toVersion)
+        {
+            using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
+            using var _1 = Utility.GetTempDirectory(out var packagesDir);
+            var repo = new FakeFixtureRepository(id, true);
+            var source = new SimpleWebSource("http://any.com", null, repo, logger);
+
+            var basePkg = (await source.GetReleaseFeed()).Single(x => x.Version == SemanticVersion.Parse(fromVersion));
+            var basePkgFixturePath = IntegrationTestHelper.GetPath("fixtures", basePkg.OriginalFilename);
+            var basePkgPath = Path.Combine(packagesDir, basePkg.OriginalFilename);
+            File.Copy(basePkgFixturePath, basePkgPath);
+
+            var locator = new TestSquirrelLocator(id, fromVersion, packagesDir, logger);
+            var um = new UpdateManager(source, logger, locator);
+
+            var info = await um.CheckForUpdatesAsync();
+            Assert.NotNull(info);
+            Assert.True(SemanticVersion.Parse(toVersion) == info.TargetFullRelease.Version);
+            Assert.Equal(3, info.DeltasToTarget.Count());
+            Assert.NotNull(info.BaseRelease);
+
+            await um.DownloadAndPrepareUpdatesAsync(info);
+            var target = Path.Combine(packagesDir, $"{id}-{toVersion}-full.nupkg");
+            Assert.True(File.Exists(target));
         }
     }
 }
