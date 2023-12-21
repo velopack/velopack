@@ -654,6 +654,11 @@ namespace Squirrel
             return null;
         }
 
+        public static void CopyFiles(string source, string target)
+        {
+            CopyFiles(new DirectoryInfo(source), new DirectoryInfo(target));
+        }
+
         public static void CopyFiles(DirectoryInfo source, DirectoryInfo target)
         {
             Directory.CreateDirectory(target.FullName);

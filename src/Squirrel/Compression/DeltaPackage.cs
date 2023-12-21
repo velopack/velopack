@@ -95,6 +95,8 @@ namespace Squirrel.Compression
 
             if (deltaPackageZip is null) throw new ArgumentNullException(nameof(deltaPackageZip));
 
+            _log.Info($"Applying delta package from {deltaPackageZip} to delta staging directory.");
+
             using var _1 = Utility.GetTempDirectory(out var deltaPath, _baseTempDir);
             EasyZip.ExtractZipToDirectory(_log, deltaPackageZip, deltaPath);
             progress(10);
@@ -129,7 +131,7 @@ namespace Squirrel.Compression
                 .Select(x => x.FullName.Replace(workingPath + Path.DirectorySeparatorChar, "").ToLowerInvariant())
                 .Where(x => x.StartsWith("lib", StringComparison.InvariantCultureIgnoreCase) && !pathsVisited.Contains(x))
                 .ForEach(x => {
-                    _log.Info($"{x} was in old package but not in new one, deleting");
+                    _log.Trace($"{x} was in old package but not in new one, deleting");
                     File.Delete(Path.Combine(workingPath, x));
                 });
 
@@ -140,7 +142,7 @@ namespace Squirrel.Compression
             deltaPathRelativePaths
                 .Where(x => !x.StartsWith("lib", StringComparison.InvariantCultureIgnoreCase))
                 .ForEach(x => {
-                    _log.Info($"Updating metadata file: {x}");
+                    _log.Trace($"Updating metadata file: {x}");
                     File.Copy(Path.Combine(deltaPath, x), Path.Combine(workingPath, x), true);
                 });
 
@@ -156,20 +158,20 @@ namespace Squirrel.Compression
 
             // NB: Zero-length diffs indicate the file hasn't actually changed
             if (new FileInfo(inputFile).Length == 0) {
-                _log.Info($"{relativeFilePath} exists unchanged, skipping");
+                _log.Trace($"{relativeFilePath} exists unchanged, skipping");
                 return;
             }
 
             if (relativeFilePath.EndsWith(".bsdiff", StringComparison.InvariantCultureIgnoreCase)) {
                 using (var of = File.OpenWrite(tempTargetFile))
                 using (var inf = File.OpenRead(finalTarget)) {
-                    _log.Info($"Applying bsdiff to {relativeFilePath}");
+                    _log.Trace($"Applying bsdiff to {relativeFilePath}");
                     BinaryPatchUtility.Apply(inf, () => File.OpenRead(inputFile), of);
                 }
 
                 verifyPatchedFile(relativeFilePath, inputFile, tempTargetFile);
             } else if (relativeFilePath.EndsWith(".diff", StringComparison.InvariantCultureIgnoreCase)) {
-                _log.Info($"Applying msdiff to {relativeFilePath}");
+                _log.Trace($"Applying msdiff to {relativeFilePath}");
 
                 if (SquirrelRuntimeInfo.IsWindows) {
                     MsDeltaCompression.ApplyDelta(inputFile, finalTarget, tempTargetFile);
@@ -181,7 +183,7 @@ namespace Squirrel.Compression
             } else {
                 using (var of = File.OpenWrite(tempTargetFile))
                 using (var inf = File.OpenRead(inputFile)) {
-                    _log.Info($"Adding new file: {relativeFilePath}");
+                    _log.Trace($"Adding new file: {relativeFilePath}");
                     inf.CopyTo(of);
                 }
             }
@@ -201,12 +203,12 @@ namespace Squirrel.Compression
             var actualReleaseEntry = ReleaseEntry.GenerateFromFile(tempTargetFile);
 
             if (expectedReleaseEntry.Filesize != actualReleaseEntry.Filesize) {
-                _log.Warn($"Patched file {relativeFilePath} has incorrect size, expected {expectedReleaseEntry.Filesize}, got {actualReleaseEntry.Filesize}");
+                _log.Error($"Patched file {relativeFilePath} has incorrect size, expected {expectedReleaseEntry.Filesize}, got {actualReleaseEntry.Filesize}");
                 throw new ChecksumFailedException(relativeFilePath);
             }
 
             if (expectedReleaseEntry.SHA1 != actualReleaseEntry.SHA1) {
-                _log.Warn($"Patched file {relativeFilePath} has incorrect SHA1, expected {expectedReleaseEntry.SHA1}, got {actualReleaseEntry.SHA1}");
+                _log.Error($"Patched file {relativeFilePath} has incorrect SHA1, expected {expectedReleaseEntry.SHA1}, got {actualReleaseEntry.SHA1}");
                 throw new ChecksumFailedException(relativeFilePath);
             }
         }
