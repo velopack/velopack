@@ -22,6 +22,19 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.5" PrivateAssets="All" />
     <PackageReference Include="Xunit.SkippableFact" Version="1.4.13" />
     <PackageReference Include="Divergic.Logging.Xunit" Version="4.3.0" />
+    <PackageReference Include="coverlet.msbuild" Version="6.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
+
+  <PropertyGroup>
+    <CoverletOutputFormat>json,opencover</CoverletOutputFormat>
+    <CoverletOutput>..\coverage\</CoverletOutput>
+    <MergeWith>..\coverage\coverage.json</MergeWith>
+    <Include>[Squirrel*]*</Include>
+    <Exclude>[Squirrel.*.Tests]*</Exclude>
+    <CollectCoverage>true</CollectCoverage>
+  </PropertyGroup>
 
 </Project>
