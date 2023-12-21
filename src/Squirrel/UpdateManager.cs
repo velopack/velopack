@@ -30,7 +30,12 @@ namespace Squirrel
         protected ISquirrelLocator Locator { get; }
 
         public UpdateManager(string urlOrPath, string channel = null, ILogger logger = null)
-            : this(CreateSimpleSource(urlOrPath, channel, logger), logger)
+            : this(urlOrPath, channel, logger, null)
+        {
+        }
+
+        public UpdateManager(string urlOrPath, string channel = null, ILogger logger = null, ISquirrelLocator locator = null)
+            : this(CreateSimpleSource(urlOrPath, channel, logger), logger, locator)
         {
         }
 
@@ -49,7 +54,13 @@ namespace Squirrel
             Locator = locator ?? SquirrelLocator.GetDefault(Log);
         }
 
-        public virtual async Task<UpdateInfo> CheckForUpdatesAsync()
+        public UpdateInfo CheckForUpdates()
+        {
+            return CheckForUpdatesAsync()
+                .ConfigureAwait(false).GetAwaiter().GetResult();
+        }
+
+        public virtual async Task<UpdateInfo> CheckForUpdatesAsync(CancellationToken cancelToken = default)
         {
             EnsureInstalled();
             var installedVer = CurrentVersion;
@@ -57,7 +68,7 @@ namespace Squirrel
             var latestLocalFull = Locator.GetLatestLocalPackage();
 
             Log.Debug("Retrieving latest release feed.");
-            var feed = await Source.GetReleaseFeed(betaId, latestLocalFull.Identity).ConfigureAwait(false);
+            var feed = await Source.GetReleaseFeed(betaId, latestLocalFull?.Identity).ConfigureAwait(false);
 
             var latestRemoteFull = feed.Where(r => !r.IsDelta).MaxBy(x => x.Version).FirstOrDefault();
             if (latestRemoteFull == null) {
@@ -97,7 +108,14 @@ namespace Squirrel
             return new UpdateInfo(latestRemoteFull, latestLocalFull, deltas);
         }
 
-        public virtual async Task DownloadAndPrepareUpdates(UpdateInfo updates, Action<int> progress = null, bool ignoreDeltas = false)
+        public void DownloadAndPrepareUpdates(UpdateInfo updates, Action<int> progress = null, bool ignoreDeltas = false)
+        {
+            DownloadAndPrepareUpdatesAsync(updates, progress, ignoreDeltas)
+                .ConfigureAwait(false).GetAwaiter().GetResult();
+        }
+
+        public virtual async Task DownloadAndPrepareUpdatesAsync(
+            UpdateInfo updates, Action<int> progress = null, bool ignoreDeltas = false, CancellationToken cancelToken = default)
         {
             progress ??= (_ => { });
             var targetRelease = updates?.TargetFullRelease;
