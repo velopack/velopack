@@ -10,11 +10,9 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionLevel", "SolutionLevel", "{ED657D2C-F8A0-4012-A64F-7367D41BE4D2}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
-		build.ps1 = build.ps1
 		.github\workflows\build.yml = .github\workflows\build.yml
 		src\Directory.Build.props = src\Directory.Build.props
 		Squirrel.entitlements = Squirrel.entitlements
-		vendor\wix\template.wxs = vendor\wix\template.wxs
 		version.json = version.json
 	EndProjectSection
 EndProject
@@ -32,7 +30,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Squirrel.Packaging.OSX", "s
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Squirrel.Deployment", "src\Squirrel.Deployment\Squirrel.Deployment.csproj", "{D19EA72C-E7AE-4A7B-924A-E7550901A49C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Squirrel.Packaging.Tests", "test\Squirrel.Packaging.Tests\Squirrel.Packaging.Tests.csproj", "{175B06A5-5C09-4DAB-A6AF-C8A2257BD1B6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Squirrel.Packaging.Tests", "test\Squirrel.Packaging.Tests\Squirrel.Packaging.Tests.csproj", "{175B06A5-5C09-4DAB-A6AF-C8A2257BD1B6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

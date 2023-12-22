@@ -3,6 +3,7 @@
 [![Discord](https://img.shields.io/discord/767856501477343282?style=flat-square&color=purple)](https://discord.gg/CjrCrNzd3F)
 [![Build](https://img.shields.io/github/actions/workflow/status/clowd/Clowd.Squirrel/build.yml?branch=develop&style=flat-square)](https://github.com/clowd/Clowd.Squirrel/actions)
 [![Codecov](https://img.shields.io/codecov/c/github/clowd/Clowd.Squirrel?style=flat-square)](https://app.codecov.io/gh/clowd/Clowd.Squirrel)
+[![License](https://img.shields.io/github/license/clowd/Clowd.Squirrel?style=flat-square)](https://github.com/clowd/Clowd.Squirrel/blob/develop/LICENSE)
 
 
 # Clowd.Squirrel
