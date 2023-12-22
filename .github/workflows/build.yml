@@ -51,7 +51,7 @@ jobs:
 
       - name: Test Rust
         working-directory: src/Rust
-        run: cargo llvm-cov --codecov --output-path ../../test/codecov-rust.json
+        run: cargo llvm-cov --codecov --output-path ../../test/coverage.rust.json
 
       - name: Build .NET
         run: dotnet build -c Release
@@ -64,7 +64,7 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          files: ./test/codecov-rust.json,./test/coverage.opencover.xml
+          files: ./test/coverage.rust.json,./test/coverage.opencover.xml
           fail_ci_if_error: true
 
       - name: Upload Artifacts
