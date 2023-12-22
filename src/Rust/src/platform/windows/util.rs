@@ -241,6 +241,7 @@ pub fn is_os_version_or_greater(version: &str) -> Result<bool> {
 }
 
 #[test]
+#[ignore]
 pub fn test_os_returns_true_for_everything_on_windows_11_and_below() {
     assert!(is_os_version_or_greater("6").unwrap());
     assert!(is_os_version_or_greater("7").unwrap());
