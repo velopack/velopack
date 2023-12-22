@@ -48,7 +48,7 @@ pub fn show_restart_required(app: &Manifest) {
     }
 
     let hwnd = w::HWND::GetDesktopWindow();
-    let _ = w::task_dlg::warn(
+    let _ = warn(
         &hwnd,
         format!("{} Setup {}", app.title, app.version).as_str(),
         Some("Restart Required"),
@@ -62,7 +62,7 @@ pub fn show_missing_dependencies_dialog(app: &Manifest, depedency_string: &str) 
     }
 
     let hwnd = w::HWND::GetDesktopWindow();
-    w::task_dlg::ok_cancel(
+    ok_cancel(
         &hwnd,
         format!("{} Setup {}", app.title, app.version).as_str(),
         Some(format!("{} has missing system dependencies.", app.title).as_str()),
@@ -157,3 +157,130 @@ extern "system" fn task_dialog_callback(_: w::HWND, msg: co::TDN, _: usize, _: i
     }
     return co::HRESULT::S_OK; // close dialog on button press
 }
+
+
+pub fn error( 
+	hparent: &w::HWND, 
+	title: &str, 
+	header: Option<&str>, 
+	body: &str, 
+) -> w::HrResult<()> 
+{ 
+	generate(hparent, title, header, body, None, 
+		co::TDCBF::OK, co::TD_ICON::ERROR) 
+		.map(|_| ()) 
+} 
+ 
+pub fn warn( 
+	hparent: &w::HWND, 
+	title: &str, 
+	header: Option<&str>, 
+	body: &str, 
+) -> w::HrResult<()> 
+{ 
+	generate(hparent, title, header, body, None, 
+		co::TDCBF::OK, co::TD_ICON::WARNING) 
+		.map(|_| ()) 
+} 
+ 
+pub fn info( 
+	hparent: &w::HWND, 
+	title: &str, 
+	header: Option<&str>, 
+	body: &str, 
+) -> w::HrResult<()> 
+{ 
+	generate(hparent, title, header, body, None, 
+		co::TDCBF::OK, co::TD_ICON::INFORMATION) 
+		.map(|_| ()) 
+} 
+ 
+#[must_use] 
+pub fn ok_cancel( 
+	hparent: &w::HWND, 
+	title: &str, 
+	header: Option<&str>, 
+	body: &str, 
+	ok_text: Option<&str>, 
+) -> w::HrResult<bool> 
+{ 
+	let mut btns = co::TDCBF::CANCEL; 
+	if ok_text.is_none() { 
+		btns |= co::TDCBF::OK; 
+	} 
+ 
+	generate(hparent, title, header, body, ok_text, 
+		btns, co::TD_ICON::WARNING) 
+		.map(|dlg_id| dlg_id == co::DLGID::OK) 
+} 
+ 
+pub fn yes_no( 
+	hparent: &w::HWND, 
+	title: &str, 
+	header: Option<&str>, 
+	body: &str, 
+) -> w::HrResult<bool> 
+{ 
+	generate(hparent, title, header, body, None, 
+		co::TDCBF::YES | co::TDCBF::NO, co::TD_ICON::WARNING) 
+		.map(|dlg_id| dlg_id == co::DLGID::YES) 
+} 
+ 
+pub fn yes_no_cancel( 
+	hparent: &w::HWND, 
+	title: &str, 
+	header: Option<&str>, 
+	body: &str, 
+) -> w::HrResult<co::DLGID> 
+{ 
+	generate(hparent, title, header, body, None, 
+		co::TDCBF::YES | co::TDCBF::NO | co::TDCBF::CANCEL, co::TD_ICON::WARNING) 
+} 
+ 
+fn generate( 
+	hparent: &w::HWND, 
+	title: &str, 
+	header: Option<&str>, 
+	body: &str, 
+	ok_text: Option<&str>, 
+	btns: co::TDCBF, 
+	ico: co::TD_ICON, 
+) -> w::HrResult<co::DLGID> 
+{ 
+	let mut ok_text_buf = WString::from_opt_str(ok_text); 
+	let mut custom_btns = if ok_text.is_some() { 
+		let mut td_btn = w::TASKDIALOG_BUTTON::default(); 
+		td_btn.set_nButtonID(co::DLGID::OK.into()); 
+		td_btn.set_pszButtonText(Some(&mut ok_text_buf)); 
+ 
+		let mut custom_btns = Vec::with_capacity(1); 
+		custom_btns.push(td_btn); 
+		custom_btns 
+	} else { 
+		Vec::<w::TASKDIALOG_BUTTON>::default() 
+	}; 
+ 
+	let mut tdc = w::TASKDIALOGCONFIG::default(); 
+	tdc.hwndParent = unsafe { hparent.raw_copy() }; 
+	tdc.dwFlags = co::TDF::ALLOW_DIALOG_CANCELLATION | co::TDF::POSITION_RELATIVE_TO_WINDOW; 
+	tdc.dwCommonButtons = btns; 
+	tdc.set_pszMainIcon(w::IconIdTdicon::Tdicon(ico)); 
+ 
+	if ok_text.is_some() { 
+		tdc.set_pButtons(Some(&mut custom_btns)); 
+	} 
+ 
+	let mut title_buf = WString::from_str(title); 
+	tdc.set_pszWindowTitle(Some(&mut title_buf)); 
+ 
+	let mut header_buf = WString::from_opt_str(header); 
+	if header.is_some() { 
+		tdc.set_pszMainInstruction(Some(&mut header_buf)); 
+	} 
+ 
+	let mut body_buf = WString::from_str(body); 
+	tdc.set_pszContent(Some(&mut body_buf)); 
+ 
+	w::TaskDialogIndirect(&tdc, None) 
+		.map(|(dlg_id, _)| dlg_id) 
+} 

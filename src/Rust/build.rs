@@ -2,13 +2,13 @@ use semver;
 
 extern crate winres;
 fn main() {
-    cc::Build::new()
-        .cpp(true)
-        .file("src/platform/windows/shortcuts.cpp")
-        .define("UNICODE", None)   
-        .define("_UNICODE", None)  
-        .compile("lib_shortcuts");
-    println!("cargo:rerun-if-changed=src/platform/windows/shortcuts.cpp");
+    // cc::Build::new()
+    //     .cpp(true)
+    //     .file("src/platform/windows/shortcuts.cpp")
+    //     .define("UNICODE", None)   
+    //     .define("_UNICODE", None)  
+    //     .compile("lib_shortcuts");
+    // println!("cargo:rerun-if-changed=src/platform/windows/shortcuts.cpp");
 
     let ver = env!("CARGO_PKG_VERSION");
     let ver = semver::Version::parse(&ver).unwrap();

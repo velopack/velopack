@@ -36,7 +36,7 @@ memmap2 = "0.9"
 pretty-bytes-rust = "0.3"
 xml = "0.8"
 os_info = { git = "https://github.com/stanislav-tkach/os_info.git", branch = "master", default-features = false } # public releases don't yet have processor arch info
-winsafe = { git = "https://github.com/caesay/winsafe.git", branch = "cs/persistfile-and-lnk", features = [
+winsafe = { git = "https://github.com/caesay/winsafe.git", branch = "cs/only-ipersistfile", features = [
     "kernel",
     "version",
     "user",
@@ -90,8 +90,9 @@ remove_dir_all = { git = "https://github.com/caesay/remove_dir_all.git", feature
 glob = "0.3"
 normpath = "1.0.1"
 codesign-verify = { git = "https://github.com/caesay/codesign-verify-rs.git" }
+com = "0.2.0"
+widestring = "1.0.2"
 
 [build-dependencies]
 winres = "0.1"
 semver = "1.0"
-cc = "1.0"
