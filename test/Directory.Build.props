@@ -30,8 +30,8 @@
 
   <PropertyGroup>
     <CoverletOutputFormat>json,opencover</CoverletOutputFormat>
-    <CoverletOutput>..\coverage\</CoverletOutput>
-    <MergeWith>..\coverage\coverage.json</MergeWith>
+    <CoverletOutput>..\</CoverletOutput>
+    <MergeWith>..\coverage.json</MergeWith>
     <Include>[Squirrel*]*</Include>
     <Exclude>[Squirrel.*.Tests]*</Exclude>
     <CollectCoverage>true</CollectCoverage>

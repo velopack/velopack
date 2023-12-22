@@ -25,9 +25,7 @@ public class HelperFile
         Log = logger;
     }
 
-#if DEBUG
     public static string FindTestFile(string toFind) => FindHelperFile(toFind, throwWhenNotFound: true);
-#endif
 
     public static void AddSearchPath(params string[] pathParts)
     {
