@@ -6,11 +6,33 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
+      - uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
-      - name: Setup .NET 8
+      - name: Install .NET 6
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 6.0.x
+
+      - name: Install .NET 8
         uses: actions/setup-dotnet@v1
         with:
           dotnet-version: 8.0.x
