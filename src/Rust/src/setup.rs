@@ -324,10 +324,11 @@ fn install_app(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::mp
     }
 
     info!("Creating start menu shortcut...");
-    let _comguard = w::CoInitializeEx(co::COINIT::APARTMENTTHREADED)?;
     let startmenu = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::StartMenu, co::KF::DONT_UNEXPAND, None)?;
     let lnk_path = Path::new(&startmenu).join("Programs").join(format!("{}.lnk", &app.title));
-    platform::create_lnk(&lnk_path.to_string_lossy(), &main_exe_path, &current_path)?;
+    if let Err(e) = platform::create_lnk(&lnk_path.to_string_lossy(), &main_exe_path, &current_path) {
+        warn!("Failed to create start menu shortcut: {}", e);
+    }
 
     info!("Starting process install hook: \"{}\" --squirrel-install {}", main_exe_path, &app.version);
     let args = vec!["--squirrel-install", &app.version];

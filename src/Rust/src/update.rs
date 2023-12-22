@@ -203,15 +203,15 @@ fn uninstall(_matches: &ArgMatches, log_file: &PathBuf) -> Result<()> {
         // in case the uninstall hook left running processes
         let _ = platform::kill_processes_in_directory(&root_path);
 
+        if let Err(e) = platform::remove_all_shortcuts_for_root_dir(&root_path) {
+            error!("Unable to remove shortcuts ({}).", e);
+            // finished_with_errors = true;
+        }
+
         info!("Removing directory '{}'", root_path.to_string_lossy());
         if let Err(e) = util::retry_io(|| remove_dir_all::remove_dir_containing_current_executable()) {
             error!("Unable to remove directory, some files may be in use ({}).", e);
             finished_with_errors = true;
-        }
-
-        if let Err(e) = platform::remove_all_for_root_dir(&root_path) {
-            error!("Unable to remove shortcuts ({}).", e);
-            // finished_with_errors = true;
         }
 
         if let Err(e) = app.remove_uninstall_entry() {

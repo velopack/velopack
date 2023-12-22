@@ -32,14 +32,14 @@ fn _resolve_lnk(link_path: &str) -> Result<(String, String)> {
     let flags_with_timeout = co::SLR::ANY_MATCH | co::SLR::NO_UI | unsafe { co::SLR::from_raw(1 << 16) };
     if let Err(e) = me.Resolve(&w::HWND::NULL, flags_with_timeout) {
         // this happens if the target path is missing and the link is broken
-        error!("Failed to resolve link: {:?}", e);
+        warn!("Failed to resolve link {} ({:?})", link_path, e);
     }
     let path = me.GetPath(None, co::SLGP::UNCPRIORITY)?;
     let workdir = me.GetWorkingDirectory()?;
     Ok((path, workdir))
 }
 
-pub fn remove_all_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<()> {
+pub fn remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<()> {
     let _comguard = w::CoInitializeEx(co::COINIT::APARTMENTTHREADED)?;
     let root_dir = root_dir.as_ref();
     info!("Searching for shortcuts containing root: '{}'", root_dir.to_string_lossy());
@@ -108,7 +108,7 @@ fn shortcut_full_integration_test() {
     assert_eq!(target_out, target);
     assert_eq!(work_out, work);
 
-    remove_all_for_root_dir(root).unwrap();
+    remove_all_shortcuts_for_root_dir(root).unwrap();
     assert!(!link_location.exists());
 }
 
