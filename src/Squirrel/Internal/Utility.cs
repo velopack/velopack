@@ -345,6 +345,7 @@ namespace Squirrel
         /// <param name="path">The path of the file system entity to delete.</param>
         /// <param name="throwOnFailure">Whether this function should throw if the delete fails.</param>
         /// <param name="renameFirst">Try to rename this object first before deleting. Can help prevent partial delete of folders.</param>
+        /// <param name="logger">Logger for diagnostic messages.</param>
         /// <returns>True if the file system object was deleted, false otherwise.</returns>
         public static bool DeleteFileOrDirectoryHard(string path, bool throwOnFailure = true, bool renameFirst = false, ILogger logger = null)
         {

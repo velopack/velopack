@@ -21,6 +21,15 @@ namespace Squirrel
 
         public virtual bool IsInstalled => Locator.CurrentlyInstalledVersion != null;
 
+        public virtual bool IsPendingRestart {
+            get {
+                var latestLocal = Locator.GetLatestLocalPackage();
+                if (latestLocal != null && latestLocal.Version > CurrentVersion)
+                    return true;
+                return false;
+            }
+        }
+
         public virtual SemanticVersion CurrentVersion => Locator.CurrentlyInstalledVersion;
 
         protected IUpdateSource Source { get; }
@@ -189,9 +198,20 @@ namespace Squirrel
                 File.Delete(completeFile);
                 File.Move(incompleteFile, completeFile);
                 Log.Info("Full release download complete. Package moved to: " + completeFile);
+                progress(100);
             } finally {
                 CleanIncompleteAndDeltaPackages();
             }
+        }
+
+        public void ExitAndApplyUpdates()
+        {
+
+        }
+
+        public void WaitForExitAndApplyUpdates(bool restart, string[] arguments = null)
+        {
+            var updateArgs = new string[]{ "--update" };
         }
 
         protected virtual async Task DownloadAndApplyDeltaUpdates(string extractedBasePackage, UpdateInfo updates, Action<int> progress)
