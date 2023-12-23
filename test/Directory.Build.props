@@ -11,9 +11,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
 
     <!-- Coverage -->
-    <CoverletOutputFormat>json,opencover</CoverletOutputFormat>
-    <CoverletOutput>..\</CoverletOutput>
-    <MergeWith>..\coverage.json</MergeWith>
+    <CoverletOutputFormat>opencover</CoverletOutputFormat>
+    <CoverletOutput>..\coverage.$(MSBuildProjectName).xml</CoverletOutput>
     <Include>[Squirrel*]*</Include>
     <Exclude>[Squirrel.*.Tests]*</Exclude>
     <CollectCoverage>true</CollectCoverage>

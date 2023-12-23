@@ -1,4 +1,6 @@
 ﻿
+using System;
+using System.Data.Common;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.Versioning;
@@ -224,7 +226,7 @@ public class WindowsPackTests
         var setupPath1 = Path.Combine(tmpReleaseDir, $"{id}-Setup-[win-x64].exe");
         Assert.True(File.Exists(setupPath1));
 
-        RunProcess(setupPath1, new[] { "--nocolor", "--silent", "--installto", tmpInstallDir }, Environment.CurrentDirectory, logger);
+        RunProcessNoCoverage(setupPath1, new[] { "--nocolor", "--silent", "--installto", tmpInstallDir }, Environment.CurrentDirectory, logger);
 
         var updatePath = Path.Combine(tmpInstallDir, "Update.exe");
         Assert.True(File.Exists(updatePath));
@@ -251,7 +253,7 @@ public class WindowsPackTests
         var date = DateTime.Now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         Assert.Equal(date, installDate.Trim('\0'));
 
-        RunProcess(updatePath, new string[] { "--nocolor", "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
+        RunProcessNoCoverage(updatePath, new string[] { "--nocolor", "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
 
         Assert.False(File.Exists(shortcutPath));
         Assert.False(File.Exists(appPath));
@@ -275,7 +277,7 @@ public class WindowsPackTests
 
         // install app
         var setupPath1 = Path.Combine(releaseDir, $"{TEST_APP_ID}-Setup-[win-x64].exe");
-        RunProcess(setupPath1, new string[] { "--nocolor", "--silent", "--installto", installDir }, Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
+        RunProcessNoCoverage(setupPath1, new string[] { "--nocolor", "--silent", "--installto", installDir }, Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
 
         // check app installed correctly
         var appPath = Path.Combine(installDir, "current", "TestApp.exe");
@@ -288,7 +290,7 @@ public class WindowsPackTests
 
         // check app output
         var chk1test = RunProcess(appPath, new string[] { "test" }, installDir, logger);
-        Assert.Equal("version 1 test", chk1test);
+        Assert.EndsWith(Environment.NewLine + "version 1 test", chk1test);
         var chk1version = RunProcess(appPath, new string[] { "version" }, installDir, logger);
         Assert.EndsWith(Environment.NewLine + "1.0.0", chk1version);
         var chk1check = RunProcess(appPath, new string[] { "check", releaseDir }, installDir, logger);
@@ -315,7 +317,7 @@ public class WindowsPackTests
 
         // check app output
         var chk3test = RunProcess(appPath, new string[] { "test" }, installDir, logger);
-        Assert.Equal("version 3 test", chk3test);
+        Assert.EndsWith(Environment.NewLine + "version 3 test", chk3test);
         var chk3version = RunProcess(appPath, new string[] { "version" }, installDir, logger);
         Assert.EndsWith(Environment.NewLine + "3.0.0", chk3version);
         var ch3check2 = RunProcess(appPath, new string[] { "check", releaseDir }, installDir, logger);
@@ -336,13 +338,60 @@ public class WindowsPackTests
 
         // uninstall
         var updatePath = Path.Combine(installDir, "Update.exe");
-        RunProcess(updatePath, new string[] { "--nocolor", "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
+        RunProcessNoCoverage(updatePath, new string[] { "--nocolor", "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
         logger.Info("TEST: uninstalled / complete");
     }
 
     const string TEST_APP_ID = "Test.Squirrel-App";
 
     private string RunProcess(string exe, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
+    {
+
+        var outputfile = GetPath($"coverage.runprocess.{RandomString(8)}.xml");
+
+        var psi = new ProcessStartInfo("dotnet-coverage");
+        psi.WorkingDirectory = workingDir;
+        psi.CreateNoWindow = true;
+        psi.RedirectStandardOutput = true;
+        psi.RedirectStandardError = true;
+
+        psi.ArgumentList.Add("collect");
+        psi.ArgumentList.Add("-o");
+        psi.ArgumentList.Add(outputfile);
+        psi.ArgumentList.Add("-f");
+        psi.ArgumentList.Add("xml");
+        psi.ArgumentList.Add(exe);
+        psi.ArgumentList.AddRange(args);
+
+        var p = Process.Start(psi);
+
+        StringBuilder sb = new StringBuilder();
+        p.BeginErrorReadLine();
+        p.BeginOutputReadLine();
+        p.OutputDataReceived += (s, e) => { sb.AppendLine(e.Data); logger.Debug(e.Data); };
+        p.ErrorDataReceived += (s, e) => { sb.AppendLine(e.Data); logger.Debug(e.Data); };
+        p.WaitForExit();
+
+        if (exitCode != null)
+            Assert.Equal(exitCode, p.ExitCode);
+
+        return String.Join(Environment.NewLine,
+            sb.ToString()
+                .Split('\n')
+                .Where(l => !l.Contains("Code coverage results"))
+                .Select(l => l.Trim())
+            ).Trim();
+    }
+
+    private static Random _random = new Random();
+    private static string RandomString(int length)
+    {
+        string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".ToLower();
+        return new string(Enumerable.Repeat(chars, length)
+            .Select(s => s[_random.Next(s.Length)]).ToArray());
+    }
+
+    private string RunProcessNoCoverage(string exe, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
     {
         var psi = new ProcessStartInfo(exe);
         psi.WorkingDirectory = workingDir;
@@ -373,7 +422,7 @@ public class WindowsPackTests
         var oldText = File.ReadAllText(testStringFile);
         File.WriteAllText(testStringFile, $"class Const {{ public const string TEST_STRING = \"{testString}\"; }}");
         var args = new string[] { "publish", "--no-self-contained", "-c", "Release", "-r", "win-x64", "-o", "publish" };
-        RunProcess("dotnet", args, projDir, logger);
+        RunProcessNoCoverage("dotnet", args, projDir, logger);
         File.WriteAllText(testStringFile, oldText);
 
         var options = new WindowsPackOptions {

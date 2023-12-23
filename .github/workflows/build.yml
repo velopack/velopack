@@ -37,6 +37,11 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Install .NET Tools
+        run: |
+          dotnet tool install --global nbgv
+          dotnet tool install --global dotnet-coverage
+
       - name: Install Rust
         run: rustup update stable
 
@@ -64,7 +69,7 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          files: ./test/coverage.rust.json,./test/coverage.opencover.xml
+          files: ./test/coverage.*
           fail_ci_if_error: true
 
       - name: Upload Artifacts
