@@ -215,12 +215,7 @@ namespace Squirrel
                 WorkingDirectory = Path.GetDirectoryName(Locator.UpdateExePath),
             };
 
-#if NET5_0_OR_GREATER
-            var args = psi.ArgumentList;
-#else
             var args = new List<string>();
-#endif
-
             if (silent) args.Add("--silent");
             args.Add("apply");
             args.Add("--wait");
@@ -239,9 +234,8 @@ namespace Squirrel
                 }
             }
 
-#if !NET5_0_OR_GREATER
-            psi.Arguments = String.Join(" ", args);
-#endif
+            psi.AppendArgumentListSafe(args, out var debugArgs);
+            Log.Debug($"Restarting app to apply updates. Running: {psi.FileName} {debugArgs}");
 
             var p = Process.Start(psi);
             Thread.Sleep(300);
@@ -251,6 +245,7 @@ namespace Squirrel
             if (p.HasExited) {
                 throw new Exception($"Update.exe process exited too soon ({p.ExitCode}).");
             }
+            Log.Info("Update.exe apply triggered successfully.");
         }
 
         protected virtual async Task DownloadAndApplyDeltaUpdates(string extractedBasePackage, UpdateInfo updates, Action<int> progress)

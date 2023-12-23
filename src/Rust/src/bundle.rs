@@ -139,9 +139,9 @@ impl BundleInfo<'_> {
         None
     }
 
-    pub fn extract_zip_idx_to_path<T: AsRef<str>>(&self, index: usize, path: T) -> Result<()> {
+    pub fn extract_zip_idx_to_path<T: AsRef<Path>>(&self, index: usize, path: T) -> Result<()> {
         let path = path.as_ref();
-        debug!("Extracting zip file to path: {}", path);
+        debug!("Extracting zip file to path: {}", path.to_string_lossy());
         let p = PathBuf::from(path);
         let parent = p.parent().unwrap();
 
@@ -160,7 +160,7 @@ impl BundleInfo<'_> {
         Ok(())
     }
 
-    pub fn extract_zip_predicate_to_path<F, T: AsRef<str>>(&self, predicate: F, path: T) -> Result<usize>
+    pub fn extract_zip_predicate_to_path<F, T: AsRef<Path>>(&self, predicate: F, path: T) -> Result<usize>
     where
         F: Fn(&str) -> bool,
     {
@@ -182,6 +182,11 @@ impl BundleInfo<'_> {
         let re = Regex::new(r"lib[\\\/][^\\\/]*[\\\/]").unwrap();
         let stub_regex = Regex::new("_ExecutionStub.exe$").unwrap();
         let updater_idx = self.find_zip_file(|name| name.ends_with("Squirrel.exe"));
+
+        let nuspec_path = current_path.join("sq.version");
+        let _ = self
+            .extract_zip_predicate_to_path(|name| name.ends_with(".nuspec"), nuspec_path)
+            .map_err(|_| anyhow!("This package is missing a nuspec manifest."))?;
 
         for (i, key) in files.iter().enumerate() {
             if Some(i) == updater_idx || !re.is_match(key) || key.ends_with("/") || key.ends_with("\\") {

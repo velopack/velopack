@@ -4,18 +4,18 @@ using Squirrel.Locators;
 try {
     if (args.Length >= 1 && args[0].StartsWith("--squirrel")) {
         // squirrel hooks
-        File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "args.txt"), String.Join(" ", args) + Environment.NewLine);
+        File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "..", "args.txt"), String.Join(" ", args) + Environment.NewLine);
         return 0;
     }
 
     if (args.Length == 1 && args[0] == "version") {
         var locator = SquirrelLocator.GetDefault(new ConsoleLogger());
-        Console.WriteLine(locator.CurrentlyInstalledVersion);
+        Console.WriteLine(locator.CurrentlyInstalledVersion?.ToString() ?? "unknown_version");
         return 0;
     }
 
     if (args.Length == 1 && args[0] == "test") {
-        Console.WriteLine(Const.TEST_STRING);
+        Console.WriteLine(Const.TEST_STRING ?? "no_test_string");
         return 0;
     }
 

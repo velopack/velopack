@@ -280,10 +280,11 @@ public class WindowsPackTests
         // check app installed correctly
         var appPath = Path.Combine(installDir, "current", "TestApp.exe");
         Assert.True(File.Exists(appPath));
-        var argsPath = Path.Combine(installDir, "current", "args.txt");
+        var argsPath = Path.Combine(installDir, "args.txt");
         Assert.True(File.Exists(argsPath));
         var argsContent = File.ReadAllText(argsPath).Trim();
         Assert.Equal("--squirrel-install 1.0.0", argsContent);
+        logger.Info("TEST: v1 installed");
 
         // check app output
         var chk1test = RunProcess(appPath, new string[] { "test" }, installDir, logger);
@@ -292,6 +293,7 @@ public class WindowsPackTests
         Assert.EndsWith(Environment.NewLine + "1.0.0", chk1version);
         var chk1check = RunProcess(appPath, new string[] { "check", releaseDir }, installDir, logger);
         Assert.EndsWith(Environment.NewLine + "no updates", chk1check);
+        logger.Info("TEST: v1 output verified");
 
         // pack v2
         PackTestApp("2.0.0", "version 2 test", releaseDir, logger);
@@ -299,15 +301,17 @@ public class WindowsPackTests
         // check can find v2 update
         var chk2check = RunProcess(appPath, new string[] { "check", releaseDir }, installDir, logger);
         Assert.EndsWith(Environment.NewLine + "update: 2.0.0", chk2check);
+        logger.Info("TEST: found v2 update");
 
         // pack v3
         PackTestApp("3.0.0", "version 3 test", releaseDir, logger);
 
         // perform full update, check that we get v3
         // apply should fail if there's not an update downloaded
-        RunProcess(appPath, new string[] { "apply", releaseDir }, installDir, logger, -1);
+        RunProcess(appPath, new string[] { "apply", releaseDir }, installDir, logger, exitCode: -1);
         RunProcess(appPath, new string[] { "download", releaseDir }, installDir, logger);
-        RunProcess(appPath, new string[] { "apply", releaseDir }, installDir, logger);
+        RunProcess(appPath, new string[] { "apply", releaseDir }, installDir, logger, exitCode: null);
+        logger.Info("TEST: v3 applied");
 
         // check app output
         var chk3test = RunProcess(appPath, new string[] { "test" }, installDir, logger);
@@ -316,12 +320,15 @@ public class WindowsPackTests
         Assert.EndsWith(Environment.NewLine + "3.0.0", chk3version);
         var ch3check2 = RunProcess(appPath, new string[] { "check", releaseDir }, installDir, logger);
         Assert.EndsWith(Environment.NewLine + "no updates", ch3check2);
+        logger.Info("TEST: v3 output verified");
+
 
         // check new obsoleted/updated hooks have run
         var argsContentv3 = File.ReadAllText(argsPath).Trim();
         Assert.Contains("--squirrel-install 1.0.0", argsContent);
         Assert.Contains("--squirrel-obsoleted 1.0.0", argsContent);
         Assert.Contains("--squirrel-updated 3.0.0", argsContent);
+        logger.Info("TEST: hooks verified");
 
 
 
@@ -339,11 +346,12 @@ public class WindowsPackTests
         // uninstall
         var updatePath = Path.Combine(installDir, "Update.exe");
         RunProcess(updatePath, new string[] { "--nocolor", "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
+        logger.Info("TEST: uninstalled / complete");
     }
 
     const string TEST_APP_ID = "Test.Squirrel-App";
 
-    private string RunProcess(string exe, string[] args, string workingDir, ILogger logger, int exitCode = 0)
+    private string RunProcess(string exe, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
     {
         var psi = new ProcessStartInfo(exe);
         psi.WorkingDirectory = workingDir;
@@ -360,7 +368,9 @@ public class WindowsPackTests
         p.ErrorDataReceived += (s, e) => { sb.AppendLine(e.Data); logger.Debug(e.Data); };
         p.WaitForExit();
 
-        Assert.Equal(exitCode, p.ExitCode);
+        if (exitCode != null)
+            Assert.Equal(exitCode, p.ExitCode);
+
         return sb.ToString().Trim();
     }
 

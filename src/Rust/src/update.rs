@@ -185,6 +185,10 @@ fn apply<'a>(matches: &ArgMatches) -> Result<()> {
     info!("    Exe Name: {:?}", exe_name);
     info!("    Exe Args: {:?}", exe_args);
 
+    if wait_for_parent {
+        let _ = platform::wait_for_parent_to_exit(60_000); // 1 minute
+    }
+
     if let Err(e) = apply_package(package) {
         error!("Error applying package: {}", e);
         if !restart {
@@ -193,7 +197,7 @@ fn apply<'a>(matches: &ArgMatches) -> Result<()> {
     }
 
     if restart {
-        _start(wait_for_parent, exe_name, exe_args, None)?;
+        _start(false, exe_name, exe_args, None)?;
     }
 
     Ok(())
@@ -239,6 +243,8 @@ fn apply_package<'a>(package: Option<&PathBuf>) -> Result<()> {
     if found_version <= app.version {
         bail!("Latest package found is {}, which is not newer than current version {}.", found_version, app.version);
     }
+
+    info!("Applying package to current: {}", found_version);
 
     let current_dir = app.get_current_path(&root_path);
     replace_dir_with_rollback(current_dir.clone(), || {
