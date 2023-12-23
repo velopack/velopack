@@ -358,7 +358,7 @@ public class WindowsPackTests
         psi.ArgumentList.Add("-o");
         psi.ArgumentList.Add(outputfile);
         psi.ArgumentList.Add("-f");
-        psi.ArgumentList.Add("xml");
+        psi.ArgumentList.Add("cobertura");
         psi.ArgumentList.Add(exe);
         psi.ArgumentList.AddRange(args);
 

@@ -11,7 +11,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
 
     <!-- Coverage -->
-    <CoverletOutputFormat>opencover</CoverletOutputFormat>
+    <CoverletOutputFormat>cobertura</CoverletOutputFormat>
     <CoverletOutput>..\coverage.$(MSBuildProjectName).xml</CoverletOutput>
     <Include>[Squirrel*]*</Include>
     <Exclude>[Squirrel.*.Tests]*</Exclude>

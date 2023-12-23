@@ -52,7 +52,7 @@ jobs:
 
       - name: Test Rust
         working-directory: src/Rust
-        run: cargo llvm-cov --codecov --output-path ../../test/coverage.rust.json
+        run: cargo llvm-cov --cobertura --output-path ../../test/coverage.rust.xml
 
       - name: Build .NET
         run: dotnet build -c Release
@@ -67,6 +67,8 @@ jobs:
         with:
           directory: ./test
           fail_ci_if_error: true
+          verbose: true
+
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
