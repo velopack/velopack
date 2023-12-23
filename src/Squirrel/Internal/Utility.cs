@@ -287,7 +287,7 @@ namespace Squirrel
 
         private static string GetNextTempName(string tempDir)
         {
-            for (int i = 1; i < 10000; i++) {
+            for (int i = 1; i < 1000; i++) {
                 string name = "temp." + i;
                 var target = Path.Combine(tempDir, name);
 
@@ -311,7 +311,7 @@ namespace Squirrel
             }
 
             throw new Exception(
-                "Unable to find free temp path. Has the temp directory exceeded it's maximum number of items? (10000)");
+                "Unable to find free temp path. Has the temp directory exceeded it's maximum number of items? (1000)");
         }
 
         public static IDisposable GetTempDirectory(out string newTempDirectory)

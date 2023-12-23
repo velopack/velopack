@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -21,7 +22,7 @@ namespace Squirrel
 
         public virtual bool IsInstalled => Locator.CurrentlyInstalledVersion != null;
 
-        public virtual bool IsPendingRestart {
+        public virtual bool IsUpdatePendingRestart {
             get {
                 var latestLocal = Locator.GetLatestLocalPackage();
                 if (latestLocal != null && latestLocal.Version > CurrentVersion)
@@ -38,18 +39,8 @@ namespace Squirrel
 
         protected ISquirrelLocator Locator { get; }
 
-        public UpdateManager(string urlOrPath, string channel = null, ILogger logger = null)
-            : this(urlOrPath, channel, logger, null)
-        {
-        }
-
         public UpdateManager(string urlOrPath, string channel = null, ILogger logger = null, ISquirrelLocator locator = null)
             : this(CreateSimpleSource(urlOrPath, channel, logger), logger, locator)
-        {
-        }
-
-        public UpdateManager(IUpdateSource source, ILogger logger = null)
-            : this(source, logger, null)
         {
         }
 
@@ -117,13 +108,13 @@ namespace Squirrel
             return new UpdateInfo(latestRemoteFull, latestLocalFull, deltas);
         }
 
-        public void DownloadAndPrepareUpdates(UpdateInfo updates, Action<int> progress = null, bool ignoreDeltas = false)
+        public void DownloadUpdates(UpdateInfo updates, Action<int> progress = null, bool ignoreDeltas = false)
         {
-            DownloadAndPrepareUpdatesAsync(updates, progress, ignoreDeltas)
+            DownloadUpdatesAsync(updates, progress, ignoreDeltas)
                 .ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
-        public virtual async Task DownloadAndPrepareUpdatesAsync(
+        public virtual async Task DownloadUpdatesAsync(
             UpdateInfo updates, Action<int> progress = null, bool ignoreDeltas = false, CancellationToken cancelToken = default)
         {
             try {
@@ -204,14 +195,62 @@ namespace Squirrel
             }
         }
 
-        public void ExitAndApplyUpdates()
+        public void ApplyUpdatesAndExit(bool silent = false)
         {
-
+            RunApplyUpdates(silent, false, null);
+            Environment.Exit(0);
         }
 
-        public void WaitForExitAndApplyUpdates(bool restart, string[] arguments = null)
+        public void ApplyUpdatesAndRestart(bool silent = false, string[] restartArgs = null)
         {
-            var updateArgs = new string[]{ "--update" };
+            RunApplyUpdates(silent, true, restartArgs);
+            Environment.Exit(0);
+        }
+
+        protected virtual void RunApplyUpdates(bool silent, bool restart, string[] restartArgs)
+        {
+            var psi = new ProcessStartInfo() {
+                CreateNoWindow = true,
+                FileName = Locator.UpdateExePath,
+                WorkingDirectory = Path.GetDirectoryName(Locator.UpdateExePath),
+            };
+
+#if NET5_0_OR_GREATER
+            var args = psi.ArgumentList;
+#else
+            var args = new List<string>();
+#endif
+
+            if (silent) args.Add("--silent");
+            args.Add("apply");
+            args.Add("--wait");
+            if (restart) args.Add("--restart");
+
+            try {
+                args.Add(Locator.ThisExeRelativePath); // optional
+            } catch (Exception ex) {
+                Log.Error(ex, "Failed to find relative path to this executable.");
+            }
+
+            if (restart && restartArgs != null && restartArgs.Length > 0) {
+                args.Add("--");
+                foreach (var a in restartArgs) {
+                    args.Add(a);
+                }
+            }
+
+#if !NET5_0_OR_GREATER
+            psi.Arguments = String.Join(" ", args);
+#endif
+
+            var p = Process.Start(psi);
+            Thread.Sleep(300);
+            if (p == null) {
+                throw new Exception("Failed to launch Update.exe process.");
+            }
+            if (p.HasExited) {
+                throw new Exception($"Update.exe process exited too soon ({p.ExitCode}).");
+            }
         }
 
         protected virtual async Task DownloadAndApplyDeltaUpdates(string extractedBasePackage, UpdateInfo updates, Action<int> progress)

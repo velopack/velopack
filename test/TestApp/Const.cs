@@ -1,0 +1,1 @@
+class Const { public const string TEST_STRING = "Hello, World!"; }

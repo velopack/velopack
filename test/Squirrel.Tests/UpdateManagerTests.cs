@@ -172,7 +172,7 @@ namespace Squirrel.Tests
             Assert.True(SemanticVersion.Parse(version) == info.TargetFullRelease.Version);
             Assert.Equal(0, info.DeltasToTarget.Count());
 
-            um.DownloadAndPrepareUpdates(info);
+            um.DownloadUpdates(info);
 
             var target = Path.Combine(packagesDir, $"{id}-{version}-full.nupkg");
             Assert.True(File.Exists(target));
@@ -203,7 +203,7 @@ namespace Squirrel.Tests
             Assert.Equal(3, info.DeltasToTarget.Count());
             Assert.NotNull(info.BaseRelease);
 
-            await um.DownloadAndPrepareUpdatesAsync(info);
+            await um.DownloadUpdatesAsync(info);
             var target = Path.Combine(packagesDir, $"{id}-{toVersion}-full.nupkg");
             Assert.True(File.Exists(target));
         }

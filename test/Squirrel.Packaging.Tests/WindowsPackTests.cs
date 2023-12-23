@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Xml.Linq;
+using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using NuGet.Packaging;
 using Squirrel.Compression;
@@ -223,9 +224,7 @@ public class WindowsPackTests
         var setupPath1 = Path.Combine(tmpReleaseDir, $"{id}-Setup-[win-x64].exe");
         Assert.True(File.Exists(setupPath1));
 
-        var result = PlatformUtil.InvokeProcess(setupPath1, new string[] { "--nocolor", "--silent", "--installto", tmpInstallDir }, Environment.CurrentDirectory, CancellationToken.None);
-        logger.Info(result.StdOutput);
-        Assert.Equal(0, result.ExitCode);
+        RunProcess(setupPath1, new[] { "--nocolor", "--silent", "--installto", tmpInstallDir }, Environment.CurrentDirectory, logger);
 
         var updatePath = Path.Combine(tmpInstallDir, "Update.exe");
         Assert.True(File.Exists(updatePath));
@@ -252,9 +251,7 @@ public class WindowsPackTests
         var date = DateTime.Now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         Assert.Equal(date, installDate.Trim('\0'));
 
-        var result2 = PlatformUtil.InvokeProcess(updatePath, new string[] { "--nocolor", "--silent", "--uninstall" }, Environment.CurrentDirectory, CancellationToken.None);
-        logger.Info(result2.StdOutput);
-        Assert.Equal(0, result2.ExitCode);
+        RunProcess(updatePath, new string[] { "--nocolor", "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
 
         Assert.False(File.Exists(shortcutPath));
         Assert.False(File.Exists(appPath));
@@ -263,5 +260,144 @@ public class WindowsPackTests
             .OpenSubKey(uninstallRegSubKey + "\\" + id, RegistryKeyPermissionCheck.ReadSubTree)) {
             Assert.Null(key2);
         }
+    }
+
+    [SkippableFact]
+    public void TestPackedAppCanDeltaUpdateToLatest()
+    {
+        Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
+        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
+        using var _1 = Utility.GetTempDirectory(out var releaseDir);
+        using var _2 = Utility.GetTempDirectory(out var installDir);
+
+        // pack v1
+        PackTestApp("1.0.0", "version 1 test", releaseDir, logger);
+
+        // install app
+        var setupPath1 = Path.Combine(releaseDir, $"{TEST_APP_ID}-Setup-[win-x64].exe");
+        RunProcess(setupPath1, new string[] { "--nocolor", "--silent", "--installto", installDir }, Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
+
+        // check app installed correctly
+        var appPath = Path.Combine(installDir, "current", "TestApp.exe");
+        Assert.True(File.Exists(appPath));
+        var argsPath = Path.Combine(installDir, "current", "args.txt");
+        Assert.True(File.Exists(argsPath));
+        var argsContent = File.ReadAllText(argsPath).Trim();
+        Assert.Equal("--squirrel-install 1.0.0", argsContent);
+
+        // check app output
+        var chk1test = RunProcess(appPath, new string[] { "test" }, installDir, logger);
+        Assert.Equal("version 1 test", chk1test);
+        var chk1version = RunProcess(appPath, new string[] { "version" }, installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "1.0.0", chk1version);
+        var chk1check = RunProcess(appPath, new string[] { "check", releaseDir }, installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "no updates", chk1check);
+
+        // pack v2
+        PackTestApp("2.0.0", "version 2 test", releaseDir, logger);
+
+        // check can find v2 update
+        var chk2check = RunProcess(appPath, new string[] { "check", releaseDir }, installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "update: 2.0.0", chk2check);
+
+        // pack v3
+        PackTestApp("3.0.0", "version 3 test", releaseDir, logger);
+
+        // perform full update, check that we get v3
+        // apply should fail if there's not an update downloaded
+        RunProcess(appPath, new string[] { "apply", releaseDir }, installDir, logger, -1);
+        RunProcess(appPath, new string[] { "download", releaseDir }, installDir, logger);
+        RunProcess(appPath, new string[] { "apply", releaseDir }, installDir, logger);
+
+        // check app output
+        var chk3test = RunProcess(appPath, new string[] { "test" }, installDir, logger);
+        Assert.Equal("version 3 test", chk3test);
+        var chk3version = RunProcess(appPath, new string[] { "version" }, installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "3.0.0", chk3version);
+        var ch3check2 = RunProcess(appPath, new string[] { "check", releaseDir }, installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "no updates", ch3check2);
+
+        // check new obsoleted/updated hooks have run
+        var argsContentv3 = File.ReadAllText(argsPath).Trim();
+        Assert.Contains("--squirrel-install 1.0.0", argsContent);
+        Assert.Contains("--squirrel-obsoleted 1.0.0", argsContent);
+        Assert.Contains("--squirrel-updated 3.0.0", argsContent);
+
+
+
+        //var ch3download = RunProcess(appPath, new string[] { "check", releaseDir }, installDir, logger);
+        //logger.Info(ch3download.StdOutput);
+        //Assert.Equal(0, ch3download.ExitCode);
+        //Assert.Equal("update: 3.0.0", ch3download.StdOutput.Trim());
+        //var ch3apply = RunProcess(appPath, new string[] { "check", releaseDir }, installDir, logger);
+        //logger.Info(ch3apply.StdOutput);
+        //Assert.Equal(0, ch3apply.ExitCode);
+        //Assert.Equal("update: 3.0.0", ch3apply.StdOutput.Trim());
+
+
+
+        // uninstall
+        var updatePath = Path.Combine(installDir, "Update.exe");
+        RunProcess(updatePath, new string[] { "--nocolor", "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
+    }
+
+    const string TEST_APP_ID = "Test.Squirrel-App";
+
+    private string RunProcess(string exe, string[] args, string workingDir, ILogger logger, int exitCode = 0)
+    {
+        var psi = new ProcessStartInfo(exe);
+        psi.WorkingDirectory = workingDir;
+        psi.CreateNoWindow = true;
+        psi.RedirectStandardOutput = true;
+        psi.RedirectStandardError = true;
+        psi.ArgumentList.AddRange(args);
+        var p = Process.Start(psi);
+
+        StringBuilder sb = new StringBuilder();
+        p.BeginErrorReadLine();
+        p.BeginOutputReadLine();
+        p.OutputDataReceived += (s, e) => { sb.AppendLine(e.Data); logger.Debug(e.Data); };
+        p.ErrorDataReceived += (s, e) => { sb.AppendLine(e.Data); logger.Debug(e.Data); };
+        p.WaitForExit();
+
+        Assert.Equal(exitCode, p.ExitCode);
+        return sb.ToString().Trim();
+    }
+
+    private void PackTestApp(string version, string testString, string releaseDir, ILogger logger)
+    {
+        var projDir = GetPath("TestApp");
+        var testStringFile = Path.Combine(projDir, "Const.cs");
+
+        var oldText = File.ReadAllText(testStringFile);
+        File.WriteAllText(testStringFile, $"class Const {{ public const string TEST_STRING = \"{testString}\"; }}");
+        var args = new string[] { "publish", "--no-self-contained", "-c", "Release", "-r", "win-x64", "-o", "publish" };
+        RunProcess("dotnet", args, projDir, logger);
+        File.WriteAllText(testStringFile, oldText);
+
+        var options = new WindowsPackOptions {
+            EntryExecutableName = "TestApp.exe",
+            ReleaseDir = new DirectoryInfo(releaseDir),
+            PackId = TEST_APP_ID,
+            PackVersion = version,
+            TargetRuntime = RID.Parse("win-x64"),
+            PackDirectory = Path.Combine(projDir, "publish"),
+        };
+
+        var runner = new WindowsPackCommandRunner(logger);
+        runner.Pack(options);
+    }
+
+    private static string GetPath(params string[] paths)
+    {
+        var ret = GetIntegrationTestRootDirectory();
+        return (new FileInfo(paths.Aggregate(ret, Path.Combine))).FullName;
+    }
+
+    private static string GetIntegrationTestRootDirectory()
+    {
+        var st = new StackFrame(true);
+        var di = new DirectoryInfo(Path.Combine(Path.GetDirectoryName(st.GetFileName()), ".."));
+        return di.FullName;
     }
 }

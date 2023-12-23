@@ -21,6 +21,9 @@ namespace Squirrel.Locators
         /// </summary>
         public static SquirrelLocator GetDefault(ILogger logger)
         {
+            if (_current != null)
+                return _current;
+
             if (SquirrelRuntimeInfo.IsWindows)
                 return _current ??= new WindowsSquirrelLocator(logger);
 
@@ -47,6 +50,18 @@ namespace Squirrel.Locators
 
         /// <inheritdoc/>
         public abstract string AppContentDir { get; }
+
+        /// <inheritdoc/>
+        public virtual string ThisExeRelativePath {
+            get {
+                var path = SquirrelRuntimeInfo.EntryExePath;
+                if (path.StartsWith(AppContentDir, StringComparison.OrdinalIgnoreCase)) {
+                    return path.Substring(AppContentDir.Length + 1);
+                } else {
+                    throw new InvalidOperationException(path + " is not contained in " + AppContentDir);
+                }
+            }
+        }
 
         /// <inheritdoc/>
         public abstract SemanticVersion CurrentlyInstalledVersion { get; }

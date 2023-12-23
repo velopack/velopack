@@ -33,6 +33,9 @@ namespace Squirrel.Locators
         /// <summary> The currently installed version of the application, or null if the app is not installed. </summary>
         public SemanticVersion CurrentlyInstalledVersion { get; }
 
+        /// <summary> The path from <see cref="AppContentDir"/> to this executable. </summary>
+        public string ThisExeRelativePath { get; }
+
         /// <summary>
         /// Finds .nupkg files in the PackagesDir and returns a list of ReleaseEntryName objects.
         /// </summary>
