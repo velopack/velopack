@@ -7,7 +7,7 @@ use std::{
     os::windows::process::CommandExt,
     path::{Path, PathBuf},
     process::Command as Process,
-    time::Duration,
+    time::Duration, fs,
 };
 use wait_timeout::ChildExt;
 use windows::{
@@ -20,6 +20,52 @@ use windows::{
 use winsafe::{self as w, co, prelude::*};
 
 use crate::util;
+
+pub fn replace_dir_with_rollback<F, T, P: AsRef<Path>>(path: P, op: F) -> Result<()>
+where
+    F: FnOnce() -> Result<T>,
+{
+    let path = path.as_ref().to_string_lossy().to_string();
+    let mut path_renamed = String::new();
+
+    if !util::is_dir_empty(&path) {
+        path_renamed = format!("{}_{}", path, util::random_string(8));
+        info!("Renaming directory '{}' to '{}' to allow rollback...", path, path_renamed);
+
+        kill_processes_in_directory(&path)
+            .map_err(|z| anyhow!("Failed to stop application ({}), please close the application and try running the installer again.", z))?;
+
+        util::retry_io(|| fs::rename(&path, &path_renamed)).map_err(|z| anyhow!("Failed to rename directory '{}' to '{}' ({}).", path, path_renamed, z))?;
+    }
+
+    remove_dir_all::ensure_empty_dir(&path).map_err(|z| anyhow!("Failed to create clean directory '{}' ({}).", path, z))?;
+
+    if let Err(e) = op() {
+        // install failed, rollback if possible
+        warn!("Rolling back installation... (error was: {:?})", e);
+        if let Err(ex) = kill_processes_in_directory(&path) {
+            warn!("Failed to stop application ({}).", ex);
+        }
+        if !path_renamed.is_empty() {
+            if let Err(ex) = util::retry_io(|| fs::remove_dir_all(&path)) {
+                error!("Failed to remove directory '{}' ({}).", path, ex);
+            }
+            if let Err(ex) = util::retry_io(|| fs::rename(&path_renamed, &path)) {
+                error!("Failed to rename directory '{}' to '{}' ({}).", path_renamed, path, ex);
+            }
+        }
+        return Err(e);
+    } else {
+        // install successful, remove rollback directory if exists
+        if !path_renamed.is_empty() {
+            debug!("Removing rollback directory '{}'.", path_renamed);
+            if let Err(ex) = util::retry_io(|| fs::remove_dir_all(&path_renamed)) {
+                warn!("Failed to remove directory '{}' ({}).", path_renamed, ex);
+            }
+        }
+        return Ok(());
+    }
+}
 
 pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
     info!("Reading parent process information.");

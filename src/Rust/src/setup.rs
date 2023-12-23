@@ -19,7 +19,6 @@ use anyhow::{anyhow, bail, Result};
 use clap::{arg, value_parser, Command};
 use memmap2::Mmap;
 use pretty_bytes_rust::pretty_bytes;
-use regex::Regex;
 use std::{
     env,
     fs::{self, File},
@@ -261,63 +260,23 @@ fn install_app(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::mp
     let updater_path = app.get_update_path(root_path);
     let packages_path = app.get_packages_path(root_path);
     let current_path = app.get_current_path(root_path);
-    let nuspec_path = app.get_nuspec_path(root_path);
     let nupkg_path = app.get_target_nupkg_path(root_path);
     let main_exe_path = app.get_main_exe_path(root_path);
 
     info!("Extracting Update.exe...");
-    let updater_idx = pkg
+    let _ = pkg
         .extract_zip_predicate_to_path(|name| name.ends_with("Squirrel.exe"), updater_path)
         .map_err(|_| anyhow!("This installer is missing a critical binary (Update.exe). Please contact the application author."))?;
     let _ = tx.send(5);
-
-    info!("Extracting bundle manifest...");
-    let _ = pkg
-        .extract_zip_predicate_to_path(|name| name.ends_with(".nuspec"), nuspec_path)
-        .map_err(|_| anyhow!("This installer is missing a nuspec. Please contact the application author."))?;
-    let _ = tx.send(7);
 
     info!("Copying nupkg to packages directory...");
     util::retry_io(|| fs::create_dir_all(&packages_path))?;
     pkg.copy_bundle_to_file(&nupkg_path)?;
     let _ = tx.send(10);
 
-    info!("Extracting {} app files to current directory...", pkg.len());
-    let re = Regex::new(r"lib[\\\/][^\\\/]*[\\\/]").unwrap();
-    let stub_regex = Regex::new("_ExecutionStub.exe$").unwrap();
-
-    let files = pkg.get_file_names()?;
-    let num_files = files.len();
-
-    for (i, key) in files.iter().enumerate() {
-        if i == updater_idx || !re.is_match(key) || key.ends_with("/") || key.ends_with("\\") {
-            info!("    {} Skipped '{}'", i, key);
-            continue;
-        }
-
-        let file_path_in_zip = re.replace(key, "").to_string();
-        let file_path_on_disk = Path::new(&current_path).join(&file_path_in_zip);
-
-        if stub_regex.is_match(&file_path_in_zip) {
-            // let stub_key = stub_regex.replace(&file_path_in_zip, ".exe").to_string();
-            // file_path_on_disk = root_path.join(&stub_key);
-            info!("    {} Skipped Stub (obsolete) '{}'", i, key);
-            continue;
-        }
-
-        let final_path = file_path_on_disk.to_str().unwrap().replace("/", "\\");
-        info!("    {} Extracting '{}' to '{}'", i, key, final_path);
-
-        pkg.extract_zip_idx_to_path(i, &final_path)?;
-
-        let progress = ((i as f32 / num_files as f32) * 80.0) as i16 + 10;
-        let _ = tx.send(progress);
-    }
-
-    let _ = tx.send(90);
-
-    // let folder_size = fs_extra::dir::get_size(&root_path).unwrap();
-    // info!("{} extracted to {}", pretty_bytes(folder_size, None), root_path_str);
+    pkg.extract_lib_contents_to_path(&current_path, |p| {
+        let _ = tx.send(((p as f32) / 100.0 * 80.0 + 10.0) as i16);
+    })?;
 
     if !Path::new(&main_exe_path).exists() {
         bail!("The main executable could not be found in the package. Please contact the application author.");
