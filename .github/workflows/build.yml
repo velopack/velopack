@@ -65,7 +65,7 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          files: ./test/coverage.*
+          directory: ./test
           fail_ci_if_error: true
 
       - name: Upload Artifacts
