@@ -253,7 +253,8 @@ pub fn test_os_returns_true_for_everything_on_windows_11_and_below() {
     assert!(!is_os_version_or_greater("12").unwrap());
 }
 
-pub fn get_processes_running_in_directory(dir: &PathBuf) -> Result<HashMap<u32, PathBuf>> {
+pub fn get_processes_running_in_directory<P: AsRef<Path>>(dir: P) -> Result<HashMap<u32, PathBuf>> {
+    let dir = dir.as_ref();
     let mut oup = HashMap::new();
     let mut hpl = w::HPROCESSLIST::CreateToolhelp32Snapshot(co::TH32CS::SNAPPROCESS, None)?;
     for proc_entry in hpl.iter_processes() {
@@ -287,7 +288,8 @@ pub fn kill_pid(pid: u32) -> Result<()> {
     Ok(())
 }
 
-pub fn kill_processes_in_directory(dir: &PathBuf) -> Result<()> {
+pub fn kill_processes_in_directory<P: AsRef<Path>>(dir: P) -> Result<()> {
+    let dir = dir.as_ref();
     info!("Checking for running processes in: {}", dir.display());
     let processes = get_processes_running_in_directory(dir)?;
     let my_pid = std::process::id();

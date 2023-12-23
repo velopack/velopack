@@ -330,8 +330,9 @@ fn install_app(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::mp
         warn!("Failed to create start menu shortcut: {}", e);
     }
 
-    info!("Starting process install hook: \"{}\" --squirrel-install {}", main_exe_path, &app.version);
-    let args = vec!["--squirrel-install", &app.version];
+    let ver_string = app.version.to_string();
+    info!("Starting process install hook: \"{}\" --squirrel-install {}", &main_exe_path, &ver_string);
+    let args = vec!["--squirrel-install", &ver_string];
     if let Err(e) = platform::run_process_no_console_and_wait(&main_exe_path, args, &current_path, Some(Duration::from_secs(30))) {
         let setup_name = format!("{} Setup {}", app.title, app.version);
         error!("Process install hook failed: {}", e);

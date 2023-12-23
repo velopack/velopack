@@ -5,7 +5,7 @@ use regex::Regex;
 use simplelog::*;
 use std::{
     io::{self},
-    path::PathBuf,
+    path::{PathBuf, Path},
     thread,
     time::Duration,
 };
@@ -53,7 +53,8 @@ pub fn random_string(len: usize) -> String {
     Alphanumeric.sample_string(&mut rand::thread_rng(), len)
 }
 
-pub fn is_dir_empty(path: &PathBuf) -> bool {
+pub fn is_dir_empty<P: AsRef<Path>>(path: P) -> bool {
+    let path = path.as_ref();
     if !path.exists() {
         return true;
     }

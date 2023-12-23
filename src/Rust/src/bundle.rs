@@ -173,6 +173,42 @@ impl BundleInfo<'_> {
         Ok(idx)
     }
 
+    pub fn extract_lib_contents_to_path<P: AsRef<Path>, F: Fn(i16)>(&self, current_path: P, progress: F) -> Result<()> {
+        let current_path = current_path.as_ref();
+        let files = self.get_file_names()?;
+        let num_files = files.len();
+
+        info!("Extracting {} app files to current directory...", num_files);
+        let re = Regex::new(r"lib[\\\/][^\\\/]*[\\\/]").unwrap();
+        let stub_regex = Regex::new("_ExecutionStub.exe$").unwrap();
+        let updater_idx = self.find_zip_file(|name| name.ends_with("Squirrel.exe"));
+
+        for (i, key) in files.iter().enumerate() {
+            if Some(i) == updater_idx || !re.is_match(key) || key.ends_with("/") || key.ends_with("\\") {
+                info!("    {} Skipped '{}'", i, key);
+                continue;
+            }
+
+            let file_path_in_zip = re.replace(key, "").to_string();
+            let file_path_on_disk = Path::new(&current_path).join(&file_path_in_zip);
+
+            if stub_regex.is_match(&file_path_in_zip) {
+                // let stub_key = stub_regex.replace(&file_path_in_zip, ".exe").to_string();
+                // file_path_on_disk = root_path.join(&stub_key);
+                info!("    {} Skipped Stub (obsolete) '{}'", i, key);
+                continue;
+            }
+
+            let final_path = file_path_on_disk.to_str().unwrap().replace("/", "\\");
+            info!("    {} Extracting '{}' to '{}'", i, key, final_path);
+
+            self.extract_zip_idx_to_path(i, &final_path)?;
+            progress(((i as f32 / num_files as f32) * 100.0) as i16);
+        }
+
+        Ok(())
+    }
+
     pub fn read_manifest(&self) -> Result<Manifest> {
         let nuspec_idx = self
             .find_zip_file(|name| name.ends_with(".nuspec"))
@@ -211,10 +247,12 @@ impl BundleInfo<'_> {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, derivative::Derivative, Clone)]
+#[derivative(Default)]
 pub struct Manifest {
     pub id: String,
-    pub version: String,
+    #[derivative(Default(value = "Version::new(0, 0, 0)"))]
+    pub version: Version,
     pub title: String,
     pub authors: String,
     pub description: String,
@@ -254,7 +292,7 @@ impl Manifest {
         let updater_path = self.get_update_path(root_path);
 
         let folder_size = fs_extra::dir::get_size(&root_path).unwrap();
-        let sver = semver::Version::parse(&self.version)?;
+        let sver = &self.version;
         let sver_str = format!("{}.{}.{}", sver.major, sver.minor, sver.patch);
 
         let now = DateTime::now();
@@ -305,7 +343,7 @@ pub fn read_manifest_from_string(xml: &str) -> Result<Manifest> {
                 if el_name == "id" {
                     obj.id = text;
                 } else if el_name == "version" {
-                    obj.version = text;
+                    obj.version = Version::parse(&text)?;
                 } else if el_name == "title" {
                     obj.title = text;
                 } else if el_name == "authors" {
@@ -344,7 +382,7 @@ pub fn read_manifest_from_string(xml: &str) -> Result<Manifest> {
         bail!("Unsupported 'os' in package manifest ({}). Please contact the application author.", obj.os);
     }
 
-    if obj.version.is_empty() {
+    if obj.version == Version::new(0, 0, 0) {
         bail!("Missing 'version' in package manifest. Please contact the application author.");
     }
 

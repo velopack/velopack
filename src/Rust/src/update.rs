@@ -14,10 +14,13 @@ extern crate simplelog;
 use anyhow::{anyhow, bail, Result};
 use bundle::Manifest;
 use clap::{arg, value_parser, ArgMatches, Command};
+use glob::glob;
 use std::fs::File;
 use std::path::Path;
 use std::time::Duration;
 use std::{env, fs, path::PathBuf};
+
+use crate::bundle::BundleInfo;
 
 #[rustfmt::skip]
 fn root_command() -> Command {
@@ -121,6 +124,11 @@ fn start(matches: &ArgMatches) -> Result<()> {
     info!("    Exe Name: {:?}", exe_name);
     info!("    Exe Args: {:?}", exe_args);
 
+    _start(wait_for_parent, exe_name, exe_args, legacy_args)?;
+    Ok(())
+}
+
+fn _start(wait_for_parent: bool, exe_name: Option<&String>, exe_args: Option<Vec<&str>>, legacy_args: Option<&String>) -> Result<()> {
     if legacy_args.is_some() {
         info!("    Legacy Args: {:?}", legacy_args);
         warn!("Legacy args format is deprecated and will be removed in a future release. Please update your application to use the new format.");
@@ -163,11 +171,132 @@ fn start(matches: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
-fn apply(_matches: &ArgMatches) -> Result<()> {
-    info!("Command: Apply");
-    let root_path = get_my_root_dir()?;
+fn apply<'a>(matches: &ArgMatches) -> Result<()> {
+    let restart = matches.get_flag("restart");
+    let wait_for_parent = matches.get_flag("wait");
+    let package = matches.get_one::<PathBuf>("package");
+    let exe_name = matches.get_one::<String>("EXE_NAME");
+    let exe_args: Option<Vec<&str>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect());
 
-    todo!();
+    info!("Command: Apply");
+    info!("    Restart: {:?}", restart);
+    info!("    Wait: {:?}", wait_for_parent);
+    info!("    Package: {:?}", package);
+    info!("    Exe Name: {:?}", exe_name);
+    info!("    Exe Args: {:?}", exe_args);
+
+    if let Err(e) = apply_package(package) {
+        error!("Error applying package: {}", e);
+        if !restart {
+            return Err(e);
+        }
+    }
+
+    if restart {
+        _start(wait_for_parent, exe_name, exe_args, None)?;
+    }
+
+    Ok(())
+}
+
+fn apply_package<'a>(package: Option<&PathBuf>) -> Result<()> {
+    let mut package_manifest: Option<Manifest> = None;
+    let mut package_bundle: Option<BundleInfo<'a>> = None;
+
+    let (root_path, app) = init_root()?;
+
+    if let Some(pkg) = package {
+        info!("Loading package from argument '{}'.", pkg.to_string_lossy());
+        let bun = bundle::load_bundle_from_file(&pkg)?;
+        package_manifest = Some(bun.read_manifest()?);
+        package_bundle = Some(bun);
+    } else {
+        info!("No package specified, searching for latest.");
+        let packages_dir = app.get_packages_path(&root_path);
+        if let Ok(paths) = glob(format!("{}/*.nupkg", packages_dir).as_str()) {
+            for path in paths {
+                if let Ok(path) = path {
+                    trace!("Checking package: '{}'", path.to_string_lossy());
+                    if let Ok(bun) = bundle::load_bundle_from_file(&path) {
+                        if let Ok(mani) = bun.read_manifest() {
+                            if package_manifest.is_none() || mani.version > package_manifest.clone().unwrap().version {
+                                info!("Found {}: '{}'", mani.version, path.to_string_lossy());
+                                package_manifest = Some(mani);
+                                package_bundle = Some(bun);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if package_manifest.is_none() || package_bundle.is_none() {
+        bail!("Unable to find/load suitable package.");
+    }
+
+    let found_version = package_manifest.unwrap().version;
+    if found_version <= app.version {
+        bail!("Latest package found is {}, which is not newer than current version {}.", found_version, app.version);
+    }
+
+    let current_dir = app.get_current_path(&root_path);
+    replace_dir_with_rollback(current_dir.clone(), || {
+        if let Some(bundle) = package_bundle.take() {
+            bundle.extract_lib_contents_to_path(&current_dir, |_| {})
+        } else {
+            bail!("No bundle could be loaded.");
+        }
+    })?;
+
+    info!("Package applied successfully.");
+    Ok(())
+}
+
+pub fn replace_dir_with_rollback<F, T, P: AsRef<Path>>(path: P, op: F) -> Result<()>
+where
+    F: FnOnce() -> Result<T>,
+{
+    let path = path.as_ref().to_string_lossy().to_string();
+    let mut path_renamed = String::new();
+
+    if !util::is_dir_empty(&path) {
+        path_renamed = format!("{}_{}", path, util::random_string(8));
+        info!("Renaming directory '{}' to '{}' to allow rollback...", path, path_renamed);
+
+        platform::kill_processes_in_directory(&path)
+            .map_err(|z| anyhow!("Failed to stop application ({}), please close the application and try running the installer again.", z))?;
+
+        util::retry_io(|| fs::rename(&path, &path_renamed)).map_err(|z| anyhow!("Failed to rename directory '{}' to '{}' ({}).", path, path_renamed, z))?;
+    }
+
+    remove_dir_all::ensure_empty_dir(&path).map_err(|z| anyhow!("Failed to create clean directory '{}' ({}).", path, z))?;
+
+    if let Err(e) = op() {
+        // install failed, rollback if possible
+        warn!("Rolling back installation... (error was: {:?})", e);
+        if let Err(ex) = platform::kill_processes_in_directory(&path) {
+            warn!("Failed to stop application ({}).", ex);
+        }
+        if !path_renamed.is_empty() {
+            if let Err(ex) = util::retry_io(|| fs::remove_dir_all(&path)) {
+                error!("Failed to remove directory '{}' ({}).", path, ex);
+            }
+            if let Err(ex) = util::retry_io(|| fs::rename(&path_renamed, &path)) {
+                error!("Failed to rename directory '{}' to '{}' ({}).", path_renamed, path, ex);
+            }
+        }
+        return Err(e);
+    } else {
+        // install successful, remove rollback directory if exists
+        if !path_renamed.is_empty() {
+            debug!("Removing rollback directory '{}'.", path_renamed);
+            if let Err(ex) = util::retry_io(|| fs::remove_dir_all(&path_renamed)) {
+                warn!("Failed to remove directory '{}' ({}).", path_renamed, ex);
+            }
+        }
+        return Ok(());
+    }
 }
 
 fn init_root() -> Result<(PathBuf, Manifest)> {
@@ -194,7 +323,8 @@ fn uninstall(_matches: &ArgMatches, log_file: &PathBuf) -> Result<()> {
 
         // run uninstall hook
         info!("Running uninstall hook...");
-        let args = vec!["--squirrel-install", &app.version];
+        let ver_string = app.version.to_string();
+        let args = vec!["--squirrel-install", &ver_string];
         if let Err(e) = platform::run_process_no_console_and_wait(&main_exe_path, args, &current_path, Some(Duration::from_secs(30))) {
             error!("Uninstall hook failed: {}", e);
             // for now, i'm ignoring hook failures as we stil should be able to clean up all files
