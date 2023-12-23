@@ -30,7 +30,7 @@ use winsafe::{self as w, co};
 
 fn main() -> Result<()> {
     let mut arg_config = Command::new("Setup")
-        .about(format!("Clowd.Squirrel Setup ({}) installs Squirrel applications.\nhttps://github.com/clowd/Clowd.Squirrel", env!("CARGO_PKG_VERSION")))
+        .about(format!("Clowd.Squirrel Setup ({}) installs Squirrel applications.\nhttps://github.com/clowd/Clowd.Squirrel", env!("NGBV_VERSION")))
         .arg(arg!(-s --silent "Hides all dialogs and answers 'yes' to all prompts"))
         .arg(arg!(-v --verbose "Print debug messages to console"))
         .arg(arg!(-l --log <FILE> "Enable file logging and set location").required(false).value_parser(value_parser!(PathBuf)))
@@ -52,7 +52,7 @@ fn main() -> Result<()> {
     platform::set_silent(silent);
     util::setup_logging(logfile, true, verbose, nocolor)?;
 
-    info!("Starting Clowd.Squirrel Setup ({})", env!("CARGO_PKG_VERSION"));
+    info!("Starting Clowd.Squirrel Setup ({})", env!("NGBV_VERSION"));
     info!("    Location: {:?}", std::env::current_exe()?);
     info!("    Silent: {}", silent);
     info!("    Verbose: {}", verbose);

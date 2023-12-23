@@ -25,8 +25,8 @@ use crate::bundle::BundleInfo;
 #[rustfmt::skip]
 fn root_command() -> Command {
     Command::new("Update")
-    .version(env!("CARGO_PKG_VERSION"))
-    .about(format!("Clowd.Squirrel Updater ({}) manages packages and installs updates for Squirrel applications.\nhttps://github.com/clowd/Clowd.Squirrel", env!("CARGO_PKG_VERSION")))
+    .version(env!("NGBV_VERSION"))
+    .about(format!("Clowd.Squirrel Updater ({}) manages packages and installs updates for Squirrel applications.\nhttps://github.com/clowd/Clowd.Squirrel", env!("NGBV_VERSION")))
     .subcommand(Command::new("apply")
         .about("Applies a staged / prepared update, installing prerequisite runtimes if necessary")
         .arg(arg!(-r --restart "Restart the application after the update"))
@@ -83,7 +83,7 @@ fn main() -> Result<()> {
     platform::set_silent(silent);
     util::setup_logging(Some(&log_file), true, verbose, nocolor)?;
 
-    info!("Starting Clowd.Squirrel Updater ({})", env!("CARGO_PKG_VERSION"));
+    info!("Starting Clowd.Squirrel Updater ({})", env!("NGBV_VERSION"));
     info!("    Location: {}", env::current_exe()?.to_string_lossy());
     info!("    Verbose: {}", verbose);
     info!("    Silent: {}", silent);
