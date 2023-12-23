@@ -15,7 +15,11 @@ namespace Squirrel.Packaging.Tests
         {
             var baseDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location.Replace("file:///", ""));
             var projectdir = Path.Combine(baseDir, "..", "..", "..", "..", "..");
+#if DEBUG
             HelperFile.AddSearchPath(Path.Combine(projectdir, "src\\Rust\\target\\debug"));
+#else
+            HelperFile.AddSearchPath(Path.Combine(projectdir, "src\\Rust\\target\\release"));
+#endif
             HelperFile.AddSearchPath(Path.Combine(projectdir, "vendor"));
         }
     }

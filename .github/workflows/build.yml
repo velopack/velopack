@@ -37,11 +37,9 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Install .NET Tools
-        run: |
-          dotnet tool install --global nbgv
-          dotnet tool install --global dotnet-coverage
-
+      - name: Install dotnet-coverage
+        run: dotnet tool install --global dotnet-coverage
+          
       - name: Install Rust
         run: rustup update stable
 
@@ -50,9 +48,7 @@ jobs:
 
       - name: Build Rust
         working-directory: src/Rust
-        run: |
-          cargo build
-          cargo build --release
+        run: cargo build --release
 
       - name: Test Rust
         working-directory: src/Rust

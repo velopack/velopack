@@ -272,11 +272,13 @@ public class WindowsPackTests
         using var _1 = Utility.GetTempDirectory(out var releaseDir);
         using var _2 = Utility.GetTempDirectory(out var installDir);
 
+        string id = "SquirrelIntegrationTest";
+
         // pack v1
-        PackTestApp("1.0.0", "version 1 test", releaseDir, logger);
+        PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
 
         // install app
-        var setupPath1 = Path.Combine(releaseDir, $"{TEST_APP_ID}-Setup-[win-x64].exe");
+        var setupPath1 = Path.Combine(releaseDir, $"{id}-Setup-[win-x64].exe");
         RunProcessNoCoverage(setupPath1, new string[] { "--nocolor", "--silent", "--installto", installDir }, Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
 
         // check app installed correctly
@@ -298,7 +300,7 @@ public class WindowsPackTests
         logger.Info("TEST: v1 output verified");
 
         // pack v2
-        PackTestApp("2.0.0", "version 2 test", releaseDir, logger);
+        PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
 
         // check can find v2 update
         var chk2check = RunProcess(appPath, new string[] { "check", releaseDir }, installDir, logger);
@@ -306,7 +308,7 @@ public class WindowsPackTests
         logger.Info("TEST: found v2 update");
 
         // pack v3
-        PackTestApp("3.0.0", "version 3 test", releaseDir, logger);
+        PackTestApp(id, "3.0.0", "version 3 test", releaseDir, logger);
 
         // perform full update, check that we get v3
         // apply should fail if there's not an update downloaded
@@ -342,11 +344,8 @@ public class WindowsPackTests
         logger.Info("TEST: uninstalled / complete");
     }
 
-    const string TEST_APP_ID = "Test.Squirrel-App";
-
     private string RunProcess(string exe, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
     {
-
         var outputfile = GetPath($"coverage.runprocess.{RandomString(8)}.xml");
 
         var psi = new ProcessStartInfo("dotnet-coverage");
@@ -414,7 +413,7 @@ public class WindowsPackTests
         return sb.ToString().Trim();
     }
 
-    private void PackTestApp(string version, string testString, string releaseDir, ILogger logger)
+    private void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger)
     {
         var projDir = GetPath("TestApp");
         var testStringFile = Path.Combine(projDir, "Const.cs");
@@ -428,7 +427,7 @@ public class WindowsPackTests
         var options = new WindowsPackOptions {
             EntryExecutableName = "TestApp.exe",
             ReleaseDir = new DirectoryInfo(releaseDir),
-            PackId = TEST_APP_ID,
+            PackId = id,
             PackVersion = version,
             TargetRuntime = RID.Parse("win-x64"),
             PackDirectory = Path.Combine(projDir, "publish"),
