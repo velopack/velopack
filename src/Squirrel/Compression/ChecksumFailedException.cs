@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Squirrel.Compression
 {
     /// <summary>
     /// Represents an error that occurs when a package does not match it's expected SHA checksum
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public class ChecksumFailedException : Exception
     {
         /// <summary>

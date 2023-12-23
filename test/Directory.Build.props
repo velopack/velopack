@@ -14,7 +14,7 @@
     <CoverletOutputFormat>cobertura</CoverletOutputFormat>
     <CoverletOutput>..\coverage.$(MSBuildProjectName).xml</CoverletOutput>
     <Include>[Squirrel*]*</Include>
-    <Exclude>[Squirrel.*.Tests]*</Exclude>
+    <Exclude>[Squirrel.*.Tests]*,[*]Microsoft*</Exclude>
     <CollectCoverage>true</CollectCoverage>
   </PropertyGroup>
 

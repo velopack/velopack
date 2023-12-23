@@ -17,12 +17,9 @@ public class HelperExe : HelperFile
 
     public static string StubExecutablePath => FindHelperFile("StubExecutable.exe");
 
-    // private so we don't expose paths to internal tools. these should be exposed as a helper function
     private static string SignToolPath => FindHelperFile("signtool.exe");
-    private static string WixTemplatePath => FindHelperFile("template.wxs");
+
     private static string RceditPath => FindHelperFile("rcedit.exe");
-    private static string WixCandlePath => FindHelperFile("candle.exe");
-    private static string WixLightPath => FindHelperFile("light.exe");
 
     [SupportedOSPlatform("windows")]
     private bool CheckIsAlreadySigned(string filePath)
@@ -114,35 +111,6 @@ public class HelperExe : HelperFile
         }
 
         Log.Info("Sign successful: " + result.StdOutput);
-    }
-
-    [SupportedOSPlatform("windows")]
-    public string CompileWixTemplateToMsi(Dictionary<string, string> templateData, string workingDir, string appId)
-    {
-        var wxsFile = Path.Combine(workingDir, appId + ".wxs");
-        var objFile = Path.Combine(workingDir, appId + ".wixobj");
-        var msiFile = Path.Combine(workingDir, appId + "_DeploymentTool.msi");
-
-        try {
-            // apply dictionary to wsx template
-            var templateText = File.ReadAllText(WixTemplatePath);
-            var templateResult = CopStache.Render(templateText, templateData);
-            File.WriteAllText(wxsFile, templateResult, Encoding.UTF8);
-
-            // Candle reprocesses and compiles WiX source files into object files (.wixobj).
-            Log.Info("Compiling WiX Template (candle.exe)");
-            var candleParams = new string[] { "-nologo", "-ext", "WixNetFxExtension", "-out", objFile, wxsFile };
-            InvokeAndThrowIfNonZero(WixCandlePath, candleParams, workingDir);
-
-            // Light links and binds one or more .wixobj files and creates a Windows Installer database (.msi or .msm). 
-            Log.Info("Linking WiX Template (light.exe)");
-            var lightParams = new string[] { "-ext", "WixNetFxExtension", "-spdb", "-sval", "-out", msiFile, objFile };
-            InvokeAndThrowIfNonZero(WixLightPath, lightParams, workingDir);
-            return msiFile;
-        } finally {
-            Utility.DeleteFileOrDirectoryHard(wxsFile, throwOnFailure: false);
-            Utility.DeleteFileOrDirectoryHard(objFile, throwOnFailure: false);
-        }
     }
 
     [SupportedOSPlatform("windows")]

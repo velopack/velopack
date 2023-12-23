@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,6 +14,7 @@ namespace Squirrel.Locators
     /// your application is able to find and prepare updates from your chosen update source without actually
     /// having an installed Squirrel application. This could be used in a CI/CD pipeline, or unit tests etc.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public class TestSquirrelLocator : SquirrelLocator
     {
         /// <inheritdoc />

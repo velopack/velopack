@@ -2,9 +2,11 @@
 using INugetLogger = NuGet.Common.ILogger;
 using NugetLogLevel = NuGet.Common.LogLevel;
 using INugetLogMessage = NuGet.Common.ILogMessage;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Squirrel.Packaging;
 
+[ExcludeFromCodeCoverage]
 public class NugetLoggingWrapper : INugetLogger
 {
     private readonly ILogger _logger;

@@ -1,9 +1,11 @@
 ﻿#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 using System;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 
 namespace Squirrel
 {
+    [ExcludeFromCodeCoverage]
     internal static class LoggerExtensions
     {
         public static void Trace(this ILogger logger, string message)

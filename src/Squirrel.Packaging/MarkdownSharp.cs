@@ -85,11 +85,13 @@ software, even if advised of the possibility of such damage.
 
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Squirrel.Packaging;
 
+[ExcludeFromCodeCoverage]
 public class MarkdownOptions
 {
     /// <summary>
@@ -128,6 +130,7 @@ public class MarkdownOptions
 /// Markdown allows you to write using an easy-to-read, easy-to-write plain text format,
 /// then convert it to structurally valid XHTML (or HTML).
 /// </summary>
+[ExcludeFromCodeCoverage]
 public class Markdown
 {
     private const string _version = "1.13";

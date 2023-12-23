@@ -3,11 +3,13 @@
 
 using System;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
 namespace Squirrel.Compression
 {
+    [ExcludeFromCodeCoverage]
     [SupportedOSPlatform("windows")]
     internal class MsDeltaCompression
     {

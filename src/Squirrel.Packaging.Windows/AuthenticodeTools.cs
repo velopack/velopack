@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
 namespace Squirrel.Packaging.Windows
 {
     [SupportedOSPlatform("windows")]
+    [ExcludeFromCodeCoverage]
     public static class AuthenticodeTools
     {
         [DllImport("Wintrust.dll", PreserveSig = true, SetLastError = false)]

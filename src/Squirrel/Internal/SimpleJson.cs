@@ -66,7 +66,26 @@ using System.Globalization;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
+
+#if !NET5_0_OR_GREATER
 using Squirrel.Json.Reflection;
+#endif
+
+#if NET5_0_OR_GREATER
+namespace Squirrel.Json
+{
+    [ExcludeFromCodeCoverage]
+    internal static class SimpleJson
+    {
+        public static T DeserializeObject<T>(string json)
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<T>(json);
+        }
+    }
+}
+#endif
+
+#if !NET5_0_OR_GREATER
 
 // ReSharper disable LoopCanBeConvertedToQuery
 // ReSharper disable RedundantExplicitArrayCreation
@@ -79,6 +98,7 @@ namespace Squirrel.Json
     [GeneratedCode("simple-json", "1.0.0")]
     [EditorBrowsable(EditorBrowsableState.Never)]
     [SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix")]
+    [ExcludeFromCodeCoverage]
 #if SIMPLE_JSON_OBJARRAYINTERNAL
     internal
 #else
@@ -113,6 +133,7 @@ namespace Squirrel.Json
     [GeneratedCode("simple-json", "1.0.0")]
     [EditorBrowsable(EditorBrowsableState.Never)]
     [SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix")]
+    [ExcludeFromCodeCoverage]
 #if SIMPLE_JSON_OBJARRAYINTERNAL
     internal
 #else
@@ -493,6 +514,7 @@ namespace Squirrel.Json
     /// JSON uses Arrays and Objects. These correspond here to the datatypes JsonArray(IList&lt;object>) and JsonObject(IDictionary&lt;string,object>).
     /// All numbers are parsed to doubles.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     [GeneratedCode("simple-json", "1.0.0")]
 #if SIMPLE_JSON_INTERNAL
     internal
@@ -1236,6 +1258,7 @@ namespace Squirrel.Json
         object DeserializeObject(object value, Type type);
     }
 
+    [ExcludeFromCodeCoverage]
     [GeneratedCode("simple-json", "1.0.0")]
 #if SIMPLE_JSON_INTERNAL
     internal
@@ -1514,6 +1537,7 @@ namespace Squirrel.Json
         }
     }
 
+    [ExcludeFromCodeCoverage]
 #if SIMPLE_JSON_DATACONTRACT
     [GeneratedCode("simple-json", "1.0.0")]
 #if SIMPLE_JSON_INTERNAL
@@ -1597,6 +1621,7 @@ namespace Squirrel.Json
     {
         // This class is meant to be copied into other libraries. So we want to exclude it from Code Analysis rules
  	    // that might be in place in the target project.
+        [ExcludeFromCodeCoverage]
         [GeneratedCode("reflection-utils", "1.0.0")]
 #if SIMPLE_JSON_REFLECTION_UTILS_PUBLIC
         public
@@ -2125,3 +2150,4 @@ namespace Squirrel.Json
 // ReSharper restore LoopCanBeConvertedToQuery
 // ReSharper restore RedundantExplicitArrayCreation
 // ReSharper restore SuggestUseVarKeywordEvident
+#endif
