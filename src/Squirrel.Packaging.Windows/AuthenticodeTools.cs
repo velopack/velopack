@@ -38,6 +38,7 @@ namespace Squirrel.Packaging.Windows
         }
     }
 
+    [ExcludeFromCodeCoverage]
     internal struct WINTRUST_FILE_INFO : IDisposable
     {
         public WINTRUST_FILE_INFO(string fileName, Guid subject)
@@ -135,6 +136,7 @@ namespace Squirrel.Packaging.Windows
 
     [StructLayout(LayoutKind.Sequential)]
 
+    [ExcludeFromCodeCoverage]
     internal struct WINTRUST_DATA : IDisposable
     {
         public WINTRUST_DATA(WINTRUST_FILE_INFO fileInfo)
@@ -193,6 +195,7 @@ namespace Squirrel.Packaging.Windows
         }
     }
 
+    [ExcludeFromCodeCoverage]
     internal sealed class UnmanagedPointer : IDisposable
     {
         IntPtr m_ptr;

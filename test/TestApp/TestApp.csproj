@@ -10,4 +10,8 @@
     <ProjectReference Include="..\..\src\Squirrel\Squirrel.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage" />
+  </ItemGroup>
+
 </Project>
