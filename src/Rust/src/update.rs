@@ -239,12 +239,16 @@ fn apply_package<'a>(package: Option<&PathBuf>) -> Result<()> {
         bail!("Unable to find/load suitable package.");
     }
 
-    let found_version = package_manifest.unwrap().version;
+    let package_manifest = package_manifest.unwrap();
+
+    let found_version = package_manifest.clone().version;
     if found_version <= app.version {
         bail!("Latest package found is {}, which is not newer than current version {}.", found_version, app.version);
     }
 
     info!("Applying package to current: {}", found_version);
+
+    run_hook(&app, &root_path, "--squirrel-obsoleted", 15);
 
     let current_dir = app.get_current_path(&root_path);
     platform::replace_dir_with_rollback(current_dir.clone(), || {
@@ -254,6 +258,8 @@ fn apply_package<'a>(package: Option<&PathBuf>) -> Result<()> {
             bail!("No bundle could be loaded.");
         }
     })?;
+
+    run_hook(&package_manifest, &root_path, "--squirrel-updated", 15);
 
     info!("Package applied successfully.");
     Ok(())
@@ -268,32 +274,33 @@ fn init_root() -> Result<(PathBuf, Manifest)> {
     Ok((root_path, app))
 }
 
+fn run_hook(app: &Manifest, root_path: &PathBuf, hook_name: &str, timeout_secs: u64) {
+    let sw = simple_stopwatch::Stopwatch::start_new();
+    let current_path = app.get_current_path(&root_path);
+    let main_exe_path = app.get_main_exe_path(&root_path);
+    info!("Running {} hook...", hook_name);
+    let ver_string = app.version.to_string();
+    let args = vec![hook_name, &ver_string];
+    if let Err(e) = platform::run_process_no_console_and_wait(&main_exe_path, args, &current_path, Some(Duration::from_secs(timeout_secs))) {
+        warn!("Error running hook {}: {} (took {}ms)", hook_name, e, sw.ms());
+    }
+    info!("Hook executed successfully (took {}ms)", sw.ms());
+    // in case the uninstall hook left running processes
+    let _ = platform::kill_processes_in_directory(&root_path);
+}
+
 fn uninstall(_matches: &ArgMatches, log_file: &PathBuf) -> Result<()> {
     info!("Command: Uninstall");
     let (root_path, app) = init_root()?;
 
     fn _uninstall_impl(app: &Manifest, root_path: &PathBuf) -> bool {
-        let current_path = app.get_current_path(&root_path);
-        let main_exe_path = app.get_main_exe_path(&root_path);
-
         // the real app could be running at the moment
         let _ = platform::kill_processes_in_directory(&root_path);
 
         let mut finished_with_errors = false;
 
         // run uninstall hook
-        info!("Running uninstall hook...");
-        let ver_string = app.version.to_string();
-        let args = vec!["--squirrel-install", &ver_string];
-        if let Err(e) = platform::run_process_no_console_and_wait(&main_exe_path, args, &current_path, Some(Duration::from_secs(30))) {
-            error!("Uninstall hook failed: {}", e);
-            // for now, i'm ignoring hook failures as we stil should be able to clean up all files
-            // so warning shouldn't show to the user.
-            // finished_with_errors = true;
-        }
-
-        // in case the uninstall hook left running processes
-        let _ = platform::kill_processes_in_directory(&root_path);
+        run_hook(&app, root_path, "--squirrel-uninstall", 60);
 
         if let Err(e) = platform::remove_all_shortcuts_for_root_dir(&root_path) {
             error!("Unable to remove shortcuts ({}).", e);

@@ -92,6 +92,7 @@ normpath = "1.0.1"
 codesign-verify = { git = "https://github.com/caesay/codesign-verify-rs.git" }
 com = "0.2.0"
 widestring = "1.0.2"
+simple-stopwatch="0.1.4"
 
 [build-dependencies]
 winres = "0.1"

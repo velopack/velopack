@@ -322,26 +322,17 @@ public class WindowsPackTests
         Assert.EndsWith(Environment.NewLine + "no updates", ch3check2);
         logger.Info("TEST: v3 output verified");
 
+        // print log output
+        var logPath = Path.Combine(installDir, "Clowd.Squirrel.log");
+        logger.Info("TEST: log output - " + Environment.NewLine + File.ReadAllText(logPath));
+
 
         // check new obsoleted/updated hooks have run
         var argsContentv3 = File.ReadAllText(argsPath).Trim();
-        Assert.Contains("--squirrel-install 1.0.0", argsContent);
-        Assert.Contains("--squirrel-obsoleted 1.0.0", argsContent);
-        Assert.Contains("--squirrel-updated 3.0.0", argsContent);
+        Assert.Contains("--squirrel-install 1.0.0", argsContentv3);
+        Assert.Contains("--squirrel-obsoleted 1.0.0", argsContentv3);
+        Assert.Contains("--squirrel-updated 3.0.0", argsContentv3);
         logger.Info("TEST: hooks verified");
-
-
-
-        //var ch3download = RunProcess(appPath, new string[] { "check", releaseDir }, installDir, logger);
-        //logger.Info(ch3download.StdOutput);
-        //Assert.Equal(0, ch3download.ExitCode);
-        //Assert.Equal("update: 3.0.0", ch3download.StdOutput.Trim());
-        //var ch3apply = RunProcess(appPath, new string[] { "check", releaseDir }, installDir, logger);
-        //logger.Info(ch3apply.StdOutput);
-        //Assert.Equal(0, ch3apply.ExitCode);
-        //Assert.Equal("update: 3.0.0", ch3apply.StdOutput.Trim());
-
-
 
         // uninstall
         var updatePath = Path.Combine(installDir, "Update.exe");
