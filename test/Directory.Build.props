@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
-  <PropertyGroup>
+  <PropertyGroup Condition=" $(MSBuildProjectName.EndsWith('Tests')) ">
     <IsPackable>false</IsPackable>
     <LangVersion>latest</LangVersion>
     <IsTest>true</IsTest>
@@ -9,13 +9,21 @@
     <AssemblyOriginatorKeyFile>..\..\Squirrel.snk</AssemblyOriginatorKeyFile>
     <IsPackable>false</IsPackable>
     <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Coverage -->
+    <CoverletOutputFormat>json,opencover</CoverletOutputFormat>
+    <CoverletOutput>..\</CoverletOutput>
+    <MergeWith>..\coverage.json</MergeWith>
+    <Include>[Squirrel*]*</Include>
+    <Exclude>[Squirrel.*.Tests]*</Exclude>
+    <CollectCoverage>true</CollectCoverage>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition=" $(MSBuildProjectName.EndsWith('Tests')) ">
     <Compile Include="..\GlobalUsings.cs" Link="GlobalUsings.cs" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition=" $(MSBuildProjectName.EndsWith('Tests')) ">
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="xunit" Version="2.6.3" />
@@ -27,14 +35,5 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
   </ItemGroup>
-
-  <PropertyGroup>
-    <CoverletOutputFormat>json,opencover</CoverletOutputFormat>
-    <CoverletOutput>..\</CoverletOutput>
-    <MergeWith>..\coverage.json</MergeWith>
-    <Include>[Squirrel*]*</Include>
-    <Exclude>[Squirrel.*.Tests]*</Exclude>
-    <CollectCoverage>true</CollectCoverage>
-  </PropertyGroup>
 
 </Project>

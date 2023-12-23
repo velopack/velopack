@@ -19,9 +19,9 @@ namespace Squirrel.Tests.TestHelpers
                 .ToList();
 
             if (mockLatestFullVer) {
-                var minFullVer = releases.Where(r => !r.IsDelta).MinBy(r => r.Version);
-                var maxfullVer = releases.Where(r => !r.IsDelta).MaxBy(r => r.Version).Single();
-                var maxDeltaVer = releases.Where(r => r.IsDelta).MaxBy(r => r.Version).Single();
+                var minFullVer = releases.Where(r => !r.IsDelta).OrderBy(r => r.Version).First();
+                var maxfullVer = releases.Where(r => !r.IsDelta).OrderByDescending(r => r.Version).First();
+                var maxDeltaVer = releases.Where(r => r.IsDelta).OrderByDescending(r => r.Version).First();
 
                 // our fixtures don't have a full package for the latest version, we expect the tests to generate this file
                 if (maxfullVer.Version < maxDeltaVer.Version) {
