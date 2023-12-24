@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -16,12 +14,19 @@ using Squirrel.Sources;
 
 namespace Squirrel
 {
+    /// <summary>
+    /// Provides functionality for checking for updates, downloading updates, and applying updates to the current application.
+    /// </summary>
     public class UpdateManager
     {
+        /// <summary> The currently installed Squirrel application Id. This would be what you set when you create your Squirrel release.</summary>
         public virtual string AppId => Locator.AppId;
 
+        /// <summary> True if this application is currently installed, and is able to download/check for updates. </summary>
         public virtual bool IsInstalled => Locator.CurrentlyInstalledVersion != null;
 
+
+        /// <summary> True if there is a local update prepared that requires a call to <see cref="ApplyUpdatesAndRestart(string[])"/> to be applied. </summary>
         public virtual bool IsUpdatePendingRestart {
             get {
                 var latestLocal = Locator.GetLatestLocalPackage();
@@ -31,19 +36,39 @@ namespace Squirrel
             }
         }
 
+        /// <summary> The currently installed Squirrel app version when you created your release. Null if this is not a currently installed app. </summary>
         public virtual SemanticVersion CurrentVersion => Locator.CurrentlyInstalledVersion;
 
+        /// <summary> The update source to use when checking for/downloading updates. </summary>
         protected IUpdateSource Source { get; }
 
+        /// <summary> The logger to use for diagnostic messages. </summary>
         protected ILogger Log { get; }
 
+        /// <summary> The locator to use when searching for local file paths. </summary>
         protected ISquirrelLocator Locator { get; }
 
+        /// <summary>
+        /// Creates a new UpdateManager instance using the specified URL or file path to the releases feed, and the specified channel name.
+        /// </summary>
+        /// <param name="urlOrPath">A basic URL or file path to use when checking for updates.</param>
+        /// <param name="channel">Search for releases in the feed of a specific channel name. If null, it will search the default channel.</param>
+        /// <param name="logger">The logger to use for diagnostic messages.</param>
+        /// <param name="locator">This should usually be left null. Providing an <see cref="ISquirrelLocator" /> allows you to mock up certain application paths. 
+        /// For example, if you wanted to test that updates are working in a unit test, you could provide an instance of <see cref="TestSquirrelLocator"/>. </param>
         public UpdateManager(string urlOrPath, string channel = null, ILogger logger = null, ISquirrelLocator locator = null)
             : this(CreateSimpleSource(urlOrPath, channel, logger), logger, locator)
         {
         }
 
+        /// <summary>
+        /// Creates a new UpdateManager instance using the specified URL or file path to the releases feed, and the specified channel name.
+        /// </summary>
+        /// <param name="source">The source describing where to search for updates. This can be a custom source, if you are integrating with some private resource,
+        /// or it could be one of the predefined sources. (eg. <see cref="SimpleWebSource"/> or <see cref="GithubSource"/>, etc).</param>
+        /// <param name="logger">The logger to use for diagnostic messages.</param>
+        /// <param name="locator">This should usually be left null. Providing an <see cref="ISquirrelLocator" /> allows you to mock up certain application paths. 
+        /// For example, if you wanted to test that updates are working in a unit test, you could provide an instance of <see cref="TestSquirrelLocator"/>. </param>
         public UpdateManager(IUpdateSource source, ILogger logger = null, ISquirrelLocator locator = null)
         {
             if (source == null) {
@@ -54,12 +79,19 @@ namespace Squirrel
             Locator = locator ?? SquirrelLocator.GetDefault(Log);
         }
 
+        /// <inheritdoc cref="CheckForUpdatesAsync(CancellationToken)"/>
         public UpdateInfo CheckForUpdates()
         {
             return CheckForUpdatesAsync()
                 .ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
+        /// <summary>
+        /// Checks for updates, returning null if there are none available. If there are updates available, this method will return an 
+        /// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
+        /// </summary>
+        /// <param name="cancelToken">An optional cancellation token if you wish to stop this operation.</param>
+        /// <returns>Null if no updates, otherwise <see cref="UpdateInfo"/> containing the version of the latest update available.</returns>
         public virtual async Task<UpdateInfo> CheckForUpdatesAsync(CancellationToken cancelToken = default)
         {
             EnsureInstalled();
@@ -108,12 +140,23 @@ namespace Squirrel
             return new UpdateInfo(latestRemoteFull, latestLocalFull, deltas);
         }
 
+        /// <inheritdoc cref="DownloadUpdatesAsync(UpdateInfo, Action{int}, bool, CancellationToken)"/>
         public void DownloadUpdates(UpdateInfo updates, Action<int> progress = null, bool ignoreDeltas = false)
         {
             DownloadUpdatesAsync(updates, progress, ignoreDeltas)
                 .ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
+        /// <summary>
+        /// Downloads the specified updates to the local app packages directory. If the update contains delta packages and ignoreDeltas=false, 
+        /// this method will attempt to unpack and prepare them. If there is no delta update available, or there is an error preparing delta 
+        /// packages, this method will fall back to downloading the full version of the update. This function will acquire a global update lock
+        /// so may fail if there is already another update operation in progress.
+        /// </summary>
+        /// <param name="updates">The updates to download. Should be retrieved from <see cref="CheckForUpdates"/>.</param>
+        /// <param name="progress">The progress callback. Will be called with values from 0-100.</param>
+        /// <param name="ignoreDeltas">Whether to attempt downloading delta's or skip to full package download.</param>
+        /// <param name="cancelToken">An optional cancellation token if you wish to stop this operation.</param>
         public virtual async Task DownloadUpdatesAsync(
             UpdateInfo updates, Action<int> progress = null, bool ignoreDeltas = false, CancellationToken cancelToken = default)
         {
@@ -195,19 +238,39 @@ namespace Squirrel
             }
         }
 
+        /// <summary>
+        /// This will exit your app immediately and then apply updates.
+        /// </summary>
+        /// <param name="silent"></param>
         public void ApplyUpdatesAndExit(bool silent = false)
         {
-            RunApplyUpdates(silent, false, null);
+            RunApplyUpdates(silent, false, null, null);
             Environment.Exit(0);
         }
 
-        public void ApplyUpdatesAndRestart(bool silent = false, string[] restartArgs = null)
+        /// <summary>
+        /// This will exit your app immediately, apply updates, and relaunch the app using the specified restart arguments.
+        /// If you need to save state or clean up, you should do that before calling this method. The user may be prompted
+        /// during the update, if the update requires additional frameworks to be installed etc.
+        /// </summary>
+        /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
+        public void ApplyUpdatesAndRestart(string[] restartArgs = null)
         {
-            RunApplyUpdates(silent, true, restartArgs);
+            RunApplyUpdates(false, true, null, restartArgs);
             Environment.Exit(0);
         }
 
-        protected virtual void RunApplyUpdates(bool silent, bool restart, string[] restartArgs)
+        /// <summary>
+        /// Runs Update.exe in the current working directory to apply updates, optionally restarting the application.
+        /// </summary>
+        /// <param name="silent">If true, no dialogs will be shown during the update process. This could result 
+        /// in an update failing to install, such as when we need to ask the user for permission to install 
+        /// a new framework dependency.</param>
+        /// <param name="restart">If true, restarts the application after updates are applied (or if they failed)</param>
+        /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
+        /// <param name="exeName">The name or relative path to the binary to restart.</param>
+        /// <exception cref="Exception"></exception>
+        protected virtual void RunApplyUpdates(bool silent, bool restart, string exeName, string[] restartArgs)
         {
             var psi = new ProcessStartInfo() {
                 CreateNoWindow = true,
@@ -222,7 +285,7 @@ namespace Squirrel
             if (restart) args.Add("--restart");
 
             try {
-                args.Add(Locator.ThisExeRelativePath); // optional
+                args.Add(exeName ?? Locator.ThisExeRelativePath); // optional
             } catch (Exception ex) {
                 Log.Error(ex, "Failed to find relative path to this executable.");
             }
@@ -248,6 +311,12 @@ namespace Squirrel
             Log.Info("Update.exe apply triggered successfully.");
         }
 
+        /// <summary>
+        /// Given a folder containing the extracted base package, and a list of delta updates, downloads and applies the delta updates to the base package.
+        /// </summary>
+        /// <param name="extractedBasePackage">A folder containing the application files to apply the delta's to.</param>
+        /// <param name="updates">An update object containing one or more delta's</param>
+        /// <param name="progress">A callback reporting process of delta application progress (from 0-100).</param>
         protected virtual async Task DownloadAndApplyDeltaUpdates(string extractedBasePackage, UpdateInfo updates, Action<int> progress)
         {
             var packagesDirectory = Locator.PackagesDir;
@@ -290,6 +359,9 @@ namespace Squirrel
             progress(100);
         }
 
+        /// <summary>
+        /// Removes any incomplete files (.partial) and delta packages (-delta.nupkg) from the packages directory.
+        /// </summary>
         protected void CleanIncompleteAndDeltaPackages()
         {
             try {
@@ -319,6 +391,11 @@ namespace Squirrel
             }
         }
 
+        /// <summary>
+        /// Check a package checksum against the one in the release entry, and throws if the checksum does not match.
+        /// </summary>
+        /// <param name="release">The entry to check</param>
+        /// <param name="filePathOverride">Optional file path, if not specified the package will be loaded from %pkgdir%/release.OriginalFilename.</param>
         protected internal virtual void VerifyPackageChecksum(ReleaseEntry release, string filePathOverride = null)
         {
             var targetPackage = filePathOverride == null
@@ -339,12 +416,18 @@ namespace Squirrel
             }
         }
 
+        /// <summary>
+        /// Throws an exception if the current application is not installed.
+        /// </summary>
         protected virtual void EnsureInstalled()
         {
             if (AppId == null || !IsInstalled)
                 throw new Exception("Cannot perform this operation in an application which is not installed.");
         }
 
+        /// <summary>
+        /// Acquires a globally unique mutex/lock for the current application, to avoid concurrent install/uninstall/update operations.
+        /// </summary>
         protected virtual Mutex AcquireUpdateLock()
         {
             var mutexId = $"clowdsquirrel-{AppId}";

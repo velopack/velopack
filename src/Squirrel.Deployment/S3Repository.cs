@@ -170,7 +170,6 @@ public class S3Repository
             ReleaseEntry.WriteReleaseFile(releaseEntries, releasesFile.FullName);
         }
 
-
         async Task UploadFile(FileInfo f, bool overwriteRemote)
         {
             string key = _prefix + f.Name;
@@ -263,7 +262,10 @@ public class S3Repository
 
         Log.Info("Done");
 
-        var endpointHost = options.Endpoint ?? RegionEndpoint.GetBySystemName(options.Region).GetEndpointForService("s3").Hostname;
+        var regionEndpoint = RegionEndpoint.GetBySystemName(options.Region);
+#pragma warning disable CS0618 // Type or member is obsolete
+        var endpointHost = options.Endpoint ?? regionEndpoint.GetEndpointForService("s3").Hostname;
+#pragma warning restore CS0618 // Type or member is obsolete
 
         if (Regex.IsMatch(endpointHost, @"^https?:\/\/", RegexOptions.IgnoreCase)) {
             endpointHost = new Uri(endpointHost, UriKind.Absolute).Host;

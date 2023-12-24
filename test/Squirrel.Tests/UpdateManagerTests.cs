@@ -100,10 +100,6 @@ namespace Squirrel.Tests
             // https://github.com/caesay/SquirrelCustomLauncherTestApp
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var tempPath);
-            var releases = """
-3a2eadd15dd984e4559f2b4d790ec8badaeb6a39  MyCoolApp-1.1.0.nupkg  1040561
-94689fede03fed7ab59c24337673a27837f0c3ec  MyCoolApp-1.0.0.nupkg  1004502
-""";
             var locator = new TestSquirrelLocator("MyCoolApp", "1.0.0", tempPath, logger);
             var source = new GithubSource("https://github.com/caesay/SquirrelCustomLauncherTestApp", null, false);
             var um = new UpdateManager(source, logger, locator);
