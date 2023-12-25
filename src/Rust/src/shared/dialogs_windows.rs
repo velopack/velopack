@@ -127,7 +127,7 @@ extern "system" fn task_dialog_callback(_: w::HWND, msg: co::TDN, _: usize, _: i
     return co::HRESULT::S_OK; // close dialog on button press
 }
 
-pub fn generate(title: &str, header: Option<&str>, body: &str, ok_text: Option<&str>, btns: DialogButton, ico: DialogIcon) -> Result<DialogResult> {
+pub fn generate_confirm(title: &str, header: Option<&str>, body: &str, ok_text: Option<&str>, btns: DialogButton, ico: DialogIcon) -> Result<DialogResult> {
     let hparent = w::HWND::GetDesktopWindow();
     let mut ok_text_buf = WString::from_opt_str(ok_text);
     let mut custom_btns = if ok_text.is_some() {
@@ -164,4 +164,9 @@ pub fn generate(title: &str, header: Option<&str>, body: &str, ok_text: Option<&
 
     let result = w::TaskDialogIndirect(&tdc, None).map(|(dlg_id, _)| dlg_id)?;
     Ok(DialogResult::from_win(result))
+}
+
+pub fn generate_alert(title: &str, header: Option<&str>, body: &str, ok_text: Option<&str>, btns: DialogButton, ico: DialogIcon) -> Result<()> {
+    let _ = generate_confirm(title, header, body, ok_text, btns, ico).map(|_| ())?;
+    Ok(())
 }

@@ -45,7 +45,7 @@ fn root_command() -> Command {
     .flatten_help(true);
 
     #[cfg(target_os = "windows")]
-    cmd.subcommand(Command::new("uninstall")
+    let cmd = cmd.subcommand(Command::new("uninstall")
         .about("Remove all app shortcuts, files, and registry entries.")
         .long_flag_alias("uninstall")
     );
@@ -120,19 +120,7 @@ fn start(matches: &ArgMatches) -> Result<()> {
         warn!("Legacy args format is deprecated and will be removed in a future release. Please update your application to use the new format.");
     }
 
-    #[cfg(target_os = "windows")]
-    {
-        commands::start(wait_for_parent, exe_name, exe_args, legacy_args)
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        if wait_for_parent {
-            shared::wait_for_parent_to_exit(60_000)?; // 1 minute
-        }
-        let (root_path, app) = shared::detect_current_manifest()?;
-        shared::start_package(&app, &root_path, exe_args)
-    }
+    commands::start(wait_for_parent, exe_args, legacy_args)
 }
 
 fn apply(matches: &ArgMatches) -> Result<()> {

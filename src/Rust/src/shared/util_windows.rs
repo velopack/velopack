@@ -1,10 +1,11 @@
+use anyhow::{anyhow, bail, Result};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
-
-use anyhow::{anyhow, Result};
 use winsafe::{self as w, co, prelude::*};
+
+use super::bundle::Manifest;
 
 pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
     info!("Reading parent process information.");
@@ -114,6 +115,27 @@ pub fn force_stop_package<P: AsRef<Path>>(root_dir: P) -> Result<()> {
         warn!("Killing process: {} ({})", exe.display(), pid);
         kill_pid(*pid)?;
     }
+    Ok(())
+}
+
+pub fn start_package<P: AsRef<Path>>(app: &Manifest, root_dir: P, exe_args: Option<Vec<&str>>) -> Result<()> {
+    let root_dir = root_dir.as_ref().to_path_buf();
+    let current = app.get_current_path(&root_dir);
+    let exe = app.get_main_exe_path(&root_dir);
+
+    let exe_to_execute = std::path::Path::new(&exe);
+    if !exe_to_execute.exists() {
+        bail!("Unable to find executable to start: '{}'", exe_to_execute.to_string_lossy());
+    }
+
+    crate::windows::assert_can_run_binary_authenticode(&exe_to_execute)?;
+
+    if let Some(args) = exe_args {
+        super::run_process(exe_to_execute, args, current)?;
+    } else {
+        crate::shared::run_process(exe_to_execute, vec![], current)?;
+    };
+
     Ok(())
 }
 

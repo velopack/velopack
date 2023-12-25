@@ -1,4 +1,4 @@
 {
-    "rust-analyzer.cargo.features": ["windows"]
+    "rust-analyzer.cargo.features": ["windows"],
     "rust-analyzer.showUnlinkedFileNotification": false
 }
