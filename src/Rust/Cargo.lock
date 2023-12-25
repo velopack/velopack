@@ -233,6 +233,7 @@ dependencies = [
  "clap",
  "codesign-verify",
  "derivative",
+ "enum-flags",
  "file-rotate",
  "fs_extra",
  "glob",
@@ -364,6 +365,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3dd60d1080a57a05ab032377049e0591415d2b31afd7028356dbf3cc6dcb066"
 dependencies = [
  "generic-array",
+]
+
+[[package]]
+name = "enum-flags"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e49d7f94ae5845d14507b85d9f24f1ac106acca19508cd8c78a54616f8610233"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]

@@ -42,7 +42,7 @@ pub fn uninstall(log_file: &PathBuf) -> Result<()> {
 
     if result {
         info!("Finished successfully.");
-        shared::dialogs::show_info("The application was successfully uninstalled.", format!("{} Uninstall", app.title));
+        shared::dialogs::show_info(format!("{} Uninstall", app.title).as_str(), None, "The application was successfully uninstalled.");
     } else {
         error!("Finished with errors.");
         shared::dialogs::show_uninstall_complete_with_errors_dialog(&app, &log_file);

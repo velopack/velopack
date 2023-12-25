@@ -61,6 +61,7 @@ file-rotate = "0.7"
 derivative = "2.2"
 simple-stopwatch = "0.1.4"
 glob = "0.3"
+enum-flags = "0.3"
 
 [target.'cfg(windows)'.dependencies]
 fs_extra = "1.2"

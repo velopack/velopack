@@ -62,7 +62,7 @@ fn main() -> Result<()> {
     let res = run(&debug, &installto);
     if let Err(e) = &res {
         error!("An error has occurred: {}", e);
-        dialogs::show_error(format!("An error has occurred: {}", e), "Setup Error".to_string());
+        dialogs::show_error("Setup Error", None, format!("An error has occurred: {}", e).as_str());
     }
 
     res?;
@@ -241,9 +241,10 @@ fn install_app(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::mp
         let setup_name = format!("{} Setup {}", app.title, app.version);
         error!("Process install hook failed: {}", e);
         let _ = tx.send(windows::splash::MSG_CLOSE);
-        dialogs::show_warning(
-            format!("Installation has completed, but the application install hook failed ({}). It may not have installed correctly.", e),
-            setup_name,
+        dialogs::show_warn(
+            &setup_name,
+            None,
+            format!("Installation has completed, but the application install hook failed ({}). It may not have installed correctly.", e).as_str(),
         );
     }
 
