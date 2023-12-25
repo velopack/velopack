@@ -16,6 +16,9 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
+      - name: Install NBGV
+        run: dotnet tool install --tool-path . nbgv
+
       - name: Build Rust
         working-directory: src/Rust
         run: cargo build --release
