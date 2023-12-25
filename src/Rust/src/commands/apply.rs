@@ -31,6 +31,9 @@ fn apply_package<'a>(package: Option<&PathBuf>) -> Result<()> {
 
     let (root_path, app) = shared::detect_current_manifest()?;
 
+    #[cfg(target_os = "windows")]
+    let _mutex = crate::windows::create_global_mutex(&app)?;
+
     if let Some(pkg) = package {
         info!("Loading package from argument '{}'.", pkg.to_string_lossy());
         let bun = bundle::load_bundle_from_file(&pkg)?;
@@ -63,9 +66,14 @@ fn apply_package<'a>(package: Option<&PathBuf>) -> Result<()> {
 
     let package_manifest = package_manifest.unwrap();
 
-    let found_version = package_manifest.clone().version;
+    let found_version = (&package_manifest.version).to_owned();
     if found_version <= app.version {
         bail!("Latest package found is {}, which is not newer than current version {}.", found_version, app.version);
+    }
+
+    #[cfg(target_os = "windows")]
+    if !crate::windows::prerequisite::prompt_and_install_all_missing(&package_manifest, Some(&app.version))? {
+        bail!("Stopping apply. Pre-requisites are missing.");
     }
 
     info!("Applying package to current: {}", found_version);

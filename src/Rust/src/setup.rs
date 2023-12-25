@@ -12,7 +12,6 @@ extern crate simplelog;
 extern crate lazy_static;
 
 use shared::{bundle, dialogs};
-use windows::{download, runtimes, splash};
 
 use anyhow::{anyhow, bail, Result};
 use clap::{arg, value_parser, Command};
@@ -96,66 +95,11 @@ fn run(debug_pkg: &Option<&PathBuf>, install_to: &Option<&PathBuf>) -> Result<()
     info!("    Package Machine Architecture: {}", &app.machine_architecture);
     info!("    Package Runtime Dependencies: {}", &app.runtime_dependencies);
 
-    let mutex_name = format!("clowdsquirrel-{}", &app.id);
-    info!("Attempting to open global system mutex: '{}'", &mutex_name);
-    let _mutex = windows::create_global_mutex(&mutex_name)?;
+    let _mutex = windows::create_global_mutex(&app)?;
 
-    info!("Checking application pre-requisites...");
-    let dependencies = runtimes::parse_dependency_list(&app.runtime_dependencies);
-    let mut missing: Vec<&Box<dyn runtimes::RuntimeInfo>> = Vec::new();
-    let mut missing_str = String::new();
-
-    for i in 0..dependencies.len() {
-        let dep = &dependencies[i];
-        if dep.is_installed() {
-            info!("    {} is already installed.", dep.display_name());
-            continue;
-        }
-        info!("    {} is missing.", dep.display_name());
-        if !missing.is_empty() {
-            missing_str += ", ";
-        }
-        missing.push(dep);
-        missing_str += dep.display_name();
-    }
-
-    let splash_bytes = pkg.get_splash_bytes();
-
-    if !missing.is_empty() {
-        if !dialogs::show_missing_dependencies_dialog(&app, &missing_str) {
-            error!("User cancelled pre-requisite installation.");
-            return Ok(());
-        }
-
-        let downloads = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Downloads, co::KF::DONT_UNEXPAND, None)?;
-        let downloads = Path::new(downloads.as_str());
-
-        info!("Downloading {} missing pre-requisites...", missing.len());
-        let quiet = dialogs::get_silent();
-
-        for i in 0..missing.len() {
-            let dep = &missing[i];
-            let url = dep.get_download_url()?;
-            let exe_name = downloads.join(dep.get_exe_name());
-
-            if !exe_name.exists() {
-                let tx = splash::show_splash_in_new_thread(app.title.to_owned(), splash_bytes.clone(), true);
-                info!("    Downloading {}...", dep.display_name());
-                let result = download::download_url_to_file(&url, &exe_name.to_str().unwrap(), |p| {
-                    let _ = tx.send(p);
-                });
-                let _ = tx.send(splash::MSG_CLOSE);
-                result?;
-            }
-
-            info!("    Installing {}...", dep.display_name());
-            let result = dep.install(exe_name.to_str().unwrap(), quiet)?;
-            if result == runtimes::RuntimeInstallResult::RestartRequired {
-                warn!("A restart is required to complete the installation of {}.", dep.display_name());
-                dialogs::show_restart_required(&app);
-                return Ok(());
-            }
-        }
+    if !windows::prerequisite::prompt_and_install_all_missing(&app, None)? {
+        info!("Cancelling setup. Pre-requisites not installed.");
+        return Ok(());
     }
 
     info!("Determining install directory...");
@@ -226,9 +170,11 @@ fn run(debug_pkg: &Option<&PathBuf>, install_to: &Option<&PathBuf>) -> Result<()
     info!("Preparing and cleaning installation directory...");
     remove_dir_all::ensure_empty_dir(&root_path)?;
 
-    let tx = splash::show_splash_in_new_thread(app.title.to_owned(), splash_bytes.clone(), true);
+    info!("Reading splash image...");
+    let splash_bytes = pkg.get_splash_bytes();
+    let tx = windows::splash::show_splash_dialog(app.title.to_owned(), splash_bytes, true);
     let install_result = install_app(&pkg, &root_path, &tx);
-    let _ = tx.send(splash::MSG_CLOSE);
+    let _ = tx.send(windows::splash::MSG_CLOSE);
 
     if install_result.is_ok() {
         info!("Installation completed successfully!");
@@ -294,7 +240,7 @@ fn install_app(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::mp
     if let Err(e) = windows::run_process_no_console_and_wait(&main_exe_path, args, &current_path, Some(Duration::from_secs(30))) {
         let setup_name = format!("{} Setup {}", app.title, app.version);
         error!("Process install hook failed: {}", e);
-        let _ = tx.send(splash::MSG_CLOSE);
+        let _ = tx.send(windows::splash::MSG_CLOSE);
         dialogs::show_warning(
             format!("Installation has completed, but the application install hook failed ({}). It may not have installed correctly.", e),
             setup_name,

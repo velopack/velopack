@@ -56,7 +56,27 @@ pub fn show_restart_required(app: &Manifest) {
     );
 }
 
-pub fn show_missing_dependencies_dialog(app: &Manifest, depedency_string: &str) -> bool {
+pub fn show_update_missing_dependencies_dialog(app: &Manifest, depedency_string: &str, from: &semver::Version, to: &semver::Version) -> bool {
+    if get_silent() {
+        // this has different behavior to show_setup_missing_dependencies_dialog,
+        // if silent is true then we will bail because the app is probably exiting
+        // and installing dependencies may result in a UAC prompt.
+        warn!("Cancelling pre-requisite installation because silent flag is true.");
+        return false;
+    }
+
+    let hwnd = w::HWND::GetDesktopWindow();
+    ok_cancel(
+        &hwnd,
+        format!("{} Update", app.title).as_str(),
+        Some(format!("{} would like to update from {} to {}", app.title, from, to).as_str()),
+        format!("{} {to} has missing dependencies which need to be installed: {}, would you like to continue?", app.title, depedency_string).as_str(),
+        Some("Install & Update"),
+    )
+    .unwrap_or(false)
+}
+
+pub fn show_setup_missing_dependencies_dialog(app: &Manifest, depedency_string: &str) -> bool {
     if get_silent() {
         return true;
     }

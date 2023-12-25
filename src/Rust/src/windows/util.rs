@@ -34,8 +34,10 @@ pub fn run_hook(app: &shared::bundle::Manifest, root_path: &PathBuf, hook_name: 
     let _ = shared::force_stop_package(&root_path);
 }
 
-pub fn create_global_mutex(name: &str) -> Result<Foundation::HANDLE> {
-    let encoded = name.encode_utf16().chain([0u16]).collect::<Vec<u16>>();
+pub fn create_global_mutex(app: &shared::bundle::Manifest) -> Result<Foundation::HANDLE> {
+    let mutex_name = format!("clowdsquirrel-{}", &app.id);
+    info!("Attempting to open global system mutex: '{}'", &mutex_name);
+    let encoded = mutex_name.encode_utf16().chain([0u16]).collect::<Vec<u16>>();
     let pw = PCWSTR(encoded.as_ptr());
     let mutex = unsafe { CreateMutexW(None, true, pw) }?;
     match unsafe { GetLastError() } {

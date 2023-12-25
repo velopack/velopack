@@ -17,7 +17,17 @@ const MSG_NOMESSAGE: i16 = -99;
 pub const MSG_CLOSE: i16 = -1;
 // pub const MSG_INDEFINITE: i16 = -2;
 
-pub fn show_splash_in_new_thread(app_name: String, imgstream: Option<Vec<u8>>, delay: bool) -> Sender<i16> {
+pub fn show_progress_dialog<T1: AsRef<str>, T2: AsRef<str>>(window_title: T1, content: T2) -> Sender<i16> {
+    let window_title = window_title.as_ref().to_string();
+    let content = content.as_ref().to_string();
+    let (tx, rx) = mpsc::channel::<i16>();
+    thread::spawn(move || {
+        show_com_ctl_progress_dialog(rx, &window_title, &content);
+    });
+    tx
+}
+
+pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>, delay: bool) -> Sender<i16> {
     let (tx, rx) = mpsc::channel::<i16>();
     let tx2 = tx.clone();
     thread::spawn(move || {
@@ -59,7 +69,9 @@ pub fn show_splash_in_new_thread(app_name: String, imgstream: Option<Vec<u8>>, d
                 Ok(())
             });
         } else {
-            show_com_ctl_progress_dialog(app_name, rx);
+            let setup_name = format!("{} Setup", app_name);
+            let content = "Please Wait...";
+            show_com_ctl_progress_dialog(rx, setup_name.as_str(), content);
         }
     });
     tx
@@ -289,14 +301,14 @@ pub struct ComCtlProgressWindow {
     rx: Rc<Receiver<i16>>,
 }
 
-fn show_com_ctl_progress_dialog(app_name: String, rx: Receiver<i16>) {
-    let mut setup_name = WString::from_str(format!("{} Setup", app_name));
-    let mut content = WString::from_str("Please Wait...");
+fn show_com_ctl_progress_dialog(rx: Receiver<i16>, window_title: &str, content: &str) {
+    let mut window_title = WString::from_str(window_title);
+    let mut content = WString::from_str(content);
 
     let mut config: w::TASKDIALOGCONFIG = Default::default();
     config.dwFlags = co::TDF::SIZE_TO_CONTENT | co::TDF::SHOW_PROGRESS_BAR | co::TDF::CALLBACK_TIMER;
     config.set_pszMainIcon(w::IconIdTdicon::Tdicon(co::TD_ICON::INFORMATION));
-    config.set_pszWindowTitle(Some(&mut setup_name));
+    config.set_pszWindowTitle(Some(&mut window_title));
     config.set_pszMainInstruction(Some(&mut content));
 
     // if (_icon != null) {
