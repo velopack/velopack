@@ -31,11 +31,35 @@ pub fn show_info(title: &str, header: Option<&str>, body: &str) {
 }
 
 pub fn show_ok_cancel(title: &str, header: Option<&str>, body: &str, ok_text: Option<&str>) -> bool {
+    if get_silent() {
+        return false;
+    }
+
     let mut btns = DialogButton::Cancel;
     if ok_text.is_none() {
         btns |= DialogButton::Ok;
     }
     generate_confirm(title, header, body, ok_text, btns, DialogIcon::Warning).map(|dlg_id| dlg_id == DialogResult::Ok).unwrap_or(false)
+}
+
+#[test]
+#[ntest::timeout(2000)]
+fn test_no_dialogs_show_if_silent() {
+    set_silent(true);
+    show_error("Error", None, "This is an error.");
+    show_warn("Warning", None, "This is a warning.");
+    show_info("Information", None, "This is information.");
+    assert!(!show_ok_cancel("Ok/Cancel", None, "This is a question.", None));
+}
+
+#[test]
+#[ignore]
+fn test_show_all_dialogs() {
+    show_error("Error", None, "This is an error.");
+    show_warn("Warning", None, "This is a warning.");
+    show_info("Information", None, "This is information.");
+    assert!(show_ok_cancel("Ok/Cancel", None, "This is a question.", None));
+    assert!(!show_ok_cancel("Ok/Cancel", None, "This is a question.", Some("Ok")));
 }
 
 // pub fn yes_no(title: &str, header: Option<&str>, body: &str) -> Result<bool> {

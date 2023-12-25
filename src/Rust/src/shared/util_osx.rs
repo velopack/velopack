@@ -37,7 +37,26 @@ pub fn start_package<P: AsRef<Path>>(_app: &Manifest, root_dir: P, exe_args: Opt
 }
 
 #[test]
+#[ignore]
 fn test_start_and_stop_package()
 {
-    assert!(false);
+    let mani = Manifest::default();
+    let root_dir = "/Applications/Calcbot.app";
+    let _ = force_stop_package(root_dir);
+
+    fn is_running() -> bool {
+        let output = Process::new("pgrep").arg("-f").arg("Calcbot.app").output().unwrap();
+        output.stdout.len() > 0
+    }
+
+    std::thread::sleep(Duration::from_secs(1));
+    assert!(!is_running());
+    std::thread::sleep(Duration::from_secs(1));
+    start_package(&mani, root_dir, None).unwrap();
+    std::thread::sleep(Duration::from_secs(1));
+    assert!(is_running());
+    std::thread::sleep(Duration::from_secs(1));
+    force_stop_package(root_dir).unwrap();
+    std::thread::sleep(Duration::from_secs(1));
+    assert!(!is_running());
 }
