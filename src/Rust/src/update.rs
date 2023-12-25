@@ -37,10 +37,10 @@ fn root_command() -> Command {
         .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceeded by '--'.").required(false).last(true).num_args(0..))
         .long_flag_aliases(vec!["processStart", "processStartAndWait"])
     )
-    .arg(arg!(--verbose "Print debug messages to console / log"))
-    .arg(arg!(--nocolor "Disable colored output").hide(true))
-    .arg(arg!(-s --silent "Don't show any prompts / dialogs"))
-    .arg(arg!(-l --log <PATH> "Override the default log file location").value_parser(value_parser!(PathBuf)))
+    .arg(arg!(--verbose "Print debug messages to console / log").global(true))
+    .arg(arg!(--nocolor "Disable colored output").hide(true).global(true))
+    .arg(arg!(-s --silent "Don't show any prompts / dialogs").global(true))
+    .arg(arg!(-l --log <PATH> "Override the default log file location").global(true).value_parser(value_parser!(PathBuf)))
     .disable_help_subcommand(true)
     .flatten_help(true);
 
