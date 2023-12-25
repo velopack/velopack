@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::fs::File;
 use std::io::{Read, Write};
 
-use crate::util;
+use crate::shared;
 
 pub fn download_url_to_file<A>(url: &str, file_path: &str, mut progress: A) -> Result<()>
 where
@@ -14,7 +14,7 @@ where
     let response = agent.get(url).call()?;
 
     let total_size = response.header("Content-Length").and_then(|s| s.parse::<u64>().ok());
-    let mut file = util::retry_io(|| File::create(file_path))?;
+    let mut file = shared::retry_io(|| File::create(file_path))?;
 
     const CHUNK_SIZE: usize = 2 * 1024 * 1024; // 2MB
     let mut downloaded: u64 = 0;

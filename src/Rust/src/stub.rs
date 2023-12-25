@@ -1,9 +1,6 @@
 #![allow(dead_code)]
 
-mod util;
-
-#[macro_use]
-extern crate lazy_static;
+mod logging;
 
 #[macro_use]
 extern crate log;
@@ -21,7 +18,7 @@ fn main() -> ExitCode {
     log_path.pop();
     log_path.push("Clowd.Squirrel.log");
 
-    let _ = util::setup_logging(Some(&log_path), false, true, true);
+    let _ = logging::setup_logging(Some(&log_path), false, true, true);
 
     let mut update_exe = my_path.clone();
     update_exe.pop();

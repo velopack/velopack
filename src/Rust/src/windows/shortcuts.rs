@@ -1,10 +1,8 @@
+use crate::shared as util;
 use anyhow::Result;
 use glob::glob;
 use std::path::Path;
 use winsafe::{self as w, co, prelude::*};
-
-use crate::platform;
-use crate::util;
 
 pub fn resolve_lnk(link_path: &str) -> Result<(String, String)> {
     let _comguard = w::CoInitializeEx(co::COINIT::APARTMENTTHREADED | co::COINIT::DISABLE_OLE1DDE)?;
@@ -63,8 +61,8 @@ pub fn remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<
                     trace!("Checking shortcut: '{}'", path.to_string_lossy());
                     let res = _resolve_lnk(&path.to_string_lossy());
                     if let Ok((target, work_dir)) = res {
-                        let target_match = platform::is_sub_path(&target, root_dir).unwrap_or(false);
-                        let work_dir_match = platform::is_sub_path(&work_dir, root_dir).unwrap_or(false);
+                        let target_match = super::is_sub_path(&target, root_dir).unwrap_or(false);
+                        let work_dir_match = super::is_sub_path(&work_dir, root_dir).unwrap_or(false);
                         if target_match || work_dir_match {
                             let mstr = if target_match && work_dir_match {
                                 format!("both target ({}) and work dir ({})", target, work_dir)
@@ -87,7 +85,6 @@ pub fn remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<
 #[test]
 #[ignore]
 fn test_can_resolve_existing_shortcut() {
-    util::trace_logger();
     let link_path = r"C:\Users\Caelan\Desktop\Discord.lnk";
     let (target, _workdir) = resolve_lnk(link_path).unwrap();
     assert_eq!(target, "C:\\Users\\Caelan\\AppData\\Local\\Discord\\Update.exe");

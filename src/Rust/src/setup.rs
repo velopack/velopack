@@ -1,19 +1,18 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(dead_code)]
 
-mod bundle;
-mod download;
-mod runtimes;
-mod splash;
-mod util;
-mod platform;
-
-#[macro_use]
-extern crate lazy_static;
+mod logging;
+mod shared;
+mod windows;
 
 #[macro_use]
 extern crate log;
 extern crate simplelog;
+#[macro_use]
+extern crate lazy_static;
+
+use shared::{bundle, dialogs};
+use windows::{download, runtimes, splash};
 
 use anyhow::{anyhow, bail, Result};
 use clap::{arg, value_parser, Command};
@@ -48,8 +47,8 @@ fn main() -> Result<()> {
     let installto = matches.get_one::<PathBuf>("installto");
     let nocolor = matches.get_flag("nocolor");
 
-    platform::set_silent(silent);
-    util::setup_logging(logfile, true, verbose, nocolor)?;
+    shared::dialogs::set_silent(silent);
+    logging::setup_logging(logfile, true, verbose, nocolor)?;
 
     info!("Starting Clowd.Squirrel Setup ({})", env!("NGBV_VERSION"));
     info!("    Location: {:?}", std::env::current_exe()?);
@@ -64,7 +63,7 @@ fn main() -> Result<()> {
     let res = run(&debug, &installto);
     if let Err(e) = &res {
         error!("An error has occurred: {}", e);
-        platform::show_error(format!("An error has occurred: {}", e), "Setup Error".to_string());
+        dialogs::show_error(format!("An error has occurred: {}", e), "Setup Error".to_string());
     }
 
     res?;
@@ -99,7 +98,7 @@ fn run(debug_pkg: &Option<&PathBuf>, install_to: &Option<&PathBuf>) -> Result<()
 
     let mutex_name = format!("clowdsquirrel-{}", &app.id);
     info!("Attempting to open global system mutex: '{}'", &mutex_name);
-    let _mutex = platform::create_global_mutex(&mutex_name)?;
+    let _mutex = windows::create_global_mutex(&mutex_name)?;
 
     info!("Checking application pre-requisites...");
     let dependencies = runtimes::parse_dependency_list(&app.runtime_dependencies);
@@ -123,7 +122,7 @@ fn run(debug_pkg: &Option<&PathBuf>, install_to: &Option<&PathBuf>) -> Result<()
     let splash_bytes = pkg.get_splash_bytes();
 
     if !missing.is_empty() {
-        if !platform::show_missing_dependencies_dialog(&app, &missing_str) {
+        if !dialogs::show_missing_dependencies_dialog(&app, &missing_str) {
             error!("User cancelled pre-requisite installation.");
             return Ok(());
         }
@@ -132,7 +131,7 @@ fn run(debug_pkg: &Option<&PathBuf>, install_to: &Option<&PathBuf>) -> Result<()
         let downloads = Path::new(downloads.as_str());
 
         info!("Downloading {} missing pre-requisites...", missing.len());
-        let quiet = platform::get_silent();
+        let quiet = dialogs::get_silent();
 
         for i in 0..missing.len() {
             let dep = &missing[i];
@@ -153,7 +152,7 @@ fn run(debug_pkg: &Option<&PathBuf>, install_to: &Option<&PathBuf>) -> Result<()
             let result = dep.install(exe_name.to_str().unwrap(), quiet)?;
             if result == runtimes::RuntimeInstallResult::RestartRequired {
                 warn!("A restart is required to complete the installation of {}.", dep.display_name());
-                platform::show_restart_required(&app);
+                dialogs::show_restart_required(&app);
                 return Ok(());
             }
         }
@@ -169,7 +168,7 @@ fn run(debug_pkg: &Option<&PathBuf>, install_to: &Option<&PathBuf>) -> Result<()
 
     // path needs to exist for future operations (disk space etc)
     if !root_path.exists() {
-        util::retry_io(|| fs::create_dir_all(&root_path))?;
+        shared::retry_io(|| fs::create_dir_all(&root_path))?;
     }
 
     let root_path_str = root_path.to_str().unwrap();
@@ -192,31 +191,31 @@ fn run(debug_pkg: &Option<&PathBuf>, install_to: &Option<&PathBuf>) -> Result<()
     info!("There is {} free space available at destination, this package requires {}.", pretty_bytes(free_space, None), pretty_bytes(required_space, None));
 
     // does this app support this OS / architecture?
-    if !app.os_min_version.is_empty() && !platform::is_os_version_or_greater(&app.os_min_version)? {
+    if !app.os_min_version.is_empty() && !windows::is_os_version_or_greater(&app.os_min_version)? {
         bail!("This application requires Windows {} or later.", &app.os_min_version);
     }
 
-    if !app.machine_architecture.is_empty() && !platform::is_cpu_architecture_supported(&app.machine_architecture)? {
+    if !app.machine_architecture.is_empty() && !windows::is_cpu_architecture_supported(&app.machine_architecture)? {
         bail!("This application ({}) does not support your CPU architecture.", &app.machine_architecture);
     }
 
     let mut root_path_renamed = String::new();
     // does the target directory exist and have files? (eg. already installed)
-    if !util::is_dir_empty(&root_path) {
+    if !shared::is_dir_empty(&root_path) {
         // the target directory is not empty, and not dead
-        if !platform::show_overwrite_repair_dialog(&app, &root_path, root_is_default) {
+        if !dialogs::show_overwrite_repair_dialog(&app, &root_path, root_is_default) {
             // user cancelled overwrite prompt
             error!("Directory exists, and user cancelled overwrite.");
             return Ok(());
         }
 
-        platform::kill_processes_in_directory(&root_path)
+        shared::force_stop_package(&root_path)
             .map_err(|z| anyhow!("Failed to stop application ({}), please close the application and try running the installer again.", z))?;
 
-        root_path_renamed = format!("{}_{}", root_path_str, util::random_string(8));
+        root_path_renamed = format!("{}_{}", root_path_str, shared::random_string(8));
         info!("Renaming existing directory to '{}' to allow rollback...", root_path_renamed);
 
-        util::retry_io(|| fs::rename(&root_path, &root_path_renamed)).map_err(|_| {
+        shared::retry_io(|| fs::rename(&root_path, &root_path_renamed)).map_err(|_| {
             anyhow!(
                 "Failed to remove existing application directory, please close the application and try running the installer again. \
                 If the issue persists, try uninstalling first via Programs & Features, or restarting your computer."
@@ -235,15 +234,15 @@ fn run(debug_pkg: &Option<&PathBuf>, install_to: &Option<&PathBuf>) -> Result<()
         info!("Installation completed successfully!");
         if !root_path_renamed.is_empty() {
             info!("Removing rollback directory...");
-            let _ = util::retry_io(|| fs::remove_dir_all(&root_path_renamed));
+            let _ = shared::retry_io(|| fs::remove_dir_all(&root_path_renamed));
         }
     } else {
         error!("Installation failed!");
         if !root_path_renamed.is_empty() {
             info!("Rolling back installation...");
-            let _ = platform::kill_processes_in_directory(&root_path);
-            let _ = util::retry_io(|| fs::remove_dir_all(&root_path));
-            let _ = util::retry_io(|| fs::rename(&root_path_renamed, &root_path));
+            let _ = shared::force_stop_package(&root_path);
+            let _ = shared::retry_io(|| fs::remove_dir_all(&root_path));
+            let _ = shared::retry_io(|| fs::rename(&root_path_renamed, &root_path));
         }
         install_result?;
     }
@@ -270,7 +269,7 @@ fn install_app(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::mp
     let _ = tx.send(5);
 
     info!("Copying nupkg to packages directory...");
-    util::retry_io(|| fs::create_dir_all(&packages_path))?;
+    shared::retry_io(|| fs::create_dir_all(&packages_path))?;
     pkg.copy_bundle_to_file(&nupkg_path)?;
     let _ = tx.send(10);
 
@@ -285,18 +284,18 @@ fn install_app(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::mp
     info!("Creating start menu shortcut...");
     let startmenu = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::StartMenu, co::KF::DONT_UNEXPAND, None)?;
     let lnk_path = Path::new(&startmenu).join("Programs").join(format!("{}.lnk", &app.title));
-    if let Err(e) = platform::create_lnk(&lnk_path.to_string_lossy(), &main_exe_path, &current_path) {
+    if let Err(e) = windows::create_lnk(&lnk_path.to_string_lossy(), &main_exe_path, &current_path) {
         warn!("Failed to create start menu shortcut: {}", e);
     }
 
     let ver_string = app.version.to_string();
     info!("Starting process install hook: \"{}\" --squirrel-install {}", &main_exe_path, &ver_string);
     let args = vec!["--squirrel-install", &ver_string];
-    if let Err(e) = platform::run_process_no_console_and_wait(&main_exe_path, args, &current_path, Some(Duration::from_secs(30))) {
+    if let Err(e) = windows::run_process_no_console_and_wait(&main_exe_path, args, &current_path, Some(Duration::from_secs(30))) {
         let setup_name = format!("{} Setup {}", app.title, app.version);
         error!("Process install hook failed: {}", e);
         let _ = tx.send(splash::MSG_CLOSE);
-        platform::show_warning(
+        dialogs::show_warning(
             format!("Installation has completed, but the application install hook failed ({}). It may not have installed correctly.", e),
             setup_name,
         );
@@ -306,10 +305,10 @@ fn install_app(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::mp
 
     app.write_uninstall_entry(root_path)?;
 
-    if !platform::get_silent() {
+    if !dialogs::get_silent() {
         info!("Starting app: \"{}\" --squirrel-firstrun", main_exe_path);
         let args = vec!["--squirrel-firstrun"];
-        let _ = platform::run_process(&main_exe_path, args, &current_path);
+        let _ = shared::run_process(&main_exe_path, args, &current_path);
     }
 
     Ok(())

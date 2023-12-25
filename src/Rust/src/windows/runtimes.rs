@@ -1,10 +1,10 @@
+use super::download;
+use crate::shared as util;
 use anyhow::{anyhow, bail, Result};
 use regex::Regex;
 use std::process::Command as Process;
 use std::{collections::HashMap, env, fs, path::Path};
 use winsafe::{self as w, co, prelude::*};
-
-use crate::{util, download};
 
 const REDIST_2015_2022_X86: &str = "https://aka.ms/vs/17/release/vc_redist.x86.exe";
 const REDIST_2015_2022_X64: &str = "https://aka.ms/vs/17/release/vc_redist.x64.exe";

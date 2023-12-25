@@ -4,12 +4,12 @@ version = "0.0.0-local"
 edition = "2021"
 
 [features]
-windows_build = []
+windows = []
 
 [[bin]]
 name = "setup"
 path = "src/setup.rs"
-required-features = ["windows_build"]
+required-features = ["windows"]
 
 [[bin]]
 name = "update"
@@ -18,12 +18,12 @@ path = "src/update.rs"
 [[bin]]
 name = "testapp"
 path = "src/testapp.rs"
-required-features = ["windows_build"]
+required-features = ["windows"]
 
 [[bin]]
 name = "stub"
 path = "src/stub.rs"
-required-features = ["windows_build"]
+required-features = ["windows"]
 
 [profile.release]
 opt-level = "z"          # optimize for size
@@ -60,10 +60,10 @@ native-tls = "0.2"
 file-rotate = "0.7"
 derivative = "2.2"
 simple-stopwatch = "0.1.4"
+glob = "0.3"
 
 [target.'cfg(windows)'.dependencies]
 fs_extra = "1.2"
-glob = "0.3"
 memmap2 = "0.9"
 winsafe = { git = "https://github.com/caesay/winsafe.git", branch = "cs/only-ipersistfile", features = [
     "kernel",

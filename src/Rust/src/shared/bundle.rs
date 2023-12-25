@@ -14,8 +14,6 @@ use winsafe::{self as w, co, prelude::*};
 use xml::reader::{EventReader, XmlEvent};
 use zip::ZipArchive;
 
-use crate::util;
-
 pub trait ReadSeek: Read + Seek {}
 impl<T: Read + Seek> ReadSeek for T {}
 
@@ -44,7 +42,7 @@ pub struct BundleInfo<'a> {
 
 pub fn load_bundle_from_file<'a>(file_name: &PathBuf) -> Result<BundleInfo<'a>> {
     debug!("Loading bundle from file '{}'...", file_name.display());
-    let file = util::retry_io(|| File::open(&file_name))?;
+    let file = super::retry_io(|| File::open(&file_name))?;
     let cursor: Box<dyn ReadSeek> = Box::new(file);
     let zip = ZipArchive::new(cursor)?;
     return Ok(BundleInfo { zip: Rc::new(RefCell::new(zip)), zip_from_file: true, file_path: Some(file_name.to_owned()), zip_range: None });
@@ -147,7 +145,7 @@ impl BundleInfo<'_> {
 
         if !parent.exists() {
             debug!("Creating parent directory: {:?}", parent);
-            util::retry_io(|| fs::create_dir_all(parent))?;
+            super::retry_io(|| fs::create_dir_all(parent))?;
         }
 
         let mut archive = self.zip.borrow_mut();
@@ -156,7 +154,7 @@ impl BundleInfo<'_> {
         file.read_to_end(&mut buffer)?;
 
         debug!("Writing file to disk: {:?}", path);
-        util::retry_io(|| fs::write(path, &buffer))?;
+        super::retry_io(|| fs::write(path, &buffer))?;
         Ok(())
     }
 
@@ -228,9 +226,9 @@ impl BundleInfo<'_> {
     pub fn copy_bundle_to_file<T: AsRef<str>>(&self, nupkg_path: T) -> Result<()> {
         let nupkg_path = nupkg_path.as_ref();
         if self.zip_from_file {
-            util::retry_io(|| fs::copy(self.file_path.clone().unwrap(), nupkg_path))?;
+            super::retry_io(|| fs::copy(self.file_path.clone().unwrap(), nupkg_path))?;
         } else {
-            util::retry_io(|| fs::write(nupkg_path, self.zip_range.unwrap()))?;
+            super::retry_io(|| fs::write(nupkg_path, self.zip_range.unwrap()))?;
         }
         Ok(())
     }

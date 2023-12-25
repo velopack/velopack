@@ -1,13 +1,13 @@
+use crate::shared;
 use anyhow::{anyhow, bail, Result};
 use normpath::PathExt;
 use std::{
-    collections::HashMap,
     ffi::OsStr,
     io::Read,
     os::windows::process::CommandExt,
     path::{Path, PathBuf},
     process::Command as Process,
-    time::Duration, fs,
+    time::Duration,
 };
 use wait_timeout::ChildExt;
 use windows::{
@@ -17,114 +17,21 @@ use windows::{
         System::Threading::CreateMutexW,
     },
 };
-use winsafe::{self as w, co, prelude::*};
+use winsafe::{self as w, co};
 
-use crate::util;
-
-pub fn replace_dir_with_rollback<F, T, P: AsRef<Path>>(path: P, op: F) -> Result<()>
-where
-    F: FnOnce() -> Result<T>,
-{
-    let path = path.as_ref().to_string_lossy().to_string();
-    let mut path_renamed = String::new();
-
-    if !util::is_dir_empty(&path) {
-        path_renamed = format!("{}_{}", path, util::random_string(8));
-        info!("Renaming directory '{}' to '{}' to allow rollback...", path, path_renamed);
-
-        kill_processes_in_directory(&path)
-            .map_err(|z| anyhow!("Failed to stop application ({}), please close the application and try running the installer again.", z))?;
-
-        util::retry_io(|| fs::rename(&path, &path_renamed)).map_err(|z| anyhow!("Failed to rename directory '{}' to '{}' ({}).", path, path_renamed, z))?;
+pub fn run_hook(app: &shared::bundle::Manifest, root_path: &PathBuf, hook_name: &str, timeout_secs: u64) {
+    let sw = simple_stopwatch::Stopwatch::start_new();
+    let current_path = app.get_current_path(&root_path);
+    let main_exe_path = app.get_main_exe_path(&root_path);
+    info!("Running {} hook...", hook_name);
+    let ver_string = app.version.to_string();
+    let args = vec![hook_name, &ver_string];
+    if let Err(e) = run_process_no_console_and_wait(&main_exe_path, args, &current_path, Some(Duration::from_secs(timeout_secs))) {
+        warn!("Error running hook {}: {} (took {}ms)", hook_name, e, sw.ms());
     }
-
-    remove_dir_all::ensure_empty_dir(&path).map_err(|z| anyhow!("Failed to create clean directory '{}' ({}).", path, z))?;
-
-    if let Err(e) = op() {
-        // install failed, rollback if possible
-        warn!("Rolling back installation... (error was: {:?})", e);
-        if let Err(ex) = kill_processes_in_directory(&path) {
-            warn!("Failed to stop application ({}).", ex);
-        }
-        if !path_renamed.is_empty() {
-            if let Err(ex) = util::retry_io(|| fs::remove_dir_all(&path)) {
-                error!("Failed to remove directory '{}' ({}).", path, ex);
-            }
-            if let Err(ex) = util::retry_io(|| fs::rename(&path_renamed, &path)) {
-                error!("Failed to rename directory '{}' to '{}' ({}).", path_renamed, path, ex);
-            }
-        }
-        return Err(e);
-    } else {
-        // install successful, remove rollback directory if exists
-        if !path_renamed.is_empty() {
-            debug!("Removing rollback directory '{}'.", path_renamed);
-            if let Err(ex) = util::retry_io(|| fs::remove_dir_all(&path_renamed)) {
-                warn!("Failed to remove directory '{}' ({}).", path_renamed, ex);
-            }
-        }
-        return Ok(());
-    }
-}
-
-pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
-    info!("Reading parent process information.");
-    let basic_info = windows_sys::Wdk::System::Threading::ProcessBasicInformation;
-    let handle = unsafe { windows_sys::Win32::System::Threading::GetCurrentProcess() };
-    let mut return_length: u32 = 0;
-    let return_length_ptr: *mut u32 = &mut return_length as *mut u32;
-
-    let mut info = windows_sys::Win32::System::Threading::PROCESS_BASIC_INFORMATION {
-        AffinityMask: 0,
-        BasePriority: 0,
-        ExitStatus: 0,
-        InheritedFromUniqueProcessId: 0,
-        PebBaseAddress: std::ptr::null_mut(),
-        UniqueProcessId: 0,
-    };
-
-    let info_ptr: *mut ::core::ffi::c_void = &mut info as *mut _ as *mut ::core::ffi::c_void;
-    let info_size = std::mem::size_of::<windows_sys::Win32::System::Threading::PROCESS_BASIC_INFORMATION>() as u32;
-    let hr = unsafe { windows_sys::Wdk::System::Threading::NtQueryInformationProcess(handle, basic_info, info_ptr, info_size, return_length_ptr) };
-
-    if hr != 0 {
-        return Err(anyhow!("Failed to query process information: {}", hr));
-    }
-
-    if info.InheritedFromUniqueProcessId <= 1 {
-        // the parent process has exited
-        info!("The parent process ({}) has already exited", info.InheritedFromUniqueProcessId);
-        return Ok(());
-    }
-
-    fn get_pid_start_time(process: w::HPROCESS) -> Result<u64> {
-        let mut creation = w::FILETIME::default();
-        let mut exit = w::FILETIME::default();
-        let mut kernel = w::FILETIME::default();
-        let mut user = w::FILETIME::default();
-        process.GetProcessTimes(&mut creation, &mut exit, &mut kernel, &mut user)?;
-        Ok(((creation.dwHighDateTime as u64) << 32) | creation.dwLowDateTime as u64)
-    }
-
-    let parent_handle = w::HPROCESS::OpenProcess(co::PROCESS::QUERY_LIMITED_INFORMATION, false, info.InheritedFromUniqueProcessId as u32)?;
-    let parent_start_time = get_pid_start_time(unsafe { parent_handle.raw_copy() })?;
-    let myself_start_time = get_pid_start_time(w::HPROCESS::GetCurrentProcess())?;
-
-    if parent_start_time > myself_start_time {
-        // the parent process has exited and the id has been re-used
-        info!(
-            "The parent process ({}) has already exited. parent_start={}, my_start={}",
-            info.InheritedFromUniqueProcessId, parent_start_time, myself_start_time
-        );
-        return Ok(());
-    }
-
-    info!("Waiting {}ms for parent process ({}) to exit.", ms_to_wait, info.InheritedFromUniqueProcessId);
-    match parent_handle.WaitForSingleObject(Some(ms_to_wait)) {
-        Ok(co::WAIT::OBJECT_0) => Ok(()),
-        // Ok(co::WAIT::TIMEOUT) => Ok(()),
-        _ => Err(anyhow!("Failed to wait for parent process to exit.")),
-    }
+    info!("Hook executed successfully (took {}ms)", sw.ms());
+    // in case the hook left running processes
+    let _ = shared::force_stop_package(&root_path);
 }
 
 pub fn create_global_mutex(name: &str) -> Result<Foundation::HANDLE> {
@@ -251,7 +158,7 @@ fn test_is_sub_path_works_with_empty_paths() {
 }
 
 pub fn is_os_version_or_greater(version: &str) -> Result<bool> {
-    let (mut major, mut minor, mut build, _) = util::parse_version(version)?;
+    let (mut major, mut minor, mut build, _) = shared::parse_version(version)?;
 
     if major < 8 {
         return Ok(w::IsWindows7OrGreater()?);
@@ -297,57 +204,6 @@ pub fn test_os_returns_true_for_everything_on_windows_11_and_below() {
     assert!(is_os_version_or_greater("10.0.20000").unwrap());
     assert!(is_os_version_or_greater("11").unwrap());
     assert!(!is_os_version_or_greater("12").unwrap());
-}
-
-pub fn get_processes_running_in_directory<P: AsRef<Path>>(dir: P) -> Result<HashMap<u32, PathBuf>> {
-    let dir = dir.as_ref();
-    let mut oup = HashMap::new();
-    let mut hpl = w::HPROCESSLIST::CreateToolhelp32Snapshot(co::TH32CS::SNAPPROCESS, None)?;
-    for proc_entry in hpl.iter_processes() {
-        if let Ok(proc) = proc_entry {
-            let process = w::HPROCESS::OpenProcess(co::PROCESS::QUERY_LIMITED_INFORMATION, false, proc.th32ProcessID);
-            if process.is_err() {
-                continue;
-            }
-
-            let process = process.unwrap();
-            let full_path = process.QueryFullProcessImageName(co::PROCESS_NAME::WIN32);
-            if full_path.is_err() {
-                continue;
-            }
-
-            let full_path = full_path.unwrap();
-            let full_path = Path::new(&full_path);
-            if let Ok(is_subpath) = is_sub_path(full_path, dir) {
-                if is_subpath {
-                    oup.insert(proc.th32ProcessID, full_path.to_path_buf());
-                }
-            }
-        }
-    }
-    Ok(oup)
-}
-
-pub fn kill_pid(pid: u32) -> Result<()> {
-    let process = w::HPROCESS::OpenProcess(co::PROCESS::TERMINATE, false, pid)?;
-    process.TerminateProcess(1)?;
-    Ok(())
-}
-
-pub fn kill_processes_in_directory<P: AsRef<Path>>(dir: P) -> Result<()> {
-    let dir = dir.as_ref();
-    info!("Checking for running processes in: {}", dir.display());
-    let processes = get_processes_running_in_directory(dir)?;
-    let my_pid = std::process::id();
-    for (pid, exe) in processes.iter() {
-        if *pid == my_pid {
-            warn!("Skipping killing self: {} ({})", exe.display(), pid);
-            continue;
-        }
-        warn!("Killing process: {} ({})", exe.display(), pid);
-        kill_pid(*pid)?;
-    }
-    Ok(())
 }
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
@@ -415,15 +271,6 @@ where
     Ok(())
 }
 
-pub fn run_process<S, P>(exe: S, args: Vec<&str>, work_dir: P) -> Result<()>
-where
-    S: AsRef<OsStr>,
-    P: AsRef<Path>,
-{
-    Process::new(exe).args(args).current_dir(work_dir).spawn()?;
-    Ok(())
-}
-
 pub fn run_process_raw_args<S, P>(exe: S, args: &str, work_dir: P) -> Result<()>
 where
     S: AsRef<OsStr>,
@@ -431,24 +278,6 @@ where
 {
     Process::new(exe).raw_arg(args).current_dir(work_dir).spawn()?;
     Ok(())
-}
-
-#[test]
-fn test_get_running_processes_finds_cargo() {
-    let profile = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Profile, co::KF::DONT_UNEXPAND, None).unwrap();
-    let path = Path::new(&profile);
-    let rustup = path.join(".rustup");
-
-    let processes = get_processes_running_in_directory(&rustup).unwrap();
-    assert!(processes.len() > 0);
-
-    let mut found = false;
-    for (_pid, exe) in processes.iter() {
-        if exe.ends_with("cargo.exe") {
-            found = true;
-        }
-    }
-    assert!(found);
 }
 
 pub fn is_cpu_architecture_supported(architecture: &str) -> Result<bool> {
@@ -532,7 +361,6 @@ pub fn assert_can_run_binary_authenticode<P: AsRef<Path>>(path: P) -> Result<()>
 #[test]
 #[ignore]
 fn test_authenticode() {
-    crate::util::trace_logger();
     assert!(verify_authenticode_against_powershell(r"C:\Windows\System32\notepad.exe"));
     assert!(verify_authenticode_against_powershell(r"C:\Windows\System32\cmd.exe"));
     assert!(verify_authenticode_against_powershell(r"C:\Users\Caelan\AppData\Local\Programs\Microsoft VS Code\Code.exe"));
