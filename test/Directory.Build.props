@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <CurrentOsName>Windows</CurrentOsName>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <CurrentOsName>Linux</CurrentOsName>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <CurrentOsName>OSX</CurrentOsName>
+  </PropertyGroup>
+
   <PropertyGroup Condition=" $(MSBuildProjectName.EndsWith('Tests')) ">
     <IsPackable>false</IsPackable>
     <LangVersion>latest</LangVersion>
@@ -12,7 +24,7 @@
 
     <!-- Coverage -->
     <CoverletOutputFormat>cobertura</CoverletOutputFormat>
-    <CoverletOutput>..\coverage.$(MSBuildProjectName).xml</CoverletOutput>
+    <CoverletOutput>..\coverage.$(CurrentOsName).$(MSBuildProjectName).xml</CoverletOutput>
     <Include>[Squirrel*]*</Include>
     <Exclude>[Squirrel.*.Tests]*,[*]Microsoft*</Exclude>
     <CollectCoverage>true</CollectCoverage>

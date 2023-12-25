@@ -3,12 +3,32 @@ name: Build Squirrel
 on: [ push, pull_request ]
 
 jobs:
-  rust-osx:
-    runs-on: macos-latest
+  build:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ matrix.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-test-nuget-${{ hashFiles('**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-test-nuget-
 
       - name: Install Rust
         run: rustup update stable
@@ -19,138 +39,85 @@ jobs:
       - name: Install NBGV
         run: dotnet tool install -g nbgv
 
+      - name: Set Windows Feature
+        run: echo "rust_features='--features windows'" >> "$GITHUB_ENV"
+        if: ${{ matrix.os == 'windows-latest' }}
+
       - name: Build Rust
         working-directory: src/Rust
-        run: cargo build --release
+        run: cargo build --release ${{ env.rust_features }}
 
       - name: Test Rust
         working-directory: src/Rust
-        run: cargo llvm-cov --cobertura --output-path ../../test/coverage.rust.osx.xml
+        run: cargo llvm-cov ${{ env.rust_features }} --cobertura --output-path ../../test/coverage.rust.${{ matrix.os }}.xml
 
-      - name: Rename Binaries
+      - name: Rename OSX Binary
         working-directory: src/Rust/target/release
-        run: |
-          mv update updatemac
+        run: mv update updatemac
+        if: ${{ matrix.os == 'macos-latest' }}
 
-      - name: Upload Binaries
+      - name: Test .NET
+        run: dotnet test -c Release -l "console;verbosity=detailed"
+
+      - name: Upload Rust Artifacts
         uses: actions/upload-artifact@v3
         with:
           name: rust
-          path: src/Rust/target/release/updatemac
+          path: |
+            src/Rust/target/release/updatemac
+            src/Rust/target/release/*.exe
 
       - name: Upload Coverage
-        uses: actions/upload-artifact@v3
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          name: coverage
-          path: test/coverage.*.xml
-
-  rust-windows:
-    runs-on: windows-latest
+          directory: ./test
+          fail_ci_if_error: true
+  
+  package:
+    runs-on: ubuntu-latest
+    needs: [build]
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
-      - name: Install Rust
-        run: rustup update stable
+      - uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
 
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Install .NET 6
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 6.0.x
 
-      - name: Build Rust
-        working-directory: src/Rust
-        run: cargo build --release --features windows
+      - name: Install .NET 8
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 8.0.x
 
-      - name: Test Rust
-        working-directory: src/Rust
-        run: cargo llvm-cov --cobertura --features windows --output-path ../../test/coverage.rust.win.xml
+      - name: Install NBGV
+        run: dotnet tool install -g nbgv
 
-      - name: Upload Binaries
-        uses: actions/upload-artifact@v3
+      - name: Download Rust Artifacts
+        uses: actions/download-artifact@v4
         with:
           name: rust
-          path: src/Rust/target/release/*.exe
+          path: src/Rust/target/release
 
-      - name: Upload Coverage
+      - name: Build .NET
+        run: dotnet build -c Release
+
+      - name: Upload Package Artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: coverage
-          path: test/coverage.*.xml
+          name: packages
+          path: .\build\Release\*.nupkg
 
-  # build:
-  #   runs-on: windows-latest
-  #   needs: [rust-osx, rust-windows]
-  #   steps:
-  #     - uses: actions/cache@v3
-  #       with:
-  #         path: ~/.nuget/packages
-  #         key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
-  #         restore-keys: |
-  #           ${{ runner.os }}-nuget-
-
-  #     - uses: actions/cache@v3
-  #       with:
-  #         path: |
-  #           ~/.cargo/bin/
-  #           ~/.cargo/registry/index/
-  #           ~/.cargo/registry/cache/
-  #           ~/.cargo/git/db/
-  #           target/
-  #         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-  #     - uses: actions/checkout@v2
-  #       with:
-  #         fetch-depth: 0
-
-  #     - name: Install .NET 6
-  #       uses: actions/setup-dotnet@v1
-  #       with:
-  #         dotnet-version: 6.0.x
-
-  #     - name: Install .NET 8
-  #       uses: actions/setup-dotnet@v1
-  #       with:
-  #         dotnet-version: 8.0.x
-
-  #     - name: Install dotnet-coverage
-  #       run: dotnet tool install --global dotnet-coverage
-          
-  #     - name: Install Rust
-  #       run: rustup update stable
-
-  #     - name: Install cargo-llvm-cov
-  #       uses: taiki-e/install-action@cargo-llvm-cov
-
-  #     - name: Build Rust
-  #       working-directory: src/Rust
-  #       run: cargo build --release --features windows
-
-  #     - name: Test Rust
-  #       working-directory: src/Rust
-  #       run: cargo llvm-cov --cobertura --features windows --output-path ../../test/coverage.rust.xml
-
-  #     - name: Build .NET
-  #       run: dotnet build -c Release
-
-  #     - name: Test .NET
-  #       run: dotnet test -c Release --no-build -l "console;verbosity=detailed"
-
-  #     - name: Upload coverage to Codecov
-  #       uses: codecov/codecov-action@v3
-  #       env:
-  #         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-  #       with:
-  #         directory: ./test
-  #         fail_ci_if_error: true
-  #         verbose: true
-
-
-  #     - name: Upload Artifacts
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: packages
-  #         path: .\build\Release\*.nupkg
-
-  #     - name: Publish to GitHub Packages
-  #       shell: pwsh
-  #       run: dotnet nuget push .\build\Release\*.nupkg -k ${{ secrets.GITHUB_TOKEN }} -s https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --skip-duplicate
+      - name: Publish to GitHub Packages
+        shell: pwsh
+        run: dotnet nuget push .\build\Release\*.nupkg -k ${{ secrets.GITHUB_TOKEN }} -s https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --skip-duplicate

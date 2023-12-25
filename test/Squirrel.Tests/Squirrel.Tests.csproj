@@ -1,8 +1,12 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFrameworks>net48;net8.0</TargetFrameworks>
+  <PropertyGroup Condition =" '$(CurrentOsName)'=='Windows' ">
+    <TargetFrameworks>net8.0;net48</TargetFrameworks>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition =" '$(CurrentOsName)'=='OSX' ">
+    <TargetFrameworks>net8.0</TargetFrameworks>
   </PropertyGroup>
 
   <ItemGroup>
