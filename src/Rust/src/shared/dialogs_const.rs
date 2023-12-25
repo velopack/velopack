@@ -61,13 +61,21 @@ impl DialogButton {
     }
 }
 
-#[cfg(target_os = "windows")]
 impl DialogIcon {
+    #[cfg(target_os = "windows")]
     pub fn to_win(&self) -> winsafe::co::TD_ICON {
         match self {
             DialogIcon::Warning => winsafe::co::TD_ICON::WARNING,
             DialogIcon::Error => winsafe::co::TD_ICON::ERROR,
             DialogIcon::Information => winsafe::co::TD_ICON::INFORMATION,
+        }
+    }
+    #[cfg(target_os = "macos")]
+    pub fn to_native(&self) -> native_dialog::MessageType {
+        match self {
+            DialogIcon::Warning => native_dialog::MessageType::Warning,
+            DialogIcon::Error => native_dialog::MessageType::Error,
+            DialogIcon::Information => native_dialog::MessageType::Info,
         }
     }
 }

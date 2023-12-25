@@ -20,7 +20,7 @@ use std::{env, path::PathBuf};
 
 #[rustfmt::skip]
 fn root_command() -> Command {
-    Command::new("Update")
+    let cmd = Command::new("Update")
     .version(env!("NGBV_VERSION"))
     .about(format!("Clowd.Squirrel Updater ({}) manages packages and installs updates for Squirrel applications.\nhttps://github.com/clowd/Clowd.Squirrel", env!("NGBV_VERSION")))
     .subcommand(Command::new("apply")
@@ -28,27 +28,28 @@ fn root_command() -> Command {
         .arg(arg!(-r --restart "Restart the application after the update"))
         .arg(arg!(-w --wait "Wait for the parent process to terminate before applying the update"))
         .arg(arg!(-p --package <FILE> "Update package to apply").value_parser(value_parser!(PathBuf)))
-        .arg(arg!([EXE_NAME] "The optional name of the binary to execute"))
         .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceeded by '--'.").required(false).last(true).num_args(0..))
     )
     .subcommand(Command::new("start")
         .about("Starts the currently installed version of the application")
         .arg(arg!(-a --args <ARGS> "Legacy args format").aliases(vec!["processStartArgs", "process-start-args"]).hide(true).allow_hyphen_values(true).num_args(1))
         .arg(arg!(-w --wait "Wait for the parent process to terminate before starting the application"))
-        .arg(arg!([EXE_NAME] "The optional name of the binary to execute"))
         .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceeded by '--'.").required(false).last(true).num_args(0..))
         .long_flag_aliases(vec!["processStart", "processStartAndWait"])
-    )
-    .subcommand(Command::new("uninstall")
-        .about("Remove all app shortcuts, files, and registry entries.")
-        .long_flag_alias("uninstall")
     )
     .arg(arg!(--verbose "Print debug messages to console / log"))
     .arg(arg!(--nocolor "Disable colored output").hide(true))
     .arg(arg!(-s --silent "Don't show any prompts / dialogs"))
     .arg(arg!(-l --log <PATH> "Override the default log file location").value_parser(value_parser!(PathBuf)))
     .disable_help_subcommand(true)
-    .flatten_help(true)
+    .flatten_help(true);
+
+    #[cfg(target_os = "windows")]
+    cmd.subcommand(Command::new("uninstall")
+        .about("Remove all app shortcuts, files, and registry entries.")
+        .long_flag_alias("uninstall")
+    );
+    cmd
 }
 
 #[cfg(target_os = "windows")]
@@ -64,7 +65,10 @@ fn parse_command_line_matches(input_args: Vec<String>) -> ArgMatches {
 }
 
 fn main() -> Result<()> {
+    #[cfg(target_os = "windows")]
     let matches = parse_command_line_matches(env::args().collect());
+    #[cfg(target_os = "macos")]
+    let matches = root_command().get_matches();
 
     let default_log_file = {
         let mut my_dir = env::current_exe().unwrap();
@@ -88,6 +92,7 @@ fn main() -> Result<()> {
 
     let (subcommand, subcommand_matches) = matches.subcommand().ok_or_else(|| anyhow!("No subcommand was used. Try `--help` for more information."))?;
     let result = match subcommand {
+        #[cfg(target_os = "windows")]
         "uninstall" => uninstall(subcommand_matches, log_file).map_err(|e| anyhow!("Uninstall error: {}", e)),
         "start" => start(&subcommand_matches).map_err(|e| anyhow!("Start error: {}", e)),
         "apply" => apply(subcommand_matches).map_err(|e| anyhow!("Apply error: {}", e)),
@@ -103,42 +108,55 @@ fn main() -> Result<()> {
 }
 
 fn start(matches: &ArgMatches) -> Result<()> {
-    // handle legacy arg syntax
     let legacy_args = matches.get_one::<String>("args");
     let wait_for_parent = matches.get_flag("wait");
-    let exe_name = matches.get_one::<String>("EXE_NAME");
     let exe_args: Option<Vec<&str>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect());
 
     info!("Command: Start");
     info!("    Wait: {:?}", wait_for_parent);
-    info!("    Exe Name: {:?}", exe_name);
     info!("    Exe Args: {:?}", exe_args);
+    if legacy_args.is_some() {
+        info!("    Legacy Args: {:?}", legacy_args);
+        warn!("Legacy args format is deprecated and will be removed in a future release. Please update your application to use the new format.");
+    }
 
-    commands::start(wait_for_parent, exe_name, exe_args, legacy_args)
+    #[cfg(target_os = "windows")]
+    {
+        commands::start(wait_for_parent, exe_name, exe_args, legacy_args)
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        if wait_for_parent {
+            shared::wait_for_parent_to_exit(60_000)?; // 1 minute
+        }
+        let (root_path, app) = shared::detect_current_manifest()?;
+        shared::start_package(&app, &root_path, exe_args)
+    }
 }
 
 fn apply(matches: &ArgMatches) -> Result<()> {
     let restart = matches.get_flag("restart");
     let wait_for_parent = matches.get_flag("wait");
     let package = matches.get_one::<PathBuf>("package");
-    let exe_name = matches.get_one::<String>("EXE_NAME");
     let exe_args: Option<Vec<&str>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect());
 
     info!("Command: Apply");
     info!("    Restart: {:?}", restart);
     info!("    Wait: {:?}", wait_for_parent);
     info!("    Package: {:?}", package);
-    info!("    Exe Name: {:?}", exe_name);
     info!("    Exe Args: {:?}", exe_args);
 
-    commands::apply(restart, wait_for_parent, package, exe_name, exe_args)
+    commands::apply(restart, wait_for_parent, package, exe_args)
 }
 
+#[cfg(target_os = "windows")]
 fn uninstall(_matches: &ArgMatches, log_file: &PathBuf) -> Result<()> {
     info!("Command: Uninstall");
     commands::uninstall(log_file)
 }
 
+#[cfg(target_os = "windows")]
 #[test]
 fn test_start_command_supports_legacy_commands() {
     fn get_start_args(matches: &ArgMatches) -> (bool, Option<&String>, Option<&String>, Option<Vec<&String>>) {

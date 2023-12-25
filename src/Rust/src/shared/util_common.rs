@@ -11,9 +11,8 @@ use std::{
     time::Duration,
 };
 
-use crate::shared::bundle;
-
 use super::bundle::{EntryNameInfo, Manifest};
+use crate::shared::bundle;
 
 pub fn replace_dir_with_rollback<F, T, P: AsRef<Path>>(path: P, op: F) -> Result<()>
 where

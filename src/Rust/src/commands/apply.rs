@@ -6,12 +6,14 @@ use anyhow::{bail, Result};
 use glob::glob;
 use std::path::PathBuf;
 
-pub fn apply<'a>(restart: bool, wait_for_parent: bool, package: Option<&PathBuf>, exe_name: Option<&String>, exe_args: Option<Vec<&str>>) -> Result<()> {
+pub fn apply<'a>(restart: bool, wait_for_parent: bool, package: Option<&PathBuf>, exe_args: Option<Vec<&str>>) -> Result<()> {
     if wait_for_parent {
         let _ = shared::wait_for_parent_to_exit(60_000); // 1 minute
     }
 
-    if let Err(e) = apply_package(package) {
+    let (root_path, app) = shared::detect_current_manifest()?;
+
+    if let Err(e) = apply_package(package, &app, &root_path) {
         error!("Error applying package: {}", e);
         if !restart {
             return Err(e);
@@ -19,17 +21,15 @@ pub fn apply<'a>(restart: bool, wait_for_parent: bool, package: Option<&PathBuf>
     }
 
     if restart {
-        super::start(false, exe_name, exe_args, None)?;
+        shared::start_package(&app, &root_path, exe_args)?;
     }
 
     Ok(())
 }
 
-fn apply_package<'a>(package: Option<&PathBuf>) -> Result<()> {
+fn apply_package<'a>(package: Option<&PathBuf>, app: &Manifest, root_path: &PathBuf) -> Result<()> {
     let mut package_manifest: Option<Manifest> = None;
     let mut package_bundle: Option<BundleInfo<'a>> = None;
-
-    let (root_path, app) = shared::detect_current_manifest()?;
 
     #[cfg(target_os = "windows")]
     let _mutex = crate::windows::create_global_mutex(&app)?;

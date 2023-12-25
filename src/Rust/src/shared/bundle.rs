@@ -1,6 +1,4 @@
 use anyhow::{anyhow, bail, Result};
-use chrono::{Datelike, Local as DateTime};
-use memmap2::Mmap;
 use regex::Regex;
 use semver::Version;
 use std::{
@@ -10,27 +8,14 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
-use winsafe::{self as w, co, prelude::*};
 use xml::reader::{EventReader, XmlEvent};
 use zip::ZipArchive;
 
+#[cfg(target_os = "windows")]
+use chrono::{Datelike, Local as DateTime};
+
 pub trait ReadSeek: Read + Seek {}
 impl<T: Read + Seek> ReadSeek for T {}
-
-static BUNDLE_PLACEHOLDER: [u8; 48] = [
-    0, 0, 0, 0, 0, 0, 0, 0, // 8 bytes for package offset
-    0, 0, 0, 0, 0, 0, 0, 0, // 8 bytes for package length
-    0x94, 0xf0, 0xb1, 0x7b, 0x68, 0x93, 0xe0, 0x29, // 32 bytes for bundle signature
-    0x37, 0xeb, 0x34, 0xef, 0x53, 0xaa, 0xe7, 0xd4, //
-    0x2b, 0x54, 0xf5, 0x70, 0x7e, 0xf5, 0xd6, 0xf5, //
-    0x78, 0x54, 0x98, 0x3e, 0x5e, 0x94, 0xed, 0x7d, //
-];
-
-pub fn header_offset_and_length() -> (i64, i64) {
-    let offset = i64::from_ne_bytes(BUNDLE_PLACEHOLDER[0..8].try_into().unwrap());
-    let length = i64::from_ne_bytes(BUNDLE_PLACEHOLDER[8..16].try_into().unwrap());
-    (offset, length)
-}
 
 #[derive(Clone)]
 pub struct BundleInfo<'a> {
@@ -46,32 +31,6 @@ pub fn load_bundle_from_file<'a>(file_name: &PathBuf) -> Result<BundleInfo<'a>> 
     let cursor: Box<dyn ReadSeek> = Box::new(file);
     let zip = ZipArchive::new(cursor)?;
     return Ok(BundleInfo { zip: Rc::new(RefCell::new(zip)), zip_from_file: true, file_path: Some(file_name.to_owned()), zip_range: None });
-}
-
-pub fn load_bundle_from_mmap<'a>(mmap: &'a Mmap, debug_pkg: &Option<&PathBuf>) -> Result<BundleInfo<'a>> {
-    info!("Reading bundle header...");
-    let (offset, length) = header_offset_and_length();
-    info!("Bundle offset = {}, length = {}", offset, length);
-
-    let zip_range: &'a [u8] = &mmap[offset as usize..(offset + length) as usize];
-
-    // try to load the bundle from embedded zip
-    if offset > 0 && length > 0 {
-        info!("Loading bundle from embedded zip...");
-        let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(zip_range));
-        let zip = ZipArchive::new(cursor).map_err(|e| anyhow::Error::new(e))?;
-        return Ok(BundleInfo { zip: Rc::new(RefCell::new(zip)), zip_from_file: false, zip_range: Some(zip_range), file_path: None });
-    }
-
-    // in debug mode only, allow a nupkg to be passed in as the first argument
-    if cfg!(debug_assertions) {
-        if let Some(pkg) = debug_pkg {
-            info!("Loading bundle from debug nupkg file...");
-            return load_bundle_from_file(pkg.to_owned());
-        }
-    }
-
-    bail!("Could not find embedded zip file. Please contact the application author.");
 }
 
 impl BundleInfo<'_> {
@@ -325,6 +284,24 @@ impl Manifest {
         let reg_uninstall = w::HKEY::CURRENT_USER.RegCreateKeyEx(Self::UNINST_STR, None, co::REG_OPTION::NoValue, co::KEY::CREATE_SUB_KEY, None)?.0;
         reg_uninstall.RegDeleteKey(&self.id)?;
         Ok(())
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl Manifest {
+    pub fn get_packages_path(&self, _root_path: &PathBuf) -> String {
+        let tmp = format!("/tmp/clowd.squirrel/{}/packages", self.id);
+        let p = Path::new(&tmp);
+        if !p.exists() {
+            fs::create_dir_all(p).unwrap();
+        }
+        p.to_string_lossy().to_string()
+    }
+    pub fn get_current_path(&self, root_path: &PathBuf) -> String {
+        root_path.to_string_lossy().to_string()
+    }
+    pub fn get_nuspec_path(&self, root_path: &PathBuf) -> String {
+        root_path.join("Contents").join("MacOS").join("sq.version").to_string_lossy().to_string()
     }
 }
 

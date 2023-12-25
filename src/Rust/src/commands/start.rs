@@ -2,13 +2,7 @@ use crate::shared;
 use anyhow::{bail, Result};
 use std::path::Path;
 
-#[cfg(target_os = "windows")]
 pub fn start(wait_for_parent: bool, exe_name: Option<&String>, exe_args: Option<Vec<&str>>, legacy_args: Option<&String>) -> Result<()> {
-    if legacy_args.is_some() {
-        info!("    Legacy Args: {:?}", legacy_args);
-        warn!("Legacy args format is deprecated and will be removed in a future release. Please update your application to use the new format.");
-    }
-
     if legacy_args.is_some() && exe_args.is_some() {
         bail!("Cannot use both legacy args and new args format.");
     }

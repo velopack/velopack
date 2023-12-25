@@ -1,4 +1,4 @@
-use super::dialogs::generate;
+use super::dialogs::{generate_alert, generate_confirm};
 use super::dialogs_const::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -14,19 +14,19 @@ pub fn get_silent() -> bool {
 
 pub fn show_error(title: &str, header: Option<&str>, body: &str) {
     if !get_silent() {
-        let _ = generate(title, header, body, None, DialogButton::Ok, DialogIcon::Error).map(|_| ());
+        let _ = generate_alert(title, header, body, None, DialogButton::Ok, DialogIcon::Error).map(|_| ());
     }
 }
 
 pub fn show_warn(title: &str, header: Option<&str>, body: &str) {
     if !get_silent() {
-        let _ = generate(title, header, body, None, DialogButton::Ok, DialogIcon::Warning).map(|_| ());
+        let _ = generate_alert(title, header, body, None, DialogButton::Ok, DialogIcon::Warning).map(|_| ());
     }
 }
 
 pub fn show_info(title: &str, header: Option<&str>, body: &str) {
     if !get_silent() {
-        let _ = generate(title, header, body, None, DialogButton::Ok, DialogIcon::Information).map(|_| ());
+        let _ = generate_alert(title, header, body, None, DialogButton::Ok, DialogIcon::Information).map(|_| ());
     }
 }
 
@@ -35,7 +35,7 @@ pub fn show_ok_cancel(title: &str, header: Option<&str>, body: &str, ok_text: Op
     if ok_text.is_none() {
         btns |= DialogButton::Ok;
     }
-    generate(title, header, body, ok_text, btns, DialogIcon::Warning).map(|dlg_id| dlg_id == DialogResult::Ok).unwrap_or(false)
+    generate_confirm(title, header, body, ok_text, btns, DialogIcon::Warning).map(|dlg_id| dlg_id == DialogResult::Ok).unwrap_or(false)
 }
 
 // pub fn yes_no(title: &str, header: Option<&str>, body: &str) -> Result<bool> {

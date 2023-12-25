@@ -62,6 +62,13 @@ derivative = "2.2"
 simple-stopwatch = "0.1.4"
 glob = "0.3"
 enum-flags = "0.3"
+remove_dir_all = { git = "https://github.com/caesay/remove_dir_all.git", features = [
+    "log",
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+native-dialog = "0.7"
+waitpid-any = "0.2"
 
 [target.'cfg(windows)'.dependencies]
 fs_extra = "1.2"
@@ -96,9 +103,6 @@ windows-sys = { version = "0.52", default-features = false, features = [
     "Wdk",
     "Wdk_System",
     "Wdk_System_Threading",
-] }
-remove_dir_all = { git = "https://github.com/caesay/remove_dir_all.git", features = [
-    "log",
 ] }
 normpath = "1.0.1"
 codesign-verify = { git = "https://github.com/caesay/codesign-verify-rs.git" }

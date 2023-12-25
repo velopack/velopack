@@ -21,6 +21,8 @@ pub fn setup_logging(file: Option<&PathBuf>, console: bool, verbose: bool, nocol
             file_rotate::suffix::AppendCount::new(1),          // keep 1 old log file
             file_rotate::ContentLimit::Bytes(1 * 1024 * 1024), // 1MB max log file size
             file_rotate::compression::Compression::None,
+            #[cfg(unix)]
+            None,
         );
         loggers.push(WriteLogger::new(file_level, Config::default(), writer));
     }
