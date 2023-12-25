@@ -30,19 +30,22 @@ fn root_command() -> Command {
         .arg(arg!(-p --package <FILE> "Update package to apply").value_parser(value_parser!(PathBuf)))
         .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceeded by '--'.").required(false).last(true).num_args(0..))
     )
-    .subcommand(Command::new("start")
-        .about("Starts the currently installed version of the application")
-        .arg(arg!(-a --args <ARGS> "Legacy args format").aliases(vec!["processStartArgs", "process-start-args"]).hide(true).allow_hyphen_values(true).num_args(1))
-        .arg(arg!(-w --wait "Wait for the parent process to terminate before starting the application"))
-        .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceeded by '--'.").required(false).last(true).num_args(0..))
-        .long_flag_aliases(vec!["processStart", "processStartAndWait"])
-    )
     .arg(arg!(--verbose "Print debug messages to console / log").global(true))
     .arg(arg!(--nocolor "Disable colored output").hide(true).global(true))
     .arg(arg!(-s --silent "Don't show any prompts / dialogs").global(true))
     .arg(arg!(-l --log <PATH> "Override the default log file location").global(true).value_parser(value_parser!(PathBuf)))
     .disable_help_subcommand(true)
     .flatten_help(true);
+
+    #[cfg(target_os = "windows")]
+    let cmd = cmd.subcommand(Command::new("start")
+        .about("Starts the currently installed version of the application")
+        .arg(arg!(-a --args <ARGS> "Legacy args format").aliases(vec!["processStartArgs", "process-start-args"]).hide(true).allow_hyphen_values(true).num_args(1))
+        .arg(arg!(-w --wait "Wait for the parent process to terminate before starting the application"))
+        .arg(arg!([EXE_NAME] "The optional name of the binary to execute"))
+        .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceeded by '--'.").required(false).last(true).num_args(0..))
+        .long_flag_aliases(vec!["processStart", "processStartAndWait"])
+    );
 
     #[cfg(target_os = "windows")]
     let cmd = cmd.subcommand(Command::new("uninstall")
@@ -94,6 +97,7 @@ fn main() -> Result<()> {
     let result = match subcommand {
         #[cfg(target_os = "windows")]
         "uninstall" => uninstall(subcommand_matches, log_file).map_err(|e| anyhow!("Uninstall error: {}", e)),
+        #[cfg(target_os = "windows")]
         "start" => start(&subcommand_matches).map_err(|e| anyhow!("Start error: {}", e)),
         "apply" => apply(subcommand_matches).map_err(|e| anyhow!("Apply error: {}", e)),
         _ => bail!("Unknown subcommand. Try `--help` for more information."),
@@ -105,22 +109,6 @@ fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-fn start(matches: &ArgMatches) -> Result<()> {
-    let legacy_args = matches.get_one::<String>("args");
-    let wait_for_parent = matches.get_flag("wait");
-    let exe_args: Option<Vec<&str>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect());
-
-    info!("Command: Start");
-    info!("    Wait: {:?}", wait_for_parent);
-    info!("    Exe Args: {:?}", exe_args);
-    if legacy_args.is_some() {
-        info!("    Legacy Args: {:?}", legacy_args);
-        warn!("Legacy args format is deprecated and will be removed in a future release. Please update your application to use the new format.");
-    }
-
-    commands::start(wait_for_parent, exe_args, legacy_args)
 }
 
 fn apply(matches: &ArgMatches) -> Result<()> {
@@ -136,6 +124,25 @@ fn apply(matches: &ArgMatches) -> Result<()> {
     info!("    Exe Args: {:?}", exe_args);
 
     commands::apply(restart, wait_for_parent, package, exe_args)
+}
+
+#[cfg(target_os = "windows")]
+fn start(matches: &ArgMatches) -> Result<()> {
+    let legacy_args = matches.get_one::<String>("args");
+    let wait_for_parent = matches.get_flag("wait");
+    let exe_name = matches.get_one::<String>("EXE_NAME");
+    let exe_args: Option<Vec<&str>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect());
+
+    info!("Command: Start");
+    info!("    Wait: {:?}", wait_for_parent);
+    info!("    Exe Name: {:?}", exe_name);
+    info!("    Exe Args: {:?}", exe_args);
+    if legacy_args.is_some() {
+        info!("    Legacy Args: {:?}", legacy_args);
+        warn!("Legacy args format is deprecated and will be removed in a future release. Please update your application to use the new format.");
+    }
+
+    commands::start(wait_for_parent, exe_name, exe_args, legacy_args)
 }
 
 #[cfg(target_os = "windows")]
