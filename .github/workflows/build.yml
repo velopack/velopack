@@ -38,10 +38,11 @@ jobs:
 
       - name: Install NBGV
         run: dotnet tool install -g nbgv
-        continue-on-error: true
+        if: ${{ matrix.os == 'macos-latest' }}
 
       - name: Set Windows Feature
-        run: echo "rust_features='--features windows'" >> "$GITHUB_ENV"
+        shell: pwsh
+        run: Add-Content -Path $env:GITHUB_ENV -Value "rust_features=--features windows"
         if: ${{ matrix.os == 'windows-latest' }}
 
       - name: Build Rust
