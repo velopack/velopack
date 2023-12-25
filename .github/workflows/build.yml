@@ -38,6 +38,7 @@ jobs:
 
       - name: Install NBGV
         run: dotnet tool install -g nbgv
+        continue-on-error: true
 
       - name: Set Windows Feature
         run: echo "rust_features='--features windows'" >> "$GITHUB_ENV"
