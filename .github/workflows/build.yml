@@ -17,7 +17,7 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
 
       - name: Install NBGV
-        run: dotnet tool install --tool-path . nbgv
+        run: dotnet tool install -g nbgv
 
       - name: Build Rust
         working-directory: src/Rust
@@ -27,11 +27,16 @@ jobs:
         working-directory: src/Rust
         run: cargo llvm-cov --cobertura --output-path ../../test/coverage.rust.osx.xml
 
+      - name: Rename Binaries
+        working-directory: src/Rust/target/release
+        run: |
+          mv update updatemac
+
       - name: Upload Binaries
         uses: actions/upload-artifact@v3
         with:
           name: rust
-          path: src/Rust/target/release/update
+          path: src/Rust/target/release/updatemac
 
       - name: Upload Coverage
         uses: actions/upload-artifact@v3
