@@ -351,7 +351,7 @@ public class WindowsPackTests
         var outputfile = GetPath($"coverage.runrust.{RandomString(8)}.xml");
         var manifestFile = GetPath("..", "src", "Rust", "Cargo.toml");
 
-        var psi = new ProcessStartInfo("dotnet-coverage");
+        var psi = new ProcessStartInfo("cargo");
         psi.CreateNoWindow = true;
         psi.RedirectStandardOutput = true;
         psi.RedirectStandardError = true;
