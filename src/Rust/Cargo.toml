@@ -3,9 +3,13 @@ name = "clowd_squirrel"
 version = "0.0.0-local"
 edition = "2021"
 
+[features]
+windows_build = []
+
 [[bin]]
 name = "setup"
 path = "src/setup.rs"
+required-features = ["windows_build"]
 
 [[bin]]
 name = "update"
@@ -14,10 +18,12 @@ path = "src/update.rs"
 [[bin]]
 name = "testapp"
 path = "src/testapp.rs"
+required-features = ["windows_build"]
 
 [[bin]]
 name = "stub"
 path = "src/stub.rs"
+required-features = ["windows_build"]
 
 [profile.release]
 opt-level = "z"          # optimize for size
@@ -32,10 +38,33 @@ rpath = false            # disable rpath
 
 [dependencies]
 anyhow = "1.0"
-memmap2 = "0.9"
 pretty-bytes-rust = "0.3"
-xml = "0.8"
 os_info = { git = "https://github.com/stanislav-tkach/os_info.git", branch = "master", default-features = false } # public releases don't yet have processor arch info
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
+regex = "1.10"
+rand = "0.8"
+log = "0.4"
+simplelog = "0.12"
+clap = "4.4"
+xml = "0.8"
+semver = "1.0"
+chrono = "0.4"
+wait-timeout = "0.2"
+lazy_static = "1.4"
+strum = { version = "0.25", features = ["derive"] }
+ureq = { version = "2.9", default-features = false, features = [
+    "native-tls",
+    "gzip",
+] }
+native-tls = "0.2"
+file-rotate = "0.7"
+derivative = "2.2"
+simple-stopwatch = "0.1.4"
+
+[target.'cfg(windows)'.dependencies]
+fs_extra = "1.2"
+glob = "0.3"
+memmap2 = "0.9"
 winsafe = { git = "https://github.com/caesay/winsafe.git", branch = "cs/only-ipersistfile", features = [
     "kernel",
     "version",
@@ -45,18 +74,11 @@ winsafe = { git = "https://github.com/caesay/winsafe.git", branch = "cs/only-ipe
     "gui",
     "ole",
 ] }
-zip = { version = "0.6", default-features = false, features = ["deflate"] }
-regex = "1.10"
-rand = "0.8"
-log = "0.4"
-simplelog = "0.12"
-clap = "4.4"
 image = { version = "0.24", default-features = false, features = [
     "gif",
     "jpeg",
     "png",
 ] }
-fs_extra = "1.2"
 windows = { version = "0.52", default-features = false, features = [
     "Win32_Foundation",
     "Win32_Security",
@@ -74,26 +96,15 @@ windows-sys = { version = "0.52", default-features = false, features = [
     "Wdk_System",
     "Wdk_System_Threading",
 ] }
-semver = "1.0"
-chrono = "0.4"
-wait-timeout = "0.2"
-lazy_static = "1.4"
-strum = { version = "0.25", features = ["derive"] }
-ureq = { version = "2.9", default-features = false, features = [
-    "native-tls",
-    "gzip",
+remove_dir_all = { git = "https://github.com/caesay/remove_dir_all.git", features = [
+    "log",
 ] }
-native-tls = "0.2"
-file-rotate = "0.7"
-derivative = "2.2"
-remove_dir_all = { git = "https://github.com/caesay/remove_dir_all.git", features = ["log"] }
-glob = "0.3"
 normpath = "1.0.1"
 codesign-verify = { git = "https://github.com/caesay/codesign-verify-rs.git" }
-com = "0.2.0"
 widestring = "1.0.2"
-simple-stopwatch="0.1.4"
 
 [build-dependencies]
-winres = "0.1"
 semver = "1.0"
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1"

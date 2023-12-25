@@ -1,7 +1,10 @@
+#![allow(unused_variables)]
 use semver;
 use std::process::Command;
 
+#[cfg(target_os = "windows")]
 extern crate winres;
+
 fn main() {
     let ver_output = Command::new("nbgv").args(&["get-version", "-v", "NuGetPackageVersion"]).output().expect("Failed to execute nbgv get-version");
     let version = String::from_utf8(ver_output.stdout).expect("Unable to convert ngbv output to string");
@@ -12,6 +15,7 @@ fn main() {
 
     println!("cargo:rustc-env=NGBV_VERSION={}", version);
 
+    #[cfg(target_os = "windows")]
     let _ = winres::WindowsResource::new()
         .set_manifest_file("app.manifest")
         .set_version_info(winres::VersionInfo::PRODUCTVERSION, ver)
