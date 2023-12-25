@@ -48,11 +48,11 @@ jobs:
 
       - name: Build Rust
         working-directory: src/Rust
-        run: cargo build --release
+        run: cargo build --release --features windows
 
       - name: Test Rust
         working-directory: src/Rust
-        run: cargo llvm-cov --cobertura --output-path ../../test/coverage.rust.xml
+        run: cargo llvm-cov --cobertura --features windows --output-path ../../test/coverage.rust.xml
 
       - name: Build .NET
         run: dotnet build -c Release
