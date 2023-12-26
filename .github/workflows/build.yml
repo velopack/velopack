@@ -13,6 +13,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Print dotnet version
+        run: dotnet --info
+
       - uses: actions/cache@v3
         with:
           path: |
@@ -97,6 +100,9 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Print dotnet version
+        run: dotnet --info
+  
       - name: Download Rust Artifacts
         uses: actions/download-artifact@v4
         with:
