@@ -97,9 +97,6 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Install NBGV
-        run: dotnet tool install -g nbgv
-
       - name: Download Rust Artifacts
         uses: actions/download-artifact@v4
         with:
