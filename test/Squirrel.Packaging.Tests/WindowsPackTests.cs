@@ -405,9 +405,6 @@ public class WindowsPackTests
 
             logger.Info($"TEST: Process exited with code {p.ExitCode} in {elapsed.TotalSeconds}s");
 
-            if (exitCode != null)
-                Assert.Equal(exitCode, p.ExitCode);
-
             using var fs = Utility.Retry(() => {
                 return File.Open(outputfile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
             }, 10, 1000, logger);
@@ -419,6 +416,10 @@ public class WindowsPackTests
                 logger.Warn($"TEST: Process output was empty");
             } else {
                 logger.Info($"TEST: Process output: {Environment.NewLine}{output.Trim()}{Environment.NewLine}");
+            }
+
+            if (exitCode.HasValue && p.ExitCode != exitCode.Value) {
+                throw new Exception($"Process exited with code {p.ExitCode} but expected {exitCode.Value}");
             }
 
             return String.Join(Environment.NewLine,
