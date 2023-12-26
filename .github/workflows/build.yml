@@ -58,8 +58,20 @@ jobs:
         run: mv update updatemac
         if: ${{ matrix.os == 'macos-latest' }}
 
-      - name: Test .NET
-        run: dotnet test -c Release -l "console;verbosity=detailed"
+      - name: Build .NET
+        run: dotnet build -c Release 
+
+      - name: Test .NET Squirrel.Tests
+        working-directory: src/test
+        run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Squirrel.Tests/Squirrel.Tests.csproj
+
+      - name: Test .NET Squirrel.Packaging.Tests
+        working-directory: src/test
+        run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Squirrel.Packaging.Tests/Squirrel.Packaging.Tests.csproj
+
+      - name: Test .NET Squirrel.CommandLine.Tests
+        working-directory: src/test
+        run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Squirrel.CommandLine.Tests/Squirrel.CommandLine.Tests.csproj
 
       - name: Upload Rust Artifacts
         uses: actions/upload-artifact@v4
