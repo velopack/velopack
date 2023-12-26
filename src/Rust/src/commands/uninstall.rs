@@ -50,7 +50,7 @@ pub fn uninstall(log_file: &PathBuf) -> Result<()> {
 
     let dead_path = root_path.join(".dead");
     let _ = File::create(dead_path);
-    if let Err(e) = windows::register_intent_to_delete_self(5, &root_path) {
+    if let Err(e) = windows::register_intent_to_delete_self(3, &root_path) {
         warn!("Unable to schedule self delete ({}).", e);
     }
 

@@ -7,8 +7,6 @@ using System.IO;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Xml.Linq;
-using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestPlatform.Utilities;
 using Microsoft.Win32;
 using NuGet.Packaging;
 using Squirrel.Compression;
@@ -195,7 +193,7 @@ public class WindowsPackTests
         Assert.Throws<ArgumentException>(() => runner.Pack(options));
     }
 
-    [SkippableFact(Skip = "not working")]
+    [SkippableFact]
     public void PackBuildsPackageWhichIsInstallable()
     {
         Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
@@ -255,7 +253,8 @@ public class WindowsPackTests
         var date = DateTime.Now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         Assert.Equal(date, installDate.Trim('\0'));
 
-        RunNoCoverage(updatePath, new string[] { "--nocolor", "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
+        var uninstOutput = RunNoCoverage(updatePath, new string[] { "--nocolor", "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
+        Assert.EndsWith(Environment.NewLine + "Y", uninstOutput); // this checks that the self-delete succeeded
 
         Assert.False(File.Exists(shortcutPath));
         Assert.False(File.Exists(appPath));
@@ -266,7 +265,7 @@ public class WindowsPackTests
         }
     }
 
-    [SkippableFact(Skip = "not working")]
+    [SkippableFact]
     public void TestPackedAppCanDeltaUpdateToLatest()
     {
         Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
@@ -346,53 +345,93 @@ public class WindowsPackTests
         logger.Info("TEST: uninstalled / complete");
     }
 
-    private string RunCoveredRust(string binName, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
-    {
-        var outputfile = GetPath($"coverage.runrust.{RandomString(8)}.xml");
-        var manifestFile = GetPath("..", "src", "Rust", "Cargo.toml");
+    //private string RunCoveredRust(string binName, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
+    //{
+    //    var outputfile = GetPath($"coverage.runrust.{RandomString(8)}.xml");
+    //    var manifestFile = GetPath("..", "src", "Rust", "Cargo.toml");
 
-        var psi = new ProcessStartInfo("cargo");
-        psi.CreateNoWindow = true;
-        psi.RedirectStandardOutput = true;
-        psi.RedirectStandardError = true;
-        psi.WorkingDirectory = workingDir;
+    //    var psi = new ProcessStartInfo("cargo");
+    //    psi.CreateNoWindow = true;
+    //    psi.RedirectStandardOutput = true;
+    //    psi.RedirectStandardError = true;
+    //    psi.WorkingDirectory = workingDir;
 
-        psi.ArgumentList.Add("llvm-cov");
-        psi.ArgumentList.Add("run");
-        psi.ArgumentList.Add("--cobertura");
-        psi.ArgumentList.Add("--manifest-path");
-        psi.ArgumentList.Add(manifestFile);
-        psi.ArgumentList.Add("--output");
-        psi.ArgumentList.Add(outputfile);
-        psi.ArgumentList.Add("--bin");
-        psi.ArgumentList.Add(binName);
-        psi.ArgumentList.Add("--");
-        psi.ArgumentList.AddRange(args);
+    //    psi.ArgumentList.Add("llvm-cov");
+    //    psi.ArgumentList.Add("run");
+    //    psi.ArgumentList.Add("--cobertura");
+    //    psi.ArgumentList.Add("--manifest-path");
+    //    psi.ArgumentList.Add(manifestFile);
+    //    psi.ArgumentList.Add("--output");
+    //    psi.ArgumentList.Add(outputfile);
+    //    psi.ArgumentList.Add("--bin");
+    //    psi.ArgumentList.Add(binName);
+    //    psi.ArgumentList.Add("--");
+    //    psi.ArgumentList.AddRange(args);
 
-        return RunImpl(psi, logger, exitCode);
-    }
+    //    return RunImpl(psi, logger, exitCode);
+    //}
 
     private string RunImpl(ProcessStartInfo psi, ILogger logger, int? exitCode = 0)
     {
-        logger.Info($"TEST: Running {psi.FileName} {psi.ArgumentList.Aggregate((a, b) => $"{a} {b}")}");
-        var p = Process.Start(psi);
+        //logger.Info($"TEST: Running {psi.FileName} {psi.ArgumentList.Aggregate((a, b) => $"{a} {b}")}");
+        //using var p = Process.Start(psi);
 
-        StringBuilder sb = new StringBuilder();
-        p.BeginErrorReadLine();
-        p.BeginOutputReadLine();
-        p.OutputDataReceived += (s, e) => { sb.AppendLine(e.Data); logger.Debug(e.Data); };
-        p.ErrorDataReceived += (s, e) => { sb.AppendLine(e.Data); logger.Debug(e.Data); };
-        p.WaitForExit();
+        var outputfile = GetPath($"run.{RandomString(8)}.log");
 
-        if (exitCode != null)
-            Assert.Equal(exitCode, p.ExitCode);
+        try {
+            // this is a huge hack, but WaitForProcess hangs in the test runner when the output is redirected
+            // so for now, we use cmd.exe to redirect output to file.
+            var args = new string[psi.ArgumentList.Count];
+            psi.ArgumentList.CopyTo(args, 0);
+            new ProcessStartInfo().AppendArgumentListSafe(args, out var debug);
 
-        return String.Join(Environment.NewLine,
-            sb.ToString()
-                .Split('\n')
-                .Where(l => !l.Contains("Code coverage results"))
-                .Select(l => l.Trim())
-            ).Trim();
+            var fix = new ProcessStartInfo("cmd.exe");
+            fix.CreateNoWindow = true;
+            fix.WorkingDirectory = psi.WorkingDirectory;
+            fix.Arguments = $"/c \"{psi.FileName}\" {debug} > {outputfile} 2>&1";
+
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+
+            logger.Info($"TEST: Running {fix.FileName} {fix.Arguments}");
+            using var p = Process.Start(fix);
+
+            var timeout = TimeSpan.FromMinutes(1);
+            if (!p.WaitForExit(timeout))
+                throw new TimeoutException($"Process did not exit within {timeout.TotalSeconds}s.");
+
+            var elapsed = sw.Elapsed;
+            sw.Stop();
+
+            logger.Info($"TEST: Process exited with code {p.ExitCode} in {elapsed.TotalSeconds}s");
+
+            if (exitCode != null)
+                Assert.Equal(exitCode, p.ExitCode);
+
+            using var fs = Utility.Retry(() => {
+                return File.Open(outputfile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            }, 10, 1000, logger);
+
+            using var reader = new StreamReader(fs);
+            var output = reader.ReadToEnd();
+
+            if (String.IsNullOrWhiteSpace(output)) {
+                logger.Warn($"TEST: Process output was empty");
+            } else {
+                logger.Info($"TEST: Process output: {Environment.NewLine}{output.Trim()}{Environment.NewLine}");
+            }
+
+            return String.Join(Environment.NewLine,
+                output
+                    .Split('\n')
+                    .Where(l => !l.Contains("Code coverage results"))
+                    .Select(l => l.Trim())
+                ).Trim();
+        } finally {
+            try {
+                File.Delete(outputfile);
+            } catch { }
+        }
     }
 
     private string RunCoveredDotnet(string exe, string[] args, string workingDir, ILogger logger, int? exitCode = 0)

@@ -190,12 +190,12 @@ namespace Squirrel
             await Task.Run(() => File.Copy(from, to, true)).ConfigureAwait(false);
         }
 
-        public static void Retry(this Action block, int retries = 4, int retryDelay = 250)
+        public static void Retry(this Action block, int retries = 4, int retryDelay = 250, ILogger logger = null)
         {
             Retry(() => {
                 block();
                 return true;
-            }, retries, retryDelay);
+            }, retries, retryDelay, logger);
         }
 
         public static T Retry<T>(this Func<T> block, int retries = 4, int retryDelay = 250, ILogger logger = null)
@@ -215,12 +215,12 @@ namespace Squirrel
             }
         }
 
-        public static Task RetryAsync(this Func<Task> block, int retries = 4, int retryDelay = 250)
+        public static Task RetryAsync(this Func<Task> block, int retries = 4, int retryDelay = 250, ILogger logger = null)
         {
             return RetryAsync(async () => {
                 await block().ConfigureAwait(false);
                 return true;
-            }, retries, retryDelay);
+            }, retries, retryDelay, logger);
         }
 
         public static async Task<T> RetryAsync<T>(this Func<Task<T>> block, int retries = 4, int retryDelay = 250, ILogger logger = null)
