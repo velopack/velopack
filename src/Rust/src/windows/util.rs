@@ -255,6 +255,15 @@ where
     }
 }
 
+pub fn run_process<S, P>(exe: S, args: Vec<&str>, work_dir: P) -> Result<()>
+where
+    S: AsRef<OsStr>,
+    P: AsRef<Path>,
+{
+    Process::new(exe).args(args).current_dir(work_dir).spawn()?;
+    Ok(())
+}
+
 pub fn run_process_no_console<S, P>(exe: S, args: Vec<&str>, work_dir: P) -> Result<()>
 where
     S: AsRef<OsStr>,

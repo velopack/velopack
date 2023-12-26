@@ -29,7 +29,7 @@ namespace Squirrel
         /// <summary> True if there is a local update prepared that requires a call to <see cref="ApplyUpdatesAndRestart(string[])"/> to be applied. </summary>
         public virtual bool IsUpdatePendingRestart {
             get {
-                var latestLocal = Locator.GetLatestLocalPackage();
+                var latestLocal = Locator.GetLatestLocalFullPackage();
                 if (latestLocal != null && latestLocal.Version > CurrentVersion)
                     return true;
                 return false;
@@ -70,11 +70,16 @@ namespace Squirrel
         /// <param name="locator">This should usually be left null. Providing an <see cref="ISquirrelLocator" /> allows you to mock up certain application paths. 
         /// For example, if you wanted to test that updates are working in a unit test, you could provide an instance of <see cref="TestSquirrelLocator"/>. </param>
         public UpdateManager(IUpdateSource source, ILogger logger = null, ISquirrelLocator locator = null)
+            : this(logger, locator)
         {
             if (source == null) {
                 throw new ArgumentNullException(nameof(source));
             }
             Source = source;
+        }
+
+        internal UpdateManager(ILogger logger, ISquirrelLocator locator)
+        {
             Log = logger ?? NullLogger.Instance;
             Locator = locator ?? SquirrelLocator.GetDefault(Log);
         }
@@ -97,7 +102,7 @@ namespace Squirrel
             EnsureInstalled();
             var installedVer = CurrentVersion;
             var betaId = Locator.GetOrCreateStagedUserId();
-            var latestLocalFull = Locator.GetLatestLocalPackage();
+            var latestLocalFull = Locator.GetLatestLocalFullPackage();
 
             Log.Debug("Retrieving latest release feed.");
             var feed = await Source.GetReleaseFeed(betaId, latestLocalFull?.Identity).ConfigureAwait(false);

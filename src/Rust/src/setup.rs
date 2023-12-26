@@ -254,9 +254,8 @@ fn install_app(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::mp
     app.write_uninstall_entry(root_path)?;
 
     if !dialogs::get_silent() {
-        info!("Starting app: \"{}\" --squirrel-firstrun", main_exe_path);
-        let args = vec!["--squirrel-firstrun"];
-        let _ = shared::run_process(&main_exe_path, args, &current_path);
+        info!("Starting app...");
+        shared::start_package(&app, &root_path, None, Some("CLOWD_SQUIRREL_FIRSTRUN"))?;
     }
 
     Ok(())

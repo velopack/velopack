@@ -30,11 +30,11 @@ pub fn start(wait_for_parent: bool, exe_name: Option<&String>, exe_args: Option<
     info!("About to launch: '{}' in dir '{}'", exe_to_execute.to_string_lossy(), current);
 
     if let Some(args) = exe_args {
-        crate::shared::run_process(exe_to_execute, args, current)?;
+        crate::windows::run_process(exe_to_execute, args, current)?;
     } else if let Some(args) = legacy_args {
         crate::windows::run_process_raw_args(exe_to_execute, args, current)?;
     } else {
-        crate::shared::run_process(exe_to_execute, vec![], current)?;
+        crate::windows::run_process(exe_to_execute, vec![], current)?;
     };
 
     Ok(())

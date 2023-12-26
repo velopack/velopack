@@ -2,11 +2,9 @@ use anyhow::{anyhow, bail, Result};
 use rand::distributions::{Alphanumeric, DistString};
 use regex::Regex;
 use std::{
-    ffi::OsStr,
     fs,
     io::{self},
     path::{Path, PathBuf},
-    process::Command as Process,
     thread,
     time::Duration,
 };
@@ -60,15 +58,6 @@ where
         }
         return Ok(());
     }
-}
-
-pub fn run_process<S, P>(exe: S, args: Vec<&str>, work_dir: P) -> Result<()>
-where
-    S: AsRef<OsStr>,
-    P: AsRef<Path>,
-{
-    Process::new(exe).args(args).current_dir(work_dir).spawn()?;
-    Ok(())
 }
 
 pub fn retry_io<F, T>(op: F) -> io::Result<T>

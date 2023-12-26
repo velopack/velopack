@@ -25,21 +25,24 @@ pub fn force_stop_package<P: AsRef<Path>>(root_dir: P) -> Result<()> {
     Ok(())
 }
 
-pub fn start_package<P: AsRef<Path>>(_app: &Manifest, root_dir: P, exe_args: Option<Vec<&str>>) -> Result<()> {
+pub fn start_package<P: AsRef<Path>>(_app: &Manifest, root_dir: P, exe_args: Option<Vec<&str>>, set_env: Option<&str>) -> Result<()> {
     let root_dir = root_dir.as_ref().to_string_lossy().to_string();
     let mut args = vec!["-n", &root_dir];
     if let Some(a) = exe_args {
         args.push("--args");
         args.extend(a);
     }
-    Process::new("/usr/bin/open").args(args).spawn().map_err(|z| anyhow!("Failed to start application ({}).", z))?;
+    let mut psi = Process::new("/usr/bin/open").args(args);
+    if let Some(env) = set_env {
+        psi.env(env, "true");
+    }
+    psi.spawn().map_err(|z| anyhow!("Failed to start application ({}).", z))?;
     Ok(())
 }
 
 #[test]
 #[ignore]
-fn test_start_and_stop_package()
-{
+fn test_start_and_stop_package() {
     let mani = Manifest::default();
     let root_dir = "/Applications/Calcbot.app";
     let _ = force_stop_package(root_dir);

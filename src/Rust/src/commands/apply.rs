@@ -21,7 +21,7 @@ pub fn apply<'a>(restart: bool, wait_for_parent: bool, package: Option<&PathBuf>
     }
 
     if restart {
-        shared::start_package(&app, &root_path, exe_args)?;
+        shared::start_package(&app, &root_path, exe_args, Some("CLOWD_SQUIRREL_RESTART"))?;
     }
 
     Ok(())
@@ -79,7 +79,7 @@ fn apply_package<'a>(package: Option<&PathBuf>, app: &Manifest, root_path: &Path
     info!("Applying package to current: {}", found_version);
 
     #[cfg(target_os = "windows")]
-    crate::windows::run_hook(&app, &root_path, "--squirrel-obsoleted", 15);
+    crate::windows::run_hook(&app, &root_path, "--squirrel-obsolete", 15);
 
     let current_dir = app.get_current_path(&root_path);
     shared::replace_dir_with_rollback(current_dir.clone(), || {

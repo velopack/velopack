@@ -2,6 +2,7 @@ use anyhow::{anyhow, bail, Result};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
+    process::Command as Process,
 };
 use winsafe::{self as w, co, prelude::*};
 
@@ -118,7 +119,7 @@ pub fn force_stop_package<P: AsRef<Path>>(root_dir: P) -> Result<()> {
     Ok(())
 }
 
-pub fn start_package<P: AsRef<Path>>(app: &Manifest, root_dir: P, exe_args: Option<Vec<&str>>) -> Result<()> {
+pub fn start_package<P: AsRef<Path>>(app: &Manifest, root_dir: P, exe_args: Option<Vec<&str>>, set_env: Option<&str>) -> Result<()> {
     let root_dir = root_dir.as_ref().to_path_buf();
     let current = app.get_current_path(&root_dir);
     let exe = app.get_main_exe_path(&root_dir);
@@ -130,11 +131,19 @@ pub fn start_package<P: AsRef<Path>>(app: &Manifest, root_dir: P, exe_args: Opti
 
     crate::windows::assert_can_run_binary_authenticode(&exe_to_execute)?;
 
+    let mut psi = Process::new(&exe_to_execute);
+    psi.current_dir(&current);
     if let Some(args) = exe_args {
-        super::run_process(exe_to_execute, args, current)?;
-    } else {
-        crate::shared::run_process(exe_to_execute, vec![], current)?;
-    };
+        psi.args(args);
+    }
+    if let Some(env) = set_env {
+        debug!("Setting environment variable: {}={}", env, "true");
+        psi.env(env, "true");
+    }
+
+    info!("About to launch: '{}' in dir '{}'", exe_to_execute.to_string_lossy(), current);
+    info!("Args: {:?}", psi.get_args());
+    psi.spawn().map_err(|z| anyhow!("Failed to start application ({}).", z))?;
 
     Ok(())
 }

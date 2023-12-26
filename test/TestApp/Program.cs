@@ -1,10 +1,30 @@
-﻿using Squirrel;
+﻿#pragma warning disable CA1416 // Validate platform compatibility
+using System.Diagnostics;
+using System.Reflection.Metadata;
+using Squirrel;
 using Squirrel.Locators;
 
 try {
-    if (args.Length >= 1 && args[0].StartsWith("--squirrel")) {
-        // squirrel hooks
-        File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "..", "args.txt"), String.Join(" ", args) + Environment.NewLine);
+    bool shouldExit = false;
+    SquirrelApp.Build()
+        .SetAutoApplyOnStartup(false)
+        .WithFirstRun((v) => {
+            debugFile("firstrun", v.ToString());
+            Console.WriteLine("was first run");
+            shouldExit = true;
+        })
+        .WithRestarted((v) => {
+            debugFile("restarted", v.ToString() + "," + String.Join(",", args));
+            Console.WriteLine("app just restarted");
+            shouldExit = true;
+        })
+        .WithAfterInstallFastCallback((v) => debugFile("args.txt", String.Join(" ", args)))
+        .WithBeforeUpdateFastCallback((v) => debugFile("args.txt", String.Join(" ", args)))
+        .WithAfterUpdateFastCallback((v) => debugFile("args.txt", String.Join(" ", args)))
+        .WithBeforeUninstallFastCallback((v) => debugFile("args.txt", String.Join(" ", args)))
+        .Run(new ConsoleLogger());
+
+    if (shouldExit) {
         return 0;
     }
 
@@ -50,15 +70,22 @@ try {
                 return -1;
             }
             Console.WriteLine("applying...");
-            um.ApplyUpdatesAndExit();
+            um.ApplyUpdatesAndRestart(new[] { "test", "args !!" });
             return 0;
         }
     }
 
 } catch (Exception ex) {
     Console.WriteLine("exception: " + ex.ToString());
+    if (Debugger.IsAttached) throw;
     return -1;
 }
 
 Console.WriteLine("Invalid args: " + String.Join(", ", args));
 return -1;
+
+void debugFile(string name, string message)
+{
+    var path = Path.Combine(AppContext.BaseDirectory, "..", name);
+    File.AppendAllText(path, message + Environment.NewLine);
+}

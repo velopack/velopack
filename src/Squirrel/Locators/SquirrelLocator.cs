@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.Versioning;
 
 namespace Squirrel.Locators
@@ -21,14 +22,16 @@ namespace Squirrel.Locators
         /// </summary>
         public static SquirrelLocator GetDefault(ILogger logger)
         {
+            var log = logger ?? NullLogger.Instance;
+
             if (_current != null)
                 return _current;
 
             if (SquirrelRuntimeInfo.IsWindows)
-                return _current ??= new WindowsSquirrelLocator(logger);
+                return _current ??= new WindowsSquirrelLocator(log);
 
             if (SquirrelRuntimeInfo.IsOSX)
-                return _current ??= new OsxSquirrelLocator(logger);
+                return _current ??= new OsxSquirrelLocator(log);
 
             throw new NotSupportedException($"OS platform '{SquirrelRuntimeInfo.SystemOs.GetOsLongName()}' is not supported.");
         }
@@ -78,6 +81,9 @@ namespace Squirrel.Locators
         /// <inheritdoc/>
         public virtual List<ReleaseEntry> GetLocalPackages()
         {
+            if (CurrentlyInstalledVersion == null)
+                return new List<ReleaseEntry>(0);
+
             return Directory.EnumerateFiles(PackagesDir, "*.nupkg")
                 .Select(x => ReleaseEntry.GenerateFromFile(x))
                 .Where(x => x?.Version != null)
@@ -85,10 +91,11 @@ namespace Squirrel.Locators
         }
 
         /// <inheritdoc/>
-        public ReleaseEntry GetLatestLocalPackage()
+        public ReleaseEntry GetLatestLocalFullPackage()
         {
             return GetLocalPackages()
                 .OrderByDescending(x => x.Version)
+                .Where(x => !x.IsDelta)
                 .FirstOrDefault();
         }
 

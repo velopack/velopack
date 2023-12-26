@@ -7,6 +7,7 @@ using System.IO;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Xml.Linq;
+using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using NuGet.Packaging;
 using Squirrel.Compression;
@@ -266,6 +267,55 @@ public class WindowsPackTests
     }
 
     [SkippableFact]
+    public void TestAllApplicationHooks()
+    {
+        Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
+        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
+        using var _1 = Utility.GetTempDirectory(out var releaseDir);
+        using var _2 = Utility.GetTempDirectory(out var installDir);
+        string id = "SquirrelHookTest";
+        var appPath = Path.Combine(installDir, "current", "TestApp.exe");
+
+        // pack v1
+        PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
+
+        // install app
+        var setupPath1 = Path.Combine(releaseDir, $"{id}-Setup-[win-x64].exe");
+        RunNoCoverage(setupPath1, new string[] { "--nocolor", "--verbose", "--installto", installDir },
+            Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
+
+        var argsPath = Path.Combine(installDir, "args.txt");
+        Assert.True(File.Exists(argsPath));
+        Assert.Equal("--squirrel-install 1.0.0", File.ReadAllText(argsPath).Trim());
+
+        var firstRun = Path.Combine(installDir, "firstrun");
+        Assert.True(File.Exists(argsPath));
+        Assert.Equal("1.0.0", File.ReadAllText(firstRun).Trim());
+
+        // pack v2
+        PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
+
+        // install v2
+        RunCoveredDotnet(appPath, new string[] { "download", releaseDir }, installDir, logger);
+        RunCoveredDotnet(appPath, new string[] { "apply", releaseDir }, installDir, logger, exitCode: null);
+
+        Thread.Sleep(2000);
+
+        var logFile = Path.Combine(installDir, "Clowd.Squirrel.log");
+        logger.Info("TEST: update log output - " + Environment.NewLine + File.ReadAllText(logFile));
+        
+        Assert.Contains("--squirrel-obsolete 1.0.0", File.ReadAllText(argsPath).Trim());
+        Assert.Contains("--squirrel-updated 2.0.0", File.ReadAllText(argsPath).Trim());
+
+        var restartedPath = Path.Combine(installDir, "restarted");
+        Assert.True(File.Exists(restartedPath));
+        Assert.Equal("2.0.0,test,args !!", File.ReadAllText(restartedPath).Trim());
+
+        var updatePath = Path.Combine(installDir, "Update.exe");
+        RunNoCoverage(updatePath, new string[] { "--nocolor", "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
+    }
+
+    [SkippableFact]
     public void TestPackedAppCanDeltaUpdateToLatest()
     {
         Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
@@ -280,7 +330,8 @@ public class WindowsPackTests
 
         // install app
         var setupPath1 = Path.Combine(releaseDir, $"{id}-Setup-[win-x64].exe");
-        RunNoCoverage(setupPath1, new string[] { "--nocolor", "--silent", "--installto", installDir }, Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
+        RunNoCoverage(setupPath1, new string[] { "--nocolor", "--silent", "--installto", installDir },
+            Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
 
         // check app installed correctly
         var appPath = Path.Combine(installDir, "current", "TestApp.exe");
@@ -335,7 +386,7 @@ public class WindowsPackTests
         // check new obsoleted/updated hooks have run
         var argsContentv3 = File.ReadAllText(argsPath).Trim();
         Assert.Contains("--squirrel-install 1.0.0", argsContentv3);
-        Assert.Contains("--squirrel-obsoleted 1.0.0", argsContentv3);
+        Assert.Contains("--squirrel-obsolete 1.0.0", argsContentv3);
         Assert.Contains("--squirrel-updated 3.0.0", argsContentv3);
         logger.Info("TEST: hooks verified");
 
