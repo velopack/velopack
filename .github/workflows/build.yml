@@ -30,9 +30,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-test-nuget-
 
-      - name: Install Rust
-        run: rustup update stable
-
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
