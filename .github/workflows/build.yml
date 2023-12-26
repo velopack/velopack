@@ -80,7 +80,7 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          directory: ./coverage
+          directory: ./test
           fail_ci_if_error: true
   
   package:
