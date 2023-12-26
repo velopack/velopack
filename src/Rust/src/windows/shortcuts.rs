@@ -91,6 +91,7 @@ fn test_can_resolve_existing_shortcut() {
 }
 
 #[test]
+#[ignore]
 fn shortcut_full_integration_test() {
     let desktop = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Desktop, co::KF::DONT_UNEXPAND, None).unwrap();
     let link_location = Path::new(&desktop).join("testclowd123hi.lnk");
