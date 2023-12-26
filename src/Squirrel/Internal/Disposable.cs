@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
 namespace Squirrel
 {
+    [ExcludeFromCodeCoverage]
     internal static class Disposable
     {
         public static IDisposable Create(Action action)

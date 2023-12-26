@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
@@ -15,6 +16,8 @@ namespace Squirrel
 {
     internal static class Utility
     {
+        public const string SpecVersionFileName = "sq.version";
+
         /// <summary>
         /// Calculates the total percentage of a specific step that should report within a specific range.
         /// <para />
@@ -508,6 +511,28 @@ namespace Squirrel
             return AppendPathToUri(uri, "");
         }
 
+        public static async Task<int> GetExitCodeAsync(this Process p)
+        {
+#if NET5_0_OR_GREATER
+            await p.WaitForExitAsync().ConfigureAwait(false);
+            return p.ExitCode;
+#else
+            var tcs = new TaskCompletionSource<int>();
+            var thread = new Thread(() => {
+                try {
+                    p.WaitForExit();
+                    tcs.SetResult(p.ExitCode);
+                } catch (Exception ex) {
+                    tcs.SetException(ex);
+                }
+            });
+            thread.IsBackground = true;
+            thread.Start();
+            await tcs.Task.ConfigureAwait(false);
+            return p.ExitCode;
+#endif
+        }
+
         public static Uri AddQueryParamsToUri(Uri uri, IEnumerable<KeyValuePair<string, string>> newQuery)
         {
             var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
@@ -528,24 +553,6 @@ namespace Squirrel
         {
             var ext = Path.GetExtension(name);
             return peExtensions.Any(x => ext.Equals(x, StringComparison.OrdinalIgnoreCase));
-        }
-
-        public static bool IsFileTopLevelInPackage(string fullName, string pkgPath)
-        {
-            var fn = fullName.ToLowerInvariant();
-            var pkg = pkgPath.ToLowerInvariant();
-            var relativePath = fn.Replace(pkg, "");
-
-            // NB: We want to match things like `/lib/net45/foo.exe` but not `/lib/net45/bar/foo.exe`
-            return relativePath.Split(Path.DirectorySeparatorChar).Length == 4;
-        }
-
-        public static void ConsoleWriteWithColor(string text, ConsoleColor color)
-        {
-            var fc = Console.ForegroundColor;
-            Console.ForegroundColor = color;
-            Console.Write(text);
-            Console.ForegroundColor = fc;
         }
 
         public static Guid CreateGuidFromHash(string text)
@@ -627,32 +634,6 @@ namespace Squirrel
             byte temp = guid[left];
             guid[left] = guid[right];
             guid[right] = temp;
-        }
-
-        public const string SpecVersionFileName = "sq.version";
-
-        public static NuspecManifest ReadManifestFromVersionDir(string appVersionDir)
-        {
-            NuspecManifest manifest;
-            string nuspec;
-
-            nuspec = Path.Combine(appVersionDir, SpecVersionFileName);
-            if (File.Exists(nuspec) && NuspecManifest.TryParseFromFile(nuspec, out manifest))
-                return manifest;
-
-            nuspec = Path.Combine(appVersionDir, "Contents", SpecVersionFileName);
-            if (File.Exists(nuspec) && NuspecManifest.TryParseFromFile(nuspec, out manifest))
-                return manifest;
-
-            nuspec = Path.Combine(appVersionDir, "mysqver");
-            if (File.Exists(nuspec) && NuspecManifest.TryParseFromFile(nuspec, out manifest))
-                return manifest;
-
-            nuspec = Path.Combine(appVersionDir, "current.version");
-            if (File.Exists(nuspec) && NuspecManifest.TryParseFromFile(nuspec, out manifest))
-                return manifest;
-
-            return null;
         }
 
         public static void CopyFiles(string source, string target)

@@ -1,4 +1,8 @@
-﻿using System.Reflection;
+﻿using System.ComponentModel;
+using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
 
 namespace Squirrel.Packaging;
@@ -88,8 +92,48 @@ public class HelperFile
 
     protected static string InvokeAndThrowIfNonZero(string exePath, IEnumerable<string> args, string workingDir)
     {
-        var result = PlatformUtil.InvokeProcess(exePath, args, workingDir, CancellationToken.None);
+        var result = InvokeProcess(exePath, args, workingDir);
         ProcessFailedException.ThrowIfNonZero(result);
         return result.StdOutput;
+    }
+
+    protected static (int ExitCode, string StdOutput) InvokeProcess(ProcessStartInfo psi, CancellationToken ct)
+    {
+        var pi = Process.Start(psi);
+        while (!ct.IsCancellationRequested) {
+            if (pi.WaitForExit(500)) break;
+        }
+
+        if (ct.IsCancellationRequested && !pi.HasExited) {
+            pi.Kill();
+            ct.ThrowIfCancellationRequested();
+        }
+
+        string output = pi.StandardOutput.ReadToEnd();
+        string error = pi.StandardError.ReadToEnd();
+        var all = (output ?? "") + Environment.NewLine + (error ?? "");
+
+        return (pi.ExitCode, all.Trim());
+    }
+
+    protected static (int ExitCode, string StdOutput, string Command) InvokeProcess(string fileName, IEnumerable<string> args, string workingDirectory, CancellationToken ct = default)
+    {
+        var psi = CreateProcessStartInfo(fileName, workingDirectory);
+        psi.AppendArgumentListSafe(args, out var argString);
+        var p = InvokeProcess(psi, ct);
+        return (p.ExitCode, p.StdOutput, $"{fileName} {argString}");
+    }
+
+    protected static ProcessStartInfo CreateProcessStartInfo(string fileName, string workingDirectory)
+    {
+        var psi = new ProcessStartInfo(fileName);
+        psi.UseShellExecute = false;
+        psi.WindowStyle = ProcessWindowStyle.Hidden;
+        psi.ErrorDialog = false;
+        psi.CreateNoWindow = true;
+        psi.RedirectStandardOutput = true;
+        psi.RedirectStandardError = true;
+        psi.WorkingDirectory = workingDirectory ?? Environment.CurrentDirectory;
+        return psi;
     }
 }

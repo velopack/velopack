@@ -72,6 +72,7 @@ using Squirrel.Json.Reflection;
 #endif
 
 #if NET5_0_OR_GREATER
+
 namespace Squirrel.Json
 {
     [ExcludeFromCodeCoverage]
@@ -83,9 +84,8 @@ namespace Squirrel.Json
         }
     }
 }
-#endif
 
-#if !NET5_0_OR_GREATER
+#else 
 
 // ReSharper disable LoopCanBeConvertedToQuery
 // ReSharper disable RedundantExplicitArrayCreation

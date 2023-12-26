@@ -58,7 +58,7 @@ namespace Squirrel.Locators
             var appPath = ourPath.Substring(0, ix + 4);
             var contentsDir = Path.Combine(appPath, "Contents");
             var updateExe = Path.Combine(contentsDir, "UpdateMac");
-            var metadataPath = Path.Combine(contentsDir, "sq.version");
+            var metadataPath = Path.Combine(contentsDir, Utility.SpecVersionFileName);
 
             if (File.Exists(updateExe) && NuspecManifest.TryParseFromFile(metadataPath, out var manifest)) {
                 Log.Info("Located valid manifest file at: " + metadataPath);

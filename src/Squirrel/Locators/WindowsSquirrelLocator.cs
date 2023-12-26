@@ -66,7 +66,7 @@ namespace Squirrel.Locators
             if (File.Exists(possibleUpdateExe)) {
                 Log.Info("Update.exe found in parent directory");
                 // we're running in a directory with an Update.exe in the parent directory
-                var manifestFile = Path.Combine(myDirPath, "sq.version");
+                var manifestFile = Path.Combine(myDirPath, Utility.SpecVersionFileName);
                 if (NuspecManifest.TryParseFromFile(manifestFile, out var manifest)) {
                     // ideal, the info we need is in a manifest file.
                     Log.Info("Located valid manifest file at: " + manifestFile);
@@ -88,7 +88,7 @@ namespace Squirrel.Locators
                 // this is an attempt to handle the case where we are running in a nested current directory.
                 var rootDir = ourExePath.Substring(0, ixCurrent);
                 var currentDir = Path.Combine(rootDir, "current");
-                var manifestFile = Path.Combine(currentDir, "sq.version");
+                var manifestFile = Path.Combine(currentDir, Utility.SpecVersionFileName);
                 possibleUpdateExe = Path.GetFullPath(Path.Combine(rootDir, "Update.exe"));
                 // we only support parsing a manifest when we're in a nested current directory. no legacy fallback.
                 if (File.Exists(possibleUpdateExe) && NuspecManifest.TryParseFromFile(manifestFile, out var manifest)) {

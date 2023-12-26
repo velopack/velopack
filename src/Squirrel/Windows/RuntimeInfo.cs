@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.Versioning;
@@ -87,17 +88,21 @@ namespace Squirrel.Windows
                 var args = new string[] { "/passive", "/norestart", "/showrmui" };
                 var quietArgs = new string[] { "/q", "/norestart" };
                 log?.Info($"Running {Id} installer '{pathToInstaller} {string.Join(" ", args)}'");
-                var p = await PlatformUtil.InvokeProcessAsync(pathToInstaller, isQuiet ? quietArgs : args, null, CancellationToken.None).ConfigureAwait(false);
+
+                var psi = new ProcessStartInfo(pathToInstaller);
+                psi.AppendArgumentListSafe(isQuiet ? quietArgs : args, out var _);
+                var p = Process.Start(psi);
+                var code = await p.GetExitCodeAsync().ConfigureAwait(false);
 
                 // https://johnkoerner.com/install/windows-installer-error-codes/
 
-                if (p.ExitCode == 1638) // a newer compatible version is already installed
+                if (code == 1638) // a newer compatible version is already installed
                     return RuntimeInstallResult.InstallSuccess;
 
-                if (p.ExitCode == 1641) // installer initiated a restart
+                if (code == 1641) // installer initiated a restart
                     return RuntimeInstallResult.RestartRequired;
 
-                return (RuntimeInstallResult) p.ExitCode;
+                return (RuntimeInstallResult) code;
             }
 
             /// <summary> The unique string representation of this runtime </summary>

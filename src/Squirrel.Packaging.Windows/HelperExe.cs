@@ -1,4 +1,6 @@
-﻿using System.Runtime.Versioning;
+﻿using System.ComponentModel;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
@@ -68,7 +70,7 @@ public class HelperExe : HelperFile
         }
 
         var totalToSign = pendingSign.Count;
-        var baseSignArgs = PlatformUtil.CommandLineToArgvW(signArguments);
+        var baseSignArgs = CommandLineToArgvW(signArguments);
 
         do {
             List<string> args = new List<string>();
@@ -78,7 +80,7 @@ public class HelperExe : HelperFile
                 args.Add(pendingSign.Dequeue());
             }
 
-            var result = PlatformUtil.InvokeProcess(SignToolPath, args, rootDir, CancellationToken.None);
+            var result = InvokeProcess(SignToolPath, args, rootDir);
             if (result.ExitCode != 0) {
                 var cmdWithPasswordHidden = new Regex(@"\/p\s+?[^\s]+").Replace(result.Command, "/p ********");
                 Log.Debug($"Signing command failed: {cmdWithPasswordHidden}");
@@ -101,7 +103,7 @@ public class HelperExe : HelperFile
 
         var command = signTemplate.Replace("\"{{file}}\"", "{{file}}").Replace("{{file}}", $"\"{filePath}\"");
 
-        var result = PlatformUtil.InvokeProcess(command, null, null, CancellationToken.None);
+        var result = InvokeProcess(command, null, null);
         if (result.ExitCode != 0) {
             var cmdWithPasswordHidden = new Regex(@"\/p\s+?[^\s]+").Replace(result.Command, "/p ********");
             Log.Debug($"Signing command failed: {cmdWithPasswordHidden}");
@@ -143,5 +145,38 @@ public class HelperExe : HelperFile
         }
 
         Utility.Retry(() => InvokeAndThrowIfNonZero(RceditPath, args, null));
+    }
+
+    private const string WIN_KERNEL32 = "kernel32.dll";
+    private const string WIN_SHELL32 = "shell32.dll";
+
+    [SupportedOSPlatform("windows")]
+    [DllImport(WIN_KERNEL32, EntryPoint = "LocalFree", SetLastError = true)]
+    private static extern IntPtr _LocalFree(IntPtr hMem);
+
+    [SupportedOSPlatform("windows")]
+    [DllImport(WIN_SHELL32, EntryPoint = "CommandLineToArgvW", CharSet = CharSet.Unicode)]
+    private static extern IntPtr _CommandLineToArgvW([MarshalAs(UnmanagedType.LPWStr)] string cmdLine, out int numArgs);
+
+    [SupportedOSPlatform("windows")]
+    protected static string[] CommandLineToArgvW(string cmdLine)
+    {
+        IntPtr argv = IntPtr.Zero;
+        try {
+            argv = _CommandLineToArgvW(cmdLine, out var numArgs);
+            if (argv == IntPtr.Zero) {
+                throw new Win32Exception();
+            }
+            var result = new string[numArgs];
+
+            for (int i = 0; i < numArgs; i++) {
+                IntPtr currArg = Marshal.ReadIntPtr(argv, i * Marshal.SizeOf(typeof(IntPtr)));
+                result[i] = Marshal.PtrToStringUni(currArg);
+            }
+
+            return result;
+        } finally {
+            _LocalFree(argv);
+        }
     }
 }
