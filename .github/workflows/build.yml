@@ -64,16 +64,24 @@ jobs:
       - name: Upload Rust Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rust
+          name: rust-${{ matrix.os }}
           path: |
             src/Rust/target/release/updatemac
             src/Rust/target/release/*.exe
 
-      - name: Upload Coverage
-        uses: actions/upload-artifact@v4
+      # - name: Upload Coverage Artifacts
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: coverage
+      #     path: test/coverage*.xml
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          name: coverage
-          path: test/coverage*.xml
+          directory: ./coverage
+          fail_ci_if_error: true
   
   package:
     runs-on: ubuntu-latest
@@ -90,30 +98,36 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      - name: Install .NET 6
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 6.0.x
+      # - name: Install .NET 6
+      #   uses: actions/setup-dotnet@v4
+      #   with:
+      #     dotnet-version: 6.0.x
 
-      - name: Install .NET 8
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
+      # - name: Install .NET 8
+      #   uses: actions/setup-dotnet@v4
+      #   with:
+      #     dotnet-version: 8.0.x
 
       - name: Print dotnet version
         run: dotnet --info
   
-      - name: Download Rust Artifacts
+      - name: Download Rust Windows
         uses: actions/download-artifact@v4
         with:
-          name: rust
+          name: rust-macos-latest
           path: src/Rust/target/release
 
-      - name: Download Coverage Artifacts
+      - name: Download Rust OSX
         uses: actions/download-artifact@v4
         with:
-          name: coverage
-          path: ./coverage
+          name: rust-windows-latest
+          path: src/Rust/target/release
+
+      # - name: Download Coverage Artifacts
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: coverage
+      #     path: ./coverage
 
       - name: Build .NET
         run: dotnet build -c Release /p:PackRustAssets=true
@@ -124,13 +138,13 @@ jobs:
           name: packages
           path: .\build\Release\*.nupkg
 
-      - name: Upload Coverage to Codecov
-        uses: codecov/codecov-action@v3
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        with:
-          directory: ./coverage
-          fail_ci_if_error: true
+      # - name: Upload Coverage to Codecov
+      #   uses: codecov/codecov-action@v3
+      #   env:
+      #     CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      #   with:
+      #     directory: ./coverage
+      #     fail_ci_if_error: true
 
       - name: Publish to GitHub Packages
         shell: pwsh
