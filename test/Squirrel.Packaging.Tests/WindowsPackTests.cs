@@ -267,6 +267,41 @@ public class WindowsPackTests
     }
 
     [SkippableFact]
+    public void TestAppAutoUpdatesWhenLocalIsAvailable()
+    {
+        Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
+        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
+        using var _1 = Utility.GetTempDirectory(out var releaseDir);
+        using var _2 = Utility.GetTempDirectory(out var installDir);
+        string id = "SquirrelAutoUpdateTest";
+        var appPath = Path.Combine(installDir, "current", "TestApp.exe");
+
+        // pack v1
+        PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
+
+        // install app
+        var setupPath1 = Path.Combine(releaseDir, $"{id}-Setup-[win-x64].exe");
+        RunNoCoverage(setupPath1, new string[] { "--nocolor", "--silent", "--installto", installDir },
+            Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
+
+        // pack v2
+        PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
+
+        // move package into local packages dir
+        var fileName = $"{id}-2.0.0-win-x64-full.nupkg";
+        var mvFrom = Path.Combine(releaseDir, fileName);
+        var mvTo = Path.Combine(installDir, "packages", fileName);
+        File.Copy(mvFrom, mvTo);
+
+        RunCoveredDotnet(appPath, new string[] { "--autoupdate" }, installDir, logger, exitCode: null);
+
+        Thread.Sleep(2000);
+
+        var chk1version = RunCoveredDotnet(appPath, new string[] { "version" }, installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "2.0.0", chk1version);
+    }
+
+    [SkippableFact]
     public void TestAllApplicationHooks()
     {
         Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
@@ -281,7 +316,7 @@ public class WindowsPackTests
 
         // install app
         var setupPath1 = Path.Combine(releaseDir, $"{id}-Setup-[win-x64].exe");
-        RunNoCoverage(setupPath1, new string[] { "--nocolor", "--verbose", "--installto", installDir },
+        RunNoCoverage(setupPath1, new string[] { "--nocolor", "--installto", installDir },
             Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
 
         var argsPath = Path.Combine(installDir, "args.txt");
@@ -303,7 +338,7 @@ public class WindowsPackTests
 
         var logFile = Path.Combine(installDir, "Clowd.Squirrel.log");
         logger.Info("TEST: update log output - " + Environment.NewLine + File.ReadAllText(logFile));
-        
+
         Assert.Contains("--squirrel-obsolete 1.0.0", File.ReadAllText(argsPath).Trim());
         Assert.Contains("--squirrel-updated 2.0.0", File.ReadAllText(argsPath).Trim());
 

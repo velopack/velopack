@@ -6,8 +6,10 @@ using Squirrel.Locators;
 
 try {
     bool shouldExit = false;
+    bool shouldAutoUpdate = args.Any(a => a.Equals("--autoupdate", StringComparison.OrdinalIgnoreCase));
+
     SquirrelApp.Build()
-        .SetAutoApplyOnStartup(false)
+        .SetAutoApplyOnStartup(shouldAutoUpdate)
         .WithFirstRun((v) => {
             debugFile("firstrun", v.ToString());
             Console.WriteLine("was first run");
@@ -23,6 +25,11 @@ try {
         .WithAfterUpdateFastCallback((v) => debugFile("args.txt", String.Join(" ", args)))
         .WithBeforeUninstallFastCallback((v) => debugFile("args.txt", String.Join(" ", args)))
         .Run(new ConsoleLogger());
+
+    if (shouldAutoUpdate) {
+        // this shouldn't be reached
+        return -1;
+    }
 
     if (shouldExit) {
         return 0;
