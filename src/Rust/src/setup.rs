@@ -48,6 +48,7 @@ fn main() -> Result<()> {
 
     shared::dialogs::set_silent(silent);
     logging::setup_logging(logfile, true, verbose, nocolor)?;
+    let _comguard = w::CoInitializeEx(co::COINIT::APARTMENTTHREADED | co::COINIT::DISABLE_OLE1DDE)?;
 
     info!("Starting Clowd.Squirrel Setup ({})", env!("NGBV_VERSION"));
     info!("    Location: {:?}", std::env::current_exe()?);

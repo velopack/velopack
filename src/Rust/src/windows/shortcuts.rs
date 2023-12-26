@@ -4,17 +4,7 @@ use glob::glob;
 use std::path::Path;
 use winsafe::{self as w, co, prelude::*};
 
-pub fn resolve_lnk(link_path: &str) -> Result<(String, String)> {
-    let _comguard = w::CoInitializeEx(co::COINIT::APARTMENTTHREADED | co::COINIT::DISABLE_OLE1DDE)?;
-    _resolve_lnk(link_path)
-}
-
 pub fn create_lnk(output: &str, target: &str, work_dir: &str) -> w::HrResult<()> {
-    let _comguard = w::CoInitializeEx(co::COINIT::APARTMENTTHREADED | co::COINIT::DISABLE_OLE1DDE)?;
-    _create_lnk(output, target, work_dir)
-}
-
-fn _create_lnk(output: &str, target: &str, work_dir: &str) -> w::HrResult<()> {
     let me = w::CoCreateInstance::<w::IShellLink>(&co::CLSID::ShellLink, None, co::CLSCTX::INPROC_SERVER)?;
     me.SetPath(target)?;
     me.SetWorkingDirectory(work_dir)?;
@@ -23,7 +13,7 @@ fn _create_lnk(output: &str, target: &str, work_dir: &str) -> w::HrResult<()> {
     Ok(())
 }
 
-fn _resolve_lnk(link_path: &str) -> Result<(String, String)> {
+pub fn resolve_lnk(link_path: &str) -> Result<(String, String)> {
     let me = w::CoCreateInstance::<w::IShellLink>(&co::CLSID::ShellLink, None, co::CLSCTX::INPROC_SERVER)?;
     let pf = me.QueryInterface::<w::IPersistFile>()?;
     pf.Load(link_path, co::STGM::READ)?;
@@ -38,7 +28,6 @@ fn _resolve_lnk(link_path: &str) -> Result<(String, String)> {
 }
 
 pub fn remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<()> {
-    let _comguard = w::CoInitializeEx(co::COINIT::APARTMENTTHREADED)?;
     let root_dir = root_dir.as_ref();
     info!("Searching for shortcuts containing root: '{}'", root_dir.to_string_lossy());
 
@@ -59,7 +48,7 @@ pub fn remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<
             for path in paths {
                 if let Ok(path) = path {
                     trace!("Checking shortcut: '{}'", path.to_string_lossy());
-                    let res = _resolve_lnk(&path.to_string_lossy());
+                    let res = resolve_lnk(&path.to_string_lossy());
                     if let Ok((target, work_dir)) = res {
                         let target_match = super::is_sub_path(&target, root_dir).unwrap_or(false);
                         let work_dir_match = super::is_sub_path(&work_dir, root_dir).unwrap_or(false);
@@ -85,14 +74,15 @@ pub fn remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<
 #[test]
 #[ignore]
 fn test_can_resolve_existing_shortcut() {
+    let _comguard = w::CoInitializeEx(co::COINIT::APARTMENTTHREADED | co::COINIT::DISABLE_OLE1DDE).unwrap();
     let link_path = r"C:\Users\Caelan\Desktop\Discord.lnk";
     let (target, _workdir) = resolve_lnk(link_path).unwrap();
     assert_eq!(target, "C:\\Users\\Caelan\\AppData\\Local\\Discord\\Update.exe");
 }
 
 #[test]
-#[ignore]
 fn shortcut_full_integration_test() {
+    let _comguard = w::CoInitializeEx(co::COINIT::APARTMENTTHREADED | co::COINIT::DISABLE_OLE1DDE).unwrap();
     let desktop = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Desktop, co::KF::DONT_UNEXPAND, None).unwrap();
     let link_location = Path::new(&desktop).join("testclowd123hi.lnk");
     let target = r"C:\Users\Caelan\AppData\Local\NonExistingAppHello123\current\HelloWorld.exe";
