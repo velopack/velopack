@@ -11,9 +11,12 @@ namespace Squirrel.Deployment;
 public class S3Options
 {
     public DirectoryInfo ReleaseDir { get; set; }
+
     public string KeyId { get; set; }
 
     public string Secret { get; set; }
+
+    public string Session { get; set; }
 
     public string Region { get; set; }
 
@@ -44,10 +47,13 @@ public class S3Repository
     {
         if (options.Region != null) {
             var r = RegionEndpoint.GetBySystemName(options.Region);
-            return new AmazonS3Client(options.KeyId, options.Secret, r);
+            if (string.IsNullOrWhiteSpace(options.KeyId)) {
+                return new AmazonS3Client(r);
+            }
+            return new AmazonS3Client(options.KeyId, options.Secret, options.Session, r);
         } else if (options.Endpoint != null) {
             var config = new AmazonS3Config() { ServiceURL = options.Endpoint };
-            return new AmazonS3Client(options.KeyId, options.Secret, config);
+            return new AmazonS3Client(options.KeyId, options.Secret, options.Session, config);
         } else {
             throw new InvalidOperationException("Missing endpoint");
         }

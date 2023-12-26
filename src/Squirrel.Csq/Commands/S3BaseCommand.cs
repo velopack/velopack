@@ -7,6 +7,8 @@ public class S3BaseCommand : BaseCommand
 
     public string Secret { get; private set; }
 
+    public string Session { get; private set; }
+
     public string Region { get; private set; }
 
     public string Endpoint { get; private set; }
@@ -20,17 +22,19 @@ public class S3BaseCommand : BaseCommand
     {
         AddOption<string>((v) => KeyId = v, "--keyId")
             .SetDescription("Authentication identifier or access key.")
-            .SetArgumentHelpName("KEYID")
-            .SetRequired();
+            .SetArgumentHelpName("KEYID");
 
         AddOption<string>((v) => Secret = v, "--secret")
             .SetDescription("Authentication secret key.")
-            .SetArgumentHelpName("KEY")
-            .SetRequired();
+            .SetArgumentHelpName("KEY");
 
         var region = AddOption<string>((v) => Region = v, "--region")
             .SetDescription("AWS service region (eg. us-west-1).")
             .SetArgumentHelpName("REGION");
+
+        AddOption<string>((v) => Session = v, "--session")
+            .SetDescription("Authentication session token.")
+            .SetArgumentHelpName("SESSION");
 
         region.Validators.Add(MustBeValidAwsRegion);
 

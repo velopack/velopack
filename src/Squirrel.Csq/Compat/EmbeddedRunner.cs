@@ -145,6 +145,7 @@ public class EmbeddedRunner : ICommandRunner
             PathPrefix = command.PathPrefix,
             Region = command.Region,
             ReleaseDir = command.GetReleaseDirectory(),
+            Session = command.Session,
             Secret = command.Secret,
         };
         return new S3Repository(_logger).DownloadRecentPackages(options);
