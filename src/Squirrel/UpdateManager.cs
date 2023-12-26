@@ -244,7 +244,7 @@ namespace Squirrel
         /// <param name="silent"></param>
         public void ApplyUpdatesAndExit(bool silent = false)
         {
-            RunApplyUpdates(silent, false, null, null);
+            RunApplyUpdates(silent, false, null);
             Environment.Exit(0);
         }
 
@@ -256,7 +256,7 @@ namespace Squirrel
         /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
         public void ApplyUpdatesAndRestart(string[] restartArgs = null)
         {
-            RunApplyUpdates(false, true, null, restartArgs);
+            RunApplyUpdates(false, true, restartArgs);
             Environment.Exit(0);
         }
 
@@ -268,9 +268,8 @@ namespace Squirrel
         /// a new framework dependency.</param>
         /// <param name="restart">If true, restarts the application after updates are applied (or if they failed)</param>
         /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
-        /// <param name="exeName">The name or relative path to the binary to restart.</param>
         /// <exception cref="Exception"></exception>
-        protected virtual void RunApplyUpdates(bool silent, bool restart, string exeName, string[] restartArgs)
+        protected virtual void RunApplyUpdates(bool silent, bool restart, string[] restartArgs)
         {
             var psi = new ProcessStartInfo() {
                 CreateNoWindow = true,
@@ -283,13 +282,6 @@ namespace Squirrel
             args.Add("apply");
             args.Add("--wait");
             if (restart) args.Add("--restart");
-
-            try {
-                args.Add(exeName ?? Locator.ThisExeRelativePath); // optional
-            } catch (Exception ex) {
-                Log.Error(ex, "Failed to find relative path to this executable.");
-            }
-
             if (restart && restartArgs != null && restartArgs.Length > 0) {
                 args.Add("--");
                 foreach (var a in restartArgs) {
