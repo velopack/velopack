@@ -24,7 +24,7 @@ namespace Squirrel.Tests
             _output = output;
         }
 
-        [Theory]
+        [SkippableTheory]
         [InlineData("file.txt", "file.txt")]
         [InlineData("file", "file")]
         [InlineData("/file", "\\file")]
@@ -33,12 +33,13 @@ namespace Squirrel.Tests
         [InlineData("C:/AnApp/file/", "C:\\AnApp\\file")] 
         public void PathIsNormalized(string input, string expected)
         {
+            Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
             var exp = Path.GetFullPath(expected);
             var normal = Utility.NormalizePath(input);
             Assert.Equal(exp, normal);
         }
 
-        [Theory]
+        [SkippableTheory]
         [InlineData("C:\\AnApp", "C:\\AnApp\\file.exe", true)]
         [InlineData("C:\\AnApp\\", "C:\\AnApp\\file.exe", true)]
         [InlineData("C:\\AnApp", "C:\\AnApp\\sub\\dir\\file.exe", true)]
@@ -50,6 +51,7 @@ namespace Squirrel.Tests
         [InlineData("AnAppThree", "AnAppThree\\file.exe", true)]
         public void FileIsInDirectory(string directory, string file, bool isIn)
         {
+            Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
             var fileInDir = Utility.IsFileInDirectory(file, directory);
             Assert.Equal(isIn, fileInDir);
         }
@@ -172,13 +174,14 @@ namespace Squirrel.Tests
             Assert.Equal(result, Utility.FileIsLikelyPEImage(input));
         }
 
-        [Theory]
+        [SkippableTheory]
         [InlineData("C:\\Users\\bob\\temp\\pkgPath\\lib\\net45\\foo.exe", "C:\\Users\\bob\\temp\\pkgPath", true)]
         [InlineData("C:\\Users\\bob\\temp\\pkgPath\\lib\\net45\\node_modules\\foo.exe", "C:\\Users\\bob\\temp\\pkgPath", false)]
         [InlineData("C:\\Users\\bob\\temp\\pkgPath\\lib\\net45\\node_modules\\foo\\foo.exe", "C:\\Users\\bob\\temp\\pkgPath", false)]
         [InlineData("foo.png", "C:\\Users\\bob\\temp\\pkgPath", false)]
         public void IsFileTopLevelInPackageTest(string input, string packagePath, bool result)
         {
+            Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
             Assert.Equal(result, Utility.IsFileTopLevelInPackage(input, packagePath));
         }
 

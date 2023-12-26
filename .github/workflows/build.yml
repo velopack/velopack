@@ -109,7 +109,7 @@ jobs:
           path: src/Rust/target/release
 
       - name: Build .NET
-        run: dotnet build -c Release
+        run: dotnet build -c Release /p:PackRustAssets=true
 
       - name: Upload Package Artifacts
         uses: actions/upload-artifact@v3
