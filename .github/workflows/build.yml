@@ -136,7 +136,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: packages
-          path: .\build\Release\*.nupkg
+          path: build/Release/*.nupkg
 
       # - name: Upload Coverage to Codecov
       #   uses: codecov/codecov-action@v3
@@ -148,4 +148,4 @@ jobs:
 
       - name: Publish to GitHub Packages
         shell: pwsh
-        run: dotnet nuget push .\build\Release\*.nupkg -k ${{ secrets.GITHUB_TOKEN }} -s https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --skip-duplicate
+        run: dotnet nuget push build/Release/*.nupkg -k ${{ secrets.GITHUB_TOKEN }} -s https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --skip-duplicate
