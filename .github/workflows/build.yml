@@ -59,7 +59,7 @@ jobs:
         run: dotnet test -c Release -l "console;verbosity=detailed"
 
       - name: Upload Rust Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: rust
           path: |
@@ -67,7 +67,7 @@ jobs:
             src/Rust/target/release/*.exe
 
       - name: Upload Coverage
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage
           path: test/coverage*.xml
@@ -88,12 +88,12 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Install .NET 6
-        uses: actions/setup-dotnet@v1
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 6.0.x
 
       - name: Install .NET 8
-        uses: actions/setup-dotnet@v1
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
@@ -113,7 +113,7 @@ jobs:
         run: dotnet build -c Release /p:PackRustAssets=true
 
       - name: Upload Package Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: packages
           path: .\build\Release\*.nupkg
