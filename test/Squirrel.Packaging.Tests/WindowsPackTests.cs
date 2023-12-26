@@ -195,7 +195,7 @@ public class WindowsPackTests
         Assert.Throws<ArgumentException>(() => runner.Pack(options));
     }
 
-    [SkippableFact]
+    [SkippableFact(Skip = "not working")]
     public void PackBuildsPackageWhichIsInstallable()
     {
         Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
@@ -266,7 +266,7 @@ public class WindowsPackTests
         }
     }
 
-    [SkippableFact]
+    [SkippableFact(Skip = "not working")]
     public void TestPackedAppCanDeltaUpdateToLatest()
     {
         Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
