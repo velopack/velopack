@@ -478,24 +478,40 @@ public class WindowsPackTests
     {
         var projDir = GetPath("TestApp");
         var testStringFile = Path.Combine(projDir, "Const.cs");
-
         var oldText = File.ReadAllText(testStringFile);
-        File.WriteAllText(testStringFile, $"class Const {{ public const string TEST_STRING = \"{testString}\"; }}");
-        var args = new string[] { "publish", "--no-self-contained", "-c", "Release", "-r", "win-x64", "-o", "publish" };
-        RunNoCoverage("dotnet", args, projDir, logger);
-        File.WriteAllText(testStringFile, oldText);
 
-        var options = new WindowsPackOptions {
-            EntryExecutableName = "TestApp.exe",
-            ReleaseDir = new DirectoryInfo(releaseDir),
-            PackId = id,
-            PackVersion = version,
-            TargetRuntime = RID.Parse("win-x64"),
-            PackDirectory = Path.Combine(projDir, "publish"),
-        };
+        try {
+            File.WriteAllText(testStringFile, $"class Const {{ public const string TEST_STRING = \"{testString}\"; }}");
+            var args = new string[] { "publish", "--no-self-contained", "-c", "Release", "-r", "win-x64", "-o", "publish" };
 
-        var runner = new WindowsPackCommandRunner(logger);
-        runner.Pack(options);
+            var psi = new ProcessStartInfo("dotnet");
+            psi.WorkingDirectory = projDir;
+            psi.AppendArgumentListSafe(args, out var debug);
+
+            logger.Info($"TEST: Running {psi.FileName} {debug}");
+
+            using var p = Process.Start(psi);
+            p.WaitForExit();
+
+            if (p.ExitCode != 0)
+                throw new Exception($"dotnet publish failed with exit code {p.ExitCode}");
+
+            //RunNoCoverage("dotnet", args, projDir, logger);
+
+            var options = new WindowsPackOptions {
+                EntryExecutableName = "TestApp.exe",
+                ReleaseDir = new DirectoryInfo(releaseDir),
+                PackId = id,
+                PackVersion = version,
+                TargetRuntime = RID.Parse("win-x64"),
+                PackDirectory = Path.Combine(projDir, "publish"),
+            };
+
+            var runner = new WindowsPackCommandRunner(logger);
+            runner.Pack(options);
+        } finally {
+            File.WriteAllText(testStringFile, oldText);
+        }
     }
 
     private static string GetPath(params string[] paths)
