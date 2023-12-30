@@ -18,8 +18,8 @@ namespace Squirrel.Tests
         [InlineData("complex.xml", "complex-merged.xml")]
         public void MergeContentTypes(string inputFileName, string expectedFileName)
         {
-            var inputFile = IntegrationTestHelper.GetPath("fixtures", "content-types", inputFileName);
-            var expectedFile = IntegrationTestHelper.GetPath("fixtures", "content-types", expectedFileName);
+            var inputFile = PathHelper.GetFixture("content-types", inputFileName);
+            var expectedFile = PathHelper.GetFixture("content-types", expectedFileName);
             var tempFile = Path.GetTempFileName() + ".xml";
 
             var expected = new XmlDocument();

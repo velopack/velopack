@@ -19,7 +19,7 @@ namespace Squirrel.Tests
         public void HasSameFilesAndDependenciesAsPackaging()
         {
             using var _1 = Utility.GetTempDirectory(out var tempDir);
-            var inputPackage = IntegrationTestHelper.GetPath("fixtures", "slack-1.1.8-full.nupkg");
+            var inputPackage = PathHelper.GetFixture("slack-1.1.8-full.nupkg");
             var copyPackage = Path.Combine(tempDir, "slack-1.1.8-full.nupkg");
             File.Copy(inputPackage, copyPackage);
 
@@ -46,7 +46,7 @@ namespace Squirrel.Tests
         [Fact]
         public void ParsesNuspecCorrectly()
         {
-            var inputPackage = IntegrationTestHelper.GetPath("fixtures", "FullNuspec.1.0.0.nupkg");
+            var inputPackage = PathHelper.GetFixture("FullNuspec.1.0.0.nupkg");
             var zp = new ZipPackage(inputPackage);
 
             var dyn = ExposedObject.From(zp);

@@ -113,7 +113,7 @@ namespace Squirrel.Tests
         [InlineData("Squirrel.Core.1.1.0.0.nupkg", 15830, "9baf1dbacb09940086c8c62d9a9dbe69fe1f7593")]
         public void GenerateFromFileTest(string name, long size, string sha1)
         {
-            var path = IntegrationTestHelper.GetPath("fixtures", name);
+            var path = PathHelper.GetFixture(name);
 
             using (var f = File.OpenRead(path)) {
                 var fixture = ReleaseEntry.GenerateFromFile(f, "dontcare");
@@ -254,7 +254,7 @@ namespace Squirrel.Tests
         [Fact]
         public void CanParseGeneratedReleaseEntryAsString()
         {
-            var path = IntegrationTestHelper.GetPath("fixtures", "Squirrel.Core.1.1.0.0.nupkg");
+            var path = PathHelper.GetFixture("Squirrel.Core.1.1.0.0.nupkg");
             var entryAsString = ReleaseEntry.GenerateFromFile(path).EntryAsString;
             ReleaseEntry.ParseReleaseEntry(entryAsString);
         }

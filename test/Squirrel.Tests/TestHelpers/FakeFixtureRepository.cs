@@ -14,7 +14,7 @@ namespace Squirrel.Tests.TestHelpers
         public FakeFixtureRepository(string pkgId, bool mockLatestFullVer)
         {
             _pkgId = pkgId;
-            var releases = ReleaseEntry.BuildReleasesFile(IntegrationTestHelper.GetFixturesPath(), false)
+            var releases = ReleaseEntry.BuildReleasesFile(PathHelper.GetFixturesDir(), false)
                 .Where(r => r.OriginalFilename.StartsWith(_pkgId))
                 .ToList();
 
@@ -42,7 +42,7 @@ namespace Squirrel.Tests.TestHelpers
             }
 
             var rel = _releases.FirstOrDefault(r => url.EndsWith(r.OriginalFilename));
-            var filePath = IntegrationTestHelper.GetPath("fixtures", rel.OriginalFilename);
+            var filePath = PathHelper.GetFixture(rel.OriginalFilename);
             if (!File.Exists(filePath)) {
                 throw new NotSupportedException("FakeFixtureRepository doesn't have: " + rel.OriginalFilename);
             }
@@ -53,7 +53,7 @@ namespace Squirrel.Tests.TestHelpers
         public Task DownloadFile(string url, string targetFile, Action<int> progress, string authorization = null, string accept = null)
         {
             var rel = _releases.FirstOrDefault(r => url.EndsWith(r.OriginalFilename));
-            var filePath = IntegrationTestHelper.GetPath("fixtures", rel.OriginalFilename);
+            var filePath = PathHelper.GetFixture(rel.OriginalFilename);
             if (!File.Exists(filePath)) {
                 throw new NotSupportedException("FakeFixtureRepository doesn't have: " + rel.OriginalFilename);
             }

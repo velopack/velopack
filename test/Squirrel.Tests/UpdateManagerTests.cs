@@ -186,7 +186,7 @@ namespace Squirrel.Tests
             var source = new SimpleWebSource("http://any.com", null, repo, logger);
 
             var basePkg = (await source.GetReleaseFeed()).Single(x => x.Version == SemanticVersion.Parse(fromVersion));
-            var basePkgFixturePath = IntegrationTestHelper.GetPath("fixtures", basePkg.OriginalFilename);
+            var basePkgFixturePath = PathHelper.GetFixture(basePkg.OriginalFilename);
             var basePkgPath = Path.Combine(packagesDir, basePkg.OriginalFilename);
             File.Copy(basePkgFixturePath, basePkgPath);
 

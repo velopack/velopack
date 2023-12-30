@@ -35,7 +35,6 @@ fn test_patch_apply() {
     path.pop();
     path.pop();
     path.push("test");
-    path.push("Squirrel.Tests");
     path.push("fixtures");
     info!("Path: {}", path.to_string_lossy());
 

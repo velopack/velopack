@@ -118,7 +118,7 @@ namespace Squirrel.Tests
         public void ShaCheckShouldBeCaseInsensitive()
         {
             var sha1FromExternalTool = "75255cfd229a1ed1447abe1104f5635e69975d30";
-            var inputPackage = IntegrationTestHelper.GetPath("fixtures", "Squirrel.Core.1.0.0.0.nupkg");
+            var inputPackage = PathHelper.GetFixture("Squirrel.Core.1.0.0.0.nupkg");
             var stream = File.OpenRead(inputPackage);
             var sha1 = Utility.CalculateStreamSHA1(stream);
 

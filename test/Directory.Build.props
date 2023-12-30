@@ -21,8 +21,9 @@
     <AssemblyOriginatorKeyFile>..\..\Squirrel.snk</AssemblyOriginatorKeyFile>
     <IsPackable>false</IsPackable>
     <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
 
-    <!-- Coverage -->
+  <PropertyGroup Condition=" $(MSBuildProjectName.EndsWith('Tests')) and $(CI) != '' ">
     <CoverletOutputFormat>cobertura</CoverletOutputFormat>
     <CoverletOutput>..\coverage.$(CurrentOsName).$(MSBuildProjectName).xml</CoverletOutput>
     <Include>[Squirrel*]*</Include>
@@ -32,6 +33,7 @@
 
   <ItemGroup Condition=" $(MSBuildProjectName.EndsWith('Tests')) ">
     <Compile Include="..\GlobalUsings.cs" Link="GlobalUsings.cs" />
+    <Compile Include="..\PathHelper.cs" Link="PathHelper.cs" />
   </ItemGroup>
 
   <ItemGroup Condition=" $(MSBuildProjectName.EndsWith('Tests')) ">
