@@ -3,9 +3,18 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 
 namespace Squirrel.Packaging;
+
+public enum DeltaMode
+{
+    None,
+    BestSpeed,
+    BestSize,
+}
 
 public class HelperFile
 {
@@ -40,6 +49,60 @@ public class HelperFile
     {
         if (Directory.Exists(path))
             _searchPaths.Insert(0, path);
+    }
+
+    public void CreateZstdPatch(string oldFile, string newFile, string outputFile, DeltaMode mode)
+    {
+        if (mode == DeltaMode.None)
+            throw new ArgumentException("DeltaMode.None is not supported.", nameof(mode));
+
+        List<string> args = new() {
+            "--patch-from", oldFile,
+            newFile,
+            "-o", outputFile,
+            "--force",
+        };
+
+        if (mode == DeltaMode.BestSize) {
+            args.Add("-19");
+            args.Add("--single-thread");
+            args.Add("--zstd");
+            args.Add("targetLength=4096");
+            args.Add("--zstd");
+            args.Add("chainLog=30");
+        }
+
+        var deltaMode = mode switch {
+            DeltaMode.None => "none",
+            DeltaMode.BestSpeed => "bsdiff",
+            DeltaMode.BestSize => "xdelta",
+            _ => throw new InvalidEnumArgumentException(nameof(mode), (int) mode, typeof(DeltaMode)),
+        };
+
+        string zstdPath;
+        if (SquirrelRuntimeInfo.IsWindows) {
+            zstdPath = FindHelperFile("zstd.exe");
+        } else {
+            zstdPath = "zstd";
+            AssertSystemBinaryExists(zstdPath);
+        }
+
+        InvokeAndThrowIfNonZero(zstdPath, args, null);
+    }
+
+    public void AssertSystemBinaryExists(string binaryName)
+    {
+        try {
+            if (SquirrelRuntimeInfo.IsWindows) {
+                var output = InvokeAndThrowIfNonZero("where", new[] { binaryName }, null);
+                if (String.IsNullOrWhiteSpace(output) || !File.Exists(output))
+                    throw new ProcessFailedException("", "");
+            } else {
+                InvokeAndThrowIfNonZero("command", new[] { "-v", binaryName }, null);
+            }
+        } catch (ProcessFailedException) {
+            throw new Exception($"Could not find '{binaryName}' on the system, ensure it is installed and on the PATH.");
+        }
     }
 
     // protected static string FindAny(params string[] names)

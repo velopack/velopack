@@ -126,10 +126,10 @@ public class OsxReleasifyCommandRunner
 
         _logger.Info("Creating Delta Packages");
         var prev = ReleasePackageBuilder.GetPreviousRelease(_logger, releases.Values, rp, releaseDir.FullName);
-        if (prev != null && !options.NoDelta) {
+        if (prev != null && options.DeltaMode != DeltaMode.None) {
             var deltaBuilder = new DeltaPackageBuilder(_logger);
             var deltaFile = rp.ReleasePackageFile.Replace("-full", "-delta");
-            var dp = deltaBuilder.CreateDeltaPackage(prev, rp, deltaFile);
+            var dp = deltaBuilder.CreateDeltaPackage(prev, rp, deltaFile, options.DeltaMode);
             var deltaEntry = ReleaseEntry.GenerateFromFile(deltaFile);
             releases[deltaEntry.OriginalFilename] = deltaEntry;
         }

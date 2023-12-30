@@ -1,4 +1,6 @@
-﻿namespace Squirrel.Csq.Commands;
+﻿using Squirrel.Packaging;
+
+namespace Squirrel.Csq.Commands;
 
 public class OsxReleasifyCommand : BaseCommand
 {
@@ -8,7 +10,7 @@ public class OsxReleasifyCommand : BaseCommand
 
     public string ReleaseNotes { get; private set; }
 
-    public bool NoDelta { get; private set; }
+    public DeltaMode Delta { get; private set; }
 
     public bool NoPackage { get; private set; }
 
@@ -48,8 +50,9 @@ public class OsxReleasifyCommand : BaseCommand
             .SetArgumentHelpName("PATH")
             .MustExist();
 
-        AddOption<bool>((v) => NoDelta = v, "--noDelta")
-            .SetDescription("Skip the generation of delta packages.");
+        AddOption<DeltaMode>((v) => Delta = v, "--delta")
+            .SetDefault(DeltaMode.BestSpeed)
+            .SetDescription("Set the delta generation mode.");
 
         AddOption<string>((v) => Channel = v, "-c", "--channel")
             .SetDescription("Release channel to use when creating the package.")

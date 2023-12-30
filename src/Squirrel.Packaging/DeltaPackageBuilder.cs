@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using Squirrel.Compression;
 using Microsoft.Extensions.Logging;
+using System.IO.MemoryMappedFiles;
 
 namespace Squirrel.Packaging;
 
@@ -13,7 +14,7 @@ public class DeltaPackageBuilder
         _logger = logger;
     }
 
-    public ReleasePackageBuilder CreateDeltaPackage(ReleasePackageBuilder basePackage, ReleasePackageBuilder newPackage, string outputFile)
+    public ReleasePackageBuilder CreateDeltaPackage(ReleasePackageBuilder basePackage, ReleasePackageBuilder newPackage, string outputFile, DeltaMode mode)
     {
         if (basePackage == null) throw new ArgumentNullException(nameof(basePackage));
         if (newPackage == null) throw new ArgumentNullException(nameof(newPackage));
@@ -65,11 +66,7 @@ public class DeltaPackageBuilder
             var newLibFiles = newLibDir.GetAllFilesRecursively().ToArray();
 
             int fNew = 0, fSame = 0, fChanged = 0, fWarnings = 0;
-
-            bool bytesAreIdentical(ReadOnlySpan<byte> a1, ReadOnlySpan<byte> a2)
-            {
-                return a1.SequenceEqual(a2);
-            }
+            var helper = new HelperFile(_logger);
 
             void createDeltaForSingleFile(FileInfo targetFile, DirectoryInfo workingDirectory)
             {
@@ -95,10 +92,7 @@ public class DeltaPackageBuilder
                     var oldFilePath = baseLibFiles[relativePath];
                     _logger.Debug($"Delta patching {oldFilePath} => {targetFile.FullName}");
 
-                    var oldData = File.ReadAllBytes(oldFilePath);
-                    var newData = File.ReadAllBytes(targetFile.FullName);
-
-                    if (bytesAreIdentical(oldData, newData)) {
+                    if (AreFilesEqualFast(oldFilePath, targetFile.FullName)) {
                         // 2. exists in both, keep it the same
                         _logger.Debug($"{relativePath} hasn't changed, writing dummy file");
                         File.Create(targetFile.FullName + ".bsdiff").Dispose();
@@ -106,10 +100,10 @@ public class DeltaPackageBuilder
                         fSame++;
                     } else {
                         // 3. changed, write a delta in new
-                        using (FileStream of = File.Create(targetFile.FullName + ".bsdiff")) {
-                            BinaryPatchUtility.Create(oldData, newData, of);
-                        }
-                        var rl = ReleaseEntry.GenerateFromFile(new MemoryStream(newData), targetFile.Name + ".shasum");
+                        var outputFile = targetFile.FullName + ".zsdiff";
+                        helper.CreateZstdPatch(oldFilePath, targetFile.FullName, outputFile, mode);
+                        using var newfs = File.OpenRead(targetFile.FullName);
+                        var rl = ReleaseEntry.GenerateFromFile(newfs, targetFile.Name + ".shasum");
                         File.WriteAllText(targetFile.FullName + ".shasum", rl.EntryAsString, Encoding.UTF8);
                         fChanged++;
                     }
@@ -172,5 +166,46 @@ public class DeltaPackageBuilder
         }
 
         return new ReleasePackageBuilder(_logger, outputFile);
+    }
+
+    public unsafe static bool AreFilesEqualFast(string filePath1, string filePath2)
+    {
+        var fileInfo1 = new FileInfo(filePath1);
+        var fileInfo2 = new FileInfo(filePath2);
+        if (fileInfo1.Length != fileInfo2.Length) {
+            return false;
+        }
+
+        long length = fileInfo1.Length;
+
+        using var mmf1 = MemoryMappedFile.CreateFromFile(filePath1, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
+        using var mmf2 = MemoryMappedFile.CreateFromFile(filePath2, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
+
+        const long chunkSize = 10 * 1024 * 1024; // 10 MB
+
+        for (long offset = 0; offset < length; offset += chunkSize) {
+            long size = Math.Min(chunkSize, length - offset);
+
+            using var accessor1 = mmf1.CreateViewAccessor(offset, size, MemoryMappedFileAccess.Read);
+            using var accessor2 = mmf2.CreateViewAccessor(offset, size, MemoryMappedFileAccess.Read);
+
+            byte* ptr1 = null;
+            byte* ptr2 = null;
+            accessor1.SafeMemoryMappedViewHandle.AcquirePointer(ref ptr1);
+            accessor2.SafeMemoryMappedViewHandle.AcquirePointer(ref ptr2);
+
+            try {
+                var span1 = new ReadOnlySpan<byte>(ptr1, (int) accessor1.SafeMemoryMappedViewHandle.ByteLength);
+                var span2 = new ReadOnlySpan<byte>(ptr2, (int) accessor2.SafeMemoryMappedViewHandle.ByteLength);
+                if (!span1.SequenceEqual(span2)) {
+                    return false;
+                }
+            } finally {
+                if (ptr1 != null) accessor1.SafeMemoryMappedViewHandle.ReleasePointer();
+                if (ptr2 != null) accessor2.SafeMemoryMappedViewHandle.ReleasePointer();
+            }
+        }
+
+        return true;
     }
 }

@@ -18,7 +18,6 @@ public class WindowsReleasifyCommandRunner
     {
         var targetDir = options.ReleaseDir.FullName;
         var package = options.Package;
-        var generateDeltas = !options.NoDelta;
         var backgroundGif = options.SplashImage;
         var setupIcon = options.Icon;
 
@@ -129,10 +128,10 @@ public class WindowsReleasifyCommandRunner
         processed.Add(rp.ReleasePackageFile);
 
         var prev = ReleasePackageBuilder.GetPreviousRelease(_logger, previousReleases, rp, targetDir);
-        if (prev != null && generateDeltas) {
+        if (prev != null && options.DeltaMode != DeltaMode.None) {
             var deltaBuilder = new DeltaPackageBuilder(_logger);
             var deltaOutputPath = rp.ReleasePackageFile.Replace("-full", "-delta");
-            var dp = deltaBuilder.CreateDeltaPackage(prev, rp, deltaOutputPath);
+            var dp = deltaBuilder.CreateDeltaPackage(prev, rp, deltaOutputPath, options.DeltaMode);
             processed.Insert(0, dp.InputPackageFile);
         }
 

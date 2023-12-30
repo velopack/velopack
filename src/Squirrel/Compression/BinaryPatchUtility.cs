@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Threading;
@@ -35,6 +36,7 @@ namespace Squirrel.Compression
     IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
     POSSIBILITY OF SUCH DAMAGE.
     */
+    [ExcludeFromCodeCoverage]
     internal class BinaryPatchUtility
     {
         /// <summary>
@@ -44,7 +46,7 @@ namespace Squirrel.Compression
         /// <param name="oldData">The original binary data.</param>
         /// <param name="newData">The new binary data.</param>
         /// <param name="output">A <see cref="Stream"/> to which the patch will be written.</param>
-        public static void Create(byte[] oldData, byte[] newData, Stream output)
+        private static void Create(byte[] oldData, byte[] newData, Stream output)
         {
             // NB: If you diff a file big enough, we blow the stack. This doesn't 
             // solve it, just buys us more space. The solution is to rewrite Split
@@ -648,6 +650,7 @@ namespace Squirrel.Compression
     /// <see cref="System.Security.Cryptography.CryptoStream"/> that take ownership of the stream passed to their constructors.
     /// </summary>
     /// <remarks>See <a href="http://code.logos.com/blog/2009/05/wrappingstream_implementation.html">WrappingStream Implementation</a>.</remarks>
+    [ExcludeFromCodeCoverage]
     class WrappingStream : Stream
     {
         /// <summary>
@@ -875,6 +878,7 @@ namespace Squirrel.Compression
     /// <summary>
     /// Provides helper methods for working with <see cref="Stream"/>.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     static class StreamUtility
     {
         /// <summary>

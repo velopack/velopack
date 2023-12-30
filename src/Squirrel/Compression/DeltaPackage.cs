@@ -1,11 +1,13 @@
 ﻿#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using Squirrel.Locators;
 
 // https://dev.to/emrahsungu/how-to-compare-two-files-using-net-really-really-fast-2pd9
 // https://github.com/SnowflakePowered/vcdiff
@@ -15,12 +17,15 @@ namespace Squirrel.Compression
     internal class DeltaPackage
     {
         private readonly ILogger _log;
+        private readonly string _updatePath;
         private readonly string _baseTempDir;
+        private static Regex DIFF_SUFFIX = new Regex(@"\.(bs|zs)?diff$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        public DeltaPackage(ILogger logger, string baseTempDir = null)
+        public DeltaPackage(ILogger logger, ISquirrelLocator locator)
         {
             _log = logger;
-            _baseTempDir = baseTempDir ?? Utility.GetDefaultTempBaseDirectory();
+            _baseTempDir = locator.AppTempDir;
+            _updatePath = locator.UpdateExePath;
         }
 
         public void ApplyDeltaPackageFast(string workingPath, string deltaPackageZip, Action<int> progress = null)
@@ -45,16 +50,15 @@ namespace Squirrel.Compression
             var files = deltaPathRelativePaths
                 .Where(x => x.StartsWith("lib", StringComparison.InvariantCultureIgnoreCase))
                 .Where(x => !x.EndsWith(".shasum", StringComparison.InvariantCultureIgnoreCase))
-                .Where(x => !x.EndsWith(".diff", StringComparison.InvariantCultureIgnoreCase) ||
-                            !deltaPathRelativePaths.Contains(x.Replace(".diff", ".bsdiff")))
+                .Where(x => !DIFF_SUFFIX.IsMatch(x))
                 .ToArray();
 
             for (var index = 0; index < files.Length; index++) {
                 var file = files[index];
-                pathsVisited.Add(Regex.Replace(file, @"\.(bs)?diff$", "").ToLowerInvariant());
+                pathsVisited.Add(DIFF_SUFFIX.Replace(file, "").ToLowerInvariant());
                 applyDiffToFile(deltaPath, file, workingPath);
                 var perc = (index + 1) / (double) files.Length * 100;
-                Utility.CalculateProgress((int) perc, 10, 90);
+                progress(Utility.CalculateProgress((int) perc, 10, 90));
             }
 
             progress(90);
@@ -86,7 +90,7 @@ namespace Squirrel.Compression
         void applyDiffToFile(string deltaPath, string relativeFilePath, string workingDirectory)
         {
             var inputFile = Path.Combine(deltaPath, relativeFilePath);
-            var finalTarget = Path.Combine(workingDirectory, Regex.Replace(relativeFilePath, @"\.(bs)?diff$", ""));
+            var finalTarget = Path.Combine(workingDirectory, DIFF_SUFFIX.Replace(relativeFilePath, ""));
 
             using var _d = Utility.GetTempFileName(out var tempTargetFile, _baseTempDir);
 
@@ -96,7 +100,17 @@ namespace Squirrel.Compression
                 return;
             }
 
-            if (relativeFilePath.EndsWith(".bsdiff", StringComparison.InvariantCultureIgnoreCase)) {
+            if (relativeFilePath.EndsWith(".zsdiff", StringComparison.InvariantCultureIgnoreCase)) {
+                var psi = new ProcessStartInfo(_updatePath);
+                psi.AppendArgumentListSafe(new string[] { "--old", finalTarget, "--patch", inputFile, "--output", tempTargetFile }, out var _);
+                _log.Trace($"Applying zstd diff to {relativeFilePath}");
+                var p = psi.StartRedirectOutputToILogger(_log);
+                if (!p.WaitForExit(60_000)) {
+                    p.Kill();
+                    throw new TimeoutException("zstd patch process timed out (60s).");
+                }
+                verifyPatchedFile(relativeFilePath, inputFile, tempTargetFile);
+            } else if (relativeFilePath.EndsWith(".bsdiff", StringComparison.InvariantCultureIgnoreCase)) {
                 using (var of = File.OpenWrite(tempTargetFile))
                 using (var inf = File.OpenRead(finalTarget)) {
                     _log.Trace($"Applying bsdiff to {relativeFilePath}");
@@ -132,7 +146,7 @@ namespace Squirrel.Compression
 
         void verifyPatchedFile(string relativeFilePath, string inputFile, string tempTargetFile)
         {
-            var shaFile = Regex.Replace(inputFile, @"\.(bs)?diff$", ".shasum");
+            var shaFile = DIFF_SUFFIX.Replace(inputFile, ".shasum");
             var expectedReleaseEntry = ReleaseEntry.ParseReleaseEntry(File.ReadAllText(shaFile, Encoding.UTF8));
             var actualReleaseEntry = ReleaseEntry.GenerateFromFile(tempTargetFile);
 

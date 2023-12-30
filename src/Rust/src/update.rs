@@ -30,6 +30,12 @@ fn root_command() -> Command {
         .arg(arg!(-p --package <FILE> "Update package to apply").value_parser(value_parser!(PathBuf)))
         .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceeded by '--'.").required(false).last(true).num_args(0..))
     )
+    .subcommand(Command::new("patch")
+        .about("Applies a Zstd patch file")
+        .arg(arg!(--old <FILE> "Base / old file to apply the patch to").required(true).value_parser(value_parser!(PathBuf)))
+        .arg(arg!(--patch <FILE> "The Zstd patch to apply to the old file").required(true).value_parser(value_parser!(PathBuf)))
+        .arg(arg!(--output <FILE> "The file to create with the patch applied").required(true).value_parser(value_parser!(PathBuf)))
+    )
     .arg(arg!(--verbose "Print debug messages to console / log").global(true))
     .arg(arg!(--nocolor "Disable colored output").hide(true).global(true))
     .arg(arg!(-s --silent "Don't show any prompts / dialogs").global(true))
@@ -103,6 +109,7 @@ fn main() -> Result<()> {
         #[cfg(target_os = "windows")]
         "start" => start(&subcommand_matches).map_err(|e| anyhow!("Start error: {}", e)),
         "apply" => apply(subcommand_matches).map_err(|e| anyhow!("Apply error: {}", e)),
+        "patch" => patch(subcommand_matches).map_err(|e| anyhow!("Patch error: {}", e)),
         _ => bail!("Unknown subcommand. Try `--help` for more information."),
     };
 
@@ -112,6 +119,19 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn patch(matches: &ArgMatches) -> Result<()> {
+    let old_file = matches.get_one::<PathBuf>("old").unwrap();
+    let patch_file = matches.get_one::<PathBuf>("patch").unwrap();
+    let output_file = matches.get_one::<PathBuf>("output").unwrap();
+
+    info!("Command: Patch");
+    info!("    Old File: {:?}", old_file);
+    info!("    Patch File: {:?}", patch_file);
+    info!("    Output File: {:?}", output_file);
+
+    commands::patch(old_file, patch_file, output_file)
 }
 
 fn apply(matches: &ArgMatches) -> Result<()> {

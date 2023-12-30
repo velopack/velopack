@@ -8,7 +8,7 @@ public class WindowsReleasifyOptions : WindowsSigningOptions
 
     public string Package { get; set; }
 
-    public bool NoDelta { get; set; }
+    public DeltaMode DeltaMode { get; set; }
 
     public string Runtimes { get; set; }
 

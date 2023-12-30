@@ -66,6 +66,8 @@ remove_dir_all = { git = "https://github.com/caesay/remove_dir_all.git", feature
     "log",
 ] }
 ntest = "0.9.0"
+zstd = "0.13"
+sha1_smol = "1.0.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 native-dialog = "0.7"

@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 
 namespace Squirrel.Compression
 {
+    [ExcludeFromCodeCoverage]
     internal sealed class BZip2Stream : Stream
     {
         private readonly Stream stream;
@@ -66,9 +68,9 @@ namespace Squirrel.Compression
 
 #if !NETFRAMEWORK && !NETSTANDARD2_0
 
-    public override int Read(Span<byte> buffer) => stream.Read(buffer);
+        public override int Read(Span<byte> buffer) => stream.Read(buffer);
 
-    public override void Write(ReadOnlySpan<byte> buffer) => stream.Write(buffer);
+        public override void Write(ReadOnlySpan<byte> buffer) => stream.Write(buffer);
 #endif
 
         public override void Write(byte[] buffer, int offset, int count) =>
@@ -125,6 +127,7 @@ namespace Squirrel.Compression
       * start of the BZIP2 stream to make it compatible with other PGP programs.
       */
 
+    [ExcludeFromCodeCoverage]
     internal class CBZip2InputStream : Stream
     {
         private static void Cadvise()
@@ -1085,6 +1088,7 @@ namespace Squirrel.Compression
   * start of the BZIP2 stream to make it compatible with other PGP programs.
   */
 
+    [ExcludeFromCodeCoverage]
     internal sealed class CBZip2OutputStream : Stream
     {
         private const int SETMASK = (1 << 21);
@@ -2845,6 +2849,7 @@ namespace Squirrel.Compression
 * @author <a href="mailto:keiron@aftexsw.com">Keiron Liddle</a>
 */
 
+    [ExcludeFromCodeCoverage]
     internal class BZip2Constants
     {
         public const int baseBlockSize = 100000;
@@ -3382,6 +3387,7 @@ namespace Squirrel.Compression
   * @author <a href="mailto:keiron@aftexsw.com">Keiron Liddle</a>
   */
 
+    [ExcludeFromCodeCoverage]
     internal class CRC
     {
         public static int[] crc32Table =

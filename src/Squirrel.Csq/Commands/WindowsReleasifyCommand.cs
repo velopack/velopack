@@ -1,10 +1,12 @@
-﻿namespace Squirrel.Csq.Commands;
+﻿using Squirrel.Packaging;
+
+namespace Squirrel.Csq.Commands;
 
 public class WindowsReleasifyCommand : WindowsSigningCommand
 {
     public string Package { get; set; }
 
-    public bool NoDelta { get; private set; }
+    public DeltaMode Delta { get; private set; }
 
     public string Runtimes { get; private set; }
 
@@ -34,8 +36,9 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
     protected WindowsReleasifyCommand(string name, string description)
         : base(name, description)
     {
-        AddOption<bool>((v) => NoDelta = v, "--noDelta")
-            .SetDescription("Skip the generation of delta packages.");
+        AddOption<DeltaMode>((v) => Delta = v, "--delta")
+            .SetDefault(DeltaMode.BestSpeed)
+            .SetDescription("Set the delta generation mode.");
 
         AddOption<string>((v) => Runtimes = v, "-f", "--framework")
             .SetDescription("List of required runtimes to install during setup. example: 'net6,vcredist143'.")

@@ -3,11 +3,12 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace Squirrel
 {
     [ExcludeFromCodeCoverage]
-    internal static class ProcessArgumentListPolyfill
+    internal static class ProcessStartExtensions
     {
 
 #if NET5_0_OR_GREATER
@@ -30,6 +31,33 @@ namespace Squirrel
             debug = psi.Arguments;
         }
 #endif
+
+        public static Process StartRedirectOutputToILogger(this ProcessStartInfo psi, ILogger log)
+        {
+            psi.RedirectStandardOutput = true;
+            psi.RedirectStandardError = true;
+            psi.UseShellExecute = false;
+
+            var p = Process.Start(psi);
+            p.BeginErrorReadLine();
+            p.BeginOutputReadLine();
+
+            p.ErrorDataReceived += (o, e) => {
+                if (e.Data != null) {
+                    log.LogError(e.Data);
+                }
+            };
+
+            p.OutputDataReceived += (o, e) => {
+                if (e.Data != null) {
+                    log.LogInformation(e.Data);
+                }
+            };
+
+            return p;
+        }
+
+
         // https://source.dot.net/#System.Diagnostics.Process/System/Diagnostics/ProcessStartInfo.cs,204
         private static void AppendArgumentsTo(StringBuilder stringBuilder, IEnumerable<string> args)
         {

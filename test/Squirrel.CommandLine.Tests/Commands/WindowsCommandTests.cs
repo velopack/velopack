@@ -37,10 +37,10 @@ public abstract class ReleaseCommandTests<T> : BaseCommandTests<T>
     {
         var command = new T();
 
-        string cli = GetRequiredDefaultOptions() + "--noDelta";
+        string cli = GetRequiredDefaultOptions() + "--delta none";
         ParseResult parseResult = command.ParseAndApply(cli);
 
-        Assert.True(command.NoDelta);
+        Assert.True(command.Delta == Packaging.DeltaMode.None);
     }
 
     [Fact]

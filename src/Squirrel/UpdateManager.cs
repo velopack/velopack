@@ -342,7 +342,7 @@ namespace Squirrel
 
             // applying deltas accounts for 50%-100% of progress
             double progressStepSize = 100d / releasesToDownload.Length;
-            var builder = new DeltaPackage(Log, Locator.AppTempDir);
+            var builder = new DeltaPackage(Log, Locator);
             for (var i = 0; i < releasesToDownload.Length; i++) {
                 var rel = releasesToDownload[i];
                 double baseProgress = i * progressStepSize;

@@ -12,7 +12,7 @@ public class OsxReleasifyOptions
 
     public string ReleaseNotes { get; set; }
 
-    public bool NoDelta { get; set; }
+    public DeltaMode DeltaMode { get; set; }
 
     public bool NoPackage { get; set; }
 

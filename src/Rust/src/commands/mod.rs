@@ -1,6 +1,9 @@
 mod apply;
 pub use apply::*;
 
+mod patch;
+pub use patch::*;
+
 #[cfg(target_os = "windows")]
 mod start;
 #[cfg(target_os = "windows")]
