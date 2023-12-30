@@ -1,6 +1,6 @@
 ﻿namespace Squirrel.Csq.Commands;
 
-public class HttpDownloadCommand : BaseCommand
+public class HttpDownloadCommand : OutputCommand
 {
     public string Url { get; private set; }
 

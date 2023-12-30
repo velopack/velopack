@@ -1,6 +1,6 @@
 ﻿namespace Squirrel.Csq.Commands;
 
-public abstract class GitHubBaseCommand : BaseCommand
+public abstract class GitHubBaseCommand : OutputCommand
 {
     public string RepoUrl { get; private set; }
 

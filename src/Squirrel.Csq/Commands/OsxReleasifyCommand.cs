@@ -2,7 +2,7 @@
 
 namespace Squirrel.Csq.Commands;
 
-public class OsxReleasifyCommand : BaseCommand
+public class OsxReleasifyCommand : PlatformCommand
 {
     public string BundleDirectory { get; private set; }
 

@@ -1,6 +1,6 @@
 ﻿namespace Squirrel.Csq.Commands;
 
-public class OsxBundleCommand : BaseCommand
+public class OsxBundleCommand : OutputCommand
 {
     public string PackId { get; private set; }
 

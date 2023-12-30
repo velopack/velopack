@@ -21,11 +21,11 @@ namespace Squirrel.Compression
         private readonly string _baseTempDir;
         private static Regex DIFF_SUFFIX = new Regex(@"\.(bs|zs)?diff$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        public DeltaPackage(ILogger logger, ISquirrelLocator locator)
+        public DeltaPackage(ILogger logger, string baseTmpDir, string updateExePath)
         {
             _log = logger;
-            _baseTempDir = locator.AppTempDir;
-            _updatePath = locator.UpdateExePath;
+            _baseTempDir = baseTmpDir;
+            _updatePath = updateExePath;
         }
 
         public void ApplyDeltaPackageFast(string workingPath, string deltaPackageZip, Action<int> progress = null)

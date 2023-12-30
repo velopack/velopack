@@ -3,22 +3,21 @@ using Squirrel.Csq.Commands;
 
 namespace Squirrel.Csq.Compat;
 
-public class V2CompatRunner : ICommandRunner
+public class V2CompatRunner : EmbeddedRunner
 {
     private readonly ILogger _logger;
     private readonly string _squirrelExePath;
-    private readonly EmbeddedRunner _embedded;
 
     public V2CompatRunner(ILogger logger, string squirrelExePath)
+        : base(logger)
     {
         _logger = logger;
         _squirrelExePath = squirrelExePath;
-        _embedded = new EmbeddedRunner(logger);
     }
 
-    public async Task ExecutePackWindows(WindowsPackCommand command)
+    public override async Task ExecutePackWindows(WindowsPackCommand command)
     {
-        if (!SquirrelRuntimeInfo.IsWindows || command.TargetRuntime.BaseRID != RuntimeOs.Windows) {
+        if (!SquirrelRuntimeInfo.IsWindows || command.GetRuntimeOs() != RuntimeOs.Windows) {
             throw new NotSupportedException("Squirrel v2.x is only supported on/for Windows.");
         }
 
@@ -47,9 +46,9 @@ public class V2CompatRunner : ICommandRunner
         await Process.Start(_squirrelExePath, args).WaitForExitAsync();
     }
 
-    public async Task ExecuteReleasifyWindows(WindowsReleasifyCommand command)
+    public override async Task ExecuteReleasifyWindows(WindowsReleasifyCommand command)
     {
-        if (!SquirrelRuntimeInfo.IsWindows || command.TargetRuntime.BaseRID != RuntimeOs.Windows) {
+        if (!SquirrelRuntimeInfo.IsWindows || command.GetRuntimeOs() != RuntimeOs.Windows) {
             throw new NotSupportedException("Squirrel v2.x is only supported on/for Windows.");
         }
 
@@ -71,39 +70,14 @@ public class V2CompatRunner : ICommandRunner
         await Process.Start(_squirrelExePath, args).WaitForExitAsync();
     }
 
-    public Task ExecuteBundleOsx(OsxBundleCommand command)
+    public override Task ExecuteBundleOsx(OsxBundleCommand command)
     {
         throw new NotSupportedException("Squirrel v2.x is only supported on/for Windows.");
     }
 
-    public Task ExecuteReleasifyOsx(OsxReleasifyCommand command)
+    public override Task ExecuteReleasifyOsx(OsxReleasifyCommand command)
     {
         throw new NotSupportedException("Squirrel v2.x is only supported on/for Windows.");
-    }
-
-    public Task ExecuteGithubDownload(GitHubDownloadCommand command)
-    {
-        return ((ICommandRunner) _embedded).ExecuteGithubDownload(command);
-    }
-
-    public Task ExecuteGithubUpload(GitHubUploadCommand command)
-    {
-        return ((ICommandRunner) _embedded).ExecuteGithubUpload(command);
-    }
-
-    public Task ExecuteHttpDownload(HttpDownloadCommand command)
-    {
-        return ((ICommandRunner) _embedded).ExecuteHttpDownload(command);
-    }
-
-    public Task ExecuteS3Download(S3DownloadCommand command)
-    {
-        return ((ICommandRunner) _embedded).ExecuteS3Download(command);
-    }
-
-    public Task ExecuteS3Upload(S3UploadCommand command)
-    {
-        return ((ICommandRunner) _embedded).ExecuteS3Upload(command);
     }
 
     private abstract class BaseOptions

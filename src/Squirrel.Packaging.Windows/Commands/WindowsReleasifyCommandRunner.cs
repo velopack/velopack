@@ -58,7 +58,7 @@ public class WindowsReleasifyCommandRunner
 
         var helper = new HelperExe(_logger);
         var updatePath = Path.Combine(tempDir, "Update.exe");
-        File.Copy(HelperExe.UpdatePath, updatePath, true);
+        File.Copy(helper.UpdatePath, updatePath, true);
 
         // update icon for Update.exe if requested
         if (setupIcon != null && SquirrelRuntimeInfo.IsWindows) {
@@ -148,7 +148,7 @@ public class WindowsReleasifyCommandRunner
 
         var bundledzp = new ZipPackage(package);
         var targetSetupExe = Path.Combine(targetDir, $"{bundledzp.Id}-Setup-[{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}].exe");
-        File.Copy(HelperExe.SetupPath, targetSetupExe, true);
+        File.Copy(helper.SetupPath, targetSetupExe, true);
 
         if (SquirrelRuntimeInfo.IsWindows) {
             helper.SetPEVersionBlockFromPackageInfo(targetSetupExe, bundledzp, setupIcon);

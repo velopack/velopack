@@ -3,7 +3,7 @@ using Squirrel.Packaging;
 
 namespace Squirrel.Csq.Commands;
 
-public class WindowsSigningCommand : BaseCommand
+public class WindowsSigningCommand : PlatformCommand
 {
     public string SignParameters { get; private set; }
 

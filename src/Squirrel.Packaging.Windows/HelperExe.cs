@@ -13,15 +13,13 @@ public class HelperExe : HelperFile
     {
     }
 
-    public static string SetupPath => FindHelperFile("Setup.exe");
+    public string SetupPath => FindHelperFile("Setup.exe");
 
-    public static string UpdatePath => FindHelperFile("Update.exe");
+    public string StubExecutablePath => FindHelperFile("StubExecutable.exe");
 
-    public static string StubExecutablePath => FindHelperFile("StubExecutable.exe");
+    private string SignToolPath => FindHelperFile("signtool.exe");
 
-    private static string SignToolPath => FindHelperFile("signtool.exe");
-
-    private static string RceditPath => FindHelperFile("rcedit.exe");
+    private string RceditPath => FindHelperFile("rcedit.exe");
 
     [SupportedOSPlatform("windows")]
     private bool CheckIsAlreadySigned(string filePath)

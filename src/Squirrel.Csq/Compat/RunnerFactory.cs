@@ -4,35 +4,38 @@ using Squirrel.Csq.Updates;
 
 namespace Squirrel.Csq.Compat;
 
-public class RunnerFactory : IRunnerFactory
+public class RunnerFactory
 {
     private const string CLOWD_PACKAGE_NAME = "Clowd.Squirrel";
     private readonly ILogger _logger;
-    private readonly FileSystemInfo _solution;
     private readonly IConfiguration _config;
 
-    public RunnerFactory(ILogger logger, FileSystemInfo solution, IConfiguration config)
+    public RunnerFactory(ILogger logger, IConfiguration config)
     {
         _logger = logger;
-        _solution = solution;
-        this._config = config;
+        _config = config;
     }
 
     public async Task CreateAndExecuteAsync<T>(string commandName, T options) where T : BaseCommand
     {
-        var runner = await CreateAsync();
+        var runner = await CreateAsync(options);
         var method = typeof(ICommandRunner).GetMethod(commandName);
         await (Task) method.Invoke(runner, new object[] { options });
     }
 
-    public async Task<ICommandRunner> CreateAsync()
+    private async Task<ICommandRunner> CreateAsync<T>(T options)
     {
         if (_config.GetValue<bool?>("SKIP_UPDATE_CHECK") != true) {
             var updateCheck = new UpdateChecker(_logger);
             await updateCheck.CheckForUpdates();
         }
 
-        var solutionDir = FindSolutionDirectory(_solution?.FullName);
+        if (options is not PlatformCommand) {
+            return new EmbeddedRunner(_logger);
+        }
+
+        var cmd = (PlatformCommand) (object) options;
+        var solutionDir = FindSolutionDirectory(cmd.SolutionDir?.FullName);
 
         if (solutionDir is null) {
             throw new Exception($"Could not find '.sln'. Specify solution or solution directory with '--solution='.");
@@ -76,7 +79,7 @@ public class RunnerFactory : IRunnerFactory
             return new V2CompatRunner(_logger, squirrelExe);
         }
 
-        throw new NotSupportedException($"Squirrel {version} is installed in this project, but not supported by this version of Csq. Supported versions are [> v2.8] and [> v4.0]");
+        throw new NotSupportedException($"Squirrel {version} is installed in this project, but not supported by this version of Csq. Supported versions are [>= v2.8] and [>= v4.0]");
     }
 
     private string FindSolutionDirectory(string slnArgument)

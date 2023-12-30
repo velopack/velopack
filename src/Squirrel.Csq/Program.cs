@@ -6,41 +6,25 @@ using Squirrel.Csq.Commands;
 using Microsoft.Extensions.DependencyInjection;
 using Squirrel.Csq.Updates;
 using Squirrel.Csq.Compat;
+using System.CommandLine.Help;
 
 namespace Squirrel.Csq;
 
 public class Program
 {
-    public static CliOption<string> TargetRuntime { get; }
-        = new CliOption<string>("--runtime", "-r")
-        .SetDescription("The target runtime to build packages for.")
-        .SetArgumentHelpName("RID")
-        .MustBeSupportedRid()
-        .SetRequired();
-
     public static CliOption<bool> VerboseOption { get; }
         = new CliOption<bool>("--verbose")
         .SetDescription("Print diagnostic messages.");
 
-    private static CliOption<FileSystemInfo> CsqSolutionPath { get; }
-        = new CliOption<FileSystemInfo>("--solution")
-        .SetDescription("Explicit path to project solution (.sln)")
-        .AcceptExistingOnly();
-
-    private static IServiceProvider Provider { get; set; }
+    private static RunnerFactory Runner { get; set; }
 
     public static async Task<int> Main(string[] args)
     {
         CliRootCommand platformRootCommand = new CliRootCommand() {
-            TargetRuntime,
             VerboseOption,
-            CsqSolutionPath,
         };
         platformRootCommand.TreatUnmatchedTokensAsErrors = false;
         ParseResult parseResult = platformRootCommand.Parse(args);
-
-        var runtime = RID.Parse(parseResult.GetValue(TargetRuntime) ?? SquirrelRuntimeInfo.SystemOs.GetOsShortName());
-        var solutionPath = parseResult.GetValue(CsqSolutionPath);
         bool verbose = parseResult.GetValue(VerboseOption);
 
         var builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings {
@@ -50,7 +34,6 @@ public class Program
             Configuration = new ConfigurationManager(),
         });
 
-        builder.Services.AddSingleton<IRunnerFactory>(s => new RunnerFactory(s.GetRequiredService<Microsoft.Extensions.Logging.ILogger>(), solutionPath, s.GetRequiredService<IConfiguration>()));
         builder.Configuration.AddEnvironmentVariables("CSQ_");
 
         var minLevel = verbose ? LogEventLevel.Debug : LogEventLevel.Information;
@@ -63,30 +46,26 @@ public class Program
         builder.Logging.AddSerilog();
 
         var host = builder.Build();
-        var logger = host.Services.GetRequiredService<ILogger<Program>>();
-        Provider = host.Services;
+        var logFactory = host.Services.GetRequiredService<ILoggerFactory>();
+        var logger = logFactory.CreateLogger("csq");
+        Runner = new RunnerFactory(logger, host.Services.GetRequiredService<IConfiguration>());
 
-        CliRootCommand rootCommand = new CliRootCommand($"Squirrel {SquirrelRuntimeInfo.SquirrelDisplayVersion} for creating and distributing Squirrel releases.") {
-            TargetRuntime,
+        CliRootCommand rootCommand = new CliRootCommand(
+            $"Squirrel {SquirrelRuntimeInfo.SquirrelDisplayVersion} for creating and distributing Squirrel releases.") {
             VerboseOption,
-            CsqSolutionPath,
         };
 
-        switch (runtime.BaseRID) {
+        switch (SquirrelRuntimeInfo.SystemOs) {
         case RuntimeOs.Windows:
-            if (!SquirrelRuntimeInfo.IsWindows)
-                logger.Warn("Cross-compiling will cause some commands and options of Squirrel to be unavailable.");
             Add(rootCommand, new WindowsPackCommand(), nameof(ICommandRunner.ExecutePackWindows));
             Add(rootCommand, new WindowsReleasifyCommand(), nameof(ICommandRunner.ExecuteReleasifyWindows));
             break;
         case RuntimeOs.OSX:
-            if (!SquirrelRuntimeInfo.IsOSX)
-                throw new NotSupportedException("Cannot create OSX packages on non-OSX platforms.");
             Add(rootCommand, new OsxBundleCommand(), nameof(ICommandRunner.ExecuteBundleOsx));
             Add(rootCommand, new OsxReleasifyCommand(), nameof(ICommandRunner.ExecuteReleasifyOsx));
             break;
         default:
-            throw new NotSupportedException("Unsupported OS platform: " + runtime.BaseRID.GetOsLongName());
+            throw new NotSupportedException("Unsupported OS platform: " + SquirrelRuntimeInfo.SystemOs.GetOsLongName());
         }
 
         CliCommand downloadCommand = new CliCommand("download", "Download's the latest release from a remote update source.");
@@ -100,6 +79,11 @@ public class Program
         Add(uploadCommand, new GitHubUploadCommand(), nameof(ICommandRunner.ExecuteGithubUpload));
         rootCommand.Add(uploadCommand);
 
+        var deltaCommand = new CliCommand("delta", "Utilities for creating or applying delta packages.");
+        Add(deltaCommand, new DeltaGenCommand(), nameof(ICommandRunner.ExecuteDeltaGen));
+        Add(deltaCommand, new DeltaPatchCommand(), nameof(ICommandRunner.ExecuteDeltaPatch));
+        rootCommand.Add(deltaCommand);
+
         var cli = new CliConfiguration(rootCommand);
         return await cli.InvokeAsync(args);
     }
@@ -109,9 +93,7 @@ public class Program
     {
         command.SetAction((ctx, token) => {
             command.SetProperties(ctx);
-            command.TargetRuntime = RID.Parse(ctx.GetValue(TargetRuntime));
-            var factory = Provider.GetRequiredService<IRunnerFactory>();
-            return factory.CreateAndExecuteAsync(commandName, command);
+            return Runner.CreateAndExecuteAsync(commandName, command);
         });
         parent.Subcommands.Add(command);
         return command;

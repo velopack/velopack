@@ -2,33 +2,23 @@
 
 public class BaseCommand : CliCommand
 {
-    public RID TargetRuntime { get; set; }
-
-    public string ReleaseDirectory { get; private set; }
-
-    protected CliOption<DirectoryInfo> ReleaseDirectoryOption { get; private set; }
-
     private Dictionary<CliOption, Action<ParseResult>> _setters = new();
 
     protected BaseCommand(string name, string description)
         : base(name, description)
     {
-        ReleaseDirectoryOption = AddOption<DirectoryInfo>((v) => ReleaseDirectory = v.ToFullNameOrNull(), "-o", "--outputDir")
-            .SetDescription("Output directory for Squirrel packages.")
-            .SetArgumentHelpName("DIR")
-            .SetDefault(new DirectoryInfo(".\\Releases"));
-    }
-
-    public DirectoryInfo GetReleaseDirectory()
-    {
-        var di = new DirectoryInfo(ReleaseDirectory);
-        if (!di.Exists) di.Create();
-        return di;
     }
 
     protected virtual CliOption<T> AddOption<T>(Action<T> setValue, params string[] aliases)
     {
-        return AddOption(setValue, new CliOption<T>(aliases.OrderBy(a => a.Length).First(), aliases));
+        return AddOption(setValue, new CliOption<T>(aliases.OrderByDescending(a => a.Length).First(), aliases));
+    }
+
+    protected virtual CliOption<T> AddMultipleTokenOption<T>(Action<T> setValue, params string[] aliases)
+    {
+        var opt = new CliOption<T>(aliases.OrderByDescending(a => a.Length).First(), aliases);
+        opt.AllowMultipleArgumentsPerToken = true;
+        return AddOption(setValue, opt);
     }
 
     protected virtual CliOption<T> AddOption<T>(Action<T> setValue, CliOption<T> opt)

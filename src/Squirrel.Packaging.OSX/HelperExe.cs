@@ -13,8 +13,6 @@ public class HelperExe : HelperFile
     {
     }
 
-    public string UpdateMacPath => FindHelperFile("UpdateMac");
-
     public string SquirrelEntitlements => FindHelperFile("Squirrel.entitlements");
 
     [SupportedOSPlatform("osx")]

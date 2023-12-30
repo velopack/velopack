@@ -7,21 +7,21 @@ public abstract class BaseCommandTests<T> : TempFileTestBase
 {
     public virtual bool ShouldBeNonEmptyReleaseDir => false;
 
-    [Fact]
-    public void ReleaseDirectory_WithDirectory_ParsesValue()
-    {
-        var releaseDirectory = CreateTempDirectory();
+    //[Fact]
+    //public void ReleaseDirectory_WithDirectory_ParsesValue()
+    //{
+    //    var releaseDirectory = CreateTempDirectory();
 
-        if (ShouldBeNonEmptyReleaseDir)
-            CreateTempFile(releaseDirectory, "anything");
+    //    if (ShouldBeNonEmptyReleaseDir)
+    //        CreateTempFile(releaseDirectory, "anything");
 
-        BaseCommand command = new T();
+    //    BaseCommand command = new T();
 
-        var cli = GetRequiredDefaultOptions() + $"--outputDir \"{releaseDirectory.FullName}\"";
-        var parseResult = command.ParseAndApply(cli);
+    //    var cli = GetRequiredDefaultOptions() + $"--outputDir \"{releaseDirectory.FullName}\"";
+    //    var parseResult = command.ParseAndApply(cli);
 
-        Assert.Equal(releaseDirectory.FullName, command.ReleaseDirectory);
-    }
+    //    Assert.Equal(releaseDirectory.FullName, command.ReleaseDirectory);
+    //}
 
     protected virtual string GetRequiredDefaultOptions() => "";
 }

@@ -1,6 +1,7 @@
 ﻿using System.Runtime.Versioning;
 using Squirrel.Csq.Commands;
 using Squirrel.Deployment;
+using Squirrel.Packaging.Commands;
 using Squirrel.Packaging.OSX.Commands;
 using Squirrel.Packaging.Windows.Commands;
 
@@ -16,7 +17,7 @@ public class EmbeddedRunner : ICommandRunner
     }
 
     [SupportedOSPlatform("osx")]
-    public Task ExecuteBundleOsx(OsxBundleCommand command)
+    public virtual Task ExecuteBundleOsx(OsxBundleCommand command)
     {
         var options = new OsxBundleOptions {
             BundleId = command.BundleId,
@@ -34,9 +35,10 @@ public class EmbeddedRunner : ICommandRunner
     }
 
     [SupportedOSPlatform("osx")]
-    public Task ExecuteReleasifyOsx(OsxReleasifyCommand command)
+    public virtual Task ExecuteReleasifyOsx(OsxReleasifyCommand command)
     {
         var options = new OsxReleasifyOptions {
+            TargetRuntime = command.GetRid(),
             ReleaseDir = command.GetReleaseDirectory(),
             BundleDirectory = command.BundleDirectory,
             IncludePdb = command.IncludePdb,
@@ -51,16 +53,15 @@ public class EmbeddedRunner : ICommandRunner
             SigningAppIdentity = command.SigningAppIdentity,
             SigningEntitlements = command.SigningEntitlements,
             SigningInstallIdentity = command.SigningInstallIdentity,
-            TargetRuntime = command.TargetRuntime,
         };
         new OsxReleasifyCommandRunner(_logger).Releasify(options);
         return Task.CompletedTask;
     }
 
-    public Task ExecutePackWindows(WindowsPackCommand command)
+    public virtual Task ExecutePackWindows(WindowsPackCommand command)
     {
         var options = new WindowsPackOptions {
-            TargetRuntime = command.TargetRuntime,
+            TargetRuntime = command.GetRid(),
             ReleaseDir = command.GetReleaseDirectory(),
             Package = command.Package,
             Icon = command.Icon,
@@ -84,10 +85,10 @@ public class EmbeddedRunner : ICommandRunner
         return Task.CompletedTask;
     }
 
-    public Task ExecuteReleasifyWindows(WindowsReleasifyCommand command)
+    public virtual Task ExecuteReleasifyWindows(WindowsReleasifyCommand command)
     {
         var options = new WindowsReleasifyOptions {
-            TargetRuntime = command.TargetRuntime,
+            TargetRuntime = command.GetRid(),
             ReleaseDir = command.GetReleaseDirectory(),
             Package = command.Package,
             Icon = command.Icon,
@@ -104,7 +105,7 @@ public class EmbeddedRunner : ICommandRunner
         return Task.CompletedTask;
     }
 
-    public Task ExecuteGithubDownload(GitHubDownloadCommand command)
+    public virtual Task ExecuteGithubDownload(GitHubDownloadCommand command)
     {
         var options = new GitHubDownloadOptions {
             Pre = command.Pre,
@@ -115,7 +116,7 @@ public class EmbeddedRunner : ICommandRunner
         return new GitHubRepository(_logger).DownloadRecentPackages(options);
     }
 
-    public Task ExecuteGithubUpload(GitHubUploadCommand command)
+    public virtual Task ExecuteGithubUpload(GitHubUploadCommand command)
     {
         var options = new GitHubUploadOptions {
             ReleaseDir = command.GetReleaseDirectory(),
@@ -127,7 +128,7 @@ public class EmbeddedRunner : ICommandRunner
         return new GitHubRepository(_logger).UploadMissingPackages(options);
     }
 
-    public Task ExecuteHttpDownload(HttpDownloadCommand command)
+    public virtual Task ExecuteHttpDownload(HttpDownloadCommand command)
     {
         var options = new HttpDownloadOptions {
             ReleaseDir = command.GetReleaseDirectory(),
@@ -136,7 +137,7 @@ public class EmbeddedRunner : ICommandRunner
         return new SimpleWebRepository(_logger).DownloadRecentPackages(options);
     }
 
-    public Task ExecuteS3Download(S3DownloadCommand command)
+    public virtual Task ExecuteS3Download(S3DownloadCommand command)
     {
         var options = new S3Options {
             Bucket = command.Bucket,
@@ -151,7 +152,7 @@ public class EmbeddedRunner : ICommandRunner
         return new S3Repository(_logger).DownloadRecentPackages(options);
     }
 
-    public Task ExecuteS3Upload(S3UploadCommand command)
+    public virtual Task ExecuteS3Upload(S3UploadCommand command)
     {
         var options = new S3UploadOptions {
             Bucket = command.Bucket,
@@ -165,5 +166,26 @@ public class EmbeddedRunner : ICommandRunner
             Overwrite = command.Overwrite,
         };
         return new S3Repository(_logger).UploadMissingPackages(options);
+    }
+
+    public virtual Task ExecuteDeltaGen(DeltaGenCommand command)
+    {
+        var options = new DeltaGenOptions {
+            BasePackage = command.BasePackage,
+            NewPackage = command.NewPackage,
+            OutputFile = command.OutputFile,
+            DeltaMode = command.Delta,
+        };
+        return new DeltaGenCommandRunner().Run(options, _logger);
+    }
+
+    public virtual Task ExecuteDeltaPatch(DeltaPatchCommand command)
+    {
+        var options = new DeltaPatchOptions {
+            BasePackage = command.BasePackage,
+            PatchFiles = command.PatchFiles,
+            OutputFile = command.OutputFile,
+        };
+        return new DeltaPatchCommandRunner().Run(options, _logger);
     }
 }

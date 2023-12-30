@@ -228,7 +228,7 @@ namespace Squirrel
                 } catch (Exception ex) {
                     Log.Warn(ex, "Unable to apply delta updates, falling back to full update.");
                     if (SquirrelRuntimeInfo.InUnitTestRunner) {
-                        throw ex;
+                        throw;
                     }
                 }
 
@@ -345,7 +345,7 @@ namespace Squirrel
 
             // applying deltas accounts for 50%-100% of progress
             double progressStepSize = 100d / releasesToDownload.Length;
-            var builder = new DeltaPackage(Log, Locator);
+            var builder = new DeltaPackage(Log, Locator.AppTempDir, Locator.UpdateExePath);
             for (var i = 0; i < releasesToDownload.Length; i++) {
                 var rel = releasesToDownload[i];
                 double baseProgress = i * progressStepSize;

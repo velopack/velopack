@@ -18,6 +18,10 @@ public enum DeltaMode
 
 public class HelperFile
 {
+    public string UpdatePath => FindHelperFile("Update.exe");
+
+    public string UpdateMacPath => FindHelperFile("UpdateMac");
+
     private static List<string> _searchPaths = new List<string>();
     protected readonly ILogger Log;
 

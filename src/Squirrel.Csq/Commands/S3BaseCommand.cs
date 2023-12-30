@@ -1,7 +1,7 @@
 ﻿
 namespace Squirrel.Csq.Commands;
 
-public class S3BaseCommand : BaseCommand
+public class S3BaseCommand : OutputCommand
 {
     public string KeyId { get; private set; }
 

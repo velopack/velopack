@@ -14,4 +14,6 @@ public interface ICommandRunner
     public Task ExecuteReleasifyOsx(OsxReleasifyCommand command);
     public Task ExecuteReleasifyWindows(WindowsReleasifyCommand command);
     public Task ExecutePackWindows(WindowsPackCommand command);
+    public Task ExecuteDeltaGen(DeltaGenCommand command);
+    public Task ExecuteDeltaPatch(DeltaPatchCommand command);
 }
