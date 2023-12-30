@@ -32,9 +32,6 @@ namespace Squirrel.Locators
         /// <inheritdoc />
         public override string PackagesDir => CreateSubDirIfDoesNotExist(RootAppDir, "packages");
 
-        /// <inheritdoc />
-        public override string AppTempDir => CreateSubDirIfDoesNotExist(PackagesDir, "SquirrelClowdTemp");
-
         /// <inheritdoc cref="WindowsSquirrelLocator" />
         public WindowsSquirrelLocator(ILogger logger) : this(SquirrelRuntimeInfo.EntryExePath, logger)
         {

@@ -190,7 +190,8 @@ namespace Squirrel.Tests
             var basePkgPath = Path.Combine(packagesDir, basePkg.OriginalFilename);
             File.Copy(basePkgFixturePath, basePkgPath);
 
-            var locator = new TestSquirrelLocator(id, fromVersion, packagesDir, logger);
+            var locator = new TestSquirrelLocator(id, fromVersion,
+                packagesDir, null, null, PathHelper.GetRustAsset("update.exe"), logger);
             var um = new UpdateManager(source, logger, locator);
 
             var info = await um.CheckForUpdatesAsync();

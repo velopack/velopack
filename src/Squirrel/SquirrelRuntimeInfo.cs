@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -116,6 +118,8 @@ namespace Squirrel
         [SupportedOSPlatformGuard("osx")]
         public static bool IsOSX => SystemOs == RuntimeOs.OSX;
 
+        internal static bool InUnitTestRunner { get; }
+
         /// <summary> The <see cref="StringComparer"/> that should be used when comparing local file-system paths. </summary>
         public static StringComparer PathStringComparer =>
             IsWindows ? StringComparer.InvariantCultureIgnoreCase : StringComparer.InvariantCulture;
@@ -128,6 +132,10 @@ namespace Squirrel
         {
             EntryExePath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
             BaseDirectory = AppContext.BaseDirectory;
+
+#if DEBUG
+            InUnitTestRunner = CheckForUnitTestRunner();
+#endif
 
             // if Assembly.Location does not exist, we're almost certainly bundled into a dotnet SingleFile
             // TODO: there is a better way to check this - we can scan the currently executing binary for a
@@ -154,6 +162,31 @@ namespace Squirrel
             }
 #endif
         }
+
+#if DEBUG
+        internal static bool CheckForUnitTestRunner()
+        {
+            bool searchForAssembly(IEnumerable<string> assemblyList)
+            {
+                return AppDomain.CurrentDomain.GetAssemblies()
+                    .Any(x => assemblyList.Any(name => x.FullName.ToUpperInvariant().Contains(name)));
+            }
+
+            var testAssemblies = new[] {
+                "CSUNIT",
+                "NUNIT",
+                "XUNIT",
+                "MBUNIT",
+                "NBEHAVE",
+            };
+
+            try {
+                return searchForAssembly(testAssemblies);
+            } catch (Exception) {
+                return false;
+            }
+        }
+#endif
 
         /// <summary>
         /// Returns the shortened OS name as a string, suitable for creating an RID.

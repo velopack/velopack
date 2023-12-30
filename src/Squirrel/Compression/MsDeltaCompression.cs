@@ -1,5 +1,4 @@
-﻿#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.ComponentModel;

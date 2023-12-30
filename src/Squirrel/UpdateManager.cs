@@ -227,6 +227,9 @@ namespace Squirrel
                     }
                 } catch (Exception ex) {
                     Log.Warn(ex, "Unable to apply delta updates, falling back to full update.");
+                    if (SquirrelRuntimeInfo.InUnitTestRunner) {
+                        throw ex;
+                    }
                 }
 
                 Log.Info($"Downloading full release ({targetRelease.OriginalFilename})");

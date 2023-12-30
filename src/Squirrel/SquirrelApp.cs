@@ -155,7 +155,8 @@ namespace Squirrel
             // internal hook run by the Squirrel tooling to check everything is working
             if (args.Length >= 1 && args[0].Equals("--squirrel-version", StringComparison.OrdinalIgnoreCase)) {
                 Console.WriteLine(SquirrelRuntimeInfo.SquirrelNugetVersion);
-                Environment.Exit(0);
+                Exit(0);
+                return;
             }
 
             log.Info("Starting Squirrel App (Run).");
@@ -174,10 +175,12 @@ namespace Squirrel
                     var version = SemanticVersion.Parse(args[1]);
                     fastExitlookup[args[0]](version);
                     log.Info("Completed hook, exiting...");
-                    Environment.Exit(0);
+                    Exit(0);
+                    return;
                 } catch (Exception ex) {
                     log.Error(ex, $"Error occurred executing user defined Squirrel hook. ({args[0]})");
-                    Environment.Exit(-1);
+                    Exit(-1);
+                    return;
                 }
             }
 
@@ -228,6 +231,13 @@ namespace Squirrel
                 } catch (Exception ex) {
                     log.Error(ex, $"Error occurred executing user defined Squirrel hook. (restarted)");
                 }
+            }
+        }
+
+        private void Exit(int code)
+        {
+            if (!SquirrelRuntimeInfo.InUnitTestRunner) {
+                Environment.Exit(code);
             }
         }
     }

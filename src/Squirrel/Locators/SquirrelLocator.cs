@@ -46,7 +46,7 @@ namespace Squirrel.Locators
         public abstract string PackagesDir { get; }
 
         /// <inheritdoc/>
-        public abstract string AppTempDir { get; }
+        public virtual string AppTempDir => CreateSubDirIfDoesNotExist(PackagesDir, "SquirrelClowdTemp");
 
         /// <inheritdoc/>
         public abstract string UpdateExePath { get; }
