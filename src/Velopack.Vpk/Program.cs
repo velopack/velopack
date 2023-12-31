@@ -34,7 +34,7 @@ public class Program
             Configuration = new ConfigurationManager(),
         });
 
-        builder.Configuration.AddEnvironmentVariables("CSQ_");
+        builder.Configuration.AddEnvironmentVariables("VPK_");
 
         var minLevel = verbose ? LogEventLevel.Debug : LogEventLevel.Information;
         Log.Logger = new LoggerConfiguration()
@@ -47,7 +47,7 @@ public class Program
 
         var host = builder.Build();
         var logFactory = host.Services.GetRequiredService<ILoggerFactory>();
-        var logger = logFactory.CreateLogger("csq");
+        var logger = logFactory.CreateLogger("vpk");
         Runner = new RunnerFactory(logger, host.Services.GetRequiredService<IConfiguration>());
 
         CliRootCommand rootCommand = new CliRootCommand(

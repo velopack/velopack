@@ -6,7 +6,6 @@ namespace Velopack.Vpk.Compat;
 
 public class RunnerFactory
 {
-    private const string CLOWD_PACKAGE_NAME = "Clowd.Squirrel";
     private const string NUGET_PACKAGE_NAME = "Velopack";
     private readonly ILogger _logger;
     private readonly IConfiguration _config;
@@ -44,43 +43,12 @@ public class RunnerFactory
 
         var version = new SdkVersionLocator(_logger).Search(solutionDir, NUGET_PACKAGE_NAME);
 
-        if (version.Major == 4) {
-            var myVer = VelopackRuntimeInfo.VelopackNugetVersion;
-            if (version != myVer) {
-                _logger.Warn($"Installed SDK is {version}, while vpk is {myVer}, this is not recommended.");
-            }
-            return new EmbeddedRunner(_logger);
+        var myVer = VelopackRuntimeInfo.VelopackNugetVersion;
+        if (version != myVer) {
+            _logger.Warn($"Installed SDK is {version}, while vpk is {myVer}, this is not recommended when building packages.");
         }
 
-        if (version.Major == 2 && version.Minor > 7) {
-            _logger.Warn("Running in V2 compatibility mode. Not all features may be available.");
-
-            Dictionary<string, string> packageSearchPaths = new();
-            var nugetPackagesDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
-            packageSearchPaths.Add("nuget user profile cache", Path.Combine(nugetPackagesDir, NUGET_PACKAGE_NAME.ToLower(), "{0}", "tools"));
-            packageSearchPaths.Add("visual studio packages cache", Path.Combine(solutionDir, "packages", NUGET_PACKAGE_NAME + ".{0}", "tools"));
-            string squirrelExe = null;
-
-            foreach (var kvp in packageSearchPaths) {
-                var path = String.Format(kvp.Value, version);
-                if (Directory.Exists(path)) {
-                    _logger.Debug($"Found {NUGET_PACKAGE_NAME} {version} from {kvp.Key}");
-                    var toolExePath = Path.Combine(path, "Squirrel.exe");
-                    if (File.Exists(toolExePath)) {
-                        squirrelExe = toolExePath;
-                        break;
-                    }
-                }
-            }
-
-            if (squirrelExe is null) {
-                throw new Exception($"Could not find {NUGET_PACKAGE_NAME} {version} Squirrel.exe");
-            }
-
-            return new V2CompatRunner(_logger, squirrelExe);
-        }
-
-        throw new NotSupportedException($"Squirrel {version} is installed in this project, but not supported by this version of Csq. Supported versions are [>= v2.8] and [>= v4.0]");
+        return new EmbeddedRunner(_logger);
     }
 
     private string FindSolutionDirectory(string slnArgument)

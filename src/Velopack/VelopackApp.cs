@@ -186,8 +186,8 @@ namespace Velopack
 
             // some initial setup/state
             var myVersion = locator.CurrentlyInstalledVersion;
-            var firstrun = !String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CLOWD_Velopack_FIRSTRUN"));
-            var restarted = !String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CLOWD_Velopack_RESTART"));
+            var firstrun = !String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VELOPACK_FIRSTRUN"));
+            var restarted = !String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VELOPACK_RESTART"));
             var localPackages = locator.GetLocalPackages();
             var latestLocal = locator.GetLatestLocalFullPackage();
 
