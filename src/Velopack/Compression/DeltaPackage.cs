@@ -119,6 +119,9 @@ namespace Velopack.Compression
                     p.Kill();
                     throw new TimeoutException("zstd patch process timed out (60s).");
                 }
+                if (p.ExitCode != 0) {
+                    throw new Exception($"zstd patch process failed with exit code {p.ExitCode}.");
+                }
                 verifyPatchedFile(relativeFilePath, inputFile, tempTargetFile);
             } else if (relativeFilePath.EndsWith(".bsdiff", StringComparison.InvariantCultureIgnoreCase)) {
                 using (var of = File.OpenWrite(tempTargetFile))

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -55,6 +56,41 @@ namespace Velopack
             };
 
             return p;
+        }
+
+        public static string Output(this ProcessStartInfo psi, int timeoutMs)
+        {
+            psi.RedirectStandardOutput = true;
+            psi.RedirectStandardError = true;
+            psi.UseShellExecute = false;
+
+            var p = Process.Start(psi);
+            p.BeginErrorReadLine();
+            p.BeginOutputReadLine();
+
+            var sb = new StringBuilder();
+
+            p.ErrorDataReceived += (o, e) => {
+                if (e.Data != null) {
+                    sb.AppendLine(e.Data);
+                }
+            };
+
+            p.OutputDataReceived += (o, e) => {
+                if (e.Data != null) {
+                    sb.AppendLine(e.Data);
+                }
+            };
+
+            if (!p.WaitForExit(timeoutMs)) {
+                throw new TimeoutException($"Process timed out after {timeoutMs}ms.");
+            }
+
+            if (p.ExitCode != 0) {
+                throw new Exception($"Process exited with code {p.ExitCode}.");
+            }
+
+            return sb.ToString();
         }
 
 

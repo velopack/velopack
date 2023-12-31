@@ -1,5 +1,7 @@
-﻿using System.Text;
+﻿using System.Diagnostics;
+using System.Text;
 using Microsoft.Extensions.Logging;
+using NuGet.Versioning;
 using Velopack.NuGet;
 using Velopack.Windows;
 
@@ -84,6 +86,22 @@ public class WindowsReleasifyCommandRunner
             var mainExe = Path.Combine(libDir, options.EntryExecutableName);
             if (!File.Exists(mainExe))
                 throw new ArgumentException($"--exeName '{options.EntryExecutableName}' does not exist in package. Searched at: '{mainExe}'");
+
+            try {
+                var psi = new ProcessStartInfo(mainExe);
+                psi.AppendArgumentListSafe(new[] { "--veloapp-version" }, out var _);
+                var output = psi.Output(5000);
+                if (String.IsNullOrWhiteSpace(output)) {
+                    throw new Exception("Process exited with no output.");
+                }
+                var version = SemanticVersion.Parse(output.Trim());
+                if (version != VelopackRuntimeInfo.VelopackNugetVersion) {
+                    _logger.Warn($"VelopackApp version '{version}' does not match CLI version '{VelopackRuntimeInfo.VelopackNugetVersion}'.");
+                }
+            } catch {
+                _logger.Error("Failed to verify VelopackApp. Ensure you have added the startup code to your Program.Main(): VelopackApp.Build().Run();");
+                throw;
+            }
 
             var spec = NuspecManifest.ParseFromFile(nuspecPath);
 

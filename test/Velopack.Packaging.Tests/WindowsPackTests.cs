@@ -38,12 +38,13 @@ public class WindowsPackTests
         using var _2 = Utility.GetTempDirectory(out var tmpReleaseDir);
         using var _3 = Utility.GetTempDirectory(out var unzipDir);
 
-        var exe = "testapp.exe";
+        var exe = "testawareapp.exe";
+        var pdb = Path.ChangeExtension(exe, ".pdb");
         var id = "Test.Squirrel-App";
         var version = "1.0.0";
 
         File.Copy(HelperFile.FindTestFile(exe), Path.Combine(tmpOutput, exe));
-        File.Copy(HelperFile.FindTestFile("testapp.pdb"), Path.Combine(tmpOutput, "testapp.pdb"));
+        File.Copy(HelperFile.FindTestFile(pdb), Path.Combine(tmpOutput, pdb));
 
         var options = new WindowsPackOptions {
             EntryExecutableName = exe,
@@ -88,8 +89,8 @@ public class WindowsPackTests
         Assert.Equal("10.0.19043", xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("osMinVersion").Single().Value);
 
         // check for other files
-        Assert.True(File.Exists(Path.Combine(unzipDir, "lib", "app", "testapp.exe")));
-        Assert.True(File.Exists(Path.Combine(unzipDir, "lib", "app", "testapp.pdb")));
+        Assert.True(File.Exists(Path.Combine(unzipDir, "lib", "app", Path.GetFileName(exe))));
+        Assert.True(File.Exists(Path.Combine(unzipDir, "lib", "app", Path.GetFileName(pdb))));
     }
 
     [SkippableFact]
@@ -102,12 +103,13 @@ public class WindowsPackTests
         using var _1 = Utility.GetTempDirectory(out var tmpOutput);
         using var _2 = Utility.GetTempDirectory(out var tmpReleaseDir);
 
-        var exe = "testapp.exe";
+        var exe = "testawareapp.exe";
+        var pdb = Path.ChangeExtension(exe, ".pdb");
         var id = "Test.Squirrel-App";
         var version = "1.0.0";
 
         File.Copy(HelperFile.FindTestFile(exe), Path.Combine(tmpOutput, exe));
-        File.Copy(HelperFile.FindTestFile("testapp.pdb"), Path.Combine(tmpOutput, "testapp.pdb"));
+        File.Copy(HelperFile.FindTestFile(pdb), Path.Combine(tmpOutput, pdb));
 
         var options = new WindowsPackOptions {
             EntryExecutableName = exe,
@@ -167,12 +169,13 @@ public class WindowsPackTests
         using var _1 = Utility.GetTempDirectory(out var tmpOutput);
         using var _2 = Utility.GetTempDirectory(out var tmpReleaseDir);
 
-        var exe = "testapp.exe";
+        var exe = "testawareapp.exe";
+        var pdb = Path.ChangeExtension(exe, ".pdb");
         var id = "Test.Squirrel-App";
         var version = "1.0.0";
 
         File.Copy(HelperFile.FindTestFile(exe), Path.Combine(tmpOutput, exe));
-        File.Copy(HelperFile.FindTestFile("testapp.pdb"), Path.Combine(tmpOutput, "testapp.pdb"));
+        File.Copy(HelperFile.FindTestFile(pdb), Path.Combine(tmpOutput, pdb));
 
         var options = new WindowsPackOptions {
             EntryExecutableName = exe,
@@ -196,6 +199,37 @@ public class WindowsPackTests
     }
 
     [SkippableFact]
+    public void PackRefuseBuildingUnawareApp()
+    {
+        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+
+        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
+
+        using var _1 = Utility.GetTempDirectory(out var tmpOutput);
+        using var _2 = Utility.GetTempDirectory(out var tmpReleaseDir);
+
+        var exe = "testapp.exe";
+        var pdb = Path.ChangeExtension(exe, ".pdb");
+        var id = "Test.Squirrel-App";
+        var version = "1.0.0";
+
+        File.Copy(HelperFile.FindTestFile(exe), Path.Combine(tmpOutput, exe));
+        File.Copy(HelperFile.FindTestFile(pdb), Path.Combine(tmpOutput, pdb));
+
+        var options = new WindowsPackOptions {
+            EntryExecutableName = exe,
+            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
+            PackId = id,
+            PackVersion = version,
+            TargetRuntime = RID.Parse("win"),
+            PackDirectory = tmpOutput,
+        };
+
+        var runner = new WindowsPackCommandRunner(logger);
+        Assert.Throws<Exception>(() => runner.Pack(options));
+    }
+
+    [SkippableFact]
     public void PackBuildsPackageWhichIsInstallable()
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
@@ -206,12 +240,13 @@ public class WindowsPackTests
         using var _2 = Utility.GetTempDirectory(out var tmpReleaseDir);
         using var _3 = Utility.GetTempDirectory(out var tmpInstallDir);
 
-        var exe = "testapp.exe";
+        var exe = "testawareapp.exe";
+        var pdb = Path.ChangeExtension(exe, ".pdb");
         var id = "Test.Squirrel-App";
         var version = "1.0.0";
 
         File.Copy(HelperFile.FindTestFile(exe), Path.Combine(tmpOutput, exe));
-        File.Copy(HelperFile.FindTestFile("testapp.pdb"), Path.Combine(tmpOutput, "testapp.pdb"));
+        File.Copy(HelperFile.FindTestFile(pdb), Path.Combine(tmpOutput, pdb));
 
         var options = new WindowsPackOptions {
             EntryExecutableName = exe,
@@ -233,7 +268,7 @@ public class WindowsPackTests
         var updatePath = Path.Combine(tmpInstallDir, "Update.exe");
         Assert.True(File.Exists(updatePath));
 
-        var appPath = Path.Combine(tmpInstallDir, "current", "testapp.exe");
+        var appPath = Path.Combine(tmpInstallDir, "current", "testawareapp.exe");
         Assert.True(File.Exists(appPath));
 
         var argsPath = Path.Combine(tmpInstallDir, "current", "args.txt");

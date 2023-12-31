@@ -149,8 +149,6 @@ namespace Velopack
         public void Run(ILogger logger = null)
         {
             var args = _args ?? Environment.GetCommandLineArgs().Skip(1).ToArray();
-            var log = logger ?? NullLogger.Instance;
-            var locator = _locator ?? VelopackLocator.GetDefault(log);
 
             // internal hook run by the Velopack tooling to check everything is working
             if (args.Length >= 1 && args[0].Equals("--veloapp-version", StringComparison.OrdinalIgnoreCase)) {
@@ -158,6 +156,9 @@ namespace Velopack
                 Exit(0);
                 return;
             }
+
+            var log = logger ?? NullLogger.Instance;
+            var locator = _locator ?? VelopackLocator.GetDefault(log);
 
             log.Info("Starting Velopack App (Run).");
 

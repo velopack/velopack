@@ -21,6 +21,11 @@ path = "src/testapp.rs"
 required-features = ["windows"]
 
 [[bin]]
+name = "testawareapp"
+path = "src/testawareapp.rs"
+required-features = ["windows"]
+
+[[bin]]
 name = "stub"
 path = "src/stub.rs"
 required-features = ["windows"]
