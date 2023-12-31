@@ -50,7 +50,7 @@ namespace Velopack.Compression
             var files = deltaPathRelativePaths
                 .Where(x => x.StartsWith("lib", StringComparison.InvariantCultureIgnoreCase))
                 .Where(x => !x.EndsWith(".shasum", StringComparison.InvariantCultureIgnoreCase))
-                .Where(x => !DIFF_SUFFIX.IsMatch(x))
+                .Where(x => DIFF_SUFFIX.IsMatch(x))
                 .ToArray();
 
             for (var index = 0; index < files.Length; index++) {
@@ -80,8 +80,18 @@ namespace Velopack.Compression
             deltaPathRelativePaths
                 .Where(x => !x.StartsWith("lib", StringComparison.InvariantCultureIgnoreCase))
                 .ForEach(x => {
-                    _log.Trace($"Updating metadata file: {x}");
+                    _log.Trace($"Writing metadata file: {x}");
                     File.Copy(Path.Combine(deltaPath, x), Path.Combine(workingPath, x), true);
+                });
+
+            // delete all metadata files that are not in the new package
+            new DirectoryInfo(workingPath).GetAllFilesRecursively()
+                .Select(x => x.FullName.Replace(workingPath + Path.DirectorySeparatorChar, "").ToLowerInvariant())
+                .Where(x => !x.StartsWith("lib", StringComparison.InvariantCultureIgnoreCase)
+                    && !deltaPathRelativePaths.Contains(x, StringComparer.InvariantCultureIgnoreCase))
+                .ForEach(x => {
+                    _log.Trace($"Deleting removed metadata file: {x}");
+                    File.Delete(Path.Combine(workingPath, x));
                 });
 
             progress(100);
@@ -102,9 +112,9 @@ namespace Velopack.Compression
 
             if (relativeFilePath.EndsWith(".zsdiff", StringComparison.InvariantCultureIgnoreCase)) {
                 var psi = new ProcessStartInfo(_updatePath);
-                psi.AppendArgumentListSafe(new string[] { "--old", finalTarget, "--patch", inputFile, "--output", tempTargetFile }, out var _);
+                psi.AppendArgumentListSafe(new string[] { "patch", "--nocolor", "--old", finalTarget, "--patch", inputFile, "--output", tempTargetFile }, out var _);
                 _log.Trace($"Applying zstd diff to {relativeFilePath}");
-                var p = psi.StartRedirectOutputToILogger(_log);
+                var p = psi.StartRedirectOutputToILogger(_log, LogLevel.Debug);
                 if (!p.WaitForExit(60_000)) {
                     p.Kill();
                     throw new TimeoutException("zstd patch process timed out (60s).");

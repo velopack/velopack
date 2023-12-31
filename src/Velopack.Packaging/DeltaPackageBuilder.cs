@@ -95,7 +95,7 @@ public class DeltaPackageBuilder
                     if (AreFilesEqualFast(oldFilePath, targetFile.FullName)) {
                         // 2. exists in both, keep it the same
                         _logger.Debug($"{relativePath} hasn't changed, writing dummy file");
-                        File.Create(targetFile.FullName + ".bsdiff").Dispose();
+                        File.Create(targetFile.FullName + ".zsdiff").Dispose();
                         File.Create(targetFile.FullName + ".shasum").Dispose();
                         fSame++;
                     } else {

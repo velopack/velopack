@@ -12,6 +12,7 @@ using Microsoft.Win32;
 using NuGet.Packaging;
 using Velopack.Compression;
 using Velopack.Packaging;
+using Velopack.Packaging.Commands;
 using Velopack.Packaging.Windows.Commands;
 
 namespace Velopack.Packaging.Tests;
@@ -302,6 +303,45 @@ public class WindowsPackTests
     }
 
     [SkippableFact]
+    public void TestPackGeneratesValidDelta()
+    {
+        using var _1 = Utility.GetTempDirectory(out var releaseDir);
+        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
+        string id = "SquirrelDeltaTest";
+        PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
+        PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
+
+        // did a zsdiff get created for our v2 update?
+        var deltaPath = Path.Combine(releaseDir, $"{id}-2.0.0-win-x64-delta.nupkg");
+        Assert.True(File.Exists(deltaPath));
+        using var _2 = Utility.GetTempDirectory(out var extractDir);
+        EasyZip.ExtractZipToDirectory(logger, deltaPath, extractDir);
+        var extractDllDiff = Path.Combine(extractDir, "lib", "app", "testapp.dll.zsdiff");
+        Assert.True(File.Exists(extractDllDiff));
+        Assert.True(new FileInfo(extractDllDiff).Length > 0);
+        var extractAppDiff = Path.Combine(extractDir, "lib", "app", "testapp.exe.zsdiff");
+        Assert.True(File.Exists(extractAppDiff));
+        Assert.True(new FileInfo(extractAppDiff).Length == 0);
+
+        // apply delta and check package
+        var output = Path.Combine(releaseDir, "delta.patched");
+        new DeltaPatchCommandRunner().Run(new DeltaPatchOptions {
+            BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-win-x64-full.nupkg"),
+            OutputFile = output,
+            PatchFiles = new[] { new FileInfo(deltaPath) },
+        }, logger);
+
+        // are the packages the same?
+        Assert.True(File.Exists(output));
+        var v2 = Path.Combine(releaseDir, $"{id}-2.0.0-win-x64-full.nupkg");
+        var f1 = File.ReadAllBytes(output);
+        var f2 = File.ReadAllBytes(v2);
+        Assert.True(new ReadOnlySpan<byte>(f1).SequenceEqual(new ReadOnlySpan<byte>(f2)));
+        Assert.True(DeltaPackageBuilder.AreFilesEqualFast(output, v2));
+    }
+
+    [SkippableFact]
     public void TestAppHooks()
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
@@ -396,6 +436,10 @@ public class WindowsPackTests
 
         // pack v3
         PackTestApp(id, "3.0.0", "version 3 test", releaseDir, logger);
+
+        // corrupt v2/v3 full packages as we want to test delta's
+        File.WriteAllText(Path.Combine(releaseDir, $"{id}-2.0.0-win-x64-full.nupkg"), "nope");
+        File.WriteAllText(Path.Combine(releaseDir, $"{id}-3.0.0-win-x64-full.nupkg"), "nope");
 
         // perform full update, check that we get v3
         // apply should fail if there's not an update downloaded

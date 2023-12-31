@@ -40,6 +40,8 @@ namespace Velopack.Packaging.Commands
                 delta.ApplyDeltaPackageFast(workDir, f.FullName);
             }
 
+            EasyZip.CreateZipFromDirectory(logger, options.OutputFile, workDir);
+
             return Task.CompletedTask;
         }
     }

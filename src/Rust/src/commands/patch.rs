@@ -21,6 +21,8 @@ pub fn patch(old_file: &PathBuf, patch_file: &PathBuf, output_file: &PathBuf) ->
 
     io::copy(&mut decoder, &mut output)?;
 
+    info!("Patch applied successfully.");
+
     Ok(())
 }
 

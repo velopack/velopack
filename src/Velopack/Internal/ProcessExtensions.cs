@@ -32,7 +32,7 @@ namespace Velopack
         }
 #endif
 
-        public static Process StartRedirectOutputToILogger(this ProcessStartInfo psi, ILogger log)
+        public static Process StartRedirectOutputToILogger(this ProcessStartInfo psi, ILogger log, LogLevel outputLevel)
         {
             psi.RedirectStandardOutput = true;
             psi.RedirectStandardError = true;
@@ -50,7 +50,7 @@ namespace Velopack
 
             p.OutputDataReceived += (o, e) => {
                 if (e.Data != null) {
-                    log.LogInformation(e.Data);
+                    log.Log(outputLevel, e.Data);
                 }
             };
 
