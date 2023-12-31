@@ -15,3 +15,8 @@ This folder contains pre-compiled binaries from a variety of sources. These shou
 - Incldued because it is much faster at zipping / unzipping than the available managed algorithms.
 - Can be found at https://www.7-zip.org/
 - License is LGPL & BSD 3: https://www.7-zip.org/license.txt
+
+### zstd.exe
+- Fast compression and diff/patch
+- Can be found at https://github.com/facebook/zstd
+- License is GPL-2.0 & BSD 3: https://github.com/facebook/zstd/blob/dev/LICENSE, https://github.com/facebook/zstd/blob/dev/COPYING
