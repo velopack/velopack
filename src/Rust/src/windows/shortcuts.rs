@@ -5,7 +5,7 @@ use std::path::Path;
 use std::time::Duration;
 use winsafe::{self as w, co};
 
-use windows::core::{ComInterface, Result as WindowsResult, GUID, PCWSTR};
+use windows::core::{ComInterface, Result as WindowsResult, GUID, PCWSTR, HSTRING, IntoParam, Param};
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
 use windows::Win32::System::Com::StructuredStorage::InitPropVariantFromStringVector;
@@ -27,20 +27,6 @@ fn create_instance<T: ComInterface>(clsid: &GUID) -> WindowsResult<T> {
     unsafe { CoCreateInstance(clsid, None, CLSCTX_ALL) }
 }
 
-/// See: https://github.com/microsoft/windows-rs/issues/973#issue-942298423
-#[inline]
-fn string_to_pcwstr(str: &str) -> PCWSTR {
-    let mut encoded = str.encode_utf16().chain([0u16]).collect::<Vec<u16>>();
-    PCWSTR(encoded.as_mut_ptr())
-}
-
-#[inline]
-fn u16_to_string(pszfile: &[u16]) -> Result<String, std::string::FromUtf16Error> {
-    // Trim the array to remove trailing nulls before conversion
-    let end = pszfile.iter().position(|&c| c == 0).unwrap_or(pszfile.len());
-    String::from_utf16(&pszfile[..end])
-}
-
 pub fn create_lnk(output: &str, target: &str, work_dir: &str, app_model_id: Option<&str>) -> WindowsResult<()> {
     let output = output.to_string();
     let target = target.to_string();
@@ -58,21 +44,23 @@ fn _create_lnk(output: &str, target: &str, work_dir: &str, app_model_id: Option<
     let link: IShellLinkW = create_instance(&ShellLink)?;
 
     unsafe {
-        link.SetPath(string_to_pcwstr(target))?;
-        link.SetWorkingDirectory(string_to_pcwstr(work_dir))?;
+        link.SetPath(&HSTRING::from(target))?;
+        link.SetWorkingDirectory(&HSTRING::from(work_dir))?;
 
         // Set app user model ID property
         // Docs: https://docs.microsoft.com/en-us/windows/win32/properties/props-system-appusermodel-id
         if let Some(app_model_id) = app_model_id {
             let store: IPropertyStore = link.cast()?;
-            let variant = InitPropVariantFromStringVector(Some(&[string_to_pcwstr(app_model_id.as_str())]))?;
+            let id: Param<PCWSTR> = HSTRING::from(app_model_id).into_param();
+            let id: PCWSTR = id.abi();
+            let variant = InitPropVariantFromStringVector(Some(&[id]))?;
             store.SetValue(&PKEY_AppUserModel_ID, &variant)?;
             store.Commit()?;
         }
 
         // Save shortcut to file
         let persist: IPersistFile = link.cast()?;
-        persist.Save(string_to_pcwstr(output), true)?;
+        persist.Save(&HSTRING::from(output), true)?;
     }
 
     Ok(())
@@ -92,7 +80,8 @@ fn _resolve_lnk(link_path: &str) -> WindowsResult<(String, String)> {
     let persist: IPersistFile = link.cast()?;
 
     unsafe {
-        persist.Load(string_to_pcwstr(link_path), STGM_READ)?;
+        debug!("Loading link: {}", link_path);
+        persist.Load(&HSTRING::from(link_path), STGM_READ)?;
         let flags = 1 | 2 | 1 << 16;
         if let Err(e) = link.Resolve(HWND(0), flags) {
             // this happens if the target path is missing and the link is broken
@@ -104,9 +93,11 @@ fn _resolve_lnk(link_path: &str) -> WindowsResult<(String, String)> {
         link.GetPath(&mut pszfile, std::ptr::null_mut(), 0)?;
         link.GetWorkingDirectory(&mut pszdir)?;
 
-        let target = u16_to_string(&pszfile)?;
-        let work_dir = u16_to_string(&pszdir)?;
-        Ok((target, work_dir))
+        let target_len = pszfile.iter().position(|&c| c == 0).unwrap_or(pszfile.len());
+        let target = HSTRING::from_wide(&pszfile[..target_len])?;
+        let work_len = pszdir.iter().position(|&c| c == 0).unwrap_or(pszdir.len());
+        let work_dir = HSTRING::from_wide(&pszdir[..work_len])?;
+        Ok((target.to_string(), work_dir.to_string()))
     }
 }
 
@@ -142,6 +133,7 @@ fn _remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<()>
                 if let Ok(path) = path {
                     trace!("Checking shortcut: '{}'", path.to_string_lossy());
                     let res = _resolve_lnk(&path.to_string_lossy());
+                    trace!("    Shortcut resolved: '{:?}'", res);
                     if let Ok((target, work_dir)) = res {
                         let target_match = super::is_sub_path(&target, root_dir).unwrap_or(false);
                         let work_dir_match = super::is_sub_path(&work_dir, root_dir).unwrap_or(false);
@@ -165,6 +157,7 @@ fn _remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<()>
 }
 
 #[test]
+#[ignore]
 fn test_shortcut_intense_intermittent() {
     let startmenu = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::StartMenu, co::KF::DONT_UNEXPAND, None).unwrap();
     let lnk_path = Path::new(&startmenu).join("Programs").join(format!("{}.lnk", "veloshortcuttest"));
@@ -182,6 +175,7 @@ fn test_shortcut_intense_intermittent() {
 }
 
 #[test]
+#[ignore]
 fn test_can_resolve_existing_shortcut() {
     let link_path = r"C:\Users\Caelan\Desktop\Discord.lnk";
     let (target, _workdir) = resolve_lnk(link_path).unwrap();

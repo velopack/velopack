@@ -14,6 +14,7 @@ using Velopack.Compression;
 using Velopack.Packaging;
 using Velopack.Packaging.Commands;
 using Velopack.Packaging.Windows.Commands;
+using Velopack.Windows;
 
 namespace Velopack.Packaging.Tests;
 
@@ -278,6 +279,11 @@ public class WindowsPackTests
 
         var shortcutPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", id + ".lnk");
         Assert.True(File.Exists(shortcutPath));
+
+        var lnk = new ShellLink(shortcutPath);
+        var currentPath = Path.Combine(tmpInstallDir, "current");
+        Assert.Equal(currentPath, lnk.WorkingDirectory);
+        Assert.Equal(appPath, lnk.Target);
 
         // check registry exists
         string installDate = null;
