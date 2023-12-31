@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Velopack
@@ -58,39 +59,57 @@ namespace Velopack
             return p;
         }
 
-        public static string Output(this ProcessStartInfo psi, int timeoutMs)
+        public static Task<string> Output(this ProcessStartInfo psi, int timeoutMs)
         {
+            TaskCompletionSource<string> tcs = new TaskCompletionSource<string>();
+
             psi.RedirectStandardOutput = true;
             psi.RedirectStandardError = true;
             psi.UseShellExecute = false;
 
-            var p = Process.Start(psi);
-            p.BeginErrorReadLine();
-            p.BeginOutputReadLine();
+            bool killed = false;
 
             var sb = new StringBuilder();
+            var p = new Process();
+            p.StartInfo = psi;
+            p.EnableRaisingEvents = true;
+
+            p.Exited += (o, e) => {
+                if (killed) return;
+                if (p.ExitCode != 0) {
+                    tcs.SetException(new Exception($"Process exited with code {p.ExitCode}."));
+                } else {
+                    tcs.SetResult(sb.ToString());
+                }
+            };
 
             p.ErrorDataReceived += (o, e) => {
+                if (killed) return;
                 if (e.Data != null) {
                     sb.AppendLine(e.Data);
                 }
             };
 
             p.OutputDataReceived += (o, e) => {
+                if (killed) return;
                 if (e.Data != null) {
                     sb.AppendLine(e.Data);
                 }
             };
 
-            if (!p.WaitForExit(timeoutMs)) {
-                throw new TimeoutException($"Process timed out after {timeoutMs}ms.");
-            }
+            p.Start();
+            p.BeginErrorReadLine();
+            p.BeginOutputReadLine();
 
-            if (p.ExitCode != 0) {
-                throw new Exception($"Process exited with code {p.ExitCode}.");
-            }
+            Task.Delay(timeoutMs).ContinueWith(t => {
+                killed = true;
+                if (!tcs.Task.IsCompleted) {
+                    tcs.SetException(new TimeoutException($"Process timed out after {timeoutMs}ms."));
+                    p.Kill();
+                }
+            });
 
-            return sb.ToString();
+            return tcs.Task;
         }
 
 

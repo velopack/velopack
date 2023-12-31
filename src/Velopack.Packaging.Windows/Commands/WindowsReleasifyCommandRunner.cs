@@ -90,7 +90,7 @@ public class WindowsReleasifyCommandRunner
             try {
                 var psi = new ProcessStartInfo(mainExe);
                 psi.AppendArgumentListSafe(new[] { "--veloapp-version" }, out var _);
-                var output = psi.Output(5000);
+                var output = psi.Output(5000).GetAwaiterResult();
                 if (String.IsNullOrWhiteSpace(output)) {
                     throw new Exception("Process exited with no output.");
                 }
