@@ -19,7 +19,7 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
     public string Channel { get; private set; }
 
     public WindowsReleasifyCommand()
-        : this("releasify", "Take an existing nuget package and convert it into a Squirrel release.")
+        : this("releasify", "Take an existing nuget package and convert it into a release.")
     {
         AddOption<FileInfo>((v) => Package = v.ToFullNameOrNull(), "-p", "--package")
             .SetDescription("Path to a '.nupkg' package to releasify.")
@@ -31,7 +31,7 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
 
     /// <summary>
     /// This constructor is used by the pack command, which requires all the same properties but 
-    /// does not allow the user to provide the Package (it is created/populated by Squirrel).
+    /// does not allow the user to provide the Package (it is created/populated by Velopack).
     /// </summary>
     protected WindowsReleasifyCommand(string name, string description)
         : base(name, description)

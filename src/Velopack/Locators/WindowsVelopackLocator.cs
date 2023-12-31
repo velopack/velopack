@@ -9,7 +9,7 @@ using Velopack.NuGet;
 namespace Velopack.Locators
 {
     /// <summary>
-    /// An implementation for Windows which uses the Squirrel default paths.
+    /// An implementation for Windows which uses the default paths.
     /// </summary>
     [SupportedOSPlatform("windows")]
     public class WindowsVelopackLocator : VelopackLocator

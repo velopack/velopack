@@ -174,7 +174,7 @@ namespace Velopack.Windows
             public NuGetVersion MinVersion { get; }
 
             /// <summary> The CPU architecture of the runtime. This must match the RID of the app being deployed.
-            /// For example, if the Squirrel app was deployed with 'win-x64', this must be X64 also. </summary>
+            /// For example, if the app was deployed with 'win-x64', this must be X64 also. </summary>
             public RuntimeCpu CpuArchitecture { get; }
 
             /// <summary> The type of runtime required, eg. Windows Desktop, AspNetCore, Sdk.</summary>

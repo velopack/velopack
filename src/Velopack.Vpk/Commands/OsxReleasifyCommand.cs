@@ -33,10 +33,10 @@ public class OsxReleasifyCommand : PlatformCommand
     public string Channel { get; private set; }
 
     public OsxReleasifyCommand()
-        : base("releasify", "Converts an application bundle into a Squirrel release and installer.")
+        : base("releasify", "Converts an application bundle into a release and installer.")
     {
         AddOption<DirectoryInfo>((v) => BundleDirectory = v.ToFullNameOrNull(), "-b", "--bundle")
-            .SetDescription("The bundle to convert into a Squirrel release.")
+            .SetDescription("The bundle to convert into a release.")
             .SetArgumentHelpName("PATH")
             .MustNotBeEmpty()
             .RequiresExtension(".app")

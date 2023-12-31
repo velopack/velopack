@@ -79,14 +79,14 @@ namespace Velopack
     /// </summary>
     public static class VelopackRuntimeInfo
     {
-        /// <summary> The current compiled Squirrel display version. </summary>
-        public static string SquirrelDisplayVersion { get; }
+        /// <summary> The current compiled Velopack display version. </summary>
+        public static string VelopackDisplayVersion { get; }
 
-        /// <summary> The current compiled Squirrel NuGetVersion. </summary>
-        public static NuGetVersion SquirrelNugetVersion { get; }
+        /// <summary> The current compiled Velopack NuGetVersion. </summary>
+        public static NuGetVersion VelopackNugetVersion { get; }
 
-        /// <summary> The current compiled Squirrel assembly file version. </summary>
-        public static string SquirrelFileVersion => ThisAssembly.AssemblyFileVersion;
+        /// <summary> The current compiled Velopack assembly file version. </summary>
+        public static string VelopackFileVersion => ThisAssembly.AssemblyFileVersion;
 
         /// <summary> The path on disk of the entry assembly. </summary>
         public static string EntryExePath { get; }
@@ -145,11 +145,11 @@ namespace Velopack
                 IsSingleFile = true;
 
             // get git/nuget version from nbgv metadata
-            SquirrelNugetVersion = NuGetVersion.Parse(ThisAssembly.AssemblyInformationalVersion);
-            if (SquirrelNugetVersion.HasMetadata) {
-                SquirrelNugetVersion = NuGetVersion.Parse(SquirrelNugetVersion.ToNormalizedString() + "-g" + SquirrelNugetVersion.Metadata);
+            VelopackNugetVersion = NuGetVersion.Parse(ThisAssembly.AssemblyInformationalVersion);
+            if (VelopackNugetVersion.HasMetadata) {
+                VelopackNugetVersion = NuGetVersion.Parse(VelopackNugetVersion.ToNormalizedString() + "-g" + VelopackNugetVersion.Metadata);
             }
-            SquirrelDisplayVersion = SquirrelNugetVersion.ToNormalizedString() + (SquirrelNugetVersion.IsPrerelease ? " (prerelease)" : "");
+            VelopackDisplayVersion = VelopackNugetVersion.ToNormalizedString() + (VelopackNugetVersion.IsPrerelease ? " (prerelease)" : "");
 
             // get real cpu architecture, even when virtualised by Wow64
 #if NETFRAMEWORK

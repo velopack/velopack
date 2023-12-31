@@ -4,11 +4,11 @@ using NuGet.Versioning;
 
 namespace Velopack.Vpk.Compat;
 
-public class SquirrelVersionLocator
+public class SdkVersionLocator
 {
     private readonly ILogger _logger;
 
-    public SquirrelVersionLocator(ILogger logger)
+    public SdkVersionLocator(ILogger logger)
     {
         _logger = logger;
     }

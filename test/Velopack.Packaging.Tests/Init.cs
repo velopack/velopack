@@ -4,7 +4,7 @@ using Velopack.Packaging;
 using Xunit.Abstractions;
 using Xunit.Sdk;
 
-[assembly: TestFramework("Squirrel.Packaging.Tests.TestsInit", "Squirrel.Packaging.Tests")]
+[assembly: TestFramework("Velopack.Packaging.Tests.TestsInit", "Velopack.Packaging.Tests")]
 
 namespace Velopack.Packaging.Tests
 {

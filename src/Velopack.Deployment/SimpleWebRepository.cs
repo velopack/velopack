@@ -45,7 +45,7 @@ public class SimpleWebRepository
     {
         _logger.Info($"Trying to download RELEASES index from {uri}");
 
-        var userAgent = new System.Net.Http.Headers.ProductInfoHeaderValue("Squirrel", Assembly.GetExecutingAssembly().GetName().Version.ToString());
+        var userAgent = new System.Net.Http.Headers.ProductInfoHeaderValue("Velopack", Assembly.GetExecutingAssembly().GetName().Version.ToString());
         using (HttpClient client = new HttpClient()) {
             client.DefaultRequestHeaders.UserAgent.Add(userAgent);
             return await client.GetStringAsync(uri);

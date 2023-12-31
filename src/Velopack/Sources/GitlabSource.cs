@@ -191,7 +191,7 @@ namespace Velopack.Sources
             if (releases == null || releases.Count() == 0)
                 throw new Exception($"No Gitlab releases found at '{RepoUri}'.");
 
-            // for now, we only search for Squirrel packages in the latest Github release.
+            // for now, we only search for packages in the latest Github release.
             // in the future, we might want to search through more than one for delta's.
             var release = releases.First();
 

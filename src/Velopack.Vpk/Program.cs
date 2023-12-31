@@ -28,7 +28,7 @@ public class Program
         bool verbose = parseResult.GetValue(VerboseOption);
 
         var builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings {
-            ApplicationName = "Clowd.Squirrel",
+            ApplicationName = "Velopack",
             EnvironmentName = "Production",
             ContentRootPath = Environment.CurrentDirectory,
             Configuration = new ConfigurationManager(),
@@ -51,7 +51,7 @@ public class Program
         Runner = new RunnerFactory(logger, host.Services.GetRequiredService<IConfiguration>());
 
         CliRootCommand rootCommand = new CliRootCommand(
-            $"Squirrel {VelopackRuntimeInfo.SquirrelDisplayVersion} for creating and distributing Squirrel releases.") {
+            $"Velopack CLI {VelopackRuntimeInfo.VelopackDisplayVersion} for creating and distributing releases.") {
             VerboseOption,
         };
 

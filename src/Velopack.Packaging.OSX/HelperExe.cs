@@ -13,7 +13,7 @@ public class HelperExe : HelperFile
     {
     }
 
-    public string SquirrelEntitlements => FindHelperFile("Squirrel.entitlements");
+    public string VelopackEntitlements => FindHelperFile("Velopack.entitlements");
 
     [SupportedOSPlatform("osx")]
     public void CodeSign(string identity, string entitlements, string filePath)
@@ -21,7 +21,7 @@ public class HelperExe : HelperFile
         if (String.IsNullOrEmpty(entitlements)) {
             Log.Info("No codesign entitlements provided, using default dotnet entitlements: " +
                      "https://docs.microsoft.com/en-us/dotnet/core/install/macos-notarization-issues");
-            entitlements = SquirrelEntitlements;
+            entitlements = VelopackEntitlements;
         }
 
         if (!File.Exists(entitlements)) {

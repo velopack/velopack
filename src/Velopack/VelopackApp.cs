@@ -40,12 +40,12 @@ namespace Velopack
         }
 
         /// <summary>
-        /// Creates and returns a new Squirrel application builder.
+        /// Creates and returns a new Velopack application builder.
         /// </summary>
         public static VelopackApp Build() => new VelopackApp();
 
         /// <summary>
-        /// Override the command line arguments used to determine the Squirrel hook to run.
+        /// Override the command line arguments used to determine the Velopack hook to run.
         /// If this is not set, the command line arguments passed to the application will be used.
         /// </summary>
         public VelopackApp SetArgs(string[] args)
@@ -82,7 +82,7 @@ namespace Velopack
         }
 
         /// <summary>
-        /// This hook is triggered when the application is restarted by Squirrel after installing updates.
+        /// This hook is triggered when the application is restarted by Velopack after installing updates.
         /// </summary>
         public VelopackApp WithRestarted(VelopackHook hook)
         {
@@ -91,7 +91,7 @@ namespace Velopack
         }
 
         /// <summary>
-        /// WARNING: FastCallback hooks are run during critical stages of Squirrel operations.
+        /// WARNING: FastCallback hooks are run during critical stages of Velopack operations.
         /// Your code will be run and then <see cref="Environment.Exit(int)"/> will be called.
         /// If your code has not completed within 30 seconds, it will be terminated.
         /// Only supported on windows; On other operating systems, this will never be called.
@@ -104,7 +104,7 @@ namespace Velopack
         }
 
         /// <summary>
-        /// WARNING: FastCallback hooks are run during critical stages of Squirrel operations.
+        /// WARNING: FastCallback hooks are run during critical stages of Velopack operations.
         /// Your code will be run and then <see cref="Environment.Exit(int)"/> will be called.
         /// If your code has not completed within 15 seconds, it will be terminated.
         /// Only supported on windows; On other operating systems, this will never be called.
@@ -117,7 +117,7 @@ namespace Velopack
         }
 
         /// <summary>
-        /// WARNING: FastCallback hooks are run during critical stages of Squirrel operations.
+        /// WARNING: FastCallback hooks are run during critical stages of Velopack operations.
         /// Your code will be run and then <see cref="Environment.Exit(int)"/> will be called.
         /// If your code has not completed within 15 seconds, it will be terminated.
         /// Only supported on windows; On other operating systems, this will never be called.
@@ -130,7 +130,7 @@ namespace Velopack
         }
 
         /// <summary>
-        /// WARNING: FastCallback hooks are run during critical stages of Squirrel operations.
+        /// WARNING: FastCallback hooks are run during critical stages of Velopack operations.
         /// Your code will be run and then <see cref="Environment.Exit(int)"/> will be called.
         /// If your code has not completed within 30 seconds, it will be terminated.
         /// Only supported on windows; On other operating systems, this will never be called.
@@ -143,7 +143,7 @@ namespace Velopack
         }
 
         /// <summary>
-        /// Runs the Squirrel application startup code and triggers any configured hooks.
+        /// Runs the Velopack application startup code and triggers any configured hooks.
         /// </summary>
         /// <param name="logger">A logging interface for diagnostic messages.</param>
         public void Run(ILogger logger = null)
@@ -152,22 +152,22 @@ namespace Velopack
             var log = logger ?? NullLogger.Instance;
             var locator = _locator ?? VelopackLocator.GetDefault(log);
 
-            // internal hook run by the Squirrel tooling to check everything is working
-            if (args.Length >= 1 && args[0].Equals("--squirrel-version", StringComparison.OrdinalIgnoreCase)) {
-                Console.WriteLine(VelopackRuntimeInfo.SquirrelNugetVersion);
+            // internal hook run by the Velopack tooling to check everything is working
+            if (args.Length >= 1 && args[0].Equals("--Velopack-version", StringComparison.OrdinalIgnoreCase)) {
+                Console.WriteLine(VelopackRuntimeInfo.VelopackNugetVersion);
                 Exit(0);
                 return;
             }
 
-            log.Info("Starting Squirrel App (Run).");
+            log.Info("Starting Velopack App (Run).");
 
             // first, we run any fast exit hooks
             VelopackHook defaultBlock = ((v) => { });
             var fastExitlookup = new[] {
-                new { Key = "--squirrel-install", Value = _install ?? defaultBlock },
-                new { Key = "--squirrel-updated", Value = _update ?? defaultBlock },
-                new { Key = "--squirrel-obsolete", Value = _obsolete ?? defaultBlock },
-                new { Key = "--squirrel-uninstall", Value = _uninstall ?? defaultBlock },
+                new { Key = "--Velopack-install", Value = _install ?? defaultBlock },
+                new { Key = "--Velopack-updated", Value = _update ?? defaultBlock },
+                new { Key = "--Velopack-obsolete", Value = _obsolete ?? defaultBlock },
+                new { Key = "--Velopack-uninstall", Value = _uninstall ?? defaultBlock },
             }.ToDictionary(k => k.Key, v => v.Value, StringComparer.OrdinalIgnoreCase);
             if (args.Length >= 2 && fastExitlookup.ContainsKey(args[0])) {
                 try {
@@ -178,7 +178,7 @@ namespace Velopack
                     Exit(0);
                     return;
                 } catch (Exception ex) {
-                    log.Error(ex, $"Error occurred executing user defined Squirrel hook. ({args[0]})");
+                    log.Error(ex, $"Error occurred executing user defined Velopack hook. ({args[0]})");
                     Exit(-1);
                     return;
                 }
@@ -186,12 +186,12 @@ namespace Velopack
 
             // some initial setup/state
             var myVersion = locator.CurrentlyInstalledVersion;
-            var firstrun = !String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CLOWD_SQUIRREL_FIRSTRUN"));
-            var restarted = !String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CLOWD_SQUIRREL_RESTART"));
+            var firstrun = !String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CLOWD_Velopack_FIRSTRUN"));
+            var restarted = !String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CLOWD_Velopack_RESTART"));
             var localPackages = locator.GetLocalPackages();
             var latestLocal = locator.GetLatestLocalFullPackage();
 
-            // if we've not just been restarted via Squirrel apply, and there is a local update available,
+            // if we've not just been restarted via Velopack apply, and there is a local update available,
             // we should install it first.
             if (latestLocal != null && latestLocal.Version > myVersion) {
                 log.Info($"Launching app is out-dated. Current: {myVersion}, Newest Local Available: {latestLocal.Version}");
@@ -222,14 +222,14 @@ namespace Velopack
                 try {
                     _firstrun(myVersion);
                 } catch (Exception ex) {
-                    log.Error(ex, $"Error occurred executing user defined Squirrel hook. (firstrun)");
+                    log.Error(ex, $"Error occurred executing user defined Velopack hook. (firstrun)");
                 }
             }
             if (restarted) {
                 try {
                     _restarted(myVersion);
                 } catch (Exception ex) {
-                    log.Error(ex, $"Error occurred executing user defined Squirrel hook. (restarted)");
+                    log.Error(ex, $"Error occurred executing user defined Velopack hook. (restarted)");
                 }
             }
         }

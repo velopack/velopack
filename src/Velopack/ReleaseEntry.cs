@@ -25,7 +25,7 @@ namespace Velopack
     }
 
     /// <summary>
-    /// Represents a Squirrel release, as described in a RELEASES file - usually also with an 
+    /// Represents a Velopack release, as described in a RELEASES file - usually also with an 
     /// accompanying package containing the files needed to apply the release.
     /// </summary>
     [DataContract]

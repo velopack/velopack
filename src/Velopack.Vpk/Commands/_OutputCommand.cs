@@ -16,7 +16,7 @@ namespace Velopack.Vpk.Commands
             : base(name, description)
         {
             ReleaseDirectoryOption = AddOption<DirectoryInfo>((v) => ReleaseDirectory = v.ToFullNameOrNull(), "-o", "--outputDir")
-                 .SetDescription("Output directory for Squirrel packages.")
+                 .SetDescription("Output directory for created packages.")
                  .SetArgumentHelpName("DIR")
                  .SetDefault(new DirectoryInfo(".\\Releases"));
         }

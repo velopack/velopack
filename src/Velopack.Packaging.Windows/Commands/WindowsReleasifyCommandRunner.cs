@@ -98,7 +98,7 @@ public class WindowsReleasifyCommandRunner
             // fail the release if this is a clickonce application
             if (Directory.EnumerateFiles(libDir, "*.application").Any(f => File.ReadAllText(f).Contains("clickonce"))) {
                 throw new ArgumentException(
-                    "Squirrel does not support building releases for ClickOnce applications. " +
+                    "Velopack does not support building releases for ClickOnce applications. " +
                     "Please publish your application to a folder without ClickOnce.");
             }
 
@@ -106,7 +106,7 @@ public class WindowsReleasifyCommandRunner
 
             // copy Update.exe into package, so it can also be updated in both full/delta packages
             // and do it before signing so that Update.exe will also be signed. It is renamed to
-            // 'Squirrel.exe' only because Squirrel.Windows expects it to be called this.
+            // 'Squirrel.exe' only because Squirrel.Windows and Clowd.Squirrel expects it to be called this.
             File.Copy(updatePath, Path.Combine(libDir, "Squirrel.exe"), true);
 
             // sign all exe's in this package

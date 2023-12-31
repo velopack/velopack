@@ -7,6 +7,7 @@ namespace Velopack.Vpk.Compat;
 public class RunnerFactory
 {
     private const string CLOWD_PACKAGE_NAME = "Clowd.Squirrel";
+    private const string NUGET_PACKAGE_NAME = "Velopack";
     private readonly ILogger _logger;
     private readonly IConfiguration _config;
 
@@ -41,12 +42,12 @@ public class RunnerFactory
             throw new Exception($"Could not find '.sln'. Specify solution or solution directory with '--solution='.");
         }
 
-        var version = new SquirrelVersionLocator(_logger).Search(solutionDir, CLOWD_PACKAGE_NAME);
+        var version = new SdkVersionLocator(_logger).Search(solutionDir, NUGET_PACKAGE_NAME);
 
         if (version.Major == 4) {
-            var myVer = VelopackRuntimeInfo.SquirrelNugetVersion;
+            var myVer = VelopackRuntimeInfo.VelopackNugetVersion;
             if (version != myVer) {
-                _logger.Warn($"Installed SDK is {version}, while csq is {myVer}, this is not recommended.");
+                _logger.Warn($"Installed SDK is {version}, while vpk is {myVer}, this is not recommended.");
             }
             return new EmbeddedRunner(_logger);
         }
@@ -56,14 +57,14 @@ public class RunnerFactory
 
             Dictionary<string, string> packageSearchPaths = new();
             var nugetPackagesDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
-            packageSearchPaths.Add("nuget user profile cache", Path.Combine(nugetPackagesDir, CLOWD_PACKAGE_NAME.ToLower(), "{0}", "tools"));
-            packageSearchPaths.Add("visual studio packages cache", Path.Combine(solutionDir, "packages", CLOWD_PACKAGE_NAME + ".{0}", "tools"));
+            packageSearchPaths.Add("nuget user profile cache", Path.Combine(nugetPackagesDir, NUGET_PACKAGE_NAME.ToLower(), "{0}", "tools"));
+            packageSearchPaths.Add("visual studio packages cache", Path.Combine(solutionDir, "packages", NUGET_PACKAGE_NAME + ".{0}", "tools"));
             string squirrelExe = null;
 
             foreach (var kvp in packageSearchPaths) {
                 var path = String.Format(kvp.Value, version);
                 if (Directory.Exists(path)) {
-                    _logger.Debug($"Found {CLOWD_PACKAGE_NAME} {version} from {kvp.Key}");
+                    _logger.Debug($"Found {NUGET_PACKAGE_NAME} {version} from {kvp.Key}");
                     var toolExePath = Path.Combine(path, "Squirrel.exe");
                     if (File.Exists(toolExePath)) {
                         squirrelExe = toolExePath;
@@ -73,7 +74,7 @@ public class RunnerFactory
             }
 
             if (squirrelExe is null) {
-                throw new Exception($"Could not find {CLOWD_PACKAGE_NAME} {version} Squirrel.exe");
+                throw new Exception($"Could not find {NUGET_PACKAGE_NAME} {version} Squirrel.exe");
             }
 
             return new V2CompatRunner(_logger, squirrelExe);

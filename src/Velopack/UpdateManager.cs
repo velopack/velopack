@@ -19,7 +19,7 @@ namespace Velopack
     /// </summary>
     public class UpdateManager
     {
-        /// <summary> The currently installed Squirrel application Id. This would be what you set when you create your Squirrel release.</summary>
+        /// <summary> The currently installed application Id. This would be what you set when you create your release.</summary>
         public virtual string AppId => Locator.AppId;
 
         /// <summary> True if this application is currently installed, and is able to download/check for updates. </summary>
@@ -36,7 +36,7 @@ namespace Velopack
             }
         }
 
-        /// <summary> The currently installed Squirrel app version when you created your release. Null if this is not a currently installed app. </summary>
+        /// <summary> The currently installed app version when you created your release. Null if this is not a currently installed app. </summary>
         public virtual SemanticVersion CurrentVersion => Locator.CurrentlyInstalledVersion;
 
         /// <summary> The update source to use when checking for/downloading updates. </summary>

@@ -16,7 +16,7 @@ public class UpdateChecker
     {
         try {
             var cancel = new CancellationTokenSource(3000);
-            var myVer = VelopackRuntimeInfo.SquirrelNugetVersion;
+            var myVer = VelopackRuntimeInfo.VelopackNugetVersion;
             var dl = new NugetDownloader(new NugetLoggingWrapper(_logger));
             var package = await dl.GetPackageMetadata("csq", (myVer.IsPrerelease || myVer.HasMetadata) ? "pre" : "latest", cancel.Token).ConfigureAwait(false);
             if (package.Identity.Version > myVer)

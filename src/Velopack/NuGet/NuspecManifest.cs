@@ -185,7 +185,7 @@ namespace Velopack.NuGet
                 break;
 
             // ===
-            // the following metadata elements are added by squirrel and are not
+            // the following metadata elements are added by velopack and are not
             // used by nuget.
             case "runtimeDependencies":
                 RuntimeDependencies = getCommaDelimitedValue(value);

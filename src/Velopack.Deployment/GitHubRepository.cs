@@ -91,7 +91,7 @@ public class GitHubRepository
         var repoOwner = repoParts[0];
         var repoName = repoParts[1];
 
-        var client = new GitHubClient(new ProductHeaderValue("Clowd.Squirrel")) {
+        var client = new GitHubClient(new ProductHeaderValue("Velopack")) {
             Credentials = new Credentials(options.Token)
         };
 

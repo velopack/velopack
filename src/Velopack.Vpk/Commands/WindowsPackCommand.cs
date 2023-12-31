@@ -20,7 +20,7 @@ public class WindowsPackCommand : WindowsReleasifyCommand, INugetPackCommand
     public string ReleaseNotes { get; private set; }
 
     public WindowsPackCommand()
-        : base("pack", "Creates a Squirrel release from a folder containing application files.")
+        : base("pack", "Creates a release from a folder containing application files.")
     {
         AddOption<string>((v) => PackId = v, "--packId", "-u")
             .SetDescription("Unique Id for application bundle.")

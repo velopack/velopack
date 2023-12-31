@@ -44,7 +44,7 @@ public class NugetConsole
     {releaseNotesText}
   </metadata>
   <files>
-    <file src=""**"" target=""lib\squirrel\"" exclude=""{(includePdb ? "" : "*.pdb;")}*.nupkg;*.vshost.*;**\createdump.exe""/>
+    <file src=""**"" target=""lib\app\"" exclude=""{(includePdb ? "" : "*.pdb;")}*.nupkg;*.vshost.*;**\createdump.exe""/>
   </files>
 </package>
 ".Trim();
@@ -54,7 +54,7 @@ public class NugetConsole
 
     public string CreatePackageFromNuspecPath(string tempDir, string packDir, string nuspecPath)
     {
-        var nup = Path.Combine(tempDir, "squirreltemp.nuspec");
+        var nup = Path.Combine(tempDir, "velotemp.nuspec");
         File.Copy(nuspecPath, nup);
 
         Pack(nup, packDir, tempDir);

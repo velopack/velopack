@@ -42,7 +42,7 @@ public class OsxReleasifyCommandRunner
         }
 
         var appBundlePath = options.BundleDirectory;
-        _logger.Info("Creating Squirrel application from app bundle at: " + appBundlePath);
+        _logger.Info("Creating application from app bundle at: " + appBundlePath);
 
         _logger.Info("Parsing app Info.plist");
         var contentsDir = Path.Combine(appBundlePath, "Contents");
@@ -108,7 +108,7 @@ public class OsxReleasifyCommandRunner
         helper.CreateDittoZip(appBundlePath, zipPath);
 
         // create release / delta from notarized .app
-        _logger.Info("Creating Squirrel Release");
+        _logger.Info("Creating Release");
         using var _ = Utility.GetTempDirectory(out var tmp);
         var nuget = new NugetConsole(_logger);
         var nupkgPath = nuget.CreatePackageFromNuspecPath(tmp, appBundlePath, nuspecPath);

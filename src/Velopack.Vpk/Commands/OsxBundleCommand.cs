@@ -22,7 +22,7 @@ public class OsxBundleCommand : OutputCommand
         : base("bundle", "Create's an OSX .app bundle from a folder containing application files.")
     {
         AddOption<string>((v) => PackId = v, "--packId", "-u")
-            .SetDescription("Unique Squirrel Id for application bundle.")
+            .SetDescription("Unique Id for application bundle.")
             .SetArgumentHelpName("ID")
             .SetRequired()
             .RequiresValidNuGetId();

@@ -13,9 +13,9 @@ namespace Velopack.Sources
     public class HttpClientFileDownloader : IFileDownloader
     {
         /// <summary>
-        /// The User-Agent sent with Squirrel requests
+        /// The User-Agent sent with requests
         /// </summary>
-        public static ProductInfoHeaderValue UserAgent => new("Squirrel", VelopackRuntimeInfo.SquirrelNugetVersion.ToFullString());
+        public static ProductInfoHeaderValue UserAgent => new("Velopack", VelopackRuntimeInfo.VelopackNugetVersion.ToFullString());
 
         /// <inheritdoc />
         public virtual async Task DownloadFile(string url, string targetFile, Action<int> progress, string authorization, string accept)
