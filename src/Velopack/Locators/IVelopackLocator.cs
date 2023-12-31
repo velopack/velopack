@@ -2,12 +2,12 @@
 using System.Collections.Generic;
 using NuGet.Versioning;
 
-namespace Squirrel.Locators
+namespace Velopack.Locators
 {
     /// <summary>
-    /// An interface describing where Squirrel can find key folders and files.
+    /// An interface describing where Velopack can find key folders and files.
     /// </summary>
-    public interface ISquirrelLocator
+    public interface IVelopackLocator
     {
         /// <summary> The unique application Id. This is used in various app paths. </summary>
         public string AppId { get; }

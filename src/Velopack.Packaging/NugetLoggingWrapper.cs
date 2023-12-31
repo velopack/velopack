@@ -4,7 +4,7 @@ using NugetLogLevel = NuGet.Common.LogLevel;
 using INugetLogMessage = NuGet.Common.ILogMessage;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Squirrel.Packaging;
+namespace Velopack.Packaging;
 
 [ExcludeFromCodeCoverage]
 public class NugetLoggingWrapper : INugetLogger

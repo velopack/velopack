@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 
-namespace Squirrel.Sources
+namespace Velopack.Sources
 {
     /// <summary>
     /// A simple abstractable file downloader

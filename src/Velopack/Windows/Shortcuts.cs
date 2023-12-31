@@ -5,10 +5,10 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
-using Squirrel.Locators;
-using Squirrel.NuGet;
+using Velopack.Locators;
+using Velopack.NuGet;
 
-namespace Squirrel.Windows
+namespace Velopack.Windows
 {
     /// <summary>
     /// Specifies several common places where shortcuts can be installed on a user's system
@@ -52,10 +52,10 @@ namespace Squirrel.Windows
         protected ILogger Log { get; }
 
         /// <summary> Locator to use for finding important application paths </summary>
-        protected ISquirrelLocator Locator { get; }
+        protected IVelopackLocator Locator { get; }
 
         /// <inheritdoc cref="Shortcuts"/>
-        public Shortcuts(ILogger logger, ISquirrelLocator locator)
+        public Shortcuts(ILogger logger, IVelopackLocator locator)
         {
             Log = logger;
             Locator = locator;

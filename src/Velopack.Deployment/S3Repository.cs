@@ -6,7 +6,7 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
 
-namespace Squirrel.Deployment;
+namespace Velopack.Deployment;
 
 public class S3Options
 {

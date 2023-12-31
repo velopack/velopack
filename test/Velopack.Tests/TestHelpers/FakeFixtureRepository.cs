@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Squirrel.Tests.TestHelpers
+namespace Velopack.Tests.TestHelpers
 {
     internal class FakeFixtureRepository : Sources.IFileDownloader
     {

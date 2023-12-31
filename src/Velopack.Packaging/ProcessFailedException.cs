@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 
-namespace Squirrel.Packaging;
+namespace Velopack.Packaging;
 
 [ExcludeFromCodeCoverage]
 public class ProcessFailedException : Exception

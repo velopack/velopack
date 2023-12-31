@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Squirrel.Sources
+namespace Velopack.Sources
 {
     /// <summary>
     /// A base class to provide some common functionality for classes that implement <see cref="IUpdateSource"/>.

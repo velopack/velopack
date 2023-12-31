@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 
-namespace Squirrel.Compression
+namespace Velopack.Compression
 {
     [ExcludeFromCodeCoverage]
     internal sealed class BZip2Stream : Stream

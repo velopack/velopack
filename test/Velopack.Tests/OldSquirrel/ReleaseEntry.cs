@@ -10,7 +10,7 @@ using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
 
-namespace Squirrel.Tests.OldSquirrel
+namespace Velopack.Tests.OldSquirrel
 {
     [DataContract]
     public class ReleaseEntry

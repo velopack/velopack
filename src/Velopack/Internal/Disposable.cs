@@ -2,7 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
-namespace Squirrel
+namespace Velopack
 {
     [ExcludeFromCodeCoverage]
     internal static class Disposable

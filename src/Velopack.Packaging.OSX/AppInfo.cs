@@ -1,4 +1,4 @@
-﻿namespace Squirrel.Packaging.OSX;
+﻿namespace Velopack.Packaging.OSX;
 
 internal class AppInfo
 {

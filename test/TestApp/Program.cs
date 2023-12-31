@@ -1,14 +1,14 @@
 ﻿#pragma warning disable CA1416 // Validate platform compatibility
 using System.Diagnostics;
 using System.Reflection.Metadata;
-using Squirrel;
-using Squirrel.Locators;
+using Velopack;
+using Velopack.Locators;
 
 try {
     bool shouldExit = false;
     bool shouldAutoUpdate = args.Any(a => a.Equals("--autoupdate", StringComparison.OrdinalIgnoreCase));
 
-    SquirrelApp.Build()
+    VelopackApp.Build()
         .SetAutoApplyOnStartup(shouldAutoUpdate)
         .WithFirstRun((v) => {
             debugFile("firstrun", v.ToString());
@@ -36,7 +36,7 @@ try {
     }
 
     if (args.Length == 1 && args[0] == "version") {
-        var locator = SquirrelLocator.GetDefault(new ConsoleLogger());
+        var locator = VelopackLocator.GetDefault(new ConsoleLogger());
         Console.WriteLine(locator.CurrentlyInstalledVersion?.ToString() ?? "unknown_version");
         return 0;
     }

@@ -5,7 +5,7 @@ using System;
 using System.Diagnostics;
 using System.Text;
 
-namespace Squirrel
+namespace Velopack
 {
     /// <summary>
     /// A Version class that also supports a single integer (major only)

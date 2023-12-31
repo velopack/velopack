@@ -6,7 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-namespace Squirrel.Compression
+namespace Velopack.Compression
 {
     [ExcludeFromCodeCoverage]
     [SupportedOSPlatform("windows")]

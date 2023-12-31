@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-namespace Squirrel.Sources
+namespace Velopack.Sources
 {
     /// <summary>
     /// Retrieves available updates from a local or network-attached disk. The directory

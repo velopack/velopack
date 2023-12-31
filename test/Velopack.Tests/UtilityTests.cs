@@ -4,16 +4,16 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using Squirrel;
-using Squirrel.Tests.TestHelpers;
+using Velopack;
+using Velopack.Tests.TestHelpers;
 using Xunit;
-using Squirrel.Windows;
+using Velopack.Windows;
 using System.Collections.Generic;
 using Xunit.Abstractions;
 using System.Threading.Tasks;
 using System.Runtime.Versioning;
 
-namespace Squirrel.Tests
+namespace Velopack.Tests
 {
     public class UtilityTests
     {
@@ -33,7 +33,7 @@ namespace Squirrel.Tests
         [InlineData("C:/AnApp/file/", "C:\\AnApp\\file")] 
         public void PathIsNormalized(string input, string expected)
         {
-            Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
+            Skip.IfNot(VelopackRuntimeInfo.IsWindows);
             var exp = Path.GetFullPath(expected);
             var normal = Utility.NormalizePath(input);
             Assert.Equal(exp, normal);
@@ -51,7 +51,7 @@ namespace Squirrel.Tests
         [InlineData("AnAppThree", "AnAppThree\\file.exe", true)]
         public void FileIsInDirectory(string directory, string file, bool isIn)
         {
-            Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
+            Skip.IfNot(VelopackRuntimeInfo.IsWindows);
             var fileInDir = Utility.IsFileInDirectory(file, directory);
             Assert.Equal(isIn, fileInDir);
         }
@@ -60,7 +60,7 @@ namespace Squirrel.Tests
         [SupportedOSPlatform("windows")]
         public void SetAppIdOnShortcutTest()
         {
-            Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
+            Skip.IfNot(VelopackRuntimeInfo.IsWindows);
             var sl = new ShellLink() {
                 Target = @"C:\Windows\Notepad.exe",
                 Description = "It's Notepad",

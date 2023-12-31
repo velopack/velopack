@@ -5,7 +5,7 @@ using System.Security;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
-namespace Squirrel.Packaging.OSX;
+namespace Velopack.Packaging.OSX;
 
 public class HelperExe : HelperFile
 {
@@ -248,8 +248,8 @@ public class HelperExe : HelperFile
     {
         Func<string, int, int> chmod;
 
-        if (SquirrelRuntimeInfo.IsOSX) chmod = osx_chmod;
-        else if (SquirrelRuntimeInfo.IsLinux) chmod = nix_chmod;
+        if (VelopackRuntimeInfo.IsOSX) chmod = osx_chmod;
+        else if (VelopackRuntimeInfo.IsLinux) chmod = nix_chmod;
         else return; // no-op on windows, all .exe files can be executed.
 
         var filePermissionOctal = Convert.ToInt32("777", 8);

@@ -1,10 +1,10 @@
 ﻿using System.Drawing;
 using System.Text;
 using Microsoft.Extensions.Logging;
-using Squirrel.NuGet;
+using Velopack.NuGet;
 using FileMode = System.IO.FileMode;
 
-namespace Squirrel.Packaging.Windows.Commands;
+namespace Velopack.Packaging.Windows.Commands;
 
 public class WindowsPackCommandRunner
 {

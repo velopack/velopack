@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-namespace Squirrel.NuGet
+namespace Velopack.NuGet
 {
     public class ZipPackage : NuspecManifest, IZipPackage
     {

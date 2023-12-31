@@ -1,9 +1,9 @@
 ﻿using System.Text;
-using Squirrel.Compression;
+using Velopack.Compression;
 using Microsoft.Extensions.Logging;
 using System.IO.MemoryMappedFiles;
 
-namespace Squirrel.Packaging;
+namespace Velopack.Packaging;
 
 public class DeltaPackageBuilder
 {

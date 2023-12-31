@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 
-namespace Squirrel.Packaging.Commands
+namespace Velopack.Packaging.Commands
 {
     public class DeltaGenCommandRunner : ICommand<DeltaGenOptions>
     {

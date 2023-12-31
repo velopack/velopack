@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using Octokit;
-using Squirrel.Sources;
+using Velopack.Sources;
 
-namespace Squirrel.Deployment;
+namespace Velopack.Deployment;
 
 public class GitHubOptions
 {

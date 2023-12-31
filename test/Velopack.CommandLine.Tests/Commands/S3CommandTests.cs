@@ -1,7 +1,7 @@
 ﻿using System.CommandLine;
-using Squirrel.Csq.Commands;
+using Velopack.Vpk.Commands;
 
-namespace Squirrel.CommandLine.Tests.Commands;
+namespace Velopack.CommandLine.Tests.Commands;
 
 public abstract class S3CommandTests<T> : BaseCommandTests<T>
     where T : S3BaseCommand, new()

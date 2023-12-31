@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Squirrel.Packaging;
+using Velopack.Packaging;
 
-namespace Squirrel.Csq.Commands
+namespace Velopack.Vpk.Commands
 {
     public class DeltaPatchCommand : BaseCommand
     {

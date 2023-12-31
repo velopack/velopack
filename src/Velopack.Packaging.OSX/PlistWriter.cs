@@ -2,7 +2,7 @@
 using System.Xml;
 using Microsoft.Extensions.Logging;
 
-namespace Squirrel.Packaging.OSX;
+namespace Velopack.Packaging.OSX;
 
 internal class PlistWriter
 {

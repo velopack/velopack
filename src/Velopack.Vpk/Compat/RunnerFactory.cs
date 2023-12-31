@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.Configuration;
-using Squirrel.Csq.Commands;
-using Squirrel.Csq.Updates;
+using Velopack.Vpk.Commands;
+using Velopack.Vpk.Updates;
 
-namespace Squirrel.Csq.Compat;
+namespace Velopack.Vpk.Compat;
 
 public class RunnerFactory
 {
@@ -44,7 +44,7 @@ public class RunnerFactory
         var version = new SquirrelVersionLocator(_logger).Search(solutionDir, CLOWD_PACKAGE_NAME);
 
         if (version.Major == 4) {
-            var myVer = SquirrelRuntimeInfo.SquirrelNugetVersion;
+            var myVer = VelopackRuntimeInfo.SquirrelNugetVersion;
             if (version != myVer) {
                 _logger.Warn($"Installed SDK is {version}, while csq is {myVer}, this is not recommended.");
             }

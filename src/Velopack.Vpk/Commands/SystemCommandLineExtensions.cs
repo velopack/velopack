@@ -1,10 +1,10 @@
 ﻿using System.Text.RegularExpressions;
 using NuGet.Common;
 using NuGet.Versioning;
-using Squirrel.NuGet;
-using Squirrel.Windows;
+using Velopack.NuGet;
+using Velopack.Windows;
 
-namespace Squirrel.Csq.Commands;
+namespace Velopack.Vpk.Commands;
 
 internal static class SystemCommandLineExtensions
 {

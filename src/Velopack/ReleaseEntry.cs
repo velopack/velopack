@@ -9,9 +9,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NuGet.Versioning;
-using Squirrel.NuGet;
+using Velopack.NuGet;
 
-namespace Squirrel
+namespace Velopack
 {
     /// <summary>
     /// Describes the requested release notes text format.

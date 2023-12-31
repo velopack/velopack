@@ -5,7 +5,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 
-namespace Squirrel.NuGet
+namespace Velopack.NuGet
 {
     public class PackageDependency
     {

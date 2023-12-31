@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
-using Squirrel.Csq.Commands;
+using Velopack.Vpk.Commands;
 
-namespace Squirrel.Csq.Compat;
+namespace Velopack.Vpk.Compat;
 
 public class V2CompatRunner : EmbeddedRunner
 {
@@ -17,7 +17,7 @@ public class V2CompatRunner : EmbeddedRunner
 
     public override async Task ExecutePackWindows(WindowsPackCommand command)
     {
-        if (!SquirrelRuntimeInfo.IsWindows || command.GetRuntimeOs() != RuntimeOs.Windows) {
+        if (!VelopackRuntimeInfo.IsWindows || command.GetRuntimeOs() != RuntimeOs.Windows) {
             throw new NotSupportedException("Squirrel v2.x is only supported on/for Windows.");
         }
 
@@ -48,7 +48,7 @@ public class V2CompatRunner : EmbeddedRunner
 
     public override async Task ExecuteReleasifyWindows(WindowsReleasifyCommand command)
     {
-        if (!SquirrelRuntimeInfo.IsWindows || command.GetRuntimeOs() != RuntimeOs.Windows) {
+        if (!VelopackRuntimeInfo.IsWindows || command.GetRuntimeOs() != RuntimeOs.Windows) {
             throw new NotSupportedException("Squirrel v2.x is only supported on/for Windows.");
         }
 

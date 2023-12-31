@@ -4,10 +4,10 @@ using System.Text;
 using System.Xml;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
-using Squirrel.Compression;
-using Squirrel.NuGet;
+using Velopack.Compression;
+using Velopack.NuGet;
 
-namespace Squirrel.Packaging;
+namespace Velopack.Packaging;
 
 public class ReleasePackageBuilder
 {

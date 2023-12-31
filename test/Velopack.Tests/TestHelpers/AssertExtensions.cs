@@ -4,7 +4,7 @@ using System.Globalization;
 using System.IO;
 using Xunit;
 
-namespace Squirrel.Tests.TestHelpers
+namespace Velopack.Tests.TestHelpers
 {
     public static class AssertExtensions
     {

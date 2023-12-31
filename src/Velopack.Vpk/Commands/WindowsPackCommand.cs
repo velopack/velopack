@@ -1,7 +1,7 @@
 ﻿
-using Squirrel.Packaging;
+using Velopack.Packaging;
 
-namespace Squirrel.Csq.Commands;
+namespace Velopack.Vpk.Commands;
 
 public class WindowsPackCommand : WindowsReleasifyCommand, INugetPackCommand
 {

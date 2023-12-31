@@ -1,7 +1,7 @@
 ﻿
-using Squirrel.Packaging;
+using Velopack.Packaging;
 
-namespace Squirrel.Csq.Commands;
+namespace Velopack.Vpk.Commands;
 
 public class WindowsSigningCommand : PlatformCommand
 {
@@ -24,7 +24,7 @@ public class WindowsSigningCommand : PlatformCommand
         AddOption<bool>((v) => SignSkipDll = v, "--signSkipDll")
             .SetDescription("Only signs EXE files, and skips signing DLL files.");
 
-        if (SquirrelRuntimeInfo.IsWindows) {
+        if (VelopackRuntimeInfo.IsWindows) {
             var signParams = AddOption<string>((v) => SignParameters = v, "--signParams", "-n")
                 .SetDescription("Sign files via signtool.exe using these parameters.")
                 .SetArgumentHelpName("PARAMS");

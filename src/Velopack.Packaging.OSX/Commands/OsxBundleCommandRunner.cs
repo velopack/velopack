@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 
-namespace Squirrel.Packaging.OSX.Commands;
+namespace Velopack.Packaging.OSX.Commands;
 
 public class OsxBundleCommandRunner
 {

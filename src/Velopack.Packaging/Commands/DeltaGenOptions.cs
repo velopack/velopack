@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Squirrel.Packaging.Commands
+namespace Velopack.Packaging.Commands
 {
     public class DeltaGenOptions
     {

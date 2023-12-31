@@ -8,47 +8,47 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.Versioning;
-using Squirrel.Locators;
+using Velopack.Locators;
 
-namespace Squirrel
+namespace Velopack
 {
     /// <summary>
-    /// A delegate type for handling Squirrel startup events
+    /// A delegate type for handling Velopack startup events
     /// </summary>
     /// <param name="version">The currently executing version of this application</param>
-    public delegate void SquirrelHook(SemanticVersion version);
+    public delegate void VelopackHook(SemanticVersion version);
 
     /// <summary>
-    /// SquirrelApp helps you to handle Squirrel app activation events correctly.
+    /// VelopackApp helps you to handle app activation events correctly.
     /// This should be used as early as possible in your application startup code.
     /// (eg. the beginning of Main() in Program.cs)
     /// </summary>
-    public sealed class SquirrelApp
+    public sealed class VelopackApp
     {
-        ISquirrelLocator _locator;
-        SquirrelHook _install;
-        SquirrelHook _update;
-        SquirrelHook _obsolete;
-        SquirrelHook _uninstall;
-        SquirrelHook _firstrun;
-        SquirrelHook _restarted;
+        IVelopackLocator _locator;
+        VelopackHook _install;
+        VelopackHook _update;
+        VelopackHook _obsolete;
+        VelopackHook _uninstall;
+        VelopackHook _firstrun;
+        VelopackHook _restarted;
         string[] _args;
         bool _autoApply = true;
 
-        private SquirrelApp()
+        private VelopackApp()
         {
         }
 
         /// <summary>
         /// Creates and returns a new Squirrel application builder.
         /// </summary>
-        public static SquirrelApp Build() => new SquirrelApp();
+        public static VelopackApp Build() => new VelopackApp();
 
         /// <summary>
         /// Override the command line arguments used to determine the Squirrel hook to run.
         /// If this is not set, the command line arguments passed to the application will be used.
         /// </summary>
-        public SquirrelApp SetArgs(string[] args)
+        public VelopackApp SetArgs(string[] args)
         {
             _args = args;
             return this;
@@ -57,16 +57,16 @@ namespace Squirrel
         /// <summary>
         /// Set whether to automatically apply downloaded updates on startup. This is ON by default.
         /// </summary>
-        public SquirrelApp SetAutoApplyOnStartup(bool autoApply)
+        public VelopackApp SetAutoApplyOnStartup(bool autoApply)
         {
             _autoApply = autoApply;
             return this;
         }
 
         /// <summary>
-        /// Override the default <see cref="ISquirrelLocator"/> used to search for application paths.
+        /// Override the default <see cref="IVelopackLocator"/> used to search for application paths.
         /// </summary>
-        public SquirrelApp SetLocator(ISquirrelLocator locator)
+        public VelopackApp SetLocator(IVelopackLocator locator)
         {
             _locator = locator;
             return this;
@@ -75,7 +75,7 @@ namespace Squirrel
         /// <summary>
         /// This hook is triggered when the application is started for the first time after installation.
         /// </summary>
-        public SquirrelApp WithFirstRun(SquirrelHook hook)
+        public VelopackApp WithFirstRun(VelopackHook hook)
         {
             _firstrun = hook;
             return this;
@@ -84,7 +84,7 @@ namespace Squirrel
         /// <summary>
         /// This hook is triggered when the application is restarted by Squirrel after installing updates.
         /// </summary>
-        public SquirrelApp WithRestarted(SquirrelHook hook)
+        public VelopackApp WithRestarted(VelopackHook hook)
         {
             _restarted = hook;
             return this;
@@ -97,7 +97,7 @@ namespace Squirrel
         /// Only supported on windows; On other operating systems, this will never be called.
         /// </summary>
         [SupportedOSPlatform("windows")]
-        public SquirrelApp WithAfterInstallFastCallback(SquirrelHook hook)
+        public VelopackApp WithAfterInstallFastCallback(VelopackHook hook)
         {
             _install = hook;
             return this;
@@ -110,7 +110,7 @@ namespace Squirrel
         /// Only supported on windows; On other operating systems, this will never be called.
         /// </summary>
         [SupportedOSPlatform("windows")]
-        public SquirrelApp WithAfterUpdateFastCallback(SquirrelHook hook)
+        public VelopackApp WithAfterUpdateFastCallback(VelopackHook hook)
         {
             _update = hook;
             return this;
@@ -123,7 +123,7 @@ namespace Squirrel
         /// Only supported on windows; On other operating systems, this will never be called.
         /// </summary>
         [SupportedOSPlatform("windows")]
-        public SquirrelApp WithBeforeUpdateFastCallback(SquirrelHook hook)
+        public VelopackApp WithBeforeUpdateFastCallback(VelopackHook hook)
         {
             _obsolete = hook;
             return this;
@@ -136,7 +136,7 @@ namespace Squirrel
         /// Only supported on windows; On other operating systems, this will never be called.
         /// </summary>
         [SupportedOSPlatform("windows")]
-        public SquirrelApp WithBeforeUninstallFastCallback(SquirrelHook hook)
+        public VelopackApp WithBeforeUninstallFastCallback(VelopackHook hook)
         {
             _uninstall = hook;
             return this;
@@ -150,11 +150,11 @@ namespace Squirrel
         {
             var args = _args ?? Environment.GetCommandLineArgs().Skip(1).ToArray();
             var log = logger ?? NullLogger.Instance;
-            var locator = _locator ?? SquirrelLocator.GetDefault(log);
+            var locator = _locator ?? VelopackLocator.GetDefault(log);
 
             // internal hook run by the Squirrel tooling to check everything is working
             if (args.Length >= 1 && args[0].Equals("--squirrel-version", StringComparison.OrdinalIgnoreCase)) {
-                Console.WriteLine(SquirrelRuntimeInfo.SquirrelNugetVersion);
+                Console.WriteLine(VelopackRuntimeInfo.SquirrelNugetVersion);
                 Exit(0);
                 return;
             }
@@ -162,7 +162,7 @@ namespace Squirrel
             log.Info("Starting Squirrel App (Run).");
 
             // first, we run any fast exit hooks
-            SquirrelHook defaultBlock = ((v) => { });
+            VelopackHook defaultBlock = ((v) => { });
             var fastExitlookup = new[] {
                 new { Key = "--squirrel-install", Value = _install ?? defaultBlock },
                 new { Key = "--squirrel-updated", Value = _update ?? defaultBlock },
@@ -236,7 +236,7 @@ namespace Squirrel
 
         private void Exit(int code)
         {
-            if (!SquirrelRuntimeInfo.InUnitTestRunner) {
+            if (!VelopackRuntimeInfo.InUnitTestRunner) {
                 Environment.Exit(code);
             }
         }

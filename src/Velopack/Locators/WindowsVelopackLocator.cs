@@ -4,15 +4,15 @@ using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
-using Squirrel.NuGet;
+using Velopack.NuGet;
 
-namespace Squirrel.Locators
+namespace Velopack.Locators
 {
     /// <summary>
     /// An implementation for Windows which uses the Squirrel default paths.
     /// </summary>
     [SupportedOSPlatform("windows")]
-    public class WindowsSquirrelLocator : SquirrelLocator
+    public class WindowsVelopackLocator : VelopackLocator
     {
         /// <inheritdoc />
         public override string AppId { get; }
@@ -32,18 +32,18 @@ namespace Squirrel.Locators
         /// <inheritdoc />
         public override string PackagesDir => CreateSubDirIfDoesNotExist(RootAppDir, "packages");
 
-        /// <inheritdoc cref="WindowsSquirrelLocator" />
-        public WindowsSquirrelLocator(ILogger logger) : this(SquirrelRuntimeInfo.EntryExePath, logger)
+        /// <inheritdoc cref="WindowsVelopackLocator" />
+        public WindowsVelopackLocator(ILogger logger) : this(VelopackRuntimeInfo.EntryExePath, logger)
         {
         }
 
         /// <summary>
         /// Internal use only. Auto detect app details from the specified EXE path.
         /// </summary>
-        internal WindowsSquirrelLocator(string ourExePath, ILogger logger)
+        internal WindowsVelopackLocator(string ourExePath, ILogger logger)
             : base(logger)
         {
-            if (!SquirrelRuntimeInfo.IsWindows)
+            if (!VelopackRuntimeInfo.IsWindows)
                 throw new NotSupportedException("Cannot instantiate WindowsLocator on a non-Windows system.");
 
             // We try various approaches here. Firstly, if Update.exe is in the parent directory,
@@ -58,7 +58,7 @@ namespace Squirrel.Locators
             var possibleUpdateExe = Path.GetFullPath(Path.Combine(myDirPath, "..\\Update.exe"));
             var ixCurrent = ourExePath.LastIndexOf("/current/", StringComparison.InvariantCultureIgnoreCase);
 
-            Log.Info("Initialising WindowsSquirrelLocator");
+            Log.Info($"Initialising {nameof(WindowsVelopackLocator)}");
 
             if (File.Exists(possibleUpdateExe)) {
                 Log.Info("Update.exe found in parent directory");

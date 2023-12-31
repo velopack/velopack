@@ -7,12 +7,12 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using Squirrel.Locators;
+using Velopack.Locators;
 
 // https://dev.to/emrahsungu/how-to-compare-two-files-using-net-really-really-fast-2pd9
 // https://github.com/SnowflakePowered/vcdiff
 
-namespace Squirrel.Compression
+namespace Velopack.Compression
 {
     internal class DeltaPackage
     {
@@ -121,7 +121,7 @@ namespace Squirrel.Compression
             } else if (relativeFilePath.EndsWith(".diff", StringComparison.InvariantCultureIgnoreCase)) {
                 _log.Trace($"Applying msdiff to {relativeFilePath}");
 
-                if (SquirrelRuntimeInfo.IsWindows) {
+                if (VelopackRuntimeInfo.IsWindows) {
                     MsDeltaCompression.ApplyDelta(inputFile, finalTarget, tempTargetFile);
                 } else {
                     throw new InvalidOperationException("msdiff is not supported on non-windows platforms.");

@@ -3,7 +3,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Squirrel.Tests
+namespace Velopack.Tests
 {
     public class FakeDownloader : Sources.IFileDownloader
     {

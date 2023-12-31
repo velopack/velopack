@@ -4,12 +4,12 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using NuGet.Versioning;
-using Squirrel.Tests.TestHelpers;
+using Velopack.Tests.TestHelpers;
 using Xunit;
-using OldReleaseEntry = Squirrel.Tests.OldSquirrel.ReleaseEntry;
-using OldSemanticVersion = Squirrel.Tests.OldSquirrel.SemanticVersion;
+using OldReleaseEntry = Velopack.Tests.OldSquirrel.ReleaseEntry;
+using OldSemanticVersion = Velopack.Tests.OldSquirrel.SemanticVersion;
 
-namespace Squirrel.Tests
+namespace Velopack.Tests
 {
     public class ReleaseEntryTests
     {

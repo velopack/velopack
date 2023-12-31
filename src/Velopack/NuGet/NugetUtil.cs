@@ -7,7 +7,7 @@ using System.Xml;
 using System.Xml.Linq;
 using NuGet.Versioning;
 
-namespace Squirrel.NuGet
+namespace Velopack.NuGet
 {
     internal static class NugetUtil
     {

@@ -10,9 +10,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Squirrel.NuGet;
+using Velopack.NuGet;
 
-namespace Squirrel
+namespace Velopack
 {
     internal static class Utility
     {
@@ -101,22 +101,22 @@ namespace Squirrel
 
         public static bool FullPathEquals(string path1, string path2)
         {
-            return NormalizePath(path1).Equals(NormalizePath(path2), SquirrelRuntimeInfo.PathStringComparison);
+            return NormalizePath(path1).Equals(NormalizePath(path2), VelopackRuntimeInfo.PathStringComparison);
         }
 
         public static bool PathPartEquals(string part1, string part2)
         {
-            return part1.Equals(part2, SquirrelRuntimeInfo.PathStringComparison);
+            return part1.Equals(part2, VelopackRuntimeInfo.PathStringComparison);
         }
 
         public static bool PathPartStartsWith(string part1, string startsWith)
         {
-            return part1.StartsWith(startsWith, SquirrelRuntimeInfo.PathStringComparison);
+            return part1.StartsWith(startsWith, VelopackRuntimeInfo.PathStringComparison);
         }
 
         public static bool PathPartEndsWith(string part1, string endsWith)
         {
-            return part1.EndsWith(endsWith, SquirrelRuntimeInfo.PathStringComparison);
+            return part1.EndsWith(endsWith, VelopackRuntimeInfo.PathStringComparison);
         }
 
         public static bool FileHasExtension(string filePath, string extension)
@@ -137,7 +137,7 @@ namespace Squirrel
         {
             var normalizedDir = NormalizePath(directory) + Path.DirectorySeparatorChar;
             var normalizedFile = NormalizePath(file);
-            return normalizedFile.StartsWith(normalizedDir, SquirrelRuntimeInfo.PathStringComparison);
+            return normalizedFile.StartsWith(normalizedDir, VelopackRuntimeInfo.PathStringComparison);
         }
 
         public static IEnumerable<FileInfo> GetAllFilesRecursively(this DirectoryInfo rootPath)
@@ -270,15 +270,15 @@ namespace Squirrel
         {
             string tempDir;
 
-            if (SquirrelRuntimeInfo.IsOSX) {
-                tempDir = "/tmp/clowd.squirrel";
-            } else if (SquirrelRuntimeInfo.IsWindows) {
-                tempDir = Path.Combine(Path.GetTempPath(), "Clowd.Squirrel");
+            if (VelopackRuntimeInfo.IsOSX) {
+                tempDir = "/tmp/velopack";
+            } else if (VelopackRuntimeInfo.IsWindows) {
+                tempDir = Path.Combine(Path.GetTempPath(), "Velopack");
             } else {
                 throw new NotSupportedException();
             }
 
-            if (Environment.GetEnvironmentVariable("CLOWD_SQUIRREL_TEMP") is var squirrlTmp
+            if (Environment.GetEnvironmentVariable("VELOPACK_TEMP") is var squirrlTmp
                 && !string.IsNullOrWhiteSpace(squirrlTmp))
                 tempDir = squirrlTmp;
 
@@ -409,7 +409,7 @@ namespace Squirrel
         private static void DeleteFsiVeryHard(FileSystemInfo fileSystemInfo, ILogger logger)
         {
             // don't try to delete the running process
-            if (FullPathEquals(fileSystemInfo.FullName, SquirrelRuntimeInfo.EntryExePath))
+            if (FullPathEquals(fileSystemInfo.FullName, VelopackRuntimeInfo.EntryExePath))
                 return;
 
             // try to remove "ReadOnly" attributes
@@ -481,7 +481,7 @@ namespace Squirrel
 
         public static string GetAppUserModelId(string packageId, string exeName)
         {
-            return String.Format("com.squirrel.{0}.{1}", packageId.Replace(" ", ""),
+            return String.Format("com.velopack.{0}.{1}", packageId.Replace(" ", ""),
                 exeName.Replace(".exe", "").Replace(" ", ""));
         }
 

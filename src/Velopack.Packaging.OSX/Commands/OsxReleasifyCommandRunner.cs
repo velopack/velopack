@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 
-namespace Squirrel.Packaging.OSX.Commands;
+namespace Velopack.Packaging.OSX.Commands;
 
 public class OsxReleasifyCommandRunner
 {
@@ -141,7 +141,7 @@ public class OsxReleasifyCommandRunner
 
         // create installer package, sign and notarize
         if (!options.NoPackage) {
-            if (SquirrelRuntimeInfo.IsOSX) {
+            if (VelopackRuntimeInfo.IsOSX) {
                 var pkgPath = Path.Combine(releaseDir.FullName, $"{packId}-Setup-[{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}].pkg");
 
                 Dictionary<string, string> pkgContent = new() {

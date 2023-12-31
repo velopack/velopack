@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging;
 using NuGet.Commands;
 
-namespace Squirrel.Packaging;
+namespace Velopack.Packaging;
 
 public interface INugetPackCommand
 {

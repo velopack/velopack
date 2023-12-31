@@ -6,7 +6,7 @@ using System.Dynamic;
 
 // Lovingly stolen from http://exposedobject.codeplex.com/
 
-namespace Squirrel.Tests.TestHelpers
+namespace Velopack.Tests.TestHelpers
 {
     internal class ExposedObjectHelper
     {

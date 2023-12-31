@@ -2,9 +2,9 @@
 using System.Net.Http;
 using System.Threading.Tasks;
 using Xunit;
-using Squirrel.Windows;
+using Velopack.Windows;
 
-namespace Squirrel.Tests
+namespace Velopack.Tests
 {
     public class RuntimeTests
     {

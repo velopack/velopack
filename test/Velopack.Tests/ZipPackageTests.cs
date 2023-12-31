@@ -6,12 +6,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NuGet.Versioning;
-using Squirrel.NuGet;
-using Squirrel.Tests.TestHelpers;
+using Velopack.NuGet;
+using Velopack.Tests.TestHelpers;
 using Xunit;
-using ZipPackage = Squirrel.NuGet.ZipPackage;
+using ZipPackage = Velopack.NuGet.ZipPackage;
 
-namespace Squirrel.Tests
+namespace Velopack.Tests
 {
     public class ZipPackageTests
     {

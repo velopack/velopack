@@ -1,7 +1,7 @@
 ﻿using System.Runtime.Versioning;
-using Squirrel.Csq.Commands;
+using Velopack.Vpk.Commands;
 
-namespace Squirrel.Csq.Compat;
+namespace Velopack.Vpk.Compat;
 
 public interface ICommandRunner
 {

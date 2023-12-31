@@ -4,12 +4,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml;
-using Squirrel;
-using Squirrel.NuGet;
-using Squirrel.Tests.TestHelpers;
+using Velopack;
+using Velopack.NuGet;
+using Velopack.Tests.TestHelpers;
 using Xunit;
 
-namespace Squirrel.Tests
+namespace Velopack.Tests
 {
     public class ContentTypeTests
     {

@@ -2,7 +2,7 @@
 using Microsoft.NET.HostModel;
 using Microsoft.NET.HostModel.AppHost;
 
-namespace Squirrel.Packaging.Windows;
+namespace Velopack.Packaging.Windows;
 
 public static class SetupBundle
 {

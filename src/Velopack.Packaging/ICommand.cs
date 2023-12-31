@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-namespace Squirrel.Packaging
+namespace Velopack.Packaging
 {
     internal interface ICommand<TOpt> where TOpt : class
     {

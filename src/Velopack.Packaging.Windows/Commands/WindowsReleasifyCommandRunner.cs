@@ -1,9 +1,9 @@
 ﻿using System.Text;
 using Microsoft.Extensions.Logging;
-using Squirrel.NuGet;
-using Squirrel.Windows;
+using Velopack.NuGet;
+using Velopack.Windows;
 
-namespace Squirrel.Packaging.Windows.Commands;
+namespace Velopack.Packaging.Windows.Commands;
 
 public class WindowsReleasifyCommandRunner
 {
@@ -61,7 +61,7 @@ public class WindowsReleasifyCommandRunner
         File.Copy(helper.UpdatePath, updatePath, true);
 
         // update icon for Update.exe if requested
-        if (setupIcon != null && SquirrelRuntimeInfo.IsWindows) {
+        if (setupIcon != null && VelopackRuntimeInfo.IsWindows) {
             helper.SetExeIcon(updatePath, setupIcon);
         } else if (setupIcon != null) {
             _logger.Warn("Unable to set icon for Update.exe (only supported on windows).");
@@ -150,7 +150,7 @@ public class WindowsReleasifyCommandRunner
         var targetSetupExe = Path.Combine(targetDir, $"{bundledzp.Id}-Setup-[{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}].exe");
         File.Copy(helper.SetupPath, targetSetupExe, true);
 
-        if (SquirrelRuntimeInfo.IsWindows) {
+        if (VelopackRuntimeInfo.IsWindows) {
             helper.SetPEVersionBlockFromPackageInfo(targetSetupExe, bundledzp, setupIcon);
         } else {
             _logger.Warn("Unable to set Setup.exe icon (only supported on windows)");
@@ -190,7 +190,7 @@ public class WindowsReleasifyCommandRunner
         }
 
         // signtool.exe does not work if we're not on windows.
-        if (!SquirrelRuntimeInfo.IsWindows) return;
+        if (!VelopackRuntimeInfo.IsWindows) return;
 
         if (!string.IsNullOrEmpty(signParams)) {
             _logger.Info($"Preparing to sign {filePaths.Length} files with embedded signtool.exe with parallelism of {signParallel}");

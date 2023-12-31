@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-namespace Squirrel.Sources
+namespace Velopack.Sources
 {
     /// <summary>
     /// Retrieves updates from a static file host or other web server. 
@@ -38,13 +38,13 @@ namespace Squirrel.Sources
             var uri = Utility.AppendPathToUri(BaseUri, GetReleasesFileName());
             var args = new Dictionary<string, string>();
 
-            if (SquirrelRuntimeInfo.SystemArch != RuntimeCpu.Unknown) {
-                args.Add("arch", SquirrelRuntimeInfo.SystemArch.ToString());
+            if (VelopackRuntimeInfo.SystemArch != RuntimeCpu.Unknown) {
+                args.Add("arch", VelopackRuntimeInfo.SystemArch.ToString());
             }
 
-            if (SquirrelRuntimeInfo.SystemOs != RuntimeOs.Unknown) {
-                args.Add("os", SquirrelRuntimeInfo.SystemOs.GetOsShortName());
-                args.Add("rid", SquirrelRuntimeInfo.SystemRid);
+            if (VelopackRuntimeInfo.SystemOs != RuntimeOs.Unknown) {
+                args.Add("os", VelopackRuntimeInfo.SystemOs.GetOsShortName());
+                args.Add("rid", VelopackRuntimeInfo.SystemRid);
             }
 
             if (latestLocalRelease != null) {

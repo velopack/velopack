@@ -7,7 +7,7 @@ using System.Reflection;
 
 // Lovingly stolen from http://exposedobject.codeplex.com/
 
-namespace Squirrel.Tests.TestHelpers
+namespace Velopack.Tests.TestHelpers
 {
     public class ExposedObject : DynamicObject
     {

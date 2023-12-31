@@ -7,15 +7,15 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 
-namespace Squirrel.Locators
+namespace Velopack.Locators
 {
     /// <summary>
-    /// Provides a mock / test implementation of <see cref="SquirrelLocator" />. This can be used to verify that
+    /// Provides a mock / test implementation of <see cref="VelopackLocator" />. This can be used to verify that
     /// your application is able to find and prepare updates from your chosen update source without actually
-    /// having an installed Squirrel application. This could be used in a CI/CD pipeline, or unit tests etc.
+    /// having an installed application. This could be used in a CI/CD pipeline, or unit tests etc.
     /// </summary>
     [ExcludeFromCodeCoverage]
-    public class TestSquirrelLocator : SquirrelLocator
+    public class TestVelopackLocator : VelopackLocator
     {
         /// <inheritdoc />
         public override string AppId {
@@ -83,14 +83,14 @@ namespace Squirrel.Locators
         private readonly string _root;
         private readonly string _appContent;
 
-        /// <inheritdoc cref="TestSquirrelLocator" />
-        public TestSquirrelLocator(string appId, string version, string packagesDir, ILogger logger = null)
+        /// <inheritdoc cref="TestVelopackLocator" />
+        public TestVelopackLocator(string appId, string version, string packagesDir, ILogger logger = null)
             : this(appId, version, packagesDir, null, null, null, logger)
         {
         }
 
-        /// <inheritdoc cref="TestSquirrelLocator" />
-        public TestSquirrelLocator(string appId, string version, string packagesDir, string appDir,
+        /// <inheritdoc cref="TestVelopackLocator" />
+        public TestVelopackLocator(string appId, string version, string packagesDir, string appDir,
             string rootDir, string updateExe, ILogger logger = null)
             : base(logger)
         {

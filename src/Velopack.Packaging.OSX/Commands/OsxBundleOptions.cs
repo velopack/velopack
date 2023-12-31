@@ -1,4 +1,4 @@
-﻿namespace Squirrel.Packaging.OSX.Commands;
+﻿namespace Velopack.Packaging.OSX.Commands;
 
 public class OsxBundleOptions
 {

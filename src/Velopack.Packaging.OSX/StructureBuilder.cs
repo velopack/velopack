@@ -1,6 +1,6 @@
 ﻿// https://github.com/egramtel/dotnet-bundle/blob/master/DotNet.Bundle/StructureBuilder.cs
 
-namespace Squirrel.Packaging.OSX;
+namespace Velopack.Packaging.OSX;
 
 public class StructureBuilder
 {

@@ -68,12 +68,12 @@ using System.Runtime.Serialization;
 using System.Text;
 
 #if !NET5_0_OR_GREATER
-using Squirrel.Json.Reflection;
+using Velopack.Json.Reflection;
 #endif
 
 #if NET5_0_OR_GREATER
 
-namespace Squirrel.Json
+namespace Velopack.Json
 {
     [ExcludeFromCodeCoverage]
     internal static class SimpleJson
@@ -90,7 +90,7 @@ namespace Squirrel.Json
 // ReSharper disable LoopCanBeConvertedToQuery
 // ReSharper disable RedundantExplicitArrayCreation
 // ReSharper disable SuggestUseVarKeywordEvident
-namespace Squirrel.Json
+namespace Velopack.Json
 {
     /// <summary>
     /// Represents the json array.
@@ -505,7 +505,7 @@ namespace Squirrel.Json
     }
 }
 
-namespace Squirrel.Json
+namespace Velopack.Json
 {
     /// <summary>
     /// This class encodes and decodes JSON strings.

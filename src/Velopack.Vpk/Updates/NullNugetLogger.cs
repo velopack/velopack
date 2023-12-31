@@ -2,7 +2,7 @@
 using NugetLogger = NuGet.Common.ILogger;
 using NugetMessage = NuGet.Common.ILogMessage;
 
-namespace Squirrel.Csq.Updates;
+namespace Velopack.Vpk.Updates;
 
 class NullNugetLogger : NugetLogger
 {

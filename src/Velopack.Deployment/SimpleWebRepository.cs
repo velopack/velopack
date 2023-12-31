@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
 using Microsoft.Extensions.Logging;
 
-namespace Squirrel.Deployment;
+namespace Velopack.Deployment;
 
 public class HttpDownloadOptions
 {

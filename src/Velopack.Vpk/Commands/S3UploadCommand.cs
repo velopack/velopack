@@ -1,5 +1,5 @@
 ﻿
-namespace Squirrel.Csq.Commands;
+namespace Velopack.Vpk.Commands;
 
 public class S3UploadCommand : S3BaseCommand
 {

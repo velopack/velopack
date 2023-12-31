@@ -6,11 +6,11 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using NuGet.Versioning;
-using Squirrel.Locators;
-using Squirrel.Sources;
-using Squirrel.Tests.TestHelpers;
+using Velopack.Locators;
+using Velopack.Sources;
+using Velopack.Tests.TestHelpers;
 
-namespace Squirrel.Tests
+namespace Velopack.Tests
 {
     public class UpdateManagerTests
     {
@@ -30,7 +30,7 @@ namespace Squirrel.Tests
 3a2eadd15dd984e4559f2b4d790ec8badaeb6a39  MyCoolApp-1.1.0.nupkg  1040561
 94689fede03fed7ab59c24337673a27837f0c3ec  MyCoolApp-1.0.0.nupkg  1004502
 """);
-            var locator = new TestSquirrelLocator("MyCoolApp", "1.0.0", tempPath, logger);
+            var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
             var um = new UpdateManager(tempPath, null, logger, locator);
             var info = um.CheckForUpdates();
             Assert.NotNull(info);
@@ -47,7 +47,7 @@ namespace Squirrel.Tests
 3a2eadd15dd984e4559f2b4d790ec8badaeb6a39  MyCoolApp-1.1.0.nupkg  1040561
 94689fede03fed7ab59c24337673a27837f0c3ec  MyCoolApp-1.0.0.nupkg  1004502
 """);
-            var locator = new TestSquirrelLocator("MyCoolApp", "1.0.0", tempPath, logger);
+            var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
             var um = new UpdateManager(tempPath, "osx-x64", logger, locator);
             var info = um.CheckForUpdates();
             Assert.NotNull(info);
@@ -65,7 +65,7 @@ namespace Squirrel.Tests
 94689fede03fed7ab59c24337673a27837f0c3ec  MyCoolApp-1.0.0.nupkg  1004502
 """;
             var downloader = new FakeDownloader() { MockedResponseBytes = Encoding.UTF8.GetBytes(releases) };
-            var locator = new TestSquirrelLocator("MyCoolApp", "1.0.0", tempPath, logger);
+            var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
             var um = new UpdateManager(new SimpleWebSource("http://any.com", "hello", downloader, logger), logger, locator);
             var info = um.CheckForUpdates();
             Assert.NotNull(info);
@@ -86,7 +86,7 @@ namespace Squirrel.Tests
 14db31d2647c6d2284882a2e101924a9c409ee67  MyCoolApp-1.1.0-delta.nupkg  80396
 94689fede03fed7ab59c24337673a27837f0c3ec  MyCoolApp-1.0.0.nupkg  1004502
 """);
-            var locator = new TestSquirrelLocator("MyCoolApp", "1.0.0", tempPath, logger);
+            var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
             var um = new UpdateManager(tempPath, null, logger, locator);
             var info = um.CheckForUpdates();
             Assert.NotNull(info);
@@ -100,7 +100,7 @@ namespace Squirrel.Tests
             // https://github.com/caesay/SquirrelCustomLauncherTestApp
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var tempPath);
-            var locator = new TestSquirrelLocator("MyCoolApp", "1.0.0", tempPath, logger);
+            var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
             var source = new GithubSource("https://github.com/caesay/SquirrelCustomLauncherTestApp", null, false);
             var um = new UpdateManager(source, logger, locator);
             var info = um.CheckForUpdates();
@@ -115,7 +115,7 @@ namespace Squirrel.Tests
             // https://github.com/caesay/SquirrelCustomLauncherTestApp
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var tempPath);
-            var locator = new TestSquirrelLocator("MyCoolApp", "1.0.0", tempPath, logger);
+            var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
             var source = new GithubSource("https://github.com/caesay/SquirrelCustomLauncherTestApp", null, false, "hello");
             var um = new UpdateManager(source, logger, locator);
             Assert.Throws<ArgumentException>(() => um.CheckForUpdates());
@@ -130,7 +130,7 @@ namespace Squirrel.Tests
 3a2eadd15dd984e4559f2b4d790ec8badaeb6a39  MyCoolApp-1.1.0.nupkg  1040561
 94689fede03fed7ab59c24337673a27837f0c3ec  MyCoolApp-1.0.0.nupkg  1004502
 """);
-            var locator = new TestSquirrelLocator("MyCoolApp", "1.1.0", tempPath, logger);
+            var locator = new TestVelopackLocator("MyCoolApp", "1.1.0", tempPath, logger);
             var um = new UpdateManager(tempPath, null, logger, locator);
             var info = um.CheckForUpdates();
             Assert.Null(info);
@@ -145,7 +145,7 @@ namespace Squirrel.Tests
 3a2eadd15dd984e4559f2b4d790ec8badaeb6a39  MyCoolApp-1.1.0.nupkg  1040561
 94689fede03fed7ab59c24337673a27837f0c3ec  MyCoolApp-1.0.0.nupkg  1004502
 """);
-            var locator = new TestSquirrelLocator("MyCoolApp", "1.2.0", tempPath, logger);
+            var locator = new TestVelopackLocator("MyCoolApp", "1.2.0", tempPath, logger);
             var um = new UpdateManager(tempPath, null, logger, locator);
             var info = um.CheckForUpdates();
             Assert.Null(info);
@@ -160,7 +160,7 @@ namespace Squirrel.Tests
             using var _1 = Utility.GetTempDirectory(out var packagesDir);
             var repo = new FakeFixtureRepository(id, false);
             var source = new SimpleWebSource("http://any.com", null, repo, logger);
-            var locator = new TestSquirrelLocator(id, "1.0.0", packagesDir, logger);
+            var locator = new TestVelopackLocator(id, "1.0.0", packagesDir, logger);
             var um = new UpdateManager(source, logger, locator);
 
             var info = um.CheckForUpdates();
@@ -190,7 +190,7 @@ namespace Squirrel.Tests
             var basePkgPath = Path.Combine(packagesDir, basePkg.OriginalFilename);
             File.Copy(basePkgFixturePath, basePkgPath);
 
-            var locator = new TestSquirrelLocator(id, fromVersion,
+            var locator = new TestVelopackLocator(id, fromVersion,
                 packagesDir, null, null, PathHelper.GetRustAsset("update.exe"), logger);
             var um = new UpdateManager(source, logger, locator);
 

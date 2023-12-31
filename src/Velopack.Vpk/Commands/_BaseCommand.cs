@@ -1,4 +1,4 @@
-﻿namespace Squirrel.Csq.Commands;
+﻿namespace Velopack.Vpk.Commands;
 
 public class BaseCommand : CliCommand
 {

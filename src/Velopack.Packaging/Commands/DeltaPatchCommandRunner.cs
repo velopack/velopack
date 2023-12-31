@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Squirrel.Compression;
+using Velopack.Compression;
 
-namespace Squirrel.Packaging.Commands
+namespace Velopack.Packaging.Commands
 {
     public class DeltaPatchCommandRunner : ICommand<DeltaPatchOptions>
     {
@@ -25,9 +25,9 @@ namespace Squirrel.Packaging.Commands
             var helper = new HelperFile(logger);
 
             string updateExe;
-            if (SquirrelRuntimeInfo.IsWindows)
+            if (VelopackRuntimeInfo.IsWindows)
                 updateExe = helper.UpdatePath;
-            else if (SquirrelRuntimeInfo.IsOSX)
+            else if (VelopackRuntimeInfo.IsOSX)
                 updateExe = helper.UpdateMacPath;
             else
                 throw new NotSupportedException("This platform is not supported.");

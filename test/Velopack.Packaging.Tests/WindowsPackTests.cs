@@ -10,11 +10,11 @@ using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using NuGet.Packaging;
-using Squirrel.Compression;
-using Squirrel.Packaging;
-using Squirrel.Packaging.Windows.Commands;
+using Velopack.Compression;
+using Velopack.Packaging;
+using Velopack.Packaging.Windows.Commands;
 
-namespace Squirrel.Packaging.Tests;
+namespace Velopack.Packaging.Tests;
 
 [SupportedOSPlatform("windows")]
 public class WindowsPackTests
@@ -29,7 +29,7 @@ public class WindowsPackTests
     [SkippableFact]
     public void PackBuildValidPackageMostOptions()
     {
-        Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
+        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
 
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
 
@@ -94,7 +94,7 @@ public class WindowsPackTests
     [SkippableFact]
     public void PackBuildMultipleChannels()
     {
-        Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
+        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
 
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
 
@@ -159,7 +159,7 @@ public class WindowsPackTests
     [SkippableFact]
     public void PackBuildRefuseChannelMultipleRids()
     {
-        Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
+        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
 
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
 
@@ -197,7 +197,7 @@ public class WindowsPackTests
     [SkippableFact]
     public void PackBuildsPackageWhichIsInstallable()
     {
-        Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
+        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
 
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
 
@@ -269,7 +269,7 @@ public class WindowsPackTests
     [SkippableFact]
     public void TestAppAutoUpdatesWhenLocalIsAvailable()
     {
-        Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
+        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         using var _1 = Utility.GetTempDirectory(out var releaseDir);
         using var _2 = Utility.GetTempDirectory(out var installDir);
@@ -304,7 +304,7 @@ public class WindowsPackTests
     [SkippableFact]
     public void TestAllApplicationHooks()
     {
-        Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
+        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         using var _1 = Utility.GetTempDirectory(out var releaseDir);
         using var _2 = Utility.GetTempDirectory(out var installDir);
@@ -353,7 +353,7 @@ public class WindowsPackTests
     [SkippableFact]
     public void TestPackedAppCanDeltaUpdateToLatest()
     {
-        Skip.IfNot(SquirrelRuntimeInfo.IsWindows);
+        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         using var _1 = Utility.GetTempDirectory(out var releaseDir);
         using var _2 = Utility.GetTempDirectory(out var installDir);

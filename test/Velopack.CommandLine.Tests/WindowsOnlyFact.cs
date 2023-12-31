@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace Squirrel.CommandLine.Tests;
+namespace Velopack.CommandLine.Tests;
 
 public class WindowsOnlyFactAttribute : FactAttribute
 {

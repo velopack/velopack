@@ -1,11 +1,11 @@
 ﻿using System.Runtime.Versioning;
-using Squirrel.Csq.Commands;
-using Squirrel.Deployment;
-using Squirrel.Packaging.Commands;
-using Squirrel.Packaging.OSX.Commands;
-using Squirrel.Packaging.Windows.Commands;
+using Velopack.Vpk.Commands;
+using Velopack.Deployment;
+using Velopack.Packaging.Commands;
+using Velopack.Packaging.OSX.Commands;
+using Velopack.Packaging.Windows.Commands;
 
-namespace Squirrel.Csq.Compat;
+namespace Velopack.Vpk.Compat;
 
 public class EmbeddedRunner : ICommandRunner
 {

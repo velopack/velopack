@@ -1,7 +1,7 @@
 ﻿using System.Threading;
 using Xunit.Sdk;
 
-namespace Squirrel.CommandLine.Tests;
+namespace Velopack.CommandLine.Tests;
 
 public abstract class TempFileTestBase : IDisposable
 {

@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
-using Squirrel.Deployment;
+using Velopack.Deployment;
 
-namespace Squirrel.Csq.Commands;
+namespace Velopack.Vpk.Commands;
 
 public class GitHubUploadCommand : GitHubBaseCommand
 {

@@ -2,7 +2,7 @@
 using Microsoft.Build.Construction;
 using NuGet.Versioning;
 
-namespace Squirrel.Csq.Compat;
+namespace Velopack.Vpk.Compat;
 
 public class SquirrelVersionLocator
 {

@@ -116,7 +116,7 @@ using System.Text.RegularExpressions;
 using System.Xml;
 
 // ASCIIPropertyListParser.cs
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     /// <summary>
     ///     <para>
@@ -900,7 +900,7 @@ namespace Squirrel.Packaging.OSX
 }
 
 // BinaryPropertyListParser.cs
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     /// <summary>
     ///     <para>
@@ -1467,7 +1467,7 @@ namespace Squirrel.Packaging.OSX
 }
 
 // BinaryPropertyListWriter.AddObjectEqualityComparer.cs
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     internal partial class BinaryPropertyListWriter
     {
@@ -1504,7 +1504,7 @@ namespace Squirrel.Packaging.OSX
 }
 
 // BinaryPropertyListWriter.cs
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     /// <summary>
     ///     <para>A BinaryPropertyListWriter is a helper class for writing out binary property list files.</para>
@@ -1899,7 +1899,7 @@ namespace Squirrel.Packaging.OSX
 }
 
 // BinaryPropertyListWriter.GetObjectEqualityComparer.cs
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     internal partial class BinaryPropertyListWriter
     {
@@ -1938,7 +1938,7 @@ namespace Squirrel.Packaging.OSX
 }
 
 // NSArray.cs
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     /// <summary>Represents an Array.</summary>
     /// @author Daniel Dreibrodt
@@ -2065,15 +2065,15 @@ namespace Squirrel.Packaging.OSX
 
         /// <summary>
         ///     Determines whether the specified <see cref="System.Object" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSArray" />.
+        ///     <see cref="Velopack.PropertyList.NSArray" />.
         /// </summary>
         /// <param name="obj">
         ///     The <see cref="System.Object" /> to compare with the current
-        ///     <see cref="Squirrel.PropertyList.NSArray" />.
+        ///     <see cref="Velopack.PropertyList.NSArray" />.
         /// </param>
         /// <returns>
         ///     <c>true</c> if the specified <see cref="System.Object" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSArray" />; otherwise, <c>false</c>.
+        ///     <see cref="Velopack.PropertyList.NSArray" />; otherwise, <c>false</c>.
         /// </returns>
         public override bool Equals(object obj)
         {
@@ -2088,7 +2088,7 @@ namespace Squirrel.Packaging.OSX
             return false;
         }
 
-        /// <summary>Serves as a hash function for a <see cref="Squirrel.PropertyList.NSArray" /> object.</summary>
+        /// <summary>Serves as a hash function for a <see cref="Velopack.PropertyList.NSArray" /> object.</summary>
         /// <returns>
         ///     A hash code for this instance that is suitable for use in hashing algorithms and data structures such as a
         ///     hash table.
@@ -2244,16 +2244,16 @@ namespace Squirrel.Packaging.OSX
         }
 
         /// <summary>
-        ///     Determines whether the specified <see cref="Squirrel.PropertyList.NSObject" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSArray" />.
+        ///     Determines whether the specified <see cref="Velopack.PropertyList.NSObject" /> is equal to the current
+        ///     <see cref="Velopack.PropertyList.NSArray" />.
         /// </summary>
         /// <param name="obj">
-        ///     The <see cref="Squirrel.PropertyList.NSObject" /> to compare with the current
-        ///     <see cref="Squirrel.PropertyList.NSArray" />.
+        ///     The <see cref="Velopack.PropertyList.NSObject" /> to compare with the current
+        ///     <see cref="Velopack.PropertyList.NSArray" />.
         /// </param>
         /// <returns>
-        ///     <c>true</c> if the specified <see cref="Squirrel.PropertyList.NSObject" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSArray" />; otherwise, <c>false</c>.
+        ///     <c>true</c> if the specified <see cref="Velopack.PropertyList.NSObject" /> is equal to the current
+        ///     <see cref="Velopack.PropertyList.NSArray" />; otherwise, <c>false</c>.
         /// </returns>
         public override bool Equals(NSObject obj)
         {
@@ -2273,7 +2273,7 @@ namespace Squirrel.Packaging.OSX
 }
 
 // NSArray.IList.cs
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     partial class NSArray : IList<NSObject>
     {
@@ -2331,7 +2331,7 @@ namespace Squirrel.Packaging.OSX
 }
 
 // NSData.cs
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     /// <summary>NSData objects are wrappers for byte buffers</summary>
     /// @author Daniel Dreibrodt
@@ -2390,20 +2390,20 @@ namespace Squirrel.Packaging.OSX
 
         /// <summary>
         ///     Determines whether the specified <see cref="System.Object" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSData" />.
+        ///     <see cref="Velopack.PropertyList.NSData" />.
         /// </summary>
         /// <param name="obj">
         ///     The <see cref="System.Object" /> to compare with the current
-        ///     <see cref="Squirrel.PropertyList.NSData" />.
+        ///     <see cref="Velopack.PropertyList.NSData" />.
         /// </param>
         /// <returns>
         ///     <c>true</c> if the specified <see cref="System.Object" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSData" />; otherwise, <c>false</c>.
+        ///     <see cref="Velopack.PropertyList.NSData" />; otherwise, <c>false</c>.
         /// </returns>
         public override bool Equals(object obj) =>
             obj.GetType().Equals(GetType()) && ArrayEquals(((NSData)obj).Bytes, Bytes);
 
-        /// <summary>Serves as a hash function for a <see cref="Squirrel.PropertyList.NSData" /> object.</summary>
+        /// <summary>Serves as a hash function for a <see cref="Velopack.PropertyList.NSData" /> object.</summary>
         /// <returns>
         ///     A hash code for this instance that is suitable for use in hashing algorithms and data structures such as a
         ///     hash table.
@@ -2468,16 +2468,16 @@ namespace Squirrel.Packaging.OSX
         internal override void ToASCIIGnuStep(StringBuilder ascii, int level) => ToASCII(ascii, level);
 
         /// <summary>
-        ///     Determines whether the specified <see cref="Squirrel.PropertyList.NSObject" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSData" />.
+        ///     Determines whether the specified <see cref="Velopack.PropertyList.NSObject" /> is equal to the current
+        ///     <see cref="Velopack.PropertyList.NSData" />.
         /// </summary>
         /// <param name="obj">
-        ///     The <see cref="Squirrel.PropertyList.NSObject" /> to compare with the current
-        ///     <see cref="Squirrel.PropertyList.NSData" />.
+        ///     The <see cref="Velopack.PropertyList.NSObject" /> to compare with the current
+        ///     <see cref="Velopack.PropertyList.NSData" />.
         /// </param>
         /// <returns>
-        ///     <c>true</c> if the specified <see cref="Squirrel.PropertyList.NSObject" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSData" />; otherwise, <c>false</c>.
+        ///     <c>true</c> if the specified <see cref="Velopack.PropertyList.NSObject" /> is equal to the current
+        ///     <see cref="Velopack.PropertyList.NSData" />; otherwise, <c>false</c>.
         /// </returns>
         public override bool Equals(NSObject obj) => obj is NSData data && ArrayEquals(Bytes, data.Bytes);
 
@@ -2488,7 +2488,7 @@ namespace Squirrel.Packaging.OSX
 }
 
 // NSDate.cs
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     /// <summary>Represents a date</summary>
     /// @author Daniel Dreibrodt
@@ -2556,19 +2556,19 @@ namespace Squirrel.Packaging.OSX
 
         /// <summary>
         ///     Determines whether the specified <see cref="System.Object" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSDate" />.
+        ///     <see cref="Velopack.PropertyList.NSDate" />.
         /// </summary>
         /// <param name="obj">
         ///     The <see cref="System.Object" /> to compare with the current
-        ///     <see cref="Squirrel.PropertyList.NSDate" />.
+        ///     <see cref="Velopack.PropertyList.NSDate" />.
         /// </param>
         /// <returns>
         ///     <c>true</c> if the specified <see cref="System.Object" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSDate" />; otherwise, <c>false</c>.
+        ///     <see cref="Velopack.PropertyList.NSDate" />; otherwise, <c>false</c>.
         /// </returns>
         public override bool Equals(object obj) => obj.GetType().Equals(GetType()) && Date.Equals(((NSDate)obj).Date);
 
-        /// <summary>Serves as a hash function for a <see cref="Squirrel.PropertyList.NSDate" /> object.</summary>
+        /// <summary>Serves as a hash function for a <see cref="Velopack.PropertyList.NSDate" /> object.</summary>
         /// <returns>
         ///     A hash code for this instance that is suitable for use in hashing algorithms and data structures such as a
         ///     hash table.
@@ -2610,16 +2610,16 @@ namespace Squirrel.Packaging.OSX
         }
 
         /// <summary>
-        ///     Determines whether the specified <see cref="Squirrel.PropertyList.NSObject" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSDate" />.
+        ///     Determines whether the specified <see cref="Velopack.PropertyList.NSObject" /> is equal to the current
+        ///     <see cref="Velopack.PropertyList.NSDate" />.
         /// </summary>
         /// <param name="obj">
-        ///     The <see cref="Squirrel.PropertyList.NSObject" /> to compare with the current
-        ///     <see cref="Squirrel.PropertyList.NSDate" />.
+        ///     The <see cref="Velopack.PropertyList.NSObject" /> to compare with the current
+        ///     <see cref="Velopack.PropertyList.NSDate" />.
         /// </param>
         /// <returns>
-        ///     <c>true</c> if the specified <see cref="Squirrel.PropertyList.NSObject" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSDate" />; otherwise, <c>false</c>.
+        ///     <c>true</c> if the specified <see cref="Velopack.PropertyList.NSObject" /> is equal to the current
+        ///     <see cref="Velopack.PropertyList.NSDate" />; otherwise, <c>false</c>.
         /// </returns>
         public override bool Equals(NSObject obj)
         {
@@ -2638,7 +2638,7 @@ namespace Squirrel.Packaging.OSX
 }
 
 // NSDictionary.cs
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     /// <summary>
     ///     <para>
@@ -2848,16 +2848,16 @@ namespace Squirrel.Packaging.OSX
         }
 
         /// <summary>
-        ///     Determines whether the specified <see cref="Squirrel.PropertyList.NSObject" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSDictionary" />.
+        ///     Determines whether the specified <see cref="Velopack.PropertyList.NSObject" /> is equal to the current
+        ///     <see cref="Velopack.PropertyList.NSDictionary" />.
         /// </summary>
         /// <param name="obj">
-        ///     The <see cref="Squirrel.PropertyList.NSObject" /> to compare with the current
-        ///     <see cref="Squirrel.PropertyList.NSDictionary" />.
+        ///     The <see cref="Velopack.PropertyList.NSObject" /> to compare with the current
+        ///     <see cref="Velopack.PropertyList.NSDictionary" />.
         /// </param>
         /// <returns>
-        ///     <c>true</c> if the specified <see cref="Squirrel.PropertyList.NSObject" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSDictionary" />; otherwise, <c>false</c>.
+        ///     <c>true</c> if the specified <see cref="Velopack.PropertyList.NSObject" /> is equal to the current
+        ///     <see cref="Velopack.PropertyList.NSDictionary" />; otherwise, <c>false</c>.
         /// </returns>
         public override bool Equals(NSObject obj)
         {
@@ -2881,7 +2881,7 @@ namespace Squirrel.Packaging.OSX
             return true;
         }
 
-        /// <summary>Serves as a hash function for a <see cref="Squirrel.PropertyList.NSDictionary" /> object.</summary>
+        /// <summary>Serves as a hash function for a <see cref="Velopack.PropertyList.NSDictionary" /> object.</summary>
         /// <returns>
         ///     A hash code for this instance that is suitable for use in hashing algorithms and data structures such as a
         ///     hash table.
@@ -3083,7 +3083,7 @@ namespace Squirrel.Packaging.OSX
         /// <param name="value">Where to store the value.</param>
         public bool TryGetValue(string key, out NSObject value) => dict.TryGetValue(key, out value);
 
-        /// <summary>Gets or sets the <see cref="Squirrel.PropertyList.NSObject" /> at the specified index.</summary>
+        /// <summary>Gets or sets the <see cref="Velopack.PropertyList.NSObject" /> at the specified index.</summary>
         /// <param name="index">Index.</param>
         public NSObject this[string index]
         {
@@ -3164,7 +3164,7 @@ namespace Squirrel.Packaging.OSX
 }
 
 // NSNumber.cs
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     /// <summary>A number whose value is either an integer, a real number or bool.</summary>
     /// @author Daniel Dreibrodt
@@ -3329,12 +3329,12 @@ namespace Squirrel.Packaging.OSX
             type        = BOOLEAN;
         }
 
-        /// <summary>Compares the current <see cref="Squirrel.PropertyList.NSNumber" /> to the specified object.</summary>
+        /// <summary>Compares the current <see cref="Velopack.PropertyList.NSNumber" /> to the specified object.</summary>
         /// <returns>
-        ///     0 if the numbers are equal, 1 if the current <see cref="Squirrel.PropertyList.NSNumber" /> is greater than the
+        ///     0 if the numbers are equal, 1 if the current <see cref="Velopack.PropertyList.NSNumber" /> is greater than the
         ///     argument and -1 if it is less, or the argument is not a number.
         /// </returns>
-        /// <param name="o">Object to compare to the current <see cref="Squirrel.PropertyList.NSNumber" />.</param>
+        /// <param name="o">Object to compare to the current <see cref="Velopack.PropertyList.NSNumber" />.</param>
         public int CompareTo(object o)
         {
             double x = ToDouble();
@@ -3426,7 +3426,7 @@ namespace Squirrel.Packaging.OSX
                    boolValue == number.boolValue;
         }
 
-        /// <summary>Serves as a hash function for a <see cref="Squirrel.PropertyList.NSNumber" /> object.</summary>
+        /// <summary>Serves as a hash function for a <see cref="Velopack.PropertyList.NSNumber" /> object.</summary>
         /// <returns>
         ///     A hash code for this instance that is suitable for use in hashing algorithms and data structures such as a
         ///     hash table.
@@ -3446,9 +3446,9 @@ namespace Squirrel.Packaging.OSX
 
         /// <summary>
         ///     Returns a <see cref="System.String" /> that represents the current
-        ///     <see cref="Squirrel.PropertyList.NSNumber" />.
+        ///     <see cref="Velopack.PropertyList.NSNumber" />.
         /// </summary>
-        /// <returns>A <see cref="System.String" /> that represents the current <see cref="Squirrel.PropertyList.NSNumber" />.</returns>
+        /// <returns>A <see cref="System.String" /> that represents the current <see cref="Velopack.PropertyList.NSNumber" />.</returns>
         public override string ToString() => type switch
         {
             INTEGER => ToLong().ToString(),
@@ -3607,16 +3607,16 @@ namespace Squirrel.Packaging.OSX
         };
 
         /// <summary>
-        ///     Determines whether the specified <see cref="Squirrel.PropertyList.NSObject" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSNumber" />.
+        ///     Determines whether the specified <see cref="Velopack.PropertyList.NSObject" /> is equal to the current
+        ///     <see cref="Velopack.PropertyList.NSNumber" />.
         /// </summary>
         /// <param name="obj">
-        ///     The <see cref="Squirrel.PropertyList.NSObject" /> to compare with the current
-        ///     <see cref="Squirrel.PropertyList.NSNumber" />.
+        ///     The <see cref="Velopack.PropertyList.NSObject" /> to compare with the current
+        ///     <see cref="Velopack.PropertyList.NSNumber" />.
         /// </param>
         /// <returns>
-        ///     <c>true</c> if the specified <see cref="Squirrel.PropertyList.NSObject" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSNumber" />; otherwise, <c>false</c>.
+        ///     <c>true</c> if the specified <see cref="Velopack.PropertyList.NSObject" /> is equal to the current
+        ///     <see cref="Velopack.PropertyList.NSNumber" />; otherwise, <c>false</c>.
         /// </returns>
         public override bool Equals(NSObject obj)
         {
@@ -3682,7 +3682,7 @@ namespace Squirrel.Packaging.OSX
 }
 
 // NSObject.cs
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     /// <summary>
     ///     <para>Abstract interface for any object contained in a property list.</para>
@@ -4087,19 +4087,19 @@ namespace Squirrel.Packaging.OSX
 
         /// <summary>Determines if the specific NSObject is the same as the NSObject overriding this method.</summary>
         /// <param name="obj">
-        ///     The <see cref="Squirrel.PropertyList.NSObject" /> to compare with the current
-        ///     <see cref="Squirrel.PropertyList.NSObject" />.
+        ///     The <see cref="Velopack.PropertyList.NSObject" /> to compare with the current
+        ///     <see cref="Velopack.PropertyList.NSObject" />.
         /// </param>
         /// <returns>
-        ///     <c>true</c> if the specified <see cref="Squirrel.PropertyList.NSObject" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSObject" />; otherwise, <c>false</c>.
+        ///     <c>true</c> if the specified <see cref="Velopack.PropertyList.NSObject" /> is equal to the current
+        ///     <see cref="Velopack.PropertyList.NSObject" />; otherwise, <c>false</c>.
         /// </returns>
         public abstract bool Equals(NSObject obj);
     }
 }
 
 // NSSet.cs
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     /// <summary>
     ///     <para>A set is an interface to an unordered collection of objects.</para>
@@ -4260,7 +4260,7 @@ namespace Squirrel.Packaging.OSX
         /// <returns>A Set object.</returns>
         internal List<NSObject> GetSet() => set;
 
-        /// <summary>Serves as a hash function for a <see cref="Squirrel.PropertyList.NSSet" /> object.</summary>
+        /// <summary>Serves as a hash function for a <see cref="Velopack.PropertyList.NSSet" /> object.</summary>
         /// <returns>
         ///     A hash code for this instance that is suitable for use in hashing algorithms and data structures such as a
         ///     hash table.
@@ -4275,15 +4275,15 @@ namespace Squirrel.Packaging.OSX
 
         /// <summary>
         ///     Determines whether the specified <see cref="System.Object" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSSet" />.
+        ///     <see cref="Velopack.PropertyList.NSSet" />.
         /// </summary>
         /// <param name="obj">
         ///     The <see cref="System.Object" /> to compare with the current
-        ///     <see cref="Squirrel.PropertyList.NSSet" />.
+        ///     <see cref="Velopack.PropertyList.NSSet" />.
         /// </param>
         /// <returns>
         ///     <c>true</c> if the specified <see cref="System.Object" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSSet" />; otherwise, <c>false</c>.
+        ///     <see cref="Velopack.PropertyList.NSSet" />; otherwise, <c>false</c>.
         /// </returns>
         public override bool Equals(object obj)
         {
@@ -4443,16 +4443,16 @@ namespace Squirrel.Packaging.OSX
         }
 
         /// <summary>
-        ///     Determines whether the specified <see cref="Squirrel.PropertyList.NSObject" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSSet" />.
+        ///     Determines whether the specified <see cref="Velopack.PropertyList.NSObject" /> is equal to the current
+        ///     <see cref="Velopack.PropertyList.NSSet" />.
         /// </summary>
         /// <param name="obj">
-        ///     The <see cref="Squirrel.PropertyList.NSObject" /> to compare with the current
-        ///     <see cref="Squirrel.PropertyList.NSSet" />.
+        ///     The <see cref="Velopack.PropertyList.NSObject" /> to compare with the current
+        ///     <see cref="Velopack.PropertyList.NSSet" />.
         /// </param>
         /// <returns>
-        ///     <c>true</c> if the specified <see cref="Squirrel.PropertyList.NSObject" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSSet" />; otherwise, <c>false</c>.
+        ///     <c>true</c> if the specified <see cref="Velopack.PropertyList.NSObject" /> is equal to the current
+        ///     <see cref="Velopack.PropertyList.NSSet" />; otherwise, <c>false</c>.
         /// </returns>
         public override bool Equals(NSObject obj)
         {
@@ -4472,7 +4472,7 @@ namespace Squirrel.Packaging.OSX
 }
 
 // NSString.cs
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     /// <summary>A NSString contains a string.</summary>
     /// @author Daniel Dreibrodt
@@ -4508,9 +4508,9 @@ namespace Squirrel.Packaging.OSX
         /// <returns>This NSString as .NET string object.</returns>
         public string Content { get; set; }
 
-        /// <summary>Compares the current <see cref="Squirrel.PropertyList.NSString" /> to the specified object.</summary>
+        /// <summary>Compares the current <see cref="Velopack.PropertyList.NSString" /> to the specified object.</summary>
         /// <returns>A 32-bit signed integer that indicates the lexical relationship between the two comparands.</returns>
-        /// <param name="o">Object to compare to the current <see cref="Squirrel.PropertyList.NSString" />.</param>
+        /// <param name="o">Object to compare to the current <see cref="Velopack.PropertyList.NSString" />.</param>
         public int CompareTo(object o) => o switch
         {
             NSString nsString => string.Compare(Content, nsString.Content, StringComparison.Ordinal),
@@ -4536,19 +4536,19 @@ namespace Squirrel.Packaging.OSX
 
         /// <summary>
         ///     Determines whether the specified <see cref="System.Object" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSString" />.
+        ///     <see cref="Velopack.PropertyList.NSString" />.
         /// </summary>
         /// <param name="obj">
         ///     The <see cref="System.Object" /> to compare with the current
-        ///     <see cref="Squirrel.PropertyList.NSString" />.
+        ///     <see cref="Velopack.PropertyList.NSString" />.
         /// </param>
         /// <returns>
         ///     <c>true</c> if the specified <see cref="System.Object" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSString" />; otherwise, <c>false</c>.
+        ///     <see cref="Velopack.PropertyList.NSString" />; otherwise, <c>false</c>.
         /// </returns>
         public override bool Equals(object obj) => obj is NSString nsString && Content.Equals(nsString.Content);
 
-        /// <summary>Serves as a hash function for a <see cref="Squirrel.PropertyList.NSString" /> object.</summary>
+        /// <summary>Serves as a hash function for a <see cref="Velopack.PropertyList.NSString" /> object.</summary>
         /// <returns>
         ///     A hash code for this instance that is suitable for use in hashing algorithms and data structures such as a
         ///     hash table.
@@ -4682,16 +4682,16 @@ namespace Squirrel.Packaging.OSX
         }
 
         /// <summary>
-        ///     Determines whether the specified <see cref="Squirrel.PropertyList.NSObject" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSString" />.
+        ///     Determines whether the specified <see cref="Velopack.PropertyList.NSObject" /> is equal to the current
+        ///     <see cref="Velopack.PropertyList.NSString" />.
         /// </summary>
         /// <param name="obj">
-        ///     The <see cref="Squirrel.PropertyList.NSObject" /> to compare with the current
-        ///     <see cref="Squirrel.PropertyList.NSString" />.
+        ///     The <see cref="Velopack.PropertyList.NSObject" /> to compare with the current
+        ///     <see cref="Velopack.PropertyList.NSString" />.
         /// </param>
         /// <returns>
-        ///     <c>true</c> if the specified <see cref="Squirrel.PropertyList.NSObject" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.NSString" />; otherwise, <c>false</c>.
+        ///     <c>true</c> if the specified <see cref="Velopack.PropertyList.NSObject" /> is equal to the current
+        ///     <see cref="Velopack.PropertyList.NSString" />; otherwise, <c>false</c>.
         /// </returns>
         public override bool Equals(NSObject obj)
         {
@@ -4717,7 +4717,7 @@ namespace Squirrel.Packaging.OSX
 }
 
 // PropertyListException.cs
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     /// <summary>The exception that is thrown when an property list file could not be processed correctly.</summary>
     [Serializable]
@@ -4767,7 +4767,7 @@ namespace Squirrel.Packaging.OSX
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     /// <summary>
     ///     A PropertyListFormatException is thrown by the various property list format parsers when an error in the
@@ -4784,7 +4784,7 @@ namespace Squirrel.Packaging.OSX
 }
 
 // PropertyListParser.cs
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     /// <summary>
     ///     This class provides methods to parse property lists. It can handle files, input streams and byte arrays. All
@@ -5156,7 +5156,7 @@ namespace Squirrel.Packaging.OSX
 }
 
 // UID.cs
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     /// <summary>An UID. Only found in binary property lists that are keyed archives.</summary>
     /// @author Daniel Dreibrodt
@@ -5165,7 +5165,7 @@ namespace Squirrel.Packaging.OSX
     {
         readonly ulong value;
 
-        /// <summary>Initializes a new instance of the <see cref="Squirrel.PropertyList.UID" /> class.</summary>
+        /// <summary>Initializes a new instance of the <see cref="Velopack.PropertyList.UID" /> class.</summary>
         /// <param name="bytes">Bytes.</param>
         public UID(ReadOnlySpan<byte> bytes)
         {
@@ -5179,28 +5179,28 @@ namespace Squirrel.Packaging.OSX
         }
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="Squirrel.PropertyList.UID" /> class using an unsigned 8-bit
+        ///     Initializes a new instance of the <see cref="Velopack.PropertyList.UID" /> class using an unsigned 8-bit
         ///     number.
         /// </summary>
         /// <param name="number">Unsigned 8-bit number.</param>
         public UID(byte number) => value = number;
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="Squirrel.PropertyList.UID" /> class using an unsigned 16-bit
+        ///     Initializes a new instance of the <see cref="Velopack.PropertyList.UID" /> class using an unsigned 16-bit
         ///     number.
         /// </summary>
         /// <param name="number">Unsigned 16-bit number.</param>
         public UID(ushort number) => value = number;
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="Squirrel.PropertyList.UID" /> class using an unsigned 32-bit
+        ///     Initializes a new instance of the <see cref="Velopack.PropertyList.UID" /> class using an unsigned 32-bit
         ///     number.
         /// </summary>
         /// <param name="number">Unsigned 32-bit number.</param>
         public UID(uint number) => value = number;
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="Squirrel.PropertyList.UID" /> class using an unsigned 64-bit
+        ///     Initializes a new instance of the <see cref="Velopack.PropertyList.UID" /> class using an unsigned 64-bit
         ///     number.
         /// </summary>
         /// <param name="number">Unsigned 64-bit number.</param>
@@ -5306,16 +5306,16 @@ namespace Squirrel.Packaging.OSX
         internal override void ToASCIIGnuStep(StringBuilder ascii, int level) => ToASCII(ascii, level);
 
         /// <summary>
-        ///     Determines whether the specified <see cref="Squirrel.PropertyList.NSObject" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.UID" />.
+        ///     Determines whether the specified <see cref="Velopack.PropertyList.NSObject" /> is equal to the current
+        ///     <see cref="Velopack.PropertyList.UID" />.
         /// </summary>
         /// <param name="obj">
-        ///     The <see cref="Squirrel.PropertyList.NSObject" /> to compare with the current
-        ///     <see cref="Squirrel.PropertyList.UID" />.
+        ///     The <see cref="Velopack.PropertyList.NSObject" /> to compare with the current
+        ///     <see cref="Velopack.PropertyList.UID" />.
         /// </param>
         /// <returns>
-        ///     <c>true</c> if the specified <see cref="Squirrel.PropertyList.NSObject" /> is equal to the current
-        ///     <see cref="Squirrel.PropertyList.UID" />; otherwise, <c>false</c>.
+        ///     <c>true</c> if the specified <see cref="Velopack.PropertyList.NSObject" /> is equal to the current
+        ///     <see cref="Velopack.PropertyList.UID" />; otherwise, <c>false</c>.
         /// </returns>
         public override bool Equals(NSObject obj) => Equals((object)obj);
 
@@ -5341,7 +5341,7 @@ namespace Squirrel.Packaging.OSX
 }
 
 // XmlPropertyListParser.cs
-namespace Squirrel.Packaging.OSX
+namespace Velopack.Packaging.OSX
 {
     /// <summary>Parses XML property lists.</summary>
     /// @author Daniel Dreibrodt

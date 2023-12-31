@@ -1,8 +1,8 @@
 ﻿
 using System.CommandLine;
-using Squirrel.Csq.Commands;
+using Velopack.Vpk.Commands;
 
-namespace Squirrel.CommandLine.Tests.Commands;
+namespace Velopack.CommandLine.Tests.Commands;
 
 public abstract class ReleaseCommandTests<T> : BaseCommandTests<T>
     where T : WindowsReleasifyCommand, new()

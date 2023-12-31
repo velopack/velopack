@@ -4,9 +4,9 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Squirrel.Json;
+using Velopack.Json;
 
-namespace Squirrel.Sources
+namespace Velopack.Sources
 {
     /// <summary>
     /// Describes a Gitlab release, plus any assets that are attached.

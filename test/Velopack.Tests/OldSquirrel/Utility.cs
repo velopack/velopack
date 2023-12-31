@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Squirrel.Tests.OldSquirrel
+namespace Velopack.Tests.OldSquirrel
 {
     internal static class Utility
     {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Squirrel.Csq.Commands
+namespace Velopack.Vpk.Commands
 {
     public class PlatformCommand : OutputCommand
     {
@@ -14,7 +14,7 @@ namespace Squirrel.Csq.Commands
 
         protected PlatformCommand(string name, string description) : base(name, description)
         {
-            TargetRuntime = SquirrelRuntimeInfo.SystemOs.GetOsShortName();
+            TargetRuntime = VelopackRuntimeInfo.SystemOs.GetOsShortName();
 
             AddOption<string>((v) => TargetRuntime = v, "-r", "--runtime")
                 .SetDescription("The target runtime to build packages for.")
@@ -26,7 +26,7 @@ namespace Squirrel.Csq.Commands
                 .AcceptExistingOnly();
         }
 
-        public RID GetRid() => RID.Parse(TargetRuntime ?? SquirrelRuntimeInfo.SystemOs.GetOsShortName());
+        public RID GetRid() => RID.Parse(TargetRuntime ?? VelopackRuntimeInfo.SystemOs.GetOsShortName());
 
         public RuntimeOs GetRuntimeOs() => GetRid().BaseRID;
     }

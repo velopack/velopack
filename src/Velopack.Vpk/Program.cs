@@ -2,13 +2,13 @@
 using Serilog.Events;
 using Serilog;
 using Microsoft.Extensions.Configuration;
-using Squirrel.Csq.Commands;
+using Velopack.Vpk.Commands;
 using Microsoft.Extensions.DependencyInjection;
-using Squirrel.Csq.Updates;
-using Squirrel.Csq.Compat;
+using Velopack.Vpk.Updates;
+using Velopack.Vpk.Compat;
 using System.CommandLine.Help;
 
-namespace Squirrel.Csq;
+namespace Velopack.Vpk;
 
 public class Program
 {
@@ -51,11 +51,11 @@ public class Program
         Runner = new RunnerFactory(logger, host.Services.GetRequiredService<IConfiguration>());
 
         CliRootCommand rootCommand = new CliRootCommand(
-            $"Squirrel {SquirrelRuntimeInfo.SquirrelDisplayVersion} for creating and distributing Squirrel releases.") {
+            $"Squirrel {VelopackRuntimeInfo.SquirrelDisplayVersion} for creating and distributing Squirrel releases.") {
             VerboseOption,
         };
 
-        switch (SquirrelRuntimeInfo.SystemOs) {
+        switch (VelopackRuntimeInfo.SystemOs) {
         case RuntimeOs.Windows:
             Add(rootCommand, new WindowsPackCommand(), nameof(ICommandRunner.ExecutePackWindows));
             Add(rootCommand, new WindowsReleasifyCommand(), nameof(ICommandRunner.ExecuteReleasifyWindows));
@@ -65,7 +65,7 @@ public class Program
             Add(rootCommand, new OsxReleasifyCommand(), nameof(ICommandRunner.ExecuteReleasifyOsx));
             break;
         default:
-            throw new NotSupportedException("Unsupported OS platform: " + SquirrelRuntimeInfo.SystemOs.GetOsLongName());
+            throw new NotSupportedException("Unsupported OS platform: " + VelopackRuntimeInfo.SystemOs.GetOsLongName());
         }
 
         CliCommand downloadCommand = new CliCommand("download", "Download's the latest release from a remote update source.");

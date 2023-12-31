@@ -2,7 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 
-namespace Squirrel
+namespace Velopack
 {
     [ExcludeFromCodeCoverage]
     internal static class LoggerExtensions

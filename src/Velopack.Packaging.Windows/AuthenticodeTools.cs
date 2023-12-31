@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-namespace Squirrel.Packaging.Windows
+namespace Velopack.Packaging.Windows
 {
     [SupportedOSPlatform("windows")]
     [ExcludeFromCodeCoverage]

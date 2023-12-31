@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Squirrel.Tests.OldSquirrel
+namespace Velopack.Tests.OldSquirrel
 {
     public static class VersionExtensions
     {

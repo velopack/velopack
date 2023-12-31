@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using NuGet.Versioning;
 
-namespace Squirrel.NuGet
+namespace Velopack.NuGet
 {
     public interface IPackage
     {

@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 
-namespace Squirrel.Packaging.Windows;
+namespace Velopack.Packaging.Windows;
 
 public class HelperExe : HelperFile
 {
@@ -94,7 +94,7 @@ public class HelperExe : HelperFile
 
     public void SignPEFileWithTemplate(string filePath, string signTemplate)
     {
-        if (SquirrelRuntimeInfo.IsWindows && CheckIsAlreadySigned(filePath)) {
+        if (VelopackRuntimeInfo.IsWindows && CheckIsAlreadySigned(filePath)) {
             Log.Debug($"'{filePath}' is already signed, and will not be signed again.");
             return;
         }

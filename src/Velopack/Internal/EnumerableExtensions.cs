@@ -4,11 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Squirrel
+namespace Velopack
 {
-    /// <summary>
-    /// Useful enumerable extensions used by Squirrel
-    /// </summary>
     [ExcludeFromCodeCoverage]
     internal static class EnumerableExtensions
     {

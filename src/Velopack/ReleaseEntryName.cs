@@ -4,7 +4,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using NuGet.Versioning;
 
-namespace Squirrel
+namespace Velopack
 {
     /// <summary>
     /// Represents the information that can be parsed from a release entry filename.

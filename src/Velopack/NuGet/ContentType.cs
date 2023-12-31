@@ -2,7 +2,7 @@
 using System.Linq;
 using System.Xml;
 
-namespace Squirrel.NuGet
+namespace Velopack.NuGet
 {
     internal static class ContentType
     {

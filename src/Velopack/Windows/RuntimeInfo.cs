@@ -10,9 +10,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using NuGet.Versioning;
-using Squirrel.Sources;
+using Velopack.Sources;
 
-namespace Squirrel.Windows
+namespace Velopack.Windows
 {
     public static partial class Runtimes
     {
@@ -226,15 +226,15 @@ namespace Squirrel.Windows
                 // TODO use IsWindowsVersionOrGreater function to verify it can be installed on this machine
 
                 // arm64 windows supports everything
-                if (SquirrelRuntimeInfo.SystemArch == RuntimeCpu.arm64)
+                if (VelopackRuntimeInfo.SystemArch == RuntimeCpu.arm64)
                     return Task.FromResult(true);
 
                 // if the desired architecture is same as system
-                if (SquirrelRuntimeInfo.SystemArch == CpuArchitecture)
+                if (VelopackRuntimeInfo.SystemArch == CpuArchitecture)
                     return Task.FromResult(true);
 
                 // x64 also supports x86
-                if (SquirrelRuntimeInfo.SystemArch == RuntimeCpu.x64 && CpuArchitecture == RuntimeCpu.x86)
+                if (VelopackRuntimeInfo.SystemArch == RuntimeCpu.x64 && CpuArchitecture == RuntimeCpu.x86)
                     return Task.FromResult(true);
 
                 return Task.FromResult(false);
@@ -258,7 +258,7 @@ namespace Squirrel.Windows
             [SupportedOSPlatform("windows")]
             private static string GetDotnetBaseDir(RuntimeCpu runtime)
             {
-                var system = SquirrelRuntimeInfo.SystemArch;
+                var system = VelopackRuntimeInfo.SystemArch;
                 var pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
 
                 if (runtime == RuntimeCpu.x86)
@@ -464,15 +464,15 @@ namespace Squirrel.Windows
                 // TODO use IsWindowsVersionOrGreater function to verify it can be installed on this machine
 
                 // arm64 windows supports everything
-                if (SquirrelRuntimeInfo.SystemArch == RuntimeCpu.arm64)
+                if (VelopackRuntimeInfo.SystemArch == RuntimeCpu.arm64)
                     return Task.FromResult(true);
 
                 // if the desired architecture is same as system
-                if (SquirrelRuntimeInfo.SystemArch == CpuArchitecture)
+                if (VelopackRuntimeInfo.SystemArch == CpuArchitecture)
                     return Task.FromResult(true);
 
                 // x64 also supports x86
-                if (SquirrelRuntimeInfo.SystemArch == RuntimeCpu.x64 && CpuArchitecture == RuntimeCpu.x86)
+                if (VelopackRuntimeInfo.SystemArch == RuntimeCpu.x64 && CpuArchitecture == RuntimeCpu.x86)
                     return Task.FromResult(true);
 
                 return Task.FromResult(false);

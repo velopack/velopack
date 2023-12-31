@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Squirrel.Compression
+namespace Velopack.Compression
 {
     /// <summary>
     /// Represents an error that occurs when a package does not match it's expected SHA checksum

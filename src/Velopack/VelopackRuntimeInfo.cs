@@ -38,7 +38,7 @@ namespace System.Runtime.CompilerServices
 }
 #endif
 
-namespace Squirrel
+namespace Velopack
 {
     // constants from winnt.h
     /// <summary> The Runtime CPU Architecture </summary>
@@ -77,7 +77,7 @@ namespace Squirrel
     /// Convenience class which provides runtime information about the current executing process, 
     /// in a way that is safe in older and newer versions of the framework.
     /// </summary>
-    public static class SquirrelRuntimeInfo
+    public static class VelopackRuntimeInfo
     {
         /// <summary> The current compiled Squirrel display version. </summary>
         public static string SquirrelDisplayVersion { get; }
@@ -128,7 +128,7 @@ namespace Squirrel
         public static StringComparison PathStringComparison =>
             IsWindows ? StringComparison.InvariantCultureIgnoreCase : StringComparison.InvariantCulture;
 
-        static SquirrelRuntimeInfo()
+        static VelopackRuntimeInfo()
         {
             EntryExePath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
             BaseDirectory = AppContext.BaseDirectory;

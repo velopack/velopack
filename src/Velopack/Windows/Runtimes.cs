@@ -4,7 +4,7 @@ using System.Linq;
 using System.Runtime.Versioning;
 using NuGet.Versioning;
 
-namespace Squirrel.Windows
+namespace Velopack.Windows
 {
     /// <summary>
     /// Contains static properties to access common supported runtimes, and a function to search for a runtime by name

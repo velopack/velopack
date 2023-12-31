@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Squirrel.Csq.Commands
+namespace Velopack.Vpk.Commands
 {
     public class OutputCommand : BaseCommand
     {

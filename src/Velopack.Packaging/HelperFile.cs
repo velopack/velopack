@@ -7,7 +7,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 
-namespace Squirrel.Packaging;
+namespace Velopack.Packaging;
 
 public enum DeltaMode
 {
@@ -84,7 +84,7 @@ public class HelperFile
         };
 
         string zstdPath;
-        if (SquirrelRuntimeInfo.IsWindows) {
+        if (VelopackRuntimeInfo.IsWindows) {
             zstdPath = FindHelperFile("zstd.exe");
         } else {
             zstdPath = "zstd";
@@ -97,7 +97,7 @@ public class HelperFile
     public void AssertSystemBinaryExists(string binaryName)
     {
         try {
-            if (SquirrelRuntimeInfo.IsWindows) {
+            if (VelopackRuntimeInfo.IsWindows) {
                 var output = InvokeAndThrowIfNonZero("where", new[] { binaryName }, null);
                 if (String.IsNullOrWhiteSpace(output) || !File.Exists(output))
                     throw new ProcessFailedException("", "");

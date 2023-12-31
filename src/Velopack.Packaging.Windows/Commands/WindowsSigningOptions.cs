@@ -1,4 +1,4 @@
-﻿namespace Squirrel.Packaging.Windows.Commands;
+﻿namespace Velopack.Packaging.Windows.Commands;
 
 public class WindowsSigningOptions
 {

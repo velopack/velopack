@@ -2,7 +2,7 @@
 using System.IO.Compression;
 using Microsoft.Extensions.Logging;
 
-namespace Squirrel.Compression
+namespace Velopack.Compression
 {
     internal static class EasyZip
     {

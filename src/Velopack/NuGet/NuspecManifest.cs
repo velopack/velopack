@@ -6,7 +6,7 @@ using System.Linq;
 using System.Xml.Linq;
 using NuGet.Versioning;
 
-namespace Squirrel.NuGet
+namespace Velopack.NuGet
 {
     public class NuspecManifest : IPackage
     {

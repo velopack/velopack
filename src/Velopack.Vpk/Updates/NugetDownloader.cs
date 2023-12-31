@@ -5,7 +5,7 @@ using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 using NugetLogger = NuGet.Common.ILogger;
 
-namespace Squirrel.Csq.Updates;
+namespace Velopack.Vpk.Updates;
 
 public class NugetDownloader
 {

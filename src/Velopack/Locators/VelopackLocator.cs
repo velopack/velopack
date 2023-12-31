@@ -8,32 +8,32 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.Versioning;
 
-namespace Squirrel.Locators
+namespace Velopack.Locators
 {
     /// <summary>
-    /// A base class describing where Squirrel can find key folders and files.
+    /// A base class describing where Velopack can find key folders and files.
     /// </summary>
-    public abstract class SquirrelLocator : ISquirrelLocator
+    public abstract class VelopackLocator : IVelopackLocator
     {
-        private static SquirrelLocator _current;
+        private static VelopackLocator _current;
 
         /// <summary>
         /// Auto-detect the platform from the current operating system.
         /// </summary>
-        public static SquirrelLocator GetDefault(ILogger logger)
+        public static VelopackLocator GetDefault(ILogger logger)
         {
             var log = logger ?? NullLogger.Instance;
 
             if (_current != null)
                 return _current;
 
-            if (SquirrelRuntimeInfo.IsWindows)
-                return _current ??= new WindowsSquirrelLocator(log);
+            if (VelopackRuntimeInfo.IsWindows)
+                return _current ??= new WindowsVelopackLocator(log);
 
-            if (SquirrelRuntimeInfo.IsOSX)
-                return _current ??= new OsxSquirrelLocator(log);
+            if (VelopackRuntimeInfo.IsOSX)
+                return _current ??= new OsxVelopackLocator(log);
 
-            throw new NotSupportedException($"OS platform '{SquirrelRuntimeInfo.SystemOs.GetOsLongName()}' is not supported.");
+            throw new NotSupportedException($"OS platform '{VelopackRuntimeInfo.SystemOs.GetOsLongName()}' is not supported.");
         }
 
         /// <inheritdoc/>
@@ -46,7 +46,7 @@ namespace Squirrel.Locators
         public abstract string PackagesDir { get; }
 
         /// <inheritdoc/>
-        public virtual string AppTempDir => CreateSubDirIfDoesNotExist(PackagesDir, "SquirrelClowdTemp");
+        public virtual string AppTempDir => CreateSubDirIfDoesNotExist(PackagesDir, "VelopackTemp");
 
         /// <inheritdoc/>
         public abstract string UpdateExePath { get; }
@@ -57,7 +57,7 @@ namespace Squirrel.Locators
         /// <inheritdoc/>
         public virtual string ThisExeRelativePath {
             get {
-                var path = SquirrelRuntimeInfo.EntryExePath;
+                var path = VelopackRuntimeInfo.EntryExePath;
                 if (path.StartsWith(AppContentDir, StringComparison.OrdinalIgnoreCase)) {
                     return path.Substring(AppContentDir.Length + 1);
                 } else {
@@ -72,8 +72,8 @@ namespace Squirrel.Locators
         /// <summary> The log interface to use for diagnostic messages. </summary>
         protected ILogger Log { get; }
 
-        /// <inheritdoc cref="SquirrelLocator"/>
-        protected SquirrelLocator(ILogger logger)
+        /// <inheritdoc cref="VelopackLocator"/>
+        protected VelopackLocator(ILogger logger)
         {
             Log = logger;
         }
@@ -147,27 +147,5 @@ namespace Squirrel.Locators
                 return null;
             }
         }
-
-        // /// <summary>
-        // /// Starts Update.exe with the correct arguments to restart this process.
-        // /// Update.exe will wait for this process to exit, and apply any pending version updates
-        // /// before re-launching the latest version.
-        // /// </summary>
-        // public virtual Process StartRestartingProcess(string exeToStart = null, string arguments = null)
-        // {
-        //     exeToStart = exeToStart ?? Path.GetFileName(SquirrelRuntimeInfo.EntryExePath);
-        // 
-        //     List<string> args = new() {
-        //         "--processStartAndWait",
-        //         exeToStart,
-        //     };
-        // 
-        //     if (arguments != null) {
-        //         args.Add("-a");
-        //         args.Add(arguments);
-        //     }
-        // 
-        //     return PlatformUtil.StartProcessNonBlocking(UpdateExePath, args, Path.GetDirectoryName(UpdateExePath));
-        // }
     }
 }

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using Microsoft.Extensions.Logging;
 
-namespace Squirrel
+namespace Velopack
 {
     [ExcludeFromCodeCoverage]
     internal static class ProcessStartExtensions

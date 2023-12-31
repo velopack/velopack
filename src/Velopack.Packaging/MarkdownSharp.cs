@@ -89,7 +89,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Squirrel.Packaging;
+namespace Velopack.Packaging;
 
 [ExcludeFromCodeCoverage]
 public class MarkdownOptions

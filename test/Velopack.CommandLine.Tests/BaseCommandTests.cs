@@ -1,6 +1,6 @@
-﻿using Squirrel.Csq.Commands;
+﻿using Velopack.Vpk.Commands;
 
-namespace Squirrel.CommandLine.Tests;
+namespace Velopack.CommandLine.Tests;
 
 public abstract class BaseCommandTests<T> : TempFileTestBase
     where T : BaseCommand, new()

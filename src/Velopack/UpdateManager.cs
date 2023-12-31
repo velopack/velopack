@@ -8,11 +8,11 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.Versioning;
-using Squirrel.Compression;
-using Squirrel.Locators;
-using Squirrel.Sources;
+using Velopack.Compression;
+using Velopack.Locators;
+using Velopack.Sources;
 
-namespace Squirrel
+namespace Velopack
 {
     /// <summary>
     /// Provides functionality for checking for updates, downloading updates, and applying updates to the current application.
@@ -46,7 +46,7 @@ namespace Squirrel
         protected ILogger Log { get; }
 
         /// <summary> The locator to use when searching for local file paths. </summary>
-        protected ISquirrelLocator Locator { get; }
+        protected IVelopackLocator Locator { get; }
 
         /// <summary>
         /// Creates a new UpdateManager instance using the specified URL or file path to the releases feed, and the specified channel name.
@@ -54,9 +54,9 @@ namespace Squirrel
         /// <param name="urlOrPath">A basic URL or file path to use when checking for updates.</param>
         /// <param name="channel">Search for releases in the feed of a specific channel name. If null, it will search the default channel.</param>
         /// <param name="logger">The logger to use for diagnostic messages.</param>
-        /// <param name="locator">This should usually be left null. Providing an <see cref="ISquirrelLocator" /> allows you to mock up certain application paths. 
-        /// For example, if you wanted to test that updates are working in a unit test, you could provide an instance of <see cref="TestSquirrelLocator"/>. </param>
-        public UpdateManager(string urlOrPath, string channel = null, ILogger logger = null, ISquirrelLocator locator = null)
+        /// <param name="locator">This should usually be left null. Providing an <see cref="IVelopackLocator" /> allows you to mock up certain application paths. 
+        /// For example, if you wanted to test that updates are working in a unit test, you could provide an instance of <see cref="TestVelopackLocator"/>. </param>
+        public UpdateManager(string urlOrPath, string channel = null, ILogger logger = null, IVelopackLocator locator = null)
             : this(CreateSimpleSource(urlOrPath, channel, logger), logger, locator)
         {
         }
@@ -67,9 +67,9 @@ namespace Squirrel
         /// <param name="source">The source describing where to search for updates. This can be a custom source, if you are integrating with some private resource,
         /// or it could be one of the predefined sources. (eg. <see cref="SimpleWebSource"/> or <see cref="GithubSource"/>, etc).</param>
         /// <param name="logger">The logger to use for diagnostic messages.</param>
-        /// <param name="locator">This should usually be left null. Providing an <see cref="ISquirrelLocator" /> allows you to mock up certain application paths. 
-        /// For example, if you wanted to test that updates are working in a unit test, you could provide an instance of <see cref="TestSquirrelLocator"/>. </param>
-        public UpdateManager(IUpdateSource source, ILogger logger = null, ISquirrelLocator locator = null)
+        /// <param name="locator">This should usually be left null. Providing an <see cref="IVelopackLocator" /> allows you to mock up certain application paths. 
+        /// For example, if you wanted to test that updates are working in a unit test, you could provide an instance of <see cref="TestVelopackLocator"/>. </param>
+        public UpdateManager(IUpdateSource source, ILogger logger = null, IVelopackLocator locator = null)
             : this(logger, locator)
         {
             if (source == null) {
@@ -78,10 +78,10 @@ namespace Squirrel
             Source = source;
         }
 
-        internal UpdateManager(ILogger logger, ISquirrelLocator locator)
+        internal UpdateManager(ILogger logger, IVelopackLocator locator)
         {
             Log = logger ?? NullLogger.Instance;
-            Locator = locator ?? SquirrelLocator.GetDefault(Log);
+            Locator = locator ?? VelopackLocator.GetDefault(Log);
         }
 
         /// <inheritdoc cref="CheckForUpdatesAsync(CancellationToken)"/>
@@ -227,7 +227,7 @@ namespace Squirrel
                     }
                 } catch (Exception ex) {
                     Log.Warn(ex, "Unable to apply delta updates, falling back to full update.");
-                    if (SquirrelRuntimeInfo.InUnitTestRunner) {
+                    if (VelopackRuntimeInfo.InUnitTestRunner) {
                         throw;
                     }
                 }

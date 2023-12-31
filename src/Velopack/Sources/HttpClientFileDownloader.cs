@@ -6,7 +6,7 @@ using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Squirrel.Sources
+namespace Velopack.Sources
 {
 
     /// <inheritdoc cref="IFileDownloader"/>
@@ -15,7 +15,7 @@ namespace Squirrel.Sources
         /// <summary>
         /// The User-Agent sent with Squirrel requests
         /// </summary>
-        public static ProductInfoHeaderValue UserAgent => new("Squirrel", SquirrelRuntimeInfo.SquirrelNugetVersion.ToFullString());
+        public static ProductInfoHeaderValue UserAgent => new("Squirrel", VelopackRuntimeInfo.SquirrelNugetVersion.ToFullString());
 
         /// <inheritdoc />
         public virtual async Task DownloadFile(string url, string targetFile, Action<int> progress, string authorization, string accept)

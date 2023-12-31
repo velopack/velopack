@@ -3,16 +3,16 @@ using System.IO;
 using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
-using Squirrel.NuGet;
+using Velopack.NuGet;
 
-namespace Squirrel.Locators
+namespace Velopack.Locators
 {
     /// <summary>
     /// The default for OSX. All application files will remain in the '.app'.
     /// All additional files (log, etc) will be placed in a temporary directory.
     /// </summary>
     [SupportedOSPlatform("osx")]
-    public class OsxSquirrelLocator : SquirrelLocator
+    public class OsxVelopackLocator : VelopackLocator
     {
         /// <inheritdoc />
         public override string AppId { get; }
@@ -36,19 +36,19 @@ namespace Squirrel.Locators
         public override string PackagesDir => CreateSubDirIfDoesNotExist(AppTempDir, "packages");
 
         /// <summary>
-        /// Creates a new <see cref="OsxSquirrelLocator"/> and auto-detects the
+        /// Creates a new <see cref="OsxVelopackLocator"/> and auto-detects the
         /// app information from metadata embedded in the .app.
         /// </summary>
-        public OsxSquirrelLocator(ILogger logger)
+        public OsxVelopackLocator(ILogger logger)
             : base(logger)
         {
-            if (!SquirrelRuntimeInfo.IsOSX)
+            if (!VelopackRuntimeInfo.IsOSX)
                 throw new NotSupportedException("Cannot instantiate OsxLocator on a non-osx system.");
 
-            Log.Info("Initialising OsxSquirrelLocator");
+            Log.Info($"Initialising {nameof(OsxVelopackLocator)}");
 
             // are we inside a .app?
-            var ourPath = SquirrelRuntimeInfo.EntryExePath;
+            var ourPath = VelopackRuntimeInfo.EntryExePath;
             var ix = ourPath.IndexOf(".app/", StringComparison.InvariantCultureIgnoreCase);
             if (ix <= 0) {
                 Log.Warn($"Unable to locate .app root from '{ourPath}'");
