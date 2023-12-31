@@ -79,7 +79,7 @@ fn apply_package<'a>(package: Option<&PathBuf>, app: &Manifest, root_path: &Path
     info!("Applying package to current: {}", found_version);
 
     #[cfg(target_os = "windows")]
-    crate::windows::run_hook(&app, &root_path, "--squirrel-obsolete", 15);
+    crate::windows::run_hook(&app, &root_path, "--veloapp-obsolete", 15);
 
     let current_dir = app.get_current_path(&root_path);
     shared::replace_dir_with_rollback(current_dir.clone(), || {
@@ -91,7 +91,7 @@ fn apply_package<'a>(package: Option<&PathBuf>, app: &Manifest, root_path: &Path
     })?;
 
     #[cfg(target_os = "windows")]
-    crate::windows::run_hook(&package_manifest, &root_path, "--squirrel-updated", 15);
+    crate::windows::run_hook(&package_manifest, &root_path, "--veloapp-updated", 15);
 
     info!("Package applied successfully.");
     Ok(())

@@ -15,7 +15,7 @@ pub fn uninstall(log_file: &PathBuf) -> Result<()> {
         let mut finished_with_errors = false;
 
         // run uninstall hook
-        windows::run_hook(&app, root_path, "--squirrel-uninstall", 60);
+        windows::run_hook(&app, root_path, "--veloapp-uninstall", 60);
 
         if let Err(e) = windows::remove_all_shortcuts_for_root_dir(&root_path) {
             error!("Unable to remove shortcuts ({}).", e);

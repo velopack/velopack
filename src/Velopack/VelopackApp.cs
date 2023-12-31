@@ -153,7 +153,7 @@ namespace Velopack
             var locator = _locator ?? VelopackLocator.GetDefault(log);
 
             // internal hook run by the Velopack tooling to check everything is working
-            if (args.Length >= 1 && args[0].Equals("--Velopack-version", StringComparison.OrdinalIgnoreCase)) {
+            if (args.Length >= 1 && args[0].Equals("--veloapp-version", StringComparison.OrdinalIgnoreCase)) {
                 Console.WriteLine(VelopackRuntimeInfo.VelopackNugetVersion);
                 Exit(0);
                 return;
@@ -164,10 +164,10 @@ namespace Velopack
             // first, we run any fast exit hooks
             VelopackHook defaultBlock = ((v) => { });
             var fastExitlookup = new[] {
-                new { Key = "--Velopack-install", Value = _install ?? defaultBlock },
-                new { Key = "--Velopack-updated", Value = _update ?? defaultBlock },
-                new { Key = "--Velopack-obsolete", Value = _obsolete ?? defaultBlock },
-                new { Key = "--Velopack-uninstall", Value = _uninstall ?? defaultBlock },
+                new { Key = "--veloapp-install", Value = _install ?? defaultBlock },
+                new { Key = "--veloapp-updated", Value = _update ?? defaultBlock },
+                new { Key = "--veloapp-obsolete", Value = _obsolete ?? defaultBlock },
+                new { Key = "--veloapp-uninstall", Value = _uninstall ?? defaultBlock },
             }.ToDictionary(k => k.Key, v => v.Value, StringComparer.OrdinalIgnoreCase);
             if (args.Length >= 2 && fastExitlookup.ContainsKey(args[0])) {
                 try {

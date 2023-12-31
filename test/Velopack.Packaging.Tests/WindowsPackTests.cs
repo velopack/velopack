@@ -87,8 +87,8 @@ public class WindowsPackTests
         Assert.Equal("10.0.19043", xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("osMinVersion").Single().Value);
 
         // check for other files
-        Assert.True(File.Exists(Path.Combine(unzipDir, "lib", "squirrel", "testapp.exe")));
-        Assert.True(File.Exists(Path.Combine(unzipDir, "lib", "squirrel", "testapp.pdb")));
+        Assert.True(File.Exists(Path.Combine(unzipDir, "lib", "app", "testapp.exe")));
+        Assert.True(File.Exists(Path.Combine(unzipDir, "lib", "app", "testapp.pdb")));
     }
 
     [SkippableFact]
@@ -238,7 +238,7 @@ public class WindowsPackTests
         var argsPath = Path.Combine(tmpInstallDir, "current", "args.txt");
         Assert.True(File.Exists(argsPath));
         var argsContent = File.ReadAllText(argsPath).Trim();
-        Assert.Equal("--squirrel-install 1.0.0", argsContent);
+        Assert.Equal("--veloapp-install 1.0.0", argsContent);
 
         var shortcutPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", id + ".lnk");
         Assert.True(File.Exists(shortcutPath));
@@ -302,7 +302,7 @@ public class WindowsPackTests
     }
 
     [SkippableFact]
-    public void TestAllApplicationHooks()
+    public void TestAppHooks()
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
@@ -321,7 +321,7 @@ public class WindowsPackTests
 
         var argsPath = Path.Combine(installDir, "args.txt");
         Assert.True(File.Exists(argsPath));
-        Assert.Equal("--squirrel-install 1.0.0", File.ReadAllText(argsPath).Trim());
+        Assert.Equal("--veloapp-install 1.0.0", File.ReadAllText(argsPath).Trim());
 
         var firstRun = Path.Combine(installDir, "firstrun");
         Assert.True(File.Exists(argsPath));
@@ -336,11 +336,11 @@ public class WindowsPackTests
 
         Thread.Sleep(2000);
 
-        var logFile = Path.Combine(installDir, "Clowd.Squirrel.log");
+        var logFile = Path.Combine(installDir, "Velopack.log");
         logger.Info("TEST: update log output - " + Environment.NewLine + File.ReadAllText(logFile));
 
-        Assert.Contains("--squirrel-obsolete 1.0.0", File.ReadAllText(argsPath).Trim());
-        Assert.Contains("--squirrel-updated 2.0.0", File.ReadAllText(argsPath).Trim());
+        Assert.Contains("--veloapp-obsolete 1.0.0", File.ReadAllText(argsPath).Trim());
+        Assert.Contains("--veloapp-updated 2.0.0", File.ReadAllText(argsPath).Trim());
 
         var restartedPath = Path.Combine(installDir, "restarted");
         Assert.True(File.Exists(restartedPath));
@@ -374,7 +374,7 @@ public class WindowsPackTests
         var argsPath = Path.Combine(installDir, "args.txt");
         Assert.True(File.Exists(argsPath));
         var argsContent = File.ReadAllText(argsPath).Trim();
-        Assert.Equal("--squirrel-install 1.0.0", argsContent);
+        Assert.Equal("--veloapp-install 1.0.0", argsContent);
         logger.Info("TEST: v1 installed");
 
         // check app output
@@ -414,15 +414,15 @@ public class WindowsPackTests
         logger.Info("TEST: v3 output verified");
 
         // print log output
-        var logPath = Path.Combine(installDir, "Clowd.Squirrel.log");
+        var logPath = Path.Combine(installDir, "Velopack.log");
         logger.Info("TEST: log output - " + Environment.NewLine + File.ReadAllText(logPath));
 
 
         // check new obsoleted/updated hooks have run
         var argsContentv3 = File.ReadAllText(argsPath).Trim();
-        Assert.Contains("--squirrel-install 1.0.0", argsContentv3);
-        Assert.Contains("--squirrel-obsolete 1.0.0", argsContentv3);
-        Assert.Contains("--squirrel-updated 3.0.0", argsContentv3);
+        Assert.Contains("--veloapp-install 1.0.0", argsContentv3);
+        Assert.Contains("--veloapp-obsolete 1.0.0", argsContentv3);
+        Assert.Contains("--veloapp-updated 3.0.0", argsContentv3);
         logger.Info("TEST: hooks verified");
 
         // uninstall
