@@ -27,7 +27,7 @@ use winsafe::{self as w, co};
 
 fn main() -> Result<()> {
     let mut arg_config = Command::new("Setup")
-        .about(format!("Clowd.Squirrel Setup ({}) installs Squirrel applications.\nhttps://github.com/clowd/Clowd.Squirrel", env!("NGBV_VERSION")))
+        .about(format!("Velopack Setup ({}) installs applications.\nhttps://github.com/velopack/velopack", env!("NGBV_VERSION")))
         .arg(arg!(-s --silent "Hides all dialogs and answers 'yes' to all prompts"))
         .arg(arg!(-v --verbose "Print debug messages to console"))
         .arg(arg!(-l --log <FILE> "Enable file logging and set location").required(false).value_parser(value_parser!(PathBuf)))
@@ -50,7 +50,7 @@ fn main() -> Result<()> {
     logging::setup_logging(logfile, true, verbose, nocolor)?;
     let _comguard = w::CoInitializeEx(co::COINIT::APARTMENTTHREADED | co::COINIT::DISABLE_OLE1DDE)?;
 
-    info!("Starting Clowd.Squirrel Setup ({})", env!("NGBV_VERSION"));
+    info!("Starting Velopack Setup ({})", env!("NGBV_VERSION"));
     info!("    Location: {:?}", std::env::current_exe()?);
     info!("    Silent: {}", silent);
     info!("    Verbose: {}", verbose);
@@ -121,7 +121,7 @@ fn run(debug_pkg: &Option<&PathBuf>, install_to: &Option<&PathBuf>) -> Result<()
 
     // do we have enough disk space?
     let (compressed_size, extracted_size) = pkg.calculate_size();
-    let required_space = compressed_size + extracted_size + (50 * 1000 * 1000); // archive + squirrel overhead
+    let required_space = compressed_size + extracted_size + (50 * 1000 * 1000); // archive + velopack overhead
     let mut free_space: u64 = 0;
     w::GetDiskFreeSpaceEx(Some(&root_path_str), None, None, Some(&mut free_space))?;
     if free_space < required_space {
@@ -255,7 +255,7 @@ fn install_app(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::mp
 
     if !dialogs::get_silent() {
         info!("Starting app...");
-        shared::start_package(&app, &root_path, None, Some("CLOWD_SQUIRREL_FIRSTRUN"))?;
+        shared::start_package(&app, &root_path, None, Some("VELOPACK_FIRSTRUN"))?;
     }
 
     Ok(())

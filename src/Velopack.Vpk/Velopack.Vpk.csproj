@@ -1,0 +1,58 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+    <IsPackable>true</IsPackable>
+    <AssemblyName>vpk</AssemblyName>
+    <PackageId>vpk</PackageId>
+    <Title>Velopack CLI</Title>
+    <ToolCommandName>vpk</ToolCommandName>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackAsTool>true</PackAsTool>
+    <Description>A .NET Core Tool that uses the Velopack framework to create installers and update packages for dotnet applications.</Description>
+    <!--<PackageIcon>Clowd_200.png</PackageIcon>-->
+    <LangVersion>latest</LangVersion>
+    <NoWarn>$(NoWarn);CA2007;CS8002</NoWarn>
+  </PropertyGroup>
+
+  <!--<ItemGroup>
+    <None Include="..\..\docs\artwork\Clowd_200.png" Pack="true" PackagePath="\" />
+  </ItemGroup>-->
+
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <None Include="..\Rust\target\debug\update" CopyToOutputDirectory="Always" Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
+    <None Include="..\Rust\target\debug\update.exe" CopyToOutputDirectory="Always" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+    <None Include="..\Rust\target\debug\setup.exe" CopyToOutputDirectory="Always" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+    <None Include="..\..\vendor\rcedit.exe" CopyToOutputDirectory="Always" />
+    <None Include="..\..\vendor\signtool.exe" CopyToOutputDirectory="Always" />
+    <None Include="..\..\Velopack.entitlements" CopyToOutputDirectory="Always" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(PackRustAssets)' == 'true'">
+    <None Include="..\Rust\target\release\updatemac" Pack="true" PackagePath="vendor" />
+    <None Include="..\Rust\target\release\update.exe" Pack="true" PackagePath="vendor" />
+    <None Include="..\Rust\target\release\setup.exe" Pack="true" PackagePath="vendor" />
+    <None Include="..\..\vendor\rcedit.exe" Pack="true" PackagePath="vendor" />
+    <None Include="..\..\vendor\signtool.exe" Pack="true" PackagePath="vendor" />
+    <None Include="..\..\Velopack.entitlements" Pack="true" PackagePath="vendor" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Build" Version="17.3.2" />
+    <PackageReference Include="NuGet.Protocol" Version="6.8.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.23407.1" />
+    <PackageReference Include="System.Xml.XDocument" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Velopack.Deployment\Velopack.Deployment.csproj" />
+    <ProjectReference Include="..\Velopack.Packaging.OSX\Velopack.Packaging.OSX.csproj" />
+    <ProjectReference Include="..\Velopack.Packaging.Windows\Velopack.Packaging.Windows.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -22,7 +22,7 @@ use std::{env, path::PathBuf};
 fn root_command() -> Command {
     let cmd = Command::new("Update")
     .version(env!("NGBV_VERSION"))
-    .about(format!("Clowd.Squirrel Updater ({}) manages packages and installs updates for Squirrel applications.\nhttps://github.com/clowd/Clowd.Squirrel", env!("NGBV_VERSION")))
+    .about(format!("Velopack Updater ({}) manages packages and installs updates.\nhttps://github.com/velopack/velopack", env!("NGBV_VERSION")))
     .subcommand(Command::new("apply")
         .about("Applies a staged / prepared update, installing prerequisite runtimes if necessary")
         .arg(arg!(-r --restart "Restart the application after the update"))
@@ -85,7 +85,7 @@ fn main() -> Result<()> {
     let default_log_file = {
         let mut my_dir = env::current_exe().unwrap();
         my_dir.pop();
-        my_dir.join("Clowd.Squirrel.log")
+        my_dir.join("Velopack.log")
     };
 
     let verbose = matches.get_flag("verbose");
@@ -96,7 +96,7 @@ fn main() -> Result<()> {
     dialogs::set_silent(silent);
     logging::setup_logging(Some(&log_file), true, verbose, nocolor)?;
 
-    info!("Starting Clowd.Squirrel Updater ({})", env!("NGBV_VERSION"));
+    info!("Starting Velopack Updater ({})", env!("NGBV_VERSION"));
     info!("    Location: {}", env::current_exe()?.to_string_lossy());
     info!("    Verbose: {}", verbose);
     info!("    Silent: {}", silent);

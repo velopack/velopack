@@ -152,7 +152,7 @@ impl SplashWindow {
             class_icon: gui::Icon::Idi(co::IDI::APPLICATION),
             class_cursor: gui::Cursor::Idc(co::IDC::APPSTARTING),
             class_style: co::CS::HREDRAW | co::CS::VREDRAW,
-            class_name: "SquirrelSetupSplashWindow".to_owned(),
+            class_name: "VelopackSetupSplashWindow".to_owned(),
             title: app_name,
             size: (w.into(), h.into()),
             ex_style: co::WS_EX::NoValue,

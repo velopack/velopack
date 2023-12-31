@@ -1,5 +1,5 @@
 [package]
-name = "clowd_squirrel"
+name = "velopack"
 version = "0.0.0-local"
 edition = "2021"
 

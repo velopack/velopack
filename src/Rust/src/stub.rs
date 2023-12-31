@@ -16,7 +16,7 @@ fn main() -> ExitCode {
 
     let mut log_path = my_path.clone();
     log_path.pop();
-    log_path.push("Clowd.Squirrel.log");
+    log_path.push("Velopack.log");
 
     let _ = logging::setup_logging(Some(&log_path), false, true, true);
 

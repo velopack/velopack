@@ -338,7 +338,7 @@ impl Manifest {
 #[cfg(target_os = "macos")]
 impl Manifest {
     pub fn get_packages_path(&self, _root_path: &PathBuf) -> String {
-        let tmp = format!("/tmp/clowd.squirrel/{}/packages", self.id);
+        let tmp = format!("/tmp/velopack/{}/packages", self.id);
         let p = Path::new(&tmp);
         if !p.exists() {
             fs::create_dir_all(p).unwrap();
@@ -517,16 +517,16 @@ fn parse_package_file_name<T: AsRef<str>>(name: T) -> Option<EntryNameInfo> {
 #[test]
 fn test_parse_package_file_name() {
     // test no rid
-    let entry = parse_package_file_name("Clowd.Squirrel-1.0.0-full.nupkg").unwrap();
-    assert_eq!(entry.name, "Clowd.Squirrel");
+    let entry = parse_package_file_name("Velopack-1.0.0-full.nupkg").unwrap();
+    assert_eq!(entry.name, "Velopack");
     assert_eq!(entry.version, Version::parse("1.0.0").unwrap());
     assert_eq!(entry.is_delta, false);
     assert_eq!(entry.os, None);
     assert_eq!(entry.os_min_ver, None);
     assert_eq!(entry.os_arch, None);
 
-    let entry = parse_package_file_name("Clowd.Squirrel-1.0.0-delta.nupkg").unwrap();
-    assert_eq!(entry.name, "Clowd.Squirrel");
+    let entry = parse_package_file_name("Velopack-1.0.0-delta.nupkg").unwrap();
+    assert_eq!(entry.name, "Velopack");
     assert_eq!(entry.version, Version::parse("1.0.0").unwrap());
     assert_eq!(entry.is_delta, true);
     assert_eq!(entry.os, None);
@@ -542,40 +542,40 @@ fn test_parse_package_file_name() {
     assert_eq!(entry.os_arch, None);
 
     // test with rid individual components
-    let entry = parse_package_file_name("Clowd.Squirrel-1.0.0-osx-full.nupkg").unwrap();
-    assert_eq!(entry.name, "Clowd.Squirrel");
+    let entry = parse_package_file_name("Velopack-1.0.0-osx-full.nupkg").unwrap();
+    assert_eq!(entry.name, "Velopack");
     assert_eq!(entry.version, Version::parse("1.0.0").unwrap());
     assert_eq!(entry.is_delta, false);
     assert_eq!(entry.os, Some("osx".to_string()));
     assert_eq!(entry.os_min_ver, None);
     assert_eq!(entry.os_arch, None);
 
-    let entry = parse_package_file_name("Clowd.Squirrel-1.0.0-win-full.nupkg").unwrap();
-    assert_eq!(entry.name, "Clowd.Squirrel");
+    let entry = parse_package_file_name("Velopack-1.0.0-win-full.nupkg").unwrap();
+    assert_eq!(entry.name, "Velopack");
     assert_eq!(entry.version, Version::parse("1.0.0").unwrap());
     assert_eq!(entry.is_delta, false);
     assert_eq!(entry.os, Some("win".to_string()));
     assert_eq!(entry.os_min_ver, None);
     assert_eq!(entry.os_arch, None);
 
-    let entry = parse_package_file_name("Clowd.Squirrel-1.0.0-x86-full.nupkg").unwrap();
-    assert_eq!(entry.name, "Clowd.Squirrel");
+    let entry = parse_package_file_name("Velopack-1.0.0-x86-full.nupkg").unwrap();
+    assert_eq!(entry.name, "Velopack");
     assert_eq!(entry.version, Version::parse("1.0.0").unwrap());
     assert_eq!(entry.is_delta, false);
     assert_eq!(entry.os, None);
     assert_eq!(entry.os_min_ver, None);
     assert_eq!(entry.os_arch, Some("x86".to_string()));
 
-    let entry = parse_package_file_name("Clowd.Squirrel-1.0.0-x64-full.nupkg").unwrap();
-    assert_eq!(entry.name, "Clowd.Squirrel");
+    let entry = parse_package_file_name("Velopack-1.0.0-x64-full.nupkg").unwrap();
+    assert_eq!(entry.name, "Velopack");
     assert_eq!(entry.version, Version::parse("1.0.0").unwrap());
     assert_eq!(entry.is_delta, false);
     assert_eq!(entry.os, None);
     assert_eq!(entry.os_min_ver, None);
     assert_eq!(entry.os_arch, Some("x64".to_string()));
 
-    let entry = parse_package_file_name("Clowd.Squirrel-1.0.0-arm64-full.nupkg").unwrap();
-    assert_eq!(entry.name, "Clowd.Squirrel");
+    let entry = parse_package_file_name("Velopack-1.0.0-arm64-full.nupkg").unwrap();
+    assert_eq!(entry.name, "Velopack");
     assert_eq!(entry.version, Version::parse("1.0.0").unwrap());
     assert_eq!(entry.is_delta, false);
     assert_eq!(entry.os, None);
@@ -583,16 +583,16 @@ fn test_parse_package_file_name() {
     assert_eq!(entry.os_arch, Some("arm64".to_string()));
 
     // test with full rid
-    let entry = parse_package_file_name("Clowd.Squirrel-1.0.0-win10-x64-full.nupkg").unwrap();
-    assert_eq!(entry.name, "Clowd.Squirrel");
+    let entry = parse_package_file_name("Velopack-1.0.0-win10-x64-full.nupkg").unwrap();
+    assert_eq!(entry.name, "Velopack");
     assert_eq!(entry.version, Version::parse("1.0.0").unwrap());
     assert_eq!(entry.is_delta, false);
     assert_eq!(entry.os, Some("win".to_string()));
     assert_eq!(entry.os_min_ver, Some("10".to_string()));
     assert_eq!(entry.os_arch, Some("x64".to_string()));
 
-    let entry = parse_package_file_name("Clowd.Squirrel-1.0.0-win10-arm64-full.nupkg").unwrap();
-    assert_eq!(entry.name, "Clowd.Squirrel");
+    let entry = parse_package_file_name("Velopack-1.0.0-win10-arm64-full.nupkg").unwrap();
+    assert_eq!(entry.name, "Velopack");
     assert_eq!(entry.version, Version::parse("1.0.0").unwrap());
     assert_eq!(entry.is_delta, false);
     assert_eq!(entry.os, Some("win".to_string()));

@@ -35,7 +35,7 @@ pub fn run_hook(app: &shared::bundle::Manifest, root_path: &PathBuf, hook_name: 
 }
 
 pub fn create_global_mutex(app: &shared::bundle::Manifest) -> Result<Foundation::HANDLE> {
-    let mutex_name = format!("clowdsquirrel-{}", &app.id);
+    let mutex_name = format!("velopack-{}", &app.id);
     info!("Attempting to open global system mutex: '{}'", &mutex_name);
     let encoded = mutex_name.encode_utf16().chain([0u16]).collect::<Vec<u16>>();
     let pw = PCWSTR(encoded.as_ptr());

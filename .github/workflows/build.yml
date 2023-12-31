@@ -65,14 +65,14 @@ jobs:
       - name: Build .NET
         run: dotnet build -c Release 
 
-      - name: Test .NET Squirrel.Tests
-        run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Squirrel.Tests/Squirrel.Tests.csproj
+      - name: Test .NET Velopack.Tests
+        run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Velopack.Tests/Velopack.Tests.csproj
 
-      - name: Test .NET Squirrel.Packaging.Tests
-        run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Squirrel.Packaging.Tests/Squirrel.Packaging.Tests.csproj
+      - name: Test .NET Velopack.Packaging.Tests
+        run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj
 
-      - name: Test .NET Squirrel.CommandLine.Tests
-        run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Squirrel.CommandLine.Tests/Squirrel.CommandLine.Tests.csproj
+      - name: Test .NET Velopack.CommandLine.Tests
+        run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj
 
       - name: Upload Rust Artifacts
         uses: actions/upload-artifact@v4

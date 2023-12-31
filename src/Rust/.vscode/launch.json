@@ -12,7 +12,7 @@
                 "args": [
                     "build",
                     "--bin=setup",
-                    "--package=clowd_squirrel"
+                    "--package=velopack"
                 ],
                 "filter": {
                     "name": "setup",
@@ -34,7 +34,7 @@
                     "test",
                     "--no-run",
                     "--bin=setup",
-                    "--package=clowd_squirrel"
+                    "--package=velopack"
                 ],
                 "filter": {
                     "name": "setup",
@@ -52,7 +52,7 @@
                 "args": [
                     "build",
                     "--bin=update",
-                    "--package=clowd_squirrel"
+                    "--package=velopack"
                 ],
                 "filter": {
                     "name": "update",
@@ -71,7 +71,7 @@
                     "test",
                     "--no-run",
                     "--bin=update",
-                    "--package=clowd_squirrel"
+                    "--package=velopack"
                 ],
                 "filter": {
                     "name": "update",

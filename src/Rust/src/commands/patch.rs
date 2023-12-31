@@ -26,7 +26,6 @@ pub fn patch(old_file: &PathBuf, patch_file: &PathBuf, output_file: &PathBuf) ->
 
 #[test]
 fn test_patch_apply() {
-    crate::logging::trace_logger();
     let mut path = std::env::current_exe().unwrap();
     path.pop();
     path.pop();

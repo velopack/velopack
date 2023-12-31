@@ -18,7 +18,7 @@
     <IsTest>true</IsTest>
     <NoWarn>$(NoWarn);CS1998,xUnit2015,xUnit2017,xUnit2005,xUnit2009,xUnit2013,xUnit2004;CA2007;CS8002</NoWarn>
     <SignAssembly>True</SignAssembly>
-    <AssemblyOriginatorKeyFile>..\..\Squirrel.snk</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>..\..\Velopack.snk</AssemblyOriginatorKeyFile>
     <IsPackable>false</IsPackable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
@@ -26,8 +26,8 @@
   <PropertyGroup Condition=" $(MSBuildProjectName.EndsWith('Tests')) and $(CI) != '' ">
     <CoverletOutputFormat>cobertura</CoverletOutputFormat>
     <CoverletOutput>..\coverage.$(CurrentOsName).$(MSBuildProjectName).xml</CoverletOutput>
-    <Include>[Squirrel*]*</Include>
-    <Exclude>[Squirrel.*.Tests]*,[*]Microsoft*</Exclude>
+    <Include>[Velopack*]*</Include>
+    <Exclude>[Velopack.*.Tests]*,[*]Microsoft*</Exclude>
     <CollectCoverage>true</CollectCoverage>
   </PropertyGroup>
 

@@ -12,19 +12,19 @@
     <LangVersion>latest</LangVersion>
     <SignAssembly>True</SignAssembly>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <AssemblyOriginatorKeyFile>..\..\Squirrel.snk</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>..\..\Velopack.snk</AssemblyOriginatorKeyFile>
     <DebugType>embedded</DebugType>
     <DebugSymbols>true</DebugSymbols>
     <PathMap>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)'))=./</PathMap>
     
-    <Product>Squirrel</Product>
+    <Product>Velopack</Product>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <Copyright>Copyright © Caelan Sayler 2021</Copyright>
     <Authors>Caelan Sayler</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/clowd/Clowd.Squirrel</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/clowd/Clowd.Squirrel</RepositoryUrl>
-    <PackageTags>windows;macos;osx;updater;dotnet;installer;desktop;squirrel;autoupdate;automatic-updates</PackageTags>
+    <PackageProjectUrl>https://github.com/velopack/velopack</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/velopack/velopack</RepositoryUrl>
+    <PackageTags>windows;macos;osx;updater;dotnet;installer;desktop;squirrel;velopack;autoupdate;automatic-updates</PackageTags>
   </PropertyGroup>
 
   <ItemGroup Condition=" '$(MSBuildProjectExtension)'=='.csproj' ">

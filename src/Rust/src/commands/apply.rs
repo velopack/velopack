@@ -21,7 +21,7 @@ pub fn apply<'a>(restart: bool, wait_for_parent: bool, package: Option<&PathBuf>
     }
 
     if restart {
-        shared::start_package(&app, &root_path, exe_args, Some("CLOWD_SQUIRREL_RESTART"))?;
+        shared::start_package(&app, &root_path, exe_args, Some("VELOPACK_RESTART"))?;
     }
 
     Ok(())

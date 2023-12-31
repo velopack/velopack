@@ -7,7 +7,7 @@ This folder contains pre-compiled binaries from a variety of sources. These shou
 - MIT License: https://github.com/electron/rcedit/blob/master/LICENSE
 
 ### signtool.exe
-- Signs application binaries while building Squirrel packages.
+- Signs application binaries while building packages.
 - Can be found in the Windows SDK at "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x86\signtool.exe" or similar, depending on the version of the SDK you have installed.
 - License? https://github.com/dotnet/docs/issues/10478
 

@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Squirrel\Squirrel.csproj" />
+    <ProjectReference Include="..\..\src\Velopack\Velopack.csproj" />
   </ItemGroup>
 
   <ItemGroup>
