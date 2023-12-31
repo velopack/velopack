@@ -9,11 +9,15 @@
     <PackageId>Velopack</PackageId>
     <Description>Quick and easy installer and automatic updates for desktop applications</Description>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <!--<PackageIcon>Clowd_200.png</PackageIcon>-->
+    <PackageIcon>Velopack_200.png</PackageIcon>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
     <CheckEolTargetFramework>false</CheckEolTargetFramework>
     <LangVersion>9</LangVersion>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\docs\artwork\Velopack_200.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
@@ -30,9 +34,5 @@
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
   </ItemGroup>
-
-  <!--<ItemGroup>
-    <None Include="..\..\docs\artwork\Clowd_200.png" Pack="true" PackagePath="\" />
-  </ItemGroup>-->
 
 </Project>

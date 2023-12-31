@@ -12,14 +12,14 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackAsTool>true</PackAsTool>
     <Description>A .NET Core Tool that uses the Velopack framework to create installers and update packages for dotnet applications.</Description>
-    <!--<PackageIcon>Clowd_200.png</PackageIcon>-->
+    <PackageIcon>Velopack_200.png</PackageIcon>
     <LangVersion>latest</LangVersion>
     <NoWarn>$(NoWarn);CA2007;CS8002</NoWarn>
   </PropertyGroup>
 
-  <!--<ItemGroup>
-    <None Include="..\..\docs\artwork\Clowd_200.png" Pack="true" PackagePath="\" />
-  </ItemGroup>-->
+  <ItemGroup>
+    <None Include="..\..\docs\artwork\Velopack_200.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
     <None Include="..\Rust\target\debug\update" CopyToOutputDirectory="Always" Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
