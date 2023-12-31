@@ -48,7 +48,6 @@ fn main() -> Result<()> {
 
     shared::dialogs::set_silent(silent);
     logging::setup_logging(logfile, true, verbose, nocolor)?;
-    let _comguard = w::CoInitializeEx(co::COINIT::APARTMENTTHREADED | co::COINIT::DISABLE_OLE1DDE)?;
 
     info!("Starting Velopack Setup ({})", env!("NGBV_VERSION"));
     info!("    Location: {:?}", std::env::current_exe()?);
@@ -231,7 +230,7 @@ fn install_app(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::mp
     info!("Creating start menu shortcut...");
     let startmenu = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::StartMenu, co::KF::DONT_UNEXPAND, None)?;
     let lnk_path = Path::new(&startmenu).join("Programs").join(format!("{}.lnk", &app.title));
-    if let Err(e) = windows::create_lnk(&lnk_path.to_string_lossy(), &main_exe_path, &current_path) {
+    if let Err(e) = windows::create_lnk(&lnk_path.to_string_lossy(), &main_exe_path, &current_path, None) {
         warn!("Failed to create start menu shortcut: {}", e);
     }
 

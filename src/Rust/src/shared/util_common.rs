@@ -3,7 +3,6 @@ use rand::distributions::{Alphanumeric, DistString};
 use regex::Regex;
 use std::{
     fs,
-    io::{self},
     path::{Path, PathBuf},
     thread,
     time::Duration,
@@ -60,9 +59,10 @@ where
     }
 }
 
-pub fn retry_io<F, T>(op: F) -> io::Result<T>
+pub fn retry_io<F, T, E>(op: F) -> Result<T, E>
 where
-    F: Fn() -> io::Result<T>,
+    F: Fn() -> Result<T, E>,
+    E: std::error::Error + std::fmt::Debug,
 {
     let res = op();
     if res.is_ok() {

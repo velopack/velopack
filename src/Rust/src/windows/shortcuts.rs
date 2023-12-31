@@ -2,32 +2,125 @@ use crate::shared as util;
 use anyhow::Result;
 use glob::glob;
 use std::path::Path;
-use winsafe::{self as w, co, prelude::*};
+use std::time::Duration;
+use winsafe::{self as w, co};
 
-pub fn create_lnk(output: &str, target: &str, work_dir: &str) -> w::HrResult<()> {
-    let me = w::CoCreateInstance::<w::IShellLink>(&co::CLSID::ShellLink, None, co::CLSCTX::INPROC_SERVER)?;
-    me.SetPath(target)?;
-    me.SetWorkingDirectory(work_dir)?;
-    let pf = me.QueryInterface::<w::IPersistFile>()?;
-    pf.Save(Some(output), true)?;
+use windows::core::{ComInterface, Result as WindowsResult, GUID, PCWSTR};
+use windows::Win32::Foundation::HWND;
+use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
+use windows::Win32::System::Com::StructuredStorage::InitPropVariantFromStringVector;
+use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, IPersistFile, CLSCTX_ALL, COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE, STGM_READ};
+use windows::Win32::UI::Shell::PropertiesSystem::IPropertyStore;
+use windows::Win32::UI::Shell::{IShellLinkW, ShellLink};
+
+// https://github.com/vaginessa/PWAsForFirefox/blob/fba68dbcc7ca27b970dc5a278ebdad32e0ab3c83/native/src/integrations/implementation/windows.rs#L28
+
+#[inline]
+fn init_com() -> WindowsResult<()> {
+    unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) }?;
+    std::thread::sleep(Duration::from_millis(1));
     Ok(())
 }
 
-pub fn resolve_lnk(link_path: &str) -> Result<(String, String)> {
-    let me = w::CoCreateInstance::<w::IShellLink>(&co::CLSID::ShellLink, None, co::CLSCTX::INPROC_SERVER)?;
-    let pf = me.QueryInterface::<w::IPersistFile>()?;
-    pf.Load(link_path, co::STGM::READ)?;
-    let flags_with_timeout = co::SLR::ANY_MATCH | co::SLR::NO_UI | unsafe { co::SLR::from_raw(1 << 16) };
-    if let Err(e) = me.Resolve(&w::HWND::NULL, flags_with_timeout) {
-        // this happens if the target path is missing and the link is broken
-        warn!("Failed to resolve link {} ({:?})", link_path, e);
+#[inline]
+fn create_instance<T: ComInterface>(clsid: &GUID) -> WindowsResult<T> {
+    unsafe { CoCreateInstance(clsid, None, CLSCTX_ALL) }
+}
+
+/// See: https://github.com/microsoft/windows-rs/issues/973#issue-942298423
+#[inline]
+fn string_to_pcwstr(str: &str) -> PCWSTR {
+    let mut encoded = str.encode_utf16().chain([0u16]).collect::<Vec<u16>>();
+    PCWSTR(encoded.as_mut_ptr())
+}
+
+#[inline]
+fn u16_to_string(pszfile: &[u16]) -> Result<String, std::string::FromUtf16Error> {
+    // Trim the array to remove trailing nulls before conversion
+    let end = pszfile.iter().position(|&c| c == 0).unwrap_or(pszfile.len());
+    String::from_utf16(&pszfile[..end])
+}
+
+pub fn create_lnk(output: &str, target: &str, work_dir: &str, app_model_id: Option<&str>) -> WindowsResult<()> {
+    let output = output.to_string();
+    let target = target.to_string();
+    let work_dir = work_dir.to_string();
+    let app_model_id = app_model_id.map(|f| f.to_string());
+    let t = std::thread::spawn(move || {
+        init_com()?;
+        _create_lnk(&output, &target, &work_dir, app_model_id)?;
+        Ok(())
+    });
+    t.join().unwrap()
+}
+
+fn _create_lnk(output: &str, target: &str, work_dir: &str, app_model_id: Option<String>) -> WindowsResult<()> {
+    let link: IShellLinkW = create_instance(&ShellLink)?;
+
+    unsafe {
+        link.SetPath(string_to_pcwstr(target))?;
+        link.SetWorkingDirectory(string_to_pcwstr(work_dir))?;
+
+        // Set app user model ID property
+        // Docs: https://docs.microsoft.com/en-us/windows/win32/properties/props-system-appusermodel-id
+        if let Some(app_model_id) = app_model_id {
+            let store: IPropertyStore = link.cast()?;
+            let variant = InitPropVariantFromStringVector(Some(&[string_to_pcwstr(app_model_id.as_str())]))?;
+            store.SetValue(&PKEY_AppUserModel_ID, &variant)?;
+            store.Commit()?;
+        }
+
+        // Save shortcut to file
+        let persist: IPersistFile = link.cast()?;
+        persist.Save(string_to_pcwstr(output), true)?;
     }
-    let path = me.GetPath(None, co::SLGP::UNCPRIORITY)?;
-    let workdir = me.GetWorkingDirectory()?;
-    Ok((path, workdir))
+
+    Ok(())
+}
+
+pub fn resolve_lnk(link_path: &str) -> WindowsResult<(String, String)> {
+    let link_path = link_path.to_string();
+    let t = std::thread::spawn(move || {
+        init_com()?;
+        Ok(_resolve_lnk(&link_path)?)
+    });
+    t.join().unwrap()
+}
+
+fn _resolve_lnk(link_path: &str) -> WindowsResult<(String, String)> {
+    let link: IShellLinkW = create_instance(&ShellLink)?;
+    let persist: IPersistFile = link.cast()?;
+
+    unsafe {
+        persist.Load(string_to_pcwstr(link_path), STGM_READ)?;
+        let flags = 1 | 2 | 1 << 16;
+        if let Err(e) = link.Resolve(HWND(0), flags) {
+            // this happens if the target path is missing and the link is broken
+            warn!("Failed to resolve link {} ({:?})", link_path, e);
+        }
+
+        let mut pszfile = [0u16; 260];
+        let mut pszdir = [0u16; 260];
+        link.GetPath(&mut pszfile, std::ptr::null_mut(), 0)?;
+        link.GetWorkingDirectory(&mut pszdir)?;
+
+        let target = u16_to_string(&pszfile)?;
+        let work_dir = u16_to_string(&pszdir)?;
+        Ok((target, work_dir))
+    }
 }
 
 pub fn remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<()> {
+    let root_dir = root_dir.as_ref().to_owned();
+    let t = std::thread::spawn(move || {
+        init_com()?;
+        _remove_all_shortcuts_for_root_dir(&root_dir)?;
+        Ok(())
+    });
+    t.join().unwrap()
+}
+
+fn _remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<()> {
     let root_dir = root_dir.as_ref();
     info!("Searching for shortcuts containing root: '{}'", root_dir.to_string_lossy());
 
@@ -48,7 +141,7 @@ pub fn remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<
             for path in paths {
                 if let Ok(path) = path {
                     trace!("Checking shortcut: '{}'", path.to_string_lossy());
-                    let res = resolve_lnk(&path.to_string_lossy());
+                    let res = _resolve_lnk(&path.to_string_lossy());
                     if let Ok((target, work_dir)) = res {
                         let target_match = super::is_sub_path(&target, root_dir).unwrap_or(false);
                         let work_dir_match = super::is_sub_path(&work_dir, root_dir).unwrap_or(false);
@@ -72,9 +165,24 @@ pub fn remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<
 }
 
 #[test]
-#[ignore]
+fn test_shortcut_intense_intermittent() {
+    let startmenu = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::StartMenu, co::KF::DONT_UNEXPAND, None).unwrap();
+    let lnk_path = Path::new(&startmenu).join("Programs").join(format!("{}.lnk", "veloshortcuttest"));
+    let target = "C:\\Users\\Caelan\\AppData\\Local\\Discord\\Update.exe";
+    let work = "C:\\Users\\Caelan\\AppData\\Local\\Discord";
+
+    let mut i = 0;
+    while i < 100 {
+        create_lnk(&lnk_path.to_string_lossy(), &target, &work, None).unwrap();
+        assert!(lnk_path.exists());
+        util::retry_io(|| std::fs::remove_file(&lnk_path)).unwrap();
+        assert!(!lnk_path.exists());
+        i += 1;
+    }
+}
+
+#[test]
 fn test_can_resolve_existing_shortcut() {
-    let _comguard = w::CoInitializeEx(co::COINIT::APARTMENTTHREADED | co::COINIT::DISABLE_OLE1DDE).unwrap();
     let link_path = r"C:\Users\Caelan\Desktop\Discord.lnk";
     let (target, _workdir) = resolve_lnk(link_path).unwrap();
     assert_eq!(target, "C:\\Users\\Caelan\\AppData\\Local\\Discord\\Update.exe");
@@ -82,14 +190,13 @@ fn test_can_resolve_existing_shortcut() {
 
 #[test]
 fn shortcut_full_integration_test() {
-    let _comguard = w::CoInitializeEx(co::COINIT::APARTMENTTHREADED | co::COINIT::DISABLE_OLE1DDE).unwrap();
     let desktop = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Desktop, co::KF::DONT_UNEXPAND, None).unwrap();
     let link_location = Path::new(&desktop).join("testclowd123hi.lnk");
     let target = r"C:\Users\Caelan\AppData\Local\NonExistingAppHello123\current\HelloWorld.exe";
     let work = r"C:\Users\Caelan/appData\Local/NonExistingAppHello123\current";
     let root = r"C:\Users\Caelan/appData\Local/NonExistingAppHello123";
 
-    create_lnk(&link_location.to_string_lossy(), target, work).unwrap();
+    create_lnk(&link_location.to_string_lossy(), target, work, None).unwrap();
     assert!(link_location.exists());
 
     let (target_out, work_out) = resolve_lnk(&link_location.to_string_lossy()).unwrap();

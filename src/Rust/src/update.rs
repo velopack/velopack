@@ -79,9 +79,6 @@ fn main() -> Result<()> {
     #[cfg(target_os = "macos")]
     let matches = root_command().get_matches();
 
-    #[cfg(target_os = "windows")]
-    let _comguard = winsafe::CoInitializeEx(winsafe::co::COINIT::APARTMENTTHREADED | winsafe::co::COINIT::DISABLE_OLE1DDE)?;
-
     let default_log_file = {
         let mut my_dir = env::current_exe().unwrap();
         my_dir.pop();
