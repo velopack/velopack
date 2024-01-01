@@ -20,7 +20,11 @@ public class HelperFile
 {
     public string UpdatePath => FindHelperFile("Update.exe");
 
-    public string UpdateMacPath => FindHelperFile("UpdateMac");
+#if DEBUG
+    public string UpdateMacPath => FindHelperFile("update", MachO.IsMachOImage);
+#else
+    public string UpdateMacPath => FindHelperFile("UpdateMac", MachO.IsMachOImage);
+#endif
 
     private static List<string> _searchPaths = new List<string>();
     protected readonly ILogger Log;

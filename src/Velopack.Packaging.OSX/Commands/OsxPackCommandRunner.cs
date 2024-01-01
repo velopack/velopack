@@ -61,7 +61,8 @@ public class OsxPackCommandRunner
         var nuspecPath = Path.Combine(structure.ContentsDirectory, Utility.SpecVersionFileName);
 
         var helper = new HelperExe(_logger);
-
+        var processed = new List<string>();
+        
         // nuspec and UpdateMac need to be in contents dir or this package can't update
         File.WriteAllText(nuspecPath, nuspecText);
         File.Copy(helper.UpdateMacPath, Path.Combine(structure.ContentsDirectory, "UpdateMac"), true);
@@ -90,32 +91,28 @@ public class OsxPackCommandRunner
         using var _ = Utility.GetTempDirectory(out var tmp);
         var nuget = new NugetConsole(_logger);
         var nupkgPath = nuget.CreatePackageFromNuspecPath(tmp, appBundlePath, nuspecPath);
-
-        var releases = new Dictionary<string, ReleaseEntry>();
-
-        ReleaseEntry.BuildReleasesFile(releaseDir.FullName);
-        foreach (var rel in ReleaseEntry.ParseReleaseFile(File.ReadAllText(releaseFilePath, Encoding.UTF8))) {
-            releases[rel.OriginalFilename] = rel;
-        }
-
+        
         var rp = new ReleasePackageBuilder(_logger, nupkgPath);
         var suggestedName = new ReleaseEntryName(packId, SemanticVersion.Parse(packVersion), false, options.TargetRuntime).ToFileName();
         var newPkgPath = rp.CreateReleasePackage((i, pkg) => Path.Combine(releaseDir.FullName, suggestedName));
+        processed.Add(newPkgPath);
 
         _logger.Info("Creating Delta Packages");
-        var prev = ReleasePackageBuilder.GetPreviousRelease(_logger, releases.Values, rp, releaseDir.FullName);
+        var prev = ReleasePackageBuilder.GetPreviousRelease(_logger, previousReleases, rp, releaseDir.FullName);
         if (prev != null && options.DeltaMode != DeltaMode.None) {
             var deltaBuilder = new DeltaPackageBuilder(_logger);
             var deltaFile = rp.ReleasePackageFile.Replace("-full", "-delta");
             var dp = deltaBuilder.CreateDeltaPackage(prev, rp, deltaFile, options.DeltaMode);
-            var deltaEntry = ReleaseEntry.GenerateFromFile(deltaFile);
-            releases[deltaEntry.OriginalFilename] = deltaEntry;
+            processed.Add(deltaFile);
         }
-
-        var fullEntry = ReleaseEntry.GenerateFromFile(newPkgPath);
-        releases[fullEntry.OriginalFilename] = fullEntry;
-
-        ReleaseEntry.WriteReleaseFile(releases.Values, releaseFilePath);
+        
+        var newReleaseEntries = processed
+            .Select(packageFilename => ReleaseEntry.GenerateFromFile(packageFilename))
+            .ToList();
+        var distinctPreviousReleases = previousReleases
+            .Where(x => !newReleaseEntries.Select(e => e.Version).Contains(x.Version));
+        var releaseEntries = distinctPreviousReleases.Concat(newReleaseEntries).ToList();
+        ReleaseEntry.WriteReleaseFile(releaseEntries, releaseFilePath);
 
         // create installer package, sign and notarize
         if (!options.NoPackage) {
