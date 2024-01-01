@@ -12,9 +12,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionLevel", "SolutionLe
 		.editorconfig = .editorconfig
 		.github\workflows\build.yml = .github\workflows\build.yml
 		src\Directory.Build.props = src\Directory.Build.props
+		README.md = README.md
 		Velopack.entitlements = Velopack.entitlements
 		version.json = version.json
-		README.md = README.md
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Velopack.Packaging", "src\Velopack.Packaging\Velopack.Packaging.csproj", "{352C15EA-622F-4132-80D8-9B6E3C83404E}"
@@ -34,6 +34,10 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Velopack.Packaging.Tests", "test\Velopack.Packaging.Tests\Velopack.Packaging.Tests.csproj", "{175B06A5-5C09-4DAB-A6AF-C8A2257BD1B6}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestApp", "test\TestApp\TestApp.csproj", "{784B5987-2E71-4AEE-81B9-E0CC7F1DBEB3}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{3EBFA551-780C-473D-A197-0EE56F2CBA82}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AvaloniaCrossPlat", "examples\AvaloniaCrossPlat\AvaloniaCrossPlat.csproj", "{1FF6A262-13D0-45DF-B818-77AC84C52C6F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -81,6 +85,10 @@ Global
 		{784B5987-2E71-4AEE-81B9-E0CC7F1DBEB3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{784B5987-2E71-4AEE-81B9-E0CC7F1DBEB3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{784B5987-2E71-4AEE-81B9-E0CC7F1DBEB3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1FF6A262-13D0-45DF-B818-77AC84C52C6F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1FF6A262-13D0-45DF-B818-77AC84C52C6F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1FF6A262-13D0-45DF-B818-77AC84C52C6F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1FF6A262-13D0-45DF-B818-77AC84C52C6F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -90,6 +98,7 @@ Global
 		{519EAB50-47B8-425F-8B20-AB9548F220B4} = {7AC3A776-B582-4B65-9D03-BD52332B5CA3}
 		{175B06A5-5C09-4DAB-A6AF-C8A2257BD1B6} = {7AC3A776-B582-4B65-9D03-BD52332B5CA3}
 		{784B5987-2E71-4AEE-81B9-E0CC7F1DBEB3} = {7AC3A776-B582-4B65-9D03-BD52332B5CA3}
+		{1FF6A262-13D0-45DF-B818-77AC84C52C6F} = {3EBFA551-780C-473D-A197-0EE56F2CBA82}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {68CA987A-9BAB-4C75-8EEB-4596BA6BBD07}
