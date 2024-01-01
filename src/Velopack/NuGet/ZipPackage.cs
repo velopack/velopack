@@ -14,7 +14,10 @@ namespace Velopack.NuGet
     public class ZipPackage : NuspecManifest, IZipPackage
     {
         public IEnumerable<string> Frameworks { get; private set; } = Enumerable.Empty<string>();
+
         public IEnumerable<ZipPackageFile> Files { get; private set; } = Enumerable.Empty<ZipPackageFile>();
+
+        public byte[] UpdateExeBytes { get; private set; }
 
         public ZipPackage(string filePath) : this(File.OpenRead(filePath))
         {
@@ -27,6 +30,7 @@ namespace Velopack.NuGet
             ReadManifest(manifest);
             Files = GetPackageFiles(zip).ToArray();
             Frameworks = GetFrameworks(Files);
+            UpdateExeBytes = ReadFileToBytes(zip, f => f.FullName.EndsWith("Squirrel.exe"));
         }
 
         protected byte[] ReadFileToBytes(ZipArchive archive, Func<ZipArchiveEntry, bool> predicate)

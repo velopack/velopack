@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.Versioning;
 using Velopack.Compression;
 using Velopack.Locators;
+using Velopack.NuGet;
 using Velopack.Sources;
 
 namespace Velopack
@@ -165,19 +166,19 @@ namespace Velopack
         public virtual async Task DownloadUpdatesAsync(
             UpdateInfo updates, Action<int> progress = null, bool ignoreDeltas = false, CancellationToken cancelToken = default)
         {
+            progress ??= (_ => { });
+            var targetRelease = updates?.TargetFullRelease;
+            if (targetRelease == null) {
+                throw new ArgumentException("Must pass a valid UpdateInfo object with a non-null TargetFullRelease", nameof(updates));
+            }
+
+            EnsureInstalled();
+            using var _mut = AcquireUpdateLock();
+
+            var completeFile = Path.Combine(Locator.PackagesDir, targetRelease.OriginalFilename);
+            var incompleteFile = completeFile + ".partial";
+
             try {
-                progress ??= (_ => { });
-                var targetRelease = updates?.TargetFullRelease;
-                if (targetRelease == null) {
-                    throw new ArgumentException("Must pass a valid UpdateInfo object with a non-null TargetFullRelease", nameof(updates));
-                }
-
-                EnsureInstalled();
-                using var _mut = AcquireUpdateLock();
-
-                var completeFile = Path.Combine(Locator.PackagesDir, targetRelease.OriginalFilename);
-                var incompleteFile = completeFile + ".partial";
-
                 if (File.Exists(completeFile)) {
                     Log.Info($"Package already exists on disk: '{completeFile}', verifying checksum...");
                     try {
@@ -210,7 +211,7 @@ namespace Velopack
                                     Utility.CopyFiles(Locator.AppContentDir, deltaStagingDir);
                                 }
                                 progress(10);
-                                await DownloadAndApplyDeltaUpdates(deltaStagingDir, updates, x => Utility.CalculateProgress(x, 10, 90))
+                                await DownloadAndApplyDeltaUpdates(deltaStagingDir, updates, x => progress(Utility.CalculateProgress(x, 10, 90)))
                                     .ConfigureAwait(false);
                                 progress(90);
 
@@ -240,8 +241,29 @@ namespace Velopack
                 File.Delete(completeFile);
                 File.Move(incompleteFile, completeFile);
                 Log.Info("Full release download complete. Package moved to: " + completeFile);
+
                 progress(100);
             } finally {
+                if (VelopackRuntimeInfo.IsWindows) {
+                    try {
+                        var updateExe = Locator.UpdateExePath;
+                        Log.Info("Extracting new Update.exe to " + updateExe);
+                        var zip = new ZipPackage(completeFile);
+
+                        if (zip.UpdateExeBytes == null) {
+                            Log.Error("Update.exe not found in package, skipping extraction.");
+                        } else {
+#if NET5_0_OR_GREATER
+                            await Utility.RetryAsync(() => File.WriteAllBytesAsync(updateExe, zip.UpdateExeBytes)).ConfigureAwait(false);
+#else
+                            Utility.Retry(() => File.WriteAllBytes(updateExe, zip.UpdateExeBytes));
+#endif
+                        }
+                    } catch (Exception ex) {
+                        Log.Error(ex, "Failed to extract new Update.exe");
+                    }
+                }
+
                 CleanIncompleteAndDeltaPackages();
             }
         }
