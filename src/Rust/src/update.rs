@@ -79,10 +79,17 @@ fn main() -> Result<()> {
     #[cfg(target_os = "macos")]
     let matches = root_command().get_matches();
 
+    #[cfg(target_os = "windows")]
     let default_log_file = {
         let mut my_dir = env::current_exe().unwrap();
         my_dir.pop();
         my_dir.join("Velopack.log")
+    };
+
+    #[cfg(target_os = "macos")]
+    let default_log_file = {
+        let (_root, manifest) = shared::detect_current_manifest().expect("Unable to load app manfiest.");
+        std::path::Path::new(format!("/tmp/velopack/{}.log", manifest.id).as_str()).to_path_buf()
     };
 
     let verbose = matches.get_flag("verbose");

@@ -241,7 +241,6 @@ namespace Velopack
                 File.Delete(completeFile);
                 File.Move(incompleteFile, completeFile);
                 Log.Info("Full release download complete. Package moved to: " + completeFile);
-
                 progress(100);
             } finally {
                 if (VelopackRuntimeInfo.IsWindows) {

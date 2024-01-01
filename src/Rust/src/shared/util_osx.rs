@@ -1,6 +1,8 @@
+use crate::shared::bundle;
+
 use super::bundle::Manifest;
 use anyhow::{anyhow, bail, Result};
-use std::{path::Path, process::Command as Process, time::Duration};
+use std::{path::Path, path::PathBuf, process::Command as Process, time::Duration};
 
 pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
     let id = std::os::unix::process::parent_id();
@@ -39,6 +41,36 @@ pub fn start_package<P: AsRef<Path>>(_app: &Manifest, root_dir: P, exe_args: Opt
     }
     psi.spawn().map_err(|z| anyhow!("Failed to start application ({}).", z))?;
     Ok(())
+}
+
+pub fn detect_current_manifest() -> Result<(PathBuf, Manifest)> {
+    let mut manifest_path = std::env::current_exe()?;
+    manifest_path.pop();
+    manifest_path.push("sq.version");
+    let manifest = load_manifest(&manifest_path)?;
+
+    let my_path = std::env::current_exe()?;
+    let my_path = my_path.to_string_lossy();
+    let app_idx = my_path.find(".app/");
+    if app_idx.is_none() {
+        bail!("Unable to find .app/ directory in path: {}", my_path);
+    }
+
+    let root_dir = &my_path[..app_idx.unwrap()];
+    let root_dir = root_dir.to_owned() + ".app";
+    
+    debug!("Detected Root: {}", root_dir);
+    debug!("Detected AppId: {}", manifest.id);
+    Ok((Path::new(&root_dir).to_path_buf(), manifest))
+}
+
+fn load_manifest(nuspec_path: &PathBuf) -> Result<Manifest> {
+    if Path::new(&nuspec_path).exists() {
+        if let Ok(nuspec) = super::retry_io(|| std::fs::read_to_string(&nuspec_path)) {
+            return Ok(bundle::read_manifest_from_string(&nuspec)?);
+        }
+    }
+    bail!("Unable to read nuspec file in current directory.")
 }
 
 #[test]

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using System.Xml.Linq;
 using Avalonia.Controls;
 using Avalonia.Threading;
@@ -42,6 +43,7 @@ public partial class MainWindow : Window
         } catch (Exception ex) {
             Log("ERROR: " + ex.Message);
         }
+        await Task.Delay(10);
         UpdateStatus();
     }
 
@@ -112,6 +114,7 @@ public partial class MainWindow : Window
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
                        Exception exception, Func<TState, Exception, string> formatter)
         {
+            if (logLevel < LogLevel.Information) return;
             var text = formatter(state, exception);
             Dispatcher.UIThread.Post(() => {
                 _textBox(text);

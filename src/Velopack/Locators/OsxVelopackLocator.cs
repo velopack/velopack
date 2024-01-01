@@ -57,8 +57,9 @@ namespace Velopack.Locators
 
             var appPath = ourPath.Substring(0, ix + 4);
             var contentsDir = Path.Combine(appPath, "Contents");
-            var updateExe = Path.Combine(contentsDir, "UpdateMac");
-            var metadataPath = Path.Combine(contentsDir, Utility.SpecVersionFileName);
+            var macosDir = Path.Combine(contentsDir, "MacOS");
+            var updateExe = Path.Combine(macosDir, "UpdateMac");
+            var metadataPath = Path.Combine(macosDir, Utility.SpecVersionFileName);
 
             if (File.Exists(updateExe) && NuspecManifest.TryParseFromFile(metadataPath, out var manifest)) {
                 Log.Info("Located valid manifest file at: " + metadataPath);

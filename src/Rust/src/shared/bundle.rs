@@ -11,12 +11,17 @@ use std::{
 use xml::reader::{EventReader, XmlEvent};
 use zip::ZipArchive;
 
+#[cfg(target_os = "macos")]
+use std::os::unix::fs::PermissionsExt;
+
 #[cfg(target_os = "windows")]
 use chrono::{Datelike, Local as DateTime};
 #[cfg(target_os = "windows")]
-use winsafe::{self as w, co, prelude::*};
-#[cfg(target_os = "windows")]
 use memmap2::Mmap;
+#[cfg(target_os = "windows")]
+use normpath::PathExt;
+#[cfg(target_os = "windows")]
+use winsafe::{self as w, co, prelude::*};
 
 pub trait ReadSeek: Read + Seek {}
 impl<T: Read + Seek> ReadSeek for T {}
@@ -188,10 +193,13 @@ impl BundleInfo<'_> {
         let stub_regex = Regex::new("_ExecutionStub.exe$").unwrap();
         let updater_idx = self.find_zip_file(|name| name.ends_with("Squirrel.exe"));
 
-        let nuspec_path = current_path.join("sq.version");
-        let _ = self
-            .extract_zip_predicate_to_path(|name| name.ends_with(".nuspec"), nuspec_path)
-            .map_err(|_| anyhow!("This package is missing a nuspec manifest."))?;
+        #[cfg(target_os = "windows")]
+        {
+            let nuspec_path = current_path.join("sq.version");
+            let _ = self
+                .extract_zip_predicate_to_path(|name| name.ends_with(".nuspec"), nuspec_path)
+                .map_err(|_| anyhow!("This package is missing a nuspec manifest."))?;
+        }
 
         for (i, key) in files.iter().enumerate() {
             if Some(i) == updater_idx || !re.is_match(key) || key.ends_with("/") || key.ends_with("\\") {
@@ -209,10 +217,35 @@ impl BundleInfo<'_> {
                 continue;
             }
 
-            let final_path = file_path_on_disk.to_str().unwrap().replace("/", "\\");
-            debug!("    {} Extracting '{}' to '{}'", i, key, final_path);
+            // on windows, the zip paths are / and should be \ instead
+            #[cfg(target_os = "windows")]
+            let file_path_on_disk = file_path_on_disk.normalize_virtually();
 
-            self.extract_zip_idx_to_path(i, &final_path)?;
+            debug!("    {} Extracting '{}' to '{}'", i, key, file_path_on_disk.to_string_lossy());
+            self.extract_zip_idx_to_path(i, &file_path_on_disk)?;
+
+            // on macos, we need to chmod +x the executable files
+            #[cfg(target_os = "macos")]
+            {
+                if let Ok(file) = std::fs::OpenOptions::new().read(true).open(&file_path_on_disk) {
+                    let buf = std::io::BufReader::new(file);
+                    if let Ok(det) = bindet::detect(buf).map_err(|e| e.kind()) {
+                        if let Some(matches) = det {
+                            for m in matches.likely_to_be {
+                                if m == bindet::FileType::Mach {
+                                    if let Err(e) = std::fs::set_permissions(&file_path_on_disk, std::fs::Permissions::from_mode(0o755)) {
+                                        warn!("Failed to set executable permissions on '{}': {}", file_path_on_disk.to_string_lossy(), e);
+                                    } else {
+                                        info!("    {} Set executable permissions on '{}'", i, file_path_on_disk.to_string_lossy());
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             progress(((i as f32 / num_files as f32) * 100.0) as i16);
         }
 
@@ -406,14 +439,11 @@ pub fn read_manifest_from_string(xml: &str) -> Result<Manifest> {
         bail!("Missing 'id' in package manifest. Please contact the application author.");
     }
 
-    if !obj.os.is_empty() && obj.os != "win" {
-        bail!("Unsupported 'os' in package manifest ({}). Please contact the application author.", obj.os);
-    }
-
     if obj.version == Version::new(0, 0, 0) {
         bail!("Missing 'version' in package manifest. Please contact the application author.");
     }
 
+    #[cfg(target_os = "windows")]
     if obj.main_exe.is_empty() {
         bail!("Missing 'mainExe' in package manifest. Please contact the application author.");
     }

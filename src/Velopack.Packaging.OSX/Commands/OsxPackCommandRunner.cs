@@ -41,9 +41,11 @@ public class OsxPackCommandRunner
             throw new ArgumentException(message);
         }
 
+        bool deleteAppBundle = false;
         string appBundlePath = options.PackDirectory;
         if (!options.PackDirectory.EndsWith(".app", StringComparison.OrdinalIgnoreCase)) {
             appBundlePath = new OsxBundleCommandRunner(_logger).Bundle(options);
+            deleteAppBundle = true;
         }
 
         _logger.Info("Creating release from app bundle at: " + appBundlePath);
@@ -58,16 +60,16 @@ public class OsxPackCommandRunner
         _logger.Info("Adding Squirrel resources to bundle.");
         var nuspecText = NugetConsole.CreateNuspec(
             packId, packTitle, packAuthors, packVersion, options.ReleaseNotes, options.IncludePdb);
-        var nuspecPath = Path.Combine(structure.ContentsDirectory, Utility.SpecVersionFileName);
+        var nuspecPath = Path.Combine(structure.MacosDirectory, Utility.SpecVersionFileName);
 
         var helper = new HelperExe(_logger);
         var processed = new List<string>();
         
         // nuspec and UpdateMac need to be in contents dir or this package can't update
         File.WriteAllText(nuspecPath, nuspecText);
-        File.Copy(helper.UpdateMacPath, Path.Combine(structure.ContentsDirectory, "UpdateMac"), true);
+        File.Copy(helper.UpdateMacPath, Path.Combine(structure.MacosDirectory, "UpdateMac"), true);
 
-        var zipPath = Path.Combine(releaseDir.FullName, $"{options.PackId}-{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}.zip");
+        var zipPath = Path.Combine(releaseDir.FullName, $"{options.PackId}-[{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}].zip");
         if (File.Exists(zipPath)) File.Delete(zipPath);
 
         // code signing all mach-o binaries
@@ -134,6 +136,11 @@ public class OsxPackCommandRunner
                 _logger.Warn("Package installer (.pkg) will not be Notarized. " +
                          "This is supported with the --signInstallIdentity and --notaryProfile arguments.");
             }
+        }
+        
+        if (deleteAppBundle) {
+            _logger.Info("Removing temporary .app bundle.");
+            Utility.DeleteFileOrDirectoryHard(appBundlePath);
         }
 
         _logger.Info("Done.");

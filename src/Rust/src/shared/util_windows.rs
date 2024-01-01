@@ -156,6 +156,86 @@ pub fn start_package<P: AsRef<Path>>(app: &Manifest, root_dir: P, exe_args: Opti
     Ok(())
 }
 
+fn get_my_root_dir() -> Result<PathBuf> {
+    let mut my_dir = std::env::current_exe()?;
+    my_dir.pop();
+    Ok(my_dir)
+}
+
+pub fn detect_current_manifest() -> Result<(PathBuf, Manifest)> {
+    let root_path = get_my_root_dir()?;
+    let app = find_manifest_from_root_dir(&root_path)
+        .map_err(|m| anyhow!("Unable to read application manifest ({}). Is this a properly installed application?", m))?;
+    info!("Loaded manifest for application: {}", app.id);
+    info!("Root Directory: {}", root_path.to_string_lossy());
+    Ok((root_path, app))
+}
+
+fn find_manifest_from_root_dir(root_path: &PathBuf) -> Result<Manifest> {
+    // default to checking current/sq.version
+    let cm = find_current_manifest(root_path);
+    if cm.is_ok() {
+        return cm;
+    }
+
+    // if that fails, check for latest full package
+    let latest = find_latest_full_package(root_path);
+    if let Some(latest) = latest {
+        let mani = latest.load_manifest()?;
+        return Ok(mani);
+    }
+
+    bail!("Unable to locate manifest or package.");
+}
+
+fn find_current_manifest(root_path: &PathBuf) -> Result<Manifest> {
+    let m = Manifest::default();
+    let nuspec_path = m.get_nuspec_path(root_path);
+    if Path::new(&nuspec_path).exists() {
+        if let Ok(nuspec) = super::retry_io(|| std::fs::read_to_string(&nuspec_path)) {
+            return Ok(bundle::read_manifest_from_string(&nuspec)?);
+        }
+    }
+    bail!("Unable to read nuspec file in current directory.")
+}
+
+fn find_latest_full_package(root_path: &PathBuf) -> Option<EntryNameInfo> {
+    let packages = get_all_packages(root_path);
+    let mut latest: Option<EntryNameInfo> = None;
+    for pkg in packages {
+        if pkg.is_delta {
+            continue;
+        }
+        if latest.is_none() {
+            latest = Some(pkg);
+        } else {
+            let latest_ver = latest.clone().unwrap().version;
+            if pkg.version > latest_ver {
+                latest = Some(pkg);
+            }
+        }
+    }
+    latest
+}
+
+fn get_all_packages(root_path: &PathBuf) -> Vec<EntryNameInfo> {
+    let m = Manifest::default();
+    let packages = m.get_packages_path(root_path);
+    let mut vec = Vec::new();
+    debug!("Scanning for packages in {:?}", packages);
+    if let Ok(entries) = std::fs::read_dir(packages) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+                if let Some(pkg) = super::bundle::parse_package_file_path(entry.path()) {
+                    debug!("Found package: {}", entry.path().to_string_lossy());
+                    vec.push(pkg);
+                }
+            }
+        }
+    }
+    vec
+}
+
 #[test]
 fn test_get_running_processes_finds_cargo() {
     let profile = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Profile, co::KF::DONT_UNEXPAND, None).unwrap();
