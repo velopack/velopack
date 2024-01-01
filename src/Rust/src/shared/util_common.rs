@@ -62,7 +62,7 @@ where
 pub fn retry_io<F, T, E>(op: F) -> Result<T, E>
 where
     F: Fn() -> Result<T, E>,
-    E: std::error::Error + std::fmt::Debug,
+    E: std::fmt::Debug,
 {
     let res = op();
     if res.is_ok() {

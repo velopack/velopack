@@ -104,6 +104,14 @@ fn kill_pid(pid: u32) -> Result<()> {
 }
 
 pub fn force_stop_package<P: AsRef<Path>>(root_dir: P) -> Result<()> {
+    let root_dir = root_dir.as_ref();
+    super::retry_io(|| {
+        _force_stop_package(root_dir)
+    })?;
+    Ok(())
+}
+
+fn _force_stop_package<P: AsRef<Path>>(root_dir: P) -> Result<()> {
     let dir = root_dir.as_ref();
     info!("Checking for running processes in: {}", dir.display());
     let processes = get_processes_running_in_directory(dir)?;
