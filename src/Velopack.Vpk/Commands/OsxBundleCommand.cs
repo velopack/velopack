@@ -1,6 +1,6 @@
 ﻿namespace Velopack.Vpk.Commands;
 
-public class OsxBundleCommand : OutputCommand
+public class OsxBundleCommand : PlatformCommand
 {
     public string PackId { get; private set; }
 
@@ -17,9 +17,13 @@ public class OsxBundleCommand : OutputCommand
     public string Icon { get; private set; }
 
     public string BundleId { get; private set; }
-
+    
     public OsxBundleCommand()
-        : base("bundle", "Create's an OSX .app bundle from a folder containing application files.")
+        : this("bundle", "Create's an OSX .app bundle from a folder containing application files.")
+    {}
+
+    public OsxBundleCommand(string name, string description)
+        : base(name, description)
     {
         AddOption<string>((v) => PackId = v, "--packId", "-u")
             .SetDescription("Unique Id for application bundle.")

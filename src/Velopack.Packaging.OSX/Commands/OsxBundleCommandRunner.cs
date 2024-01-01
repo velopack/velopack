@@ -14,7 +14,7 @@ public class OsxBundleCommandRunner
         _logger = logger;
     }
 
-    public void Bundle(OsxBundleOptions options)
+    public string Bundle(OsxBundleOptions options)
     {
         var icon = options.Icon;
         var packId = options.PackId;
@@ -28,7 +28,7 @@ public class OsxBundleCommandRunner
         _logger.Info("Generating new '.app' bundle from a directory of application files.");
 
         var mainExePath = Path.Combine(packDirectory, exeName);
-        if (!File.Exists(mainExePath))// || !PlatformUtil.IsMachOImage(mainExePath))
+        if (!File.Exists(mainExePath) || !MachO.IsMachOImage(mainExePath))
             throw new ArgumentException($"--exeName '{mainExePath}' does not exist or is not a mach-o executable.");
 
         var appleId = $"com.{packAuthors ?? packId}.{packId}";
@@ -36,8 +36,8 @@ public class OsxBundleCommandRunner
         var appleSafeVersion = NuGetVersion.Parse(packVersion).Version.ToString();
 
         var info = new AppInfo {
-            SQPackId = packId,
-            SQPackAuthors = packAuthors,
+            // SQPackId = packId,
+            // SQPackAuthors = packAuthors,
             CFBundleName = packTitle ?? packId,
             //CFBundleDisplayName = packTitle ?? packId,
             CFBundleExecutable = exeName,
@@ -71,5 +71,7 @@ public class OsxBundleCommandRunner
         Utility.CopyFiles(new DirectoryInfo(packDirectory), new DirectoryInfo(builder.MacosDirectory));
 
         _logger.Info("Bundle created successfully: " + builder.AppDirectory);
+
+        return builder.AppDirectory;
     }
 }

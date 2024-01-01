@@ -2,12 +2,8 @@
 
 namespace Velopack.Vpk.Commands;
 
-public class OsxReleasifyCommand : PlatformCommand
+public class OsxPackCommand : OsxBundleCommand
 {
-    public string BundleDirectory { get; private set; }
-
-    public bool IncludePdb { get; private set; }
-
     public string ReleaseNotes { get; private set; }
 
     public DeltaMode Delta { get; private set; }
@@ -32,19 +28,9 @@ public class OsxReleasifyCommand : PlatformCommand
 
     public string Channel { get; private set; }
 
-    public OsxReleasifyCommand()
-        : base("releasify", "Converts an application bundle into a release and installer.")
+    public OsxPackCommand()
+        : base("pack", "Converts application files into a release and installer.")
     {
-        AddOption<DirectoryInfo>((v) => BundleDirectory = v.ToFullNameOrNull(), "-b", "--bundle")
-            .SetDescription("The bundle to convert into a release.")
-            .SetArgumentHelpName("PATH")
-            .MustNotBeEmpty()
-            .RequiresExtension(".app")
-            .SetRequired();
-
-        AddOption<bool>((v) => IncludePdb = v, "--includePdb")
-            .SetDescription("Add *.pdb files to release package.");
-
         AddOption<FileInfo>((v) => ReleaseNotes = v.ToFullNameOrNull(), "--releaseNotes")
             .SetDescription("File with markdown-formatted notes for this version.")
             .SetArgumentHelpName("PATH")

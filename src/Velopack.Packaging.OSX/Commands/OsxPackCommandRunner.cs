@@ -5,16 +5,16 @@ using NuGet.Versioning;
 
 namespace Velopack.Packaging.OSX.Commands;
 
-public class OsxReleasifyCommandRunner
+public class OsxPackCommandRunner
 {
     private readonly ILogger _logger;
 
-    public OsxReleasifyCommandRunner(ILogger logger)
+    public OsxPackCommandRunner(ILogger logger)
     {
         _logger = logger;
     }
 
-    public void Releasify(OsxReleasifyOptions options)
+    public void Releasify(OsxPackOptions options)
     {
         var releaseDir = options.ReleaseDir;
 
@@ -41,54 +41,32 @@ public class OsxReleasifyCommandRunner
             throw new ArgumentException(message);
         }
 
-        var appBundlePath = options.BundleDirectory;
-        _logger.Info("Creating application from app bundle at: " + appBundlePath);
+        string appBundlePath = options.PackDirectory;
+        if (!options.PackDirectory.EndsWith(".app", StringComparison.OrdinalIgnoreCase)) {
+            appBundlePath = new OsxBundleCommandRunner(_logger).Bundle(options);
+        }
 
-        _logger.Info("Parsing app Info.plist");
-        var contentsDir = Path.Combine(appBundlePath, "Contents");
+        _logger.Info("Creating release from app bundle at: " + appBundlePath);
 
-        if (!Directory.Exists(contentsDir))
-            throw new Exception("Invalid bundle structure (missing Contents dir)");
+        var structure = new StructureBuilder(appBundlePath);
 
-        var plistPath = Path.Combine(contentsDir, "Info.plist");
-        if (!File.Exists(plistPath))
-            throw new Exception("Invalid bundle structure (missing Info.plist)");
-
-        var rootDict = (NSDictionary) PropertyListParser.Parse(plistPath);
-        var packId = rootDict.ObjectForKey(nameof(AppInfo.SQPackId))?.ToString();
-        if (string.IsNullOrWhiteSpace(packId))
-            packId = rootDict.ObjectForKey(nameof(AppInfo.CFBundleIdentifier))?.ToString();
-
-        var packAuthors = rootDict.ObjectForKey(nameof(AppInfo.SQPackAuthors))?.ToString();
-        if (string.IsNullOrWhiteSpace(packAuthors))
-            packAuthors = packId;
-
-        var packTitle = rootDict.ObjectForKey(nameof(AppInfo.CFBundleName))?.ToString();
-        var packVersion = rootDict.ObjectForKey(nameof(AppInfo.CFBundleVersion))?.ToString();
-
-        if (string.IsNullOrWhiteSpace(packId))
-            throw new InvalidOperationException($"Invalid CFBundleIdentifier in Info.plist: '{packId}'");
-
-        if (string.IsNullOrWhiteSpace(packTitle))
-            throw new InvalidOperationException($"Invalid CFBundleName in Info.plist: '{packTitle}'");
-
-        if (string.IsNullOrWhiteSpace(packVersion) || !NuGetVersion.TryParse(packVersion, out var _))
-            throw new InvalidOperationException($"Invalid CFBundleVersion in Info.plist: '{packVersion}'");
-
-        _logger.Info($"Package valid: '{packId}', Name: '{packTitle}', Version: {packVersion}");
+        var packId = options.PackId;
+        var packTitle = options.PackTitle;
+        var packAuthors = options.PackAuthors;
+        var packVersion = options.PackVersion;
 
         _logger.Info("Adding Squirrel resources to bundle.");
         var nuspecText = NugetConsole.CreateNuspec(
             packId, packTitle, packAuthors, packVersion, options.ReleaseNotes, options.IncludePdb);
-        var nuspecPath = Path.Combine(contentsDir, Utility.SpecVersionFileName);
+        var nuspecPath = Path.Combine(structure.ContentsDirectory, Utility.SpecVersionFileName);
 
         var helper = new HelperExe(_logger);
 
         // nuspec and UpdateMac need to be in contents dir or this package can't update
         File.WriteAllText(nuspecPath, nuspecText);
-        File.Copy(helper.UpdateMacPath, Path.Combine(contentsDir, "UpdateMac"), true);
+        File.Copy(helper.UpdateMacPath, Path.Combine(structure.ContentsDirectory, "UpdateMac"), true);
 
-        var zipPath = Path.Combine(releaseDir.FullName, $"{packId}-{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}.zip");
+        var zipPath = Path.Combine(releaseDir.FullName, $"{options.PackId}-{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}.zip");
         if (File.Exists(zipPath)) File.Delete(zipPath);
 
         // code signing all mach-o binaries
@@ -104,7 +82,7 @@ public class OsxReleasifyCommandRunner
         }
 
         // create a portable zip package from signed/notarized bundle
-        _logger.Info("Creating final application artifact (zip)");
+        _logger.Info("Creating final application artifact (ditto zip)");
         helper.CreateDittoZip(appBundlePath, zipPath);
 
         // create release / delta from notarized .app
@@ -141,27 +119,23 @@ public class OsxReleasifyCommandRunner
 
         // create installer package, sign and notarize
         if (!options.NoPackage) {
-            if (VelopackRuntimeInfo.IsOSX) {
-                var pkgPath = Path.Combine(releaseDir.FullName, $"{packId}-Setup-[{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}].pkg");
+            var pkgPath = Path.Combine(releaseDir.FullName, $"{packId}-Setup-[{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}].pkg");
 
-                Dictionary<string, string> pkgContent = new() {
-                    {"welcome", options.PackageWelcome },
-                    {"license", options.PackageLicense },
-                    {"readme", options.PackageReadme },
-                    {"conclusion", options.PackageConclusion },
-                };
+            Dictionary<string, string> pkgContent = new() {
+                {"welcome", options.PackageWelcome },
+                {"license", options.PackageLicense },
+                {"readme", options.PackageReadme },
+                {"conclusion", options.PackageConclusion },
+            };
 
-                helper.CreateInstallerPkg(appBundlePath, packTitle, pkgContent, pkgPath, options.SigningInstallIdentity);
-                if (!string.IsNullOrEmpty(options.SigningInstallIdentity) && !string.IsNullOrEmpty(options.NotaryProfile)) {
-                    helper.Notarize(pkgPath, options.NotaryProfile);
-                    helper.Staple(pkgPath);
-                    helper.SpctlAssessInstaller(pkgPath);
-                } else {
-                    _logger.Warn("Package installer (.pkg) will not be Notarized. " +
-                             "This is supported with the --signInstallIdentity and --notaryProfile arguments.");
-                }
+            helper.CreateInstallerPkg(appBundlePath, packTitle, pkgContent, pkgPath, options.SigningInstallIdentity);
+            if (!string.IsNullOrEmpty(options.SigningInstallIdentity) && !string.IsNullOrEmpty(options.NotaryProfile)) {
+                helper.Notarize(pkgPath, options.NotaryProfile);
+                helper.Staple(pkgPath);
+                helper.SpctlAssessInstaller(pkgPath);
             } else {
-                _logger.Warn("Package installer (.pkg) will not be created - this is only supported on OSX.");
+                _logger.Warn("Package installer (.pkg) will not be Notarized. " +
+                         "This is supported with the --signInstallIdentity and --notaryProfile arguments.");
             }
         }
 

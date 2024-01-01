@@ -58,11 +58,10 @@ public class Program
         switch (VelopackRuntimeInfo.SystemOs) {
         case RuntimeOs.Windows:
             Add(rootCommand, new WindowsPackCommand(), nameof(ICommandRunner.ExecutePackWindows));
-            Add(rootCommand, new WindowsReleasifyCommand(), nameof(ICommandRunner.ExecuteReleasifyWindows));
             break;
         case RuntimeOs.OSX:
             Add(rootCommand, new OsxBundleCommand(), nameof(ICommandRunner.ExecuteBundleOsx));
-            Add(rootCommand, new OsxReleasifyCommand(), nameof(ICommandRunner.ExecuteReleasifyOsx));
+            Add(rootCommand, new OsxPackCommand(), nameof(ICommandRunner.ExecutePackOsx));
             break;
         default:
             throw new NotSupportedException("Unsupported OS platform: " + VelopackRuntimeInfo.SystemOs.GetOsLongName());

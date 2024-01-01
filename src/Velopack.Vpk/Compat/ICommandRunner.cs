@@ -11,7 +11,7 @@ public interface ICommandRunner
     public Task ExecuteS3Download(S3DownloadCommand command);
     public Task ExecuteS3Upload(S3UploadCommand command);
     public Task ExecuteBundleOsx(OsxBundleCommand command);
-    public Task ExecuteReleasifyOsx(OsxReleasifyCommand command);
+    public Task ExecutePackOsx(OsxPackCommand command);
     public Task ExecuteReleasifyWindows(WindowsReleasifyCommand command);
     public Task ExecutePackWindows(WindowsPackCommand command);
     public Task ExecuteDeltaGen(DeltaGenCommand command);

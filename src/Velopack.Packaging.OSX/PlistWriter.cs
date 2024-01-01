@@ -43,11 +43,11 @@ internal class PlistWriter
             xmlWriter.WriteAttributeString("version", "1.0");
             xmlWriter.WriteStartElement("dict");
 
-            if (!String.IsNullOrEmpty(_task.SQPackId))
-                WriteProperty(xmlWriter, nameof(_task.SQPackId), _task.SQPackId);
-
-            if (!String.IsNullOrEmpty(_task.SQPackAuthors))
-                WriteProperty(xmlWriter, nameof(_task.SQPackAuthors), _task.SQPackAuthors);
+            // if (!String.IsNullOrEmpty(_task.SQPackId))
+            //     WriteProperty(xmlWriter, nameof(_task.SQPackId), _task.SQPackId);
+            //
+            // if (!String.IsNullOrEmpty(_task.SQPackAuthors))
+            //     WriteProperty(xmlWriter, nameof(_task.SQPackAuthors), _task.SQPackAuthors);
 
             if (!String.IsNullOrEmpty(_task.CFBundleDisplayName))
                 WriteProperty(xmlWriter, nameof(_task.CFBundleDisplayName), _task.CFBundleDisplayName);

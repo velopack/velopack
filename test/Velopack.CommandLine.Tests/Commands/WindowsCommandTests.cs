@@ -360,17 +360,6 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
     }
 
     [Fact]
-    public void IncludePdb_BareOption_SetsFlag()
-    {
-        var command = new WindowsPackCommand();
-
-        string cli = GetRequiredDefaultOptions() + "--includePdb";
-        ParseResult parseResult = command.ParseAndApply(cli);
-
-        Assert.True(command.IncludePdb);
-    }
-
-    [Fact]
     public void ReleaseNotes_WithExistingFile_ParsesValue()
     {
         FileInfo releaseNotes = CreateTempFile();

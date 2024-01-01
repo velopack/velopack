@@ -1,9 +1,7 @@
 ﻿
-using Velopack.Packaging;
-
 namespace Velopack.Vpk.Commands;
 
-public class WindowsPackCommand : WindowsReleasifyCommand, INugetPackCommand
+public class WindowsPackCommand : WindowsReleasifyCommand
 {
     public string PackId { get; private set; }
 
@@ -14,8 +12,6 @@ public class WindowsPackCommand : WindowsReleasifyCommand, INugetPackCommand
     public string PackAuthors { get; private set; }
 
     public string PackTitle { get; private set; }
-
-    public bool IncludePdb { get; private set; }
 
     public string ReleaseNotes { get; private set; }
 
@@ -48,9 +44,6 @@ public class WindowsPackCommand : WindowsReleasifyCommand, INugetPackCommand
         AddOption<string>((v) => PackTitle = v, "--packTitle")
             .SetDescription("Display/friendly name for application.")
             .SetArgumentHelpName("NAME");
-
-        AddOption<bool>((v) => IncludePdb = v, "--includePdb")
-            .SetDescription("Add *.pdb files to release package");
 
         AddOption<FileInfo>((v) => ReleaseNotes = v.ToFullNameOrNull(), "--releaseNotes")
             .SetDescription("File with markdown-formatted notes for this version.")

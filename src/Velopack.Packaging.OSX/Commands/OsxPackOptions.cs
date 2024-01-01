@@ -1,12 +1,8 @@
 ﻿namespace Velopack.Packaging.OSX.Commands;
 
-public class OsxReleasifyOptions
+public class OsxPackOptions : OsxBundleOptions
 {
-    public DirectoryInfo ReleaseDir { get; set; }
-
     public RID TargetRuntime { get; set; }
-
-    public string BundleDirectory { get; set; }
 
     public bool IncludePdb { get; set; }
 

@@ -35,13 +35,20 @@ public class EmbeddedRunner : ICommandRunner
     }
 
     [SupportedOSPlatform("osx")]
-    public virtual Task ExecuteReleasifyOsx(OsxReleasifyCommand command)
+    public virtual Task ExecutePackOsx(OsxPackCommand command)
     {
-        var options = new OsxReleasifyOptions {
+        var options = new OsxPackOptions {
+            BundleId = command.BundleId,
+            PackAuthors = command.PackAuthors,
+            EntryExecutableName = command.EntryExecutableName,
+            Icon = command.Icon,
+            PackDirectory = command.PackDirectory,
+            PackId = command.PackId,
+            PackTitle = command.PackTitle,
+            PackVersion = command.PackVersion,
             TargetRuntime = command.GetRid(),
             ReleaseDir = command.GetReleaseDirectory(),
-            BundleDirectory = command.BundleDirectory,
-            IncludePdb = command.IncludePdb,
+            IncludePdb = false,
             DeltaMode = command.Delta,
             NoPackage = command.NoPackage,
             NotaryProfile = command.NotaryProfile,
@@ -54,7 +61,7 @@ public class EmbeddedRunner : ICommandRunner
             SigningEntitlements = command.SigningEntitlements,
             SigningInstallIdentity = command.SigningInstallIdentity,
         };
-        new OsxReleasifyCommandRunner(_logger).Releasify(options);
+        new OsxPackCommandRunner(_logger).Releasify(options);
         return Task.CompletedTask;
     }
 
@@ -66,7 +73,7 @@ public class EmbeddedRunner : ICommandRunner
             Package = command.Package,
             Icon = command.Icon,
             DeltaMode = command.Delta,
-            IncludePdb = command.IncludePdb,
+            IncludePdb = false,
             SignParameters = command.SignParameters,
             EntryExecutableName = command.EntryExecutableName,
             PackAuthors = command.PackAuthors,
