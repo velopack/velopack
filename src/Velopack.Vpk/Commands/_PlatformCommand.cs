@@ -10,7 +10,7 @@ namespace Velopack.Vpk.Commands
     {
         public string TargetRuntime { get; set; }
 
-        public FileSystemInfo SolutionDir { get; set; }
+        //public FileSystemInfo SolutionDir { get; set; }
 
         protected PlatformCommand(string name, string description) : base(name, description)
         {
@@ -21,9 +21,9 @@ namespace Velopack.Vpk.Commands
                 .SetArgumentHelpName("RID")
                 .MustBeSupportedRid();
 
-            AddOption<FileSystemInfo>((v) => SolutionDir = v, "--sln")
-                .SetDescription("Explicit path to project solution (.sln)")
-                .AcceptExistingOnly();
+            //AddOption<FileSystemInfo>((v) => SolutionDir = v, "--sln")
+            //    .SetDescription("Explicit path to project solution (.sln)")
+            //    .AcceptExistingOnly();
         }
 
         public RID GetRid() => RID.Parse(TargetRuntime ?? VelopackRuntimeInfo.SystemOs.GetOsShortName());

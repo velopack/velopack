@@ -30,25 +30,25 @@ public class RunnerFactory
             await updateCheck.CheckForUpdates();
         }
 
-        if (options is not PlatformCommand) {
-            return new EmbeddedRunner(_logger);
-        }
-
-        var cmd = (PlatformCommand) (object) options;
-        var solutionDir = FindSolutionDirectory(cmd.SolutionDir?.FullName);
-
-        if (solutionDir is null) {
-            throw new Exception($"Could not find '.sln'. Specify solution or solution directory with '--solution='.");
-        }
-
-        var version = new SdkVersionLocator(_logger).Search(solutionDir, NUGET_PACKAGE_NAME);
-
-        var myVer = VelopackRuntimeInfo.VelopackNugetVersion;
-        if (version != myVer) {
-            _logger.Warn($"Installed SDK is {version}, while vpk is {myVer}, this is not recommended when building packages.");
-        }
-
         return new EmbeddedRunner(_logger);
+        //if (options is not PlatformCommand) {
+        //}
+
+        //var cmd = (PlatformCommand) (object) options;
+        //var solutionDir = FindSolutionDirectory(cmd.SolutionDir?.FullName);
+
+        //if (solutionDir is null) {
+        //    throw new Exception($"Could not find '.sln'. Specify solution or solution directory with '--solution='.");
+        //}
+
+        //var version = new SdkVersionLocator(_logger).Search(solutionDir, NUGET_PACKAGE_NAME);
+
+        //var myVer = VelopackRuntimeInfo.VelopackNugetVersion;
+        //if (version != myVer) {
+        //    _logger.Warn($"Installed SDK is {version}, while vpk is {myVer}, this is not recommended when building packages.");
+        //}
+
+        //return new EmbeddedRunner(_logger);
     }
 
     private string FindSolutionDirectory(string slnArgument)
