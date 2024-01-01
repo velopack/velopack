@@ -18,6 +18,9 @@ public class Program
 
     private static RunnerFactory Runner { get; set; }
 
+    public static readonly string INTRO 
+        = $"Velopack CLI {VelopackRuntimeInfo.VelopackDisplayVersion} for creating and distributing releases.";
+
     public static async Task<int> Main(string[] args)
     {
         CliRootCommand platformRootCommand = new CliRootCommand() {
@@ -50,8 +53,7 @@ public class Program
         var logger = logFactory.CreateLogger("vpk");
         Runner = new RunnerFactory(logger, host.Services.GetRequiredService<IConfiguration>());
 
-        CliRootCommand rootCommand = new CliRootCommand(
-            $"Velopack CLI {VelopackRuntimeInfo.VelopackDisplayVersion} for creating and distributing releases.") {
+        CliRootCommand rootCommand = new CliRootCommand(INTRO) {
             VerboseOption,
         };
 

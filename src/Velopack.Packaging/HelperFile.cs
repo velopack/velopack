@@ -31,14 +31,9 @@ public class HelperFile
 
     static HelperFile()
     {
-        //        AddSearchPath(SquirrelRuntimeInfo.BaseDirectory, "wix");
-
-        //#if DEBUG
-        //        AddSearchPath(SquirrelRuntimeInfo.BaseDirectory, "..", "..", "..", "build", "publish");
-        //        AddSearchPath(SquirrelRuntimeInfo.BaseDirectory, "..", "..", "..", "build", "Release", "squirrel", "tools");
-        //        AddSearchPath(SquirrelRuntimeInfo.BaseDirectory, "..", "..", "..", "vendor");
-        //        AddSearchPath(SquirrelRuntimeInfo.BaseDirectory, "..", "..", "..", "vendor", "wix");
-        //#endif
+#if !DEBUG
+        AddSearchPath(VelopackRuntimeInfo.BaseDirectory, "..", "..", "..", "vendor");
+#endif
     }
 
     public HelperFile(ILogger logger)

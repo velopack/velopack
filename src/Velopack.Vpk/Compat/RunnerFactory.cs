@@ -18,6 +18,7 @@ public class RunnerFactory
 
     public async Task CreateAndExecuteAsync<T>(string commandName, T options) where T : BaseCommand
     {
+        _logger.LogInformation(Program.INTRO);
         var runner = await CreateAsync(options);
         var method = typeof(ICommandRunner).GetMethod(commandName);
         await (Task) method.Invoke(runner, new object[] { options });
