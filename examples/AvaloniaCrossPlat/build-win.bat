@@ -29,4 +29,4 @@ echo class Const { public const string RELEASES_DIR = @"{REPLACE_ME}"; } > "%~dp
 echo Const.cs file reset
 
 echo Building Velopack Release v%version%
-%~dp0..\..\build\Debug\net8.0\vpk.exe pack -u AvaloniaCrossPlatTest -v %version% -o %releasesDir% -r win-x64 -e AvaloniaCrossPlat.exe -p %~dp0publish -c win
+%~dp0..\..\build\Debug\net8.0\vpk.exe pack -u AvaloniaCrossPlatTest -v %version% -o %releasesDir% -r win-x64 -e AvaloniaCrossPlat.exe -p %~dp0publish -c win -f net8-x64-desktop
