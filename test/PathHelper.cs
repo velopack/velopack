@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using Velopack;
 
 public static class PathHelper
 {
@@ -27,6 +28,18 @@ public static class PathHelper
 
     public static string GetRustAsset(params string[] names)
         => Path.Combine(new string[] { GetRustBuildOutputDir() }.Concat(names).ToArray());
+
+    public static string CopyUpdateTo(string dir)
+    {
+        var updateName = "update.exe";
+        if (VelopackRuntimeInfo.IsOSX) {
+            updateName = "update";
+        }
+        var path = GetRustAsset(updateName);
+        var newPath = Path.Combine(dir, updateName);
+        File.Copy(path, newPath);
+        return newPath;
+    }
 
     public static string GetTestRoot()
     {

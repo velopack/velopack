@@ -190,12 +190,9 @@ namespace Velopack.Tests
             var basePkgPath = Path.Combine(packagesDir, basePkg.OriginalFilename);
             File.Copy(basePkgFixturePath, basePkgPath);
 
-            var updateExe = PathHelper.GetRustAsset("update.exe");
-            var copiedExe = Path.Combine(packagesDir, "update.exe");
-            File.Copy(updateExe, copiedExe);
-
+            var updateExe = PathHelper.CopyUpdateTo(packagesDir);
             var locator = new TestVelopackLocator(id, fromVersion,
-                packagesDir, null, null, copiedExe, logger);
+                packagesDir, null, null, updateExe, logger);
             var um = new UpdateManager(source, logger, locator);
 
             var info = await um.CheckForUpdatesAsync();

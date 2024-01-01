@@ -59,7 +59,7 @@ jobs:
 
       - name: Rename OSX Binary
         working-directory: src/Rust/target/release
-        run: mv update updatemac
+        run: cp update updatemac
         if: ${{ matrix.os == 'macos-latest' }}
 
       - name: Build .NET
