@@ -244,7 +244,7 @@ namespace Velopack
 
                 progress(100);
             } finally {
-                if (VelopackRuntimeInfo.IsWindows) {
+                if (VelopackRuntimeInfo.IsWindows && !VelopackRuntimeInfo.InUnitTestRunner) {
                     try {
                         var updateExe = Locator.UpdateExePath;
                         Log.Info("Extracting new Update.exe to " + updateExe);
