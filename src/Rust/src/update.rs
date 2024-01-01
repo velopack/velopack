@@ -28,6 +28,7 @@ fn root_command() -> Command {
         .arg(arg!(-r --restart "Restart the application after the update"))
         .arg(arg!(-w --wait "Wait for the parent process to terminate before applying the update"))
         .arg(arg!(-p --package <FILE> "Update package to apply").value_parser(value_parser!(PathBuf)))
+        .arg(arg!(--noelevate "If the application does not have sufficient privileges, do not elevate to admin"))
         .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceeded by '--'.").required(false).last(true).num_args(0..))
     )
     .subcommand(Command::new("patch")
@@ -139,6 +140,7 @@ fn patch(matches: &ArgMatches) -> Result<()> {
 }
 
 fn apply(matches: &ArgMatches) -> Result<()> {
+    let noelevate = matches.get_flag("noelevate");
     let restart = matches.get_flag("restart");
     let wait_for_parent = matches.get_flag("wait");
     let package = matches.get_one::<PathBuf>("package");
@@ -149,8 +151,9 @@ fn apply(matches: &ArgMatches) -> Result<()> {
     info!("    Wait: {:?}", wait_for_parent);
     info!("    Package: {:?}", package);
     info!("    Exe Args: {:?}", exe_args);
+    info!("    No Elevate: {}", noelevate);
 
-    commands::apply(restart, wait_for_parent, package, exe_args)
+    commands::apply(restart, wait_for_parent, package, exe_args, noelevate)
 }
 
 #[cfg(target_os = "windows")]

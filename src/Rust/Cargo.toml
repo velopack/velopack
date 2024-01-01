@@ -64,7 +64,7 @@ ureq = { version = "2.9", default-features = false, features = [
 native-tls = "0.2"
 file-rotate = "0.7"
 derivative = "2.2"
-simple-stopwatch = "0.1.4"
+simple-stopwatch = "0.1"
 glob = "0.3"
 enum-flags = "0.3"
 remove_dir_all = { git = "https://github.com/caesay/remove_dir_all.git", features = [
@@ -72,7 +72,8 @@ remove_dir_all = { git = "https://github.com/caesay/remove_dir_all.git", feature
 ] }
 ntest = "0.9.0"
 zstd = "0.13"
-sha1_smol = "1.0.0"
+sha1_smol = "1.0"
+runas = "1.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 native-dialog = "0.7"

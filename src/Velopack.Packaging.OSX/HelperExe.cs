@@ -126,7 +126,7 @@ public class HelperExe : HelperFile
         distXml.Insert(2, $"<title>{SecurityElement.Escape(appTitle)}</title>");
 
         // disable local system installation (install to home dir)
-        distXml.Insert(2, "<domains enable_anywhere=\"false\" enable_currentUserHome=\"true\" enable_localSystem=\"false\" />");
+        distXml.Insert(2, "<domains enable_anywhere=\"false\" enable_currentUserHome=\"true\" enable_localSystem=\"true\" />");
 
         // add extra landing content (eg. license, readme)
         foreach (var kvp in extraContent) {

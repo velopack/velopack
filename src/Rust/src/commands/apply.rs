@@ -1,25 +1,28 @@
 use crate::shared::{
     self,
     bundle::{self, BundleInfo, Manifest},
+    dialogs,
 };
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use glob::glob;
+use runas::Command as RunAsCommand;
 use std::path::PathBuf;
 
-pub fn apply<'a>(restart: bool, wait_for_parent: bool, package: Option<&PathBuf>, exe_args: Option<Vec<&str>>) -> Result<()> {
+pub fn apply<'a>(restart: bool, wait_for_parent: bool, package: Option<&PathBuf>, exe_args: Option<Vec<&str>>, noelevate: bool) -> Result<()> {
     if wait_for_parent {
         let _ = shared::wait_for_parent_to_exit(60_000); // 1 minute
     }
 
     let (root_path, app) = shared::detect_current_manifest()?;
 
-    if let Err(e) = apply_package(package, &app, &root_path) {
+    if let Err(e) = apply_package(package, &app, &root_path, noelevate, restart, exe_args.clone()) {
         error!("Error applying package: {}", e);
         if !restart {
             return Err(e);
         }
     }
 
+    // TODO: if the package fails to start, or fails hooks, we could roll back the install
     if restart {
         shared::start_package(&app, &root_path, exe_args, Some("VELOPACK_RESTART"))?;
     }
@@ -27,7 +30,7 @@ pub fn apply<'a>(restart: bool, wait_for_parent: bool, package: Option<&PathBuf>
     Ok(())
 }
 
-fn apply_package<'a>(package: Option<&PathBuf>, app: &Manifest, root_path: &PathBuf) -> Result<()> {
+fn apply_package<'a>(package: Option<&PathBuf>, app: &Manifest, root_path: &PathBuf, noelevate: bool, restart: bool, exe_args: Option<Vec<&str>>) -> Result<()> {
     let mut package_manifest: Option<Manifest> = None;
     let mut package_bundle: Option<BundleInfo<'a>> = None;
 
@@ -82,17 +85,66 @@ fn apply_package<'a>(package: Option<&PathBuf>, app: &Manifest, root_path: &Path
     crate::windows::run_hook(&app, &root_path, "--veloapp-obsolete", 15);
 
     let current_dir = app.get_current_path(&root_path);
-    shared::replace_dir_with_rollback(current_dir.clone(), || {
+    if let Err(e) = shared::replace_dir_with_rollback(current_dir.clone(), || {
         if let Some(bundle) = package_bundle.take() {
             bundle.extract_lib_contents_to_path(&current_dir, |_| {})
         } else {
             bail!("No bundle could be loaded.");
         }
-    })?;
+    }) {
+        // replacing the package failed, we can try to elevate it though.
+        error!("Failed to apply package: {}", e);
+        if !dialogs::get_silent() && !noelevate {
+            info!("Will try to elevate permissions and try again...");
+            let title = format!("{} Update", app.title);
+            let body = format!("{} {} is ready to be installed - you have {}, would you like to do this now?", app.title, found_version, app.version);
+            if dialogs::show_ok_cancel(title.as_str(), None, body.as_str(), Some("Install Update")) {
+                run_apply_elevated(restart, package, exe_args)?;
+            } else {
+                info!("User cancelled elevation prompt.");
+                return Err(e);
+            }
+        } else {
+            return Err(e);
+        }
+    }
 
     #[cfg(target_os = "windows")]
     crate::windows::run_hook(&package_manifest, &root_path, "--veloapp-updated", 15);
 
     info!("Package applied successfully.");
     Ok(())
+}
+
+fn run_apply_elevated(restart: bool, package: Option<&PathBuf>, exe_args: Option<Vec<&str>>) -> Result<()> {
+    let exe = std::env::current_exe()?;
+    let mut args: Vec<String> = Vec::new();
+    args.push("apply".to_string());
+    args.push("--noelevate".to_string());
+
+    if restart {
+        args.push("--restart".to_string());
+    }
+
+    let package = package.map(|p| p.to_string_lossy().to_string());
+
+    if let Some(pkg) = package {
+        args.push("--package".to_string());
+        args.push(pkg);
+    }
+
+    if let Some(a) = exe_args {
+        args.push("--".to_string());
+        a.iter().for_each(|a| args.push(a.to_string()));
+    }
+
+    info!("Attempting to elevate: {} {:?}", exe.to_string_lossy(), args);
+
+    let mut cmd = RunAsCommand::new(&exe);
+    cmd.gui(true);
+    cmd.force_prompt(false);
+    cmd.args(&args);
+    cmd.status().map_err(|z| anyhow!("Failed to restart elevated ({}).", z))?;
+
+    std::process::exit(0);
 }

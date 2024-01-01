@@ -58,7 +58,7 @@ pub fn detect_current_manifest() -> Result<(PathBuf, Manifest)> {
 
     let root_dir = &my_path[..app_idx.unwrap()];
     let root_dir = root_dir.to_owned() + ".app";
-    
+
     debug!("Detected Root: {}", root_dir);
     debug!("Detected AppId: {}", manifest.id);
     Ok((Path::new(&root_dir).to_path_buf(), manifest))
