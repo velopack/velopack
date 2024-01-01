@@ -199,7 +199,7 @@ namespace Velopack
                                 Log.Info($"There are too many delta's ({deltasCount} > 10) or the sum of their size ({deltasSize} > {targetRelease.Filesize}) is too large. " +
                                     $"Only full update will be available.");
                             } else {
-                                var _1 = Utility.GetTempDirectory(out var deltaStagingDir, Locator.AppTempDir);
+                                using var _1 = Utility.GetTempDirectory(out var deltaStagingDir, Locator.AppTempDir);
                                 if (updates.BaseRelease?.OriginalFilename != null) {
                                     string basePackagePath = Path.Combine(Locator.PackagesDir, updates.BaseRelease.OriginalFilename);
                                     if (!File.Exists(basePackagePath))
