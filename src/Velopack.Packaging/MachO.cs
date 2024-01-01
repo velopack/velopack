@@ -1,4 +1,4 @@
-﻿namespace Velopack.Packaging.OSX;
+﻿namespace Velopack.Packaging;
 
 public class MachO
 {

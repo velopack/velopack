@@ -20,6 +20,18 @@ public class DeltaPackageBuilder
         if (newPackage == null) throw new ArgumentNullException(nameof(newPackage));
         if (String.IsNullOrEmpty(outputFile) || File.Exists(outputFile)) throw new ArgumentException("The output file is null or already exists", nameof(outputFile));
 
+        bool legacyBsdiff = false;
+        var helper = new HelperFile(_logger);
+        if (VelopackRuntimeInfo.IsOSX) {
+            try {
+                helper.AssertSystemBinaryExists("zstd");
+            } catch (Exception ex) {
+                _logger.Error(ex);
+                _logger.Warn("Falling back to legacy diff format. This will be slower and more prone to breaking.");
+                legacyBsdiff = true;
+            }
+        }
+        
         if (basePackage.Version >= newPackage.Version) {
             var message = String.Format(
                 "Cannot create a delta package based on version {0} as it is a later or equal to the base version {1}",
@@ -66,7 +78,6 @@ public class DeltaPackageBuilder
             var newLibFiles = newLibDir.GetAllFilesRecursively().ToArray();
 
             int fNew = 0, fSame = 0, fChanged = 0, fWarnings = 0;
-            var helper = new HelperFile(_logger);
 
             void createDeltaForSingleFile(FileInfo targetFile, DirectoryInfo workingDirectory)
             {
@@ -100,8 +111,17 @@ public class DeltaPackageBuilder
                         fSame++;
                     } else {
                         // 3. changed, write a delta in new
-                        var outputFile = targetFile.FullName + ".zsdiff";
-                        helper.CreateZstdPatch(oldFilePath, targetFile.FullName, outputFile, mode);
+                        if (legacyBsdiff) {
+                            var oldData = File.ReadAllBytes(oldFilePath);
+                            var newData = File.ReadAllBytes(targetFile.FullName);
+                            using (FileStream of = File.Create(targetFile.FullName + ".bsdiff")) {
+                                BinaryPatchUtility.Create(oldData, newData, of);
+                            }
+                        } else {
+                            var diffOut = targetFile.FullName + ".zsdiff";
+                            helper.CreateZstdPatch(oldFilePath, targetFile.FullName, diffOut, mode);
+                        }
+
                         using var newfs = File.OpenRead(targetFile.FullName);
                         var rl = ReleaseEntry.GenerateFromFile(newfs, targetFile.Name + ".shasum");
                         File.WriteAllText(targetFile.FullName + ".shasum", rl.EntryAsString, Encoding.UTF8);

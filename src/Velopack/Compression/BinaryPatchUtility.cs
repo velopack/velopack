@@ -46,7 +46,7 @@ namespace Velopack.Compression
         /// <param name="oldData">The original binary data.</param>
         /// <param name="newData">The new binary data.</param>
         /// <param name="output">A <see cref="Stream"/> to which the patch will be written.</param>
-        private static void Create(byte[] oldData, byte[] newData, Stream output)
+        public static void Create(byte[] oldData, byte[] newData, Stream output)
         {
             // NB: If you diff a file big enough, we blow the stack. This doesn't 
             // solve it, just buys us more space. The solution is to rewrite Split
