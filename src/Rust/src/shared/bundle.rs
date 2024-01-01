@@ -195,7 +195,7 @@ impl BundleInfo<'_> {
 
         for (i, key) in files.iter().enumerate() {
             if Some(i) == updater_idx || !re.is_match(key) || key.ends_with("/") || key.ends_with("\\") {
-                info!("    {} Skipped '{}'", i, key);
+                debug!("    {} Skipped '{}'", i, key);
                 continue;
             }
 
@@ -205,12 +205,12 @@ impl BundleInfo<'_> {
             if stub_regex.is_match(&file_path_in_zip) {
                 // let stub_key = stub_regex.replace(&file_path_in_zip, ".exe").to_string();
                 // file_path_on_disk = root_path.join(&stub_key);
-                info!("    {} Skipped Stub (obsolete) '{}'", i, key);
+                debug!("    {} Skipped Stub (obsolete) '{}'", i, key);
                 continue;
             }
 
             let final_path = file_path_on_disk.to_str().unwrap().replace("/", "\\");
-            info!("    {} Extracting '{}' to '{}'", i, key, final_path);
+            debug!("    {} Extracting '{}' to '{}'", i, key, final_path);
 
             self.extract_zip_idx_to_path(i, &final_path)?;
             progress(((i as f32 / num_files as f32) * 100.0) as i16);
