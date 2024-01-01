@@ -113,6 +113,7 @@ namespace Velopack.Compression
             if (relativeFilePath.EndsWith(".zsdiff", StringComparison.InvariantCultureIgnoreCase)) {
                 var psi = new ProcessStartInfo(_updatePath);
                 psi.AppendArgumentListSafe(new string[] { "patch", "--nocolor", "--old", finalTarget, "--patch", inputFile, "--output", tempTargetFile }, out var _);
+                psi.CreateNoWindow = true;
                 _log.Trace($"Applying zstd diff to {relativeFilePath}");
                 var p = psi.StartRedirectOutputToILogger(_log, LogLevel.Debug);
                 if (!p.WaitForExit(60_000)) {
