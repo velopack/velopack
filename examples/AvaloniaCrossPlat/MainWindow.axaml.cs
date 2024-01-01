@@ -65,6 +65,7 @@ public partial class MainWindow : Window
 
     private void Working()
     {
+        Log("");
         BtnCheckUpdate.IsEnabled = false;
         BtnDownloadUpdate.IsEnabled = false;
         BtnRestartApply.IsEnabled = false;
