@@ -6,7 +6,7 @@ use std::{
 };
 use winsafe::{self as w, co, prelude::*};
 
-use super::bundle::Manifest;
+use super::bundle::{self, Manifest, EntryNameInfo};
 
 pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
     info!("Reading parent process information.");

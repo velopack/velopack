@@ -219,7 +219,9 @@ impl BundleInfo<'_> {
 
             // on windows, the zip paths are / and should be \ instead
             #[cfg(target_os = "windows")]
-            let file_path_on_disk = file_path_on_disk.normalize_virtually();
+            let file_path_on_disk = file_path_on_disk.normalize_virtually()?;
+            #[cfg(target_os = "windows")]
+            let file_path_on_disk = file_path_on_disk.as_path();
 
             debug!("    {} Extracting '{}' to '{}'", i, key, file_path_on_disk.to_string_lossy());
             self.extract_zip_idx_to_path(i, &file_path_on_disk)?;
