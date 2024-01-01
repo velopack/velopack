@@ -28,16 +28,18 @@ pub fn patch(old_file: &PathBuf, patch_file: &PathBuf, output_file: &PathBuf) ->
 
 #[test]
 fn test_patch_apply() {
-    let mut path = std::env::current_exe().unwrap();
-    path.pop();
-    path.pop();
-    path.pop();
-    path.pop();
-    path.pop();
-    path.pop();
-    path.push("test");
-    path.push("fixtures");
-    info!("Path: {}", path.to_string_lossy());
+
+    fn find_fixtures() -> PathBuf {
+        let mut path = std::env::current_exe().unwrap();
+        while !path.join("Velopack.sln").exists() {
+            path.pop();
+        }
+        path.push("test");
+        path.push("fixtures");
+        path
+    }
+
+    let path = find_fixtures();
 
     let old_file = path.join("obs29.1.2.dll");
     let new_file = path.join("obs30.0.2.dll");
