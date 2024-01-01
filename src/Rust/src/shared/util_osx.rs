@@ -56,7 +56,7 @@ fn test_start_and_stop_package() {
     std::thread::sleep(Duration::from_secs(1));
     assert!(!is_running());
     std::thread::sleep(Duration::from_secs(1));
-    start_package(&mani, root_dir, None).unwrap();
+    start_package(&mani, root_dir, None, None).unwrap();
     std::thread::sleep(Duration::from_secs(1));
     assert!(is_running());
     std::thread::sleep(Duration::from_secs(1));
