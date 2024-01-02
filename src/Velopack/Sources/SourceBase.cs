@@ -24,7 +24,14 @@ namespace Velopack.Sources
         }
 
         /// <summary> Get the RELEASES file name for the specified Channel </summary>
-        protected virtual string GetReleasesFileName() => String.IsNullOrWhiteSpace(Channel) ? "RELEASES" : $"RELEASES-{Channel}";
+        protected virtual string GetReleasesFileName()
+        {
+            if (String.IsNullOrWhiteSpace(Channel)) {
+                return VelopackRuntimeInfo.IsOSX ? "RELEASES-osx" : "RELEASES";
+            }
+
+            return $"RELEASES-{Channel.ToLower()}";
+        }
 
         /// <inheritdoc/>
         public abstract Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null);

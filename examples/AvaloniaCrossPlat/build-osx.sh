@@ -31,4 +31,4 @@ echo "class Const { public const string RELEASES_DIR = @\"{REPLACE_ME}\"; } " > 
 echo "Const.cs file reset"
 
 echo "Building Velopack Release v$version"
-"$(dirname "$0")/../../build/Debug/net8.0/vpk" pack -u AvaloniaCrossPlatTest -v "$version" -o "$releasesDir" -r osx-x64 -e AvaloniaCrossPlat -p "$(dirname "$0")/publish" -c osx -i Velopack.icns
+"$(dirname "$0")/../../build/Debug/net8.0/vpk" pack -u AvaloniaCrossPlatTest -v "$version" -o "$releasesDir" -r osx-x64 -e AvaloniaCrossPlat -p "$(dirname "$0")/publish" -i Velopack.icns

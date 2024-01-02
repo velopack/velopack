@@ -22,6 +22,7 @@ public class WindowsReleasifyCommandRunner
         var package = options.Package;
         var backgroundGif = options.SplashImage;
         var setupIcon = options.Icon;
+        var channel = options.Channel?.ToLower();
 
         // normalize and validate that the provided frameworks are supported 
         IEnumerable<Runtimes.RuntimeInfo> requiredFrameworks = Enumerable.Empty<Runtimes.RuntimeInfo>();
@@ -36,28 +37,6 @@ public class WindowsReleasifyCommandRunner
 
         using var ud = Utility.GetTempDirectory(out var tempDir);
 
-        // parse releases in curent channel, and if there are any that don't match the current rid we should bail
-        var releaseFilePath = Path.Combine(targetDir, "RELEASES");
-        if (!String.IsNullOrWhiteSpace(options.Channel))
-            releaseFilePath = Path.Combine(targetDir, $"RELEASES-{options.Channel}");
-
-        var previousReleases = new List<ReleaseEntry>();
-        if (File.Exists(releaseFilePath)) {
-            previousReleases.AddRange(ReleaseEntry.ParseReleaseFile(File.ReadAllText(releaseFilePath, Encoding.UTF8)));
-        }
-
-        var mismatchedRid = previousReleases
-            .Select(p => p.Rid)
-            .Where(p => p != options.TargetRuntime)
-            .Distinct()
-            .Select(p => p.ToString())
-            .ToArray();
-        if (mismatchedRid.Any()) {
-            var message = $"Previous releases were built for a different runtime ({String.Join(", ", mismatchedRid)}) " +
-                $"than current ({options.TargetRuntime}). Please use the same runtime for all releases in a channel.";
-            throw new ArgumentException(message);
-        }
-
         var helper = new HelperExe(_logger);
         var updatePath = Path.Combine(tempDir, "Update.exe");
         File.Copy(helper.UpdatePath, updatePath, true);
@@ -70,13 +49,16 @@ public class WindowsReleasifyCommandRunner
         }
 
         // copy input package to target output directory
-        var fileToProcess = Path.Combine(targetDir, Path.GetFileName(package));
+        var fileToProcess = Path.Combine(tempDir, Path.GetFileName(package));
         File.Copy(package, fileToProcess, true);
 
         _logger.Info("Creating release for package: " + fileToProcess);
 
-        var processed = new List<string>();
         var rp = new ReleasePackageBuilder(_logger, fileToProcess);
+
+        var entryHelper = new ReleaseEntryHelper(targetDir, _logger);
+        entryHelper.ValidateEntriesForPackaging(rp.Version, channel);
+
         rp.CreateReleasePackage(contentsPostProcessHook: (pkgPath, zpkg) => {
             var nuspecPath = Directory.GetFiles(pkgPath, "*.nuspec", SearchOption.TopDirectoryOnly)
                 .ContextualSingle("package", "*.nuspec", "top level directory");
@@ -143,29 +125,23 @@ public class WindowsReleasifyCommandRunner
             return Path.Combine(targetDir, releaseName.ToFileName());
         });
 
-        processed.Add(rp.ReleasePackageFile);
+        File.Delete(fileToProcess);
+        entryHelper.AddNewRelease(rp.ReleasePackageFile, channel);
 
-        var prev = ReleasePackageBuilder.GetPreviousRelease(_logger, previousReleases, rp, targetDir);
+        var prev = entryHelper.GetPreviousFullRelease(rp.Version, channel);
         if (prev != null && options.DeltaMode != DeltaMode.None) {
+            _logger.Info($"Creating delta package between {prev.Version} and {rp.Version}");
             var deltaBuilder = new DeltaPackageBuilder(_logger);
             var deltaOutputPath = rp.ReleasePackageFile.Replace("-full", "-delta");
             var dp = deltaBuilder.CreateDeltaPackage(prev, rp, deltaOutputPath, options.DeltaMode);
-            processed.Insert(0, dp.InputPackageFile);
+            entryHelper.AddNewRelease(dp.InputPackageFile, channel);
         }
 
-        File.Delete(fileToProcess);
-
-        var newReleaseEntries = processed
-            .Select(packageFilename => ReleaseEntry.GenerateFromFile(packageFilename))
-            .ToList();
-        var distinctPreviousReleases = previousReleases
-            .Where(x => !newReleaseEntries.Select(e => e.Version).Contains(x.Version));
-        var releaseEntries = distinctPreviousReleases.Concat(newReleaseEntries).ToList();
-
-        ReleaseEntry.WriteReleaseFile(releaseEntries, releaseFilePath);
+        _logger.Info("Updating RELEASES files");
+        entryHelper.SaveReleasesFiles();
 
         var bundledzp = new ZipPackage(package);
-        var targetSetupExe = Path.Combine(targetDir, $"{bundledzp.Id}-Setup-[{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}].exe");
+        var targetSetupExe = Path.Combine(targetDir, $"{bundledzp.Id}-[{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}]-Setup.exe");
         File.Copy(helper.SetupPath, targetSetupExe, true);
 
         if (VelopackRuntimeInfo.IsWindows) {
@@ -174,11 +150,8 @@ public class WindowsReleasifyCommandRunner
             _logger.Warn("Unable to set Setup.exe icon (only supported on windows)");
         }
 
-        var newestFullRelease = releaseEntries.MaxBy(x => x.Version).Where(x => !x.IsDelta).First();
-        var newestReleasePath = Path.Combine(targetDir, newestFullRelease.OriginalFilename);
-
         _logger.Info($"Creating Setup bundle");
-        var bundleOffset = SetupBundle.CreatePackageBundle(targetSetupExe, newestReleasePath);
+        var bundleOffset = SetupBundle.CreatePackageBundle(targetSetupExe, rp.ReleasePackageFile);
         _logger.Info("Signing Setup bundle");
         signFiles(options, targetDir, targetSetupExe);
 

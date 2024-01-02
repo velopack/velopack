@@ -7,7 +7,6 @@ using Avalonia.Controls;
 using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
 using Velopack;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace AvaloniaCrossPlat;
 
@@ -19,8 +18,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        var channel = VelopackRuntimeInfo.SystemOs.GetOsShortName();
-        _um = new UpdateManager(Const.RELEASES_DIR, channel, new TextBoxLogger(Log));
+        _um = new UpdateManager(Const.RELEASES_DIR, logger: new TextBoxLogger(Log));
         UpdateStatus();
     }
 

@@ -17,29 +17,11 @@ public class OsxPackCommandRunner
     public void Releasify(OsxPackOptions options)
     {
         var releaseDir = options.ReleaseDir;
+        var channel = options.Channel?.ToLower() ?? "osx"; // default channel for mac packages.
 
-        // parse releases in curent channel, and if there are any that don't match the current rid we should bail
-        var releaseFilePath = Path.Combine(releaseDir.FullName, "RELEASES");
-        if (!String.IsNullOrWhiteSpace(options.Channel))
-            releaseFilePath = Path.Combine(releaseDir.FullName, $"RELEASES-{options.Channel}");
-
-        var previousReleases = new List<ReleaseEntry>();
-        if (File.Exists(releaseFilePath)) {
-            previousReleases.AddRange(ReleaseEntry.ParseReleaseFile(File.ReadAllText(releaseFilePath, Encoding.UTF8)));
-        }
-
-        var mismatchedRid = previousReleases
-            .Select(p => p.Rid)
-            .Where(p => p != options.TargetRuntime)
-            .Distinct()
-            .Select(p => p.ToString())
-            .ToArray();
-
-        if (mismatchedRid.Any()) {
-            var message = $"Previous releases were built for a different runtime ({String.Join(", ", mismatchedRid)}) " +
-                $"than the current one. Please use the same runtime for all releases in a channel.";
-            throw new ArgumentException(message);
-        }
+        var helper = new HelperExe(_logger);
+        var entryHelper = new ReleaseEntryHelper(releaseDir.FullName, _logger);
+        entryHelper.ValidateEntriesForPackaging(SemanticVersion.Parse(options.PackVersion), channel);
 
         bool deleteAppBundle = false;
         string appBundlePath = options.PackDirectory;
@@ -62,14 +44,11 @@ public class OsxPackCommandRunner
             packId, packTitle, packAuthors, packVersion, options.ReleaseNotes, options.IncludePdb);
         var nuspecPath = Path.Combine(structure.MacosDirectory, Utility.SpecVersionFileName);
 
-        var helper = new HelperExe(_logger);
-        var processed = new List<string>();
-        
         // nuspec and UpdateMac need to be in contents dir or this package can't update
         File.WriteAllText(nuspecPath, nuspecText);
         File.Copy(helper.UpdateMacPath, Path.Combine(structure.MacosDirectory, "UpdateMac"), true);
 
-        var zipPath = Path.Combine(releaseDir.FullName, $"{options.PackId}-[{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}].zip");
+        var zipPath = Path.Combine(releaseDir.FullName, $"{options.PackId}-[{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}]-Portable.zip");
         if (File.Exists(zipPath)) File.Delete(zipPath);
 
         // code signing all mach-o binaries
@@ -93,32 +72,27 @@ public class OsxPackCommandRunner
         using var _ = Utility.GetTempDirectory(out var tmp);
         var nuget = new NugetConsole(_logger);
         var nupkgPath = nuget.CreatePackageFromNuspecPath(tmp, appBundlePath, nuspecPath);
-        
+
         var rp = new ReleasePackageBuilder(_logger, nupkgPath);
         var suggestedName = new ReleaseEntryName(packId, SemanticVersion.Parse(packVersion), false, options.TargetRuntime).ToFileName();
         var newPkgPath = rp.CreateReleasePackage((i, pkg) => Path.Combine(releaseDir.FullName, suggestedName));
-        processed.Add(newPkgPath);
+        entryHelper.AddNewRelease(newPkgPath, channel);
 
-        _logger.Info("Creating Delta Packages");
-        var prev = ReleasePackageBuilder.GetPreviousRelease(_logger, previousReleases, rp, releaseDir.FullName);
+        var prev = entryHelper.GetPreviousFullRelease(rp.Version, channel);
         if (prev != null && options.DeltaMode != DeltaMode.None) {
+            _logger.Info("Creating Delta Packages");
             var deltaBuilder = new DeltaPackageBuilder(_logger);
             var deltaFile = rp.ReleasePackageFile.Replace("-full", "-delta");
             var dp = deltaBuilder.CreateDeltaPackage(prev, rp, deltaFile, options.DeltaMode);
-            processed.Add(deltaFile);
+            entryHelper.AddNewRelease(deltaFile, channel);
         }
-        
-        var newReleaseEntries = processed
-            .Select(packageFilename => ReleaseEntry.GenerateFromFile(packageFilename))
-            .ToList();
-        var distinctPreviousReleases = previousReleases
-            .Where(x => !newReleaseEntries.Select(e => e.Version).Contains(x.Version));
-        var releaseEntries = distinctPreviousReleases.Concat(newReleaseEntries).ToList();
-        ReleaseEntry.WriteReleaseFile(releaseEntries, releaseFilePath);
+
+        _logger.Info("Updating RELEASES files");
+        entryHelper.SaveReleasesFiles();
 
         // create installer package, sign and notarize
         if (!options.NoPackage) {
-            var pkgPath = Path.Combine(releaseDir.FullName, $"{packId}-Setup-[{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}].pkg");
+            var pkgPath = Path.Combine(releaseDir.FullName, $"{packId}-[{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}]-Setup.pkg");
 
             Dictionary<string, string> pkgContent = new() {
                 {"welcome", options.PackageWelcome },
@@ -137,7 +111,7 @@ public class OsxPackCommandRunner
                          "This is supported with the --signInstallIdentity and --notaryProfile arguments.");
             }
         }
-        
+
         if (deleteAppBundle) {
             _logger.Info("Removing temporary .app bundle.");
             Utility.DeleteFileOrDirectoryHard(appBundlePath);

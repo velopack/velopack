@@ -103,31 +103,6 @@ public class ReleasePackageBuilder
         }
     }
 
-    //public static string GetSuggestedFileName(string id, string version, string runtime, bool delta = false)
-    //{
-    //    var tail = delta ? "delta" : "full";
-    //    if (String.IsNullOrEmpty(runtime)) {
-    //        return String.Format("{0}-{1}-{2}.nupkg", id, version, tail);
-    //    } else {
-    //        return String.Format("{0}-{1}-{2}-{3}.nupkg", id, version, runtime, tail);
-    //    }
-    //}
-
-    /// <summary>
-    /// Given a list of releases and a specified release package, returns the release package
-    /// directly previous to the specified version.
-    /// </summary>
-    public static ReleasePackageBuilder GetPreviousRelease(ILogger logger, IEnumerable<ReleaseEntry> releaseEntries, ReleasePackageBuilder package, string targetDir)
-    {
-        if (releaseEntries == null || !releaseEntries.Any()) return null;
-        return releaseEntries
-            .Where(x => x.IsDelta == false)
-            .Where(x => x.Version < package.Version)
-            .OrderByDescending(x => x.Version)
-            .Select(x => new ReleasePackageBuilder(logger, Path.Combine(targetDir, x.OriginalFilename), true))
-            .FirstOrDefault();
-    }
-
     static Task extractZipWithEscaping(string zipFilePath, string outFolder)
     {
         return Task.Run(() => {
