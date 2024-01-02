@@ -59,8 +59,7 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
         AddOption<string>((v) => EntryExecutableName = v, "-e", "--mainExe")
             .SetDescription("The file name of the main/entry executable.")
             .SetArgumentHelpName("NAME")
-            .RequiresExtension(".exe")
-            .SetRequired();
+            .RequiresExtension(".exe");
 
         AddOption<string>((v) => Channel = v, "-c", "--channel")
             .SetDescription("Release channel to use when creating the package.")

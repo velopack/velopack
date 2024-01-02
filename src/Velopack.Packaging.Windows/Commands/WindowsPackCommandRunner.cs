@@ -2,7 +2,6 @@
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Velopack.NuGet;
-using FileMode = System.IO.FileMode;
 
 namespace Velopack.Packaging.Windows.Commands;
 
@@ -17,6 +16,9 @@ public class WindowsPackCommandRunner
 
     public void Pack(WindowsPackOptions options)
     {
+        if (options.EntryExecutableName == null)
+            options.EntryExecutableName = options.PackId + ".exe";
+
         using (Utility.GetTempDirectory(out var tmp)) {
             var nupkgPath = new NugetConsole(_logger).CreatePackageFromOptions(tmp, options);
             options.Package = nupkgPath;
@@ -24,5 +26,4 @@ public class WindowsPackCommandRunner
             runner.Releasify(options);
         }
     }
-
 }

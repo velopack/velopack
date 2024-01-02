@@ -17,10 +17,10 @@ public class OsxBundleCommand : PlatformCommand
     public string Icon { get; private set; }
 
     public string BundleId { get; private set; }
-    
+
     public OsxBundleCommand()
         : this("bundle", "Create's an OSX .app bundle from a folder containing application files.")
-    {}
+    { }
 
     public OsxBundleCommand(string name, string description)
         : base(name, description)
@@ -54,8 +54,7 @@ public class OsxBundleCommand : PlatformCommand
 
         AddOption<string>((v) => EntryExecutableName = v, "-e", "--mainExe")
             .SetDescription("The file name of the main/entry executable.")
-            .SetArgumentHelpName("NAME")
-            .SetRequired();
+            .SetArgumentHelpName("NAME");
 
         AddOption<FileInfo>((v) => Icon = v.ToFullNameOrNull(), "-i", "--icon")
             .SetDescription("Path to the .icns file for this bundle.")

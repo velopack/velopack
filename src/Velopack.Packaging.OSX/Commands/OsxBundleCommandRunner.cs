@@ -20,7 +20,7 @@ public class OsxBundleCommandRunner
         var packId = options.PackId;
         var packDirectory = options.PackDirectory;
         var packVersion = options.PackVersion;
-        var exeName = options.EntryExecutableName;
+        var exeName = options.EntryExecutableName ?? options.PackId;
         var packAuthors = options.PackAuthors;
         var packTitle = options.PackTitle;
         var releaseDir = options.ReleaseDir;
