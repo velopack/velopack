@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Velopack.Sources;
 
 namespace Velopack.Tests.TestHelpers
 {
@@ -10,9 +11,11 @@ namespace Velopack.Tests.TestHelpers
     {
         private readonly string _pkgId;
         private readonly IEnumerable<ReleaseEntry> _releases;
+        private readonly string _releasesName;
 
-        public FakeFixtureRepository(string pkgId, bool mockLatestFullVer)
+        public FakeFixtureRepository(string pkgId, bool mockLatestFullVer, string channel = null)
         {
+            _releasesName = SourceBase.GetReleasesFileNameImpl(channel);
             _pkgId = pkgId;
             var releases = ReleaseEntry.BuildReleasesFile(PathHelper.GetFixturesDir(), false)
                 .Where(r => r.OriginalFilename.StartsWith(_pkgId))
@@ -35,13 +38,16 @@ namespace Velopack.Tests.TestHelpers
 
         public Task<byte[]> DownloadBytes(string url, string authorization = null, string accept = null)
         {
-            if (url.Contains("/RELEASES?")) {
+            if (url.Contains($"/{_releasesName}?")) {
                 MemoryStream ms = new MemoryStream();
                 ReleaseEntry.WriteReleaseFile(_releases, ms);
                 return Task.FromResult(ms.ToArray());
             }
 
             var rel = _releases.FirstOrDefault(r => url.EndsWith(r.OriginalFilename));
+            if (rel == null)
+                throw new Exception("Fake release not found: " + url);
+            
             var filePath = PathHelper.GetFixture(rel.OriginalFilename);
             if (!File.Exists(filePath)) {
                 throw new NotSupportedException("FakeFixtureRepository doesn't have: " + rel.OriginalFilename);

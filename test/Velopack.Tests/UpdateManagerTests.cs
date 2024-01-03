@@ -26,7 +26,10 @@ namespace Velopack.Tests
         {
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var tempPath);
-            File.WriteAllText(Path.Combine(tempPath, "RELEASES"), """
+
+            string releasesSuffix = VelopackRuntimeInfo.IsOSX ? "-osx" : "";
+            
+            File.WriteAllText(Path.Combine(tempPath, "RELEASES" + releasesSuffix), """
 3a2eadd15dd984e4559f2b4d790ec8badaeb6a39  MyCoolApp-1.1.0.nupkg  1040561
 94689fede03fed7ab59c24337673a27837f0c3ec  MyCoolApp-1.0.0.nupkg  1004502
 """);
@@ -43,12 +46,12 @@ namespace Velopack.Tests
         {
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var tempPath);
-            File.WriteAllText(Path.Combine(tempPath, "RELEASES-osx-x64"), """
+            File.WriteAllText(Path.Combine(tempPath, "RELEASES-experimental"), """
 3a2eadd15dd984e4559f2b4d790ec8badaeb6a39  MyCoolApp-1.1.0.nupkg  1040561
 94689fede03fed7ab59c24337673a27837f0c3ec  MyCoolApp-1.0.0.nupkg  1004502
 """);
             var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
-            var um = new UpdateManager(tempPath, "osx-x64", logger, locator);
+            var um = new UpdateManager(tempPath, "experimental", logger, locator);
             var info = um.CheckForUpdates();
             Assert.NotNull(info);
             Assert.True(new SemanticVersion(1, 1, 0) == info.TargetFullRelease.Version);
@@ -79,7 +82,8 @@ namespace Velopack.Tests
         {
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var tempPath);
-            File.WriteAllText(Path.Combine(tempPath, "RELEASES"), """
+            string releasesSuffix = VelopackRuntimeInfo.IsOSX ? "-osx" : "";
+            File.WriteAllText(Path.Combine(tempPath, "RELEASES" + releasesSuffix), """
 3a2eadd15dd984e4559f2b4d790ec8badaeb6a39  MyCoolApp-1.1.0.nupkg  1040561
 3a2eadd15dd984e4559f2b4d790ec8badaeb6a39  MyCoolApp-1.2.0.nupkg  1040561
 14db31d2647c6d2284882a2e101924a9c409ee67  MyCoolApp-1.2.0-delta.nupkg  80396
@@ -126,7 +130,8 @@ namespace Velopack.Tests
         {
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var tempPath);
-            File.WriteAllText(Path.Combine(tempPath, "RELEASES"), """
+            string releasesSuffix = VelopackRuntimeInfo.IsOSX ? "-osx" : "";
+            File.WriteAllText(Path.Combine(tempPath, "RELEASES" + releasesSuffix), """
 3a2eadd15dd984e4559f2b4d790ec8badaeb6a39  MyCoolApp-1.1.0.nupkg  1040561
 94689fede03fed7ab59c24337673a27837f0c3ec  MyCoolApp-1.0.0.nupkg  1004502
 """);
@@ -141,7 +146,8 @@ namespace Velopack.Tests
         {
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var tempPath);
-            File.WriteAllText(Path.Combine(tempPath, "RELEASES"), """
+            string releasesSuffix = VelopackRuntimeInfo.IsOSX ? "-osx" : "";
+            File.WriteAllText(Path.Combine(tempPath, "RELEASES" + releasesSuffix), """
 3a2eadd15dd984e4559f2b4d790ec8badaeb6a39  MyCoolApp-1.1.0.nupkg  1040561
 94689fede03fed7ab59c24337673a27837f0c3ec  MyCoolApp-1.0.0.nupkg  1004502
 """);
