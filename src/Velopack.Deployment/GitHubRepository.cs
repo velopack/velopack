@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Octokit;
+using Velopack.NuGet;
 using Velopack.Packaging;
 using Velopack.Sources;
 
@@ -48,6 +49,8 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
         var helper = new ReleaseEntryHelper(options.ReleaseDir.FullName, Log);
         var assets = helper.GetUploadAssets(options.Channel, ReleaseEntryHelper.AssetsMode.OnlyLatest);
         var latest = helper.GetLatestFullRelease(options.Channel);
+        var latestPath = Path.Combine(options.ReleaseDir.FullName, latest.OriginalFilename);
+        var releaseNotes = new ZipPackage(latestPath).ReleaseNotes;
         var semVer = latest.Version;
 
         Log.Info($"Preparing to upload {assets.Files.Count} assets to GitHub");
@@ -57,7 +60,7 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
         };
 
         var newReleaseReq = new NewRelease(semVer.ToString()) {
-            //Body = ver.GetReleaseNotes(releaseDirectoryInfo.FullName, ReleaseNotesFormat.Markdown),
+            Body = releaseNotes,
             Draft = true,
             Prerelease = semVer.HasMetadata || semVer.IsPrerelease,
             Name = string.IsNullOrWhiteSpace(options.ReleaseName) ? semVer.ToString() : options.ReleaseName,
