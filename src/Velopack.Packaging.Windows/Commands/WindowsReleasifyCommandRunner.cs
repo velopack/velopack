@@ -109,7 +109,7 @@ public class WindowsReleasifyCommandRunner
             var versionSuffix = ReleaseEntryHelper.GetPkgSuffix(RuntimeOs.Windows, options.Channel);
             var versionOverride = String.IsNullOrWhiteSpace(versionSuffix)
                 ? zpkg.Version : SemanticVersion.Parse(zpkg.Version.ToFullString() + versionSuffix);
-            NuspecManifest.SetMetadata(nuspecPath, options.EntryExecutableName, requiredFrameworks.Select(r => r.Id), options.TargetRuntime, versionOverride.ToFullString());
+            NuspecManifest.SetMetadata(nuspecPath, mainExeName, requiredFrameworks.Select(r => r.Id), options.TargetRuntime, versionOverride.ToFullString());
 
             // copy Update.exe into package, so it can also be updated in both full/delta packages
             // and do it before signing so that Update.exe will also be signed. It is renamed to
