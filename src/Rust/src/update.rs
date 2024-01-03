@@ -80,7 +80,7 @@ fn main() -> Result<()> {
     if let Some(log_file) = log_file {
         logging::setup_logging(Some(&log_file), true, verbose, nocolor)?;
     } else {
-        logging::default_logging(verbose, nocolor)?;
+        default_logging(verbose, nocolor)?;
     }
 
     info!("Starting Velopack Updater ({})", env!("NGBV_VERSION"));
@@ -163,6 +163,23 @@ fn uninstall(_matches: &ArgMatches) -> Result<()> {
     info!("Command: Uninstall");
     let (root_path, app) = shared::detect_current_manifest()?;
     commands::uninstall(&root_path, &app, true)
+}
+
+pub fn default_logging(verbose: bool, nocolor: bool) -> Result<()> {
+    #[cfg(target_os = "windows")]
+    let default_log_file = {
+        let mut my_dir = env::current_exe().unwrap();
+        my_dir.pop();
+        my_dir.join("Velopack.log")
+    };
+
+    #[cfg(target_os = "macos")]
+    let default_log_file = {
+        let (_root, manifest) = shared::detect_current_manifest().expect("Unable to load app manfiest.");
+        std::path::Path::new(format!("/tmp/velopack/{}.log", manifest.id).as_str()).to_path_buf()
+    };
+
+    logging::setup_logging(Some(&default_log_file), true, verbose, nocolor)
 }
 
 #[cfg(target_os = "windows")]

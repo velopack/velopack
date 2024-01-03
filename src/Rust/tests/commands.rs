@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 mod common;
 use common::*;
 use std::{fs, path::Path, path::PathBuf};
