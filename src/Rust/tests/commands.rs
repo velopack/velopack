@@ -9,8 +9,7 @@ use winsafe::{self as w, co};
 
 #[cfg(target_os = "windows")]
 #[test]
-pub fn test_install_uninstall() {
-    logging::trace_logger();
+pub fn test_install_apply_uninstall() {
     dialogs::set_silent(true);
     let fixtures = find_fixtures();
 
@@ -36,6 +35,14 @@ pub fn test_install_uninstall() {
 
     let (root_dir, app) = shared::detect_manifest_from_update_path(&tmp_buf.join("Update.exe")).unwrap();
     assert_eq!(app_id, app.id);
+    assert!(semver::Version::parse("1.0.11").unwrap() == app.version);
+
+    let pkg_name_apply = "AvaloniaCrossPlat-1.0.15-win-full.nupkg";
+    let nupkg_apply = fixtures.join(pkg_name_apply);
+    commands::apply(&root_dir, &app, false, false, Some(&nupkg_apply), None, true).unwrap();
+
+    let (root_dir, app) = shared::detect_manifest_from_update_path(&tmp_buf.join("Update.exe")).unwrap();
+    assert!(semver::Version::parse("1.0.15").unwrap() == app.version);
 
     commands::uninstall(&root_dir, &app, false).unwrap();
     assert!(!tmp_buf.join("current").exists());

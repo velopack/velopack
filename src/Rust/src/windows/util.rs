@@ -34,14 +34,26 @@ pub fn run_hook(app: &shared::bundle::Manifest, root_path: &PathBuf, hook_name: 
     let _ = shared::force_stop_package(&root_path);
 }
 
-pub fn create_global_mutex(app: &shared::bundle::Manifest) -> Result<Foundation::HANDLE> {
+pub struct MutexDropGuard {
+    mutex: Foundation::HANDLE,
+}
+
+impl Drop for MutexDropGuard {
+    fn drop(&mut self) {
+        unsafe {
+            Foundation::CloseHandle(self.mutex).ok();
+        }
+    }
+}
+
+pub fn create_global_mutex(app: &shared::bundle::Manifest) -> Result<MutexDropGuard> {
     let mutex_name = format!("velopack-{}", &app.id);
     info!("Attempting to open global system mutex: '{}'", &mutex_name);
     let encoded = mutex_name.encode_utf16().chain([0u16]).collect::<Vec<u16>>();
     let pw = PCWSTR(encoded.as_ptr());
     let mutex = unsafe { CreateMutexW(None, true, pw) }?;
     match unsafe { GetLastError() } {
-        Ok(_) => Ok(mutex),
+        Ok(_) => Ok(MutexDropGuard { mutex }),
         Err(err) => {
             if err == Foundation::ERROR_ALREADY_EXISTS.into() {
                 bail!("Another installer or updater for this application is running, quit that process and try again.");

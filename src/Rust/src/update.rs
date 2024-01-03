@@ -135,7 +135,8 @@ fn apply(matches: &ArgMatches) -> Result<()> {
     info!("    Exe Args: {:?}", exe_args);
     info!("    No Elevate: {}", noelevate);
 
-    commands::apply(restart, wait_for_parent, package, exe_args, noelevate)
+    let (root_path, app) = shared::detect_current_manifest()?;
+    commands::apply(&root_path, &app, restart, wait_for_parent, package, exe_args, noelevate)
 }
 
 #[cfg(target_os = "windows")]

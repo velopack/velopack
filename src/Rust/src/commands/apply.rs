@@ -8,14 +8,20 @@ use glob::glob;
 use runas::Command as RunAsCommand;
 use std::path::PathBuf;
 
-pub fn apply<'a>(restart: bool, wait_for_parent: bool, package: Option<&PathBuf>, exe_args: Option<Vec<&str>>, noelevate: bool) -> Result<()> {
+pub fn apply<'a>(
+    root_path: &PathBuf,
+    app: &Manifest,
+    restart: bool,
+    wait_for_parent: bool,
+    package: Option<&PathBuf>,
+    exe_args: Option<Vec<&str>>,
+    noelevate: bool,
+) -> Result<()> {
     if wait_for_parent {
         let _ = shared::wait_for_parent_to_exit(60_000); // 1 minute
     }
 
-    let (root_path, app) = shared::detect_current_manifest()?;
-
-    if let Err(e) = apply_package(package, &app, &root_path, noelevate, restart, exe_args.clone()) {
+    if let Err(e) = apply_package(&root_path, &app, restart, package, exe_args.clone(), noelevate) {
         error!("Error applying package: {}", e);
         if !restart {
             return Err(e);
@@ -30,7 +36,14 @@ pub fn apply<'a>(restart: bool, wait_for_parent: bool, package: Option<&PathBuf>
     Ok(())
 }
 
-fn apply_package<'a>(package: Option<&PathBuf>, app: &Manifest, root_path: &PathBuf, noelevate: bool, restart: bool, exe_args: Option<Vec<&str>>) -> Result<()> {
+fn apply_package<'a>(
+    root_path: &PathBuf,
+    app: &Manifest,
+    restart: bool,
+    package: Option<&PathBuf>,
+    exe_args: Option<Vec<&str>>,
+    noelevate: bool,
+) -> Result<()> {
     let mut package_manifest: Option<Manifest> = None;
     let mut package_bundle: Option<BundleInfo<'a>> = None;
 
