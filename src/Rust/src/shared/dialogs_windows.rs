@@ -41,7 +41,7 @@ pub fn show_setup_missing_dependencies_dialog(app: &Manifest, depedency_string: 
     )
 }
 
-pub fn show_uninstall_complete_with_errors_dialog(app: &Manifest, log_path: &PathBuf) {
+pub fn show_uninstall_complete_with_errors_dialog(app: &Manifest, log_path: Option<&PathBuf>) {
     if get_silent() {
         return;
     }
@@ -51,7 +51,6 @@ pub fn show_uninstall_complete_with_errors_dialog(app: &Manifest, log_path: &Pat
     let mut content = WString::from_str(
         "There may be left-over files or directories on your system. You can attempt to remove these manually or re-install the application and try again.",
     );
-    let mut footer = WString::from_str(format!("Log file: '<A HREF=\"na\">{}</A>'", log_path.display()));
 
     let mut config: w::TASKDIALOGCONFIG = Default::default();
     config.dwFlags = co::TDF::ENABLE_HYPERLINKS | co::TDF::SIZE_TO_CONTENT;
@@ -61,13 +60,16 @@ pub fn show_uninstall_complete_with_errors_dialog(app: &Manifest, log_path: &Pat
     config.set_pszMainInstruction(Some(&mut instruction));
     config.set_pszContent(Some(&mut content));
 
-    if log_path.exists() {
-        config.set_pszFooterIcon(w::IconId::Id(co::TD_ICON::INFORMATION.into()));
-        config.set_pszFooter(Some(&mut footer));
+    let footer_path = log_path.map(|p| p.to_string_lossy().to_string()).unwrap_or("".to_string());
+    let mut footer = WString::from_str(format!("Log file: '<A HREF=\"na\">{}</A>'", footer_path));
+    if let Some(log_path) = log_path {
+        if log_path.exists() {
+            config.set_pszFooterIcon(w::IconId::Id(co::TD_ICON::INFORMATION.into()));
+            config.set_pszFooter(Some(&mut footer));
+            config.lpCallbackData = log_path as *const PathBuf as usize;
+            config.pfCallback = Some(task_dialog_callback);
+        }
     }
-
-    config.lpCallbackData = log_path as *const PathBuf as usize;
-    config.pfCallback = Some(task_dialog_callback);
 
     let _ = w::TaskDialogIndirect(&config, None);
 }

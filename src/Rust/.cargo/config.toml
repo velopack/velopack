@@ -1,2 +1,8 @@
+[alias]
+bx = "build"
+bw = "build --features windows"
+tx = "test"
+tw = "test --features windows"
+
 [build]
 rustflags = ["-C", "target-feature=+crt-static"]

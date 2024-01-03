@@ -6,9 +6,18 @@ edition = "2021"
 [features]
 windows = []
 
+[lib]
+name = "velopack"
+path = "src/lib.rs"
+
 [[bin]]
 name = "setup"
 path = "src/setup.rs"
+required-features = ["windows"]
+
+[[bin]]
+name = "stub"
+path = "src/stub.rs"
 required-features = ["windows"]
 
 [[bin]]
@@ -18,17 +27,10 @@ path = "src/update.rs"
 [[bin]]
 name = "testapp"
 path = "src/testapp.rs"
-required-features = ["windows"]
 
 [[bin]]
 name = "testawareapp"
 path = "src/testawareapp.rs"
-required-features = ["windows"]
-
-[[bin]]
-name = "stub"
-path = "src/stub.rs"
-required-features = ["windows"]
 
 [profile.release]
 opt-level = "z"          # optimize for size

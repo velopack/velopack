@@ -4,7 +4,7 @@ use anyhow::Result;
 use std::fs::File;
 use std::path::PathBuf;
 
-pub fn uninstall(log_file: &PathBuf) -> Result<()> {
+pub fn uninstall() -> Result<()> {
     info!("Command: Uninstall");
     let (root_path, app) = shared::detect_current_manifest()?;
 
@@ -45,7 +45,7 @@ pub fn uninstall(log_file: &PathBuf) -> Result<()> {
         shared::dialogs::show_info(format!("{} Uninstall", app.title).as_str(), None, "The application was successfully uninstalled.");
     } else {
         error!("Finished with errors.");
-        shared::dialogs::show_uninstall_complete_with_errors_dialog(&app, &log_file);
+        shared::dialogs::show_uninstall_complete_with_errors_dialog(&app, None);
     }
 
     let dead_path = root_path.join(".dead");

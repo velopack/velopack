@@ -372,19 +372,19 @@ pub fn assert_can_run_binary_authenticode<P: AsRef<Path>>(path: P) -> Result<()>
 #[test]
 #[ignore]
 fn test_authenticode() {
+    fn verify_authenticode_against_powershell(path: &str) -> bool {
+        let command = format!("Get-AuthenticodeSignature \"{}\" | select Status -expandproperty Status", path);
+        let args = command.split_whitespace().collect();
+        let ps_output = super::run_process_no_console_and_wait("powershell", args, std::env::current_dir().unwrap(), None).unwrap();
+        let ps_result = ps_output.trim() == "Valid";
+        let my_result = check_authenticode_signature(path).unwrap_or(false);
+        assert!(ps_result == my_result);
+        return my_result;
+    }
+
     assert!(verify_authenticode_against_powershell(r"C:\Windows\System32\notepad.exe"));
     assert!(verify_authenticode_against_powershell(r"C:\Windows\System32\cmd.exe"));
     assert!(verify_authenticode_against_powershell(r"C:\Users\Caelan\AppData\Local\Programs\Microsoft VS Code\Code.exe"));
     assert!(!verify_authenticode_against_powershell(r"C:\Users\Caelan\AppData\Local\Clowd\Update.exe"));
     assert!(!verify_authenticode_against_powershell(r"C:\Users\Caelan\.cargo\bin\cargo.exe"));
-}
-
-fn verify_authenticode_against_powershell(path: &str) -> bool {
-    let command = format!("Get-AuthenticodeSignature \"{}\" | select Status -expandproperty Status", path);
-    let args = command.split_whitespace().collect();
-    let ps_output = super::run_process_no_console_and_wait("powershell", args, std::env::current_dir().unwrap(), None).unwrap();
-    let ps_result = ps_output.trim() == "Valid";
-    let my_result = check_authenticode_signature(path).unwrap_or(false);
-    assert!(ps_result == my_result);
-    return my_result;
 }

@@ -1,22 +1,12 @@
 #![allow(dead_code)]
 
-mod commands;
-mod logging;
-mod shared;
-
-#[cfg(target_os = "windows")]
-mod windows;
-
 #[macro_use]
 extern crate log;
-extern crate simplelog;
-#[macro_use]
-extern crate lazy_static;
 
 use anyhow::{anyhow, bail, Result};
 use clap::{arg, value_parser, ArgMatches, Command};
-use shared::dialogs;
 use std::{env, path::PathBuf};
+use velopack::*;
 
 #[rustfmt::skip]
 fn root_command() -> Command {
@@ -80,37 +70,29 @@ fn main() -> Result<()> {
     #[cfg(target_os = "macos")]
     let matches = root_command().get_matches();
 
-    #[cfg(target_os = "windows")]
-    let default_log_file = {
-        let mut my_dir = env::current_exe().unwrap();
-        my_dir.pop();
-        my_dir.join("Velopack.log")
-    };
-
-    #[cfg(target_os = "macos")]
-    let default_log_file = {
-        let (_root, manifest) = shared::detect_current_manifest().expect("Unable to load app manfiest.");
-        std::path::Path::new(format!("/tmp/velopack/{}.log", manifest.id).as_str()).to_path_buf()
-    };
-
     let verbose = matches.get_flag("verbose");
     let silent = matches.get_flag("silent");
     let nocolor = matches.get_flag("nocolor");
-    let log_file = matches.get_one("log").unwrap_or(&default_log_file);
+    let log_file = matches.get_one("log");
 
     dialogs::set_silent(silent);
-    logging::setup_logging(Some(&log_file), true, verbose, nocolor)?;
+
+    if let Some(log_file) = log_file {
+        logging::setup_logging(Some(&log_file), true, verbose, nocolor)?;
+    } else {
+        logging::default_logging(verbose, nocolor)?;
+    }
 
     info!("Starting Velopack Updater ({})", env!("NGBV_VERSION"));
     info!("    Location: {}", env::current_exe()?.to_string_lossy());
     info!("    Verbose: {}", verbose);
     info!("    Silent: {}", silent);
-    info!("    Log File: {}", log_file.to_string_lossy());
+    info!("    Log File: {:?}", log_file);
 
     let (subcommand, subcommand_matches) = matches.subcommand().ok_or_else(|| anyhow!("No subcommand was used. Try `--help` for more information."))?;
     let result = match subcommand {
         #[cfg(target_os = "windows")]
-        "uninstall" => uninstall(subcommand_matches, log_file).map_err(|e| anyhow!("Uninstall error: {}", e)),
+        "uninstall" => uninstall(subcommand_matches).map_err(|e| anyhow!("Uninstall error: {}", e)),
         #[cfg(target_os = "windows")]
         "start" => start(&subcommand_matches).map_err(|e| anyhow!("Start error: {}", e)),
         "apply" => apply(subcommand_matches).map_err(|e| anyhow!("Apply error: {}", e)),
@@ -176,9 +158,9 @@ fn start(matches: &ArgMatches) -> Result<()> {
 }
 
 #[cfg(target_os = "windows")]
-fn uninstall(_matches: &ArgMatches, log_file: &PathBuf) -> Result<()> {
+fn uninstall(_matches: &ArgMatches) -> Result<()> {
     info!("Command: Uninstall");
-    commands::uninstall(log_file)
+    commands::uninstall()
 }
 
 #[cfg(target_os = "windows")]

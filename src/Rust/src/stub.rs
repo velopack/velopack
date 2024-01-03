@@ -14,11 +14,7 @@ fn main() -> ExitCode {
     let my_path = std::env::current_exe().unwrap();
     let my_name = my_path.file_name().unwrap().to_string_lossy();
 
-    let mut log_path = my_path.clone();
-    log_path.pop();
-    log_path.push("Velopack.log");
-
-    let _ = logging::setup_logging(Some(&log_path), false, true, true);
+    let _ = logging::default_logging(false, false);
 
     let mut update_exe = my_path.clone();
     update_exe.pop();
