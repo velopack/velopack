@@ -15,8 +15,6 @@ public class S3BaseCommand : OutputCommand
 
     public string Bucket { get; private set; }
 
-    public string PathPrefix { get; private set; }
-
     protected S3BaseCommand(string name, string description)
         : base(name, description)
     {
@@ -50,10 +48,6 @@ public class S3BaseCommand : OutputCommand
             .SetDescription("Name of the S3 bucket.")
             .SetArgumentHelpName("NAME")
             .SetRequired();
-
-        AddOption<string>((v) => PathPrefix = v, "--pathPrefix")
-            .SetDescription("A sub-folder used for files in the bucket, for creating release channels (eg. 'stable' or 'dev').")
-            .SetArgumentHelpName("PREFIX");
     }
 
     private static void MustBeValidAwsRegion(OptionResult result)

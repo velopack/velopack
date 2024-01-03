@@ -61,7 +61,7 @@ namespace Velopack.NuGet
             }
         }
 
-        public static void SetMetadata(string nuspecPath, string mainExe, IEnumerable<string> runtimes, RID rid)
+        public static void SetMetadata(string nuspecPath, string mainExe, IEnumerable<string> runtimes, RID rid, string version)
         {
             Dictionary<string, string> toSet = new();
 
@@ -78,8 +78,11 @@ namespace Velopack.NuGet
                     toSet.Add("machineArchitecture", rid.Architecture.ToString());
             }
 
-            if (!String.IsNullOrEmpty(mainExe))
+            if (!String.IsNullOrWhiteSpace(mainExe))
                 toSet.Add("mainExe", mainExe);
+
+            if (!String.IsNullOrWhiteSpace(version))
+                toSet.Add("version", version);
 
             if (!toSet.Any())
                 return;

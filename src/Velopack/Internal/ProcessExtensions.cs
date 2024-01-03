@@ -23,7 +23,6 @@ namespace Velopack
             AppendArgumentsTo(sb, args);
             debug = sb.ToString();
         }
-
 #else
         public static void AppendArgumentListSafe(this ProcessStartInfo psi, IEnumerable<string> args, out string debug)
         {
@@ -59,57 +58,68 @@ namespace Velopack
             return p;
         }
 
-        public static Task<string> Output(this ProcessStartInfo psi, int timeoutMs)
+        public static string Output(this ProcessStartInfo psi, int timeoutMs)
         {
-            TaskCompletionSource<string> tcs = new TaskCompletionSource<string>();
-
             psi.RedirectStandardOutput = true;
-            psi.RedirectStandardError = true;
             psi.UseShellExecute = false;
 
-            bool killed = false;
+            var p = Process.Start(psi);
+            if (!p.WaitForExit(timeoutMs)) {
+                p.Kill();
+                throw new TimeoutException("Process did not exit within alloted time.");
+            }
 
-            var sb = new StringBuilder();
-            var p = new Process();
-            p.StartInfo = psi;
-            p.EnableRaisingEvents = true;
+            return p.StandardOutput.ReadToEnd().Trim();
 
-            p.Exited += (o, e) => {
-                if (killed) return;
-                if (p.ExitCode != 0) {
-                    tcs.SetException(new Exception($"Process exited with code {p.ExitCode}."));
-                } else {
-                    tcs.SetResult(sb.ToString());
-                }
-            };
+            //TaskCompletionSource<string> tcs = new TaskCompletionSource<string>();
 
-            p.ErrorDataReceived += (o, e) => {
-                if (killed) return;
-                if (e.Data != null) {
-                    sb.AppendLine(e.Data);
-                }
-            };
+            //psi.RedirectStandardOutput = true;
+            //psi.RedirectStandardError = true;
+            //psi.UseShellExecute = false;
 
-            p.OutputDataReceived += (o, e) => {
-                if (killed) return;
-                if (e.Data != null) {
-                    sb.AppendLine(e.Data);
-                }
-            };
+            //bool killed = false;
 
-            p.Start();
-            p.BeginErrorReadLine();
-            p.BeginOutputReadLine();
+            //var sb = new StringBuilder();
+            //var p = new Process();
+            //p.StartInfo = psi;
+            //p.EnableRaisingEvents = true;
 
-            Task.Delay(timeoutMs).ContinueWith(t => {
-                killed = true;
-                if (!tcs.Task.IsCompleted) {
-                    tcs.SetException(new TimeoutException($"Process timed out after {timeoutMs}ms."));
-                    p.Kill();
-                }
-            });
+            //p.Exited += (o, e) => {
+            //    if (killed) return;
+            //    if (p.ExitCode != 0) {
+            //        tcs.SetException(new Exception($"Process exited with code {p.ExitCode}."));
+            //    } else {
+            //        tcs.SetResult(sb.ToString());
+            //    }
+            //};
 
-            return tcs.Task;
+            //p.ErrorDataReceived += (o, e) => {
+            //    if (killed) return;
+            //    if (e.Data != null) {
+            //        sb.AppendLine(e.Data);
+            //    }
+            //};
+
+            //p.OutputDataReceived += (o, e) => {
+            //    if (killed) return;
+            //    if (e.Data != null) {
+            //        sb.AppendLine(e.Data);
+            //    }
+            //};
+
+            //p.Start();
+            //p.BeginErrorReadLine();
+            //p.BeginOutputReadLine();
+
+            //Task.Delay(timeoutMs).ContinueWith(t => {
+            //    killed = true;
+            //    if (!tcs.Task.IsCompleted) {
+            //        tcs.SetException(new TimeoutException($"Process timed out after {timeoutMs}ms."));
+            //        p.Kill();
+            //    }
+            //});
+
+            //return tcs.Task;
         }
 
 

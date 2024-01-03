@@ -16,8 +16,6 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
 
     public string EntryExecutableName { get; private set; }
 
-    public string Channel { get; private set; }
-
     public WindowsReleasifyCommand()
         : this("releasify", "Take an existing nuget package and convert it into a release.")
     {
@@ -60,11 +58,5 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
             .SetDescription("The file name of the main/entry executable.")
             .SetArgumentHelpName("NAME")
             .RequiresExtension(".exe");
-
-        AddOption<string>((v) => Channel = v, "-c", "--channel")
-            .SetDescription("Release channel to use when creating the package.")
-            .SetDefault(ReleaseEntryHelper.DEFAULT_CHANNEL)
-            .RequiresValidNuGetId()
-            .SetArgumentHelpName("NAME");
     }
 }

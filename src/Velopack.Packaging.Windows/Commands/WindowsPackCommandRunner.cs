@@ -16,9 +16,6 @@ public class WindowsPackCommandRunner
 
     public void Pack(WindowsPackOptions options)
     {
-        if (options.EntryExecutableName == null)
-            options.EntryExecutableName = options.PackId + ".exe";
-
         using (Utility.GetTempDirectory(out var tmp)) {
             var nupkgPath = new NugetConsole(_logger).CreatePackageFromOptions(tmp, options);
             options.Package = nupkgPath;

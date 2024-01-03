@@ -18,11 +18,14 @@ public class WindowsReleasifyCommandRunner
 
     public void Releasify(WindowsReleasifyOptions options)
     {
+        if (options.TargetRuntime?.BaseRID != RuntimeOs.Windows)
+            throw new ArgumentException("Target runtime must be Windows.", nameof(options.TargetRuntime));
+
         var targetDir = options.ReleaseDir.FullName;
         var package = options.Package;
         var backgroundGif = options.SplashImage;
         var setupIcon = options.Icon;
-        var channel = options.Channel?.ToLower();
+        var channel = options.Channel?.ToLower() ?? ReleaseEntryHelper.GetDefaultChannel(RuntimeOs.Windows);
 
         // normalize and validate that the provided frameworks are supported 
         IEnumerable<Runtimes.RuntimeInfo> requiredFrameworks = Enumerable.Empty<Runtimes.RuntimeInfo>();
@@ -57,7 +60,7 @@ public class WindowsReleasifyCommandRunner
         var rp = new ReleasePackageBuilder(_logger, fileToProcess);
 
         var entryHelper = new ReleaseEntryHelper(targetDir, _logger);
-        entryHelper.ValidateEntriesForPackaging(rp.Version, channel);
+        entryHelper.ValidateChannelForPackaging(rp.Version, channel, options.TargetRuntime);
 
         rp.CreateReleasePackage(contentsPostProcessHook: (pkgPath, zpkg) => {
             var nuspecPath = Directory.GetFiles(pkgPath, "*.nuspec", SearchOption.TopDirectoryOnly)
@@ -65,14 +68,15 @@ public class WindowsReleasifyCommandRunner
             var libDir = Directory.GetDirectories(Path.Combine(pkgPath, "lib"))
                 .ContextualSingle("package", "'lib' folder");
 
-            var mainExe = Path.Combine(libDir, options.EntryExecutableName);
+            var mainExeName = options.EntryExecutableName ?? zpkg.Id + ".exe";
+            var mainExe = Path.Combine(libDir, mainExeName);
             if (!File.Exists(mainExe))
-                throw new ArgumentException($"--exeName '{options.EntryExecutableName}' does not exist in package. Searched at: '{mainExe}'");
+                throw new ArgumentException($"--exeName '{mainExeName}' does not exist in package. Searched at: '{mainExe}'");
 
             try {
                 var psi = new ProcessStartInfo(mainExe);
                 psi.AppendArgumentListSafe(new[] { "--veloapp-version" }, out var _);
-                var output = psi.Output(5000).GetAwaiterResult();
+                var output = psi.Output(3000);
                 if (String.IsNullOrWhiteSpace(output)) {
                     throw new Exception("Process exited with no output.");
                 }
@@ -102,7 +106,10 @@ public class WindowsReleasifyCommandRunner
                     "Please publish your application to a folder without ClickOnce.");
             }
 
-            NuspecManifest.SetMetadata(nuspecPath, options.EntryExecutableName, requiredFrameworks.Select(r => r.Id), options.TargetRuntime);
+            var versionSuffix = ReleaseEntryHelper.GetPkgSuffix(RuntimeOs.Windows, options.Channel);
+            var versionOverride = String.IsNullOrWhiteSpace(versionSuffix)
+                ? zpkg.Version : SemanticVersion.Parse(zpkg.Version.ToFullString() + versionSuffix);
+            NuspecManifest.SetMetadata(nuspecPath, options.EntryExecutableName, requiredFrameworks.Select(r => r.Id), options.TargetRuntime, versionOverride.ToFullString());
 
             // copy Update.exe into package, so it can also be updated in both full/delta packages
             // and do it before signing so that Update.exe will also be signed. It is renamed to
@@ -121,7 +128,7 @@ public class WindowsReleasifyCommandRunner
             if (setupIcon != null) File.Copy(setupIcon, Path.Combine(pkgPath, "setup.ico"), true);
             if (backgroundGif != null) File.Copy(backgroundGif, Path.Combine(pkgPath, "splashimage" + Path.GetExtension(backgroundGif)));
 
-            var releaseName = new ReleaseEntryName(spec.Id, spec.Version, false, options.TargetRuntime);
+            var releaseName = new ReleaseEntryName(spec.Id, versionOverride, false, options.TargetRuntime);
             return Path.Combine(targetDir, releaseName.ToFileName());
         });
 
@@ -141,7 +148,7 @@ public class WindowsReleasifyCommandRunner
         entryHelper.SaveReleasesFiles();
 
         var bundledzp = new ZipPackage(package);
-        var targetSetupExe = Path.Combine(targetDir, $"{bundledzp.Id}-[{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}]-Setup.exe");
+        var targetSetupExe = entryHelper.GetSuggestedSetupPath(bundledzp.Id, channel, options.TargetRuntime);
         File.Copy(helper.SetupPath, targetSetupExe, true);
 
         if (VelopackRuntimeInfo.IsWindows) {

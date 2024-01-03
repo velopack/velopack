@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
+using Velopack.Sources;
 
 namespace Velopack.Packaging
 {
@@ -15,7 +16,7 @@ namespace Velopack.Packaging
         private readonly ILogger _logger;
         private Dictionary<string, List<ReleaseEntry>> _releases;
 
-        public const string DEFAULT_CHANNEL = "default";
+        private const string BLANK_CHANNEL = "default";
 
         public ReleaseEntryHelper(string outputDir, ILogger logger)
         {
@@ -24,7 +25,7 @@ namespace Velopack.Packaging
             _releases = new Dictionary<string, List<ReleaseEntry>>(StringComparer.OrdinalIgnoreCase);
             foreach (var releaseFile in Directory.EnumerateFiles(outputDir, "RELEASES*")) {
                 var fn = Path.GetFileName(releaseFile);
-                var channel = fn.StartsWith("RELEASES-", StringComparison.OrdinalIgnoreCase) ? fn.Substring(9) : DEFAULT_CHANNEL;
+                var channel = fn.StartsWith("RELEASES-", StringComparison.OrdinalIgnoreCase) ? fn.Substring(9) : BLANK_CHANNEL;
                 var releases = ReleaseEntry.ParseReleaseFile(File.ReadAllText(releaseFile)).ToList();
                 _logger.Info($"Loaded {releases.Count} entries from: {releaseFile}");
                 // this allows us to collapse RELEASES files with the same channel but different case on file systems
@@ -37,14 +38,12 @@ namespace Velopack.Packaging
             }
         }
 
-        public void ValidateEntriesForPackaging(SemanticVersion version, string channel)
+        public void ValidateChannelForPackaging(SemanticVersion version, string channel, RID rid)
         {
             if (!_releases.ContainsKey(channel) || !_releases[channel].Any())
                 return;
 
-            RID rid = null;
             foreach (var release in _releases[channel]) {
-                if (rid == null) rid = release.Rid;
                 if (release.Rid != rid) {
                     throw new ArgumentException("All releases in a channel must have the same RID. Please correct RELEASES file or change channel name: " + GetReleasePath(channel));
                 }
@@ -60,12 +59,19 @@ namespace Velopack.Packaging
             if (releases == null || !releases.Any()) return null;
             var entry = releases
                 .Where(x => x.IsDelta == false)
-                .Where(x => x.Version < version)
+                .Where(x => VersionComparer.Version.Compare(x.Version, version) < 0)
                 .OrderByDescending(x => x.Version)
                 .FirstOrDefault();
             if (entry == null) return null;
             var file = Path.Combine(_outputDir, entry.OriginalFilename);
             return new ReleasePackageBuilder(_logger, file, true);
+        }
+
+        public ReleaseEntry GetLatestFullRelease(string channel)
+        {
+            var releases = _releases.ContainsKey(channel) ? _releases[channel] : null;
+            if (releases == null || !releases.Any()) return null;
+            return releases.Where(z => !z.IsDelta).MaxBy(z => z.Version).First();
         }
 
         public void AddRemoteReleaseEntries(IEnumerable<ReleaseEntry> entries, string channel)
@@ -110,49 +116,105 @@ namespace Velopack.Packaging
             }
         }
 
-        private string GetReleasePath(string channel)
+        public static string GetPkgSuffix(RuntimeOs os, string channel)
         {
-            return Path.Combine(_outputDir, channel == DEFAULT_CHANNEL ? "RELEASES" : $"RELEASES-{channel.ToLower()}");
+            if (channel == null) return "";
+            if (channel == BLANK_CHANNEL) return "";
+            if (channel == "osx" && os == RuntimeOs.OSX) return "";
+            return "-" + channel.ToLower();
         }
 
-        public IEnumerable<FileInfo> GetUploadAssets()
+        public static string GetDefaultChannel(RuntimeOs os)
         {
+            if (os == RuntimeOs.Windows) return BLANK_CHANNEL;
+            if (os == RuntimeOs.OSX) return "osx";
+            throw new NotSupportedException("Unsupported OS: " + os);
+        }
+
+        public string GetReleasePath(string channel)
+        {
+            return Path.Combine(_outputDir, SourceBase.GetReleasesFileNameImpl(channel));
+        }
+
+        public enum AssetsMode
+        {
+            AllPackages,
+            OnlyLatest,
+        }
+
+        public class AssetUploadInfo
+        {
+            public List<FileInfo> Files { get; } = new List<FileInfo>();
+
+            public List<ReleaseEntry> Releases { get; } = new List<ReleaseEntry>();
+
+            public string ReleasesFileName { get; set; }
+        }
+
+        public AssetUploadInfo GetUploadAssets(string channel, AssetsMode mode)
+        {
+            var ret = new AssetUploadInfo();
+            var os = VelopackRuntimeInfo.SystemOs;
+            channel ??= GetDefaultChannel(os);
+            var suffix = GetPkgSuffix(os, channel);
+
+            if (!_releases.ContainsKey(channel))
+                throw new ArgumentException("No releases found for channel: " + channel);
+
+            ret.ReleasesFileName = SourceBase.GetReleasesFileNameImpl(channel);
+            var relPath = GetReleasePath(channel);
+            if (!File.Exists(relPath))
+                throw new FileNotFoundException("Could not find RELEASES file for channel: " + channel, relPath);
+
+            ReleaseEntry latest = GetLatestFullRelease(channel);
+            if (latest == null) {
+                throw new ArgumentException("No full releases found for channel: " + channel);
+            } else {
+                _logger.Info("Latest local release: " + latest.OriginalFilename);
+            }
+
             foreach (var rel in Directory.EnumerateFiles(_outputDir, "*.nupkg")) {
-                if (_releases.Any(kvp => kvp.Value.Any(x => Path.GetFileName(rel).Equals(x.OriginalFilename, StringComparison.OrdinalIgnoreCase)))) {
-                    yield return new FileInfo(rel);
-                } else {
-                    _logger.Warn($"Asset '{rel}' is not in any RELEASES file, it will be ignored.");
+                var entry = _releases[channel].FirstOrDefault(x => Path.GetFileName(rel).Equals(x.OriginalFilename, StringComparison.OrdinalIgnoreCase));
+                if (entry != null) {
+                    if (mode != AssetsMode.OnlyLatest || latest.Version == entry.Version) {
+                        _logger.Info($"Discovered asset: {rel}");
+                        ret.Files.Add(new FileInfo(rel));
+                        ret.Releases.Add(entry);
+                    }
                 }
             }
 
-            foreach (var rel in Directory.EnumerateFiles(_outputDir, "*-Portable.zip")) {
-                yield return new FileInfo(rel);
+            foreach (var rel in Directory.EnumerateFiles(_outputDir, $"*{suffix}-Portable.zip")) {
+                _logger.Info($"Discovered asset: {rel}");
+                ret.Files.Add(new FileInfo(rel));
             }
 
-            foreach (var rel in Directory.EnumerateFiles(_outputDir, "*-Setup.exe")) {
-                yield return new FileInfo(rel);
+            foreach (var rel in Directory.EnumerateFiles(_outputDir, $"*{suffix}-Setup.exe")) {
+                _logger.Info($"Discovered asset: {rel}");
+                ret.Files.Add(new FileInfo(rel));
             }
 
-            foreach (var rel in Directory.EnumerateFiles(_outputDir, "*-Setup.pkg")) {
-                yield return new FileInfo(rel);
+            foreach (var rel in Directory.EnumerateFiles(_outputDir, $"*{suffix}-Setup.pkg")) {
+                _logger.Info($"Discovered asset: {rel}");
+                ret.Files.Add(new FileInfo(rel));
             }
 
-            foreach (var rel in Directory.EnumerateFiles(_outputDir, "RELEASES*")) {
-                yield return new FileInfo(rel);
-            }
+            return ret;
         }
 
-        public string GetSuggestedPortablePath(string id, RID rid)
+        public string GetSuggestedPortablePath(string id, string channel, RID rid)
         {
-            return Path.Combine(_outputDir, $"{id}-[{rid.ToDisplay(RidDisplayType.NoVersion)}]-Portable.zip");
+            var suffix = GetPkgSuffix(rid.BaseRID, channel);
+            return Path.Combine(_outputDir, $"{id}-[{rid.ToDisplay(RidDisplayType.NoVersion)}]{suffix}-Portable.zip");
         }
 
-        public string GetSuggestedSetupPath(string id, RID rid)
+        public string GetSuggestedSetupPath(string id, string channel, RID rid)
         {
+            var suffix = GetPkgSuffix(rid.BaseRID, channel);
             if (rid.BaseRID == RuntimeOs.Windows)
-                return Path.Combine(_outputDir, $"{id}-[{rid.ToDisplay(RidDisplayType.NoVersion)}]-Setup.exe");
+                return Path.Combine(_outputDir, $"{id}-[{rid.ToDisplay(RidDisplayType.NoVersion)}]{suffix}-Setup.exe");
             else if (rid.BaseRID == RuntimeOs.OSX)
-                return Path.Combine(_outputDir, $"{id}-[{rid.ToDisplay(RidDisplayType.NoVersion)}]-Setup.pkg");
+                return Path.Combine(_outputDir, $"{id}-[{rid.ToDisplay(RidDisplayType.NoVersion)}]{suffix}-Setup.pkg");
             else
                 throw new NotSupportedException("RID not supported: " + rid);
         }

@@ -26,11 +26,15 @@ namespace Velopack.Sources
         /// <summary> Get the RELEASES file name for the specified Channel </summary>
         protected virtual string GetReleasesFileName()
         {
-            if (String.IsNullOrWhiteSpace(Channel)) {
+            return GetReleasesFileNameImpl(Channel);
+        }
+
+        internal static string GetReleasesFileNameImpl(string channel)
+        {
+            if (String.IsNullOrWhiteSpace(channel) || channel == "default") {
                 return VelopackRuntimeInfo.IsOSX ? "RELEASES-osx" : "RELEASES";
             }
-
-            return $"RELEASES-{Channel.ToLower()}";
+            return $"RELEASES-{channel.ToLower()}";
         }
 
         /// <inheritdoc/>

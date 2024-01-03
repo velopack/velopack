@@ -122,8 +122,9 @@ public class EmbeddedRunner : ICommandRunner
             ReleaseDir = command.GetReleaseDirectory(),
             RepoUrl = command.RepoUrl,
             Token = command.Token,
+            Channel = command.Channel,
         };
-        return new GitHubRepository(_logger).DownloadRecentPackages(options);
+        return new GitHubRepository(_logger).DownloadLatestFullPackageAsync(options);
     }
 
     public virtual Task ExecuteGithubUpload(GitHubUploadCommand command)
@@ -134,8 +135,9 @@ public class EmbeddedRunner : ICommandRunner
             Token = command.Token,
             Publish = command.Publish,
             ReleaseName = command.ReleaseName,
+            Channel = command.Channel,
         };
-        return new GitHubRepository(_logger).UploadMissingPackages(options);
+        return new GitHubRepository(_logger).UploadMissingAssetsAsync(options);
     }
 
     public virtual Task ExecuteHttpDownload(HttpDownloadCommand command)
@@ -143,23 +145,24 @@ public class EmbeddedRunner : ICommandRunner
         var options = new HttpDownloadOptions {
             ReleaseDir = command.GetReleaseDirectory(),
             Url = command.Url,
+            Channel = command.Channel,
         };
-        return new SimpleWebRepository(_logger).DownloadRecentPackages(options);
+        return new HttpRepository(_logger).DownloadLatestFullPackageAsync(options);
     }
 
     public virtual Task ExecuteS3Download(S3DownloadCommand command)
     {
-        var options = new S3Options {
+        var options = new S3DownloadOptions {
             Bucket = command.Bucket,
             Endpoint = command.Endpoint,
+            Session = command.Session,
             KeyId = command.KeyId,
-            PathPrefix = command.PathPrefix,
             Region = command.Region,
             ReleaseDir = command.GetReleaseDirectory(),
-            Session = command.Session,
             Secret = command.Secret,
+            Channel = command.Channel,
         };
-        return new S3Repository(_logger).DownloadRecentPackages(options);
+        return new S3Repository(_logger).DownloadLatestFullPackageAsync(options);
     }
 
     public virtual Task ExecuteS3Upload(S3UploadCommand command)
@@ -168,14 +171,14 @@ public class EmbeddedRunner : ICommandRunner
             Bucket = command.Bucket,
             Endpoint = command.Endpoint,
             KeyId = command.KeyId,
-            PathPrefix = command.PathPrefix,
+            Session = command.Session,
             Region = command.Region,
             ReleaseDir = command.GetReleaseDirectory(),
             Secret = command.Secret,
-            KeepMaxReleases = command.KeepMaxReleases,
             Overwrite = command.Overwrite,
+            Channel = command.Channel,
         };
-        return new S3Repository(_logger).UploadMissingPackages(options);
+        return new S3Repository(_logger).UploadMissingAssetsAsync(options);
     }
 
     public virtual Task ExecuteDeltaGen(DeltaGenCommand command)

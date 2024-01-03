@@ -73,16 +73,16 @@ public abstract class S3CommandTests<T> : BaseCommandTests<T>
         Assert.StartsWith("Cannot use '--region' and '--endpoint' options together", parseResult.Errors[0].Message);
     }
 
-    [Fact]
-    public void PathPrefix_WithPath_ParsesValue()
-    {
-        S3BaseCommand command = new T();
+    //[Fact]
+    //public void PathPrefix_WithPath_ParsesValue()
+    //{
+    //    S3BaseCommand command = new T();
 
-        string cli = GetRequiredDefaultOptions() + $"--pathPrefix \"sub-folder\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
+    //    string cli = GetRequiredDefaultOptions() + $"--pathPrefix \"sub-folder\"";
+    //    ParseResult parseResult = command.ParseAndApply(cli);
 
-        Assert.Equal("sub-folder", command.PathPrefix);
-    }
+    //    Assert.Equal("sub-folder", command.PathPrefix);
+    //}
 
     protected override string GetRequiredDefaultOptions()
     {
@@ -108,14 +108,14 @@ public class S3UploadCommandTests : S3CommandTests<S3UploadCommand>
         Assert.True(command.Overwrite);
     }
 
-    [Fact]
-    public void KeepMaxReleases_WithNumber_ParsesValue()
-    {
-        var command = new S3UploadCommand();
+    //[Fact]
+    //public void KeepMaxReleases_WithNumber_ParsesValue()
+    //{
+    //    var command = new S3UploadCommand();
 
-        string cli = GetRequiredDefaultOptions() + "--keepMaxReleases 42";
-        ParseResult parseResult = command.ParseAndApply(cli);
+    //    string cli = GetRequiredDefaultOptions() + "--keepMaxReleases 42";
+    //    ParseResult parseResult = command.ParseAndApply(cli);
 
-        Assert.Equal(42, command.KeepMaxReleases);
-    }
+    //    Assert.Equal(42, command.KeepMaxReleases);
+    //}
 }

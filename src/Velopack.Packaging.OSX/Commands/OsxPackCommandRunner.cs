@@ -16,12 +16,15 @@ public class OsxPackCommandRunner
 
     public void Releasify(OsxPackOptions options)
     {
+        if (options.TargetRuntime.BaseRID != RuntimeOs.OSX)
+            throw new ArgumentException("Target runtime must be OSX.", nameof(options.TargetRuntime));
+
         var releaseDir = options.ReleaseDir;
-        var channel = options.Channel?.ToLower() ?? "osx"; // default channel for mac packages.
+        var channel = options.Channel?.ToLower() ?? ReleaseEntryHelper.GetDefaultChannel(RuntimeOs.OSX);
 
         var helper = new HelperExe(_logger);
         var entryHelper = new ReleaseEntryHelper(releaseDir.FullName, _logger);
-        entryHelper.ValidateEntriesForPackaging(SemanticVersion.Parse(options.PackVersion), channel);
+        entryHelper.ValidateChannelForPackaging(SemanticVersion.Parse(options.PackVersion), channel, options.TargetRuntime);
 
         bool deleteAppBundle = false;
         string appBundlePath = options.PackDirectory;
@@ -39,6 +42,11 @@ public class OsxPackCommandRunner
         var packAuthors = options.PackAuthors;
         var packVersion = options.PackVersion;
 
+        var suffix = ReleaseEntryHelper.GetPkgSuffix(RuntimeOs.OSX, channel);
+        if (!String.IsNullOrWhiteSpace(suffix)) {
+            options.PackVersion += suffix;
+        }
+
         _logger.Info("Adding Squirrel resources to bundle.");
         var nuspecText = NugetConsole.CreateNuspec(
             packId, packTitle, packAuthors, packVersion, options.ReleaseNotes, options.IncludePdb);
@@ -48,7 +56,7 @@ public class OsxPackCommandRunner
         File.WriteAllText(nuspecPath, nuspecText);
         File.Copy(helper.UpdateMacPath, Path.Combine(structure.MacosDirectory, "UpdateMac"), true);
 
-        var zipPath = Path.Combine(releaseDir.FullName, $"{options.PackId}-[{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}]-Portable.zip");
+        var zipPath = entryHelper.GetSuggestedPortablePath(packId, channel, options.TargetRuntime);
         if (File.Exists(zipPath)) File.Delete(zipPath);
 
         // code signing all mach-o binaries
@@ -92,7 +100,7 @@ public class OsxPackCommandRunner
 
         // create installer package, sign and notarize
         if (!options.NoPackage) {
-            var pkgPath = Path.Combine(releaseDir.FullName, $"{packId}-[{options.TargetRuntime.ToDisplay(RidDisplayType.NoVersion)}]-Setup.pkg");
+            var pkgPath = entryHelper.GetSuggestedSetupPath(packId, channel, options.TargetRuntime);
 
             Dictionary<string, string> pkgContent = new() {
                 {"welcome", options.PackageWelcome },

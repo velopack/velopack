@@ -6,24 +6,19 @@ using System.Threading.Tasks;
 
 namespace Velopack.Vpk.Commands
 {
-    public class PlatformCommand : OutputCommand
+    public abstract class PlatformCommand : OutputCommand
     {
         public string TargetRuntime { get; set; }
 
-        //public FileSystemInfo SolutionDir { get; set; }
+        protected CliOption<string> TargetRuntimeOption { get; private set; }
 
         protected PlatformCommand(string name, string description) : base(name, description)
         {
-            TargetRuntime = VelopackRuntimeInfo.SystemOs.GetOsShortName();
-
-            AddOption<string>((v) => TargetRuntime = v, "-r", "--runtime")
+            TargetRuntimeOption = AddOption<string>((v) => TargetRuntime = v, "-r", "--runtime")
                 .SetDescription("The target runtime to build packages for.")
                 .SetArgumentHelpName("RID")
+                .SetDefault(VelopackRuntimeInfo.SystemOs.GetOsShortName())
                 .MustBeSupportedRid();
-
-            //AddOption<FileSystemInfo>((v) => SolutionDir = v, "--sln")
-            //    .SetDescription("Explicit path to project solution (.sln)")
-            //    .AcceptExistingOnly();
         }
 
         public RID GetRid() => RID.Parse(TargetRuntime ?? VelopackRuntimeInfo.SystemOs.GetOsShortName());

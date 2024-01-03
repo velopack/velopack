@@ -137,6 +137,9 @@ namespace Velopack.Sources
             AccessToken = accessToken;
             Prerelease = prerelease;
             Downloader = downloader ?? Utility.CreateDefaultDownloader();
+
+            if (String.IsNullOrWhiteSpace(AccessToken))
+                logger?.Warn("No GitHub access token provided. Unauthenticated requests will be limited to 60 per hour.");
         }
 
         /// <inheritdoc />

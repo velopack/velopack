@@ -58,18 +58,19 @@ public class WindowsPackTests
             PackTitle = "Test Squirrel App",
             PackDirectory = tmpOutput,
             IncludePdb = true,
+            Channel = "asd123"
         };
 
         var runner = new WindowsPackCommandRunner(logger);
         runner.Pack(options);
 
-        var nupkgPath = Path.Combine(tmpReleaseDir, $"{id}-{version}-win-x64-full.nupkg");
+        var nupkgPath = Path.Combine(tmpReleaseDir, $"{id}-{version}-asd123-win-x64-full.nupkg");
         Assert.True(File.Exists(nupkgPath));
 
-        var setupPath = Path.Combine(tmpReleaseDir, $"{id}-Setup-[win-x64].exe");
+        var setupPath = Path.Combine(tmpReleaseDir, $"{id}-[win-x64]-asd123-Setup.exe");
         Assert.True(File.Exists(setupPath));
 
-        var releasesPath = Path.Combine(tmpReleaseDir, $"RELEASES");
+        var releasesPath = Path.Combine(tmpReleaseDir, $"RELEASES-asd123");
         Assert.True(File.Exists(releasesPath));
 
         EasyZip.ExtractZipToDirectory(logger, nupkgPath, unzipDir);
@@ -80,7 +81,7 @@ public class WindowsPackTests
         var xml = XDocument.Load(nuspecPath);
 
         Assert.Equal(id, xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("id").Single().Value);
-        Assert.Equal(version, xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("version").Single().Value);
+        Assert.Equal(version + "-asd123", xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("version").Single().Value);
         Assert.Equal(exe, xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("mainExe").Single().Value);
         Assert.Equal("Test Squirrel App", xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("title").Single().Value);
         Assert.Equal("author", xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("authors").Single().Value);
@@ -95,7 +96,7 @@ public class WindowsPackTests
     }
 
     [SkippableFact]
-    public void PackBuildMultipleChannels()
+    public void PackBuildMultipleChannelsSameRid()
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
 
@@ -122,42 +123,76 @@ public class WindowsPackTests
             PackAuthors = "author",
             PackTitle = "Test Squirrel App",
             PackDirectory = tmpOutput,
-            Channel = "hello",
             IncludePdb = true,
         };
 
         var runner = new WindowsPackCommandRunner(logger);
         runner.Pack(options);
 
-        options.TargetRuntime = RID.Parse("win10.0.19043-x86");
-        options.Channel = "hello2";
-        runner.Pack(options);
 
         var nupkgPath1 = Path.Combine(tmpReleaseDir, $"{id}-{version}-win-x64-full.nupkg");
         Assert.True(File.Exists(nupkgPath1));
 
-        var setupPath1 = Path.Combine(tmpReleaseDir, $"{id}-Setup-[win-x64].exe");
+        var setupPath1 = Path.Combine(tmpReleaseDir, $"{id}-[win-x64]-Setup.exe");
         Assert.True(File.Exists(setupPath1));
 
-        var releasesPath1 = Path.Combine(tmpReleaseDir, $"RELEASES-hello");
+        var releasesPath1 = Path.Combine(tmpReleaseDir, $"RELEASES");
         Assert.True(File.Exists(releasesPath1));
-
-        var nupkgPath2 = Path.Combine(tmpReleaseDir, $"{id}-{version}-win-x86-full.nupkg");
-        Assert.True(File.Exists(nupkgPath2));
-
-        var setupPath2 = Path.Combine(tmpReleaseDir, $"{id}-Setup-[win-x86].exe");
-        Assert.True(File.Exists(setupPath2));
-
-        var releasesPath2 = Path.Combine(tmpReleaseDir, $"RELEASES-hello2");
-        Assert.True(File.Exists(releasesPath2));
 
         var rel1 = ReleaseEntry.ParseReleaseFile(File.ReadAllText(releasesPath1, Encoding.UTF8));
         Assert.Equal(1, rel1.Count());
-        Assert.True(rel1.Single().Rid == RID.Parse("win-x64"));
+
+        options.Channel = "hello";
+        runner.Pack(options);
+
+        var nupkgPath2 = Path.Combine(tmpReleaseDir, $"{id}-{version}-hello-win-x64-full.nupkg");
+        Assert.True(File.Exists(nupkgPath2));
+
+        var setupPath2 = Path.Combine(tmpReleaseDir, $"{id}-[win-x64]-hello-Setup.exe");
+        Assert.True(File.Exists(setupPath2));
+
+        var releasesPath2 = Path.Combine(tmpReleaseDir, $"RELEASES-hello");
+        Assert.True(File.Exists(releasesPath2));
+
+        rel1 = ReleaseEntry.ParseReleaseFile(File.ReadAllText(releasesPath1, Encoding.UTF8));
+        Assert.Equal(1, rel1.Count());
 
         var rel2 = ReleaseEntry.ParseReleaseFile(File.ReadAllText(releasesPath2, Encoding.UTF8));
         Assert.Equal(1, rel2.Count());
-        Assert.True(rel2.Single().Rid == RID.Parse("win-x86"));
+    }
+
+
+    [SkippableFact]
+    public void PackBuildRefuseSameVersion()
+    {
+        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+
+        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
+
+        using var _1 = Utility.GetTempDirectory(out var tmpOutput);
+        using var _2 = Utility.GetTempDirectory(out var tmpReleaseDir);
+
+        var exe = "testawareapp.exe";
+        var pdb = Path.ChangeExtension(exe, ".pdb");
+        var id = "Test.Squirrel-App";
+        var version = "1.0.0";
+
+        File.Copy(HelperFile.FindTestFile(exe), Path.Combine(tmpOutput, exe));
+        File.Copy(HelperFile.FindTestFile(pdb), Path.Combine(tmpOutput, pdb));
+
+        var options = new WindowsPackOptions {
+            EntryExecutableName = exe,
+            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
+            PackId = id,
+            PackVersion = version,
+            PackDirectory = tmpOutput,
+            TargetRuntime = RID.Parse("win"),
+        };
+
+        var runner = new WindowsPackCommandRunner(logger);
+        runner.Pack(options);
+
+        Assert.Throws<ArgumentException>(() => runner.Pack(options));
     }
 
     [SkippableFact]
@@ -261,7 +296,7 @@ public class WindowsPackTests
         var runner = new WindowsPackCommandRunner(logger);
         runner.Pack(options);
 
-        var setupPath1 = Path.Combine(tmpReleaseDir, $"{id}-Setup-[win-x64].exe");
+        var setupPath1 = Path.Combine(tmpReleaseDir, $"{id}-[win-x64]-Setup.exe");
         Assert.True(File.Exists(setupPath1));
 
         RunNoCoverage(setupPath1, new[] { "--nocolor", "--silent", "--installto", tmpInstallDir }, Environment.CurrentDirectory, logger);
@@ -322,7 +357,7 @@ public class WindowsPackTests
         PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
 
         // install app
-        var setupPath1 = Path.Combine(releaseDir, $"{id}-Setup-[win-x64].exe");
+        var setupPath1 = Path.Combine(releaseDir, $"{id}-[win-x64]-Setup.exe");
         RunNoCoverage(setupPath1, new string[] { "--nocolor", "--silent", "--installto", installDir },
             Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
 
@@ -396,7 +431,7 @@ public class WindowsPackTests
         PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
 
         // install app
-        var setupPath1 = Path.Combine(releaseDir, $"{id}-Setup-[win-x64].exe");
+        var setupPath1 = Path.Combine(releaseDir, $"{id}-[win-x64]-Setup.exe");
         RunNoCoverage(setupPath1, new string[] { "--nocolor", "--installto", installDir },
             Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
 
@@ -445,7 +480,7 @@ public class WindowsPackTests
         PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
 
         // install app
-        var setupPath1 = Path.Combine(releaseDir, $"{id}-Setup-[win-x64].exe");
+        var setupPath1 = Path.Combine(releaseDir, $"{id}-[win-x64]-Setup.exe");
         RunNoCoverage(setupPath1, new string[] { "--nocolor", "--silent", "--installto", installDir },
             Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
 
@@ -610,6 +645,9 @@ public class WindowsPackTests
     {
         var outputfile = GetPath($"coverage.rundotnet.{RandomString(8)}.xml");
 
+        if (!File.Exists(exe))
+            throw new Exception($"File {exe} does not exist.");
+
         var psi = new ProcessStartInfo("dotnet-coverage");
         psi.WorkingDirectory = workingDir;
         psi.CreateNoWindow = true;
@@ -637,6 +675,9 @@ public class WindowsPackTests
 
     private string RunNoCoverage(string exe, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
     {
+        if (!File.Exists(exe))
+            throw new Exception($"File {exe} does not exist.");
+
         var psi = new ProcessStartInfo(exe);
         psi.WorkingDirectory = workingDir;
         psi.CreateNoWindow = true;

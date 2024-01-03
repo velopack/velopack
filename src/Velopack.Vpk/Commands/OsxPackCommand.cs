@@ -26,8 +26,6 @@ public class OsxPackCommand : OsxBundleCommand
 
     public string NotaryProfile { get; private set; }
 
-    public string Channel { get; private set; }
-
     public OsxPackCommand()
         : base("pack", "Converts application files into a release and installer.")
     {
@@ -39,12 +37,6 @@ public class OsxPackCommand : OsxBundleCommand
         AddOption<DeltaMode>((v) => Delta = v, "--delta")
             .SetDefault(DeltaMode.BestSpeed)
             .SetDescription("Set the delta generation mode.");
-
-        AddOption<string>((v) => Channel = v, "-c", "--channel")
-            .SetDescription("Release channel to use when creating the package.")
-            .SetDefault("osx")
-            .RequiresValidNuGetId()
-            .SetArgumentHelpName("NAME");
 
         AddOption<bool>((v) => NoPackage = v, "--noPkg")
             .SetDescription("Skip generating a .pkg installer.");
