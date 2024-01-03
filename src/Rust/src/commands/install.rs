@@ -10,7 +10,7 @@ use std::{
 };
 use winsafe::{self as w, co};
 
-pub fn install(debug_pkg: &Option<&PathBuf>, install_to: &Option<&PathBuf>) -> Result<()> {
+pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Result<()> {
     let osinfo = os_info::get();
     info!("OS: {}, Arch={}", osinfo, osinfo.architecture().unwrap_or("unknown"));
 

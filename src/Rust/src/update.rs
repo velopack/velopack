@@ -160,7 +160,8 @@ fn start(matches: &ArgMatches) -> Result<()> {
 #[cfg(target_os = "windows")]
 fn uninstall(_matches: &ArgMatches) -> Result<()> {
     info!("Command: Uninstall");
-    commands::uninstall()
+    let (root_path, app) = shared::detect_current_manifest()?;
+    commands::uninstall(&root_path, &app, true)
 }
 
 #[cfg(target_os = "windows")]

@@ -43,7 +43,7 @@ fn main() -> Result<()> {
         info!("    Debug: {:?}", debug);
     }
 
-    let res = commands::install(&debug, &installto);
+    let res = commands::install(debug, installto);
     if let Err(e) = &res {
         error!("An error has occurred: {}", e);
         dialogs::show_error("Setup Error", None, format!("An error has occurred: {}", e).as_str());

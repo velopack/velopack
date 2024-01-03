@@ -4,9 +4,8 @@ use anyhow::Result;
 use std::fs::File;
 use std::path::PathBuf;
 
-pub fn uninstall() -> Result<()> {
+pub fn uninstall(root_path: &PathBuf, app: &Manifest, delete_self: bool) -> Result<()> {
     info!("Command: Uninstall");
-    let (root_path, app) = shared::detect_current_manifest()?;
 
     fn _uninstall_impl(app: &Manifest, root_path: &PathBuf) -> bool {
         // the real app could be running at the moment
@@ -23,7 +22,7 @@ pub fn uninstall() -> Result<()> {
         }
 
         info!("Removing directory '{}'", root_path.to_string_lossy());
-        if let Err(e) = shared::retry_io(|| remove_dir_all::remove_dir_containing_current_executable()) {
+        if let Err(e) = shared::retry_io(|| remove_dir_all::remove_dir_but_not_self(&root_path)) {
             error!("Unable to remove directory, some files may be in use ({}).", e);
             finished_with_errors = true;
         }
@@ -50,8 +49,11 @@ pub fn uninstall() -> Result<()> {
 
     let dead_path = root_path.join(".dead");
     let _ = File::create(dead_path);
-    if let Err(e) = windows::register_intent_to_delete_self(3, &root_path) {
-        warn!("Unable to schedule self delete ({}).", e);
+
+    if delete_self {
+        if let Err(e) = windows::register_intent_to_delete_self(3, &root_path) {
+            warn!("Unable to schedule self delete ({}).", e);
+        }
     }
 
     Ok(())

@@ -44,7 +44,7 @@ pub fn header_offset_and_length() -> (i64, i64) {
 }
 
 #[cfg(target_os = "windows")]
-pub fn load_bundle_from_mmap<'a>(mmap: &'a Mmap, debug_pkg: &Option<&PathBuf>) -> Result<BundleInfo<'a>> {
+pub fn load_bundle_from_mmap<'a>(mmap: &'a Mmap, debug_pkg: Option<&PathBuf>) -> Result<BundleInfo<'a>> {
     info!("Reading bundle header...");
     let (offset, length) = header_offset_and_length();
     info!("Bundle offset = {}, length = {}", offset, length);
@@ -63,7 +63,7 @@ pub fn load_bundle_from_mmap<'a>(mmap: &'a Mmap, debug_pkg: &Option<&PathBuf>) -
     if cfg!(debug_assertions) {
         if let Some(pkg) = debug_pkg {
             info!("Loading bundle from debug nupkg file...");
-            return load_bundle_from_file(pkg.to_owned());
+            return load_bundle_from_file(pkg);
         }
     }
 

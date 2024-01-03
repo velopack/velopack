@@ -43,8 +43,8 @@ pub fn start_package<P: AsRef<Path>>(_app: &Manifest, root_dir: P, exe_args: Opt
     Ok(())
 }
 
-pub fn detect_current_manifest() -> Result<(PathBuf, Manifest)> {
-    let mut manifest_path = std::env::current_exe()?;
+pub fn detect_manifest_from_update_path(update_exe: &PathBuf) -> Result<(PathBuf, Manifest)> {
+    let mut manifest_path = update_exe.clone();
     manifest_path.pop();
     manifest_path.push("sq.version");
     let manifest = load_manifest(&manifest_path)?;
@@ -62,6 +62,11 @@ pub fn detect_current_manifest() -> Result<(PathBuf, Manifest)> {
     debug!("Detected Root: {}", root_dir);
     debug!("Detected AppId: {}", manifest.id);
     Ok((Path::new(&root_dir).to_path_buf(), manifest))
+}
+
+pub fn detect_current_manifest() -> Result<(PathBuf, Manifest)> {
+    let me = std::env::current_exe()?;
+    detect_manifest_from_update_path(&me)
 }
 
 fn load_manifest(nuspec_path: &PathBuf) -> Result<Manifest> {
