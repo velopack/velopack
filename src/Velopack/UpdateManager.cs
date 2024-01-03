@@ -166,7 +166,21 @@ namespace Velopack
         public virtual async Task DownloadUpdatesAsync(
             UpdateInfo updates, Action<int> progress = null, bool ignoreDeltas = false, CancellationToken cancelToken = default)
         {
+
             progress ??= (_ => { });
+
+            // the progress delegate may very likely invoke into the client main thread for UI updates, so
+            // let's try to reduce the spam. report only on even numbers and only if the progress has changed.
+            int lastProgress = 0;
+            void reportProgress(int x)
+            {
+                int result = (int) (Math.Round(x / 2d, MidpointRounding.AwayFromZero) * 2d);
+                if (result != lastProgress) {
+                    lastProgress = result;
+                    progress(result);
+                }
+            }
+
             var targetRelease = updates?.TargetFullRelease;
             if (targetRelease == null) {
                 throw new ArgumentException("Must pass a valid UpdateInfo object with a non-null TargetFullRelease", nameof(updates));
@@ -210,18 +224,19 @@ namespace Velopack
                                     Log.Warn("No base package available. Attempting delta update using application files.");
                                     Utility.CopyFiles(Locator.AppContentDir, deltaStagingDir);
                                 }
-                                progress(10);
-                                await DownloadAndApplyDeltaUpdates(deltaStagingDir, updates, x => progress(Utility.CalculateProgress(x, 10, 90)))
+                                reportProgress(10);
+                                await DownloadAndApplyDeltaUpdates(deltaStagingDir, updates, x => reportProgress(Utility.CalculateProgress(x, 10, 80)))
                                     .ConfigureAwait(false);
-                                progress(90);
+                                reportProgress(80);
 
                                 Log.Info("Delta updates completed, creating final update package.");
                                 File.Delete(incompleteFile);
-                                EasyZip.CreateZipFromDirectory(Log, incompleteFile, deltaStagingDir);
+                                await EasyZip.CreateZipFromDirectoryAsync(Log, incompleteFile, deltaStagingDir, x => reportProgress(Utility.CalculateProgress(x, 80, 100)))
+                                    .ConfigureAwait(false);
                                 File.Delete(completeFile);
                                 File.Move(incompleteFile, completeFile);
                                 Log.Info("Delta release preparations complete. Package moved to: " + completeFile);
-                                progress(100);
+                                reportProgress(100);
                                 return; // success!
                             }
                         }
@@ -235,13 +250,13 @@ namespace Velopack
 
                 Log.Info($"Downloading full release ({targetRelease.OriginalFilename})");
                 File.Delete(incompleteFile);
-                await Source.DownloadReleaseEntry(targetRelease, incompleteFile, progress).ConfigureAwait(false);
+                await Source.DownloadReleaseEntry(targetRelease, incompleteFile, reportProgress).ConfigureAwait(false);
                 Log.Info("Verifying package checksum...");
                 VerifyPackageChecksum(targetRelease, incompleteFile);
                 File.Delete(completeFile);
                 File.Move(incompleteFile, completeFile);
                 Log.Info("Full release download complete. Package moved to: " + completeFile);
-                progress(100);
+                reportProgress(100);
             } finally {
                 if (VelopackRuntimeInfo.IsWindows) {
                     try {
@@ -252,11 +267,11 @@ namespace Velopack
                         if (zip.UpdateExeBytes == null) {
                             Log.Error("Update.exe not found in package, skipping extraction.");
                         } else {
-#if NET5_0_OR_GREATER
-                            await Utility.RetryAsync(() => File.WriteAllBytesAsync(updateExe, zip.UpdateExeBytes)).ConfigureAwait(false);
-#else
-                            Utility.Retry(() => File.WriteAllBytes(updateExe, zip.UpdateExeBytes));
-#endif
+                            await Utility.RetryAsync(async () => {
+                                using var ms = new MemoryStream(zip.UpdateExeBytes);
+                                using var fs = File.Create(updateExe);
+                                await ms.CopyToAsync(fs).ConfigureAwait(false);
+                            }).ConfigureAwait(false);
                         }
                     } catch (Exception ex) {
                         Log.Error(ex, "Failed to extract new Update.exe");
