@@ -18,10 +18,12 @@ pub fn apply<'a>(
     noelevate: bool,
 ) -> Result<()> {
     if wait_for_parent {
-        let _ = shared::wait_for_parent_to_exit(60_000); // 1 minute
+        if let Err(e) = shared::wait_for_parent_to_exit(60_000) {
+            warn!("Failed to wait for parent process to exit ({}).", e);
+        }
     }
 
-    if let Err(e) = apply_package(&root_path, &app, restart, package, exe_args.clone(), noelevate) {
+    if let Err(e) = apply_package_impl(&root_path, &app, restart, package, exe_args.clone(), noelevate) {
         error!("Error applying package: {}", e);
         if !restart {
             return Err(e);
@@ -36,7 +38,7 @@ pub fn apply<'a>(
     Ok(())
 }
 
-fn apply_package<'a>(
+fn apply_package_impl<'a>(
     root_path: &PathBuf,
     app: &Manifest,
     restart: bool,
@@ -84,7 +86,11 @@ fn apply_package<'a>(
 
     let found_version = (&package_manifest.version).to_owned();
     if found_version <= app.version {
-        bail!("Latest package found is {}, which is not newer than current version {}.", found_version, app.version);
+        if package.is_none() {
+            bail!("Latest package found is {}, which is not newer than current version {}.", found_version, app.version);
+        } else {
+            warn!("Provided package is {}, which is not newer than current version {}.", found_version, app.version);
+        }
     }
 
     #[cfg(target_os = "windows")]

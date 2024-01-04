@@ -1,12 +1,15 @@
 use anyhow::{anyhow, bail, Result};
+use regex::Regex;
+use semver::Version;
 use std::{
     collections::HashMap,
+    fs,
     path::{Path, PathBuf},
     process::Command as Process,
 };
 use winsafe::{self as w, co, prelude::*};
 
-use super::bundle::{self, Manifest, EntryNameInfo};
+use super::bundle::{self, EntryNameInfo, Manifest};
 
 pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
     info!("Reading parent process information.");
@@ -105,9 +108,7 @@ fn kill_pid(pid: u32) -> Result<()> {
 
 pub fn force_stop_package<P: AsRef<Path>>(root_dir: P) -> Result<()> {
     let root_dir = root_dir.as_ref();
-    super::retry_io(|| {
-        _force_stop_package(root_dir)
-    })?;
+    super::retry_io(|| _force_stop_package(root_dir))?;
     Ok(())
 }
 
@@ -170,6 +171,72 @@ pub fn detect_current_manifest() -> Result<(PathBuf, Manifest)> {
     detect_manifest_from_update_path(&me)
 }
 
+pub fn get_app_prefixed_folders<P: AsRef<Path>>(parent_path: P) -> Result<Vec<PathBuf>> {
+    let parent_path = parent_path.as_ref();
+    let re = Regex::new(r"(?i)^app-")?;
+    let mut folders = Vec::new();
+    // Squirrel.Windows and Clowd.Squirrel V2
+    for entry in fs::read_dir(parent_path)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                if re.is_match(name) {
+                    folders.push(path);
+                }
+            }
+        }
+    }
+    // Clowd.Squirrel V3
+    let staging_dir = parent_path.join("staging");
+    if staging_dir.exists() {
+        for entry in fs::read_dir(&staging_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if re.is_match(name) {
+                        folders.push(path);
+                    }
+                }
+            }
+        }
+    }
+    Ok(folders)
+}
+
+pub fn get_latest_app_version_folder<P: AsRef<Path>>(parent_path: P) -> Result<Option<(PathBuf, Version)>> {
+    let mut latest_version: Option<Version> = None;
+    let mut latest_folder: Option<PathBuf> = None;
+    for entry in get_app_prefixed_folders(&parent_path)? {
+        if let Some(name) = entry.file_name().and_then(|n| n.to_str()) {
+            if let Some(version) = parse_version_from_folder_name(name) {
+                if latest_version.is_none() || version > latest_version.clone().unwrap() {
+                    latest_version = Some(version);
+                    latest_folder = Some(entry);
+                }
+            }
+        }
+    }
+    Ok(latest_folder.zip(latest_version))
+}
+
+pub fn has_app_prefixed_folder<P: AsRef<Path>>(parent_path: P) -> Result<bool> {
+    Ok(!get_app_prefixed_folders(parent_path)?.is_empty())
+}
+
+pub fn delete_app_prefixed_folders<P: AsRef<Path>>(parent_path: P) -> Result<()> {
+    let folders = get_app_prefixed_folders(parent_path)?;
+    for folder in folders {
+        super::retry_io(|| remove_dir_all::remove_dir_all(&folder))?;
+    }
+    Ok(())
+}
+
+fn parse_version_from_folder_name(folder_name: &str) -> Option<Version> {
+    folder_name.strip_prefix("app-").and_then(|v| Version::parse(v).ok())
+}
+
 fn find_manifest_from_root_dir(root_path: &PathBuf) -> Result<Manifest> {
     // default to checking current/sq.version
     let cm = find_current_manifest(root_path);
@@ -178,6 +245,7 @@ fn find_manifest_from_root_dir(root_path: &PathBuf) -> Result<Manifest> {
     }
 
     // if that fails, check for latest full package
+    warn!("Unable to find current manifest, checking for latest full package. (LEGACY MODE)");
     let latest = find_latest_full_package(root_path);
     if let Some(latest) = latest {
         let mani = latest.load_manifest()?;
@@ -198,7 +266,7 @@ fn find_current_manifest(root_path: &PathBuf) -> Result<Manifest> {
     bail!("Unable to read nuspec file in current directory.")
 }
 
-fn find_latest_full_package(root_path: &PathBuf) -> Option<EntryNameInfo> {
+pub fn find_latest_full_package(root_path: &PathBuf) -> Option<EntryNameInfo> {
     let packages = get_all_packages(root_path);
     let mut latest: Option<EntryNameInfo> = None;
     for pkg in packages {

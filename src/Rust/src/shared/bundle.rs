@@ -78,8 +78,9 @@ pub struct BundleInfo<'a> {
     file_path: Option<PathBuf>,
 }
 
-pub fn load_bundle_from_file<'a>(file_name: &PathBuf) -> Result<BundleInfo<'a>> {
-    debug!("Loading bundle from file '{}'...", file_name.display());
+pub fn load_bundle_from_file<'a, P: AsRef<Path>>(file_name: P) -> Result<BundleInfo<'a>> {
+    let file_name = file_name.as_ref();
+    debug!("Loading bundle from file '{}'...", file_name.to_string_lossy());
     let file = super::retry_io(|| File::open(&file_name))?;
     let cursor: Box<dyn ReadSeek> = Box::new(file);
     let zip = ZipArchive::new(cursor)?;

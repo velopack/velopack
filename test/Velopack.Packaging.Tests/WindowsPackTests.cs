@@ -372,7 +372,7 @@ public class WindowsPackTests
 
         RunCoveredDotnet(appPath, new string[] { "--autoupdate" }, installDir, logger, exitCode: null);
 
-        Thread.Sleep(2000);
+        Thread.Sleep(3000); // update.exe runs in separate process
 
         var chk1version = RunCoveredDotnet(appPath, new string[] { "version" }, installDir, logger);
         Assert.EndsWith(Environment.NewLine + "2.0.0", chk1version);
@@ -549,6 +549,53 @@ public class WindowsPackTests
         var updatePath = Path.Combine(installDir, "Update.exe");
         RunNoCoverage(updatePath, new string[] { "--nocolor", "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
         logger.Info("TEST: uninstalled / complete");
+    }
+
+    [SkippableTheory]
+    [InlineData("LegacyTestApp-ClowdV2-Setup.exe", "app-1.0.0")]
+    [InlineData("LegacyTestApp-ClowdV3-Setup.exe", "current")]
+    [InlineData("LegacyTestApp-SquirrelWinV2-Setup.exe", "app-1.0.0")]
+    public void LegacyAppCanSuccessfullyMigrate(string fixture, string origDirName)
+    {
+        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
+
+        var rootDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LegacyTestApp");
+        if (Directory.Exists(rootDir))
+            Utility.DeleteFileOrDirectoryHard(rootDir);
+
+        var setup = PathHelper.GetFixture(fixture);
+        var p = Process.Start(setup);
+        p.WaitForExit();
+
+        var currentDir = Path.Combine(rootDir, origDirName);
+        var appExe = Path.Combine(currentDir, "LegacyTestApp.exe");
+        var updateExe = Path.Combine(rootDir, "Update.exe");
+        Assert.True(File.Exists(appExe));
+        Assert.True(File.Exists(updateExe));
+
+        using var _1 = Utility.GetTempDirectory(out var releaseDir);
+        PackTestApp("LegacyTestApp", "2.0.0", "hello!", releaseDir, logger);
+
+        RunNoCoverage(appExe, new string[] { "download", releaseDir }, currentDir, logger, exitCode: 0);
+        RunNoCoverage(appExe, new string[] { "apply", releaseDir }, currentDir, logger, exitCode: null);
+
+        Thread.Sleep(3000); // update.exe runs in a separate process here
+
+        if (origDirName != "current") {
+            Assert.True(!Directory.Exists(currentDir));
+            currentDir = Path.Combine(rootDir, "current");
+        }
+
+        Assert.True(Directory.Exists(currentDir));
+        appExe = Path.Combine(currentDir, "TestApp.exe");
+        Assert.True(File.Exists(appExe));
+
+        Assert.False(Directory.EnumerateDirectories(rootDir, "app-*").Any());
+        Assert.False(Directory.Exists(Path.Combine(rootDir, "staging")));
+
+        // this is the file written by TestApp when it's detected the squirrel restart. if this is here, everything went smoothly.
+        Assert.True(File.Exists(Path.Combine(rootDir, "restarted")));
     }
 
     //private string RunCoveredRust(string binName, string[] args, string workingDir, ILogger logger, int? exitCode = 0)

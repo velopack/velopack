@@ -31,6 +31,7 @@ fn root_command() -> Command {
     .arg(arg!(--nocolor "Disable colored output").hide(true).global(true))
     .arg(arg!(-s --silent "Don't show any prompts / dialogs").global(true))
     .arg(arg!(-l --log <PATH> "Override the default log file location").global(true).value_parser(value_parser!(PathBuf)))
+    .arg(arg!(--forceLatest "Legacy / not used").hide(true))
     .disable_help_subcommand(true)
     .flatten_help(true);
 
