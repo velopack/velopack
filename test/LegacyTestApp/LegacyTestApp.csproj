@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <Choose>
-    <When Condition=" $(UseClowd) != ''  ">
+    <When Condition=" $(UseClowd) != '' ">
       <PropertyGroup>
         <OutputType>Exe</OutputType>
         <DefineConstants>CLOWD</DefineConstants>
