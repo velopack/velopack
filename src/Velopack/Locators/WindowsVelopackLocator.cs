@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Runtime.Versioning;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 using Velopack.NuGet;

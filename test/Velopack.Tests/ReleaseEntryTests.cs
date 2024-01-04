@@ -1,11 +1,5 @@
-﻿using System;
-using System.IO;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
+﻿using System.Text;
 using NuGet.Versioning;
-using Velopack.Tests.TestHelpers;
-using Xunit;
 using OldReleaseEntry = Velopack.Tests.OldSquirrel.ReleaseEntry;
 using OldSemanticVersion = Velopack.Tests.OldSquirrel.SemanticVersion;
 

@@ -1,5 +1,4 @@
 ﻿using System.Threading;
-using Velopack.Packaging;
 
 namespace Velopack.Vpk.Updates;
 

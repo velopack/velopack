@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using Squirrel;
-using Squirrel.SimpleSplat;
 
 [assembly: AssemblyMetadata("SquirrelAwareVersion", "1")]
 

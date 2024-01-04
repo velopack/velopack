@@ -1,14 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.IO.Packaging;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.IO.Packaging;
 using NuGet.Versioning;
 using Velopack.NuGet;
 using Velopack.Tests.TestHelpers;
-using Xunit;
 using ZipPackage = Velopack.NuGet.ZipPackage;
 
 namespace Velopack.Tests

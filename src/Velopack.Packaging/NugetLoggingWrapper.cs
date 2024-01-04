@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 using INugetLogger = NuGet.Common.ILogger;
-using NugetLogLevel = NuGet.Common.LogLevel;
 using INugetLogMessage = NuGet.Common.ILogMessage;
-using System.Diagnostics.CodeAnalysis;
+using NugetLogLevel = NuGet.Common.LogLevel;
 
 namespace Velopack.Packaging;
 

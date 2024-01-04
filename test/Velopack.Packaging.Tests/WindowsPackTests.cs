@@ -1,17 +1,11 @@
-﻿
-using System;
-using System.Data.Common;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Xml.Linq;
-using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using NuGet.Packaging;
 using Velopack.Compression;
-using Velopack.Packaging;
 using Velopack.Packaging.Commands;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Windows;

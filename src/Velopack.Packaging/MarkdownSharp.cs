@@ -161,8 +161,7 @@ public class Markdown
     /// <summary>
     /// use ">" for HTML output, or " />" for XHTML output
     /// </summary>
-    public string EmptyElementSuffix
-    {
+    public string EmptyElementSuffix {
         get { return _emptyElementSuffix; }
         set { _emptyElementSuffix = value; }
     }
@@ -172,8 +171,7 @@ public class Markdown
     /// when false, email addresses will never be auto-linked
     /// WARNING: this is a significant deviation from the markdown spec
     /// </summary>
-    public bool LinkEmails
-    {
+    public bool LinkEmails {
         get { return _linkEmails; }
         set { _linkEmails = value; }
     }
@@ -183,8 +181,7 @@ public class Markdown
     /// when true, bold and italic require non-word characters on either side
     /// WARNING: this is a significant deviation from the markdown spec
     /// </summary>
-    public bool StrictBoldItalic
-    {
+    public bool StrictBoldItalic {
         get { return _strictBoldItalic; }
         set { _strictBoldItalic = value; }
     }
@@ -194,8 +191,7 @@ public class Markdown
     /// when true, RETURN becomes a literal newline
     /// WARNING: this is a significant deviation from the markdown spec
     /// </summary>
-    public bool AutoNewLines
-    {
+    public bool AutoNewLines {
         get { return _autoNewlines; }
         set { _autoNewlines = value; }
     }
@@ -205,8 +201,7 @@ public class Markdown
     /// when true, (most) bare plain URLs are auto-hyperlinked
     /// WARNING: this is a significant deviation from the markdown spec
     /// </summary>
-    public bool AutoHyperlink
-    {
+    public bool AutoHyperlink {
         get { return _autoHyperlink; }
         set { _autoHyperlink = value; }
     }
@@ -216,8 +211,7 @@ public class Markdown
     /// when true, problematic URL characters like [, ], (, and so forth will be encoded
     /// WARNING: this is a significant deviation from the markdown spec
     /// </summary>
-    public bool EncodeProblemUrlCharacters
-    {
+    public bool EncodeProblemUrlCharacters {
         get { return _encodeProblemUrlCharacters; }
         set { _encodeProblemUrlCharacters = value; }
     }
@@ -276,8 +270,7 @@ public class Markdown
 
         string backslashPattern = "";
 
-        foreach (char c in @"\`*_{}[]()>#+-.!/")
-        {
+        foreach (char c in @"\`*_{}[]()>#+-.!/") {
             string key = c.ToString();
             string hash = GetHashKey(key, isHtmlBlock: false);
             _escapeTable.Add(key, hash);
@@ -293,8 +286,7 @@ public class Markdown
     /// current version of MarkdownSharp;
     /// see http://code.google.com/p/markdownsharp/ for the latest code or to contribute
     /// </summary>
-    public string Version
-    {
+    public string Version {
         get { return _version; }
     }
 
@@ -391,20 +383,15 @@ public class Markdown
         // split on two or more newlines
         string[] grafs = _newlinesMultiple.Split(_newlinesLeadingTrailing.Replace(text, ""));
 
-        for (int i = 0; i < grafs.Length; i++)
-        {
-            if (grafs[i].StartsWith("\x1AH"))
-            {
+        for (int i = 0; i < grafs.Length; i++) {
+            if (grafs[i].StartsWith("\x1AH")) {
                 // unhashify HTML blocks
-                if (unhash)
-                {
+                if (unhash) {
                     int sanityCheck = 50; // just for safety, guard against an infinite loop
                     bool keepGoing = true; // as long as replacements where made, keep going
-                    while (keepGoing && sanityCheck > 0)
-                    {
+                    while (keepGoing && sanityCheck > 0) {
                         keepGoing = false;
-                        grafs[i] = _htmlBlockHash.Replace(grafs[i], match =>
-                        {
+                        grafs[i] = _htmlBlockHash.Replace(grafs[i], match => {
                             keepGoing = true;
                             return _htmlBlocks[match.Value];
                         });
@@ -417,9 +404,7 @@ public class Markdown
                         // with the input that caused it.
                     }*/
                 }
-            }
-            else
-            {
+            } else {
                 // do span level processing inside the block, then wrap result in <p> tags
                 grafs[i] = _leadingWhitespace.Replace(RunSpanGamut(grafs[i]), "<p>") + "</p>";
             }
@@ -700,7 +685,7 @@ public class Markdown
     private static string GetHashKey(string s, bool isHtmlBlock)
     {
         var delim = isHtmlBlock ? 'H' : 'E';
-        return "\x1A" + delim +  Math.Abs(s.GetHashCode()).ToString() + delim;
+        return "\x1A" + delim + Math.Abs(s.GetHashCode()).ToString() + delim;
     }
 
     private static Regex _htmlTokens = new Regex(@"
@@ -726,8 +711,7 @@ public class Markdown
 
         // this regex is derived from the _tokenize() subroutine in Brad Choate's MTRegex plugin.
         // http://www.bradchoate.com/past/mtregex.php
-        foreach (Match m in _htmlTokens.Matches(text))
-        {
+        foreach (Match m in _htmlTokens.Matches(text)) {
             tagStart = m.Index;
 
             if (pos < tagStart)
@@ -824,24 +808,21 @@ public class Markdown
         if (linkID == "")
             linkID = linkText.ToLowerInvariant();
 
-        if (_urls.ContainsKey(linkID))
-        {
+        if (_urls.ContainsKey(linkID)) {
             string url = _urls[linkID];
 
             url = EncodeProblemUrlChars(url);
             url = EscapeBoldItalic(url);
             result = "<a href=\"" + url + "\"";
 
-            if (_titles.ContainsKey(linkID))
-            {
+            if (_titles.ContainsKey(linkID)) {
                 string title = AttributeEncode(_titles[linkID]);
                 title = AttributeEncode(EscapeBoldItalic(title));
                 result += " title=\"" + title + "\"";
             }
 
             result += ">" + linkText + "</a>";
-        }
-        else
+        } else
             result = wholeMatch;
 
         return result;
@@ -855,24 +836,21 @@ public class Markdown
 
         string result;
 
-        if (_urls.ContainsKey(linkID))
-        {
+        if (_urls.ContainsKey(linkID)) {
             string url = _urls[linkID];
 
             url = EncodeProblemUrlChars(url);
             url = EscapeBoldItalic(url);
             result = "<a href=\"" + url + "\"";
 
-            if (_titles.ContainsKey(linkID))
-            {
+            if (_titles.ContainsKey(linkID)) {
                 string title = AttributeEncode(_titles[linkID]);
                 title = EscapeBoldItalic(title);
                 result += " title=\"" + title + "\"";
             }
 
             result += ">" + linkText + "</a>";
-        }
-        else
+        } else
             result = wholeMatch;
 
         return result;
@@ -893,8 +871,7 @@ public class Markdown
 
         result = string.Format("<a href=\"{0}\"", url);
 
-        if (!String.IsNullOrEmpty(title))
-        {
+        if (!String.IsNullOrEmpty(title)) {
             title = AttributeEncode(title);
             title = EscapeBoldItalic(title);
             result += string.Format(" title=\"{0}\"", title);
@@ -978,8 +955,7 @@ public class Markdown
         if (linkID == "")
             linkID = altText.ToLowerInvariant();
 
-        if (_urls.ContainsKey(linkID))
-        {
+        if (_urls.ContainsKey(linkID)) {
             string url = _urls[linkID];
             string title = null;
 
@@ -987,9 +963,7 @@ public class Markdown
                 title = _titles[linkID];
 
             return ImageTag(url, altText, title);
-        }
-        else
-        {
+        } else {
             // If there's no such link ID, leave intact:
             return wholeMatch;
         }
@@ -1013,8 +987,7 @@ public class Markdown
         url = EncodeProblemUrlChars(url);
         url = EscapeBoldItalic(url);
         var result = string.Format("<img src=\"{0}\" alt=\"{1}\"", url, altText);
-        if (!String.IsNullOrEmpty(title))
-        {
+        if (!String.IsNullOrEmpty(title)) {
             title = AttributeEncode(EscapeBoldItalic(title));
             result += string.Format(" title=\"{0}\"", title);
         }
@@ -1146,17 +1119,16 @@ public class Markdown
 
     private MatchEvaluator GetListEvaluator(bool isInsideParagraphlessListItem = false)
     {
-        return new MatchEvaluator(match =>
-            {
-                string list = match.Groups[1].Value;
-                string listType = Regex.IsMatch(match.Groups[3].Value, _markerUL) ? "ul" : "ol";
-                string result;
+        return new MatchEvaluator(match => {
+            string list = match.Groups[1].Value;
+            string listType = Regex.IsMatch(match.Groups[3].Value, _markerUL) ? "ul" : "ol";
+            string result;
 
-                result = ProcessListItems(list, listType == "ul" ? _markerUL : _markerOL, isInsideParagraphlessListItem);
+            result = ProcessListItems(list, listType == "ul" ? _markerUL : _markerOL, isInsideParagraphlessListItem);
 
-                result = string.Format("<{0}>\n{1}</{0}>\n", listType, result);
-                return result;
-            });
+            result = string.Format("<{0}>\n{1}</{0}>\n", listType, result);
+            return result;
+        });
     }
 
     /// <summary>
@@ -1201,8 +1173,7 @@ public class Markdown
         bool lastItemHadADoubleNewline = false;
 
         // has to be a closure, so subsequent invocations can share the bool
-        MatchEvaluator ListItemEvaluator = (Match match) =>
-        {
+        MatchEvaluator ListItemEvaluator = (Match match) => {
             string item = match.Groups[3].Value;
 
             bool endsWithDoubleNewline = item.EndsWith("\n\n");
@@ -1211,8 +1182,7 @@ public class Markdown
             if (containsDoubleNewline || lastItemHadADoubleNewline)
                 // we could correct any bad indentation here..
                 item = RunBlockGamut(Outdent(item) + "\n", unhash: false);
-            else
-            {
+            else {
                 // recursion for sub-lists
                 item = DoLists(Outdent(item), isInsideParagraphlessListItem: true);
                 item = item.TrimEnd('\n');
@@ -1327,13 +1297,10 @@ public class Markdown
     {
 
         // <strong> must go first, then <em>
-        if (_strictBoldItalic)
-        {
+        if (_strictBoldItalic) {
             text = _strictBold.Replace(text, "$1<strong>$3</strong>");
             text = _strictItalic.Replace(text, "$1<em>$3</em>");
-        }
-        else
-        {
+        } else {
             text = _bold.Replace(text, "<strong>$2</strong>");
             text = _italic.Replace(text, "<em>$2</em>");
         }
@@ -1418,30 +1385,23 @@ public class Markdown
         if (!link.EndsWith(")"))
             return "<" + protocol + link + ">";
         var level = 0;
-        foreach (Match c in Regex.Matches(link, "[()]"))
-        {
-            if (c.Value == "(")
-            {
+        foreach (Match c in Regex.Matches(link, "[()]")) {
+            if (c.Value == "(") {
                 if (level <= 0)
                     level = 1;
                 else
                     level++;
-            }
-            else
-            {
+            } else {
                 level--;
             }
         }
         var tail = "";
-        if (level < 0)
-        {
+        if (level < 0) {
             link = Regex.Replace(link, @"\){1," + (-level) + "}$", m => { tail = m.Value; return ""; });
         }
-        if (tail.Length > 0)
-        {
+        if (tail.Length > 0) {
             var lastChar = link[link.Length - 1];
-            if (!_endCharRegex.IsMatch(lastChar.ToString()))
-            {
+            if (!_endCharRegex.IsMatch(lastChar.ToString())) {
                 tail = lastChar + tail;
                 link = link.Substring(0, link.Length - 1);
             }
@@ -1458,8 +1418,7 @@ public class Markdown
     private string DoAutoLinks(string text)
     {
 
-        if (_autoHyperlink)
-        {
+        if (_autoHyperlink) {
             // fixup arbitrary URLs by adding Markdown < > so they get linked as well
             // note that at this point, all other URL in the text are already hyperlinked as <a href=""></a>
             // *except* for the <http://www.foo.com> case
@@ -1469,8 +1428,7 @@ public class Markdown
         // Hyperlinks: <http://foo.com>
         text = Regex.Replace(text, "<((https?|ftp):[^'\">\\s]+)>", new MatchEvaluator(HyperlinkEvaluator));
 
-        if (_linkEmails)
-        {
+        if (_linkEmails) {
             // Email addresses: <address@domain.foo>
             string pattern =
                 @"<
@@ -1548,15 +1506,14 @@ public class Markdown
         var sb = new StringBuilder(addr.Length * 5);
         var rand = new Random();
         int r;
-        foreach (char c in addr)
-        {
+        foreach (char c in addr) {
             r = rand.Next(1, 100);
             if ((r > 90 || c == ':') && c != '@')
                 sb.Append(c);                         // m
             else if (r < 45)
-                sb.AppendFormat("&#x{0:x};", (int)c); // &#x6D
+                sb.AppendFormat("&#x{0:x};", (int) c); // &#x6D
             else
-                sb.AppendFormat("&#{0};", (int)c);    // &#109
+                sb.AppendFormat("&#{0};", (int) c);    // &#109
         }
         return sb.ToString();
     }
@@ -1572,20 +1529,19 @@ public class Markdown
     }
     private string EncodeCodeEvaluator(Match match)
     {
-        switch (match.Value)
-        {
-            // Encode all ampersands; HTML entities are not
-            // entities within a Markdown code span.
-            case "&":
-                return "&amp;";
-            // Do the angle bracket song and dance
-            case "<":
-                return "&lt;";
-            case ">":
-                return "&gt;";
-            // escape characters that are magic in Markdown
-            default:
-                return _escapeTable[match.Value];
+        switch (match.Value) {
+        // Encode all ampersands; HTML entities are not
+        // entities within a Markdown code span.
+        case "&":
+            return "&amp;";
+        // Do the angle bracket song and dance
+        case "<":
+            return "&lt;";
+        case ">":
+            return "&gt;";
+        // escape characters that are magic in Markdown
+        default:
+            return _escapeTable[match.Value];
         }
     }
 
@@ -1660,15 +1616,14 @@ public class Markdown
         bool encode;
         char c;
 
-        for (int i = 0; i < url.Length; i++)
-        {
+        for (int i = 0; i < url.Length; i++) {
             c = url[i];
             encode = Array.IndexOf(_problemUrlChars, c) != -1;
             if (encode && c == ':' && i < url.Length - 1)
                 encode = !(url[i + 1] == '/') && !(url[i + 1] >= '0' && url[i + 1] <= '9');
 
             if (encode)
-                sb.Append("%" + String.Format("{0:x}", (byte)c));
+                sb.Append("%" + String.Format("{0:x}", (byte) c));
             else
                 sb.Append(c);
         }
@@ -1691,12 +1646,10 @@ public class Markdown
         // now, rebuild text from the tokens
         var sb = new StringBuilder(text.Length);
 
-        foreach (var token in tokens)
-        {
+        foreach (var token in tokens) {
             string value = token.Value;
 
-            if (token.Type == TokenType.Tag)
-            {
+            if (token.Type == TokenType.Tag) {
                 value = value.Replace(@"\", _escapeTable[@"\"]);
 
                 if (_autoHyperlink && value.StartsWith("<!")) // escape slashes in comments to prevent autolinking there -- http://meta.stackoverflow.com/questions/95987/html-comment-containing-url-breaks-if-followed-by-another-html-comment
@@ -1724,34 +1677,31 @@ public class Markdown
         var line = new StringBuilder();
         bool valid = false;
 
-        for (int i = 0; i < text.Length; i++)
-        {
-            switch (text[i])
-            {
-                case '\n':
+        for (int i = 0; i < text.Length; i++) {
+            switch (text[i]) {
+            case '\n':
+                if (valid) output.Append(line);
+                output.Append('\n');
+                line.Length = 0; valid = false;
+                break;
+            case '\r':
+                if ((i < text.Length - 1) && (text[i + 1] != '\n')) {
                     if (valid) output.Append(line);
                     output.Append('\n');
                     line.Length = 0; valid = false;
-                    break;
-                case '\r':
-                    if ((i < text.Length - 1) && (text[i + 1] != '\n'))
-                    {
-                        if (valid) output.Append(line);
-                        output.Append('\n');
-                        line.Length = 0; valid = false;
-                    }
-                    break;
-                case '\t':
-                    int width = (_tabWidth - line.Length % _tabWidth);
-                    for (int k = 0; k < width; k++)
-                        line.Append(' ');
-                    break;
-                case '\x1A':
-                    break;
-                default:
-                    if (!valid && text[i] != ' ') valid = true;
-                    line.Append(text[i]);
-                    break;
+                }
+                break;
+            case '\t':
+                int width = (_tabWidth - line.Length % _tabWidth);
+                for (int k = 0; k < width; k++)
+                    line.Append(' ');
+                break;
+            case '\x1A':
+                break;
+            default:
+                if (!valid && text[i] != ' ') valid = true;
+                line.Append(text[i]);
+                break;
             }
         }
 

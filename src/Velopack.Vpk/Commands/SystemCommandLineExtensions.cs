@@ -1,5 +1,4 @@
 ﻿using System.Text.RegularExpressions;
-using NuGet.Common;
 using NuGet.Versioning;
 using Velopack.NuGet;
 using Velopack.Windows;

@@ -9,7 +9,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NuGet.Versioning;
-using Velopack.NuGet;
 
 namespace Velopack
 {
@@ -185,7 +184,7 @@ namespace Velopack
             if (filename.IndexOfAny(new[] { '\"', '/', '\\', '<', '>', '|', '\0' }) > -1) {
                 throw new Exception("Filename can either be an absolute HTTP[s] URL, *or* a file name");
             }
-            
+
             long size = Int64.Parse(m.Groups[3].Value);
             return new ReleaseEntry(m.Groups[1].Value, filename, size, baseUrl, query, stagingPercentage);
         }

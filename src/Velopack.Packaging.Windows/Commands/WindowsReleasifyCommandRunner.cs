@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Text;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 using Velopack.NuGet;

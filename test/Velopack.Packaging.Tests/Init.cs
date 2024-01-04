@@ -1,8 +1,4 @@
-﻿using System.IO;
-using System.Reflection;
-using Velopack.Packaging;
-using Xunit.Abstractions;
-using Xunit.Sdk;
+﻿using Xunit.Sdk;
 
 [assembly: TestFramework("Velopack.Packaging.Tests.TestsInit", "Velopack.Packaging.Tests")]
 

@@ -1,10 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
-using System.Text;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 
 namespace Velopack.Packaging;

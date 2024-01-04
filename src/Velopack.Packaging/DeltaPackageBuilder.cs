@@ -1,7 +1,7 @@
-﻿using System.Text;
-using Velopack.Compression;
+﻿using System.IO.MemoryMappedFiles;
+using System.Text;
 using Microsoft.Extensions.Logging;
-using System.IO.MemoryMappedFiles;
+using Velopack.Compression;
 
 namespace Velopack.Packaging;
 
@@ -31,7 +31,7 @@ public class DeltaPackageBuilder
                 legacyBsdiff = true;
             }
         }
-        
+
         if (basePackage.Version >= newPackage.Version) {
             var message = String.Format(
                 "Cannot create a delta package based on version {0} as it is a later or equal to the base version {1}",

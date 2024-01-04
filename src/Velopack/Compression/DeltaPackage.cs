@@ -7,7 +7,6 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using Velopack.Locators;
 
 // https://dev.to/emrahsungu/how-to-compare-two-files-using-net-really-really-fast-2pd9
 // https://github.com/SnowflakePowered/vcdiff

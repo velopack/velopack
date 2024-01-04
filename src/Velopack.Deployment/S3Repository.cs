@@ -1,6 +1,5 @@
 ﻿using System.Net;
 using System.Text;
-using System.Text.RegularExpressions;
 using Amazon;
 using Amazon.S3;
 using Amazon.S3.Model;

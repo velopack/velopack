@@ -1,6 +1,5 @@
 ﻿#pragma warning disable CA1416 // Validate platform compatibility
 using System.Diagnostics;
-using System.Reflection.Metadata;
 using Velopack;
 using Velopack.Locators;
 

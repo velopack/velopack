@@ -1,5 +1,4 @@
-﻿using System.Threading;
-using Xunit.Sdk;
+﻿using Xunit.Sdk;
 
 namespace Velopack.CommandLine.Tests;
 

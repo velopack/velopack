@@ -1,13 +1,5 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Xml;
-using Velopack;
+﻿using System.Xml;
 using Velopack.NuGet;
-using Velopack.Tests.TestHelpers;
-using Xunit;
 
 namespace Velopack.Tests
 {

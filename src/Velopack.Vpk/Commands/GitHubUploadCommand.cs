@@ -1,7 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using Velopack.Deployment;
-
-namespace Velopack.Vpk.Commands;
+﻿namespace Velopack.Vpk.Commands;
 
 public class GitHubUploadCommand : GitHubBaseCommand
 {

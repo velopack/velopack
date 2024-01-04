@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Globalization;
-using System.IO;
-using Xunit;
 
 namespace Velopack.Tests.TestHelpers
 {

@@ -1,7 +1,4 @@
-﻿
-using System;
-using System.ComponentModel;
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace Velopack.Tests.OldSquirrel

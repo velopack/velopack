@@ -1,7 +1,4 @@
-﻿
-using Velopack.Packaging;
-
-namespace Velopack.Vpk.Commands;
+﻿namespace Velopack.Vpk.Commands;
 
 public class WindowsSigningCommand : PlatformCommand
 {

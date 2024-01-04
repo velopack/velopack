@@ -52,14 +52,10 @@ namespace Velopack.Compression
             // solve it, just buys us more space. The solution is to rewrite Split
             // using iteration instead of recursion, but that's Hard(tm).
             var ex = default(Exception);
-            var t = new Thread(() =>
-            {
-                try
-                {
+            var t = new Thread(() => {
+                try {
                     CreateInternal(oldData, newData, output);
-                }
-                catch (Exception exc)
-                {
+                } catch (Exception exc) {
                     ex = exc;
                 }
             }, 40 * 1048576);
@@ -112,8 +108,7 @@ namespace Velopack.Compression
             int eblen = 0;
 
             using (WrappingStream wrappingStream = new WrappingStream(output, Ownership.None))
-            using (var bz2Stream = new BZip2Stream(wrappingStream, CompressionMode.Compress, true))
-            {
+            using (var bz2Stream = new BZip2Stream(wrappingStream, CompressionMode.Compress, true)) {
                 // compute the differences, writing ctrl as we go
                 int scan = 0;
                 int pos = 0;
@@ -121,16 +116,13 @@ namespace Velopack.Compression
                 int lastscan = 0;
                 int lastpos = 0;
                 int lastoffset = 0;
-                while (scan < newData.Length)
-                {
+                while (scan < newData.Length) {
                     int oldscore = 0;
 
-                    for (int scsc = scan += len; scan < newData.Length; scan++)
-                    {
+                    for (int scsc = scan += len; scan < newData.Length; scan++) {
                         len = Search(I, oldData, newData, scan, 0, oldData.Length, out pos);
 
-                        for (; scsc < scan + len; scsc++)
-                        {
+                        for (; scsc < scan + len; scsc++) {
                             if ((scsc + lastoffset < oldData.Length) && (oldData[scsc + lastoffset] == newData[scsc]))
                                 oldscore++;
                         }
@@ -142,54 +134,45 @@ namespace Velopack.Compression
                             oldscore--;
                     }
 
-                    if (len != oldscore || scan == newData.Length)
-                    {
+                    if (len != oldscore || scan == newData.Length) {
                         int s = 0;
                         int sf = 0;
                         int lenf = 0;
-                        for (int i = 0; (lastscan + i < scan) && (lastpos + i < oldData.Length); )
-                        {
+                        for (int i = 0; (lastscan + i < scan) && (lastpos + i < oldData.Length);) {
                             if (oldData[lastpos + i] == newData[lastscan + i])
                                 s++;
                             i++;
-                            if (s * 2 - i > sf * 2 - lenf)
-                            {
+                            if (s * 2 - i > sf * 2 - lenf) {
                                 sf = s;
                                 lenf = i;
                             }
                         }
 
                         int lenb = 0;
-                        if (scan < newData.Length)
-                        {
+                        if (scan < newData.Length) {
                             s = 0;
                             int sb = 0;
-                            for (int i = 1; (scan >= lastscan + i) && (pos >= i); i++)
-                            {
+                            for (int i = 1; (scan >= lastscan + i) && (pos >= i); i++) {
                                 if (oldData[pos - i] == newData[scan - i])
                                     s++;
-                                if (s * 2 - i > sb * 2 - lenb)
-                                {
+                                if (s * 2 - i > sb * 2 - lenb) {
                                     sb = s;
                                     lenb = i;
                                 }
                             }
                         }
 
-                        if (lastscan + lenf > scan - lenb)
-                        {
+                        if (lastscan + lenf > scan - lenb) {
                             int overlap = (lastscan + lenf) - (scan - lenb);
                             s = 0;
                             int ss = 0;
                             int lens = 0;
-                            for (int i = 0; i < overlap; i++)
-                            {
+                            for (int i = 0; i < overlap; i++) {
                                 if (newData[lastscan + lenf - overlap + i] == oldData[lastpos + lenf - overlap + i])
                                     s++;
                                 if (newData[scan - lenb + i] == oldData[pos - lenb + i])
                                     s--;
-                                if (s > ss)
-                                {
+                                if (s > ss) {
                                     ss = s;
                                     lens = i + 1;
                                 }
@@ -200,7 +183,7 @@ namespace Velopack.Compression
                         }
 
                         for (int i = 0; i < lenf; i++)
-                            db[dblen + i] = (byte)(newData[lastscan + i] - oldData[lastpos + i]);
+                            db[dblen + i] = (byte) (newData[lastscan + i] - oldData[lastpos + i]);
                         for (int i = 0; i < (scan - lenb) - (lastscan + lenf); i++)
                             eb[eblen + i] = newData[lastscan + lenf + i];
 
@@ -230,8 +213,7 @@ namespace Velopack.Compression
 
             // write compressed diff data
             using (WrappingStream wrappingStream = new WrappingStream(output, Ownership.None))
-            using (var bz2Stream = new BZip2Stream(wrappingStream, CompressionMode.Compress, true))
-            {
+            using (var bz2Stream = new BZip2Stream(wrappingStream, CompressionMode.Compress, true)) {
                 bz2Stream.Write(db, 0, dblen);
             }
 
@@ -240,11 +222,9 @@ namespace Velopack.Compression
             WriteInt64(diffEndPosition - controlEndPosition, header, 16);
 
             // write compressed extra data, if any
-            if (eblen > 0)
-            {
+            if (eblen > 0) {
                 using (WrappingStream wrappingStream = new WrappingStream(output, Ownership.None))
-                using (var bz2Stream = new BZip2Stream(wrappingStream, CompressionMode.Compress, true))
-                {
+                using (var bz2Stream = new BZip2Stream(wrappingStream, CompressionMode.Compress, true)) {
                     bz2Stream.Write(eb, 0, eblen);
                 }
             }
@@ -290,8 +270,7 @@ namespace Velopack.Compression
             */
             // read header
             long controlLength, diffLength, newSize;
-            using (Stream patchStream = openPatchStream())
-            {
+            using (Stream patchStream = openPatchStream()) {
                 // check patch stream capabilities
                 if (!patchStream.CanRead)
                     throw new ArgumentException("Patch stream must be readable.", "openPatchStream");
@@ -321,8 +300,7 @@ namespace Velopack.Compression
             // prepare to read three parts of the patch in parallel
             using (Stream compressedControlStream = openPatchStream())
             using (Stream compressedDiffStream = openPatchStream())
-            using (Stream compressedExtraStream = openPatchStream())
-            {
+            using (Stream compressedExtraStream = openPatchStream()) {
                 // seek to the start of each part
                 compressedControlStream.Seek(c_headerSize, SeekOrigin.Current);
                 compressedDiffStream.Seek(c_headerSize + controlLength, SeekOrigin.Current);
@@ -334,18 +312,15 @@ namespace Velopack.Compression
                 // decompress each part (to read it)
                 using (var controlStream = new BZip2Stream(compressedControlStream, CompressionMode.Decompress, true))
                 using (var diffStream = new BZip2Stream(compressedDiffStream, CompressionMode.Decompress, true))
-                using (var extraStream = hasExtraData ? new BZip2Stream(compressedExtraStream, CompressionMode.Decompress, true) : null)
-                {
+                using (var extraStream = hasExtraData ? new BZip2Stream(compressedExtraStream, CompressionMode.Decompress, true) : null) {
                     long[] control = new long[3];
                     byte[] buffer = new byte[8];
 
                     int oldPosition = 0;
                     int newPosition = 0;
-                    while (newPosition < newSize)
-                    {
+                    while (newPosition < newSize) {
                         // read control data
-                        for (int i = 0; i < 3; i++)
-                        {
+                        for (int i = 0; i < 3; i++) {
                             controlStream.ReadExactly(buffer, 0, 8);
                             control[i] = ReadInt64(buffer, 0);
                         }
@@ -357,16 +332,15 @@ namespace Velopack.Compression
                         // seek old file to the position that the new data is diffed against
                         input.Position = oldPosition;
 
-                        int bytesToCopy = (int)control[0];
-                        while (bytesToCopy > 0)
-                        {
+                        int bytesToCopy = (int) control[0];
+                        while (bytesToCopy > 0) {
                             int actualBytesToCopy = Math.Min(bytesToCopy, c_bufferSize);
 
                             // read diff string
                             diffStream.ReadExactly(newData, 0, actualBytesToCopy);
 
                             // add old data to diff string
-                            int availableInputBytes = Math.Min(actualBytesToCopy, (int)(input.Length - input.Position));
+                            int availableInputBytes = Math.Min(actualBytesToCopy, (int) (input.Length - input.Position));
                             input.ReadExactly(oldData, 0, availableInputBytes);
 
                             for (int index = 0; index < availableInputBytes; index++)
@@ -385,9 +359,8 @@ namespace Velopack.Compression
                             throw new InvalidOperationException("Corrupt patch.");
 
                         // read extra string
-                        bytesToCopy = (int)control[1];
-                        while (bytesToCopy > 0)
-                        {
+                        bytesToCopy = (int) control[1];
+                        while (bytesToCopy > 0) {
                             int actualBytesToCopy = Math.Min(bytesToCopy, c_bufferSize);
 
                             extraStream.ReadExactly(newData, 0, actualBytesToCopy);
@@ -398,7 +371,7 @@ namespace Velopack.Compression
                         }
 
                         // adjust position
-                        oldPosition = (int)(oldPosition + control[2]);
+                        oldPosition = (int) (oldPosition + control[2]);
                     }
                 }
             }
@@ -406,8 +379,7 @@ namespace Velopack.Compression
 
         private static int CompareBytes(byte[] left, int leftOffset, byte[] right, int rightOffset)
         {
-            for (int index = 0; index < left.Length - leftOffset && index < right.Length - rightOffset; index++)
-            {
+            for (int index = 0; index < left.Length - leftOffset && index < right.Length - rightOffset; index++) {
                 int diff = left[index + leftOffset] - right[index + rightOffset];
                 if (diff != 0)
                     return diff;
@@ -418,8 +390,7 @@ namespace Velopack.Compression
         private static int MatchLength(byte[] oldData, int oldOffset, byte[] newData, int newOffset)
         {
             int i;
-            for (i = 0; i < oldData.Length - oldOffset && i < newData.Length - newOffset; i++)
-            {
+            for (i = 0; i < oldData.Length - oldOffset && i < newData.Length - newOffset; i++) {
                 if (oldData[i + oldOffset] != newData[i + newOffset])
                     break;
             }
@@ -428,24 +399,18 @@ namespace Velopack.Compression
 
         private static int Search(int[] I, byte[] oldData, byte[] newData, int newOffset, int start, int end, out int pos)
         {
-            if (end - start < 2)
-            {
+            if (end - start < 2) {
                 int startLength = MatchLength(oldData, I[start], newData, newOffset);
                 int endLength = MatchLength(oldData, I[end], newData, newOffset);
 
-                if (startLength > endLength)
-                {
+                if (startLength > endLength) {
                     pos = I[start];
                     return startLength;
-                }
-                else
-                {
+                } else {
                     pos = I[end];
                     return endLength;
                 }
-            }
-            else
-            {
+            } else {
                 int midPoint = start + (end - start) / 2;
                 return CompareBytes(oldData, I[midPoint], newData, newOffset) < 0 ?
                     Search(I, oldData, newData, newOffset, midPoint, end, out pos) :
@@ -455,22 +420,17 @@ namespace Velopack.Compression
 
         private static void Split(int[] I, int[] v, int start, int len, int h)
         {
-            if (len < 16)
-            {
+            if (len < 16) {
                 int j;
-                for (int k = start; k < start + len; k += j)
-                {
+                for (int k = start; k < start + len; k += j) {
                     j = 1;
                     int x = v[I[k] + h];
-                    for (int i = 1; k + i < start + len; i++)
-                    {
-                        if (v[I[k + i] + h] < x)
-                        {
+                    for (int i = 1; k + i < start + len; i++) {
+                        if (v[I[k + i] + h] < x) {
                             x = v[I[k + i] + h];
                             j = 0;
                         }
-                        if (v[I[k + i] + h] == x)
-                        {
+                        if (v[I[k + i] + h] == x) {
                             Swap(ref I[k + j], ref I[k + i]);
                             j++;
                         }
@@ -480,14 +440,11 @@ namespace Velopack.Compression
                     if (j == 1)
                         I[k] = -1;
                 }
-            }
-            else
-            {
+            } else {
                 int x = v[I[start + len / 2] + h];
                 int jj = 0;
                 int kk = 0;
-                for (int i2 = start; i2 < start + len; i2++)
-                {
+                for (int i2 = start; i2 < start + len; i2++) {
                     if (v[I[i2] + h] < x)
                         jj++;
                     if (v[I[i2] + h] == x)
@@ -499,32 +456,22 @@ namespace Velopack.Compression
                 int i = start;
                 int j = 0;
                 int k = 0;
-                while (i < jj)
-                {
-                    if (v[I[i] + h] < x)
-                    {
+                while (i < jj) {
+                    if (v[I[i] + h] < x) {
                         i++;
-                    }
-                    else if (v[I[i] + h] == x)
-                    {
+                    } else if (v[I[i] + h] == x) {
                         Swap(ref I[i], ref I[jj + j]);
                         j++;
-                    }
-                    else
-                    {
+                    } else {
                         Swap(ref I[i], ref I[kk + k]);
                         k++;
                     }
                 }
 
-                while (jj + j < kk)
-                {
-                    if (v[I[jj + j] + h] == x)
-                    {
+                while (jj + j < kk) {
+                    if (v[I[jj + j] + h] == x) {
                         j++;
-                    }
-                    else
-                    {
+                    } else {
                         Swap(ref I[jj + j], ref I[kk + k]);
                         k++;
                     }
@@ -563,26 +510,20 @@ namespace Velopack.Compression
             for (int i = 0; i < oldData.Length; i++)
                 v[i] = buckets[oldData[i]];
 
-            for (int i = 1; i < 256; i++)
-            {
+            for (int i = 1; i < 256; i++) {
                 if (buckets[i] == buckets[i - 1] + 1)
                     I[buckets[i]] = -1;
             }
             I[0] = -1;
 
-            for (int h = 1; I[0] != -(oldData.Length + 1); h += h)
-            {
+            for (int h = 1; I[0] != -(oldData.Length + 1); h += h) {
                 int len = 0;
                 int i = 0;
-                while (i < oldData.Length + 1)
-                {
-                    if (I[i] < 0)
-                    {
+                while (i < oldData.Length + 1) {
+                    if (I[i] < 0) {
                         len -= I[i];
                         i -= I[i];
-                    }
-                    else
-                    {
+                    } else {
                         if (len != 0)
                             I[i - len] = -len;
                         len = v[I[i]] + 1 - i;
@@ -613,8 +554,7 @@ namespace Velopack.Compression
         {
             long value = buf[offset + 7] & 0x7F;
 
-            for (int index = 6; index >= 0; index--)
-            {
+            for (int index = 6; index >= 0; index--) {
                 value *= 256;
                 value += buf[offset + index];
             }
@@ -629,9 +569,8 @@ namespace Velopack.Compression
         {
             long valueToWrite = value < 0 ? -value : value;
 
-            for (int byteIndex = 0; byteIndex < 8; byteIndex++)
-            {
-                buf[offset + byteIndex] = (byte)(valueToWrite % 256);
+            for (int byteIndex = 0; byteIndex < 8; byteIndex++) {
+                buf[offset + byteIndex] = (byte) (valueToWrite % 256);
                 valueToWrite -= buf[offset + byteIndex];
                 valueToWrite /= 256;
             }
@@ -672,8 +611,7 @@ namespace Velopack.Compression
         /// Gets a value indicating whether the current stream supports reading.
         /// </summary>
         /// <returns><c>true</c> if the stream supports reading; otherwise, <c>false</c>.</returns>
-        public override bool CanRead
-        {
+        public override bool CanRead {
             get { return m_streamBase == null ? false : m_streamBase.CanRead; }
         }
 
@@ -681,8 +619,7 @@ namespace Velopack.Compression
         /// Gets a value indicating whether the current stream supports seeking.
         /// </summary>
         /// <returns><c>true</c> if the stream supports seeking; otherwise, <c>false</c>.</returns>
-        public override bool CanSeek
-        {
+        public override bool CanSeek {
             get { return m_streamBase == null ? false : m_streamBase.CanSeek; }
         }
 
@@ -690,24 +627,21 @@ namespace Velopack.Compression
         /// Gets a value indicating whether the current stream supports writing.
         /// </summary>
         /// <returns><c>true</c> if the stream supports writing; otherwise, <c>false</c>.</returns>
-        public override bool CanWrite
-        {
+        public override bool CanWrite {
             get { return m_streamBase == null ? false : m_streamBase.CanWrite; }
         }
 
         /// <summary>
         /// Gets the length in bytes of the stream.
         /// </summary>
-        public override long Length
-        {
+        public override long Length {
             get { ThrowIfDisposed(); return m_streamBase.Length; }
         }
 
         /// <summary>
         /// Gets or sets the position within the current stream.
         /// </summary>
-        public override long Position
-        {
+        public override long Position {
             get { ThrowIfDisposed(); return m_streamBase.Position; }
             set { ThrowIfDisposed(); m_streamBase.Position = value; }
         }
@@ -821,8 +755,7 @@ namespace Velopack.Compression
         /// Gets the wrapped stream.
         /// </summary>
         /// <value>The wrapped stream.</value>
-        protected Stream WrappedStream
-        {
+        protected Stream WrappedStream {
             get { return m_streamBase; }
         }
 
@@ -832,18 +765,14 @@ namespace Velopack.Compression
         /// <param name="disposing">true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
         protected override void Dispose(bool disposing)
         {
-            try
-            {
+            try {
                 // doesn't close the base stream, but just prevents access to it through this WrappingStream
-                if (disposing)
-                {
+                if (disposing) {
                     if (m_streamBase != null && m_ownership == Ownership.Owns)
                         m_streamBase.Dispose();
                     m_streamBase = null;
                 }
-            }
-            finally
-            {
+            } finally {
                 base.Dispose(disposing);
             }
         }
@@ -916,8 +845,7 @@ namespace Velopack.Compression
             if (count < 0 || buffer.Length - offset < count)
                 throw new ArgumentOutOfRangeException("count");
 
-            while (count > 0)
-            {
+            while (count > 0) {
                 // read data
                 int bytesRead = stream.Read(buffer, offset, count);
 

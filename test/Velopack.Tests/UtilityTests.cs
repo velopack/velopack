@@ -1,17 +1,8 @@
-﻿using System;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
+﻿using System.Diagnostics;
+using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text;
-using Velopack;
-using Velopack.Tests.TestHelpers;
-using Xunit;
 using Velopack.Windows;
-using System.Collections.Generic;
-using Xunit.Abstractions;
-using System.Threading.Tasks;
-using System.Runtime.Versioning;
 
 namespace Velopack.Tests
 {
@@ -30,7 +21,7 @@ namespace Velopack.Tests
         [InlineData("/file", "\\file")]
         [InlineData("/file/", "\\file")]
         [InlineData("one\\two\\..\\file", "one\\file")]
-        [InlineData("C:/AnApp/file/", "C:\\AnApp\\file")] 
+        [InlineData("C:/AnApp/file/", "C:\\AnApp\\file")]
         public void PathIsNormalized(string input, string expected)
         {
             Skip.IfNot(VelopackRuntimeInfo.IsWindows);

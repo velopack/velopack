@@ -1,14 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.Contracts;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using NuGet;
+﻿using System.Diagnostics.Contracts;
 using System.Runtime.Serialization;
-using System.Threading.Tasks;
-using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 
 namespace Velopack.Tests.OldSquirrel
 {

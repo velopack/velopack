@@ -1,7 +1,4 @@
-﻿using System.Drawing;
-using System.Text;
-using Microsoft.Extensions.Logging;
-using Velopack.NuGet;
+﻿using Microsoft.Extensions.Logging;
 
 namespace Velopack.Packaging.Windows.Commands;
 

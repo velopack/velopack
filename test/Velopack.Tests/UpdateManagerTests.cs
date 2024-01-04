@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Text;
 using NuGet.Versioning;
 using Velopack.Locators;
 using Velopack.Sources;
@@ -28,7 +22,7 @@ namespace Velopack.Tests
             using var _1 = Utility.GetTempDirectory(out var tempPath);
 
             string releasesSuffix = VelopackRuntimeInfo.IsOSX ? "-osx" : "";
-            
+
             File.WriteAllText(Path.Combine(tempPath, "RELEASES" + releasesSuffix), """
 3a2eadd15dd984e4559f2b4d790ec8badaeb6a39  MyCoolApp-1.1.0.nupkg  1040561
 94689fede03fed7ab59c24337673a27837f0c3ec  MyCoolApp-1.0.0.nupkg  1004502

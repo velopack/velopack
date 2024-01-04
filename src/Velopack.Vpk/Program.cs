@@ -1,12 +1,10 @@
-﻿using Microsoft.Extensions.Hosting;
-using Serilog.Events;
-using Serilog;
-using Microsoft.Extensions.Configuration;
-using Velopack.Vpk.Commands;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Velopack.Vpk.Updates;
+using Microsoft.Extensions.Hosting;
+using Serilog;
+using Serilog.Events;
+using Velopack.Vpk.Commands;
 using Velopack.Vpk.Compat;
-using System.CommandLine.Help;
 
 namespace Velopack.Vpk;
 
@@ -18,7 +16,7 @@ public class Program
 
     private static RunnerFactory Runner { get; set; }
 
-    public static readonly string INTRO 
+    public static readonly string INTRO
         = $"Velopack CLI {VelopackRuntimeInfo.VelopackDisplayVersion} for creating and distributing releases.";
 
     public static async Task<int> Main(string[] args)

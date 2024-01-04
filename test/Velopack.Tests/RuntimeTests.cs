@@ -1,8 +1,4 @@
-﻿using System;
-using System.Net.Http;
-using System.Threading.Tasks;
-using Xunit;
-using Velopack.Windows;
+﻿using Velopack.Windows;
 
 namespace Velopack.Tests
 {

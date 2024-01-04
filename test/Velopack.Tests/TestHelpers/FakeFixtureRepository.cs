@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Text;
 using Velopack.Sources;
 
 namespace Velopack.Tests.TestHelpers
@@ -47,7 +43,7 @@ namespace Velopack.Tests.TestHelpers
             var rel = _releases.FirstOrDefault(r => url.EndsWith(r.OriginalFilename));
             if (rel == null)
                 throw new Exception("Fake release not found: " + url);
-            
+
             var filePath = PathHelper.GetFixture(rel.OriginalFilename);
             if (!File.Exists(filePath)) {
                 throw new NotSupportedException("FakeFixtureRepository doesn't have: " + rel.OriginalFilename);

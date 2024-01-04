@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.Serialization;
-
-namespace Velopack
+﻿namespace Velopack
 {
     /// <summary>
     /// Holds information about the current version and pending updates, such as how many there are, and access to release notes.

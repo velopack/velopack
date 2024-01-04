@@ -1,5 +1,4 @@
-﻿using System.Runtime.Versioning;
-using Velopack.Vpk.Commands;
+﻿using Velopack.Vpk.Commands;
 
 namespace Velopack.Vpk.Compat;
 
