@@ -6,6 +6,7 @@ mod logging;
 extern crate log;
 
 use std::{
+    env,
     os::windows::process::CommandExt,
     process::{Command as Process, ExitCode},
 };
@@ -14,7 +15,13 @@ fn main() -> ExitCode {
     let my_path = std::env::current_exe().unwrap();
     let my_name = my_path.file_name().unwrap().to_string_lossy();
 
-    let _ = logging::default_logging(false, false);
+    let default_log_file = {
+        let mut my_dir = env::current_exe().unwrap();
+        my_dir.pop();
+        my_dir.join("Velopack.log")
+    };
+
+    let _ = logging::setup_logging(Some(&default_log_file), false, false, false);
 
     let mut update_exe = my_path.clone();
     update_exe.pop();
