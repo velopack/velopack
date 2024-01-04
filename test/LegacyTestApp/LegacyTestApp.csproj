@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <!--<UseClowd>2.11.1</UseClowd>-->
+    <!--<UseClowd>3.0.210-*</UseClowd>-->
+  </PropertyGroup>
+
+  <Choose>
+    <When Condition=" $(UseClowd) != ''  ">
+      <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <DefineConstants>CLOWD</DefineConstants>
+      </PropertyGroup>
+      <ItemGroup>
+        <PackageReference Include="Clowd.Squirrel" Version="$(UseClowd)" />
+        <None Update="LegacyTestApp.exe.squirrel" CopyToOutputDirectory="Always" />
+      </ItemGroup>
+    </When>
+    <Otherwise>
+      <ItemGroup>
+        <PackageReference Include="squirrel.windows" Version="2.0.1" />
+      </ItemGroup>
+    </Otherwise>
+  </Choose>
+
+</Project>

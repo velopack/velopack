@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package>
+  <metadata>
+    <id>LegacyTestApp</id>
+    <authors>Velopack</authors>
+    <version>1.0.0</version>
+	<description>LegacyTestApp</description>
+  </metadata>
+  <files>
+    <file src="**" target="lib\app\" exclude="*.pdb;*.nupkg;*.vshost.*;**\createdump.exe"/>
+  </files>
+</package>

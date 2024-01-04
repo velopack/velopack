@@ -39,6 +39,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{3E
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AvaloniaCrossPlat", "examples\AvaloniaCrossPlat\AvaloniaCrossPlat.csproj", "{1FF6A262-13D0-45DF-B818-77AC84C52C6F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LegacyTestApp", "test\LegacyTestApp\LegacyTestApp.csproj", "{8B27C4BF-21B8-48B0-80F8-74520227C35F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -89,6 +91,10 @@ Global
 		{1FF6A262-13D0-45DF-B818-77AC84C52C6F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1FF6A262-13D0-45DF-B818-77AC84C52C6F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1FF6A262-13D0-45DF-B818-77AC84C52C6F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8B27C4BF-21B8-48B0-80F8-74520227C35F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8B27C4BF-21B8-48B0-80F8-74520227C35F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8B27C4BF-21B8-48B0-80F8-74520227C35F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8B27C4BF-21B8-48B0-80F8-74520227C35F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -99,6 +105,7 @@ Global
 		{175B06A5-5C09-4DAB-A6AF-C8A2257BD1B6} = {7AC3A776-B582-4B65-9D03-BD52332B5CA3}
 		{784B5987-2E71-4AEE-81B9-E0CC7F1DBEB3} = {7AC3A776-B582-4B65-9D03-BD52332B5CA3}
 		{1FF6A262-13D0-45DF-B818-77AC84C52C6F} = {3EBFA551-780C-473D-A197-0EE56F2CBA82}
+		{8B27C4BF-21B8-48B0-80F8-74520227C35F} = {7AC3A776-B582-4B65-9D03-BD52332B5CA3}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {68CA987A-9BAB-4C75-8EEB-4596BA6BBD07}
