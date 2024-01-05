@@ -40,8 +40,8 @@ This is a very simple example of the steps you would take to generate an install
    ```
 4. Publish dotnet and build your first Velopack release! 🎉
    ```cmd
-   dotnet publish -c Release --self-contained -r win-x64 -o publish
-   vpk pack -u YourAppId -v 1.0.0
+   dotnet publish -c Release --self-contained -r win-x64 -o .\publish
+   vpk pack -u YourAppId -v 1.0.0 -p .\publish
    ```
 5. Add automatic updating to your app:
    ```cs
