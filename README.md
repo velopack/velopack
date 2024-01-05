@@ -21,7 +21,7 @@ Velopack is a setup / installation framework for cross-platform dotnet applicati
 - ⚡️ **Lightning fast** – Velopack is written in Rust for native performance. Creating releases is multi-threaded, and produces delta packages for fast app updates. Applying update packages is highly optimised, and often can be done in the background.
 
 ## Getting Started
-This is a very simple example of the steps you would take to generate an installer and update packages for your application. Be sure to read the documentation for an overview of more features!
+This is a very simple example of the steps you would take to generate an installer and update packages for your application. Be sure to [read the documentation](docs) for an overview of more features!
 
 1. Install the command line tool `vpk`:
    ```cmd
@@ -73,4 +73,4 @@ This is a very simple example of the steps you would take to generate an install
 
 ## Contributing
 - 💬 Join us on [Discord](https://discord.gg/CjrCrNzd3F) to get involved in dev discussions
-- 🚦 Read our [contributing guidelines](docs/contributing.md)
+- 🚦 Read our [compiling guide](docs/compiling.md)
