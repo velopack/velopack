@@ -3,20 +3,25 @@
 
   <PropertyGroup>
     <TargetFrameworks>net462;net48;netstandard2.0;net5.0;net6.0;net8.0</TargetFrameworks>
-    <Description>Velopack</Description>
-    <Title>Velopack</Title>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <PackageId>Velopack</PackageId>
-    <Description>Quick and easy installer and automatic updates for desktop applications</Description>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageIcon>Velopack_200.png</PackageIcon>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
     <CheckEolTargetFramework>false</CheckEolTargetFramework>
     <LangVersion>9</LangVersion>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <Title>Velopack</Title>
+    <Description>Velopack</Description>
+    <PackageId>Velopack</PackageId>
+    <PackageIcon>Velopack_200.png</PackageIcon>
+    <PackageReadmeFile>README_NUGET.md</PackageReadmeFile>
+    <Description>Quick and easy installer and automatic updates for cross-platform desktop applications</Description>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
   <ItemGroup>
     <None Include="..\..\docs\artwork\Velopack_200.png" Pack="true" PackagePath="\" />
+    <None Include="..\..\README_NUGET.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>

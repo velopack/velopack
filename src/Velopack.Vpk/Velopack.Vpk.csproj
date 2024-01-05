@@ -6,12 +6,13 @@
     <IsPackable>true</IsPackable>
     <AssemblyName>vpk</AssemblyName>
     <PackageId>vpk</PackageId>
+    <PackageReadmeFile>README_NUGET.md</PackageReadmeFile>
     <Title>Velopack CLI</Title>
     <ToolCommandName>vpk</ToolCommandName>
     <DevelopmentDependency>true</DevelopmentDependency>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackAsTool>true</PackAsTool>
-    <Description>A .NET Core Tool that uses the Velopack framework to create installers and update packages for dotnet applications.</Description>
+    <Description>A .NET Core Tool to build Velopack releases.</Description>
     <PackageIcon>Velopack_200.png</PackageIcon>
     <LangVersion>latest</LangVersion>
     <NoWarn>$(NoWarn);CA2007;CS8002</NoWarn>
@@ -19,6 +20,7 @@
 
   <ItemGroup>
     <None Include="..\..\docs\artwork\Velopack_200.png" Pack="true" PackagePath="\" />
+    <None Include="..\..\README_NUGET.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
