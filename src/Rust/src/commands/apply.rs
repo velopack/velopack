@@ -129,6 +129,11 @@ fn apply_package_impl<'a>(
     }
 
     #[cfg(target_os = "windows")]
+    if let Err(e) = package_manifest.write_uninstall_entry(root_path) {
+        warn!("Failed to write uninstall entry ({}).", e);
+    }
+
+    #[cfg(target_os = "windows")]
     crate::windows::run_hook(&package_manifest, &root_path, "--veloapp-updated", 15);
 
     info!("Package applied successfully.");
