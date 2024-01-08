@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Versioning;
 using System.Text;
 using System.Threading.Tasks;
 using Velopack.Locators;
@@ -8,6 +9,7 @@ using Velopack.Windows;
 
 namespace Velopack.Tests
 {
+    [SupportedOSPlatform("windows")]
     public class ShortcutTests
     {
         private readonly ITestOutputHelper _output;

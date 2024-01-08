@@ -48,6 +48,8 @@ namespace Velopack.Packaging
             if (options.TargetRuntime?.BaseRID != SupportedTargetOs)
                 throw new ArgumentException($"Target runtime must be {SupportedTargetOs}.", nameof(options.TargetRuntime));
 
+            var now = DateTime.UtcNow;
+
             Log.Info("Beginning to package release.");
             Log.Info("Releases Directory: " + options.ReleaseDir.FullName);
 
@@ -161,7 +163,7 @@ namespace Velopack.Packaging
                         taskFinish.Value = 100;
                         taskFinish.StopTask();
                     });
-                Log.Info("[bold]Done.[/]");
+                Log.Info($"[bold]Done in {DateTime.UtcNow - now}.[/]");
             } catch {
                 try {
                     foreach (var f in filesToCopy) {
@@ -208,7 +210,7 @@ namespace Velopack.Packaging
 
         protected virtual Task CodeSign(Action<int> progress, string packDir)
         {
-            throw new NotImplementedException();
+            return Task.CompletedTask;
         }
 
         protected virtual Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath)

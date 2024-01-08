@@ -43,7 +43,7 @@ public class HelperExe : HelperFile
     }
 
     [SupportedOSPlatform("windows")]
-    public void SignPEFilesWithSignTool(string rootDir, string[] filePaths, string signArguments, int parallelism)
+    public void SignPEFilesWithSignTool(string rootDir, string[] filePaths, string signArguments, int parallelism, Action<int> progress)
     {
         Queue<string> pendingSign = new Queue<string>();
 
@@ -86,8 +86,9 @@ public class HelperExe : HelperFile
                     $"Output was:\n" + result.StdOutput);
             }
 
-            Log.Info($"Signed {totalToSign - pendingSign.Count}/{totalToSign} successfully.\r\n" + result.StdOutput);
-
+            int processed = totalToSign - pendingSign.Count;
+            Log.Debug($"Signed {processed}/{totalToSign} successfully.\r\n" + result.StdOutput);
+            progress((int) ((double) processed / totalToSign * 100));
         } while (pendingSign.Count > 0);
     }
 

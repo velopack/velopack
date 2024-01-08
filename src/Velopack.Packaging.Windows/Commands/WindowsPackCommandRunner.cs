@@ -23,7 +23,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             .Select(x => x.FullName)
             .ToArray();
 
-        SignFilesImpl(Options, packDir, filesToSign);
+        SignFilesImpl(Options, packDir, progress, filesToSign);
         return Task.CompletedTask;
     }
 
@@ -111,13 +111,13 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         } else {
             Log.Warn("Unable to set Setup.exe icon (only supported on windows)");
         }
-        progress(30);
+        progress(25);
         Log.Info($"Creating Setup bundle");
         SetupBundle.CreatePackageBundle(targetSetupExe, releasePkg);
-        progress(70);
+        progress(50);
         Log.Info("Signing Setup bundle");
         var targetDir = Path.GetDirectoryName(targetSetupExe);
-        SignFilesImpl(Options, targetDir, targetSetupExe);
+        SignFilesImpl(Options, targetDir, Utility.CreateProgressDelegate(progress, 50, 100), targetSetupExe);
         Log.Debug($"Setup bundle created '{Path.GetFileName(targetSetupExe)}'.");
         progress(100);
         return Task.CompletedTask;
@@ -168,7 +168,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
     }
 
-    private void SignFilesImpl(WindowsSigningOptions options, string rootDir, params string[] filePaths)
+    private void SignFilesImpl(WindowsSigningOptions options, string rootDir, Action<int> progress, params string[] filePaths)
     {
         var signParams = options.SignParameters;
         var signTemplate = options.SignTemplate;
@@ -182,8 +182,10 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
         if (!string.IsNullOrEmpty(signTemplate)) {
             Log.Info($"Preparing to sign {filePaths.Length} files with custom signing template");
-            foreach (var f in filePaths) {
+            for (var i = 0; i < filePaths.Length; i++) {
+                var f = filePaths[i];
                 helper.SignPEFileWithTemplate(f, signTemplate);
+                progress((int) ((double) i / filePaths.Length * 100));
             }
             return;
         }
@@ -193,7 +195,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
         if (!string.IsNullOrEmpty(signParams)) {
             Log.Info($"Preparing to sign {filePaths.Length} files with embedded signtool.exe with parallelism of {signParallel}");
-            helper.SignPEFilesWithSignTool(rootDir, filePaths, signParams, signParallel);
+            helper.SignPEFilesWithSignTool(rootDir, filePaths, signParams, signParallel, progress);
         }
     }
 }

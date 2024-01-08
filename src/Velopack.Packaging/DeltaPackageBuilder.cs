@@ -141,7 +141,7 @@ public class DeltaPackageBuilder
                     targetFile.Delete();
                     baseLibFiles.Remove(relativePath);
                     fProcessed++;
-                    progress(Utility.CalculateProgress((int) ((double) fProcessed / newLibFiles.Length), 0, 70));
+                    progress(Utility.CalculateProgress((int) ((double) fProcessed / newLibFiles.Length * 100), 0, 70));
                 } catch (Exception ex) {
                     _logger.Debug(ex, String.Format("Failed to create a delta for {0}", targetFile.Name));
                     Utility.DeleteFileOrDirectoryHard(targetFile.FullName + ".bsdiff", throwOnFailure: false);
