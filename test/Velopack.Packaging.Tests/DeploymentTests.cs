@@ -26,7 +26,7 @@ namespace Velopack.Packaging.Tests
             var id = "GithubUpdateTest";
             var ci = !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI"));
             using var _1 = Utility.GetTempDirectory(out var releaseDir);
-            var uniqueSuffix = ci ? "ci-" : "local-" + VelopackRuntimeInfo.SystemOs.GetOsShortName();
+            var uniqueSuffix = (ci ? "ci-" : "local-") + VelopackRuntimeInfo.SystemOs.GetOsShortName();
             var releaseName = $"{VelopackRuntimeInfo.VelopackDisplayVersion}-{uniqueSuffix}";
 
             // delete release if already exists
