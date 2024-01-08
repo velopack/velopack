@@ -28,7 +28,7 @@ public class HelperFile
     static HelperFile()
     {
 #if !DEBUG
-        AddSearchPath(VelopackRuntimeInfo.BaseDirectory, "..", "..", "..", "vendor");
+        AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "vendor");
 #endif
     }
 
