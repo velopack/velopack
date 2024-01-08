@@ -623,7 +623,7 @@ public class WindowsPackTests
         //logger.Info($"TEST: Running {psi.FileName} {psi.ArgumentList.Aggregate((a, b) => $"{a} {b}")}");
         //using var p = Process.Start(psi);
 
-        var outputfile = GetPath($"run.{RandomString(8)}.log");
+        var outputfile = PathHelper.GetTestRootPath($"run.{RandomString(8)}.log");
 
         try {
             // this is a huge hack, but WaitForProcess hangs in the test runner when the output is redirected
@@ -684,7 +684,7 @@ public class WindowsPackTests
 
     private string RunCoveredDotnet(string exe, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
     {
-        var outputfile = GetPath($"coverage.rundotnet.{RandomString(8)}.xml");
+        var outputfile = PathHelper.GetTestRootPath($"coverage.rundotnet.{RandomString(8)}.xml");
 
         if (!File.Exists(exe))
             throw new Exception($"File {exe} does not exist.");
@@ -730,7 +730,7 @@ public class WindowsPackTests
 
     private void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger)
     {
-        var projDir = GetPath("TestApp");
+        var projDir = PathHelper.GetTestRootPath("TestApp");
         var testStringFile = Path.Combine(projDir, "Const.cs");
         var oldText = File.ReadAllText(testStringFile);
 
@@ -766,18 +766,5 @@ public class WindowsPackTests
         } finally {
             File.WriteAllText(testStringFile, oldText);
         }
-    }
-
-    private static string GetPath(params string[] paths)
-    {
-        var ret = GetIntegrationTestRootDirectory();
-        return (new FileInfo(paths.Aggregate(ret, Path.Combine))).FullName;
-    }
-
-    private static string GetIntegrationTestRootDirectory()
-    {
-        var st = new StackFrame(true);
-        var di = new DirectoryInfo(Path.Combine(Path.GetDirectoryName(st.GetFileName()), ".."));
-        return di.FullName;
     }
 }

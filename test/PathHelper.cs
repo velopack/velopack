@@ -15,6 +15,9 @@ public static class PathHelper
     public static string GetFixture(params string[] names)
         => Path.Combine(new string[] { GetTestRoot(), "fixtures" }.Concat(names).ToArray());
 
+    public static string GetTestRootPath(params string[] names)
+        => Path.Combine(new string[] { GetTestRoot() }.Concat(names).ToArray());
+
     public static string GetRustSrcDir()
         => Path.Combine(GetProjectDir(), "src", "Rust");
 

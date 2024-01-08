@@ -2,6 +2,9 @@ name: Build
 
 on: [ push, pull_request ]
 
+env:
+  VELOPACK_GITHUB_TEST_TOKEN: ${{ secrets.VELOPACK_GITHUB_TEST_TOKEN }}
+
 jobs:
   build:
     strategy:

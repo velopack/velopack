@@ -12,7 +12,7 @@ public class OsxPackCommandRunner
         _logger = logger;
     }
 
-    public void Releasify(OsxPackOptions options)
+    public void Pack(OsxPackOptions options)
     {
         if (options.TargetRuntime.BaseRID != RuntimeOs.OSX)
             throw new ArgumentException("Target runtime must be OSX.", nameof(options.TargetRuntime));

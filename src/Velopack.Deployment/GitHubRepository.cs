@@ -6,19 +6,16 @@ using Velopack.Sources;
 
 namespace Velopack.Deployment;
 
-public class GitHubOptions : RepositoryOptions
+public class GitHubDownloadOptions : RepositoryOptions
 {
+    public bool Prerelease { get; set; }
+
     public string RepoUrl { get; set; }
 
     public string Token { get; set; }
 }
 
-public class GitHubDownloadOptions : GitHubOptions
-{
-    public bool Pre { get; set; }
-}
-
-public class GitHubUploadOptions : GitHubOptions
+public class GitHubUploadOptions : GitHubDownloadOptions
 {
     public bool Publish { get; set; }
 
@@ -33,18 +30,24 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
 
     public override GithubSource CreateSource(GitHubDownloadOptions options)
     {
-        return new GithubSource(options.RepoUrl, options.Token, options.Pre, options.Channel, logger: Log);
+        return new GithubSource(options.RepoUrl, options.Token, options.Prerelease, options.Channel, logger: Log);
     }
 
-    public async Task UploadMissingAssetsAsync(GitHubUploadOptions options)
+    public static (string owner, string repo) GetOwnerAndRepo(string repoUrl)
     {
-        var repoUri = new Uri(options.RepoUrl);
+        var repoUri = new Uri(repoUrl);
         var repoParts = repoUri.AbsolutePath.Trim('/').Split('/');
         if (repoParts.Length != 2)
             throw new Exception($"Invalid GitHub URL, '{repoUri.AbsolutePath}' should be in the format 'owner/repo'");
 
         var repoOwner = repoParts[0];
         var repoName = repoParts[1];
+        return (repoOwner, repoName);
+    }
+
+    public async Task UploadMissingAssetsAsync(GitHubUploadOptions options)
+    {
+        var (repoOwner, repoName) = GetOwnerAndRepo(options.RepoUrl);
 
         var helper = new ReleaseEntryHelper(options.ReleaseDir.FullName, Log);
         var assets = helper.GetUploadAssets(options.Channel, ReleaseEntryHelper.AssetsMode.OnlyLatest);
@@ -62,7 +65,7 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
         var newReleaseReq = new NewRelease(semVer.ToString()) {
             Body = releaseNotes,
             Draft = true,
-            Prerelease = semVer.HasMetadata || semVer.IsPrerelease,
+            Prerelease = options.Prerelease,
             Name = string.IsNullOrWhiteSpace(options.ReleaseName) ? semVer.ToString() : options.ReleaseName,
         };
 
@@ -86,6 +89,14 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
         var releasesBytes = releasesFileToUpload.ToArray();
         var data = new ReleaseAssetUpload(assets.ReleasesFileName, "application/octet-stream", new MemoryStream(releasesBytes), TimeSpan.FromMinutes(1));
         await client.Repository.Release.UploadAsset(release, data, CancellationToken.None);
+
+        // convert draft to full release
+        if (options.Publish) {
+            Log.Info("Converting draft to full published release.");
+            var upd = release.ToUpdate();
+            upd.Draft = false;
+            release = await client.Repository.Release.Edit(repoOwner, repoName, release.Id, upd);
+        }
     }
 
     private async Task UploadFileAsAsset(GitHubClient client, Release release, string filePath)

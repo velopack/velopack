@@ -67,11 +67,15 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
 
-#if !NET5_0_OR_GREATER
+#if NET7_0_OR_GREATER
+using System.Text.Json.Serialization.Metadata;
+using System.Text.Json;
+using System.Linq;
+#else
 using Velopack.Json.Reflection;
 #endif
 
-#if NET5_0_OR_GREATER
+#if NET7_0_OR_GREATER
 
 namespace Velopack.Json
 {
@@ -80,12 +84,35 @@ namespace Velopack.Json
     {
         public static T DeserializeObject<T>(string json)
         {
-            return System.Text.Json.JsonSerializer.Deserialize<T>(json);
+            var options = new JsonSerializerOptions {
+                TypeInfoResolver = new DefaultJsonTypeInfoResolver {
+                    Modifiers = { DataMemberNameAttribute }
+                }
+            };
+            return JsonSerializer.Deserialize<T>(json, options);
+        }
+
+        static void DataMemberNameAttribute(JsonTypeInfo typeInfo)
+        {
+            // https://github.com/dotnet/runtime/issues/29975
+            if (typeInfo.Kind != JsonTypeInfoKind.Object)
+                return;
+            foreach (JsonPropertyInfo propertyInfo in typeInfo.Properties) {
+                if (propertyInfo.AttributeProvider is ICustomAttributeProvider provider) {
+                    var attr = provider.GetCustomAttributes(typeof(DataMemberAttribute), inherit: true).Cast<DataMemberAttribute>().ToArray();
+                    if (attr.Length > 0) {
+                        var a = attr[0];
+                        if (a.IsNameSetExplicitly) {
+                            propertyInfo.Name = a.Name;
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
-#else 
+#else
 
 // ReSharper disable LoopCanBeConvertedToQuery
 // ReSharper disable RedundantExplicitArrayCreation

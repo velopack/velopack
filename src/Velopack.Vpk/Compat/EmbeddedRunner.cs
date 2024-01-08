@@ -62,7 +62,7 @@ public class EmbeddedRunner : ICommandRunner
             SigningEntitlements = command.SigningEntitlements,
             SigningInstallIdentity = command.SigningInstallIdentity,
         };
-        new OsxPackCommandRunner(_logger).Releasify(options);
+        new OsxPackCommandRunner(_logger).Pack(options);
         return Task.CompletedTask;
     }
 
@@ -118,7 +118,7 @@ public class EmbeddedRunner : ICommandRunner
     public virtual Task ExecuteGithubDownload(GitHubDownloadCommand command)
     {
         var options = new GitHubDownloadOptions {
-            Pre = command.Pre,
+            Prerelease = command.Pre,
             ReleaseDir = command.GetReleaseDirectory(),
             RepoUrl = command.RepoUrl,
             Token = command.Token,
@@ -130,6 +130,7 @@ public class EmbeddedRunner : ICommandRunner
     public virtual Task ExecuteGithubUpload(GitHubUploadCommand command)
     {
         var options = new GitHubUploadOptions {
+            Prerelease = command.Pre,
             ReleaseDir = command.GetReleaseDirectory(),
             RepoUrl = command.RepoUrl,
             Token = command.Token,

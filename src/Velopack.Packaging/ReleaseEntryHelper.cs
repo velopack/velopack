@@ -34,6 +34,7 @@ namespace Velopack.Packaging
 
         public void ValidateChannelForPackaging(SemanticVersion version, string channel, RID rid)
         {
+            channel ??= GetDefaultChannel(VelopackRuntimeInfo.SystemOs);
             if (!_releases.ContainsKey(channel) || !_releases[channel].Any())
                 return;
 
@@ -49,6 +50,7 @@ namespace Velopack.Packaging
 
         public ReleasePackageBuilder GetPreviousFullRelease(SemanticVersion version, string channel)
         {
+            channel ??= GetDefaultChannel(VelopackRuntimeInfo.SystemOs);
             var releases = _releases.ContainsKey(channel) ? _releases[channel] : null;
             if (releases == null || !releases.Any()) return null;
             var entry = releases
@@ -63,6 +65,7 @@ namespace Velopack.Packaging
 
         public ReleaseEntry GetLatestFullRelease(string channel)
         {
+            channel ??= GetDefaultChannel(VelopackRuntimeInfo.SystemOs);
             var releases = _releases.ContainsKey(channel) ? _releases[channel] : null;
             if (releases == null || !releases.Any()) return null;
             return releases.Where(z => !z.IsDelta).MaxBy(z => z.Version).First();
@@ -70,6 +73,7 @@ namespace Velopack.Packaging
 
         public void AddRemoteReleaseEntries(IEnumerable<ReleaseEntry> entries, string channel)
         {
+            channel ??= GetDefaultChannel(VelopackRuntimeInfo.SystemOs);
             if (!_releases.ContainsKey(channel))
                 _releases.Add(channel, new List<ReleaseEntry>());
             var newEntries = entries.Where(x => !_releases[channel].Any(y => y.Version == x.Version && y.IsDelta == x.IsDelta));
@@ -78,6 +82,7 @@ namespace Velopack.Packaging
 
         public void AddNewRelease(string nupkgPath, string channel)
         {
+            channel ??= GetDefaultChannel(VelopackRuntimeInfo.SystemOs);
             if (!File.Exists(nupkgPath))
                 throw new FileNotFoundException("Could not find nupkg file", nupkgPath);
 

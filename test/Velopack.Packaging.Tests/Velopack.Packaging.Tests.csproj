@@ -5,7 +5,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Velopack.Deployment\Velopack.Deployment.csproj" />
+    <ProjectReference Include="..\..\src\Velopack.Packaging.OSX\Velopack.Packaging.OSX.csproj" />
     <ProjectReference Include="..\..\src\Velopack.Packaging.Windows\Velopack.Packaging.Windows.csproj" />
+    <PackageReference Include="Octokit" Version="9.1.0" />
   </ItemGroup>
 
 </Project>
