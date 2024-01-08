@@ -98,12 +98,15 @@ namespace Velopack.Windows
             var currentDir = Locator.AppContentDir;
             var rootAppDirectory = Locator.RootAppDir;
 
+            var ret = new Dictionary<ShortcutLocation, ShellLink>();
             var pkgPath = Path.Combine(pkgDir, release.OriginalFilename);
             var zf = new ZipPackage(pkgPath);
             var exePath = Path.Combine(currentDir, relativeExeName);
+            if (!File.Exists(exePath))
+                return ret;
+
             var fileVerInfo = FileVersionInfo.GetVersionInfo(exePath);
 
-            var ret = new Dictionary<ShortcutLocation, ShellLink>();
             foreach (var f in (ShortcutLocation[]) Enum.GetValues(typeof(ShortcutLocation))) {
                 if (!locations.HasFlag(f)) continue;
                 var file = LinkPathForVersionInfo(f, zf, fileVerInfo, rootAppDirectory);
@@ -201,6 +204,8 @@ namespace Velopack.Windows
             var pkgPath = Path.Combine(pkgDir, release.OriginalFilename);
             var zf = new ZipPackage(pkgPath);
             var exePath = Path.Combine(currentDir, relativeExeName);
+            if (!File.Exists(exePath)) return;
+
             var fileVerInfo = FileVersionInfo.GetVersionInfo(exePath);
 
             foreach (var f in (ShortcutLocation[]) Enum.GetValues(typeof(ShortcutLocation))) {
