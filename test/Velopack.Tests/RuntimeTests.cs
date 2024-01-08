@@ -1,4 +1,5 @@
-﻿using Velopack.Windows;
+﻿using System.Net.Http;
+using Velopack.Windows;
 
 namespace Velopack.Tests
 {

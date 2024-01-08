@@ -14,7 +14,9 @@ namespace Velopack.Tests
         public void NugetVersionAgreesWithNbgv()
         {
             var args = new List<string> { "get-version", "-v", "NuGetPackageVersion" };
-            var current = new ProcessStartInfo("nbgv", args).Output(5000);
+            var psi = new ProcessStartInfo("nbgv");
+            psi.AppendArgumentListSafe(args, out var _);
+            var current = psi.Output(3000);
             Assert.Equal(current, VelopackRuntimeInfo.VelopackNugetVersion.ToString());
         }
 
