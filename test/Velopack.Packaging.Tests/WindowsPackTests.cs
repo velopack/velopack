@@ -387,7 +387,7 @@ public class WindowsPackTests
         var extractDllDiff = Path.Combine(extractDir, "lib", "app", "testapp.dll.zsdiff");
         Assert.True(File.Exists(extractDllDiff));
         Assert.True(new FileInfo(extractDllDiff).Length > 0);
-        var extractAppDiff = Path.Combine(extractDir, "lib", "app", "testapp.exe.zsdiff");
+        var extractAppDiff = Path.Combine(extractDir, "lib", "app", "testapp.exe.diff"); // not changed
         Assert.True(File.Exists(extractAppDiff));
         Assert.True(new FileInfo(extractAppDiff).Length == 0);
 

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Metadata.Ecma335;
+using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
@@ -67,10 +68,6 @@ namespace Velopack.Packaging
                 packVersion += suffix;
             }
 
-            var prev = entryHelper.GetPreviousFullRelease(NuGetVersion.Parse(packVersion), channel);
-            var nuspecText = NugetConsole.CreateNuspec(
-                packId, packTitle, packAuthors, packVersion, options.ReleaseNotes);
-
             using var _1 = Utility.GetTempDirectory(out var pkgTempDir);
             TempDir = new DirectoryInfo(pkgTempDir);
             Options = options;
@@ -93,6 +90,9 @@ namespace Velopack.Packaging
                     .StartAsync(async ctx => {
                         var taskPreProcess = ctx.AddTask($"[italic]Pre-process steps[/]");
                         taskPreProcess.StartTask();
+                        var prev = entryHelper.GetPreviousFullRelease(NuGetVersion.Parse(packVersion), channel);
+                        var nuspecText = GenerateNuspecContent(
+                            packId, packTitle, packAuthors, packVersion, options.ReleaseNotes, packDirectory);
                         packDirectory = await PreprocessPackDir((p) => taskPreProcess.Value = p, packDirectory, nuspecText);
                         taskPreProcess.StopTask();
                         Log.Info("[bold]Complete: Pre-process steps[/]");
@@ -175,6 +175,29 @@ namespace Velopack.Packaging
             }
         }
 
+        protected virtual string GenerateNuspecContent(string packId, string packTitle, string packAuthors, string packVersion, string releaseNotes, string packDir)
+        {
+            var releaseNotesText = String.IsNullOrEmpty(releaseNotes)
+                       ? "" // no releaseNotes
+                       : $"<releaseNotes>{SecurityElement.Escape(File.ReadAllText(releaseNotes))}</releaseNotes>";
+
+            string nuspec = $@"
+<?xml version=""1.0"" encoding=""utf-8""?>
+<package xmlns=""http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd"">
+  <metadata>
+    <id>{packId}</id>
+    <title>{packTitle ?? packId}</title>
+    <description>{packTitle ?? packId}</description>
+    <authors>{packAuthors ?? packId}</authors>
+    <version>{packVersion}</version>
+    {releaseNotesText}
+  </metadata>
+</package>
+".Trim();
+
+            return nuspec;
+        }
+
         protected virtual Task<string> PreprocessPackDir(Action<int> progress, string packDir, string nuspecText)
         {
             var dir = TempDir.CreateSubdirectory("PreprocessPackDir");
@@ -221,7 +244,8 @@ namespace Velopack.Packaging
                 File.Copy(kvp.Value, Path.Combine(stagingDir.FullName, kvp.Key), true);
             }
 
-            ProcessNuspecFile(nuspecPath, packDir);
+            AddContentTypesAndRel(nuspecPath);
+            RenderReleaseNotesMarkdown(nuspecPath);
 
             await EasyZip.CreateZipFromDirectoryAsync(Log, outputPath, stagingDir.FullName, Utility.CreateProgressDelegate(progress, 30, 100));
             progress(100);
@@ -230,12 +254,6 @@ namespace Velopack.Packaging
         protected virtual Dictionary<string, string> GetReleaseMetadataFiles()
         {
             return new Dictionary<string, string>();
-        }
-
-        protected virtual void ProcessNuspecFile(string nuspecFilePath, string packDir)
-        {
-            AddContentTypesAndRel(nuspecFilePath);
-            RenderReleaseNotesMarkdown(nuspecFilePath);
         }
 
         protected virtual void CopyFiles(DirectoryInfo source, DirectoryInfo target, Action<int> progress, bool excludeAnnoyances = false)

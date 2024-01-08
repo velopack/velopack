@@ -57,25 +57,25 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         return Task.FromResult(packDir);
     }
 
-    protected override void ProcessNuspecFile(string nuspecFilePath, string packDir)
+    protected override string GenerateNuspecContent(string packId, string packTitle, string packAuthors, string packVersion, string releaseNotes, string packDir)
     {
-        base.ProcessNuspecFile(nuspecFilePath, packDir);
-
+        // check provided runtimes
         IEnumerable<Runtimes.RuntimeInfo> requiredFrameworks = Enumerable.Empty<Runtimes.RuntimeInfo>();
         if (!string.IsNullOrWhiteSpace(Options.Runtimes)) {
             requiredFrameworks = Options.Runtimes
                 .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(Runtimes.GetRuntimeByName);
         }
-
         if (requiredFrameworks.Where(f => f == null).Any())
             throw new ArgumentException("Invalid target frameworks string.");
 
+        // check that the main executable exists
         var mainExeName = Options.EntryExecutableName ?? Options.PackId + ".exe";
         var mainExe = Path.Combine(packDir, mainExeName);
         if (!File.Exists(mainExe))
             throw new ArgumentException($"--exeName '{mainExeName}' does not exist in package. Searched at: '{mainExe}'");
 
+        // verify that the main executable is a valid velopack app
         try {
             var psi = new ProcessStartInfo(mainExe);
             psi.AppendArgumentListSafe(new[] { "--veloapp-version" }, out var _);
@@ -92,7 +92,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             throw;
         }
 
-        NuspecManifest.SetMetadata(nuspecFilePath, mainExeName, requiredFrameworks.Select(r => r.Id), Options.TargetRuntime, null);
+        // generate nuspec
+        var initial = base.GenerateNuspecContent(packId, packTitle, packAuthors, packVersion, releaseNotes, packDir);
+        var tmpPath = Path.Combine(TempDir.FullName, "tmpwin.nuspec");
+        File.WriteAllText(tmpPath, initial);
+        NuspecManifest.SetMetadata(tmpPath, mainExeName, requiredFrameworks.Select(r => r.Id), Options.TargetRuntime, null);
+        return File.ReadAllText(tmpPath);
     }
 
     protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string targetSetupExe)
