@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Velopack.Deployment;
 using Velopack.Packaging.OSX.Commands;
 using Velopack.Packaging.Windows.Commands;
@@ -17,13 +17,6 @@ namespace Velopack.Packaging.Tests
         public DeploymentTests(ITestOutputHelper output)
         {
             _output = output;
-        }
-
-        private Release GetGithubRelease(GitHubClient client, string releaseName)
-        {
-            var (repoOwner, repoName) = GitHubRepository.GetOwnerAndRepo(GITHUB_REPOURL);
-            var existingReleases = client.Repository.Release.GetAll(repoOwner, repoName).GetAwaiterResult();
-            return existingReleases.SingleOrDefault(s => s.Name == releaseName);
         }
 
         [Fact]
@@ -142,6 +135,8 @@ This is just a _test_!
                         EntryExecutableName = "TestApp",
                         ReleaseDir = new DirectoryInfo(releaseDir),
                         PackId = id,
+                        Icon = Path.Combine(PathHelper.GetProjectDir(), "examples", "AvaloniaCrossPlat", "Velopack.icns"),
+                        TargetRuntime = RID.Parse(VelopackRuntimeInfo.SystemOs.GetOsShortName()),
                         PackVersion = version,
                         PackDirectory = Path.Combine(projDir, "publish"),
                         ReleaseNotes = releaseNotes,

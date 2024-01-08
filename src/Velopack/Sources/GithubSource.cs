@@ -22,7 +22,7 @@ namespace Velopack.Sources
 
         /// <summary> The date which this release was published publically. </summary>
         [DataMember(Name = "published_at")]
-        public DateTime PublishedAt { get; set; }
+        public DateTime? PublishedAt { get; set; }
 
         /// <summary> A list of assets (files) uploaded to this release. </summary>
         [DataMember(Name = "assets")]

@@ -14,7 +14,7 @@ public class OsxPackCommandRunner
 
     public void Pack(OsxPackOptions options)
     {
-        if (options.TargetRuntime.BaseRID != RuntimeOs.OSX)
+        if (options.TargetRuntime?.BaseRID != RuntimeOs.OSX)
             throw new ArgumentException("Target runtime must be OSX.", nameof(options.TargetRuntime));
 
         var releaseDir = options.ReleaseDir;
