@@ -90,30 +90,29 @@ public class EmbeddedRunner : ICommandRunner
             SignTemplate = command.SignTemplate,
             SplashImage = command.SplashImage,
         };
-        new WindowsPackCommandRunner(_logger).Pack(options);
-        return Task.CompletedTask;
+        return new WindowsPackCommandRunner(_logger).Run(options);
     }
 
-    public virtual Task ExecuteReleasifyWindows(WindowsReleasifyCommand command)
-    {
-        var options = new WindowsReleasifyOptions {
-            TargetRuntime = command.GetRid(),
-            ReleaseDir = command.GetReleaseDirectory(),
-            Package = command.Package,
-            Icon = command.Icon,
-            DeltaMode = command.Delta,
-            SignParameters = command.SignParameters,
-            EntryExecutableName = command.EntryExecutableName,
-            Runtimes = command.Runtimes,
-            Channel = command.Channel,
-            SignParallel = command.SignParallel,
-            SignSkipDll = command.SignSkipDll,
-            SignTemplate = command.SignTemplate,
-            SplashImage = command.SplashImage,
-        };
-        new WindowsReleasifyCommandRunner(_logger).Releasify(options);
-        return Task.CompletedTask;
-    }
+    //public virtual Task ExecuteReleasifyWindows(WindowsReleasifyCommand command)
+    //{
+    //    var options = new WindowsReleasifyOptions {
+    //        TargetRuntime = command.GetRid(),
+    //        ReleaseDir = command.GetReleaseDirectory(),
+    //        Package = command.Package,
+    //        Icon = command.Icon,
+    //        DeltaMode = command.Delta,
+    //        SignParameters = command.SignParameters,
+    //        EntryExecutableName = command.EntryExecutableName,
+    //        Runtimes = command.Runtimes,
+    //        Channel = command.Channel,
+    //        SignParallel = command.SignParallel,
+    //        SignSkipDll = command.SignSkipDll,
+    //        SignTemplate = command.SignTemplate,
+    //        SplashImage = command.SplashImage,
+    //    };
+    //    new WindowsPackCommandRunner(_logger).Releasify(options);
+    //    return Task.CompletedTask;
+    //}
 
     public virtual Task ExecuteGithubDownload(GitHubDownloadCommand command)
     {
@@ -190,7 +189,7 @@ public class EmbeddedRunner : ICommandRunner
             OutputFile = command.OutputFile,
             DeltaMode = command.Delta,
         };
-        return new DeltaGenCommandRunner().Run(options, _logger);
+        return new DeltaGenCommandRunner(_logger).Run(options);
     }
 
     public virtual Task ExecuteDeltaPatch(DeltaPatchCommand command)
@@ -200,6 +199,6 @@ public class EmbeddedRunner : ICommandRunner
             PatchFiles = command.PatchFiles,
             OutputFile = command.OutputFile,
         };
-        return new DeltaPatchCommandRunner().Run(options, _logger);
+        return new DeltaPatchCommandRunner(_logger).Run(options);
     }
 }

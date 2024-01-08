@@ -4,17 +4,6 @@ using NuGet.Commands;
 
 namespace Velopack.Packaging;
 
-public interface INugetPackCommand
-{
-    string PackId { get; }
-    string PackVersion { get; }
-    string PackDirectory { get; }
-    string PackAuthors { get; }
-    string PackTitle { get; }
-    bool IncludePdb { get; }
-    string ReleaseNotes { get; }
-}
-
 public class NugetConsole
 {
     private readonly ILogger Log;
@@ -84,7 +73,7 @@ public class NugetConsole
 
     public void Pack(string nuspecPath, string baseDirectory, string outputDirectory)
     {
-        Log.Info($"Starting to package '{nuspecPath}'");
+        Log.Debug($"Starting to package '{nuspecPath}'");
         var args = new PackArgs() {
             Deterministic = true,
             BasePath = baseDirectory,

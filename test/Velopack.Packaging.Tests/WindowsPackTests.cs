@@ -56,7 +56,7 @@ public class WindowsPackTests
         };
 
         var runner = new WindowsPackCommandRunner(logger);
-        runner.Pack(options);
+        runner.Run(options).GetAwaiterResult();
 
         var nupkgPath = Path.Combine(tmpReleaseDir, $"{id}-{version}-asd123-win-x64-full.nupkg");
         Assert.True(File.Exists(nupkgPath));
@@ -121,7 +121,7 @@ public class WindowsPackTests
         };
 
         var runner = new WindowsPackCommandRunner(logger);
-        runner.Pack(options);
+        runner.Run(options).GetAwaiterResult();
 
 
         var nupkgPath1 = Path.Combine(tmpReleaseDir, $"{id}-{version}-win-x64-full.nupkg");
@@ -137,7 +137,7 @@ public class WindowsPackTests
         Assert.Equal(1, rel1.Count());
 
         options.Channel = "hello";
-        runner.Pack(options);
+        runner.Run(options).GetAwaiterResult();
 
         var nupkgPath2 = Path.Combine(tmpReleaseDir, $"{id}-{version}-hello-win-x64-full.nupkg");
         Assert.True(File.Exists(nupkgPath2));
@@ -184,9 +184,9 @@ public class WindowsPackTests
         };
 
         var runner = new WindowsPackCommandRunner(logger);
-        runner.Pack(options);
+        runner.Run(options).GetAwaiterResult();
 
-        Assert.Throws<ArgumentException>(() => runner.Pack(options));
+        Assert.Throws<ArgumentException>(() => runner.Run(options).GetAwaiterResult());
     }
 
     [SkippableFact]
@@ -222,10 +222,10 @@ public class WindowsPackTests
         };
 
         var runner = new WindowsPackCommandRunner(logger);
-        runner.Pack(options);
+        runner.Run(options).GetAwaiterResult();
 
         options.TargetRuntime = RID.Parse("win10.0.19043-x86");
-        Assert.Throws<ArgumentException>(() => runner.Pack(options));
+        Assert.Throws<ArgumentException>(() => runner.Run(options).GetAwaiterResult());
     }
 
     [SkippableFact]
@@ -256,7 +256,7 @@ public class WindowsPackTests
         };
 
         var runner = new WindowsPackCommandRunner(logger);
-        Assert.Throws<Exception>(() => runner.Pack(options));
+        Assert.Throws<Exception>(() => runner.Run(options).GetAwaiterResult());
     }
 
     [SkippableFact]
@@ -288,7 +288,7 @@ public class WindowsPackTests
         };
 
         var runner = new WindowsPackCommandRunner(logger);
-        runner.Pack(options);
+        runner.Run(options).GetAwaiterResult();
 
         var setupPath1 = Path.Combine(tmpReleaseDir, $"{id}-win-x64-Setup.exe");
         Assert.True(File.Exists(setupPath1));
@@ -396,11 +396,11 @@ public class WindowsPackTests
 
         // apply delta and check package
         var output = Path.Combine(releaseDir, "delta.patched");
-        new DeltaPatchCommandRunner().Run(new DeltaPatchOptions {
+        new DeltaPatchCommandRunner(logger).Run(new DeltaPatchOptions {
             BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-win-x64-full.nupkg"),
             OutputFile = output,
             PatchFiles = new[] { new FileInfo(deltaPath) },
-        }, logger);
+        }).GetAwaiterResult();
 
         // are the packages the same?
         Assert.True(File.Exists(output));
@@ -762,7 +762,7 @@ public class WindowsPackTests
             };
 
             var runner = new WindowsPackCommandRunner(logger);
-            runner.Pack(options);
+            runner.Run(options).GetAwaiterResult();
         } finally {
             File.WriteAllText(testStringFile, oldText);
         }

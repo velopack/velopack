@@ -137,7 +137,7 @@ namespace Velopack.Compression
                 if (VelopackRuntimeInfo.IsWindows) {
                     MsDeltaCompression.ApplyDelta(inputFile, finalTarget, tempTargetFile);
                 } else {
-                    throw new InvalidOperationException("msdiff is not supported on non-windows platforms.");
+                    throw new PlatformNotSupportedException("msdelta is not supported on non-windows platforms.");
                 }
 
                 verifyPatchedFile(relativeFilePath, inputFile, tempTargetFile);

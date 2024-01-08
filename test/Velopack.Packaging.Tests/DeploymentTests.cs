@@ -139,7 +139,7 @@ This is just a _test_!
                         ReleaseNotes = releaseNotes,
                     };
                     var runner = new WindowsPackCommandRunner(logger);
-                    runner.Pack(options);
+                    runner.Run(options).GetAwaiterResult();
                 } else if (VelopackRuntimeInfo.IsOSX) {
                     var options = new OsxPackOptions {
                         EntryExecutableName = "TestApp",

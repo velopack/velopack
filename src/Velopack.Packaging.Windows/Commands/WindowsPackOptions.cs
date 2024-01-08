@@ -1,6 +1,6 @@
 ﻿namespace Velopack.Packaging.Windows.Commands;
 
-public class WindowsPackOptions : WindowsReleasifyOptions, INugetPackCommand
+public class WindowsPackOptions : WindowsReleasifyOptions, INugetPackCommand, IPackOptions
 {
     public string PackId { get; set; }
 

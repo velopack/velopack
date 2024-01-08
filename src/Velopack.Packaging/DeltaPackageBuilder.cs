@@ -1,4 +1,6 @@
 ﻿using System.IO.MemoryMappedFiles;
+using System.Runtime.ConstrainedExecution;
+using System.Runtime.Intrinsics.Arm;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Velopack.Compression;
@@ -14,7 +16,17 @@ public class DeltaPackageBuilder
         _logger = logger;
     }
 
-    public ReleasePackageBuilder CreateDeltaPackage(ReleasePackageBuilder basePackage, ReleasePackageBuilder newPackage, string outputFile, DeltaMode mode)
+    public class DeltaStats
+    {
+        public int New { get; set; }
+        public int Same { get; set; }
+        public int Changed { get; set; }
+        public int Warnings { get; set; }
+        public int Processed { get; set; }
+        public int Removed { get; set; }
+    }
+
+    public (ReleasePackage package, DeltaStats stats) CreateDeltaPackage(ReleasePackage basePackage, ReleasePackage newPackage, string outputFile, DeltaMode mode, Action<int> progress)
     {
         if (basePackage == null) throw new ArgumentNullException(nameof(basePackage));
         if (newPackage == null) throw new ArgumentNullException(nameof(newPackage));
@@ -40,17 +52,19 @@ public class DeltaPackageBuilder
             throw new InvalidOperationException(message);
         }
 
-        if (basePackage.ReleasePackageFile == null) {
+        if (basePackage.PackageFile == null) {
             throw new ArgumentException("The base package's release file is null", "basePackage");
         }
 
-        if (!File.Exists(basePackage.ReleasePackageFile)) {
-            throw new FileNotFoundException("The base package release does not exist", basePackage.ReleasePackageFile);
+        if (!File.Exists(basePackage.PackageFile)) {
+            throw new FileNotFoundException("The base package release does not exist", basePackage.PackageFile);
         }
 
-        if (!File.Exists(newPackage.ReleasePackageFile)) {
-            throw new FileNotFoundException("The new package release does not exist", newPackage.ReleasePackageFile);
+        if (!File.Exists(newPackage.PackageFile)) {
+            throw new FileNotFoundException("The new package release does not exist", newPackage.PackageFile);
         }
+
+        int fNew = 0, fSame = 0, fChanged = 0, fWarnings = 0, fProcessed = 0, fRemoved = 0;
 
         using (Utility.GetTempDirectory(out var baseTempPath))
         using (Utility.GetTempDirectory(out var tempPath)) {
@@ -61,10 +75,10 @@ public class DeltaPackageBuilder
             int numParallel = Math.Min(Math.Max(Environment.ProcessorCount - 1, 1), 8);
 
             _logger.Info($"Creating delta for {basePackage.Version} -> {newPackage.Version} with {numParallel} parallel threads.");
-            _logger.Debug($"Extracting {Path.GetFileName(basePackage.ReleasePackageFile)} and {Path.GetFileName(newPackage.ReleasePackageFile)} into {tempPath}");
+            _logger.Debug($"Extracting {Path.GetFileName(basePackage.PackageFile)} and {Path.GetFileName(newPackage.PackageFile)} into {tempPath}");
 
-            EasyZip.ExtractZipToDirectory(_logger, basePackage.ReleasePackageFile, baseTempInfo.FullName);
-            EasyZip.ExtractZipToDirectory(_logger, newPackage.ReleasePackageFile, tempInfo.FullName);
+            EasyZip.ExtractZipToDirectory(_logger, basePackage.PackageFile, baseTempInfo.FullName);
+            EasyZip.ExtractZipToDirectory(_logger, newPackage.PackageFile, tempInfo.FullName);
 
             // Collect a list of relative paths under 'lib' and map them
             // to their full name. We'll use this later to determine in
@@ -73,11 +87,8 @@ public class DeltaPackageBuilder
             var baseLibFiles = baseTempInfo.GetAllFilesRecursively()
                 .Where(x => x.FullName.ToLowerInvariant().Contains("lib" + Path.DirectorySeparatorChar))
                 .ToDictionary(k => k.FullName.Replace(baseTempInfo.FullName, ""), v => v.FullName);
-
             var newLibDir = tempInfo.GetDirectories().First(x => x.Name.ToLowerInvariant() == "lib");
             var newLibFiles = newLibDir.GetAllFilesRecursively().ToArray();
-
-            int fNew = 0, fSame = 0, fChanged = 0, fWarnings = 0;
 
             void createDeltaForSingleFile(FileInfo targetFile, DirectoryInfo workingDirectory)
             {
@@ -106,7 +117,7 @@ public class DeltaPackageBuilder
                     if (AreFilesEqualFast(oldFilePath, targetFile.FullName)) {
                         // 2. exists in both, keep it the same
                         _logger.Debug($"{relativePath} hasn't changed, writing dummy file");
-                        File.Create(targetFile.FullName + ".zsdiff").Dispose();
+                        File.Create(targetFile.FullName + ".diff").Dispose();
                         File.Create(targetFile.FullName + ".shasum").Dispose();
                         fSame++;
                     } else {
@@ -129,6 +140,8 @@ public class DeltaPackageBuilder
                     }
                     targetFile.Delete();
                     baseLibFiles.Remove(relativePath);
+                    fProcessed++;
+                    progress(Utility.CalculateProgress((int) ((double) fProcessed / newLibFiles.Length), 0, 70));
                 } catch (Exception ex) {
                     _logger.Debug(ex, String.Format("Failed to create a delta for {0}", targetFile.Name));
                     Utility.DeleteFileOrDirectoryHard(targetFile.FullName + ".bsdiff", throwOnFailure: false);
@@ -139,53 +152,26 @@ public class DeltaPackageBuilder
                 }
             }
 
-            void printProcessed(int cur, int? removed = null)
-            {
-                string rem = removed.HasValue ? removed.Value.ToString("D4") : "????";
-                _logger.Info($"Processed {cur.ToString("D4")}/{newLibFiles.Length.ToString("D4")} files. " +
-                    $"{fChanged.ToString("D4")} patched, {fSame.ToString("D4")} unchanged, {fNew.ToString("D4")} new, {rem} removed");
-            }
-
-            printProcessed(0);
-
-            var tResult = Task.Run(() => {
-                Parallel.ForEach(newLibFiles, new ParallelOptions() { MaxDegreeOfParallelism = numParallel }, (f) => {
-                    Utility.Retry(() => createDeltaForSingleFile(f, tempInfo));
-                });
+            Parallel.ForEach(newLibFiles, new ParallelOptions() { MaxDegreeOfParallelism = numParallel }, (f) => {
+                Utility.Retry(() => createDeltaForSingleFile(f, tempInfo));
             });
 
-            int prevCount = 0;
-            while (!tResult.IsCompleted) {
-                // sleep for 2 seconds (in 100ms intervals)
-                for (int i = 0; i < 20 && !tResult.IsCompleted; i++)
-                    Thread.Sleep(100);
+            EasyZip.CreateZipFromDirectory(_logger, outputFile, tempInfo.FullName, Utility.CreateProgressDelegate(progress, 70, 100));
+            progress(100);
+            fRemoved = baseLibFiles.Count;
 
-                int processed = fNew + fChanged + fSame;
-                if (prevCount == processed) {
-                    // if there has been no progress, do not print another message
-                    continue;
-                }
+            _logger.Info($"Delta processed {fProcessed.ToString("D4")} files. "
+                + $"{fChanged.ToString("D4")} patched, {fSame.ToString("D4")} unchanged, {fNew.ToString("D4")} new, {fRemoved.ToString("D4")} removed");
 
-                if (processed < newLibFiles.Length)
-                    printProcessed(processed);
-                prevCount = processed;
-            }
-
-            if (tResult.Exception != null)
-                throw new Exception("Unable to create delta package.", tResult.Exception);
-
-            printProcessed(newLibFiles.Length, baseLibFiles.Count);
-
-            ReleasePackageBuilder.addDeltaFilesToContentTypes(tempInfo.FullName);
-            EasyZip.CreateZipFromDirectory(_logger, outputFile, tempInfo.FullName);
-
-            _logger.Info(
+            _logger.Debug(
                 $"Successfully created delta package for {basePackage.Version} -> {newPackage.Version}" +
                 (fWarnings > 0 ? $" (with {fWarnings} retries)" : "") +
                 ".");
         }
 
-        return new ReleasePackageBuilder(_logger, outputFile);
+        return (new ReleasePackage(outputFile), new DeltaStats {
+            New = fNew, Same = fSame, Changed = fChanged, Warnings = fWarnings, Processed = fProcessed, Removed = fRemoved,
+        });
     }
 
     public unsafe static bool AreFilesEqualFast(string filePath1, string filePath2)

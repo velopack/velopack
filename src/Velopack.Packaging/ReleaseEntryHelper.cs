@@ -9,6 +9,7 @@ namespace Velopack.Packaging
         private readonly string _outputDir;
         private readonly ILogger _logger;
         private Dictionary<string, List<ReleaseEntry>> _releases;
+        private List<string> _new;
 
         private const string BLANK_CHANNEL = "default";
 
@@ -17,11 +18,12 @@ namespace Velopack.Packaging
             _outputDir = outputDir;
             _logger = logger;
             _releases = new Dictionary<string, List<ReleaseEntry>>(StringComparer.OrdinalIgnoreCase);
+            _new = new List<string>();
             foreach (var releaseFile in Directory.EnumerateFiles(outputDir, "RELEASES*")) {
                 var fn = Path.GetFileName(releaseFile);
                 var channel = fn.StartsWith("RELEASES-", StringComparison.OrdinalIgnoreCase) ? fn.Substring(9) : BLANK_CHANNEL;
                 var releases = ReleaseEntry.ParseReleaseFile(File.ReadAllText(releaseFile)).ToList();
-                _logger.Info($"Loaded {releases.Count} entries from: {releaseFile}");
+                _logger.Debug($"Loaded {releases.Count} entries from: {releaseFile}");
                 // this allows us to collapse RELEASES files with the same channel but different case on file systems
                 // which are case sensitive.
                 if (_releases.ContainsKey(channel)) {
@@ -48,7 +50,7 @@ namespace Velopack.Packaging
             }
         }
 
-        public ReleasePackageBuilder GetPreviousFullRelease(SemanticVersion version, string channel)
+        public ReleasePackage GetPreviousFullRelease(SemanticVersion version, string channel)
         {
             channel ??= GetDefaultChannel(VelopackRuntimeInfo.SystemOs);
             var releases = _releases.ContainsKey(channel) ? _releases[channel] : null;
@@ -60,7 +62,7 @@ namespace Velopack.Packaging
                 .FirstOrDefault();
             if (entry == null) return null;
             var file = Path.Combine(_outputDir, entry.OriginalFilename);
-            return new ReleasePackageBuilder(_logger, file, true);
+            return new ReleasePackage(file);
         }
 
         public ReleaseEntry GetLatestFullRelease(string channel)
@@ -98,7 +100,15 @@ namespace Velopack.Packaging
                 _releases[channel].Remove(collision);
             }
 
+            _new.Add(nupkgPath);
             _releases[channel].Add(newReleaseEntry);
+        }
+
+        public void RollbackNewReleases()
+        {
+            foreach (var n in _new) {
+                Utility.Retry(() => File.Delete(n));
+            }
         }
 
         public void SaveReleasesFiles()
@@ -111,7 +121,7 @@ namespace Velopack.Packaging
                 var path = GetReleasePath(ch.Key);
                 using var fs = File.Create(path);
                 ReleaseEntry.WriteReleaseFile(ch.Value, fs);
-                _logger.Info("Wrote RELEASES file: " + path);
+                _logger.Debug("Wrote RELEASES file: " + path);
             }
         }
 

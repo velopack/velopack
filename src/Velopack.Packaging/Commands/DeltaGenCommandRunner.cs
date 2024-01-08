@@ -4,12 +4,19 @@ namespace Velopack.Packaging.Commands
 {
     public class DeltaGenCommandRunner : ICommand<DeltaGenOptions>
     {
-        public Task Run(DeltaGenOptions options, ILogger logger)
+        private readonly ILogger _logger;
+
+        public DeltaGenCommandRunner(ILogger logger)
         {
-            var pold = new ReleasePackageBuilder(logger, options.BasePackage);
-            var pnew = new ReleasePackageBuilder(logger, options.NewPackage);
-            var delta = new DeltaPackageBuilder(logger);
-            delta.CreateDeltaPackage(pnew, pold, options.OutputFile, options.DeltaMode);
+            _logger = logger;
+        }
+
+        public Task Run(DeltaGenOptions options)
+        {
+            var pold = new ReleasePackage(options.BasePackage);
+            var pnew = new ReleasePackage(options.NewPackage);
+            var delta = new DeltaPackageBuilder(_logger);
+            delta.CreateDeltaPackage(pnew, pold, options.OutputFile, options.DeltaMode, (x) => { });
             return Task.CompletedTask;
         }
     }

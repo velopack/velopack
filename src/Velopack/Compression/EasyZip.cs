@@ -13,7 +13,7 @@ namespace Velopack.Compression
     {
         public static void ExtractZipToDirectory(ILogger logger, string inputFile, string outputDirectory)
         {
-            logger.Info($"Extracting '{inputFile}' to '{outputDirectory}' using System.IO.Compression...");
+            logger.Debug($"Extracting '{inputFile}' to '{outputDirectory}' using System.IO.Compression...");
             Utility.DeleteFileOrDirectoryHard(outputDirectory);
             ZipFile.ExtractToDirectory(inputFile, outputDirectory);
         }
@@ -21,7 +21,7 @@ namespace Velopack.Compression
         public static void CreateZipFromDirectory(ILogger logger, string outputFile, string directoryToCompress, Action<int> progress = null)
         {
             progress ??= (x => { });
-            logger.Info($"Compressing '{directoryToCompress}' to '{outputFile}' using System.IO.Compression...");
+            logger.Debug($"Compressing '{directoryToCompress}' to '{outputFile}' using System.IO.Compression...");
 
             // we have stopped using ZipFile so we can add async and determinism.
             // ZipFile.CreateFromDirectory(directoryToCompress, outputFile);
@@ -31,7 +31,7 @@ namespace Velopack.Compression
         public static async Task CreateZipFromDirectoryAsync(ILogger logger, string outputFile, string directoryToCompress, Action<int> progress = null)
         {
             progress ??= (x => { });
-            logger.Info($"Compressing '{directoryToCompress}' to '{outputFile}' using System.IO.Compression...");
+            logger.Debug($"Compressing '{directoryToCompress}' to '{outputFile}' using System.IO.Compression...");
 
             // we have stopped using ZipFile so we can add async and determinism.
             // ZipFile.CreateFromDirectory(directoryToCompress, outputFile);

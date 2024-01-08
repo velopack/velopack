@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
+using Serilog.Sinks.Spectre;
 using Velopack.Vpk.Commands;
 using Velopack.Vpk.Compat;
 
@@ -42,7 +43,7 @@ public class Program
             .MinimumLevel.Is(minLevel)
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
             .MinimumLevel.Override("System", LogEventLevel.Warning)
-            .WriteTo.Console()
+            .WriteTo.SpectreShortenedExceptions()
             .CreateLogger();
         builder.Logging.AddSerilog();
 

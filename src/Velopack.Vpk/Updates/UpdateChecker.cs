@@ -17,11 +17,17 @@ public class UpdateChecker
             var cancel = new CancellationTokenSource(3000);
             var myVer = VelopackRuntimeInfo.VelopackNugetVersion;
             var dl = new NugetDownloader(new NullNugetLogger());
-            var package = await dl.GetPackageMetadata("vpk", (myVer.IsPrerelease || myVer.HasMetadata) ? "pre" : "latest", cancel.Token).ConfigureAwait(false);
-            if (package.Identity.Version > myVer)
-                _logger.Warn($"There is a newer version of vpk available ({package.Identity.Version})");
-            else
+            var isPre = myVer.IsPrerelease || myVer.HasMetadata;
+            var package = await dl.GetPackageMetadata("vpk", isPre ? "pre" : "latest", cancel.Token).ConfigureAwait(false);
+            if (package.Identity.Version > myVer) {
+                if (isPre) {
+                    _logger.Warn($"There is a newer version of vpk available ({package.Identity.Version}). Run 'dotnet tool update -g vpk'");
+                } else {
+                    _logger.Warn($"There is a newer version of vpk available. Run 'dotnet tool update -g vpk --version {package.Identity.Version}'");
+                }
+            } else {
                 _logger.Debug($"vpk is up to date (latest online = {package.Identity.Version})");
+            }
         } catch (Exception ex) {
             _logger.Debug(ex, "Failed to check for updates.");
         }

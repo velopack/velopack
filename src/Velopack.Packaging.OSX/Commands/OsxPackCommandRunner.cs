@@ -79,19 +79,19 @@ public class OsxPackCommandRunner
         var nuget = new NugetConsole(_logger);
         var nupkgPath = nuget.CreatePackageFromNuspecPath(tmp, appBundlePath, nuspecPath);
 
-        var rp = new ReleasePackageBuilder(_logger, nupkgPath);
-        var suggestedName = new ReleaseEntryName(packId, SemanticVersion.Parse(packVersion), false, options.TargetRuntime).ToFileName();
-        var newPkgPath = rp.CreateReleasePackage((i, pkg) => Path.Combine(releaseDir.FullName, suggestedName));
-        entryHelper.AddNewRelease(newPkgPath, channel);
+        //var rp = new ReleasePackage(nupkgPath);
+        //var suggestedName = new ReleaseEntryName(packId, SemanticVersion.Parse(packVersion), false, options.TargetRuntime).ToFileName();
+        //var newPkgPath = rp.CreateReleasePackage((i, pkg) => Path.Combine(releaseDir.FullName, suggestedName));
+        //entryHelper.AddNewRelease(newPkgPath, channel);
 
-        var prev = entryHelper.GetPreviousFullRelease(rp.Version, channel);
-        if (prev != null && options.DeltaMode != DeltaMode.None) {
-            _logger.Info("Creating Delta Packages");
-            var deltaBuilder = new DeltaPackageBuilder(_logger);
-            var deltaFile = rp.ReleasePackageFile.Replace("-full", "-delta");
-            var dp = deltaBuilder.CreateDeltaPackage(prev, rp, deltaFile, options.DeltaMode);
-            entryHelper.AddNewRelease(deltaFile, channel);
-        }
+        //var prev = entryHelper.GetPreviousFullRelease(rp.Version, channel);
+        //if (prev != null && options.DeltaMode != DeltaMode.None) {
+        //    _logger.Info("Creating Delta Packages");
+        //    var deltaBuilder = new DeltaPackageBuilder(_logger);
+        //    var deltaFile = rp.ReleasePackageFile.Replace("-full", "-delta");
+        //    var dp = deltaBuilder.CreateDeltaPackage(prev, rp, deltaFile, options.DeltaMode);
+        //    entryHelper.AddNewRelease(deltaFile, channel);
+        //}
 
         _logger.Info("Updating RELEASES files");
         entryHelper.SaveReleasesFiles();

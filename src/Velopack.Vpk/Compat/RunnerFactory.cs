@@ -21,7 +21,11 @@ public class RunnerFactory
         _logger.LogInformation(Program.INTRO);
         var runner = await CreateAsync(options);
         var method = typeof(ICommandRunner).GetMethod(commandName);
-        await (Task) method.Invoke(runner, new object[] { options });
+        try {
+            await (Task) method.Invoke(runner, new object[] { options });
+        } catch (Exception ex) {
+            _logger.Error(ex, $"Command {commandName} failed.");
+        }
     }
 
     private async Task<ICommandRunner> CreateAsync<T>(T options)

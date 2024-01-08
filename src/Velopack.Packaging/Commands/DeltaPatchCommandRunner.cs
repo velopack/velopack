@@ -5,7 +5,14 @@ namespace Velopack.Packaging.Commands
 {
     public class DeltaPatchCommandRunner : ICommand<DeltaPatchOptions>
     {
-        public Task Run(DeltaPatchOptions options, ILogger logger)
+        private readonly ILogger _logger;
+
+        public DeltaPatchCommandRunner(ILogger logger)
+        {
+            _logger = logger;
+        }
+
+        public Task Run(DeltaPatchOptions options)
         {
             if (options.PatchFiles.Length == 0) {
                 throw new ArgumentException("Must specify at least one patch file.");
@@ -17,7 +24,7 @@ namespace Velopack.Packaging.Commands
 
             var tmp = Utility.GetDefaultTempBaseDirectory();
             using var _1 = Utility.GetTempDirectory(out var workDir);
-            var helper = new HelperFile(logger);
+            var helper = new HelperFile(_logger);
 
             string updateExe;
             if (VelopackRuntimeInfo.IsWindows)
@@ -27,15 +34,15 @@ namespace Velopack.Packaging.Commands
             else
                 throw new NotSupportedException("This platform is not supported.");
 
-            var delta = new DeltaPackage(logger, tmp, updateExe);
-            EasyZip.ExtractZipToDirectory(logger, options.BasePackage, workDir);
+            var delta = new DeltaPackage(_logger, tmp, updateExe);
+            EasyZip.ExtractZipToDirectory(_logger, options.BasePackage, workDir);
 
             foreach (var f in options.PatchFiles) {
-                logger.Info($"Applying delta patch {f.Name}");
+                _logger.Info($"Applying delta patch {f.Name}");
                 delta.ApplyDeltaPackageFast(workDir, f.FullName);
             }
 
-            EasyZip.CreateZipFromDirectory(logger, options.OutputFile, workDir);
+            EasyZip.CreateZipFromDirectory(_logger, options.OutputFile, workDir);
 
             return Task.CompletedTask;
         }

@@ -14,7 +14,7 @@ public class HelperExe : HelperFile
 
     public string SetupPath => FindHelperFile("Setup.exe");
 
-    public string StubExecutablePath => FindHelperFile("StubExecutable.exe");
+    public string StubExecutablePath => FindHelperFile("stub.exe");
 
     private string SignToolPath => FindHelperFile("signtool.exe");
 
@@ -115,7 +115,7 @@ public class HelperExe : HelperFile
     [SupportedOSPlatform("windows")]
     public void SetExeIcon(string exePath, string iconPath)
     {
-        Log.Info("Updating PE icon for: " + exePath);
+        Log.Debug("Updating PE icon for: " + exePath);
         var args = new[] { Path.GetFullPath(exePath), "--set-icon", iconPath };
         Utility.Retry(() => InvokeAndThrowIfNonZero(RceditPath, args, null));
     }
@@ -123,7 +123,7 @@ public class HelperExe : HelperFile
     [SupportedOSPlatform("windows")]
     public void SetPEVersionBlockFromPackageInfo(string exePath, NuGet.IPackage package, string iconPath = null)
     {
-        Log.Info("Updating StringTable resources for: " + exePath);
+        Log.Debug("Updating StringTable resources for: " + exePath);
         var realExePath = Path.GetFullPath(exePath);
 
         List<string> args = new List<string>() {

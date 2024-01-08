@@ -38,6 +38,13 @@ namespace Velopack
             return (int) totalPercentage;
         }
 
+        public static Action<int> CreateProgressDelegate(Action<int> rootProgress, int stepStartPercentage, int stepEndPercentage)
+        {
+            return percentage => {
+                rootProgress(CalculateProgress(percentage, stepStartPercentage, stepEndPercentage));
+            };
+        }
+
         public static string RemoveByteOrderMarkerIfPresent(string content)
         {
             return string.IsNullOrEmpty(content)
