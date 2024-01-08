@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Velopack.Locators;
 using Velopack.NuGet;
 
@@ -57,8 +58,8 @@ namespace Velopack.Windows
         /// <inheritdoc cref="Shortcuts"/>
         public Shortcuts(ILogger logger = null, IVelopackLocator locator = null)
         {
-            Log = logger;
-            Locator = locator;
+            Log = logger ?? NullLogger.Instance;
+            Locator = locator ?? VelopackLocator.GetDefault(Log);
         }
 
         /// <summary>
