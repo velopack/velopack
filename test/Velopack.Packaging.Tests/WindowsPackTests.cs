@@ -61,7 +61,7 @@ public class WindowsPackTests
         var nupkgPath = Path.Combine(tmpReleaseDir, $"{id}-{version}-asd123-win-x64-full.nupkg");
         Assert.True(File.Exists(nupkgPath));
 
-        var setupPath = Path.Combine(tmpReleaseDir, $"{id}-[win-x64]-asd123-Setup.exe");
+        var setupPath = Path.Combine(tmpReleaseDir, $"{id}-win-x64-asd123-Setup.exe");
         Assert.True(File.Exists(setupPath));
 
         var releasesPath = Path.Combine(tmpReleaseDir, $"RELEASES-asd123");
@@ -127,7 +127,7 @@ public class WindowsPackTests
         var nupkgPath1 = Path.Combine(tmpReleaseDir, $"{id}-{version}-win-x64-full.nupkg");
         Assert.True(File.Exists(nupkgPath1));
 
-        var setupPath1 = Path.Combine(tmpReleaseDir, $"{id}-[win-x64]-Setup.exe");
+        var setupPath1 = Path.Combine(tmpReleaseDir, $"{id}-win-x64-Setup.exe");
         Assert.True(File.Exists(setupPath1));
 
         var releasesPath1 = Path.Combine(tmpReleaseDir, $"RELEASES");
@@ -142,7 +142,7 @@ public class WindowsPackTests
         var nupkgPath2 = Path.Combine(tmpReleaseDir, $"{id}-{version}-hello-win-x64-full.nupkg");
         Assert.True(File.Exists(nupkgPath2));
 
-        var setupPath2 = Path.Combine(tmpReleaseDir, $"{id}-[win-x64]-hello-Setup.exe");
+        var setupPath2 = Path.Combine(tmpReleaseDir, $"{id}-win-x64-hello-Setup.exe");
         Assert.True(File.Exists(setupPath2));
 
         var releasesPath2 = Path.Combine(tmpReleaseDir, $"RELEASES-hello");
@@ -290,7 +290,7 @@ public class WindowsPackTests
         var runner = new WindowsPackCommandRunner(logger);
         runner.Pack(options);
 
-        var setupPath1 = Path.Combine(tmpReleaseDir, $"{id}-[win-x64]-Setup.exe");
+        var setupPath1 = Path.Combine(tmpReleaseDir, $"{id}-win-x64-Setup.exe");
         Assert.True(File.Exists(setupPath1));
 
         RunNoCoverage(setupPath1, new[] { "--nocolor", "--silent", "--installto", tmpInstallDir }, Environment.CurrentDirectory, logger);
@@ -351,7 +351,7 @@ public class WindowsPackTests
         PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
 
         // install app
-        var setupPath1 = Path.Combine(releaseDir, $"{id}-[win-x64]-Setup.exe");
+        var setupPath1 = Path.Combine(releaseDir, $"{id}-win-x64-Setup.exe");
         RunNoCoverage(setupPath1, new string[] { "--nocolor", "--silent", "--installto", installDir },
             Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
 
@@ -425,7 +425,7 @@ public class WindowsPackTests
         PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
 
         // install app
-        var setupPath1 = Path.Combine(releaseDir, $"{id}-[win-x64]-Setup.exe");
+        var setupPath1 = Path.Combine(releaseDir, $"{id}-win-x64-Setup.exe");
         RunNoCoverage(setupPath1, new string[] { "--nocolor", "--installto", installDir },
             Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
 
@@ -474,7 +474,7 @@ public class WindowsPackTests
         PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
 
         // install app
-        var setupPath1 = Path.Combine(releaseDir, $"{id}-[win-x64]-Setup.exe");
+        var setupPath1 = Path.Combine(releaseDir, $"{id}-win-x64-Setup.exe");
         RunNoCoverage(setupPath1, new string[] { "--nocolor", "--silent", "--installto", installDir },
             Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
 
