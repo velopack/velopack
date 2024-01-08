@@ -135,6 +135,9 @@ namespace Velopack.Windows
             var pkgPath = Path.Combine(pkgDir, release.OriginalFilename);
             var zf = new ZipPackage(pkgPath);
             var exePath = Path.Combine(currentDir, relativeExeName);
+            if (!File.Exists(exePath))
+                throw new FileNotFoundException($"Could not find: {exePath}");
+
             var fileVerInfo = FileVersionInfo.GetVersionInfo(exePath);
 
             foreach (var f in (ShortcutLocation[]) Enum.GetValues(typeof(ShortcutLocation))) {
@@ -158,7 +161,7 @@ namespace Velopack.Windows
                 Utility.Retry(() => {
                     File.Delete(file);
 
-                    var target = Path.Combine(rootAppDirectory, relativeExeName);
+                    var target = Path.Combine(currentDir, relativeExeName);
                     sl = new ShellLink {
                         Target = target,
                         IconPath = icon ?? target,

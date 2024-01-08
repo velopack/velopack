@@ -24,12 +24,14 @@ namespace Velopack.Tests
             using var logger = _output.BuildLoggerFor<ShortcutTests>();
             string exeName = "NotSquirrelAwareApp.exe";
 
-            using var _1 = Utility.GetTempDirectory(out var pkgDir);
-            using var _2 = Utility.GetTempDirectory(out var appDir);
-            PathHelper.CopyFixtureTo("AvaloniaCrossPlat-1.0.15-win-full.nupkg", pkgDir);
-            PathHelper.CopyFixtureTo(exeName, appDir);
+            using var _1 = Utility.GetTempDirectory(out var rootDir);
+            var packages = Directory.CreateDirectory(Path.Combine(rootDir, "packages"));
+            var current = Directory.CreateDirectory(Path.Combine(rootDir, "current"));
 
-            var locator = new TestVelopackLocator("AvaloniaCrossPlat", "1.0.0", pkgDir, appDir, appDir, null, logger);
+            PathHelper.CopyFixtureTo("AvaloniaCrossPlat-1.0.15-win-full.nupkg", packages.FullName);
+            PathHelper.CopyFixtureTo(exeName, current.FullName);
+
+            var locator = new TestVelopackLocator("AvaloniaCrossPlat", "1.0.0", packages.FullName, current.FullName, rootDir, null, logger);
             var sh = new Shortcuts(logger, locator);
             var flag = ShortcutLocation.StartMenuRoot | ShortcutLocation.Desktop;
             sh.DeleteShortcuts(exeName, flag);
@@ -44,8 +46,11 @@ namespace Velopack.Tests
             var start = shortcuts[ShortcutLocation.StartMenuRoot];
             var desktop = shortcuts[ShortcutLocation.Desktop];
 
+            var target = Path.Combine(current.FullName, exeName);
             Assert.Equal(Path.Combine(startDir, lnkName), start.ShortCutFile);
+            Assert.Equal(target, start.Target);
             Assert.Equal(Path.Combine(desktopDir, lnkName), desktop.ShortCutFile);
+            Assert.Equal(target, desktop.Target);
 
             sh.DeleteShortcuts(exeName, flag);
             var after = sh.FindShortcuts(exeName, flag);
