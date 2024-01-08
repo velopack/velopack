@@ -7,6 +7,5 @@ public interface INugetPackCommand
     string PackDirectory { get; }
     string PackAuthors { get; }
     string PackTitle { get; }
-    bool IncludePdb { get; }
     string ReleaseNotes { get; }
 }

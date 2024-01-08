@@ -47,7 +47,7 @@ public class OsxPackCommandRunner
 
         _logger.Info("Adding Squirrel resources to bundle.");
         var nuspecText = NugetConsole.CreateNuspec(
-            packId, packTitle, packAuthors, packVersion, options.ReleaseNotes, options.IncludePdb);
+            packId, packTitle, packAuthors, packVersion, options.ReleaseNotes);
         var nuspecPath = Path.Combine(structure.MacosDirectory, Utility.SpecVersionFileName);
 
         // nuspec and UpdateMac need to be in contents dir or this package can't update
@@ -77,7 +77,7 @@ public class OsxPackCommandRunner
         _logger.Info("Creating Release");
         using var _ = Utility.GetTempDirectory(out var tmp);
         var nuget = new NugetConsole(_logger);
-        var nupkgPath = nuget.CreatePackageFromNuspecPath(tmp, appBundlePath, nuspecPath);
+        //var nupkgPath = nuget.CreatePackageFromNuspecPath(tmp, appBundlePath, nuspecPath);
 
         //var rp = new ReleasePackage(nupkgPath);
         //var suggestedName = new ReleaseEntryName(packId, SemanticVersion.Parse(packVersion), false, options.TargetRuntime).ToFileName();

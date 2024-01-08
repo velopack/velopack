@@ -4,8 +4,6 @@ public class OsxPackOptions : OsxBundleOptions
 {
     public RID TargetRuntime { get; set; }
 
-    public bool IncludePdb { get; set; }
-
     public string ReleaseNotes { get; set; }
 
     public DeltaMode DeltaMode { get; set; } = DeltaMode.BestSpeed;

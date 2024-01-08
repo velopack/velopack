@@ -13,7 +13,6 @@
 
   <ItemGroup>
     <PackageReference Include="System.Linq.Async" Version="6.0.1" />
-    <PackageReference Include="NuGet.Commands" Version="6.8.0" />
     <PackageReference Include="Spectre.Console" Version="0.48.0" />
   </ItemGroup>
 

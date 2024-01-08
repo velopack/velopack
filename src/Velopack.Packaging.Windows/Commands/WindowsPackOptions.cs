@@ -12,7 +12,5 @@ public class WindowsPackOptions : WindowsReleasifyOptions, INugetPackCommand, IP
 
     public string PackTitle { get; set; }
 
-    public bool IncludePdb { get; set; }
-
     public string ReleaseNotes { get; set; }
 }

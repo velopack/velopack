@@ -51,7 +51,6 @@ public class WindowsPackTests
             PackAuthors = "author",
             PackTitle = "Test Squirrel App",
             PackDirectory = tmpOutput,
-            IncludePdb = true,
             Channel = "asd123"
         };
 
@@ -86,7 +85,7 @@ public class WindowsPackTests
 
         // check for other files
         Assert.True(File.Exists(Path.Combine(unzipDir, "lib", "app", Path.GetFileName(exe))));
-        Assert.True(File.Exists(Path.Combine(unzipDir, "lib", "app", Path.GetFileName(pdb))));
+        Assert.False(File.Exists(Path.Combine(unzipDir, "lib", "app", Path.GetFileName(pdb))));
     }
 
     [SkippableFact]
@@ -117,7 +116,6 @@ public class WindowsPackTests
             PackAuthors = "author",
             PackTitle = "Test Squirrel App",
             PackDirectory = tmpOutput,
-            IncludePdb = true,
         };
 
         var runner = new WindowsPackCommandRunner(logger);
@@ -218,7 +216,6 @@ public class WindowsPackTests
             PackTitle = "Test Squirrel App",
             PackDirectory = tmpOutput,
             Channel = "hello",
-            IncludePdb = true,
         };
 
         var runner = new WindowsPackCommandRunner(logger);

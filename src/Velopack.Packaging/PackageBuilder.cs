@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using System.Xml;
@@ -31,6 +33,8 @@ namespace Velopack.Packaging
         protected DirectoryInfo TempDir { get; private set; }
 
         protected T Options { get; private set; }
+
+        private readonly Regex REGEX_EXCLUDES = new Regex(@".*[\\\/]createdump.*|.*\.vshost\..*|.*\.nupkg$|.*\.pdb$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         public PackageBuilder(RuntimeOs supportedOs, ILogger logger)
         {
@@ -65,7 +69,7 @@ namespace Velopack.Packaging
 
             var prev = entryHelper.GetPreviousFullRelease(NuGetVersion.Parse(packVersion), channel);
             var nuspecText = NugetConsole.CreateNuspec(
-                packId, packTitle, packAuthors, packVersion, options.ReleaseNotes, options.IncludePdb);
+                packId, packTitle, packAuthors, packVersion, options.ReleaseNotes);
 
             using var _1 = Utility.GetTempDirectory(out var pkgTempDir);
             TempDir = new DirectoryInfo(pkgTempDir);
@@ -174,7 +178,7 @@ namespace Velopack.Packaging
         protected virtual Task<string> PreprocessPackDir(Action<int> progress, string packDir, string nuspecText)
         {
             var dir = TempDir.CreateSubdirectory("PreprocessPackDir");
-            CopyFiles(new DirectoryInfo(packDir), dir, progress);
+            CopyFiles(new DirectoryInfo(packDir), dir, progress, true);
             File.WriteAllText(Path.Combine(dir.FullName, "sq.version"), nuspecText);
             return Task.FromResult(packDir);
         }
@@ -208,16 +212,16 @@ namespace Velopack.Packaging
 
             var nuspecPath = Path.Combine(stagingDir.FullName, Options.PackId + ".nuspec");
             File.WriteAllText(nuspecPath, nuspecText);
-            ProcessNuspecFile(nuspecPath, packDir);
-            progress(10);
 
             var appDir = stagingDir.CreateSubdirectory("lib").CreateSubdirectory("app");
-            CopyFiles(new DirectoryInfo(packDir), appDir, Utility.CreateProgressDelegate(progress, 10, 30));
+            CopyFiles(new DirectoryInfo(packDir), appDir, Utility.CreateProgressDelegate(progress, 0, 30));
 
             var metadataFiles = GetReleaseMetadataFiles();
             foreach (var kvp in metadataFiles) {
                 File.Copy(kvp.Value, Path.Combine(stagingDir.FullName, kvp.Key), true);
             }
+
+            ProcessNuspecFile(nuspecPath, packDir);
 
             await EasyZip.CreateZipFromDirectoryAsync(Log, outputPath, stagingDir.FullName, Utility.CreateProgressDelegate(progress, 30, 100));
             progress(100);
@@ -230,12 +234,11 @@ namespace Velopack.Packaging
 
         protected virtual void ProcessNuspecFile(string nuspecFilePath, string packDir)
         {
-            //RemoveDependenciesFromPackageSpec(nuspecFilePath);
-            //AddDeltaFilesToContentTypes(nuspecFilePath);
+            AddContentTypesAndRel(nuspecFilePath);
             RenderReleaseNotesMarkdown(nuspecFilePath);
         }
 
-        protected virtual void CopyFiles(DirectoryInfo source, DirectoryInfo target, Action<int> progress)
+        protected virtual void CopyFiles(DirectoryInfo source, DirectoryInfo target, Action<int> progress, bool excludeAnnoyances = false)
         {
             var numFiles = source.EnumerateFiles("*", SearchOption.AllDirectories).Count();
             int currentFile = 0;
@@ -244,9 +247,13 @@ namespace Velopack.Packaging
             {
                 foreach (var fileInfo in source.GetFiles()) {
                     var path = Path.Combine(target.FullName, fileInfo.Name);
-                    fileInfo.CopyTo(path, true);
                     currentFile++;
                     progress((int) ((double) currentFile / numFiles * 100));
+                    if (excludeAnnoyances && REGEX_EXCLUDES.IsMatch(path)) {
+                        Log.Debug("Skipping because matched exclude pattern: " + path);
+                        continue;
+                    }
+                    fileInfo.CopyTo(path, true);
                 }
 
                 foreach (var sourceSubDir in source.GetDirectories()) {
@@ -284,32 +291,35 @@ namespace Velopack.Packaging
             doc.Save(specPath);
         }
 
-        protected virtual void RemoveDependenciesFromPackageSpec(string specPath)
+        protected virtual void AddContentTypesAndRel(string nuspecPath)
         {
-            var xdoc = new XmlDocument();
-            xdoc.Load(specPath);
+            var rootDirectory = Path.GetDirectoryName(nuspecPath);
+            var extensions = Directory.EnumerateFiles(rootDirectory, "*", SearchOption.AllDirectories)
+                .Select(p => Path.GetExtension(p).TrimStart('.').ToLower())
+                .Distinct()
+                .Select(ext => $"""  <Default Extension="{ext}" ContentType="application/octet" />""")
+                .ToArray();
 
-            var metadata = xdoc.DocumentElement.FirstChild;
-            var dependenciesNode = metadata.ChildNodes.OfType<XmlElement>().FirstOrDefault(x => x.Name.ToLowerInvariant() == "dependencies");
-            if (dependenciesNode != null) {
-                metadata.RemoveChild(dependenciesNode);
-            }
+            var contentType = $"""
+<?xml version="1.0" encoding="utf-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml" />
+{String.Join(Environment.NewLine, extensions)}
+</Types>
+""";
 
-            xdoc.Save(specPath);
-        }
+            File.WriteAllText(Path.Combine(rootDirectory, "[Content_Types].xml"), contentType);
 
-        protected virtual void AddDeltaFilesToContentTypes(string rootDirectory)
-        {
-            var doc = new XmlDocument();
-            var path = Path.Combine(rootDirectory, ContentType.ContentTypeFileName);
-            doc.Load(path);
+            var relsDir = Path.Combine(rootDirectory, "_rels");
+            Directory.CreateDirectory(relsDir);
 
-            ContentType.Merge(doc);
-            ContentType.Clean(doc);
-
-            using (var sw = new StreamWriter(path, false, Encoding.UTF8)) {
-                doc.Save(sw);
-            }
+            var rels = $"""
+<?xml version="1.0" encoding="utf-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Type="http://schemas.microsoft.com/packaging/2010/07/manifest" Target="/{Path.GetFileName(nuspecPath)}" Id="R1" />
+</Relationships>
+""";
+            File.WriteAllText(Path.Combine(relsDir, ".rels"), rels);
         }
     }
 }
