@@ -50,7 +50,7 @@ public class OsxBundleCommandRunner
             CFBundleIconFile = Path.GetFileName(icon),
         };
 
-        _logger.Info("Creating '.app' directory structure");
+        _logger.Debug("Creating '.app' directory structure");
         var builder = new StructureBuilder(packId, releaseDir.FullName);
         if (Directory.Exists(builder.AppDirectory)) {
             _logger.Warn(builder.AppDirectory + " already exists, deleting...");
@@ -59,17 +59,17 @@ public class OsxBundleCommandRunner
 
         builder.Build();
 
-        _logger.Info("Writing Info.plist");
+        _logger.Debug("Writing Info.plist");
         var plist = new PlistWriter(_logger, info, builder.ContentsDirectory);
         plist.Write();
 
-        _logger.Info("Copying resources into new '.app' bundle");
+        _logger.Debug("Copying resources into new '.app' bundle");
         File.Copy(icon, Path.Combine(builder.ResourcesDirectory, Path.GetFileName(icon)));
 
-        _logger.Info("Copying application files into new '.app' bundle");
+        _logger.Debug("Copying application files into new '.app' bundle");
         Utility.CopyFiles(new DirectoryInfo(packDirectory), new DirectoryInfo(builder.MacosDirectory));
 
-        _logger.Info("Bundle created successfully: " + builder.AppDirectory);
+        _logger.Debug("Bundle created successfully: " + builder.AppDirectory);
 
         return builder.AppDirectory;
     }

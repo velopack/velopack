@@ -100,7 +100,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         return File.ReadAllText(tmpPath);
     }
 
-    protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string targetSetupExe)
+    protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe)
     {
         var helper = new HelperExe(Log);
         var bundledzp = new ZipPackage(releasePkg);

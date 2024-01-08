@@ -136,7 +136,7 @@ namespace Velopack.Packaging
                             var incomplete = suggestedSetup + ".incomplete";
                             if (File.Exists(incomplete)) File.Delete(incomplete);
                             filesToCopy.Add((incomplete, suggestedSetup));
-                            await CreateSetupPackage((p) => taskSetup.Value = p, releasePath, incomplete);
+                            await CreateSetupPackage((p) => taskSetup.Value = p, releasePath, packDirectory, incomplete);
                             taskSetup.StopTask();
                             Log.Info("[bold]Complete: Create setup package[/]");
                         });
@@ -226,7 +226,7 @@ namespace Velopack.Packaging
             return Task.FromResult(dp.PackageFile);
         }
 
-        protected virtual Task CreateSetupPackage(Action<int> progress, string releasePkg, string outputPath)
+        protected virtual Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string outputPath)
         {
             return Task.CompletedTask;
         }

@@ -61,8 +61,7 @@ public class EmbeddedRunner : ICommandRunner
             SigningEntitlements = command.SigningEntitlements,
             SigningInstallIdentity = command.SigningInstallIdentity,
         };
-        new OsxPackCommandRunner(_logger).Pack(options);
-        return Task.CompletedTask;
+        return new OsxPackCommandRunner(_logger).Run(options);
     }
 
     public virtual Task ExecutePackWindows(WindowsPackCommand command)

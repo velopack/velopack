@@ -152,7 +152,7 @@ This is just a _test_!
                         ReleaseNotes = releaseNotes,
                     };
                     var runner = new OsxPackCommandRunner(logger);
-                    runner.Pack(options);
+                    runner.Run(options).GetAwaiterResult();
                 } else {
                     throw new PlatformNotSupportedException();
                 }
