@@ -145,6 +145,7 @@ namespace Velopack
                 IsSingleFile = true;
 
             // get git/nuget version from nbgv metadata
+#pragma warning disable CS0162
             if (ThisAssembly.IsPublicRelease) {
                 VelopackNugetVersion = NuGetVersion.Parse(NuGetVersion.Parse(ThisAssembly.AssemblyInformationalVersion).ToNormalizedString());
             } else {
@@ -154,6 +155,7 @@ namespace Velopack
                 }
             }
             VelopackDisplayVersion = VelopackNugetVersion.ToNormalizedString() + (VelopackNugetVersion.IsPrerelease ? " (prerelease)" : "");
+#pragma warning restore CS0612
 
             // get real cpu architecture, even when virtualised by Wow64
 #if NETFRAMEWORK
