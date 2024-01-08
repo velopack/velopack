@@ -32,6 +32,22 @@ public static class PathHelper
     public static string GetRustAsset(params string[] names)
         => Path.Combine(new string[] { GetRustBuildOutputDir() }.Concat(names).ToArray());
 
+    public static string CopyRustAssetTo(string assetName, string dir)
+    {
+        var path = GetRustAsset(assetName);
+        var newPath = Path.Combine(dir, assetName);
+        File.Copy(path, newPath);
+        return newPath;
+    }
+
+    public static string CopyFixtureTo(string fixtureName, string dir)
+    {
+        var path = GetFixture(fixtureName);
+        var newPath = Path.Combine(dir, fixtureName);
+        File.Copy(path, newPath);
+        return newPath;
+    }
+
     public static string CopyUpdateTo(string dir)
     {
         var updateName = "update.exe";

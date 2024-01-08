@@ -51,11 +51,11 @@ namespace Velopack.Windows
         /// <summary> Log for diagnostic messages. </summary>
         protected ILogger Log { get; }
 
-        /// <summary> Locator to use for finding important application paths </summary>
+        /// <summary> Locator to use for finding important application paths. </summary>
         protected IVelopackLocator Locator { get; }
 
         /// <inheritdoc cref="Shortcuts"/>
-        public Shortcuts(ILogger logger, IVelopackLocator locator)
+        public Shortcuts(ILogger logger = null, IVelopackLocator locator = null)
         {
             Log = logger;
             Locator = locator;
@@ -70,7 +70,7 @@ namespace Velopack.Windows
             CreateShortcut(
                 Locator.ThisExeRelativePath,
                 location,
-                Environment.CommandLine.Contains("squirrel-install") == false,
+                false,
                 null,  // shortcut arguments 
                 null); // shortcut icon
         }
@@ -96,7 +96,6 @@ namespace Velopack.Windows
             var pkgDir = Locator.PackagesDir;
             var currentDir = Locator.AppContentDir;
             var rootAppDirectory = Locator.RootAppDir;
-            Log.Info($"About to create shortcuts for {relativeExeName}, rootAppDir {rootAppDirectory}");
 
             var pkgPath = Path.Combine(pkgDir, release.OriginalFilename);
             var zf = new ZipPackage(pkgPath);
@@ -106,31 +105,11 @@ namespace Velopack.Windows
             var ret = new Dictionary<ShortcutLocation, ShellLink>();
             foreach (var f in (ShortcutLocation[]) Enum.GetValues(typeof(ShortcutLocation))) {
                 if (!locations.HasFlag(f)) continue;
-
-                var file = LinkTargetForVersionInfo(f, zf, fileVerInfo, rootAppDirectory);
-                //var appUserModelId = Utility.GetAppUserModelId(zf.Id, exeName);
-                //var toastActivatorCLSDID = Utility.CreateGuidFromHash(appUserModelId).ToString();
-
-                Log.Info($"Creating shortcut for {relativeExeName} => {file}");
-                //Log.Info($"appUserModelId: {appUserModelId} | toastActivatorCLSID: {toastActivatorCLSDID}");
-
-                var target = Path.Combine(rootAppDirectory, relativeExeName);
-                var sl = new ShellLink {
-                    Target = target,
-                    IconPath = target,
-                    IconIndex = 0,
-                    WorkingDirectory = Path.GetDirectoryName(exePath),
-                    Description = zf.ProductDescription,
-                };
-
-                //if (!String.IsNullOrWhiteSpace(programArguments)) {
-                //    sl.Arguments += String.Format(" -a \"{0}\"", programArguments);
-                //}
-
-                //sl.SetAppUserModelId(appUserModelId);
-                //sl.SetToastActivatorCLSID(toastActivatorCLSDID);
-
-                ret.Add(f, sl);
+                var file = LinkPathForVersionInfo(f, zf, fileVerInfo, rootAppDirectory);
+                if (File.Exists(file)) {
+                    Log.Info($"Opening existing shortcut for {relativeExeName} ({file})");
+                    ret.Add(f, new ShellLink(file));
+                }
             }
 
             return ret;
@@ -160,7 +139,7 @@ namespace Velopack.Windows
             foreach (var f in (ShortcutLocation[]) Enum.GetValues(typeof(ShortcutLocation))) {
                 if (!locations.HasFlag(f)) continue;
 
-                var file = LinkTargetForVersionInfo(f, zf, fileVerInfo, rootAppDirectory);
+                var file = LinkPathForVersionInfo(f, zf, fileVerInfo, rootAppDirectory);
                 var fileExists = File.Exists(file);
 
                 // NB: If we've already installed the app, but the shortcut
@@ -222,7 +201,7 @@ namespace Velopack.Windows
 
             foreach (var f in (ShortcutLocation[]) Enum.GetValues(typeof(ShortcutLocation))) {
                 if (!locations.HasFlag(f)) continue;
-                var file = LinkTargetForVersionInfo(f, zf, fileVerInfo, rootAppDirectory);
+                var file = LinkPathForVersionInfo(f, zf, fileVerInfo, rootAppDirectory);
                 Log.Info($"Removing shortcut for {relativeExeName} => {file}");
                 try {
                     if (File.Exists(file)) File.Delete(file);
@@ -235,7 +214,7 @@ namespace Velopack.Windows
         /// <summary>
         /// Given an <see cref="IPackage"/> and <see cref="FileVersionInfo"/> return the target shortcut path.
         /// </summary>
-        protected virtual string LinkTargetForVersionInfo(ShortcutLocation location, IPackage package, FileVersionInfo versionInfo, string rootdir)
+        protected virtual string LinkPathForVersionInfo(ShortcutLocation location, IPackage package, FileVersionInfo versionInfo, string rootdir)
         {
             var possibleProductNames = new[] {
                     versionInfo.ProductName,
@@ -252,13 +231,13 @@ namespace Velopack.Windows
             var prodName = possibleCompanyNames.First(x => !String.IsNullOrWhiteSpace(x));
             var pkgName = possibleProductNames.First(x => !String.IsNullOrWhiteSpace(x));
 
-            return GetLinkTarget(location, pkgName, prodName, rootdir);
+            return GetLinkPath(location, pkgName, prodName, rootdir);
         }
 
         /// <summary>
         /// Given the application info, return the shortcut target path.
         /// </summary>
-        protected virtual string GetLinkTarget(ShortcutLocation location, string title, string applicationName, string rootdir, bool createDirectoryIfNecessary = true)
+        protected virtual string GetLinkPath(ShortcutLocation location, string title, string applicationName, string rootdir, bool createDirectoryIfNecessary = true)
         {
             var dir = default(string);
 
