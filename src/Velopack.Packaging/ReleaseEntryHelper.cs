@@ -199,16 +199,16 @@ namespace Velopack.Packaging
         public string GetSuggestedPortablePath(string id, string channel, RID rid)
         {
             var suffix = GetPkgSuffix(rid.BaseRID, channel);
-            return Path.Combine(_outputDir, $"{id}-[{rid.ToDisplay(RidDisplayType.NoVersion)}]{suffix}-Portable.zip");
+            return Path.Combine(_outputDir, $"{id}-{rid.ToDisplay(RidDisplayType.NoVersion)}{suffix}-Portable.zip");
         }
 
         public string GetSuggestedSetupPath(string id, string channel, RID rid)
         {
             var suffix = GetPkgSuffix(rid.BaseRID, channel);
             if (rid.BaseRID == RuntimeOs.Windows)
-                return Path.Combine(_outputDir, $"{id}-[{rid.ToDisplay(RidDisplayType.NoVersion)}]{suffix}-Setup.exe");
+                return Path.Combine(_outputDir, $"{id}-{rid.ToDisplay(RidDisplayType.NoVersion)}{suffix}-Setup.exe");
             else if (rid.BaseRID == RuntimeOs.OSX)
-                return Path.Combine(_outputDir, $"{id}-[{rid.ToDisplay(RidDisplayType.NoVersion)}]{suffix}-Setup.pkg");
+                return Path.Combine(_outputDir, $"{id}-{rid.ToDisplay(RidDisplayType.NoVersion)}{suffix}-Setup.pkg");
             else
                 throw new NotSupportedException("RID not supported: " + rid);
         }
