@@ -145,9 +145,13 @@ namespace Velopack
                 IsSingleFile = true;
 
             // get git/nuget version from nbgv metadata
-            VelopackNugetVersion = NuGetVersion.Parse(ThisAssembly.AssemblyInformationalVersion);
-            if (VelopackNugetVersion.HasMetadata) {
-                VelopackNugetVersion = NuGetVersion.Parse(VelopackNugetVersion.ToNormalizedString() + "-g" + VelopackNugetVersion.Metadata);
+            if (ThisAssembly.IsPublicRelease) {
+                VelopackNugetVersion = NuGetVersion.Parse(NuGetVersion.Parse(ThisAssembly.AssemblyInformationalVersion).ToNormalizedString());
+            } else {
+                VelopackNugetVersion = NuGetVersion.Parse(ThisAssembly.AssemblyInformationalVersion);
+                if (VelopackNugetVersion.HasMetadata) {
+                    VelopackNugetVersion = NuGetVersion.Parse(VelopackNugetVersion.ToNormalizedString() + "-g" + VelopackNugetVersion.Metadata);
+                }
             }
             VelopackDisplayVersion = VelopackNugetVersion.ToNormalizedString() + (VelopackNugetVersion.IsPrerelease ? " (prerelease)" : "");
 
