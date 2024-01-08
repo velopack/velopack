@@ -85,17 +85,8 @@ namespace Velopack
         /// <summary> The current compiled Velopack NuGetVersion. </summary>
         public static NuGetVersion VelopackNugetVersion { get; }
 
-        /// <summary> The current compiled Velopack assembly file version. </summary>
-        public static string VelopackFileVersion => ThisAssembly.AssemblyFileVersion;
-
         /// <summary> The path on disk of the entry assembly. </summary>
         public static string EntryExePath { get; }
-
-        /// <summary> Gets the directory that the assembly resolver uses to probe for assemblies. </summary>
-        public static string BaseDirectory { get; }
-
-        /// <summary> Check if the current application is a published SingleFileBundle. </summary>
-        public static bool IsSingleFile { get; }
 
         /// <summary> The current machine architecture, ignoring the current process / pe architecture. </summary>
         public static RuntimeCpu SystemArch { get; private set; }
@@ -120,29 +111,19 @@ namespace Velopack
 
         internal static bool InUnitTestRunner { get; }
 
-        /// <summary> The <see cref="StringComparer"/> that should be used when comparing local file-system paths. </summary>
-        public static StringComparer PathStringComparer =>
+        internal static StringComparer PathStringComparer =>
             IsWindows ? StringComparer.InvariantCultureIgnoreCase : StringComparer.InvariantCulture;
 
-        /// <summary> The <see cref="StringComparison"/> that should be used when comparing local file-system paths. </summary>
-        public static StringComparison PathStringComparison =>
+        internal static StringComparison PathStringComparison =>
             IsWindows ? StringComparison.InvariantCultureIgnoreCase : StringComparison.InvariantCulture;
 
         static VelopackRuntimeInfo()
         {
             EntryExePath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
-            BaseDirectory = AppContext.BaseDirectory;
 
 #if DEBUG
             InUnitTestRunner = CheckForUnitTestRunner();
 #endif
-
-            // if Assembly.Location does not exist, we're almost certainly bundled into a dotnet SingleFile
-            // TODO: there is a better way to check this - we can scan the currently executing binary for a
-            // SingleFile bundle marker.
-            var assyPath = (Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly())?.Location;
-            if (String.IsNullOrEmpty(assyPath) || !File.Exists(assyPath))
-                IsSingleFile = true;
 
             // get git/nuget version from nbgv metadata
 #pragma warning disable CS0162
