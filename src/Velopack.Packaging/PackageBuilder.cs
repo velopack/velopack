@@ -83,106 +83,112 @@ namespace Velopack.Packaging
                     .HideCompleted(false)
                     .Columns(new ProgressColumn[]
                     {
-                    new SpinnerColumn(),
-                    new TaskDescriptionColumn(),
-                    new ProgressBarColumn(),
-                    new PercentageColumn(),
-                    new ElapsedTimeColumn(),
+                        new SpinnerColumn(),
+                        new TaskDescriptionColumn(),
+                        new ProgressBarColumn(),
+                        new PercentageColumn(),
+                        new ElapsedTimeColumn(),
                     })
                     .StartAsync(async ctx => {
-                        var taskPreProcess = ctx.AddTask($"[italic]Pre-process steps[/]");
-                        taskPreProcess.StartTask();
-                        var prev = entryHelper.GetPreviousFullRelease(NuGetVersion.Parse(packVersion), channel);
-                        var nuspecText = GenerateNuspecContent(
-                            packId, packTitle, packAuthors, packVersion, options.ReleaseNotes, packDirectory);
-                        packDirectory = await PreprocessPackDir((p) => taskPreProcess.Value = p, packDirectory, nuspecText);
-                        taskPreProcess.StopTask();
-                        Log.Info("[bold]Complete: Pre-process steps[/]");
+                        string nuspecText = null;
+                        ReleasePackage prev = null;
+                        await WrapTask(ctx, "Pre-process steps", async (progress) => {
+                            prev = entryHelper.GetPreviousFullRelease(NuGetVersion.Parse(packVersion), channel);
+                            nuspecText = GenerateNuspecContent(
+                                packId, packTitle, packAuthors, packVersion, options.ReleaseNotes, packDirectory);
+                            packDirectory = await PreprocessPackDir(progress, packDirectory, nuspecText);
+                        });
 
                         if (VelopackRuntimeInfo.IsWindows || VelopackRuntimeInfo.IsOSX) {
-                            var taskSigning = ctx.AddTask($"[italic]Code-sign application[/]");
-                            taskSigning.StartTask();
-                            await CodeSign((p) => taskSigning.Value = p, packDirectory);
-                            taskSigning.StopTask();
-                            Log.Info("[bold]Complete: Code-sign application[/]");
+                            await WrapTask(ctx, "Code-sign application", async (progress) => {
+                                await CodeSign(progress, packDirectory);
+                            });
                         }
 
-                        var portableTask = Task.Run(async () => {
-                            var taskPortable = ctx.AddTask($"[italic]Building portable package[/]");
-                            taskPortable.StartTask();
+                        var portableTask = WrapTask(ctx, "Building portable package", async (progress) => {
                             var suggestedPortable = entryHelper.GetSuggestedPortablePath(packId, channel, options.TargetRuntime);
                             var incomplete = suggestedPortable + ".incomplete";
                             if (File.Exists(incomplete)) File.Delete(incomplete);
                             filesToCopy.Add((incomplete, suggestedPortable));
-                            await CreatePortablePackage((p) => taskPortable.Value = p, packDirectory, incomplete);
-                            taskPortable.StopTask();
-                            Log.Info("[bold]Complete: Build portable package[/]");
+                            await CreatePortablePackage(progress, packDirectory, incomplete);
                         });
 
                         // this is a prerequisite for building full package but only on linux
-                        if (VelopackRuntimeInfo.IsLinux) {
-                            await portableTask;
-                        }
+                        if (VelopackRuntimeInfo.IsLinux) await portableTask;
 
-                        var taskNuget = ctx.AddTask($"[italic]Building release {packVersion}[/]");
-                        taskNuget.StartTask();
-                        var releaseName = new ReleaseEntryName(packId, SemanticVersion.Parse(packVersion), false, Options.TargetRuntime);
-                        var releasePath = Path.Combine(releaseDir.FullName, releaseName.ToFileName());
-                        if (File.Exists(releasePath)) File.Delete(releasePath);
-                        await CreateReleasePackage((p) => taskNuget.Value = p, packDirectory, nuspecText, releasePath);
-                        entryHelper.AddNewRelease(releasePath, channel);
-                        taskNuget.StopTask();
-                        Log.Info("[bold]Complete: Build release package[/]");
+                        string releasePath = null;
+                        await WrapTask(ctx, $"Building release {packVersion}", async (progress) => {
+                            var releaseName = new ReleaseEntryName(packId, SemanticVersion.Parse(packVersion), false, Options.TargetRuntime);
+                            releasePath = Path.Combine(releaseDir.FullName, releaseName.ToFileName());
+                            if (File.Exists(releasePath)) File.Delete(releasePath);
+                            await CreateReleasePackage(progress, packDirectory, nuspecText, releasePath);
+                            entryHelper.AddNewRelease(releasePath, channel);
+                        });
 
                         Task setupTask = null;
                         if (VelopackRuntimeInfo.IsWindows || VelopackRuntimeInfo.IsOSX) {
-                            setupTask = Task.Run(async () => {
-                                var taskSetup = ctx.AddTask($"[italic]Create setup package[/]");
-                                taskSetup.StartTask();
+                            setupTask = WrapTask(ctx, "Building setup package", async (progress) => {
                                 var suggestedSetup = entryHelper.GetSuggestedSetupPath(packId, channel, options.TargetRuntime);
                                 var incomplete = suggestedSetup + ".incomplete";
                                 if (File.Exists(incomplete)) File.Delete(incomplete);
                                 filesToCopy.Add((incomplete, suggestedSetup));
-                                await CreateSetupPackage((p) => taskSetup.Value = p, releasePath, packDirectory, incomplete);
-                                taskSetup.StopTask();
-                                Log.Info("[bold]Complete: Create setup package[/]");
+                                await CreateSetupPackage(progress, releasePath, packDirectory, incomplete);
                             });
                         }
 
                         if (prev != null && options.DeltaMode != DeltaMode.None) {
-                            var taskDelta = ctx.AddTask($"[italic]Building delta {prev.Version} -> {packVersion}[/]");
-                            taskDelta.StartTask();
-                            var deltaPkg = await CreateDeltaPackage((p) => taskDelta.Value = p, releasePath, prev.PackageFile, options.DeltaMode);
-                            taskDelta.StopTask();
-                            entryHelper.AddNewRelease(deltaPkg, channel);
-                            Log.Info("[bold]Complete: Building delta package[/]");
+                            await WrapTask(ctx, $"Building delta {prev.Version} -> {packVersion}", async (progress) => {
+                                var deltaPkg = await CreateDeltaPackage(progress, releasePath, prev.PackageFile, options.DeltaMode);
+                                entryHelper.AddNewRelease(deltaPkg, channel);
+                            });
                         }
 
-                        await portableTask;
+                        if (!VelopackRuntimeInfo.IsLinux) await portableTask;
                         if (setupTask != null) await setupTask;
 
-                        var taskFinish = ctx.AddTask($"[italic]Finishing up[/]");
-                        taskFinish.IsIndeterminate = true;
-                        taskFinish.StartTask();
-                        entryHelper.SaveReleasesFiles();
-                        foreach (var f in filesToCopy) {
-                            File.Move(f.from, f.to, true);
-                        }
-                        taskFinish.Value = 100;
-                        taskFinish.StopTask();
+                        await WrapTask(ctx, "Post-process steps", (progress) => {
+                            entryHelper.SaveReleasesFiles();
+                            foreach (var f in filesToCopy) {
+                                File.Move(f.from, f.to, true);
+                            }
+                            progress(100);
+                            return Task.CompletedTask;
+                        });
                     });
                 Log.Info($"[bold]Done in {DateTime.UtcNow - now}.[/]");
             } catch {
                 try {
                     foreach (var f in filesToCopy) {
-                        File.Delete(f.from);
+                        Utility.Retry(() => File.Delete(f.from));
                     }
                     entryHelper.RollbackNewReleases();
                 } catch (Exception ex) {
-                    Log.Error("Failed to remove incomplete releases: " + ex.Message);
+                    Log.Warn("Failed to remove incomplete releases: " + ex.Message);
                 }
                 throw;
             }
+        }
+
+        protected virtual async Task WrapTask(ProgressContext ctx, string name, Func<Action<int>, Task> fn)
+        {
+            var task = ctx.AddTask($"[italic]{name}[/]");
+            task.StartTask();
+            Log.Debug("Starting: " + name);
+
+            void progress(int p)
+            {
+                if (p < 0) {
+                    task.IsIndeterminate = true;
+                } else {
+                    task.IsIndeterminate = false;
+                    task.Value = p;
+                }
+            }
+
+            await Task.Run(() => fn(progress)).ConfigureAwait(false);
+            task.IsIndeterminate = false;
+            task.StopTask();
+            Log.Debug($"[bold]Complete: {name}[/]");
         }
 
         protected virtual string GenerateNuspecContent(string packId, string packTitle, string packAuthors, string packVersion, string releaseNotes, string packDir)

@@ -49,7 +49,8 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
 
     protected override Task CodeSign(Action<int> progress, string packDir)
     {
-        var zipPath = Path.Combine(TempDir.FullName, "app.zip");
+        progress(-1); // indeterminate
+        var zipPath = Path.Combine(TempDir.FullName, "notarize.zip");
         var helper = new HelperExe(Log);
 
         // code signing all mach-o binaries
@@ -63,6 +64,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
         } else {
             Log.Warn("Package will not be signed or notarized. Requires the --signAppIdentity and --notaryProfile options.");
         }
+        progress(100);
         return Task.CompletedTask;
     }
 
@@ -82,6 +84,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
 
             if (!string.IsNullOrEmpty(Options.SigningInstallIdentity) && !string.IsNullOrEmpty(Options.NotaryProfile)) {
                 helper.CreateInstallerPkg(packDir, packTitle, pkgContent, pkgPath, Options.SigningInstallIdentity, Utility.CreateProgressDelegate(progress, 0, 60));
+                progress(-1); // indeterminate
                 helper.Notarize(pkgPath, Options.NotaryProfile);
                 progress(80);
                 helper.Staple(pkgPath);
@@ -99,6 +102,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
 
     protected override Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath)
     {
+        progress(-1); // indeterminate
         var helper = new HelperExe(Log);
         helper.CreateDittoZip(packDir, outputPath);
         progress(100);

@@ -21,7 +21,9 @@ public class HelperExe : HelperFile
     [SupportedOSPlatform("linux")]
     public void CreateLinuxAppImage(string appDir, string outputFile)
     {
-        InvokeAndThrowIfNonZero(AppImageTool, new[] { appDir, outputFile }, null);
+        var tool = AppImageTool;
+        Chmod.ChmodFileAsExecutable(tool);
+        InvokeAndThrowIfNonZero(tool, new[] { appDir, outputFile }, null);
     }
 
     [SupportedOSPlatform("osx")]

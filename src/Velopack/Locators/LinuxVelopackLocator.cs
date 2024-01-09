@@ -13,7 +13,7 @@ namespace Velopack.Locators
     /// The default for OSX. All application files will remain in the '.app'.
     /// All additional files (log, etc) will be placed in a temporary directory.
     /// </summary>
-    [SupportedOSPlatform("osx")]
+    [SupportedOSPlatform("linux")]
     public class LinuxVelopackLocator : VelopackLocator
     {
         /// <inheritdoc />

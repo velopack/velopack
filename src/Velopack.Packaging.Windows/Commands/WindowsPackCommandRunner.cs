@@ -112,10 +112,10 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             Log.Warn("Unable to set Setup.exe icon (only supported on windows)");
         }
         progress(25);
-        Log.Info($"Creating Setup bundle");
+        Log.Debug($"Creating Setup bundle");
         SetupBundle.CreatePackageBundle(targetSetupExe, releasePkg);
         progress(50);
-        Log.Info("Signing Setup bundle");
+        Log.Debug("Signing Setup bundle");
         var targetDir = Path.GetDirectoryName(targetSetupExe);
         SignFilesImpl(Options, targetDir, Utility.CreateProgressDelegate(progress, 50, 100), targetSetupExe);
         Log.Debug($"Setup bundle created '{Path.GetFileName(targetSetupExe)}'.");
