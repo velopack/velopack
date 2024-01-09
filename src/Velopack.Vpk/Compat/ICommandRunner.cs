@@ -13,6 +13,7 @@ public interface ICommandRunner
     public Task ExecutePackOsx(OsxPackCommand command);
     //public Task ExecuteReleasifyWindows(WindowsReleasifyCommand command);
     public Task ExecutePackWindows(WindowsPackCommand command);
+    public Task ExecutePackLinux(LinuxPackCommand command);
     public Task ExecuteDeltaGen(DeltaGenCommand command);
     public Task ExecuteDeltaPatch(DeltaPatchCommand command);
 }

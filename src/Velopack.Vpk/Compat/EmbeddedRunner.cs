@@ -90,6 +90,26 @@ public class EmbeddedRunner : ICommandRunner
         return new WindowsPackCommandRunner(_logger).Run(options);
     }
 
+    [SupportedOSPlatform("linux")]
+    public virtual Task ExecutePackLinux(LinuxPackCommand command)
+    {
+        var options = new LinuxPackOptions {
+            TargetRuntime = command.GetRid(),
+            ReleaseDir = command.GetReleaseDirectory(),
+            Icon = command.Icon,
+            DeltaMode = command.Delta,
+            EntryExecutableName = command.EntryExecutableName,
+            PackAuthors = command.PackAuthors,
+            PackDirectory = command.PackDirectory,
+            Channel = command.Channel,
+            PackId = command.PackId,
+            PackTitle = command.PackTitle,
+            PackVersion = command.PackVersion,
+            ReleaseNotes = command.ReleaseNotes,
+        };
+        return new LinuxPackCommandRunner(_logger).Run(options);
+    }
+
     //public virtual Task ExecuteReleasifyWindows(WindowsReleasifyCommand command)
     //{
     //    var options = new WindowsReleasifyOptions {

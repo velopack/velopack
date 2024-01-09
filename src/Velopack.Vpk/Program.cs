@@ -64,6 +64,9 @@ public class Program
             Add(rootCommand, new OsxBundleCommand(), nameof(ICommandRunner.ExecuteBundleOsx));
             Add(rootCommand, new OsxPackCommand(), nameof(ICommandRunner.ExecutePackOsx));
             break;
+        case RuntimeOs.Linux:
+            Add(rootCommand, new LinuxPackCommand(), nameof(ICommandRunner.ExecutePackLinux));
+            break;
         default:
             throw new NotSupportedException("Unsupported OS platform: " + VelopackRuntimeInfo.SystemOs.GetOsLongName());
         }
