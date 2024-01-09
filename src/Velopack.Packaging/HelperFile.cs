@@ -18,8 +18,11 @@ public class HelperFile
 
 #if DEBUG
     public string UpdateMacPath => FindHelperFile("update", MachO.IsMachOImage);
+    public string UpdateNixPath => FindHelperFile("update");
+
 #else
     public string UpdateMacPath => FindHelperFile("UpdateMac", MachO.IsMachOImage);
+    public string UpdateNixPath => FindHelperFile("UpdateNix");
 #endif
 
     private static List<string> _searchPaths = new List<string>();

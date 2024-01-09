@@ -67,9 +67,9 @@ fn parse_command_line_matches(input_args: Vec<String>) -> ArgMatches {
 }
 
 fn main() -> Result<()> {
-    #[cfg(target_os = "windows")]
+    #[cfg(windows)]
     let matches = parse_command_line_matches(env::args().collect());
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     let matches = root_command().get_matches();
 
     let verbose = matches.get_flag("verbose");
@@ -168,14 +168,14 @@ fn uninstall(_matches: &ArgMatches) -> Result<()> {
 }
 
 pub fn default_logging(verbose: bool, nocolor: bool) -> Result<()> {
-    #[cfg(target_os = "windows")]
+    #[cfg(windows)]
     let default_log_file = {
         let mut my_dir = env::current_exe().unwrap();
         my_dir.pop();
         my_dir.join("Velopack.log")
     };
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     let default_log_file = {
         let (_root, manifest) = shared::detect_current_manifest().expect("Unable to load app manfiest.");
         std::path::Path::new(format!("/tmp/velopack/{}.log", manifest.id).as_str()).to_path_buf()

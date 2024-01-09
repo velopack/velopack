@@ -389,6 +389,19 @@ impl Manifest {
     }
 }
 
+#[cfg(target_os = "linux")]
+impl Manifest {
+    pub fn get_packages_path(&self, _root_path: &PathBuf) -> String {
+        todo!();
+    }
+    pub fn get_current_path(&self, root_path: &PathBuf) -> String {
+        todo!();
+    }
+    pub fn get_nuspec_path(&self, root_path: &PathBuf) -> String {
+        todo!();
+    }
+}
+
 pub fn read_manifest_from_string(xml: &str) -> Result<Manifest> {
     let mut obj: Manifest = Default::default();
     let cursor = Cursor::new(xml);

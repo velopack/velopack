@@ -24,7 +24,8 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-    <None Include="..\Rust\target\debug\update" CopyToOutputDirectory="Always" Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
+    <None Include="..\Rust\target\debug\update" CopyToOutputDirectory="Always" 
+          Condition="$([MSBuild]::IsOSPlatform('OSX')) or $([MSBuild]::IsOSPlatform('Linux'))" />
     <None Include="..\Rust\target\debug\update.exe" CopyToOutputDirectory="Always" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
     <None Include="..\Rust\target\debug\setup.exe" CopyToOutputDirectory="Always" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
     <None Include="..\Rust\target\debug\stub.exe" CopyToOutputDirectory="Always" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />

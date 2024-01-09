@@ -55,6 +55,7 @@ fn test_no_dialogs_show_if_silent() {
 #[test]
 #[ignore]
 fn test_show_all_dialogs() {
+    set_silent(false);
     show_error("Error", None, "This is an error.");
     show_warn("Warning", None, "This is a warning.");
     show_info("Information", None, "This is information.");

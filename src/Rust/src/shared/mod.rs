@@ -6,6 +6,8 @@ mod dialogs_common;
 mod dialogs_windows;
 #[cfg(target_os = "macos")]
 mod dialogs_osx;
+#[cfg(target_os = "linux")]
+mod dialogs_linux;
 
 pub mod dialogs {
     pub use super::dialogs_const::*;
@@ -14,6 +16,8 @@ pub mod dialogs {
     pub use super::dialogs_windows::*;
     #[cfg(target_os = "macos")]
     pub use super::dialogs_osx::*;
+    #[cfg(target_os = "linux")]
+    pub use super::dialogs_linux::*;
 }
 
 mod util_common;
@@ -28,3 +32,8 @@ pub use util_windows::*;
 mod util_osx;
 #[cfg(target_os = "macos")]
 pub use util_osx::*;
+
+#[cfg(target_os = "linux")]
+mod util_linux;
+#[cfg(target_os = "linux")]
+pub use util_linux::*;

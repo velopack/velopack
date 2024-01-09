@@ -76,10 +76,11 @@ zstd = "0.13"
 sha1_smol = "1.0"
 runas = "1.1"
 
-[target.'cfg(target_os = "macos")'.dependencies]
+[target.'cfg(unix)'.dependencies]
 native-dialog = "0.7"
 waitpid-any = "0.2"
 bindet = "0.3"
+dialog = "0.3"
 
 [target.'cfg(windows)'.dependencies]
 fs_extra = "1.2"
