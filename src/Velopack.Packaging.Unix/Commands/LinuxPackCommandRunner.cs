@@ -53,15 +53,17 @@ Categories=Development;
             var bin = dir.CreateSubdirectory("usr").CreateSubdirectory("bin");
             CopyFiles(new DirectoryInfo(packDir), bin, progress, true);
             File.WriteAllText(Path.Combine(bin.FullName, "sq.version"), nuspecText);
-
+            progress(100);
             return Task.FromResult(dir.FullName);
         }
 
         protected override Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath)
         {
+            progress(-1);
             var helper = new HelperExe(Log);
             helper.CreateLinuxAppImage(packDir, outputPath);
             PortablePackagePath = outputPath;
+            progress(100);
             return Task.CompletedTask;
         }
 
@@ -70,6 +72,12 @@ Categories=Development;
             var dir = TempDir.CreateSubdirectory("CreateReleasePackage.Linux");
             File.Copy(PortablePackagePath, Path.Combine(dir.FullName, Options.PackId + ".AppImage"), true);
             return base.CreateReleasePackage(progress, dir.FullName, nuspecText, outputPath);
+        }
+
+        protected override Task<string> CreateDeltaPackage(Action<int> progress, string releasePkg, string prevReleasePkg, DeltaMode mode)
+        {
+            progress(-1); // there is only one "file", so progress will not work
+            return base.CreateDeltaPackage(progress, releasePkg, prevReleasePkg, mode);
         }
     }
 }

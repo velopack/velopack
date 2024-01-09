@@ -99,8 +99,12 @@ public class HelperFile
                 var output = InvokeAndThrowIfNonZero("where", new[] { binaryName }, null);
                 if (String.IsNullOrWhiteSpace(output) || !File.Exists(output))
                     throw new ProcessFailedException("", "");
-            } else {
+            } else if (VelopackRuntimeInfo.IsOSX) {
                 InvokeAndThrowIfNonZero("command", new[] { "-v", binaryName }, null);
+            } else if (VelopackRuntimeInfo.IsLinux) {
+                InvokeAndThrowIfNonZero("which", new[] { binaryName }, null);
+            } else {
+                throw new PlatformNotSupportedException();
             }
         } catch (ProcessFailedException) {
             throw new Exception($"Could not find '{binaryName}' on the system, ensure it is installed and on the PATH.");

@@ -222,7 +222,11 @@ namespace Velopack.Packaging
         {
             var suffix = GetPkgSuffix(rid.BaseRID, channel);
             if (VelopackRuntimeInfo.IsLinux) {
-                return Path.Combine(_outputDir, $"{id}-{rid.ToDisplay(RidDisplayType.NoVersion)}{suffix}.AppImage");
+                if (rid.HasArchitecture) {
+                    return Path.Combine(_outputDir, $"{id}-{rid.ToDisplay(RidDisplayType.NoVersion)}{suffix}.AppImage");
+                } else {
+                    return Path.Combine(_outputDir, $"{id}{suffix}.AppImage");
+                }
             } else {
                 return Path.Combine(_outputDir, $"{id}-{rid.ToDisplay(RidDisplayType.NoVersion)}{suffix}-Portable.zip");
             }

@@ -34,12 +34,12 @@ public class DeltaPackageBuilder
 
         bool legacyBsdiff = false;
         var helper = new HelperFile(_logger);
-        if (VelopackRuntimeInfo.IsOSX) {
+        if (VelopackRuntimeInfo.IsOSX || VelopackRuntimeInfo.IsLinux) {
             try {
                 helper.AssertSystemBinaryExists("zstd");
             } catch (Exception ex) {
                 _logger.Error(ex);
-                _logger.Warn("Falling back to legacy diff format. This will be slower and more prone to breaking.");
+                _logger.Warn("Falling back to legacy bsdiff delta format. This will be slower and more prone to breaking.");
                 legacyBsdiff = true;
             }
         }

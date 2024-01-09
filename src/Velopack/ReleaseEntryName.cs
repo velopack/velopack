@@ -24,7 +24,7 @@ namespace Velopack
 
         private static readonly Regex _suffixRegex = new Regex(@"(-full|-delta)?\.nupkg$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex _versionStartRegex = new Regex(@"[\.-](0|[1-9]\d*)\.(0|[1-9]\d*)($|[^\d])", RegexOptions.Compiled);
-        private static readonly Regex _ridRegex = new Regex(@"-(?:(?<os>osx|win)(?<ver>[\d\.]+)?)?-?(?<arch>x64|x86|arm64)?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex _ridRegex = new Regex(@"-(?:(?<os>osx|win|linux)(?<ver>[\d\.]+)?)?-?(?<arch>x64|x86|arm64)?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         /// <summary>
         /// Create a new ReleaseEntryName from the given package name, version, delta status, and runtime identifier.
