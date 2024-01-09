@@ -2,19 +2,19 @@
 using System.Xml;
 using Microsoft.Extensions.Logging;
 
-namespace Velopack.Packaging.OSX;
+namespace Velopack.Packaging.Unix;
 
 internal class PlistWriter
 {
     private readonly ILogger _logger;
-    private readonly AppInfo _task;
+    private readonly OsxAppInfo _task;
     private readonly string _outputDir;
 
     private static readonly string[] ArrayTypeProperties = { "CFBundleURLSchemes" };
     private const char Separator = ';';
     public const string PlistFileName = "Info.plist";
 
-    public PlistWriter(ILogger logger, AppInfo task, string outputDir)
+    public PlistWriter(ILogger logger, OsxAppInfo task, string outputDir)
     {
         _logger = logger;
         _task = task;

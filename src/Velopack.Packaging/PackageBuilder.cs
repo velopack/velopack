@@ -119,6 +119,11 @@ namespace Velopack.Packaging
                             Log.Info("[bold]Complete: Build portable package[/]");
                         });
 
+                        // this is a prerequisite for building full package but only on linux
+                        if (VelopackRuntimeInfo.IsLinux) {
+                            await portableTask;
+                        }
+
                         var taskNuget = ctx.AddTask($"[italic]Building release {packVersion}[/]");
                         taskNuget.StartTask();
                         var releaseName = new ReleaseEntryName(packId, SemanticVersion.Parse(packVersion), false, Options.TargetRuntime);
@@ -129,17 +134,20 @@ namespace Velopack.Packaging
                         taskNuget.StopTask();
                         Log.Info("[bold]Complete: Build release package[/]");
 
-                        var setupTask = Task.Run(async () => {
-                            var taskSetup = ctx.AddTask($"[italic]Create setup package[/]");
-                            taskSetup.StartTask();
-                            var suggestedSetup = entryHelper.GetSuggestedSetupPath(packId, channel, options.TargetRuntime);
-                            var incomplete = suggestedSetup + ".incomplete";
-                            if (File.Exists(incomplete)) File.Delete(incomplete);
-                            filesToCopy.Add((incomplete, suggestedSetup));
-                            await CreateSetupPackage((p) => taskSetup.Value = p, releasePath, packDirectory, incomplete);
-                            taskSetup.StopTask();
-                            Log.Info("[bold]Complete: Create setup package[/]");
-                        });
+                        Task setupTask = null;
+                        if (VelopackRuntimeInfo.IsWindows || VelopackRuntimeInfo.IsOSX) {
+                            setupTask = Task.Run(async () => {
+                                var taskSetup = ctx.AddTask($"[italic]Create setup package[/]");
+                                taskSetup.StartTask();
+                                var suggestedSetup = entryHelper.GetSuggestedSetupPath(packId, channel, options.TargetRuntime);
+                                var incomplete = suggestedSetup + ".incomplete";
+                                if (File.Exists(incomplete)) File.Delete(incomplete);
+                                filesToCopy.Add((incomplete, suggestedSetup));
+                                await CreateSetupPackage((p) => taskSetup.Value = p, releasePath, packDirectory, incomplete);
+                                taskSetup.StopTask();
+                                Log.Info("[bold]Complete: Create setup package[/]");
+                            });
+                        }
 
                         if (prev != null && options.DeltaMode != DeltaMode.None) {
                             var taskDelta = ctx.AddTask($"[italic]Building delta {prev.Version} -> {packVersion}[/]");
@@ -151,7 +159,7 @@ namespace Velopack.Packaging
                         }
 
                         await portableTask;
-                        await setupTask;
+                        if (setupTask != null) await setupTask;
 
                         var taskFinish = ctx.AddTask($"[italic]Finishing up[/]");
                         taskFinish.IsIndeterminate = true;

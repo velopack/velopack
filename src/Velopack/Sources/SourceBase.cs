@@ -32,7 +32,9 @@ namespace Velopack.Sources
         internal static string GetReleasesFileNameImpl(string channel)
         {
             if (String.IsNullOrWhiteSpace(channel) || channel == "default") {
-                return VelopackRuntimeInfo.IsOSX ? "RELEASES-osx" : "RELEASES";
+                if (VelopackRuntimeInfo.IsOSX) return "RELEASES-osx";
+                if (VelopackRuntimeInfo.IsLinux) return "RELEASES-linux";
+                return "RELEASES";
             }
             return $"RELEASES-{channel.ToLower()}";
         }

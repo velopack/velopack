@@ -20,3 +20,8 @@ This folder contains pre-compiled binaries from a variety of sources. These shou
 - Fast compression and diff/patch
 - Can be found at https://github.com/facebook/zstd
 - License is GPL-2.0 & BSD 3: https://github.com/facebook/zstd/blob/dev/LICENSE, https://github.com/facebook/zstd/blob/dev/COPYING
+
+### appimagetool
+- Create .AppImage for Linux
+- Can be found at https://github.com/AppImage/AppImageKit
+- License is MIT https://github.com/AppImage/AppImageKit/blob/master/LICENSE

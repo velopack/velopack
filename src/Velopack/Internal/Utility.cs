@@ -276,12 +276,12 @@ namespace Velopack
         {
             string tempDir;
 
-            if (VelopackRuntimeInfo.IsOSX) {
+            if (VelopackRuntimeInfo.IsOSX || VelopackRuntimeInfo.IsLinux) {
                 tempDir = "/tmp/velopack";
             } else if (VelopackRuntimeInfo.IsWindows) {
                 tempDir = Path.Combine(Path.GetTempPath(), "Velopack");
             } else {
-                throw new NotSupportedException();
+                throw new PlatformNotSupportedException();
             }
 
             if (Environment.GetEnvironmentVariable("VELOPACK_TEMP") is var squirrlTmp

@@ -1,11 +1,12 @@
 ﻿using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
-namespace Velopack.Packaging.OSX;
+namespace Velopack.Packaging.Unix;
 
 public class HelperExe : HelperFile
 {
@@ -14,6 +15,14 @@ public class HelperExe : HelperFile
     }
 
     public string VelopackEntitlements => FindHelperFile("Velopack.entitlements");
+
+    protected string AppImageTool => FindHelperFile("appimagetool-x86_64.AppImage");
+
+    [SupportedOSPlatform("linux")]
+    public void CreateLinuxAppImage(string appDir, string outputFile)
+    {
+        InvokeAndThrowIfNonZero(AppImageTool, new[] { appDir, outputFile }, null);
+    }
 
     [SupportedOSPlatform("osx")]
     public void CodeSign(string identity, string entitlements, string filePath)
@@ -124,7 +133,7 @@ public class HelperExe : HelperFile
         var distributionPath = Path.Combine(tmp, "distribution.xml");
         InvokeAndThrowIfNonZero("productbuild", new[] { "--synthesize", "--package", pkg1Path, distributionPath }, null);
         progress(80);
-        
+
         // https://developer.apple.com/library/archive/documentation/DeveloperTools/Reference/DistributionDefinitionRef/Chapters/Distribution_XML_Ref.html
         var distXml = File.ReadAllLines(distributionPath).ToList();
 

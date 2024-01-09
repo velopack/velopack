@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 
-namespace Velopack.Packaging.OSX.Commands;
+namespace Velopack.Packaging.Unix.Commands;
 
 public class OsxBundleCommandRunner
 {
@@ -34,7 +34,7 @@ public class OsxBundleCommandRunner
         var escapedAppleId = Regex.Replace(appleId, @"[^\w\.]", "_");
         var appleSafeVersion = NuGetVersion.Parse(packVersion).Version.ToString();
 
-        var info = new AppInfo {
+        var info = new OsxAppInfo {
             // SQPackId = packId,
             // SQPackAuthors = packAuthors,
             CFBundleName = packTitle ?? packId,
@@ -51,7 +51,7 @@ public class OsxBundleCommandRunner
         };
 
         _logger.Debug("Creating '.app' directory structure");
-        var builder = new StructureBuilder(packId, releaseDir.FullName);
+        var builder = new OsxStructureBuilder(packId, releaseDir.FullName);
         if (Directory.Exists(builder.AppDirectory)) {
             _logger.Warn(builder.AppDirectory + " already exists, deleting...");
             Utility.DeleteFileOrDirectoryHard(builder.AppDirectory);

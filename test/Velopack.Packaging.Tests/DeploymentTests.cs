@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 using Velopack.Deployment;
-using Velopack.Packaging.OSX.Commands;
+using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Sources;
 using Octokit;

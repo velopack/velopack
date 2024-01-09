@@ -1,7 +1,7 @@
 ﻿using System.Runtime.Versioning;
 using Velopack.Deployment;
 using Velopack.Packaging.Commands;
-using Velopack.Packaging.OSX.Commands;
+using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Vpk.Commands;
 

@@ -130,6 +130,7 @@ namespace Velopack.Packaging
             if (channel == null) return "";
             if (channel == BLANK_CHANNEL) return "";
             if (channel == "osx" && os == RuntimeOs.OSX) return "";
+            if (channel == "linux" && os == RuntimeOs.Linux) return "";
             return "-" + channel.ToLower();
         }
 
@@ -137,6 +138,7 @@ namespace Velopack.Packaging
         {
             if (os == RuntimeOs.Windows) return BLANK_CHANNEL;
             if (os == RuntimeOs.OSX) return "osx";
+            if (os == RuntimeOs.Linux) return "linux";
             throw new NotSupportedException("Unsupported OS: " + os);
         }
 
@@ -198,6 +200,11 @@ namespace Velopack.Packaging
                 ret.Files.Add(new FileInfo(rel));
             }
 
+            foreach (var rel in Directory.EnumerateFiles(_outputDir, $"*{suffix}.AppImage")) {
+                _logger.Info($"Discovered asset: {rel}");
+                ret.Files.Add(new FileInfo(rel));
+            }
+
             foreach (var rel in Directory.EnumerateFiles(_outputDir, $"*{suffix}-Setup.exe")) {
                 _logger.Info($"Discovered asset: {rel}");
                 ret.Files.Add(new FileInfo(rel));
@@ -214,7 +221,11 @@ namespace Velopack.Packaging
         public string GetSuggestedPortablePath(string id, string channel, RID rid)
         {
             var suffix = GetPkgSuffix(rid.BaseRID, channel);
-            return Path.Combine(_outputDir, $"{id}-{rid.ToDisplay(RidDisplayType.NoVersion)}{suffix}-Portable.zip");
+            if (VelopackRuntimeInfo.IsLinux) {
+                return Path.Combine(_outputDir, $"{id}-{rid.ToDisplay(RidDisplayType.NoVersion)}{suffix}.AppImage");
+            } else {
+                return Path.Combine(_outputDir, $"{id}-{rid.ToDisplay(RidDisplayType.NoVersion)}{suffix}-Portable.zip");
+            }
         }
 
         public string GetSuggestedSetupPath(string id, string channel, RID rid)

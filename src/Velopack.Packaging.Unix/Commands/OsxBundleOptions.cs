@@ -1,4 +1,4 @@
-﻿namespace Velopack.Packaging.OSX.Commands;
+﻿namespace Velopack.Packaging.Unix.Commands;
 
 public class OsxBundleOptions
 {

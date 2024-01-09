@@ -1,12 +1,13 @@
-﻿using System.Threading.Channels;
+﻿using System.Runtime.Versioning;
+using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 
-namespace Velopack.Packaging.OSX.Commands;
+namespace Velopack.Packaging.Unix.Commands;
 
+[SupportedOSPlatform("osx")]
 public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
 {
-
     public OsxPackCommandRunner(ILogger logger)
         : base(RuntimeOs.OSX, logger)
     {
@@ -23,7 +24,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
         }
 
         CopyFiles(new DirectoryInfo(appBundlePath), dir, progress, true);
-        var structure = new StructureBuilder(dir.FullName);
+        var structure = new OsxStructureBuilder(dir.FullName);
 
         if (deleteAppBundle) {
             Log.Debug("Removing temporary .app bundle.");

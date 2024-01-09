@@ -27,12 +27,15 @@ namespace Velopack.Locators
                 return _current;
 
             if (VelopackRuntimeInfo.IsWindows)
-                return _current ??= new WindowsVelopackLocator(log);
+                return _current = new WindowsVelopackLocator(log);
 
             if (VelopackRuntimeInfo.IsOSX)
-                return _current ??= new OsxVelopackLocator(log);
+                return _current = new OsxVelopackLocator(log);
 
-            throw new NotSupportedException($"OS platform '{VelopackRuntimeInfo.SystemOs.GetOsLongName()}' is not supported.");
+            if (VelopackRuntimeInfo.IsLinux)
+                return _current = new LinuxVelopackLocator(log);
+
+            throw new PlatformNotSupportedException($"OS platform '{VelopackRuntimeInfo.SystemOs.GetOsLongName()}' is not supported.");
         }
 
         /// <inheritdoc/>
