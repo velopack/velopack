@@ -45,6 +45,7 @@ Comment={Options.PackTitle ?? Options.PackId} {Options.PackVersion}
 Icon={Options.PackId}
 Exec={mainExeName}
 Path=~
+Categories=Development;
 """);
 
             File.Copy(Options.Icon, Path.Combine(dir.FullName, Options.PackId + Path.GetExtension(Options.Icon)), true);
@@ -53,7 +54,7 @@ Path=~
             CopyFiles(new DirectoryInfo(packDir), bin, progress, true);
             File.WriteAllText(Path.Combine(bin.FullName, "sq.version"), nuspecText);
 
-            return Task.FromResult(packDir);
+            return Task.FromResult(dir.FullName);
         }
 
         protected override Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath)

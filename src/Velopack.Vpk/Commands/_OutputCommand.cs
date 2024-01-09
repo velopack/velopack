@@ -18,7 +18,7 @@ namespace Velopack.Vpk.Commands
             ReleaseDirectoryOption = AddOption<DirectoryInfo>((v) => ReleaseDirectory = v.ToFullNameOrNull(), "-o", "--outputDir")
                  .SetDescription("Output directory for created packages.")
                  .SetArgumentHelpName("DIR")
-                 .SetDefault(new DirectoryInfo(".\\Releases"));
+                 .SetDefault(new DirectoryInfo("Releases"));
 
             ChannelOption = AddOption<string>((v) => Channel = v, "-c", "--channel")
                 .SetDescription("The channel to use for this release.")
