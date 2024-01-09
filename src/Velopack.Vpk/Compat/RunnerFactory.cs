@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
+using Velopack.Packaging;
 using Velopack.Vpk.Commands;
 using Velopack.Vpk.Updates;
 
@@ -23,6 +24,9 @@ public class RunnerFactory
         var method = typeof(ICommandRunner).GetMethod(commandName);
         try {
             await (Task) method.Invoke(runner, new object[] { options });
+        } catch (Exception ex) when (ex is ProcessFailedException or UserErrorException) {
+            // some exceptions are just user info / user error, so don't need a stack trace.
+            _logger.Error($"Command {commandName} failed. " + ex.Message);
         } catch (Exception ex) {
             _logger.Error(ex, $"Command {commandName} failed.");
         }

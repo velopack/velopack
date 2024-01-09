@@ -30,7 +30,7 @@ public class HelperExe : HelperFile
     public void CodeSign(string identity, string entitlements, string filePath)
     {
         if (String.IsNullOrEmpty(entitlements)) {
-            Log.Info("No codesign entitlements provided, using default dotnet entitlements: " +
+            Log.Info("No entitlements specified, using default: " +
                      "https://docs.microsoft.com/en-us/dotnet/core/install/macos-notarization-issues");
             entitlements = VelopackEntitlements;
         }
@@ -52,7 +52,7 @@ public class HelperExe : HelperFile
 
         Log.Info($"Beginning codesign for package...");
 
-        Console.WriteLine(InvokeAndThrowIfNonZero("codesign", args, null));
+        Log.Info(InvokeAndThrowIfNonZero("codesign", args, null));
 
         Log.Info("codesign completed successfully");
     }
@@ -67,7 +67,7 @@ public class HelperExe : HelperFile
         };
 
         Log.Info($"Verifying signature/notarization for code using spctl...");
-        Console.WriteLine(InvokeAndThrowIfNonZero("spctl", args2, null));
+        Log.Info(InvokeAndThrowIfNonZero("spctl", args2, null));
     }
 
     [SupportedOSPlatform("osx")]
@@ -81,7 +81,7 @@ public class HelperExe : HelperFile
         };
 
         Log.Info($"Verifying signature/notarization for installer package using spctl...");
-        Console.WriteLine(InvokeAndThrowIfNonZero("spctl", args2, null));
+        Log.Info(InvokeAndThrowIfNonZero("spctl", args2, null));
     }
 
     [SupportedOSPlatform("osx")]
@@ -178,7 +178,7 @@ public class HelperExe : HelperFile
     [SupportedOSPlatform("osx")]
     public void Notarize(string filePath, string keychainProfileName)
     {
-        Log.Info($"Preparing to Notarize '{filePath}'. This will upload to Apple and usually takes minutes, [underline]but could take hours.[/]");
+        Log.Info($"Preparing to Notarize. This will upload to Apple and usually takes minutes, [underline]but could take hours.[/]");
 
         var args = new List<string> {
             "notarytool",
@@ -220,8 +220,8 @@ public class HelperExe : HelperFile
     [SupportedOSPlatform("osx")]
     public void Staple(string filePath)
     {
-        Log.Info($"Stapling Notarization to '{filePath}'");
-        Console.WriteLine(InvokeAndThrowIfNonZero("xcrun", new[] { "stapler", "staple", filePath }, null));
+        Log.Debug($"Stapling Notarization to '{filePath}'");
+        Log.Info(InvokeAndThrowIfNonZero("xcrun", new[] { "stapler", "staple", filePath }, null));
     }
 
     private class NotaryToolResult
@@ -247,6 +247,6 @@ public class HelperExe : HelperFile
         };
 
         Log.Debug($"Creating ditto bundle '{outputZip}'");
-        InvokeAndThrowIfNonZero("ditto", args, null);
+        Log.Debug(InvokeAndThrowIfNonZero("ditto", args, null));
     }
 }

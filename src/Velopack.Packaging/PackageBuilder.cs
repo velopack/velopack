@@ -107,7 +107,7 @@ namespace Velopack.Packaging
 
                         var portableTask = WrapTask(ctx, "Building portable package", async (progress) => {
                             var suggestedPortable = entryHelper.GetSuggestedPortablePath(packId, channel, options.TargetRuntime);
-                            var incomplete = suggestedPortable + ".incomplete";
+                            var incomplete = Path.Combine(pkgTempDir, Path.GetFileName(suggestedPortable));
                             if (File.Exists(incomplete)) File.Delete(incomplete);
                             filesToCopy.Add((incomplete, suggestedPortable));
                             await CreatePortablePackage(progress, packDirectory, incomplete);
@@ -129,7 +129,7 @@ namespace Velopack.Packaging
                         if (VelopackRuntimeInfo.IsWindows || VelopackRuntimeInfo.IsOSX) {
                             setupTask = WrapTask(ctx, "Building setup package", async (progress) => {
                                 var suggestedSetup = entryHelper.GetSuggestedSetupPath(packId, channel, options.TargetRuntime);
-                                var incomplete = suggestedSetup + ".incomplete";
+                                var incomplete = Path.Combine(pkgTempDir, Path.GetFileName(suggestedSetup));
                                 if (File.Exists(incomplete)) File.Delete(incomplete);
                                 filesToCopy.Add((incomplete, suggestedSetup));
                                 await CreateSetupPackage(progress, releasePath, packDirectory, incomplete);
@@ -158,9 +158,6 @@ namespace Velopack.Packaging
                 Log.Info($"[bold]Done in {DateTime.UtcNow - now}.[/]");
             } catch {
                 try {
-                    foreach (var f in filesToCopy) {
-                        Utility.Retry(() => File.Delete(f.from));
-                    }
                     entryHelper.RollbackNewReleases();
                 } catch (Exception ex) {
                     Log.Warn("Failed to remove incomplete releases: " + ex.Message);
