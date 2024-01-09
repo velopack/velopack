@@ -28,7 +28,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{7AC3A776
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Velopack.Packaging.Windows", "src\Velopack.Packaging.Windows\Velopack.Packaging.Windows.csproj", "{E35039C8-1F98-48EB-B7D5-08E33DF061A7}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Velopack.Packaging.OSX", "src\Velopack.Packaging.OSX\Velopack.Packaging.OSX.csproj", "{3382BCB7-657E-4E7B-A2B9-D65AA4DA073B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Velopack.Packaging.Unix", "src\Velopack.Packaging.Unix\Velopack.Packaging.Unix.csproj", "{3382BCB7-657E-4E7B-A2B9-D65AA4DA073B}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Velopack.Deployment", "src\Velopack.Deployment\Velopack.Deployment.csproj", "{D19EA72C-E7AE-4A7B-924A-E7550901A49C}"
 EndProject
@@ -40,7 +40,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{3E
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AvaloniaCrossPlat", "examples\AvaloniaCrossPlat\AvaloniaCrossPlat.csproj", "{1FF6A262-13D0-45DF-B818-77AC84C52C6F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LegacyTestApp", "test\LegacyTestApp\LegacyTestApp.csproj", "{8B27C4BF-21B8-48B0-80F8-74520227C35F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LegacyTestApp", "test\LegacyTestApp\LegacyTestApp.csproj", "{8B27C4BF-21B8-48B0-80F8-74520227C35F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

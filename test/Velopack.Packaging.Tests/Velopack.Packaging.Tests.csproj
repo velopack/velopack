@@ -6,7 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Velopack.Deployment\Velopack.Deployment.csproj" />
-    <ProjectReference Include="..\..\src\Velopack.Packaging.OSX\Velopack.Packaging.OSX.csproj" />
+    <ProjectReference Include="..\..\src\Velopack.Packaging.Unix\Velopack.Packaging.Unix.csproj" />
     <ProjectReference Include="..\..\src\Velopack.Packaging.Windows\Velopack.Packaging.Windows.csproj" />
   </ItemGroup>
 

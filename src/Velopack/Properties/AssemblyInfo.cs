@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 [assembly: InternalsVisibleTo("Velopack.Deployment, PublicKey=" + SNK.SHA1)]
 [assembly: InternalsVisibleTo("Velopack.Packaging, PublicKey=" + SNK.SHA1)]
 [assembly: InternalsVisibleTo("Velopack.Packaging.Windows, PublicKey=" + SNK.SHA1)]
-[assembly: InternalsVisibleTo("Velopack.Packaging.OSX, PublicKey=" + SNK.SHA1)]
+[assembly: InternalsVisibleTo("Velopack.Packaging.Unix, PublicKey=" + SNK.SHA1)]
 [assembly: InternalsVisibleTo("vpk, PublicKey=" + SNK.SHA1)]
 
 internal static class SNK
