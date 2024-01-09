@@ -75,7 +75,7 @@ public class HelperExe : HelperFile
 
     [SupportedOSPlatform("osx")]
     public void CreateInstallerPkg(string appBundlePath, string appTitle, IEnumerable<KeyValuePair<string, string>> extraContent,
-        string pkgOutputPath, string signIdentity)
+        string pkgOutputPath, string signIdentity, Action<int> progress)
     {
         // https://matthew-brett.github.io/docosx/flat_packages.html
 
@@ -93,17 +93,20 @@ public class HelperExe : HelperFile
         var bundleName = Path.GetFileName(appBundlePath);
         var tmpBundlePath = Path.Combine(tmpPayload1, bundleName);
         Utility.CopyFiles(new DirectoryInfo(appBundlePath), new DirectoryInfo(tmpBundlePath));
+        progress(10);
 
         // create postinstall scripts to open app after install
         // https://stackoverflow.com/questions/35619036/open-app-after-installation-from-pkg-file-in-mac
         var postinstall = Path.Combine(tmpScripts, "postinstall");
         File.WriteAllText(postinstall, $"#!/bin/sh\nsudo -u \"$USER\" open \"$2/{bundleName}/\"\nexit 0");
         Chmod.ChmodFileAsExecutable(postinstall);
+        progress(15);
 
         // generate non-relocatable component pkg. this will be included into a product archive
         var pkgPlistPath = Path.Combine(tmp, "tmp.plist");
         InvokeAndThrowIfNonZero("pkgbuild", new[] { "--analyze", "--root", tmpPayload1, pkgPlistPath }, null);
         InvokeAndThrowIfNonZero("plutil", new[] { "-replace", "BundleIsRelocatable", "-bool", "NO", pkgPlistPath }, null);
+        progress(50);
 
         var pkg1Path = Path.Combine(tmpPayload2, "1.pkg");
         string[] args1 = {
@@ -115,11 +118,13 @@ public class HelperExe : HelperFile
         };
 
         InvokeAndThrowIfNonZero("pkgbuild", args1, null);
+        progress(70);
 
         // create final product package that contains app component
         var distributionPath = Path.Combine(tmp, "distribution.xml");
         InvokeAndThrowIfNonZero("productbuild", new[] { "--synthesize", "--package", pkg1Path, distributionPath }, null);
-
+        progress(80);
+        
         // https://developer.apple.com/library/archive/documentation/DeveloperTools/Reference/DistributionDefinitionRef/Chapters/Distribution_XML_Ref.html
         var distXml = File.ReadAllLines(distributionPath).ToList();
 
@@ -154,6 +159,7 @@ public class HelperExe : HelperFile
         }
 
         InvokeAndThrowIfNonZero("productbuild", args2, null);
+        progress(100);
 
         Log.Info("Installer created successfully");
     }
@@ -161,7 +167,7 @@ public class HelperExe : HelperFile
     [SupportedOSPlatform("osx")]
     public void Notarize(string filePath, string keychainProfileName)
     {
-        Log.Info($"Preparing to Notarize '{filePath}'. This will upload to Apple and usually takes minutes, but could take hours.");
+        Log.Info($"Preparing to Notarize '{filePath}'. This will upload to Apple and usually takes minutes, [underline]but could take hours.[/]");
 
         var args = new List<string> {
             "notarytool",
@@ -229,7 +235,7 @@ public class HelperExe : HelperFile
             outputZip
         };
 
-        Log.Info($"Creating ditto bundle '{outputZip}'");
+        Log.Debug($"Creating ditto bundle '{outputZip}'");
         InvokeAndThrowIfNonZero("ditto", args, null);
     }
 }

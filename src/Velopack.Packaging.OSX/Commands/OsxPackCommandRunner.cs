@@ -79,16 +79,20 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
 
             var packTitle = Options.PackTitle ?? Options.PackId;
 
-            helper.CreateInstallerPkg(packDir, packTitle, pkgContent, pkgPath, Options.SigningInstallIdentity);
             if (!string.IsNullOrEmpty(Options.SigningInstallIdentity) && !string.IsNullOrEmpty(Options.NotaryProfile)) {
+                helper.CreateInstallerPkg(packDir, packTitle, pkgContent, pkgPath, Options.SigningInstallIdentity, Utility.CreateProgressDelegate(progress, 0, 60));
                 helper.Notarize(pkgPath, Options.NotaryProfile);
+                progress(80);
                 helper.Staple(pkgPath);
+                progress(90);
                 helper.SpctlAssessInstaller(pkgPath);
             } else {
                 Log.Warn("Package installer (.pkg) will not be Notarized. " +
                          "This is supported with the --signInstallIdentity and --notaryProfile arguments.");
+                helper.CreateInstallerPkg(packDir, packTitle, pkgContent, pkgPath, Options.SigningInstallIdentity, progress);
             }
         }
+        progress(100);
         return Task.CompletedTask;
     }
 
@@ -96,6 +100,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
     {
         var helper = new HelperExe(Log);
         helper.CreateDittoZip(packDir, outputPath);
+        progress(100);
         return Task.CompletedTask;
     }
 }

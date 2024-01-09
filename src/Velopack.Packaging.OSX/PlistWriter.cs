@@ -30,7 +30,7 @@ internal class PlistWriter
 
         var path = Path.Combine(_outputDir, PlistFileName);
 
-        _logger.Info($"Writing property list file: {path}");
+        _logger.Debug($"Writing property list file: {path}");
         using (var xmlWriter = XmlWriter.Create(path, settings)) {
             xmlWriter.WriteStartDocument();
 
