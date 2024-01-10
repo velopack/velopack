@@ -68,7 +68,7 @@ namespace Velopack.Vpk.Commands
                 .SetArgumentHelpName("NAME");
 
             AddOption<FileInfo>((v) => Icon = v.ToFullNameOrNull(), "-i", "--icon")
-                .SetDescription("Path to the .icns file for this bundle.")
+                .SetDescription("Path to the icon file for this bundle.")
                 .SetArgumentHelpName("PATH")
                 .MustExist()
                 .SetRequired();

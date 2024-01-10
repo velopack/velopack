@@ -1,18 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Metadata.Ecma335;
+﻿using System.Diagnostics;
 using System.Security;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Channels;
-using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 using Spectre.Console;
 using Velopack.Compression;
-using Velopack.NuGet;
 
 namespace Velopack.Packaging
 {
@@ -22,6 +15,7 @@ namespace Velopack.Packaging
         DirectoryInfo ReleaseDir { get; }
         string Channel { get; }
         DeltaMode DeltaMode { get; }
+        string EntryExecutableName { get; }
     }
 
     public abstract class PackageBuilder<T> : ICommand<T>
@@ -46,7 +40,8 @@ namespace Velopack.Packaging
         public async Task Run(T options)
         {
             if (options.TargetRuntime?.BaseRID != SupportedTargetOs)
-                throw new ArgumentException($"Target runtime must be {SupportedTargetOs}.", nameof(options.TargetRuntime));
+                throw new UserErrorException($"To build packages for {SupportedTargetOs.GetOsLongName()}, " +
+                    $"the target rid must be {SupportedTargetOs} (actually was {options.TargetRuntime?.BaseRID}).");
 
             var now = DateTime.UtcNow;
 
@@ -64,6 +59,36 @@ namespace Velopack.Packaging
             var packAuthors = options.PackAuthors ?? options.PackId;
             var packDirectory = options.PackDirectory;
             var packVersion = options.PackVersion;
+
+            // check that entry exe exists
+            var mainExeName = options.EntryExecutableName ?? (options.PackId + ".exe");
+            var mainExePath = Path.Combine(packDirectory, mainExeName);
+            if (!File.Exists(mainExePath)) {
+                throw new UserErrorException(
+                    $"Could not find main application executable (the one that runs 'VelopackApp.Build().Run()'). " + Environment.NewLine +
+                    $"I searched for '{mainExeName}' in {packDirectory}." + Environment.NewLine +
+                    $"If your main binary is not named '{mainExeName}', please specify the name with the argument: --exeName {{yourBinary.exe}}");
+            }
+
+            // verify that the main executable is a valid velopack app
+            try {
+                var psi = new ProcessStartInfo(mainExePath);
+                psi.AppendArgumentListSafe(new[] { "--veloapp-version" }, out var _);
+                var output = psi.Output(5000);
+                if (String.IsNullOrWhiteSpace(output)) {
+                    throw new UserErrorException(
+                        "Failed to verify VelopackApp (Exited with no output). " +
+                        "Ensure you have add the startup code to your Program.Main(): VelopackApp.Build().Run(); and then re-compile your application.");
+                }
+                var version = SemanticVersion.Parse(output.Trim());
+                if (version != VelopackRuntimeInfo.VelopackNugetVersion) {
+                    Log.Warn($"VelopackApp version '{version}' does not match CLI version '{VelopackRuntimeInfo.VelopackNugetVersion}'.");
+                }
+            } catch (TimeoutException) {
+                throw new UserErrorException(
+                    "Failed to verify VelopackApp (Timed out). " +
+                    "Ensure you have add the startup code to your Program.Main(): VelopackApp.Build().Run(); and then re-compile your application.");
+            }
 
             var suffix = ReleaseEntryHelper.GetPkgSuffix(SupportedTargetOs, channel);
             if (!String.IsNullOrWhiteSpace(suffix)) {
@@ -95,7 +120,7 @@ namespace Velopack.Packaging
                         await WrapTask(ctx, "Pre-process steps", async (progress) => {
                             prev = entryHelper.GetPreviousFullRelease(NuGetVersion.Parse(packVersion), channel);
                             nuspecText = GenerateNuspecContent(
-                                packId, packTitle, packAuthors, packVersion, options.ReleaseNotes, packDirectory);
+                                packId, packTitle, packAuthors, packVersion, options.ReleaseNotes, packDirectory, mainExeName);
                             packDirectory = await PreprocessPackDir(progress, packDirectory, nuspecText);
                         });
 
@@ -188,7 +213,7 @@ namespace Velopack.Packaging
             Log.Debug($"[bold]Complete: {name}[/]");
         }
 
-        protected virtual string GenerateNuspecContent(string packId, string packTitle, string packAuthors, string packVersion, string releaseNotes, string packDir)
+        protected virtual string GenerateNuspecContent(string packId, string packTitle, string packAuthors, string packVersion, string releaseNotes, string packDir, string mainExeName)
         {
             var releaseNotesText = String.IsNullOrEmpty(releaseNotes)
                        ? "" // no releaseNotes

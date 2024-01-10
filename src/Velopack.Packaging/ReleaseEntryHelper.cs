@@ -42,10 +42,10 @@ namespace Velopack.Packaging
 
             foreach (var release in _releases[channel]) {
                 if (release.Rid != rid) {
-                    throw new ArgumentException("All releases in a channel must have the same RID. Please correct RELEASES file or change channel name: " + GetReleasePath(channel));
+                    throw new UserErrorException("All releases in a channel must have the same RID. Please correct RELEASES file or change channel name: " + GetReleasePath(channel));
                 }
                 if (version <= release.Version) {
-                    throw new ArgumentException($"Release {release.OriginalFilename} is equal or newer to the current version {version}. Please increase the current package version or remove that release.");
+                    throw new UserErrorException($"Release {release.OriginalFilename} is equal or newer to the current version {version}. Please increase the current package version or remove that release.");
                 }
             }
         }

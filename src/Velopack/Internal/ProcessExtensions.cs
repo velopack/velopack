@@ -65,7 +65,7 @@ namespace Velopack
             var p = Process.Start(psi);
             if (!p.WaitForExit(timeoutMs)) {
                 p.Kill();
-                throw new TimeoutException("Process did not exit within alloted time.");
+                throw new TimeoutException("Process did not exit within allotted time.");
             }
 
             return p.StandardOutput.ReadToEnd().Trim();

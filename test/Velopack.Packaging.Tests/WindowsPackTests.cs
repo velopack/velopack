@@ -184,7 +184,7 @@ public class WindowsPackTests
         var runner = new WindowsPackCommandRunner(logger);
         runner.Run(options).GetAwaiterResult();
 
-        Assert.Throws<ArgumentException>(() => runner.Run(options).GetAwaiterResult());
+        Assert.Throws<UserErrorException>(() => runner.Run(options).GetAwaiterResult());
     }
 
     [SkippableFact]
@@ -222,7 +222,7 @@ public class WindowsPackTests
         runner.Run(options).GetAwaiterResult();
 
         options.TargetRuntime = RID.Parse("win10.0.19043-x86");
-        Assert.Throws<ArgumentException>(() => runner.Run(options).GetAwaiterResult());
+        Assert.Throws<UserErrorException>(() => runner.Run(options).GetAwaiterResult());
     }
 
     [SkippableFact]
@@ -253,7 +253,7 @@ public class WindowsPackTests
         };
 
         var runner = new WindowsPackCommandRunner(logger);
-        Assert.Throws<Exception>(() => runner.Run(options).GetAwaiterResult());
+        Assert.Throws<UserErrorException>(() => runner.Run(options).GetAwaiterResult());
     }
 
     [SkippableFact]

@@ -57,7 +57,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         return Task.FromResult(packDir);
     }
 
-    protected override string GenerateNuspecContent(string packId, string packTitle, string packAuthors, string packVersion, string releaseNotes, string packDir)
+    protected override string GenerateNuspecContent(string packId, string packTitle, string packAuthors, string packVersion, string releaseNotes, string packDir, string mainExeName)
     {
         // check provided runtimes
         IEnumerable<Runtimes.RuntimeInfo> requiredFrameworks = Enumerable.Empty<Runtimes.RuntimeInfo>();
@@ -66,34 +66,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                 .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(Runtimes.GetRuntimeByName);
         }
+
         if (requiredFrameworks.Where(f => f == null).Any())
             throw new ArgumentException("Invalid target frameworks string.");
 
-        // check that the main executable exists
-        var mainExeName = Options.EntryExecutableName ?? Options.PackId + ".exe";
-        var mainExe = Path.Combine(packDir, mainExeName);
-        if (!File.Exists(mainExe))
-            throw new ArgumentException($"--exeName '{mainExeName}' does not exist in package. Searched at: '{mainExe}'");
-
-        // verify that the main executable is a valid velopack app
-        try {
-            var psi = new ProcessStartInfo(mainExe);
-            psi.AppendArgumentListSafe(new[] { "--veloapp-version" }, out var _);
-            var output = psi.Output(3000);
-            if (String.IsNullOrWhiteSpace(output)) {
-                throw new Exception("Process exited with no output.");
-            }
-            var version = SemanticVersion.Parse(output.Trim());
-            if (version != VelopackRuntimeInfo.VelopackNugetVersion) {
-                Log.Warn($"VelopackApp version '{version}' does not match CLI version '{VelopackRuntimeInfo.VelopackNugetVersion}'.");
-            }
-        } catch {
-            Log.Error("Failed to verify VelopackApp. Ensure you have added the startup code to your Program.Main(): VelopackApp.Build().Run();");
-            throw;
-        }
-
         // generate nuspec
-        var initial = base.GenerateNuspecContent(packId, packTitle, packAuthors, packVersion, releaseNotes, packDir);
+        var initial = base.GenerateNuspecContent(packId, packTitle, packAuthors, packVersion, releaseNotes, packDir, mainExeName);
         var tmpPath = Path.Combine(TempDir.FullName, "tmpwin.nuspec");
         File.WriteAllText(tmpPath, initial);
         NuspecManifest.SetMetadata(tmpPath, mainExeName, requiredFrameworks.Select(r => r.Id), Options.TargetRuntime, null);
