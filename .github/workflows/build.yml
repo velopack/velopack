@@ -69,8 +69,8 @@ jobs:
         if: ${{ matrix.os == 'macos-latest' }}
 
       - name: Rename Linux Binary
-        working-directory: src/Rust/target/release
-        run: cp x86_64-unknown-linux-gnu/update UpdateNix
+        working-directory: src/Rust/target
+        run: cp ./x86_64-unknown-linux-gnu/release/update ./release/UpdateNix
         if: ${{ matrix.os == 'ubuntu-latest' }}
 
       - name: Build .NET
