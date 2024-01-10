@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Velopack.Deployment;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
@@ -152,6 +152,19 @@ This is just a _test_!
                         ReleaseNotes = releaseNotes,
                     };
                     var runner = new OsxPackCommandRunner(logger);
+                    runner.Run(options).GetAwaiterResult();
+                } else if (VelopackRuntimeInfo.IsLinux) {
+                    var options = new LinuxPackOptions {
+                        EntryExecutableName = "TestApp",
+                        ReleaseDir = new DirectoryInfo(releaseDir),
+                        PackId = id,
+                        Icon = Path.Combine(PathHelper.GetProjectDir(), "examples", "AvaloniaCrossPlat", "Velopack.png"),
+                        TargetRuntime = RID.Parse(VelopackRuntimeInfo.SystemOs.GetOsShortName()),
+                        PackVersion = version,
+                        PackDirectory = Path.Combine(projDir, "publish"),
+                        ReleaseNotes = releaseNotes,
+                    };
+                    var runner = new LinuxPackCommandRunner(logger);
                     runner.Run(options).GetAwaiterResult();
                 } else {
                     throw new PlatformNotSupportedException();
