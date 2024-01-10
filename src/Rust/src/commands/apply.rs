@@ -106,7 +106,19 @@ fn apply_package_impl<'a>(
     let current_dir = app.get_current_path(&root_path);
     if let Err(e) = shared::replace_dir_with_rollback(current_dir.clone(), || {
         if let Some(bundle) = package_bundle.take() {
-            bundle.extract_lib_contents_to_path(&current_dir, |_| {})
+            #[cfg(target_os = "linux")]
+            {   
+                // on linux, the current "dir" is actually an AppImage file which we need to replace.
+                info!("Extracting AppImage");
+                bundle.extract_zip_predicate_to_path(|z| z.ends_with(".AppImage"), &current_dir)?;
+                std::fs::set_permissions(&current_dir, <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o755))?;
+                info!("AppImage extracted successfully to {}", &current_dir);
+                Ok(())
+            }
+            #[cfg(not(target_os = "linux"))]
+            {
+                bundle.extract_lib_contents_to_path(&current_dir, |_| {})
+            }
         } else {
             bail!("No bundle could be loaded.");
         }

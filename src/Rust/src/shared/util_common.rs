@@ -7,7 +7,9 @@ pub fn replace_dir_with_rollback<F, T, P: AsRef<Path>>(path: P, op: F) -> Result
 where
     F: FnOnce() -> Result<T>,
 {
-    let path = path.as_ref().to_string_lossy().to_string();
+    let path = path.as_ref();
+    let is_dir = path.is_dir();
+    let path = path.to_string_lossy().to_string();
     let mut path_renamed = String::new();
 
     if !is_dir_empty(&path) {
@@ -20,8 +22,11 @@ where
         retry_io(|| fs::rename(&path, &path_renamed)).map_err(|z| anyhow!("Failed to rename directory '{}' to '{}' ({}).", path, path_renamed, z))?;
     }
 
-    remove_dir_all::ensure_empty_dir(&path).map_err(|z| anyhow!("Failed to create clean directory '{}' ({}).", path, z))?;
+    if is_dir {
+        remove_dir_all::ensure_empty_dir(&path).map_err(|z| anyhow!("Failed to create clean directory '{}' ({}).", path, z))?;
+    }
 
+    info!("Running rollback protected operation...");
     if let Err(e) = op() {
         // install failed, rollback if possible
         warn!("Rolling back installation... (error was: {:?})", e);
@@ -42,9 +47,15 @@ where
     } else {
         // install successful, remove rollback directory if exists
         if !path_renamed.is_empty() {
-            debug!("Removing rollback directory '{}'.", path_renamed);
-            if let Err(ex) = super::retry_io(|| fs::remove_dir_all(&path_renamed)) {
-                warn!("Failed to remove directory '{}' ({}).", path_renamed, ex);
+            debug!("Removing rollback path '{}'.", path_renamed);
+            if is_dir {
+                if let Err(ex) = super::retry_io(|| fs::remove_dir_all(&path_renamed)) {
+                    warn!("Failed to remove rollback directory '{}' ({}).", path_renamed, ex);
+                }
+            } else {
+                if let Err(ex) = super::retry_io(|| fs::remove_file(&path_renamed)) {
+                    warn!("Failed to remove rollback file '{}' ({}).", path_renamed, ex);
+                }
             }
         }
         return Ok(());

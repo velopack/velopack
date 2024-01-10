@@ -1,6 +1,6 @@
-use dialog::{DialogBox, Choice};
 use super::dialogs_const::*;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
+use dialog::{Choice, DialogBox};
 
 pub fn generate_alert(title: &str, header: Option<&str>, body: &str, _ok_text: Option<&str>, _btns: DialogButton, _ico: DialogIcon) -> Result<()> {
     let mut body = body.to_string();
@@ -8,8 +8,7 @@ pub fn generate_alert(title: &str, header: Option<&str>, body: &str, _ok_text: O
         body = format!("{}\n{}", h, body);
     }
 
-    dialog::Message::new(body).title(title).show()
-        .map_err(|e| anyhow!("Failed to open dialog ({})", e))?;
+    dialog::Message::new(body).title(title).show().map_err(|e| anyhow!("Failed to open dialog ({})", e))?;
     Ok(())
 }
 
@@ -19,12 +18,11 @@ pub fn generate_confirm(title: &str, header: Option<&str>, body: &str, _ok_text:
         body = format!("{}\n{}", h, body);
     }
 
-    let result = dialog::Question::new(body).title(title).show()
-        .map_err(|e| anyhow!("Failed to open dialog ({})", e))?;
+    let result = dialog::Question::new(body).title(title).show().map_err(|e| anyhow!("Failed to open dialog ({})", e))?;
 
     Ok(match result {
         Choice::Cancel => DialogResult::Cancel,
-        Choice::No => DialogResult::No,
-        Choice::Yes => DialogResult::Yes,
+        Choice::No => DialogResult::Cancel,
+        Choice::Yes => DialogResult::Ok,
     })
 }
