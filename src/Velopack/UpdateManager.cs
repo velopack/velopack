@@ -325,6 +325,16 @@ namespace Velopack
             if (silent) args.Add("--silent");
             args.Add("apply");
             args.Add("--wait");
+
+            var entry = Locator.GetLatestLocalFullPackage();
+            if (entry != null) {
+                var pkg = Path.Combine(Locator.PackagesDir, entry.OriginalFilename);
+                if (File.Exists(pkg)) {
+                    args.Add("--package");
+                    args.Add(pkg);
+                }
+            }
+            
             if (restart) args.Add("--restart");
             if (restart && restartArgs != null && restartArgs.Length > 0) {
                 args.Add("--");

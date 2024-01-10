@@ -1,12 +1,14 @@
 use anyhow::{anyhow, Result};
 use rand::distributions::{Alphanumeric, DistString};
 use regex::Regex;
-use std::{fs, path::Path, thread, time::Duration};
+use std::{path::Path, thread, time::Duration};
 
+#[cfg(not(target_os = "linux"))]
 pub fn replace_dir_with_rollback<F, T, P: AsRef<Path>>(path: P, op: F) -> Result<()>
 where
     F: FnOnce() -> Result<T>,
 {
+    use std::fs;
     let path = path.as_ref();
     let is_dir = path.is_dir();
     let path = path.to_string_lossy().to_string();

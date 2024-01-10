@@ -137,8 +137,21 @@ fn apply(matches: &ArgMatches) -> Result<()> {
     info!("    Exe Args: {:?}", exe_args);
     info!("    No Elevate: {}", noelevate);
 
-    let (root_path, app) = shared::detect_current_manifest()?;
-    commands::apply(&root_path, &app, restart, wait_for_parent, package, exe_args, noelevate)
+    #[cfg(target_os = "linux")]
+    {
+        match package {
+            None => bail!("Package (--package) argument is required on linux."),
+            Some(p) => {
+                let (root_path, app) = shared::detect_current_manifest(p)?;
+                commands::apply(&root_path, &app, restart, wait_for_parent, package, exe_args, noelevate)
+            }
+        }
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let (root_path, app) = shared::detect_current_manifest()?;
+        commands::apply(&root_path, &app, restart, wait_for_parent, package, exe_args, noelevate)
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -175,11 +188,14 @@ pub fn default_logging(verbose: bool, nocolor: bool) -> Result<()> {
         my_dir.join("Velopack.log")
     };
 
-    #[cfg(unix)]
+    #[cfg(target_os = "macos")]
     let default_log_file = {
         let (_root, manifest) = shared::detect_current_manifest().expect("Unable to load app manfiest.");
         std::path::Path::new(format!("/tmp/velopack/{}.log", manifest.id).as_str()).to_path_buf()
     };
+
+    #[cfg(target_os = "linux")]
+    let default_log_file = std::path::Path::new("/tmp/velopack.log").to_path_buf();
 
     logging::setup_logging(Some(&default_log_file), true, verbose, nocolor)
 }

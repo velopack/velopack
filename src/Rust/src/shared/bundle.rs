@@ -389,27 +389,6 @@ impl Manifest {
     }
 }
 
-#[cfg(target_os = "linux")]
-impl Manifest {
-    pub fn get_packages_path(&self, _root_path: &PathBuf) -> String {
-        let tmp = format!("/var/tmp/velopack/{}/packages", self.id);
-        let p = Path::new(&tmp);
-        if !p.exists() {
-            fs::create_dir_all(p).unwrap();
-        }
-        p.to_string_lossy().to_string()
-    }
-    pub fn get_current_path(&self, _root_path: &PathBuf) -> String {
-        let path = std::env::var("APPIMAGE").unwrap();
-        if !Path::new(&path).exists() {
-            error!("APPIMAGE is not set, or does not point to an existing file: {}", path);
-            String::new()
-        } else {
-            path
-        }
-    }
-}
-
 pub fn read_manifest_from_string(xml: &str) -> Result<Manifest> {
     let mut obj: Manifest = Default::default();
     let cursor = Cursor::new(xml);

@@ -1,11 +1,9 @@
 use crate::shared::{
     self,
-    bundle::{self, BundleInfo, Manifest},
+    bundle::{self, Manifest},
     dialogs,
 };
 use anyhow::{anyhow, bail, Result};
-use glob::glob;
-use runas::Command as RunAsCommand;
 use std::path::PathBuf;
 
 pub fn apply<'a>(
@@ -38,6 +36,82 @@ pub fn apply<'a>(
     Ok(())
 }
 
+fn check_permission_denied(e: &anyhow::Error) -> bool {
+    if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
+        return io_err.kind() == std::io::ErrorKind::PermissionDenied;
+    }
+    false
+}
+
+#[cfg(target_os = "linux")]
+fn apply_package_impl<'a>(
+    root_path: &PathBuf,
+    app: &Manifest,
+    restart: bool,
+    package: Option<&PathBuf>,
+    exe_args: Option<Vec<&str>>,
+    noelevate: bool,
+) -> Result<()> {
+    // on linux, the current "dir" is actually an AppImage file which we need to replace.
+    let pkg = package.ok_or(anyhow!("Package is required"))?;
+
+    info!("Loading bundle from {}", pkg.to_string_lossy());
+    let bundle = bundle::load_bundle_from_file(pkg)?;
+    let mut tmp_path = root_path.to_string_lossy().to_string();
+    tmp_path = tmp_path + "_" + shared::random_string(8).as_ref();
+
+    info!("Extracting AppImage to temp file");
+
+    let result: Result<()> = (|| {
+        bundle.extract_zip_predicate_to_path(|z| z.ends_with(".AppImage"), &tmp_path)?;
+        std::fs::set_permissions(&tmp_path, <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o755))?;
+        std::fs::rename(&tmp_path, &root_path)?;
+        Ok(())
+    })();
+
+    match result {
+        Ok(()) => {
+            info!("AppImage extracted successfully to {}", &root_path.to_string_lossy());
+        }
+        Err(e) => {
+            let _ = std::fs::remove_file(&tmp_path);
+            if check_permission_denied(&e) {
+                error!("An error occurred {}, will attempt to elevate permissions and try again...", e);
+                ask_user_to_elevate(&app, noelevate, restart, package, exe_args)?;
+            } else {
+                bail!("Unable to extract AppImage ({})", e);
+            }
+        }
+    }
+    Ok(())
+}
+
+fn ask_user_to_elevate(app_to: &Manifest, noelevate: bool, restart: bool, package: Option<&PathBuf>, exe_args: Option<Vec<&str>>) -> Result<()> {
+    if noelevate {
+        bail!("Not allowed to ask for elevated permissions because --noelevate flag is set.");
+    }
+
+    if dialogs::get_silent() {
+        bail!("Not allowed to ask for elevated permissions because --silent flag is set.");
+    }
+
+    let title = format!("{} Update", app_to.title);
+    let body = format!(
+        "{} would like to update to version {}, but needs to request elevated permissions to do so. Would you like to do this now?",
+        app_to.title, app_to.version
+    );
+
+    info!("Showing user elevation prompt?");
+    if dialogs::show_ok_cancel(title.as_str(), None, body.as_str(), Some("Install Update")) {
+        info!("User answered yes, starting elevation...");
+        run_apply_elevated(&app_to.id, restart, package, exe_args)?;
+    } else {
+        bail!("User cancelled elevation prompt.");
+    }
+    Ok(())
+}
+
+#[cfg(not(target_os = "linux"))]
 fn apply_package_impl<'a>(
     root_path: &PathBuf,
     app: &Manifest,
@@ -60,7 +134,7 @@ fn apply_package_impl<'a>(
     } else {
         info!("No package specified, searching for latest.");
         let packages_dir = app.get_packages_path(&root_path);
-        if let Ok(paths) = glob(format!("{}/*.nupkg", packages_dir).as_str()) {
+        if let Ok(paths) = glob::glob(format!("{}/*.nupkg", packages_dir).as_str()) {
             for path in paths {
                 if let Ok(path) = path {
                     trace!("Checking package: '{}'", path.to_string_lossy());
@@ -106,19 +180,7 @@ fn apply_package_impl<'a>(
     let current_dir = app.get_current_path(&root_path);
     if let Err(e) = shared::replace_dir_with_rollback(current_dir.clone(), || {
         if let Some(bundle) = package_bundle.take() {
-            #[cfg(target_os = "linux")]
-            {   
-                // on linux, the current "dir" is actually an AppImage file which we need to replace.
-                info!("Extracting AppImage");
-                bundle.extract_zip_predicate_to_path(|z| z.ends_with(".AppImage"), &current_dir)?;
-                std::fs::set_permissions(&current_dir, <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o755))?;
-                info!("AppImage extracted successfully to {}", &current_dir);
-                Ok(())
-            }
-            #[cfg(not(target_os = "linux"))]
-            {
-                bundle.extract_lib_contents_to_path(&current_dir, |_| {})
-            }
+            bundle.extract_lib_contents_to_path(&current_dir, |_| {})
         } else {
             bail!("No bundle could be loaded.");
         }
@@ -152,8 +214,47 @@ fn apply_package_impl<'a>(
     Ok(())
 }
 
+#[cfg(target_os = "linux")]
+fn run_apply_elevated(appid: &str, _restart: bool, package: Option<&PathBuf>, exe_args: Option<Vec<&str>>) -> Result<()> {
+    // in linux, as soon as the main AppImage process exits, the fs is unmounted
+    // so we need to write self to a temporary file before we can use pkexec
+    let temp_path = format!("/tmp/{}_update", appid);
+    shared::copy_own_fd_to_file(&temp_path)?;
+    std::fs::set_permissions(&temp_path, <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o755))?;
+
+    let path = std::env::var("APPIMAGE")?;
+
+    let mut args = get_run_elevated_args(false, package, exe_args);
+    args.insert(0, "env".to_string());
+    args.insert(1, format!("APPIMAGE={}", path));
+    args.insert(2, temp_path.to_owned());
+
+    info!("Attempting to elevate: pkexec {:?}", args);
+    let status = std::process::Command::new("pkexec").args(args).status();
+    let _ = std::fs::remove_file(&temp_path);
+
+    info!("pkexec exited with status: {}", status?);
+    Ok(())
+}
+
+#[cfg(not(target_os = "linux"))]
 fn run_apply_elevated(restart: bool, package: Option<&PathBuf>, exe_args: Option<Vec<&str>>) -> Result<()> {
+    use runas::Command as RunAsCommand;
     let exe = std::env::current_exe()?;
+    let args = get_run_elevated_args(restart, package, exe_args);
+
+    info!("Attempting to elevate: {} {:?}", exe.to_string_lossy(), args);
+
+    let mut cmd = RunAsCommand::new(&exe);
+    cmd.gui(true);
+    cmd.force_prompt(false);
+    cmd.args(&args);
+    cmd.status().map_err(|z| anyhow!("Failed to restart elevated ({}).", z))?;
+
+    std::process::exit(0);
+}
+
+fn get_run_elevated_args(restart: bool, package: Option<&PathBuf>, exe_args: Option<Vec<&str>>) -> Vec<String> {
     let mut args: Vec<String> = Vec::new();
     args.push("apply".to_string());
     args.push("--noelevate".to_string());
@@ -173,14 +274,5 @@ fn run_apply_elevated(restart: bool, package: Option<&PathBuf>, exe_args: Option
         args.push("--".to_string());
         a.iter().for_each(|a| args.push(a.to_string()));
     }
-
-    info!("Attempting to elevate: {} {:?}", exe.to_string_lossy(), args);
-
-    let mut cmd = RunAsCommand::new(&exe);
-    cmd.gui(true);
-    cmd.force_prompt(false);
-    cmd.args(&args);
-    cmd.status().map_err(|z| anyhow!("Failed to restart elevated ({}).", z))?;
-
-    std::process::exit(0);
+    args
 }
