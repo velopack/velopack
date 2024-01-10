@@ -108,6 +108,13 @@ pub fn random_string(len: usize) -> String {
     Alphanumeric.sample_string(&mut rand::thread_rng(), len)
 }
 
+pub fn is_error_permission_denied(e: &anyhow::Error) -> bool {
+    if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
+        return io_err.kind() == std::io::ErrorKind::PermissionDenied;
+    }
+    false
+}
+
 pub fn is_dir_empty<P: AsRef<Path>>(path: P) -> bool {
     let path = path.as_ref();
     if !path.exists() {
