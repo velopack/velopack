@@ -13,7 +13,7 @@ class Program
     public static void Main(string[] args)
     {
         VelopackApp.Build()
-            .Run();
+            .Run(new ConsoleLogger());
 
         BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);

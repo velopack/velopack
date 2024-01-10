@@ -49,10 +49,12 @@ Categories=Development;
 """);
 
             File.Copy(Options.Icon, Path.Combine(dir.FullName, Options.PackId + Path.GetExtension(Options.Icon)), true);
+            var helper = new HelperExe(Log);
 
             var bin = dir.CreateSubdirectory("usr").CreateSubdirectory("bin");
             CopyFiles(new DirectoryInfo(packDir), bin, progress, true);
             File.WriteAllText(Path.Combine(bin.FullName, "sq.version"), nuspecText);
+            File.Copy(helper.UpdateNixPath, Path.Combine(bin.FullName, "UpdateNix"), true);
             progress(100);
             return Task.FromResult(dir.FullName);
         }

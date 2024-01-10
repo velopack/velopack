@@ -24,6 +24,7 @@ public class HelperExe : HelperFile
         var tool = AppImageTool;
         Chmod.ChmodFileAsExecutable(tool);
         InvokeAndThrowIfNonZero(tool, new[] { appDir, outputFile }, null);
+        Chmod.ChmodFileAsExecutable(outputFile);
     }
 
     [SupportedOSPlatform("osx")]
