@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>net6.0</TargetFrameworks>
+    <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
     <IsPackable>true</IsPackable>
     <AssemblyName>vpk</AssemblyName>
     <PackageId>vpk</PackageId>
@@ -37,10 +37,14 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(PackRustAssets)' == 'true'">
-    <None Include="..\Rust\target\release\updatemac" Pack="true" PackagePath="vendor" />
+    <None Include="..\Rust\target\release\UpdateMac" Pack="true" PackagePath="vendor" />
+    <None Include="..\Rust\target\release\UpdateNix" Pack="true" PackagePath="vendor" />
     <None Include="..\Rust\target\release\update.exe" Pack="true" PackagePath="vendor" />
     <None Include="..\Rust\target\release\setup.exe" Pack="true" PackagePath="vendor" />
     <None Include="..\Rust\target\release\stub.exe" Pack="true" PackagePath="vendor" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\..\vendor\appimagetool-x86_64.AppImage" Pack="true" PackagePath="vendor" />
     <None Include="..\..\vendor\rcedit.exe" Pack="true" PackagePath="vendor" />
     <None Include="..\..\vendor\zstd.exe" Pack="true" PackagePath="vendor" />

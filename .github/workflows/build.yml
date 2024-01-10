@@ -9,7 +9,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Print dotnet version
@@ -33,8 +33,7 @@ jobs:
         with:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-test-nuget-${{ hashFiles('**/packages.lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-test-nuget-
+          restore-keys: ${{ runner.os }}-test-nuget-
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
@@ -49,21 +48,30 @@ jobs:
 
       - name: Set Windows Feature
         shell: pwsh
-        run: Add-Content -Path $env:GITHUB_ENV -Value "rust_features=--features windows"
+        run: Add-Content -Path $env:GITHUB_ENV -Value "EXTRA_RUST_FLAGS=--features windows"
         if: ${{ matrix.os == 'windows-latest' }}
+
+      - name: Set Linux Target
+        run: echo "EXTRA_RUST_FLAGS=--target x86_64-unknown-linux-gnu" >> "$GITHUB_ENV"
+        if: ${{ matrix.os == 'ubuntu-latest' }}
 
       - name: Build Rust
         working-directory: src/Rust
-        run: cargo build --release ${{ env.rust_features }}
+        run: cargo build --release ${{ env.EXTRA_RUST_FLAGS }}
 
       - name: Test Rust
         working-directory: src/Rust
-        run: cargo llvm-cov ${{ env.rust_features }} --cobertura --output-path ../../test/coverage.rust.${{ matrix.os }}.xml
+        run: cargo llvm-cov ${{ env.EXTRA_RUST_FLAGS }} --cobertura --output-path ../../test/coverage.rust.${{ matrix.os }}.xml
 
       - name: Rename OSX Binary
         working-directory: src/Rust/target/release
-        run: cp update updatemac
+        run: cp update UpdateMac
         if: ${{ matrix.os == 'macos-latest' }}
+
+      - name: Rename Linux Binary
+        working-directory: src/Rust/target/release
+        run: cp update UpdateNix
+        if: ${{ matrix.os == 'ubuntu-latest' }}
 
       - name: Build .NET
         run: dotnet build -c Release 
@@ -82,7 +90,8 @@ jobs:
         with:
           name: rust-${{ matrix.os }}
           path: |
-            src/Rust/target/release/updatemac
+            src/Rust/target/release/UpdateNix
+            src/Rust/target/release/UpdateMac
             src/Rust/target/release/*.exe
 
       - name: Upload Coverage to Codecov
@@ -108,8 +117,7 @@ jobs:
         with:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-nuget-
+          restore-keys: ${{ runner.os }}-nuget-
 
       - name: Download Rust Windows
         uses: actions/download-artifact@v4
@@ -121,6 +129,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: rust-windows-latest
+          path: src/Rust/target/release
+
+      - name: Download Rust Linux
+        uses: actions/download-artifact@v4
+        with:
+          name: rust-ubuntu-latest
           path: src/Rust/target/release
 
       - name: Build .NET
