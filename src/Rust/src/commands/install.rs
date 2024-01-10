@@ -36,7 +36,7 @@ pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Res
     info!("    Package Machine Architecture: {}", &app.machine_architecture);
     info!("    Package Runtime Dependencies: {}", &app.runtime_dependencies);
 
-    let _mutex = windows::create_global_mutex(&app)?;
+    let _mutex = shared::retry_io(|| windows::create_global_mutex(&app))?;
 
     if !windows::prerequisite::prompt_and_install_all_missing(&app, None)? {
         info!("Cancelling setup. Pre-requisites not installed.");

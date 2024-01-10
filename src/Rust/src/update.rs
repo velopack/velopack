@@ -143,14 +143,16 @@ fn apply(matches: &ArgMatches) -> Result<()> {
             None => bail!("Package (--package) argument is required on linux."),
             Some(p) => {
                 let (root_path, app) = shared::detect_current_manifest(p)?;
-                commands::apply(&root_path, &app, restart, wait_for_parent, package, exe_args, noelevate)
+                commands::apply(&root_path, &app, restart, wait_for_parent, package, exe_args, noelevate, true)
             }
         }
     }
     #[cfg(not(target_os = "linux"))]
     {
         let (root_path, app) = shared::detect_current_manifest()?;
-        commands::apply(&root_path, &app, restart, wait_for_parent, package, exe_args, noelevate)
+        #[cfg(target_os = "windows")]
+        let _mutex = shared::retry_io(|| windows::create_global_mutex(&app))?;
+        commands::apply(&root_path, &app, restart, wait_for_parent, package, exe_args, noelevate, true)
     }
 }
 
@@ -170,6 +172,8 @@ fn start(matches: &ArgMatches) -> Result<()> {
         warn!("Legacy args format is deprecated and will be removed in a future release. Please update your application to use the new format.");
     }
 
+    let (_root_path, app) = shared::detect_current_manifest()?;
+    let _mutex = shared::retry_io(|| windows::create_global_mutex(&app))?;
     commands::start(wait_for_parent, exe_name, exe_args, legacy_args)
 }
 

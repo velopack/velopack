@@ -28,8 +28,9 @@ pub fn run_hook(app: &shared::bundle::Manifest, root_path: &PathBuf, hook_name: 
     let args = vec![hook_name, &ver_string];
     if let Err(e) = run_process_no_console_and_wait(&main_exe_path, args, &current_path, Some(Duration::from_secs(timeout_secs))) {
         warn!("Error running hook {}: {} (took {}ms)", hook_name, e, sw.ms());
+    } else {
+        info!("Hook executed successfully (took {}ms)", sw.ms());
     }
-    info!("Hook executed successfully (took {}ms)", sw.ms());
     // in case the hook left running processes
     let _ = shared::force_stop_package(&root_path);
 }

@@ -97,7 +97,7 @@ fn try_legacy_migration(root_dir: &PathBuf, app: &bundle::Manifest) -> Result<()
 
     info!("Applying latest full package...");
     let buf = Path::new(&package.file_path).to_path_buf();
-    super::apply(&root_dir, &app, false, false, Some(&buf), None, true)?;
+    super::apply(&root_dir, &app, false, false, Some(&buf), None, true, false)?;
 
     info!("Removing old app-* folders...");
     shared::delete_app_prefixed_folders(&root_dir)?;
