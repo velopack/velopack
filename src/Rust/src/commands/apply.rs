@@ -16,6 +16,7 @@ pub fn apply<'a>(
     package: Option<&PathBuf>,
     exe_args: Option<Vec<&str>>,
     noelevate: bool,
+    runhooks: bool,
 ) -> Result<()> {
     if wait_for_parent {
         if let Err(e) = shared::wait_for_parent_to_exit(60_000) {
@@ -23,7 +24,7 @@ pub fn apply<'a>(
         }
     }
 
-    if let Err(e) = apply_package_impl(&root_path, &app, restart, package, exe_args.clone(), noelevate) {
+    if let Err(e) = apply_package_impl(&root_path, &app, restart, package, exe_args.clone(), noelevate, runhooks) {
         error!("Error applying package: {}", e);
         if !restart {
             return Err(e);
@@ -45,12 +46,10 @@ fn apply_package_impl<'a>(
     package: Option<&PathBuf>,
     exe_args: Option<Vec<&str>>,
     noelevate: bool,
+    runhooks: bool,
 ) -> Result<()> {
     let mut package_manifest: Option<Manifest> = None;
     let mut package_bundle: Option<BundleInfo<'a>> = None;
-
-    #[cfg(target_os = "windows")]
-    let _mutex = crate::windows::create_global_mutex(&app)?;
 
     if let Some(pkg) = package {
         info!("Loading package from argument '{}'.", pkg.to_string_lossy());
@@ -93,15 +92,20 @@ fn apply_package_impl<'a>(
         }
     }
 
-    #[cfg(target_os = "windows")]
-    if !crate::windows::prerequisite::prompt_and_install_all_missing(&package_manifest, Some(&app.version))? {
-        bail!("Stopping apply. Pre-requisites are missing.");
-    }
-
     info!("Applying package to current: {}", found_version);
 
     #[cfg(target_os = "windows")]
-    crate::windows::run_hook(&app, &root_path, "--veloapp-obsolete", 15);
+    {
+        if !crate::windows::prerequisite::prompt_and_install_all_missing(&package_manifest, Some(&app.version))? {
+            bail!("Stopping apply. Pre-requisites are missing and user cancelled.");
+        }
+
+        if runhooks {
+            crate::windows::run_hook(&app, &root_path, "--veloapp-obsolete", 15);
+        } else {
+            info!("Skipping --veloapp-obsolete hook.");
+        }
+    }
 
     let current_dir = app.get_current_path(&root_path);
     if let Err(e) = shared::replace_dir_with_rollback(current_dir.clone(), || {
@@ -129,12 +133,17 @@ fn apply_package_impl<'a>(
     }
 
     #[cfg(target_os = "windows")]
-    if let Err(e) = package_manifest.write_uninstall_entry(root_path) {
-        warn!("Failed to write uninstall entry ({}).", e);
-    }
+    {
+        if let Err(e) = package_manifest.write_uninstall_entry(root_path) {
+            warn!("Failed to write uninstall entry ({}).", e);
+        }
 
-    #[cfg(target_os = "windows")]
-    crate::windows::run_hook(&package_manifest, &root_path, "--veloapp-updated", 15);
+        if runhooks {
+            crate::windows::run_hook(&package_manifest, &root_path, "--veloapp-updated", 15);
+        } else {
+            info!("Skipping --veloapp-updated hook.");
+        }
+    }
 
     info!("Package applied successfully.");
     Ok(())

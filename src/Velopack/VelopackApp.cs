@@ -163,13 +163,14 @@ namespace Velopack
             VelopackHook defaultBlock = ((v) => { });
             var fastExitlookup = new[] {
                 new { Key = "--veloapp-install", Value = _install ?? defaultBlock },
-                new { Key = "--squirrel-install", Value = _install ?? defaultBlock },
                 new { Key = "--veloapp-updated", Value = _update ?? defaultBlock },
-                new { Key = "--squirrel-updated", Value = _update ?? defaultBlock },
                 new { Key = "--veloapp-obsolete", Value = _obsolete ?? defaultBlock },
-                new { Key = "--squirrel-obsolete", Value = _obsolete ?? defaultBlock },
                 new { Key = "--veloapp-uninstall", Value = _uninstall ?? defaultBlock },
-                new { Key = "--squirrel-uninstall", Value = _uninstall ?? defaultBlock },
+                // ignore the legacy hooks
+                new { Key = "--squirrel-install", Value = defaultBlock },
+                new { Key = "--squirrel-updated", Value = defaultBlock },
+                new { Key = "--squirrel-obsolete", Value = defaultBlock },
+                new { Key = "--squirrel-uninstall", Value = defaultBlock },
             }.ToDictionary(k => k.Key, v => v.Value, StringComparer.OrdinalIgnoreCase);
             if (args.Length >= 2 && fastExitlookup.ContainsKey(args[0])) {
                 try {
