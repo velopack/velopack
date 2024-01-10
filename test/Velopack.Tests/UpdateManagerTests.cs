@@ -21,7 +21,12 @@ namespace Velopack.Tests
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var tempPath);
 
-            string releasesSuffix = VelopackRuntimeInfo.IsOSX ? "-osx" : "";
+            string releasesSuffix = VelopackRuntimeInfo.SystemOs switch {
+                RuntimeOs.Windows => "",
+                RuntimeOs.Linux => "-linux",
+                RuntimeOs.OSX => "-osx",
+                _ => throw new ArgumentOutOfRangeException()
+            };
 
             File.WriteAllText(Path.Combine(tempPath, "RELEASES" + releasesSuffix), """
 3a2eadd15dd984e4559f2b4d790ec8badaeb6a39  MyCoolApp-1.1.0.nupkg  1040561
@@ -76,7 +81,12 @@ namespace Velopack.Tests
         {
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var tempPath);
-            string releasesSuffix = VelopackRuntimeInfo.IsOSX ? "-osx" : "";
+            string releasesSuffix = VelopackRuntimeInfo.SystemOs switch {
+                RuntimeOs.Windows => "",
+                RuntimeOs.Linux => "-linux",
+                RuntimeOs.OSX => "-osx",
+                _ => throw new ArgumentOutOfRangeException()
+            };
             File.WriteAllText(Path.Combine(tempPath, "RELEASES" + releasesSuffix), """
 3a2eadd15dd984e4559f2b4d790ec8badaeb6a39  MyCoolApp-1.1.0.nupkg  1040561
 3a2eadd15dd984e4559f2b4d790ec8badaeb6a39  MyCoolApp-1.2.0.nupkg  1040561
@@ -124,7 +134,12 @@ namespace Velopack.Tests
         {
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var tempPath);
-            string releasesSuffix = VelopackRuntimeInfo.IsOSX ? "-osx" : "";
+            string releasesSuffix = VelopackRuntimeInfo.SystemOs switch {
+                RuntimeOs.Windows => "",
+                RuntimeOs.Linux => "-linux",
+                RuntimeOs.OSX => "-osx",
+                _ => throw new ArgumentOutOfRangeException()
+            };
             File.WriteAllText(Path.Combine(tempPath, "RELEASES" + releasesSuffix), """
 3a2eadd15dd984e4559f2b4d790ec8badaeb6a39  MyCoolApp-1.1.0.nupkg  1040561
 94689fede03fed7ab59c24337673a27837f0c3ec  MyCoolApp-1.0.0.nupkg  1004502
@@ -140,7 +155,12 @@ namespace Velopack.Tests
         {
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var tempPath);
-            string releasesSuffix = VelopackRuntimeInfo.IsOSX ? "-osx" : "";
+            string releasesSuffix = VelopackRuntimeInfo.SystemOs switch {
+                RuntimeOs.Windows => "",
+                RuntimeOs.Linux => "-linux",
+                RuntimeOs.OSX => "-osx",
+                _ => throw new ArgumentOutOfRangeException()
+            };
             File.WriteAllText(Path.Combine(tempPath, "RELEASES" + releasesSuffix), """
 3a2eadd15dd984e4559f2b4d790ec8badaeb6a39  MyCoolApp-1.1.0.nupkg  1040561
 94689fede03fed7ab59c24337673a27837f0c3ec  MyCoolApp-1.0.0.nupkg  1004502
@@ -175,11 +195,12 @@ namespace Velopack.Tests
             um.VerifyPackageChecksum(info.TargetFullRelease);
         }
 
-        [Theory]
+        [SkippableTheory]
         [InlineData("Clowd", "3.4.287", "3.4.292")]
         //[InlineData("slack", "1.1.8", "1.2.2")]
         public async Task DownloadsDeltasAndCreatesFullVersion(string id, string fromVersion, string toVersion)
         {
+            Skip.If(VelopackRuntimeInfo.IsLinux);
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var packagesDir);
             var repo = new FakeFixtureRepository(id, true);

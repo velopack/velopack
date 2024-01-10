@@ -50,10 +50,7 @@ public static class PathHelper
 
     public static string CopyUpdateTo(string dir)
     {
-        var updateName = "update.exe";
-        if (VelopackRuntimeInfo.IsOSX) {
-            updateName = "update";
-        }
+        var updateName = VelopackRuntimeInfo.IsWindows ? "update.exe" : "update";
         var path = GetRustAsset(updateName);
         var newPath = Path.Combine(dir, updateName);
         File.Copy(path, newPath);
