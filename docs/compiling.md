@@ -42,3 +42,12 @@ cargo build --release --features windows
 copy {path_to_osx_update} target/release/updatemac
 dotnet build -c Release /p:PackRustAssets=true
 ```
+
+### Compiling on Linux
+If you are on Linux (tested on Ubuntu), there are additional package pre-requisites:
+```sh
+sudo apt install libssl-dev pkg-config 
+```
+You need to verify that `nbgv` is working on the command line, you may be missing a `DOTNET_ROOT` variable in your bash profile, which might need to point at `/usr/share/dotnet` or `$HOME/.dotnet`. 
+
+If you are missing localisation packages, you can search for them or add `export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` to your bash profile.
