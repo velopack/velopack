@@ -70,7 +70,7 @@ jobs:
 
       - name: Rename Linux Binary
         working-directory: src/Rust/target/release
-        run: cp update UpdateNix
+        run: cp x86_64-unknown-linux-gnu/update UpdateNix
         if: ${{ matrix.os == 'ubuntu-latest' }}
 
       - name: Build .NET
