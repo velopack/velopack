@@ -81,6 +81,7 @@ native-dialog = "0.7"
 waitpid-any = "0.2"
 bindet = "0.3"
 dialog = "0.3"
+libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
 fs_extra = "1.2"

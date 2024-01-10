@@ -1679,6 +1679,7 @@ dependencies = [
  "glob",
  "image",
  "lazy_static",
+ "libc",
  "log",
  "memmap2",
  "native-dialog",

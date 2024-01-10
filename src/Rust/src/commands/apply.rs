@@ -227,7 +227,7 @@ fn run_apply_elevated(package: Option<&PathBuf>, exe_args: Option<Vec<&str>>) ->
     std::fs::set_permissions(&temp_path, <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o755))?;
 
     let path = std::env::var("APPIMAGE")?;
-    let mut args = get_run_elevated_args(false, package, exe_args);
+    let mut args = get_run_elevated_args(package, exe_args);
     args.insert(0, "env".to_string());
     args.insert(1, format!("APPIMAGE={}", path));
     args.insert(2, temp_path.to_owned());
