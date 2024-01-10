@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.Spectre;
+using Spectre.Console;
 using Velopack.Vpk.Commands;
 using Velopack.Vpk.Compat;
 
@@ -13,7 +14,13 @@ public class Program
 {
     public static CliOption<bool> VerboseOption { get; }
         = new CliOption<bool>("--verbose")
+        .SetRecursive(true)
         .SetDescription("Print diagnostic messages.");
+
+    public static CliOption<bool> LegacyConsole { get; }
+        = new CliOption<bool>("--legacy-console")
+        .SetRecursive(true)
+        .SetDescription("Disable console colors and interactive components.");
 
     private static RunnerFactory Runner { get; set; }
 
@@ -24,10 +31,21 @@ public class Program
     {
         CliRootCommand platformRootCommand = new CliRootCommand() {
             VerboseOption,
+            LegacyConsole,
         };
         platformRootCommand.TreatUnmatchedTokensAsErrors = false;
         ParseResult parseResult = platformRootCommand.Parse(args);
         bool verbose = parseResult.GetValue(VerboseOption);
+        bool legacyConsole = parseResult.GetValue(LegacyConsole);
+
+        if (legacyConsole) {
+            AnsiConsole.Console = AnsiConsole.Create(new AnsiConsoleSettings {
+                Interactive = InteractionSupport.No,
+                Ansi = AnsiSupport.No,
+                ColorSystem = ColorSystemSupport.NoColors,
+                Out = new AnsiConsoleOutput(Console.Out)
+            });
+        }
 
         var builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings {
             ApplicationName = "Velopack",
@@ -54,6 +72,7 @@ public class Program
 
         CliRootCommand rootCommand = new CliRootCommand(INTRO) {
             VerboseOption,
+            LegacyConsole,
         };
 
         switch (VelopackRuntimeInfo.SystemOs) {

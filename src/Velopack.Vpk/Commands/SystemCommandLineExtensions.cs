@@ -24,6 +24,12 @@ internal static class SystemCommandLineExtensions
         return option;
     }
 
+    public static CliOption<T> SetRecursive<T>(this CliOption<T> option, bool isRecursive = true)
+    {
+        option.Recursive = isRecursive;
+        return option;
+    }
+
     public static CliOption<T> SetHidden<T>(this CliOption<T> option, bool isHidden = true)
     {
         option.Hidden = isHidden;
