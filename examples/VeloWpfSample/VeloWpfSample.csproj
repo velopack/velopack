@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>true</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <StartupObject>VeloWpfSample.Program</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Velopack" Version="0.*" />
+  </ItemGroup>
+
+  <!-- Used for demonstrating updates, so the installed application can find the Release directory -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>WpfSampleReleaseDir</_Parameter1>
+      <_Parameter2>$(MSBuildThisFileDirectory)releases</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>
