@@ -74,7 +74,7 @@ namespace Velopack
         /// </summary>
         public VelopackApp WithFirstRun(VelopackHook hook)
         {
-            _firstrun = hook;
+            _firstrun += hook;
             return this;
         }
 
@@ -83,7 +83,7 @@ namespace Velopack
         /// </summary>
         public VelopackApp WithRestarted(VelopackHook hook)
         {
-            _restarted = hook;
+            _restarted += hook;
             return this;
         }
 
@@ -96,7 +96,7 @@ namespace Velopack
         [SupportedOSPlatform("windows")]
         public VelopackApp WithAfterInstallFastCallback(VelopackHook hook)
         {
-            _install = hook;
+            _install += hook;
             return this;
         }
 
@@ -109,7 +109,7 @@ namespace Velopack
         [SupportedOSPlatform("windows")]
         public VelopackApp WithAfterUpdateFastCallback(VelopackHook hook)
         {
-            _update = hook;
+            _update += hook;
             return this;
         }
 
@@ -122,7 +122,7 @@ namespace Velopack
         [SupportedOSPlatform("windows")]
         public VelopackApp WithBeforeUpdateFastCallback(VelopackHook hook)
         {
-            _obsolete = hook;
+            _obsolete += hook;
             return this;
         }
 
@@ -135,7 +135,7 @@ namespace Velopack
         [SupportedOSPlatform("windows")]
         public VelopackApp WithBeforeUninstallFastCallback(VelopackHook hook)
         {
-            _uninstall = hook;
+            _uninstall += hook;
             return this;
         }
 
@@ -223,14 +223,14 @@ namespace Velopack
             // run non-exiting user hooks
             if (firstrun) {
                 try {
-                    _firstrun(myVersion);
+                    _firstrun?.Invoke(myVersion);
                 } catch (Exception ex) {
                     log.Error(ex, $"Error occurred executing user defined Velopack hook. (firstrun)");
                 }
             }
             if (restarted) {
                 try {
-                    _restarted(myVersion);
+                    _restarted?.Invoke(myVersion);
                 } catch (Exception ex) {
                     log.Error(ex, $"Error occurred executing user defined Velopack hook. (restarted)");
                 }
