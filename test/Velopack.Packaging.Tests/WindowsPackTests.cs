@@ -253,7 +253,7 @@ public class WindowsPackTests
         };
 
         var runner = new WindowsPackCommandRunner(logger);
-        Assert.Throws<UserErrorException>(() => runner.Run(options).GetAwaiterResult());
+        Assert.Throws<VelopackAppVerificationException>(() => runner.Run(options).GetAwaiterResult());
     }
 
     [SkippableFact]
