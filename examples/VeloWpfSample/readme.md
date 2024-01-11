@@ -1,6 +1,8 @@
 # VeloWpfSample
 _Prerequisites: vpk command line tool installed_
 
+This app demonstrates how to use WPF to provide a desktop UI, installer, and updates for Windows only.
+
 You can run this sample by executing the build script with a version number: `build.bat 1.0.0`. Once built, you can install the app - build more updates, and then test updates and so forth. The sample app will check the local release dir for new update packages. 
 
 In your production apps, you should deploy your updates to some kind of update server instead.

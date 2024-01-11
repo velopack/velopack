@@ -62,6 +62,8 @@ This is a very simple example of the steps you would take to generate an install
    }
    ```
 
+If you're not sure how these instructions fit into your app, check the example apps for common scenarios such as WPF or Avalonia.
+
 ## Documentation
 - 📖 [Read the docs](docs)
 - 🕶️ [View example apps](examples)
