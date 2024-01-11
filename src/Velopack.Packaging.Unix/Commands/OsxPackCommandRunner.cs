@@ -49,22 +49,26 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
 
     protected override Task CodeSign(Action<int> progress, string packDir)
     {
-        progress(-1); // indeterminate
-        var zipPath = Path.Combine(TempDir.FullName, "notarize.zip");
         var helper = new HelperExe(Log);
-
         // code signing all mach-o binaries
         if (!string.IsNullOrEmpty(Options.SigningAppIdentity) && !string.IsNullOrEmpty(Options.NotaryProfile)) {
-            helper.CodeSign(Options.SigningAppIdentity, Options.SigningEntitlements, packDir);
+            progress(-1); // indeterminate
+            var zipPath = Path.Combine(TempDir.FullName, "notarize.zip");
+            helper.CodeSign(Options.SigningAppIdentity, Options.SigningEntitlements, packDir);        
             helper.CreateDittoZip(packDir, zipPath);
             helper.Notarize(zipPath, Options.NotaryProfile);
             helper.Staple(packDir);
             helper.SpctlAssessCode(packDir);
             File.Delete(zipPath);
+            progress(100);
+        } else if (!string.IsNullOrEmpty(Options.SigningAppIdentity)) {
+            progress(-1); // indeterminate
+            Log.Warn("Package will be signed, but [underline]not notarized[/]. Missing the --notaryProfile option.");
+            helper.CodeSign(Options.SigningAppIdentity, Options.SigningEntitlements, packDir);  
+            progress(100);
         } else {
-            Log.Warn("Package will not be signed or notarized. Requires the --signAppIdentity and --notaryProfile options.");
+            Log.Warn("Package will not be signed or notarized. Missing the --signAppIdentity and --notaryProfile options.");
         }
-        progress(100);
         return Task.CompletedTask;
     }
 
