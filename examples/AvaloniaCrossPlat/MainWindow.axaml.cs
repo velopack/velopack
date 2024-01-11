@@ -2,6 +2,7 @@
 using System.Text;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
 using Velopack;
@@ -16,54 +17,61 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        _um = new UpdateManager(Const.RELEASES_DIR, logger: new TextBoxLogger(Log));
+        _um = new UpdateManager(Program.UpdateUrl, logger: Program.Log);
+        TextLog.Text = Program.Log.ToString();
+        Program.Log.LogUpdated += LogUpdated;
         UpdateStatus();
     }
 
-    private async void BtnCheckUpdateClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private async void BtnCheckUpdateClick(object sender, RoutedEventArgs e)
     {
         Working();
         try {
-            _update = await _um.CheckForUpdatesAsync();
+            // ConfigureAwait(true) so that UpdateStatus() is called on the UI thread
+            _update = await _um.CheckForUpdatesAsync().ConfigureAwait(true);
         } catch (Exception ex) {
-            Log("ERROR: " + ex.Message);
+            Program.Log.LogError(ex, "Error checking for updates");
         }
         UpdateStatus();
     }
 
-    private async void BtnDownloadUpdateClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private async void BtnDownloadUpdateClick(object sender, RoutedEventArgs e)
     {
         Working();
         try {
-            await _um.DownloadUpdatesAsync(_update, Progress);
+            // ConfigureAwait(true) so that UpdateStatus() is called on the UI thread
+            await _um.DownloadUpdatesAsync(_update, Progress).ConfigureAwait(true);
         } catch (Exception ex) {
-            Log("ERROR: " + ex.Message);
+            Program.Log.LogError(ex, "Error downloading updates");
         }
-        await Task.Delay(10);
         UpdateStatus();
     }
 
-    private void Log(string text)
-    {
-        TextLog.Text += text + Environment.NewLine;
-        ScrollLog.ScrollToEnd();
-    }
-
-    private void BtnRestartApplyClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private void BtnRestartApplyClick(object sender, RoutedEventArgs e)
     {
         _um.ApplyUpdatesAndRestart();
     }
 
+    private void LogUpdated(object sender, LogUpdatedEventArgs e)
+    {
+        // logs can be sent from other threads
+        Dispatcher.UIThread.InvokeAsync(() => {
+            TextLog.Text = e.Text;
+            ScrollLog.ScrollToEnd();
+        });
+    }
+
     private void Progress(int percent)
     {
-        Dispatcher.UIThread.Post(() => {
+        // progress can be sent from other threads
+        Dispatcher.UIThread.InvokeAsync(() => {
             TextStatus.Text = $"Downloading ({percent}%)...";
         });
     }
 
     private void Working()
     {
-        Log("");
+        Program.Log.LogInformation("");
         BtnCheckUpdate.IsEnabled = false;
         BtnDownloadUpdate.IsEnabled = false;
         BtnRestartApply.IsEnabled = false;
@@ -92,29 +100,5 @@ public partial class MainWindow : Window
 
         TextStatus.Text = sb.ToString();
         BtnCheckUpdate.IsEnabled = true;
-    }
-
-    private class TextBoxLogger : ILogger
-    {
-        private readonly Action<string> _textBox;
-
-        public TextBoxLogger(Action<string> textBox)
-        {
-            _textBox = textBox;
-        }
-
-        public IDisposable BeginScope<TState>(TState state) => null;
-
-        public bool IsEnabled(LogLevel logLevel) => true;
-
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
-                       Exception exception, Func<TState, Exception, string> formatter)
-        {
-            if (logLevel < LogLevel.Information) return;
-            var text = formatter(state, exception);
-            Dispatcher.UIThread.Post(() => {
-                _textBox(text);
-            });
-        }
     }
 }

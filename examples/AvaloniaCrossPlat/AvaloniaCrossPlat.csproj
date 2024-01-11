@@ -1,12 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <NoWarn>$(NoWarn);CA2007</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,10 +15,29 @@
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.6" />
     <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
     <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.0.6" />
+    <PackageReference Include="Vanara.PInvoke.User32" Version="3.*" />
   </ItemGroup>
 
+  <!-- For test build scripts which target the local Velopack project instead of the NuGet package -->
+  <Choose>
+    <When Condition=" $(UseLocalVelopack) != '' ">
+      <ItemGroup>
+        <ProjectReference Include="..\..\src\Velopack\Velopack.csproj" />
+      </ItemGroup>
+    </When>
+    <Otherwise>
+      <ItemGroup>
+        <PackageReference Include="Velopack" Version="0.*" />
+      </ItemGroup>
+    </Otherwise>
+  </Choose>
+
+  <!-- For demonstrating updates, so the installed application can find the Release directory -->
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Velopack\Velopack.csproj" />
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>AvaloniaSampleReleaseDir</_Parameter1>
+      <_Parameter2>$(MSBuildThisFileDirectory)releases</_Parameter2>
+    </AssemblyAttribute>
   </ItemGroup>
-  
+
 </Project>

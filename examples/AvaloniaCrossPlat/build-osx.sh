@@ -5,30 +5,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Check if version parameter is provided
 if [ "$#" -ne 1 ]; then
-    echo "Please provide a version number."
-    echo "Usage: ./build.sh version_number"
+    echo "Version number is required."
+    echo "Usage: ./build.sh [version]"
     exit 1
 fi
 
-echo "Building Velopack"
-cd "$SCRIPT_DIR/../../src/Rust"
-cargo build
-cd "$SCRIPT_DIR/../.."
-dotnet build src/Velopack.Vpk/Velopack.Vpk.csproj
-cd "$SCRIPT_DIR"
+BUILD_VERSION="$1"
+RELEASE_DIR="$SCRIPT_DIR/releases"
+PUBLISH_DIR="$SCRIPT_DIR/publish"
+ICON_PATH="$SCRIPT_DIR/Velopack.icns"
 
-version="$1"
-releasesDir="$SCRIPT_DIR/releases"
-
-# Write to Const.cs
-echo "class Const { public const string RELEASES_DIR = @\"$releasesDir\"; } " > "$(dirname "$0")/Const.cs"
-echo "Const.cs file updated with releases directory ($releasesDir)."
-
+echo ""
 echo "Compiling AvaloniaCrossPlat with dotnet..."
-dotnet publish -c Release --self-contained -r osx-x64 -o "$(dirname "$0")/publish"
+dotnet publish -c Release --self-contained -r osx-x64 -o "$PUBLISH_DIR"
 
-echo "class Const { public const string RELEASES_DIR = @\"{REPLACE_ME}\"; } " > "$(dirname "$0")/Const.cs"
-echo "Const.cs file reset"
-
-echo "Building Velopack Release v$version"
-"$(dirname "$0")/../../build/Debug/net6.0/vpk" pack -u AvaloniaCrossPlat -v "$version" -o "$releasesDir" -p "$(dirname "$0")/publish" -i Velopack.icns
+echo ""
+echo "Building Velopack Release v$BUILD_VERSION"
+vpk pack -u AvaloniaCrossPlat -v $BUILD_VERSION -o "$RELEASE_DIR" -p "$PUBLISH_DIR" -i "$ICON_PATH"
