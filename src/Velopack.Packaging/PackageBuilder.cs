@@ -64,7 +64,8 @@ namespace Velopack.Packaging
             var packVersion = options.PackVersion;
 
             // check that entry exe exists
-            var mainExeName = options.EntryExecutableName ?? (options.PackId + ".exe");
+            var mainExt = options.TargetRuntime.BaseRID == RuntimeOs.Windows ? ".exe" : "";
+            var mainExeName = options.EntryExecutableName ?? (options.PackId + mainExt);
             var mainExePath = Path.Combine(packDirectory, mainExeName);
             if (!File.Exists(mainExePath)) {
                 throw new UserErrorException(
@@ -86,6 +87,8 @@ namespace Velopack.Packaging
                 var version = SemanticVersion.Parse(output.Trim());
                 if (version != VelopackRuntimeInfo.VelopackNugetVersion) {
                     Log.Warn($"VelopackApp version '{version}' does not match CLI version '{VelopackRuntimeInfo.VelopackNugetVersion}'.");
+                } else {
+                    Log.Info($"VelopackApp version verified ({version}).");
                 }
             } catch (TimeoutException) {
                 throw new UserErrorException(
