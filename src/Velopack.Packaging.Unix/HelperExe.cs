@@ -86,7 +86,7 @@ public class HelperExe : HelperFile
     }
 
     [SupportedOSPlatform("osx")]
-    public void CreateInstallerPkg(string appBundlePath, string appTitle, IEnumerable<KeyValuePair<string, string>> extraContent,
+    public void CreateInstallerPkg(string appBundlePath, string appTitle, string appId, IEnumerable<KeyValuePair<string, string>> extraContent,
         string pkgOutputPath, string signIdentity, Action<int> progress)
     {
         // https://matthew-brett.github.io/docosx/flat_packages.html
@@ -110,7 +110,12 @@ public class HelperExe : HelperFile
         // create postinstall scripts to open app after install
         // https://stackoverflow.com/questions/35619036/open-app-after-installation-from-pkg-file-in-mac
         var postinstall = Path.Combine(tmpScripts, "postinstall");
-        File.WriteAllText(postinstall, $"#!/bin/sh\nsudo -u \"$USER\" open \"$2/{bundleName}/\"\nexit 0");
+        File.WriteAllText(postinstall, $"""
+#!/bin/sh
+rm -rf /tmp/velopack/{appId}
+sudo -u "$USER" open "$2/{bundleName}/"
+exit 0
+""");
         Chmod.ChmodFileAsExecutable(postinstall);
         progress(15);
 
