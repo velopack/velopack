@@ -1,6 +1,7 @@
 use super::dialogs::{generate_alert, generate_confirm};
 use super::dialogs_const::*;
 use std::sync::atomic::{AtomicBool, Ordering};
+use anyhow::{Result, bail};
 
 static SILENT: AtomicBool = AtomicBool::new(false);
 
@@ -40,6 +41,28 @@ pub fn show_ok_cancel(title: &str, header: Option<&str>, body: &str, ok_text: Op
         btns |= DialogButton::Ok;
     }
     generate_confirm(title, header, body, ok_text, btns, DialogIcon::Warning).map(|dlg_id| dlg_id == DialogResult::Ok).unwrap_or(false)
+}
+
+pub fn ask_user_to_elevate(app_to: &crate::bundle::Manifest, noelevate: bool) -> Result<()> {
+    if noelevate {
+        bail!("Not allowed to ask for elevated permissions because --noelevate flag is set.");
+    }
+
+    if get_silent() {
+        bail!("Not allowed to ask for elevated permissions because --silent flag is set.");
+    }
+
+    let title = format!("{} Update", app_to.title);
+    let body =
+        format!("{} would like to update to version {}, but requested elevated permissions to do so. Would you like to proceed?", app_to.title, app_to.version);
+
+    info!("Showing user elevation prompt?");
+    if show_ok_cancel(title.as_str(), None, body.as_str(), Some("Install Update")) {
+        info!("User answered yes to elevation...");
+        Ok(())
+    } else {
+        bail!("User cancelled elevation prompt.");
+    }
 }
 
 #[test]
