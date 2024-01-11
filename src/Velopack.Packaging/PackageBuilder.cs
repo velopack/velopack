@@ -80,20 +80,19 @@ namespace Velopack.Packaging
                 psi.AppendArgumentListSafe(new[] { "--veloapp-version" }, out var _);
                 var output = psi.Output(5000);
                 if (String.IsNullOrWhiteSpace(output)) {
-                    throw new UserErrorException(
-                        "Failed to verify VelopackApp (Exited with no output). " +
-                        "Ensure you have add the startup code to your Program.Main(): VelopackApp.Build().Run(); and then re-compile your application.");
+                    throw new VelopackAppVerificationException("Exited with no output");
                 }
-                var version = SemanticVersion.Parse(output.Trim());
-                if (version != VelopackRuntimeInfo.VelopackNugetVersion) {
-                    Log.Warn($"VelopackApp version '{version}' does not match CLI version '{VelopackRuntimeInfo.VelopackNugetVersion}'.");
+                if (SemanticVersion.TryParse(output.Trim(), out var version)) {
+                    if (version != VelopackRuntimeInfo.VelopackNugetVersion) {
+                        Log.Warn($"VelopackApp version '{version}' does not match CLI version '{VelopackRuntimeInfo.VelopackNugetVersion}'.");
+                    } else {
+                        Log.Info($"VelopackApp version verified ({version}).");
+                    }
                 } else {
-                    Log.Info($"VelopackApp version verified ({version}).");
+                    throw new VelopackAppVerificationException($"Failed to parse version: {output.Trim()}");
                 }
             } catch (TimeoutException) {
-                throw new UserErrorException(
-                    "Failed to verify VelopackApp (Timed out). " +
-                    "Ensure you have add the startup code to your Program.Main(): VelopackApp.Build().Run(); and then re-compile your application.");
+                throw new VelopackAppVerificationException("Timed out");
             }
 
             var suffix = ReleaseEntryHelper.GetPkgSuffix(SupportedTargetOs, channel);
