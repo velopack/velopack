@@ -43,6 +43,12 @@ jobs:
         if: ${{ matrix.os == 'macos-latest' }}
         continue-on-error: true
 
+      - name: Install FUSE
+        run: |
+          sudo add-apt-repository universe
+          sudo apt install libfuse2
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+
       - name: Install .Net Coverage
         run: dotnet tool install -g dotnet-coverage
 
