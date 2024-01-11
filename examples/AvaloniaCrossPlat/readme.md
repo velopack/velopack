@@ -38,3 +38,10 @@ class Program
     }
 }
 ```
+
+## Testing changes to Velopack
+This project has a folder of development build scripts (e.g. `.\dev-scripts\build-win.bat`) which will create a release in same way as the main scripts, except with a project reference to Velopack, and it will invoke the local vpk tool as well. 
+
+If you have made a change to Velopack and would like to test it in the sample app, these are the scripts you should run instead.
+
+Don't forget to review the [compiling guide](../../docs/compiling.md) to make sure you can build Velopack.
