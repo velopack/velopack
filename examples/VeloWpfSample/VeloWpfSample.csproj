@@ -6,6 +6,7 @@
     <ImplicitUsings>true</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <StartupObject>VeloWpfSample.Program</StartupObject>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
   <ItemGroup>
