@@ -3,7 +3,7 @@ use simplelog::*;
 use std::path::PathBuf;
 
 pub fn trace_logger() {
-    TermLogger::init(LevelFilter::Trace, Config::default(), TerminalMode::Mixed, ColorChoice::Never).unwrap();
+    TermLogger::init(LevelFilter::Trace, get_config(), TerminalMode::Mixed, ColorChoice::Never).unwrap();
 }
 
 pub fn setup_logging(file: Option<&PathBuf>, console: bool, verbose: bool, nocolor: bool) -> Result<()> {
@@ -11,7 +11,7 @@ pub fn setup_logging(file: Option<&PathBuf>, console: bool, verbose: bool, nocol
     let color_choice = if nocolor { ColorChoice::Never } else { ColorChoice::Auto };
     if console {
         let console_level = if verbose { LevelFilter::Debug } else { LevelFilter::Info };
-        loggers.push(TermLogger::new(console_level, Config::default(), TerminalMode::Mixed, color_choice));
+        loggers.push(TermLogger::new(console_level, get_config(), TerminalMode::Mixed, color_choice));
     }
 
     if let Some(f) = file {
@@ -24,9 +24,16 @@ pub fn setup_logging(file: Option<&PathBuf>, console: bool, verbose: bool, nocol
             #[cfg(unix)]
             None,
         );
-        loggers.push(WriteLogger::new(file_level, Config::default(), writer));
+        loggers.push(WriteLogger::new(file_level, get_config(), writer));
     }
 
     CombinedLogger::init(loggers)?;
     Ok(())
+}
+
+
+fn get_config() -> Config {
+    let mut c = ConfigBuilder::default();
+    let _ = c.set_time_offset_to_local(); // might fail if local tz can't be determined
+    c.build()
 }
