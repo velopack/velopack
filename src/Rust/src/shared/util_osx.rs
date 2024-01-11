@@ -34,6 +34,7 @@ pub fn start_package<P: AsRef<Path>>(_app: &Manifest, root_dir: P, exe_args: Opt
         args.push("--args");
         args.extend(a);
     }
+    info!("Starting application: open {:?}", args);
     let mut psi = Process::new("/usr/bin/open");
     psi.args(args);
     if let Some(env) = set_env {
