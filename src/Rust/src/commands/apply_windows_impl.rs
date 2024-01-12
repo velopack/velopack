@@ -47,7 +47,7 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &Pat
                 let title = format!("{} Update", &manifest.title);
                 let header = format!("Failed to update, application is in use");
                 let body = format!(
-                    "Failed to update {} to version {}. Please close any applications or explorer windows that may be using the application's directory, or try restarting your computer before trying again. ({})", 
+                    "Failed to update {} to version {}. Please close any applications (e.g Explorer, cmd.exe) that may be using the application's directory, or try restarting your computer. ({})", 
                     &manifest.title, &manifest.version, e);
                 dialogs::show_error(&title, Some(&header), &body);
                 return Ok(()); // so that a generic error dialog is not shown.
