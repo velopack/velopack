@@ -47,6 +47,7 @@ namespace Velopack.Windows
     /// A helper class to create or delete windows shortcuts.
     /// </summary>
     [SupportedOSPlatform("windows")]
+    [Obsolete("Desktop and Start Menu shortcuts are now created and removed automatically when your app is installed / uninstalled.")]
     public class Shortcuts
     {
         /// <summary> Log for diagnostic messages. </summary>
