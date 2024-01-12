@@ -3,7 +3,7 @@ use crate::shared::{
     bundle::{self, Manifest},
     dialogs,
 };
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use std::{fs, path::PathBuf, process::Command};
 
 pub fn apply_package_impl<'a>(
@@ -40,7 +40,7 @@ pub fn apply_package_impl<'a>(
                 // 3. if fails for permission error, try again escallated via osascript
                 if shared::is_error_permission_denied(&e) {
                     error!("A permissions error occurred ({}), will attempt to elevate permissions and try again...", e);
-                    dialogs::ask_user_to_elevate(&manifest, false)?;
+                    dialogs::ask_user_to_elevate(&manifest)?;
                     let script = format!(
                         "do shell script \"mv -f '{}' '{}' && mv -f '{}' '{}'\" with administrator privileges",
                         &root_path.to_string_lossy(),
