@@ -2,12 +2,12 @@ use crate::shared::{self, bundle::Manifest};
 use anyhow::Result;
 use std::path::PathBuf;
 
-#[cfg(target_os = "windows")]
-use super::apply_windows_impl::apply_package_impl;
-#[cfg(target_os = "macos")]
-use super::apply_osx_impl::apply_package_impl;
 #[cfg(target_os = "linux")]
 use super::apply_linux_impl::apply_package_impl;
+#[cfg(target_os = "macos")]
+use super::apply_osx_impl::apply_package_impl;
+#[cfg(target_os = "windows")]
+use super::apply_windows_impl::apply_package_impl;
 
 pub fn apply<'a>(
     root_path: &PathBuf,

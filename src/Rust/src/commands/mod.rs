@@ -4,12 +4,12 @@ pub use apply::*;
 mod patch;
 pub use patch::*;
 
-#[cfg(target_os = "windows")]
-mod apply_windows_impl;
-#[cfg(target_os = "macos")]
-mod apply_osx_impl;
 #[cfg(target_os = "linux")]
 mod apply_linux_impl;
+#[cfg(target_os = "macos")]
+mod apply_osx_impl;
+#[cfg(target_os = "windows")]
+mod apply_windows_impl;
 
 #[cfg(target_os = "windows")]
 mod start;

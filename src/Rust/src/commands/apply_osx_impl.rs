@@ -6,12 +6,7 @@ use crate::shared::{
 use anyhow::{bail, Result};
 use std::{fs, path::PathBuf, process::Command};
 
-pub fn apply_package_impl<'a>(
-    root_path: &PathBuf,
-    app: &Manifest,
-    pkg: &PathBuf,
-    _runhooks: bool,
-) -> Result<()> {
+pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, pkg: &PathBuf, _runhooks: bool) -> Result<()> {
     let tmp_path_new = format!("/tmp/velopack/{}/{}", app.id, shared::random_string(8));
     let tmp_path_old = format!("/tmp/velopack/{}/{}", app.id, shared::random_string(8));
 
