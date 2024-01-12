@@ -31,5 +31,7 @@ namespace Velopack.Packaging.Unix.Commands
         public DeltaMode DeltaMode { get; set; } = DeltaMode.BestSpeed;
 
         public string Channel { get; set; }
+
+        public string AppDir { get; set; }
     }
 }

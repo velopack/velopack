@@ -27,6 +27,8 @@ namespace Velopack.Vpk.Commands
 
         public string ReleaseNotes { get; set; }
 
+        public string AppDir { get; private set; }
+
         public DeltaMode Delta { get; set; } = DeltaMode.BestSpeed;
 
         public LinuxPackCommand()
@@ -49,10 +51,9 @@ namespace Velopack.Vpk.Commands
                 .SetRequired()
                 .RequiresSemverCompliant();
 
-            AddOption<DirectoryInfo>((v) => PackDirectory = v.ToFullNameOrNull(), "--packDir", "-p")
-                .SetDescription("Directory containing application files for release.")
+            var packDir = AddOption<DirectoryInfo>((v) => PackDirectory = v.ToFullNameOrNull(), "--packDir", "-p")
+                .SetDescription("Directory containing application files from dotnet publish")
                 .SetArgumentHelpName("DIR")
-                .SetRequired()
                 .MustNotBeEmpty();
 
             AddOption<string>((v) => PackAuthors = v, "--packAuthors")
@@ -81,6 +82,14 @@ namespace Velopack.Vpk.Commands
             AddOption<DeltaMode>((v) => Delta = v, "--delta")
                 .SetDefault(DeltaMode.BestSpeed)
                 .SetDescription("Set the delta generation mode.");
+
+            var appDir = AddOption<DirectoryInfo>((v) => AppDir = v.ToFullNameOrNull(), "--appDir")
+                .SetDescription("Directory containing application in .AppDir format")
+                .SetArgumentHelpName("DIR")
+                .MustNotBeEmpty();
+
+            this.AreMutuallyExclusive(packDir, appDir);
+            this.AtLeastOneRequired(packDir, appDir);
         }
     }
 }
