@@ -59,9 +59,14 @@ public class OsxBundleCommandRunner
 
         builder.Build();
 
-        _logger.Debug("Writing Info.plist");
-        var plist = new PlistWriter(_logger, info, builder.ContentsDirectory);
-        plist.Write();
+        if (options.InfoPlistPath != null) {
+            _logger.Info("Bundle using provided Info.plist: " + options.InfoPlistPath);
+            File.Copy(options.InfoPlistPath, Path.Combine(builder.ContentsDirectory, "Info.plist"));
+        } else {
+            _logger.Debug("Writing generic Info.plist");
+            var plist = new PlistWriter(_logger, info, builder.ContentsDirectory);
+            plist.Write();
+        }
 
         _logger.Debug("Copying resources into new '.app' bundle");
         File.Copy(icon, Path.Combine(builder.ResourcesDirectory, Path.GetFileName(icon)));

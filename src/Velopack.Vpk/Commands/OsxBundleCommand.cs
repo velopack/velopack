@@ -18,6 +18,8 @@ public class OsxBundleCommand : PlatformCommand
 
     public string BundleId { get; private set; }
 
+    public string InfoPlistPath { get; private set; }
+
     public OsxBundleCommand()
         : this("bundle", "Create's an OSX .app bundle from a folder containing application files.")
     { }
@@ -63,8 +65,15 @@ public class OsxBundleCommand : PlatformCommand
             .SetRequired()
             .RequiresExtension(".icns");
 
-        AddOption<string>((v) => BundleId = v, "--bundleId")
+        var bundleId = AddOption<string>((v) => BundleId = v, "--bundleId")
             .SetDescription("Optional Apple bundle Id.")
             .SetArgumentHelpName("ID");
+
+        var infoPlist = AddOption<FileInfo>((v) => InfoPlistPath = v.ToFullNameOrNull(), "--plist")
+            .SetDescription("A custom Info.plist to use in the app bundle.")
+            .SetArgumentHelpName("PATH")
+            .MustExist();
+
+        this.AreMutuallyExclusive(bundleId, infoPlist);
     }
 }

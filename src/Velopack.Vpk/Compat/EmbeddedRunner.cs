@@ -29,6 +29,7 @@ public class EmbeddedRunner : ICommandRunner
             PackTitle = command.PackTitle,
             PackVersion = command.PackVersion,
             ReleaseDir = command.GetReleaseDirectory(),
+            InfoPlistPath = command.InfoPlistPath,
         };
         new OsxBundleCommandRunner(_logger).Bundle(options);
         return Task.CompletedTask;
@@ -60,6 +61,7 @@ public class EmbeddedRunner : ICommandRunner
             SigningAppIdentity = command.SigningAppIdentity,
             SigningEntitlements = command.SigningEntitlements,
             SigningInstallIdentity = command.SigningInstallIdentity,
+            InfoPlistPath = command.InfoPlistPath,
         };
         return new OsxPackCommandRunner(_logger).Run(options);
     }

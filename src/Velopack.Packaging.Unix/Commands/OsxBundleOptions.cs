@@ -19,4 +19,6 @@ public class OsxBundleOptions
     public string Icon { get; set; }
 
     public string BundleId { get; set; }
+
+    public string InfoPlistPath { get; set; }
 }
