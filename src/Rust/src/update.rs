@@ -18,7 +18,7 @@ fn root_command() -> Command {
         .about("Applies a staged / prepared update, installing prerequisite runtimes if necessary")
         .arg(arg!(-r --restart "Restart the application after the update"))
         .arg(arg!(-w --wait "Wait for the parent process to terminate before applying the update"))
-        .arg(arg!(-p --package <FILE> "Update package to apply").required(true).value_parser(value_parser!(PathBuf)))
+        .arg(arg!(-p --package <FILE> "Update package to apply").value_parser(value_parser!(PathBuf)))
         .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceeded by '--'.").required(false).last(true).num_args(0..))
     )
     .subcommand(Command::new("patch")
@@ -125,7 +125,7 @@ fn patch(matches: &ArgMatches) -> Result<()> {
 fn apply(matches: &ArgMatches) -> Result<()> {
     let restart = matches.get_flag("restart");
     let wait_for_parent = matches.get_flag("wait");
-    let package = matches.get_one::<PathBuf>("package").unwrap();
+    let package = matches.get_one::<PathBuf>("package");
     let exe_args: Option<Vec<&str>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect());
 
     info!("Command: Apply");

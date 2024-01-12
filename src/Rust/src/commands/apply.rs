@@ -1,5 +1,8 @@
-use crate::shared::{self, bundle::Manifest};
-use anyhow::Result;
+use crate::{
+    bundle,
+    shared::{self, bundle::Manifest},
+};
+use anyhow::{bail, Result};
 use std::path::PathBuf;
 
 #[cfg(target_os = "linux")]
@@ -14,7 +17,7 @@ pub fn apply<'a>(
     app: &Manifest,
     restart: bool,
     wait_for_parent: bool,
-    package: &PathBuf,
+    package: Option<&PathBuf>,
     exe_args: Option<Vec<&str>>,
     runhooks: bool,
 ) -> Result<()> {
@@ -24,12 +27,22 @@ pub fn apply<'a>(
         }
     }
 
-    if let Err(e) = apply_package_impl(&root_path, &app, package, runhooks) {
-        error!("Error applying package: {}", e);
-        if restart {
-            shared::start_package(&app, &root_path, exe_args, Some("VELOPACK_RESTART"))?;
+    let package = package.cloned().map_or_else(|| auto_locate_package(&app, &root_path), Ok);
+    match package {
+        Ok(package) => {
+            info!("Getting ready to apply package: {}", package.to_string_lossy());
+            match apply_package_impl(&root_path, &app, &package, runhooks) {
+                Ok(_) => {
+                    info!("Package applied successfully.");
+                }
+                Err(e) => {
+                    error!("Error applying package: {}", e);
+                }
+            }
         }
-        return Err(e);
+        Err(e) => {
+            error!("Failed to locate package ({}).", e);
+        }
     }
 
     // TODO: if the package fails to start, or fails hooks, we could roll back the install
@@ -38,4 +51,40 @@ pub fn apply<'a>(
     }
 
     Ok(())
+}
+
+fn auto_locate_package(app: &Manifest, _root_path: &PathBuf) -> Result<PathBuf> {
+    #[cfg(target_os = "windows")]
+    let packages_dir = app.get_packages_path(_root_path);
+    #[cfg(target_os = "linux")]
+    let packages_dir = format!("/var/tmp/velopack/{}/packages", &app.id);
+    #[cfg(target_os = "macos")]
+    let packages_dir = format!("/tmp/velopack/{}/packages", &app.id);
+
+    info!("Attempting to auto-detect package in: {}", packages_dir);
+    let mut package_path: Option<PathBuf> = None;
+    let mut package_manifest: Option<Manifest> = None;
+
+    if let Ok(paths) = glob::glob(format!("{}/*.nupkg", packages_dir).as_str()) {
+        for path in paths {
+            if let Ok(path) = path {
+                trace!("Checking package: '{}'", path.to_string_lossy());
+                if let Ok(bun) = bundle::load_bundle_from_file(&path) {
+                    if let Ok(mani) = bun.read_manifest() {
+                        if package_manifest.is_none() || mani.version > package_manifest.clone().unwrap().version {
+                            info!("Found {}: '{}'", mani.version, path.to_string_lossy());
+                            package_manifest = Some(mani);
+                            package_path = Some(path);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(p) = package_path {
+        return Ok(p);
+    } else {
+        bail!("Unable to find/load suitable package. Provide via the --package argument.");
+    }
 }
