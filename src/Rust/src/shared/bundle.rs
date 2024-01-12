@@ -184,6 +184,7 @@ impl BundleInfo<'_> {
         Ok(idx)
     }
 
+    #[cfg(not(target_os = "linux"))]
     pub fn extract_lib_contents_to_path<P: AsRef<Path>, F: Fn(i16)>(&self, current_path: P, progress: F) -> Result<()> {
         let current_path = current_path.as_ref();
         let files = self.get_file_names()?;
@@ -368,24 +369,6 @@ impl Manifest {
         let reg_uninstall = w::HKEY::CURRENT_USER.RegCreateKeyEx(Self::UNINST_STR, None, co::REG_OPTION::NoValue, co::KEY::CREATE_SUB_KEY, None)?.0;
         reg_uninstall.RegDeleteKey(&self.id)?;
         Ok(())
-    }
-}
-
-#[cfg(target_os = "macos")]
-impl Manifest {
-    pub fn get_packages_path(&self, _root_path: &PathBuf) -> String {
-        let tmp = format!("/tmp/velopack/{}/packages", self.id);
-        let p = Path::new(&tmp);
-        if !p.exists() {
-            fs::create_dir_all(p).unwrap();
-        }
-        p.to_string_lossy().to_string()
-    }
-    pub fn get_current_path(&self, root_path: &PathBuf) -> String {
-        root_path.to_string_lossy().to_string()
-    }
-    pub fn get_nuspec_path(&self, root_path: &PathBuf) -> String {
-        root_path.join("Contents").join("MacOS").join("sq.version").to_string_lossy().to_string()
     }
 }
 

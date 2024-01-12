@@ -9,12 +9,9 @@ use std::{fs, path::PathBuf, process::Command};
 pub fn apply_package_impl<'a>(
     root_path: &PathBuf,
     app: &Manifest,
-    package: Option<&PathBuf>,
-    _exe_args: Option<Vec<&str>>,
-    _noelevate: bool,
+    pkg: &PathBuf,
     _runhooks: bool,
 ) -> Result<()> {
-    let pkg = package.ok_or(anyhow!("Package is required on OSX"))?;
     let tmp_path_new = format!("/tmp/velopack/{}/{}", app.id, shared::random_string(8));
     let tmp_path_old = format!("/tmp/velopack/{}/{}", app.id, shared::random_string(8));
 

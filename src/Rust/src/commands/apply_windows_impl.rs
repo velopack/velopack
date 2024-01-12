@@ -1,134 +1,95 @@
-#[cfg(not(target_os = "linux"))]
-fn apply_package_impl<'a>(
-    root_path: &PathBuf,
-    app: &Manifest,
-    package: Option<&PathBuf>,
-    exe_args: Option<Vec<&str>>,
-    noelevate: bool,
-    runhooks: bool,
-) -> Result<()> {
-    let mut package_manifest: Option<Manifest> = None;
-    let mut package_bundle: Option<bundle::BundleInfo<'a>> = None;
+use crate::{
+    dialogs,
+    shared::{self, bundle, bundle::Manifest},
+};
+use anyhow::{bail, Result};
+use std::{fs, path::PathBuf};
 
-    if let Some(pkg) = package {
-        info!("Loading package from argument '{}'.", pkg.to_string_lossy());
-        let bun = bundle::load_bundle_from_file(&pkg)?;
-        package_manifest = Some(bun.read_manifest()?);
-        package_bundle = Some(bun);
-    } else {
-        info!("No package specified, searching for latest.");
-        let packages_dir = app.get_packages_path(&root_path);
-        if let Ok(paths) = glob::glob(format!("{}/*.nupkg", packages_dir).as_str()) {
-            for path in paths {
-                if let Ok(path) = path {
-                    trace!("Checking package: '{}'", path.to_string_lossy());
-                    if let Ok(bun) = bundle::load_bundle_from_file(&path) {
-                        if let Ok(mani) = bun.read_manifest() {
-                            if package_manifest.is_none() || mani.version > package_manifest.clone().unwrap().version {
-                                info!("Found {}: '{}'", mani.version, path.to_string_lossy());
-                                package_manifest = Some(mani);
-                                package_bundle = Some(bun);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &PathBuf, runhooks: bool) -> Result<()> {
+    let bundle = bundle::load_bundle_from_file(&package)?;
+    let manifest = bundle.read_manifest()?;
 
-    if package_manifest.is_none() || package_bundle.is_none() {
-        bail!("Unable to find/load suitable package.");
-    }
-
-    let package_manifest = package_manifest.unwrap();
-
-    let found_version = (&package_manifest.version).to_owned();
-    if found_version <= app.version {
-        if package.is_none() {
-            bail!("Latest package found is {}, which is not newer than current version {}.", found_version, app.version);
-        } else {
-            warn!("Provided package is {}, which is not newer than current version {}.", found_version, app.version);
-        }
-    }
-
+    let found_version = (&manifest.version).to_owned();
     info!("Applying package to current: {}", found_version);
 
-    #[cfg(target_os = "windows")]
-    {
-        if !crate::windows::prerequisite::prompt_and_install_all_missing(&package_manifest, Some(&app.version))? {
-            bail!("Stopping apply. Pre-requisites are missing and user cancelled.");
-        }
-
-        if runhooks {
-            crate::windows::run_hook(&app, &root_path, "--veloapp-obsolete", 15);
-        } else {
-            info!("Skipping --veloapp-obsolete hook.");
-        }
+    if !crate::windows::prerequisite::prompt_and_install_all_missing(&manifest, Some(&app.version))? {
+        bail!("Stopping apply. Pre-requisites are missing and user cancelled.");
     }
 
+    if runhooks {
+        crate::windows::run_hook(&app, &root_path, "--veloapp-obsolete", 15);
+    } else {
+        info!("Skipping --veloapp-obsolete hook.");
+    }
+
+    let temp_path_new = std::env::temp_dir().join(format!("velopack_{}", shared::random_string(8)));
+    let temp_path_old = std::env::temp_dir().join(format!("velopack_{}", shared::random_string(8)));
     let current_dir = app.get_current_path(&root_path);
-    if let Err(e) = shared::replace_dir_with_rollback(current_dir.clone(), || {
-        if let Some(bundle) = package_bundle.take() {
-            bundle.extract_lib_contents_to_path(&current_dir, |_| {})
-        } else {
-            bail!("No bundle could be loaded.");
-        }
-    }) {
-        // replacing the package failed, we can try to elevate it though.
-        error!("Failed to apply package: {}", e);
-        info!("Will try to elevate permissions and try again...");
-        ask_user_to_elevate(&package_manifest, noelevate, package, exe_args)?;
-    }
 
-    #[cfg(target_os = "windows")]
-    {
-        if let Err(e) = package_manifest.write_uninstall_entry(root_path) {
+    let action: Result<()> = (|| {
+        info!("Extracting bundle to {}", &temp_path_new.to_string_lossy());
+        bundle.extract_lib_contents_to_path(&temp_path_new, |_| {})?;
+
+        let _ = shared::force_stop_package(&root_path);
+
+        let result: Result<()> = (|| {
+            info!("Replacing bundle at {}", &current_dir);
+            fs::rename(&current_dir, &temp_path_old)?;
+            fs::rename(&temp_path_new, &current_dir)?;
+            Ok(())
+        })();
+
+        match result {
+            Ok(()) => {
+                info!("Bundle extracted successfully to {}", &current_dir);
+            }
+            Err(e) => {
+                let title = format!("{} Update", &manifest.title);
+                let header = format!("Failed to update, application is in use");
+                let body = format!(
+                    "Failed to update {} to version {}. Please close any applications or explorer windows that may be using the application's directory, or try restarting your computer before trying again. ({})", 
+                    &manifest.title, &manifest.version, e);
+                dialogs::show_error(&title, Some(&header), &body);
+                return Ok(()); // so that a generic error dialog is not shown.
+
+                // if shared::is_error_permission_denied(&e) {
+                //     error!("A permissions error occurred ({}), will attempt to elevate permissions and try again...", e);
+                //     dialogs::ask_user_to_elevate(&manifest)?;
+                //     let exe = std::env::current_exe()?;
+                //     let tmp = temp_path_new.to_string_lossy();
+                //     let args = vec!["swap", &current_dir, &tmp];
+                //     info!("Attempting to elevate: {} {:?}", exe.to_string_lossy(), args);
+                //     let mut cmd = RunAsCommand::new(&exe);
+                //     cmd.gui(true);
+                //     cmd.force_prompt(false);
+                //     cmd.args(&args);
+                //     let status = cmd.status().map_err(|z| anyhow!("Failed to restart elevated ({}).", z))?;
+                //     if status.success() {
+                //         info!("Bundle extracted successfully to {}", &current_dir);
+                //     } else {
+                //         bail!("elevated proess failed: exited with code: {}", status);
+                //     }
+                // } else {
+                //     bail!("Failed to extract bundle ({})", e);
+                // }
+            }
+        }
+
+        if let Err(e) = manifest.write_uninstall_entry(root_path) {
             warn!("Failed to write uninstall entry ({}).", e);
         }
 
         if runhooks {
-            crate::windows::run_hook(&package_manifest, &root_path, "--veloapp-updated", 15);
+            crate::windows::run_hook(&manifest, &root_path, "--veloapp-updated", 15);
         } else {
             info!("Skipping --veloapp-updated hook.");
         }
-    }
 
-    info!("Package applied successfully.");
-    Ok(())
+        info!("Package applied successfully.");
+        Ok(())
+    })();
+
+    let _ = remove_dir_all::remove_dir_all(&temp_path_new);
+    let _ = remove_dir_all::remove_dir_all(&temp_path_old);
+    action
 }
-
-
-
-// #[cfg(not(target_os = "linux"))]
-// fn run_apply_elevated(package: Option<&PathBuf>, exe_args: Option<Vec<&str>>) -> Result<()> {
-//     use runas::Command as RunAsCommand;
-//     let exe = std::env::current_exe()?;
-//     let args = get_run_elevated_args(package, exe_args);
-
-//     info!("Attempting to elevate: {} {:?}", exe.to_string_lossy(), args);
-//     let mut cmd = RunAsCommand::new(&exe);
-//     cmd.gui(true);
-//     cmd.force_prompt(false);
-//     cmd.args(&args);
-//     let status = cmd.status().map_err(|z| anyhow!("Failed to restart elevated ({}).", z))?;
-//     info!("elevated proess exited with status: {}", status);
-//     Ok(())
-// }
-
-// fn get_run_elevated_args(package: Option<&PathBuf>, exe_args: Option<Vec<&str>>) -> Vec<String> {
-//     let mut args: Vec<String> = Vec::new();
-//     args.push("apply".to_string());
-//     args.push("--noelevate".to_string());
-
-//     let package = package.map(|p| p.to_string_lossy().to_string());
-//     if let Some(pkg) = package {
-//         args.push("--package".to_string());
-//         args.push(pkg);
-//     }
-
-//     if let Some(a) = exe_args {
-//         args.push("--".to_string());
-//         a.iter().for_each(|a| args.push(a.to_string()));
-//     }
-//     args
-// }

@@ -18,8 +18,7 @@ fn root_command() -> Command {
         .about("Applies a staged / prepared update, installing prerequisite runtimes if necessary")
         .arg(arg!(-r --restart "Restart the application after the update"))
         .arg(arg!(-w --wait "Wait for the parent process to terminate before applying the update"))
-        .arg(arg!(-p --package <FILE> "Update package to apply").value_parser(value_parser!(PathBuf)))
-        .arg(arg!(--noelevate "If the application does not have sufficient privileges, do not elevate to admin"))
+        .arg(arg!(-p --package <FILE> "Update package to apply").required(true).value_parser(value_parser!(PathBuf)))
         .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceeded by '--'.").required(false).last(true).num_args(0..))
     )
     .subcommand(Command::new("patch")
@@ -124,10 +123,9 @@ fn patch(matches: &ArgMatches) -> Result<()> {
 }
 
 fn apply(matches: &ArgMatches) -> Result<()> {
-    let noelevate = matches.get_flag("noelevate");
     let restart = matches.get_flag("restart");
     let wait_for_parent = matches.get_flag("wait");
-    let package = matches.get_one::<PathBuf>("package");
+    let package = matches.get_one::<PathBuf>("package").unwrap();
     let exe_args: Option<Vec<&str>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect());
 
     info!("Command: Apply");
@@ -135,25 +133,11 @@ fn apply(matches: &ArgMatches) -> Result<()> {
     info!("    Wait: {:?}", wait_for_parent);
     info!("    Package: {:?}", package);
     info!("    Exe Args: {:?}", exe_args);
-    info!("    No Elevate: {}", noelevate);
 
-    #[cfg(target_os = "linux")]
-    {
-        match package {
-            None => bail!("Package (--package) argument is required on linux."),
-            Some(p) => {
-                let (root_path, app) = shared::detect_current_manifest(p)?;
-                commands::apply(&root_path, &app, restart, wait_for_parent, package, exe_args, noelevate, true)
-            }
-        }
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        let (root_path, app) = shared::detect_current_manifest()?;
-        #[cfg(target_os = "windows")]
-        let _mutex = shared::retry_io(|| windows::create_global_mutex(&app))?;
-        commands::apply(&root_path, &app, restart, wait_for_parent, package, exe_args, noelevate, true)
-    }
+    let (root_path, app) = shared::detect_current_manifest()?;
+    #[cfg(target_os = "windows")]
+    let _mutex = shared::retry_io(|| windows::create_global_mutex(&app))?;
+    commands::apply(&root_path, &app, restart, wait_for_parent, package, exe_args, true)
 }
 
 #[cfg(target_os = "windows")]
@@ -192,13 +176,7 @@ pub fn default_logging(verbose: bool, nocolor: bool) -> Result<()> {
         my_dir.join("Velopack.log")
     };
 
-    #[cfg(target_os = "macos")]
-    let default_log_file = {
-        let (_root, manifest) = shared::detect_current_manifest().expect("Unable to load app manfiest.");
-        std::path::Path::new(format!("/tmp/velopack/{}.log", manifest.id).as_str()).to_path_buf()
-    };
-
-    #[cfg(target_os = "linux")]
+    #[cfg(unix)]
     let default_log_file = std::path::Path::new("/tmp/velopack.log").to_path_buf();
 
     logging::setup_logging(Some(&default_log_file), true, verbose, nocolor)
