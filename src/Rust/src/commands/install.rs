@@ -168,12 +168,8 @@ fn install_impl(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::m
         bail!("The main executable could not be found in the package. Please contact the application author.");
     }
 
-    info!("Creating start menu shortcut...");
-    let startmenu = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::StartMenu, co::KF::DONT_UNEXPAND, None)?;
-    let lnk_path = Path::new(&startmenu).join("Programs").join(format!("{}.lnk", &app.title));
-    if let Err(e) = windows::create_lnk(&lnk_path.to_string_lossy(), &main_exe_path, &current_path, None) {
-        warn!("Failed to create start menu shortcut: {}", e);
-    }
+    info!("Creating new default shortcuts...");
+    let _ = windows::create_default_lnks(&root_path, &app);
 
     let ver_string = app.version.to_string();
     info!("Starting process install hook: \"{}\" --veloapp-install {}", &main_exe_path, &ver_string);

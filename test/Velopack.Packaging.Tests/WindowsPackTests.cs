@@ -303,13 +303,18 @@ public class WindowsPackTests
         var argsContent = File.ReadAllText(argsPath).Trim();
         Assert.Equal("--veloapp-install 1.0.0", argsContent);
 
-        var shortcutPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", id + ".lnk");
-        Assert.True(File.Exists(shortcutPath));
+        void CheckShortcut(string path)
+        {
+            Assert.True(File.Exists(path));
+            var lnk = new ShellLink(path);
+            Assert.Equal(Path.Combine(tmpInstallDir, "current"), lnk.WorkingDirectory);
+            Assert.Equal(appPath, lnk.Target);
+        }
 
-        var lnk = new ShellLink(shortcutPath);
-        var currentPath = Path.Combine(tmpInstallDir, "current");
-        Assert.Equal(currentPath, lnk.WorkingDirectory);
-        Assert.Equal(appPath, lnk.Target);
+        var startLnk = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", id + ".lnk");
+        var desktopLnk = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), id + ".lnk");
+        CheckShortcut(startLnk);
+        CheckShortcut(desktopLnk);
 
         // check registry exists
         string installDate = null;
@@ -325,7 +330,8 @@ public class WindowsPackTests
         var uninstOutput = RunNoCoverage(updatePath, new string[] { "--nocolor", "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
         Assert.EndsWith(Environment.NewLine + "Y", uninstOutput); // this checks that the self-delete succeeded
 
-        Assert.False(File.Exists(shortcutPath));
+        Assert.False(File.Exists(startLnk));
+        Assert.False(File.Exists(desktopLnk));
         Assert.False(File.Exists(appPath));
 
         using (var key2 = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)

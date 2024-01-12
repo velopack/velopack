@@ -8,7 +8,6 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use winsafe::{self as w, co};
 
 pub fn start(wait_for_parent: bool, exe_name: Option<&String>, exe_args: Option<Vec<&str>>, legacy_args: Option<&String>) -> Result<()> {
     if legacy_args.is_some() && exe_args.is_some() {
@@ -86,7 +85,6 @@ fn try_legacy_migration(root_dir: &PathBuf, app: &bundle::Manifest) -> Result<()
     warn!("This application is installed in a folder prefixed with 'app-'. Attempting to migrate...");
     let _ = shared::force_stop_package(&root_dir);
     let current_dir = app.get_current_path(&root_dir);
-    let main_exe_path = app.get_main_exe_path(&root_dir);
 
     if !Path::new(&current_dir).exists() {
         info!("Renaming latest app-* folder to current.");
@@ -108,12 +106,8 @@ fn try_legacy_migration(root_dir: &PathBuf, app: &bundle::Manifest) -> Result<()
         warn!("Failed to remove shortcuts ({}).", e);
     }
 
-    info!("Creating start menu shortcut...");
-    let startmenu = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::StartMenu, co::KF::DONT_UNEXPAND, None)?;
-    let lnk_path = Path::new(&startmenu).join("Programs").join(format!("{}.lnk", &app.title));
-    if let Err(e) = windows::create_lnk(&lnk_path.to_string_lossy(), &main_exe_path, &current_dir, None) {
-        warn!("Failed to create start menu shortcut: {}", e);
-    }
+    info!("Creating new default shortcuts...");
+    let _ = windows::create_default_lnks(&root_dir, &app);
 
     Ok(())
 }

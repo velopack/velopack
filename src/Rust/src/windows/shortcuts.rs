@@ -1,11 +1,12 @@
+use crate::bundle::Manifest;
 use crate::shared as util;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use glob::glob;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use winsafe::{self as w, co};
 
-use windows::core::{ComInterface, Result as WindowsResult, GUID, PCWSTR, HSTRING, IntoParam, Param};
+use windows::core::{ComInterface, IntoParam, Param, Result as WindowsResult, GUID, HSTRING, PCWSTR};
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
 use windows::Win32::System::Com::StructuredStorage::InitPropVariantFromStringVector;
@@ -27,7 +28,43 @@ fn create_instance<T: ComInterface>(clsid: &GUID) -> WindowsResult<T> {
     unsafe { CoCreateInstance(clsid, None, CLSCTX_ALL) }
 }
 
-pub fn create_lnk(output: &str, target: &str, work_dir: &str, app_model_id: Option<&str>) -> WindowsResult<()> {
+pub fn create_default_lnks(root_path: &PathBuf, app: &Manifest) -> Result<()> {
+    let app = app.clone();
+    let current_path = app.get_current_path(root_path);
+    let main_exe_path = app.get_main_exe_path(root_path);
+    let t = std::thread::spawn(move || {
+        init_com()?;
+        let mut was_error = false;
+
+        info!("Creating desktop shortcut...");
+        let desktop = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Desktop, co::KF::DONT_UNEXPAND, None)?;
+        let desktop_lnk = Path::new(&desktop).join(format!("{}.lnk", &app.title));
+        if let Err(e) = _create_lnk(&desktop_lnk.to_string_lossy(), &main_exe_path, &current_path, None) {
+            warn!("Failed to create start menu shortcut: {}", e);
+            was_error = true;
+        }
+
+        std::thread::sleep(Duration::from_millis(1));
+
+        info!("Creating start menu shortcut...");
+        let startmenu = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::StartMenu, co::KF::DONT_UNEXPAND, None)?;
+        let start_lnk = Path::new(&startmenu).join("Programs").join(format!("{}.lnk", &app.title));
+        if let Err(e) = _create_lnk(&start_lnk.to_string_lossy(), &main_exe_path, &current_path, None) {
+            warn!("Failed to create start menu shortcut: {}", e);
+            was_error = true;
+        }
+
+        if was_error {
+            bail!("Failed to create one or both default shortcuts");
+        }
+
+        Ok(())
+    });
+    t.join().unwrap()
+}
+
+#[allow(dead_code)]
+fn create_lnk(output: &str, target: &str, work_dir: &str, app_model_id: Option<&str>) -> WindowsResult<()> {
     let output = output.to_string();
     let target = target.to_string();
     let work_dir = work_dir.to_string();
