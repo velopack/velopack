@@ -3,10 +3,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
-using Serilog.Sinks.Spectre;
 using Spectre.Console;
 using Velopack.Vpk.Commands;
 using Velopack.Vpk.Compat;
+using Velopack.Vpk.Logging;
 
 namespace Velopack.Vpk;
 
@@ -61,13 +61,14 @@ public class Program
             .MinimumLevel.Is(minLevel)
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
             .MinimumLevel.Override("System", LogEventLevel.Warning)
-            .WriteTo.SpectreShortenedExceptions()
+            .WriteTo.Spectre()
             .CreateLogger();
         builder.Logging.AddSerilog();
 
         var host = builder.Build();
         var logFactory = host.Services.GetRequiredService<ILoggerFactory>();
         var logger = logFactory.CreateLogger("vpk");
+
         Runner = new RunnerFactory(logger, host.Services.GetRequiredService<IConfiguration>());
 
         CliRootCommand rootCommand = new CliRootCommand(INTRO) {

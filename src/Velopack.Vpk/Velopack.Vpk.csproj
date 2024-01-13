@@ -24,8 +24,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-    <None Include="..\Rust\target\debug\update" CopyToOutputDirectory="Always" 
-          Condition="$([MSBuild]::IsOSPlatform('OSX')) or $([MSBuild]::IsOSPlatform('Linux'))" />
+    <None Include="..\Rust\target\debug\update" CopyToOutputDirectory="Always" Condition="$([MSBuild]::IsOSPlatform('OSX')) or $([MSBuild]::IsOSPlatform('Linux'))" />
     <None Include="..\Rust\target\debug\update.exe" CopyToOutputDirectory="Always" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
     <None Include="..\Rust\target\debug\setup.exe" CopyToOutputDirectory="Always" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
     <None Include="..\Rust\target\debug\stub.exe" CopyToOutputDirectory="Always" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
@@ -55,7 +54,6 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0" />
-    <PackageReference Include="Serilog.Sinks.Spectre" Version="0.4.1" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.23407.1" />
     <PackageReference Include="NuGet.Protocol" Version="6.8.0" />
   </ItemGroup>

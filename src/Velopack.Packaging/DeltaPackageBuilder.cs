@@ -1,4 +1,4 @@
-using System.IO.MemoryMappedFiles;
+﻿using System.IO.MemoryMappedFiles;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.Intrinsics.Arm;
 using System.Text;
@@ -161,7 +161,7 @@ public class DeltaPackageBuilder
                             createDeltaForSingleFile(f, tempInfo, true);
                             return; // success, so return from this function
                         } catch (ProcessFailedException ex) {
-                            _logger.Error($"Failed to create zstd diff for file '{f.FullName}' (will try to fallback to legacy bsdiff format - this will be much slower). " + ex.Message);
+                            _logger.Error($"Failed to create zstd diff for file '{f.FullName}' (will try to fallback to legacy bsdiff format - this will be much slower). " + Environment.NewLine + ex.Message);
                         }
                     }
                     // if we're here, either zstd is not available or it failed
@@ -171,7 +171,7 @@ public class DeltaPackageBuilder
                             _logger.Info($"Successfully created fallback bsdiff for file '{f.FullName}'.");
                         }
                     } catch (Exception ex) {
-                        _logger.Error($"Failed to create bsdiff for file '{f.FullName}'. " + ex.Message);
+                        _logger.Error($"Failed to create bsdiff for file '{f.FullName}'. " + Environment.NewLine + ex.Message);
                         throw;
                     }
                 });
