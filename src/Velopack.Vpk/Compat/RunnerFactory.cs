@@ -26,9 +26,9 @@ public class RunnerFactory
             await (Task) method.Invoke(runner, new object[] { options });
         } catch (Exception ex) when (ex is ProcessFailedException or UserInfoException) {
             // some exceptions are just user info / user error, so don't need a stack trace.
-            _logger.Error($"[bold orange3]{ex.Message}[/]");
+            _logger.Fatal($"[bold orange3]{ex.Message}[/]");
         } catch (Exception ex) {
-            _logger.Error(ex, $"Command {commandName} failed.");
+            _logger.Fatal(ex, $"Command {commandName} had an exception.");
         }
     }
 

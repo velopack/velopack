@@ -11,7 +11,15 @@ static class LevelStyle
 {
     public static string GetLevelHighlight(LogEvent logEvent)
     {
-        var levelMoniker = logEvent.Level.ToString().ToUpper().Substring(0, 3);
+        var levelMoniker = logEvent.Level switch {
+            LogEventLevel.Verbose => "VRB",
+            LogEventLevel.Debug => "DBG",
+            LogEventLevel.Information => "INF",
+            LogEventLevel.Warning => "WRN",
+            LogEventLevel.Error => "ERR",
+            LogEventLevel.Fatal => "FAT",
+            _ => logEvent.Level.ToString().ToUpper().Substring(0, 3),
+        };
         return logEvent.Level switch {
             LogEventLevel.Verbose => LevelStyle.HighlightVerbose(levelMoniker),
             LogEventLevel.Debug => LevelStyle.HighlightDebug(levelMoniker),

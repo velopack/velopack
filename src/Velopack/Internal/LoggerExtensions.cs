@@ -80,5 +80,20 @@ namespace Velopack
         {
             logger.LogError(ex, ex.Message);
         }
+
+        public static void Fatal(this ILogger logger, string message)
+        {
+            logger.LogCritical(message);
+        }
+
+        public static void Fatal(this ILogger logger, Exception ex, string message)
+        {
+            logger.LogCritical(ex, message);
+        }
+
+        public static void Fatal(this ILogger logger, Exception ex)
+        {
+            logger.LogCritical(ex, ex.Message);
+        }
     }
 }
