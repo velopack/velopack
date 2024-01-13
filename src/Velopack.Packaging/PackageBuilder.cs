@@ -40,13 +40,11 @@ namespace Velopack.Packaging
         public async Task Run(T options)
         {
             if (options.TargetRuntime?.BaseRID != SupportedTargetOs)
-                throw new UserErrorException($"To build packages for {SupportedTargetOs.GetOsLongName()}, " +
+                throw new UserInfoException($"To build packages for {SupportedTargetOs.GetOsLongName()}, " +
                     $"the target rid must be {SupportedTargetOs} (actually was {options.TargetRuntime?.BaseRID}).");
 
             if (options.TargetRuntime?.HasArchitecture == true && options.TargetRuntime.Architecture == RuntimeCpu.x86)
-                throw new UserErrorException("Velopack does not support building releases for x86 platforms.");
-
-            var now = DateTime.UtcNow;
+                throw new UserInfoException("Velopack does not support building releases for x86 platforms.");
 
             Log.Info("Beginning to package release.");
             Log.Info("Releases Directory: " + options.ReleaseDir.FullName);
@@ -68,7 +66,7 @@ namespace Velopack.Packaging
             var mainExeName = options.EntryExecutableName ?? (options.PackId + mainExt);
             var mainExePath = Path.Combine(packDirectory, mainExeName);
             if (!File.Exists(mainExePath)) {
-                throw new UserErrorException(
+                throw new UserInfoException(
                     $"Could not find main application executable (the one that runs 'VelopackApp.Build().Run()'). " + Environment.NewLine +
                     $"I searched for '{mainExeName}' in {packDirectory}." + Environment.NewLine +
                     $"If your main binary is not named '{mainExeName}', please specify the name with the argument: --exeName {{yourBinary.exe}}");
@@ -107,85 +105,72 @@ namespace Velopack.Packaging
             List<(string from, string to)> filesToCopy = new();
 
             try {
-                await AnsiConsole.Progress()
-                    .AutoRefresh(true)
-                    .AutoClear(false)
-                    .HideCompleted(false)
-                    .Columns(new ProgressColumn[]
-                    {
-                        new SpinnerColumn(),
-                        new TaskDescriptionColumn(),
-                        new ProgressBarColumn(),
-                        new PercentageColumn(),
-                        new ElapsedTimeColumn(),
-                    })
-                    .StartAsync(async ctx => {
-                        string nuspecText = null;
-                        ReleasePackage prev = null;
-                        await WrapTask(ctx, "Pre-process steps", async (progress) => {
-                            prev = entryHelper.GetPreviousFullRelease(NuGetVersion.Parse(packVersion), channel);
-                            nuspecText = GenerateNuspecContent(
-                                packId, packTitle, packAuthors, packVersion, options.ReleaseNotes, packDirectory, mainExeName);
-                            packDirectory = await PreprocessPackDir(progress, packDirectory, nuspecText);
-                        });
-
-                        if (VelopackRuntimeInfo.IsWindows || VelopackRuntimeInfo.IsOSX) {
-                            await WrapTask(ctx, "Code-sign application", async (progress) => {
-                                await CodeSign(progress, packDirectory);
-                            });
-                        }
-
-                        var portableTask = WrapTask(ctx, "Building portable package", async (progress) => {
-                            var suggestedPortable = entryHelper.GetSuggestedPortablePath(packId, channel, options.TargetRuntime);
-                            var incomplete = Path.Combine(pkgTempDir, Path.GetFileName(suggestedPortable));
-                            if (File.Exists(incomplete)) File.Delete(incomplete);
-                            filesToCopy.Add((incomplete, suggestedPortable));
-                            await CreatePortablePackage(progress, packDirectory, incomplete);
-                        });
-
-                        // this is a prerequisite for building full package but only on linux
-                        if (VelopackRuntimeInfo.IsLinux) await portableTask;
-
-                        string releasePath = null;
-                        await WrapTask(ctx, $"Building release {packVersion}", async (progress) => {
-                            var releaseName = new ReleaseEntryName(packId, SemanticVersion.Parse(packVersion), false, Options.TargetRuntime);
-                            releasePath = Path.Combine(releaseDir.FullName, releaseName.ToFileName());
-                            if (File.Exists(releasePath)) File.Delete(releasePath);
-                            await CreateReleasePackage(progress, packDirectory, nuspecText, releasePath);
-                            entryHelper.AddNewRelease(releasePath, channel);
-                        });
-
-                        Task setupTask = null;
-                        if (VelopackRuntimeInfo.IsWindows || VelopackRuntimeInfo.IsOSX) {
-                            setupTask = WrapTask(ctx, "Building setup package", async (progress) => {
-                                var suggestedSetup = entryHelper.GetSuggestedSetupPath(packId, channel, options.TargetRuntime);
-                                var incomplete = Path.Combine(pkgTempDir, Path.GetFileName(suggestedSetup));
-                                if (File.Exists(incomplete)) File.Delete(incomplete);
-                                filesToCopy.Add((incomplete, suggestedSetup));
-                                await CreateSetupPackage(progress, releasePath, packDirectory, incomplete);
-                            });
-                        }
-
-                        if (prev != null && options.DeltaMode != DeltaMode.None) {
-                            await WrapTask(ctx, $"Building delta {prev.Version} -> {packVersion}", async (progress) => {
-                                var deltaPkg = await CreateDeltaPackage(progress, releasePath, prev.PackageFile, options.DeltaMode);
-                                entryHelper.AddNewRelease(deltaPkg, channel);
-                            });
-                        }
-
-                        if (!VelopackRuntimeInfo.IsLinux) await portableTask;
-                        if (setupTask != null) await setupTask;
-
-                        await WrapTask(ctx, "Post-process steps", (progress) => {
-                            entryHelper.SaveReleasesFiles();
-                            foreach (var f in filesToCopy) {
-                                File.Move(f.from, f.to, true);
-                            }
-                            progress(100);
-                            return Task.CompletedTask;
-                        });
+                await Progress.ExecuteAsync(Log, async (ctx) => {
+                    string nuspecText = null;
+                    ReleasePackage prev = null;
+                    await ctx.RunTask("Pre-process steps", async (progress) => {
+                        prev = entryHelper.GetPreviousFullRelease(NuGetVersion.Parse(packVersion), channel);
+                        nuspecText = GenerateNuspecContent(
+                            packId, packTitle, packAuthors, packVersion, options.ReleaseNotes, packDirectory, mainExeName);
+                        packDirectory = await PreprocessPackDir(progress, packDirectory, nuspecText);
                     });
-                Log.Info($"[bold]Done in {DateTime.UtcNow - now}.[/]");
+
+                    if (VelopackRuntimeInfo.IsWindows || VelopackRuntimeInfo.IsOSX) {
+                        await ctx.RunTask("Code-sign application", async (progress) => {
+                            await CodeSign(progress, packDirectory);
+                        });
+                    }
+
+                    var portableTask = ctx.RunTask("Building portable package", async (progress) => {
+                        var suggestedPortable = entryHelper.GetSuggestedPortablePath(packId, channel, options.TargetRuntime);
+                        var incomplete = Path.Combine(pkgTempDir, Path.GetFileName(suggestedPortable));
+                        if (File.Exists(incomplete)) File.Delete(incomplete);
+                        filesToCopy.Add((incomplete, suggestedPortable));
+                        await CreatePortablePackage(progress, packDirectory, incomplete);
+                    });
+
+                    // this is a prerequisite for building full package but only on linux
+                    if (VelopackRuntimeInfo.IsLinux) await portableTask;
+
+                    string releasePath = null;
+                    await ctx.RunTask($"Building release {packVersion}", async (progress) => {
+                        var releaseName = new ReleaseEntryName(packId, SemanticVersion.Parse(packVersion), false, Options.TargetRuntime);
+                        releasePath = Path.Combine(releaseDir.FullName, releaseName.ToFileName());
+                        if (File.Exists(releasePath)) File.Delete(releasePath);
+                        await CreateReleasePackage(progress, packDirectory, nuspecText, releasePath);
+                        entryHelper.AddNewRelease(releasePath, channel);
+                    });
+
+                    Task setupTask = null;
+                    if (VelopackRuntimeInfo.IsWindows || VelopackRuntimeInfo.IsOSX) {
+                        setupTask = ctx.RunTask("Building setup package", async (progress) => {
+                            var suggestedSetup = entryHelper.GetSuggestedSetupPath(packId, channel, options.TargetRuntime);
+                            var incomplete = Path.Combine(pkgTempDir, Path.GetFileName(suggestedSetup));
+                            if (File.Exists(incomplete)) File.Delete(incomplete);
+                            filesToCopy.Add((incomplete, suggestedSetup));
+                            await CreateSetupPackage(progress, releasePath, packDirectory, incomplete);
+                        });
+                    }
+
+                    if (prev != null && options.DeltaMode != DeltaMode.None) {
+                        await ctx.RunTask($"Building delta {prev.Version} -> {packVersion}", async (progress) => {
+                            var deltaPkg = await CreateDeltaPackage(progress, releasePath, prev.PackageFile, options.DeltaMode);
+                            entryHelper.AddNewRelease(deltaPkg, channel);
+                        });
+                    }
+
+                    if (!VelopackRuntimeInfo.IsLinux) await portableTask;
+                    if (setupTask != null) await setupTask;
+
+                    await ctx.RunTask("Post-process steps", (progress) => {
+                        entryHelper.SaveReleasesFiles();
+                        foreach (var f in filesToCopy) {
+                            File.Move(f.from, f.to, true);
+                        }
+                        progress(100);
+                        return Task.CompletedTask;
+                    });
+                });
             } catch {
                 try {
                     entryHelper.RollbackNewReleases();
@@ -194,28 +179,6 @@ namespace Velopack.Packaging
                 }
                 throw;
             }
-        }
-
-        protected virtual async Task WrapTask(ProgressContext ctx, string name, Func<Action<int>, Task> fn)
-        {
-            var task = ctx.AddTask($"[italic]{name}[/]");
-            task.StartTask();
-            Log.Debug("Starting: " + name);
-
-            void progress(int p)
-            {
-                if (p < 0) {
-                    task.IsIndeterminate = true;
-                } else {
-                    task.IsIndeterminate = false;
-                    task.Value = p;
-                }
-            }
-
-            await Task.Run(() => fn(progress)).ConfigureAwait(false);
-            task.IsIndeterminate = false;
-            task.StopTask();
-            Log.Debug($"[bold]Complete: {name}[/]");
         }
 
         protected virtual string GenerateNuspecContent(string packId, string packTitle, string packAuthors, string packVersion, string releaseNotes, string packDir, string mainExeName)
@@ -241,13 +204,7 @@ namespace Velopack.Packaging
             return nuspec;
         }
 
-        protected virtual Task<string> PreprocessPackDir(Action<int> progress, string packDir, string nuspecText)
-        {
-            var dir = TempDir.CreateSubdirectory("PreprocessPackDir");
-            CopyFiles(new DirectoryInfo(packDir), dir, progress, true);
-            File.WriteAllText(Path.Combine(dir.FullName, "sq.version"), nuspecText);
-            return Task.FromResult(packDir);
-        }
+        protected abstract Task<string> PreprocessPackDir(Action<int> progress, string packDir, string nuspecText);
 
         protected virtual Task CodeSign(Action<int> progress, string packDir)
         {

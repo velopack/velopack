@@ -24,7 +24,7 @@ public class RunnerFactory
         var method = typeof(ICommandRunner).GetMethod(commandName);
         try {
             await (Task) method.Invoke(runner, new object[] { options });
-        } catch (Exception ex) when (ex is ProcessFailedException or UserErrorException) {
+        } catch (Exception ex) when (ex is ProcessFailedException or UserInfoException) {
             // some exceptions are just user info / user error, so don't need a stack trace.
             _logger.Error($"Command {commandName} failed. " + ex.Message);
         } catch (Exception ex) {

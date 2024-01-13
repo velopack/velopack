@@ -25,6 +25,22 @@ public class HelperFile
     public string UpdateNixPath => FindHelperFile("UpdateNix");
 #endif
 
+    public string GetUpdatePath(RuntimeOs? os = null)
+    {
+        var _os = os ?? VelopackRuntimeInfo.SystemOs;
+
+        switch (_os) {
+        case RuntimeOs.Windows:
+            return UpdatePath;
+        case RuntimeOs.Linux:
+            return UpdateNixPath;
+        case RuntimeOs.OSX:
+            return UpdateMacPath;
+        default:
+            throw new PlatformNotSupportedException("Update binary is not available for this platform.");
+        }
+    }
+
     private static List<string> _searchPaths = new List<string>();
     protected readonly ILogger Log;
 
@@ -73,13 +89,6 @@ public class HelperFile
             args.Add("--zstd");
             args.Add("chainLog=30");
         }
-
-        var deltaMode = mode switch {
-            DeltaMode.None => "none",
-            DeltaMode.BestSpeed => "bsdiff",
-            DeltaMode.BestSize => "xdelta",
-            _ => throw new InvalidEnumArgumentException(nameof(mode), (int) mode, typeof(DeltaMode)),
-        };
 
         string zstdPath;
         if (VelopackRuntimeInfo.IsWindows) {

@@ -12,21 +12,21 @@ namespace Velopack.Packaging
     /// Denotes that an error has occurred for which a stack trace should not be printed.
     /// </summary>
     [ExcludeFromCodeCoverage]
-    public class UserErrorException : Exception
+    public class UserInfoException : Exception
     {
-        public UserErrorException()
+        public UserInfoException()
         {
         }
 
-        public UserErrorException(string message) : base(message)
+        public UserInfoException(string message) : base(message)
         {
         }
 
-        public UserErrorException(string message, Exception innerException) : base(message, innerException)
+        public UserInfoException(string message, Exception innerException) : base(message, innerException)
         {
         }
 
-        protected UserErrorException(SerializationInfo info, StreamingContext context) : base(info, context)
+        protected UserInfoException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
     }

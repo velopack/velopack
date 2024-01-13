@@ -1,4 +1,4 @@
-﻿using System.IO.MemoryMappedFiles;
+using System.IO.MemoryMappedFiles;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.Intrinsics.Arm;
 using System.Text;
@@ -32,15 +32,15 @@ public class DeltaPackageBuilder
         if (newPackage == null) throw new ArgumentNullException(nameof(newPackage));
         if (String.IsNullOrEmpty(outputFile) || File.Exists(outputFile)) throw new ArgumentException("The output file is null or already exists", nameof(outputFile));
 
-        bool legacyBsdiff = false;
+        bool isZstdAvailable = true;
         var helper = new HelperFile(_logger);
-        if (VelopackRuntimeInfo.IsOSX || VelopackRuntimeInfo.IsLinux) {
+        if (!VelopackRuntimeInfo.IsWindows) {
             try {
                 helper.AssertSystemBinaryExists("zstd");
             } catch (Exception ex) {
-                _logger.Error(ex);
-                _logger.Warn("Falling back to legacy bsdiff delta format. This will be slower and more prone to breaking.");
-                legacyBsdiff = true;
+                _logger.Error(ex.Message);
+                _logger.Warn("Falling back to legacy bsdiff delta format. This will be a lot slower and more prone to breaking.");
+                isZstdAvailable = false;
             }
         }
 
@@ -89,8 +89,9 @@ public class DeltaPackageBuilder
                 .ToDictionary(k => k.FullName.Replace(baseTempInfo.FullName, ""), v => v.FullName);
             var newLibDir = tempInfo.GetDirectories().First(x => x.Name.ToLowerInvariant() == "lib");
             var newLibFiles = newLibDir.GetAllFilesRecursively().ToArray();
+            var numNewFiles = newLibFiles.Length;
 
-            void createDeltaForSingleFile(FileInfo targetFile, DirectoryInfo workingDirectory)
+            void createDeltaForSingleFile(FileInfo targetFile, DirectoryInfo workingDirectory, bool useZstd)
             {
                 // NB: There are three cases here that we'll handle:
                 //
@@ -107,7 +108,7 @@ public class DeltaPackageBuilder
                     // 1. new file, leave it alone
                     if (!baseLibFiles.ContainsKey(relativePath)) {
                         _logger.Debug($"{relativePath} not found in base package, marking as new");
-                        fNew++;
+                        Interlocked.Increment(ref fNew);
                         return;
                     }
 
@@ -119,42 +120,64 @@ public class DeltaPackageBuilder
                         _logger.Debug($"{relativePath} hasn't changed, writing dummy file");
                         File.Create(targetFile.FullName + ".diff").Dispose();
                         File.Create(targetFile.FullName + ".shasum").Dispose();
-                        fSame++;
+                        Interlocked.Increment(ref fSame);
                     } else {
                         // 3. changed, write a delta in new
-                        if (legacyBsdiff) {
+                        if (useZstd) {
+                            var diffOut = targetFile.FullName + ".zsdiff";
+                            helper.CreateZstdPatch(oldFilePath, targetFile.FullName, diffOut, mode);
+                        } else {
                             var oldData = File.ReadAllBytes(oldFilePath);
                             var newData = File.ReadAllBytes(targetFile.FullName);
                             using (FileStream of = File.Create(targetFile.FullName + ".bsdiff")) {
                                 BinaryPatchUtility.Create(oldData, newData, of);
                             }
-                        } else {
-                            var diffOut = targetFile.FullName + ".zsdiff";
-                            helper.CreateZstdPatch(oldFilePath, targetFile.FullName, diffOut, mode);
                         }
 
                         using var newfs = File.OpenRead(targetFile.FullName);
                         var rl = ReleaseEntry.GenerateFromFile(newfs, targetFile.Name + ".shasum");
                         File.WriteAllText(targetFile.FullName + ".shasum", rl.EntryAsString, Encoding.UTF8);
-                        fChanged++;
+                        Interlocked.Increment(ref fChanged);
                     }
                     targetFile.Delete();
                     baseLibFiles.Remove(relativePath);
-                    fProcessed++;
-                    progress(Utility.CalculateProgress((int) ((double) fProcessed / newLibFiles.Length * 100), 0, 70));
+                    var p = Interlocked.Increment(ref fProcessed);
+                    progress(Utility.CalculateProgress((int) ((double) p / numNewFiles * 100), 0, 70));
                 } catch (Exception ex) {
                     _logger.Debug(ex, String.Format("Failed to create a delta for {0}", targetFile.Name));
                     Utility.DeleteFileOrDirectoryHard(targetFile.FullName + ".bsdiff", throwOnFailure: false);
                     Utility.DeleteFileOrDirectoryHard(targetFile.FullName + ".diff", throwOnFailure: false);
                     Utility.DeleteFileOrDirectoryHard(targetFile.FullName + ".shasum", throwOnFailure: false);
-                    fWarnings++;
+                    Interlocked.Increment(ref fWarnings);
                     throw;
                 }
             }
 
-            Parallel.ForEach(newLibFiles, new ParallelOptions() { MaxDegreeOfParallelism = numParallel }, (f) => {
-                Utility.Retry(() => createDeltaForSingleFile(f, tempInfo));
-            });
+            try {
+                Parallel.ForEach(newLibFiles, new ParallelOptions() { MaxDegreeOfParallelism = numParallel }, (f) => {
+                    // we try to use zstd first, if it fails we'll try bsdiff
+                    if (isZstdAvailable) {
+                        try {
+                            createDeltaForSingleFile(f, tempInfo, true);
+                            return; // success, so return from this function
+                        } catch (ProcessFailedException ex) {
+                            _logger.Error($"Failed to create zstd diff for file '{f.FullName}' (will try to fallback to legacy bsdiff format - this will be much slower). " + ex.Message);
+                        }
+                    }
+                    // if we're here, either zstd is not available or it failed
+                    try {
+                        createDeltaForSingleFile(f, tempInfo, false);
+                        if (isZstdAvailable) {
+                            _logger.Info($"Successfully created fallback bsdiff for file '{f.FullName}'.");
+                        }
+                    } catch (Exception ex) {
+                        _logger.Error($"Failed to create bsdiff for file '{f.FullName}'. " + ex.Message);
+                        throw;
+                    }
+                });
+            } catch {
+                throw new UserInfoException("Delta creation failed for one or more files. See log for details. To skip delta generation, use the '--delta none' argument.");
+            }
 
             EasyZip.CreateZipFromDirectory(_logger, outputFile, tempInfo.FullName, Utility.CreateProgressDelegate(progress, 70, 100));
             progress(100);

@@ -11,13 +11,18 @@ namespace Velopack.Packaging.Commands
             _logger = logger;
         }
 
-        public Task Run(DeltaGenOptions options)
+        public async Task Run(DeltaGenOptions options)
         {
-            var pold = new ReleasePackage(options.BasePackage);
-            var pnew = new ReleasePackage(options.NewPackage);
-            var delta = new DeltaPackageBuilder(_logger);
-            delta.CreateDeltaPackage(pnew, pold, options.OutputFile, options.DeltaMode, (x) => { });
-            return Task.CompletedTask;
+            await Progress.ExecuteAsync(_logger, async (ctx) => {
+                var pold = new ReleasePackage(options.BasePackage);
+                var pnew = new ReleasePackage(options.NewPackage);
+                await ctx.RunTask($"Building delta {pold.Version} -> {pnew.Version}", (progress) => {
+                    var delta = new DeltaPackageBuilder(_logger);
+                    delta.CreateDeltaPackage(pold, pnew, options.OutputFile, options.DeltaMode, progress);
+                    progress(100);
+                    return Task.CompletedTask;
+                });
+            });
         }
     }
 }

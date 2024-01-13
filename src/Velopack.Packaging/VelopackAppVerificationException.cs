@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace Velopack.Packaging
 {
     [ExcludeFromCodeCoverage]
-    public class VelopackAppVerificationException : UserErrorException
+    public class VelopackAppVerificationException : UserInfoException
     {
         public VelopackAppVerificationException(string message)
             : base(

@@ -12,39 +12,40 @@ namespace Velopack.Packaging.Commands
             _logger = logger;
         }
 
-        public Task Run(DeltaPatchOptions options)
+        public async Task Run(DeltaPatchOptions options)
         {
             if (options.PatchFiles.Length == 0) {
-                throw new ArgumentException("Must specify at least one patch file.");
+                throw new UserInfoException("Must specify at least one patch file.");
             }
 
-            if (options.PatchFiles.Any(x => x == null || !x.Exists)) {
-                throw new ArgumentException("One or more patch files do not exist.");
+            foreach (var p in options.PatchFiles) {
+                if (p == null || !p.Exists) {
+                    throw new UserInfoException($"Patch file '{p.FullName}' does not exist.");
+                }
             }
 
             var tmp = Utility.GetDefaultTempBaseDirectory();
             using var _1 = Utility.GetTempDirectory(out var workDir);
             var helper = new HelperFile(_logger);
 
-            string updateExe;
-            if (VelopackRuntimeInfo.IsWindows)
-                updateExe = helper.UpdatePath;
-            else if (VelopackRuntimeInfo.IsOSX)
-                updateExe = helper.UpdateMacPath;
-            else
-                throw new NotSupportedException("This platform is not supported.");
-
+            var updateExe = helper.GetUpdatePath();
             var delta = new DeltaPackage(_logger, tmp, updateExe);
             EasyZip.ExtractZipToDirectory(_logger, options.BasePackage, workDir);
 
-            foreach (var f in options.PatchFiles) {
-                _logger.Info($"Applying delta patch {f.Name}");
-                delta.ApplyDeltaPackageFast(workDir, f.FullName);
-            }
+            await Progress.ExecuteAsync(_logger, async (ctx) => {
+                foreach (var f in options.PatchFiles) {
+                    await ctx.RunTask($"Applying delta patch {f.Name}", (progress) => {
+                        delta.ApplyDeltaPackageFast(workDir, f.FullName, progress);
+                        progress(100);
+                        return Task.CompletedTask;
+                    });
+                }
 
-            EasyZip.CreateZipFromDirectory(_logger, options.OutputFile, workDir);
-
-            return Task.CompletedTask;
+                await ctx.RunTask("Building output package", async (progress) => {
+                    await EasyZip.CreateZipFromDirectoryAsync(_logger, options.OutputFile, workDir, progress);
+                    progress(100);
+                });
+            });
         }
     }
 }
