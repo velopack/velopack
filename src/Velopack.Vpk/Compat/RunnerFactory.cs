@@ -19,14 +19,14 @@ public class RunnerFactory
 
     public async Task CreateAndExecuteAsync<T>(string commandName, T options) where T : BaseCommand
     {
-        _logger.LogInformation(Program.INTRO);
+        _logger.LogInformation($"[bold]{Program.INTRO}[/]");
         var runner = await CreateAsync(options);
         var method = typeof(ICommandRunner).GetMethod(commandName);
         try {
             await (Task) method.Invoke(runner, new object[] { options });
         } catch (Exception ex) when (ex is ProcessFailedException or UserInfoException) {
             // some exceptions are just user info / user error, so don't need a stack trace.
-            _logger.Error($"Command {commandName} failed. " + ex.Message);
+            _logger.Error($"[bold orange3]{ex.Message}[/]");
         } catch (Exception ex) {
             _logger.Error(ex, $"Command {commandName} failed.");
         }

@@ -34,14 +34,13 @@ namespace Velopack.Packaging.Commands
 
             await Progress.ExecuteAsync(_logger, async (ctx) => {
                 foreach (var f in options.PatchFiles) {
-                    await ctx.RunTask($"Applying delta patch {f.Name}", (progress) => {
+                    await ctx.RunTask($"Applying {f.Name}", (progress) => {
                         delta.ApplyDeltaPackageFast(workDir, f.FullName, progress);
                         progress(100);
                         return Task.CompletedTask;
                     });
                 }
-
-                await ctx.RunTask("Building output package", async (progress) => {
+                await ctx.RunTask($"Building {Path.GetFileName(options.OutputFile)}", async (progress) => {
                     await EasyZip.CreateZipFromDirectoryAsync(_logger, options.OutputFile, workDir, progress);
                     progress(100);
                 });
