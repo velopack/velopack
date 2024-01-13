@@ -25,7 +25,12 @@ namespace Velopack.Compression
 
             // we have stopped using ZipFile so we can add async and determinism.
             // ZipFile.CreateFromDirectory(directoryToCompress, outputFile);
-            DeterministicCreateFromDirectory(directoryToCompress, outputFile, null, false, Encoding.UTF8, progress);
+            try {
+                DeterministicCreateFromDirectory(directoryToCompress, outputFile, null, false, Encoding.UTF8, progress);
+            } catch {
+                try { File.Delete(outputFile); } catch { }
+                throw;
+            }
         }
 
         public static async Task CreateZipFromDirectoryAsync(ILogger logger, string outputFile, string directoryToCompress, Action<int> progress = null)
@@ -35,7 +40,12 @@ namespace Velopack.Compression
 
             // we have stopped using ZipFile so we can add async and determinism.
             // ZipFile.CreateFromDirectory(directoryToCompress, outputFile);
-            await DeterministicCreateFromDirectoryAsync(directoryToCompress, outputFile, null, false, Encoding.UTF8, progress).ConfigureAwait(false);
+            try {
+                await DeterministicCreateFromDirectoryAsync(directoryToCompress, outputFile, null, false, Encoding.UTF8, progress).ConfigureAwait(false);
+            } catch {
+                try { File.Delete(outputFile); } catch { }
+                throw;
+            }
         }
 
         private static char s_pathSeperator = '/';
