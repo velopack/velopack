@@ -149,18 +149,22 @@ namespace Velopack.Sources
             if (releases == null || releases.Count() == 0)
                 throw new Exception($"No GitHub releases found at '{RepoUri}'.");
 
-            // for now, we only search for packages in the latest Github release.
-            // in the future, we might want to search through more than one for delta's.
-            var release = releases.First();
+            var releasesFileName = GetReleasesFileName();
+            List<GithubReleaseEntry> entries = new List<GithubReleaseEntry>();
 
-            // this might be a browser url or an api url (depending on whether we have a AccessToken or not)
-            // https://docs.github.com/en/rest/reference/releases#get-a-release-asset
-            var assetUrl = GetAssetUrlFromName(release, GetReleasesFileName());
-            var releaseBytes = await Downloader.DownloadBytes(assetUrl, Authorization, "application/octet-stream").ConfigureAwait(false);
-            var txt = Utility.RemoveByteOrderMarkerIfPresent(releaseBytes);
-            return ReleaseEntry.ParseReleaseFileAndApplyStaging(txt, stagingId)
-                .Select(r => new GithubReleaseEntry(r, release))
-                .ToArray();
+            foreach (var r in releases) {
+                var assets = r.Assets.Where(a => a.Name.Equals(releasesFileName, StringComparison.InvariantCultureIgnoreCase));
+                if (assets == null || !assets.Any()) {
+                    Log.Debug($"Ignoring release {r.Name} because it has no {releasesFileName}.");
+                    continue;
+                }
+
+                Log.Debug($"Found github release {r.Name}, downloading {releasesFileName}.");
+                var asset = assets.First();
+                entries.AddRange(await GetEntriesFromRelease(r, stagingId).ConfigureAwait(false));
+            }
+
+            return entries.ToArray();
         }
 
         /// <inheritdoc />
@@ -177,9 +181,24 @@ namespace Velopack.Sources
         }
 
         /// <summary>
+        /// Downloads the RELEASES file from the specified release and parses it into a list of <see cref="GithubReleaseEntry"/>.
+        /// </summary>
+        public virtual async Task<IEnumerable<GithubReleaseEntry>> GetEntriesFromRelease(GithubRelease release, Guid? stagingId)
+        {
+            // this might be a browser url or an api url (depending on whether we have a AccessToken or not)
+            // https://docs.github.com/en/rest/reference/releases#get-a-release-asset
+            var assetUrl = GetAssetUrlFromName(release, GetReleasesFileName());
+            var releaseBytes = await Downloader.DownloadBytes(assetUrl, Authorization, "application/octet-stream").ConfigureAwait(false);
+            var txt = Utility.RemoveByteOrderMarkerIfPresent(releaseBytes);
+            return ReleaseEntry.ParseReleaseFileAndApplyStaging(txt, stagingId)
+                .Select(r => new GithubReleaseEntry(r, release))
+                .ToArray();
+        }
+
+        /// <summary>
         /// Retrieves a list of <see cref="GithubRelease"/> from the current repository.
         /// </summary>
-        public virtual async Task<GithubRelease[]> GetReleases(bool includePrereleases, int perPage = 30, int page = 1)
+        public virtual async Task<GithubRelease[]> GetReleases(bool includePrereleases, int perPage = 10, int page = 1)
         {
             // https://docs.github.com/en/rest/reference/releases
             var releasesPath = $"repos{RepoUri.AbsolutePath}/releases?per_page={perPage}&page={page}";

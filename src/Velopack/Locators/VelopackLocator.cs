@@ -83,13 +83,18 @@ namespace Velopack.Locators
         /// <inheritdoc/>
         public virtual List<ReleaseEntry> GetLocalPackages()
         {
-            if (CurrentlyInstalledVersion == null)
-                return new List<ReleaseEntry>(0);
+            try {
+                if (CurrentlyInstalledVersion == null)
+                    return new List<ReleaseEntry>(0);
 
-            return Directory.EnumerateFiles(PackagesDir, "*.nupkg")
-                .Select(x => ReleaseEntry.GenerateFromFile(x))
-                .Where(x => x?.Version != null)
-                .ToList();
+                return Directory.EnumerateFiles(PackagesDir, "*.nupkg")
+                    .Select(x => ReleaseEntry.GenerateFromFile(x))
+                    .Where(x => x?.Version != null)
+                    .ToList();
+            } catch (Exception ex) {
+                Log.Error(ex, "Error while reading local packages.");
+                return new List<ReleaseEntry>(0);
+            }
         }
 
         /// <inheritdoc/>
