@@ -16,9 +16,9 @@ Velopack is a setup / installation framework for cross-platform dotnet applicati
 ## Features
 
 - 😍 **Zero config** – Velopack takes your dotnet build output (eg. `dotnet publish`), and generates an installer, and update package in a single command.
-- 🎯 **Cross platform** – Velopack supports building packages for Windows and OSX, with Linux on the way. No matter your target, Velopack can create a release in just one command.
+- 🎯 **Cross platform** – Velopack supports building packages for **Windows**, **OSX**, and **Linux**. No matter your target, Velopack can create a release in just one command.
 - 🚀 **Automatic migrations** - If you are coming from [Squirrel.Windows](https://github.com/Squirrel/Squirrel.Windows) or [Clowd.Squirrel](https://github.com/clowd/Clowd.Squirrel), Velopack will automatically migrate your application. Just build your Velopack release and deploy! [Read more.](docs/migrating.md)
-- ⚡️ **Lightning fast** – Velopack is written in Rust for native performance. Creating releases is multi-threaded, and produces delta packages for fast app updates. Applying update packages is highly optimised, and often can be done in the background.
+- ⚡️ **Lightning fast** – Velopack is written in Rust for native performance. Creating releases is multi-threaded, and produces delta packages for ultra fast app updates. Applying update packages is highly optimised, and often can be done in the background.
 
 ## Getting Started
 This is a very simple example of the steps you would take to generate an installer and update packages for your application. Be sure to [read the documentation](docs) for an overview of more features!
@@ -27,7 +27,7 @@ This is a very simple example of the steps you would take to generate an install
    ```cmd
    dotnet tool install -g vpk
    ```
-2. Install the [Velopack NuGet Package](https://www.nuget.org/packages/velopack) in your main project:
+2. Install the  [Velopack NuGet Package](https://www.nuget.org/packages/velopack) in your main project:
    ```cmd
    dotnet add package Velopack
    ```
@@ -36,6 +36,7 @@ This is a very simple example of the steps you would take to generate an install
    static void Main(string[] args)
    {
        VelopackApp.Build().Run();
+       // ... your other startup code below
    }
    ```
 4. Publish dotnet and build your first Velopack release! 🎉
