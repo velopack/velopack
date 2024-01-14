@@ -17,18 +17,21 @@ public class RunnerFactory
         _config = config;
     }
 
-    public async Task CreateAndExecuteAsync<T>(string commandName, T options) where T : BaseCommand
+    public async Task<int> CreateAndExecuteAsync<T>(string commandName, T options) where T : BaseCommand
     {
         _logger.LogInformation($"[bold]{Program.INTRO}[/]");
         var runner = await CreateAsync(options);
         var method = typeof(ICommandRunner).GetMethod(commandName);
         try {
             await (Task) method.Invoke(runner, new object[] { options });
+            return 0;
         } catch (Exception ex) when (ex is ProcessFailedException or UserInfoException) {
             // some exceptions are just user info / user error, so don't need a stack trace.
             _logger.Fatal($"[bold orange3]{ex.Message}[/]");
+            return -1;
         } catch (Exception ex) {
             _logger.Fatal(ex, $"Command {commandName} had an exception.");
+            return -1;
         }
     }
 
