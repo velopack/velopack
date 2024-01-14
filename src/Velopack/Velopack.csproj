@@ -17,6 +17,7 @@
     <PackageReadmeFile>README_NUGET.md</PackageReadmeFile>
     <Description>Quick and easy installer and automatic updates for cross-platform desktop applications</Description>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <RepositoryUrl>https://github.com/velopack/velopack</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
