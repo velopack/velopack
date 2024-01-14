@@ -391,7 +391,7 @@ namespace Velopack
 
             // applying deltas accounts for 50%-100% of progress
             double progressStepSize = 100d / releasesToDownload.Length;
-            var builder = new DeltaPackage(Log, Locator.AppTempDir, Locator.UpdateExePath);
+            var builder = new DeltaUpdateExe(Log, Locator.AppTempDir, Locator.UpdateExePath);
             for (var i = 0; i < releasesToDownload.Length; i++) {
                 var rel = releasesToDownload[i];
                 double baseProgress = i * progressStepSize;

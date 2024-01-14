@@ -7,6 +7,7 @@ using Microsoft.Win32;
 using NuGet.Packaging;
 using Velopack.Compression;
 using Velopack.Packaging.Commands;
+using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Windows;
 
@@ -38,8 +39,8 @@ public class WindowsPackTests
         var id = "Test.Squirrel-App";
         var version = "1.0.0";
 
-        File.Copy(HelperFile.FindTestFile(exe), Path.Combine(tmpOutput, exe));
-        File.Copy(HelperFile.FindTestFile(pdb), Path.Combine(tmpOutput, pdb));
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+        PathHelper.CopyRustAssetTo(pdb, tmpOutput);
 
         var options = new WindowsPackOptions {
             EntryExecutableName = exe,
@@ -103,8 +104,8 @@ public class WindowsPackTests
         var id = "Test.Squirrel-App";
         var version = "1.0.0";
 
-        File.Copy(HelperFile.FindTestFile(exe), Path.Combine(tmpOutput, exe));
-        File.Copy(HelperFile.FindTestFile(pdb), Path.Combine(tmpOutput, pdb));
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+        PathHelper.CopyRustAssetTo(pdb, tmpOutput);
 
         var options = new WindowsPackOptions {
             EntryExecutableName = exe,
@@ -169,8 +170,8 @@ public class WindowsPackTests
         var id = "Test.Squirrel-App";
         var version = "1.0.0";
 
-        File.Copy(HelperFile.FindTestFile(exe), Path.Combine(tmpOutput, exe));
-        File.Copy(HelperFile.FindTestFile(pdb), Path.Combine(tmpOutput, pdb));
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+        PathHelper.CopyRustAssetTo(pdb, tmpOutput);
 
         var options = new WindowsPackOptions {
             EntryExecutableName = exe,
@@ -202,8 +203,8 @@ public class WindowsPackTests
         var id = "Test.Squirrel-App";
         var version = "1.0.0";
 
-        File.Copy(HelperFile.FindTestFile(exe), Path.Combine(tmpOutput, exe));
-        File.Copy(HelperFile.FindTestFile(pdb), Path.Combine(tmpOutput, pdb));
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+        PathHelper.CopyRustAssetTo(pdb, tmpOutput);
 
         var options = new WindowsPackOptions {
             EntryExecutableName = exe,
@@ -240,8 +241,8 @@ public class WindowsPackTests
         var id = "Test.Squirrel-App";
         var version = "1.0.0";
 
-        File.Copy(HelperFile.FindTestFile(exe), Path.Combine(tmpOutput, exe));
-        File.Copy(HelperFile.FindTestFile(pdb), Path.Combine(tmpOutput, pdb));
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+        PathHelper.CopyRustAssetTo(pdb, tmpOutput);
 
         var options = new WindowsPackOptions {
             EntryExecutableName = exe,
@@ -272,8 +273,8 @@ public class WindowsPackTests
         var id = "Test.Squirrel-App";
         var version = "1.0.0";
 
-        File.Copy(HelperFile.FindTestFile(exe), Path.Combine(tmpOutput, exe));
-        File.Copy(HelperFile.FindTestFile(pdb), Path.Combine(tmpOutput, pdb));
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+        PathHelper.CopyRustAssetTo(pdb, tmpOutput);
 
         var options = new WindowsPackOptions {
             EntryExecutableName = exe,

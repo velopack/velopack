@@ -4,6 +4,7 @@ using System.Runtime.Intrinsics.Arm;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Velopack.Compression;
+using Velopack.Packaging.Exceptions;
 
 namespace Velopack.Packaging;
 
@@ -32,16 +33,12 @@ public class DeltaPackageBuilder
         if (newPackage == null) throw new ArgumentNullException(nameof(newPackage));
         if (String.IsNullOrEmpty(outputFile) || File.Exists(outputFile)) throw new ArgumentException("The output file is null or already exists", nameof(outputFile));
 
-        bool isZstdAvailable = true;
-        var helper = new HelperFile(_logger);
-        if (!VelopackRuntimeInfo.IsWindows) {
-            try {
-                helper.AssertSystemBinaryExists("zstd");
-            } catch (Exception ex) {
-                _logger.Error(ex.Message);
-                _logger.Warn("Falling back to legacy bsdiff delta format. This will be a lot slower and more prone to breaking.");
-                isZstdAvailable = false;
-            }
+        Zstd zstd = null;
+        try {
+            zstd = new Zstd(HelperFile.GetZstdPath());
+        } catch (Exception ex) {
+            _logger.Error(ex.Message);
+            _logger.Warn("Zstd not available. Falling back to legacy bsdiff delta format. This will be a lot slower and more prone to breaking.");
         }
 
         if (basePackage.Version >= newPackage.Version) {
@@ -125,7 +122,7 @@ public class DeltaPackageBuilder
                         // 3. changed, write a delta in new
                         if (useZstd) {
                             var diffOut = targetFile.FullName + ".zsdiff";
-                            helper.CreateZstdPatch(oldFilePath, targetFile.FullName, diffOut, mode);
+                            zstd.CreatePatch(oldFilePath, targetFile.FullName, diffOut, mode);
                         } else {
                             var oldData = File.ReadAllBytes(oldFilePath);
                             var newData = File.ReadAllBytes(targetFile.FullName);
@@ -156,7 +153,7 @@ public class DeltaPackageBuilder
             try {
                 Parallel.ForEach(newLibFiles, new ParallelOptions() { MaxDegreeOfParallelism = numParallel }, (f) => {
                     // we try to use zstd first, if it fails we'll try bsdiff
-                    if (isZstdAvailable) {
+                    if (zstd != null) {
                         try {
                             createDeltaForSingleFile(f, tempInfo, true);
                             return; // success, so return from this function
@@ -167,7 +164,7 @@ public class DeltaPackageBuilder
                     // if we're here, either zstd is not available or it failed
                     try {
                         createDeltaForSingleFile(f, tempInfo, false);
-                        if (isZstdAvailable) {
+                        if (zstd != null) {
                             _logger.Info($"Successfully created fallback bsdiff for file '{f.FullName}'.");
                         }
                     } catch (Exception ex) {

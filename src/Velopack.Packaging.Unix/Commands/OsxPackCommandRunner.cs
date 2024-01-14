@@ -31,10 +31,9 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
             Utility.DeleteFileOrDirectoryHard(appBundlePath);
         }
 
-        var helper = new HelperExe(Log);
         var macosdir = structure.MacosDirectory;
         File.WriteAllText(Path.Combine(macosdir, "sq.version"), nuspecText);
-        File.Copy(helper.UpdateMacPath, Path.Combine(macosdir, "UpdateMac"), true);
+        File.Copy(HelperFile.GetUpdatePath(), Path.Combine(macosdir, "UpdateMac"), true);
 
         foreach (var f in Directory.GetFiles(macosdir, "*", SearchOption.AllDirectories)) {
             if (MachO.IsMachOImage(f)) {
@@ -49,12 +48,12 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
 
     protected override Task CodeSign(Action<int> progress, string packDir)
     {
-        var helper = new HelperExe(Log);
+        var helper = new OsxBuildTools(Log);
         // code signing all mach-o binaries
         if (!string.IsNullOrEmpty(Options.SigningAppIdentity) && !string.IsNullOrEmpty(Options.NotaryProfile)) {
             progress(-1); // indeterminate
             var zipPath = Path.Combine(TempDir.FullName, "notarize.zip");
-            helper.CodeSign(Options.SigningAppIdentity, Options.SigningEntitlements, packDir);        
+            helper.CodeSign(Options.SigningAppIdentity, Options.SigningEntitlements, packDir);
             helper.CreateDittoZip(packDir, zipPath);
             helper.Notarize(zipPath, Options.NotaryProfile);
             helper.Staple(packDir);
@@ -64,7 +63,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
         } else if (!string.IsNullOrEmpty(Options.SigningAppIdentity)) {
             progress(-1); // indeterminate
             Log.Warn("Package will be signed, but [underline]not notarized[/]. Missing the --notaryProfile option.");
-            helper.CodeSign(Options.SigningAppIdentity, Options.SigningEntitlements, packDir);  
+            helper.CodeSign(Options.SigningAppIdentity, Options.SigningEntitlements, packDir);
             progress(100);
         } else {
             Log.Warn("Package will not be signed or notarized. Missing the --signAppIdentity and --notaryProfile options.");
@@ -76,7 +75,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
     {
         // create installer package, sign and notarize
         if (!Options.NoPackage) {
-            var helper = new HelperExe(Log);
+            var helper = new OsxBuildTools(Log);
             Dictionary<string, string> pkgContent = new() {
                 {"welcome", Options.PackageWelcome },
                 {"license", Options.PackageLicense },
@@ -108,7 +107,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
     protected override Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath)
     {
         progress(-1); // indeterminate
-        var helper = new HelperExe(Log);
+        var helper = new OsxBuildTools(Log);
         helper.CreateDittoZip(packDir, outputPath);
         progress(100);
         return Task.CompletedTask;

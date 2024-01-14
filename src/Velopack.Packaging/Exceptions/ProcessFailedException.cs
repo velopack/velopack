@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 
-namespace Velopack.Packaging;
+namespace Velopack.Packaging.Exceptions;
 
 [ExcludeFromCodeCoverage]
 public class ProcessFailedException : Exception

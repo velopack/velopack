@@ -27,7 +27,7 @@ public class Chmod
         else if (VelopackRuntimeInfo.IsLinux) chmod = nix_chmod;
         else return; // no-op on windows, all .exe files can be executed.
 
-        var filePermissionOctal = Convert.ToInt32("777", 8);
+        var filePermissionOctal = Convert.ToInt32("755", 8);
         const int EINTR = 4;
         int chmodReturnCode;
 

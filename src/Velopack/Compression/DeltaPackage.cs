@@ -1,30 +1,24 @@
-﻿#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 
-// https://dev.to/emrahsungu/how-to-compare-two-files-using-net-really-really-fast-2pd9
-// https://github.com/SnowflakePowered/vcdiff
-
 namespace Velopack.Compression
 {
-    internal class DeltaPackage
+    internal abstract class DeltaPackage
     {
-        private readonly ILogger _log;
-        private readonly string _updatePath;
-        private readonly string _baseTempDir;
+        protected readonly ILogger Log;
+        protected readonly string BaseTempDir;
+
         private static Regex DIFF_SUFFIX = new Regex(@"\.(bs|zs)?diff$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        public DeltaPackage(ILogger logger, string baseTmpDir, string updateExePath)
+        public DeltaPackage(ILogger logger, string baseTmpDir)
         {
-            _log = logger;
-            _baseTempDir = baseTmpDir;
-            _updatePath = updateExePath;
+            Log = logger;
+            BaseTempDir = baseTmpDir;
         }
 
         public void ApplyDeltaPackageFast(string workingPath, string deltaPackageZip, Action<int> progress = null)
@@ -33,10 +27,10 @@ namespace Velopack.Compression
 
             if (deltaPackageZip is null) throw new ArgumentNullException(nameof(deltaPackageZip));
 
-            _log.Info($"Applying delta package from {deltaPackageZip} to delta staging directory.");
+            Log.Info($"Applying delta package from {deltaPackageZip} to delta staging directory.");
 
-            using var _1 = Utility.GetTempDirectory(out var deltaPath, _baseTempDir);
-            EasyZip.ExtractZipToDirectory(_log, deltaPackageZip, deltaPath);
+            using var _1 = Utility.GetTempDirectory(out var deltaPath, BaseTempDir);
+            EasyZip.ExtractZipToDirectory(Log, deltaPackageZip, deltaPath);
             progress(10);
 
             var pathsVisited = new List<string>();
@@ -68,7 +62,7 @@ namespace Velopack.Compression
                 .Select(x => x.FullName.Replace(workingPath + Path.DirectorySeparatorChar, "").ToLowerInvariant())
                 .Where(x => x.StartsWith("lib", StringComparison.InvariantCultureIgnoreCase) && !pathsVisited.Contains(x))
                 .ForEach(x => {
-                    _log.Trace($"{x} was in old package but not in new one, deleting");
+                    Log.Trace($"{x} was in old package but not in new one, deleting");
                     File.Delete(Path.Combine(workingPath, x));
                 });
 
@@ -79,7 +73,7 @@ namespace Velopack.Compression
             deltaPathRelativePaths
                 .Where(x => !x.StartsWith("lib", StringComparison.InvariantCultureIgnoreCase))
                 .ForEach(x => {
-                    _log.Trace($"Writing metadata file: {x}");
+                    Log.Trace($"Writing metadata file: {x}");
                     File.Copy(Path.Combine(deltaPath, x), Path.Combine(workingPath, x), true);
                 });
 
@@ -89,50 +83,42 @@ namespace Velopack.Compression
                 .Where(x => !x.StartsWith("lib", StringComparison.InvariantCultureIgnoreCase)
                     && !deltaPathRelativePaths.Contains(x, StringComparer.InvariantCultureIgnoreCase))
                 .ForEach(x => {
-                    _log.Trace($"Deleting removed metadata file: {x}");
+                    Log.Trace($"Deleting removed metadata file: {x}");
                     File.Delete(Path.Combine(workingPath, x));
                 });
 
             progress(100);
         }
 
+        protected abstract void ApplyZstdPatch(string baseFile, string patchFile, string outputFile);
+
         void applyDiffToFile(string deltaPath, string relativeFilePath, string workingDirectory)
         {
             var inputFile = Path.Combine(deltaPath, relativeFilePath);
             var finalTarget = Path.Combine(workingDirectory, DIFF_SUFFIX.Replace(relativeFilePath, ""));
 
-            using var _d = Utility.GetTempFileName(out var tempTargetFile, _baseTempDir);
+            using var _d = Utility.GetTempFileName(out var tempTargetFile, BaseTempDir);
 
             // NB: Zero-length diffs indicate the file hasn't actually changed
             if (new FileInfo(inputFile).Length == 0) {
-                _log.Trace($"{relativeFilePath} exists unchanged, skipping");
+                Log.Trace($"{relativeFilePath} exists unchanged, skipping");
                 return;
             }
 
             if (relativeFilePath.EndsWith(".zsdiff", StringComparison.InvariantCultureIgnoreCase)) {
-                var psi = new ProcessStartInfo(_updatePath);
-                psi.AppendArgumentListSafe(new string[] { "patch", "--nocolor", "--old", finalTarget, "--patch", inputFile, "--output", tempTargetFile }, out var _);
-                psi.CreateNoWindow = true;
-                _log.Trace($"Applying zstd diff to {relativeFilePath}");
-                var p = psi.StartRedirectOutputToILogger(_log, LogLevel.Debug);
-                if (!p.WaitForExit(60_000)) {
-                    p.Kill();
-                    throw new TimeoutException("zstd patch process timed out (60s).");
-                }
-                if (p.ExitCode != 0) {
-                    throw new Exception($"zstd patch process failed with exit code {p.ExitCode}.");
-                }
+                Log.Trace($"Applying zstd diff to {relativeFilePath}");
+                ApplyZstdPatch(finalTarget, inputFile, tempTargetFile);
                 verifyPatchedFile(relativeFilePath, inputFile, tempTargetFile);
             } else if (relativeFilePath.EndsWith(".bsdiff", StringComparison.InvariantCultureIgnoreCase)) {
                 using (var of = File.OpenWrite(tempTargetFile))
                 using (var inf = File.OpenRead(finalTarget)) {
-                    _log.Trace($"Applying bsdiff to {relativeFilePath}");
+                    Log.Trace($"Applying bsdiff to {relativeFilePath}");
                     BinaryPatchUtility.Apply(inf, () => File.OpenRead(inputFile), of);
                 }
 
                 verifyPatchedFile(relativeFilePath, inputFile, tempTargetFile);
             } else if (relativeFilePath.EndsWith(".diff", StringComparison.InvariantCultureIgnoreCase)) {
-                _log.Trace($"Applying msdiff to {relativeFilePath}");
+                Log.Trace($"Applying msdiff to {relativeFilePath}");
 
                 if (VelopackRuntimeInfo.IsWindows) {
                     MsDeltaCompression.ApplyDelta(inputFile, finalTarget, tempTargetFile);
@@ -144,7 +130,7 @@ namespace Velopack.Compression
             } else {
                 using (var of = File.OpenWrite(tempTargetFile))
                 using (var inf = File.OpenRead(inputFile)) {
-                    _log.Trace($"Adding new file: {relativeFilePath}");
+                    Log.Trace($"Adding new file: {relativeFilePath}");
                     inf.CopyTo(of);
                 }
             }
@@ -164,12 +150,12 @@ namespace Velopack.Compression
             var actualReleaseEntry = ReleaseEntry.GenerateFromFile(tempTargetFile);
 
             if (expectedReleaseEntry.Filesize != actualReleaseEntry.Filesize) {
-                _log.Error($"Patched file {relativeFilePath} has incorrect size, expected {expectedReleaseEntry.Filesize}, got {actualReleaseEntry.Filesize}");
+                Log.Error($"Patched file {relativeFilePath} has incorrect size, expected {expectedReleaseEntry.Filesize}, got {actualReleaseEntry.Filesize}");
                 throw new ChecksumFailedException(relativeFilePath);
             }
 
             if (expectedReleaseEntry.SHA1 != actualReleaseEntry.SHA1) {
-                _log.Error($"Patched file {relativeFilePath} has incorrect SHA1, expected {expectedReleaseEntry.SHA1}, got {actualReleaseEntry.SHA1}");
+                Log.Error($"Patched file {relativeFilePath} has incorrect SHA1, expected {expectedReleaseEntry.SHA1}, got {actualReleaseEntry.SHA1}");
                 throw new ChecksumFailedException(relativeFilePath);
             }
         }

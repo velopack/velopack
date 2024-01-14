@@ -23,27 +23,12 @@
     <None Include="..\..\README_NUGET.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-    <None Include="..\Rust\target\debug\update" CopyToOutputDirectory="Always" Condition="$([MSBuild]::IsOSPlatform('OSX')) or $([MSBuild]::IsOSPlatform('Linux'))" />
-    <None Include="..\Rust\target\debug\update.exe" CopyToOutputDirectory="Always" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-    <None Include="..\Rust\target\debug\setup.exe" CopyToOutputDirectory="Always" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-    <None Include="..\Rust\target\debug\stub.exe" CopyToOutputDirectory="Always" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-    <None Include="..\..\vendor\appimagetool-x86_64.AppImage" CopyToOutputDirectory="Always" />
-    <None Include="..\..\vendor\rcedit.exe" CopyToOutputDirectory="Always" />
-    <None Include="..\..\vendor\zstd.exe" CopyToOutputDirectory="Always" />
-    <None Include="..\..\vendor\signtool.exe" CopyToOutputDirectory="Always" />
-    <None Include="..\..\Velopack.entitlements" CopyToOutputDirectory="Always" />
-  </ItemGroup>
-
   <ItemGroup Condition="'$(PackRustAssets)' == 'true'">
     <None Include="..\Rust\target\release\UpdateMac" Pack="true" PackagePath="vendor" />
     <None Include="..\Rust\target\release\UpdateNix" Pack="true" PackagePath="vendor" />
     <None Include="..\Rust\target\release\update.exe" Pack="true" PackagePath="vendor" />
     <None Include="..\Rust\target\release\setup.exe" Pack="true" PackagePath="vendor" />
     <None Include="..\Rust\target\release\stub.exe" Pack="true" PackagePath="vendor" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Include="..\..\vendor\appimagetool-x86_64.AppImage" Pack="true" PackagePath="vendor" />
     <None Include="..\..\vendor\rcedit.exe" Pack="true" PackagePath="vendor" />
     <None Include="..\..\vendor\zstd.exe" Pack="true" PackagePath="vendor" />

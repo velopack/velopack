@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
+using Velopack.Packaging.Exceptions;
 using Velopack.Sources;
 
 namespace Velopack.Packaging

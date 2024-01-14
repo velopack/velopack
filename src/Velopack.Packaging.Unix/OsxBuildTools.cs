@@ -8,32 +8,22 @@ using Newtonsoft.Json;
 
 namespace Velopack.Packaging.Unix;
 
-public class HelperExe : HelperFile
+[SupportedOSPlatform("osx")]
+public class OsxBuildTools
 {
-    public HelperExe(ILogger logger) : base(logger)
+    public ILogger Log { get; }
+
+    public OsxBuildTools(ILogger logger)
     {
+        Log = logger;
     }
 
-    public string VelopackEntitlements => FindHelperFile("Velopack.entitlements");
-
-    protected string AppImageTool => FindHelperFile("appimagetool-x86_64.AppImage");
-
-    [SupportedOSPlatform("linux")]
-    public void CreateLinuxAppImage(string appDir, string outputFile)
-    {
-        var tool = AppImageTool;
-        Chmod.ChmodFileAsExecutable(tool);
-        InvokeAndThrowIfNonZero(tool, new[] { appDir, outputFile }, null);
-        Chmod.ChmodFileAsExecutable(outputFile);
-    }
-
-    [SupportedOSPlatform("osx")]
     public void CodeSign(string identity, string entitlements, string filePath)
     {
         if (String.IsNullOrEmpty(entitlements)) {
             Log.Info("No entitlements specified, using default: " +
                      "https://docs.microsoft.com/en-us/dotnet/core/install/macos-notarization-issues");
-            entitlements = VelopackEntitlements;
+            entitlements = HelperFile.VelopackEntitlements;
         }
 
         if (!File.Exists(entitlements)) {
@@ -53,12 +43,11 @@ public class HelperExe : HelperFile
 
         Log.Info($"Beginning codesign for package...");
 
-        Log.Info(InvokeAndThrowIfNonZero("codesign", args, null));
+        Log.Info(Exe.InvokeAndThrowIfNonZero("codesign", args, null));
 
         Log.Info("codesign completed successfully");
     }
 
-    [SupportedOSPlatform("osx")]
     public void SpctlAssessCode(string filePath)
     {
         var args2 = new List<string> {
@@ -68,10 +57,9 @@ public class HelperExe : HelperFile
         };
 
         Log.Info($"Verifying signature/notarization for code using spctl...");
-        Log.Info(InvokeAndThrowIfNonZero("spctl", args2, null));
+        Log.Info(Exe.InvokeAndThrowIfNonZero("spctl", args2, null));
     }
 
-    [SupportedOSPlatform("osx")]
     public void SpctlAssessInstaller(string filePath)
     {
         var args2 = new List<string> {
@@ -82,10 +70,9 @@ public class HelperExe : HelperFile
         };
 
         Log.Info($"Verifying signature/notarization for installer package using spctl...");
-        Log.Info(InvokeAndThrowIfNonZero("spctl", args2, null));
+        Log.Info(Exe.InvokeAndThrowIfNonZero("spctl", args2, null));
     }
 
-    [SupportedOSPlatform("osx")]
     public void CreateInstallerPkg(string appBundlePath, string appTitle, string appId, IEnumerable<KeyValuePair<string, string>> extraContent,
         string pkgOutputPath, string signIdentity, Action<int> progress)
     {
@@ -121,8 +108,8 @@ exit 0
 
         // generate non-relocatable component pkg. this will be included into a product archive
         var pkgPlistPath = Path.Combine(tmp, "tmp.plist");
-        InvokeAndThrowIfNonZero("pkgbuild", new[] { "--analyze", "--root", tmpPayload1, pkgPlistPath }, null);
-        InvokeAndThrowIfNonZero("plutil", new[] { "-replace", "BundleIsRelocatable", "-bool", "NO", pkgPlistPath }, null);
+        Exe.InvokeAndThrowIfNonZero("pkgbuild", new[] { "--analyze", "--root", tmpPayload1, pkgPlistPath }, null);
+        Exe.InvokeAndThrowIfNonZero("plutil", new[] { "-replace", "BundleIsRelocatable", "-bool", "NO", pkgPlistPath }, null);
         progress(50);
 
         var pkg1Path = Path.Combine(tmpPayload2, "1.pkg");
@@ -134,12 +121,12 @@ exit 0
             pkg1Path,
         };
 
-        InvokeAndThrowIfNonZero("pkgbuild", args1, null);
+        Exe.InvokeAndThrowIfNonZero("pkgbuild", args1, null);
         progress(70);
 
         // create final product package that contains app component
         var distributionPath = Path.Combine(tmp, "distribution.xml");
-        InvokeAndThrowIfNonZero("productbuild", new[] { "--synthesize", "--package", pkg1Path, distributionPath }, null);
+        Exe.InvokeAndThrowIfNonZero("productbuild", new[] { "--synthesize", "--package", pkg1Path, distributionPath }, null);
         progress(80);
 
         // https://developer.apple.com/library/archive/documentation/DeveloperTools/Reference/DistributionDefinitionRef/Chapters/Distribution_XML_Ref.html
@@ -175,13 +162,12 @@ exit 0
             Log.Warn("No Installer signing identity provided. The '.pkg' will not be signed.");
         }
 
-        InvokeAndThrowIfNonZero("productbuild", args2, null);
+        Exe.InvokeAndThrowIfNonZero("productbuild", args2, null);
         progress(100);
 
         Log.Info("Installer created successfully");
     }
 
-    [SupportedOSPlatform("osx")]
     public void Notarize(string filePath, string keychainProfileName)
     {
         Log.Info($"Preparing to Notarize. This will upload to Apple and usually takes minutes, [underline]but could take hours.[/]");
@@ -195,7 +181,7 @@ exit 0
             filePath
         };
 
-        var ntresultjson = InvokeProcess("xcrun", args, null);
+        var ntresultjson = Exe.InvokeProcess("xcrun", args, null);
         Log.Info(ntresultjson.StdOutput);
 
         // try to catch any notarization errors. if we have a submission id, retrieve notary logs.
@@ -210,7 +196,7 @@ exit 0
                         "--keychain-profile", keychainProfileName,
                     };
 
-                    var result = InvokeProcess("xcrun", logargs, null);
+                    var result = Exe.InvokeProcess("xcrun", logargs, null);
                     Log.Warn(result.StdOutput);
                 }
 
@@ -223,11 +209,10 @@ exit 0
         Log.Info("Notarization completed successfully");
     }
 
-    [SupportedOSPlatform("osx")]
     public void Staple(string filePath)
     {
         Log.Debug($"Stapling Notarization to '{filePath}'");
-        Log.Info(InvokeAndThrowIfNonZero("xcrun", new[] { "stapler", "staple", filePath }, null));
+        Log.Info(Exe.InvokeAndThrowIfNonZero("xcrun", new[] { "stapler", "staple", filePath }, null));
     }
 
     private class NotaryToolResult
@@ -237,7 +222,6 @@ exit 0
         public string status { get; set; }
     }
 
-    [SupportedOSPlatform("osx")]
     public void CreateDittoZip(string folder, string outputZip)
     {
         if (File.Exists(outputZip)) File.Delete(outputZip);
@@ -253,6 +237,6 @@ exit 0
         };
 
         Log.Debug($"Creating ditto bundle '{outputZip}'");
-        Log.Debug(InvokeAndThrowIfNonZero("ditto", args, null));
+        Log.Debug(Exe.InvokeAndThrowIfNonZero("ditto", args, null));
     }
 }

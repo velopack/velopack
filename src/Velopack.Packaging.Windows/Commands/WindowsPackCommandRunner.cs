@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Runtime.Versioning;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
@@ -9,6 +10,7 @@ using Velopack.Windows;
 
 namespace Velopack.Packaging.Windows.Commands;
 
+[SupportedOSPlatform("windows")]
 public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 {
     public WindowsPackCommandRunner(ILogger logger)
@@ -42,13 +44,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         File.WriteAllText(Path.Combine(dir.FullName, "sq.version"), nuspecText);
         packDir = dir.FullName;
 
-        var helper = new HelperExe(Log);
         var updatePath = Path.Combine(TempDir.FullName, "Update.exe");
-        File.Copy(helper.UpdatePath, updatePath, true);
+        File.Copy(HelperFile.GetUpdatePath(), updatePath, true);
 
         // update icon for Update.exe if requested
         if (Options.Icon != null && VelopackRuntimeInfo.IsWindows) {
-            helper.SetExeIcon(updatePath, Options.Icon);
+            Rcedit.SetExeIcon(updatePath, Options.Icon);
         } else if (Options.Icon != null) {
             Log.Warn("Unable to set icon for Update.exe (only supported on windows).");
         }
@@ -80,12 +81,11 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
     protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe)
     {
-        var helper = new HelperExe(Log);
         var bundledzp = new ZipPackage(releasePkg);
-        File.Copy(helper.SetupPath, targetSetupExe, true);
+        Utility.Retry(() => File.Copy(HelperFile.SetupPath, targetSetupExe, true));
         progress(10);
         if (VelopackRuntimeInfo.IsWindows) {
-            helper.SetPEVersionBlockFromPackageInfo(targetSetupExe, bundledzp, Options.Icon);
+            Rcedit.SetPEVersionBlockFromPackageInfo(targetSetupExe, bundledzp, Options.Icon);
         } else {
             Log.Warn("Unable to set Setup.exe icon (only supported on windows)");
         }
@@ -129,9 +129,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
     {
         try {
             var target = Path.Combine(targetDir, Path.GetFileName(exeToCopy));
-            var helper = new HelperExe(Log);
-
-            Utility.Retry(() => File.Copy(helper.StubExecutablePath, target, true));
+            Utility.Retry(() => File.Copy(HelperFile.StubExecutablePath, target, true));
             Utility.Retry(() => {
                 if (VelopackRuntimeInfo.IsWindows) {
                     using var writer = new Microsoft.NET.HostModel.ResourceUpdater(target, true);
@@ -151,7 +149,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         var signParams = options.SignParameters;
         var signTemplate = options.SignTemplate;
         var signParallel = options.SignParallel;
-        var helper = new HelperExe(Log);
+        var helper = new CodeSign(Log);
 
         if (string.IsNullOrEmpty(signParams) && string.IsNullOrEmpty(signTemplate)) {
             Log.Warn($"No signing paramaters provided, {filePaths.Length} file(s) will not be signed.");

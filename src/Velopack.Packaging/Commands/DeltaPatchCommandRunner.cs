@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Velopack.Compression;
+using Velopack.Packaging.Exceptions;
 
 namespace Velopack.Packaging.Commands
 {
@@ -26,10 +27,8 @@ namespace Velopack.Packaging.Commands
 
             var tmp = Utility.GetDefaultTempBaseDirectory();
             using var _1 = Utility.GetTempDirectory(out var workDir);
-            var helper = new HelperFile(_logger);
 
-            var updateExe = helper.GetUpdatePath();
-            var delta = new DeltaPackage(_logger, tmp, updateExe);
+            var delta = new DeltaEmbedded(HelperFile.GetZstdPath(), _logger, tmp);
             EasyZip.ExtractZipToDirectory(_logger, options.BasePackage, workDir);
 
             await Progress.ExecuteAsync(_logger, async (ctx) => {

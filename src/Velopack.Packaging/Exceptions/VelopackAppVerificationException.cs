@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Velopack.Packaging
+namespace Velopack.Packaging.Exceptions
 {
     [ExcludeFromCodeCoverage]
     public class VelopackAppVerificationException : UserInfoException

@@ -60,11 +60,10 @@ Categories=Development;
 
             // app icon
             File.Copy(Options.Icon, Path.Combine(dir.FullName, Options.PackId + Path.GetExtension(Options.Icon)), true);
-            var helper = new HelperExe(Log);
 
             // velopack required files
             File.WriteAllText(Path.Combine(bin.FullName, "sq.version"), nuspecText);
-            File.Copy(helper.UpdateNixPath, Path.Combine(bin.FullName, "UpdateNix"), true);
+            File.Copy(HelperFile.GetUpdatePath(), Path.Combine(bin.FullName, "UpdateNix"), true);
             progress(100);
             return Task.FromResult(dir.FullName);
         }
@@ -72,8 +71,7 @@ Categories=Development;
         protected override Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath)
         {
             progress(-1);
-            var helper = new HelperExe(Log);
-            helper.CreateLinuxAppImage(packDir, outputPath);
+            AppImageTool.CreateLinuxAppImage(packDir, outputPath);
             PortablePackagePath = outputPath;
             progress(100);
             return Task.CompletedTask;

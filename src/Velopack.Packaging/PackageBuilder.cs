@@ -6,18 +6,10 @@ using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 using Spectre.Console;
 using Velopack.Compression;
+using Velopack.Packaging.Exceptions;
 
 namespace Velopack.Packaging
 {
-    public interface IPackOptions : INugetPackCommand
-    {
-        RID TargetRuntime { get; }
-        DirectoryInfo ReleaseDir { get; }
-        string Channel { get; }
-        DeltaMode DeltaMode { get; }
-        string EntryExecutableName { get; }
-    }
-
     public abstract class PackageBuilder<T> : ICommand<T>
         where T : class, IPackOptions
     {

@@ -6,7 +6,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Velopack.Packaging
+namespace Velopack.Packaging.Exceptions
 {
     /// <summary>
     /// Denotes that an error has occurred for which a stack trace should not be printed.

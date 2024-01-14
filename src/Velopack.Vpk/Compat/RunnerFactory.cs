@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
-using Velopack.Packaging;
+using Velopack.Packaging.Exceptions;
 using Velopack.Vpk.Commands;
 using Velopack.Vpk.Updates;
 

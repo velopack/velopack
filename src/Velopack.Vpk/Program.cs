@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
 using Spectre.Console;
+using Velopack.Packaging;
 using Velopack.Vpk.Commands;
 using Velopack.Vpk.Compat;
 using Velopack.Vpk.Logging;
