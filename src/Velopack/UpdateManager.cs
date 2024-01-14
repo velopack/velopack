@@ -305,6 +305,16 @@ namespace Velopack
         }
 
         /// <summary>
+        /// This will launch the Velopack updater and tell it to wait for this program to exit gracefully.
+        /// You should then clean up any state and exit your app. The updater will apply updates and then
+        /// optionally restart your app. The updater will only wait for 60 seconds before giving up.
+        /// </summary>
+        public void QueueApplyAndWait(bool restart = true, string[] restartArgs = null)
+        {
+            RunApplyUpdates(false, restart, restartArgs);
+        }
+
+        /// <summary>
         /// Runs Update.exe in the current working directory to apply updates, optionally restarting the application.
         /// </summary>
         /// <param name="silent">If true, no dialogs will be shown during the update process. This could result 
@@ -334,7 +344,7 @@ namespace Velopack
                     args.Add(pkg);
                 }
             }
-            
+
             if (restart) args.Add("--restart");
             if (restart && restartArgs != null && restartArgs.Length > 0) {
                 args.Add("--");
