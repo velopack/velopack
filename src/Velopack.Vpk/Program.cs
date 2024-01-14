@@ -37,16 +37,9 @@ public class Program
         platformRootCommand.TreatUnmatchedTokensAsErrors = false;
         ParseResult parseResult = platformRootCommand.Parse(args);
         bool verbose = parseResult.GetValue(VerboseOption);
-        bool legacyConsole = parseResult.GetValue(LegacyConsole);
-
-        if (legacyConsole) {
-            AnsiConsole.Console = AnsiConsole.Create(new AnsiConsoleSettings {
-                Interactive = InteractionSupport.No,
-                Ansi = AnsiSupport.No,
-                ColorSystem = ColorSystemSupport.NoColors,
-                Out = new AnsiConsoleOutput(Console.Out)
-            });
-        }
+        bool legacyConsole = parseResult.GetValue(LegacyConsole)
+            || Console.IsOutputRedirected
+            || Console.IsErrorRedirected;
 
         var builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings {
             ApplicationName = "Velopack",
@@ -57,13 +50,21 @@ public class Program
 
         builder.Configuration.AddEnvironmentVariables("VPK_");
 
-        var minLevel = verbose ? LogEventLevel.Debug : LogEventLevel.Information;
-        Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Is(minLevel)
+        var conf = new LoggerConfiguration()
+            .MinimumLevel.Is(verbose ? LogEventLevel.Debug : LogEventLevel.Information)
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-            .MinimumLevel.Override("System", LogEventLevel.Warning)
-            .WriteTo.Spectre()
-            .CreateLogger();
+            .MinimumLevel.Override("System", LogEventLevel.Warning);
+
+        if (legacyConsole) {
+            // spectre can have issues with redirected output, so we disable it.
+            Packaging.Progress.IsEnabled = false;
+            conf.WriteTo.Console();
+        } else {
+            Packaging.Progress.IsEnabled = true;
+            conf.WriteTo.Spectre();
+        }
+
+        Log.Logger = conf.CreateLogger();
         builder.Logging.AddSerilog();
 
         var host = builder.Build();

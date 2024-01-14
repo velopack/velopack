@@ -17,7 +17,7 @@ static class LevelStyle
             LogEventLevel.Information => "INF",
             LogEventLevel.Warning => "WRN",
             LogEventLevel.Error => "ERR",
-            LogEventLevel.Fatal => "FAT",
+            LogEventLevel.Fatal => "FTL",
             _ => logEvent.Level.ToString().ToUpper().Substring(0, 3),
         };
         return logEvent.Level switch {
