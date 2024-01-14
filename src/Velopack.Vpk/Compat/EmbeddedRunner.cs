@@ -1,4 +1,4 @@
-﻿using System.Runtime.Versioning;
+using System.Runtime.Versioning;
 using Velopack.Deployment;
 using Velopack.Packaging.Commands;
 using Velopack.Packaging.Unix.Commands;
@@ -66,6 +66,7 @@ public class EmbeddedRunner : ICommandRunner
         return new OsxPackCommandRunner(_logger).Run(options);
     }
 
+    [SupportedOSPlatform("windows")]
     public virtual Task ExecutePackWindows(WindowsPackCommand command)
     {
         var options = new WindowsPackOptions {
