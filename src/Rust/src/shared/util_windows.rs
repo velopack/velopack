@@ -50,7 +50,8 @@ pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
         Ok(((creation.dwHighDateTime as u64) << 32) | creation.dwLowDateTime as u64)
     }
 
-    let parent_handle = w::HPROCESS::OpenProcess(co::PROCESS::QUERY_LIMITED_INFORMATION, false, info.InheritedFromUniqueProcessId as u32)?;
+    let permissions = co::PROCESS::QUERY_LIMITED_INFORMATION | co::PROCESS::SYNCHRONIZE;
+    let parent_handle = w::HPROCESS::OpenProcess(permissions, false, info.InheritedFromUniqueProcessId as u32)?;
     let parent_start_time = get_pid_start_time(unsafe { parent_handle.raw_copy() })?;
     let myself_start_time = get_pid_start_time(w::HPROCESS::GetCurrentProcess())?;
 
@@ -67,7 +68,7 @@ pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
     match parent_handle.WaitForSingleObject(Some(ms_to_wait)) {
         Ok(co::WAIT::OBJECT_0) => Ok(()),
         // Ok(co::WAIT::TIMEOUT) => Ok(()),
-        _ => Err(anyhow!("Failed to wait for parent process to exit.")),
+        _ => Err(anyhow!("WaitForSingleObject Failed.")),
     }
 }
 
