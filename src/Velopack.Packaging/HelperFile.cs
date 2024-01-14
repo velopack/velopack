@@ -60,8 +60,8 @@ public static class HelperFile
     static HelperFile()
     {
 #if DEBUG
-        AddSearchPath(AppContext.BaseDirectory);
         AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "src", "Rust", "target", "debug");
+        AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "vendor");
 #else
         AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "vendor");
 #endif
