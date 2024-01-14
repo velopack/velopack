@@ -98,7 +98,7 @@ public abstract class DownRepository<TDown> : IRepositoryCanDownload<TDown>
 
     protected abstract Task SaveEntryToFileAsync(TDown options, ReleaseEntry entry, string filePath);
 
-    protected async Task<T> RetryAsyncRet<T>(Func<Task<T>> block, string message, int maxRetries = 3)
+    protected async Task<T> RetryAsyncRet<T>(Func<Task<T>> block, string message, int maxRetries = 1)
     {
         int ctry = 0;
         while (true) {
@@ -117,7 +117,7 @@ public abstract class DownRepository<TDown> : IRepositoryCanDownload<TDown>
         }
     }
 
-    protected async Task RetryAsync(Func<Task> block, string message, int maxRetries = 3)
+    protected async Task RetryAsync(Func<Task> block, string message, int maxRetries = 1)
     {
         int ctry = 0;
         while (true) {
