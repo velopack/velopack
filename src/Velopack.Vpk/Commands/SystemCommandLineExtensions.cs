@@ -347,7 +347,7 @@ internal static class SystemCommandLineExtensions
         public static void MustBeSupportedRid(OptionResult result)
         {
             for (var i = 0; i < result.Tokens.Count; i++) {
-                if (!Regex.IsMatch(result.Tokens[i].Value, @"^(?<os>osx|win)\.?(?<ver>[\d\.]+)?(?:-(?<arch>(?:x|arm)\d{2}))$")) {
+                if (!Regex.IsMatch(result.Tokens[i].Value, @"^(?<os>osx|linux|win)\.?(?<ver>[\d\.]+)?(?:-(?<arch>(?:x|arm)\d{2}))$")) {
                     result.AddError($"Invalid or unsupported runtime '{result.IdentifierToken.Value}'. Valid example: win-x64, osx-arm64.");
                     break;
                 }

@@ -23,9 +23,9 @@ namespace Velopack.Packaging.Unix.Commands
             var dir = TempDir.CreateSubdirectory("PreprocessPackDir.AppDir");
             var bin = dir.CreateSubdirectory("usr").CreateSubdirectory("bin");
 
-            if (Options.AppDir != null) {
+            if (Options.PackIsAppDir) {
                 Log.Info("Using provided .AppDir, will skip building new one.");
-                CopyFiles(new DirectoryInfo(Options.AppDir), dir, progress, true);
+                CopyFiles(new DirectoryInfo(Options.PackDirectory), dir, progress, true);
             } else {
                 Log.Info("Building new .AppDir");
                 var appRunPath = Path.Combine(dir.FullName, "AppRun");
@@ -56,10 +56,9 @@ Categories=Development;
 
                 // copy existing app files 
                 CopyFiles(new DirectoryInfo(packDir), bin, progress, true);
+                // app icon
+                File.Copy(Options.Icon, Path.Combine(dir.FullName, Options.PackId + Path.GetExtension(Options.Icon)), true);
             }
-
-            // app icon
-            File.Copy(Options.Icon, Path.Combine(dir.FullName, Options.PackId + Path.GetExtension(Options.Icon)), true);
 
             // velopack required files
             File.WriteAllText(Path.Combine(bin.FullName, "sq.version"), nuspecText);

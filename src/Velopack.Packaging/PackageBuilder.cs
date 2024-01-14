@@ -57,6 +57,11 @@ namespace Velopack.Packaging
             var mainExt = options.TargetRuntime.BaseRID == RuntimeOs.Windows ? ".exe" : "";
             var mainExeName = options.EntryExecutableName ?? (options.PackId + mainExt);
             var mainExePath = Path.Combine(packDirectory, mainExeName);
+            
+            // TODO: this is a hack, fix this.
+            if (!File.Exists(mainExePath) && VelopackRuntimeInfo.IsLinux)
+                mainExePath = Path.Combine(packDirectory, "usr", "bin", mainExeName);
+            
             if (!File.Exists(mainExePath)) {
                 throw new UserInfoException(
                     $"Could not find main application executable (the one that runs 'VelopackApp.Build().Run()'). " + Environment.NewLine +

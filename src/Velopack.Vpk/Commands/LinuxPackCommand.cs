@@ -27,7 +27,7 @@ namespace Velopack.Vpk.Commands
 
         public string ReleaseNotes { get; set; }
 
-        public string AppDir { get; private set; }
+        public bool PackIsAppDir { get; private set; }
 
         public DeltaMode Delta { get; set; } = DeltaMode.BestSpeed;
 
@@ -68,11 +68,10 @@ namespace Velopack.Vpk.Commands
                 .SetDescription("The file name of the main/entry executable.")
                 .SetArgumentHelpName("NAME");
 
-            AddOption<FileInfo>((v) => Icon = v.ToFullNameOrNull(), "-i", "--icon")
+            var icon = AddOption<FileInfo>((v) => Icon = v.ToFullNameOrNull(), "-i", "--icon")
                 .SetDescription("Path to the icon file for this bundle.")
                 .SetArgumentHelpName("PATH")
-                .MustExist()
-                .SetRequired();
+                .MustExist();
 
             AddOption<FileInfo>((v) => ReleaseNotes = v.ToFullNameOrNull(), "--releaseNotes")
                 .SetDescription("File with markdown-formatted notes for this version.")
@@ -83,13 +82,18 @@ namespace Velopack.Vpk.Commands
                 .SetDefault(DeltaMode.BestSpeed)
                 .SetDescription("Set the delta generation mode.");
 
-            var appDir = AddOption<DirectoryInfo>((v) => AppDir = v.ToFullNameOrNull(), "--appDir")
+            var appDir = AddOption<DirectoryInfo>((v) => {
+                    PackDirectory = v.ToFullNameOrNull();
+                    PackIsAppDir = true;
+                }, "--appDir")
                 .SetDescription("Directory containing application in .AppDir format")
                 .SetArgumentHelpName("DIR")
                 .MustNotBeEmpty();
 
             this.AreMutuallyExclusive(packDir, appDir);
             this.AtLeastOneRequired(packDir, appDir);
+            this.AreMutuallyExclusive(icon, appDir);
+            this.AtLeastOneRequired(icon, appDir);
         }
     }
 }

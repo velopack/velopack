@@ -32,6 +32,6 @@ namespace Velopack.Packaging.Unix.Commands
 
         public string Channel { get; set; }
 
-        public string AppDir { get; set; }
+        public bool PackIsAppDir { get; set; }
     }
 }

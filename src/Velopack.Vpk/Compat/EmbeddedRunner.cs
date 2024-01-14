@@ -109,6 +109,7 @@ public class EmbeddedRunner : ICommandRunner
             PackTitle = command.PackTitle,
             PackVersion = command.PackVersion,
             ReleaseNotes = command.ReleaseNotes,
+            PackIsAppDir = command.PackIsAppDir,
         };
         return new LinuxPackCommandRunner(_logger).Run(options);
     }
