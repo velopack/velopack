@@ -2,6 +2,7 @@
 using Octokit;
 using Velopack.NuGet;
 using Velopack.Packaging;
+using Velopack.Packaging.Exceptions;
 using Velopack.Sources;
 
 namespace Velopack.Deployment;
@@ -20,6 +21,10 @@ public class GitHubUploadOptions : GitHubDownloadOptions
     public bool Publish { get; set; }
 
     public string ReleaseName { get; set; }
+
+    public string TagName { get; set; }
+
+    public bool Merge { get; set; }
 }
 
 public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSource>, IRepositoryCanUpload<GitHubUploadOptions>
@@ -54,7 +59,8 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
         var latest = helper.GetLatestFullRelease(options.Channel);
         var latestPath = Path.Combine(options.ReleaseDir.FullName, latest.OriginalFilename);
         var releaseNotes = new ZipPackage(latestPath).ReleaseNotes;
-        var semVer = latest.Version;
+        var semVer = options.TagName ?? latest.Version.ToString();
+        var releaseName = string.IsNullOrWhiteSpace(options.ReleaseName) ? semVer.ToString() : options.ReleaseName;
 
         Log.Info($"Preparing to upload {assets.Files.Count} assets to GitHub");
 
@@ -62,22 +68,46 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
             Credentials = new Credentials(options.Token)
         };
 
-        var newReleaseReq = new NewRelease(semVer.ToString()) {
-            Body = releaseNotes,
-            Draft = true,
-            Prerelease = options.Prerelease,
-            Name = string.IsNullOrWhiteSpace(options.ReleaseName) ? semVer.ToString() : options.ReleaseName,
-        };
-
-        Log.Info($"Creating draft release titled '{newReleaseReq.Name}'");
-
         var existingReleases = await client.Repository.Release.GetAll(repoOwner, repoName);
-        if (existingReleases.Any(r => r.TagName == semVer.ToString())) {
-            throw new Exception($"There is already an existing release tagged '{semVer}'. Please delete this release or provide a new version number / release name.");
+        if (!options.Merge) {
+            if (existingReleases.Any(r => r.TagName == semVer.ToString())) {
+                throw new UserInfoException($"There is already an existing release tagged '{semVer}'. Please delete this release or provide a new version number.");
+            }
+            if (existingReleases.Any(r => r.Name == releaseName)) {
+                throw new UserInfoException($"There is already an existing release named '{releaseName}'. Please delete this release or provide a new release name.");
+            }
         }
 
-        // create github release
-        var release = await client.Repository.Release.Create(repoOwner, repoName, newReleaseReq);
+        // create or retrieve github release
+        var release = existingReleases.FirstOrDefault(r => r.TagName == semVer.ToString())
+            ?? existingReleases.FirstOrDefault(r => r.Name == releaseName);
+
+        if (release != null) {
+            if (release.TagName != semVer.ToString())
+                throw new UserInfoException($"Found existing release matched by name ({release.Name} [{release.TagName}]), but tag name does not match ({semVer}).");
+            Log.Info($"Found existing release ({release.Name} [{release.TagName}]). Merge flag is enabled.");
+        } else {
+            var newReleaseReq = new NewRelease(semVer.ToString()) {
+                Body = releaseNotes,
+                Draft = true,
+                Prerelease = options.Prerelease,
+                Name = string.IsNullOrWhiteSpace(options.ReleaseName) ? semVer.ToString() : options.ReleaseName,
+            };
+            Log.Info($"Creating draft release titled '{newReleaseReq.Name}'");
+            release = await client.Repository.Release.Create(repoOwner, repoName, newReleaseReq);
+        }
+
+        // check if there is an existing releasesFile to merge
+        var releaseAsset = release.Assets.FirstOrDefault(a => a.Name == assets.ReleasesFileName);
+        if (releaseAsset != null) {
+            throw new UserInfoException($"There is already a release asset named '{assets.ReleasesFileName}', and merging release files is not supported.");
+            //Log.Info($"Will merge with existing remote releases file ({releaseAsset.Name}).");
+            //var dl = Utility.CreateDefaultDownloader();
+            //var releasesString = await dl.DownloadString(releaseAsset.BrowserDownloadUrl);
+            //var remoteReleases = ReleaseEntry.ParseReleaseFile(releasesString).ToArray();
+            //assets.Releases.AddRange(remoteReleases);
+            //Log.Info($"There will be {assets.Releases.Count} in final release file ({remoteReleases.Length} added).");
+        }
 
         // upload all assets (incl packages)
         foreach (var a in assets.Files) {
@@ -92,10 +122,14 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
 
         // convert draft to full release
         if (options.Publish) {
-            Log.Info("Converting draft to full published release.");
-            var upd = release.ToUpdate();
-            upd.Draft = false;
-            release = await client.Repository.Release.Edit(repoOwner, repoName, release.Id, upd);
+            if (release.Draft) {
+                Log.Info("Converting draft to full published release.");
+                var upd = release.ToUpdate();
+                upd.Draft = false;
+                release = await client.Repository.Release.Edit(repoOwner, repoName, release.Id, upd);
+            } else {
+                Log.Info("Skipping publish, release is already not a draft.");
+            }
         }
     }
 

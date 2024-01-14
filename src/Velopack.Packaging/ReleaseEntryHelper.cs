@@ -171,16 +171,16 @@ namespace Velopack.Packaging
             var suffix = GetPkgSuffix(os, channel);
 
             if (!_releases.ContainsKey(channel))
-                throw new ArgumentException("No releases found for channel: " + channel);
+                throw new UserInfoException("No releases found for channel: " + channel);
 
             ret.ReleasesFileName = SourceBase.GetReleasesFileNameImpl(channel);
             var relPath = GetReleasePath(channel);
             if (!File.Exists(relPath))
-                throw new FileNotFoundException("Could not find RELEASES file for channel: " + channel, relPath);
+                throw new UserInfoException($"Could not find RELEASES file for channel {channel} at {relPath}");
 
             ReleaseEntry latest = GetLatestFullRelease(channel);
             if (latest == null) {
-                throw new ArgumentException("No full releases found for channel: " + channel);
+                throw new UserInfoException("No full releases found for channel: " + channel);
             } else {
                 _logger.Info("Latest local release: " + latest.OriginalFilename);
             }

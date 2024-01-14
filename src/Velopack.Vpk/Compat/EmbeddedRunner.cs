@@ -1,4 +1,4 @@
-using System.Runtime.Versioning;
+﻿using System.Runtime.Versioning;
 using Velopack.Deployment;
 using Velopack.Packaging.Commands;
 using Velopack.Packaging.Unix.Commands;
@@ -156,6 +156,8 @@ public class EmbeddedRunner : ICommandRunner
             Publish = command.Publish,
             ReleaseName = command.ReleaseName,
             Channel = command.Channel,
+            Merge = command.Merge,
+            TagName = command.TagName,
         };
         return new GitHubRepository(_logger).UploadMissingAssetsAsync(options);
     }

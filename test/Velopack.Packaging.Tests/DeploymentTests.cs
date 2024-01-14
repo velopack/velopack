@@ -1,16 +1,17 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Velopack.Deployment;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Sources;
 using Octokit;
+using Velopack.Packaging.Exceptions;
 
 namespace Velopack.Packaging.Tests
 {
     public class DeploymentTests
     {
-        public readonly string GITHUB_TOKEN = Environment.GetEnvironmentVariable("VELOPACK_GITHUB_TEST_TOKEN");
-        public readonly string GITHUB_REPOURL = "https://github.com/caesay/VelopackGithubUpdateTest";
+        public readonly static string GITHUB_TOKEN = Environment.GetEnvironmentVariable("VELOPACK_GITHUB_TEST_TOKEN");
+        public readonly static string GITHUB_REPOURL = "https://github.com/caesay/VelopackGithubUpdateTest";
 
         private readonly ITestOutputHelper _output;
 
@@ -19,32 +20,114 @@ namespace Velopack.Packaging.Tests
             _output = output;
         }
 
-        [Fact]
+        [SkippableFact]
+        public void WillRefuseToUploadMultipleWithoutMergeArg()
+        {
+            Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
+            using var logger = _output.BuildLoggerFor<DeploymentTests>();
+            using var _1 = Utility.GetTempDirectory(out var releaseDir);
+            using var _2 = Utility.GetTempDirectory(out var releaseDir2);
+            using var ghvar = GitHubReleaseTest.Create("nomerge", logger);
+            var id = "GithubUpdateTest";
+            PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger);
+
+            var gh = new GitHubRepository(logger);
+            var options = new GitHubUploadOptions {
+                ReleaseName = ghvar.ReleaseName,
+                ReleaseDir = new DirectoryInfo(releaseDir),
+                RepoUrl = GITHUB_REPOURL,
+                Token = GITHUB_TOKEN,
+                Prerelease = false,
+                Publish = true,
+            };
+
+            gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+
+            PackTestApp(id, $"0.0.2-{ghvar.UniqueSuffix}", "t1", releaseDir2, logger);
+            options.ReleaseDir = new DirectoryInfo(releaseDir2);
+
+            Assert.ThrowsAny<UserInfoException>(() => gh.UploadMissingAssetsAsync(options).GetAwaiterResult());
+        }
+
+        [SkippableFact]
+        public void WillNotMergeMixmatchedTag()
+        {
+            Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
+            using var logger = _output.BuildLoggerFor<DeploymentTests>();
+            using var _1 = Utility.GetTempDirectory(out var releaseDir);
+            using var _2 = Utility.GetTempDirectory(out var releaseDir2);
+            using var ghvar = GitHubReleaseTest.Create("mixmatched", logger);
+            var id = "GithubUpdateTest";
+            PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger);
+
+            var gh = new GitHubRepository(logger);
+            var options = new GitHubUploadOptions {
+                ReleaseName = ghvar.ReleaseName,
+                ReleaseDir = new DirectoryInfo(releaseDir),
+                RepoUrl = GITHUB_REPOURL,
+                Token = GITHUB_TOKEN,
+                Prerelease = false,
+                Publish = true,
+                Merge = true,
+            };
+
+            gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+
+            PackTestApp(id, $"0.0.2-{ghvar.UniqueSuffix}", "t1", releaseDir2, logger);
+            options.ReleaseDir = new DirectoryInfo(releaseDir2);
+
+            Assert.ThrowsAny<UserInfoException>(() => gh.UploadMissingAssetsAsync(options).GetAwaiterResult());
+        }
+
+        [SkippableFact]
+        public void WillMergeGithubReleases()
+        {
+            Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
+            using var logger = _output.BuildLoggerFor<DeploymentTests>();
+            using var _1 = Utility.GetTempDirectory(out var releaseDir);
+            using var _2 = Utility.GetTempDirectory(out var releaseDir2);
+            using var ghvar = GitHubReleaseTest.Create("yesmerge", logger);
+            var id = "GithubUpdateTest";
+            PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger);
+
+            var gh = new GitHubRepository(logger);
+            var options = new GitHubUploadOptions {
+                ReleaseName = ghvar.ReleaseName,
+                ReleaseDir = new DirectoryInfo(releaseDir),
+                RepoUrl = GITHUB_REPOURL,
+                Token = GITHUB_TOKEN,
+                TagName = $"0.0.1-{ghvar.UniqueSuffix}",
+                Prerelease = false,
+                Publish = true,
+                Merge = true,
+            };
+
+            gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+
+            PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir2, logger, channel: "experimental");
+            options.ReleaseDir = new DirectoryInfo(releaseDir2);
+            options.Channel = "experimental";
+
+            gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+        }
+
+        [SkippableFact]
         public void CanDeployAndUpdateFromGithub()
         {
+            Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
             using var logger = _output.BuildLoggerFor<DeploymentTests>();
             var id = "GithubUpdateTest";
-            var ci = !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI"));
             using var _1 = Utility.GetTempDirectory(out var releaseDir);
-            var uniqueSuffix = (ci ? "ci-" : "local-") + VelopackRuntimeInfo.SystemOs.GetOsShortName();
-            var releaseName = $"{VelopackRuntimeInfo.VelopackNugetVersion}-{uniqueSuffix}";
-
-            // delete release if already exists
-            var client = new GitHubClient(new ProductHeaderValue("Velopack")) {
-                Credentials = new Credentials(GITHUB_TOKEN)
-            };
             var (repoOwner, repoName) = GitHubRepository.GetOwnerAndRepo(GITHUB_REPOURL);
-            var existingRelease = client.Repository.Release.GetAll(repoOwner, repoName).GetAwaiterResult().SingleOrDefault(s => s.Name == releaseName);
-            if (existingRelease != null) {
-                client.Repository.Release.Delete(repoOwner, repoName, existingRelease.Id).GetAwaiterResult();
-                logger.Info($"Deleted existing release '{releaseName}'");
-            }
+            using var ghvar = GitHubReleaseTest.Create("integration", logger);
+            var releaseName = ghvar.ReleaseName;
+            var uniqueSuffix = ghvar.UniqueSuffix;
+            var client = ghvar.Client;
 
             // create releases
             var notesPath = Path.Combine(releaseDir, "NOTES");
             var notesContent = $"""
 # Release {releaseName}
-CI: {ci}
 This is just a _test_!
 """;
             File.WriteAllText(notesPath, notesContent);
@@ -56,56 +139,93 @@ This is just a _test_!
             PackTestApp(id, $"0.0.1-{uniqueSuffix}", "t1", releaseDir, logger, notesPath);
             PackTestApp(id, newVer, "t2", releaseDir, logger, notesPath);
 
-            try {
-                // deploy
-                var gh = new GitHubRepository(logger);
-                var options = new GitHubUploadOptions {
-                    ReleaseName = releaseName,
-                    ReleaseDir = new DirectoryInfo(releaseDir),
-                    RepoUrl = GITHUB_REPOURL,
-                    Token = GITHUB_TOKEN,
-                    Prerelease = false,
-                    Publish = true,
+            // deploy
+            var gh = new GitHubRepository(logger);
+            var options = new GitHubUploadOptions {
+                ReleaseName = releaseName,
+                ReleaseDir = new DirectoryInfo(releaseDir),
+                RepoUrl = GITHUB_REPOURL,
+                Token = GITHUB_TOKEN,
+                Prerelease = false,
+                Publish = true,
+            };
+            gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+
+            // check
+            var newRelease = client.Repository.Release.GetAll(repoOwner, repoName).GetAwaiterResult().Single(s => s.Name == releaseName);
+            Assert.False(newRelease.Draft);
+            Assert.Equal(notesContent.Trim().ReplaceLineEndings("\n"), newRelease.Body.Trim());
+
+            // update
+            var source = new GithubSource(GITHUB_REPOURL, GITHUB_TOKEN, false, logger: logger);
+            var releases = source.GetReleaseFeed().GetAwaiterResult();
+
+            var ghrel = releases.Select(r => (GithubReleaseEntry) r).ToArray();
+            Assert.Equal(2, ghrel.Length);
+            foreach (var r in ghrel) {
+                Assert.Equal(releaseName, r.Release.Name);
+                Assert.Equal(id, r.PackageId);
+                Assert.Equal(newVer, r.Version.ToNormalizedString());
+            }
+
+            using var _2 = Utility.GetTempDirectory(out var releaseDirNew);
+            gh.DownloadLatestFullPackageAsync(new GitHubDownloadOptions {
+                Token = GITHUB_TOKEN,
+                RepoUrl = GITHUB_REPOURL,
+                ReleaseDir = new DirectoryInfo(releaseDirNew),
+            }).GetAwaiterResult();
+
+            var filename = $"{id}-{newVer}-{VelopackRuntimeInfo.SystemOs.GetOsShortName()}-full.nupkg";
+            Assert.True(File.Exists(Path.Combine(releaseDirNew, filename)));
+        }
+
+        private class GitHubReleaseTest : IDisposable
+        {
+            public string ReleaseName { get; }
+            public string UniqueSuffix { get; }
+            public GitHubClient Client { get; }
+            public ILogger Logger { get; }
+
+            public GitHubReleaseTest(string releaseName, string uniqueSuffix, GitHubClient client, ILogger logger)
+            {
+                ReleaseName = releaseName;
+                UniqueSuffix = uniqueSuffix;
+                Client = client;
+                Logger = logger;
+            }
+
+            public static GitHubReleaseTest Create(string method, ILogger logger)
+            {
+                var ci = !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI"));
+                var uniqueSuffix = (ci ? "ci-" : "local-") + VelopackRuntimeInfo.SystemOs.GetOsShortName();
+                var releaseName = $"{VelopackRuntimeInfo.VelopackNugetVersion}-{uniqueSuffix}-{method}";
+                var (repoOwner, repoName) = GitHubRepository.GetOwnerAndRepo(GITHUB_REPOURL);
+
+                // delete release if already exists
+                var client = new GitHubClient(new ProductHeaderValue("Velopack")) {
+                    Credentials = new Credentials(GITHUB_TOKEN)
                 };
-                gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
-
-                // check
-                var newRelease = client.Repository.Release.GetAll(repoOwner, repoName).GetAwaiterResult().Single(s => s.Name == releaseName);
-                Assert.False(newRelease.Draft);
-                Assert.Equal(notesContent.Trim().ReplaceLineEndings("\n"), newRelease.Body.Trim());
-
-                // update
-                var source = new GithubSource(GITHUB_REPOURL, GITHUB_TOKEN, false, logger: logger);
-                var releases = source.GetReleaseFeed().GetAwaiterResult();
-
-                var ghrel = releases.Select(r => (GithubReleaseEntry) r).ToArray();
-                Assert.Equal(2, ghrel.Length);
-                foreach (var r in ghrel) {
-                    Assert.Equal(releaseName, r.Release.Name);
-                    Assert.Equal(id, r.PackageId);
-                    Assert.Equal(newVer, r.Version.ToNormalizedString());
+                var existingRelease = client.Repository.Release.GetAll(repoOwner, repoName).GetAwaiterResult().SingleOrDefault(s => s.Name == releaseName);
+                if (existingRelease != null) {
+                    client.Repository.Release.Delete(repoOwner, repoName, existingRelease.Id).GetAwaiterResult();
+                    logger.Info("Deleted existing release: " + releaseName);
                 }
+                return new GitHubReleaseTest(releaseName, uniqueSuffix, client, logger);
+            }
 
-                using var _2 = Utility.GetTempDirectory(out var releaseDirNew);
-                gh.DownloadLatestFullPackageAsync(new GitHubDownloadOptions {
-                    Token = GITHUB_TOKEN,
-                    RepoUrl = GITHUB_REPOURL,
-                    ReleaseDir = new DirectoryInfo(releaseDirNew),
-                }).GetAwaiterResult();
-
-                var filename = $"{id}-{newVer}-{VelopackRuntimeInfo.SystemOs.GetOsShortName()}-full.nupkg";
-                Assert.True(File.Exists(Path.Combine(releaseDirNew, filename)));
-            } finally {
-                // clean up
-                var finalRelease = client.Repository.Release.GetAll(repoOwner, repoName).GetAwaiterResult().SingleOrDefault(s => s.Name == releaseName);
+            public void Dispose()
+            {
+                var (repoOwner, repoName) = GitHubRepository.GetOwnerAndRepo(GITHUB_REPOURL);
+                var finalRelease = Client.Repository.Release.GetAll(repoOwner, repoName).GetAwaiterResult().SingleOrDefault(s => s.Name == ReleaseName);
                 if (finalRelease != null) {
-                    client.Repository.Release.Delete(repoOwner, repoName, finalRelease.Id).GetAwaiterResult();
-                    logger.Info($"Deleted final release '{releaseName}'");
+                    Client.Repository.Release.Delete(repoOwner, repoName, finalRelease.Id).GetAwaiterResult();
+                    Logger.Info($"Deleted final release '{ReleaseName}'");
                 }
             }
         }
 
-        private void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger, string releaseNotes)
+        private void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
+            string releaseNotes = null, string channel = null)
         {
             var projDir = PathHelper.GetTestRootPath("TestApp");
             var testStringFile = Path.Combine(projDir, "Const.cs");
@@ -137,6 +257,7 @@ This is just a _test_!
                         PackVersion = version,
                         PackDirectory = Path.Combine(projDir, "publish"),
                         ReleaseNotes = releaseNotes,
+                        Channel = channel,
                     };
                     var runner = new WindowsPackCommandRunner(logger);
                     runner.Run(options).GetAwaiterResult();
@@ -150,6 +271,7 @@ This is just a _test_!
                         PackVersion = version,
                         PackDirectory = Path.Combine(projDir, "publish"),
                         ReleaseNotes = releaseNotes,
+                        Channel = channel,
                     };
                     var runner = new OsxPackCommandRunner(logger);
                     runner.Run(options).GetAwaiterResult();
@@ -163,6 +285,7 @@ This is just a _test_!
                         PackVersion = version,
                         PackDirectory = Path.Combine(projDir, "publish"),
                         ReleaseNotes = releaseNotes,
+                        Channel = channel,
                     };
                     var runner = new LinuxPackCommandRunner(logger);
                     runner.Run(options).GetAwaiterResult();
