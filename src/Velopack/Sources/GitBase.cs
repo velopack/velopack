@@ -91,7 +91,7 @@ namespace Velopack.Sources
             }
 
             return new VelopackAssetFeed {
-                Assets = entries.Cast<VelopackAsset>().ToList(),
+                Assets = entries.Cast<VelopackAsset>().ToArray(),
             };
         }
 

@@ -104,7 +104,7 @@ namespace Velopack.Locators
         {
             return GetLocalPackages()
                 .OrderByDescending(x => x.Version)
-                .Where(a => a.Type == VelopackAssetType.FullPackage)
+                .Where(a => a.Type == VelopackAssetType.Full)
                 .FirstOrDefault();
         }
 

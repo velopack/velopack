@@ -116,7 +116,7 @@ namespace Velopack
             var feedObj = await Source.GetReleaseFeed(Log, channel, betaId, latestLocalFull).ConfigureAwait(false);
             var feed = feedObj.Assets;
 
-            var latestRemoteFull = feed.Where(r => r.Type == VelopackAssetType.FullPackage).MaxBy(x => x.Version).FirstOrDefault();
+            var latestRemoteFull = feed.Where(r => r.Type == VelopackAssetType.Full).MaxBy(x => x.Version).FirstOrDefault();
             if (latestRemoteFull == null) {
                 Log.Info("No remote full releases found.");
                 return null;
@@ -129,7 +129,7 @@ namespace Velopack
 
             Log.Info($"Found remote update available ({latestRemoteFull.Version}).");
 
-            var matchingRemoteDelta = feed.Where(r => r.Type == VelopackAssetType.DeltaPackage && r.Version == latestRemoteFull.Version).FirstOrDefault();
+            var matchingRemoteDelta = feed.Where(r => r.Type == VelopackAssetType.Delta && r.Version == latestRemoteFull.Version).FirstOrDefault();
             if (matchingRemoteDelta == null) {
                 Log.Info($"Unable to find delta matching version {latestRemoteFull.Version}, only full update will be available.");
                 return new UpdateInfo(latestRemoteFull);
@@ -149,7 +149,7 @@ namespace Velopack
                 deltaFromVer = installedVer;
             }
 
-            var deltas = feed.Where(r => r.Type == VelopackAssetType.DeltaPackage && r.Version > deltaFromVer && r.Version <= latestRemoteFull.Version).ToArray();
+            var deltas = feed.Where(r => r.Type == VelopackAssetType.Delta && r.Version > deltaFromVer && r.Version <= latestRemoteFull.Version).ToArray();
             Log.Debug($"Found {deltas.Length} delta releases between {deltaFromVer} and {latestRemoteFull.Version}.");
             return new UpdateInfo(latestRemoteFull, latestLocalFull, deltas);
         }
@@ -431,7 +431,7 @@ namespace Velopack
             try {
                 Log.Info("Cleaning up incomplete and delta packages from packages directory.");
                 foreach (var l in Locator.GetLocalPackages()) {
-                    if (l.Type == VelopackAssetType.DeltaPackage) {
+                    if (l.Type == VelopackAssetType.Delta) {
                         try {
                             var pkgPath = Path.Combine(Locator.PackagesDir, l.FileName);
                             File.Delete(pkgPath);

@@ -67,15 +67,16 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
 
-#if NET7_0_OR_GREATER
-using System.Text.Json.Serialization.Metadata;
+#if true
 using System.Text.Json;
 using System.Linq;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 #else
 using Velopack.Json.Reflection;
 #endif
 
-#if NET7_0_OR_GREATER
+#if true
 
 namespace Velopack.Json
 {
@@ -90,6 +91,7 @@ namespace Velopack.Json
                 },
                 AllowTrailingCommas = true,
                 ReadCommentHandling = JsonCommentHandling.Skip,
+                Converters = { new JsonStringEnumConverter() },
             };
             return JsonSerializer.Deserialize<T>(json, options);
         }

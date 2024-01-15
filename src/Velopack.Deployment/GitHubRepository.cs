@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Text;
+using Microsoft.Extensions.Logging;
 using Octokit;
 using Velopack.NuGet;
 using Velopack.Packaging;
@@ -55,8 +56,8 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
         var (repoOwner, repoName) = GetOwnerAndRepo(options.RepoUrl);
         var helper = new ReleaseEntryHelper(options.ReleaseDir.FullName, options.Channel, Log);
         var build = BuildAssets.Read(options.ReleaseDir.FullName, options.Channel);
-        var latest = helper.GetLatestFullRelease(options.Channel);
-        var latestPath = Path.Combine(options.ReleaseDir.FullName, latest.OriginalFilename);
+        var latest = helper.GetLatestFullRelease();
+        var latestPath = Path.Combine(options.ReleaseDir.FullName, latest.FileName);
         var releaseNotes = new ZipPackage(latestPath).ReleaseNotes;
         var semVer = options.TagName ?? latest.Version.ToString();
         var releaseName = string.IsNullOrWhiteSpace(options.ReleaseName) ? semVer.ToString() : options.ReleaseName;
@@ -97,7 +98,7 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
         }
 
         // check if there is an existing releasesFile to merge
-        var releasesFileName = Utility.GetReleasesFileName(options.Channel);
+        var releasesFileName = Utility.GetVeloReleaseIndexName(options.Channel);
         var releaseAsset = release.Assets.FirstOrDefault(a => a.Name == releasesFileName);
         if (releaseAsset != null) {
             throw new UserInfoException($"There is already a remote asset named '{releasesFileName}', and merging release files on GitHub is not supported.");
@@ -108,12 +109,12 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
             await RetryAsync(() => UploadFileAsAsset(client, release, a), $"Uploading asset '{Path.GetFileName(a)}'..");
         }
 
+        var feed = new VelopackAssetFeed {
+            Assets = build.GetReleaseEntries().ToArray(),
+        };
         var entries = build.GetReleaseEntries();
-
-        MemoryStream releasesFileToUpload = new MemoryStream();
-        ReleaseEntry.WriteReleaseFile(entries, releasesFileToUpload);
-        var releasesBytes = releasesFileToUpload.ToArray();
-        var data = new ReleaseAssetUpload(releasesFileName, "application/octet-stream", new MemoryStream(releasesBytes), TimeSpan.FromMinutes(1));
+        var json = ReleaseEntryHelper.GetAssetFeedJson(feed);
+        var data = new ReleaseAssetUpload(releasesFileName, "application/json", new MemoryStream(Encoding.UTF8.GetBytes(json)), TimeSpan.FromMinutes(1));
         await client.Repository.Release.UploadAsset(release, data, CancellationToken.None);
 
         // convert draft to full release

@@ -59,6 +59,7 @@ namespace Velopack.Packaging
             var packId = options.PackId;
             var packDirectory = options.PackDirectory;
             var packVersion = options.PackVersion;
+            var semVer = SemanticVersion.Parse(packVersion);
 
             // check that entry exe exists
             var mainExt = options.TargetRuntime.BaseRID == RuntimeOs.Windows ? ".exe" : "";
@@ -129,7 +130,8 @@ namespace Velopack.Packaging
 
                 var portableTask = ctx.RunTask("Building portable package", async (progress) => {
                     var suggestedName = ReleaseEntryHelper.GetSuggestedPortableName(packId, channel);
-                    await CreatePortablePackage(progress, packDirectory, getIncompletePath(suggestedName));
+                    var path = getIncompletePath(suggestedName);
+                    await CreatePortablePackage(progress, packDirectory, path);
                 });
 
                 // TODO: hack, this is a prerequisite for building full package but only on linux
@@ -146,7 +148,8 @@ namespace Velopack.Packaging
                 if (VelopackRuntimeInfo.IsWindows || VelopackRuntimeInfo.IsOSX) {
                     setupTask = ctx.RunTask("Building setup package", async (progress) => {
                         var suggestedName = ReleaseEntryHelper.GetSuggestedSetupName(packId, channel);
-                        await CreateSetupPackage(progress, releasePath, packDirectory, getIncompletePath(suggestedName));
+                        var path = getIncompletePath(suggestedName);
+                        await CreateSetupPackage(progress, releasePath, packDirectory, path);
                     });
                 }
 
@@ -172,6 +175,7 @@ namespace Velopack.Packaging
                     }
 
                     ReleaseEntryHelper.UpdateReleaseFiles(releaseDir.FullName);
+                    BuildAssets.Write(releaseDir.FullName, channel, filesToCopy.Select(x => x.to));
                     progress(100);
                     return Task.CompletedTask;
                 });

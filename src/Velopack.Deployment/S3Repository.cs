@@ -42,18 +42,11 @@ public class S3Repository : DownRepository<S3DownloadOptions>, IRepositoryCanUpl
         Log.Info($"Preparing to upload {build.Files.Count} local assets to S3 endpoint {options.Endpoint ?? ""}");
 
         var remoteReleases = await GetReleasesAsync(options);
-        Log.Info($"There are {remoteReleases.Length} assets in remote RELEASES file.");
+        Log.Info($"There are {remoteReleases.Assets.Length} assets in remote RELEASES file.");
 
         var localEntries = build.GetReleaseEntries();
 
-        // merge local release entries with remote ones
-        // will preserve the local entries because they appear first
-        var releaseEntries = localEntries
-            .Concat(remoteReleases)
-            .DistinctBy(r => r.OriginalFilename)
-            .OrderBy(k => k.Version)
-            .ThenBy(k => !k.IsDelta)
-            .ToArray();
+        var releaseEntries = ReleaseEntryHelper.MergeAssets(localEntries, remoteReleases.Assets).ToArray();
 
         Log.Info($"{releaseEntries.Length} merged releases.");
 
@@ -62,15 +55,15 @@ public class S3Repository : DownRepository<S3DownloadOptions>, IRepositoryCanUpl
         }
 
         using var _1 = Utility.GetTempFileName(out var tmpReleases);
-        ReleaseEntry.WriteReleaseFile(releaseEntries, tmpReleases);
-        var releasesName = Utility.GetReleasesFileName(options.Channel);
+        File.WriteAllText(tmpReleases, ReleaseEntryHelper.GetAssetFeedJson(new VelopackAssetFeed { Assets = releaseEntries }));
+        var releasesName = Utility.GetVeloReleaseIndexName(options.Channel);
         await UploadFile(client, options.Bucket, releasesName, new FileInfo(tmpReleases), true);
         Log.Info("Done.");
     }
 
-    protected override async Task<ReleaseEntry[]> GetReleasesAsync(S3DownloadOptions options)
+    protected override async Task<VelopackAssetFeed> GetReleasesAsync(S3DownloadOptions options)
     {
-        var releasesName = Utility.GetReleasesFileName(options.Channel);
+        var releasesName = Utility.GetVeloReleaseIndexName(options.Channel);
         var client = GetS3Client(options);
 
         var ms = new MemoryStream();
@@ -83,20 +76,20 @@ public class S3Repository : DownRepository<S3DownloadOptions>, IRepositoryCanUpl
                 }
             }, $"Fetching {releasesName}...");
         } catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound) {
-            return new ReleaseEntry[0];
+            return new VelopackAssetFeed();
         }
 
-        return ReleaseEntry.ParseReleaseFile(Encoding.UTF8.GetString(ms.ToArray())).ToArray();
+        return VelopackAssetFeed.FromJson(Encoding.UTF8.GetString(ms.ToArray()));
     }
 
-    protected override async Task SaveEntryToFileAsync(S3DownloadOptions options, ReleaseEntry entry, string filePath)
+    protected override async Task SaveEntryToFileAsync(S3DownloadOptions options, VelopackAsset entry, string filePath)
     {
         var client = GetS3Client(options);
         await RetryAsync(async () => {
-            using (var obj = await client.GetObjectAsync(options.Bucket, entry.OriginalFilename)) {
+            using (var obj = await client.GetObjectAsync(options.Bucket, entry.FileName)) {
                 await obj.WriteResponseStreamToFileAsync(filePath, false, CancellationToken.None);
             }
-        }, $"Downloading {entry.OriginalFilename}...");
+        }, $"Downloading {entry.FileName}...");
     }
 
     private static AmazonS3Client GetS3Client(S3DownloadOptions options)

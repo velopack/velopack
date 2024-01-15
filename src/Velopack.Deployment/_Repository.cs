@@ -29,13 +29,13 @@ public abstract class SourceRepository<TDown, TSource> : DownRepository<TDown>
         : base(logger)
     { }
 
-    protected override Task<ReleaseEntry[]> GetReleasesAsync(TDown options)
+    protected override Task<VelopackAssetFeed> GetReleasesAsync(TDown options)
     {
         var source = CreateSource(options);
         return source.GetReleaseFeed(channel: options.Channel, logger: Log);
     }
 
-    protected override Task SaveEntryToFileAsync(TDown options, ReleaseEntry entry, string filePath)
+    protected override Task SaveEntryToFileAsync(TDown options, VelopackAsset entry, string filePath)
     {
         var source = CreateSource(options);
         return source.DownloadReleaseEntry(Log, entry, filePath, (i) => { });
@@ -56,18 +56,19 @@ public abstract class DownRepository<TDown> : IRepositoryCanDownload<TDown>
 
     public virtual async Task DownloadLatestFullPackageAsync(TDown options)
     {
-        ReleaseEntry[] releases = await RetryAsyncRet(() => GetReleasesAsync(options), $"Fetching releases for channel {options.Channel}...");
+        VelopackAssetFeed feed = await RetryAsyncRet(() => GetReleasesAsync(options), $"Fetching releases for channel {options.Channel}...");
+        var releases = feed.Assets;
 
         Log.Info($"Found {releases.Length} release in remote file");
 
-        var latest = releases.Where(r => !r.IsDelta).OrderByDescending(r => r.Version).FirstOrDefault();
+        var latest = releases.Where(r => r.Type == VelopackAssetType.Full).OrderByDescending(r => r.Version).FirstOrDefault();
         if (latest == null) {
             Log.Warn("No full / applicible release was found to download. Aborting.");
             return;
         }
 
-        var path = Path.Combine(options.ReleaseDir.FullName, latest.OriginalFilename);
-        var incomplete = Path.Combine(options.ReleaseDir.FullName, latest.OriginalFilename + ".incomplete");
+        var path = Path.Combine(options.ReleaseDir.FullName, latest.FileName);
+        var incomplete = Path.Combine(options.ReleaseDir.FullName, latest.FileName + ".incomplete");
 
         if (File.Exists(path)) {
             Log.Warn($"File '{path}' already exists on disk. Verifying checksum...");
@@ -80,7 +81,7 @@ public abstract class DownRepository<TDown> : IRepositoryCanDownload<TDown>
             }
         }
 
-        await RetryAsync(() => SaveEntryToFileAsync(options, latest, incomplete), $"Downloading {latest.OriginalFilename}...");
+        await RetryAsync(() => SaveEntryToFileAsync(options, latest, incomplete), $"Downloading {latest.FileName}...");
 
         Log.Info("Verifying checksum...");
         var newHash = Utility.CalculateFileSHA1(incomplete);
@@ -93,9 +94,9 @@ public abstract class DownRepository<TDown> : IRepositoryCanDownload<TDown>
         Log.Info("Finished.");
     }
 
-    protected abstract Task<ReleaseEntry[]> GetReleasesAsync(TDown options);
+    protected abstract Task<VelopackAssetFeed> GetReleasesAsync(TDown options);
 
-    protected abstract Task SaveEntryToFileAsync(TDown options, ReleaseEntry entry, string filePath);
+    protected abstract Task SaveEntryToFileAsync(TDown options, VelopackAsset entry, string filePath);
 
     protected async Task<T> RetryAsyncRet<T>(Func<Task<T>> block, string message, int maxRetries = 1)
     {

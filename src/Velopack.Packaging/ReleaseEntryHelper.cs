@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
@@ -19,7 +20,7 @@ namespace Velopack.Packaging
         {
             _outputDir = outputDir;
             _logger = logger;
-            _channel = channel;
+            _channel = channel ?? GetDefaultChannel();
             _releases = GetReleasesFromDir(outputDir);
         }
 
@@ -52,7 +53,7 @@ namespace Velopack.Packaging
             var releases = _releases.ContainsKey(_channel) ? _releases[_channel] : null;
             if (releases == null || !releases.Any()) return null;
             var entry = releases
-                .Where(x => x.Type == VelopackAssetType.FullPackage)
+                .Where(x => x.Type == VelopackAssetType.Full)
                 .Where(x => x.Version < version)
                 .OrderByDescending(x => x.Version)
                 .FirstOrDefault();
@@ -61,12 +62,32 @@ namespace Velopack.Packaging
             return new ReleasePackage(file);
         }
 
-        public VelopackAsset GetLatestFullRelease(string channel)
+        public VelopackAsset GetLatestFullRelease()
         {
-            channel ??= GetDefaultChannel(VelopackRuntimeInfo.SystemOs);
-            var releases = _releases.ContainsKey(channel) ? _releases[channel] : null;
+            var releases = _releases.ContainsKey(_channel) ? _releases[_channel] : null;
             if (releases == null || !releases.Any()) return null;
-            return releases.Where(z => z.Type == VelopackAssetType.FullPackage).MaxBy(z => z.Version).First();
+            return releases.Where(z => z.Type == VelopackAssetType.Full).MaxBy(z => z.Version).First();
+        }
+
+        public IEnumerable<VelopackAsset> GetLatestAssets()
+        {
+            if (!_releases.ContainsKey(_channel) || !_releases[_channel].Any())
+                return Enumerable.Empty<VelopackAsset>();
+
+            var latest = _releases[_channel].MaxBy(x => x.Version).First();
+            _logger.Info($"Latest release: {latest.FileName}");
+
+            var assets = _releases[_channel]
+                .Where(x => x.Version == latest.Version)
+                .OrderByDescending(x => x.Version)
+                .ThenBy(x => x.Type)
+                .ToArray();
+
+            foreach (var asset in assets) {
+                _logger.Info($"    Discovered asset: {asset.FileName}");
+            }
+
+            return assets;
         }
 
         public static void UpdateReleaseFiles(string outputDir)
@@ -76,22 +97,35 @@ namespace Velopack.Packaging
                 File.Delete(releaseFile);
             }
             foreach (var kvp in releases) {
-                if (kvp.Key == "" || kvp.Key == GetDefaultChannel(RuntimeOs.Windows)) {
+                if (VelopackRuntimeInfo.IsWindows && kvp.Key == GetDefaultChannel(RuntimeOs.Windows)) {
                     // We write a legacy RELEASES file to allow older applications to update to velopack
 #pragma warning disable CS0618 // Type or member is obsolete
                     var path = Path.Combine(outputDir, "RELEASES");
                     ReleaseEntry.WriteReleaseFile(kvp.Value.Select(ReleaseEntry.FromVelopackAsset), path);
 #pragma warning restore CS0618 // Type or member is obsolete
                 }
-                var indexPath = Utility.GetVeloReleaseIndexName(kvp.Key);
+                var indexPath = Path.Combine(outputDir, Utility.GetVeloReleaseIndexName(kvp.Key));
                 var feed = new VelopackAssetFeed() {
-                    Assets = kvp.Value,
+                    Assets = kvp.Value.OrderByDescending(v => v.Version).ThenBy(v => v.Type).ToArray(),
                 };
-                var json = JsonSerializer.Serialize(feed, new JsonSerializerOptions() {
-                    WriteIndented = true,
-                });
-                File.WriteAllText(indexPath, json);
+                File.WriteAllText(indexPath, GetAssetFeedJson(feed));
             }
+        }
+
+        public static IEnumerable<VelopackAsset> MergeAssets(IEnumerable<VelopackAsset> priority, IEnumerable<VelopackAsset> secondary)
+        {
+            return priority.Concat(secondary).DistinctBy(x => x.FileName);
+        }
+
+        public static string GetAssetFeedJson(VelopackAssetFeed feed)
+        {
+            return JsonSerializer.Serialize(feed, new JsonSerializerOptions() {
+                WriteIndented = true,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                Converters = {
+                    new JsonStringEnumConverter(),
+                },
+            });
         }
 
         public static string GetSuggestedReleaseName(string id, string version, string channel, bool delta)

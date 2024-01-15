@@ -37,7 +37,7 @@ namespace Velopack.Sources
                .Where(x => x?.Version != null)
                .Where(x => x.Channel == null || x.Channel == channel)
                .Select(x => VelopackAsset.FromZipPackage(x))
-               .ToList();
+               .ToArray();
 
             return Task.FromResult(new VelopackAssetFeed { Assets = assets });
         }
