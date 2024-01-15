@@ -91,7 +91,11 @@ namespace Velopack.Packaging
         {
             var suffix = GetUniqueAssetSuffix(channel);
             if (VelopackRuntimeInfo.IsLinux) {
-                return $"{id}{suffix}.AppImage";
+                if (channel == GetDefaultChannel(RuntimeOs.Linux)) {
+                    return $"{id}.AppImage";
+                } else {
+                    return $"{id}{suffix}.AppImage";
+                }
             } else {
                 return $"{id}{suffix}-Portable.zip";
             }
