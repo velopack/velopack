@@ -229,6 +229,9 @@ impl SplashWindow {
             let hdc_mem = hdc.CreateCompatibleDC()?;
             let _old_bitmap = hdc_mem.SelectObject(&h_bitmap)?;
 
+            let background_brush = w::HBRUSH::CreateSolidBrush(w::COLORREF::new(255, 255, 255))?;
+            hdc_mem.FillRect(rect, &background_brush)?;
+
             let progress = self2.progress.borrow();
             let progress_brush = w::HBRUSH::CreateSolidBrush(w::COLORREF::new(0, 255, 0))?;
             let progress_width = (rect.right as f32 * (*progress as f32 / 100.0)) as i32;
