@@ -78,7 +78,7 @@ namespace Velopack.Sources
     /// Retrieves available releases from a GitHub repository. This class only
     /// downloads assets from the very latest GitHub release.
     /// </summary>
-    public class GithubSource : SourceBase
+    public class GithubSource : IUpdateSource
     {
         /// <summary> 
         /// The URL of the GitHub repository to download releases from 
@@ -118,63 +118,56 @@ namespace Velopack.Sources
         /// for up to 60 requests per hour, limited by IP address.
         /// </param>
         /// <param name="prerelease">
-        /// If true, the latest pre-release will be downloaded. If false, the latest 
-        /// stable release will be downloaded.
+        /// If true, pre-releases will be also be searched / downloaded. If false, only
+        /// stable releases will be considered.
         /// </param>
         /// <param name="downloader">
         /// The file downloader used to perform HTTP requests. 
         /// </param>
-        /// <param name="channel">
-        /// The release channel to search for releases. Can be null to search the default channel.
-        /// </param>
-        /// <param name="logger">
-        /// The ILogger to use when printing diagnostic messages
-        /// </param>
-        public GithubSource(string repoUrl, string accessToken, bool prerelease, string channel = null, IFileDownloader downloader = null, ILogger logger = null)
-            : base(channel, logger)
+        public GithubSource(string repoUrl, string accessToken, bool prerelease, IFileDownloader downloader = null)
         {
             RepoUri = new Uri(repoUrl);
             AccessToken = accessToken;
             Prerelease = prerelease;
             Downloader = downloader ?? Utility.CreateDefaultDownloader();
-
-            if (String.IsNullOrWhiteSpace(AccessToken))
-                logger?.Warn("No GitHub access token provided. Unauthenticated requests will be limited to 60 per hour.");
         }
 
         /// <inheritdoc />
-        public override async Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null)
+        public async Task<ReleaseEntry[]> GetReleaseFeed(string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null, ILogger logger = null)
         {
+            if (String.IsNullOrWhiteSpace(AccessToken))
+                logger.Warn("No GitHub access token provided. Unauthenticated requests will be limited to 60 per hour.");
+
             var releases = await GetReleases(Prerelease).ConfigureAwait(false);
             if (releases == null || releases.Count() == 0)
                 throw new Exception($"No GitHub releases found at '{RepoUri}'.");
 
-            var releasesFileName = GetReleasesFileName();
+            var releasesFileName = Utility.GetReleasesFileName(channel);
             List<GithubReleaseEntry> entries = new List<GithubReleaseEntry>();
 
             foreach (var r in releases) {
                 var assets = r.Assets.Where(a => a.Name.Equals(releasesFileName, StringComparison.InvariantCultureIgnoreCase));
                 if (assets == null || !assets.Any()) {
-                    Log.Debug($"Ignoring release {r.Name} because it has no {releasesFileName}.");
+                    logger.Debug($"Ignoring release {r.Name} because it has no {releasesFileName}.");
                     continue;
                 }
 
-                Log.Debug($"Found github release {r.Name}, downloading {releasesFileName}.");
+                logger.Debug($"Found github release {r.Name}, downloading {releasesFileName}.");
                 var asset = assets.First();
-                entries.AddRange(await GetEntriesFromRelease(r, stagingId).ConfigureAwait(false));
+                entries.AddRange(await GetEntriesFromRelease(r, stagingId, releasesFileName).ConfigureAwait(false));
             }
 
             return entries.ToArray();
         }
 
         /// <inheritdoc />
-        public override Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress)
+        public async Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress, ILogger logger = null)
         {
             if (releaseEntry is GithubReleaseEntry githubEntry) {
                 // this might be a browser url or an api url (depending on whether we have a AccessToken or not)
                 // https://docs.github.com/en/rest/reference/releases#get-a-release-asset
                 var assetUrl = GetAssetUrlFromName(githubEntry.Release, releaseEntry.OriginalFilename);
-                return Downloader.DownloadFile(assetUrl, localFile, progress, Authorization, "application/octet-stream");
+                await Downloader.DownloadFile(assetUrl, localFile, progress, Authorization, "application/octet-stream").ConfigureAwait(false);
             }
 
             throw new ArgumentException($"Expected releaseEntry to be {nameof(GithubReleaseEntry)} but got {releaseEntry.GetType().Name}.");
@@ -183,11 +176,11 @@ namespace Velopack.Sources
         /// <summary>
         /// Downloads the RELEASES file from the specified release and parses it into a list of <see cref="GithubReleaseEntry"/>.
         /// </summary>
-        public virtual async Task<IEnumerable<GithubReleaseEntry>> GetEntriesFromRelease(GithubRelease release, Guid? stagingId)
+        public virtual async Task<IEnumerable<GithubReleaseEntry>> GetEntriesFromRelease(GithubRelease release, Guid? stagingId, string releasesName)
         {
             // this might be a browser url or an api url (depending on whether we have a AccessToken or not)
             // https://docs.github.com/en/rest/reference/releases#get-a-release-asset
-            var assetUrl = GetAssetUrlFromName(release, GetReleasesFileName());
+            var assetUrl = GetAssetUrlFromName(release, releasesName);
             var releaseBytes = await Downloader.DownloadBytes(assetUrl, Authorization, "application/octet-stream").ConfigureAwait(false);
             var txt = Utility.RemoveByteOrderMarkerIfPresent(releaseBytes);
             return ReleaseEntry.ParseReleaseFileAndApplyStaging(txt, stagingId)

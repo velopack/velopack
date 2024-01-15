@@ -13,6 +13,7 @@ namespace Velopack.NuGet
     {
         public static readonly string PackageExtension = ".nupkg";
         public static readonly string ManifestExtension = ".nuspec";
+        public static readonly string ContentTypeFileName = "[Content_Types].xml";
         public static readonly string ContentDirectory = "content";
         public static readonly string LibDirectory = "lib";
         public static readonly string ToolsDirectory = "tools";

@@ -183,6 +183,22 @@ namespace Velopack
             return new Sources.HttpClientFileDownloader();
         }
 
+        public static string GetReleasesFileName(string channel)
+        {
+            if (channel == null) {
+                // default RELEASES file name for each platform.
+                if (VelopackRuntimeInfo.IsOSX) return "RELEASES-osx";
+                if (VelopackRuntimeInfo.IsLinux) return "RELEASES-linux";
+                if (VelopackRuntimeInfo.IsWindows) return "RELEASES";
+            }
+            // if the channel is an empty string or "win", we use the default RELEASES file name.
+            if (String.IsNullOrWhiteSpace(channel) || channel.ToLower() == "win") {
+                return "RELEASES";
+            }
+            // all other cases the RELEASES file includes the channel name.
+            return $"RELEASES-{channel.ToLower()}";
+        }
+
         public static async Task CopyToAsync(string from, string to)
         {
             Contract.Requires(!String.IsNullOrEmpty(from) && File.Exists(from));

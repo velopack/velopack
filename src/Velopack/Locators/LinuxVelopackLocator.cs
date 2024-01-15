@@ -35,6 +35,9 @@ namespace Velopack.Locators
         public override string AppContentDir { get; }
 
         /// <inheritdoc />
+        public override string Channel { get; }
+
+        /// <inheritdoc />
         public override string AppTempDir => CreateSubDirIfDoesNotExist(Utility.GetDefaultTempBaseDirectory(), AppId);
 
         /// <inheritdoc />
@@ -82,6 +85,7 @@ namespace Velopack.Locators
                     AppContentDir = contentsDir;
                     UpdateExePath = updateExe;
                     CurrentlyInstalledVersion = manifest.Version;
+                    Channel = manifest.Channel;
                 } else {
                     logger.Error("Unable to locate UpdateNix in " + contentsDir);
                 }

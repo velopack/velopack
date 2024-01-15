@@ -57,6 +57,9 @@ namespace Velopack.Locators
         public abstract string AppContentDir { get; }
 
         /// <inheritdoc/>
+        public abstract string Channel { get; }
+
+        /// <inheritdoc/>
         public virtual string ThisExeRelativePath {
             get {
                 var path = VelopackRuntimeInfo.EntryExePath;
@@ -77,7 +80,7 @@ namespace Velopack.Locators
         /// <inheritdoc cref="VelopackLocator"/>
         protected VelopackLocator(ILogger logger)
         {
-            Log = logger;
+            Log = logger ?? NullLogger.Instance;
         }
 
         /// <inheritdoc/>

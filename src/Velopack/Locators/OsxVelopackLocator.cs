@@ -35,6 +35,9 @@ namespace Velopack.Locators
         /// <inheritdoc />
         public override string PackagesDir => CreateSubDirIfDoesNotExist(AppTempDir, "packages");
 
+        /// <inheritdoc />
+        public override string Channel { get; }
+
         /// <summary>
         /// Creates a new <see cref="OsxVelopackLocator"/> and auto-detects the
         /// app information from metadata embedded in the .app.
@@ -67,6 +70,7 @@ namespace Velopack.Locators
                 RootAppDir = appPath;
                 UpdateExePath = updateExe;
                 CurrentlyInstalledVersion = manifest.Version;
+                Channel = manifest.Channel;
             }
         }
     }

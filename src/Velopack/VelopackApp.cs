@@ -22,6 +22,8 @@ namespace Velopack
     /// </summary>
     public sealed class VelopackApp
     {
+        internal static ILogger DefaultLogger { get; private set; } = NullLogger.Instance;
+
         IVelopackLocator _locator;
         VelopackHook _install;
         VelopackHook _update;
@@ -142,7 +144,8 @@ namespace Velopack
         /// <summary>
         /// Runs the Velopack application startup code and triggers any configured hooks.
         /// </summary>
-        /// <param name="logger">A logging interface for diagnostic messages.</param>
+        /// <param name="logger">A logging interface for diagnostic messages. This will be
+        /// cached and potentially re-used throughout the lifetime of the application.</param>
         public void Run(ILogger logger = null)
         {
             var args = _args ?? Environment.GetCommandLineArgs().Skip(1).ToArray();
@@ -156,6 +159,7 @@ namespace Velopack
 
             var log = logger ?? NullLogger.Instance;
             var locator = _locator ?? VelopackLocator.GetDefault(log);
+            DefaultLogger = log;
 
             log.Info("Starting Velopack App (Run).");
 

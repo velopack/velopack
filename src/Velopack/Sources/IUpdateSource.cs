@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Velopack.Sources
 {
@@ -12,8 +13,10 @@ namespace Velopack.Sources
     {
         /// <summary>
         /// Retrieve the list of available remote releases from the package source. These releases
-        /// can subsequently be downloaded with <see cref="DownloadReleaseEntry(ReleaseEntry, string, Action{int})"/>.
+        /// can subsequently be downloaded with <see cref="DownloadReleaseEntry(ReleaseEntry, string, Action{int}, ILogger)"/>.
         /// </summary>
+        /// <param name="channel">Release channel to filter packages by. Can be null, which is the 
+        /// default channel for this operating system.</param>
         /// <param name="stagingId">A persistent user-id, used for calculating whether a specific
         /// release should be available to this user or not. (eg, for the purposes of rolling out
         /// an update to only a small portion of users at a time).</param>
@@ -21,9 +24,10 @@ namespace Velopack.Sources
         /// metadata from this package may be provided to the remote server (such as package id,
         /// or cpu architecture) to ensure that the correct package is downloaded for this user.
         /// </param>
+        /// <param name="logger">The logger to use for any diagnostic messages.</param>
         /// <returns>An array of <see cref="ReleaseEntry"/> objects that are available for download
         /// and are applicable to this user.</returns>
-        Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null);
+        Task<ReleaseEntry[]> GetReleaseFeed(string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null, ILogger logger = null);
 
         /// <summary>
         /// Download the specified <see cref="ReleaseEntry"/> to the provided local file path.
@@ -33,6 +37,7 @@ namespace Velopack.Sources
         /// it will be overwritten.</param>
         /// <param name="progress">This delegate will be executed with values from 0-100 as the
         /// download is being processed.</param>
-        Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress);
+        /// <param name="logger">The logger to use for any diagnostic messages.</param>
+        Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress, ILogger logger = null);
     }
 }

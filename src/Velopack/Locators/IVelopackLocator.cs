@@ -36,6 +36,9 @@ namespace Velopack.Locators
         /// <summary> The path from <see cref="AppContentDir"/> to this executable. </summary>
         public string ThisExeRelativePath { get; }
 
+        /// <summary> The release channel this package was built for. </summary>
+        public string Channel { get; }
+
         /// <summary>
         /// Finds .nupkg files in the PackagesDir and returns a list of ReleaseEntryName objects.
         /// </summary>

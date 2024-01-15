@@ -29,7 +29,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         return Task.CompletedTask;
     }
 
-    protected override Task<string> PreprocessPackDir(Action<int> progress, string packDir, string nuspecText)
+    protected override Task<string> PreprocessPackDir(Action<int> progress, string packDir)
     {
         // fail the release if this is a clickonce application
         if (Directory.EnumerateFiles(packDir, "*.application").Any(f => File.ReadAllText(f).Contains("clickonce"))) {
@@ -41,7 +41,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         // copy files to temp dir, so we can modify them
         var dir = TempDir.CreateSubdirectory("PreprocessPackDirWin");
         CopyFiles(new DirectoryInfo(packDir), dir, progress, true);
-        File.WriteAllText(Path.Combine(dir.FullName, "sq.version"), nuspecText);
+        File.WriteAllText(Path.Combine(dir.FullName, "sq.version"), GenerateNuspecContent());
         packDir = dir.FullName;
 
         var updatePath = Path.Combine(TempDir.FullName, "Update.exe");
@@ -58,7 +58,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         return Task.FromResult(packDir);
     }
 
-    protected override string GenerateNuspecContent(string packId, string packTitle, string packAuthors, string packVersion, string releaseNotes, string packDir, string mainExeName)
+    protected override string GetRuntimeDependencies()
     {
         // check provided runtimes
         IEnumerable<Runtimes.RuntimeInfo> requiredFrameworks = Enumerable.Empty<Runtimes.RuntimeInfo>();
@@ -71,12 +71,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         if (requiredFrameworks.Where(f => f == null).Any())
             throw new ArgumentException("Invalid target frameworks string.");
 
-        // generate nuspec
-        var initial = base.GenerateNuspecContent(packId, packTitle, packAuthors, packVersion, releaseNotes, packDir, mainExeName);
-        var tmpPath = Path.Combine(TempDir.FullName, "tmpwin.nuspec");
-        File.WriteAllText(tmpPath, initial);
-        NuspecManifest.SetMetadata(tmpPath, mainExeName, requiredFrameworks.Select(r => r.Id), Options.TargetRuntime, null);
-        return File.ReadAllText(tmpPath);
+        return String.Join(",", requiredFrameworks.Select(r => r.Id));
     }
 
     protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe)

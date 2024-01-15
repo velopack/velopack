@@ -18,7 +18,7 @@ namespace Velopack.Packaging.Unix.Commands
         {
         }
 
-        protected override Task<string> PreprocessPackDir(Action<int> progress, string packDir, string nuspecText)
+        protected override Task<string> PreprocessPackDir(Action<int> progress, string packDir)
         {
             var dir = TempDir.CreateSubdirectory("PreprocessPackDir.AppDir");
             var bin = dir.CreateSubdirectory("usr").CreateSubdirectory("bin");
@@ -61,7 +61,7 @@ Categories=Development;
             }
 
             // velopack required files
-            File.WriteAllText(Path.Combine(bin.FullName, "sq.version"), nuspecText);
+            File.WriteAllText(Path.Combine(bin.FullName, "sq.version"), GenerateNuspecContent());
             File.Copy(HelperFile.GetUpdatePath(), Path.Combine(bin.FullName, "UpdateNix"), true);
             progress(100);
             return Task.FromResult(dir.FullName);
@@ -76,17 +76,17 @@ Categories=Development;
             return Task.CompletedTask;
         }
 
-        protected override Task CreateReleasePackage(Action<int> progress, string packDir, string nuspecText, string outputPath)
+        protected override Task CreateReleasePackage(Action<int> progress, string packDir, string outputPath)
         {
             var dir = TempDir.CreateSubdirectory("CreateReleasePackage.Linux");
             File.Copy(PortablePackagePath, Path.Combine(dir.FullName, Options.PackId + ".AppImage"), true);
-            return base.CreateReleasePackage(progress, dir.FullName, nuspecText, outputPath);
+            return base.CreateReleasePackage(progress, dir.FullName, outputPath);
         }
 
-        protected override Task<string> CreateDeltaPackage(Action<int> progress, string releasePkg, string prevReleasePkg, DeltaMode mode)
+        protected override Task<string> CreateDeltaPackage(Action<int> progress, string releasePkg, string prevReleasePkg, string outputPkg, DeltaMode mode)
         {
             progress(-1); // there is only one "file", so progress will not work
-            return base.CreateDeltaPackage(progress, releasePkg, prevReleasePkg, mode);
+            return base.CreateDeltaPackage(progress, releasePkg, prevReleasePkg, outputPkg, mode);
         }
     }
 }

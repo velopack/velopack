@@ -11,7 +11,7 @@ namespace Velopack.Sources
     /// Will perform a request for '{baseUri}/RELEASES' to locate the available packages,
     /// and provides query parameters to specify the name of the requested package.
     /// </summary>
-    public class SimpleWebSource : SourceBase
+    public class SimpleWebSource : IUpdateSource
     {
         /// <summary> The URL of the server hosting packages to update to. </summary>
         public virtual Uri BaseUri { get; }
@@ -20,22 +20,21 @@ namespace Velopack.Sources
         public virtual IFileDownloader Downloader { get; }
 
         /// <inheritdoc cref="SimpleWebSource" />
-        public SimpleWebSource(string baseUrl, string channel = null, IFileDownloader downloader = null, ILogger logger = null)
-            : this(new Uri(baseUrl), channel, downloader, logger)
+        public SimpleWebSource(string baseUrl, IFileDownloader downloader = null)
+            : this(new Uri(baseUrl), downloader)
         { }
 
         /// <inheritdoc cref="SimpleWebSource" />
-        public SimpleWebSource(Uri baseUri, string channel = null, IFileDownloader downloader = null, ILogger logger = null)
-            : base(channel, logger)
+        public SimpleWebSource(Uri baseUri, IFileDownloader downloader = null)
         {
             BaseUri = baseUri;
             Downloader = downloader ?? Utility.CreateDefaultDownloader();
         }
 
         /// <inheritdoc />
-        public override async Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null)
+        public async Task<ReleaseEntry[]> GetReleaseFeed(string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null, ILogger logger = null)
         {
-            var uri = Utility.AppendPathToUri(BaseUri, GetReleasesFileName());
+            var uri = Utility.AppendPathToUri(BaseUri, Utility.GetReleasesFileName(channel));
             var args = new Dictionary<string, string>();
 
             if (VelopackRuntimeInfo.SystemArch != RuntimeCpu.Unknown) {
@@ -54,7 +53,7 @@ namespace Velopack.Sources
 
             var uriAndQuery = Utility.AddQueryParamsToUri(uri, args);
 
-            Log.Info($"Downloading RELEASES from '{uriAndQuery}'.");
+            logger.Info($"Downloading RELEASES from '{uriAndQuery}'.");
 
             var bytes = await Downloader.DownloadBytes(uriAndQuery.ToString()).ConfigureAwait(false);
             var txt = Utility.RemoveByteOrderMarkerIfPresent(bytes);
@@ -62,7 +61,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public override Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress)
+        public async Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress, ILogger logger = null)
         {
             if (releaseEntry == null) throw new ArgumentNullException(nameof(releaseEntry));
             if (localFile == null) throw new ArgumentNullException(nameof(localFile));
@@ -83,8 +82,8 @@ namespace Velopack.Sources
                 ? new Uri(sourceBaseUri, releaseUri).ToString()
                 : Utility.AppendPathToUri(sourceBaseUri, releaseUri).ToString();
 
-            Log.Info($"Downloading '{releaseEntry.OriginalFilename}' from '{source}'.");
-            return Downloader.DownloadFile(source, localFile, progress);
+            logger.Info($"Downloading '{releaseEntry.OriginalFilename}' from '{source}'.");
+            await Downloader.DownloadFile(source, localFile, progress).ConfigureAwait(false);
         }
     }
 }

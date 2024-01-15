@@ -29,6 +29,7 @@ namespace Velopack.NuGet
         public IEnumerable<FrameworkAssemblyReference> FrameworkAssemblies { get; private set; } = Enumerable.Empty<FrameworkAssemblyReference>();
         public IEnumerable<PackageDependencySet> DependencySets { get; private set; } = Enumerable.Empty<PackageDependencySet>();
         public RID Rid { get; private set; }
+        public string Channel { get; private set; }
 
         protected string Description { get; private set; }
         protected IEnumerable<string> Authors { get; private set; } = Enumerable.Empty<string>();
@@ -59,49 +60,6 @@ namespace Velopack.NuGet
                 manifest = null;
                 return false;
             }
-        }
-
-        public static void SetMetadata(string nuspecPath, string mainExe, IEnumerable<string> runtimes, RID rid, string version)
-        {
-            Dictionary<string, string> toSet = new();
-
-            if (runtimes.Any()) {
-                toSet.Add("runtimeDependencies", String.Join(",", runtimes));
-            }
-
-            if (rid?.IsValid == true) {
-                toSet.Add("rid", rid.ToDisplay(RidDisplayType.FullVersion));
-                toSet.Add("os", rid.BaseRID.GetOsShortName());
-                if (rid.HasVersion)
-                    toSet.Add("osMinVersion", rid.Version.ToString());
-                if (rid.HasArchitecture)
-                    toSet.Add("machineArchitecture", rid.Architecture.ToString());
-            }
-
-            if (!String.IsNullOrWhiteSpace(mainExe))
-                toSet.Add("mainExe", mainExe);
-
-            if (!String.IsNullOrWhiteSpace(version))
-                toSet.Add("version", version);
-
-            if (!toSet.Any())
-                return;
-
-            XDocument document;
-            using (var fs = File.OpenRead(nuspecPath))
-                document = NugetUtil.LoadSafe(fs, ignoreWhiteSpace: true);
-
-            var metadataElement = document.Root.ElementsNoNamespace("metadata").FirstOrDefault();
-            if (metadataElement == null) {
-                throw new InvalidDataException("Invalid nuspec xml. Required element 'metadata' missing.");
-            }
-
-            foreach (var el in toSet) {
-                var elName = XName.Get(el.Key, document.Root.GetDefaultNamespace().NamespaceName);
-                metadataElement.SetElementValue(elName, el.Value);
-            }
-
-            document.Save(nuspecPath);
         }
 
         protected void ReadManifest(Stream manifestStream)
@@ -199,7 +157,9 @@ namespace Velopack.NuGet
             case "rid":
                 Rid = RID.Parse(value);
                 break;
-
+            case "channel":
+                Channel = value;
+                break;
             }
         }
 
@@ -269,7 +229,7 @@ namespace Velopack.NuGet
 
         protected bool IsPackageFile(string partPath)
         {
-            if (Path.GetFileName(partPath).Equals(ContentType.ContentTypeFileName, StringComparison.OrdinalIgnoreCase))
+            if (Path.GetFileName(partPath).Equals(NugetUtil.ContentTypeFileName, StringComparison.OrdinalIgnoreCase))
                 return false;
 
             if (Path.GetExtension(partPath).Equals(NugetUtil.ManifestExtension, StringComparison.OrdinalIgnoreCase))

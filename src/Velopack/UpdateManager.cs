@@ -26,7 +26,6 @@ namespace Velopack
         /// <summary> True if this application is currently installed, and is able to download/check for updates. </summary>
         public virtual bool IsInstalled => Locator.CurrentlyInstalledVersion != null;
 
-
         /// <summary> True if there is a local update prepared that requires a call to <see cref="ApplyUpdatesAndRestart(string[])"/> to be applied. </summary>
         public virtual bool IsUpdatePendingRestart {
             get {
@@ -49,16 +48,20 @@ namespace Velopack
         /// <summary> The locator to use when searching for local file paths. </summary>
         protected IVelopackLocator Locator { get; }
 
+        /// <summary> The channel to use when searching for packages. </summary>
+        protected string Channel { get; }
+
         /// <summary>
         /// Creates a new UpdateManager instance using the specified URL or file path to the releases feed, and the specified channel name.
         /// </summary>
         /// <param name="urlOrPath">A basic URL or file path to use when checking for updates.</param>
         /// <param name="channel">Search for releases in the feed of a specific channel name. If null, it will search the default channel.</param>
-        /// <param name="logger">The logger to use for diagnostic messages.</param>
+        /// <param name="logger">The logger to use for diagnostic messages. If one was provided to <see cref="VelopackApp.Run(ILogger)"/> but is null here, 
+        /// it will be cached and used again.</param>
         /// <param name="locator">This should usually be left null. Providing an <see cref="IVelopackLocator" /> allows you to mock up certain application paths. 
         /// For example, if you wanted to test that updates are working in a unit test, you could provide an instance of <see cref="TestVelopackLocator"/>. </param>
         public UpdateManager(string urlOrPath, string channel = null, ILogger logger = null, IVelopackLocator locator = null)
-            : this(CreateSimpleSource(urlOrPath, channel, logger), logger, locator)
+            : this(CreateSimpleSource(urlOrPath), channel, logger, locator)
         {
         }
 
@@ -67,21 +70,24 @@ namespace Velopack
         /// </summary>
         /// <param name="source">The source describing where to search for updates. This can be a custom source, if you are integrating with some private resource,
         /// or it could be one of the predefined sources. (eg. <see cref="SimpleWebSource"/> or <see cref="GithubSource"/>, etc).</param>
-        /// <param name="logger">The logger to use for diagnostic messages.</param>
+        /// <param name="channel">Search for releases in the feed of a specific channel name. If null, it will search the default channel.</param>
+        /// <param name="logger">The logger to use for diagnostic messages. If one was provided to <see cref="VelopackApp.Run(ILogger)"/> but is null here, 
+        /// it will be cached and used again.</param>
         /// <param name="locator">This should usually be left null. Providing an <see cref="IVelopackLocator" /> allows you to mock up certain application paths. 
         /// For example, if you wanted to test that updates are working in a unit test, you could provide an instance of <see cref="TestVelopackLocator"/>. </param>
-        public UpdateManager(IUpdateSource source, ILogger logger = null, IVelopackLocator locator = null)
+        public UpdateManager(IUpdateSource source, string channel = null, ILogger logger = null, IVelopackLocator locator = null)
             : this(logger, locator)
         {
             if (source == null) {
                 throw new ArgumentNullException(nameof(source));
             }
             Source = source;
+            Channel = channel;
         }
 
         internal UpdateManager(ILogger logger, IVelopackLocator locator)
         {
-            Log = logger ?? NullLogger.Instance;
+            Log = logger ?? VelopackApp.DefaultLogger ?? NullLogger.Instance;
             Locator = locator ?? VelopackLocator.GetDefault(Log);
         }
 
@@ -106,7 +112,8 @@ namespace Velopack
             var latestLocalFull = Locator.GetLatestLocalFullPackage();
 
             Log.Debug("Retrieving latest release feed.");
-            var feed = await Source.GetReleaseFeed(betaId, latestLocalFull?.Identity).ConfigureAwait(false);
+            var channel = Channel ?? Locator.Channel;
+            var feed = await Source.GetReleaseFeed(channel, betaId, latestLocalFull?.Identity, Log).ConfigureAwait(false);
 
             var latestRemoteFull = feed.Where(r => !r.IsDelta).MaxBy(x => x.Version).FirstOrDefault();
             if (latestRemoteFull == null) {
@@ -501,16 +508,15 @@ namespace Velopack
             return mutex;
         }
 
-        private static IUpdateSource CreateSimpleSource(string urlOrPath, string channel, ILogger logger)
+        private static IUpdateSource CreateSimpleSource(string urlOrPath)
         {
-            logger ??= NullLogger.Instance;
             if (String.IsNullOrWhiteSpace(urlOrPath)) {
                 throw new ArgumentException("Must pass a valid URL or file path to UpdateManager", nameof(urlOrPath));
             }
             if (Utility.IsHttpUrl(urlOrPath)) {
-                return new SimpleWebSource(urlOrPath, channel, Utility.CreateDefaultDownloader(), logger);
+                return new SimpleWebSource(urlOrPath, Utility.CreateDefaultDownloader());
             } else {
-                return new SimpleFileSource(new DirectoryInfo(urlOrPath), channel, logger);
+                return new SimpleFileSource(new DirectoryInfo(urlOrPath));
             }
         }
     }

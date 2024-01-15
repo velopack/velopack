@@ -11,26 +11,25 @@ namespace Velopack.Sources
     /// Retrieves available updates from a local or network-attached disk. The directory
     /// must contain one or more valid packages, as well as a 'RELEASES' index file.
     /// </summary>
-    public class SimpleFileSource : SourceBase
+    public class SimpleFileSource : IUpdateSource
     {
         /// <summary> The local directory containing packages to update to. </summary>
         public virtual DirectoryInfo BaseDirectory { get; }
 
         /// <inheritdoc cref="SimpleFileSource" />
-        public SimpleFileSource(DirectoryInfo baseDirectory, string channel = null, ILogger logger = null)
-            : base(channel, logger)
+        public SimpleFileSource(DirectoryInfo baseDirectory)
         {
             BaseDirectory = baseDirectory;
         }
 
         /// <inheritdoc />
-        public override Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null)
+        public Task<ReleaseEntry[]> GetReleaseFeed(string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null, ILogger logger = null)
         {
             if (!BaseDirectory.Exists)
                 throw new Exception($"The local update directory '{BaseDirectory.FullName}' does not exist.");
 
-            var releasesPath = Path.Combine(BaseDirectory.FullName, GetReleasesFileName());
-            Log.Info($"Reading RELEASES from '{releasesPath}'");
+            var releasesPath = Path.Combine(BaseDirectory.FullName, Utility.GetReleasesFileName(channel));
+            logger.Info($"Reading RELEASES from '{releasesPath}'");
             var fi = new FileInfo(releasesPath);
 
             if (fi.Exists) {
@@ -39,7 +38,7 @@ namespace Velopack.Sources
             } else {
                 var packages = BaseDirectory.EnumerateFiles("*.nupkg");
                 if (packages.Any()) {
-                    Log.Warn($"The file '{releasesPath}' does not exist but directory contains packages. " +
+                    logger.Warn($"The file '{releasesPath}' does not exist but directory contains packages. " +
                         $"This is not valid but attempting to proceed anyway by writing new file.");
                     return Task.FromResult(ReleaseEntry.BuildReleasesFile(BaseDirectory.FullName).ToArray());
                 } else {
@@ -49,7 +48,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public override Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress)
+        public Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress, ILogger logger = null)
         {
             var releasePath = Path.Combine(BaseDirectory.FullName, releaseEntry.OriginalFilename);
             if (!File.Exists(releasePath))

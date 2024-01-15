@@ -31,6 +31,9 @@ namespace Velopack.Locators
         /// <inheritdoc />
         public override string PackagesDir => CreateSubDirIfDoesNotExist(RootAppDir, "packages");
 
+        /// <inheritdoc />
+        public override string Channel { get; }
+
         /// <inheritdoc cref="WindowsVelopackLocator" />
         public WindowsVelopackLocator(ILogger logger) : this(VelopackRuntimeInfo.EntryExePath, logger)
         {
@@ -71,6 +74,7 @@ namespace Velopack.Locators
                     RootAppDir = Path.GetDirectoryName(possibleUpdateExe);
                     UpdateExePath = possibleUpdateExe;
                     AppContentDir = myDirPath;
+                    Channel = manifest.Channel;
                 } else if (Utility.PathPartStartsWith(myDirName, "app-") && NuGetVersion.TryParse(myDirName.Substring(4), out var version)) {
                     // this is a legacy case, where we're running in an 'root/app-*/' directory, and there is no manifest.
                     Log.Warn("Legacy app-* directory detected, sq.version not found. Using directory name for AppId and Version.");
@@ -95,6 +99,7 @@ namespace Velopack.Locators
                     AppId = manifest.Id;
                     CurrentlyInstalledVersion = manifest.Version;
                     AppContentDir = currentDir;
+                    Channel = manifest.Channel;
                 }
             }
         }

@@ -112,7 +112,7 @@ namespace Velopack.Sources
     /// Retrieves available releases from a GitLab repository. This class only
     /// downloads assets from the very latest GitLab release.
     /// </summary>
-    public class GitlabSource : SourceBase
+    public class GitlabSource : IUpdateSource
     {
         /// <summary> 
         /// The URL of the GitLab repository to download releases from 
@@ -156,14 +156,7 @@ namespace Velopack.Sources
         /// <param name="downloader">
         /// The file downloader used to perform HTTP requests. 
         /// </param>
-        /// <param name="channel">
-        /// The release channel to search for releases. Can be null to search the default channel.
-        /// </param>
-        /// <param name="logger">
-        /// The ILogger to use when printing diagnostic messages
-        /// </param>
-        public GitlabSource(string repoUrl, string accessToken, bool upcomingRelease, string channel = null, IFileDownloader downloader = null, ILogger logger = null)
-            : base(channel, logger)
+        public GitlabSource(string repoUrl, string accessToken, bool upcomingRelease, IFileDownloader downloader = null)
         {
             RepoUri = new Uri(repoUrl);
             AccessToken = accessToken;
@@ -172,20 +165,20 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public override Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress)
+        public async Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress, ILogger logger = null)
         {
             if (releaseEntry is GitlabReleaseEntry githubEntry) {
                 // this might be a browser url or an api url (depending on whether we have a AccessToken or not)
                 // https://docs.github.com/en/rest/reference/releases#get-a-release-asset
                 var assetUrl = GetAssetUrlFromName(githubEntry.Release, releaseEntry.OriginalFilename);
-                return Downloader.DownloadFile(assetUrl, localFile, progress, Authorization, "application/octet-stream");
+                await Downloader.DownloadFile(assetUrl, localFile, progress, Authorization, "application/octet-stream").ConfigureAwait(false);
             }
 
             throw new ArgumentException($"Expected releaseEntry to be {nameof(GitlabReleaseEntry)} but got {releaseEntry.GetType().Name}.");
         }
 
         /// <inheritdoc />
-        public override async Task<ReleaseEntry[]> GetReleaseFeed(Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null)
+        public async Task<ReleaseEntry[]> GetReleaseFeed(string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null, ILogger logger = null)
         {
             var releases = await GetReleases(UpcomingRelease).ConfigureAwait(false);
             if (releases == null || releases.Count() == 0)
@@ -195,7 +188,7 @@ namespace Velopack.Sources
             // in the future, we might want to search through more than one for delta's.
             var release = releases.First();
 
-            var assetUrl = GetAssetUrlFromName(release, GetReleasesFileName());
+            var assetUrl = GetAssetUrlFromName(release, Utility.GetReleasesFileName(channel));
             var releaseBytes = await Downloader.DownloadBytes(assetUrl, Authorization, "application/octet-stream").ConfigureAwait(false);
             var txt = Utility.RemoveByteOrderMarkerIfPresent(releaseBytes);
             return ReleaseEntry.ParseReleaseFileAndApplyStaging(txt, stagingId)

@@ -62,6 +62,7 @@ namespace Velopack.Locators
                 return _version;
             }
         }
+
         /// <inheritdoc />
         public override string AppContentDir {
             get {
@@ -72,22 +73,33 @@ namespace Velopack.Locators
             }
         }
 
+        /// <inheritdoc />
+        public override string Channel {
+            get {
+                if (_channel == null) {
+                    throw new NotSupportedException("AppContentDir is not supported in this test implementation.");
+                }
+                return _channel;
+            }
+        }
+
         private readonly string _updatePath;
         private readonly SemanticVersion _version;
         private readonly string _packages;
         private readonly string _id;
         private readonly string _root;
         private readonly string _appContent;
+        private readonly string _channel;
 
         /// <inheritdoc cref="TestVelopackLocator" />
         public TestVelopackLocator(string appId, string version, string packagesDir, ILogger logger = null)
-            : this(appId, version, packagesDir, null, null, null, logger)
+            : this(appId, version, packagesDir, null, null, null, null, logger)
         {
         }
 
         /// <inheritdoc cref="TestVelopackLocator" />
         public TestVelopackLocator(string appId, string version, string packagesDir, string appDir,
-            string rootDir, string updateExe, ILogger logger = null)
+            string rootDir, string updateExe, string channel = null, ILogger logger = null)
             : base(logger)
         {
             _id = appId;
@@ -96,6 +108,7 @@ namespace Velopack.Locators
             _updatePath = updateExe;
             _root = rootDir;
             _appContent = appDir;
+            _channel = channel;
         }
     }
 }

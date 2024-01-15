@@ -13,7 +13,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
     {
     }
 
-    protected override Task<string> PreprocessPackDir(Action<int> progress, string packDir, string nuspecText)
+    protected override Task<string> PreprocessPackDir(Action<int> progress, string packDir)
     {
         var dir = TempDir.CreateSubdirectory(Options.PackId + ".app");
         bool deleteAppBundle = false;
@@ -24,15 +24,15 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
         }
 
         CopyFiles(new DirectoryInfo(appBundlePath), dir, progress, true);
-        var structure = new OsxStructureBuilder(dir.FullName);
 
         if (deleteAppBundle) {
             Log.Debug("Removing temporary .app bundle.");
             Utility.DeleteFileOrDirectoryHard(appBundlePath);
         }
 
+        var structure = new OsxStructureBuilder(dir.FullName);
         var macosdir = structure.MacosDirectory;
-        File.WriteAllText(Path.Combine(macosdir, "sq.version"), nuspecText);
+        File.WriteAllText(Path.Combine(macosdir, "sq.version"), GenerateNuspecContent());
         File.Copy(HelperFile.GetUpdatePath(), Path.Combine(macosdir, "UpdateMac"), true);
 
         foreach (var f in Directory.GetFiles(macosdir, "*", SearchOption.AllDirectories)) {
