@@ -165,13 +165,13 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public async Task DownloadReleaseEntry(ILogger logger, ReleaseEntry releaseEntry, string localFile, Action<int> progress)
+        public Task DownloadReleaseEntry(ILogger logger, ReleaseEntry releaseEntry, string localFile, Action<int> progress)
         {
             if (releaseEntry is GitlabReleaseEntry githubEntry) {
                 // this might be a browser url or an api url (depending on whether we have a AccessToken or not)
                 // https://docs.github.com/en/rest/reference/releases#get-a-release-asset
                 var assetUrl = GetAssetUrlFromName(githubEntry.Release, releaseEntry.OriginalFilename);
-                await Downloader.DownloadFile(assetUrl, localFile, progress, Authorization, "application/octet-stream").ConfigureAwait(false);
+                return Downloader.DownloadFile(assetUrl, localFile, progress, Authorization, "application/octet-stream");
             }
 
             throw new ArgumentException($"Expected releaseEntry to be {nameof(GitlabReleaseEntry)} but got {releaseEntry.GetType().Name}.");

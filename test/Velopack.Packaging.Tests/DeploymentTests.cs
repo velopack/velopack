@@ -135,9 +135,9 @@ This is just a _test_!
             if (String.IsNullOrEmpty(GITHUB_TOKEN))
                 throw new Exception("VELOPACK_GITHUB_TEST_TOKEN is not set.");
 
-            var newVer = $"{VelopackRuntimeInfo.VelopackNugetVersion}-{uniqueSuffix}";
-            PackTestApp(id, $"0.0.1-{uniqueSuffix}", "t1", releaseDir, logger, notesPath);
-            PackTestApp(id, newVer, "t2", releaseDir, logger, notesPath);
+            var newVer = $"{VelopackRuntimeInfo.VelopackNugetVersion}";
+            PackTestApp(id, $"0.0.1", "t1", releaseDir, logger, notesPath, channel: uniqueSuffix);
+            PackTestApp(id, newVer, "t2", releaseDir, logger, notesPath, channel: uniqueSuffix);
 
             // deploy
             var gh = new GitHubRepository(logger);
@@ -148,6 +148,7 @@ This is just a _test_!
                 Token = GITHUB_TOKEN,
                 Prerelease = false,
                 Publish = true,
+                Channel = uniqueSuffix,
             };
             gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
 
@@ -158,14 +159,14 @@ This is just a _test_!
 
             // update
             var source = new GithubSource(GITHUB_REPOURL, GITHUB_TOKEN, false);
-            var releases = source.GetReleaseFeed(logger: logger).GetAwaiterResult();
+            var releases = source.GetReleaseFeed(channel: uniqueSuffix, logger: logger).GetAwaiterResult();
 
             var ghrel = releases.Select(r => (GithubReleaseEntry) r).ToArray();
             Assert.Equal(2, ghrel.Length);
             foreach (var r in ghrel) {
                 Assert.Equal(releaseName, r.Release.Name);
                 Assert.Equal(id, r.PackageId);
-                Assert.Equal(newVer, r.Version.ToNormalizedString());
+                Assert.Equal(newVer + "-" + uniqueSuffix, r.Version.ToNormalizedString());
             }
 
             using var _2 = Utility.GetTempDirectory(out var releaseDirNew);
@@ -173,9 +174,10 @@ This is just a _test_!
                 Token = GITHUB_TOKEN,
                 RepoUrl = GITHUB_REPOURL,
                 ReleaseDir = new DirectoryInfo(releaseDirNew),
+                Channel = uniqueSuffix,
             }).GetAwaiterResult();
 
-            var filename = $"{id}-{newVer}-{VelopackRuntimeInfo.SystemOs.GetOsShortName()}-full.nupkg";
+            var filename = $"{id}-{newVer}-{uniqueSuffix}-full.nupkg";
             Assert.True(File.Exists(Path.Combine(releaseDirNew, filename)));
         }
 

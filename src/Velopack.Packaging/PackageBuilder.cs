@@ -218,26 +218,23 @@ namespace Velopack.Packaging
                 runtimeDependenciesText = $"<runtimeDependencies>{runtimeDeps}</runtimeDependencies>";
             }
 
-            var extraLines = String.Join(Environment.NewLine, new[] { osMinVersionText, machineArchitectureText, releaseNotesText, runtimeDependenciesText })
-                .Split(new char[] { '\r', '\n' })
-                .Where(e => !String.IsNullOrWhiteSpace(e))
-                .Select(e => $"    {e.Trim()}")
-                .ToArray();
-
             string nuspec = $"""
 <?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
-  <metadata>
-    <id>{packId}</id>
-    <title>{packTitle ?? packId}</title>
-    <description>{packTitle ?? packId}</description>
-    <authors>{packAuthors ?? packId}</authors>
-    <version>{packVersion}</version>
-    <channel>{Channel}</channel>
-    <mainExe>{MainExeName}</mainExe>
-    <os>{rid.BaseRID.GetOsShortName()}</os>
-{String.Join(Environment.NewLine, extraLines)}
-  </metadata>
+<metadata>
+<id>{packId}</id>
+<title>{packTitle ?? packId}</title>
+<description>{packTitle ?? packId}</description>
+<authors>{packAuthors ?? packId}</authors>
+<version>{packVersion}</version>
+<channel>{Channel}</channel>
+<mainExe>{MainExeName}</mainExe>
+<os>{rid.BaseRID.GetOsShortName()}</os>
+{osMinVersionText}
+{machineArchitectureText}
+{releaseNotesText}
+{runtimeDependenciesText}
+</metadata>
 </package>
 """.Trim();
 

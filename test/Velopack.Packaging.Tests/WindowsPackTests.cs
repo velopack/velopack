@@ -58,10 +58,10 @@ public class WindowsPackTests
         var runner = new WindowsPackCommandRunner(logger);
         runner.Run(options).GetAwaiterResult();
 
-        var nupkgPath = Path.Combine(tmpReleaseDir, $"{id}-{version}-asd123-win-x64-full.nupkg");
+        var nupkgPath = Path.Combine(tmpReleaseDir, $"{id}-{version}-asd123-full.nupkg");
         Assert.True(File.Exists(nupkgPath));
 
-        var setupPath = Path.Combine(tmpReleaseDir, $"{id}-win-x64-asd123-Setup.exe");
+        var setupPath = Path.Combine(tmpReleaseDir, $"{id}-asd123-Setup.exe");
         Assert.True(File.Exists(setupPath));
 
         var releasesPath = Path.Combine(tmpReleaseDir, $"RELEASES-asd123");
@@ -88,72 +88,6 @@ public class WindowsPackTests
         Assert.True(File.Exists(Path.Combine(unzipDir, "lib", "app", Path.GetFileName(exe))));
         Assert.False(File.Exists(Path.Combine(unzipDir, "lib", "app", Path.GetFileName(pdb))));
     }
-
-    [SkippableFact]
-    public void PackBuildMultipleChannelsSameRid()
-    {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
-
-        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
-
-        using var _1 = Utility.GetTempDirectory(out var tmpOutput);
-        using var _2 = Utility.GetTempDirectory(out var tmpReleaseDir);
-
-        var exe = "testawareapp.exe";
-        var pdb = Path.ChangeExtension(exe, ".pdb");
-        var id = "Test.Squirrel-App";
-        var version = "1.0.0";
-
-        PathHelper.CopyRustAssetTo(exe, tmpOutput);
-        PathHelper.CopyRustAssetTo(pdb, tmpOutput);
-
-        var options = new WindowsPackOptions {
-            EntryExecutableName = exe,
-            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
-            PackId = id,
-            PackVersion = version,
-            TargetRuntime = RID.Parse("win10.0.19043-x64"),
-            Runtimes = "net6",
-            PackAuthors = "author",
-            PackTitle = "Test Squirrel App",
-            PackDirectory = tmpOutput,
-        };
-
-        var runner = new WindowsPackCommandRunner(logger);
-        runner.Run(options).GetAwaiterResult();
-
-
-        var nupkgPath1 = Path.Combine(tmpReleaseDir, $"{id}-{version}-win-x64-full.nupkg");
-        Assert.True(File.Exists(nupkgPath1));
-
-        var setupPath1 = Path.Combine(tmpReleaseDir, $"{id}-win-x64-Setup.exe");
-        Assert.True(File.Exists(setupPath1));
-
-        var releasesPath1 = Path.Combine(tmpReleaseDir, $"RELEASES");
-        Assert.True(File.Exists(releasesPath1));
-
-        var rel1 = ReleaseEntry.ParseReleaseFile(File.ReadAllText(releasesPath1, Encoding.UTF8));
-        Assert.Equal(1, rel1.Count());
-
-        options.Channel = "hello";
-        runner.Run(options).GetAwaiterResult();
-
-        var nupkgPath2 = Path.Combine(tmpReleaseDir, $"{id}-{version}-hello-win-x64-full.nupkg");
-        Assert.True(File.Exists(nupkgPath2));
-
-        var setupPath2 = Path.Combine(tmpReleaseDir, $"{id}-win-x64-hello-Setup.exe");
-        Assert.True(File.Exists(setupPath2));
-
-        var releasesPath2 = Path.Combine(tmpReleaseDir, $"RELEASES-hello");
-        Assert.True(File.Exists(releasesPath2));
-
-        rel1 = ReleaseEntry.ParseReleaseFile(File.ReadAllText(releasesPath1, Encoding.UTF8));
-        Assert.Equal(1, rel1.Count());
-
-        var rel2 = ReleaseEntry.ParseReleaseFile(File.ReadAllText(releasesPath2, Encoding.UTF8));
-        Assert.Equal(1, rel2.Count());
-    }
-
 
     [SkippableFact]
     public void PackBuildRefuseSameVersion()
@@ -288,7 +222,7 @@ public class WindowsPackTests
         var runner = new WindowsPackCommandRunner(logger);
         runner.Run(options).GetAwaiterResult();
 
-        var setupPath1 = Path.Combine(tmpReleaseDir, $"{id}-win-x64-Setup.exe");
+        var setupPath1 = Path.Combine(tmpReleaseDir, $"{id}-win-Setup.exe");
         Assert.True(File.Exists(setupPath1));
 
         RunNoCoverage(setupPath1, new[] { "--nocolor", "--silent", "--installto", tmpInstallDir }, Environment.CurrentDirectory, logger);
@@ -355,7 +289,7 @@ public class WindowsPackTests
         PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
 
         // install app
-        var setupPath1 = Path.Combine(releaseDir, $"{id}-win-x64-Setup.exe");
+        var setupPath1 = Path.Combine(releaseDir, $"{id}-win-Setup.exe");
         RunNoCoverage(setupPath1, new string[] { "--nocolor", "--silent", "--installto", installDir },
             Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
 
@@ -363,7 +297,7 @@ public class WindowsPackTests
         PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
 
         // move package into local packages dir
-        var fileName = $"{id}-2.0.0-win-x64-full.nupkg";
+        var fileName = $"{id}-2.0.0-win-full.nupkg";
         var mvFrom = Path.Combine(releaseDir, fileName);
         var mvTo = Path.Combine(installDir, "packages", fileName);
         File.Copy(mvFrom, mvTo);
@@ -387,7 +321,7 @@ public class WindowsPackTests
         PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
 
         // did a zsdiff get created for our v2 update?
-        var deltaPath = Path.Combine(releaseDir, $"{id}-2.0.0-win-x64-delta.nupkg");
+        var deltaPath = Path.Combine(releaseDir, $"{id}-2.0.0-win-delta.nupkg");
         Assert.True(File.Exists(deltaPath));
         using var _2 = Utility.GetTempDirectory(out var extractDir);
         EasyZip.ExtractZipToDirectory(logger, deltaPath, extractDir);
@@ -401,14 +335,14 @@ public class WindowsPackTests
         // apply delta and check package
         var output = Path.Combine(releaseDir, "delta.patched");
         new DeltaPatchCommandRunner(logger).Run(new DeltaPatchOptions {
-            BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-win-x64-full.nupkg"),
+            BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-win-full.nupkg"),
             OutputFile = output,
             PatchFiles = new[] { new FileInfo(deltaPath) },
         }).GetAwaiterResult();
 
         // are the packages the same?
         Assert.True(File.Exists(output));
-        var v2 = Path.Combine(releaseDir, $"{id}-2.0.0-win-x64-full.nupkg");
+        var v2 = Path.Combine(releaseDir, $"{id}-2.0.0-win-full.nupkg");
         var f1 = File.ReadAllBytes(output);
         var f2 = File.ReadAllBytes(v2);
         Assert.True(new ReadOnlySpan<byte>(f1).SequenceEqual(new ReadOnlySpan<byte>(f2)));
@@ -429,7 +363,7 @@ public class WindowsPackTests
         PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
 
         // install app
-        var setupPath1 = Path.Combine(releaseDir, $"{id}-win-x64-Setup.exe");
+        var setupPath1 = Path.Combine(releaseDir, $"{id}-win-Setup.exe");
         RunNoCoverage(setupPath1, new string[] { "--nocolor", "--installto", installDir },
             Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
 
@@ -478,7 +412,7 @@ public class WindowsPackTests
         PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
 
         // install app
-        var setupPath1 = Path.Combine(releaseDir, $"{id}-win-x64-Setup.exe");
+        var setupPath1 = Path.Combine(releaseDir, $"{id}-win-Setup.exe");
         RunNoCoverage(setupPath1, new string[] { "--nocolor", "--silent", "--installto", installDir },
             Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
 
@@ -512,8 +446,8 @@ public class WindowsPackTests
         PackTestApp(id, "3.0.0", "version 3 test", releaseDir, logger);
 
         // corrupt v2/v3 full packages as we want to test delta's
-        File.WriteAllText(Path.Combine(releaseDir, $"{id}-2.0.0-win-x64-full.nupkg"), "nope");
-        File.WriteAllText(Path.Combine(releaseDir, $"{id}-3.0.0-win-x64-full.nupkg"), "nope");
+        File.WriteAllText(Path.Combine(releaseDir, $"{id}-2.0.0-win-full.nupkg"), "nope");
+        File.WriteAllText(Path.Combine(releaseDir, $"{id}-3.0.0-win-full.nupkg"), "nope");
 
         // perform full update, check that we get v3
         // apply should fail if there's not an update downloaded

@@ -1,11 +1,12 @@
 ﻿using Microsoft.Extensions.Logging;
+using Velopack.Packaging;
 using Velopack.Sources;
 
 namespace Velopack.Deployment;
 
 public class RepositoryOptions
 {
-    public string Channel { get; set; }
+    public string Channel { get; set; } = ReleaseEntryHelper.GetDefaultChannel();
 
     public DirectoryInfo ReleaseDir { get; set; }
 }
