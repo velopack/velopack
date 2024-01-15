@@ -26,7 +26,6 @@ public class S3DownloadOptions : RepositoryOptions
 
 public class S3UploadOptions : S3DownloadOptions
 {
-    public bool Overwrite { get; set; }
 }
 
 public class S3Repository : DownRepository<S3DownloadOptions>, IRepositoryCanUpload<S3UploadOptions>
@@ -37,21 +36,19 @@ public class S3Repository : DownRepository<S3DownloadOptions>, IRepositoryCanUpl
 
     public async Task UploadMissingAssetsAsync(S3UploadOptions options)
     {
-        var assets = new ReleaseEntryHelper(options.ReleaseDir.FullName, Log)
-            .GetUploadAssets(options.Channel, ReleaseEntryHelper.AssetsMode.AllPackages);
-
-        var releasesName = SourceBase.GetReleasesFileNameImpl(options.Channel);
-        var remoteReleases = await GetReleasesAsync(options);
+        var build = BuildAssets.Read(options.ReleaseDir.FullName, options.Channel);
         var client = GetS3Client(options);
 
+        Log.Info($"Preparing to upload {build.Files.Count} local assets to S3 endpoint {options.Endpoint ?? ""}");
+
+        var remoteReleases = await GetReleasesAsync(options);
         Log.Info($"There are {remoteReleases.Length} assets in remote RELEASES file.");
 
-        var matchCount = assets.Releases.Count(r => remoteReleases.Any(remote => remote.OriginalFilename.Equals(r.OriginalFilename)));
-        Log.Info($"There are {assets.Releases} local releases ({assets.Releases.Count - matchCount} new, {matchCount} matching a remote filename).");
+        var localEntries = build.GetReleaseEntries();
 
         // merge local release entries with remote ones
         // will preserve the local entries because they appear first
-        var releaseEntries = assets.Releases
+        var releaseEntries = localEntries
             .Concat(remoteReleases)
             .DistinctBy(r => r.OriginalFilename)
             .OrderBy(k => k.Version)
@@ -60,19 +57,20 @@ public class S3Repository : DownRepository<S3DownloadOptions>, IRepositoryCanUpl
 
         Log.Info($"{releaseEntries.Length} merged releases.");
 
-        foreach (var asset in assets.Files) {
-            await UploadFile(client, options.Bucket, asset.Name, asset, options.Overwrite);
+        foreach (var asset in build.Files) {
+            await UploadFile(client, options.Bucket, Path.GetFileName(asset), new FileInfo(asset), true);
         }
 
         using var _1 = Utility.GetTempFileName(out var tmpReleases);
         ReleaseEntry.WriteReleaseFile(releaseEntries, tmpReleases);
+        var releasesName = Utility.GetReleasesFileName(options.Channel);
         await UploadFile(client, options.Bucket, releasesName, new FileInfo(tmpReleases), true);
         Log.Info("Done.");
     }
 
     protected override async Task<ReleaseEntry[]> GetReleasesAsync(S3DownloadOptions options)
     {
-        var releasesName = SourceBase.GetReleasesFileNameImpl(options.Channel);
+        var releasesName = Utility.GetReleasesFileName(options.Channel);
         var client = GetS3Client(options);
 
         var ms = new MemoryStream();

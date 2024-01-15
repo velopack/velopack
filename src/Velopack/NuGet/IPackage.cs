@@ -18,7 +18,6 @@ namespace Velopack.NuGet
         string ReleaseNotes { get; }
         Uri IconUrl { get; }
         IEnumerable<string> Tags { get; }
-        RID Rid { get; }
         IEnumerable<FrameworkAssemblyReference> FrameworkAssemblies { get; }
         IEnumerable<PackageDependencySet> DependencySets { get; }
         IEnumerable<string> RuntimeDependencies { get; }

@@ -198,7 +198,6 @@ public class EmbeddedRunner : ICommandRunner
             Region = command.Region,
             ReleaseDir = command.GetReleaseDirectory(),
             Secret = command.Secret,
-            Overwrite = command.Overwrite,
             Channel = command.Channel,
         };
         return new S3Repository(_logger).UploadMissingAssetsAsync(options);

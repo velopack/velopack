@@ -31,13 +31,13 @@ public abstract class SourceRepository<TDown, TSource> : DownRepository<TDown>
     protected override Task<ReleaseEntry[]> GetReleasesAsync(TDown options)
     {
         var source = CreateSource(options);
-        return source.GetReleaseFeed();
+        return source.GetReleaseFeed(channel: options.Channel, logger: Log);
     }
 
     protected override Task SaveEntryToFileAsync(TDown options, ReleaseEntry entry, string filePath)
     {
         var source = CreateSource(options);
-        return source.DownloadReleaseEntry(entry, filePath, (i) => { });
+        return source.DownloadReleaseEntry(entry, filePath, (i) => { }, logger: Log);
     }
 
     public abstract TSource CreateSource(TDown options);
@@ -55,9 +55,7 @@ public abstract class DownRepository<TDown> : IRepositoryCanDownload<TDown>
 
     public virtual async Task DownloadLatestFullPackageAsync(TDown options)
     {
-        var releasesName = SourceBase.GetReleasesFileNameImpl(options.Channel);
-
-        ReleaseEntry[] releases = await RetryAsyncRet(() => GetReleasesAsync(options), $"Fetching {releasesName}...");
+        ReleaseEntry[] releases = await RetryAsyncRet(() => GetReleasesAsync(options), $"Fetching releases for channel {options.Channel}...");
 
         Log.Info($"Found {releases.Length} release in remote file");
 

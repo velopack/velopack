@@ -16,6 +16,6 @@ public class HttpRepository : SourceRepository<HttpDownloadOptions, SimpleWebSou
 
     public override SimpleWebSource CreateSource(HttpDownloadOptions options)
     {
-        return new SimpleWebSource(options.Url, options.Channel, logger: Log);
+        return new SimpleWebSource(options.Url);
     }
 }

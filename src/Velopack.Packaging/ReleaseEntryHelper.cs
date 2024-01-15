@@ -35,7 +35,7 @@ namespace Velopack.Packaging
             return rel;
         }
 
-        public void ValidateChannelForPackaging(SemanticVersion version, RID rid)
+        public void ValidateForPackaging(SemanticVersion version)
         {
             if (!_releases.ContainsKey(_channel) || !_releases[_channel].Any())
                 return;
@@ -81,15 +81,15 @@ namespace Velopack.Packaging
             }
         }
 
-        public static string GetSuggestedReleaseName(string id, string version, string channel, RID rid, bool delta)
+        public static string GetSuggestedReleaseName(string id, string version, string channel, bool delta)
         {
-            var suffix = GetUniqueAssetSuffix(rid, channel);
+            var suffix = GetUniqueAssetSuffix(channel);
             return $"{id}-{version}{suffix}{(delta ? "-delta" : "-full")}.nupkg";
         }
 
-        public static string GetSuggestedPortableName(string id, string channel, RID rid)
+        public static string GetSuggestedPortableName(string id, string channel)
         {
-            var suffix = GetUniqueAssetSuffix(rid, channel);
+            var suffix = GetUniqueAssetSuffix(channel);
             if (VelopackRuntimeInfo.IsLinux) {
                 return $"{id}{suffix}.AppImage";
             } else {
@@ -97,33 +97,25 @@ namespace Velopack.Packaging
             }
         }
 
-        public static string GetSuggestedSetupName(string id, string channel, RID rid)
+        public static string GetSuggestedSetupName(string id, string channel)
         {
-            var suffix = GetUniqueAssetSuffix(rid, channel);
-            if (rid.BaseRID == RuntimeOs.Windows)
+            var suffix = GetUniqueAssetSuffix(channel);
+            if (VelopackRuntimeInfo.IsWindows)
                 return $"{id}{suffix}-Setup.exe";
-            else if (rid.BaseRID == RuntimeOs.OSX)
+            else if (VelopackRuntimeInfo.IsOSX)
                 return $"{id}{suffix}-Setup.pkg";
             else
-                throw new PlatformNotSupportedException("Platform not supported: " + rid);
+                throw new PlatformNotSupportedException("Platform not supported.");
         }
 
-        private static string GetUniqueAssetSuffix(RID rid, string channel)
+        private static string GetUniqueAssetSuffix(string channel)
         {
-            // since this suffix is only used to guarentee file name uniqueness, if rid
-            // components are in the channel name already, we'll de-duplicate them.
-            var ridString = rid.ToDisplay(RidDisplayType.NoVersion);
-            var ch = channel.ToLower();
-            var ridParts = ridString.Split('-');
-            foreach (var part in ridParts) {
-                ch = Regex.Replace(ch, $@"(^|-){part}($|-)", "", RegexOptions.IgnoreCase);
-            }
-            if (ch.Length == 0) return "-" + ridString;
-            return "-" + ch + "-" + ridString;
+            return "-" + channel;
         }
 
-        public static string GetDefaultChannel(RuntimeOs os)
+        public static string GetDefaultChannel(RuntimeOs? os = null)
         {
+            os ??= VelopackRuntimeInfo.SystemOs;
             if (os == RuntimeOs.Windows) return "win";
             if (os == RuntimeOs.OSX) return "osx";
             if (os == RuntimeOs.Linux) return "linux";

@@ -42,12 +42,6 @@ namespace Velopack
         /// <summary> Whether this package represents a full update, or a delta update. </summary>
         [DataMember] public bool IsDelta => Identity.IsDelta;
 
-        /// <summary> 
-        /// The runtime identifier parsed from the file name. 
-        /// Used to determine if this package is suitable for the current operating system.
-        /// </summary>
-        [DataMember] public RID Rid => Identity.Rid;
-
         /// <summary> The SHA1 checksum of the update package containing this release. </summary>
         [DataMember] public string SHA1 { get; protected set; }
 

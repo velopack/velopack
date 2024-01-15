@@ -28,7 +28,6 @@ namespace Velopack.NuGet
         public IEnumerable<string> RuntimeDependencies { get; private set; } = Enumerable.Empty<string>();
         public IEnumerable<FrameworkAssemblyReference> FrameworkAssemblies { get; private set; } = Enumerable.Empty<FrameworkAssemblyReference>();
         public IEnumerable<PackageDependencySet> DependencySets { get; private set; } = Enumerable.Empty<PackageDependencySet>();
-        public RID Rid { get; private set; }
         public string Channel { get; private set; }
 
         protected string Description { get; private set; }
@@ -153,9 +152,6 @@ namespace Velopack.NuGet
                 break;
             case "releaseNotesHtml":
                 ReleaseNotesHtml = value;
-                break;
-            case "rid":
-                Rid = RID.Parse(value);
                 break;
             case "channel":
                 Channel = value;

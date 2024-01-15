@@ -52,7 +52,7 @@ namespace Velopack.Packaging
             var channel = options.Channel?.ToLower() ?? ReleaseEntryHelper.GetDefaultChannel(SupportedTargetOs);
 
             var entryHelper = new ReleaseEntryHelper(releaseDir.FullName, channel, Log);
-            entryHelper.ValidateChannelForPackaging(SemanticVersion.Parse(options.PackVersion), options.TargetRuntime);
+            entryHelper.ValidateForPackaging(SemanticVersion.Parse(options.PackVersion));
             Channel = channel;
 
             var packId = options.PackId;
@@ -127,7 +127,7 @@ namespace Velopack.Packaging
                 }
 
                 var portableTask = ctx.RunTask("Building portable package", async (progress) => {
-                    var suggestedName = ReleaseEntryHelper.GetSuggestedPortableName(packId, channel, options.TargetRuntime);
+                    var suggestedName = ReleaseEntryHelper.GetSuggestedPortableName(packId, channel);
                     await CreatePortablePackage(progress, packDirectory, getIncompletePath(suggestedName));
                 });
 
@@ -136,21 +136,21 @@ namespace Velopack.Packaging
 
                 string releasePath = null;
                 await ctx.RunTask($"Building release {packVersion}", async (progress) => {
-                    var suggestedName = ReleaseEntryHelper.GetSuggestedReleaseName(packId, packVersion, channel, options.TargetRuntime, false);
+                    var suggestedName = ReleaseEntryHelper.GetSuggestedReleaseName(packId, packVersion, channel, false);
                     await CreateReleasePackage(progress, packDirectory, getIncompletePath(suggestedName));
                 });
 
                 Task setupTask = null;
                 if (VelopackRuntimeInfo.IsWindows || VelopackRuntimeInfo.IsOSX) {
                     setupTask = ctx.RunTask("Building setup package", async (progress) => {
-                        var suggestedName = ReleaseEntryHelper.GetSuggestedSetupName(packId, channel, options.TargetRuntime);
+                        var suggestedName = ReleaseEntryHelper.GetSuggestedSetupName(packId, channel);
                         await CreateSetupPackage(progress, releasePath, packDirectory, getIncompletePath(suggestedName));
                     });
                 }
 
                 if (prev != null && options.DeltaMode != DeltaMode.None) {
                     await ctx.RunTask($"Building delta {prev.Version} -> {packVersion}", async (progress) => {
-                        var suggestedName = ReleaseEntryHelper.GetSuggestedReleaseName(packId, packVersion, channel, options.TargetRuntime, true);
+                        var suggestedName = ReleaseEntryHelper.GetSuggestedReleaseName(packId, packVersion, channel, true);
                         var deltaPkg = await CreateDeltaPackage(progress, releasePath, prev.PackageFile, getIncompletePath(suggestedName), options.DeltaMode);
                     });
                 }
@@ -226,7 +226,6 @@ namespace Velopack.Packaging
     <version>{packVersion}</version>
     <channel>{Channel}</channel>
     <mainExe>{MainExeName}</mainExe>
-    <rid>{rid.ToDisplay(RidDisplayType.FullVersion)}</rid>
     <os>{rid.BaseRID.GetOsShortName()}</os>
 {String.Join(Environment.NewLine, extraLines)}
   </metadata>

@@ -35,7 +35,7 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
 
     public override GithubSource CreateSource(GitHubDownloadOptions options)
     {
-        return new GithubSource(options.RepoUrl, options.Token, options.Prerelease, options.Channel, logger: Log);
+        return new GithubSource(options.RepoUrl, options.Token, options.Prerelease);
     }
 
     public static (string owner, string repo) GetOwnerAndRepo(string repoUrl)
@@ -53,16 +53,15 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
     public async Task UploadMissingAssetsAsync(GitHubUploadOptions options)
     {
         var (repoOwner, repoName) = GetOwnerAndRepo(options.RepoUrl);
-
-        var helper = new ReleaseEntryHelper(options.ReleaseDir.FullName, Log);
-        var assets = helper.GetUploadAssets(options.Channel, ReleaseEntryHelper.AssetsMode.OnlyLatest);
+        var helper = new ReleaseEntryHelper(options.ReleaseDir.FullName, options.Channel, Log);
+        var build = BuildAssets.Read(options.ReleaseDir.FullName, options.Channel);
         var latest = helper.GetLatestFullRelease(options.Channel);
         var latestPath = Path.Combine(options.ReleaseDir.FullName, latest.OriginalFilename);
         var releaseNotes = new ZipPackage(latestPath).ReleaseNotes;
         var semVer = options.TagName ?? latest.Version.ToString();
         var releaseName = string.IsNullOrWhiteSpace(options.ReleaseName) ? semVer.ToString() : options.ReleaseName;
 
-        Log.Info($"Preparing to upload {assets.Files.Count} assets to GitHub");
+        Log.Info($"Preparing to upload {build.Files.Count} assets to GitHub");
 
         var client = new GitHubClient(new ProductHeaderValue("Velopack")) {
             Credentials = new Credentials(options.Token)
@@ -98,26 +97,23 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
         }
 
         // check if there is an existing releasesFile to merge
-        var releaseAsset = release.Assets.FirstOrDefault(a => a.Name == assets.ReleasesFileName);
+        var releasesFileName = Utility.GetReleasesFileName(options.Channel);
+        var releaseAsset = release.Assets.FirstOrDefault(a => a.Name == releasesFileName);
         if (releaseAsset != null) {
-            throw new UserInfoException($"There is already a release asset named '{assets.ReleasesFileName}', and merging release files is not supported.");
-            //Log.Info($"Will merge with existing remote releases file ({releaseAsset.Name}).");
-            //var dl = Utility.CreateDefaultDownloader();
-            //var releasesString = await dl.DownloadString(releaseAsset.BrowserDownloadUrl);
-            //var remoteReleases = ReleaseEntry.ParseReleaseFile(releasesString).ToArray();
-            //assets.Releases.AddRange(remoteReleases);
-            //Log.Info($"There will be {assets.Releases.Count} in final release file ({remoteReleases.Length} added).");
+            throw new UserInfoException($"There is already a remote asset named '{releasesFileName}', and merging release files on GitHub is not supported.");
         }
 
         // upload all assets (incl packages)
-        foreach (var a in assets.Files) {
-            await RetryAsync(() => UploadFileAsAsset(client, release, a.FullName), $"Uploading asset '{a.Name}'..");
+        foreach (var a in build.Files) {
+            await RetryAsync(() => UploadFileAsAsset(client, release, a), $"Uploading asset '{Path.GetFileName(a)}'..");
         }
 
+        var entries = build.GetReleaseEntries();
+
         MemoryStream releasesFileToUpload = new MemoryStream();
-        ReleaseEntry.WriteReleaseFile(assets.Releases, releasesFileToUpload);
+        ReleaseEntry.WriteReleaseFile(entries, releasesFileToUpload);
         var releasesBytes = releasesFileToUpload.ToArray();
-        var data = new ReleaseAssetUpload(assets.ReleasesFileName, "application/octet-stream", new MemoryStream(releasesBytes), TimeSpan.FromMinutes(1));
+        var data = new ReleaseAssetUpload(releasesFileName, "application/octet-stream", new MemoryStream(releasesBytes), TimeSpan.FromMinutes(1));
         await client.Repository.Release.UploadAsset(release, data, CancellationToken.None);
 
         // convert draft to full release
