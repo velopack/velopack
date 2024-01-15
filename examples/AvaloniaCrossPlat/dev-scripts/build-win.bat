@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 
 if "%~1"=="" (
     echo Version number is required.
-    echo Usage: build.bat [version]
+    echo Usage: build.bat [version] [extra_args...]
     exit /b 1
 )
 
@@ -26,4 +26,4 @@ dotnet publish -c Release --no-self-contained -r win-x64 -o publish -p:UseLocalV
 
 echo.
 echo Building Velopack Release v%version%
-%~dp0..\..\..\build\Debug\net8.0\vpk pack -u AvaloniaCrossPlat -v %version% -o releases -p publish -f net8-x64-desktop
+%~dp0..\..\..\build\Debug\net8.0\vpk pack -u AvaloniaCrossPlat -o releases -p publish -f net8-x64-desktop -v %*
