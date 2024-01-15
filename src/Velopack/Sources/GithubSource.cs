@@ -2,41 +2,40 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Velopack.Json;
 
 namespace Velopack.Sources
 {
     /// <summary> Describes a GitHub release, including attached assets. </summary>
-    [DataContract]
     public class GithubRelease
     {
         /// <summary> The name of this release. </summary>
-        [DataMember(Name = "name")]
+        [JsonPropertyName("name")]
         public string Name { get; set; }
 
         /// <summary> True if this release is a prerelease. </summary>
-        [DataMember(Name = "prerelease")]
+        [JsonPropertyName("prerelease")]
         public bool Prerelease { get; set; }
 
         /// <summary> The date which this release was published publically. </summary>
-        [DataMember(Name = "published_at")]
+        [JsonPropertyName("published_at")]
         public DateTime? PublishedAt { get; set; }
 
         /// <summary> A list of assets (files) uploaded to this release. </summary>
-        [DataMember(Name = "assets")]
+        [JsonPropertyName("assets")]
         public GithubReleaseAsset[] Assets { get; set; }
     }
 
     /// <summary> Describes a asset (file) uploaded to a GitHub release. </summary>
-    [DataContract]
     public class GithubReleaseAsset
     {
         /// <summary> 
         /// The asset URL for this release asset. Requests to this URL will use API
         /// quota and return JSON unless the 'Accept' header is "application/octet-stream". 
         /// </summary>
-        [DataMember(Name = "url")]
+        [JsonPropertyName("url")]
         public string Url { get; set; }
 
         /// <summary>  
@@ -45,15 +44,15 @@ namespace Velopack.Sources
         /// assets from a private repository, the <see cref="Url"/> property must
         /// be used with an appropriate access token.
         /// </summary>
-        [DataMember(Name = "browser_download_url")]
+        [JsonPropertyName("browser_download_url")]
         public string BrowserDownloadUrl { get; set; }
 
         /// <summary> The name of this release asset. </summary>
-        [DataMember(Name = "name")]
+        [JsonPropertyName("name")]
         public string Name { get; set; }
 
         /// <summary> The mime type of this release asset (as detected by GitHub). </summary>
-        [DataMember(Name = "content_type")]
+        [JsonPropertyName("content_type")]
         public string ContentType { get; set; }
     }
 

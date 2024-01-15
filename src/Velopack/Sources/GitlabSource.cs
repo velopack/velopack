@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Velopack.Json;
@@ -11,69 +12,66 @@ namespace Velopack.Sources
     /// <summary>
     /// Describes a Gitlab release, plus any assets that are attached.
     /// </summary>
-    [DataContract]
     public class GitlabRelease
     {
         /// <summary>
         /// The name of the release.
         /// </summary>
-        [DataMember(Name = "name")]
+        [JsonPropertyName("name")]
         public string Name { get; set; }
 
         /// <summary>
         /// True if this is intended for an upcoming release.
         /// </summary>
-        [DataMember(Name = "upcoming_release")]
+        [JsonPropertyName("upcoming_release")]
         public bool UpcomingRelease { get; set; }
 
         /// <summary>
         /// The date which this release was published publically.
         /// </summary>
-        [DataMember(Name = "released_at")]
+        [JsonPropertyName("released_at")]
         public DateTime ReleasedAt { get; set; }
 
         /// <summary>
         /// A container for the assets (files) uploaded to this release.
         /// </summary>
-        [DataMember(Name = "assets")]
+        [JsonPropertyName("assets")]
         public GitlabReleaseAsset Assets { get; set; }
     }
 
     /// <summary>
     /// Describes a container for the assets attached to a release.
     /// </summary>
-    [DataContract]
     public class GitlabReleaseAsset
     {
         /// <summary>
         /// The amount of assets linked to the release.
         /// </summary>
-        [DataMember(Name = "count")]
+        [JsonPropertyName("count")]
         public int Count { get; set; }
 
         /// <summary>
         /// A list of asset (file) links.
         /// </summary>
-        [DataMember(Name = "links")]
+        [JsonPropertyName("links")]
         public GitlabReleaseLink[] Links { get; set; }
     }
 
     /// <summary>
     /// Describes a container for the links of assets attached to a release.
     /// </summary>
-    [DataContract]
     public class GitlabReleaseLink
     {
         /// <summary>
         /// Name of the asset (file) linked.
         /// </summary>
-        [DataMember(Name = "name")]
+        [JsonPropertyName("name")]
         public string Name { get; set; }
 
         /// <summary>
         /// The url for the asset. This make use of the Gitlab API.
         /// </summary>
-        [DataMember(Name = "url")]
+        [JsonPropertyName("url")]
         public string Url { get; set; }
 
         /// <summary>
@@ -81,14 +79,14 @@ namespace Velopack.Sources
         /// As a posed to using the API.
         /// This links directly to the raw asset (file).
         /// </summary>
-        [DataMember(Name = "direct_asset_url")]
+        [JsonPropertyName("direct_asset_url")]
         public string DirectAssetUrl { get; set; }
 
         /// <summary>
         /// The category type that the asset is listed under.
         /// Options: 'Package', 'Image', 'Runbook', 'Other'
         /// </summary>
-        [DataMember(Name = "link_type")]
+        [JsonPropertyName("link_type")]
         public string Type { get; set; }
     }
 

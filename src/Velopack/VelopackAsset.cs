@@ -45,7 +45,7 @@ namespace Velopack
         public string PackageId { get; init; }
 
         /// <summary> The version of this release. </summary>
-        public string Version { get; init; }
+        public SemanticVersion Version { get; init; }
 
         /// <summary> The type of asset (eg. full or delta). </summary>
         public VelopackAssetType Type { get; init; }
@@ -73,7 +73,7 @@ namespace Velopack
             var filePath = zip.LoadedFromPath;
             return new VelopackAsset {
                 PackageId = zip.Id,
-                Version = zip.Version.ToNormalizedString(),
+                Version = zip.Version,
                 NotesMarkdown = zip.ReleaseNotes,
                 NotesHTML = zip.ReleaseNotesHtml,
                 Size = new FileInfo(filePath).Length,

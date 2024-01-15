@@ -34,6 +34,10 @@
     <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
   </ItemGroup>
 
+  <ItemGroup Condition=" $(TargetFramework) == 'netstandard2.0' OR $(TargetFramework.StartsWith('net4')) ">
+    <PackageReference Include="Newtonsoft.Json" Version="[13.0.1,)" />
+  </ItemGroup>
+
   <ItemGroup Condition=" $(TargetFramework.StartsWith('net4')) ">
     <Reference Include="System.Web" />
     <Reference Include="System.Net.Http" />
