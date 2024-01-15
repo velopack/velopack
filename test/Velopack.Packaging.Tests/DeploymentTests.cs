@@ -161,7 +161,7 @@ This is just a _test_!
             var source = new GithubSource(GITHUB_REPOURL, GITHUB_TOKEN, false);
             var releases = source.GetReleaseFeed(channel: uniqueSuffix, logger: logger).GetAwaiterResult();
 
-            var ghrel = releases.Select(r => (GithubReleaseEntry) r).ToArray();
+            var ghrel = releases.Assets.Select(r => (GithubSource.GitBaseAsset) r).ToArray();
             Assert.Equal(2, ghrel.Length);
             foreach (var r in ghrel) {
                 Assert.Equal(releaseName, r.Release.Name);

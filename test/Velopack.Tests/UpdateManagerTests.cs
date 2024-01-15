@@ -206,9 +206,9 @@ namespace Velopack.Tests
             var repo = new FakeFixtureRepository(id, true);
             var source = new SimpleWebSource("http://any.com", repo);
 
-            var basePkg = (await source.GetReleaseFeed(logger)).Single(x => x.Version == SemanticVersion.Parse(fromVersion));
-            var basePkgFixturePath = PathHelper.GetFixture(basePkg.OriginalFilename);
-            var basePkgPath = Path.Combine(packagesDir, basePkg.OriginalFilename);
+            var basePkg = (await source.GetReleaseFeed(logger)).Assets.Single(x => x.Version == SemanticVersion.Parse(fromVersion));
+            var basePkgFixturePath = PathHelper.GetFixture(basePkg.FileName);
+            var basePkgPath = Path.Combine(packagesDir, basePkg.FileName);
             File.Copy(basePkgFixturePath, basePkgPath);
 
             var updateExe = PathHelper.CopyUpdateTo(packagesDir);

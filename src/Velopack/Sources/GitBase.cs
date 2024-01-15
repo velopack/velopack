@@ -111,7 +111,7 @@ namespace Velopack.Sources
         /// <summary>
         /// Provides a wrapper around <see cref="ReleaseEntry"/> which also contains a Git Release.
         /// </summary>
-        protected record GitBaseAsset : VelopackAsset
+        protected internal record GitBaseAsset : VelopackAsset
         {
             /// <summary> The Github release which contains this release package. </summary>
             public T Release { get; init; }
