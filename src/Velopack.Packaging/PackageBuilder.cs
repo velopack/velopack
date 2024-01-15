@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Security;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -102,13 +103,13 @@ namespace Velopack.Packaging
             TempDir = new DirectoryInfo(pkgTempDir);
             Options = options;
 
-            List<(string from, string to)> filesToCopy = new();
+            ConcurrentBag<(string from, string to)> filesToCopy = new();
 
             string getIncompletePath(string fileName)
             {
                 var incomplete = Path.Combine(pkgTempDir, fileName);
                 var final = Path.Combine(releaseDir.FullName, fileName);
-                if (File.Exists(incomplete)) File.Delete(incomplete);
+                try { File.Delete(incomplete); } catch { }
                 filesToCopy.Add((incomplete, final));
                 return incomplete;
             }
@@ -137,7 +138,8 @@ namespace Velopack.Packaging
                 string releasePath = null;
                 await ctx.RunTask($"Building release {packVersion}", async (progress) => {
                     var suggestedName = ReleaseEntryHelper.GetSuggestedReleaseName(packId, packVersion, channel, false);
-                    await CreateReleasePackage(progress, packDirectory, getIncompletePath(suggestedName));
+                    releasePath = getIncompletePath(suggestedName);
+                    await CreateReleasePackage(progress, packDirectory, releasePath);
                 });
 
                 Task setupTask = null;
@@ -159,11 +161,18 @@ namespace Velopack.Packaging
                 if (setupTask != null) await setupTask;
 
                 await ctx.RunTask("Post-process steps", (progress) => {
+                    var expectedAssets = VelopackRuntimeInfo.IsLinux ? 2 : 3;
+                    if (prev != null && options.DeltaMode != DeltaMode.None) expectedAssets += 1;
+                    if (filesToCopy.Count != expectedAssets) {
+                        throw new Exception($"Expected {expectedAssets} assets to be created, but only {filesToCopy.Count} were.");
+                    }
+
                     foreach (var f in filesToCopy) {
                         File.Move(f.from, f.to, true);
                     }
+
                     ReleaseEntryHelper.UpdateReleaseFiles(releaseDir.FullName);
-                    BuildAssets.Write(releaseDir.FullName, Channel, filesToCopy.Select(f => f.to).ToList());
+                    BuildAssets.Write(releaseDir.FullName, channel, filesToCopy.Select(f => f.to).ToList());
                     progress(100);
                     return Task.CompletedTask;
                 });
