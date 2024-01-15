@@ -84,28 +84,27 @@ namespace Velopack.Locators
         }
 
         /// <inheritdoc/>
-        public virtual List<ReleaseEntry> GetLocalPackages()
+        public virtual List<VelopackAsset> GetLocalPackages()
         {
             try {
                 if (CurrentlyInstalledVersion == null)
-                    return new List<ReleaseEntry>(0);
-
+                    return new List<VelopackAsset>(0);
                 return Directory.EnumerateFiles(PackagesDir, "*.nupkg")
-                    .Select(x => ReleaseEntry.GenerateFromFile(x))
+                    .Select(x => VelopackAsset.FromNupkg(x))
                     .Where(x => x?.Version != null)
                     .ToList();
             } catch (Exception ex) {
                 Log.Error(ex, "Error while reading local packages.");
-                return new List<ReleaseEntry>(0);
+                return new List<VelopackAsset>(0);
             }
         }
 
         /// <inheritdoc/>
-        public ReleaseEntry GetLatestLocalFullPackage()
+        public VelopackAsset GetLatestLocalFullPackage()
         {
             return GetLocalPackages()
                 .OrderByDescending(x => x.Version)
-                .Where(x => !x.IsDelta)
+                .Where(a => a.Type == VelopackAssetType.FullPackage)
                 .FirstOrDefault();
         }
 

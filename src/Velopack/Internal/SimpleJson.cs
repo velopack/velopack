@@ -87,7 +87,9 @@ namespace Velopack.Json
             var options = new JsonSerializerOptions {
                 TypeInfoResolver = new DefaultJsonTypeInfoResolver {
                     Modifiers = { DataMemberNameAttribute }
-                }
+                },
+                AllowTrailingCommas = true,
+                ReadCommentHandling = JsonCommentHandling.Skip,
             };
             return JsonSerializer.Deserialize<T>(json, options);
         }

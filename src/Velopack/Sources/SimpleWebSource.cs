@@ -33,9 +33,9 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public async Task<ReleaseEntry[]> GetReleaseFeed(ILogger logger, string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null)
+        public async Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel = null, Guid? stagingId = null, VelopackAsset latestLocalRelease = null)
         {
-            var uri = Utility.AppendPathToUri(BaseUri, Utility.GetReleasesFileName(channel));
+            var uri = Utility.AppendPathToUri(BaseUri, Utility.GetVeloReleaseIndexName(channel));
             var args = new Dictionary<string, string>();
 
             if (VelopackRuntimeInfo.SystemArch != RuntimeCpu.Unknown) {
@@ -56,34 +56,25 @@ namespace Velopack.Sources
 
             logger.Info($"Downloading RELEASES from '{uriAndQuery}'.");
 
-            var bytes = await Downloader.DownloadBytes(uriAndQuery.ToString()).ConfigureAwait(false);
-            var txt = Utility.RemoveByteOrderMarkerIfPresent(bytes);
-            return ReleaseEntry.ParseReleaseFileAndApplyStaging(txt, stagingId).ToArray();
+            var json = await Downloader.DownloadString(uriAndQuery.ToString()).ConfigureAwait(false);
+            return VelopackAssetFeed.FromJson(json);
         }
 
         /// <inheritdoc />
-        public async Task DownloadReleaseEntry(ILogger logger, ReleaseEntry releaseEntry, string localFile, Action<int> progress)
+        public async Task DownloadReleaseEntry(ILogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress)
         {
             if (releaseEntry == null) throw new ArgumentNullException(nameof(releaseEntry));
             if (localFile == null) throw new ArgumentNullException(nameof(localFile));
-
-            var releaseUri = releaseEntry.BaseUrl == null
-                ? releaseEntry.OriginalFilename
-                : Utility.AppendPathToUri(new Uri(releaseEntry.BaseUrl), releaseEntry.OriginalFilename).ToString();
-
-            if (!String.IsNullOrEmpty(releaseEntry.Query)) {
-                releaseUri += releaseEntry.Query;
-            }
 
             // releaseUri can be a relative url (eg. "MyPackage.nupkg") or it can be an 
             // absolute url (eg. "https://example.com/MyPackage.nupkg"). In the former case
             var sourceBaseUri = Utility.EnsureTrailingSlash(BaseUri);
 
-            var source = Utility.IsHttpUrl(releaseUri)
-                ? new Uri(sourceBaseUri, releaseUri).ToString()
-                : Utility.AppendPathToUri(sourceBaseUri, releaseUri).ToString();
+            var source = Utility.IsHttpUrl(releaseEntry.FileName)
+                ? releaseEntry.FileName
+                : Utility.AppendPathToUri(sourceBaseUri, releaseEntry.FileName).ToString();
 
-            logger.Info($"Downloading '{releaseEntry.OriginalFilename}' from '{source}'.");
+            logger.Info($"Downloading '{releaseEntry.FileName}' from '{source}'.");
             await Downloader.DownloadFile(source, localFile, progress).ConfigureAwait(false);
         }
     }

@@ -183,6 +183,12 @@ namespace Velopack
             return new Sources.HttpClientFileDownloader();
         }
 
+        public static string GetVeloReleaseIndexName(string channel)
+        {
+            return $"releases.{channel}.json";
+        }
+
+        [Obsolete]
         public static string GetReleasesFileName(string channel)
         {
             if (channel == null) {

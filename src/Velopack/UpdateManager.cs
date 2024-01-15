@@ -113,11 +113,12 @@ namespace Velopack
 
             Log.Debug("Retrieving latest release feed.");
             var channel = Channel ?? Locator.Channel ?? VelopackRuntimeInfo.SystemOs.GetOsShortName();
-            var feed = await Source.GetReleaseFeed(Log, channel, betaId, latestLocalFull?.Identity).ConfigureAwait(false);
+            var feedObj = await Source.GetReleaseFeed(Log, channel, betaId, latestLocalFull).ConfigureAwait(false);
+            var feed = feedObj.Assets;
 
-            var latestRemoteFull = feed.Where(r => !r.IsDelta).MaxBy(x => x.Version).FirstOrDefault();
+            var latestRemoteFull = feed.Where(r => r.Type == VelopackAssetType.FullPackage).MaxBy(x => x.Version).FirstOrDefault();
             if (latestRemoteFull == null) {
-                Log.Info("No remote releases found.");
+                Log.Info("No remote full releases found.");
                 return null;
             }
 
@@ -128,7 +129,7 @@ namespace Velopack
 
             Log.Info($"Found remote update available ({latestRemoteFull.Version}).");
 
-            var matchingRemoteDelta = feed.Where(r => r.IsDelta && r.Version == latestRemoteFull.Version).FirstOrDefault();
+            var matchingRemoteDelta = feed.Where(r => r.Type == VelopackAssetType.DeltaPackage && r.Version == latestRemoteFull.Version).FirstOrDefault();
             if (matchingRemoteDelta == null) {
                 Log.Info($"Unable to find delta matching version {latestRemoteFull.Version}, only full update will be available.");
                 return new UpdateInfo(latestRemoteFull);
@@ -148,7 +149,7 @@ namespace Velopack
                 deltaFromVer = installedVer;
             }
 
-            var deltas = feed.Where(r => r.IsDelta && r.Version > deltaFromVer && r.Version <= latestRemoteFull.Version).ToArray();
+            var deltas = feed.Where(r => r.Type == VelopackAssetType.DeltaPackage && r.Version > deltaFromVer && r.Version <= latestRemoteFull.Version).ToArray();
             Log.Debug($"Found {deltas.Length} delta releases between {deltaFromVer} and {latestRemoteFull.Version}.");
             return new UpdateInfo(latestRemoteFull, latestLocalFull, deltas);
         }
@@ -196,7 +197,7 @@ namespace Velopack
             EnsureInstalled();
             using var _mut = AcquireUpdateLock();
 
-            var completeFile = Path.Combine(Locator.PackagesDir, targetRelease.OriginalFilename);
+            var completeFile = Path.Combine(Locator.PackagesDir, targetRelease.FileName);
             var incompleteFile = completeFile + ".partial";
 
             try {
@@ -209,7 +210,7 @@ namespace Velopack
                     }
                 }
 
-                var deltasSize = updates.DeltasToTarget.Sum(x => x.Filesize);
+                var deltasSize = updates.DeltasToTarget.Sum(x => x.Size);
                 var deltasCount = updates.DeltasToTarget.Count();
 
                 try {
@@ -217,13 +218,13 @@ namespace Velopack
                         if (ignoreDeltas) {
                             Log.Info("Ignoring delta updates (ignoreDeltas parameter)");
                         } else {
-                            if (deltasCount > 10 || deltasSize > targetRelease.Filesize) {
-                                Log.Info($"There are too many delta's ({deltasCount} > 10) or the sum of their size ({deltasSize} > {targetRelease.Filesize}) is too large. " +
+                            if (deltasCount > 10 || deltasSize > targetRelease.Size) {
+                                Log.Info($"There are too many delta's ({deltasCount} > 10) or the sum of their size ({deltasSize} > {targetRelease.Size}) is too large. " +
                                     $"Only full update will be available.");
                             } else {
                                 using var _1 = Utility.GetTempDirectory(out var deltaStagingDir, Locator.AppTempDir);
-                                if (updates.BaseRelease?.OriginalFilename != null) {
-                                    string basePackagePath = Path.Combine(Locator.PackagesDir, updates.BaseRelease.OriginalFilename);
+                                if (updates.BaseRelease?.FileName != null) {
+                                    string basePackagePath = Path.Combine(Locator.PackagesDir, updates.BaseRelease.FileName);
                                     if (!File.Exists(basePackagePath))
                                         throw new Exception($"Unable to find base package {basePackagePath} for delta update.");
                                     EasyZip.ExtractZipToDirectory(Log, basePackagePath, deltaStagingDir);
@@ -255,7 +256,7 @@ namespace Velopack
                     }
                 }
 
-                Log.Info($"Downloading full release ({targetRelease.OriginalFilename})");
+                Log.Info($"Downloading full release ({targetRelease.FileName})");
                 File.Delete(incompleteFile);
                 await Source.DownloadReleaseEntry(Log, targetRelease, incompleteFile, reportProgress).ConfigureAwait(false);
                 Log.Info("Verifying package checksum...");
@@ -345,7 +346,7 @@ namespace Velopack
 
             var entry = Locator.GetLatestLocalFullPackage();
             if (entry != null) {
-                var pkg = Path.Combine(Locator.PackagesDir, entry.OriginalFilename);
+                var pkg = Path.Combine(Locator.PackagesDir, entry.FileName);
                 if (File.Exists(pkg)) {
                     args.Add("--package");
                     args.Add(pkg);
@@ -389,7 +390,7 @@ namespace Velopack
             double current = 0;
             double toIncrement = 100.0 / releasesToDownload.Count();
             await releasesToDownload.ForEachAsync(async x => {
-                var targetFile = Path.Combine(packagesDirectory, x.OriginalFilename);
+                var targetFile = Path.Combine(packagesDirectory, x.FileName);
                 double component = 0;
                 Log.Debug($"Downloading delta version {x.Version}");
                 await Source.DownloadReleaseEntry(Log, x, targetFile, p => {
@@ -412,7 +413,7 @@ namespace Velopack
             for (var i = 0; i < releasesToDownload.Length; i++) {
                 var rel = releasesToDownload[i];
                 double baseProgress = i * progressStepSize;
-                var packageFile = Path.Combine(packagesDirectory, rel.OriginalFilename);
+                var packageFile = Path.Combine(packagesDirectory, rel.FileName);
                 builder.ApplyDeltaPackageFast(extractedBasePackage, packageFile, x => {
                     var progressOfStep = (int) (baseProgress + (progressStepSize * (x / 100d)));
                     progress(Utility.CalculateProgress(progressOfStep, 50, 100));
@@ -430,13 +431,13 @@ namespace Velopack
             try {
                 Log.Info("Cleaning up incomplete and delta packages from packages directory.");
                 foreach (var l in Locator.GetLocalPackages()) {
-                    if (l.IsDelta) {
+                    if (l.Type == VelopackAssetType.DeltaPackage) {
                         try {
-                            var pkgPath = Path.Combine(Locator.PackagesDir, l.OriginalFilename);
+                            var pkgPath = Path.Combine(Locator.PackagesDir, l.FileName);
                             File.Delete(pkgPath);
                             Log.Trace(pkgPath + " deleted.");
                         } catch (Exception ex) {
-                            Log.Warn(ex, "Failed to delete delta package: " + l.OriginalFilename);
+                            Log.Warn(ex, "Failed to delete delta package: " + l.FileName);
                         }
                     }
                 }
@@ -459,18 +460,18 @@ namespace Velopack
         /// </summary>
         /// <param name="release">The entry to check</param>
         /// <param name="filePathOverride">Optional file path, if not specified the package will be loaded from %pkgdir%/release.OriginalFilename.</param>
-        protected internal virtual void VerifyPackageChecksum(ReleaseEntry release, string filePathOverride = null)
+        protected internal virtual void VerifyPackageChecksum(VelopackAsset release, string filePathOverride = null)
         {
             var targetPackage = filePathOverride == null
-                ? new FileInfo(Path.Combine(Locator.PackagesDir, release.OriginalFilename))
+                ? new FileInfo(Path.Combine(Locator.PackagesDir, release.FileName))
                 : new FileInfo(filePathOverride);
 
             if (!targetPackage.Exists) {
                 throw new ChecksumFailedException(targetPackage.FullName, "File doesn't exist.");
             }
 
-            if (targetPackage.Length != release.Filesize) {
-                throw new ChecksumFailedException(targetPackage.FullName, $"Size doesn't match ({targetPackage.Length} != {release.Filesize}).");
+            if (targetPackage.Length != release.Size) {
+                throw new ChecksumFailedException(targetPackage.FullName, $"Size doesn't match ({targetPackage.Length} != {release.Size}).");
             }
 
             var hash = Utility.CalculateFileSHA1(targetPackage.FullName);

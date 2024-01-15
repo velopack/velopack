@@ -132,7 +132,9 @@ public class DeltaPackageBuilder
                         }
 
                         using var newfs = File.OpenRead(targetFile.FullName);
+#pragma warning disable CS0618 // Type or member is obsolete
                         var rl = ReleaseEntry.GenerateFromFile(newfs, targetFile.Name + ".shasum");
+#pragma warning restore CS0618 // Type or member is obsolete
                         File.WriteAllText(targetFile.FullName + ".shasum", rl.EntryAsString, Encoding.UTF8);
                         Interlocked.Increment(ref fChanged);
                     }

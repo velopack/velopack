@@ -42,12 +42,12 @@ namespace Velopack.Locators
         /// <summary>
         /// Finds .nupkg files in the PackagesDir and returns a list of ReleaseEntryName objects.
         /// </summary>
-        public List<ReleaseEntry> GetLocalPackages();
+        public List<VelopackAsset> GetLocalPackages();
 
         /// <summary>
         /// Finds latest .nupkg file in the PackagesDir or null if not found.
         /// </summary>
-        public ReleaseEntry GetLatestLocalFullPackage();
+        public VelopackAsset GetLatestLocalFullPackage();
 
         /// <summary>
         /// Unique identifier for this user which is used to calculate whether this user is eligible for 

@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Velopack.NuGet;
 
 namespace Velopack.Sources
 {
@@ -24,34 +25,27 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public Task<ReleaseEntry[]> GetReleaseFeed(ILogger logger, string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null)
+        public Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null, VelopackAsset latestLocalRelease = null)
         {
-            if (!BaseDirectory.Exists)
-                throw new Exception($"The local update directory '{BaseDirectory.FullName}' does not exist.");
-
-            var releasesPath = Path.Combine(BaseDirectory.FullName, Utility.GetReleasesFileName(channel));
-            logger.Info($"Reading RELEASES from '{releasesPath}'");
-            var fi = new FileInfo(releasesPath);
-
-            if (fi.Exists) {
-                var txt = File.ReadAllText(fi.FullName, encoding: Encoding.UTF8);
-                return Task.FromResult(ReleaseEntry.ParseReleaseFileAndApplyStaging(txt, stagingId).ToArray());
-            } else {
-                var packages = BaseDirectory.EnumerateFiles("*.nupkg");
-                if (packages.Any()) {
-                    logger.Warn($"The file '{releasesPath}' does not exist but directory contains packages. " +
-                        $"This is not valid but attempting to proceed anyway by writing new file.");
-                    return Task.FromResult(ReleaseEntry.BuildReleasesFile(BaseDirectory.FullName).ToArray());
-                } else {
-                    throw new Exception($"The file '{releasesPath}' does not exist. Cannot update from invalid source.");
-                }
+            if (!BaseDirectory.Exists) {
+                logger.Error($"The local update directory '{BaseDirectory.FullName}' does not exist.");
+                return Task.FromResult(new VelopackAssetFeed());
             }
+
+            var assets = Directory.EnumerateFiles(BaseDirectory.FullName, "*.nupkg")
+               .Select(x => new ZipPackage(x))
+               .Where(x => x?.Version != null)
+               .Where(x => x.Channel == null || x.Channel == channel)
+               .Select(x => VelopackAsset.FromZipPackage(x))
+               .ToList();
+
+            return Task.FromResult(new VelopackAssetFeed { Assets = assets });
         }
 
         /// <inheritdoc />
-        public Task DownloadReleaseEntry(ILogger logger, ReleaseEntry releaseEntry, string localFile, Action<int> progress)
+        public Task DownloadReleaseEntry(ILogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress)
         {
-            var releasePath = Path.Combine(BaseDirectory.FullName, releaseEntry.OriginalFilename);
+            var releasePath = Path.Combine(BaseDirectory.FullName, releaseEntry.FileName);
             if (!File.Exists(releasePath))
                 throw new Exception($"The file '{releasePath}' does not exist. The packages directory is invalid.");
 

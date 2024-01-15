@@ -13,7 +13,7 @@ namespace Velopack.Sources
     {
         /// <summary>
         /// Retrieve the list of available remote releases from the package source. These releases
-        /// can subsequently be downloaded with <see cref="DownloadReleaseEntry(ReleaseEntry, string, Action{int}, ILogger)"/>.
+        /// can subsequently be downloaded with <see cref="DownloadReleaseEntry(ILogger, VelopackAsset, string, Action{int})"/>.
         /// </summary>
         /// <param name="channel">Release channel to filter packages by. Can be null, which is the 
         /// default channel for this operating system.</param>
@@ -27,7 +27,7 @@ namespace Velopack.Sources
         /// <param name="logger">The logger to use for any diagnostic messages.</param>
         /// <returns>An array of <see cref="ReleaseEntry"/> objects that are available for download
         /// and are applicable to this user.</returns>
-        Task<ReleaseEntry[]> GetReleaseFeed(ILogger logger, string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null);
+        Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null, VelopackAsset latestLocalRelease = null);
 
         /// <summary>
         /// Download the specified <see cref="ReleaseEntry"/> to the provided local file path.
@@ -38,6 +38,6 @@ namespace Velopack.Sources
         /// <param name="progress">This delegate will be executed with values from 0-100 as the
         /// download is being processed.</param>
         /// <param name="logger">The logger to use for any diagnostic messages.</param>
-        Task DownloadReleaseEntry(ILogger logger, ReleaseEntry releaseEntry, string localFile, Action<int> progress);
+        Task DownloadReleaseEntry(ILogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress);
     }
 }

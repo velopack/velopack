@@ -172,7 +172,6 @@ namespace Velopack.Packaging
                     }
 
                     ReleaseEntryHelper.UpdateReleaseFiles(releaseDir.FullName);
-                    BuildAssets.Write(releaseDir.FullName, channel, filesToCopy.Select(f => f.to).ToList());
                     progress(100);
                     return Task.CompletedTask;
                 });
@@ -230,6 +229,7 @@ namespace Velopack.Packaging
 <channel>{Channel}</channel>
 <mainExe>{MainExeName}</mainExe>
 <os>{rid.BaseRID.GetOsShortName()}</os>
+<rid>{rid.ToDisplay(RidDisplayType.NoVersion)}</rid>
 {osMinVersionText}
 {machineArchitectureText}
 {releaseNotesText}

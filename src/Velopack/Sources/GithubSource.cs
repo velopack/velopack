@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Velopack.Json;
 
 namespace Velopack.Sources
@@ -60,54 +58,10 @@ namespace Velopack.Sources
     }
 
     /// <summary>
-    /// Provides a wrapper around <see cref="ReleaseEntry"/> which also contains a <see cref="GithubRelease"/>.
+    /// Retrieves available releases from a GitHub repository.
     /// </summary>
-    public class GithubReleaseEntry : ReleaseEntry
+    public class GithubSource : GitBase<GithubRelease>
     {
-        /// <summary> The Github release which contains this release package. </summary>
-        public GithubRelease Release { get; }
-
-        /// <inheritdoc cref="GithubReleaseEntry"/>
-        public GithubReleaseEntry(ReleaseEntry entry, GithubRelease release)
-            : base(entry.SHA1, entry.OriginalFilename, entry.Filesize, entry.BaseUrl, entry.Query, entry.StagingPercentage)
-        {
-            Release = release;
-        }
-    }
-
-    /// <summary>
-    /// Retrieves available releases from a GitHub repository. This class only
-    /// downloads assets from the very latest GitHub release.
-    /// </summary>
-    public class GithubSource : IUpdateSource
-    {
-        /// <summary> 
-        /// The URL of the GitHub repository to download releases from 
-        /// (e.g. https://github.com/myuser/myrepo)
-        /// </summary>
-        public virtual Uri RepoUri { get; }
-
-        /// <summary>  
-        /// If true, the latest pre-release will be downloaded. If false, the latest 
-        /// stable release will be downloaded.
-        /// </summary>
-        public virtual bool Prerelease { get; }
-
-        /// <summary> 
-        /// The file downloader used to perform HTTP requests. 
-        /// </summary>
-        public virtual IFileDownloader Downloader { get; }
-
-        /// <summary>
-        /// The GitHub access token to use with the request to download releases. 
-        /// If left empty, the GitHub rate limit for unauthenticated requests allows 
-        /// for up to 60 requests per hour, limited by IP address.
-        /// </summary>
-        protected virtual string AccessToken { get; }
-
-        /// <summary> The Bearer token used in the request. </summary>
-        protected virtual string Authorization => String.IsNullOrWhiteSpace(AccessToken) ? null : "Bearer " + AccessToken;
-
         /// <inheritdoc cref="GithubSource" />
         /// <param name="repoUrl">
         /// The URL of the GitHub repository to download releases from 
@@ -126,75 +80,16 @@ namespace Velopack.Sources
         /// The file downloader used to perform HTTP requests. 
         /// </param>
         public GithubSource(string repoUrl, string accessToken, bool prerelease, IFileDownloader downloader = null)
+            : base(repoUrl, accessToken, prerelease, downloader)
         {
-            RepoUri = new Uri(repoUrl);
-            AccessToken = accessToken;
-            Prerelease = prerelease;
-            Downloader = downloader ?? Utility.CreateDefaultDownloader();
         }
 
         /// <inheritdoc />
-        public async Task<ReleaseEntry[]> GetReleaseFeed(ILogger logger, string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null)
-        {
-            if (String.IsNullOrWhiteSpace(AccessToken))
-                logger.Warn("No GitHub access token provided. Unauthenticated requests will be limited to 60 per hour.");
-
-            var releases = await GetReleases(Prerelease).ConfigureAwait(false);
-            if (releases == null || releases.Count() == 0)
-                throw new Exception($"No GitHub releases found at '{RepoUri}'.");
-
-            var releasesFileName = Utility.GetReleasesFileName(channel);
-            List<GithubReleaseEntry> entries = new List<GithubReleaseEntry>();
-
-            foreach (var r in releases) {
-                var assets = r.Assets.Where(a => a.Name.Equals(releasesFileName, StringComparison.InvariantCultureIgnoreCase));
-                if (assets == null || !assets.Any()) {
-                    logger.Debug($"Ignoring release {r.Name} because it has no {releasesFileName}.");
-                    continue;
-                }
-
-                logger.Debug($"Found github release {r.Name}, downloading {releasesFileName}.");
-                var asset = assets.First();
-                entries.AddRange(await GetEntriesFromRelease(r, stagingId, releasesFileName).ConfigureAwait(false));
-            }
-
-            return entries.ToArray();
-        }
-
-        /// <inheritdoc />
-        public Task DownloadReleaseEntry(ILogger logger, ReleaseEntry releaseEntry, string localFile, Action<int> progress)
-        {
-            if (releaseEntry is GithubReleaseEntry githubEntry) {
-                // this might be a browser url or an api url (depending on whether we have a AccessToken or not)
-                // https://docs.github.com/en/rest/reference/releases#get-a-release-asset
-                var assetUrl = GetAssetUrlFromName(githubEntry.Release, releaseEntry.OriginalFilename);
-                return Downloader.DownloadFile(assetUrl, localFile, progress, Authorization, "application/octet-stream");
-            }
-
-            throw new ArgumentException($"Expected releaseEntry to be {nameof(GithubReleaseEntry)} but got {releaseEntry.GetType().Name}.");
-        }
-
-        /// <summary>
-        /// Downloads the RELEASES file from the specified release and parses it into a list of <see cref="GithubReleaseEntry"/>.
-        /// </summary>
-        public virtual async Task<IEnumerable<GithubReleaseEntry>> GetEntriesFromRelease(GithubRelease release, Guid? stagingId, string releasesName)
-        {
-            // this might be a browser url or an api url (depending on whether we have a AccessToken or not)
-            // https://docs.github.com/en/rest/reference/releases#get-a-release-asset
-            var assetUrl = GetAssetUrlFromName(release, releasesName);
-            var releaseBytes = await Downloader.DownloadBytes(assetUrl, Authorization, "application/octet-stream").ConfigureAwait(false);
-            var txt = Utility.RemoveByteOrderMarkerIfPresent(releaseBytes);
-            return ReleaseEntry.ParseReleaseFileAndApplyStaging(txt, stagingId)
-                .Select(r => new GithubReleaseEntry(r, release))
-                .ToArray();
-        }
-
-        /// <summary>
-        /// Retrieves a list of <see cref="GithubRelease"/> from the current repository.
-        /// </summary>
-        public virtual async Task<GithubRelease[]> GetReleases(bool includePrereleases, int perPage = 10, int page = 1)
+        protected override async Task<GithubRelease[]> GetReleases(bool includePrereleases)
         {
             // https://docs.github.com/en/rest/reference/releases
+            const int perPage = 10;
+            const int page = 1;
             var releasesPath = $"repos{RepoUri.AbsolutePath}/releases?per_page={perPage}&page={page}";
             var baseUri = GetApiBaseUrl(RepoUri);
             var getReleasesUri = new Uri(baseUri, releasesPath);
@@ -203,13 +98,8 @@ namespace Velopack.Sources
             return releases.OrderByDescending(d => d.PublishedAt).Where(x => includePrereleases || !x.Prerelease).ToArray();
         }
 
-        /// <summary>
-        /// Given a <see cref="GithubRelease"/> and an asset filename (eg. 'RELEASES') this 
-        /// function will return either <see cref="GithubReleaseAsset.BrowserDownloadUrl"/> or
-        /// <see cref="GithubReleaseAsset.Url"/>, depending whether an access token is available
-        /// or not. Throws if the specified release has no matching assets.
-        /// </summary>
-        protected virtual string GetAssetUrlFromName(GithubRelease release, string assetName)
+        /// <inheritdoc />
+        protected override string GetAssetUrlFromName(GithubRelease release, string assetName)
         {
             if (release.Assets == null || release.Assets.Count() == 0) {
                 throw new ArgumentException($"No assets found in Github Release '{release.Name}'.");

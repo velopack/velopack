@@ -21,6 +21,4 @@ public class ReleasePackage
     public string PackageFile { get; protected set; }
 
     public SemanticVersion Version => _package.Value.Version;
-
-    public bool IsDelta => ReleaseEntryName.FromEntryFileName(Path.GetFileName(PackageFile)).IsDelta;
 }

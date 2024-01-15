@@ -100,7 +100,7 @@ namespace Velopack.Windows
             var rootAppDirectory = Locator.RootAppDir;
 
             var ret = new Dictionary<ShortcutLocation, ShellLink>();
-            var pkgPath = Path.Combine(pkgDir, release.OriginalFilename);
+            var pkgPath = Path.Combine(pkgDir, release.FileName);
             var zf = new ZipPackage(pkgPath);
             var exePath = Path.Combine(currentDir, relativeExeName);
             if (!File.Exists(exePath))
@@ -136,7 +136,7 @@ namespace Velopack.Windows
             var rootAppDirectory = Locator.RootAppDir;
             Log.Info($"About to create shortcuts for {relativeExeName}, rootAppDir {rootAppDirectory}");
 
-            var pkgPath = Path.Combine(pkgDir, release.OriginalFilename);
+            var pkgPath = Path.Combine(pkgDir, release.FileName);
             var zf = new ZipPackage(pkgPath);
             var exePath = Path.Combine(currentDir, relativeExeName);
             if (!File.Exists(exePath))
@@ -202,7 +202,7 @@ namespace Velopack.Windows
             var rootAppDirectory = Locator.RootAppDir;
             Log.Info($"About to delete shortcuts for {relativeExeName}, rootAppDir {rootAppDirectory}");
 
-            var pkgPath = Path.Combine(pkgDir, release.OriginalFilename);
+            var pkgPath = Path.Combine(pkgDir, release.FileName);
             var zf = new ZipPackage(pkgPath);
             var exePath = Path.Combine(currentDir, relativeExeName);
             if (!File.Exists(exePath)) return;

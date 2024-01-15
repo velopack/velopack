@@ -212,15 +212,15 @@ namespace Velopack
             // clean up old versions of the app
             var pkgPath = locator.PackagesDir;
             foreach (var package in localPackages) {
-                if (package.Version == latestLocal.Version || package.Version == myVersion) {
+                if (package.Type == VelopackAssetType.FullPackage && (package.Version == latestLocal.Version || package.Version == myVersion)) {
                     continue;
                 }
                 try {
-                    log.Info("Removing old package: " + package.OriginalFilename);
-                    var p = Path.Combine(pkgPath, package.OriginalFilename);
+                    log.Info("Removing old package: " + package.FileName);
+                    var p = Path.Combine(pkgPath, package.FileName);
                     File.Delete(p);
                 } catch (Exception ex) {
-                    log.Error(ex, $"Failed to remove old package '{package.OriginalFilename}'");
+                    log.Error(ex, $"Failed to remove old package '{package.FileName}'");
                 }
             }
 

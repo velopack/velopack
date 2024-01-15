@@ -1,4 +1,5 @@
-﻿using System;
+﻿#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
@@ -15,6 +16,7 @@ namespace Velopack
     /// <summary>
     /// Describes the requested release notes text format.
     /// </summary>
+    [Obsolete("This release format has been replaced by VelopackRelease")]
     public enum ReleaseNotesFormat
     {
         /// <summary> The original markdown release notes. </summary>
@@ -24,10 +26,74 @@ namespace Velopack
     }
 
     /// <summary>
+    /// Represents the information that can be parsed from a release entry filename.
+    /// </summary>
+    [Obsolete("This release format has been replaced by VelopackRelease")]
+    public sealed record ReleaseEntryName
+    {
+        /// <summary> The package Id. </summary>
+        public string PackageId { get; private set; }
+
+        /// <summary> The package version. </summary>
+        public SemanticVersion Version { get; private set; }
+
+        /// <summary> Whether this is a delta (patch) package, or a full update package. </summary>
+        public bool IsDelta { get; private set; }
+
+        private static readonly Regex _suffixRegex = new Regex(@"(-full|-delta)?\.nupkg$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex _versionStartRegex = new Regex(@"[\.-](0|[1-9]\d*)\.(0|[1-9]\d*)($|[^\d])", RegexOptions.Compiled);
+
+        /// <summary>
+        /// Create a new ReleaseEntryName from the given package name, version, delta status, and runtime identifier.
+        /// </summary>
+        public ReleaseEntryName(string packageName, SemanticVersion version, bool isDelta)
+        {
+            PackageId = packageName;
+            Version = version;
+            IsDelta = isDelta;
+        }
+
+        /// <summary>
+        /// Takes a filename such as 'My-Cool3-App-1.0.1-build.23-full.nupkg' and separates it into 
+        /// it's name and version (eg. 'My-Cool3-App', and '1.0.1-build.23'). Returns null values if 
+        /// the filename can not be parsed.
+        /// </summary>
+        public static ReleaseEntryName FromEntryFileName(string fileName)
+        {
+            if (!fileName.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase))
+                return new ReleaseEntryName(null, null, false);
+
+            bool delta = Path.GetFileNameWithoutExtension(fileName).EndsWith("-delta", StringComparison.OrdinalIgnoreCase);
+
+            var nameAndVer = _suffixRegex.Replace(Path.GetFileName(fileName), "");
+
+            var match = _versionStartRegex.Match(nameAndVer);
+            if (!match.Success)
+                return new ReleaseEntryName(null, null, delta);
+
+            var verIdx = match.Index;
+            var name = nameAndVer.Substring(0, verIdx);
+            var version = nameAndVer.Substring(verIdx + 1);
+
+
+
+            var semVer = NuGetVersion.Parse(version);
+            return new ReleaseEntryName(name, semVer, delta);
+        }
+
+        /// <summary>
+        /// Generate the file name which would represent this ReleaseEntryName.
+        /// </summary>
+        public string ToFileName() =>
+            $"{PackageId}-{Version}{(IsDelta ? "-delta" : "-full")}.nupkg";
+    }
+
+    /// <summary>
     /// Represents a Velopack release, as described in a RELEASES file - usually also with an 
     /// accompanying package containing the files needed to apply the release.
     /// </summary>
     [DataContract]
+    [Obsolete("This release format has been replaced by VelopackRelease")]
     public class ReleaseEntry
     {
         /// <summary> The release identity - including id, version and so forth. </summary>*
@@ -118,6 +184,11 @@ namespace Velopack
         static readonly Regex entryRegex = new Regex(@"^([0-9a-fA-F]{40})\s+(\S+)\s+(\d+)[\r]*$");
         static readonly Regex commentRegex = new Regex(@"\s*#.*$");
         static readonly Regex stagingRegex = new Regex(@"#\s+(\d{1,3})%$");
+
+        public static ReleaseEntry FromVelopackAsset(VelopackAsset asset)
+        {
+            return new ReleaseEntry(asset.SHA1, asset.FileName, asset.Size ?? 0);
+        }
 
         /// <summary>
         /// Parses an string entry from a RELEASES file and returns a <see cref="ReleaseEntry"/>.

@@ -93,54 +93,11 @@ namespace Velopack.Sources
     }
 
     /// <summary>
-    /// Provides a wrapper around <see cref="ReleaseEntry"/> which also contains a <see cref="GitlabRelease"/>.
-    /// </summary>
-    public class GitlabReleaseEntry : ReleaseEntry
-    {
-        /// <summary> The Github release which contains this release package. </summary>
-        public GitlabRelease Release { get; }
-
-        /// <inheritdoc cref="GitlabReleaseEntry"/>
-        public GitlabReleaseEntry(ReleaseEntry entry, GitlabRelease release)
-            : base(entry.SHA1, entry.OriginalFilename, entry.Filesize, entry.BaseUrl, entry.Query, entry.StagingPercentage)
-        {
-            Release = release;
-        }
-    }
-
-    /// <summary>
     /// Retrieves available releases from a GitLab repository. This class only
     /// downloads assets from the very latest GitLab release.
     /// </summary>
-    public class GitlabSource : IUpdateSource
+    public class GitlabSource : GitBase<GitlabRelease>
     {
-        /// <summary> 
-        /// The URL of the GitLab repository to download releases from 
-        /// (e.g. https://gitlab.com/api/v4/projects/ProjectId)
-        /// </summary>
-        public virtual Uri RepoUri { get; }
-
-        /// <summary>  
-        /// If true, the latest upcoming release will be downloaded. If false, the latest 
-        /// stable release will be downloaded.
-        /// </summary>
-        public virtual bool UpcomingRelease { get; }
-
-        /// <summary> 
-        /// The file downloader used to perform HTTP requests. 
-        /// </summary>
-        public virtual IFileDownloader Downloader { get; }
-
-        /// <summary>
-        /// The GitLab access token to use with the request to download releases.
-        /// </summary>
-        protected virtual string AccessToken { get; }
-
-        /// <summary>
-        /// The Bearer token used in the request.
-        /// </summary>
-        protected virtual string Authorization => string.IsNullOrWhiteSpace(AccessToken) ? null : "Bearer " + AccessToken;
-
         /// <inheritdoc cref="GitlabSource" />
         /// <param name="repoUrl">
         /// The URL of the GitLab repository to download releases from 
@@ -157,43 +114,8 @@ namespace Velopack.Sources
         /// The file downloader used to perform HTTP requests. 
         /// </param>
         public GitlabSource(string repoUrl, string accessToken, bool upcomingRelease, IFileDownloader downloader = null)
+            : base(repoUrl, accessToken, upcomingRelease, downloader)
         {
-            RepoUri = new Uri(repoUrl);
-            AccessToken = accessToken;
-            UpcomingRelease = upcomingRelease;
-            Downloader = downloader ?? Utility.CreateDefaultDownloader();
-        }
-
-        /// <inheritdoc />
-        public Task DownloadReleaseEntry(ILogger logger, ReleaseEntry releaseEntry, string localFile, Action<int> progress)
-        {
-            if (releaseEntry is GitlabReleaseEntry githubEntry) {
-                // this might be a browser url or an api url (depending on whether we have a AccessToken or not)
-                // https://docs.github.com/en/rest/reference/releases#get-a-release-asset
-                var assetUrl = GetAssetUrlFromName(githubEntry.Release, releaseEntry.OriginalFilename);
-                return Downloader.DownloadFile(assetUrl, localFile, progress, Authorization, "application/octet-stream");
-            }
-
-            throw new ArgumentException($"Expected releaseEntry to be {nameof(GitlabReleaseEntry)} but got {releaseEntry.GetType().Name}.");
-        }
-
-        /// <inheritdoc />
-        public async Task<ReleaseEntry[]> GetReleaseFeed(ILogger logger, string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null)
-        {
-            var releases = await GetReleases(UpcomingRelease).ConfigureAwait(false);
-            if (releases == null || releases.Count() == 0)
-                throw new Exception($"No Gitlab releases found at '{RepoUri}'.");
-
-            // for now, we only search for packages in the latest Github release.
-            // in the future, we might want to search through more than one for delta's.
-            var release = releases.First();
-
-            var assetUrl = GetAssetUrlFromName(release, Utility.GetReleasesFileName(channel));
-            var releaseBytes = await Downloader.DownloadBytes(assetUrl, Authorization, "application/octet-stream").ConfigureAwait(false);
-            var txt = Utility.RemoveByteOrderMarkerIfPresent(releaseBytes);
-            return ReleaseEntry.ParseReleaseFileAndApplyStaging(txt, stagingId)
-                .Select(r => new GitlabReleaseEntry(r, release))
-                .ToArray();
         }
 
         /// <summary>
@@ -202,7 +124,7 @@ namespace Velopack.Sources
         /// <see cref="GitlabReleaseLink.Url"/>, depending whether an access token is available
         /// or not. Throws if the specified release has no matching assets.
         /// </summary>
-        protected virtual string GetAssetUrlFromName(GitlabRelease release, string assetName)
+        protected override string GetAssetUrlFromName(GitlabRelease release, string assetName)
         {
             if (release.Assets == null || release.Assets.Count == 0) {
                 throw new ArgumentException($"No assets found in Gitlab Release '{release.Name}'.");
@@ -224,8 +146,10 @@ namespace Velopack.Sources
         /// <summary>
         /// Retrieves a list of <see cref="GitlabRelease"/> from the current repository.
         /// </summary>
-        public virtual async Task<GitlabRelease[]> GetReleases(bool includePrereleases, int perPage = 30, int page = 1)
+        protected override async Task<GitlabRelease[]> GetReleases(bool includePrereleases)
         {
+            const int perPage = 10;
+            const int page = 1;
             // https://docs.gitlab.com/ee/api/releases/
             var releasesPath = $"{RepoUri.AbsolutePath}/releases?per_page={perPage}&page={page}";
             var baseUri = new Uri("https://gitlab.com");

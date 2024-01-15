@@ -15,11 +15,14 @@ namespace Velopack.NuGet
 
         public byte[] UpdateExeBytes { get; private set; }
 
+        public string LoadedFromPath { get; private set; }
+
         public ZipPackage(string filePath) : this(File.OpenRead(filePath))
         {
+            LoadedFromPath = filePath;
         }
 
-        public ZipPackage(Stream zipStream, bool leaveOpen = false)
+        private ZipPackage(Stream zipStream, bool leaveOpen = false)
         {
             using var zip = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen);
             using var manifest = GetManifestEntry(zip).Open();

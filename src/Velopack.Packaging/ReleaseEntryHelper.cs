@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 using Velopack.NuGet;
@@ -12,7 +13,7 @@ namespace Velopack.Packaging
         private readonly string _outputDir;
         private readonly ILogger _logger;
         private readonly string _channel;
-        private Dictionary<string, List<ReleaseEntry>> _releases;
+        private Dictionary<string, List<VelopackAsset>> _releases;
 
         public ReleaseEntryHelper(string outputDir, string channel, ILogger logger)
         {
@@ -22,15 +23,15 @@ namespace Velopack.Packaging
             _releases = GetReleasesFromDir(outputDir);
         }
 
-        private static Dictionary<string, List<ReleaseEntry>> GetReleasesFromDir(string dir)
+        private static Dictionary<string, List<VelopackAsset>> GetReleasesFromDir(string dir)
         {
-            var rel = new Dictionary<string, List<ReleaseEntry>>(StringComparer.OrdinalIgnoreCase);
+            var rel = new Dictionary<string, List<VelopackAsset>>(StringComparer.OrdinalIgnoreCase);
             foreach (var releaseFile in Directory.EnumerateFiles(dir, "*.nupkg")) {
                 var zip = new ZipPackage(releaseFile);
                 var ch = zip.Channel ?? GetDefaultChannel(VelopackRuntimeInfo.SystemOs);
                 if (!rel.ContainsKey(ch))
-                    rel[ch] = new List<ReleaseEntry>();
-                rel[ch].Add(new ReleaseEntry(Utility.CalculateFileSHA1(releaseFile), Path.GetFileName(releaseFile), new FileInfo(releaseFile).Length));
+                    rel[ch] = new List<VelopackAsset>();
+                rel[ch].Add(VelopackAsset.FromZipPackage(zip));
             }
             return rel;
         }
@@ -41,7 +42,7 @@ namespace Velopack.Packaging
                 return;
             foreach (var release in _releases[_channel]) {
                 if (version <= release.Version) {
-                    throw new UserInfoException($"Release {release.OriginalFilename} in channel {_channel} is equal or greater to the current version {version}. Please increase the current package version or remove that release.");
+                    throw new UserInfoException($"Release {release.FileName} in channel {_channel} is equal or greater to the current version {version}. Please increase the current package version or remove that release.");
                 }
             }
         }
@@ -51,21 +52,21 @@ namespace Velopack.Packaging
             var releases = _releases.ContainsKey(_channel) ? _releases[_channel] : null;
             if (releases == null || !releases.Any()) return null;
             var entry = releases
-                .Where(x => x.IsDelta == false)
-                .Where(x => VersionComparer.Version.Compare(x.Version, version) < 0)
+                .Where(x => x.Type == VelopackAssetType.FullPackage)
+                .Where(x => x.Version < version)
                 .OrderByDescending(x => x.Version)
                 .FirstOrDefault();
             if (entry == null) return null;
-            var file = Path.Combine(_outputDir, entry.OriginalFilename);
+            var file = Path.Combine(_outputDir, entry.FileName);
             return new ReleasePackage(file);
         }
 
-        public ReleaseEntry GetLatestFullRelease(string channel)
+        public VelopackAsset GetLatestFullRelease(string channel)
         {
             channel ??= GetDefaultChannel(VelopackRuntimeInfo.SystemOs);
             var releases = _releases.ContainsKey(channel) ? _releases[channel] : null;
             if (releases == null || !releases.Any()) return null;
-            return releases.Where(z => !z.IsDelta).MaxBy(z => z.Version).First();
+            return releases.Where(z => z.Type == VelopackAssetType.FullPackage).MaxBy(z => z.Version).First();
         }
 
         public static void UpdateReleaseFiles(string outputDir)
@@ -75,15 +76,30 @@ namespace Velopack.Packaging
                 File.Delete(releaseFile);
             }
             foreach (var kvp in releases) {
-                var releasesName = Utility.GetReleasesFileName(kvp.Key);
-                var path = Path.Combine(outputDir, releasesName);
-                ReleaseEntry.WriteReleaseFile(kvp.Value, path);
+                if (kvp.Key == "" || kvp.Key == GetDefaultChannel(RuntimeOs.Windows)) {
+                    // We write a legacy RELEASES file to allow older applications to update to velopack
+#pragma warning disable CS0618 // Type or member is obsolete
+                    var path = Path.Combine(outputDir, "RELEASES");
+                    ReleaseEntry.WriteReleaseFile(kvp.Value.Select(ReleaseEntry.FromVelopackAsset), path);
+#pragma warning restore CS0618 // Type or member is obsolete
+                }
+                var indexPath = Utility.GetVeloReleaseIndexName(kvp.Key);
+                var feed = new VelopackAssetFeed() {
+                    Assets = kvp.Value,
+                };
+                var json = JsonSerializer.Serialize(feed, new JsonSerializerOptions() {
+                    WriteIndented = true,
+                });
+                File.WriteAllText(indexPath, json);
             }
         }
 
         public static string GetSuggestedReleaseName(string id, string version, string channel, bool delta)
         {
             var suffix = GetUniqueAssetSuffix(channel);
+            if (VelopackRuntimeInfo.IsWindows && channel == GetDefaultChannel(RuntimeOs.Windows)) {
+                return $"{id}-{version}{(delta ? "-delta" : "-full")}.nupkg";
+            }
             return $"{id}-{version}{suffix}{(delta ? "-delta" : "-full")}.nupkg";
         }
 

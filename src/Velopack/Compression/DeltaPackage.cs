@@ -146,8 +146,10 @@ namespace Velopack.Compression
         void verifyPatchedFile(string relativeFilePath, string inputFile, string tempTargetFile)
         {
             var shaFile = DIFF_SUFFIX.Replace(inputFile, ".shasum");
+#pragma warning disable CS0618 // Type or member is obsolete
             var expectedReleaseEntry = ReleaseEntry.ParseReleaseEntry(File.ReadAllText(shaFile, Encoding.UTF8));
             var actualReleaseEntry = ReleaseEntry.GenerateFromFile(tempTargetFile);
+#pragma warning restore CS0618 // Type or member is obsolete
 
             if (expectedReleaseEntry.Filesize != actualReleaseEntry.Filesize) {
                 Log.Error($"Patched file {relativeFilePath} has incorrect size, expected {expectedReleaseEntry.Filesize}, got {actualReleaseEntry.Filesize}");
