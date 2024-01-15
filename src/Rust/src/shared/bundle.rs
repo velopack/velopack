@@ -449,9 +449,6 @@ pub struct EntryNameInfo {
     pub version: Version,
     pub is_delta: bool,
     pub file_path: String,
-    pub os: Option<String>,
-    pub os_min_ver: Option<String>,
-    pub os_arch: Option<String>,
 }
 
 impl EntryNameInfo {
@@ -466,7 +463,6 @@ lazy_static! {
     static ref ENTRY_SUFFIX_FULL: Regex = Regex::new(r"(?i)-full.nupkg$").unwrap();
     static ref ENTRY_SUFFIX_DELTA: Regex = Regex::new(r"(?i)-delta.nupkg$").unwrap();
     static ref ENTRY_VERSION_START: Regex = Regex::new(r"[\.-](0|[1-9]\d*)\.(0|[1-9]\d*)($|[^\d])").unwrap();
-    static ref ENTRY_RID: Regex = Regex::new(r"(?i)(-(?<os>osx|win)\.?(?<ver>[\d\.]+)?)?(?:-(?<arch>x64|x86|arm64))?$").unwrap();
 }
 
 pub fn parse_package_file_path(path: PathBuf) -> Option<EntryNameInfo> {
@@ -502,32 +498,13 @@ fn parse_package_file_name<T: AsRef<str>>(name: T) -> Option<EntryNameInfo> {
     let ver_idx = ver_idx + 1;
     let version = name_and_ver[ver_idx..].to_string();
 
-    let rid_idx = ENTRY_RID.find(&version);
-    if rid_idx.is_none() {
-        let sv = Version::parse(&version);
-        if sv.is_err() {
-            return None;
-        }
-
-        entry.version = sv.unwrap();
-        return Some(entry);
-    }
-
-    let rid_idx = rid_idx.unwrap().start();
-    let caps = ENTRY_RID.captures(&version).unwrap();
-    let version = version[0..rid_idx].to_string();
-
     let sv = Version::parse(&version);
     if sv.is_err() {
         return None;
     }
 
     entry.version = sv.unwrap();
-    entry.os = caps.name("os").map(|m| m.as_str().to_string());
-    entry.os_min_ver = caps.name("ver").map(|m| m.as_str().to_string());
-    entry.os_arch = caps.name("arch").map(|m| m.as_str().to_string());
-
-    Some(entry)
+    return Some(entry);
 }
 
 #[test]
@@ -537,108 +514,16 @@ fn test_parse_package_file_name() {
     assert_eq!(entry.name, "Velopack");
     assert_eq!(entry.version, Version::parse("1.0.0").unwrap());
     assert_eq!(entry.is_delta, false);
-    assert_eq!(entry.os, None);
-    assert_eq!(entry.os_min_ver, None);
-    assert_eq!(entry.os_arch, None);
 
     let entry = parse_package_file_name("Velopack-1.0.0-delta.nupkg").unwrap();
     assert_eq!(entry.name, "Velopack");
     assert_eq!(entry.version, Version::parse("1.0.0").unwrap());
     assert_eq!(entry.is_delta, true);
-    assert_eq!(entry.os, None);
-    assert_eq!(entry.os_min_ver, None);
-    assert_eq!(entry.os_arch, None);
 
     let entry = parse_package_file_name("My.Cool-App-1.1.0-full.nupkg").unwrap();
     assert_eq!(entry.name, "My.Cool-App");
     assert_eq!(entry.version, Version::parse("1.1.0").unwrap());
     assert_eq!(entry.is_delta, false);
-    assert_eq!(entry.os, None);
-    assert_eq!(entry.os_min_ver, None);
-    assert_eq!(entry.os_arch, None);
-
-    // test with rid individual components
-    let entry = parse_package_file_name("Velopack-1.0.0-osx-full.nupkg").unwrap();
-    assert_eq!(entry.name, "Velopack");
-    assert_eq!(entry.version, Version::parse("1.0.0").unwrap());
-    assert_eq!(entry.is_delta, false);
-    assert_eq!(entry.os, Some("osx".to_string()));
-    assert_eq!(entry.os_min_ver, None);
-    assert_eq!(entry.os_arch, None);
-
-    let entry = parse_package_file_name("Velopack-1.0.0-win-full.nupkg").unwrap();
-    assert_eq!(entry.name, "Velopack");
-    assert_eq!(entry.version, Version::parse("1.0.0").unwrap());
-    assert_eq!(entry.is_delta, false);
-    assert_eq!(entry.os, Some("win".to_string()));
-    assert_eq!(entry.os_min_ver, None);
-    assert_eq!(entry.os_arch, None);
-
-    let entry = parse_package_file_name("Velopack-1.0.0-x86-full.nupkg").unwrap();
-    assert_eq!(entry.name, "Velopack");
-    assert_eq!(entry.version, Version::parse("1.0.0").unwrap());
-    assert_eq!(entry.is_delta, false);
-    assert_eq!(entry.os, None);
-    assert_eq!(entry.os_min_ver, None);
-    assert_eq!(entry.os_arch, Some("x86".to_string()));
-
-    let entry = parse_package_file_name("Velopack-1.0.0-x64-full.nupkg").unwrap();
-    assert_eq!(entry.name, "Velopack");
-    assert_eq!(entry.version, Version::parse("1.0.0").unwrap());
-    assert_eq!(entry.is_delta, false);
-    assert_eq!(entry.os, None);
-    assert_eq!(entry.os_min_ver, None);
-    assert_eq!(entry.os_arch, Some("x64".to_string()));
-
-    let entry = parse_package_file_name("Velopack-1.0.0-arm64-full.nupkg").unwrap();
-    assert_eq!(entry.name, "Velopack");
-    assert_eq!(entry.version, Version::parse("1.0.0").unwrap());
-    assert_eq!(entry.is_delta, false);
-    assert_eq!(entry.os, None);
-    assert_eq!(entry.os_min_ver, None);
-    assert_eq!(entry.os_arch, Some("arm64".to_string()));
-
-    // test with full rid
-    let entry = parse_package_file_name("Velopack-1.0.0-win10-x64-full.nupkg").unwrap();
-    assert_eq!(entry.name, "Velopack");
-    assert_eq!(entry.version, Version::parse("1.0.0").unwrap());
-    assert_eq!(entry.is_delta, false);
-    assert_eq!(entry.os, Some("win".to_string()));
-    assert_eq!(entry.os_min_ver, Some("10".to_string()));
-    assert_eq!(entry.os_arch, Some("x64".to_string()));
-
-    let entry = parse_package_file_name("Velopack-1.0.0-win10-arm64-full.nupkg").unwrap();
-    assert_eq!(entry.name, "Velopack");
-    assert_eq!(entry.version, Version::parse("1.0.0").unwrap());
-    assert_eq!(entry.is_delta, false);
-    assert_eq!(entry.os, Some("win".to_string()));
-    assert_eq!(entry.os_min_ver, Some("10".to_string()));
-    assert_eq!(entry.os_arch, Some("arm64".to_string()));
-
-    // test with version extras
-    let entry = parse_package_file_name("MyCoolApp-1.2.3-beta1-win7-x64-full.nupkg").unwrap();
-    assert_eq!(entry.name, "MyCoolApp");
-    assert_eq!(entry.version, Version::parse("1.2.3-beta1").unwrap());
-    assert_eq!(entry.is_delta, false);
-    assert_eq!(entry.os, Some("win".to_string()));
-    assert_eq!(entry.os_min_ver, Some("7".to_string()));
-    assert_eq!(entry.os_arch, Some("x64".to_string()));
-
-    let entry = parse_package_file_name("MyCoolApp-1.2.3-beta1-win7-x64-delta.nupkg").unwrap();
-    assert_eq!(entry.name, "MyCoolApp");
-    assert_eq!(entry.version, Version::parse("1.2.3-beta1").unwrap());
-    assert_eq!(entry.is_delta, true);
-    assert_eq!(entry.os, Some("win".to_string()));
-    assert_eq!(entry.os_min_ver, Some("7".to_string()));
-    assert_eq!(entry.os_arch, Some("x64".to_string()));
-
-    let entry = parse_package_file_name("MyCoolApp-1.2.3-beta.22.44-win7-x64-full.nupkg").unwrap();
-    assert_eq!(entry.name, "MyCoolApp");
-    assert_eq!(entry.version, Version::parse("1.2.3-beta.22.44").unwrap());
-    assert_eq!(entry.is_delta, false);
-    assert_eq!(entry.os, Some("win".to_string()));
-    assert_eq!(entry.os_min_ver, Some("7".to_string()));
-    assert_eq!(entry.os_arch, Some("x64".to_string()));
 
     // test invalid names
     assert!(parse_package_file_name("MyCoolApp-1.2.3-beta1-win7-x64-full.nupkg.zip").is_none());
