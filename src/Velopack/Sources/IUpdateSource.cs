@@ -27,7 +27,7 @@ namespace Velopack.Sources
         /// <param name="logger">The logger to use for any diagnostic messages.</param>
         /// <returns>An array of <see cref="ReleaseEntry"/> objects that are available for download
         /// and are applicable to this user.</returns>
-        Task<ReleaseEntry[]> GetReleaseFeed(string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null, ILogger logger = null);
+        Task<ReleaseEntry[]> GetReleaseFeed(ILogger logger, string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null);
 
         /// <summary>
         /// Download the specified <see cref="ReleaseEntry"/> to the provided local file path.
@@ -38,6 +38,6 @@ namespace Velopack.Sources
         /// <param name="progress">This delegate will be executed with values from 0-100 as the
         /// download is being processed.</param>
         /// <param name="logger">The logger to use for any diagnostic messages.</param>
-        Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress, ILogger logger = null);
+        Task DownloadReleaseEntry(ILogger logger, ReleaseEntry releaseEntry, string localFile, Action<int> progress);
     }
 }

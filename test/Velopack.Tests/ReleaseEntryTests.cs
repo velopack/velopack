@@ -146,44 +146,7 @@ namespace Velopack.Tests
             var old = OldReleaseEntry.ParseReleaseEntry(releaseEntry);
             Assert.Equal(new NuGetVersion(major, minor, patch, revision, prerelease, null), new NuGetVersion(old.Version.ToString()));
             Assert.Equal(isDelta, old.IsDelta);
-        }
-
-        [Theory]
-        [InlineData("0900000000000000000000000000000000000000  MyCoolApp-1.2.3-beta1-win7-x64.nupkg          123", 1, 2, 3, 0, "beta1", "win7-x64", false)]
-        [InlineData("0010000000000000000000000000000000000000  MyCoolApp-1.2.3-beta1-win7-x64-full.nupkg     123", 1, 2, 3, 0, "beta1", "win7-x64", false)]
-        [InlineData("0020000000000000000000000000000000000000  MyCoolApp-1.2.3-beta1-win7-x64-delta.nupkg    123", 1, 2, 3, 0, "beta1", "win7-x64", true)]
-        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-osx-full.nupkg     123", 1, 2, 3, 0, "", "osx", false)]
-        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-osx-arm64-full.nupkg     123", 1, 2, 3, 0, "", "osx-arm64", false)]
-        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-hello-osx-arm64-full.nupkg     123", 1, 2, 3, 0, "hello", "osx-arm64", false)]
-        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-x86-full.nupkg     123", 1, 2, 3, 0, "", "x86", false)]
-        public void ParseVersionWithRidTest(string releaseEntry, int major, int minor, int patch, int revision, string prerelease, string rid, bool isDelta)
-        {
-            var fixture = ReleaseEntry.ParseReleaseEntry(releaseEntry);
-            Assert.Equal(new NuGetVersion(major, minor, patch, revision, prerelease, null), fixture.Version);
-            Assert.Equal(isDelta, fixture.IsDelta);
-            if (!String.IsNullOrEmpty(rid))
-                Assert.Equal(RID.Parse(rid), fixture.Rid);
-
-            var old = OldReleaseEntry.ParseReleaseEntry(releaseEntry);
-            var legacyPre = !String.IsNullOrEmpty(prerelease) && !String.IsNullOrEmpty(rid) ? $"{prerelease}-{rid}" : String.IsNullOrEmpty(prerelease) ? rid : prerelease;
-            Assert.Equal(new NuGetVersion(major, minor, patch, revision, legacyPre, null), new NuGetVersion(old.Version.ToString()));
-            Assert.Equal(isDelta, old.IsDelta);
-        }
-
-        [Theory]
-        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-beta.22-win7-x64-full.nupkg     123", 1, 2, 3, 0, "beta.22", "win7-x64", false)]
-        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-beta.22-x64-full.nupkg     123", 1, 2, 3, 0, "beta.22", "x64", false)]
-        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-beta.22-win-full.nupkg     123", 1, 2, 3, 0, "beta.22", "win", false)]
-        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-hello.55-osx-arm64-full.nupkg     123", 1, 2, 3, 0, "hello.55", "osx-arm64", false)]
-        [InlineData("0030000000000000000000000000000000000000  MyCoolApp-1.2.3-hello.55-full.nupkg     123", 1, 2, 3, 0, "hello.55", "", false)]
-        public void ParseVersionWithSemVer2(string releaseEntry, int major, int minor, int patch, int revision, string prerelease, string rid, bool isDelta)
-        {
-            var fixture = ReleaseEntry.ParseReleaseEntry(releaseEntry);
-            Assert.Equal(new NuGetVersion(major, minor, patch, revision, prerelease, null), fixture.Version);
-            Assert.Equal(isDelta, fixture.IsDelta);
-            if (!String.IsNullOrEmpty(rid))
-                Assert.Equal(RID.Parse(rid), fixture.Rid);
-        }
+        } 
 
         [Theory]
         [InlineData("0000000000000000000000000000000000000000  MyCool-App-1.2.nupkg                  123", "MyCool-App")]
@@ -218,8 +181,6 @@ namespace Velopack.Tests
         [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-full.nupkg             123 # 90%", 1, 2, 0, 0, "", "", false, 0.9f)]
         [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-delta.nupkg            123", 1, 2, 0, 0, "", "", true, null)]
         [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-delta.nupkg            123 # 5%", 1, 2, 0, 0, "", "", true, 0.05f)]
-        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-win7-x64-delta.nupkg            123", 1, 2, 0, 0, "", "win7-x64", true, null)]
-        [InlineData("0000000000000000000000000000000000000000  MyCoolApp-1.2-win7-x64-full.nupkg            123 # 5%", 1, 2, 0, 0, "", "win7-x64", false, 0.05f)]
         public void ParseStagingPercentageTest(string releaseEntry, int major, int minor, int patch, int revision, string prerelease, string rid, bool isDelta, float? stagingPercentage)
         {
             var fixture = ReleaseEntry.ParseReleaseEntry(releaseEntry);

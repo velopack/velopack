@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Velopack.Sources
 {
@@ -23,7 +24,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public Task<ReleaseEntry[]> GetReleaseFeed(string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null, ILogger logger = null)
+        public Task<ReleaseEntry[]> GetReleaseFeed(ILogger logger, string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null)
         {
             if (!BaseDirectory.Exists)
                 throw new Exception($"The local update directory '{BaseDirectory.FullName}' does not exist.");
@@ -48,7 +49,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress, ILogger logger = null)
+        public Task DownloadReleaseEntry(ILogger logger, ReleaseEntry releaseEntry, string localFile, Action<int> progress)
         {
             var releasePath = Path.Combine(BaseDirectory.FullName, releaseEntry.OriginalFilename);
             if (!File.Exists(releasePath))

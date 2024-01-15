@@ -34,7 +34,7 @@ namespace Velopack.Tests
             PathHelper.CopyFixtureTo("AvaloniaCrossPlat-1.0.15-win-full.nupkg", packages.FullName);
             PathHelper.CopyFixtureTo(exeName, current.FullName);
 
-            var locator = new TestVelopackLocator("AvaloniaCrossPlat", "1.0.0", packages.FullName, current.FullName, rootDir, null, logger);
+            var locator = new TestVelopackLocator("AvaloniaCrossPlat", "1.0.0", packages.FullName, current.FullName, rootDir, null, null, logger);
             var sh = new Shortcuts(logger, locator);
             var flag = ShortcutLocation.StartMenuRoot | ShortcutLocation.Desktop;
             sh.DeleteShortcuts(exeName, flag);

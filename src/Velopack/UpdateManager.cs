@@ -112,8 +112,8 @@ namespace Velopack
             var latestLocalFull = Locator.GetLatestLocalFullPackage();
 
             Log.Debug("Retrieving latest release feed.");
-            var channel = Channel ?? Locator.Channel;
-            var feed = await Source.GetReleaseFeed(channel, betaId, latestLocalFull?.Identity, Log).ConfigureAwait(false);
+            var channel = Channel ?? Locator.Channel ?? VelopackRuntimeInfo.SystemOs.GetOsShortName();
+            var feed = await Source.GetReleaseFeed(Log, channel, betaId, latestLocalFull?.Identity).ConfigureAwait(false);
 
             var latestRemoteFull = feed.Where(r => !r.IsDelta).MaxBy(x => x.Version).FirstOrDefault();
             if (latestRemoteFull == null) {
@@ -257,7 +257,7 @@ namespace Velopack
 
                 Log.Info($"Downloading full release ({targetRelease.OriginalFilename})");
                 File.Delete(incompleteFile);
-                await Source.DownloadReleaseEntry(targetRelease, incompleteFile, reportProgress).ConfigureAwait(false);
+                await Source.DownloadReleaseEntry(Log, targetRelease, incompleteFile, reportProgress).ConfigureAwait(false);
                 Log.Info("Verifying package checksum...");
                 VerifyPackageChecksum(targetRelease, incompleteFile);
                 File.Delete(completeFile);
@@ -392,7 +392,7 @@ namespace Velopack
                 var targetFile = Path.Combine(packagesDirectory, x.OriginalFilename);
                 double component = 0;
                 Log.Debug($"Downloading delta version {x.Version}");
-                await Source.DownloadReleaseEntry(x, targetFile, p => {
+                await Source.DownloadReleaseEntry(Log, x, targetFile, p => {
                     lock (progress) {
                         current -= component;
                         component = toIncrement / 100.0 * p;

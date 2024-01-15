@@ -76,9 +76,6 @@ namespace Velopack.Locators
         /// <inheritdoc />
         public override string Channel {
             get {
-                if (_channel == null) {
-                    throw new NotSupportedException("AppContentDir is not supported in this test implementation.");
-                }
                 return _channel;
             }
         }

@@ -11,7 +11,7 @@ namespace Velopack.Tests.TestHelpers
 
         public FakeFixtureRepository(string pkgId, bool mockLatestFullVer, string channel = null)
         {
-            _releasesName = SourceBase.GetReleasesFileNameImpl(channel);
+            _releasesName = Utility.GetReleasesFileName(channel);
             _pkgId = pkgId;
             var releases = ReleaseEntry.BuildReleasesFile(PathHelper.GetFixturesDir(), false)
                 .Where(r => r.OriginalFilename.StartsWith(_pkgId))
@@ -24,7 +24,7 @@ namespace Velopack.Tests.TestHelpers
 
                 // our fixtures don't have a full package for the latest version, we expect the tests to generate this file
                 if (maxfullVer.Version < maxDeltaVer.Version) {
-                    var name = new ReleaseEntryName(maxfullVer.PackageId, maxDeltaVer.Version, false, maxfullVer.Rid);
+                    var name = new ReleaseEntryName(maxfullVer.PackageId, maxDeltaVer.Version, false);
                     releases.Add(new ReleaseEntry("0000000000000000000000000000000000000000", name.ToFileName(), maxfullVer.Filesize));
                 }
             }

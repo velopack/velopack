@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Velopack.Json;
 
 namespace Velopack.Sources
@@ -133,7 +134,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public async Task<ReleaseEntry[]> GetReleaseFeed(string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null, ILogger logger = null)
+        public async Task<ReleaseEntry[]> GetReleaseFeed(ILogger logger, string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null)
         {
             if (String.IsNullOrWhiteSpace(AccessToken))
                 logger.Warn("No GitHub access token provided. Unauthenticated requests will be limited to 60 per hour.");
@@ -161,7 +162,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public async Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress, ILogger logger = null)
+        public async Task DownloadReleaseEntry(ILogger logger, ReleaseEntry releaseEntry, string localFile, Action<int> progress)
         {
             if (releaseEntry is GithubReleaseEntry githubEntry) {
                 // this might be a browser url or an api url (depending on whether we have a AccessToken or not)

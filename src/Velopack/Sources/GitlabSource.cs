@@ -165,7 +165,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public async Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress, ILogger logger = null)
+        public async Task DownloadReleaseEntry(ILogger logger, ReleaseEntry releaseEntry, string localFile, Action<int> progress)
         {
             if (releaseEntry is GitlabReleaseEntry githubEntry) {
                 // this might be a browser url or an api url (depending on whether we have a AccessToken or not)
@@ -178,7 +178,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public async Task<ReleaseEntry[]> GetReleaseFeed(string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null, ILogger logger = null)
+        public async Task<ReleaseEntry[]> GetReleaseFeed(ILogger logger, string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null)
         {
             var releases = await GetReleases(UpcomingRelease).ConfigureAwait(false);
             if (releases == null || releases.Count() == 0)

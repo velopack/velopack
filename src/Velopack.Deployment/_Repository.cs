@@ -37,7 +37,7 @@ public abstract class SourceRepository<TDown, TSource> : DownRepository<TDown>
     protected override Task SaveEntryToFileAsync(TDown options, ReleaseEntry entry, string filePath)
     {
         var source = CreateSource(options);
-        return source.DownloadReleaseEntry(entry, filePath, (i) => { }, logger: Log);
+        return source.DownloadReleaseEntry(Log, entry, filePath, (i) => { });
     }
 
     public abstract TSource CreateSource(TDown options);

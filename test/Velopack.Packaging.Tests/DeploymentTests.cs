@@ -157,8 +157,8 @@ This is just a _test_!
             Assert.Equal(notesContent.Trim().ReplaceLineEndings("\n"), newRelease.Body.Trim());
 
             // update
-            var source = new GithubSource(GITHUB_REPOURL, GITHUB_TOKEN, false, logger: logger);
-            var releases = source.GetReleaseFeed().GetAwaiterResult();
+            var source = new GithubSource(GITHUB_REPOURL, GITHUB_TOKEN, false);
+            var releases = source.GetReleaseFeed(logger: logger).GetAwaiterResult();
 
             var ghrel = releases.Select(r => (GithubReleaseEntry) r).ToArray();
             Assert.Equal(2, ghrel.Length);

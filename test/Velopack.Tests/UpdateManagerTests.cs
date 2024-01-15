@@ -68,7 +68,7 @@ namespace Velopack.Tests
 """;
             var downloader = new FakeDownloader() { MockedResponseBytes = Encoding.UTF8.GetBytes(releases) };
             var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
-            var um = new UpdateManager(new SimpleWebSource("http://any.com", "hello", downloader, logger), logger, locator);
+            var um = new UpdateManager(new SimpleWebSource("http://any.com", downloader), "hello", logger, locator);
             var info = um.CheckForUpdates();
             Assert.NotNull(info);
             Assert.True(new SemanticVersion(1, 1, 0) == info.TargetFullRelease.Version);
@@ -110,7 +110,7 @@ namespace Velopack.Tests
             using var _1 = Utility.GetTempDirectory(out var tempPath);
             var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
             var source = new GithubSource("https://github.com/caesay/SquirrelCustomLauncherTestApp", null, false);
-            var um = new UpdateManager(source, logger, locator);
+            var um = new UpdateManager(source, null, logger, locator);
             var info = um.CheckForUpdates();
             Assert.NotNull(info);
             Assert.True(new SemanticVersion(1, 0, 1) == info.TargetFullRelease.Version);
@@ -124,8 +124,8 @@ namespace Velopack.Tests
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var tempPath);
             var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
-            var source = new GithubSource("https://github.com/caesay/SquirrelCustomLauncherTestApp", null, false, "hello");
-            var um = new UpdateManager(source, logger, locator);
+            var source = new GithubSource("https://github.com/caesay/SquirrelCustomLauncherTestApp", null, false);
+            var um = new UpdateManager(source, "hello", logger, locator);
             Assert.Throws<ArgumentException>(() => um.CheckForUpdates());
         }
 
@@ -179,9 +179,9 @@ namespace Velopack.Tests
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var packagesDir);
             var repo = new FakeFixtureRepository(id, false);
-            var source = new SimpleWebSource("http://any.com", null, repo, logger);
+            var source = new SimpleWebSource("http://any.com", repo);
             var locator = new TestVelopackLocator(id, "1.0.0", packagesDir, logger);
-            var um = new UpdateManager(source, logger, locator);
+            var um = new UpdateManager(source, null, logger, locator);
 
             var info = um.CheckForUpdates();
             Assert.NotNull(info);
@@ -204,17 +204,17 @@ namespace Velopack.Tests
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var packagesDir);
             var repo = new FakeFixtureRepository(id, true);
-            var source = new SimpleWebSource("http://any.com", null, repo, logger);
+            var source = new SimpleWebSource("http://any.com", repo);
 
-            var basePkg = (await source.GetReleaseFeed()).Single(x => x.Version == SemanticVersion.Parse(fromVersion));
+            var basePkg = (await source.GetReleaseFeed(logger)).Single(x => x.Version == SemanticVersion.Parse(fromVersion));
             var basePkgFixturePath = PathHelper.GetFixture(basePkg.OriginalFilename);
             var basePkgPath = Path.Combine(packagesDir, basePkg.OriginalFilename);
             File.Copy(basePkgFixturePath, basePkgPath);
 
             var updateExe = PathHelper.CopyUpdateTo(packagesDir);
             var locator = new TestVelopackLocator(id, fromVersion,
-                packagesDir, null, null, updateExe, logger);
-            var um = new UpdateManager(source, logger, locator);
+                packagesDir, null, null, updateExe, null, logger);
+            var um = new UpdateManager(source, null, logger, locator);
 
             var info = await um.CheckForUpdatesAsync();
             Assert.NotNull(info);

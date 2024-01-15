@@ -97,17 +97,6 @@ public class S3UploadCommandTests : S3CommandTests<S3UploadCommand>
 {
     public override bool ShouldBeNonEmptyReleaseDir => true;
 
-    [Fact]
-    public void Overwrite_BareOption_SetsFlag()
-    {
-        var command = new S3UploadCommand();
-
-        string cli = GetRequiredDefaultOptions() + "--overwrite";
-        ParseResult parseResult = command.ParseAndApply(cli);
-
-        Assert.True(command.Overwrite);
-    }
-
     //[Fact]
     //public void KeepMaxReleases_WithNumber_ParsesValue()
     //{

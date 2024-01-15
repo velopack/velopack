@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Velopack.Sources
 {
@@ -32,7 +33,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public async Task<ReleaseEntry[]> GetReleaseFeed(string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null, ILogger logger = null)
+        public async Task<ReleaseEntry[]> GetReleaseFeed(ILogger logger, string channel = null, Guid? stagingId = null, ReleaseEntryName latestLocalRelease = null)
         {
             var uri = Utility.AppendPathToUri(BaseUri, Utility.GetReleasesFileName(channel));
             var args = new Dictionary<string, string>();
@@ -61,7 +62,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public async Task DownloadReleaseEntry(ReleaseEntry releaseEntry, string localFile, Action<int> progress, ILogger logger = null)
+        public async Task DownloadReleaseEntry(ILogger logger, ReleaseEntry releaseEntry, string localFile, Action<int> progress)
         {
             if (releaseEntry == null) throw new ArgumentNullException(nameof(releaseEntry));
             if (localFile == null) throw new ArgumentNullException(nameof(localFile));
