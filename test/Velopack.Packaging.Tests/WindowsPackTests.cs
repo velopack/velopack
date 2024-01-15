@@ -487,6 +487,7 @@ public class WindowsPackTests
     [InlineData("LegacyTestApp-ClowdV2-Setup.exe", "app-1.0.0")]
     [InlineData("LegacyTestApp-ClowdV3-Setup.exe", "current")]
     [InlineData("LegacyTestApp-SquirrelWinV2-Setup.exe", "app-1.0.0")]
+    [InlineData("LegacyTestApp-Velopack0084-Setup.exe", "current")]
     public void LegacyAppCanSuccessfullyMigrate(string fixture, string origDirName)
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
@@ -528,6 +529,9 @@ public class WindowsPackTests
 
         // this is the file written by TestApp when it's detected the squirrel restart. if this is here, everything went smoothly.
         Assert.True(File.Exists(Path.Combine(rootDir, "restarted")));
+
+        var chk3version = RunNoCoverage(appExe, new string[] { "version" }, currentDir, logger);
+        Assert.EndsWith(Environment.NewLine + "2.0.0", chk3version);
     }
 
     //private string RunCoveredRust(string binName, string[] args, string workingDir, ILogger logger, int? exitCode = 0)

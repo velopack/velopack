@@ -6,17 +6,22 @@
     <LangVersion>latest</LangVersion>
     <!--<UseClowd>2.11.1</UseClowd>-->
     <!--<UseClowd>3.0.210-*</UseClowd>-->
+    <!--<UseVelopack>0.0.84</UseVelopack>-->
   </PropertyGroup>
 
   <Choose>
-    <When Condition=" $(UseClowd) != '' ">
+    <When Condition=" $(UseClowd) != '' or $(UseVelopack) != '' ">
       <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <DefineConstants>CLOWD</DefineConstants>
+        <DefineConstants Condition="$(UseClowd) != ''">CLOWD</DefineConstants>
+        <DefineConstants Condition="$(UseVelopack) != ''">VELOPACK</DefineConstants>
       </PropertyGroup>
-      <ItemGroup>
+      <ItemGroup Condition=" $(UseClowd) != '' ">
         <PackageReference Include="Clowd.Squirrel" Version="$(UseClowd)" />
         <None Update="LegacyTestApp.exe.squirrel" CopyToOutputDirectory="Always" />
+      </ItemGroup>
+      <ItemGroup Condition=" $(UseVelopack) != '' ">
+        <PackageReference Include="Velopack" Version="$(UseVelopack)" />
       </ItemGroup>
     </When>
     <Otherwise>
