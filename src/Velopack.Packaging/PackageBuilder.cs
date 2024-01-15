@@ -174,7 +174,7 @@ namespace Velopack.Packaging
                         File.Move(f.from, f.to, true);
                     }
 
-                    ReleaseEntryHelper.UpdateReleaseFiles(releaseDir.FullName);
+                    ReleaseEntryHelper.UpdateReleaseFiles(releaseDir.FullName, Log);
                     BuildAssets.Write(releaseDir.FullName, channel, filesToCopy.Select(x => x.to));
                     progress(100);
                     return Task.CompletedTask;

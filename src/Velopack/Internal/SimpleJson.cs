@@ -1,14 +1,13 @@
 ﻿using System;
 using NuGet.Versioning;
-using System.Text.Json.Serialization;
 
 #if NET5_0_OR_GREATER
 using System.Text.Json;
+using System.Text.Json.Serialization;
 #else
 using System.Reflection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
-using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 #endif
 
@@ -30,6 +29,8 @@ namespace Velopack.Json
             AllowTrailingCommas = true,
             ReadCommentHandling = JsonCommentHandling.Skip,
             PropertyNameCaseInsensitive = true,
+            WriteIndented = true,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             Converters = { new JsonStringEnumConverter(), new SemanticVersionConverter() },
         };
 

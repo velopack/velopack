@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Velopack.Json;
 using Velopack.Packaging.Exceptions;
 
 namespace Velopack.Packaging
@@ -19,19 +20,13 @@ namespace Velopack.Packaging
                 .ToList();
         }
 
-        private static readonly JsonSerializerOptions _options = new JsonSerializerOptions {
-            AllowTrailingCommas = true,
-            WriteIndented = true,
-            ReadCommentHandling = JsonCommentHandling.Skip,
-        };
-
         public static void Write(string outputDir, string channel, IEnumerable<string> files)
         {
             var assets = new BuildAssets {
                 Files = files.OrderBy(f => f).ToList(),
             };
             var path = Path.Combine(outputDir, $"assets.{channel}.json");
-            var json = JsonSerializer.Serialize(assets, _options);
+            var json = JsonSerializer.Serialize(assets, SimpleJson.Options);
             File.WriteAllText(path, json);
         }
 
@@ -42,7 +37,7 @@ namespace Velopack.Packaging
                 throw new UserInfoException($"Could not find assets file for channel '{channel}' (looking for '{Path.GetFileName(path)}' in directory '{outputDir}'). " +
                     $"If you've just created a Velopack release, verify you're calling this command with the same '--channel' as you did with 'pack'.");
             }
-            return JsonSerializer.Deserialize<BuildAssets>(File.ReadAllText(path), _options);
+            return JsonSerializer.Deserialize<BuildAssets>(File.ReadAllText(path), SimpleJson.Options);
         }
     }
 }

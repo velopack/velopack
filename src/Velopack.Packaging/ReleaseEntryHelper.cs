@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
+using Velopack.Json;
 using Velopack.NuGet;
 using Velopack.Packaging.Exceptions;
 using Velopack.Sources;
@@ -90,7 +91,7 @@ namespace Velopack.Packaging
             return assets;
         }
 
-        public static void UpdateReleaseFiles(string outputDir)
+        public static void UpdateReleaseFiles(string outputDir, ILogger log)
         {
             var releases = GetReleasesFromDir(outputDir);
             foreach (var releaseFile in Directory.EnumerateFiles(outputDir, "RELEASES*")) {
@@ -98,10 +99,16 @@ namespace Velopack.Packaging
             }
             foreach (var kvp in releases) {
                 if (VelopackRuntimeInfo.IsWindows && kvp.Key == GetDefaultChannel(RuntimeOs.Windows)) {
+                    var exclude = kvp.Value.Where(x => x.Version.ReleaseLabels.Any(r => r.Contains('.')) || x.Version.HasMetadata).ToArray();
+                    if (exclude.Any()) {
+                        log.Warn($"Excluding {exclude.Length} assets from legacy RELEASES file, because they " +
+                            $"contain an invalid character in the version: {string.Join(", ", exclude.Select(x => x.FileName))}");
+                    }
+
                     // We write a legacy RELEASES file to allow older applications to update to velopack
 #pragma warning disable CS0618 // Type or member is obsolete
                     var path = Path.Combine(outputDir, "RELEASES");
-                    ReleaseEntry.WriteReleaseFile(kvp.Value.Select(ReleaseEntry.FromVelopackAsset), path);
+                    ReleaseEntry.WriteReleaseFile(kvp.Value.Except(exclude).Select(ReleaseEntry.FromVelopackAsset), path);
 #pragma warning restore CS0618 // Type or member is obsolete
                 }
                 var indexPath = Path.Combine(outputDir, Utility.GetVeloReleaseIndexName(kvp.Key));
@@ -119,18 +126,13 @@ namespace Velopack.Packaging
 
         public static string GetAssetFeedJson(VelopackAssetFeed feed)
         {
-            return JsonSerializer.Serialize(feed, new JsonSerializerOptions() {
-                WriteIndented = true,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-                Converters = {
-                    new JsonStringEnumConverter(),
-                },
-            });
+            return JsonSerializer.Serialize(feed, SimpleJson.Options);
         }
 
         public static string GetSuggestedReleaseName(string id, string version, string channel, bool delta)
         {
             var suffix = GetUniqueAssetSuffix(channel);
+            version = SemanticVersion.Parse(version).ToNormalizedString();
             if (VelopackRuntimeInfo.IsWindows && channel == GetDefaultChannel(RuntimeOs.Windows)) {
                 return $"{id}-{version}{(delta ? "-delta" : "-full")}.nupkg";
             }
