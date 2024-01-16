@@ -78,7 +78,7 @@ namespace Velopack.Locators
             var metadataPath = Path.Combine(contentsDir, Utility.SpecVersionFileName);
 
             if (!String.IsNullOrEmpty(AppImagePath) && File.Exists(AppImagePath)) {
-                if (File.Exists(updateExe) && NuspecManifest.TryParseFromFile(metadataPath, out var manifest)) {
+                if (File.Exists(updateExe) && PackageManifest.TryParseFromFile(metadataPath, out var manifest)) {
                     Log.Info("Located valid manifest file at: " + metadataPath);
                     AppId = manifest.Id;
                     RootAppDir = rootDir;

@@ -18,7 +18,7 @@ namespace Velopack.Packaging.Windows
         }
 
         [SupportedOSPlatform("windows")]
-        public static void SetPEVersionBlockFromPackageInfo(string exePath, NuspecManifest package, string iconPath = null)
+        public static void SetPEVersionBlockFromPackageInfo(string exePath, PackageManifest package, string iconPath = null)
         {
             var realExePath = Path.GetFullPath(exePath);
 

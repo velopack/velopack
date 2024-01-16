@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace Velopack.NuGet
 {
-    public class ZipPackage : NuspecManifest
+    public class ZipPackage : PackageManifest
     {
         public IEnumerable<ZipPackageFile> Files { get; private set; } = Enumerable.Empty<ZipPackageFile>();
 

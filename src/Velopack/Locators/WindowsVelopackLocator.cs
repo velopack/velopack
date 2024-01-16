@@ -66,7 +66,7 @@ namespace Velopack.Locators
                 Log.Info("Update.exe found in parent directory");
                 // we're running in a directory with an Update.exe in the parent directory
                 var manifestFile = Path.Combine(myDirPath, Utility.SpecVersionFileName);
-                if (NuspecManifest.TryParseFromFile(manifestFile, out var manifest)) {
+                if (PackageManifest.TryParseFromFile(manifestFile, out var manifest)) {
                     // ideal, the info we need is in a manifest file.
                     Log.Info("Located valid manifest file at: " + manifestFile);
                     AppId = manifest.Id;
@@ -91,7 +91,7 @@ namespace Velopack.Locators
                 var manifestFile = Path.Combine(currentDir, Utility.SpecVersionFileName);
                 possibleUpdateExe = Path.GetFullPath(Path.Combine(rootDir, "Update.exe"));
                 // we only support parsing a manifest when we're in a nested current directory. no legacy fallback.
-                if (File.Exists(possibleUpdateExe) && NuspecManifest.TryParseFromFile(manifestFile, out var manifest)) {
+                if (File.Exists(possibleUpdateExe) && PackageManifest.TryParseFromFile(manifestFile, out var manifest)) {
                     Log.Warn("Running in deeply nested directory. This is not an advised use-case.");
                     Log.Info("Located valid manifest file at: " + manifestFile);
                     RootAppDir = Path.GetDirectoryName(possibleUpdateExe);

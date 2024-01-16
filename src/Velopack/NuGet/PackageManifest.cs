@@ -8,7 +8,7 @@ using NuGet.Versioning;
 
 namespace Velopack.NuGet
 {
-    public class NuspecManifest
+    public class PackageManifest
     {
         public string? ProductName => Title ?? Id;
         public string? ProductDescription => Description ?? Summary ?? Title ?? Id;
@@ -32,18 +32,18 @@ namespace Velopack.NuGet
 
         private static readonly string[] ExcludePaths = new[] { "_rels", "package" };
 
-        protected NuspecManifest() { }
+        protected PackageManifest() { }
 
-        public static NuspecManifest ParseFromFile(string filePath)
+        public static PackageManifest ParseFromFile(string filePath)
         {
             using var fs = File.OpenRead(filePath);
-            var nu = new NuspecManifest();
+            var nu = new PackageManifest();
             nu.ReadManifest(fs);
             //nu.FilePath = filePath;
             return nu;
         }
 
-        public static bool TryParseFromFile(string filePath, out NuspecManifest manifest)
+        public static bool TryParseFromFile(string filePath, out PackageManifest manifest)
         {
             try {
                 manifest = ParseFromFile(filePath);
