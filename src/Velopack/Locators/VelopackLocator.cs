@@ -6,6 +6,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.Versioning;
+using Velopack.Sources;
 
 namespace Velopack.Locators
 {
@@ -89,10 +90,19 @@ namespace Velopack.Locators
             try {
                 if (CurrentlyInstalledVersion == null)
                     return new List<VelopackAsset>(0);
-                return Directory.EnumerateFiles(PackagesDir, "*.nupkg")
-                    .Select(x => VelopackAsset.FromNupkg(x))
-                    .Where(x => x?.Version != null)
-                    .ToList();
+
+                var list = new List<VelopackAsset>();
+                foreach (var pkg in Directory.EnumerateFiles(PackagesDir, "*.nupkg")) {
+                    try {
+                        var asset = VelopackAsset.FromNupkg(pkg);
+                        if (asset?.Version != null) {
+                            list.Add(asset);
+                        }
+                    } catch (Exception ex) {
+                        Log.Warn(ex, $"Error while reading local package '{pkg}'.");
+                    }
+                }
+                return list;
             } catch (Exception ex) {
                 Log.Error(ex, "Error while reading local packages.");
                 return new List<VelopackAsset>(0);

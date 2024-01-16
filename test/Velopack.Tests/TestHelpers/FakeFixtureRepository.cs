@@ -1,4 +1,7 @@
-﻿using System.Text;
+﻿#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0612 // Type or member is obsolete
+using System.Text;
+using System.Text.Json;
 using Velopack.Sources;
 
 namespace Velopack.Tests.TestHelpers
@@ -7,14 +10,22 @@ namespace Velopack.Tests.TestHelpers
     {
         private readonly string _pkgId;
         private readonly IEnumerable<ReleaseEntry> _releases;
+        private readonly VelopackAssetFeed _releasesNew;
         private readonly string _releasesName;
+        private readonly string _releasesNameNew;
 
         public FakeFixtureRepository(string pkgId, bool mockLatestFullVer, string channel = null)
         {
             _releasesName = Utility.GetReleasesFileName(channel);
+            _releasesNameNew = Utility.GetVeloReleaseIndexName(channel);
             _pkgId = pkgId;
             var releases = ReleaseEntry.BuildReleasesFile(PathHelper.GetFixturesDir(), false)
                 .Where(r => r.OriginalFilename.StartsWith(_pkgId))
+                .ToList();
+
+            var releasesNew = new SimpleFileSource(new DirectoryInfo(PathHelper.GetFixturesDir()))
+                .GetReleaseFeed(NullLogger.Instance, null).GetAwaiterResult().Assets
+                .Where(r => r.FileName.StartsWith(_pkgId))
                 .ToList();
 
             if (mockLatestFullVer) {
@@ -26,9 +37,19 @@ namespace Velopack.Tests.TestHelpers
                 if (maxfullVer.Version < maxDeltaVer.Version) {
                     var name = new ReleaseEntryName(maxfullVer.PackageId, maxDeltaVer.Version, false);
                     releases.Add(new ReleaseEntry("0000000000000000000000000000000000000000", name.ToFileName(), maxfullVer.Filesize));
+
+                    releasesNew.Add(new VelopackAsset {
+                        PackageId = maxfullVer.PackageId,
+                        Version = maxDeltaVer.Version,
+                        Type = VelopackAssetType.Full,
+                        FileName = $"{maxfullVer.PackageId}-{maxDeltaVer.Version}-full.nupkg",
+                    });
                 }
             }
 
+            _releasesNew = new VelopackAssetFeed {
+                Assets = releasesNew.ToArray(),
+            };
             _releases = releases;
         }
 
@@ -38,6 +59,11 @@ namespace Velopack.Tests.TestHelpers
                 MemoryStream ms = new MemoryStream();
                 ReleaseEntry.WriteReleaseFile(_releases, ms);
                 return Task.FromResult(ms.ToArray());
+            }
+
+            if (url.Contains($"/{_releasesNameNew}?")) {
+                var json = JsonSerializer.Serialize(_releasesNew, SimpleJsonTests.Options);
+                return Task.FromResult(Encoding.UTF8.GetBytes(json));
             }
 
             var rel = _releases.FirstOrDefault(r => url.EndsWith(r.OriginalFilename));
@@ -70,12 +96,18 @@ namespace Velopack.Tests.TestHelpers
 
         public Task<string> DownloadString(string url, string authorization = null, string accept = null)
         {
-            if (!url.Contains("/RELEASES?")) {
-                throw new NotImplementedException();
+            if (url.Contains($"/{_releasesName}?")) {
+                MemoryStream ms = new MemoryStream();
+                ReleaseEntry.WriteReleaseFile(_releases, ms);
+                return Task.FromResult(Encoding.UTF8.GetString(ms.ToArray()));
             }
-            MemoryStream ms = new MemoryStream();
-            ReleaseEntry.WriteReleaseFile(_releases, ms);
-            return Task.FromResult(Encoding.UTF8.GetString(ms.ToArray()));
+
+            if (url.Contains($"/{_releasesNameNew}?")) {
+                var json = JsonSerializer.Serialize(_releasesNew, SimpleJsonTests.Options);
+                return Task.FromResult(json);
+            }
+
+            throw new NotSupportedException("FakeFixtureRepository doesn't have: " + url);
         }
     }
 }

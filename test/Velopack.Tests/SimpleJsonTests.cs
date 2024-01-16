@@ -79,6 +79,15 @@ namespace Velopack.Tests
             Assert.Equal(obj.Greetings, dez.greetings);
         }
 
+        [Fact]
+        public void JsonCanParseReleasesJson()
+        {
+            var json = File.ReadAllText(PathHelper.GetFixture("releases.win.json"));
+            var feed = SimpleJson.DeserializeObject<VelopackAssetFeed>(json);
+            Assert.Equal(21, feed.Assets.Length);
+            Assert.True(feed.Assets.First().Version == new SemanticVersion(1, 0, 11));
+        }
+
         public class TestGithubReleaseAsset
         {
             /// <summary> 

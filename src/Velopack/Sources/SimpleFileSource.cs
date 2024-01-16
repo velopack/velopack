@@ -1,11 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using Velopack.NuGet;
 
 namespace Velopack.Sources
 {
@@ -32,14 +31,19 @@ namespace Velopack.Sources
                 return Task.FromResult(new VelopackAssetFeed());
             }
 
-            var assets = Directory.EnumerateFiles(BaseDirectory.FullName, "*.nupkg")
-               .Select(x => new ZipPackage(x))
-               .Where(x => x?.Version != null)
-               .Where(x => x.Channel == null || x.Channel == channel)
-               .Select(x => VelopackAsset.FromZipPackage(x))
-               .ToArray();
+            var list = new List<VelopackAsset>();
+            foreach (var pkg in Directory.EnumerateFiles(BaseDirectory.FullName, "*.nupkg")) {
+                try {
+                    var asset = VelopackAsset.FromNupkg(pkg);
+                    if (asset?.Version != null) {
+                        list.Add(asset);
+                    }
+                } catch (Exception ex) {
+                    logger.Warn(ex, $"Error while reading local package '{pkg}'.");
+                }
+            }
 
-            return Task.FromResult(new VelopackAssetFeed { Assets = assets });
+            return Task.FromResult(new VelopackAssetFeed { Assets = list.ToArray() });
         }
 
         /// <inheritdoc />

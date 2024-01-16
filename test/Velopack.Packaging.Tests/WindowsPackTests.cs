@@ -64,8 +64,10 @@ public class WindowsPackTests
         var setupPath = Path.Combine(tmpReleaseDir, $"{id}-asd123-Setup.exe");
         Assert.True(File.Exists(setupPath));
 
-        var releasesPath = Path.Combine(tmpReleaseDir, $"RELEASES-asd123");
-        Assert.True(File.Exists(releasesPath));
+        //var releasesPath = Path.Combine(tmpReleaseDir, $"RELEASES-asd123");
+        //Assert.True(File.Exists(releasesPath));
+        var releasesPath2 = Path.Combine(tmpReleaseDir, $"releases.asd123.json");
+        Assert.True(File.Exists(releasesPath2));
 
         EasyZip.ExtractZipToDirectory(logger, nupkgPath, unzipDir);
 
@@ -75,7 +77,7 @@ public class WindowsPackTests
         var xml = XDocument.Load(nuspecPath);
 
         Assert.Equal(id, xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("id").Single().Value);
-        Assert.Equal(version + "-asd123", xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("version").Single().Value);
+        Assert.Equal(version, xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("version").Single().Value);
         Assert.Equal(exe, xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("mainExe").Single().Value);
         Assert.Equal("Test Squirrel App", xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("title").Single().Value);
         Assert.Equal("author", xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("authors").Single().Value);
@@ -297,7 +299,7 @@ public class WindowsPackTests
         PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
 
         // move package into local packages dir
-        var fileName = $"{id}-2.0.0-win-full.nupkg";
+        var fileName = $"{id}-2.0.0-full.nupkg";
         var mvFrom = Path.Combine(releaseDir, fileName);
         var mvTo = Path.Combine(installDir, "packages", fileName);
         File.Copy(mvFrom, mvTo);
@@ -321,7 +323,7 @@ public class WindowsPackTests
         PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
 
         // did a zsdiff get created for our v2 update?
-        var deltaPath = Path.Combine(releaseDir, $"{id}-2.0.0-win-delta.nupkg");
+        var deltaPath = Path.Combine(releaseDir, $"{id}-2.0.0-delta.nupkg");
         Assert.True(File.Exists(deltaPath));
         using var _2 = Utility.GetTempDirectory(out var extractDir);
         EasyZip.ExtractZipToDirectory(logger, deltaPath, extractDir);
@@ -335,14 +337,14 @@ public class WindowsPackTests
         // apply delta and check package
         var output = Path.Combine(releaseDir, "delta.patched");
         new DeltaPatchCommandRunner(logger).Run(new DeltaPatchOptions {
-            BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-win-full.nupkg"),
+            BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-full.nupkg"),
             OutputFile = output,
             PatchFiles = new[] { new FileInfo(deltaPath) },
         }).GetAwaiterResult();
 
         // are the packages the same?
         Assert.True(File.Exists(output));
-        var v2 = Path.Combine(releaseDir, $"{id}-2.0.0-win-full.nupkg");
+        var v2 = Path.Combine(releaseDir, $"{id}-2.0.0-full.nupkg");
         var f1 = File.ReadAllBytes(output);
         var f2 = File.ReadAllBytes(v2);
         Assert.True(new ReadOnlySpan<byte>(f1).SequenceEqual(new ReadOnlySpan<byte>(f2)));

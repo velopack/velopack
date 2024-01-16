@@ -166,7 +166,7 @@ This is just a _test_!
             foreach (var r in ghrel) {
                 Assert.Equal(releaseName, r.Release.Name);
                 Assert.Equal(id, r.PackageId);
-                Assert.Equal(newVer + "-" + uniqueSuffix, r.Version.ToNormalizedString());
+                Assert.Equal(newVer, r.Version.ToNormalizedString());
             }
 
             using var _2 = Utility.GetTempDirectory(out var releaseDirNew);

@@ -185,7 +185,7 @@ namespace Velopack
 
         public static string GetVeloReleaseIndexName(string channel)
         {
-            return $"releases.{channel}.json";
+            return $"releases.{channel ?? VelopackRuntimeInfo.SystemOs.GetOsShortName()}.json";
         }
 
         [Obsolete]

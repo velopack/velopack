@@ -38,6 +38,11 @@ namespace Velopack.Json
         {
             return JsonSerializer.Deserialize<T>(json, Options);
         }
+
+        public static string SerializeObject<T>(T obj)
+        {
+            return JsonSerializer.Serialize(obj, Options);
+        }
     }
 
     internal class SemanticVersionConverter : JsonConverter<SemanticVersion>
@@ -65,13 +70,20 @@ namespace Velopack.Json
 
     internal static class SimpleJson
     {
+        private static readonly JsonSerializerSettings Options = new JsonSerializerSettings {
+            Converters = { new StringEnumConverter(), new SemanticVersionConverter() },
+            ContractResolver = new JsonNameContractResolver(),
+            NullValueHandling = NullValueHandling.Ignore,
+        };
+
         public static T DeserializeObject<T>(string json)
         {
-            var options = new JsonSerializerSettings {
-                Converters = { new StringEnumConverter(), new SemanticVersionConverter() },
-                ContractResolver = new JsonNameContractResolver(),
-            };
-            return JsonConvert.DeserializeObject<T>(json, options);
+            return JsonConvert.DeserializeObject<T>(json, Options);
+        }
+
+        public static string SerializeObject<T>(T obj)
+        {
+            return JsonConvert.SerializeObject(obj, Formatting.Indented, Options);
         }
     }
 
