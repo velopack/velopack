@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Velopack.NuGet;
 
 namespace Velopack.Sources
 {
@@ -34,9 +35,14 @@ namespace Velopack.Sources
             var list = new List<VelopackAsset>();
             foreach (var pkg in Directory.EnumerateFiles(BaseDirectory.FullName, "*.nupkg")) {
                 try {
-                    var asset = VelopackAsset.FromNupkg(pkg);
+                    var zip = new ZipPackage(pkg);
+                    var asset = VelopackAsset.FromZipPackage(zip);
                     if (asset?.Version != null) {
-                        list.Add(asset);
+                        if (channel == null || zip?.Channel == null || zip?.Channel == channel) {
+                            list.Add(asset);
+                        } else {
+                            logger.Warn($"Skipping local package '{pkg}' because it is not in the '{channel}' channel.");
+                        }
                     }
                 } catch (Exception ex) {
                     logger.Warn(ex, $"Error while reading local package '{pkg}'.");
