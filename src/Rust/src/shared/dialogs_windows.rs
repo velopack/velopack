@@ -78,21 +78,46 @@ pub fn show_overwrite_repair_dialog(app: &Manifest, root_path: &PathBuf, root_is
     if get_silent() {
         return true;
     }
+
+    // these are the defaults, if we can't detect the current app version - we call it "Repair"
+    let mut config: w::TASKDIALOGCONFIG = Default::default();
+    config.set_pszMainIcon(w::IconIdTdicon::Tdicon(co::TD_ICON::WARNING));
+
     let mut setup_name = WString::from_str(format!("{} Setup {}", app.title, app.version));
     let mut instruction = WString::from_str(format!("{} is already installed.", app.title));
-    let mut content = WString::from_str("This application is installed on your computer. You can attempt to repair the install, this may end up installing an older version of the application and may delete any saved settings/preferences.");
+    let mut content = WString::from_str("This application is installed on your computer. If it is not functioning correctly, you can attempt to repair it.");
+    let mut btn_yes_txt = WString::from_str(format!("Repair\nErase the application and re-install version {}.", app.version));
+    let mut btn_cancel_txt = WString::from_str("Cancel\nBackup or save your work first");
+
+    // if we can detect the current app version, we call it "Update" or "Downgrade"
+    let possible_update = root_path.join("Update.exe");
+    let old_app = super::detect_manifest_from_update_path(&possible_update).map(|v| v.1).ok();
+    if let Some(old) = old_app {
+        if old.version < app.version {
+            instruction = WString::from_str(format!("An older version of {} is installed.", app.title));
+            content = WString::from_str(format!("Would you like to update from {} to {}?", old.version, app.version));
+            btn_yes_txt = WString::from_str(format!("Update\nTo version {}", app.version));
+            config.set_pszMainIcon(w::IconIdTdicon::Tdicon(co::TD_ICON::INFORMATION));
+        } else if old.version > app.version {
+            instruction = WString::from_str(format!("A newer version of {} is installed.", app.title));
+            content = WString::from_str(format!(
+                "You already have {} installed. Would you like to downgrade this application to an older version?",
+                old.version
+            ));
+            btn_yes_txt = WString::from_str(format!("Downgrade\nTo version {}", app.version));
+        }
+    }
+
     let mut footer = if root_is_default {
         WString::from_str(format!("The install directory is '<A HREF=\"na\">%LocalAppData%\\{}</A>'", app.id))
     } else {
         WString::from_str(format!("The install directory is '<A HREF=\"na\">{}</A>'", root_path.display()))
     };
 
-    let mut btn_yes_txt = WString::from_str(format!("Repair\nErase the application and install version {}.", app.version));
     let mut btn_yes = w::TASKDIALOG_BUTTON::default();
     btn_yes.set_nButtonID(co::DLGID::YES.into());
     btn_yes.set_pszButtonText(Some(&mut btn_yes_txt));
 
-    let mut btn_cancel_txt = WString::from_str("Cancel\nBackup or save your work first.");
     let mut btn_cancel = w::TASKDIALOG_BUTTON::default();
     btn_cancel.set_nButtonID(co::DLGID::CANCEL.into());
     btn_cancel.set_pszButtonText(Some(&mut btn_cancel_txt));
@@ -101,9 +126,7 @@ pub fn show_overwrite_repair_dialog(app: &Manifest, root_path: &PathBuf, root_is
     custom_btns.push(btn_yes);
     custom_btns.push(btn_cancel);
 
-    let mut config: w::TASKDIALOGCONFIG = Default::default();
-    config.dwFlags = co::TDF::ENABLE_HYPERLINKS | co::TDF::USE_COMMAND_LINKS | co::TDF::SIZE_TO_CONTENT;
-    config.set_pszMainIcon(w::IconIdTdicon::Tdicon(co::TD_ICON::WARNING));
+    config.dwFlags = co::TDF::ENABLE_HYPERLINKS | co::TDF::USE_COMMAND_LINKS;
     config.set_pButtons(Some(&mut custom_btns));
     config.set_pszWindowTitle(Some(&mut setup_name));
     config.set_pszMainInstruction(Some(&mut instruction));
