@@ -114,8 +114,22 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
         };
         var entries = build.GetReleaseEntries();
         var json = ReleaseEntryHelper.GetAssetFeedJson(feed);
-        var data = new ReleaseAssetUpload(releasesFileName, "application/json", new MemoryStream(Encoding.UTF8.GetBytes(json)), TimeSpan.FromMinutes(1));
-        await client.Repository.Release.UploadAsset(release, data, CancellationToken.None);
+
+        await RetryAsync(async () => {
+            var data = new ReleaseAssetUpload(releasesFileName, "application/json", new MemoryStream(Encoding.UTF8.GetBytes(json)), TimeSpan.FromMinutes(1));
+            await client.Repository.Release.UploadAsset(release, data, CancellationToken.None);
+        }, "Uploading " + releasesFileName);
+
+        if (options.Channel == ReleaseEntryHelper.GetDefaultChannel(RuntimeOs.Windows)) {
+            var ms = new MemoryStream();
+#pragma warning disable CS0618 // Type or member is obsolete
+            ReleaseEntry.WriteReleaseFile(entries.Select(ReleaseEntry.FromVelopackAsset), ms);
+#pragma warning restore CS0618 // Type or member is obsolete
+            await RetryAsync(async () => {
+                var data = new ReleaseAssetUpload("RELEASES", "application/octet-stream", new MemoryStream(ms.ToArray()), TimeSpan.FromMinutes(1));
+                await client.Repository.Release.UploadAsset(release, data, CancellationToken.None);
+            }, "Uploading legacy RELEASES (compatibility)");
+        }
 
         // convert draft to full release
         if (options.Publish) {
