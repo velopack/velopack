@@ -76,7 +76,7 @@ try {
                 return -1;
             }
             Console.WriteLine("applying...");
-            um.ApplyPendingUpdate(true, new[] { "test", "args !!" });
+            um.ApplyUpdatesAndRestart(new[] { "test", "args !!" });
             return 0;
         }
     }
