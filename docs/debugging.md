@@ -7,7 +7,7 @@
 All parts of Velopack have logging built in to help troubleshoot issues, and you should provide these logs when opening a GitHub issue about a potential bug.
 
 ### UpdateManager / In your application
-You should provide an instance of `Microsoft.Extensions.Logging.ILogger` to `VelopackApp` and to `UpdateManager` to record potential issues. If you are not using Microsoft Hosting or Logging already, it is very simple to implement this interface yourself and log to a file, or integrate with another logging framework. 
+You should provide an instance of `Microsoft.Extensions.Logging.ILogger` to `VelopackApp.Run(ILogger)` and to `UpdateManager` to record potential issues. If you are not using Microsoft Hosting or Logging already, it is very simple to implement this interface yourself and log to a file, or integrate with another logging framework. 
 
 For example:
 ```cs

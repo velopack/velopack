@@ -2,10 +2,44 @@
 |:---|
 
 # Code Signing
+*Applies to: Windows, MacOS*
+
 Code signing is an essential part of application distribution. On Windows, applications without code signatures are likely to be flagged as viruses. On OSX, codesigning and Notarization is required before your application can be run by users.
 
+On both platforms, signing needs to be performed by Velopack itself, this is because the Velopack binaries (such as Update and Setup) need to be signed at different points in the package build process.
+
 ## Signing on Windows
-tbc
+
+### Acquiring a code signing certificate
+First, you need to acquire a code-signing certificate from a reputable brand. To name a few: Digicert, Sectigo, Comodo. It may be possible to purchase a certificate through an official reseller for cheaper than buying directly from the issuer. If you are looking for an open source development certificate, Certum currently does an [Open Source Cloud Signing](https://certum.store/data-safety/code-signing-certificates.html?as_dane_w_certyfikacie=5720) certificate for $58
+
+**Disclaimer: This is by no means a recommendation or advice for any particular code-signing certificate issuer, but instead is general guidance for the process one might follow to purchase a certificate.**
+
+### Signing via `signtool.exe`
+usually signing is accomplished via `signtool.exe`. If you already use this tool to sign your application, you can just lift your sign parameters straight to Velopack.
+
+For example, if your signing command before was:
+```cmd
+signtool.exe sign /td sha256 /fd sha256 /f yourCert.pfx /tr http://timestamp.comodoca.com
+```
+
+Then now with `--signParams` it would be:
+```cmd
+vpk pack ... --signParams "/td sha256 /fd sha256 /f yourCert.pfx /tr http://timestamp.comodoca.com"
+```
+
+If you are new to using `signtool.exe`, you can check the [command line reference here](https://learn.microsoft.com/en-us/dotnet/framework/tools/signtool-exe). I recommend getting signing working on a single binary first, using `signtool.exe`, before trying to get things working with the Velopack CLI.
+
+Take care when providing parameters that if you have any quoted (`"`) arguments you will need to escape those quotes with a backslash. 
+
+By default, Velopack will sign 10 files per call to `signtool.exe`, to speed up signing and reduce the number of times you need to interact with the console if you are using some kind of interactive signing method. This can be disabled with the `--signParallel 1` argument.
+
+### Custom signing commands and tools
+If you have more advanced signing requirements, such as a custom signing tool (eg. `AzureSignTool.exe`), then you can provide a command template instead, where `{{file}}` is the binary that Velopack will substitute and sign:
+
+```cmd
+vpk pack ... --signTemplate "AzureSignTool.exe sign ... {{file}}"
+```
 
 ## Signing & Notarizing on OSX
 Codesigning and Notarization is required before your application can be run by users, therefore it is a required step before deploying your application.

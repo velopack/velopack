@@ -15,7 +15,7 @@ Velopack is a setup / installation framework for cross-platform dotnet applicati
 
 ## Features
 
-- 😍 **Zero config** – Velopack takes your dotnet build output (eg. `dotnet publish`), and generates an installer, and update package in a single command.
+- 😍 **Zero config** – Velopack takes your dotnet build output (eg. `dotnet publish`), and generates an installer, and updates and delta packages in a single command.
 - 🎯 **Cross platform** – Velopack supports building packages for **Windows**, **OSX**, and **Linux**. No matter your target, Velopack can create a release in just one command.
 - 🚀 **Automatic migrations** - If you are coming from [Squirrel.Windows](https://github.com/Squirrel/Squirrel.Windows) or [Clowd.Squirrel](https://github.com/clowd/Clowd.Squirrel), Velopack will automatically migrate your application. Just build your Velopack release and deploy! [Read more.](docs/migrating.md)
 - ⚡️ **Lightning fast** – Velopack is written in Rust for native performance. Creating releases is multi-threaded, and produces delta packages for ultra fast app updates. Applying update packages is highly optimised, and often can be done in the background.
@@ -42,7 +42,7 @@ This is a very simple example of the steps you would take to generate an install
 4. Publish dotnet and build your first Velopack release! 🎉
    ```cmd
    dotnet publish -c Release --self-contained -r win-x64 -o .\publish
-   vpk pack -u YourAppId -v 1.0.0 -p .\publish
+   vpk pack -u YourAppId -v 1.0.0 -p .\publish -e yourMainApp.exe
    ```
 5. Add automatic updating to your app:
    ```cs
