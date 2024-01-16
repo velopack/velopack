@@ -3,6 +3,7 @@ use image::{codecs::gif::GifDecoder, io::Reader as ImageReader, AnimationDecoder
 use std::{
     cell::RefCell,
     io::Cursor,
+    ops::Deref,
     rc::Rc,
     sync::mpsc::{self, Receiver, Sender},
     thread,
@@ -209,44 +210,62 @@ impl SplashWindow {
             }
 
             // trigger a new WM_PAINT
-            self2.wnd.hwnd().InvalidateRect(None, true)?;
+            self2.wnd.hwnd().InvalidateRect(None, false)?;
             Ok(())
         });
 
         let self2 = self.clone();
         self.wnd.on().wm_paint(move || {
-            let mut idx = self2.frame_idx.borrow_mut();
-            let h_bitmap = unsafe { self2.frames[*idx].raw_copy() };
+            // initial setup
+            let hwnd = self2.wnd.hwnd();
+            let rect = hwnd.GetClientRect()?;
+            let hdc = hwnd.BeginPaint()?;
+            let w = rect.right - rect.left;
+            let h = rect.bottom - rect.top;
+            let desktop = w::HWND::GetDesktopWindow();
+            let hdc_screen = desktop.GetDC()?;
 
+            // retrieve the next frame to draw
+            let mut idx = self2.frame_idx.borrow_mut();
+            let h_bitmap = self2.frames[*idx].deref();
             *idx += 1;
             if *idx >= self2.frames.len() {
                 *idx = 0;
             }
 
-            let hwnd = self2.wnd.hwnd();
-            let rect = hwnd.GetClientRect()?;
-            let hdc = hwnd.BeginPaint()?;
-            let hdc_mem = hdc.CreateCompatibleDC()?;
-            let _old_bitmap = hdc_mem.SelectObject(&h_bitmap)?;
+            // create double buffer
+            let hdc_mem = hdc_screen.CreateCompatibleDC()?;
+            let buffer_bmp = hdc_screen.CreateCompatibleBitmap(w, h)?;
+            let _buffer_old = hdc_mem.SelectObject(buffer_bmp.deref())?;
 
-            let background_brush = w::HBRUSH::CreateSolidBrush(w::COLORREF::new(255, 255, 255))?;
-            hdc_mem.FillRect(rect, &background_brush)?;
+            // load image into hdc_bitmap
+            let hdc_bitmap = hdc_screen.CreateCompatibleDC()?;
+            let _bitmap_old = hdc_bitmap.SelectObject(h_bitmap)?;
 
+            // draw background to hdc_mem
+            let background_brush = w::HBRUSH::CreateSolidBrush(w::COLORREF::new(0, 0, 0))?;
+            hdc_mem.FillRect(w::RECT { left: 0, top: 0, right: w, bottom: h }, &background_brush)?;
+
+            // copy bitmap from hdc_bitmap to hdc_mem
+            hdc_mem.SetStretchBltMode(co::STRETCH_MODE::STRETCH_HALFTONE)?;
+            hdc_mem.StretchBlt(
+                w::POINT { x: 0, y: 0 },
+                w::SIZE { cx: rect.right, cy: rect.bottom },
+                &hdc_bitmap,
+                w::POINT { x: 0, y: 0 },
+                w::SIZE { cx: self2.w.into(), cy: self2.h.into() },
+                co::ROP::SRCCOPY,
+            )?;
+
+            // draw progress bar to hdc_mem
             let progress = self2.progress.borrow();
             let progress_brush = w::HBRUSH::CreateSolidBrush(w::COLORREF::new(0, 255, 0))?;
             let progress_width = (rect.right as f32 * (*progress as f32 / 100.0)) as i32;
             let progress_rect = w::RECT { left: 0, bottom: rect.bottom, right: progress_width, top: rect.bottom - 10 };
             hdc_mem.FillRect(progress_rect, &progress_brush)?;
 
-            hdc.SetStretchBltMode(co::STRETCH_MODE::STRETCH_HALFTONE)?;
-            hdc.StretchBlt(
-                w::POINT { x: 0, y: 0 },
-                w::SIZE { cx: rect.right, cy: rect.bottom },
-                &hdc_mem,
-                w::POINT { x: 0, y: 0 },
-                w::SIZE { cx: self2.w.into(), cy: self2.h.into() },
-                co::ROP::SRCCOPY,
-            )?;
+            // finally, copy hdc_mem to hdc
+            hdc.BitBlt(w::POINT { x: 0, y: 0 }, w::SIZE { cx: w, cy: h }, &hdc_mem, w::POINT { x: 0, y: 0 }, co::ROP::SRCCOPY)?;
 
             Ok(())
         });
@@ -358,4 +377,13 @@ extern "system" fn task_dialog_callback(hwnd: w::HWND, msg: co::TDN, _: usize, _
     }
 
     return co::HRESULT::S_OK;
+}
+
+#[test]
+#[ignore]
+fn show_test_gif() {
+    let rd = std::fs::read(r"C:\Source\Clowd\artwork\splash.gif").unwrap();
+    let tx = show_splash_dialog("osu!".to_string(), Some(rd), false);
+    tx.send(80).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(6));
 }
