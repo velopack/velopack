@@ -26,7 +26,7 @@ namespace Velopack
         /// <summary> True if this application is currently installed, and is able to download/check for updates. </summary>
         public virtual bool IsInstalled => Locator.CurrentlyInstalledVersion != null;
 
-        /// <summary> True if there is a local update prepared that requires a call to <see cref="ApplyPendingUpdate(bool, string[])"/> to be applied. </summary>
+        /// <summary> True if there is a local update prepared that requires a call to <see cref="ApplyUpdatesAndRestart(string[])"/> to be applied. </summary>
         public virtual bool IsUpdatePendingRestart {
             get {
                 var latestLocal = Locator.GetLatestLocalFullPackage();
@@ -292,11 +292,22 @@ namespace Velopack
         /// The user may be prompted during the update, if the update requires additional frameworks to be installed etc.
         /// You can check if there are pending updates by checking <see cref="IsUpdatePendingRestart"/>.
         /// </summary>
-        /// <param name="restart">Whether Velopack should restart the app after the updates have been applied.</param>
         /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
-        public void ApplyPendingUpdate(bool restart = true, string[]? restartArgs = null)
+        public void ApplyUpdatesAndRestart(string[]? restartArgs = null)
         {
-            WaitExitThenApplyPendingUpdate(restart, restartArgs);
+            WaitExitThenApplyUpdate(true, restartArgs);
+            Environment.Exit(0);
+        }
+
+        /// <summary>
+        /// This will exit your app immediately, apply updates, and then optionally relaunch the app using the specified 
+        /// restart arguments. If you need to save state or clean up, you should do that before calling this method. 
+        /// The user may be prompted during the update, if the update requires additional frameworks to be installed etc.
+        /// You can check if there are pending updates by checking <see cref="IsUpdatePendingRestart"/>.
+        /// </summary>
+        public void ApplyUpdatesAndExit()
+        {
+            WaitExitThenApplyUpdate(false, null);
             Environment.Exit(0);
         }
 
@@ -308,7 +319,7 @@ namespace Velopack
         /// </summary>
         /// <param name="restart">Whether Velopack should restart the app after the updates have been applied.</param>
         /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
-        public void WaitExitThenApplyPendingUpdate(bool restart = true, string[]? restartArgs = null)
+        public void WaitExitThenApplyUpdate(bool restart = true, string[]? restartArgs = null)
         {
             UpdateExe.Apply(Locator, false, restart, restartArgs, Log);
         }

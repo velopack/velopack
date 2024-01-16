@@ -12,7 +12,7 @@ namespace Velopack
     /// <summary>
     /// A static helper class to assist in running Update.exe CLI commands. You probably should not invoke this directly, 
     /// instead you should use the relevant methods on <see cref="UpdateManager"/>. For example: 
-    /// <see cref="UpdateManager.ApplyPendingUpdate(bool, string[])"/>, or <see cref="UpdateManager.WaitExitThenApplyPendingUpdate(bool, string[])"/>.
+    /// <see cref="UpdateManager.ApplyUpdatesAndExit()"/>, or <see cref="UpdateManager.ApplyUpdatesAndRestart(string[])"/>.
     /// </summary>
     public static class UpdateExe
     {
