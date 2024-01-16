@@ -15,7 +15,7 @@ namespace Velopack.Locators
     /// </summary>
     public abstract class VelopackLocator : IVelopackLocator
     {
-        private static VelopackLocator _current;
+        private static VelopackLocator? _current;
 
         /// <summary>
         /// Auto-detect the platform from the current operating system.
@@ -40,29 +40,30 @@ namespace Velopack.Locators
         }
 
         /// <inheritdoc/>
-        public abstract string AppId { get; }
+        public abstract string? AppId { get; }
 
         /// <inheritdoc/>
-        public abstract string RootAppDir { get; }
+        public abstract string? RootAppDir { get; }
 
         /// <inheritdoc/>
-        public abstract string PackagesDir { get; }
+        public abstract string? PackagesDir { get; }
 
         /// <inheritdoc/>
-        public virtual string AppTempDir => CreateSubDirIfDoesNotExist(PackagesDir, "VelopackTemp");
+        public virtual string? AppTempDir => CreateSubDirIfDoesNotExist(PackagesDir, "VelopackTemp");
 
         /// <inheritdoc/>
-        public abstract string UpdateExePath { get; }
+        public abstract string? UpdateExePath { get; }
 
         /// <inheritdoc/>
-        public abstract string AppContentDir { get; }
+        public abstract string? AppContentDir { get; }
 
         /// <inheritdoc/>
-        public abstract string Channel { get; }
+        public abstract string? Channel { get; }
 
         /// <inheritdoc/>
-        public virtual string ThisExeRelativePath {
+        public virtual string? ThisExeRelativePath {
             get {
+                if (AppContentDir == null) return null;
                 var path = VelopackRuntimeInfo.EntryExePath;
                 if (path.StartsWith(AppContentDir, StringComparison.OrdinalIgnoreCase)) {
                     return path.Substring(AppContentDir.Length + 1);
@@ -73,13 +74,13 @@ namespace Velopack.Locators
         }
 
         /// <inheritdoc/>
-        public abstract SemanticVersion CurrentlyInstalledVersion { get; }
+        public abstract SemanticVersion? CurrentlyInstalledVersion { get; }
 
         /// <summary> The log interface to use for diagnostic messages. </summary>
         protected ILogger Log { get; }
 
         /// <inheritdoc cref="VelopackLocator"/>
-        protected VelopackLocator(ILogger logger)
+        protected VelopackLocator(ILogger? logger)
         {
             Log = logger ?? NullLogger.Instance;
         }
@@ -92,14 +93,16 @@ namespace Velopack.Locators
                     return new List<VelopackAsset>(0);
 
                 var list = new List<VelopackAsset>();
-                foreach (var pkg in Directory.EnumerateFiles(PackagesDir, "*.nupkg")) {
-                    try {
-                        var asset = VelopackAsset.FromNupkg(pkg);
-                        if (asset?.Version != null) {
-                            list.Add(asset);
+                if (PackagesDir != null) {
+                    foreach (var pkg in Directory.EnumerateFiles(PackagesDir, "*.nupkg")) {
+                        try {
+                            var asset = VelopackAsset.FromNupkg(pkg);
+                            if (asset?.Version != null) {
+                                list.Add(asset);
+                            }
+                        } catch (Exception ex) {
+                            Log.Warn(ex, $"Error while reading local package '{pkg}'.");
                         }
-                    } catch (Exception ex) {
-                        Log.Warn(ex, $"Error while reading local package '{pkg}'.");
                     }
                 }
                 return list;
@@ -110,7 +113,7 @@ namespace Velopack.Locators
         }
 
         /// <inheritdoc/>
-        public VelopackAsset GetLatestLocalFullPackage()
+        public VelopackAsset? GetLatestLocalFullPackage()
         {
             return GetLocalPackages()
                 .OrderByDescending(x => x.Version)
@@ -122,7 +125,7 @@ namespace Velopack.Locators
         /// Given a base dir and a directory name, will create a new sub directory of that name.
         /// Will return null if baseDir is null, or if baseDir does not exist. 
         /// </summary>
-        protected static string CreateSubDirIfDoesNotExist(string baseDir, string newDir)
+        protected static string? CreateSubDirIfDoesNotExist(string? baseDir, string? newDir)
         {
             if (String.IsNullOrEmpty(baseDir) || string.IsNullOrEmpty(newDir)) return null;
             var infoBase = new DirectoryInfo(baseDir);
@@ -135,6 +138,7 @@ namespace Velopack.Locators
         /// <inheritdoc/>
         public Guid? GetOrCreateStagedUserId()
         {
+            if (PackagesDir == null) return null;
             var stagedUserIdFile = Path.Combine(PackagesDir, ".betaId");
             var ret = default(Guid);
 

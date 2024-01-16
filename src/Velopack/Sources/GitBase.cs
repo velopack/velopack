@@ -36,10 +36,10 @@ namespace Velopack.Sources
         /// <summary>
         /// The Bearer token used in the request.
         /// </summary>
-        protected virtual string Authorization => string.IsNullOrWhiteSpace(AccessToken) ? null : "Bearer " + AccessToken;
+        protected virtual string? Authorization => string.IsNullOrWhiteSpace(AccessToken) ? null : "Bearer " + AccessToken;
 
         /// <inheritdoc />
-        public GitBase(string repoUrl, string accessToken, bool prerelease, IFileDownloader downloader = null)
+        public GitBase(string repoUrl, string accessToken, bool prerelease, IFileDownloader? downloader = null)
         {
             RepoUri = new Uri(repoUrl);
             AccessToken = accessToken;
@@ -61,7 +61,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public virtual async Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null, VelopackAsset latestLocalRelease = null)
+        public virtual async Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null, VelopackAsset? latestLocalRelease = null)
         {
             var releases = await GetReleases(Prerelease).ConfigureAwait(false);
             if (releases == null || releases.Count() == 0) {

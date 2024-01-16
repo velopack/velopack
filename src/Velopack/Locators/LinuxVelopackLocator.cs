@@ -20,37 +20,37 @@ namespace Velopack.Locators
     public class LinuxVelopackLocator : VelopackLocator
     {
         /// <inheritdoc />
-        public override string AppId { get; }
+        public override string? AppId { get; }
 
         /// <inheritdoc />
-        public override string RootAppDir { get; }
+        public override string? RootAppDir { get; }
 
         /// <inheritdoc />
-        public override string UpdateExePath { get; }
+        public override string? UpdateExePath { get; }
 
         /// <inheritdoc />
-        public override SemanticVersion CurrentlyInstalledVersion { get; }
+        public override SemanticVersion? CurrentlyInstalledVersion { get; }
 
         /// <inheritdoc />
-        public override string AppContentDir { get; }
+        public override string? AppContentDir { get; }
 
         /// <inheritdoc />
-        public override string Channel { get; }
+        public override string? Channel { get; }
 
         /// <inheritdoc />
-        public override string AppTempDir => CreateSubDirIfDoesNotExist(Utility.GetDefaultTempBaseDirectory(), AppId);
+        public override string? AppTempDir => CreateSubDirIfDoesNotExist(Utility.GetDefaultTempBaseDirectory(), AppId);
 
         /// <inheritdoc />
-        public override string PackagesDir => CreateSubDirIfDoesNotExist(PersistentTempDir, "packages");
+        public override string? PackagesDir => CreateSubDirIfDoesNotExist(PersistentTempDir, "packages");
 
         /// <summary> /var/tmp/{velopack}/{appid}, for storing app specific files which need to be preserved. </summary>
-        public string PersistentTempDir => CreateSubDirIfDoesNotExist(PersistentVelopackDir, AppId);
+        public string? PersistentTempDir => CreateSubDirIfDoesNotExist(PersistentVelopackDir, AppId);
 
         /// <summary> A pointer to /var/tmp/{velopack}, a location on linux which is semi-persistent. </summary>
-        public string PersistentVelopackDir => CreateSubDirIfDoesNotExist("/var/tmp", "velopack");
+        public string? PersistentVelopackDir => CreateSubDirIfDoesNotExist("/var/tmp", "velopack");
 
         /// <summary> File path of the .AppImage which mounted and ran this application. </summary>
-        public string AppImagePath => Environment.GetEnvironmentVariable("APPIMAGE");
+        public string? AppImagePath => Environment.GetEnvironmentVariable("APPIMAGE");
 
         /// <summary>
         /// Creates a new <see cref="OsxVelopackLocator"/> and auto-detects the
@@ -63,7 +63,7 @@ namespace Velopack.Locators
                 throw new NotSupportedException("Cannot instantiate LinuxVelopackLocator on a non-linux system.");
 
             Log.Info($"Initialising {nameof(LinuxVelopackLocator)}");
-            
+
             // are we inside a mounted .AppImage?
             var ourPath = VelopackRuntimeInfo.EntryExePath;
             var ix = ourPath.IndexOf("/usr/bin/", StringComparison.InvariantCultureIgnoreCase);

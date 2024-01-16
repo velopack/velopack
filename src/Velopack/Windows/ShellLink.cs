@@ -1,6 +1,8 @@
-﻿#pragma warning disable CS1591
+﻿#nullable disable
+#pragma warning disable CS1591
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
@@ -13,6 +15,7 @@ namespace Velopack.Windows
     /// Summary description for ShellLink.
     /// </summary>
     [SupportedOSPlatform("windows")]
+    [ExcludeFromCodeCoverage]
     public class ShellLink : IDisposable
     {
         [ComImport()]
@@ -932,6 +935,7 @@ namespace Velopack.Windows
     /// Enables extraction of icons for any file type from
     /// the Shell.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     [SupportedOSPlatform("windows")]
     public class FileIcon
     {

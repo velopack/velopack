@@ -24,7 +24,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null, VelopackAsset latestLocalRelease = null)
+        public Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null, VelopackAsset? latestLocalRelease = null)
         {
             if (!BaseDirectory.Exists) {
                 logger.Error($"The local update directory '{BaseDirectory.FullName}' does not exist.");

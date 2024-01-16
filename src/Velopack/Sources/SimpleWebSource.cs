@@ -21,19 +21,19 @@ namespace Velopack.Sources
         public virtual IFileDownloader Downloader { get; }
 
         /// <inheritdoc cref="SimpleWebSource" />
-        public SimpleWebSource(string baseUrl, IFileDownloader downloader = null)
+        public SimpleWebSource(string baseUrl, IFileDownloader? downloader = null)
             : this(new Uri(baseUrl), downloader)
         { }
 
         /// <inheritdoc cref="SimpleWebSource" />
-        public SimpleWebSource(Uri baseUri, IFileDownloader downloader = null)
+        public SimpleWebSource(Uri baseUri, IFileDownloader? downloader = null)
         {
             BaseUri = baseUri;
             Downloader = downloader ?? Utility.CreateDefaultDownloader();
         }
 
         /// <inheritdoc />
-        public async Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel = null, Guid? stagingId = null, VelopackAsset latestLocalRelease = null)
+        public async Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null, VelopackAsset? latestLocalRelease = null)
         {
             var uri = Utility.AppendPathToUri(BaseUri, Utility.GetVeloReleaseIndexName(channel));
             var args = new Dictionary<string, string>();

@@ -7,32 +7,27 @@ using System.Linq;
 
 namespace Velopack.NuGet
 {
-    public class ZipPackage : NuspecManifest, IZipPackage
+    public class ZipPackage : NuspecManifest
     {
-        public IEnumerable<string> Frameworks { get; private set; } = Enumerable.Empty<string>();
-
         public IEnumerable<ZipPackageFile> Files { get; private set; } = Enumerable.Empty<ZipPackageFile>();
 
-        public byte[] UpdateExeBytes { get; private set; }
+        public byte[]? UpdateExeBytes { get; private set; }
 
         public string LoadedFromPath { get; private set; }
 
-        public ZipPackage(string filePath) : this(File.OpenRead(filePath))
+        public ZipPackage(string filePath)
         {
-            LoadedFromPath = filePath;
-        }
-
-        private ZipPackage(Stream zipStream, bool leaveOpen = false)
-        {
-            using var zip = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen);
+            using var zipStream = File.OpenRead(filePath);
+            using var zip = new ZipArchive(zipStream, ZipArchiveMode.Read, false);
             using var manifest = GetManifestEntry(zip).Open();
             ReadManifest(manifest);
+
+            LoadedFromPath = filePath;
             Files = GetPackageFiles(zip).ToArray();
-            Frameworks = GetFrameworks(Files);
-            UpdateExeBytes = ReadFileToBytes(zip, f => f.FullName.EndsWith("Squirrel.exe"));
+            UpdateExeBytes = ReadFile(zip, f => f.FullName.EndsWith("Squirrel.exe"));
         }
 
-        protected byte[] ReadFileToBytes(ZipArchive archive, Func<ZipArchiveEntry, bool> predicate)
+        protected byte[]? ReadFile(ZipArchive archive, Func<ZipArchiveEntry, bool> predicate)
         {
             var f = archive.Entries.FirstOrDefault(predicate);
             if (f == null)
@@ -67,16 +62,6 @@ namespace Velopack.NuGet
                    let path = NugetUtil.GetPath(uri)
                    where IsPackageFile(path)
                    select new ZipPackageFile(uri);
-        }
-
-        private string[] GetFrameworks(IEnumerable<ZipPackageFile> files)
-        {
-            return FrameworkAssemblies
-                .SelectMany(f => f.SupportedFrameworks)
-                .Concat(files.Select(z => z.TargetFramework))
-                .Where(f => f != null)
-                .Distinct()
-                .ToArray();
         }
     }
 }

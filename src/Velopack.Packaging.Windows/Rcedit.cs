@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Threading.Tasks;
+using Velopack.NuGet;
 
 namespace Velopack.Packaging.Windows
 {
@@ -17,7 +18,7 @@ namespace Velopack.Packaging.Windows
         }
 
         [SupportedOSPlatform("windows")]
-        public static void SetPEVersionBlockFromPackageInfo(string exePath, NuGet.IPackage package, string iconPath = null)
+        public static void SetPEVersionBlockFromPackageInfo(string exePath, NuspecManifest package, string iconPath = null)
         {
             var realExePath = Path.GetFullPath(exePath);
 

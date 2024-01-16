@@ -27,7 +27,7 @@ namespace Velopack.Sources
         /// <param name="logger">The logger to use for any diagnostic messages.</param>
         /// <returns>An array of <see cref="ReleaseEntry"/> objects that are available for download
         /// and are applicable to this user.</returns>
-        Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null, VelopackAsset latestLocalRelease = null);
+        Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null, VelopackAsset? latestLocalRelease = null);
 
         /// <summary>
         /// Download the specified <see cref="ReleaseEntry"/> to the provided local file path.

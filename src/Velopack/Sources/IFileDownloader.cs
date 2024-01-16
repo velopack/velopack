@@ -24,16 +24,16 @@ namespace Velopack.Sources
         /// <param name="accept">
         /// Text to be sent in the 'Accept' header of the request.
         /// </param>
-        Task DownloadFile(string url, string targetFile, Action<int> progress, string authorization = null, string accept = null);
+        Task DownloadFile(string url, string targetFile, Action<int> progress, string? authorization = null, string? accept = null);
 
         /// <summary>
         /// Returns a byte array containing the contents of the file at the specified url
         /// </summary>
-        Task<byte[]> DownloadBytes(string url, string authorization = null, string accept = null);
+        Task<byte[]> DownloadBytes(string url, string? authorization = null, string? accept = null);
 
         /// <summary>
         /// Returns a string containing the contents of the specified url
         /// </summary>
-        Task<string> DownloadString(string url, string authorization = null, string accept = null);
+        Task<string> DownloadString(string url, string? authorization = null, string? accept = null);
     }
 }

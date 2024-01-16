@@ -22,7 +22,7 @@ namespace Velopack
         /// Eg. "Invalid {is}. One {what} expected in {in}. None was found."
         /// Eg. "Invalid {is}. Only a single {what} expected in {in}. There were 2 or more."
         /// </summary>
-        public static T ContextualSingle<T>(this IEnumerable<T> source, string strIs, string strWhat, string strIn = null)
+        public static T ContextualSingle<T>(this IEnumerable<T> source, string strIs, string strWhat, string? strIn = null)
         {
             T result;
             using (var e = source.GetEnumerator()) {

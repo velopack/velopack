@@ -17,12 +17,10 @@ namespace Velopack.Tests
             File.Copy(inputPackage, copyPackage);
 
             var zp = new ZipPackage(inputPackage);
-            var zipfw = zp.Frameworks;
             var zipf = zp.Files.OrderBy(f => f.Path).ToArray();
             var zipfLib = zp.Files.Where(f => f.IsLibFile()).OrderBy(f => f.Path).ToArray();
 
             using Package package = Package.Open(copyPackage);
-            var packagingfw = GetSupportedFrameworks(zp, package);
             var packaging = GetFiles(package).OrderBy(f => f.Path).ToArray();
             var packagingLib = GetLibFiles(package).OrderBy(f => f.Path).ToArray();
 
@@ -31,7 +29,6 @@ namespace Velopack.Tests
             //        throw new Exception();
             //}
 
-            Assert.Equal(packagingfw, zipfw);
             Assert.Equal(packaging, zipf);
             Assert.Equal(packagingLib, zipfLib);
         }
@@ -55,53 +52,24 @@ namespace Velopack.Tests
             Assert.Equal("Copyright ©", dyn.Copyright);
             Assert.Equal("en-US", zp.Language);
             Assert.Equal("Squirrel for Windows", dyn.Title);
-
-            Assert.NotEmpty(zp.DependencySets);
-            var net461 = zp.DependencySets.First();
-            Assert.Equal(new[] { ".NETFramework4.6.1" }, net461.SupportedFrameworks);
-            Assert.Equal(".NETFramework4.6.1", net461.TargetFramework);
-
-            Assert.NotEmpty(net461.Dependencies);
-            var dvt = net461.Dependencies.First();
-            Assert.Equal("System.ValueTuple", dvt.Id);
-            Assert.Equal("4.5.0", dvt.VersionSpec);
-
-            Assert.Equal(new[] { "net5.0" }, zp.DependencySets.Last().SupportedFrameworks);
-
-            Assert.NotEmpty(zp.FrameworkAssemblies);
-            var fw = zp.FrameworkAssemblies.First();
-            Assert.Equal("System.Net.Http", fw.AssemblyName);
-            Assert.Equal(new[] { ".NETFramework4.6.1" }, fw.SupportedFrameworks);
         }
 
-        IEnumerable<string> GetSupportedFrameworks(ZipPackage zp, Package package)
-        {
-            var fileFrameworks = from part in package.GetParts()
-                                 where IsPackageFile(part)
-                                 select NugetUtil.ParseFrameworkNameFromFilePath(NugetUtil.GetPath(part.Uri), out var effectivePath);
-
-            return zp.FrameworkAssemblies.SelectMany(f => f.SupportedFrameworks)
-                       .Concat(fileFrameworks)
-                       .Where(f => f != null)
-                       .Distinct();
-        }
-
-        IEnumerable<IPackageFile> GetLibFiles(Package package)
+        IEnumerable<ZipPackageFile> GetLibFiles(Package package)
         {
             return GetFiles(package, NugetUtil.LibDirectory);
         }
 
-        IEnumerable<IPackageFile> GetFiles(Package package, string directory)
+        IEnumerable<ZipPackageFile> GetFiles(Package package, string directory)
         {
             string folderPrefix = directory + Path.DirectorySeparatorChar;
             return GetFiles(package).Where(file => file.Path.StartsWith(folderPrefix, StringComparison.OrdinalIgnoreCase));
         }
 
-        List<IPackageFile> GetFiles(Package package)
+        List<ZipPackageFile> GetFiles(Package package)
         {
             return (from part in package.GetParts()
                     where IsPackageFile(part)
-                    select (IPackageFile) new ZipPackageFile(part.Uri)).ToList();
+                    select new ZipPackageFile(part.Uri)).ToList();
         }
 
         bool IsPackageFile(PackagePart part)

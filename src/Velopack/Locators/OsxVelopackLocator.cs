@@ -15,28 +15,28 @@ namespace Velopack.Locators
     public class OsxVelopackLocator : VelopackLocator
     {
         /// <inheritdoc />
-        public override string AppId { get; }
+        public override string? AppId { get; }
 
         /// <inheritdoc />
-        public override string RootAppDir { get; }
+        public override string? RootAppDir { get; }
 
         /// <inheritdoc />
-        public override string UpdateExePath { get; }
+        public override string? UpdateExePath { get; }
 
         /// <inheritdoc />
-        public override SemanticVersion CurrentlyInstalledVersion { get; }
+        public override SemanticVersion? CurrentlyInstalledVersion { get; }
 
         /// <inheritdoc />
-        public override string AppContentDir => RootAppDir;
+        public override string? AppContentDir => RootAppDir;
 
         /// <inheritdoc />
-        public override string AppTempDir => CreateSubDirIfDoesNotExist(Utility.GetDefaultTempBaseDirectory(), AppId);
+        public override string? AppTempDir => CreateSubDirIfDoesNotExist(Utility.GetDefaultTempBaseDirectory(), AppId);
 
         /// <inheritdoc />
-        public override string PackagesDir => CreateSubDirIfDoesNotExist(AppTempDir, "packages");
+        public override string? PackagesDir => CreateSubDirIfDoesNotExist(AppTempDir, "packages");
 
         /// <inheritdoc />
-        public override string Channel { get; }
+        public override string? Channel { get; }
 
         /// <summary>
         /// Creates a new <see cref="OsxVelopackLocator"/> and auto-detects the

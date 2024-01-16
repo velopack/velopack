@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable disable
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -222,9 +223,9 @@ namespace Velopack.Windows
         }
 
         /// <summary>
-        /// Given an <see cref="IPackage"/> and <see cref="FileVersionInfo"/> return the target shortcut path.
+        /// Given an <see cref="ZipPackage"/> and <see cref="FileVersionInfo"/> return the target shortcut path.
         /// </summary>
-        protected virtual string LinkPathForVersionInfo(ShortcutLocation location, IPackage package, FileVersionInfo versionInfo, string rootdir)
+        protected virtual string LinkPathForVersionInfo(ShortcutLocation location, ZipPackage package, FileVersionInfo versionInfo, string rootdir)
         {
             var possibleProductNames = new[] {
                     versionInfo.ProductName,

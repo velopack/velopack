@@ -39,6 +39,8 @@ namespace Velopack
             psi.UseShellExecute = false;
 
             var p = Process.Start(psi);
+            if (p == null) throw new Exception("Process.Start returned null.");
+
             p.BeginErrorReadLine();
             p.BeginOutputReadLine();
 
@@ -63,6 +65,8 @@ namespace Velopack
             psi.UseShellExecute = false;
 
             var p = Process.Start(psi);
+            if (p == null) throw new Exception("Process.Start returned null.");
+
             if (!p.WaitForExit(timeoutMs)) {
                 p.Kill();
                 throw new TimeoutException("Process did not exit within allotted time.");

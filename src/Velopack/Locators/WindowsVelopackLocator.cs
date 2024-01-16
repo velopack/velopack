@@ -14,25 +14,25 @@ namespace Velopack.Locators
     public class WindowsVelopackLocator : VelopackLocator
     {
         /// <inheritdoc />
-        public override string AppId { get; }
+        public override string? AppId { get; }
 
         /// <inheritdoc />
-        public override string RootAppDir { get; }
+        public override string? RootAppDir { get; }
 
         /// <inheritdoc />
-        public override string UpdateExePath { get; }
+        public override string? UpdateExePath { get; }
 
         /// <inheritdoc />
-        public override string AppContentDir { get; }
+        public override string? AppContentDir { get; }
 
         /// <inheritdoc />
-        public override SemanticVersion CurrentlyInstalledVersion { get; }
+        public override SemanticVersion? CurrentlyInstalledVersion { get; }
 
         /// <inheritdoc />
-        public override string PackagesDir => CreateSubDirIfDoesNotExist(RootAppDir, "packages");
+        public override string? PackagesDir => CreateSubDirIfDoesNotExist(RootAppDir, "packages");
 
         /// <inheritdoc />
-        public override string Channel { get; }
+        public override string? Channel { get; }
 
         /// <inheritdoc cref="WindowsVelopackLocator" />
         public WindowsVelopackLocator(ILogger logger) : this(VelopackRuntimeInfo.EntryExePath, logger)
@@ -55,7 +55,7 @@ namespace Velopack.Locators
             // directory which is NOT containing a sq.version, in which case we need to infer a lot of info.
 
             ourExePath = Path.GetFullPath(ourExePath);
-            var myDirPath = Path.GetDirectoryName(ourExePath);
+            string myDirPath = Path.GetDirectoryName(ourExePath)!;
             var myDirName = Path.GetFileName(myDirPath);
             var possibleUpdateExe = Path.GetFullPath(Path.Combine(myDirPath, "..\\Update.exe"));
             var ixCurrent = ourExePath.LastIndexOf("/current/", StringComparison.InvariantCultureIgnoreCase);

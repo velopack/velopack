@@ -8,34 +8,27 @@ using NuGet.Versioning;
 
 namespace Velopack.NuGet
 {
-    public class NuspecManifest : IPackage
+    public class NuspecManifest
     {
-        public string ProductName => Title ?? Id;
-        public string ProductDescription => Description ?? Summary ?? Title ?? Id;
-        public string ProductCompany => (Authors.Any() ? String.Join(", ", Authors) : Owners) ?? ProductName;
-        public string ProductCopyright => Copyright ?? "Copyright © " + DateTime.Now.Year.ToString() + " " + ProductCompany;
-
-        //public string FilePath { get; private set; }
-
-        public string Id { get; private set; }
-        public SemanticVersion Version { get; private set; }
-        public Uri ProjectUrl { get; private set; }
-        public string ReleaseNotes { get; private set; }
-        public string ReleaseNotesHtml { get; private set; }
-        public Uri IconUrl { get; private set; }
-        public string Language { get; private set; }
-        public IEnumerable<string> Tags { get; private set; } = Enumerable.Empty<string>();
+        public string? ProductName => Title ?? Id;
+        public string? ProductDescription => Description ?? Summary ?? Title ?? Id;
+        public string? ProductCompany => (Authors.Any() ? String.Join(", ", Authors) : Owners) ?? ProductName;
+        public string? ProductCopyright => Copyright ?? "Copyright © " + DateTime.Now.Year.ToString() + " " + ProductCompany;
+        public string? Id { get; private set; }
+        public SemanticVersion? Version { get; private set; }
+        public Uri? ProjectUrl { get; private set; }
+        public string? ReleaseNotes { get; private set; }
+        public string? ReleaseNotesHtml { get; private set; }
+        public Uri? IconUrl { get; private set; }
+        public string? Language { get; private set; }
+        public string? Channel { get; private set; }
+        public string? Description { get; private set; }
+        public string? Owners { get; private set; }
+        public string? Title { get; private set; }
+        public string? Summary { get; private set; }
+        public string? Copyright { get; private set; }
+        public IEnumerable<string> Authors { get; private set; } = Enumerable.Empty<string>();
         public IEnumerable<string> RuntimeDependencies { get; private set; } = Enumerable.Empty<string>();
-        public IEnumerable<FrameworkAssemblyReference> FrameworkAssemblies { get; private set; } = Enumerable.Empty<FrameworkAssemblyReference>();
-        public IEnumerable<PackageDependencySet> DependencySets { get; private set; } = Enumerable.Empty<PackageDependencySet>();
-        public string Channel { get; private set; }
-
-        protected string Description { get; private set; }
-        protected IEnumerable<string> Authors { get; private set; } = Enumerable.Empty<string>();
-        protected string Owners { get; private set; }
-        protected string Title { get; private set; }
-        protected string Summary { get; private set; }
-        protected string Copyright { get; private set; }
 
         private static readonly string[] ExcludePaths = new[] { "_rels", "package" };
 
@@ -56,7 +49,7 @@ namespace Velopack.NuGet
                 manifest = ParseFromFile(filePath);
                 return true;
             } catch {
-                manifest = null;
+                manifest = null!;
                 return false;
             }
         }
@@ -65,14 +58,11 @@ namespace Velopack.NuGet
         {
             var document = NugetUtil.LoadSafe(manifestStream, ignoreWhiteSpace: true);
 
-            var metadataElement = document.Root.ElementsNoNamespace("metadata").FirstOrDefault();
-            if (metadataElement == null) {
-                throw new InvalidDataException("Invalid nuspec xml. Required element 'metadata' missing.");
-            }
-
+            var metadataElement = document.Root.ElementsNoNamespace("metadata").FirstOrDefault()
+                ?? throw new InvalidDataException("Invalid nuspec xml. Required element 'metadata' missing.");
             var allElements = new HashSet<string>();
 
-            XNode node = metadataElement.FirstNode;
+            XNode? node = metadataElement.FirstNode;
             while (node != null) {
                 var element = node as XElement;
                 if (element != null) {
@@ -134,15 +124,6 @@ namespace Velopack.NuGet
             case "title":
                 Title = value;
                 break;
-            case "tags":
-                Tags = getCommaDelimitedValue(value);
-                break;
-            case "dependencies":
-                DependencySets = ReadDependencySets(element);
-                break;
-            case "frameworkAssemblies":
-                FrameworkAssemblies = ReadFrameworkAssemblies(element);
-                break;
 
             // ===
             // the following metadata elements are added by velopack and are not
@@ -159,70 +140,6 @@ namespace Velopack.NuGet
             }
         }
 
-        private List<FrameworkAssemblyReference> ReadFrameworkAssemblies(XElement frameworkElement)
-        {
-            if (!frameworkElement.HasElements) {
-                return new List<FrameworkAssemblyReference>(0);
-            }
-
-            return (from element in frameworkElement.ElementsNoNamespace("frameworkAssembly")
-                    let assemblyNameAttribute = element.Attribute("assemblyName")
-                    where assemblyNameAttribute != null && !String.IsNullOrEmpty(assemblyNameAttribute.Value)
-                    select new FrameworkAssemblyReference(
-                        assemblyNameAttribute.Value.SafeTrim(),
-                        ParseFrameworkNames(element.GetOptionalAttributeValue("targetFramework").SafeTrim()))
-                    ).ToList();
-        }
-
-        private List<PackageDependencySet> ReadDependencySets(XElement dependenciesElement)
-        {
-            if (!dependenciesElement.HasElements) {
-                return new List<PackageDependencySet>();
-            }
-
-            // Disallow the <dependencies> element to contain both <dependency> and 
-            // <group> child elements. Unfortunately, this cannot be enforced by XSD.
-            if (dependenciesElement.ElementsNoNamespace("dependency").Any() &&
-                dependenciesElement.ElementsNoNamespace("group").Any()) {
-                throw new InvalidDataException("Manifest_DependenciesHasMixedElements");
-            }
-
-            var dependencies = ReadDependencies(dependenciesElement);
-            if (dependencies.Count > 0) {
-                // old format, <dependency> is direct child of <dependencies>
-                var dependencySet = new PackageDependencySet(null, dependencies);
-                return new List<PackageDependencySet> { dependencySet };
-            } else {
-                var groups = dependenciesElement.ElementsNoNamespace("group");
-                return (from element in groups
-                        let fx = ParseFrameworkNames(element.GetOptionalAttributeValue("targetFramework").SafeTrim())
-                        select new PackageDependencySet(
-                            element.GetOptionalAttributeValue("targetFramework").SafeTrim(),
-                            ReadDependencies(element))).ToList();
-            }
-        }
-
-        private List<PackageDependency> ReadDependencies(XElement containerElement)
-        {
-            // element is <dependency>
-            return (from element in containerElement.ElementsNoNamespace("dependency")
-                    let idElement = element.Attribute("id")
-                    where idElement != null && !String.IsNullOrEmpty(idElement.Value)
-                    select new PackageDependency(
-                        idElement.Value.SafeTrim(),
-                        element.GetOptionalAttributeValue("version").SafeTrim()
-                    )).ToList();
-        }
-
-        private IEnumerable<string> ParseFrameworkNames(string frameworkNames)
-        {
-            if (String.IsNullOrEmpty(frameworkNames)) {
-                return Enumerable.Empty<string>();
-            }
-
-            return frameworkNames.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-        }
-
         protected bool IsPackageFile(string partPath)
         {
             if (Path.GetFileName(partPath).Equals(NugetUtil.ContentTypeFileName, StringComparison.OrdinalIgnoreCase))
@@ -231,7 +148,7 @@ namespace Velopack.NuGet
             if (Path.GetExtension(partPath).Equals(NugetUtil.ManifestExtension, StringComparison.OrdinalIgnoreCase))
                 return false;
 
-            string directory = Path.GetDirectoryName(partPath);
+            string directory = Path.GetDirectoryName(partPath)!;
             return !ExcludePaths.Any(p => directory.StartsWith(p, StringComparison.OrdinalIgnoreCase));
         }
     }

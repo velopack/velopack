@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Velopack
 {
@@ -56,10 +57,6 @@ namespace Velopack
         {
             byte[] output = { };
 
-            if (content == null) {
-                goto done;
-            }
-
             Func<byte[], byte[], bool> matches = (bom, src) => {
                 if (src.Length < bom.Length) return false;
 
@@ -86,7 +83,6 @@ namespace Velopack
                 output = content;
             }
 
-        done:
             if (output.Length > 0) {
                 Buffer.BlockCopy(content, content.Length - output.Length, output, 0, output.Length);
             }
@@ -94,9 +90,9 @@ namespace Velopack
             return Encoding.UTF8.GetString(output);
         }
 
-        public static bool TryParseEnumU16<TEnum>(ushort enumValue, out TEnum retVal)
+        public static bool TryParseEnumU16<TEnum>(ushort enumValue, out TEnum? retVal)
         {
-            retVal = default(TEnum);
+            retVal = default;
             bool success = Enum.IsDefined(typeof(TEnum), enumValue);
             if (success) {
                 retVal = (TEnum) Enum.ToObject(typeof(TEnum), enumValue);
@@ -148,21 +144,12 @@ namespace Velopack
 
         public static IEnumerable<FileInfo> GetAllFilesRecursively(this DirectoryInfo rootPath)
         {
-            Contract.Requires(rootPath != null);
-
+            if (rootPath == null) return Enumerable.Empty<FileInfo>();
             return rootPath.EnumerateFiles("*", SearchOption.AllDirectories);
-        }
-
-        public static IEnumerable<string> GetAllFilePathsRecursively(string rootPath)
-        {
-            Contract.Requires(rootPath != null);
-
-            return Directory.EnumerateFiles(rootPath, "*", SearchOption.AllDirectories);
         }
 
         public static string CalculateFileSHA1(string filePath)
         {
-            Contract.Requires(filePath != null);
             var bufferSize = 1000000; // 1mb
             using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize)) {
                 return CalculateStreamSHA1(stream);
@@ -171,8 +158,6 @@ namespace Velopack
 
         public static string CalculateStreamSHA1(Stream file)
         {
-            Contract.Requires(file != null && file.CanRead);
-
             using (var sha1 = SHA1.Create()) {
                 return BitConverter.ToString(sha1.ComputeHash(file)).Replace("-", String.Empty);
             }
@@ -195,33 +180,18 @@ namespace Velopack
                 // default RELEASES file name for each platform.
                 if (VelopackRuntimeInfo.IsOSX) return "RELEASES-osx";
                 if (VelopackRuntimeInfo.IsLinux) return "RELEASES-linux";
-                if (VelopackRuntimeInfo.IsWindows) return "RELEASES";
-            }
-            // if the channel is an empty string or "win", we use the default RELEASES file name.
-            if (String.IsNullOrWhiteSpace(channel) || channel.ToLower() == "win") {
                 return "RELEASES";
+            } else {
+                // if the channel is an empty string or "win", we use the default RELEASES file name.
+                if (String.IsNullOrWhiteSpace(channel) || channel.ToLower() == "win") {
+                    return "RELEASES";
+                }
+                // all other cases the RELEASES file includes the channel name.
+                return $"RELEASES-{channel.ToLower()}";
             }
-            // all other cases the RELEASES file includes the channel name.
-            return $"RELEASES-{channel.ToLower()}";
         }
 
-        public static async Task CopyToAsync(string from, string to)
-        {
-            Contract.Requires(!String.IsNullOrEmpty(from) && File.Exists(from));
-            Contract.Requires(!String.IsNullOrEmpty(to));
-
-            if (!File.Exists(from)) {
-                //Log().Warn("The file {0} does not exist", from);
-
-                // TODO: should we fail this operation?
-                return;
-            }
-
-            // XXX: SafeCopy
-            await Task.Run(() => File.Copy(from, to, true)).ConfigureAwait(false);
-        }
-
-        public static void Retry(this Action block, int retries = 4, int retryDelay = 250, ILogger logger = null)
+        public static void Retry(this Action block, int retries = 4, int retryDelay = 250, ILogger? logger = null)
         {
             Retry(() => {
                 block();
@@ -229,7 +199,7 @@ namespace Velopack
             }, retries, retryDelay, logger);
         }
 
-        public static T Retry<T>(this Func<T> block, int retries = 4, int retryDelay = 250, ILogger logger = null)
+        public static T Retry<T>(this Func<T> block, int retries = 4, int retryDelay = 250, ILogger? logger = null)
         {
             Contract.Requires(retries > 0);
 
@@ -246,7 +216,7 @@ namespace Velopack
             }
         }
 
-        public static Task RetryAsync(this Func<Task> block, int retries = 4, int retryDelay = 250, ILogger logger = null)
+        public static Task RetryAsync(this Func<Task> block, int retries = 4, int retryDelay = 250, ILogger? logger = null)
         {
             return RetryAsync(async () => {
                 await block().ConfigureAwait(false);
@@ -254,7 +224,7 @@ namespace Velopack
             }, retries, retryDelay, logger);
         }
 
-        public static async Task<T> RetryAsync<T>(this Func<Task<T>> block, int retries = 4, int retryDelay = 250, ILogger logger = null)
+        public static async Task<T> RetryAsync<T>(this Func<Task<T>> block, int retries = 4, int retryDelay = 250, ILogger? logger = null)
         {
             while (true) {
                 try {
@@ -322,7 +292,7 @@ namespace Velopack
                 string name = "temp." + i;
                 var target = Path.Combine(tempDir, name);
 
-                FileSystemInfo info = null;
+                FileSystemInfo? info = null;
                 if (Directory.Exists(target)) info = new DirectoryInfo(target);
                 else if (File.Exists(target)) info = new FileInfo(target);
 
@@ -378,10 +348,11 @@ namespace Velopack
         /// <param name="renameFirst">Try to rename this object first before deleting. Can help prevent partial delete of folders.</param>
         /// <param name="logger">Logger for diagnostic messages.</param>
         /// <returns>True if the file system object was deleted, false otherwise.</returns>
-        public static bool DeleteFileOrDirectoryHard(string path, bool throwOnFailure = true, bool renameFirst = false, ILogger logger = null)
+        public static bool DeleteFileOrDirectoryHard(string path, bool throwOnFailure = true, bool renameFirst = false, ILogger? logger = null)
         {
+            logger ??= NullLogger.Instance;
             Contract.Requires(!String.IsNullOrEmpty(path));
-            logger?.Debug($"Starting to delete: {path}");
+            logger.Debug($"Starting to delete: {path}");
 
             try {
                 if (File.Exists(path)) {
@@ -402,7 +373,7 @@ namespace Velopack
 
                 return true;
             } catch (Exception ex) {
-                logger?.Error(ex, $"Unable to delete '{path}'");
+                logger.Error(ex, $"Unable to delete '{path}'");
                 if (throwOnFailure)
                     throw;
                 return false;
@@ -426,7 +397,7 @@ namespace Velopack
                     }
                 }
             } catch (Exception ex) {
-                logger?.Warn(ex, $"Unable to traverse children of '{fileSystemInfo.FullName}'");
+                logger.Warn(ex, $"Unable to traverse children of '{fileSystemInfo.FullName}'");
             }
 
             // finally, delete myself, we should try this even if deleting children failed
@@ -610,7 +581,7 @@ namespace Velopack
             using (var algorithm = SHA1.Create()) {
                 algorithm.TransformBlock(namespaceBytes, 0, namespaceBytes.Length, null, 0);
                 algorithm.TransformFinalBlock(nameBytes, 0, nameBytes.Length);
-                hash = algorithm.Hash;
+                hash = algorithm.Hash!;
             }
 
             // most bytes from the hash are copied straight to the bytes of 

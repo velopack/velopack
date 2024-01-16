@@ -18,7 +18,7 @@ namespace Velopack.Sources
         /// The name of the release.
         /// </summary>
         [JsonPropertyName("name")]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// True if this is intended for an upcoming release.
@@ -30,13 +30,13 @@ namespace Velopack.Sources
         /// The date which this release was published publically.
         /// </summary>
         [JsonPropertyName("released_at")]
-        public DateTime ReleasedAt { get; set; }
+        public DateTime? ReleasedAt { get; set; }
 
         /// <summary>
         /// A container for the assets (files) uploaded to this release.
         /// </summary>
         [JsonPropertyName("assets")]
-        public GitlabReleaseAsset Assets { get; set; }
+        public GitlabReleaseAsset? Assets { get; set; }
     }
 
     /// <summary>
@@ -54,7 +54,7 @@ namespace Velopack.Sources
         /// A list of asset (file) links.
         /// </summary>
         [JsonPropertyName("links")]
-        public GitlabReleaseLink[] Links { get; set; }
+        public GitlabReleaseLink[] Links { get; set; } = new GitlabReleaseLink[0];
     }
 
     /// <summary>
@@ -66,13 +66,13 @@ namespace Velopack.Sources
         /// Name of the asset (file) linked.
         /// </summary>
         [JsonPropertyName("name")]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// The url for the asset. This make use of the Gitlab API.
         /// </summary>
         [JsonPropertyName("url")]
-        public string Url { get; set; }
+        public string? Url { get; set; }
 
         /// <summary>
         /// A direct url to the asset, via a traditional URl. 
@@ -80,14 +80,14 @@ namespace Velopack.Sources
         /// This links directly to the raw asset (file).
         /// </summary>
         [JsonPropertyName("direct_asset_url")]
-        public string DirectAssetUrl { get; set; }
+        public string? DirectAssetUrl { get; set; }
 
         /// <summary>
         /// The category type that the asset is listed under.
         /// Options: 'Package', 'Image', 'Runbook', 'Other'
         /// </summary>
         [JsonPropertyName("link_type")]
-        public string Type { get; set; }
+        public string? Type { get; set; }
     }
 
     /// <summary>
@@ -111,7 +111,7 @@ namespace Velopack.Sources
         /// <param name="downloader">
         /// The file downloader used to perform HTTP requests. 
         /// </param>
-        public GitlabSource(string repoUrl, string accessToken, bool upcomingRelease, IFileDownloader downloader = null)
+        public GitlabSource(string repoUrl, string accessToken, bool upcomingRelease, IFileDownloader? downloader = null)
             : base(repoUrl, accessToken, upcomingRelease, downloader)
         {
         }
@@ -128,16 +128,18 @@ namespace Velopack.Sources
                 throw new ArgumentException($"No assets found in Gitlab Release '{release.Name}'.");
             }
 
-            GitlabReleaseLink packageFile =
-                release.Assets.Links.FirstOrDefault(a => a.Name.Equals(assetName, StringComparison.InvariantCultureIgnoreCase));
+            GitlabReleaseLink? packageFile =
+                release.Assets.Links.FirstOrDefault(a => a.Name?.Equals(assetName, StringComparison.InvariantCultureIgnoreCase) == true);
             if (packageFile == null) {
                 throw new ArgumentException($"Could not find asset called '{assetName}' in GitLab Release '{release.Name}'.");
             }
 
-            if (String.IsNullOrWhiteSpace(AccessToken)) {
+            if (String.IsNullOrWhiteSpace(AccessToken) && packageFile.DirectAssetUrl != null) {
                 return packageFile.DirectAssetUrl;
-            } else {
+            } else if (packageFile.Url != null) {
                 return packageFile.Url;
+            } else {
+                throw new Exception($"Could not find a valid URL for asset '{assetName}' in GitLab Release '{release.Name}'.");
             }
         }
 
@@ -154,6 +156,7 @@ namespace Velopack.Sources
             var getReleasesUri = new Uri(baseUri, releasesPath);
             var response = await Downloader.DownloadString(getReleasesUri.ToString(), Authorization).ConfigureAwait(false);
             var releases = SimpleJson.DeserializeObject<List<GitlabRelease>>(response);
+            if (releases == null) return new GitlabRelease[0];
             return releases.OrderByDescending(d => d.ReleasedAt).Where(x => includePrereleases || !x.UpcomingRelease).ToArray();
         }
     }

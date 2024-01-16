@@ -3,7 +3,7 @@ using System;
 
 namespace Velopack.NuGet
 {
-    public class ZipPackageFile : IPackageFile, IEquatable<ZipPackageFile>
+    public class ZipPackageFile : IEquatable<ZipPackageFile>
     {
         public Uri Key { get; }
         public string EffectivePath { get; }
@@ -31,14 +31,14 @@ namespace Velopack.NuGet
 
         public override int GetHashCode() => Path.GetHashCode();
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is ZipPackageFile zpf)
                 return Equals(zpf);
             return false;
         }
 
-        public bool Equals(ZipPackageFile other)
+        public bool Equals(ZipPackageFile? other)
         {
             if (other == null) return false;
             return Path.Equals(other.Path);

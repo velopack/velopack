@@ -235,7 +235,7 @@ namespace Velopack.Tests
             var repo = new FakeFixtureRepository(id, true);
             var source = new SimpleWebSource("http://any.com", repo);
 
-            var feed = await source.GetReleaseFeed(logger);
+            var feed = await source.GetReleaseFeed(logger, VelopackRuntimeInfo.SystemOs.GetOsShortName());
             var basePkg = feed.Assets
                 .Where(x => x.Type == VelopackAssetType.Full)
                 .Single(x => x.Version == SemanticVersion.Parse(fromVersion));

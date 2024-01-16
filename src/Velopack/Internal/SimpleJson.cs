@@ -34,7 +34,7 @@ namespace Velopack.Json
             Converters = { new JsonStringEnumConverter(), new SemanticVersionConverter() },
         };
 
-        public static T DeserializeObject<T>(string json)
+        public static T? DeserializeObject<T>(string json)
         {
             return JsonSerializer.Deserialize<T>(json, Options);
         }
@@ -47,9 +47,11 @@ namespace Velopack.Json
 
     internal class SemanticVersionConverter : JsonConverter<SemanticVersion>
     {
-        public override SemanticVersion Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        public override SemanticVersion? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            return SemanticVersion.Parse(reader.GetString());
+            var str = reader.GetString();
+            if (str == null) return null;
+            return SemanticVersion.Parse(str);
         }
 
         public override void Write(Utf8JsonWriter writer, SemanticVersion value, JsonSerializerOptions options)
@@ -76,7 +78,7 @@ namespace Velopack.Json
             NullValueHandling = NullValueHandling.Ignore,
         };
 
-        public static T DeserializeObject<T>(string json)
+        public static T? DeserializeObject<T>(string json)
         {
             return JsonConvert.DeserializeObject<T>(json, Options);
         }
@@ -89,15 +91,20 @@ namespace Velopack.Json
 
     internal class SemanticVersionConverter : JsonConverter<SemanticVersion>
     {
-        public override SemanticVersion ReadJson(JsonReader reader, Type objectType, SemanticVersion existingValue, bool hasExistingValue, JsonSerializer serializer)
+        public override SemanticVersion? ReadJson(JsonReader reader, Type objectType, SemanticVersion? existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
-            string s = (string) reader.Value;
+            string? s = reader.Value as string;
+            if (s == null) return null;
             return SemanticVersion.Parse(s);
         }
 
-        public override void WriteJson(JsonWriter writer, SemanticVersion value, JsonSerializer serializer)
+        public override void WriteJson(JsonWriter writer, SemanticVersion? value, JsonSerializer serializer)
         {
-            writer.WriteValue(value.ToFullString());
+            if (value != null) {
+                writer.WriteValue(value.ToFullString());
+            } else {
+                writer.WriteNull();
+            }
         }
     }
 

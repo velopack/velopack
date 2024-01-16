@@ -43,6 +43,7 @@ namespace Velopack.Tests.TestHelpers
                         Version = maxDeltaVer.Version,
                         Type = VelopackAssetType.Full,
                         FileName = $"{maxfullVer.PackageId}-{maxDeltaVer.Version}-full.nupkg",
+                        Size = maxfullVer.Filesize,
                     });
                 }
             }

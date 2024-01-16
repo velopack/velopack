@@ -24,14 +24,15 @@ namespace Velopack
     {
         internal static ILogger DefaultLogger { get; private set; } = NullLogger.Instance;
 
-        IVelopackLocator _locator;
-        VelopackHook _install;
-        VelopackHook _update;
-        VelopackHook _obsolete;
-        VelopackHook _uninstall;
-        VelopackHook _firstrun;
-        VelopackHook _restarted;
-        string[] _args;
+        internal static IVelopackLocator? DefaultLocator { get; private set; }
+
+        VelopackHook? _install;
+        VelopackHook? _update;
+        VelopackHook? _obsolete;
+        VelopackHook? _uninstall;
+        VelopackHook? _firstrun;
+        VelopackHook? _restarted;
+        string[]? _args;
         bool _autoApply = true;
 
         private VelopackApp()
@@ -64,10 +65,11 @@ namespace Velopack
 
         /// <summary>
         /// Override the default <see cref="IVelopackLocator"/> used to search for application paths.
+        /// This will be cached and potentially re-used throughout the lifetime of the application.
         /// </summary>
         public VelopackApp SetLocator(IVelopackLocator locator)
         {
-            _locator = locator;
+            DefaultLocator = locator;
             return this;
         }
 
@@ -146,7 +148,7 @@ namespace Velopack
         /// </summary>
         /// <param name="logger">A logging interface for diagnostic messages. This will be
         /// cached and potentially re-used throughout the lifetime of the application.</param>
-        public void Run(ILogger logger = null)
+        public void Run(ILogger? logger = null)
         {
             var args = _args ?? Environment.GetCommandLineArgs().Skip(1).ToArray();
 
@@ -158,7 +160,7 @@ namespace Velopack
             }
 
             var log = logger ?? NullLogger.Instance;
-            var locator = _locator ?? VelopackLocator.GetDefault(log);
+            var locator = DefaultLocator ?? VelopackLocator.GetDefault(log);
             DefaultLogger = log;
 
             log.Info("Starting Velopack App (Run).");
@@ -193,6 +195,10 @@ namespace Velopack
 
             // some initial setup/state
             var myVersion = locator.CurrentlyInstalledVersion;
+            if (myVersion == null) {
+                return;
+            }
+
             var firstrun = !String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VELOPACK_FIRSTRUN"));
             var restarted = !String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VELOPACK_RESTART"));
             var localPackages = locator.GetLocalPackages();
@@ -204,23 +210,26 @@ namespace Velopack
                 log.Info($"Launching app is out-dated. Current: {myVersion}, Newest Local Available: {latestLocal.Version}");
                 if (!restarted && _autoApply) {
                     log.Info("Auto apply is true, so restarting to apply update...");
-                    var um = new UpdateManager(log, locator);
-                    um.ApplyUpdatesAndRestart(args);
+                    UpdateExe.Apply(locator, true, true, args, log);
+                } else {
+                    log.Info("Pre-condition failed, we will not restart to apply updates. (restarted: " + restarted + ", autoApply: " + _autoApply + ")");
                 }
             }
 
             // clean up old versions of the app
             var pkgPath = locator.PackagesDir;
-            foreach (var package in localPackages) {
-                if (package.Type == VelopackAssetType.Full && (package.Version == latestLocal.Version || package.Version == myVersion)) {
-                    continue;
-                }
-                try {
-                    log.Info("Removing old package: " + package.FileName);
-                    var p = Path.Combine(pkgPath, package.FileName);
-                    File.Delete(p);
-                } catch (Exception ex) {
-                    log.Error(ex, $"Failed to remove old package '{package.FileName}'");
+            if (pkgPath != null) {
+                foreach (var package in localPackages) {
+                    if (package.Type == VelopackAssetType.Full && (package.Version == latestLocal?.Version || package.Version == myVersion)) {
+                        continue;
+                    }
+                    try {
+                        log.Info("Removing old package: " + package.FileName);
+                        var p = Path.Combine(pkgPath, package.FileName);
+                        File.Delete(p);
+                    } catch (Exception ex) {
+                        log.Error(ex, $"Failed to remove old package '{package.FileName}'");
+                    }
                 }
             }
 

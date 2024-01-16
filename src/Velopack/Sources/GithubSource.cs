@@ -13,7 +13,7 @@ namespace Velopack.Sources
     {
         /// <summary> The name of this release. </summary>
         [JsonPropertyName("name")]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary> True if this release is a prerelease. </summary>
         [JsonPropertyName("prerelease")]
@@ -25,7 +25,7 @@ namespace Velopack.Sources
 
         /// <summary> A list of assets (files) uploaded to this release. </summary>
         [JsonPropertyName("assets")]
-        public GithubReleaseAsset[] Assets { get; set; }
+        public GithubReleaseAsset[] Assets { get; set; } = new GithubReleaseAsset[0];
     }
 
     /// <summary> Describes a asset (file) uploaded to a GitHub release. </summary>
@@ -36,7 +36,7 @@ namespace Velopack.Sources
         /// quota and return JSON unless the 'Accept' header is "application/octet-stream". 
         /// </summary>
         [JsonPropertyName("url")]
-        public string Url { get; set; }
+        public string? Url { get; set; }
 
         /// <summary>  
         /// The browser URL for this release asset. This does not use API quota,
@@ -45,15 +45,15 @@ namespace Velopack.Sources
         /// be used with an appropriate access token.
         /// </summary>
         [JsonPropertyName("browser_download_url")]
-        public string BrowserDownloadUrl { get; set; }
+        public string? BrowserDownloadUrl { get; set; }
 
         /// <summary> The name of this release asset. </summary>
         [JsonPropertyName("name")]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary> The mime type of this release asset (as detected by GitHub). </summary>
         [JsonPropertyName("content_type")]
-        public string ContentType { get; set; }
+        public string? ContentType { get; set; }
     }
 
     /// <summary>
@@ -78,7 +78,7 @@ namespace Velopack.Sources
         /// <param name="downloader">
         /// The file downloader used to perform HTTP requests. 
         /// </param>
-        public GithubSource(string repoUrl, string accessToken, bool prerelease, IFileDownloader downloader = null)
+        public GithubSource(string repoUrl, string accessToken, bool prerelease, IFileDownloader? downloader = null)
             : base(repoUrl, accessToken, prerelease, downloader)
         {
         }
@@ -94,6 +94,7 @@ namespace Velopack.Sources
             var getReleasesUri = new Uri(baseUri, releasesPath);
             var response = await Downloader.DownloadString(getReleasesUri.ToString(), Authorization, "application/vnd.github.v3+json").ConfigureAwait(false);
             var releases = SimpleJson.DeserializeObject<List<GithubRelease>>(response);
+            if (releases == null) return new GithubRelease[0];
             return releases.OrderByDescending(d => d.PublishedAt).Where(x => includePrereleases || !x.Prerelease).ToArray();
         }
 
@@ -104,22 +105,24 @@ namespace Velopack.Sources
                 throw new ArgumentException($"No assets found in Github Release '{release.Name}'.");
             }
 
-            IEnumerable<GithubReleaseAsset> allReleasesFiles = release.Assets.Where(a => a.Name.Equals(assetName, StringComparison.InvariantCultureIgnoreCase));
+            IEnumerable<GithubReleaseAsset> allReleasesFiles = release.Assets.Where(a => a.Name?.Equals(assetName, StringComparison.InvariantCultureIgnoreCase) == true);
             if (allReleasesFiles == null || allReleasesFiles.Count() == 0) {
                 throw new ArgumentException($"Could not find asset called '{assetName}' in Github Release '{release.Name}'.");
             }
 
             var asset = allReleasesFiles.First();
 
-            if (String.IsNullOrWhiteSpace(AccessToken)) {
+            if (String.IsNullOrWhiteSpace(AccessToken) && asset.BrowserDownloadUrl != null) {
                 // if no AccessToken provided, we use the BrowserDownloadUrl which does not 
                 // count towards the "unauthenticated api request" limit of 60 per hour per IP.
                 return asset.BrowserDownloadUrl;
-            } else {
+            } else if (asset.Url != null) {
                 // otherwise, we use the regular asset url, which will allow us to retrieve
                 // assets from private repositories
                 // https://docs.github.com/en/rest/reference/releases#get-a-release-asset
                 return asset.Url;
+            } else {
+                throw new ArgumentException("Could not find a valid asset url for the specified asset.");
             }
         }
 

@@ -21,7 +21,7 @@ namespace Velopack.Compression
             BaseTempDir = baseTmpDir;
         }
 
-        public void ApplyDeltaPackageFast(string workingPath, string deltaPackageZip, Action<int> progress = null)
+        public void ApplyDeltaPackageFast(string workingPath, string deltaPackageZip, Action<int>? progress = null)
         {
             progress = progress ?? (x => { });
 
@@ -137,7 +137,7 @@ namespace Velopack.Compression
 
             if (File.Exists(finalTarget)) File.Delete(finalTarget);
 
-            var targetPath = Directory.GetParent(finalTarget);
+            var targetPath = Directory.GetParent(finalTarget)!;
             if (!targetPath.Exists) targetPath.Create();
 
             File.Move(tempTargetFile, finalTarget);

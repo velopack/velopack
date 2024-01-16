@@ -18,7 +18,7 @@ namespace Velopack.Sources
         public static ProductInfoHeaderValue UserAgent => new("Velopack", VelopackRuntimeInfo.VelopackNugetVersion.ToFullString());
 
         /// <inheritdoc />
-        public virtual async Task DownloadFile(string url, string targetFile, Action<int> progress, string authorization, string accept)
+        public virtual async Task DownloadFile(string url, string targetFile, Action<int> progress, string? authorization, string? accept)
         {
             using var client = CreateHttpClient(authorization, accept);
             try {
@@ -35,7 +35,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public virtual async Task<byte[]> DownloadBytes(string url, string authorization, string accept)
+        public virtual async Task<byte[]> DownloadBytes(string url, string? authorization, string? accept)
         {
             using var client = CreateHttpClient(authorization, accept);
             try {
@@ -48,7 +48,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public virtual async Task<string> DownloadString(string url, string authorization, string accept)
+        public virtual async Task<string> DownloadString(string url, string? authorization, string? accept)
         {
             using var client = CreateHttpClient(authorization, accept);
             try {
@@ -64,7 +64,7 @@ namespace Velopack.Sources
         /// Asynchronously downloads a remote url to the specified destination stream while 
         /// providing progress updates.
         /// </summary>
-        protected virtual async Task DownloadToStreamInternal(HttpClient client, string requestUri, Stream destination, Action<int> progress = null, CancellationToken cancellationToken = default)
+        protected virtual async Task DownloadToStreamInternal(HttpClient client, string requestUri, Stream destination, Action<int>? progress = null, CancellationToken cancellationToken = default)
         {
             // https://stackoverflow.com/a/46497896/184746
             // Get the http headers first to examine the content length
@@ -119,7 +119,7 @@ namespace Velopack.Sources
         /// <summary>
         /// Creates a new <see cref="HttpClient"/> for every request.
         /// </summary>
-        protected virtual HttpClient CreateHttpClient(string authorization, string accept)
+        protected virtual HttpClient CreateHttpClient(string? authorization, string? accept)
         {
             var client = new HttpClient(CreateHttpClientHandler(), true);
             client.DefaultRequestHeaders.UserAgent.Add(UserAgent);

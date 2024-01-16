@@ -1,4 +1,5 @@
-﻿#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+﻿#nullable disable
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -187,7 +188,7 @@ namespace Velopack
 
         public static ReleaseEntry FromVelopackAsset(VelopackAsset asset)
         {
-            return new ReleaseEntry(asset.SHA1, asset.FileName, asset.Size ?? 0);
+            return new ReleaseEntry(asset.SHA1, asset.FileName, asset.Size);
         }
 
         /// <summary>

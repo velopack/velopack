@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable disable
+using System;
 using System.IO;
 using NuGet.Versioning;
 using Velopack.Json;
@@ -32,7 +33,7 @@ namespace Velopack
         /// </summary>
         public static VelopackAssetFeed FromJson(string json)
         {
-            return SimpleJson.DeserializeObject<VelopackAssetFeed>(json);
+            return SimpleJson.DeserializeObject<VelopackAssetFeed>(json) ?? new VelopackAssetFeed();
         }
     }
 
@@ -57,7 +58,7 @@ namespace Velopack
         public string SHA1 { get; init; }
 
         /// <summary> The size in bytes of the update package containing this release. </summary>
-        public long? Size { get; init; }
+        public long Size { get; init; }
 
         /// <summary> The release notes in markdown format, as passed to Velopack when packaging the release. </summary>
         public string NotesMarkdown { get; init; }
