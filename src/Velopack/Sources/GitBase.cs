@@ -31,7 +31,7 @@ namespace Velopack.Sources
         /// <summary>
         /// The GitLab access token to use with the request to download releases.
         /// </summary>
-        protected virtual string AccessToken { get; }
+        protected virtual string? AccessToken { get; }
 
         /// <summary>
         /// The Bearer token used in the request.
@@ -39,7 +39,7 @@ namespace Velopack.Sources
         protected virtual string? Authorization => string.IsNullOrWhiteSpace(AccessToken) ? null : "Bearer " + AccessToken;
 
         /// <inheritdoc />
-        public GitBase(string repoUrl, string accessToken, bool prerelease, IFileDownloader? downloader = null)
+        public GitBase(string repoUrl, string? accessToken, bool prerelease, IFileDownloader? downloader = null)
         {
             RepoUri = new Uri(repoUrl);
             AccessToken = accessToken;

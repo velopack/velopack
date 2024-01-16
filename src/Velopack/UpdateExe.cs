@@ -27,7 +27,7 @@ namespace Velopack
         /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
         /// <param name="logger">The logger to use for diagnostic messages</param>
         /// <exception cref="Exception">Thrown if Update.exe does not initialize properly.</exception>
-        public static void Apply(IVelopackLocator locator, bool silent, bool restart, string[]? restartArgs, ILogger? logger = null)
+        public static void Apply(IVelopackLocator locator, bool silent, bool restart, string[]? restartArgs = null, ILogger? logger = null)
         {
             logger ??= NullLogger.Instance;
             var psi = new ProcessStartInfo() {

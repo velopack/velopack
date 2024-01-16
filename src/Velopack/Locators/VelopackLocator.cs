@@ -20,7 +20,7 @@ namespace Velopack.Locators
         /// <summary>
         /// Auto-detect the platform from the current operating system.
         /// </summary>
-        public static VelopackLocator GetDefault(ILogger logger)
+        public static VelopackLocator GetDefault(ILogger? logger)
         {
             var log = logger ?? NullLogger.Instance;
 
