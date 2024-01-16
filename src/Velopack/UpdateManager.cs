@@ -295,7 +295,7 @@ namespace Velopack
         /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
         public void ApplyUpdatesAndRestart(string[]? restartArgs = null)
         {
-            WaitExitThenApplyUpdate(true, restartArgs);
+            WaitExitThenApplyUpdates(true, restartArgs);
             Environment.Exit(0);
         }
 
@@ -307,7 +307,7 @@ namespace Velopack
         /// </summary>
         public void ApplyUpdatesAndExit()
         {
-            WaitExitThenApplyUpdate(false, null);
+            WaitExitThenApplyUpdates(false, null);
             Environment.Exit(0);
         }
 
@@ -319,7 +319,7 @@ namespace Velopack
         /// </summary>
         /// <param name="restart">Whether Velopack should restart the app after the updates have been applied.</param>
         /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
-        public void WaitExitThenApplyUpdate(bool restart = true, string[]? restartArgs = null)
+        public void WaitExitThenApplyUpdates(bool restart = true, string[]? restartArgs = null)
         {
             UpdateExe.Apply(Locator, false, restart, restartArgs, Log);
         }
