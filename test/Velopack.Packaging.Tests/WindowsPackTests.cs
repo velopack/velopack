@@ -515,7 +515,7 @@ public class WindowsPackTests
         RunNoCoverage(appExe, new string[] { "download", releaseDir }, currentDir, logger, exitCode: 0);
         RunNoCoverage(appExe, new string[] { "apply", releaseDir }, currentDir, logger, exitCode: null);
 
-        Thread.Sleep(3000); // update.exe runs in a separate process here
+        Thread.Sleep(5000); // update.exe runs in a separate process here
 
         if (origDirName != "current") {
             Assert.True(!Directory.Exists(currentDir));
