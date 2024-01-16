@@ -6,7 +6,7 @@ use crate::shared::{
 use anyhow::{bail, Result};
 use std::{fs, path::PathBuf, process::Command};
 
-pub fn apply_package_impl<'a>(root_path: &PathBuf, _app: &Manifest, pkg: &PathBuf, _runhooks: bool) -> Result<()> {
+pub fn apply_package_impl<'a>(root_path: &PathBuf, _app: &Manifest, pkg: &PathBuf, _runhooks: bool) -> Result<Manifest> {
     // on linux, the current "dir" is actually an AppImage file which we need to replace.
     info!("Loading bundle from {}", pkg.to_string_lossy());
     let bundle = bundle::load_bundle_from_file(pkg)?;
@@ -56,5 +56,6 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, _app: &Manifest, pkg: &PathBu
     })();
     let _ = fs::remove_file(&script_path);
     let _ = fs::remove_file(&temp_path);
-    action
+    action?;
+    Ok(manifest)
 }

@@ -5,7 +5,7 @@ use crate::{
 use anyhow::{bail, Result};
 use std::{fs, path::PathBuf};
 
-pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &PathBuf, runhooks: bool) -> Result<()> {
+pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &PathBuf, runhooks: bool) -> Result<Manifest> {
     let bundle = bundle::load_bundle_from_file(&package)?;
     let manifest = bundle.read_manifest()?;
 
@@ -91,5 +91,6 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &Pat
 
     let _ = remove_dir_all::remove_dir_all(&temp_path_new);
     let _ = remove_dir_all::remove_dir_all(&temp_path_old);
-    action
+    action?;
+    Ok(manifest)
 }

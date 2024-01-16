@@ -6,14 +6,14 @@ use crate::shared::{
 use anyhow::{bail, Result};
 use std::{fs, path::PathBuf, process::Command};
 
-pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, pkg: &PathBuf, _runhooks: bool) -> Result<()> {
+pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, pkg: &PathBuf, _runhooks: bool) -> Result<Manifest> {
     let tmp_path_new = format!("/tmp/velopack/{}/{}", app.id, shared::random_string(8));
     let tmp_path_old = format!("/tmp/velopack/{}/{}", app.id, shared::random_string(8));
+    let bundle = bundle::load_bundle_from_file(pkg)?;
+    let manifest = bundle.read_manifest()?;
 
     let action: Result<()> = (|| {
         // 1. extract the bundle to a temp dir
-        let bundle = bundle::load_bundle_from_file(pkg)?;
-        let manifest = bundle.read_manifest()?;
         fs::create_dir_all(&tmp_path_new)?;
         info!("Extracting bundle to {}", &tmp_path_new);
         bundle.extract_lib_contents_to_path(&tmp_path_new, |_| {})?;
@@ -59,5 +59,6 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, pkg: &PathBuf
     })();
     let _ = fs::remove_dir_all(&tmp_path_new);
     let _ = fs::remove_dir_all(&tmp_path_old);
-    action
+    action?;
+    Ok(manifest)
 }

@@ -30,10 +30,15 @@ pub fn apply<'a>(
     let package = package.cloned().map_or_else(|| auto_locate_package(&app, &root_path), Ok);
     match package {
         Ok(package) => {
-            info!("Getting ready to apply package: {}", package.to_string_lossy());
+            info!("Getting ready to apply package to {} ver {}: {}", app.id, app.version, package.to_string_lossy());
             match apply_package_impl(&root_path, &app, &package, runhooks) {
-                Ok(_) => {
-                    info!("Package applied successfully.");
+                Ok(applied_app) => {
+                    info!("Package version {} applied successfully.", applied_app.version);
+                    // if successful, we want to restart the new version of the app, which could have different metadata
+                    if restart {
+                        shared::start_package(&applied_app, &root_path, exe_args, Some("VELOPACK_RESTART"))?;
+                    }
+                    return Ok(());
                 }
                 Err(e) => {
                     error!("Error applying package: {}", e);
@@ -45,12 +50,12 @@ pub fn apply<'a>(
         }
     }
 
-    // TODO: if the package fails to start, or fails hooks, we could roll back the install
+    // an error occurred if we're here, but we still want to restart the old version of the app if it was requested
     if restart {
         shared::start_package(&app, &root_path, exe_args, Some("VELOPACK_RESTART"))?;
     }
 
-    Ok(())
+    bail!("Apply failed, see logs for details.");
 }
 
 fn auto_locate_package(app: &Manifest, _root_path: &PathBuf) -> Result<PathBuf> {
