@@ -20,6 +20,7 @@ jobs:
         run: sudo apt install -y gcc-mingw-w64
 
       - name: Build Rust
+        working-directory: src/Rust
         run: cargo build --features windows --release --target i686-pc-windows-gnu
 
       - name: Upload Rust Artifacts
