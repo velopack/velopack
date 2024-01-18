@@ -6,29 +6,6 @@ env:
   VELOPACK_GITHUB_TEST_TOKEN: ${{ secrets.VELOPACK_GITHUB_TEST_TOKEN }}
 
 jobs:
-  build-x86:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Add toolchain target
-        run: rustup target add i686-pc-windows-gnu
-
-      - name: Install gcc-mingw-w64
-        run: sudo apt install -y gcc-mingw-w64
-
-      - name: Build Rust
-        working-directory: src/Rust
-        run: cargo build --features windows --release --target i686-pc-windows-gnu
-
-      - name: Upload Rust Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: rust-win-x86
-          path: src/Rust/target
-
   build:
     strategy:
       matrix:
