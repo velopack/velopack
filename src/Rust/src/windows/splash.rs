@@ -327,11 +327,19 @@ fn show_com_ctl_progress_dialog(rx: Receiver<i16>, window_title: &str, content: 
     let mut window_title = WString::from_str(window_title);
     let mut content = WString::from_str(content);
 
+    let mut ok_text_buf = WString::from_str("Hide");
+    let mut td_btn = w::TASKDIALOG_BUTTON::default();
+    td_btn.set_nButtonID(co::DLGID::OK.into());
+    td_btn.set_pszButtonText(Some(&mut ok_text_buf));
+    let mut custom_btns = Vec::with_capacity(1);
+    custom_btns.push(td_btn);
+
     let mut config: w::TASKDIALOGCONFIG = Default::default();
     config.dwFlags = co::TDF::SIZE_TO_CONTENT | co::TDF::SHOW_PROGRESS_BAR | co::TDF::CALLBACK_TIMER;
     config.set_pszMainIcon(w::IconIdTdicon::Tdicon(co::TD_ICON::INFORMATION));
     config.set_pszWindowTitle(Some(&mut window_title));
     config.set_pszMainInstruction(Some(&mut content));
+    config.set_pButtons(Some(&mut custom_btns));
 
     // if (_icon != null) {
     //     config.dwFlags |= TASKDIALOG_FLAGS.TDF_USE_HICON_MAIN;
@@ -349,15 +357,6 @@ extern "system" fn task_dialog_callback(hwnd: w::HWND, msg: co::TDN, _: usize, _
     let raw = lp_ref_data as *const ComCtlProgressWindow;
     let me: &ComCtlProgressWindow = unsafe { &*raw };
 
-    // if msg == co::TDN::DIALOG_CONSTRUCTED {
-    //     let mut h = me.hwnd.borrow_mut();
-    //     *h = hwnd;
-    // }
-
-    if msg == co::TDN::BUTTON_CLICKED {
-        return co::HRESULT::S_FALSE; // TODO, support cancellation
-    }
-
     if msg == co::TDN::TIMER {
         let mut progress: i16 = -1;
         loop {
@@ -365,7 +364,7 @@ extern "system" fn task_dialog_callback(hwnd: w::HWND, msg: co::TDN, _: usize, _
             if msg == MSG_NOMESSAGE {
                 break;
             } else if msg == MSG_CLOSE {
-                hwnd.SendMessage(w::msg::wm::Close {});
+                let _ = hwnd.EndDialog(0);
                 return co::HRESULT::S_OK;
             } else if msg >= 0 {
                 progress = msg;
@@ -386,4 +385,28 @@ fn show_test_gif() {
     let tx = show_splash_dialog("osu!".to_string(), Some(rd), false);
     tx.send(80).unwrap();
     std::thread::sleep(std::time::Duration::from_secs(6));
+}
+
+#[test]
+#[ignore]
+fn show_test_progress() {
+    let tx = show_progress_dialog("hello!", "this is some content");
+    let _ = tx.send(25);
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    let _ = tx.send(50);
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    let _ = tx.send(75);
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    let _ = tx.send(100);
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    let _ = tx.send(MSG_CLOSE);
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    std::thread::sleep(std::time::Duration::from_secs(1));
 }
