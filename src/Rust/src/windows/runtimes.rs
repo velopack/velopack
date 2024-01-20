@@ -3,7 +3,7 @@ use crate::shared as util;
 use anyhow::{anyhow, bail, Result};
 use regex::Regex;
 use std::process::Command as Process;
-use std::{collections::HashMap, env, fs, path::Path};
+use std::{collections::HashMap, fs, path::Path};
 use winsafe::{self as w, co, prelude::*};
 
 const REDIST_2015_2022_X86: &str = "https://aka.ms/vs/17/release/vc_redist.x86.exe";
@@ -359,32 +359,30 @@ fn get_dotnet_base_path(runtime_arch: RuntimeArch, runtime_type: DotnetRuntimeTy
         return Ok(result.to_string());
     }
 
-    // this only works in a 64 bit process, otherwise it points to ProgramFilesX86
-    let mut pf64 = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::ProgramFilesX64, co::KF::DONT_UNEXPAND, None)?;
+    // this only works in a 64 bit process, otherwise it throws
+    #[cfg(not(target_arch = "x86"))]
+    let pf64 = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::ProgramFilesX64, co::KF::DONT_UNEXPAND, None)?;
 
-    // try to get the real 64 bit program files directory via ProgramW6432
-    let pf64compat = env::var("ProgramW6432");
-    if pf64compat.is_ok() {
-        let puw = pf64compat.unwrap();
-        if Path::new(&puw).exists() {
-            pf64 = puw;
-        }
+    // set by WOW64 for x86 processes. https://learn.microsoft.com/en-us/windows/win32/winprog64/wow64-implementation-details
+    #[cfg(target_arch = "x86")]
+    let pf64 = std::env::var("ProgramW6432")?;
+
+    if !Path::new(&pf64).exists() {
+        bail!("Unable to determine ProgramFilesX64 path.");
     }
 
-    // looking for x64 on an x64 system will always be in pf64.
-    // it's the same when looking for arm64 on an arm64 system
-    // if looking for x64 on an arm64 system, it will be in a sub-directory
-    if runtime_arch == system {
-        let join = Path::new(&pf64).join("dotnet").join(dotnet_path);
-        let result = join.to_str().ok_or_else(|| anyhow!("Unable to convert path to string."))?;
-        return Ok(result.to_string());
-    } else if runtime_arch == RuntimeArch::X64 && system == RuntimeArch::Arm64 {
+    // if on an arm64 system, looking for an x64 dotnet, it will be in a subdirectory
+    if runtime_arch == RuntimeArch::X64 && system == RuntimeArch::Arm64 {
         let join = Path::new(&pf64).join("dotnet").join("x64").join(dotnet_path);
         let result = join.to_str().ok_or_else(|| anyhow!("Unable to convert path to string."))?;
         return Ok(result.to_string());
-    } else {
-        bail!("Unable to determine dotnet base path.");
     }
+
+    // if we're here, we are looking for x64 on an x64 system, or arm64 on an arm64 system,
+    // which will always be in %pf%\dotnet
+    let join = Path::new(&pf64).join("dotnet").join(dotnet_path);
+    let result = join.to_str().ok_or_else(|| anyhow!("Unable to convert path to string."))?;
+    return Ok(result.to_string());
 }
 
 fn list_subfolders(path: &str) -> Vec<String> {

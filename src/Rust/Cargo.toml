@@ -9,6 +9,7 @@ windows = []
 [lib]
 name = "velopack"
 path = "src/lib.rs"
+doctest = false
 
 [[bin]]
 name = "setup"
