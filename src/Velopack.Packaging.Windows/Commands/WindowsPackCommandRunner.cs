@@ -6,6 +6,7 @@ using NuGet.Versioning;
 using Spectre.Console;
 using Velopack.Compression;
 using Velopack.NuGet;
+using Velopack.Packaging.Exceptions;
 using Velopack.Windows;
 
 namespace Velopack.Packaging.Windows.Commands;
@@ -60,18 +61,68 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
     protected override string GetRuntimeDependencies()
     {
-        // check provided runtimes
-        IEnumerable<Runtimes.RuntimeInfo> requiredFrameworks = Enumerable.Empty<Runtimes.RuntimeInfo>();
-        if (!string.IsNullOrWhiteSpace(Options.Runtimes)) {
-            requiredFrameworks = Options.Runtimes
-                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(Runtimes.GetRuntimeByName);
+        if (string.IsNullOrWhiteSpace(Options.Runtimes))
+            return "";
+
+        var providedRuntimes = Options.Runtimes.ToLower()
+                .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+
+        var valid = new string[] {
+            "webview2",
+            "vcredist100-x86",
+            "vcredist100-x64",
+            "vcredist110-x86",
+            "vcredist110-x64",
+            "vcredist120-x86",
+            "vcredist120-x64",
+            "vcredist140-x86",
+            "vcredist140-x64",
+            "vcredist141-x86",
+            "vcredist141-x64",
+            "vcredist142-x86",
+            "vcredist142-x64",
+            "vcredist143-x86",
+            "vcredist143-x64",
+            "vcredist143-arm64",
+            "net45",
+            "net451",
+            "net452",
+            "net46",
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481",
+        };
+
+        List<string> validated = new();
+
+        foreach (var str in providedRuntimes) {
+            if (valid.Contains(str)) {
+                validated.Add(str);
+                continue;
+            }
+
+#pragma warning disable CS0618 // Type or member is obsolete
+            if (Runtimes.DotnetInfo.TryParse(str, out var dotnetInfo)) {
+                if (dotnetInfo.MinVersion.Major < 5)
+                    throw new UserInfoException($"The framework/runtime dependency '{str}' is not valid. Only .NET 5+ is supported.");
+                validated.Add(dotnetInfo.Id);
+                continue;
+            }
+#pragma warning restore CS0618 // Type or member is obsolete
+
+
+            throw new UserInfoException($"The framework/runtime dependency '{str}' is not valid. See https://github.com/velopack/velopack/blob/master/docs/bootstrapping.md");
         }
 
-        if (requiredFrameworks.Where(f => f == null).Any())
-            throw new ArgumentException("Invalid target frameworks string.");
+        foreach (var str in validated) {
+            Log.Info("Runtime Dependency: " + str);
+        }
 
-        return String.Join(",", requiredFrameworks.Select(r => r.Id));
+        return String.Join(",", validated);
     }
 
     protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe)

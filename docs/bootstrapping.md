@@ -18,36 +18,40 @@ These dependencies will be downloaded and installed before your application can 
 Velopack will check that all required dependencies are installed before applying new updates. This means if a new version of your app adds a new dependency, the user will be prompted to install it before your new version is applied.
 
 ## List of supported frameworks
+Any of the following can be passed via the `--framework` argument.
+
+### Edge WebView2
+- `webview2`
 
 ### vcredist
-- vcredist100-x86
-- vcredist100-x64
-- vcredist110-x86
-- vcredist110-x64
-- vcredist120-x86
-- vcredist120-x64
-- vcredist140-x86
-- vcredist140-x64
-- vcredist141-x86
-- vcredist141-x64
-- vcredist142-x86
-- vcredist142-x64
-- vcredist143-x86
-- vcredist143-x64
-- vcredist143-arm64
+- `vcredist100-x86`
+- `vcredist100-x64`
+- `vcredist110-x86`
+- `vcredist110-x64`
+- `vcredist120-x86`
+- `vcredist120-x64`
+- `vcredist140-x86`
+- `vcredist140-x64`
+- `vcredist141-x86`
+- `vcredist141-x64`
+- `vcredist142-x86`
+- `vcredist142-x64`
+- `vcredist143-x86`
+- `vcredist143-x64`
+- `vcredist143-arm64`
 
 ### .Net Framework
-- net45
-- net451
-- net452
-- net46
-- net461
-- net462
-- net47
-- net471
-- net472
-- net48
-- net481
+- `net45`
+- `net451`
+- `net452`
+- `net46`
+- `net461`
+- `net462`
+- `net47`
+- `net471`
+- `net472`
+- `net48`
+- `net481`
 
 ### dotnet
 Every version of dotnet is supported >= 5.0. The framework argument should be supplied in the format `$"net{major.minor}-{arch}-{type}"`.
@@ -69,4 +73,4 @@ Here are some examples:
 
 By default, Velopack will accept any installed release, but always install the latest. That is to say, if your dependency is specified as `net6.0-x64-desktop` and version `6.0.2` is installed, it will be accepted. If it's not installed, Velopack will download the latest available version (at the time of writing, that's `6.0.26`). 
 
-If you need a specific version of dotnet, (eg. `6.0.11`) - you can specify a third version part in your dependency string: `--framework net6.0.11-x64-desktop`. In this case, if the installed version is `<= 6.0.11`, then it will be upgraded to the latest available.
+If you need a specific version of dotnet, (eg. `6.0.11`) - you can specify a third version part in your dependency string: `--framework net6.0.11-x64-desktop`. In this case, if the installed version is `< 6.0.11`, then it will be upgraded to the latest available.

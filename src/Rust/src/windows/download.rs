@@ -1,15 +1,25 @@
+use crate::shared;
 use anyhow::Result;
 use std::fs::File;
 use std::io::{Read, Write};
-
-use crate::shared;
 
 pub fn download_url_to_file<A>(url: &str, file_path: &str, mut progress: A) -> Result<()>
 where
     A: FnMut(i16),
 {
     // let url = "https://proof.ovh.net/files/10Mb.dat";
-    let tls_connector = native_tls::TlsConnector::new()?;
+    let mut tls_builder = native_tls::TlsConnector::builder();
+
+    if !winsafe::IsWindows10OrGreater()? {
+        warn!("DANGER: Discontinued OS version. TLS certificate checking will be disabled.");
+        warn!("DANGER: Discontinued OS version. TLS certificate checking will be disabled.");
+        warn!("DANGER: Discontinued OS version. TLS certificate checking will be disabled.");
+        tls_builder.danger_accept_invalid_certs(true);
+        tls_builder.danger_accept_invalid_hostnames(true);
+    }
+
+    let tls_connector = tls_builder.build()?;
+
     let agent: ureq::Agent = ureq::AgentBuilder::new().tls_connector(tls_connector.into()).build();
     let response = agent.get(url).call()?;
 

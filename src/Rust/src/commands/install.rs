@@ -14,8 +14,8 @@ pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Res
     let osinfo = windows::os_info::get();
     info!("OS: {}, Arch={}", osinfo, osinfo.architecture().unwrap_or("unknown"));
 
-    if !w::IsWindowsVersionOrGreater(6, 1, 1)? {
-        bail!("This installer requires Windows 7 SP1 or later and cannot run.");
+    if !w::IsWindows7OrGreater()? {
+        bail!("This installer requires Windows 7 or later and cannot run.");
     }
 
     let file = File::open(env::current_exe()?)?;

@@ -129,7 +129,7 @@ windows-sys = { version = "0.52", default-features = false, features = [
     "Win32_System_SystemServices",
 ] }
 normpath = "1.0.1"
-# codesign-verify = { git = "https://github.com/caesay/codesign-verify-rs.git" }
+webview2-com = "0.28.0"
 
 [dev-dependencies]
 tempfile = "3.9"
