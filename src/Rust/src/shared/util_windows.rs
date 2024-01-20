@@ -159,8 +159,6 @@ pub fn start_package<P: AsRef<Path>>(app: &Manifest, root_dir: P, exe_args: Opti
         bail!("Unable to find executable to start: '{}'", exe_to_execute.to_string_lossy());
     }
 
-    crate::windows::assert_can_run_binary_authenticode(&exe_to_execute)?;
-
     let mut psi = Process::new(&exe_to_execute);
     psi.current_dir(&current);
     if let Some(args) = exe_args {

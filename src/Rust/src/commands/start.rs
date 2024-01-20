@@ -63,8 +63,6 @@ pub fn start(wait_for_parent: bool, exe_name: Option<&String>, exe_args: Option<
         bail!("Unable to find executable to start: '{}'", exe_to_execute.to_string_lossy());
     }
 
-    crate::windows::assert_can_run_binary_authenticode(&exe_to_execute)?;
-
     info!("About to launch: '{}' in dir '{}'", exe_to_execute.to_string_lossy(), current);
 
     if let Some(args) = exe_args {
