@@ -14,7 +14,6 @@ using Velopack.Sources;
 
 namespace Velopack.Windows
 {
-    [Obsolete("These classes are no longer used by Velopack, and does not represent the current supported runtimes. https://github.com/velopack/velopack/blob/master/docs/bootstrapping.md")]
     public static partial class Runtimes
     {
         /// <summary> Dotnet Runtime SKU </summary>
