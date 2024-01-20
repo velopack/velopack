@@ -114,7 +114,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             }
 #pragma warning restore CS0618 // Type or member is obsolete
 
-
             throw new UserInfoException($"The framework/runtime dependency '{str}' is not valid. See https://github.com/velopack/velopack/blob/master/docs/bootstrapping.md");
         }
 

@@ -591,7 +591,6 @@ impl RuntimeInfo for WebView2Info {
 
 #[test]
 fn test_webview2_is_installed() {
-    crate::logging::trace_logger();
     assert!(WebView2Info {}.is_installed());
 }
 
