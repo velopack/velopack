@@ -7,18 +7,21 @@ use std::{
     path::{Path, PathBuf},
     process::Command as Process,
 };
+use windows::Win32::System::ProcessStatus::EnumProcesses;
+use windows_sys::Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasicInformation};
+use windows_sys::Win32::System::Threading::{GetCurrentProcess, PROCESS_BASIC_INFORMATION};
 use winsafe::{self as w, co, prelude::*};
 
 use super::bundle::{self, EntryNameInfo, Manifest};
 
 pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
     info!("Reading parent process information.");
-    let basic_info = windows_sys::Wdk::System::Threading::ProcessBasicInformation;
-    let handle = unsafe { windows_sys::Win32::System::Threading::GetCurrentProcess() };
+    let basic_info = ProcessBasicInformation;
+    let handle = unsafe { GetCurrentProcess() };
     let mut return_length: u32 = 0;
     let return_length_ptr: *mut u32 = &mut return_length as *mut u32;
 
-    let mut info = windows_sys::Win32::System::Threading::PROCESS_BASIC_INFORMATION {
+    let mut info = PROCESS_BASIC_INFORMATION {
         AffinityMask: 0,
         BasePriority: 0,
         ExitStatus: 0,
@@ -28,8 +31,8 @@ pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
     };
 
     let info_ptr: *mut ::core::ffi::c_void = &mut info as *mut _ as *mut ::core::ffi::c_void;
-    let info_size = std::mem::size_of::<windows_sys::Win32::System::Threading::PROCESS_BASIC_INFORMATION>() as u32;
-    let hr = unsafe { windows_sys::Wdk::System::Threading::NtQueryInformationProcess(handle, basic_info, info_ptr, info_size, return_length_ptr) };
+    let info_size = std::mem::size_of::<PROCESS_BASIC_INFORMATION>() as u32;
+    let hr = unsafe { NtQueryInformationProcess(handle, basic_info, info_ptr, info_size, return_length_ptr) };
 
     if hr != 0 {
         return Err(anyhow!("Failed to query process information: {}", hr));
@@ -72,32 +75,49 @@ pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
     }
 }
 
+// https://github.com/nushell/nushell/blob/4458aae3d41517d74ce1507ad3e8cd94021feb16/crates/nu-system/src/windows.rs#L593
+fn get_pids() -> Result<Vec<u32>> {
+    let dword_size = std::mem::size_of::<u32>();
+    let mut pids: Vec<u32> = Vec::with_capacity(101920);
+    let mut cb_needed = 0;
+
+    unsafe {
+        pids.set_len(101920);
+        let _ = EnumProcesses(pids.as_mut_ptr(), (dword_size * pids.len()) as u32, &mut cb_needed)?;
+        let pids_len = cb_needed / dword_size as u32;
+        pids.set_len(pids_len as usize);
+    }
+
+    Ok(pids.iter().map(|x| *x as u32).collect())
+}
+
 fn get_processes_running_in_directory<P: AsRef<Path>>(dir: P) -> Result<HashMap<u32, PathBuf>> {
     let dir = dir.as_ref();
     let mut oup = HashMap::new();
-    let mut hpl = w::HPROCESSLIST::CreateToolhelp32Snapshot(co::TH32CS::SNAPPROCESS, None)?;
-    for proc_entry in hpl.iter_processes() {
-        if let Ok(proc) = proc_entry {
-            let process = w::HPROCESS::OpenProcess(co::PROCESS::QUERY_LIMITED_INFORMATION, false, proc.th32ProcessID);
-            if process.is_err() {
-                continue;
-            }
 
-            let process = process.unwrap();
-            let full_path = process.QueryFullProcessImageName(co::PROCESS_NAME::WIN32);
-            if full_path.is_err() {
-                continue;
-            }
+    for pid in get_pids()? {
+        let process = w::HPROCESS::OpenProcess(co::PROCESS::QUERY_LIMITED_INFORMATION, false, pid);
+        if let Err(_) = process {
+            // trace!("Failed to open process: {} ({})", pid, e);
+            continue;
+        }
 
-            let full_path = full_path.unwrap();
-            let full_path = Path::new(&full_path);
-            if let Ok(is_subpath) = crate::windows::is_sub_path(full_path, dir) {
-                if is_subpath {
-                    oup.insert(proc.th32ProcessID, full_path.to_path_buf());
-                }
+        let process = process.unwrap();
+        let full_path = process.QueryFullProcessImageName(co::PROCESS_NAME::WIN32);
+        if let Err(_) = full_path {
+            // trace!("Failed to query process path: {} ({})", pid, e);
+            continue;
+        }
+
+        let full_path = full_path.unwrap();
+        let full_path = Path::new(&full_path);
+        if let Ok(is_subpath) = crate::windows::is_sub_path(full_path, dir) {
+            if is_subpath {
+                oup.insert(pid, full_path.to_path_buf());
             }
         }
     }
+
     Ok(oup)
 }
 
