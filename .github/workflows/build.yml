@@ -73,7 +73,9 @@ jobs:
 
       - name: Collect Rust Binaries (Windows)
         working-directory: src/Rust/target
-        run: copy i686-pc-windows-msvc\release\*.exe release
+        run: |
+          copy i686-pc-windows-msvc\release\*.exe release
+          copy i686-pc-windows-msvc\release\*.pdb release
         if: ${{ matrix.os == 'windows-latest' }}
 
       - name: Collect Rust Binaries (Linux)
