@@ -52,12 +52,14 @@ jobs:
       - name: Install .Net Coverage
         run: dotnet tool install -g dotnet-coverage
 
-      - name: Set Windows Feature
+      - name: Set Rust Flags (Windows)
         shell: pwsh
-        run: Add-Content -Path $env:GITHUB_ENV -Value "EXTRA_RUST_FLAGS=--features windows"
+        run: |
+          rustup target add i686-pc-windows-msvc
+          Add-Content -Path $env:GITHUB_ENV -Value "EXTRA_RUST_FLAGS=--target i686-pc-windows-msvc --features windows"
         if: ${{ matrix.os == 'windows-latest' }}
 
-      - name: Set Linux Target
+      - name: Set Rust Flags (Linux)
         run: echo "EXTRA_RUST_FLAGS=--target x86_64-unknown-linux-gnu" >> "$GITHUB_ENV"
         if: ${{ matrix.os == 'ubuntu-latest' }}
 
@@ -69,15 +71,20 @@ jobs:
         working-directory: src/Rust
         run: cargo llvm-cov ${{ env.EXTRA_RUST_FLAGS }} --cobertura --output-path ../../test/coverage.rust.${{ matrix.os }}.xml
 
-      - name: Rename OSX Binary
-        working-directory: src/Rust/target/release
-        run: cp update UpdateMac
-        if: ${{ matrix.os == 'macos-latest' }}
+      - name: Collect Rust Binaries (Windows)
+        working-directory: src/Rust/target
+        run: copy i686-pc-windows-msvc\release\*.exe release
+        if: ${{ matrix.os == 'windows-latest' }}
 
-      - name: Rename Linux Binary
+      - name: Collect Rust Binaries (Linux)
         working-directory: src/Rust/target
         run: cp ./x86_64-unknown-linux-gnu/release/update ./release/UpdateNix
         if: ${{ matrix.os == 'ubuntu-latest' }}
+
+      - name: Collect Rust Binaries (OSX)
+        working-directory: src/Rust/target/release
+        run: cp update UpdateMac
+        if: ${{ matrix.os == 'macos-latest' }}
 
       - name: Build .NET
         run: dotnet build -c Release 
