@@ -43,9 +43,6 @@ namespace Velopack.Packaging
                 throw new UserInfoException($"To build packages for {SupportedTargetOs.GetOsLongName()}, " +
                     $"the target rid must be {SupportedTargetOs} (actually was {options.TargetRuntime?.BaseRID}).");
 
-            if (options.TargetRuntime?.HasArchitecture == true && options.TargetRuntime.Architecture == RuntimeCpu.x86)
-                throw new UserInfoException("Velopack does not support building releases for x86 platforms.");
-
             Log.Info("Beginning to package release.");
             Log.Info("Releases Directory: " + options.ReleaseDir.FullName);
 
