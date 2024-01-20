@@ -305,7 +305,7 @@ where
 }
 
 pub fn is_cpu_architecture_supported(architecture: &str) -> Result<bool> {
-    let info = os_info::get();
+    let info = super::os_info::get();
     let machine = info.architecture();
     if machine.is_none() {
         return Ok(true); // we can't detect current arch so try installing anyway.

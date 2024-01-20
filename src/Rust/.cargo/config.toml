@@ -1,8 +1,10 @@
 [alias]
 bx = "build"
-bw = "build --features windows"
 tx = "test"
+
 tw = "test --features windows"
+bw = "build --features windows"
+bw86 = "build --target i686-pc-windows-msvc --features windows"
 
 [build]
 rustflags = ["-C", "target-feature=+crt-static"]

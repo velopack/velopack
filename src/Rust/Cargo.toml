@@ -46,7 +46,6 @@ rpath = false            # disable rpath
 [dependencies]
 anyhow = "1.0"
 pretty-bytes-rust = "0.3"
-os_info = { git = "https://github.com/stanislav-tkach/os_info.git", branch = "master", default-features = false } # public releases don't yet have processor arch info
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
 regex = "1.10"
 rand = "0.8"
@@ -85,14 +84,10 @@ libc = "0.2"
 [target.'cfg(windows)'.dependencies]
 fs_extra = "1.2"
 memmap2 = "0.9"
-winsafe = { git = "https://github.com/caesay/winsafe.git", branch = "cs/only-ipersistfile", features = [
-    "kernel",
+winsafe = { version = "0.0.19", features = [
     "version",
     "user",
-    "shell",
-    "comctl",
     "gui",
-    "ole",
 ] }
 image = { version = "0.24", default-features = false, features = [
     "gif",
@@ -127,6 +122,13 @@ windows-sys = { version = "0.52", default-features = false, features = [
     "Wdk",
     "Wdk_System",
     "Wdk_System_Threading",
+    # below are just for os_info
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_LibraryLoader",
+    "Win32_System_SystemInformation",
+    "Win32_System_Registry",
+    "Win32_System_SystemServices",
 ] }
 normpath = "1.0.1"
 codesign-verify = { git = "https://github.com/caesay/codesign-verify-rs.git" }
@@ -134,6 +136,7 @@ codesign-verify = { git = "https://github.com/caesay/codesign-verify-rs.git" }
 [dev-dependencies]
 tempfile = "3.9"
 ntest = "0.9.0"
+pretty_assertions = "1.4"
 
 [build-dependencies]
 semver = "1.0"

@@ -11,7 +11,7 @@ use std::{
 use winsafe::{self as w, co};
 
 pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Result<()> {
-    let osinfo = os_info::get();
+    let osinfo = windows::os_info::get();
     info!("OS: {}, Arch={}", osinfo, osinfo.architecture().unwrap_or("unknown"));
 
     if !w::IsWindowsVersionOrGreater(6, 1, 1)? {

@@ -72,7 +72,7 @@ impl RuntimeArch {
         }
     }
     pub fn from_current_system() -> Option<Self> {
-        let info = os_info::get();
+        let info = super::os_info::get();
         let machine = info.architecture();
         if machine.is_none() {
             return None;
