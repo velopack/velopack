@@ -140,12 +140,6 @@ internal static class SystemCommandLineExtensions
         return option;
     }
 
-    public static CliOption<string> MustBeValidFrameworkString(this CliOption<string> option)
-    {
-        option.Validators.Add(Validate.MustBeValidFrameworkString);
-        return option;
-    }
-
     public static CliOption<string> MustBeValidMsiVersion(this CliOption<string> option)
     {
         option.Validators.Add(Validate.MustBeValidMsiVersion);
@@ -314,17 +308,6 @@ internal static class SystemCommandLineExtensions
                     !Directory.EnumerateFileSystemEntries(token.Value).Any()) {
                     result.AddError($"{result.IdentifierToken.Value} must be a non-empty directory, but the specified directory '{token.Value}' was empty.");
                     return;
-                }
-            }
-        }
-
-        public static void MustBeValidFrameworkString(OptionResult result)
-        {
-            for (var i = 0; i < result.Tokens.Count; i++) {
-                var framework = result.Tokens[i].Value;
-                bool valid = framework.Split(",").Select(Runtimes.GetRuntimeByName).All(x => x != null);
-                if (!valid) {
-                    result.AddError($"Invalid target dependency string: {framework}.");
                 }
             }
         }

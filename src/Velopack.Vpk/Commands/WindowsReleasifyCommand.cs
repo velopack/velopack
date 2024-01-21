@@ -39,9 +39,8 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
             .SetDescription("Set the delta generation mode.");
 
         AddOption<string>((v) => Runtimes = v, "-f", "--framework")
-            .SetDescription("List of required runtimes to install during setup. example: 'net6,vcredist143'.")
-            .SetArgumentHelpName("RUNTIMES")
-            .MustBeValidFrameworkString();
+            .SetDescription("List of required runtimes to install during setup. example: 'net6-x64-desktop,vcredist143'.")
+            .SetArgumentHelpName("RUNTIMES");
 
         AddOption<FileInfo>((v) => SplashImage = v.ToFullNameOrNull(), "-s", "--splashImage")
             .SetDescription("Path to image displayed during installation.")
