@@ -15,7 +15,7 @@ namespace Velopack.NuGet
 
         public string LoadedFromPath { get; private set; }
 
-        public ZipPackage(string filePath)
+        public ZipPackage(string filePath, bool loadUpdateExe = false)
         {
             using var zipStream = File.OpenRead(filePath);
             using var zip = new ZipArchive(zipStream, ZipArchiveMode.Read, false);
@@ -24,7 +24,10 @@ namespace Velopack.NuGet
 
             LoadedFromPath = filePath;
             Files = GetPackageFiles(zip).ToArray();
-            UpdateExeBytes = ReadFile(zip, f => f.FullName.EndsWith("Squirrel.exe"));
+
+            if (loadUpdateExe) {
+                UpdateExeBytes = ReadFile(zip, f => f.FullName.EndsWith("Squirrel.exe"));
+            }
         }
 
         protected byte[]? ReadFile(ZipArchive archive, Func<ZipArchiveEntry, bool> predicate)

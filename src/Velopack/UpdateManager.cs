@@ -266,7 +266,7 @@ namespace Velopack
                     try {
                         var updateExe = Locator.UpdateExePath!;
                         Log.Info("Extracting new Update.exe to " + updateExe);
-                        var zip = new ZipPackage(completeFile);
+                        var zip = new ZipPackage(completeFile, loadUpdateExe: true);
 
                         if (zip.UpdateExeBytes == null) {
                             Log.Error("Update.exe not found in package, skipping extraction.");

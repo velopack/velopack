@@ -32,6 +32,13 @@ namespace Velopack.Sources
                 return Task.FromResult(new VelopackAssetFeed());
             }
 
+            // if a feed exists in the folder, let's use that.
+            var feedLoc = Path.Combine(BaseDirectory.FullName, Utility.GetVeloReleaseIndexName(channel));
+            if (File.Exists(feedLoc)) {
+                return Task.FromResult(VelopackAssetFeed.FromJson(File.ReadAllText(feedLoc)));
+            }
+
+            // if not, we can try to iterate the packages, hopefully this is not a remote/network folder!
             var list = new List<VelopackAsset>();
             foreach (var pkg in Directory.EnumerateFiles(BaseDirectory.FullName, "*.nupkg")) {
                 try {
@@ -48,7 +55,6 @@ namespace Velopack.Sources
                     logger.Warn(ex, $"Error while reading local package '{pkg}'.");
                 }
             }
-
             return Task.FromResult(new VelopackAssetFeed { Assets = list.ToArray() });
         }
 
