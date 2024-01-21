@@ -98,19 +98,21 @@ namespace Velopack.Packaging
                 File.Delete(releaseFile);
             }
             foreach (var kvp in releases) {
-                if (VelopackRuntimeInfo.IsWindows && kvp.Key == GetDefaultChannel(RuntimeOs.Windows)) {
-                    var exclude = kvp.Value.Where(x => x.Version.ReleaseLabels.Any(r => r.Contains('.')) || x.Version.HasMetadata).ToArray();
-                    if (exclude.Any()) {
-                        log.Warn($"Excluding {exclude.Length} assets from legacy RELEASES file, because they " +
-                            $"contain an invalid character in the version: {string.Join(", ", exclude.Select(x => x.FileName))}");
-                    }
-
-                    // We write a legacy RELEASES file to allow older applications to update to velopack
-#pragma warning disable CS0618 // Type or member is obsolete
-                    var path = Path.Combine(outputDir, "RELEASES");
-                    ReleaseEntry.WriteReleaseFile(kvp.Value.Except(exclude).Select(ReleaseEntry.FromVelopackAsset), path);
-#pragma warning restore CS0618 // Type or member is obsolete
+                var exclude = kvp.Value.Where(x => x.Version.ReleaseLabels.Any(r => r.Contains('.')) || x.Version.HasMetadata).ToArray();
+                if (exclude.Any()) {
+                    log.Warn($"Excluding {exclude.Length} assets from legacy RELEASES file, because they " +
+                        $"contain an invalid character in the version: {string.Join(", ", exclude.Select(x => x.FileName))}");
                 }
+
+                // We write a legacy RELEASES file to allow older applications to update to velopack
+#pragma warning disable CS0612 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
+                var name = Utility.GetReleasesFileName(kvp.Key);
+                var path = Path.Combine(outputDir, name);
+                ReleaseEntry.WriteReleaseFile(kvp.Value.Except(exclude).Select(ReleaseEntry.FromVelopackAsset), path);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0612 // Type or member is obsolete
+
                 var indexPath = Path.Combine(outputDir, Utility.GetVeloReleaseIndexName(kvp.Key));
                 var feed = new VelopackAssetFeed() {
                     Assets = kvp.Value.OrderByDescending(v => v.Version).ThenBy(v => v.Type).ToArray(),
