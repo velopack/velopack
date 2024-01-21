@@ -82,7 +82,7 @@ namespace Velopack.Tests
         [Fact]
         public void JsonCanParseReleasesJson()
         {
-            var json = File.ReadAllText(PathHelper.GetFixture("releases.win.json"));
+            var json = File.ReadAllText(PathHelper.GetFixture("testfeed.json"));
             var feed = SimpleJson.DeserializeObject<VelopackAssetFeed>(json);
             Assert.Equal(21, feed.Assets.Length);
             Assert.True(feed.Assets.First().Version == new SemanticVersion(1, 0, 11));
