@@ -20,7 +20,10 @@ Velopack is a setup / installation framework for cross-platform dotnet applicati
 - 🚀 **Automatic migrations** - If you are coming from [Squirrel.Windows](https://github.com/Squirrel/Squirrel.Windows) or [Clowd.Squirrel](https://github.com/clowd/Clowd.Squirrel), Velopack will automatically migrate your application. Just build your Velopack release and deploy! [Read more.](docs/migrating.md)
 - ⚡️ **Lightning fast** – Velopack is written in Rust for native performance. Creating releases is multi-threaded, and produces delta packages for ultra fast app updates. Applying update packages is highly optimised, and often can be done in the background.
 
+https://github.com/velopack/velopack/assets/1287295/0ff1bea7-15ed-42ae-8bdd-9519f1033432
+
 ## Getting Started
+
 This is a very simple example of the steps you would take to generate an installer and update packages for your application. Be sure to [read the documentation](docs) for an overview of more features!
 
 1. Install the command line tool `vpk`:
