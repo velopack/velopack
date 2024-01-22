@@ -12,6 +12,9 @@ You should provide an instance of `Microsoft.Extensions.Logging.ILogger` to `Vel
 For example:
 ```cs
 using Microsoft.Extensions.Logging;
+
+// ...
+
 class ConsoleLogger : ILogger
 {
     public IDisposable BeginScope<TState>(TState state) where TState : notnull => null;
@@ -19,13 +22,17 @@ class ConsoleLogger : ILogger
     public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
         => Console.WriteLine(formatter(state, exception));
 }
+
+// ...
+
+new UpdateManager("https://path.to/your-updates", logger: new ConsoleLogger());
 ```
 
 ### Update.exe & Setup.exe
 Running Update.exe will log most output to it's base directory as `Velopack.log`. Setup.exe will not log to file by default. However, you can override the log location for both binaries with the `--log {path}` parameter. You can also use the `--verbose` flag to capture debug/trace output to log. Unfortunately, on Windows, to avoid showing up as a console window, these binaries are compiled as a WinExe and there will be no console output by default.  Please see the [command line reference](cli.md) for a comprehensive list of arguments supported.
 
 ### UpdateMac
-All logs will be sent to `/tmp/velopack/{appid}.log`.
+All logs will be sent to `/tmp/velopack.log`.
 
 ## Advanced Debugging
 The debug builds of Velopack binaries have additional logging/debugging capabilities, and will produce console output. In some instances, it may be useful to [compile Velopack](compiling.md) for your platform, and replace the release binaries of Setup.exe and Update.exe with debug versions. 

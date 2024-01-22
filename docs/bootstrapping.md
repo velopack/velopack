@@ -24,21 +24,21 @@ Any of the following can be passed via the `--framework` argument.
 - `webview2`
 
 ### vcredist
-- `vcredist100-x86`
-- `vcredist100-x64`
-- `vcredist110-x86`
-- `vcredist110-x64`
-- `vcredist120-x86`
-- `vcredist120-x64`
-- `vcredist140-x86`
-- `vcredist140-x64`
-- `vcredist141-x86`
-- `vcredist141-x64`
-- `vcredist142-x86`
-- `vcredist142-x64`
-- `vcredist143-x86`
-- `vcredist143-x64`
-- `vcredist143-arm64`
+- `vcredist100-x86` (VC++ 10.0 / VS 2010)
+- `vcredist100-x64` (VC++ 10.0 / VS 2010)
+- `vcredist110-x86` (VC++ 11.0 / VS 2012)
+- `vcredist110-x64` (VC++ 11.0 / VS 2012)
+- `vcredist120-x86` (VC++ 12.0 / VS 2013)
+- `vcredist120-x64` (VC++ 12.0 / VS 2013)
+- `vcredist140-x86` (VC++ 14.0 / VS 2015)
+- `vcredist140-x64` (VC++ 14.0 / VS 2015)
+- `vcredist141-x86` (VC++ 14.1 / VS 2017)
+- `vcredist141-x64` (VC++ 14.1 / VS 2017)
+- `vcredist142-x86` (VC++ 14.2 / VS 2019)
+- `vcredist142-x64` (VC++ 14.2 / VS 2019)
+- `vcredist143-x86` (VC++ 14.3 / VS 2022)
+- `vcredist143-x64` (VC++ 14.3 / VS 2022)
+- `vcredist143-arm64` (VC++ 14.3 / VS 2022)
 
 ### .Net Framework
 - `net45`

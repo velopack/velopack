@@ -76,7 +76,10 @@ If you're not sure how these instructions fit into your app, check the example a
 - ❓ Ask questions, get support, or discuss ideas on [our Discord server](https://discord.gg/CjrCrNzd3F)
 - 🗣️ Report bugs on [GitHub Issues](https://github.com/velopack/velopack/issues)
 
-
 ## Contributing
 - 💬 Join us on [Discord](https://discord.gg/CjrCrNzd3F) to get involved in dev discussions
 - 🚦 Read our [compiling guide](docs/compiling.md)
+
+## Testimonials 
+I have now got my external facing application using velopack. I am very impressed. Seems to work fabulously well and be much faster both in the initial build and in the upgrading of the software on the end user's  machine than Squirrel was. I hope to go live with this late next week. It's amazing and the best installer I've ever used in over 30 years of development. Thanks so much!  You are doing some great work!
+[- Stefan (Discord)](https://discord.com/channels/767856501477343282/767856501477343286/1195642674078830613)
