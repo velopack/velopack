@@ -162,7 +162,7 @@ public class WindowsPackTests
         Assert.Throws<UserInfoException>(() => runner.Run(options).GetAwaiterResult());
     }
 
-    [SkippableFact]
+    [SkippableFact(Skip = "Need to sort out test binary architecture")]
     public void PackRefuseBuildingUnawareApp()
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
