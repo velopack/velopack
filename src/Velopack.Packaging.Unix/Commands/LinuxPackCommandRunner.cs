@@ -19,9 +19,9 @@ namespace Velopack.Packaging.Unix.Commands
         {
         }
 
-        protected override void VerifyMainBinary(string mainExePath)
+        protected virtual RuntimeCpu GetMachineForBinary(string path)
         {
-            var elf = ELFReader.Load(mainExePath);
+            var elf = ELFReader.Load(path);
 
             var machine = elf.Machine switch {
                 Machine.AArch64 => RuntimeCpu.arm64,
@@ -29,6 +29,13 @@ namespace Velopack.Packaging.Unix.Commands
                 Machine.Intel386 => RuntimeCpu.x86,
                 _ => throw new Exception($"Unsupported ELF machine type '{elf.Machine}'.")
             };
+
+            return machine;
+        }
+
+        protected override void VerifyMainBinary(string mainExePath)
+        {
+            var machine = GetMachineForBinary(mainExePath);
 
             if (machine != VelopackRuntimeInfo.SystemArch) {
                 Log.Warn($"Skipping VelopackApp verification, because system architecture ({VelopackRuntimeInfo.SystemArch}) does not match main binary architecture ({machine}).");
@@ -90,7 +97,8 @@ Categories=Development;
         protected override Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath)
         {
             progress(-1);
-            AppImageTool.CreateLinuxAppImage(packDir, outputPath);
+            var machine = GetMachineForBinary(MainExePath);
+            AppImageTool.CreateLinuxAppImage(packDir, outputPath, machine, Log);
             PortablePackagePath = outputPath;
             progress(100);
             return Task.CompletedTask;

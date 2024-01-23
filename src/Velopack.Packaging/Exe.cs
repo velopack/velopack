@@ -29,9 +29,9 @@ namespace Velopack.Packaging
             }
         }
 
-        public static string InvokeAndThrowIfNonZero(string exePath, IEnumerable<string> args, string workingDir)
+        public static string InvokeAndThrowIfNonZero(string exePath, IEnumerable<string> args, string workingDir, IDictionary<string, string> envVar = null)
         {
-            var result = InvokeProcess(exePath, args, workingDir);
+            var result = InvokeProcess(exePath, args, workingDir, CancellationToken.None, envVar);
             ProcessFailedException.ThrowIfNonZero(result);
             return result.StdOutput;
         }
@@ -55,9 +55,14 @@ namespace Velopack.Packaging
             return (pi.ExitCode, all.Trim());
         }
 
-        public static (int ExitCode, string StdOutput, string Command) InvokeProcess(string fileName, IEnumerable<string> args, string workingDirectory, CancellationToken ct = default)
+        public static (int ExitCode, string StdOutput, string Command) InvokeProcess(string fileName, IEnumerable<string> args, string workingDirectory, CancellationToken ct = default, IDictionary<string, string> envVar = null)
         {
             var psi = CreateProcessStartInfo(fileName, workingDirectory);
+            if (envVar != null) {
+                foreach (var kvp in envVar) {
+                    psi.EnvironmentVariables[kvp.Key] = kvp.Value;
+                }
+            }
             psi.AppendArgumentListSafe(args, out var argString);
             var p = InvokeProcess(psi, ct);
             return (p.ExitCode, p.StdOutput, $"{fileName} {argString}");
