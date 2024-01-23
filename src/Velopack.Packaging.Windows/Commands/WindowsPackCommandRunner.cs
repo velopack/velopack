@@ -1,8 +1,7 @@
-﻿using System.Diagnostics;
-using System.Runtime.Versioning;
-using System.Threading.Channels;
+﻿using System.Runtime.Versioning;
+using AsmResolver.PE;
+using AsmResolver.PE.File.Headers;
 using Microsoft.Extensions.Logging;
-using NuGet.Versioning;
 using Spectre.Console;
 using Velopack.Compression;
 using Velopack.NuGet;
@@ -57,6 +56,25 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
         File.Copy(updatePath, Path.Combine(packDir, "Squirrel.exe"), true);
         return Task.FromResult(packDir);
+    }
+
+    protected override void VerifyMainBinary(string mainExePath)
+    {
+        var binary = PEImage.FromFile(mainExePath);
+
+        var machine = binary.MachineType switch {
+            MachineType.Arm64 => RuntimeCpu.arm64,
+            MachineType.Amd64 => RuntimeCpu.x64,
+            MachineType.I386 => RuntimeCpu.x86,
+            _ => throw new Exception($"Unsupported PE machine type '{binary.MachineType}'.")
+        };
+
+        if (machine != VelopackRuntimeInfo.SystemArch) {
+            Log.Warn($"Skipping VelopackApp verification, because system architecture ({VelopackRuntimeInfo.SystemArch}) does not match main binary architecture ({machine}).");
+            return;
+        }
+
+        base.VerifyMainBinary(mainExePath);
     }
 
     protected override string GetRuntimeDependencies()

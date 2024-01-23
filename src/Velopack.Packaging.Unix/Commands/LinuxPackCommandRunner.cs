@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Threading.Tasks;
+using ELFSharp.ELF;
 using Microsoft.Extensions.Logging;
 
 namespace Velopack.Packaging.Unix.Commands
@@ -16,6 +17,25 @@ namespace Velopack.Packaging.Unix.Commands
         public LinuxPackCommandRunner(ILogger logger)
             : base(RuntimeOs.Linux, logger)
         {
+        }
+
+        protected override void VerifyMainBinary(string mainExePath)
+        {
+            var elf = ELFReader.Load(mainExePath);
+
+            var machine = elf.Machine switch {
+                Machine.AArch64 => RuntimeCpu.arm64,
+                Machine.AMD64 => RuntimeCpu.x64,
+                Machine.Intel386 => RuntimeCpu.x86,
+                _ => throw new Exception($"Unsupported ELF machine type '{elf.Machine}'.")
+            };
+
+            if (machine != VelopackRuntimeInfo.SystemArch) {
+                Log.Warn($"Skipping VelopackApp verification, because system architecture ({VelopackRuntimeInfo.SystemArch}) does not match main binary architecture ({machine}).");
+                return;
+            }
+
+            base.VerifyMainBinary(mainExePath);
         }
 
         protected override Task<string> PreprocessPackDir(Action<int> progress, string packDir)

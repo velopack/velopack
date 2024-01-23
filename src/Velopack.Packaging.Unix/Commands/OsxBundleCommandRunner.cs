@@ -1,6 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
+using Velopack.Packaging.Exceptions;
 
 namespace Velopack.Packaging.Unix.Commands;
 
@@ -27,8 +28,13 @@ public class OsxBundleCommandRunner
         _logger.Info("Generating new '.app' bundle from a directory of application files.");
 
         var mainExePath = Path.Combine(packDirectory, exeName);
-        if (!File.Exists(mainExePath) || !MachO.IsMachOImage(mainExePath))
-            throw new ArgumentException($"--exeName '{mainExePath}' does not exist or is not a mach-o executable.");
+        if (!File.Exists(mainExePath)) {
+            throw new UserInfoException($"--exeName '{mainExePath}' does not exist.");
+        }
+
+        if (!MachO.IsMachOImage(mainExePath)) {
+            throw new UserInfoException($"--exeName '{mainExePath}' is not a mach-o executable.");
+        }
 
         var appleId = $"com.{packAuthors ?? packId}.{packId}";
         var escapedAppleId = Regex.Replace(appleId, @"[^\w\.]", "_");

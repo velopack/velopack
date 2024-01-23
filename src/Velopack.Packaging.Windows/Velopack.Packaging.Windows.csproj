@@ -11,4 +11,8 @@
     <ProjectReference Include="..\Velopack.Packaging\Velopack.Packaging.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="AsmResolver.PE" Version="5.5.0" />
+  </ItemGroup>
+  
 </Project>

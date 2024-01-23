@@ -1,5 +1,6 @@
 ﻿using System.Runtime.Versioning;
 using System.Threading.Channels;
+using ELFSharp.MachO;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 
@@ -11,6 +12,25 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
     public OsxPackCommandRunner(ILogger logger)
         : base(RuntimeOs.OSX, logger)
     {
+    }
+
+    protected override void VerifyMainBinary(string mainExePath)
+    {
+        var binary = MachOReader.Load(mainExePath);
+
+        var machine = binary.Machine switch {
+            Machine.Arm64 => RuntimeCpu.arm64,
+            Machine.X86_64 => RuntimeCpu.x64,
+            Machine.X86 => RuntimeCpu.x86,
+            _ => throw new Exception($"Unsupported Mach-O machine type '{binary.Machine}'.")
+        };
+
+        if (machine != VelopackRuntimeInfo.SystemArch) {
+            Log.Warn($"Skipping VelopackApp verification, because system architecture ({VelopackRuntimeInfo.SystemArch}) does not match main binary architecture ({machine}).");
+            return;
+        }
+
+        base.VerifyMainBinary(mainExePath);
     }
 
     protected override Task<string> PreprocessPackDir(Action<int> progress, string packDir)
