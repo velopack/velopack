@@ -83,8 +83,11 @@ namespace Velopack.Vpk.Commands
                 .SetDescription("Set the delta generation mode.");
 
             var appDir = AddOption<DirectoryInfo>((v) => {
-                    PackDirectory = v.ToFullNameOrNull();
-                    PackIsAppDir = true;
+                    var t = v.ToFullNameOrNull();
+                    if (t != null) {
+                        PackDirectory = t;
+                        PackIsAppDir = true;
+                    }
                 }, "--appDir")
                 .SetDescription("Directory containing application in .AppDir format")
                 .SetArgumentHelpName("DIR")
