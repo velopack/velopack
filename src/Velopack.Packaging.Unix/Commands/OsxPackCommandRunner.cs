@@ -25,7 +25,8 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
             _ => throw new Exception($"Unsupported Mach-O machine type '{binary.Machine}'.")
         };
 
-        if (machine != VelopackRuntimeInfo.SystemArch) {
+        // x64 is supported on arm64 but not the other way around
+        if (machine != RuntimeCpu.x64 && machine != VelopackRuntimeInfo.SystemArch) {
             Log.Warn($"Skipping VelopackApp verification, because system architecture ({VelopackRuntimeInfo.SystemArch}) does not match main binary architecture ({machine}).");
             return;
         }

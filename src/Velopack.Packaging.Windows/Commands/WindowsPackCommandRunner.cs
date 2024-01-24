@@ -69,7 +69,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             _ => throw new Exception($"Unsupported PE machine type '{binary.MachineType}'.")
         };
 
-        if (machine != VelopackRuntimeInfo.SystemArch) {
+        // x86 is supported everywhere, otherwise we only check if the architecture matches the system architecture
+        if (machine != RuntimeCpu.x86 && machine != VelopackRuntimeInfo.SystemArch) {
             Log.Warn($"Skipping VelopackApp verification, because system architecture ({VelopackRuntimeInfo.SystemArch}) does not match main binary architecture ({machine}).");
             return;
         }
