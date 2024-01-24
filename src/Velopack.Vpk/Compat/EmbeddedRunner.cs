@@ -199,6 +199,7 @@ public class EmbeddedRunner : ICommandRunner
             ReleaseDir = command.GetReleaseDirectory(),
             Secret = command.Secret,
             Channel = command.Channel,
+            KeepMaxReleases = command.KeepMaxReleases,
         };
         return new S3Repository(_logger).UploadMissingAssetsAsync(options);
     }

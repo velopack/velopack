@@ -5,7 +5,6 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
 using Velopack.Packaging;
-using Velopack.Sources;
 
 namespace Velopack.Deployment;
 
@@ -26,6 +25,7 @@ public class S3DownloadOptions : RepositoryOptions
 
 public class S3UploadOptions : S3DownloadOptions
 {
+    public int KeepMaxReleases { get; set; }
 }
 
 public class S3Repository : DownRepository<S3DownloadOptions>, IRepositoryCanUpload<S3UploadOptions>
@@ -47,7 +47,26 @@ public class S3Repository : DownRepository<S3DownloadOptions>, IRepositoryCanUpl
         var localEntries = build.GetReleaseEntries();
         var releaseEntries = ReleaseEntryHelper.MergeAssets(localEntries, remoteReleases.Assets).ToArray();
 
-        Log.Info($"{releaseEntries.Length} merged releases.");
+        Log.Info($"{releaseEntries.Length} merged local/remote releases.");
+
+        VelopackAsset[] toDelete = new VelopackAsset[0];
+
+        if (options.KeepMaxReleases > 0) {
+            var fullReleases = releaseEntries
+                .OrderByDescending(x => x.Version)
+                .Where(x => x.Type == VelopackAssetType.Full)
+                .ToArray();
+            if (fullReleases.Length > options.KeepMaxReleases) {
+                var minVersion = fullReleases[options.KeepMaxReleases - 1].Version;
+                toDelete = releaseEntries
+                    .Where(x => x.Version < minVersion)
+                    .ToArray();
+                releaseEntries = releaseEntries.Except(toDelete).ToArray();
+                Log.Info($"Retention policy (keepMaxReleases={options.KeepMaxReleases}) will delete {toDelete.Length} releases.");
+            } else {
+                Log.Info($"Retention policy (keepMaxReleases={options.KeepMaxReleases}) will not be applied, because there will only be {fullReleases.Length} full releases when this upload has completed.");
+            }
+        }
 
         foreach (var asset in build.Files) {
             await UploadFile(client, options.Bucket, Path.GetFileName(asset), new FileInfo(asset), true);
@@ -68,6 +87,14 @@ public class S3Repository : DownRepository<S3DownloadOptions>, IRepositoryCanUpl
         await UploadFile(client, options.Bucket, legacyKey, new FileInfo(tmpReleases2), true);
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning restore CS0612 // Type or member is obsolete
+
+        if (toDelete.Length > 0) {
+            Log.Info($"Retention policy about to delete {toDelete.Length} releases...");
+            foreach (var del in toDelete) {
+                //var metadata = await client.GetObjectMetadataAsync(options.Bucket, del.FileName);
+                await RetryAsync(() => client.DeleteObjectAsync(options.Bucket, del.FileName), "Deleting " + del.FileName);
+            }
+        }
 
         Log.Info("Done.");
     }

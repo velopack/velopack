@@ -58,6 +58,7 @@ namespace Velopack.Packaging.Tests
                 Endpoint = "https://" + B2_ENDPOINT,
                 KeyId = B2_KEYID,
                 Secret = B2_SECRET,
+                KeepMaxReleases = 4,
             };
 
             // download latest version and create delta
@@ -80,6 +81,7 @@ namespace Velopack.Packaging.Tests
 
             Assert.True(latest != null, "No latest version found.");
             Assert.Equal(newVer, latest.Version);
+            Assert.True(feed.Assets.Count(x => x.Type == VelopackAssetType.Full) <= options.KeepMaxReleases, "Too many releases were kept.");
         }
     }
 }
