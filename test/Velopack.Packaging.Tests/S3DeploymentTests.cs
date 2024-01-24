@@ -13,7 +13,7 @@ namespace Velopack.Packaging.Tests
     public class S3DeploymentTests
     {
         public readonly static string B2_KEYID = "0035016844a4188000000000a";
-        public readonly static string B2_SECRET = Environment.GetEnvironmentVariable("VELOPACK_B2_TEST_TOKEN") ?? "K003jlDxnA1m3HAvNsyqzHIUmRuSdbE";
+        public readonly static string B2_SECRET = Environment.GetEnvironmentVariable("VELOPACK_B2_TEST_TOKEN");
         public readonly static string B2_BUCKET = "velopack-testing";
         public readonly static string B2_ENDPOINT = "s3.eu-central-003.backblazeb2.com";
 

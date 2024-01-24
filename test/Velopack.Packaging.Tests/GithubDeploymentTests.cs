@@ -162,6 +162,10 @@ This is just a _test_!
             var releases = source.GetReleaseFeed(channel: uniqueSuffix, logger: logger).GetAwaiterResult();
 
             var ghrel = releases.Assets.Select(r => (GithubSource.GitBaseAsset) r).ToArray();
+            foreach (var g in ghrel) {
+                logger.Info($"Found asset: ({g.Release.Name}) {g.FileName}");
+            }
+
             Assert.Equal(2, ghrel.Length);
             foreach (var r in ghrel) {
                 Assert.Equal(releaseName, r.Release.Name);
