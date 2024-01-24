@@ -18,18 +18,18 @@ namespace Velopack.Sources
         public static ProductInfoHeaderValue UserAgent => new("Velopack", VelopackRuntimeInfo.VelopackNugetVersion.ToFullString());
 
         /// <inheritdoc />
-        public virtual async Task DownloadFile(string url, string targetFile, Action<int> progress, string? authorization, string? accept)
+        public virtual async Task DownloadFile(string url, string targetFile, Action<int> progress, string? authorization, string? accept, CancellationToken cancelToken = default)
         {
             using var client = CreateHttpClient(authorization, accept);
             try {
                 using (var fs = File.Open(targetFile, FileMode.Create)) {
-                    await DownloadToStreamInternal(client, url, fs, progress).ConfigureAwait(false);
+                    await DownloadToStreamInternal(client, url, fs, progress, cancelToken).ConfigureAwait(false);
                 }
             } catch {
                 // NB: Some super brain-dead services are case-sensitive yet 
                 // corrupt case on upload. I can't even.
                 using (var fs = File.Open(targetFile, FileMode.Create)) {
-                    await DownloadToStreamInternal(client, url.ToLower(), fs, progress).ConfigureAwait(false);
+                    await DownloadToStreamInternal(client, url.ToLower(), fs, progress, cancelToken).ConfigureAwait(false);
                 }
             }
         }
@@ -64,7 +64,7 @@ namespace Velopack.Sources
         /// Asynchronously downloads a remote url to the specified destination stream while 
         /// providing progress updates.
         /// </summary>
-        protected virtual async Task DownloadToStreamInternal(HttpClient client, string requestUri, Stream destination, Action<int>? progress = null, CancellationToken cancellationToken = default)
+        protected virtual async Task DownloadToStreamInternal(HttpClient client, string requestUri, Stream destination, Action<int>? progress = null, CancellationToken cancelToken = default)
         {
             // https://stackoverflow.com/a/46497896/184746
             // Get the http headers first to examine the content length
@@ -77,7 +77,7 @@ namespace Velopack.Sources
             // Ignore progress reporting when no progress reporter was 
             // passed or when the content length is unknown
             if (progress == null || !contentLength.HasValue) {
-                await download.CopyToAsync(destination).ConfigureAwait(false);
+                await download.CopyToAsync(destination, 81920, cancelToken).ConfigureAwait(false);
                 return;
             }
 
@@ -85,9 +85,10 @@ namespace Velopack.Sources
             long totalBytesRead = 0;
             int bytesRead;
             int lastProgress = 0;
-            while ((bytesRead = await download.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false)) != 0) {
-                await destination.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
+            while ((bytesRead = await download.ReadAsync(buffer, 0, buffer.Length, cancelToken).ConfigureAwait(false)) != 0) {
+                await destination.WriteAsync(buffer, 0, bytesRead, cancelToken).ConfigureAwait(false);
                 totalBytesRead += bytesRead;
+                cancelToken.ThrowIfCancellationRequested();
 
                 // Convert absolute progress (bytes downloaded) into relative progress (0% - 100%)
                 // and don't report progress < 3% difference, kind of like a shitty debounce.

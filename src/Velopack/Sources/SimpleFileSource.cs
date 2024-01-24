@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Velopack.NuGet;
@@ -59,7 +60,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public Task DownloadReleaseEntry(ILogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress)
+        public Task DownloadReleaseEntry(ILogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress, CancellationToken cancelToken)
         {
             var releasePath = Path.Combine(BaseDirectory.FullName, releaseEntry.FileName);
             if (!File.Exists(releasePath))

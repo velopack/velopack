@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Velopack.Sources
@@ -24,7 +25,8 @@ namespace Velopack.Sources
         /// <param name="accept">
         /// Text to be sent in the 'Accept' header of the request.
         /// </param>
-        Task DownloadFile(string url, string targetFile, Action<int> progress, string? authorization = null, string? accept = null);
+        /// <param name="cancelToken">Optional token to cancel the request.</param>
+        Task DownloadFile(string url, string targetFile, Action<int> progress, string? authorization = null, string? accept = null, CancellationToken cancelToken = default);
 
         /// <summary>
         /// Returns a byte array containing the contents of the file at the specified url

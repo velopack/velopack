@@ -19,7 +19,7 @@ namespace Velopack.Tests
             return Task.FromResult(MockedResponseBytes);
         }
 
-        public async Task DownloadFile(string url, string targetFile, Action<int> progress, string auth, string acc)
+        public async Task DownloadFile(string url, string targetFile, Action<int> progress, string auth, string acc, CancellationToken token)
         {
             LastLocalFile = targetFile;
             var resp = await DownloadBytes(url, auth, acc);

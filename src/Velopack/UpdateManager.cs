@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -86,7 +87,7 @@ namespace Velopack
             Channel = channel ?? Locator.Channel ?? VelopackRuntimeInfo.SystemOs.GetOsShortName();
         }
 
-        /// <inheritdoc cref="CheckForUpdatesAsync(CancellationToken)"/>
+        /// <inheritdoc cref="CheckForUpdatesAsync()"/>
         public UpdateInfo? CheckForUpdates()
         {
             return CheckForUpdatesAsync()
@@ -97,9 +98,8 @@ namespace Velopack
         /// Checks for updates, returning null if there are none available. If there are updates available, this method will return an 
         /// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
         /// </summary>
-        /// <param name="cancelToken">An optional cancellation token if you wish to stop this operation.</param>
         /// <returns>Null if no updates, otherwise <see cref="UpdateInfo"/> containing the version of the latest update available.</returns>
-        public virtual async Task<UpdateInfo?> CheckForUpdatesAsync(CancellationToken cancelToken = default)
+        public virtual async Task<UpdateInfo?> CheckForUpdatesAsync()
         {
             EnsureInstalled();
             var installedVer = CurrentVersion!;
@@ -229,14 +229,14 @@ namespace Velopack
                                 EasyZip.ExtractZipToDirectory(Log, basePackagePath, deltaStagingDir);
 
                                 reportProgress(10);
-                                await DownloadAndApplyDeltaUpdates(deltaStagingDir, updates, x => reportProgress(Utility.CalculateProgress(x, 10, 80)))
+                                await DownloadAndApplyDeltaUpdates(deltaStagingDir, updates, x => reportProgress(Utility.CalculateProgress(x, 10, 80)), cancelToken)
                                     .ConfigureAwait(false);
                                 reportProgress(80);
 
                                 Log.Info("Delta updates completed, creating final update package.");
                                 File.Delete(incompleteFile);
-                                await EasyZip.CreateZipFromDirectoryAsync(Log, incompleteFile, deltaStagingDir, x => reportProgress(Utility.CalculateProgress(x, 80, 100)))
-                                    .ConfigureAwait(false);
+                                await EasyZip.CreateZipFromDirectoryAsync(Log, incompleteFile, deltaStagingDir, x => reportProgress(Utility.CalculateProgress(x, 80, 100)),
+                                    cancelToken: cancelToken).ConfigureAwait(false);
                                 File.Delete(completeFile);
                                 File.Move(incompleteFile, completeFile);
                                 Log.Info("Delta release preparations complete. Package moved to: " + completeFile);
@@ -254,7 +254,7 @@ namespace Velopack
 
                 Log.Info($"Downloading full release ({targetRelease.FileName})");
                 File.Delete(incompleteFile);
-                await Source.DownloadReleaseEntry(Log, targetRelease, incompleteFile, reportProgress).ConfigureAwait(false);
+                await Source.DownloadReleaseEntry(Log, targetRelease, incompleteFile, reportProgress, cancelToken).ConfigureAwait(false);
                 Log.Info("Verifying package checksum...");
                 VerifyPackageChecksum(targetRelease, incompleteFile);
                 File.Delete(completeFile);
@@ -262,7 +262,7 @@ namespace Velopack
                 Log.Info("Full release download complete. Package moved to: " + completeFile);
                 reportProgress(100);
             } finally {
-                if (VelopackRuntimeInfo.IsWindows) {
+                if (VelopackRuntimeInfo.IsWindows && !cancelToken.IsCancellationRequested) {
                     try {
                         var updateExe = Locator.UpdateExePath!;
                         Log.Info("Extracting new Update.exe to " + updateExe);
@@ -331,7 +331,8 @@ namespace Velopack
         /// <param name="extractedBasePackage">A folder containing the application files to apply the delta's to.</param>
         /// <param name="updates">An update object containing one or more delta's</param>
         /// <param name="progress">A callback reporting process of delta application progress (from 0-100).</param>
-        protected virtual async Task DownloadAndApplyDeltaUpdates(string extractedBasePackage, UpdateInfo updates, Action<int> progress)
+        /// <param name="cancelToken">A token to use to cancel the request.</param>
+        protected virtual async Task DownloadAndApplyDeltaUpdates(string extractedBasePackage, UpdateInfo updates, Action<int> progress, CancellationToken cancelToken)
         {
             var releasesToDownload = updates.DeltasToTarget.OrderBy(d => d.Version).ToArray();
 
@@ -353,8 +354,9 @@ namespace Velopack
                         var progressOfStep = (int) Math.Round(current += component);
                         progress(Utility.CalculateProgress(progressOfStep, 0, 50));
                     }
-                }).ConfigureAwait(false);
+                }, cancelToken).ConfigureAwait(false);
                 VerifyPackageChecksum(x);
+                cancelToken.ThrowIfCancellationRequested();
                 Log.Debug($"Download complete for delta version {x.Version}");
             }).ConfigureAwait(false);
 
@@ -364,6 +366,7 @@ namespace Velopack
             double progressStepSize = 100d / releasesToDownload.Length;
             var builder = new DeltaUpdateExe(Log, appTempDir, updateExe);
             for (var i = 0; i < releasesToDownload.Length; i++) {
+                cancelToken.ThrowIfCancellationRequested();
                 var rel = releasesToDownload[i];
                 double baseProgress = i * progressStepSize;
                 var packageFile = Path.Combine(appPackageDir, rel.FileName);

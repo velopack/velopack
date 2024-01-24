@@ -79,7 +79,7 @@ namespace Velopack.Tests.TestHelpers
             return Task.FromResult(File.ReadAllBytes(filePath));
         }
 
-        public Task DownloadFile(string url, string targetFile, Action<int> progress, string authorization = null, string accept = null)
+        public Task DownloadFile(string url, string targetFile, Action<int> progress, string authorization = null, string accept = null, CancellationToken token = default)
         {
             var rel = _releases.FirstOrDefault(r => url.EndsWith(r.OriginalFilename));
             var filePath = PathHelper.GetFixture(rel.OriginalFilename);

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
@@ -13,7 +14,7 @@ namespace Velopack.Sources
     {
         /// <summary>
         /// Retrieve the list of available remote releases from the package source. These releases
-        /// can subsequently be downloaded with <see cref="DownloadReleaseEntry(ILogger, VelopackAsset, string, Action{int})"/>.
+        /// can subsequently be downloaded with <see cref="DownloadReleaseEntry(ILogger, VelopackAsset, string, Action{int}, CancellationToken)"/>.
         /// </summary>
         /// <param name="channel">Release channel to filter packages by. Can be null, which is the 
         /// default channel for this operating system.</param>
@@ -38,6 +39,7 @@ namespace Velopack.Sources
         /// <param name="progress">This delegate will be executed with values from 0-100 as the
         /// download is being processed.</param>
         /// <param name="logger">The logger to use for any diagnostic messages.</param>
-        Task DownloadReleaseEntry(ILogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress);
+        /// <param name="cancelToken">A token to use to cancel the request.</param>
+        Task DownloadReleaseEntry(ILogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress, CancellationToken cancelToken = default);
     }
 }

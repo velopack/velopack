@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -61,7 +62,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public async Task DownloadReleaseEntry(ILogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress)
+        public async Task DownloadReleaseEntry(ILogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress, CancellationToken cancelToken)
         {
             if (releaseEntry == null) throw new ArgumentNullException(nameof(releaseEntry));
             if (localFile == null) throw new ArgumentNullException(nameof(localFile));
@@ -75,7 +76,7 @@ namespace Velopack.Sources
                 : Utility.AppendPathToUri(sourceBaseUri, releaseEntry.FileName).ToString();
 
             logger.Info($"Downloading '{releaseEntry.FileName}' from '{source}'.");
-            await Downloader.DownloadFile(source, localFile, progress).ConfigureAwait(false);
+            await Downloader.DownloadFile(source, localFile, progress, cancelToken: cancelToken).ConfigureAwait(false);
         }
     }
 }

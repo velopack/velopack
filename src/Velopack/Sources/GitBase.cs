@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
@@ -48,13 +49,13 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public virtual Task DownloadReleaseEntry(ILogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress)
+        public virtual Task DownloadReleaseEntry(ILogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress, CancellationToken cancelToken)
         {
             if (releaseEntry is GitBaseAsset githubEntry) {
                 // this might be a browser url or an api url (depending on whether we have a AccessToken or not)
                 // https://docs.github.com/en/rest/reference/releases#get-a-release-asset
                 var assetUrl = GetAssetUrlFromName(githubEntry.Release, releaseEntry.FileName);
-                return Downloader.DownloadFile(assetUrl, localFile, progress, Authorization, "application/octet-stream");
+                return Downloader.DownloadFile(assetUrl, localFile, progress, Authorization, "application/octet-stream", cancelToken);
             }
 
             throw new ArgumentException($"Expected releaseEntry to be {nameof(GitBaseAsset)} but got {releaseEntry.GetType().Name}.");

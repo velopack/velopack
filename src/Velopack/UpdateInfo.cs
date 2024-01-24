@@ -18,7 +18,7 @@
 
         /// <summary>
         /// The list of delta versions between the current version and <see cref="TargetFullRelease"/>.
-        /// These will attempt to be tried applied in order.
+        /// These will be applied in order.
         /// </summary>
         public VelopackAsset[] DeltasToTarget { get; } = new VelopackAsset[0];
 
