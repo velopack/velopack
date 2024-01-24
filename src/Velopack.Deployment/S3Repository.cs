@@ -45,7 +45,6 @@ public class S3Repository : DownRepository<S3DownloadOptions>, IRepositoryCanUpl
         Log.Info($"There are {remoteReleases.Assets.Length} assets in remote RELEASES file.");
 
         var localEntries = build.GetReleaseEntries();
-
         var releaseEntries = ReleaseEntryHelper.MergeAssets(localEntries, remoteReleases.Assets).ToArray();
 
         Log.Info($"{releaseEntries.Length} merged releases.");
@@ -58,6 +57,18 @@ public class S3Repository : DownRepository<S3DownloadOptions>, IRepositoryCanUpl
         File.WriteAllText(tmpReleases, ReleaseEntryHelper.GetAssetFeedJson(new VelopackAssetFeed { Assets = releaseEntries }));
         var releasesName = Utility.GetVeloReleaseIndexName(options.Channel);
         await UploadFile(client, options.Bucket, releasesName, new FileInfo(tmpReleases), true);
+
+#pragma warning disable CS0612 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
+        var legacyKey = Utility.GetReleasesFileName(options.Channel);
+        using var _2 = Utility.GetTempFileName(out var tmpReleases2);
+        using (var fs = File.Create(tmpReleases2)) {
+            ReleaseEntry.WriteReleaseFile(releaseEntries.Select(ReleaseEntry.FromVelopackAsset), fs);
+        }
+        await UploadFile(client, options.Bucket, legacyKey, new FileInfo(tmpReleases2), true);
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0612 // Type or member is obsolete
+
         Log.Info("Done.");
     }
 
@@ -94,17 +105,19 @@ public class S3Repository : DownRepository<S3DownloadOptions>, IRepositoryCanUpl
 
     private static AmazonS3Client GetS3Client(S3DownloadOptions options)
     {
-        if (options.Region != null) {
-            var r = RegionEndpoint.GetBySystemName(options.Region);
-            if (string.IsNullOrWhiteSpace(options.KeyId)) {
-                return new AmazonS3Client(r);
-            }
-            return new AmazonS3Client(options.KeyId, options.Secret, options.Session, r);
-        } else if (options.Endpoint != null) {
-            var config = new AmazonS3Config() { ServiceURL = options.Endpoint };
-            return new AmazonS3Client(options.KeyId, options.Secret, options.Session, config);
+        var config = new AmazonS3Config() { ServiceURL = options.Endpoint };
+        if (options.Endpoint != null) {
+            config.ServiceURL = options.Endpoint;
+        } else if (options.Region != null) {
+            config.RegionEndpoint = RegionEndpoint.GetBySystemName(options.Region);
         } else {
             throw new InvalidOperationException("Missing endpoint");
+        }
+
+        if (options.Session != null) {
+            return new AmazonS3Client(options.KeyId, options.Secret, options.Session, config);
+        } else {
+            return new AmazonS3Client(options.KeyId, options.Secret, config);
         }
     }
 
@@ -120,13 +133,13 @@ public class S3Repository : DownRepository<S3DownloadOptions>, IRepositoryCanUpl
 
             if (stored != null) {
                 if (stored.Equals(md5, StringComparison.InvariantCultureIgnoreCase)) {
-                    Log.Info($"Upload file '{f.Name}' skipped (already exists in remote)");
+                    Log.Info($"Upload file '{key}' skipped (already exists in remote)");
                     return;
                 } else if (overwriteRemote) {
-                    Log.Info($"File '{f.Name}' exists in remote, replacing...");
+                    Log.Info($"File '{key}' exists in remote, replacing...");
                     deleteOldVersionId = metadata.VersionId;
                 } else {
-                    Log.Warn($"File '{f.Name}' exists in remote and checksum does not match local file. Use 'overwrite' argument to replace remote file.");
+                    Log.Warn($"File '{key}' exists in remote and checksum does not match local file. Use 'overwrite' argument to replace remote file.");
                     return;
                 }
             }
@@ -141,12 +154,12 @@ public class S3Repository : DownRepository<S3DownloadOptions>, IRepositoryCanUpl
             Key = key,
         };
 
-        await RetryAsync(() => client.PutObjectAsync(req), "Uploading " + f.Name);
+        await RetryAsync(() => client.PutObjectAsync(req), "Uploading " + key);
 
         if (deleteOldVersionId != null) {
             try {
                 await RetryAsync(() => client.DeleteObjectAsync(bucket, key, deleteOldVersionId),
-                    "Removing old version of " + f.Name);
+                    "Removing old version of " + key);
             } catch { }
         }
     }

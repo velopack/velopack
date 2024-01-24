@@ -8,14 +8,14 @@ using Velopack.Packaging.Exceptions;
 
 namespace Velopack.Packaging.Tests
 {
-    public class DeploymentTests
+    public class GithubDeploymentTests
     {
         public readonly static string GITHUB_TOKEN = Environment.GetEnvironmentVariable("VELOPACK_GITHUB_TEST_TOKEN");
         public readonly static string GITHUB_REPOURL = "https://github.com/caesay/VelopackGithubUpdateTest";
 
         private readonly ITestOutputHelper _output;
 
-        public DeploymentTests(ITestOutputHelper output)
+        public GithubDeploymentTests(ITestOutputHelper output)
         {
             _output = output;
         }
@@ -24,12 +24,12 @@ namespace Velopack.Packaging.Tests
         public void WillRefuseToUploadMultipleWithoutMergeArg()
         {
             Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
-            using var logger = _output.BuildLoggerFor<DeploymentTests>();
+            using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
             using var _1 = Utility.GetTempDirectory(out var releaseDir);
             using var _2 = Utility.GetTempDirectory(out var releaseDir2);
             using var ghvar = GitHubReleaseTest.Create("nomerge", logger);
             var id = "GithubUpdateTest";
-            PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger);
+            TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger);
 
             var gh = new GitHubRepository(logger);
             var options = new GitHubUploadOptions {
@@ -43,7 +43,7 @@ namespace Velopack.Packaging.Tests
 
             gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
 
-            PackTestApp(id, $"0.0.2-{ghvar.UniqueSuffix}", "t1", releaseDir2, logger);
+            TestApp.PackTestApp(id, $"0.0.2-{ghvar.UniqueSuffix}", "t1", releaseDir2, logger);
             options.ReleaseDir = new DirectoryInfo(releaseDir2);
 
             Assert.ThrowsAny<UserInfoException>(() => gh.UploadMissingAssetsAsync(options).GetAwaiterResult());
@@ -53,12 +53,12 @@ namespace Velopack.Packaging.Tests
         public void WillNotMergeMixmatchedTag()
         {
             Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
-            using var logger = _output.BuildLoggerFor<DeploymentTests>();
+            using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
             using var _1 = Utility.GetTempDirectory(out var releaseDir);
             using var _2 = Utility.GetTempDirectory(out var releaseDir2);
             using var ghvar = GitHubReleaseTest.Create("mixmatched", logger);
             var id = "GithubUpdateTest";
-            PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger);
+            TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger);
 
             var gh = new GitHubRepository(logger);
             var options = new GitHubUploadOptions {
@@ -73,7 +73,7 @@ namespace Velopack.Packaging.Tests
 
             gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
 
-            PackTestApp(id, $"0.0.2-{ghvar.UniqueSuffix}", "t1", releaseDir2, logger);
+            TestApp.PackTestApp(id, $"0.0.2-{ghvar.UniqueSuffix}", "t1", releaseDir2, logger);
             options.ReleaseDir = new DirectoryInfo(releaseDir2);
 
             Assert.ThrowsAny<UserInfoException>(() => gh.UploadMissingAssetsAsync(options).GetAwaiterResult());
@@ -83,12 +83,12 @@ namespace Velopack.Packaging.Tests
         public void WillMergeGithubReleases()
         {
             Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
-            using var logger = _output.BuildLoggerFor<DeploymentTests>();
+            using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
             using var _1 = Utility.GetTempDirectory(out var releaseDir);
             using var _2 = Utility.GetTempDirectory(out var releaseDir2);
             using var ghvar = GitHubReleaseTest.Create("yesmerge", logger);
             var id = "GithubUpdateTest";
-            PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger);
+            TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger);
 
             var gh = new GitHubRepository(logger);
             var options = new GitHubUploadOptions {
@@ -104,7 +104,7 @@ namespace Velopack.Packaging.Tests
 
             gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
 
-            PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir2, logger, channel: "experimental");
+            TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir2, logger, channel: "experimental");
             options.ReleaseDir = new DirectoryInfo(releaseDir2);
             options.Channel = "experimental";
 
@@ -115,7 +115,7 @@ namespace Velopack.Packaging.Tests
         public void CanDeployAndUpdateFromGithub()
         {
             Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
-            using var logger = _output.BuildLoggerFor<DeploymentTests>();
+            using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
             var id = "GithubUpdateTest";
             using var _1 = Utility.GetTempDirectory(out var releaseDir);
             var (repoOwner, repoName) = GitHubRepository.GetOwnerAndRepo(GITHUB_REPOURL);
@@ -136,8 +136,8 @@ This is just a _test_!
                 throw new Exception("VELOPACK_GITHUB_TEST_TOKEN is not set.");
 
             var newVer = $"{VelopackRuntimeInfo.VelopackNugetVersion}";
-            PackTestApp(id, $"0.0.1", "t1", releaseDir, logger, notesPath, channel: uniqueSuffix);
-            PackTestApp(id, newVer, "t2", releaseDir, logger, notesPath, channel: uniqueSuffix);
+            TestApp.PackTestApp(id, $"0.0.1", "t1", releaseDir, logger, notesPath, channel: uniqueSuffix);
+            TestApp.PackTestApp(id, newVer, "t2", releaseDir, logger, notesPath, channel: uniqueSuffix);
 
             // deploy
             var gh = new GitHubRepository(logger);
@@ -226,77 +226,6 @@ This is just a _test_!
             }
         }
 
-        private void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
-            string releaseNotes = null, string channel = null)
-        {
-            var projDir = PathHelper.GetTestRootPath("TestApp");
-            var testStringFile = Path.Combine(projDir, "Const.cs");
-            var oldText = File.ReadAllText(testStringFile);
 
-            try {
-                File.WriteAllText(testStringFile, $"class Const {{ public const string TEST_STRING = \"{testString}\"; }}");
-
-                var args = new string[] { "publish", "--no-self-contained", "-c", "Release", "-r", VelopackRuntimeInfo.SystemRid, "-o", "publish" };
-
-                var psi = new ProcessStartInfo("dotnet");
-                psi.WorkingDirectory = projDir;
-                psi.AppendArgumentListSafe(args, out var debug);
-
-                logger.Info($"TEST: Running {psi.FileName} {debug}");
-
-                using var p = Process.Start(psi);
-                p.WaitForExit();
-
-                if (p.ExitCode != 0)
-                    throw new Exception($"dotnet publish failed with exit code {p.ExitCode}");
-
-                if (VelopackRuntimeInfo.IsWindows) {
-                    var options = new WindowsPackOptions {
-                        EntryExecutableName = "TestApp.exe",
-                        ReleaseDir = new DirectoryInfo(releaseDir),
-                        PackId = id,
-                        TargetRuntime = RID.Parse(VelopackRuntimeInfo.SystemOs.GetOsShortName()),
-                        PackVersion = version,
-                        PackDirectory = Path.Combine(projDir, "publish"),
-                        ReleaseNotes = releaseNotes,
-                        Channel = channel,
-                    };
-                    var runner = new WindowsPackCommandRunner(logger);
-                    runner.Run(options).GetAwaiterResult();
-                } else if (VelopackRuntimeInfo.IsOSX) {
-                    var options = new OsxPackOptions {
-                        EntryExecutableName = "TestApp",
-                        ReleaseDir = new DirectoryInfo(releaseDir),
-                        PackId = id,
-                        Icon = Path.Combine(PathHelper.GetProjectDir(), "examples", "AvaloniaCrossPlat", "Velopack.icns"),
-                        TargetRuntime = RID.Parse(VelopackRuntimeInfo.SystemOs.GetOsShortName()),
-                        PackVersion = version,
-                        PackDirectory = Path.Combine(projDir, "publish"),
-                        ReleaseNotes = releaseNotes,
-                        Channel = channel,
-                    };
-                    var runner = new OsxPackCommandRunner(logger);
-                    runner.Run(options).GetAwaiterResult();
-                } else if (VelopackRuntimeInfo.IsLinux) {
-                    var options = new LinuxPackOptions {
-                        EntryExecutableName = "TestApp",
-                        ReleaseDir = new DirectoryInfo(releaseDir),
-                        PackId = id,
-                        Icon = Path.Combine(PathHelper.GetProjectDir(), "examples", "AvaloniaCrossPlat", "Velopack.png"),
-                        TargetRuntime = RID.Parse(VelopackRuntimeInfo.SystemOs.GetOsShortName()),
-                        PackVersion = version,
-                        PackDirectory = Path.Combine(projDir, "publish"),
-                        ReleaseNotes = releaseNotes,
-                        Channel = channel,
-                    };
-                    var runner = new LinuxPackCommandRunner(logger);
-                    runner.Run(options).GetAwaiterResult();
-                } else {
-                    throw new PlatformNotSupportedException();
-                }
-            } finally {
-                File.WriteAllText(testStringFile, oldText);
-            }
-        }
     }
 }
