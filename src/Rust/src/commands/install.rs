@@ -113,7 +113,7 @@ pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Res
 
     info!("Reading splash image...");
     let splash_bytes = pkg.get_splash_bytes();
-    let tx = windows::splash::show_splash_dialog(app.title.to_owned(), splash_bytes, true);
+    let tx = windows::splash::show_splash_dialog(app.title.to_owned(), splash_bytes);
     let install_result = install_impl(&pkg, &root_path, &tx);
     let _ = tx.send(windows::splash::MSG_CLOSE);
 

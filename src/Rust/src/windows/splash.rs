@@ -7,7 +7,6 @@ use std::{
     rc::Rc,
     sync::mpsc::{self, Receiver, Sender},
     thread,
-    time::Duration,
 };
 use w::WString;
 use winsafe::{self as w, co, guard::DeleteObjectGuard, gui, prelude::*};
@@ -28,42 +27,10 @@ pub fn show_progress_dialog<T1: AsRef<str>, T2: AsRef<str>>(window_title: T1, co
     tx
 }
 
-pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>, delay: bool) -> Sender<i16> {
+pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>) -> Sender<i16> {
     let (tx, rx) = mpsc::channel::<i16>();
-    let tx2 = tx.clone();
     thread::spawn(move || {
-        if delay {
-            info!("Showing splash screen with 3 second delay...");
-            // wait a bit, if the MSG_CLOSE message is sent within 3 seconds, we won't bother showing it.
-            thread::sleep(Duration::from_millis(3000));
-
-            // read all messages, checking for MSG_CLOSE, and then send the last progress message we received.
-            let mut last_progress = 0;
-            let mut closed = false;
-            loop {
-                let msg = rx.try_recv().unwrap_or(MSG_NOMESSAGE);
-                if msg == MSG_CLOSE {
-                    closed = true;
-                    break;
-                } else if msg >= 0 {
-                    last_progress = msg;
-                } else if msg == MSG_NOMESSAGE {
-                    break;
-                }
-            }
-
-            if closed {
-                info!("Splash screen received MSG_CLOSE before delay ended, so it wasn't shown.");
-                return;
-            }
-
-            tx2.send(last_progress).unwrap();
-
-            info!("Splash screen delay ended, showing splash window...");
-        } else {
-            info!("Showing splash screen immediately...");
-        }
-
+        info!("Showing splash screen immediately...");
         if imgstream.is_some() {
             let _ = SplashWindow::new(app_name, imgstream.unwrap(), rx).and_then(|w| {
                 w.run()?;
@@ -382,7 +349,7 @@ extern "system" fn task_dialog_callback(hwnd: w::HWND, msg: co::TDN, _: usize, _
 #[ignore]
 fn show_test_gif() {
     let rd = std::fs::read(r"C:\Source\Clowd\artwork\splash.gif").unwrap();
-    let tx = show_splash_dialog("osu!".to_string(), Some(rd), false);
+    let tx = show_splash_dialog("osu!".to_string(), Some(rd));
     tx.send(80).unwrap();
     std::thread::sleep(std::time::Duration::from_secs(6));
 }
