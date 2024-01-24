@@ -38,8 +38,8 @@ pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>) -> Sende
             });
         } else {
             let setup_name = format!("{} Setup", app_name);
-            let content = "Please Wait...";
-            show_com_ctl_progress_dialog(rx, setup_name.as_str(), content);
+            let content = format!("Installing {}...", app_name);
+            show_com_ctl_progress_dialog(rx, setup_name.as_str(), content.as_str());
         }
     });
     tx

@@ -1,6 +1,7 @@
 use crate::{
     dialogs,
     shared::{self, bundle, bundle::Manifest},
+    windows::splash,
 };
 use anyhow::{bail, Result};
 use std::{fs, path::PathBuf};
@@ -28,7 +29,18 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &Pat
 
     let action: Result<()> = (|| {
         info!("Extracting bundle to {}", &temp_path_new.to_string_lossy());
-        bundle.extract_lib_contents_to_path(&temp_path_new, |_| {})?;
+
+        if dialogs::get_silent() {
+            bundle.extract_lib_contents_to_path(&temp_path_new, |_| {})?;
+        } else {
+            let title = format!("{} Update", &manifest.title);
+            let message = format!("Installing update {}...", &manifest.version);
+            let tx = splash::show_progress_dialog(title, message);
+            bundle.extract_lib_contents_to_path(&temp_path_new, |p| {
+                let _ = tx.send(p);
+            })?;
+            let _ = tx.send(splash::MSG_CLOSE);
+        }
 
         let _ = shared::force_stop_package(&root_path);
 
