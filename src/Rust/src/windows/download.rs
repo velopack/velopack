@@ -7,20 +7,7 @@ pub fn download_url_to_file<A>(url: &str, file_path: &str, mut progress: A) -> R
 where
     A: FnMut(i16),
 {
-    // let url = "https://proof.ovh.net/files/10Mb.dat";
-    let mut tls_builder = native_tls::TlsConnector::builder();
-
-    if !winsafe::IsWindows10OrGreater()? {
-        warn!("DANGER: Discontinued OS version. TLS certificate checking will be disabled.");
-        warn!("DANGER: Discontinued OS version. TLS certificate checking will be disabled.");
-        warn!("DANGER: Discontinued OS version. TLS certificate checking will be disabled.");
-        tls_builder.danger_accept_invalid_certs(true);
-        tls_builder.danger_accept_invalid_hostnames(true);
-    }
-
-    let tls_connector = tls_builder.build()?;
-
-    let agent: ureq::Agent = ureq::AgentBuilder::new().tls_connector(tls_connector.into()).build();
+    let agent = get_download_agent()?;
     let response = agent.get(url).call()?;
 
     let total_size = response.header("Content-Length").and_then(|s| s.parse::<u64>().ok());
@@ -54,10 +41,24 @@ where
 }
 
 pub fn download_url_as_string(url: &str) -> Result<String> {
-    let tls_connector = native_tls::TlsConnector::new()?;
-    let agent: ureq::Agent = ureq::AgentBuilder::new().tls_connector(tls_connector.into()).build();
+    let agent = get_download_agent()?;
     let r = agent.get(url).call()?.into_string()?;
     Ok(r)
+}
+
+fn get_download_agent() -> Result<ureq::Agent> {
+    let mut tls_builder = native_tls::TlsConnector::builder();
+
+    if !winsafe::IsWindows10OrGreater()? {
+        warn!("DANGER: Discontinued OS version. TLS certificate verification will be disabled.");
+        warn!("DANGER: Discontinued OS version. TLS certificate verification will be disabled.");
+        warn!("DANGER: Discontinued OS version. TLS certificate verification will be disabled.");
+        tls_builder.danger_accept_invalid_certs(true);
+        tls_builder.danger_accept_invalid_hostnames(true);
+    }
+
+    let tls_connector = tls_builder.build()?;
+    Ok(ureq::AgentBuilder::new().tls_connector(tls_connector.into()).build())
 }
 
 #[test]
