@@ -1,4 +1,6 @@
-﻿namespace Velopack.Packaging.Unix.Commands;
+﻿using Velopack.Packaging.Abstractions;
+
+namespace Velopack.Packaging.Unix.Commands;
 
 public class OsxPackOptions : OsxBundleOptions, IPackOptions
 {

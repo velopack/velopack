@@ -3,10 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
-using Spectre.Console;
-using Velopack.Packaging;
+using Velopack.Packaging.Abstractions;
 using Velopack.Vpk.Commands;
-using Velopack.Vpk.Compat;
 using Velopack.Vpk.Logging;
 
 namespace Velopack.Vpk;
@@ -22,8 +20,6 @@ public class Program
         = new CliOption<bool>("--legacy-console")
         .SetRecursive(true)
         .SetDescription("Disable console colors and interactive components.");
-
-    private static RunnerFactory Runner { get; set; }
 
     public static readonly string INTRO
         = $"Velopack CLI {VelopackRuntimeInfo.VelopackDisplayVersion} for creating and distributing releases.";
@@ -49,6 +45,7 @@ public class Program
         });
 
         builder.Configuration.AddEnvironmentVariables("VPK_");
+        builder.Services.AddTransient(s => s.GetService<ILoggerFactory>().CreateLogger("vpk"));
 
         var conf = new LoggerConfiguration()
             .MinimumLevel.Is(verbose ? LogEventLevel.Debug : LogEventLevel.Information)
@@ -57,10 +54,10 @@ public class Program
 
         if (legacyConsole) {
             // spectre can have issues with redirected output, so we disable it.
-            Packaging.Progress.IsEnabled = false;
+            builder.Services.AddSingleton<IFancyConsole, BasicConsole>();
             conf.WriteTo.Console();
         } else {
-            Packaging.Progress.IsEnabled = true;
+            builder.Services.AddSingleton<IFancyConsole, SpectreConsole>();
             conf.WriteTo.Spectre();
         }
 
@@ -68,59 +65,16 @@ public class Program
         builder.Logging.AddSerilog();
 
         var host = builder.Build();
-        var logFactory = host.Services.GetRequiredService<ILoggerFactory>();
-        var logger = logFactory.CreateLogger("vpk");
+        var logger = host.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger>();
 
-        Runner = new RunnerFactory(logger, host.Services.GetRequiredService<IConfiguration>());
-
-        CliRootCommand rootCommand = new CliRootCommand(INTRO) {
+        var rootCommand = new CliRootCommand(INTRO) {
             VerboseOption,
             LegacyConsole,
         };
 
-        switch (VelopackRuntimeInfo.SystemOs) {
-        case RuntimeOs.Windows:
-            Add(rootCommand, new WindowsPackCommand(), nameof(ICommandRunner.ExecutePackWindows));
-            break;
-        case RuntimeOs.OSX:
-            Add(rootCommand, new OsxBundleCommand(), nameof(ICommandRunner.ExecuteBundleOsx));
-            Add(rootCommand, new OsxPackCommand(), nameof(ICommandRunner.ExecutePackOsx));
-            break;
-        case RuntimeOs.Linux:
-            Add(rootCommand, new LinuxPackCommand(), nameof(ICommandRunner.ExecutePackLinux));
-            break;
-        default:
-            throw new NotSupportedException("Unsupported OS platform: " + VelopackRuntimeInfo.SystemOs.GetOsLongName());
-        }
-
-        CliCommand downloadCommand = new CliCommand("download", "Download's the latest release from a remote update source.");
-        Add(downloadCommand, new HttpDownloadCommand(), nameof(ICommandRunner.ExecuteHttpDownload));
-        Add(downloadCommand, new S3DownloadCommand(), nameof(ICommandRunner.ExecuteS3Download));
-        Add(downloadCommand, new GitHubDownloadCommand(), nameof(ICommandRunner.ExecuteGithubDownload));
-        rootCommand.Add(downloadCommand);
-
-        var uploadCommand = new CliCommand("upload", "Upload local package(s) to a remote update source.");
-        Add(uploadCommand, new S3UploadCommand(), nameof(ICommandRunner.ExecuteS3Upload));
-        Add(uploadCommand, new GitHubUploadCommand(), nameof(ICommandRunner.ExecuteGithubUpload));
-        rootCommand.Add(uploadCommand);
-
-        var deltaCommand = new CliCommand("delta", "Utilities for creating or applying delta packages.");
-        Add(deltaCommand, new DeltaGenCommand(), nameof(ICommandRunner.ExecuteDeltaGen));
-        Add(deltaCommand, new DeltaPatchCommand(), nameof(ICommandRunner.ExecuteDeltaPatch));
-        rootCommand.Add(deltaCommand);
+        rootCommand.PopulateVelopackCommands(host.Services);
 
         var cli = new CliConfiguration(rootCommand);
         return await cli.InvokeAsync(args);
-    }
-
-    private static CliCommand Add<T>(CliCommand parent, T command, string commandName)
-        where T : BaseCommand
-    {
-        command.SetAction((ctx, token) => {
-            command.SetProperties(ctx);
-            return Runner.CreateAndExecuteAsync(commandName, command);
-        });
-        parent.Subcommands.Add(command);
-        return command;
     }
 }

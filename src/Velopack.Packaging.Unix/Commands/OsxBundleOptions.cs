@@ -1,6 +1,8 @@
-﻿namespace Velopack.Packaging.Unix.Commands;
+﻿using Velopack.Packaging.Abstractions;
 
-public class OsxBundleOptions
+namespace Velopack.Packaging.Unix.Commands;
+
+public class OsxBundleOptions : IOutputOptions
 {
     public DirectoryInfo ReleaseDir { get; set; }
 

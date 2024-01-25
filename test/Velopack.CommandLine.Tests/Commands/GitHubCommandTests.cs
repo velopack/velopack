@@ -68,7 +68,7 @@ public class GitHubDownloadCommandTests : GitHubCommandTests<GitHubDownloadComma
         string cli = GetRequiredDefaultOptions() + "--pre";
         ParseResult parseResult = command.ParseAndApply(cli);
 
-        Assert.True(command.Pre);
+        Assert.True(command.Prerelease);
     }
 }
 

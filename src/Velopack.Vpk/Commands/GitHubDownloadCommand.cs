@@ -2,12 +2,12 @@
 
 public class GitHubDownloadCommand : GitHubBaseCommand
 {
-    public bool Pre { get; private set; }
+    public bool Prerelease { get; private set; }
 
     public GitHubDownloadCommand()
         : base("github", "Download latest release from GitHub repository.")
     {
-        AddOption<bool>((v) => Pre = v, "--pre")
+        AddOption<bool>((v) => Prerelease = v, "--pre")
             .SetDescription("Get latest pre-release instead of stable.");
     }
 }

@@ -1,4 +1,6 @@
-﻿namespace Velopack.Packaging.Windows.Commands;
+﻿using Velopack.Packaging.Abstractions;
+
+namespace Velopack.Packaging.Windows.Commands;
 
 public class WindowsPackOptions : WindowsReleasifyOptions, INugetPackCommand, IPackOptions
 {

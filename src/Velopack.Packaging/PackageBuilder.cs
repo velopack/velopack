@@ -4,10 +4,10 @@ using System.Security;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
-using Spectre.Console;
 using Velopack.Compression;
 using Velopack.NuGet;
 using Velopack.Packaging.Exceptions;
+using Velopack.Packaging.Abstractions;
 
 namespace Velopack.Packaging
 {
@@ -17,6 +17,8 @@ namespace Velopack.Packaging
         protected RuntimeOs SupportedTargetOs { get; }
 
         protected ILogger Log { get; }
+
+        protected IFancyConsole Console { get; }
 
         protected DirectoryInfo TempDir { get; private set; }
 
@@ -30,10 +32,11 @@ namespace Velopack.Packaging
 
         private readonly Regex REGEX_EXCLUDES = new Regex(@".*[\\\/]createdump.*|.*\.vshost\..*|.*\.nupkg$|.*\.pdb$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        public PackageBuilder(RuntimeOs supportedOs, ILogger logger)
+        public PackageBuilder(RuntimeOs supportedOs, ILogger logger, IFancyConsole console)
         {
             SupportedTargetOs = supportedOs;
             Log = logger;
+            Console = console;
         }
 
         public async Task Run(T options)
@@ -90,7 +93,7 @@ namespace Velopack.Packaging
                 return incomplete;
             }
 
-            await Progress.ExecuteAsync(Log, async (ctx) => {
+            await Console.ExecuteProgressAsync(async (ctx) => {
                 ReleasePackage prev = null;
                 await ctx.RunTask("Pre-process steps", async (progress) => {
                     prev = entryHelper.GetPreviousFullRelease(NuGetVersion.Parse(packVersion));

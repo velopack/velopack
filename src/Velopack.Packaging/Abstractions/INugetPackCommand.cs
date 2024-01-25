@@ -1,4 +1,4 @@
-﻿namespace Velopack.Packaging;
+﻿namespace Velopack.Packaging.Abstractions;
 
 public interface INugetPackCommand
 {

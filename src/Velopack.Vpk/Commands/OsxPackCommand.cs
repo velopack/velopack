@@ -6,7 +6,7 @@ public class OsxPackCommand : OsxBundleCommand
 {
     public string ReleaseNotes { get; private set; }
 
-    public DeltaMode Delta { get; private set; }
+    public DeltaMode DeltaMode { get; private set; }
 
     public bool NoPackage { get; private set; }
 
@@ -34,7 +34,7 @@ public class OsxPackCommand : OsxBundleCommand
             .SetArgumentHelpName("PATH")
             .MustExist();
 
-        AddOption<DeltaMode>((v) => Delta = v, "--delta")
+        AddOption<DeltaMode>((v) => DeltaMode = v, "--delta")
             .SetDefault(DeltaMode.BestSpeed)
             .SetDescription("Set the delta generation mode.");
 

@@ -1,16 +1,19 @@
 ﻿using Microsoft.Extensions.Logging;
 using Velopack.Compression;
 using Velopack.Packaging.Exceptions;
+using Velopack.Packaging.Abstractions;
 
 namespace Velopack.Packaging.Commands
 {
     public class DeltaPatchCommandRunner : ICommand<DeltaPatchOptions>
     {
         private readonly ILogger _logger;
+        private readonly IFancyConsole _console;
 
-        public DeltaPatchCommandRunner(ILogger logger)
+        public DeltaPatchCommandRunner(ILogger logger, IFancyConsole console)
         {
             _logger = logger;
+            _console = console;
         }
 
         public async Task Run(DeltaPatchOptions options)
@@ -31,7 +34,7 @@ namespace Velopack.Packaging.Commands
             var delta = new DeltaEmbedded(HelperFile.GetZstdPath(), _logger, tmp);
             EasyZip.ExtractZipToDirectory(_logger, options.BasePackage, workDir);
 
-            await Progress.ExecuteAsync(_logger, async (ctx) => {
+            await _console.ExecuteProgressAsync(async (ctx) => {
                 foreach (var f in options.PatchFiles) {
                     await ctx.RunTask($"Applying {f.Name}", (progress) => {
                         delta.ApplyDeltaPackageFast(workDir, f.FullName, progress);

@@ -29,7 +29,7 @@ namespace Velopack.Vpk.Commands
 
         public bool PackIsAppDir { get; private set; }
 
-        public DeltaMode Delta { get; set; } = DeltaMode.BestSpeed;
+        public DeltaMode DeltaMode { get; set; } = DeltaMode.BestSpeed;
 
         public LinuxPackCommand()
             : this("pack", "Create's a Linux .AppImage bundle from a folder containing application files.")
@@ -78,7 +78,7 @@ namespace Velopack.Vpk.Commands
                 .SetArgumentHelpName("PATH")
                 .MustExist();
 
-            AddOption<DeltaMode>((v) => Delta = v, "--delta")
+            AddOption<DeltaMode>((v) => DeltaMode = v, "--delta")
                 .SetDefault(DeltaMode.BestSpeed)
                 .SetDescription("Set the delta generation mode.");
 

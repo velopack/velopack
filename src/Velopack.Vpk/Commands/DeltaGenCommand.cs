@@ -4,7 +4,7 @@ namespace Velopack.Vpk.Commands
 {
     public class DeltaGenCommand : BaseCommand
     {
-        public DeltaMode Delta { get; set; }
+        public DeltaMode DeltaMode { get; set; }
 
         public string BasePackage { get; set; }
 
@@ -16,7 +16,7 @@ namespace Velopack.Vpk.Commands
             : base("generate", "Generate a delta patch from two full releases.")
 
         {
-            AddOption<DeltaMode>((v) => Delta = v, "--mode")
+            AddOption<DeltaMode>((v) => DeltaMode = v, "--mode")
                 .SetDefault(DeltaMode.BestSpeed)
                 .SetDescription("Set the delta generation mode.");
 

@@ -1,17 +1,24 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
+using Velopack.Packaging.Abstractions;
 using Velopack.Packaging.Exceptions;
 
 namespace Velopack.Packaging.Unix.Commands;
 
-public class OsxBundleCommandRunner
+public class OsxBundleCommandRunner : ICommand<OsxBundleOptions>
 {
     private readonly ILogger _logger;
 
     public OsxBundleCommandRunner(ILogger logger)
     {
         _logger = logger;
+    }
+
+    public Task Run(OsxBundleOptions options)
+    {
+        Bundle(options);
+        return Task.CompletedTask;
     }
 
     public string Bundle(OsxBundleOptions options)

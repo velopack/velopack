@@ -9,6 +9,7 @@ using Velopack.Compression;
 using Velopack.Packaging.Commands;
 using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Windows.Commands;
+using Velopack.Vpk.Logging;
 using Velopack.Windows;
 
 namespace Velopack.Packaging.Tests;
@@ -55,7 +56,7 @@ public class WindowsPackTests
             Channel = "asd123"
         };
 
-        var runner = new WindowsPackCommandRunner(logger);
+        var runner = new WindowsPackCommandRunner(logger, new BasicConsole(logger));
         runner.Run(options).GetAwaiterResult();
 
         var nupkgPath = Path.Combine(tmpReleaseDir, $"{id}-{version}-asd123-full.nupkg");
@@ -118,7 +119,7 @@ public class WindowsPackTests
             TargetRuntime = RID.Parse("win"),
         };
 
-        var runner = new WindowsPackCommandRunner(logger);
+        var runner = new WindowsPackCommandRunner(logger, new BasicConsole(logger));
         runner.Run(options).GetAwaiterResult();
 
         Assert.Throws<UserInfoException>(() => runner.Run(options).GetAwaiterResult());
@@ -155,7 +156,7 @@ public class WindowsPackTests
             Channel = "hello",
         };
 
-        var runner = new WindowsPackCommandRunner(logger);
+        var runner = new WindowsPackCommandRunner(logger, new BasicConsole(logger));
         runner.Run(options).GetAwaiterResult();
 
         options.TargetRuntime = RID.Parse("win10.0.19043-x86");
@@ -190,7 +191,7 @@ public class WindowsPackTests
             PackDirectory = tmpOutput,
         };
 
-        var runner = new WindowsPackCommandRunner(logger);
+        var runner = new WindowsPackCommandRunner(logger, new BasicConsole(logger));
         runner.Run(options).GetAwaiterResult();
 
         var setupPath1 = Path.Combine(tmpReleaseDir, $"{id}-win-Setup.exe");
@@ -305,7 +306,7 @@ public class WindowsPackTests
 
         // apply delta and check package
         var output = Path.Combine(releaseDir, "delta.patched");
-        new DeltaPatchCommandRunner(logger).Run(new DeltaPatchOptions {
+        new DeltaPatchCommandRunner(logger, new BasicConsole(logger)).Run(new DeltaPatchOptions {
             BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-full.nupkg"),
             OutputFile = output,
             PatchFiles = new[] { new FileInfo(deltaPath) },
@@ -679,7 +680,7 @@ public class WindowsPackTests
                 PackDirectory = Path.Combine(projDir, "publish"),
             };
 
-            var runner = new WindowsPackCommandRunner(logger);
+            var runner = new WindowsPackCommandRunner(logger, new BasicConsole(logger));
             runner.Run(options).GetAwaiterResult();
         } finally {
             File.WriteAllText(testStringFile, oldText);

@@ -6,7 +6,7 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
 {
     public string Package { get; set; }
 
-    public DeltaMode Delta { get; private set; }
+    public DeltaMode DeltaMode { get; private set; }
 
     public string Runtimes { get; private set; }
 
@@ -34,7 +34,7 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
     protected WindowsReleasifyCommand(string name, string description)
         : base(name, description)
     {
-        AddOption<DeltaMode>((v) => Delta = v, "--delta")
+        AddOption<DeltaMode>((v) => DeltaMode = v, "--delta")
             .SetDefault(DeltaMode.BestSpeed)
             .SetDescription("Set the delta generation mode.");
 

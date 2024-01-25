@@ -42,6 +42,8 @@
     <PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.23407.1" />
     <PackageReference Include="NuGet.Protocol" Version="6.8.0" />
+    <PackageReference Include="Spectre.Console" Version="0.48.0" />
+    <PackageReference Include="AutoMapper" Version="12.0.1" />
   </ItemGroup>
 
   <ItemGroup>

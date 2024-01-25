@@ -40,7 +40,7 @@ public abstract class ReleaseCommandTests<T> : BaseCommandTests<T>
         string cli = GetRequiredDefaultOptions() + "--delta none";
         ParseResult parseResult = command.ParseAndApply(cli);
 
-        Assert.True(command.Delta == Packaging.DeltaMode.None);
+        Assert.True(command.DeltaMode == Packaging.DeltaMode.None);
     }
 
     [Fact]

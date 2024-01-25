@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using ELFSharp.ELF;
 using Microsoft.Extensions.Logging;
+using Velopack.Packaging.Abstractions;
 
 namespace Velopack.Packaging.Unix.Commands
 {
@@ -14,8 +15,8 @@ namespace Velopack.Packaging.Unix.Commands
     {
         protected string PortablePackagePath { get; set; }
 
-        public LinuxPackCommandRunner(ILogger logger)
-            : base(RuntimeOs.Linux, logger)
+        public LinuxPackCommandRunner(ILogger logger, IFancyConsole console)
+            : base(RuntimeOs.Linux, logger, console)
         {
         }
 
@@ -71,8 +72,8 @@ Categories=Development;
         protected override Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath)
         {
             progress(-1);
-            var machine = Options.TargetRuntime.HasArchitecture 
-                ? Options.TargetRuntime.Architecture 
+            var machine = Options.TargetRuntime.HasArchitecture
+                ? Options.TargetRuntime.Architecture
                 : GetMachineForBinary(MainExePath);
             AppImageTool.CreateLinuxAppImage(packDir, outputPath, machine, Log);
             PortablePackagePath = outputPath;

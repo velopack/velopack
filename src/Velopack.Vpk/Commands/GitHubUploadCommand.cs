@@ -8,7 +8,7 @@ public class GitHubUploadCommand : GitHubBaseCommand
 
     public string TagName { get; private set; }
 
-    public bool Pre { get; private set; }
+    public bool Prerelease { get; private set; }
 
     public bool Merge { get; private set; }
 
@@ -18,7 +18,7 @@ public class GitHubUploadCommand : GitHubBaseCommand
         AddOption<bool>((v) => Publish = v, "--publish")
             .SetDescription("Create and publish instead of leaving as draft.");
 
-        AddOption<bool>((v) => Pre = v, "--pre")
+        AddOption<bool>((v) => Prerelease = v, "--pre")
             .SetDescription("Create as pre-release instead of stable.");
 
         AddOption<bool>((v) => Merge = v, "--merge")

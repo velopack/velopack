@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
+using Velopack.Vpk.Logging;
 
 namespace Velopack.Packaging.Tests
 {
@@ -46,7 +47,7 @@ namespace Velopack.Packaging.Tests
                         ReleaseNotes = releaseNotes,
                         Channel = channel,
                     };
-                    var runner = new WindowsPackCommandRunner(logger);
+                    var runner = new WindowsPackCommandRunner(logger, new BasicConsole(logger));
                     runner.Run(options).GetAwaiterResult();
                 } else if (VelopackRuntimeInfo.IsOSX) {
                     var options = new OsxPackOptions {
@@ -60,7 +61,7 @@ namespace Velopack.Packaging.Tests
                         ReleaseNotes = releaseNotes,
                         Channel = channel,
                     };
-                    var runner = new OsxPackCommandRunner(logger);
+                    var runner = new OsxPackCommandRunner(logger, new BasicConsole(logger));
                     runner.Run(options).GetAwaiterResult();
                 } else if (VelopackRuntimeInfo.IsLinux) {
                     var options = new LinuxPackOptions {
@@ -74,7 +75,7 @@ namespace Velopack.Packaging.Tests
                         ReleaseNotes = releaseNotes,
                         Channel = channel,
                     };
-                    var runner = new LinuxPackCommandRunner(logger);
+                    var runner = new LinuxPackCommandRunner(logger, new BasicConsole(logger));
                     runner.Run(options).GetAwaiterResult();
                 } else {
                     throw new PlatformNotSupportedException();

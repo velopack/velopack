@@ -2,9 +2,9 @@
 using AsmResolver.PE;
 using AsmResolver.PE.File.Headers;
 using Microsoft.Extensions.Logging;
-using Spectre.Console;
 using Velopack.Compression;
 using Velopack.NuGet;
+using Velopack.Packaging.Abstractions;
 using Velopack.Packaging.Exceptions;
 using Velopack.Windows;
 
@@ -13,8 +13,8 @@ namespace Velopack.Packaging.Windows.Commands;
 [SupportedOSPlatform("windows")]
 public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 {
-    public WindowsPackCommandRunner(ILogger logger)
-        : base(RuntimeOs.Windows, logger)
+    public WindowsPackCommandRunner(ILogger logger, IFancyConsole console)
+        : base(RuntimeOs.Windows, logger, console)
     {
     }
 

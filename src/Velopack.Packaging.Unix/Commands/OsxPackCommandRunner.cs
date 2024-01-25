@@ -1,13 +1,14 @@
 ﻿using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
+using Velopack.Packaging.Abstractions;
 
 namespace Velopack.Packaging.Unix.Commands;
 
 [SupportedOSPlatform("osx")]
 public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
 {
-    public OsxPackCommandRunner(ILogger logger)
-        : base(RuntimeOs.OSX, logger)
+    public OsxPackCommandRunner(ILogger logger, IFancyConsole console)
+        : base(RuntimeOs.OSX, logger, console)
     {
     }
 
