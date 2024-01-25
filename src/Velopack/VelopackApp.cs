@@ -204,6 +204,9 @@ namespace Velopack
             var localPackages = locator.GetLocalPackages();
             var latestLocal = locator.GetLatestLocalFullPackage();
 
+            Environment.SetEnvironmentVariable("VELOPACK_FIRSTRUN", null);
+            Environment.SetEnvironmentVariable("VELOPACK_RESTART", null);
+
             // if we've not just been restarted via Velopack apply, and there is a local update available,
             // we should install it first.
             if (latestLocal != null && latestLocal.Version > myVersion) {
