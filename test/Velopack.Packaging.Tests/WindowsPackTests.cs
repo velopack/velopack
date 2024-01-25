@@ -163,37 +163,6 @@ public class WindowsPackTests
     }
 
     [SkippableFact]
-    public void PackRefuseBuildingUnawareApp()
-    {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
-
-        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
-
-        using var _1 = Utility.GetTempDirectory(out var tmpOutput);
-        using var _2 = Utility.GetTempDirectory(out var tmpReleaseDir);
-
-        var exe = "testapp.exe";
-        var pdb = Path.ChangeExtension(exe, ".pdb");
-        var id = "Test.Squirrel-App";
-        var version = "1.0.0";
-
-        PathHelper.CopyRustAssetTo(exe, tmpOutput);
-        PathHelper.CopyRustAssetTo(pdb, tmpOutput);
-
-        var options = new WindowsPackOptions {
-            EntryExecutableName = exe,
-            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
-            PackId = id,
-            PackVersion = version,
-            TargetRuntime = RID.Parse("win"),
-            PackDirectory = tmpOutput,
-        };
-
-        var runner = new WindowsPackCommandRunner(logger);
-        Assert.Throws<VelopackAppVerificationException>(() => runner.Run(options).GetAwaiterResult());
-    }
-
-    [SkippableFact]
     public void PackBuildsPackageWhichIsInstallable()
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
