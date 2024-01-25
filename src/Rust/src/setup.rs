@@ -43,6 +43,11 @@ fn main() -> Result<()> {
         info!("    Debug: {:?}", debug);
     }
 
+    // change working directory to the containing directory of the exe
+    let mut containing_dir = env::current_exe()?;
+    containing_dir.pop();
+    env::set_current_dir(containing_dir)?;
+
     let res = commands::install(debug, installto);
     if let Err(e) = &res {
         error!("An error has occurred: {}", e);

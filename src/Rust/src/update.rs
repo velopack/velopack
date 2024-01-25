@@ -90,6 +90,11 @@ fn main() -> Result<()> {
     info!("    Silent: {}", silent);
     info!("    Log File: {:?}", log_file);
 
+    // change working directory to the containing directory of the exe
+    let mut containing_dir = env::current_exe()?;
+    containing_dir.pop();
+    env::set_current_dir(containing_dir)?;
+
     let (subcommand, subcommand_matches) = matches.subcommand().ok_or_else(|| anyhow!("No subcommand was used. Try `--help` for more information."))?;
     let result = match subcommand {
         #[cfg(target_os = "windows")]
