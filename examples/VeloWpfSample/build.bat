@@ -11,7 +11,7 @@ set "version=%~1"
 
 echo.
 echo Compiling VeloWpfSample with dotnet...
-dotnet publish -c Release --no-self-contained -r win-x64 -o %~dp0publish
+dotnet publish -c Release -o %~dp0publish
 
 echo.
 echo Building Velopack Release v%version%
