@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="AsmResolver.DotNet" Version="5.5.0" />
+    <PackageReference Include="AsmResolver.PE.Win32Resources" Version="5.5.0" />
   </ItemGroup>
   
 </Project>

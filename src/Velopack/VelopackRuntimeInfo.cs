@@ -84,6 +84,9 @@ namespace Velopack
         /// <summary> The current compiled Velopack NuGetVersion. </summary>
         public static NuGetVersion VelopackNugetVersion { get; }
 
+        /// <summary> The current compiled Velopack ProductVersion. </summary>
+        public static NuGetVersion VelopackProductVersion { get; }
+
         /// <summary> The path on disk of the entry assembly. </summary>
         public static string EntryExePath { get; }
 
@@ -125,6 +128,8 @@ namespace Velopack
 #endif
 
             // get git/nuget version from nbgv metadata
+            VelopackProductVersion = NuGetVersion.Parse(ThisAssembly.AssemblyInformationalVersion);
+
 #pragma warning disable CS0162
             if (ThisAssembly.IsPublicRelease) {
                 VelopackNugetVersion = NuGetVersion.Parse(NuGetVersion.Parse(ThisAssembly.AssemblyInformationalVersion).ToNormalizedString());
