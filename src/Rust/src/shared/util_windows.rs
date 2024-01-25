@@ -8,6 +8,7 @@ use std::{
     process::Command as Process,
 };
 use windows::Win32::System::ProcessStatus::EnumProcesses;
+use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use windows_sys::Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasicInformation};
 use windows_sys::Win32::System::Threading::{GetCurrentProcess, PROCESS_BASIC_INFORMATION};
 use winsafe::{self as w, co, prelude::*};
@@ -171,7 +172,8 @@ pub fn start_package<P: AsRef<Path>>(app: &Manifest, root_dir: P, exe_args: Opti
 
     info!("About to launch: '{}' in dir '{}'", exe_to_execute.to_string_lossy(), current);
     info!("Args: {:?}", psi.get_args());
-    psi.spawn().map_err(|z| anyhow!("Failed to start application ({}).", z))?;
+    let child = psi.spawn().map_err(|z| anyhow!("Failed to start application ({}).", z))?;
+    let _ = unsafe { AllowSetForegroundWindow(child.id()) };
 
     Ok(())
 }
