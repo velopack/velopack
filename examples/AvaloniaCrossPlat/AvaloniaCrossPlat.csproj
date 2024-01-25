@@ -15,7 +15,6 @@
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.6" />
     <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
     <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.0.6" />
-    <PackageReference Include="Vanara.PInvoke.User32" Version="3.*" />
   </ItemGroup>
 
   <!-- For test build scripts which target the local Velopack project instead of the NuGet package -->

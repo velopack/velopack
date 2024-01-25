@@ -38,6 +38,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                 "Please publish your application to a folder without ClickOnce.");
         }
 
+        DotnetUtil.VerifyVelopackAppBuilder(MainExePath);
+
         // copy files to temp dir, so we can modify them
         var dir = TempDir.CreateSubdirectory("PreprocessPackDirWin");
         CopyFiles(new DirectoryInfo(packDir), dir, progress, true);
@@ -56,26 +58,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
         File.Copy(updatePath, Path.Combine(packDir, "Squirrel.exe"), true);
         return Task.FromResult(packDir);
-    }
-
-    protected override void VerifyMainBinary(string mainExePath)
-    {
-        var binary = PEImage.FromFile(mainExePath);
-
-        var machine = binary.MachineType switch {
-            MachineType.Arm64 => RuntimeCpu.arm64,
-            MachineType.Amd64 => RuntimeCpu.x64,
-            MachineType.I386 => RuntimeCpu.x86,
-            _ => throw new Exception($"Unsupported PE machine type '{binary.MachineType}'.")
-        };
-
-        // x86 is supported everywhere, otherwise we only check if the architecture matches the system architecture
-        if (machine != RuntimeCpu.x86 && machine != VelopackRuntimeInfo.SystemArch) {
-            Log.Warn($"Skipping VelopackApp verification, because system architecture ({VelopackRuntimeInfo.SystemArch}) does not match main binary architecture ({machine}).");
-            return;
-        }
-
-        base.VerifyMainBinary(mainExePath);
     }
 
     protected override string GetRuntimeDependencies()

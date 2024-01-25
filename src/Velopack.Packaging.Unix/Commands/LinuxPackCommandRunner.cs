@@ -19,32 +19,6 @@ namespace Velopack.Packaging.Unix.Commands
         {
         }
 
-        protected virtual RuntimeCpu GetMachineForBinary(string path)
-        {
-            var elf = ELFReader.Load(path);
-
-            var machine = elf.Machine switch {
-                Machine.AArch64 => RuntimeCpu.arm64,
-                Machine.AMD64 => RuntimeCpu.x64,
-                Machine.Intel386 => RuntimeCpu.x86,
-                _ => throw new Exception($"Unsupported ELF machine type '{elf.Machine}'.")
-            };
-
-            return machine;
-        }
-
-        protected override void VerifyMainBinary(string mainExePath)
-        {
-            var machine = GetMachineForBinary(mainExePath);
-
-            if (machine != VelopackRuntimeInfo.SystemArch) {
-                Log.Warn($"Skipping VelopackApp verification, because system architecture ({VelopackRuntimeInfo.SystemArch}) does not match main binary architecture ({machine}).");
-                return;
-            }
-
-            base.VerifyMainBinary(mainExePath);
-        }
-
         protected override Task<string> PreprocessPackDir(Action<int> progress, string packDir)
         {
             var dir = TempDir.CreateSubdirectory("PreprocessPackDir.AppDir");
@@ -97,11 +71,27 @@ Categories=Development;
         protected override Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath)
         {
             progress(-1);
-            var machine = GetMachineForBinary(MainExePath);
+            var machine = Options.TargetRuntime.HasArchitecture 
+                ? Options.TargetRuntime.Architecture 
+                : GetMachineForBinary(MainExePath);
             AppImageTool.CreateLinuxAppImage(packDir, outputPath, machine, Log);
             PortablePackagePath = outputPath;
             progress(100);
             return Task.CompletedTask;
+        }
+
+        protected virtual RuntimeCpu GetMachineForBinary(string path)
+        {
+            var elf = ELFReader.Load(path);
+
+            var machine = elf.Machine switch {
+                Machine.AArch64 => RuntimeCpu.arm64,
+                Machine.AMD64 => RuntimeCpu.x64,
+                Machine.Intel386 => RuntimeCpu.x86,
+                _ => throw new Exception($"Unsupported ELF machine type '{elf.Machine}'.")
+            };
+
+            return machine;
         }
 
         protected override Task CreateReleasePackage(Action<int> progress, string packDir, string outputPath)

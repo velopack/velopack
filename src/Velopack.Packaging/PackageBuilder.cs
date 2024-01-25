@@ -75,9 +75,6 @@ namespace Velopack.Packaging
             MainExeName = mainExeName;
             MainExePath = mainExePath;
 
-            // verify that the main executable is a valid velopack app
-            VerifyMainBinary(mainExePath);
-
             using var _1 = Utility.GetTempDirectory(out var pkgTempDir);
             TempDir = new DirectoryInfo(pkgTempDir);
             Options = options;
@@ -163,34 +160,6 @@ namespace Velopack.Packaging
         protected virtual string GetRuntimeDependencies()
         {
             return null;
-        }
-
-        protected virtual void VerifyMainBinary(string mainExePath)
-        {
-            try {
-                var psi = new ProcessStartInfo(mainExePath);
-                psi.AppendArgumentListSafe(new[] { "--veloapp-version" }, out var _);
-                var output = psi.Output(5000);
-                if (String.IsNullOrWhiteSpace(output)) {
-                    throw new VelopackAppVerificationException("Exited with no output");
-                }
-                AssertVelopackVersionCompatible(output);
-            } catch (TimeoutException) {
-                throw new VelopackAppVerificationException("Timed out");
-            }
-        }
-
-        protected virtual void AssertVelopackVersionCompatible(string velopackVersion)
-        {
-            if (SemanticVersion.TryParse(velopackVersion.Trim(), out var version)) {
-                if (version != VelopackRuntimeInfo.VelopackNugetVersion) {
-                    Log.Warn($"VelopackApp version '{version}' does not match CLI version '{VelopackRuntimeInfo.VelopackNugetVersion}'.");
-                } else {
-                    Log.Info($"VelopackApp version verified ({version}).");
-                }
-            } else {
-                throw new VelopackAppVerificationException($"Failed to parse version: {velopackVersion.Trim()}");
-            }
         }
 
         protected virtual string GenerateNuspecContent()
