@@ -7,6 +7,7 @@ try {
     bool shouldExit = false;
     bool shouldAutoUpdate = args.Any(a => a.Equals("--autoupdate", StringComparison.OrdinalIgnoreCase));
 
+#if !NO_VELO_BUILDER
     VelopackApp.Build()
         .SetAutoApplyOnStartup(shouldAutoUpdate)
         .WithFirstRun((v) => {
@@ -33,6 +34,7 @@ try {
     if (shouldExit) {
         return 0;
     }
+#endif
 
     if (args.Length == 1 && args[0] == "version") {
         var locator = VelopackLocator.GetDefault(new ConsoleLogger());

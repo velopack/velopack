@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-using System.IO;
-using AsmResolver.DotNet;
+﻿using AsmResolver.DotNet;
 using AsmResolver.DotNet.Bundles;
 using AsmResolver.DotNet.Serialized;
 using AsmResolver.PE;
@@ -14,7 +12,7 @@ namespace Velopack.Packaging.Windows
 {
     public class DotnetUtil
     {
-        public static void VerifyVelopackAppBuilder(string exeFile, ILogger log)
+        public static NuGetVersion VerifyVelopackApp(string exeFile, ILogger log)
         {
             try {
                 NuGetVersion velopackVersion = null;
@@ -25,7 +23,7 @@ namespace Velopack.Packaging.Windows
 
                 if (mainAssy == null) {
                     // not a dotnet binary
-                    return;
+                    return null;
                 }
 
                 if (velopackDll != null) {
@@ -57,8 +55,10 @@ namespace Velopack.Packaging.Windows
                                             $"This may cause compatibility issues. Expected {VelopackRuntimeInfo.VelopackProductVersion}, " +
                                             $"but found {velopackVersion}.");
                                     }
+                                    return velopackVersion;
                                 } else {
                                     log.Warn("VelopackApp verified at entry point, but ProductVersion could not be checked.");
+                                    return null;
                                 }
                             }
                         }
@@ -68,9 +68,12 @@ namespace Velopack.Packaging.Windows
                 // if we've iterated the whole main method and not found the call, then the velopack builder is missing
                 throw new UserInfoException($"Unable to verify VelopackApp, in application main method '{entryPoint.FullName}'. " +
                     "Please ensure that 'VelopackApp.Build().Run()' is present in your Program.Main().");
+
             } catch (Exception ex) when (ex is not UserInfoException) {
                 log.Error("Unable to verify VelopackApp: " + ex.Message);
             }
+
+            return null;
         }
 
         private static AssemblyDefinition LoadFullFramework(string exeFile, ref IPEImage velopackDll)

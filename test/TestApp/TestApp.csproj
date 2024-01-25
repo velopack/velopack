@@ -6,6 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <PropertyGroup Condition=" $(NoVelopackApp) != '' ">
+    <DefineConstants>NO_VELO_BUILDER</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\Velopack\Velopack.csproj" />
   </ItemGroup>
