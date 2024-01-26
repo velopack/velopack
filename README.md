@@ -28,7 +28,7 @@ This is a very simple example of the steps you would take to generate an install
 
 1. Install the command line tool `vpk`:
    ```cmd
-   dotnet tool install -g vpk
+   dotnet tool update -g vpk
    ```
 2. Install the  [Velopack NuGet Package](https://www.nuget.org/packages/velopack) in your main project:
    ```cmd
