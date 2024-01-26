@@ -18,6 +18,7 @@ use windows::{
     },
 };
 use winsafe::{self as w, co};
+use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 
 pub fn run_hook(app: &shared::bundle::Manifest, root_path: &PathBuf, hook_name: &str, timeout_secs: u64) {
     let sw = simple_stopwatch::Stopwatch::start_new();
@@ -235,6 +236,8 @@ where
         .creation_flags(CREATE_NO_WINDOW)
         .spawn()?;
 
+    let _ = unsafe { AllowSetForegroundWindow(cmd.id()) };
+
     fn check_process_status_and_output(status: std::process::ExitStatus, mut cmd: std::process::Child) -> Result<String> {
         let mut stdout = cmd.stdout.take().unwrap();
         let mut stderr = cmd.stderr.take().unwrap();
@@ -273,25 +276,8 @@ where
     S: AsRef<OsStr>,
     P: AsRef<Path>,
 {
-    Process::new(exe).args(args).current_dir(work_dir).spawn()?;
-    Ok(())
-}
-
-pub fn run_process_no_console<S, P>(exe: S, args: Vec<&str>, work_dir: P) -> Result<()>
-where
-    S: AsRef<OsStr>,
-    P: AsRef<Path>,
-{
-    Process::new(exe).args(args).current_dir(work_dir).creation_flags(CREATE_NO_WINDOW).spawn()?;
-    Ok(())
-}
-
-pub fn run_process_no_console_raw_args<S, P>(exe: S, args: &str, work_dir: P) -> Result<()>
-where
-    S: AsRef<OsStr>,
-    P: AsRef<Path>,
-{
-    Process::new(exe).raw_arg(args).current_dir(work_dir).creation_flags(CREATE_NO_WINDOW).spawn()?;
+    let cmd = Process::new(exe).args(args).current_dir(work_dir).spawn()?;
+    let _ = unsafe { AllowSetForegroundWindow(cmd.id()) };
     Ok(())
 }
 
@@ -300,7 +286,8 @@ where
     S: AsRef<OsStr>,
     P: AsRef<Path>,
 {
-    Process::new(exe).raw_arg(args).current_dir(work_dir).spawn()?;
+    let cmd = Process::new(exe).raw_arg(args).current_dir(work_dir).spawn()?;
+    let _ = unsafe { AllowSetForegroundWindow(cmd.id()) };
     Ok(())
 }
 

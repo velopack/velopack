@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -16,6 +17,10 @@ namespace Velopack
     /// </summary>
     public static class UpdateExe
     {
+        [DllImport("user32", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool AllowSetForegroundWindow(int dwProcessId);
+
         /// <summary>
         /// Runs Update.exe in the current working directory to apply updates, optionally restarting the application.
         /// </summary>
@@ -62,6 +67,14 @@ namespace Velopack
             logger.Debug($"Restarting app to apply updates. Running: {psi.FileName} {debugArgs}");
 
             var p = Process.Start(psi);
+
+            try {
+                // this is an attempt to work around a bug where the restarted app fails to come to foreground.
+                AllowSetForegroundWindow(p.Id);
+            } catch (Exception ex) {
+                logger.LogWarning(ex, "Failed to allow Update.exe to set foreground window.");
+            }
+
             Thread.Sleep(300);
             if (p == null) {
                 throw new Exception("Failed to launch Update.exe process.");
