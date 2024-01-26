@@ -8,6 +8,7 @@
   href: cli.md
 - name: Packaging Releases
   href: packaging/toc.yml
+  homepage: packaging/index.md
 
 
 

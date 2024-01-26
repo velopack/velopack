@@ -1,0 +1,59 @@
+[data-bs-theme='dark'] body {
+    background-color: #0C1011 !important;
+}
+
+#velopack-logo {
+    width: 160px;
+    height: 50px;
+    background-image: url(/artwork/velopack-black.svg);
+    background-repeat: no-repeat;
+    background-position-y: center;
+    background-size: contain;
+}
+
+[data-bs-theme='dark'] #velopack-logo {
+    background-image: url(/artwork/velopack-white.svg);
+}
+
+.toc > div {
+    padding-left: 16px;
+}
+
+.toc li {
+    font-weight: 500;
+    font-size: 15px;
+}
+
+.toc .expand-stub::before {
+    font-size: 1em;
+    font-weight: 900;
+    margin-top: 0.1em;
+    margin-left: -1.6em;
+}
+
+.link-secondary {
+    color: rgba(var(--bs-emphasis-color-rgb), var(--bs-link-opacity, .70)) !important;
+    margin-left: 16px;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+}
+
+h1 {
+    border-bottom: solid 4px var(--bs-light-border-subtle);
+    margin-bottom: 24px;
+    padding-bottom: 8px;
+}
+
+h2 {
+    border-bottom: solid 2px var(--bs-dark-border-subtle);
+    margin-bottom: 24px;
+    padding-bottom: 8px;
+}
+
+h3 {
+    font-size: 1.5rem;
+}
+
+ul {
+    margin-bottom: 16px !important;
+}

@@ -33,13 +33,15 @@
     "output": "_site",
     "template": [
       "default",
-      "modern"
+      "modern",
+      "templates/velopack"
     ],
     "globalMetadata": {
       "_appName": "Velopack",
       "_appTitle": "Velopack",
+      "_appFaviconPath": "artwork/velopack.ico",
       "_enableSearch": true,
-      "pdf": true
+      "pdf": false
     }
   }
 }
