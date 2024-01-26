@@ -190,7 +190,7 @@ impl BundleInfo<'_> {
         let files = self.get_file_names()?;
         let num_files = files.len();
 
-        info!("Extracting {} app files to current directory...", num_files);
+        info!("Extracting {} app files...", num_files);
         let re = Regex::new(r"lib[\\\/][^\\\/]*[\\\/]").unwrap();
         let stub_regex = Regex::new("_ExecutionStub.exe$").unwrap();
         let updater_idx = self.find_zip_file(|name| name.ends_with("Squirrel.exe"));

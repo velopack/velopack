@@ -4,7 +4,10 @@ use crate::{
     windows::splash,
 };
 use anyhow::{bail, Result};
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &PathBuf, runhooks: bool) -> Result<Manifest> {
     let bundle = bundle::load_bundle_from_file(&package)?;
@@ -23,12 +26,19 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &Pat
         info!("Skipping --veloapp-obsolete hook.");
     }
 
-    let temp_path_new = std::env::temp_dir().join(format!("velopack_{}", shared::random_string(8)));
-    let temp_path_old = std::env::temp_dir().join(format!("velopack_{}", shared::random_string(8)));
+    // we are going to be replacing the current dir with temp_path_new
     let current_dir = app.get_current_path(&root_path);
+
+    // we extract to a temp directory inside $root/packages.tmp_XXXXX so that we know it's
+    // on the same volume as the current dir, and we can rename it quickly.
+    let packages_dir = app.get_packages_path(&root_path);
+    let packages_dir = Path::new(&packages_dir);
+    let temp_path_new = packages_dir.join(format!("tmp_{}", shared::random_string(8)));
+    let temp_path_old = packages_dir.join(format!("tmp_{}", shared::random_string(8)));
 
     let action: Result<()> = (|| {
         info!("Extracting bundle to {}", &temp_path_new.to_string_lossy());
+        fs::create_dir_all(&temp_path_new)?;
 
         if dialogs::get_silent() {
             bundle.extract_lib_contents_to_path(&temp_path_new, |_| {})?;
