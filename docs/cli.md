@@ -2,6 +2,7 @@
 |:---|
 
 # Velopack Command Line Reference
+*Applies to: Windows, MacOS, Linux*
 
 ## vpk
 ```txt

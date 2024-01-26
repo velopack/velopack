@@ -2,6 +2,7 @@
 |:---|
 
 # Debugging Velopack
+*Applies to: Windows, MacOS, Linux*
 
 ## Logging
 All parts of Velopack have logging built in to help troubleshoot issues, and you should provide these logs when opening a GitHub issue about a potential bug.

@@ -16,7 +16,7 @@ First, you need to acquire a code-signing certificate from a reputable brand. To
 **Disclaimer: This is by no means a recommendation or advice for any particular code-signing certificate issuer, but instead is general guidance for the process one might follow to purchase a certificate.**
 
 ### Signing via `signtool.exe`
-usually signing is accomplished via `signtool.exe`. If you already use this tool to sign your application, you can just lift your sign parameters straight to Velopack.
+Usually signing is accomplished via `signtool.exe`. If you already use this tool to sign your application, you can just pass your sign parameters straight to Velopack (minus the 'sign' command).
 
 For example, if your signing command before was:
 ```cmd
@@ -30,7 +30,7 @@ vpk pack ... --signParams "/td sha256 /fd sha256 /f yourCert.pfx /tr http://time
 
 If you are new to using `signtool.exe`, you can check the [command line reference here](https://learn.microsoft.com/en-us/dotnet/framework/tools/signtool-exe). I recommend getting signing working on a single binary first, using `signtool.exe`, before trying to get things working with the Velopack CLI.
 
-Take care when providing parameters that if you have any quoted (`"`) arguments you will need to escape those quotes with a backslash. 
+❗**Take care when providing parameters: If any have a space in a signing argument, you must wrap it with quotes and escape with a backslash.**
 
 By default, Velopack will sign 10 files per call to `signtool.exe`, to speed up signing and reduce the number of times you need to interact with the console if you are using some kind of interactive signing method. This can be disabled with the `--signParallel 1` argument.
 

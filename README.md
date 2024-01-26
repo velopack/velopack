@@ -81,5 +81,5 @@ If you're not sure how these instructions fit into your app, check the example a
 - 🚦 Read our [compiling guide](docs/compiling.md)
 
 ## Testimonials 
-I have now got my external facing application using velopack. I am very impressed. Seems to work fabulously well and be much faster both in the initial build and in the upgrading of the software on the end user's  machine than Squirrel was. I hope to go live with this late next week. It's amazing and the best installer I've ever used in over 30 years of development. Thanks so much!  You are doing some great work!
+I have now got my external facing application using velopack. I am very impressed. Seems to work fabulously well and be much faster both in the initial build and in the upgrading of the software on the end user's  machine than Squirrel was. It's amazing and the best installer I've ever used in over 30 years of development. Thanks so much!  You are doing some great work!
 [- Stefan (Discord)](https://discord.com/channels/767856501477343282/767856501477343286/1195642674078830613)
