@@ -4,7 +4,7 @@ namespace Velopack.Vpk.Commands
 {
     public abstract class OutputCommand : BaseCommand
     {
-        public string ReleaseDirectory { get; private set; }
+        public string ReleaseDir { get; private set; }
 
         public string Channel { get; private set; }
 
@@ -15,7 +15,7 @@ namespace Velopack.Vpk.Commands
         protected OutputCommand(string name, string description)
             : base(name, description)
         {
-            ReleaseDirectoryOption = AddOption<DirectoryInfo>((v) => ReleaseDirectory = v.ToFullNameOrNull(), "-o", "--outputDir")
+            ReleaseDirectoryOption = AddOption<DirectoryInfo>((v) => ReleaseDir = v.ToFullNameOrNull(), "-o", "--outputDir")
                  .SetDescription("Output directory for created packages.")
                  .SetArgumentHelpName("DIR")
                  .SetDefault(new DirectoryInfo("Releases"));
@@ -29,7 +29,7 @@ namespace Velopack.Vpk.Commands
 
         public DirectoryInfo GetReleaseDirectory()
         {
-            var di = new DirectoryInfo(ReleaseDirectory);
+            var di = new DirectoryInfo(ReleaseDir);
             if (!di.Exists) di.Create();
             return di;
         }
