@@ -57,3 +57,7 @@ h3 {
 ul {
     margin-bottom: 16px !important;
 }
+
+.navbar-nav {
+    margin-bottom: 0 !important;
+}
