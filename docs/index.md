@@ -1,5 +1,6 @@
-| [docs](.) |
-|:---|
+---
+_layout: landing
+---
 
 # Velopack Documentation
 🚧🚧This documentation is still under construction.🚧🚧

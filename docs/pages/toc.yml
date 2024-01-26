@@ -1,0 +1,34 @@
+- name: Getting Started
+  href: getting-started/toc.yml
+- name: Migrating to Velopack
+  href: migrating.md
+- name: Logging / Debugging
+  href: debugging.md
+- name: Command Line Reference
+  href: cli.md
+- name: Packaging Releases
+  href: packaging/toc.yml
+
+
+
+# ## Using Velopack
+# - [Migrating to Velopack](migrating.md)
+# - [Logging & Debugging](debugging.md)
+# - [Command Line Reference](cli.md)
+# - Packaging Releases
+#   - Overview
+#   - Release Channels
+#   - Installer Overview & Customisation
+#   - [Code Signing](signing.md)
+#   - [Boostrapping frameworks (.NET, .Net Framework, VCRedist, etc)](bootstrapping.md)
+#   - Specify app RID / supported OS versions / supported architecture
+# - Distributing Releases
+#   - Overview
+#   - CI / CD Tips & Examples
+#   - Deploying to GitHub Releases
+#   - Deploying to Amazon S3 Storage (or compatible, eg. B2, Linode)
+# - Updating
+#   - Overview
+#   - Rolling back to a previous release
+#   - [Windows Shortcuts](shortcuts.md)
+#   - Customising updates (AfterInstall, BeforeUninstall, BeforeUpdate, AfterUpdate hooks)

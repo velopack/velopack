@@ -1,0 +1,4 @@
+- name: Code Signing
+  href: signing.md
+- name: Boostrapping frameworks (.NET, .Net Framework, VCRedist, etc)
+  href: bootstrapping.md
