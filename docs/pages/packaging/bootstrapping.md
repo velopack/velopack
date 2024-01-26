@@ -10,8 +10,8 @@ vpk pack ... --framework net6.0-x64-desktop,vcredist142-x64
 
 These dependencies will be downloaded and installed before your application will be installed.
 
-## ❗ Important for dotnet ❗
-If you are building your application with `--self-contained`, you should **NOT** provide a `--framework` argument specifying that your app requires dotnet installed, because your application already has the runtime bundled in. If you are publishing your application with `--no-self-contained`, then you should provide the `--framework` argument.
+> [!CAUTION]
+> If you are building a dotnet application with `--self-contained`, you should **NOT** provide a `--framework` argument specifying that your app requires dotnet installed, because your application already has the runtime bundled in. If you are publishing your application with `--no-self-contained`, then you should provide the `--framework` argument.
 
 ## Adding dependencies during updates
 

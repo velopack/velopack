@@ -3,29 +3,33 @@
 
 - name: Getting Started
   href: getting-started/toc.yml
+  homepage: getting-started/csharp.md
 
 - name: Sample Apps
   items:
-  - name: Avalonia / Cross Platform
+  - name: C# Avalonia / Cross Platform
     href: https://github.com/velopack/velopack/tree/master/examples/AvaloniaCrossPlat
-  - name: WPF Windows
+  - name: C# WPF / .Net Framework
     href: https://github.com/velopack/velopack/tree/master/examples/VeloWpfSample
 
 - name: Packaging Releases
   href: packaging/toc.yml
+  homepage: packaging/overview.md
 
 - name: Distributing Releases
   href: distributing/toc.yml
+  homepage: distributing/overview.md
 
 - name: Updating
   href: updating/toc.yml
+  homepage: updating/overview.md
 
 - name: Troubleshooting
   href: troubleshooting/toc.yml
+  homepage: troubleshooting/debugging.md
 
 - name: Migrating to Velopack
   href: migrating.md
 
 - name: Contributing
   href: compiling.md
-
