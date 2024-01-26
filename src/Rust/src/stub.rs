@@ -11,11 +11,10 @@ use std::{
     os::windows::process::CommandExt,
     process::{Command as Process, ExitCode},
 };
+use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 
 fn main() -> ExitCode {
     let my_path = std::env::current_exe().unwrap();
-    let my_name = my_path.file_name().unwrap().to_string_lossy();
-
     let default_log_file = {
         let mut my_dir = env::current_exe().unwrap();
         my_dir.pop();
@@ -35,16 +34,18 @@ fn main() -> ExitCode {
 
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     args.insert(0, "start".to_owned());
-    args.insert(1, my_name.to_string());
-    args.insert(2, "--".to_owned());
+    args.insert(1, "--".to_owned());
 
-    info!("Stub {} about to start Update.exe ({}) with args: {:?}", my_name, update_exe.to_string_lossy(), args);
+    info!("Stub about to start Update.exe ({}) with args: {:?}", update_exe.to_string_lossy(), args);
 
     const CREATE_NO_WINDOW: u32 = 0x08000000;
-    if let Err(e) = Process::new(update_exe).args(args).creation_flags(CREATE_NO_WINDOW).spawn() {
-        error!("Stub failed to start Update.exe: {}", e);
-        return ExitCode::FAILURE;
+    match Process::new(update_exe).args(args).creation_flags(CREATE_NO_WINDOW).spawn() {
+        Ok(res) => {
+            let _ = unsafe { AllowSetForegroundWindow(res.id()) };
+            ExitCode::SUCCESS
+        }, Err(e) => {
+            error!("Stub failed to start Update.exe: {}", e);
+            ExitCode::FAILURE
+        }
     }
-
-    ExitCode::SUCCESS
 }

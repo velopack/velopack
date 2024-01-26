@@ -1,6 +1,4 @@
 ﻿using System.Runtime.Versioning;
-using AsmResolver.PE;
-using AsmResolver.PE.File.Headers;
 using Microsoft.Extensions.Logging;
 using Velopack.Compression;
 using Velopack.NuGet;
@@ -57,6 +55,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
 
         File.Copy(updatePath, Path.Combine(packDir, "Squirrel.exe"), true);
+
+        // create a stub for portable packages
+        var mainPath = Path.Combine(packDir, MainExeName);
+        var stubPath = Path.Combine(packDir, Path.GetFileNameWithoutExtension(MainExeName) + "_ExecutionStub.exe");
+        CreateExecutableStubForExe(mainPath, stubPath);
+
         return Task.FromResult(packDir);
     }
 
@@ -155,9 +159,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
         CopyFiles(new DirectoryInfo(packDir), current, Utility.CreateProgressDelegate(progress, 0, 30));
 
-        var mainExeName = Options.EntryExecutableName ?? Options.PackId + ".exe";
-        var mainExe = Path.Combine(packDir, mainExeName);
-        CreateExecutableStubForExe(mainExe, dir.FullName);
+        File.Delete(Path.Combine(current.FullName, "Squirrel.exe"));
+
+        // move the stub to the root of the portable package
+        var stubPath = Path.Combine(current.FullName, Path.GetFileNameWithoutExtension(MainExeName) + "_ExecutionStub.exe");
+        var stubName = (Options.PackTitle ?? Options.PackId) + ".exe";
+        File.Move(stubPath, Path.Combine(dir.FullName, stubName));
 
         await EasyZip.CreateZipFromDirectoryAsync(Log, outputPath, dir.FullName, Utility.CreateProgressDelegate(progress, 40, 100));
         progress(100);
@@ -171,18 +178,17 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         return dict;
     }
 
-    private void CreateExecutableStubForExe(string exeToCopy, string targetDir)
+    private void CreateExecutableStubForExe(string exeToCopy, string targetStubPath)
     {
         try {
-            var target = Path.Combine(targetDir, Path.GetFileName(exeToCopy));
-            Utility.Retry(() => File.Copy(HelperFile.StubExecutablePath, target, true));
+            Utility.Retry(() => File.Copy(HelperFile.StubExecutablePath, targetStubPath, true));
             Utility.Retry(() => {
                 if (VelopackRuntimeInfo.IsWindows) {
-                    using var writer = new Microsoft.NET.HostModel.ResourceUpdater(target, true);
+                    using var writer = new Microsoft.NET.HostModel.ResourceUpdater(targetStubPath, true);
                     writer.AddResourcesFromPEImage(exeToCopy);
                     writer.Update();
                 } else {
-                    Log.Warn($"Cannot set resources/icon for {target} (only supported on windows).");
+                    Log.Warn($"Cannot set resources/icon for {targetStubPath} (only supported on windows).");
                 }
             });
         } catch (Exception ex) {
