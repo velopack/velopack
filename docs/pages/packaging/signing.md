@@ -1,9 +1,6 @@
-| [docs](.) / signing.md |
-|:---|
-
-# Code Signing
 *Applies to: Windows, MacOS*
 
+# Code Signing
 Code signing is an essential part of application distribution. On Windows, applications without code signatures are likely to be flagged as viruses. On OSX, codesigning and Notarization is required before your application can be run by users.
 
 On both platforms, signing needs to be performed by Velopack itself, this is because the Velopack binaries (such as Update and Setup) need to be signed at different points in the package build process.
@@ -47,7 +44,7 @@ Codesigning and Notarization is required before your application can be run by u
 ### Creating code signing certificates
 1. First, you will need to create an account at https://developer.apple.com, pay the annual developer fee, and accept any license agreements. 
 0. Navigate to your certificates: https://developer.apple.com/account/resources/certificates
-0. Click the (+) icon to create new certificates. You need to create both a `Developer ID Installer` and a `Developer ID Application` certificate for distribution of Velopack apps outside the Mac App Store. ![apple certificate list](artwork/apple_certificate_list.png)
+0. Click the (+) icon to create new certificates. You need to create both a `Developer ID Installer` and a `Developer ID Application` certificate for distribution of Velopack apps outside the Mac App Store. ![apple certificate list](~/artwork/apple_certificate_list.png)
 0. Open both certificates by clicking on them, press Download, and then double click the ".cer" file to install it to your local keychain.
 
 ### Setting up a NotaryTool profile

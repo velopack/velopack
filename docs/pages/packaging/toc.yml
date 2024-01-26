@@ -1,4 +1,12 @@
+- name: Overview
+  href: overview.md
+- name: Release Channels
+  href: channels.md
 - name: Code Signing
   href: signing.md
+- name: Customising Installers
+  href: installer.md
 - name: Boostrapping frameworks (.NET, .Net Framework, VCRedist, etc)
   href: bootstrapping.md
+- name: RID / Minimum Supported OS
+  href: rid.md

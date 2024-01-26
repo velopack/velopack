@@ -1,8 +1,6 @@
-| [docs](.) / migrating.md |
-|:---|
+*Applies to: Windows*
 
 # Migrating to Velopack
-*Applies to: Windows*
 
 ## Squirrel.Windows and Clowd.Squirrel
 If you are using one of these packages in your application, migrating will be mostly automated. Here are the general steps needed:
@@ -14,7 +12,7 @@ If you are using one of these packages in your application, migrating will be mo
    dotnet tool install -g vpk
    ```
 
-0. You will need to replace `SquirrelAwareApp` at the beginning of your app to `VelopackApp.Build().Run()`. Shortcuts [[Read more]](shortcuts.md) and registry entries are managed automatically for you in Velopack, so if you are currently doing this in `SquirrelAwareApp` hooks they should be removed. For example, if your hooks were this before:
+0. You will need to replace `SquirrelAwareApp` at the beginning of your app to `VelopackApp.Build().Run()`. Shortcuts [[Read more]](updating/shortcuts.md) and registry entries are managed automatically for you in Velopack, so if you are currently doing this in `SquirrelAwareApp` hooks they should be removed. For example, if your hooks were this before:
    ```cs
    public static void Main(string[] args)
    {

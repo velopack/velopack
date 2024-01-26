@@ -1,9 +1,6 @@
-| [docs](.) / channels.md |
-|:---|
-
-# Release Channels
 *Applies to: Windows, MacOS, Linux*
 
+# Release Channels
 Channels is a fundemental part of how Velopack understands and builds releases. Every release must belong to a channel. If you do not specify a channel when building a release (via the `--channel`) argument, the default channel will be the name of the target Operating System (eg. `win`, `osx`, or `linux`). 
 
 When building releases, Velopack will create a `releases.{channel}.json` file, that should be uploaded with your other assets (eg. `.nupkg`). This is how `UpdateManager` knows what releases are available.

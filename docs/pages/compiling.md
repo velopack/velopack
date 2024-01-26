@@ -1,9 +1,6 @@
-| [docs](.) / compiling.md |
-|:---|
-
-# Compiling Velopack
 *Applies to: Windows, MacOS, Linux*
 
+# Compiling Velopack
 Velopack is made up of some Rust binaries which are re-distributed with installed apps, a .NET NuGet package, and a .NET command line tool. In order to test the project, you need to build the Rust binaries before compiling dotnet.   
 
 ### Prerequisites

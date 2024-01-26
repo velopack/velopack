@@ -1,8 +1,6 @@
-| [docs](.) / cli.md |
-|:---|
+*Applies to: Windows, MacOS, Linux*
 
 # Velopack Command Line Reference
-*Applies to: Windows, MacOS, Linux*
 
 ## vpk
 ```txt
