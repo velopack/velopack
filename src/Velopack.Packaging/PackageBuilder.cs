@@ -8,6 +8,7 @@ using Velopack.Compression;
 using Velopack.NuGet;
 using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Abstractions;
+using Markdig;
 
 namespace Velopack.Packaging
 {
@@ -180,9 +181,10 @@ namespace Velopack.Packaging
             string releaseNotesText = "";
             if (!String.IsNullOrEmpty(releaseNotes)) {
                 var markdown = File.ReadAllText(releaseNotes);
+                var html = Markdown.ToHtml(markdown);
                 releaseNotesText = $"""
 <releaseNotes>{SecurityElement.Escape(markdown)}</releaseNotes>
-<releaseNotesHtml><![CDATA[{"\n"}{new Markdown().Transform(markdown)}{"\n"}]]></releaseNotesHtml>
+<releaseNotesHtml><![CDATA[{"\n"}{html}{"\n"}]]></releaseNotesHtml>
 """;
             }
 
