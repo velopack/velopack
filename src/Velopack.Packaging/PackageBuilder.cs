@@ -30,6 +30,8 @@ namespace Velopack.Packaging
 
         protected string Channel { get; private set; }
 
+        protected string RuntimeDependencies { get; private set; }
+
         private readonly Regex REGEX_EXCLUDES = new Regex(@".*[\\\/]createdump.*|.*\.vshost\..*|.*\.nupkg$|.*\.pdb$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         public PackageBuilder(RuntimeOs supportedOs, ILogger logger, IFancyConsole console)
@@ -81,6 +83,7 @@ namespace Velopack.Packaging
             using var _1 = Utility.GetTempDirectory(out var pkgTempDir);
             TempDir = new DirectoryInfo(pkgTempDir);
             Options = options;
+            RuntimeDependencies = GetRuntimeDependencies();
 
             ConcurrentBag<(string from, string to)> filesToCopy = new();
 
@@ -193,10 +196,9 @@ namespace Velopack.Packaging
                 machineArchitectureText = $"<machineArchitecture>{rid.Architecture}</machineArchitecture>";
             }
 
-            var runtimeDeps = GetRuntimeDependencies();
             string runtimeDependenciesText = "";
-            if (!String.IsNullOrWhiteSpace(runtimeDeps)) {
-                runtimeDependenciesText = $"<runtimeDependencies>{runtimeDeps}</runtimeDependencies>";
+            if (!String.IsNullOrWhiteSpace(RuntimeDependencies)) {
+                runtimeDependenciesText = $"<runtimeDependencies>{RuntimeDependencies}</runtimeDependencies>";
             }
 
             string nuspec = $"""
