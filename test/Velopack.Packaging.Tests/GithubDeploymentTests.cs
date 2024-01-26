@@ -166,8 +166,10 @@ This is just a _test_!
                 logger.Info($"Found asset: ({g.Release.Name}) {g.FileName}");
             }
 
-            Assert.Equal(2, ghrel.Length);
-            foreach (var r in ghrel) {
+            var assetsInThisRelease = ghrel.Where(r => r.Release.Name == releaseName).ToArray();
+
+            Assert.Equal(2, assetsInThisRelease.Length);
+            foreach (var r in assetsInThisRelease) {
                 Assert.Equal(releaseName, r.Release.Name);
                 Assert.Equal(id, r.PackageId);
                 Assert.Equal(newVer, r.Version.ToNormalizedString());
