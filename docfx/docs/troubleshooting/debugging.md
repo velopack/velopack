@@ -27,10 +27,10 @@ class ConsoleLogger : ILogger
 new UpdateManager("https://path.to/your-updates", logger: new ConsoleLogger());
 ```
 
-### Update.exe & Setup.exe
+### Windows
 Running Update.exe will log most output to it's base directory as `Velopack.log`. Setup.exe will not log to file by default. However, you can override the log location for both binaries with the `--log {path}` parameter. You can also use the `--verbose` flag to capture debug/trace output to log. Unfortunately, on Windows, to avoid showing up as a console window, these binaries are compiled as a WinExe and there will be no console output by default.  Please see the [command line reference](cli.md) for a comprehensive list of arguments supported.
 
-### UpdateMac
+### MacOS / Linux
 All logs will be sent to `/tmp/velopack.log`.
 
 ## Advanced Debugging

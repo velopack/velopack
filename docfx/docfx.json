@@ -26,7 +26,7 @@
     "resource": [
       {
         "files": [
-          "artwork/**"
+          "images/**"
         ]
       }
     ],
@@ -39,8 +39,9 @@
     "globalMetadata": {
       "_appName": "Velopack",
       "_appTitle": "Velopack",
-      "_appFaviconPath": "artwork/velopack.ico",
+      "_appFaviconPath": "images/velopack.ico",
       "_enableSearch": true,
+      "_disableNextArticle": true,
       "pdf": false
     }
   }

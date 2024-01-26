@@ -1,6 +1,6 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/artwork/velopack-white.svg">
-  <img alt="Velopack Logo" src="docs/artwork/velopack-black.svg" width="400">
+  <source media="(prefers-color-scheme: dark)" srcset="docfx/images/velopack-white.svg">
+  <img alt="Velopack Logo" src="docfx/images/velopack-black.svg" width="400">
 </picture>
 
 ---

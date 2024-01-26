@@ -1,5 +1,0 @@
----
-_layout: landing
----
-
-# WIP

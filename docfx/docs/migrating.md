@@ -2,7 +2,7 @@
 
 # Migrating to Velopack
 
-## Squirrel.Windows and Clowd.Squirrel
+## From Squirrel
 If you are using one of these packages in your application, migrating will be mostly automated. Here are the general steps needed:
 
 1. Replace the `Squirrel.Windows` or `Clowd.Squirrel` nuget package with the latest [`Velopack NuGet Package`](https://www.nuget.org/packages/velopack).
@@ -63,5 +63,5 @@ If you are using one of these packages in your application, migrating will be mo
    ```
 
 
-## ClickOnce
+## From ClickOnce
 There is no guide or advice for migrating ClickOnce applications yet. If you would like to contribute one, please open an issue or PR!
