@@ -1,5 +1,5 @@
 - name: Welcome
-  href: welcome.md
+  href: index.md
 
 - name: Getting Started
   href: getting-started/toc.yml
@@ -12,6 +12,10 @@
   - name: C# WPF / .Net Framework
     href: https://github.com/velopack/velopack/tree/master/examples/VeloWpfSample
 
+- name: App Updating
+  href: updating/toc.yml
+  homepage: updating/overview.md
+
 - name: Packaging Releases
   href: packaging/toc.yml
   homepage: packaging/overview.md
@@ -19,10 +23,6 @@
 - name: Distributing Releases
   href: distributing/toc.yml
   homepage: distributing/overview.md
-
-- name: Updating
-  href: updating/toc.yml
-  homepage: updating/overview.md
 
 - name: Troubleshooting
   href: troubleshooting/toc.yml

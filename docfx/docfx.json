@@ -9,7 +9,7 @@
           ]
         }
       ],
-      "dest": "api"
+      "dest": "sdk"
     }
   ],
   "build": {

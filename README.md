@@ -11,7 +11,7 @@
 [![Codecov](https://img.shields.io/codecov/c/github/velopack/velopack?style=flat-square)](https://app.codecov.io/gh/velopack/velopack)
 [![License](https://img.shields.io/github/license/velopack/velopack?style=flat-square)](https://github.com/velopack/velopack/blob/develop/LICENSE)
 
-Velopack is a setup / installation framework for cross-platform dotnet applications. Great out-of-the-box development experience, with zero configuration or setup needed. Lightning fast to use, and lightning fast for your users, too.
+Velopack is an installation and auto-update framework for cross-platform .NET applications. It's opinionated, extremely easy to use with zero config needed. With just one command you can be up and running with an installable application, and it's lightning fast for your users, too.
 
 ## Features
 

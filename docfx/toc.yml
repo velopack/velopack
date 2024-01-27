@@ -1,4 +1,4 @@
 - name: Docs
   href: docs/
-- name: API
-  href: api/
+- name: C# SDK
+  href: sdk/
