@@ -83,3 +83,6 @@ If you're not sure how these instructions fit into your app, check the example a
 ## Testimonials 
 I have now got my external facing application using velopack. I am very impressed. Seems to work fabulously well and be much faster both in the initial build and in the upgrading of the software on the end user's  machine than Squirrel was. It's amazing and the best installer I've ever used in over 30 years of development. Thanks so much!  You are doing some great work!
 [- Stefan (Discord)](https://discord.com/channels/767856501477343282/767856501477343286/1195642674078830613)
+
+Just wanted to say a huge thank you. I've been using Clowd.Squirrel for a couple of years now since Squirrel.Windows wasn't working for me. Just popped into that repository today to look for some documentation and noticed the release of Velopack. How unexpected! It works fantastic and is so much faster, wow! Thank you again, the amount of work that went into both Clowd.Squirrel and Velopack is staggering. It's very appreciated.
+[- Kizari (Discord)](https://discord.com/channels/767856501477343282/767856501477343286/1200837489640878180)
