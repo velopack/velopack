@@ -24,7 +24,7 @@ https://github.com/velopack/velopack/assets/1287295/0ff1bea7-15ed-42ae-8bdd-9519
 
 ## Getting Started
 
-This is a very simple example of the steps you would take to generate an installer and update packages for your application. Be sure to [read the documentation](docs) for an overview of more features!
+This is a very simple example of the steps you would take to generate an installer and update packages for your application. Be sure to [read the documentation](https://velopack.io/docs/) for an overview of more features!
 
 1. Install the command line tool `vpk`:
    ```cmd
@@ -69,7 +69,7 @@ This is a very simple example of the steps you would take to generate an install
 If you're not sure how these instructions fit into your app, check the example apps for common scenarios such as WPF or Avalonia.
 
 ## Documentation
-- 📖 [Read the docs](docs)
+- 📖 [Read the docs](https://velopack.io/docs/)
 - 🕶️ [View example apps](examples)
 
 ## Community
@@ -78,7 +78,7 @@ If you're not sure how these instructions fit into your app, check the example a
 
 ## Contributing
 - 💬 Join us on [Discord](https://discord.gg/CjrCrNzd3F) to get involved in dev discussions
-- 🚦 Read our [compiling guide](docs/compiling.md)
+- 🚦 Read our [compiling guide](https://velopack.io/docs/compiling.html)
 
 ## Testimonials 
 I have now got my external facing application using velopack. I am very impressed. Seems to work fabulously well and be much faster both in the initial build and in the upgrading of the software on the end user's  machine than Squirrel was. It's amazing and the best installer I've ever used in over 30 years of development. Thanks so much!  You are doing some great work!

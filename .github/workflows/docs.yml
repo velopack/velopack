@@ -1,6 +1,6 @@
 # Your GitHub workflow file under .github/workflows/
 # Trigger the action on push to main
-name: Deploy Docs
+name: Docs
 
 on:
   push:
@@ -20,11 +20,11 @@ concurrency:
   cancel-in-progress: false
   
 jobs:
-  publish-docs:
+  deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-      
+
     runs-on: ubuntu-latest
 
     steps:

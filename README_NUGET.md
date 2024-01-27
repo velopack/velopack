@@ -10,4 +10,5 @@ Velopack is an installation and auto-update framework for cross-platform .NET ap
 
 ## Getting Started
 
-Please visit our GitHub for up to date documentation on how to use Velopack: https://github.com/velopack/velopack
+- Visit our GitHub: https://github.com/velopack/velopack
+- Read the documentation: https://velopack.io/docs/
