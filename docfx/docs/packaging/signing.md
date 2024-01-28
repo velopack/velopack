@@ -8,9 +8,27 @@ On both platforms, signing needs to be performed by Velopack itself, this is bec
 ## Signing on Windows
 
 ### Acquiring a code signing certificate
-First, you need to acquire a code-signing certificate from a reputable brand. To name a few: Digicert, Sectigo, Comodo. It may be possible to purchase a certificate through an official reseller for cheaper than buying directly from the issuer. If you are looking for an open source development certificate, at the time of writing Certum does an [Open Source Cloud Signing](https://certum.store/data-safety/code-signing-certificates.html?as_dane_w_certyfikacie=5720) certificate for $58.
+First, you need to acquire a code-signing certificate from a reputable brand. Microsoft lists the following trusted issuers [in their documentation](https://learn.microsoft.com/en-us/windows-hardware/drivers/dashboard/code-signing-cert-manage):
 
-**Disclaimer: This is by no means a recommendation or advice for any particular code-signing certificate issuer, but instead is general guidance for the process one might follow to purchase a certificate.**
+- [Certum](https://shop.certum.eu/data-safety/code-signing-certificates/certum-ev-code-sigining.html)
+- [SSL.com](https://www.ssl.com/certificates/ev-code-signing/)
+- [DigiCert](https://www.digicert.com/signing/code-signing-certificates)
+- [Entrust](https://www.entrustdatacard.com/products/digital-signing-certificates/code-signing-certificates)
+- [GlobalSign](https://go.microsoft.com/fwlink/p/?LinkId=620888)
+- [IdenTrust](https://www.identrust.com/digital-certificates/trustid-ev-code-signing)
+- [Sectigo (formerly Comodo)](https://sectigo.com/ssl-certificates-tls/code-signing)
+    
+> [!TIP]
+> Note that since June 1, 2023 there [has been a policy change](https://knowledge.digicert.com/general-information/new-private-key-storage-requirement-for-standard-code-signing-certificates-november-2022), meaning it is no longer possible to directly download your code signing certificate private key as a file from issuers. This means most signing options available today will require you to participate in Cloud Code Signing, or install your certificate to a HSM (usb / hardware module). Some issurs may allow you to install your cert to a pre-owned/generic HSM, and some may force you to purchase and ship their own brand of HSM. CI/CD may not be possible with some issuers unless they provide tools specifically designed to do that.
+
+It may be possible to get official certificates from an authorised reseller at a cheaper price:
+- [SignMyCode](https://signmycode.com/)
+- [GoGetSSL](https://www.gogetssl.com/code-signing-ssl/)
+
+If looking for a cheap option, at the time of writing Certum does an [Open Source Cloud Signing Certificate](https://certum.store/data-safety/code-signing-certificates.html?as_dane_w_certyfikacie=5720) for $58. Note that it is not possible to automate Certum certificates with CI/CD because they require you to install virtual signing drivers (SimpleSign Desktop) and sign in to it with their 2FA SimplySign app. 
+
+> [!WARNING]
+> This document is by no means a recommendation or advice to purchase from any particular code-signing certificate issuer. This is just general guidance for the process one might follow to purchase a certificate, and you must validate for yourself that the issuer you choose is fit for your use-case.
 
 ### Signing via `signtool.exe`
 Usually signing is accomplished via `signtool.exe`. If you already use this tool to sign your application, you can just pass your sign parameters straight to Velopack (minus the 'sign' command).
