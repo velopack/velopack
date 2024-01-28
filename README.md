@@ -86,3 +86,6 @@ I have now got my external facing application using velopack. I am very impresse
 
 Just wanted to say a huge thank you. I've been using Clowd.Squirrel for a couple of years now since Squirrel.Windows wasn't working for me. Just popped into that repository today to look for some documentation and noticed the release of Velopack. How unexpected! It works fantastic and is so much faster, wow! Thank you again, the amount of work that went into both Clowd.Squirrel and Velopack is staggering. It's very appreciated.
 [- Kizari (Discord)](https://discord.com/channels/767856501477343282/767856501477343286/1200837489640878180)
+
+I've used a lot of installer frameworks and Velopack is by far the best. Everything is like magic: you run the installer, and then the app is just open, ready to use. Updates apply and relaunch in ~2 seconds with no UAC prompts. The installer creation process is painless and integrates easily with code signing, and the command-line tool makes it simple to upload your updater files. You don't need to futz with separate installer scripts in some weird language; you can build all those hooks into your main app! The support is also phenominal; every concern I've had has been addressed. This is the future of desktop installers.
+[- RandomEngy (Discord)](https://discord.com/channels/767856501477343282/947444323765583913/1200897478036299861)
