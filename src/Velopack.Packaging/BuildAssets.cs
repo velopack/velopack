@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
-using Velopack.Json;
+﻿using Velopack.Json;
 using Velopack.Packaging.Exceptions;
 
 namespace Velopack.Packaging
@@ -26,7 +20,7 @@ namespace Velopack.Packaging
                 Files = files.OrderBy(f => f).ToList(),
             };
             var path = Path.Combine(outputDir, $"assets.{channel}.json");
-            var json = JsonSerializer.Serialize(assets, SimpleJson.Options);
+            var json = SimpleJson.SerializeObject(assets);
             File.WriteAllText(path, json);
         }
 
@@ -37,7 +31,7 @@ namespace Velopack.Packaging
                 throw new UserInfoException($"Could not find assets file for channel '{channel}' (looking for '{Path.GetFileName(path)}' in directory '{outputDir}'). " +
                     $"If you've just created a Velopack release, verify you're calling this command with the same '--channel' as you did with 'pack'.");
             }
-            return JsonSerializer.Deserialize<BuildAssets>(File.ReadAllText(path), SimpleJson.Options);
+            return SimpleJson.DeserializeObject<BuildAssets>(File.ReadAllText(path));
         }
     }
 }

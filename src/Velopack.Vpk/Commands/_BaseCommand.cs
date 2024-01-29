@@ -2,7 +2,7 @@
 
 public class BaseCommand : CliCommand
 {
-    private Dictionary<CliOption, Action<ParseResult>> _setters = new();
+    private readonly Dictionary<CliOption, Action<ParseResult>> _setters = new();
 
     protected BaseCommand(string name, string description)
         : base(name, description)
@@ -40,7 +40,7 @@ public class BaseCommand : CliCommand
 
     public virtual ParseResult ParseAndApply(string command)
     {
-        var x = this.Parse(command);
+        var x = Parse(command);
         SetProperties(x);
         return x;
     }

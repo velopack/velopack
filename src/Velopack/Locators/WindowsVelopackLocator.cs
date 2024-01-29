@@ -57,10 +57,10 @@ namespace Velopack.Locators
             ourExePath = Path.GetFullPath(ourExePath);
             string myDirPath = Path.GetDirectoryName(ourExePath)!;
             var myDirName = Path.GetFileName(myDirPath);
-            var possibleUpdateExe = Path.GetFullPath(Path.Combine(myDirPath, "..\\Update.exe"));
+            var possibleUpdateExe = Path.GetFullPath(Path.Combine(myDirPath, "..", "Update.exe"));
             var ixCurrent = ourExePath.LastIndexOf("/current/", StringComparison.InvariantCultureIgnoreCase);
 
-            Log.Info($"Initialising {nameof(WindowsVelopackLocator)}");
+            Log.Info($"Initializing {nameof(WindowsVelopackLocator)}");
 
             if (File.Exists(possibleUpdateExe)) {
                 Log.Info("Update.exe found in parent directory");

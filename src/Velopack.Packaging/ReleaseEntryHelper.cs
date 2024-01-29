@@ -1,12 +1,8 @@
-﻿using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 using Velopack.Json;
 using Velopack.NuGet;
 using Velopack.Packaging.Exceptions;
-using Velopack.Sources;
 
 namespace Velopack.Packaging
 {
@@ -123,12 +119,16 @@ namespace Velopack.Packaging
 
         public static IEnumerable<VelopackAsset> MergeAssets(IEnumerable<VelopackAsset> priority, IEnumerable<VelopackAsset> secondary)
         {
+#if NET6_0_OR_GREATER
             return priority.Concat(secondary).DistinctBy(x => x.FileName);
+#else
+            return priority.Concat(secondary).GroupBy(x => x.FileName).Select(g => g.First());
+#endif
         }
 
         public static string GetAssetFeedJson(VelopackAssetFeed feed)
         {
-            return JsonSerializer.Serialize(feed, SimpleJson.Options);
+            return SimpleJson.SerializeObject(feed);
         }
 
         public static string GetSuggestedReleaseName(string id, string version, string channel, bool delta)

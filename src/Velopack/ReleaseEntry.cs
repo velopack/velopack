@@ -163,7 +163,7 @@ namespace Velopack
 
         ///// <summary>
         ///// Given a local directory containing a package corresponding to this release, returns the 
-        ///// correspoding release notes from within the package.
+        ///// corresponding release notes from within the package.
         ///// </summary>
         //public string GetReleaseNotes(string packageDirectory, ReleaseNotesFormat format)
         //{
@@ -294,7 +294,7 @@ namespace Velopack
 
         /// <summary>
         /// Parse the contents of a RELEASES file into a list of <see cref="ReleaseEntry"/>'s,
-        /// with any staging-uneligible releases removed.
+        /// with any staging-ineligible releases removed.
         /// </summary>
         public static IEnumerable<ReleaseEntry> ParseReleaseFileAndApplyStaging(string fileContents, Guid? userToken)
         {

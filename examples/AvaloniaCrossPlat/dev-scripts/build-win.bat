@@ -1,4 +1,9 @@
 @echo off
+REM This script requires several tools to be installed for it to work:
+REM cargo (rust): winget install Rustlang.Rustup
+REM Nerdbank.GitVersioning (nbgv): dotnet tool install --global nbgv
+REM C++ Build Tools, typically installed via "Desktop development with C++" workload.
+
 setlocal enabledelayedexpansion
 
 if "%~1"=="" (

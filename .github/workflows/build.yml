@@ -135,13 +135,13 @@ jobs:
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Download Rust Windows
+      - name: Download Rust OSX
         uses: actions/download-artifact@v4
         with:
           name: rust-macos-latest
           path: src/Rust/target/release
 
-      - name: Download Rust OSX
+      - name: Download Rust Windows
         uses: actions/download-artifact@v4
         with:
           name: rust-windows-latest

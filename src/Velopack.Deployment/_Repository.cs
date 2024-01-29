@@ -64,7 +64,7 @@ public abstract class DownRepository<TDown> : IRepositoryCanDownload<TDown>
 
         var latest = releases.Where(r => r.Type == VelopackAssetType.Full).OrderByDescending(r => r.Version).FirstOrDefault();
         if (latest == null) {
-            Log.Warn("No full / applicible release was found to download. Aborting.");
+            Log.Warn("No full / applicable release was found to download. Aborting.");
             return;
         }
 
