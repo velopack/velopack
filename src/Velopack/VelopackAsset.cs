@@ -26,7 +26,7 @@ namespace Velopack
         /// <summary>
         /// A list of assets available in this feed.
         /// </summary>
-        public VelopackAsset[] Assets { get; init; } = new VelopackAsset[0];
+        public VelopackAsset[] Assets { get; init; } = Array.Empty<VelopackAsset>();
 
         /// <summary>
         /// Parse a json string into a <see cref="VelopackAssetFeed"/>.

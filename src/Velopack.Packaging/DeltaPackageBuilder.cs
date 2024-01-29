@@ -1,6 +1,4 @@
 ﻿using System.IO.MemoryMappedFiles;
-using System.Runtime.ConstrainedExecution;
-using System.Runtime.Intrinsics.Arm;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Velopack.Compression;

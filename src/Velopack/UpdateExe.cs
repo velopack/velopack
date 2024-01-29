@@ -68,11 +68,13 @@ namespace Velopack
 
             var p = Process.Start(psi);
 
-            try {
-                // this is an attempt to work around a bug where the restarted app fails to come to foreground.
-                AllowSetForegroundWindow(p.Id);
-            } catch (Exception ex) {
-                logger.LogWarning(ex, "Failed to allow Update.exe to set foreground window.");
+            if (p is not null) {
+                try {
+                    // this is an attempt to work around a bug where the restarted app fails to come to foreground.
+                    AllowSetForegroundWindow(p.Id);
+                } catch (Exception ex) {
+                    logger.LogWarning(ex, "Failed to allow Update.exe to set foreground window.");
+                }
             }
 
             Thread.Sleep(300);

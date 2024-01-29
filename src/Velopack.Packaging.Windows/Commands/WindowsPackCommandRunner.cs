@@ -204,7 +204,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         var helper = new CodeSign(Log);
 
         if (string.IsNullOrEmpty(signParams) && string.IsNullOrEmpty(signTemplate)) {
-            Log.Warn($"No signing paramaters provided, {filePaths.Length} file(s) will not be signed.");
+            Log.Warn($"No signing parameters provided, {filePaths.Length} file(s) will not be signed.");
             return;
         }
 
