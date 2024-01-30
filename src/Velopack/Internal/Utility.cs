@@ -654,5 +654,16 @@ namespace Velopack
                 CopyFiles(sourceSubDir, targetSubDir);
             }
         }
+
+        public static void MoveFile(string source, string dest, bool overwrite)
+        {
+#if NET6_0_OR_GREATER
+            File.Move(source, dest, overwrite);
+#else
+            if (!File.Exists(source)) throw new FileNotFoundException("File not found", source);
+            if (overwrite) File.Delete(dest);
+            File.Move(source, dest);
+#endif
+        }
     }
 }

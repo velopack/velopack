@@ -153,12 +153,7 @@ namespace Velopack.Packaging
                     }
 
                     foreach (var f in filesToCopy) {
-#if NET6_0_OR_GREATER
-                        File.Move(f.from, f.to, true);
-#else
-                        File.Delete(f.to);
-                        File.Move(f.from, f.to);
-#endif
+                        Utility.MoveFile(f.from, f.to, true);
                     }
 
                     ReleaseEntryHelper.UpdateReleaseFiles(releaseDir.FullName, Log);
