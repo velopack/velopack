@@ -35,6 +35,43 @@ namespace Velopack.Vpk.Logging
             logger.Info($"[bold]Finished in {DateTime.UtcNow - start}.[/]");
         }
 
+        public void WriteLine(string text = "")
+        {
+            AnsiConsole.Markup(text + Environment.NewLine);
+        }
+
+        public void WriteTable(string tableName, IEnumerable<IEnumerable<string>> rows, bool hasHeaderRow = true)
+        {
+            // Create a table
+            var table = new Table();
+            table.Title($"[bold underline]{tableName}[/]");
+            table.Expand();
+            table.LeftAligned();
+
+            // Add some columns
+            if (hasHeaderRow) {
+                var headerRow = rows.First();
+                rows = rows.Skip(1);
+                foreach (var header in headerRow) {
+                    table.AddColumn(header);
+                }
+            } else {
+                var numColumns = rows.First().Count();
+                for (int i = 0; i < numColumns; i++) {
+                    table.AddColumn($"Column {i}");
+                }
+                table.HideHeaders();
+            }
+
+            // add rows
+            foreach (var row in rows) {
+                table.AddRow(row.ToArray());
+            }
+
+            // Render the table to the console
+            AnsiConsole.Write(table);
+        }
+
         private class Progress : IFancyConsoleProgress
         {
             private readonly ILogger _logger;

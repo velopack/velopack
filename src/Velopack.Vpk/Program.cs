@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using System.ComponentModel;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration.EnvironmentVariables;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -10,6 +12,7 @@ using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Vpk.Commands;
+using Velopack.Vpk.Converters;
 using Velopack.Vpk.Logging;
 using Velopack.Vpk.Updates;
 
@@ -23,9 +26,13 @@ public class Program
         .SetDescription("Print diagnostic messages.");
 
     public static CliOption<bool> LegacyConsole { get; }
-        = new CliOption<bool>("--legacy-console")
+        = new CliOption<bool>("--legacyConsole")
         .SetRecursive(true)
         .SetDescription("Disable console colors and interactive components.");
+
+    public static CliOption<bool> EnvHelp { get; }
+        = new CliOption<bool>("--envHelp")
+        .SetDescription("Show help text for available environment variables.");
 
     public static readonly string INTRO
         = $"Velopack CLI {VelopackRuntimeInfo.VelopackDisplayVersion}, for distributing applications.";
@@ -35,6 +42,7 @@ public class Program
         CliRootCommand platformRootCommand = new CliRootCommand() {
             VerboseOption,
             LegacyConsole,
+            EnvHelp,
         };
         platformRootCommand.TreatUnmatchedTokensAsErrors = false;
         ParseResult parseResult = platformRootCommand.Parse(args);
@@ -42,6 +50,7 @@ public class Program
         bool legacyConsole = parseResult.GetValue(LegacyConsole)
             || Console.IsOutputRedirected
             || Console.IsErrorRedirected;
+        bool envHelp = parseResult.GetValue(EnvHelp);
 
         var builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings {
             ApplicationName = "Velopack",
@@ -50,33 +59,16 @@ public class Program
             Configuration = new ConfigurationManager(),
         });
 
-        builder.Configuration.AddEnvironmentVariables("VPK_");
-        builder.Services.AddTransient(s => s.GetService<ILoggerFactory>().CreateLogger("vpk"));
-
-        var conf = new LoggerConfiguration()
-            .MinimumLevel.Is(verbose ? LogEventLevel.Debug : LogEventLevel.Information)
-            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-            .MinimumLevel.Override("System", LogEventLevel.Warning);
-
-        if (legacyConsole) {
-            // spectre can have issues with redirected output, so we disable it.
-            builder.Services.AddSingleton<IFancyConsole, BasicConsole>();
-            conf.WriteTo.Console();
-        } else {
-            builder.Services.AddSingleton<IFancyConsole, SpectreConsole>();
-            conf.WriteTo.Spectre();
-        }
-
-        Log.Logger = conf.CreateLogger();
-        builder.Logging.AddSerilog();
+        SetupConfig(builder);
+        SetupLogging(builder, verbose, legacyConsole);
 
         var host = builder.Build();
-        var logger = host.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger>();
         var provider = host.Services;
 
         var rootCommand = new CliRootCommand(INTRO) {
             VerboseOption,
             LegacyConsole,
+            EnvHelp,
         };
 
         if (VelopackRuntimeInfo.IsWindows) {
@@ -106,8 +98,43 @@ public class Program
         deltaCommand.AddCommand<DeltaPatchCommand, DeltaPatchCommandRunner, DeltaPatchOptions>(provider);
         rootCommand.Add(deltaCommand);
 
+        if (envHelp) {
+            Console.WriteLine(INTRO);
+            BaseCommand.PrintEnvironmentHelp(provider.GetRequiredService<IFancyConsole>());
+            return 0;
+        }
+
         var cli = new CliConfiguration(rootCommand);
         return await cli.InvokeAsync(args);
+    }
+
+    private static void SetupConfig(IHostApplicationBuilder builder)
+    {
+        builder.Configuration.AddJsonFile("vpk.json", optional: true);
+        builder.Configuration.AddEnvironmentVariables("VPK_");
+        TypeDescriptor.AddAttributes(typeof(FileInfo), new TypeConverterAttribute(typeof(FileInfoConverter)));
+        TypeDescriptor.AddAttributes(typeof(DirectoryInfo), new TypeConverterAttribute(typeof(DirectoryInfoConverter)));
+        builder.Services.AddTransient(s => s.GetService<ILoggerFactory>().CreateLogger("vpk"));
+    }
+
+    private static void SetupLogging(IHostApplicationBuilder builder, bool verbose, bool legacyConsole)
+    {
+        var conf = new LoggerConfiguration()
+            .MinimumLevel.Is(verbose ? LogEventLevel.Debug : LogEventLevel.Information)
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+            .MinimumLevel.Override("System", LogEventLevel.Warning);
+
+        if (legacyConsole) {
+            // spectre can have issues with redirected output, so we disable it.
+            builder.Services.AddSingleton<IFancyConsole, BasicConsole>();
+            conf.WriteTo.Console();
+        } else {
+            builder.Services.AddSingleton<IFancyConsole, SpectreConsole>();
+            conf.WriteTo.Spectre();
+        }
+
+        Log.Logger = conf.CreateLogger();
+        builder.Logging.AddSerilog();
     }
 }
 
@@ -153,11 +180,12 @@ public static class ProgramCommandExtensions
         var command = new TCli();
         command.SetAction(async (ctx, token) => {
             var logger = provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger>();
+            var config = provider.GetRequiredService<IConfiguration>();
             logger.LogInformation($"[bold]{Program.INTRO}[/]");
             var updateCheck = new UpdateChecker(logger);
             await updateCheck.CheckForUpdates();
 
-            command.SetProperties(ctx);
+            command.SetProperties(ctx, config);
             var options = OptionMapper.Map<TOpt>(command);
 
             try {

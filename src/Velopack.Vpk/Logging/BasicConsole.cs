@@ -16,6 +16,19 @@ namespace Velopack.Vpk.Logging
             await action(new Progress(logger));
         }
 
+        public void WriteLine(string text = "")
+        {
+            Console.WriteLine(text);
+        }
+
+        public void WriteTable(string tableName, IEnumerable<IEnumerable<string>> rows, bool hasHeaderRow = true)
+        {
+            Console.WriteLine(tableName);
+            foreach (var row in rows) {
+                Console.WriteLine("  " + String.Join("    ", row));
+            }
+        }
+
         private class Progress : IFancyConsoleProgress
         {
             private readonly ILogger _logger;

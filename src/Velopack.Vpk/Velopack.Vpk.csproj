@@ -44,6 +44,7 @@
     <PackageReference Include="NuGet.Protocol" Version="6.8.0" />
     <PackageReference Include="Spectre.Console" Version="0.48.0" />
     <PackageReference Include="Riok.Mapperly" Version="3.3.0" />
+    <PackageReference Include="Humanizer.Core" Version="2.14.1" />
   </ItemGroup>
 
   <ItemGroup>
