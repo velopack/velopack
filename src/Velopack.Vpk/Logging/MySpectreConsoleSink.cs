@@ -29,9 +29,19 @@ public class MySpectreConsoleSink : ILogEventSink
 
         if (message.Contains('\n') || Markup.Remove(prefix + message).Length > Console.WindowWidth) {
             renderables.Add(new Markup(prefix + Environment.NewLine));
-            renderables.Add(new Padder(new Markup(message), new Padding(4, 0, 0, 0)));
+            try {
+                renderables.Add(new Padder(new Markup(message), new Padding(4, 0, 0, 0)));
+            } catch {
+                // if we fail to parse markup, fallback to plain text
+                renderables.Add(new Padder(new Text(Markup.Remove(message)), new Padding(4, 0, 0, 0)));
+            }
         } else {
-            renderables.Add(new Markup(prefix + message + Environment.NewLine));
+            try {
+                renderables.Add(new Markup(prefix + message + Environment.NewLine));
+            } catch {
+                // if we fail to parse markup, fallback to plain text
+                renderables.Add(new Markup(prefix + Markup.Remove(message) + Environment.NewLine));
+            }
         }
 
         if (logEvent.Exception != null) {
