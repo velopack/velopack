@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Configuration.EnvironmentVariables;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -131,7 +130,7 @@ public class Program
         if (legacyConsole) {
             // spectre can have issues with redirected output, so we disable it.
             builder.Services.AddSingleton<IFancyConsole, BasicConsole>();
-            conf.WriteTo.Console();
+            conf.WriteTo.ConsoleNoMarkup();
         } else {
             builder.Services.AddSingleton<IFancyConsole, SpectreConsole>();
             conf.WriteTo.Spectre();
