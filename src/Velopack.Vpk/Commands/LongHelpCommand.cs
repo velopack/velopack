@@ -285,8 +285,8 @@ namespace Velopack.Vpk.Commands
         public static bool HasOptions(this CliCommand command) => command.Options?.Count > 0;
 
         internal static IEnumerable<T> RecurseWhileNotNull<T>(
-            this T? source,
-            Func<T, T?> next)
+            this T source,
+            Func<T, T> next)
             where T : class
         {
             while (source is not null) {
