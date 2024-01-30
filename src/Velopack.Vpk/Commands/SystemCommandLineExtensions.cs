@@ -36,6 +36,12 @@ internal static class SystemCommandLineExtensions
         return option;
     }
 
+    public static CliOption<T> AllowMultiple<T>(this CliOption<T> option, bool allowMultiple = true)
+    {
+        option.AllowMultipleArgumentsPerToken = allowMultiple;
+        return option;
+    }
+
     public static CliOption<T> SetRequired<T>(this CliOption<T> option, bool isRequired = true)
     {
         option.Required = isRequired;

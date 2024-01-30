@@ -19,8 +19,9 @@
                 .MustExist()
                 .SetRequired();
 
-            AddMultipleTokenOption<FileInfo[]>((v) => PatchFiles = v, "--patch", "-p")
+            AddOption<FileInfo[]>((v) => PatchFiles = v, "--patch", "-p")
                 .SetDescription("The resulting package for the created patch.")
+                .AllowMultiple()
                 .SetArgumentHelpName("PATH");
 
             AddOption<FileInfo>((v) => OutputFile = v.ToFullNameOrNull(), "--output", "-o")

@@ -14,13 +14,6 @@ public class BaseCommand : CliCommand
         return AddOption(setValue, new CliOption<T>(aliases.OrderByDescending(a => a.Length).First(), aliases));
     }
 
-    protected virtual CliOption<T> AddMultipleTokenOption<T>(Action<T> setValue, params string[] aliases)
-    {
-        var opt = new CliOption<T>(aliases.OrderByDescending(a => a.Length).First(), aliases);
-        opt.AllowMultipleArgumentsPerToken = true;
-        return AddOption(setValue, opt);
-    }
-
     protected virtual CliOption<T> AddOption<T>(Action<T> setValue, CliOption<T> opt)
     {
         _setters[opt] = (ctx) => setValue(ctx.GetValue(opt));
