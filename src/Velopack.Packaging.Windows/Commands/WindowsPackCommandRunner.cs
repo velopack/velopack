@@ -36,7 +36,11 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                 "Please publish your application to a folder without ClickOnce.");
         }
 
-        DotnetUtil.VerifyVelopackApp(MainExePath, Log);
+        if (!Options.SkipVelopackAppCheck) {
+            DotnetUtil.VerifyVelopackApp(MainExePath, Log);
+        } else {
+            Log.Info("Skipping VelopackApp.Build.Run() check.");
+        }
 
         // copy files to temp dir, so we can modify them
         var dir = TempDir.CreateSubdirectory("PreprocessPackDirWin");

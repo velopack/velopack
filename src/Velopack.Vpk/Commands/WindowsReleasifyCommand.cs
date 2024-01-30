@@ -16,6 +16,8 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
 
     public string EntryExecutableName { get; private set; }
 
+    public bool SkipVelopackAppCheck { get; private set; }
+
     public WindowsReleasifyCommand()
         : this("releasify", "Take an existing nuget package and convert it into a release.")
     {
@@ -57,5 +59,9 @@ public class WindowsReleasifyCommand : WindowsSigningCommand
             .SetDescription("The file name of the main/entry executable.")
             .SetArgumentHelpName("NAME")
             .RequiresExtension(".exe");
+
+        AddOption<bool>((v) => SkipVelopackAppCheck = v, "--skipVeloAppCheck")
+            .SetDescription("Skip the VelopackApp builder verification.")
+            .SetHidden();
     }
 }
