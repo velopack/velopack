@@ -12,15 +12,15 @@
   - name: C# WPF / .Net Framework
     href: https://github.com/velopack/velopack/tree/master/examples/VeloWpfSample
 
-- name: App Updating
+- name: 1. App Updating
   href: updating/toc.yml
   homepage: updating/overview.md
 
-- name: Packaging Releases
+- name: 2. Packaging Releases
   href: packaging/toc.yml
   homepage: packaging/overview.md
 
-- name: Distributing Releases
+- name: 3. Distributing Releases
   href: distributing/toc.yml
   homepage: distributing/overview.md
 

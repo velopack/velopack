@@ -45,6 +45,8 @@ vpk pack ... --signParams "/td sha256 /fd sha256 /f yourCert.pfx /tr http://time
 
 If you are new to using `signtool.exe`, you can check the [command line reference here](https://learn.microsoft.com/en-us/dotnet/framework/tools/signtool-exe). I recommend getting signing working on a single binary first, using `signtool.exe`, before trying to get things working with the Velopack CLI.
 
+If you are using a USB / HSM and have the following signing error `Error: SignerSign() failed." (-2147023673/0x800704c7)`, this means that you are missing a password / unlock token. This can be added to your signing command with the `/csp /k` parameters. [[Read more]](https://stackoverflow.com/questions/17927895/automate-extended-validation-ev-code-signing-with-safenet-etoken/54439759#54439759)
+
 ❗**Take care when providing parameters: If any have a space in a signing argument, you must wrap it with quotes and escape with a backslash.**
 
 By default, Velopack will sign 10 files per call to `signtool.exe`, to speed up signing and reduce the number of times you need to interact with the console if you are using some kind of interactive signing method. This can be disabled with the `--signParallel 1` argument.
