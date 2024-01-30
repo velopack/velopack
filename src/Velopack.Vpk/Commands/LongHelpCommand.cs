@@ -94,32 +94,32 @@ namespace Velopack.Vpk.Commands
                 }
 
                 // look for global options (only rendered if long mode)
-                var globalOptions = new List<CliOption>();
-                foreach (var p in command.Parents) {
-                    CliCommand parentCommand = null;
-                    if ((parentCommand = p as CliCommand) is not null) {
-                        if (parentCommand.HasOptions()) {
-                            foreach (var option in parentCommand.Options) {
-                                if (option is { Recursive: true, Hidden: false }) {
-                                    if (longHelpMode) {
-                                        globalOptions.Add(option);
-                                    } else {
-                                        hiddenOptions++;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                //var globalOptions = new List<CliOption>();
+                //foreach (var p in command.Parents) {
+                //    CliCommand parentCommand = null;
+                //    if ((parentCommand = p as CliCommand) is not null) {
+                //        if (parentCommand.HasOptions()) {
+                //            foreach (var option in parentCommand.Options) {
+                //                if (option is { Recursive: true, Hidden: false }) {
+                //                    if (longHelpMode) {
+                //                        globalOptions.Add(option);
+                //                    } else {
+                //                        hiddenOptions++;
+                //                    }
+                //                }
+                //            }
+                //        }
+                //    }
+                //}
 
-                if (globalOptions.Any()) {
-                    output.Add(Text.NewLine);
-                    output.Add(new Text($"Global Options:"));
-                    output.Add(Text.NewLine);
-                    var globalOptionsTable = CreateTable();
-                    AddOptionRows(globalOptionsTable, globalOptions);
-                    output.Add(new Padder(globalOptionsTable, pad));
-                }
+                //if (globalOptions.Any()) {
+                //    output.Add(Text.NewLine);
+                //    output.Add(new Text($"Global Options:"));
+                //    output.Add(Text.NewLine);
+                //    var globalOptionsTable = CreateTable();
+                //    AddOptionRows(globalOptionsTable, globalOptions);
+                //    output.Add(new Padder(globalOptionsTable, pad));
+                //}
 
                 if (command.HasOptions()) {
                     output.Add(Text.NewLine);

@@ -101,7 +101,7 @@ public class Program
 
     private static void SetupConfig(IHostApplicationBuilder builder)
     {
-        builder.Configuration.AddJsonFile("vpk.json", optional: true);
+        //builder.Configuration.AddJsonFile("vpk.json", optional: true);
         builder.Configuration.AddEnvironmentVariables("VPK_");
         TypeDescriptor.AddAttributes(typeof(FileInfo), new TypeConverterAttribute(typeof(FileInfoConverter)));
         TypeDescriptor.AddAttributes(typeof(DirectoryInfo), new TypeConverterAttribute(typeof(DirectoryInfoConverter)));
