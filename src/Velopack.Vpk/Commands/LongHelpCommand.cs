@@ -13,7 +13,7 @@ namespace Velopack.Vpk.Commands
     {
         private CliAction _action;
 
-        public LongHelpCommand() : this("--help", new[] { "-h", "-H", "--vhelp" })
+        public LongHelpCommand() : this("--help", ["-h", "-H", "--vhelp"])
         {
         }
 
@@ -72,8 +72,7 @@ namespace Velopack.Vpk.Commands
                             continue;
                         }
 
-                        var columns = GetTwoColumnRow(argument);
-
+                        var columns = GetTwoColumnRowOption(argument);
                         var aliasText = columns.FirstColumnText;
                         var argIdx = aliasText.IndexOf(" <");
                         if (argIdx > 0) {
@@ -90,7 +89,6 @@ namespace Velopack.Vpk.Commands
                                 descriptionText = $"[italic]ENV=[bold blue]{envVarName}[/][/]  " + descriptionText;
                             }
                         }
-
                         table.AddRow(new Markup(aliasText), new Markup(descriptionText));
                     }
                 }
@@ -144,8 +142,8 @@ namespace Velopack.Vpk.Commands
                     output.Add(Text.NewLine);
 
                     var commandsTable = CreateTable();
-                    foreach (var argument in command.Subcommands) {
-                        var columns = GetTwoColumnRow(argument);
+                    foreach (var cmd in command.Subcommands) {
+                        var columns = GetTwoColumnRowCommand(cmd);
                         commandsTable.AddRow(new Markup($"[bold]{columns.FirstColumnText}[/]"), new Text(columns.SecondColumnText));
                     }
 
@@ -156,84 +154,37 @@ namespace Velopack.Vpk.Commands
                 return 0;
             }
 
-            public TwoColumnHelpRow GetTwoColumnRow(CliSymbol symbol)
+            public TwoColumnHelpRow GetTwoColumnRowCommand(CliCommand command)
+            {
+                if (command is null) {
+                    throw new ArgumentNullException(nameof(command));
+                }
+                var firstColumnText = Default.GetCommandUsageLabel(command);
+                var symbolDescription = command.Description ?? string.Empty;
+                var secondColumnText = symbolDescription.Trim();
+                return new TwoColumnHelpRow(firstColumnText, secondColumnText);
+            }
+
+            public TwoColumnHelpRow GetTwoColumnRowOption(CliOption symbol)
             {
                 if (symbol is null) {
                     throw new ArgumentNullException(nameof(symbol));
                 }
 
-                if (symbol is CliOption or CliCommand) {
-                    return GetOptionOrCommandRow();
-                } else if (symbol is CliArgument argument) {
-                    return GetCommandArgumentRow(argument);
-                } else {
-                    throw new NotSupportedException($"Symbol type {symbol.GetType()} is not supported.");
+                var firstColumnText = Default.GetOptionUsageLabel(symbol);
+                var symbolDescription = symbol.Description ?? string.Empty;
+
+                var defaultValueDescription = "";
+                if (symbol.HasDefaultValue) {
+                    // TODO: this is a hack, but the property is internal. what do you want me to do?
+                    var argument = symbol.GetType()?.GetProperty("Argument", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(symbol) as CliArgument;
+                    if (argument is not null) {
+                        defaultValueDescription = $"[default: {Default.GetArgumentDefaultValue(argument)}]";
+                    }
                 }
 
-                TwoColumnHelpRow GetOptionOrCommandRow()
-                {
-                    var firstColumnText = symbol is CliOption option
-                                ? Default.GetOptionUsageLabel(option)
-                                : Default.GetCommandUsageLabel((CliCommand) symbol);
-
-                    var symbolDescription = symbol.Description ?? string.Empty;
-
-                    //in case symbol description is customized, do not output default value
-                    //default value output is not customizable for identifier symbols
-                    var defaultValueDescription = GetSymbolDefaultValue(symbol);
-
-                    var secondColumnText = $"{symbolDescription} {defaultValueDescription}".Trim();
-
-                    return new TwoColumnHelpRow(firstColumnText, secondColumnText);
-                }
-
-                TwoColumnHelpRow GetCommandArgumentRow(CliArgument argument)
-                {
-                    var firstColumnText = Default.GetArgumentUsageLabel(argument);
-
-                    var argumentDescription = Default.GetArgumentDescription(argument);
-
-                    var defaultValueDescription =
-                        argument.HasDefaultValue
-                            ? $"[{GetArgumentDefaultValue(argument, true)}]"
-                            : "";
-
-                    var secondColumnText = $"{argumentDescription} {defaultValueDescription}".Trim();
-
-                    return new TwoColumnHelpRow(firstColumnText, secondColumnText);
-                }
-
-                string GetSymbolDefaultValue(CliSymbol symbol)
-                {
-                    IList<CliArgument> arguments = symbol.Arguments();
-                    var defaultArguments = arguments.Where(x => !x.Hidden && x.HasDefaultValue).ToArray();
-
-                    if (defaultArguments.Length == 0) return "";
-
-                    var isSingleArgument = defaultArguments.Length == 1;
-                    var argumentDefaultValues = defaultArguments
-                        .Select(argument => GetArgumentDefaultValue(argument, isSingleArgument));
-                    return $"[{string.Join(", ", argumentDefaultValues)}]";
-                }
-            }
-
-            private string GetArgumentDefaultValue(
-                CliArgument argument,
-                bool displayArgumentName)
-            {
-                string label = displayArgumentName
-                                  ? "default"
-                                  : argument.Name;
-
-                string? displayedDefaultValue = null;
-
-                displayedDefaultValue ??= Default.GetArgumentDefaultValue(argument);
-
-                if (string.IsNullOrWhiteSpace(displayedDefaultValue)) {
-                    return "";
-                }
-
-                return $"{label}: {displayedDefaultValue}";
+                var secondColumnText = $"{symbolDescription} {defaultValueDescription}".Trim();
+                return new TwoColumnHelpRow(firstColumnText, secondColumnText);
             }
 
             private string GetUsage(CliCommand command)
@@ -342,27 +293,6 @@ namespace Velopack.Vpk.Commands
                 yield return source;
 
                 source = next(source);
-            }
-        }
-
-        internal static IList<CliArgument> Arguments(this CliSymbol symbol)
-        {
-            switch (symbol) {
-            case CliOption option:
-                //throw new NotSupportedException();
-                return new[]
-                {
-                    (CliArgument)option.GetType().GetProperty("Argument", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(symbol)
-                };
-            case CliCommand command:
-                return command.Arguments;
-            case CliArgument argument:
-                return new[]
-                {
-                    argument
-                };
-            default:
-                throw new NotSupportedException();
             }
         }
     }
