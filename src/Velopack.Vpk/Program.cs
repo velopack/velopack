@@ -29,25 +29,21 @@ public class Program
         .SetRecursive(true)
         .SetDescription("Disable console colors and interactive components.");
 
-    public static CliOption<bool> EnvHelpOption { get; }
-        = new CliOption<bool>("--envHelp")
-        .SetDescription("Show help text for available environment variables.");
-
     public static CliOption<bool> YesOption { get; }
         = new CliOption<bool>("--yes", "-y")
         .SetRecursive(true)
-        .SetDescription("Response 'yes' by default instead of 'no' in non-interactive prompts.");
+        .SetDescription("'yes' by instead of 'no' in non-interactive prompts.");
 
     public static readonly string INTRO
         = $"Velopack CLI {VelopackRuntimeInfo.VelopackDisplayVersion}, for distributing applications.";
 
     public static async Task<int> Main(string[] args)
     {
-        CliRootCommand rootCommand = new CliRootCommand(INTRO) {
-            VerboseOption,
+        CliCommand rootCommand = new CliCommand("vpk", INTRO) {
+            new LongHelpCommand(),
             LegacyConsoleOption,
-            EnvHelpOption,
             YesOption,
+            VerboseOption,
         };
 
         rootCommand.TreatUnmatchedTokensAsErrors = false;
@@ -56,8 +52,8 @@ public class Program
         bool legacyConsole = parseResult.GetValue(LegacyConsoleOption)
             || Console.IsOutputRedirected
             || Console.IsErrorRedirected;
-        bool envHelp = parseResult.GetValue(EnvHelpOption);
         bool defaultYes = parseResult.GetValue(YesOption);
+        rootCommand.TreatUnmatchedTokensAsErrors = true;
 
         var builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings {
             ApplicationName = "Velopack",
@@ -98,12 +94,6 @@ public class Program
         deltaCommand.AddCommand<DeltaGenCommand, DeltaGenCommandRunner, DeltaGenOptions>(provider);
         deltaCommand.AddCommand<DeltaPatchCommand, DeltaPatchCommandRunner, DeltaPatchOptions>(provider);
         rootCommand.Add(deltaCommand);
-
-        if (envHelp) {
-            Console.WriteLine(INTRO);
-            BaseCommand.PrintEnvironmentHelp(provider.GetRequiredService<IFancyConsole>());
-            return 0;
-        }
 
         var cli = new CliConfiguration(rootCommand);
         return await cli.InvokeAsync(args);

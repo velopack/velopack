@@ -9,12 +9,11 @@ public class BaseCommand : CliCommand
 {
     private readonly Dictionary<CliOption, Action<ParseResult, IConfiguration>> _setters = new();
 
-    private readonly static Dictionary<BaseCommand, List<(string name, CliOption option)>> _envHelp = new();
+    private readonly Dictionary<CliOption, string> _envHelp = new();
 
     protected BaseCommand(string name, string description)
         : base(name, description)
     {
-        _envHelp[this] = new List<(string name, CliOption option)>();
     }
 
     protected virtual CliOption<T> AddOption<T>(Action<T> setValue, params string[] aliases)
@@ -27,7 +26,7 @@ public class BaseCommand : CliCommand
         string optionName = opt.Name.TrimStart('-');
         string titleCase = String.Join("_", optionName.Humanize(LetterCasing.AllCaps).Split(' '));
 
-        _envHelp[this].Add(("VPK_" + titleCase, opt));
+        _envHelp[opt] = "VPK_" + titleCase;
         _setters[opt] = (ctx, config) => {
             // 1. if the option was set explicitly on the command line, only use that value
             var optionResult = ctx.GetResult(opt);
@@ -54,19 +53,7 @@ public class BaseCommand : CliCommand
         return opt;
     }
 
-    public static void PrintEnvironmentHelp(IFancyConsole console)
-    {
-        console.WriteLine("The following environment variables can be specified instead of command line arguments.");
-        console.WriteLine();
-        foreach (var kvp in _envHelp) {
-            List<string[]> rows = [];
-            foreach (var (name, opt) in kvp.Value) {
-                rows.Add([name, opt.Description]);
-            }
-            console.WriteTable(kvp.Key.Name, rows, false);
-            console.WriteLine();
-        }
-    }
+    public string GetEnvVariableName(CliOption option) => _envHelp.ContainsKey(option) ? _envHelp[option] : null;
 
     public virtual void SetProperties(ParseResult context, IConfiguration config)
     {

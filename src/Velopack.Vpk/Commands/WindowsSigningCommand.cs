@@ -14,12 +14,13 @@ public class WindowsSigningCommand : PlatformCommand
         : base(name, description)
     {
         var signTemplate = AddOption<string>((v) => SignTemplate = v, "--signTemplate")
-            .SetDescription("Use a custom signing command. {{file}} will be replaced by the path to sign.")
+            .SetDescription("Use a custom signing command. {{file}} will be substituted.")
             .SetArgumentHelpName("COMMAND")
             .MustContain("{{file}}");
 
         AddOption<bool>((v) => SignSkipDll = v, "--signSkipDll")
-            .SetDescription("Only signs EXE files, and skips signing DLL files.");
+            .SetDescription("Only signs EXE files, and skips signing DLL files.")
+            .SetHidden();
 
         if (VelopackRuntimeInfo.IsWindows) {
             var signParams = AddOption<string>((v) => SignParameters = v, "--signParams", "-n")
@@ -32,6 +33,7 @@ public class WindowsSigningCommand : PlatformCommand
                 .SetDescription("The number of files to sign in each call to signtool.exe.")
                 .SetArgumentHelpName("NUM")
                 .MustBeBetween(1, 1000)
+                .SetHidden()
                 .SetDefault(10);
         }
     }
