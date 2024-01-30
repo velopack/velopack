@@ -34,15 +34,16 @@ namespace Velopack.Packaging
             return rel;
         }
 
-        public void ValidateForPackaging(SemanticVersion version)
+        public bool DoesSimilarVersionExist(SemanticVersion version)
         {
             if (!_releases.ContainsKey(_channel) || !_releases[_channel].Any())
-                return;
+                return false;
             foreach (var release in _releases[_channel]) {
                 if (version <= release.Version) {
-                    throw new UserInfoException($"Release {release.FileName} in channel {_channel} is equal or greater to the current version {version}. Please increase the current package version or remove that release.");
+                    return true;
                 }
             }
+            return false;
         }
 
         public ReleasePackage GetPreviousFullRelease(SemanticVersion version)

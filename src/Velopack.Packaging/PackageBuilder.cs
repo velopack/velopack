@@ -1,14 +1,13 @@
 ﻿using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Security;
 using System.Text.RegularExpressions;
+using Markdig;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 using Velopack.Compression;
 using Velopack.NuGet;
-using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Abstractions;
-using Markdig;
+using Velopack.Packaging.Exceptions;
 
 namespace Velopack.Packaging
 {
@@ -53,10 +52,14 @@ namespace Velopack.Packaging
 
             var releaseDir = options.ReleaseDir;
             var channel = options.Channel?.ToLower() ?? ReleaseEntryHelper.GetDefaultChannel(SupportedTargetOs);
+            Channel = channel;
 
             var entryHelper = new ReleaseEntryHelper(releaseDir.FullName, channel, Log);
-            entryHelper.ValidateForPackaging(SemanticVersion.Parse(options.PackVersion));
-            Channel = channel;
+            if (entryHelper.DoesSimilarVersionExist(SemanticVersion.Parse(options.PackVersion))) {
+                if (await Console.PromptYesNo("A release in this channel with the same or greater version already exists. Do you want to continue and potentially overwrite files?") != true) {
+                    throw new UserInfoException($"There is a release in channel {channel} which is equal or greater to the current version {options.PackVersion}. Please increase the current package version or remove that release.");
+                }
+            }
 
             var packId = options.PackId;
             var packDirectory = options.PackDirectory;

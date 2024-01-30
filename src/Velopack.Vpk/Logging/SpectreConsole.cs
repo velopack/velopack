@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Spectre.Console;
 using Velopack.Packaging.Abstractions;
@@ -37,9 +39,33 @@ namespace Velopack.Vpk.Logging
             logger.Info($"[bold]Finished in {DateTime.UtcNow - start}.[/]");
         }
 
-        public bool PromptYesNo(string prompt, bool? defaultValue = null)
+        public async Task<bool> PromptYesNo(string prompt, bool? defaultValue = null, TimeSpan? timeout = null)
         {
-            return AnsiConsole.Confirm(prompt, defaultValue ?? defaultFactory.DefaultPromptValue);
+            var def = defaultValue ?? defaultFactory.DefaultPromptValue;
+            var cts = new CancellationTokenSource();
+            cts.CancelAfter(timeout ?? TimeSpan.FromSeconds(30));
+
+            try {
+                // all of this nonsense in CancellableTextPrompt.cs is to work-around a bug in Spectre.
+                // Once the following issue is merged it can be removed.
+                // https://github.com/spectreconsole/spectre.console/pull/1439
+
+                AnsiConsole.WriteLine();
+                var comparer = StringComparer.CurrentCultureIgnoreCase;
+                var textPrompt = "[underline bold orange3]QUESTION:[/]" + Environment.NewLine + prompt;
+                var clip = new CancellableTextPrompt<char>(textPrompt, comparer);
+                clip.Choices.Add('y');
+                clip.Choices.Add('n');
+                clip.ShowChoices = true;
+                clip.ShowDefaultValue = true;
+                clip.DefaultValue = new DefaultPromptValue<char>(def ? 'y' : 'n');
+                var result = await clip.ShowAsync(AnsiConsole.Console, cts.Token).ConfigureAwait(false);
+                AnsiConsole.WriteLine();
+                return comparer.Compare("y", result.ToString()) == 0;
+            } catch (OperationCanceledException) {
+                AnsiConsole.Write($" Accepted default value ({(def ? "y" : "n")}) because the prompt timed out." + Environment.NewLine + Environment.NewLine);
+                return def;
+            }
         }
 
         public void WriteLine(string text = "")

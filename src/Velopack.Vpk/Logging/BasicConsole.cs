@@ -15,12 +15,14 @@ namespace Velopack.Vpk.Logging
 
         public async Task ExecuteProgressAsync(Func<IFancyConsoleProgress, Task> action)
         {
+            var start = DateTime.UtcNow;
             await action(new Progress(logger));
+            logger.Info($"Finished in {DateTime.UtcNow - start}.");
         }
 
-        public bool PromptYesNo(string prompt, bool? defaultValue = null)
+        public Task<bool> PromptYesNo(string prompt, bool? defaultValue = null, TimeSpan? timeout = null)
         {
-            return defaultValue ?? defaultFactory.DefaultPromptValue;
+            return Task.FromResult(defaultValue ?? defaultFactory.DefaultPromptValue);
         }
 
         public void WriteLine(string text = "")
