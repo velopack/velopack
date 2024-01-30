@@ -25,32 +25,40 @@ public class Program
         .SetRecursive(true)
         .SetDescription("Print diagnostic messages.");
 
-    public static CliOption<bool> LegacyConsole { get; }
-        = new CliOption<bool>("--legacyConsole")
+    public static CliOption<bool> LegacyConsoleOption { get; }
+        = new CliOption<bool>("--legacyConsole", "-x")
         .SetRecursive(true)
         .SetDescription("Disable console colors and interactive components.");
 
-    public static CliOption<bool> EnvHelp { get; }
+    public static CliOption<bool> EnvHelpOption { get; }
         = new CliOption<bool>("--envHelp")
         .SetDescription("Show help text for available environment variables.");
+
+    public static CliOption<bool> YesOption { get; }
+        = new CliOption<bool>("--yes", "-y")
+        .SetRecursive(true)
+        .SetDescription("Response 'yes' by default instead of 'no' in non-interactive prompts.");
 
     public static readonly string INTRO
         = $"Velopack CLI {VelopackRuntimeInfo.VelopackDisplayVersion}, for distributing applications.";
 
     public static async Task<int> Main(string[] args)
     {
-        CliRootCommand platformRootCommand = new CliRootCommand() {
+        CliRootCommand rootCommand = new CliRootCommand(INTRO) {
             VerboseOption,
-            LegacyConsole,
-            EnvHelp,
+            LegacyConsoleOption,
+            EnvHelpOption,
+            YesOption,
         };
-        platformRootCommand.TreatUnmatchedTokensAsErrors = false;
-        ParseResult parseResult = platformRootCommand.Parse(args);
+
+        rootCommand.TreatUnmatchedTokensAsErrors = false;
+        ParseResult parseResult = rootCommand.Parse(args);
         bool verbose = parseResult.GetValue(VerboseOption);
-        bool legacyConsole = parseResult.GetValue(LegacyConsole)
+        bool legacyConsole = parseResult.GetValue(LegacyConsoleOption)
             || Console.IsOutputRedirected
             || Console.IsErrorRedirected;
-        bool envHelp = parseResult.GetValue(EnvHelp);
+        bool envHelp = parseResult.GetValue(EnvHelpOption);
+        bool defaultYes = parseResult.GetValue(YesOption);
 
         var builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings {
             ApplicationName = "Velopack",
@@ -60,16 +68,10 @@ public class Program
         });
 
         SetupConfig(builder);
-        SetupLogging(builder, verbose, legacyConsole);
+        SetupLogging(builder, verbose, legacyConsole, defaultYes);
 
         var host = builder.Build();
         var provider = host.Services;
-
-        var rootCommand = new CliRootCommand(INTRO) {
-            VerboseOption,
-            LegacyConsole,
-            EnvHelp,
-        };
 
         if (VelopackRuntimeInfo.IsWindows) {
             rootCommand.AddCommand<WindowsPackCommand, WindowsPackCommandRunner, WindowsPackOptions>(provider);
@@ -117,12 +119,14 @@ public class Program
         builder.Services.AddTransient(s => s.GetService<ILoggerFactory>().CreateLogger("vpk"));
     }
 
-    private static void SetupLogging(IHostApplicationBuilder builder, bool verbose, bool legacyConsole)
+    private static void SetupLogging(IHostApplicationBuilder builder, bool verbose, bool legacyConsole, bool defaultPromptValue)
     {
         var conf = new LoggerConfiguration()
             .MinimumLevel.Is(verbose ? LogEventLevel.Debug : LogEventLevel.Information)
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
             .MinimumLevel.Override("System", LogEventLevel.Warning);
+
+        builder.Services.AddSingleton(new DefaultPromptValueFactory(defaultPromptValue));
 
         if (legacyConsole) {
             // spectre can have issues with redirected output, so we disable it.

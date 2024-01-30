@@ -11,10 +11,12 @@ namespace Velopack.Vpk.Logging
     public class SpectreConsole : IFancyConsole
     {
         private readonly ILogger logger;
+        private readonly DefaultPromptValueFactory defaultFactory;
 
-        public SpectreConsole(ILogger logger)
+        public SpectreConsole(ILogger logger, DefaultPromptValueFactory defaultFactory)
         {
             this.logger = logger;
+            this.defaultFactory = defaultFactory;
         }
 
         public async Task ExecuteProgressAsync(Func<IFancyConsoleProgress, Task> action)
@@ -33,6 +35,11 @@ namespace Velopack.Vpk.Logging
                 })
                 .StartAsync(async ctx => await action(new Progress(logger, ctx)));
             logger.Info($"[bold]Finished in {DateTime.UtcNow - start}.[/]");
+        }
+
+        public bool PromptYesNo(string prompt, bool? defaultValue = null)
+        {
+            return AnsiConsole.Confirm(prompt, defaultValue ?? defaultFactory.DefaultPromptValue);
         }
 
         public void WriteLine(string text = "")

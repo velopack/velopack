@@ -36,6 +36,8 @@ namespace Velopack.Packaging.Tests
                 if (p.ExitCode != 0)
                     throw new Exception($"dotnet publish failed with exit code {p.ExitCode}");
 
+                var console = new BasicConsole(logger, new DefaultPromptValueFactory(false));
+
                 if (VelopackRuntimeInfo.IsWindows) {
                     var options = new WindowsPackOptions {
                         EntryExecutableName = "TestApp.exe",
@@ -47,7 +49,7 @@ namespace Velopack.Packaging.Tests
                         ReleaseNotes = releaseNotes,
                         Channel = channel,
                     };
-                    var runner = new WindowsPackCommandRunner(logger, new BasicConsole(logger));
+                    var runner = new WindowsPackCommandRunner(logger, console);
                     runner.Run(options).GetAwaiterResult();
                 } else if (VelopackRuntimeInfo.IsOSX) {
                     var options = new OsxPackOptions {
@@ -61,7 +63,7 @@ namespace Velopack.Packaging.Tests
                         ReleaseNotes = releaseNotes,
                         Channel = channel,
                     };
-                    var runner = new OsxPackCommandRunner(logger, new BasicConsole(logger));
+                    var runner = new OsxPackCommandRunner(logger, console);
                     runner.Run(options).GetAwaiterResult();
                 } else if (VelopackRuntimeInfo.IsLinux) {
                     var options = new LinuxPackOptions {
@@ -75,7 +77,7 @@ namespace Velopack.Packaging.Tests
                         ReleaseNotes = releaseNotes,
                         Channel = channel,
                     };
-                    var runner = new LinuxPackCommandRunner(logger, new BasicConsole(logger));
+                    var runner = new LinuxPackCommandRunner(logger, console);
                     runner.Run(options).GetAwaiterResult();
                 } else {
                     throw new PlatformNotSupportedException();

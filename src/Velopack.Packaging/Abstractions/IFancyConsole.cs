@@ -8,6 +8,8 @@ namespace Velopack.Packaging.Abstractions
 
         void WriteTable(string tableName, IEnumerable<IEnumerable<string>> rows, bool hasHeaderRow = true);
 
+        bool PromptYesNo(string prompt, bool? defaultValue = null);
+
         void WriteLine(string text = "");
     }
 }
