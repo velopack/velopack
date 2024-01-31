@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Diagnostics.Metrics;
+using System.Text;
 using System.Text.Json;
 using NuGet.Versioning;
 using Velopack.Json;
@@ -102,7 +103,7 @@ namespace Velopack.Tests
         }
 
         [Fact]
-        public void CheckForUpdatesFromLocal()
+        public void CheckFromLocal()
         {
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var tempPath);
@@ -114,10 +115,12 @@ namespace Velopack.Tests
             Assert.NotNull(info);
             Assert.True(new SemanticVersion(1, 1, 0) == info.TargetFullRelease.Version);
             Assert.Equal(0, info.DeltasToTarget.Count());
+            Assert.False(info.IsDowngrade);
+            Assert.StartsWith($"http://any.com/releases.{VelopackRuntimeInfo.SystemOs.GetOsShortName()}.json?", dl.LastUrl);
         }
 
         [Fact]
-        public void CheckForUpdatesFromLocalWithChannel()
+        public void CheckFromLocalWithChannel()
         {
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var tempPath);
@@ -130,26 +133,143 @@ namespace Velopack.Tests
             Assert.NotNull(info);
             Assert.True(new SemanticVersion(1, 1, 0) == info.TargetFullRelease.Version);
             Assert.Equal(0, info.DeltasToTarget.Count());
+            Assert.False(info.IsDowngrade);
             Assert.StartsWith("http://any.com/releases.experimental.json?", dl.LastUrl);
         }
 
         [Fact]
-        public void CheckForUpdatesFromLocalWithDelta()
+        public void CheckForSameAsInstalledVersion()
         {
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
             using var _1 = Utility.GetTempDirectory(out var tempPath);
             var dl = GetMockDownloaderWith2Delta();
+            var myVer = new VelopackAsset() {
+                PackageId = "MyCoolApp",
+                Version = new SemanticVersion(1, 2, 0),
+                Type = VelopackAssetType.Full,
+                FileName = $"MyCoolApp-1.2.0.nupkg",
+                SHA1 = "3a2eadd15dd984e4559f2b4d790ec8badaeb6a39",
+                Size = 1040561,
+            };
             var source = new SimpleWebSource("http://any.com", dl);
-            var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
+            var locator = new TestVelopackLocator("MyCoolApp", "1.2.0", tempPath, null, null, null, logger: logger, localPackage: myVer, channel: "stable");
+
+            // checking for same version should return null
             var um = new UpdateManager(source, null, logger, locator);
             var info = um.CheckForUpdates();
+            Assert.Null(info);
+            Assert.StartsWith("http://any.com/releases.stable.json?", dl.LastUrl);
+
+            // checking for same version WITHOUT explicit channel should return null
+            var opt = new UpdateOptions { AllowVersionDowngrade = true };
+            um = new UpdateManager(source, opt, logger, locator);
+            Assert.Null(info);
+            Assert.StartsWith("http://any.com/releases.stable.json?", dl.LastUrl);
+
+            // checking for same version with explicit channel & downgrade allowed should return version
+            opt = new UpdateOptions { ExplicitChannel = "experimental", AllowVersionDowngrade = true };
+            um = new UpdateManager(source, opt, logger, locator);
+            info = um.CheckForUpdates();
+            Assert.True(info.IsDowngrade);
+            Assert.NotNull(info);
+            Assert.True(new SemanticVersion(1, 2, 0) == info.TargetFullRelease.Version);
+            Assert.StartsWith("http://any.com/releases.experimental.json?", dl.LastUrl);
+            Assert.Equal(0, info.DeltasToTarget.Count());
+        }
+
+        [Fact]
+        public void CheckForLowerThanInstalledVersion()
+        {
+            using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
+            using var _1 = Utility.GetTempDirectory(out var tempPath);
+            var dl = GetMockDownloaderWith2Delta();
+            var myVer = new VelopackAsset() {
+                PackageId = "MyCoolApp",
+                Version = new SemanticVersion(2, 0, 0),
+                Type = VelopackAssetType.Full,
+                FileName = $"MyCoolApp-2.0.0.nupkg",
+                SHA1 = "3a2eadd15dd984e4559f2b4d790ec8badaeb6a39",
+                Size = 1040561,
+            };
+            var source = new SimpleWebSource("http://any.com", dl);
+            var locator = new TestVelopackLocator("MyCoolApp", "2.0.0", tempPath, null, null, null, logger: logger, localPackage: myVer, channel: "stable");
+
+            // checking for lower version should return null
+            var um = new UpdateManager(source, null, logger, locator);
+            var info = um.CheckForUpdates();
+            Assert.Null(info);
+            Assert.StartsWith("http://any.com/releases.stable.json?", dl.LastUrl);
+
+            // checking for lower version with downgrade allowed should return lower version
+            var opt = new UpdateOptions { AllowVersionDowngrade = true };
+            um = new UpdateManager(source, opt, logger, locator);
+            info = um.CheckForUpdates();
+            Assert.True(info.IsDowngrade);
+            Assert.NotNull(info);
+            Assert.True(new SemanticVersion(1, 2, 0) == info.TargetFullRelease.Version);
+            Assert.StartsWith("http://any.com/releases.stable.json?", dl.LastUrl);
+            Assert.Equal(0, info.DeltasToTarget.Count());
+        }
+
+        [Fact]
+        public void CheckFromLocalWithDelta()
+        {
+            using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
+            using var _1 = Utility.GetTempDirectory(out var tempPath);
+            var dl = GetMockDownloaderWith2Delta();
+            var myVer = new VelopackAsset() {
+                PackageId = "MyCoolApp",
+                Version = new SemanticVersion(1, 0, 0),
+                Type = VelopackAssetType.Full,
+                FileName = $"MyCoolApp-1.0.0.nupkg",
+                SHA1 = "94689fede03fed7ab59c24337673a27837f0c3ec",
+                Size = 1004502,
+            };
+            var source = new SimpleWebSource("http://any.com", dl);
+
+            var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, null, null, null, logger: logger, localPackage: myVer);
+            var um = new UpdateManager(source, null, logger, locator);
+            var info = um.CheckForUpdates();
+            Assert.False(info.IsDowngrade);
             Assert.NotNull(info);
             Assert.True(new SemanticVersion(1, 2, 0) == info.TargetFullRelease.Version);
             Assert.Equal(2, info.DeltasToTarget.Count());
         }
 
+        [Fact]
+        public void NoDeltaIfNoBasePackage()
+        {
+            using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
+            using var _1 = Utility.GetTempDirectory(out var tempPath);
+            var dl = GetMockDownloaderWith2Delta();
+            var source = new SimpleWebSource("http://any.com", dl);
+            var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger: logger);
+            var um = new UpdateManager(source, null, logger, locator);
+            var info = um.CheckForUpdates();
+            Assert.NotNull(info);
+            Assert.False(info.IsDowngrade);
+            Assert.True(new SemanticVersion(1, 2, 0) == info.TargetFullRelease.Version);
+            Assert.Equal(0, info.DeltasToTarget.Count());
+        }
+
+        [Fact]
+        public void CheckFromLocalWithDeltaNoLocalPackage()
+        {
+            using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
+            using var _1 = Utility.GetTempDirectory(out var tempPath);
+            var dl = GetMockDownloaderWith2Delta();
+            var source = new SimpleWebSource("http://any.com", dl);
+            var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger: logger);
+            var um = new UpdateManager(source, null, logger, locator);
+            var info = um.CheckForUpdates();
+            Assert.NotNull(info);
+            Assert.False(info.IsDowngrade);
+            Assert.True(new SemanticVersion(1, 2, 0) == info.TargetFullRelease.Version);
+            Assert.Equal(0, info.DeltasToTarget.Count());
+        }
+
         [Fact(Skip = "Consumes API Quota")]
-        public void CheckForUpdatesGithub()
+        public void CheckGithub()
         {
             // https://github.com/caesay/SquirrelCustomLauncherTestApp
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
@@ -164,7 +284,7 @@ namespace Velopack.Tests
         }
 
         [Fact(Skip = "Consumes API Quota")]
-        public void CheckForUpdatesGithubWithNonExistingChannel()
+        public void CheckGithubWithNonExistingChannel()
         {
             // https://github.com/caesay/SquirrelCustomLauncherTestApp
             using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
