@@ -234,19 +234,19 @@ namespace Velopack
             var completeFile = Path.Combine(appPackageDir, targetRelease.FileName);
             var incompleteFile = completeFile + ".partial";
 
-            // if the package already exists on disk, we can skip the download.
-            if (File.Exists(completeFile)) {
-                Log.Info($"Package already exists on disk: '{completeFile}', verifying checksum...");
-                try {
-                    VerifyPackageChecksum(targetRelease);
-                    Log.Info("Package checksum verified, skipping download.");
-                    return;
-                } catch (ChecksumFailedException ex) {
-                    Log.Warn(ex, $"Checksum failed for file '{completeFile}'. Deleting and starting over.");
-                }
-            }
-
             try {
+                // if the package already exists on disk, we can skip the download.
+                if (File.Exists(completeFile)) {
+                    Log.Info($"Package already exists on disk: '{completeFile}', verifying checksum...");
+                    try {
+                        VerifyPackageChecksum(targetRelease);
+                        Log.Info("Package checksum verified, skipping download.");
+                        return;
+                    } catch (ChecksumFailedException ex) {
+                        Log.Warn(ex, $"Checksum failed for file '{completeFile}'. Deleting and starting over.");
+                    }
+                }
+
                 var deltasSize = updates.DeltasToTarget.Sum(x => x.Size);
                 var deltasCount = updates.DeltasToTarget.Count();
 
@@ -292,15 +292,6 @@ namespace Velopack
                 Log.Info("Verifying package checksum...");
                 VerifyPackageChecksum(targetRelease, incompleteFile);
 
-                if (updates.IsDowngrade) {
-                    // in the case of a package downgrade, we need to delete any local packages that are newer than the one we just downloaded.
-                    Log.Info("This is a downgrade or channel switch, deleting all local package other than downloaded version.");
-                    foreach (var f in Directory.EnumerateFiles(appPackageDir, "*.nupkg")) {
-                        Log.Debug("Deleting: " + f);
-                        Utility.DeleteFileOrDirectoryHard(f);
-                    }
-                }
-
                 Utility.MoveFile(incompleteFile, completeFile, true);
                 Log.Info("Full release download complete. Package moved to: " + completeFile);
                 reportProgress(100);
@@ -325,7 +316,7 @@ namespace Velopack
                     }
                 }
 
-                CleanIncompleteAndDeltaPackages();
+                CleanPackagesExcept(completeFile);
             }
         }
 
@@ -385,28 +376,31 @@ namespace Velopack
         }
 
         /// <summary>
-        /// Removes any incomplete files (.partial) and delta packages (-delta.nupkg) from the packages directory.
+        /// Removes any incomplete files (.partial) and packages (.nupkg) from the packages directory that does not match
+        /// the provided asset. If assetToKeep is null, all packages will be deleted.
         /// </summary>
-        protected void CleanIncompleteAndDeltaPackages()
+        protected virtual void CleanPackagesExcept(string? assetToKeep)
         {
             try {
-                var appPackageDir = Locator.PackagesDir!;
                 Log.Info("Cleaning up incomplete and delta packages from packages directory.");
-                foreach (var l in Locator.GetLocalPackages()) {
-                    if (l.Type == VelopackAssetType.Delta) {
-                        try {
-                            var pkgPath = Path.Combine(appPackageDir, l.FileName);
-                            File.Delete(pkgPath);
-                            Log.Trace(pkgPath + " deleted.");
-                        } catch (Exception ex) {
-                            Log.Warn(ex, "Failed to delete delta package: " + l.FileName);
+
+                var appPackageDir = Locator.PackagesDir!;
+                foreach (var l in Directory.EnumerateFiles(appPackageDir, "*.nupkg").ToArray()) {
+                    try {
+                        if (assetToKeep != null && Utility.FullPathEquals(l, assetToKeep)) {
+                            continue;
                         }
+
+                        Utility.DeleteFileOrDirectoryHard(l);
+                        Log.Trace(l + " deleted.");
+                    } catch (Exception ex) {
+                        Log.Warn(ex, "Failed to delete partial package: " + l);
                     }
                 }
 
                 foreach (var l in Directory.EnumerateFiles(appPackageDir, "*.partial").ToArray()) {
                     try {
-                        File.Delete(l);
+                        Utility.DeleteFileOrDirectoryHard(l);
                         Log.Trace(l + " deleted.");
                     } catch (Exception ex) {
                         Log.Warn(ex, "Failed to delete partial package: " + l);
