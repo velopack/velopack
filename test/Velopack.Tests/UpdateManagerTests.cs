@@ -124,7 +124,8 @@ namespace Velopack.Tests
             var dl = GetMockDownloaderNoDelta();
             var source = new SimpleWebSource("http://any.com", dl);
             var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
-            var um = new UpdateManager(source, "experimental", logger, locator);
+            var opt = new UpdateOptions { ExplicitChannel = "experimental" };
+            var um = new UpdateManager(source, opt, logger, locator);
             var info = um.CheckForUpdates();
             Assert.NotNull(info);
             Assert.True(new SemanticVersion(1, 1, 0) == info.TargetFullRelease.Version);
@@ -170,7 +171,8 @@ namespace Velopack.Tests
             using var _1 = Utility.GetTempDirectory(out var tempPath);
             var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
             var source = new GithubSource("https://github.com/caesay/SquirrelCustomLauncherTestApp", null, false);
-            var um = new UpdateManager(source, "hello", logger, locator);
+            var opt = new UpdateOptions { ExplicitChannel = "hello" };
+            var um = new UpdateManager(source, opt, logger, locator);
             Assert.Throws<ArgumentException>(() => um.CheckForUpdates());
         }
 
