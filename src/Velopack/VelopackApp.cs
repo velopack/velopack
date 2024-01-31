@@ -214,6 +214,7 @@ namespace Velopack
                 if (!restarted && _autoApply) {
                     log.Info("Auto apply is true, so restarting to apply update...");
                     UpdateExe.Apply(locator, latestLocal, true, true, args, log);
+                    Exit(0);
                 } else {
                     log.Info("Pre-condition failed, we will not restart to apply updates. (restarted: " + restarted + ", autoApply: " + _autoApply + ")");
                 }
