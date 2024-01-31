@@ -135,7 +135,7 @@ namespace Velopack
             // if the remote version is < than current version and downgrade is enabled
             if (latestRemoteFull.Version < installedVer && ShouldAllowVersionDowngrade) {
                 Log.Info($"Latest remote release is older than current, and downgrade is enabled ({installedVer} -> {latestRemoteFull.Version}).");
-                return new UpdateInfo(latestRemoteFull);
+                return new UpdateInfo(latestRemoteFull, true);
             }
 
             // if the remote version is the same as current version, and downgrade is enabled,
@@ -143,7 +143,7 @@ namespace Velopack
             if (ShouldAllowVersionDowngrade && IsNonDefaultChannel) {
                 if (VersionComparer.Compare(latestRemoteFull.Version, installedVer, VersionComparison.Version) == 0) {
                     Log.Info($"Latest remote release is the same version of a different channel, and downgrade is enabled ({installedVer}: {DefaultChannel} -> {Channel}).");
-                    return new UpdateInfo(latestRemoteFull);
+                    return new UpdateInfo(latestRemoteFull, true);
                 }
             }
 
@@ -162,7 +162,7 @@ namespace Velopack
                 // but we can look at this in the future. Until then, Windows (installer) is the only thing which ships with a complete .nupkg
                 // so in all other cases, Velopack needs to download one full release before it can start using delta's.
                 Log.Info("There is no local/base package available for this update, so delta updates will be disabled.");
-                return new UpdateInfo(latestRemoteFull);
+                return new UpdateInfo(latestRemoteFull, false);
             }
 
             EnsureInstalled();
@@ -171,7 +171,7 @@ namespace Velopack
             var matchingRemoteDelta = feed.Where(r => r.Type == VelopackAssetType.Delta && r.Version == latestRemoteFull.Version).FirstOrDefault();
             if (matchingRemoteDelta == null) {
                 Log.Info($"Unable to find any delta matching version {latestRemoteFull.Version}, so delta updates will be disabled.");
-                return new UpdateInfo(latestRemoteFull);
+                return new UpdateInfo(latestRemoteFull, false);
             }
 
             // if we have a local full release, we try to apply delta's from that version to target version.
@@ -179,7 +179,7 @@ namespace Velopack
 
             var deltas = feed.Where(r => r.Type == VelopackAssetType.Delta && r.Version > deltaFromVer && r.Version <= latestRemoteFull.Version).ToArray();
             Log.Debug($"Found {deltas.Length} delta releases between {deltaFromVer} and {latestRemoteFull.Version}.");
-            return new UpdateInfo(latestRemoteFull, latestLocalFull, deltas);
+            return new UpdateInfo(latestRemoteFull, false, latestLocalFull, deltas);
         }
 
         /// <inheritdoc cref="DownloadUpdatesAsync(UpdateInfo, Action{int}, bool, CancellationToken)"/>
@@ -279,11 +279,8 @@ namespace Velopack
                             }
                         }
                     }
-                } catch (Exception ex) {
+                } catch (Exception ex) when (!VelopackRuntimeInfo.InUnitTestRunner) {
                     Log.Warn(ex, "Unable to apply delta updates, falling back to full update.");
-                    if (VelopackRuntimeInfo.InUnitTestRunner) {
-                        throw;
-                    }
                 }
 
                 Log.Info($"Downloading full release ({targetRelease.FileName})");
@@ -291,8 +288,17 @@ namespace Velopack
                 await Source.DownloadReleaseEntry(Log, targetRelease, incompleteFile, reportProgress, cancelToken).ConfigureAwait(false);
                 Log.Info("Verifying package checksum...");
                 VerifyPackageChecksum(targetRelease, incompleteFile);
-                File.Delete(completeFile);
-                File.Move(incompleteFile, completeFile);
+
+                if (updates.IsDowngrade) {
+                    // in the case of a package downgrade, we need to delete any local packages that are newer than the one we just downloaded.
+                    Log.Info("This is a downgrade or channel switch, deleting all local package other than downloaded version.");
+                    foreach (var f in Directory.EnumerateFiles(appPackageDir, "*.nupkg")) {
+                        Log.Debug("Deleting: " + f);
+                        Utility.DeleteFileOrDirectoryHard(f);
+                    }
+                }
+
+                Utility.MoveFile(incompleteFile, completeFile, true);
                 Log.Info("Full release download complete. Package moved to: " + completeFile);
                 reportProgress(100);
             } finally {
