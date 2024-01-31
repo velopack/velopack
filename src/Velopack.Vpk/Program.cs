@@ -183,6 +183,8 @@ public static class ProgramCommandExtensions
 
             try {
                 await fn(options);
+                // print the out of date warning again at the end as well.
+                await updateCheck.CheckForUpdates();
                 return 0;
             } catch (Exception ex) when (ex is ProcessFailedException or UserInfoException) {
                 // some exceptions are just user info / user error, so don't need a stack trace.
