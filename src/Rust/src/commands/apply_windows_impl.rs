@@ -56,8 +56,9 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &Pat
 
         let result: Result<()> = (|| {
             info!("Replacing bundle at {}", &current_dir);
-            fs::rename(&current_dir, &temp_path_old)?;
-            fs::rename(&temp_path_new, &current_dir)?;
+            // so much stuff can lock folders on windows, so we retry a few times.
+            shared::retry_io(|| fs::rename(&current_dir, &temp_path_old))?;
+            shared::retry_io(|| fs::rename(&temp_path_new, &current_dir))?;
             Ok(())
         })();
 

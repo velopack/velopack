@@ -113,7 +113,7 @@ namespace Velopack.Locators
         }
 
         /// <inheritdoc/>
-        public VelopackAsset? GetLatestLocalFullPackage()
+        public virtual VelopackAsset? GetLatestLocalFullPackage()
         {
             return GetLocalPackages()
                 .OrderByDescending(x => x.Version)

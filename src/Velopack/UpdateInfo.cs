@@ -11,6 +11,13 @@
         public VelopackAsset TargetFullRelease { get; }
 
         /// <summary>
+        /// True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
+        /// In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
+        /// deleted.
+        /// </summary>
+        public bool IsDowngrade { get; }
+
+        /// <summary>
         /// The base release that we are to apply delta updates from. If null, we can try doing a delta update from
         /// the currently installed version.
         /// </summary>
@@ -25,9 +32,10 @@
         /// <summary>
         /// Create a new instance of <see cref="UpdateInfo"/>
         /// </summary>
-        public UpdateInfo(VelopackAsset targetRelease, VelopackAsset? deltaBaseRelease = null, VelopackAsset[]? deltasToTarget = null)
+        public UpdateInfo(VelopackAsset targetRelease, bool isDowngrade, VelopackAsset? deltaBaseRelease = null, VelopackAsset[]? deltasToTarget = null)
         {
             TargetFullRelease = targetRelease;
+            IsDowngrade = isDowngrade;
             BaseRelease = deltaBaseRelease;
             DeltasToTarget = deltasToTarget ?? new VelopackAsset[0];
         }

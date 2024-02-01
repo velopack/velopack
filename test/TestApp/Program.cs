@@ -78,7 +78,7 @@ try {
                 return -1;
             }
             Console.WriteLine("applying...");
-            um.ApplyUpdatesAndRestart(new[] { "test", "args !!" });
+            um.ApplyUpdatesAndRestart((VelopackAsset) null, new[] { "test", "args !!" });
             return 0;
         }
     }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -19,7 +19,7 @@ namespace Velopack
     /// <summary>
     /// Provides functionality for checking for updates, downloading updates, and applying updates to the current application.
     /// </summary>
-    public class UpdateManager
+    public partial class UpdateManager
     {
         /// <summary> The currently installed application Id. This would be what you set when you create your release.</summary>
         public virtual string? AppId => Locator.AppId;
@@ -27,7 +27,7 @@ namespace Velopack
         /// <summary> True if this application is currently installed, and is able to download/check for updates. </summary>
         public virtual bool IsInstalled => Locator.CurrentlyInstalledVersion != null;
 
-        /// <summary> True if there is a local update prepared that requires a call to <see cref="ApplyUpdatesAndRestart(string[])"/> to be applied. </summary>
+        /// <summary> True if there is a local update prepared that requires a call to <see cref="ApplyUpdatesAndRestart(VelopackAsset, string[])"/> to be applied. </summary>
         public virtual bool IsUpdatePendingRestart {
             get {
                 var latestLocal = Locator.GetLatestLocalFullPackage();
@@ -52,17 +52,26 @@ namespace Velopack
         /// <summary> The channel to use when searching for packages. </summary>
         protected string Channel { get; }
 
+        /// <summary> The default channel to search for packages in, if one was not provided by the user. </summary>
+        protected string DefaultChannel => Locator?.Channel ?? VelopackRuntimeInfo.SystemOs.GetOsShortName();
+
+        /// <summary> If true, an explicit channel was provided by the user, and it's different than the default channel. </summary>
+        protected bool IsNonDefaultChannel => Locator?.Channel != null && Channel != DefaultChannel;
+
+        /// <summary> If true, UpdateManager should return the latest asset in the feed, even if that version is lower than the current version. </summary>
+        protected bool ShouldAllowVersionDowngrade { get; }
+
         /// <summary>
         /// Creates a new UpdateManager instance using the specified URL or file path to the releases feed, and the specified channel name.
         /// </summary>
         /// <param name="urlOrPath">A basic URL or file path to use when checking for updates.</param>
-        /// <param name="channel">Search for releases in the feed of a specific channel name. If null, it will search the default channel.</param>
+        /// <param name="options">Override / configure default update behaviors.</param>
         /// <param name="logger">The logger to use for diagnostic messages. If one was provided to <see cref="VelopackApp.Run(ILogger)"/> but is null here, 
         /// it will be cached and used again.</param>
         /// <param name="locator">This should usually be left null. Providing an <see cref="IVelopackLocator" /> allows you to mock up certain application paths. 
         /// For example, if you wanted to test that updates are working in a unit test, you could provide an instance of <see cref="TestVelopackLocator"/>. </param>
-        public UpdateManager(string urlOrPath, string? channel = null, ILogger? logger = null, IVelopackLocator? locator = null)
-            : this(CreateSimpleSource(urlOrPath), channel, logger, locator)
+        public UpdateManager(string urlOrPath, UpdateOptions? options = null, ILogger? logger = null, IVelopackLocator? locator = null)
+            : this(CreateSimpleSource(urlOrPath), options, logger, locator)
         {
         }
 
@@ -71,12 +80,12 @@ namespace Velopack
         /// </summary>
         /// <param name="source">The source describing where to search for updates. This can be a custom source, if you are integrating with some private resource,
         /// or it could be one of the predefined sources. (eg. <see cref="SimpleWebSource"/> or <see cref="GithubSource"/>, etc).</param>
-        /// <param name="channel">Search for releases in the feed of a specific channel name. If null, it will search the default channel.</param>
+        /// <param name="options">Override / configure default update behaviors.</param>
         /// <param name="logger">The logger to use for diagnostic messages. If one was provided to <see cref="VelopackApp.Run(ILogger)"/> but is null here, 
         /// it will be cached and used again.</param>
         /// <param name="locator">This should usually be left null. Providing an <see cref="IVelopackLocator" /> allows you to mock up certain application paths. 
         /// For example, if you wanted to test that updates are working in a unit test, you could provide an instance of <see cref="TestVelopackLocator"/>. </param>
-        public UpdateManager(IUpdateSource source, string? channel = null, ILogger? logger = null, IVelopackLocator? locator = null)
+        public UpdateManager(IUpdateSource source, UpdateOptions? options = null, ILogger? logger = null, IVelopackLocator? locator = null)
         {
             if (source == null) {
                 throw new ArgumentNullException(nameof(source));
@@ -84,7 +93,8 @@ namespace Velopack
             Source = source;
             Log = logger ?? VelopackApp.DefaultLogger ?? NullLogger.Instance;
             Locator = locator ?? VelopackLocator.GetDefault(Log);
-            Channel = channel ?? Locator.Channel ?? VelopackRuntimeInfo.SystemOs.GetOsShortName();
+            Channel = options?.ExplicitChannel ?? DefaultChannel;
+            ShouldAllowVersionDowngrade = options?.AllowVersionDowngrade ?? false;
         }
 
         /// <inheritdoc cref="CheckForUpdatesAsync()"/>
@@ -116,36 +126,60 @@ namespace Velopack
                 return null;
             }
 
-            if (latestRemoteFull.Version <= installedVer) {
-                Log.Info($"No updates, remote version ({latestRemoteFull.Version}) is not newer than current version ({installedVer}).");
-                return null;
+            // there's a newer version available, easy.
+            if (latestRemoteFull.Version > installedVer) {
+                Log.Info($"Found newer remote release available ({installedVer} -> {latestRemoteFull.Version}).");
+                return CreateDeltaUpdateStrategy(feed, latestLocalFull, latestRemoteFull);
             }
 
-            Log.Info($"Found remote update available ({latestRemoteFull.Version}).");
+            // if the remote version is < than current version and downgrade is enabled
+            if (latestRemoteFull.Version < installedVer && ShouldAllowVersionDowngrade) {
+                Log.Info($"Latest remote release is older than current, and downgrade is enabled ({installedVer} -> {latestRemoteFull.Version}).");
+                return new UpdateInfo(latestRemoteFull, true);
+            }
+
+            // if the remote version is the same as current version, and downgrade is enabled,
+            // and we're searching for a different channel than current
+            if (ShouldAllowVersionDowngrade && IsNonDefaultChannel) {
+                if (VersionComparer.Compare(latestRemoteFull.Version, installedVer, VersionComparison.Version) == 0) {
+                    Log.Info($"Latest remote release is the same version of a different channel, and downgrade is enabled ({installedVer}: {DefaultChannel} -> {Channel}).");
+                    return new UpdateInfo(latestRemoteFull, true);
+                }
+            }
+
+            Log.Info($"No updates, remote version ({latestRemoteFull.Version}) is not newer than current version ({installedVer}) and / or downgrade is not enabled.");
+            return null;
+        }
+
+        /// <summary>
+        /// Given a feed of releases, and the latest local full release, and the latest remote full release, this method will return a delta
+        /// update strategy to be used by <see cref="DownloadUpdatesAsync(UpdateInfo, Action{int}?, bool, CancellationToken)"/>.
+        /// </summary>
+        protected virtual UpdateInfo CreateDeltaUpdateStrategy(VelopackAsset[] feed, VelopackAsset? latestLocalFull, VelopackAsset latestRemoteFull)
+        {
+            if (latestLocalFull == null) {
+                // TODO: for now, we're not trying to handle the case of building delta updates on top of an installation directory,
+                // but we can look at this in the future. Until then, Windows (installer) is the only thing which ships with a complete .nupkg
+                // so in all other cases, Velopack needs to download one full release before it can start using delta's.
+                Log.Info("There is no local/base package available for this update, so delta updates will be disabled.");
+                return new UpdateInfo(latestRemoteFull, false);
+            }
+
+            EnsureInstalled();
+            var installedVer = CurrentVersion!;
 
             var matchingRemoteDelta = feed.Where(r => r.Type == VelopackAssetType.Delta && r.Version == latestRemoteFull.Version).FirstOrDefault();
             if (matchingRemoteDelta == null) {
-                Log.Info($"Unable to find delta matching version {latestRemoteFull.Version}, only full update will be available.");
-                return new UpdateInfo(latestRemoteFull);
+                Log.Info($"Unable to find any delta matching version {latestRemoteFull.Version}, so delta updates will be disabled.");
+                return new UpdateInfo(latestRemoteFull, false);
             }
 
             // if we have a local full release, we try to apply delta's from that version to target version.
-            // if we do not have a local release, we try to apply delta's to a copy of the current installed app files.
-            SemanticVersion? deltaFromVer = null;
-            if (latestLocalFull != null) {
-                if (latestLocalFull.Version != installedVer) {
-                    Log.Warn($"The current running version is {installedVer}, however the latest available local full .nupkg " +
-                        $"is {latestLocalFull.Version}. We will try to download and apply delta's from {latestLocalFull.Version}.");
-                }
-                deltaFromVer = latestLocalFull.Version;
-            } else {
-                Log.Warn("There is no local release .nupkg, we are going to attempt an in-place delta upgrade using application files.");
-                deltaFromVer = installedVer;
-            }
+            SemanticVersion deltaFromVer = latestLocalFull.Version;
 
             var deltas = feed.Where(r => r.Type == VelopackAssetType.Delta && r.Version > deltaFromVer && r.Version <= latestRemoteFull.Version).ToArray();
             Log.Debug($"Found {deltas.Length} delta releases between {deltaFromVer} and {latestRemoteFull.Version}.");
-            return new UpdateInfo(latestRemoteFull, latestLocalFull, deltas);
+            return new UpdateInfo(latestRemoteFull, false, latestLocalFull, deltas);
         }
 
         /// <inheritdoc cref="DownloadUpdatesAsync(UpdateInfo, Action{int}, bool, CancellationToken)"/>
@@ -201,10 +235,13 @@ namespace Velopack
             var incompleteFile = completeFile + ".partial";
 
             try {
+                // if the package already exists on disk, we can skip the download.
                 if (File.Exists(completeFile)) {
                     Log.Info($"Package already exists on disk: '{completeFile}', verifying checksum...");
                     try {
                         VerifyPackageChecksum(targetRelease);
+                        Log.Info("Package checksum verified, skipping download.");
+                        return;
                     } catch (ChecksumFailedException ex) {
                         Log.Warn(ex, $"Checksum failed for file '{completeFile}'. Deleting and starting over.");
                     }
@@ -245,11 +282,8 @@ namespace Velopack
                             }
                         }
                     }
-                } catch (Exception ex) {
+                } catch (Exception ex) when (!VelopackRuntimeInfo.InUnitTestRunner) {
                     Log.Warn(ex, "Unable to apply delta updates, falling back to full update.");
-                    if (VelopackRuntimeInfo.InUnitTestRunner) {
-                        throw;
-                    }
                 }
 
                 Log.Info($"Downloading full release ({targetRelease.FileName})");
@@ -257,8 +291,8 @@ namespace Velopack
                 await Source.DownloadReleaseEntry(Log, targetRelease, incompleteFile, reportProgress, cancelToken).ConfigureAwait(false);
                 Log.Info("Verifying package checksum...");
                 VerifyPackageChecksum(targetRelease, incompleteFile);
-                File.Delete(completeFile);
-                File.Move(incompleteFile, completeFile);
+
+                Utility.MoveFile(incompleteFile, completeFile, true);
                 Log.Info("Full release download complete. Package moved to: " + completeFile);
                 reportProgress(100);
             } finally {
@@ -282,46 +316,8 @@ namespace Velopack
                     }
                 }
 
-                CleanIncompleteAndDeltaPackages();
+                CleanPackagesExcept(completeFile);
             }
-        }
-
-        /// <summary>
-        /// This will exit your app immediately, apply updates, and then optionally relaunch the app using the specified 
-        /// restart arguments. If you need to save state or clean up, you should do that before calling this method. 
-        /// The user may be prompted during the update, if the update requires additional frameworks to be installed etc.
-        /// You can check if there are pending updates by checking <see cref="IsUpdatePendingRestart"/>.
-        /// </summary>
-        /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
-        public void ApplyUpdatesAndRestart(string[]? restartArgs = null)
-        {
-            WaitExitThenApplyUpdates(true, restartArgs);
-            Environment.Exit(0);
-        }
-
-        /// <summary>
-        /// This will exit your app immediately, apply updates, and then optionally relaunch the app using the specified 
-        /// restart arguments. If you need to save state or clean up, you should do that before calling this method. 
-        /// The user may be prompted during the update, if the update requires additional frameworks to be installed etc.
-        /// You can check if there are pending updates by checking <see cref="IsUpdatePendingRestart"/>.
-        /// </summary>
-        public void ApplyUpdatesAndExit()
-        {
-            WaitExitThenApplyUpdates(false, null);
-            Environment.Exit(0);
-        }
-
-        /// <summary>
-        /// This will launch the Velopack updater and tell it to wait for this program to exit gracefully.
-        /// You should then clean up any state and exit your app. The updater will apply updates and then
-        /// optionally restart your app. The updater will only wait for 60 seconds before giving up.
-        /// You can check if there are pending updates by checking <see cref="IsUpdatePendingRestart"/>.
-        /// </summary>
-        /// <param name="restart">Whether Velopack should restart the app after the updates have been applied.</param>
-        /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
-        public void WaitExitThenApplyUpdates(bool restart = true, string[]? restartArgs = null)
-        {
-            UpdateExe.Apply(Locator, false, restart, restartArgs, Log);
         }
 
         /// <summary>
@@ -380,28 +376,31 @@ namespace Velopack
         }
 
         /// <summary>
-        /// Removes any incomplete files (.partial) and delta packages (-delta.nupkg) from the packages directory.
+        /// Removes any incomplete files (.partial) and packages (.nupkg) from the packages directory that does not match
+        /// the provided asset. If assetToKeep is null, all packages will be deleted.
         /// </summary>
-        protected void CleanIncompleteAndDeltaPackages()
+        protected virtual void CleanPackagesExcept(string? assetToKeep)
         {
             try {
-                var appPackageDir = Locator.PackagesDir!;
                 Log.Info("Cleaning up incomplete and delta packages from packages directory.");
-                foreach (var l in Locator.GetLocalPackages()) {
-                    if (l.Type == VelopackAssetType.Delta) {
-                        try {
-                            var pkgPath = Path.Combine(appPackageDir, l.FileName);
-                            File.Delete(pkgPath);
-                            Log.Trace(pkgPath + " deleted.");
-                        } catch (Exception ex) {
-                            Log.Warn(ex, "Failed to delete delta package: " + l.FileName);
+
+                var appPackageDir = Locator.PackagesDir!;
+                foreach (var l in Directory.EnumerateFiles(appPackageDir, "*.nupkg").ToArray()) {
+                    try {
+                        if (assetToKeep != null && Utility.FullPathEquals(l, assetToKeep)) {
+                            continue;
                         }
+
+                        Utility.DeleteFileOrDirectoryHard(l);
+                        Log.Trace(l + " deleted.");
+                    } catch (Exception ex) {
+                        Log.Warn(ex, "Failed to delete partial package: " + l);
                     }
                 }
 
                 foreach (var l in Directory.EnumerateFiles(appPackageDir, "*.partial").ToArray()) {
                     try {
-                        File.Delete(l);
+                        Utility.DeleteFileOrDirectoryHard(l);
                         Log.Trace(l + " deleted.");
                     } catch (Exception ex) {
                         Log.Warn(ex, "Failed to delete partial package: " + l);

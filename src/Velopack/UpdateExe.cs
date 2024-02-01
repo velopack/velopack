@@ -13,7 +13,7 @@ namespace Velopack
     /// <summary>
     /// A static helper class to assist in running Update.exe CLI commands. You probably should not invoke this directly, 
     /// instead you should use the relevant methods on <see cref="UpdateManager"/>. For example: 
-    /// <see cref="UpdateManager.ApplyUpdatesAndExit()"/>, or <see cref="UpdateManager.ApplyUpdatesAndRestart(string[])"/>.
+    /// <see cref="UpdateManager.ApplyUpdatesAndExit(VelopackAsset)"/>, or <see cref="UpdateManager.ApplyUpdatesAndRestart(VelopackAsset, string[])"/>.
     /// </summary>
     public static class UpdateExe
     {
@@ -29,12 +29,15 @@ namespace Velopack
         /// a new framework dependency.</param>
         /// <param name="restart">If true, restarts the application after updates are applied (or if they failed)</param>
         /// <param name="locator">The locator to use to find the path to Update.exe and the packages directory.</param>
+        /// <param name="toApply">The update package you wish to apply, can be left null.</param>
         /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
         /// <param name="logger">The logger to use for diagnostic messages</param>
         /// <exception cref="Exception">Thrown if Update.exe does not initialize properly.</exception>
-        public static void Apply(IVelopackLocator locator, bool silent, bool restart, string[]? restartArgs = null, ILogger? logger = null)
+        public static void Apply(IVelopackLocator? locator, VelopackAsset? toApply, bool silent, bool restart, string[]? restartArgs = null, ILogger? logger = null)
         {
             logger ??= NullLogger.Instance;
+            locator ??= VelopackLocator.GetDefault(logger);
+
             var psi = new ProcessStartInfo() {
                 CreateNoWindow = true,
                 FileName = locator.UpdateExePath,
@@ -46,7 +49,7 @@ namespace Velopack
             args.Add("apply");
             args.Add("--wait");
 
-            var entry = locator.GetLatestLocalFullPackage();
+            var entry = toApply ?? locator.GetLatestLocalFullPackage();
             if (entry != null && locator.PackagesDir != null) {
                 var pkg = Path.Combine(locator.PackagesDir, entry.FileName);
                 if (File.Exists(pkg)) {

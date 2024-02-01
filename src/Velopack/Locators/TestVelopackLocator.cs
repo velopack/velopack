@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
@@ -80,6 +81,15 @@ namespace Velopack.Locators
             }
         }
 
+        /// <inheritdoc />
+        public override VelopackAsset? GetLatestLocalFullPackage()
+        {
+            if (_asset != null) {
+                return _asset;
+            }
+            return base.GetLatestLocalFullPackage();
+        }
+
         private readonly string? _updatePath;
         private readonly SemanticVersion? _version;
         private readonly string? _packages;
@@ -87,6 +97,7 @@ namespace Velopack.Locators
         private readonly string? _root;
         private readonly string? _appContent;
         private readonly string? _channel;
+        private readonly VelopackAsset? _asset;
 
         /// <inheritdoc cref="TestVelopackLocator" />
         public TestVelopackLocator(string appId, string version, string packagesDir, ILogger? logger = null)
@@ -96,7 +107,7 @@ namespace Velopack.Locators
 
         /// <inheritdoc cref="TestVelopackLocator" />
         public TestVelopackLocator(string appId, string version, string packagesDir, string? appDir,
-            string? rootDir, string? updateExe, string? channel = null, ILogger? logger = null)
+            string? rootDir, string? updateExe, string? channel = null, ILogger? logger = null, VelopackAsset? localPackage = null)
             : base(logger)
         {
             _id = appId;
@@ -106,6 +117,7 @@ namespace Velopack.Locators
             _root = rootDir;
             _appContent = appDir;
             _channel = channel;
+            _asset = localPackage;
         }
     }
 }
