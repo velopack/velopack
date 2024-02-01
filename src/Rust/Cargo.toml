@@ -58,7 +58,7 @@ semver = "1.0"
 chrono = "0.4"
 wait-timeout = "0.2"
 lazy_static = "1.4"
-strum = { version = "0.25", features = ["derive"] }
+strum = { version = "0.26", features = ["derive"] }
 ureq = { version = "2.9", default-features = false, features = [
     "native-tls",
     "gzip",
@@ -74,6 +74,7 @@ remove_dir_all = { git = "https://github.com/caesay/remove_dir_all.git", feature
 ] }
 zstd = "0.13"
 sha1_smol = "1.0"
+url = "2.5"
 
 [target.'cfg(unix)'.dependencies]
 native-dialog = "0.7"

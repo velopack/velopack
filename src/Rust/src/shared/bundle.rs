@@ -308,6 +308,7 @@ pub struct Manifest {
     pub main_exe: String,
     pub os: String,
     pub os_min_version: String,
+    pub channel: String,
 }
 
 #[cfg(target_os = "windows")]
@@ -407,6 +408,8 @@ pub fn read_manifest_from_string(xml: &str) -> Result<Manifest> {
                     obj.os = text;
                 } else if el_name == "osMinVersion" {
                     obj.os_min_version = text;
+                } else if el_name == "channel" {
+                    obj.channel = text;
                 }
             }
             Ok(XmlEvent::EndElement { .. }) => {
