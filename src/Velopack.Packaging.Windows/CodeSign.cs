@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -44,6 +45,7 @@ namespace Velopack.Packaging.Windows
 
         public void SignPEFilesWithSignTool(string rootDir, string[] filePaths, string signArguments, int parallelism, Action<int> progress)
         {
+            rootDir = null;
             Queue<string> pendingSign = new Queue<string>();
 
             foreach (var f in filePaths) {
@@ -65,30 +67,35 @@ namespace Velopack.Packaging.Windows
                 Log.Info($"{pendingSign.Count} files will be signed, {diff} will be skipped because they are already signed.");
             }
 
-            var totalToSign = pendingSign.Count;
-            var baseSignArgs = CommandLineToArgvW(signArguments);
+            foreach (var f in pendingSign) {
+                Log.Debug($"Signing '{f}'...");
+                SignPEFile(f, signArguments, null);
+            }
 
-            do {
-                List<string> args = new List<string>();
-                args.Add("sign");
-                args.AddRange(baseSignArgs);
-                for (int i = Math.Min(pendingSign.Count, parallelism); i > 0; i--) {
-                    args.Add(pendingSign.Dequeue());
-                }
+            //var totalToSign = pendingSign.Count;
+            //var baseSignArgs = CommandLineToArgvW(signArguments);
 
-                var result = Exe.InvokeProcess(HelperFile.SignToolPath, args, rootDir);
-                if (result.ExitCode != 0) {
-                    var cmdWithPasswordHidden = new Regex(@"\/p\s+?[^\s]+").Replace(result.Command, "/p ********");
-                    Log.Debug($"Signing command failed: {cmdWithPasswordHidden}");
-                    throw new Exception(
-                        $"Signing command failed. Specify --verbose argument to print signing command.\n\n" +
-                        $"Output was:\n" + result.StdOutput);
-                }
+            //do {
+            //    List<string> args = new List<string>();
+            //    args.Add("sign");
+            //    args.AddRange(baseSignArgs);
+            //    for (int i = Math.Min(pendingSign.Count, parallelism); i > 0; i--) {
+            //        args.Add(pendingSign.Dequeue());
+            //    }
 
-                int processed = totalToSign - pendingSign.Count;
-                Log.Debug($"Signed {processed}/{totalToSign} successfully.\r\n" + result.StdOutput);
-                progress((int) ((double) processed / totalToSign * 100));
-            } while (pendingSign.Count > 0);
+            //    var result = Exe.InvokeProcess(HelperFile.SignToolPath, args, rootDir);
+            //    if (result.ExitCode != 0) {
+            //        var cmdWithPasswordHidden = new Regex(@"\/p\s+?[^\s]+").Replace(result.Command, "/p ********");
+            //        Log.Debug($"Signing command failed: {cmdWithPasswordHidden}");
+            //        throw new Exception(
+            //            $"Signing command failed. Specify --verbose argument to print signing command.\n\n" +
+            //            $"Output was:\n" + result.StdOutput);
+            //    }
+
+            //    int processed = totalToSign - pendingSign.Count;
+            //    Log.Debug($"Signed {processed}/{totalToSign} successfully.\r\n" + result.StdOutput);
+            //    progress((int) ((double) processed / totalToSign * 100));
+            //} while (pendingSign.Count > 0);
         }
 
         public void SignPEFileWithTemplate(string filePath, string signTemplate)
@@ -112,34 +119,116 @@ namespace Velopack.Packaging.Windows
             Log.Info("Sign successful: " + result.StdOutput);
         }
 
-        private const string WIN_KERNEL32 = "kernel32.dll";
-        private const string WIN_SHELL32 = "shell32.dll";
-
-        [DllImport(WIN_KERNEL32, EntryPoint = "LocalFree", SetLastError = true)]
-        private static extern IntPtr _LocalFree(IntPtr hMem);
-
-        [DllImport(WIN_SHELL32, EntryPoint = "CommandLineToArgvW", CharSet = CharSet.Unicode)]
-        private static extern IntPtr _CommandLineToArgvW([MarshalAs(UnmanagedType.LPWStr)] string cmdLine, out int numArgs);
-
-        protected static string[] CommandLineToArgvW(string cmdLine)
+        private static ProcessStartInfo CreateProcessStartInfo(string fileName, string arguments, string workingDirectory = "")
         {
-            IntPtr argv = IntPtr.Zero;
+            var psi = new ProcessStartInfo(fileName, arguments);
+            psi.UseShellExecute = false;
+            psi.WindowStyle = ProcessWindowStyle.Hidden;
+            psi.ErrorDialog = false;
+            psi.CreateNoWindow = true;
+            psi.RedirectStandardOutput = true;
+            psi.RedirectStandardError = true;
+            psi.WorkingDirectory = workingDirectory;
+            return psi;
+        }
+
+        private void SignPEFile(string filePath, string signParams, string signTemplate)
+        {
             try {
-                argv = _CommandLineToArgvW(cmdLine, out var numArgs);
-                if (argv == IntPtr.Zero) {
-                    throw new Win32Exception();
+                if (AuthenticodeTools.IsTrusted(filePath)) {
+                    Log.Debug($"'{filePath}' is already signed, skipping...");
+                    return;
                 }
-                var result = new string[numArgs];
-
-                for (int i = 0; i < numArgs; i++) {
-                    IntPtr currArg = Marshal.ReadIntPtr(argv, i * Marshal.SizeOf(typeof(IntPtr)));
-                    result[i] = Marshal.PtrToStringUni(currArg);
-                }
-
-                return result;
-            } finally {
-                _LocalFree(argv);
+            } catch (Exception ex) {
+                Log.Error(ex, "Failed to determine signing status for " + filePath);
             }
+
+            string cmd;
+            ProcessStartInfo psi;
+            if (!String.IsNullOrEmpty(signParams)) {
+                // use embedded signtool.exe with provided parameters
+                cmd = $"sign {signParams} \"{filePath}\"";
+                psi = CreateProcessStartInfo(HelperFile.SignToolPath, cmd);
+                cmd = "signtool.exe " + cmd;
+            } else if (!String.IsNullOrEmpty(signTemplate)) {
+                // escape custom sign command and pass it to cmd.exe
+                cmd = signTemplate.Replace("\"{{file}}\"", "{{file}}").Replace("{{file}}", $"\"{filePath}\"");
+                psi = CreateProcessStartInfo("cmd", $"/c {EscapeCmdExeMetachars(cmd)}");
+            } else {
+                Log.Debug($"{filePath} was not signed. (skipped; no signing parameters)");
+                return;
+            }
+
+            var processResult = InvokeProcessUnsafeAsync(psi, CancellationToken.None)
+                .ConfigureAwait(false).GetAwaiter().GetResult();
+
+            if (processResult.ExitCode != 0) {
+                var cmdWithPasswordHidden = new Regex(@"/p\s+\w+").Replace(cmd, "/p ********");
+                throw new Exception("Signing command failed: \n > " + cmdWithPasswordHidden + "\n" + processResult.StdOutput);
+            } else {
+                Log.Info("Sign successful: " + processResult.StdOutput);
+            }
+        }
+
+        private static string EscapeCmdExeMetachars(string command)
+        {
+            var result = new StringBuilder();
+            foreach (var ch in command) {
+                switch (ch) {
+                case '(':
+                case ')':
+                case '%':
+                case '!':
+                case '^':
+                case '"':
+                case '<':
+                case '>':
+                case '&':
+                case '|':
+                    result.Append('^');
+                    break;
+                }
+                result.Append(ch);
+            }
+            return result.ToString();
+        }
+
+        private class ProcessResult
+        {
+            public int ExitCode { get; set; }
+            public string StdOutput { get; set; }
+
+            public ProcessResult(int exitCode, string stdOutput)
+            {
+                ExitCode = exitCode;
+                StdOutput = stdOutput;
+            }
+        }
+
+        private static async Task<ProcessResult> InvokeProcessUnsafeAsync(ProcessStartInfo psi, CancellationToken ct)
+        {
+            var pi = Process.Start(psi);
+            await Task.Run(() => {
+                while (!ct.IsCancellationRequested) {
+                    if (pi.WaitForExit(2000)) return;
+                }
+
+                if (ct.IsCancellationRequested) {
+                    pi.Kill();
+                    ct.ThrowIfCancellationRequested();
+                }
+            }).ConfigureAwait(false);
+
+            string textResult = await pi.StandardOutput.ReadToEndAsync().ConfigureAwait(false);
+            if (String.IsNullOrWhiteSpace(textResult) || pi.ExitCode != 0) {
+                textResult = (textResult ?? "") + "\n" + await pi.StandardError.ReadToEndAsync().ConfigureAwait(false);
+
+                if (String.IsNullOrWhiteSpace(textResult)) {
+                    textResult = String.Empty;
+                }
+            }
+
+            return new ProcessResult(pi.ExitCode, textResult.Trim());
         }
     }
 }
