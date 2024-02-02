@@ -1,35 +1,34 @@
 ﻿using Microsoft.Extensions.Logging;
 using Velopack.Compression;
 
-namespace Velopack.Packaging
+namespace Velopack.Packaging;
+
+public class DeltaEmbedded
 {
-    public class DeltaEmbedded
+    private readonly DeltaImpl _delta;
+
+    public DeltaEmbedded(string zstdPath, ILogger logger, string baseTmpDir)
     {
-        private readonly DeltaImpl _delta;
+        _delta = new DeltaImpl(zstdPath, logger, baseTmpDir);
+    }
 
-        public DeltaEmbedded(string zstdPath, ILogger logger, string baseTmpDir)
+    public void ApplyDeltaPackageFast(string workingPath, string deltaPackageZip, Action<int> progress = null)
+    {
+        _delta.ApplyDeltaPackageFast(workingPath, deltaPackageZip, progress);
+    }
+
+    private class DeltaImpl : DeltaPackage
+    {
+        private readonly Zstd _zstd;
+
+        public DeltaImpl(string zstdPath, ILogger logger, string baseTmpDir) : base(logger, baseTmpDir)
         {
-            _delta = new DeltaImpl(zstdPath, logger, baseTmpDir);
+            _zstd = new Zstd(zstdPath);
         }
 
-        public void ApplyDeltaPackageFast(string workingPath, string deltaPackageZip, Action<int> progress = null)
+        protected override void ApplyZstdPatch(string baseFile, string patchFile, string outputFile)
         {
-            _delta.ApplyDeltaPackageFast(workingPath, deltaPackageZip, progress);
-        }
-
-        private class DeltaImpl : DeltaPackage
-        {
-            private readonly Zstd _zstd;
-
-            public DeltaImpl(string zstdPath, ILogger logger, string baseTmpDir) : base(logger, baseTmpDir)
-            {
-                _zstd = new Zstd(zstdPath);
-            }
-
-            protected override void ApplyZstdPatch(string baseFile, string patchFile, string outputFile)
-            {
-                _zstd.ApplyPatch(baseFile, patchFile, outputFile);
-            }
+            _zstd.ApplyPatch(baseFile, patchFile, outputFile);
         }
     }
 }

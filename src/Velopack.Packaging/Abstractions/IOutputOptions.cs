@@ -4,10 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Velopack.Packaging.Abstractions
+namespace Velopack.Packaging.Abstractions;
+
+public interface IOutputOptions
 {
-    public interface IOutputOptions
-    {
-        DirectoryInfo ReleaseDir { get; }
-    }
+    DirectoryInfo ReleaseDir { get; }
 }

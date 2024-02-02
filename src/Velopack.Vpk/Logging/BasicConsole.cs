@@ -1,58 +1,57 @@
 ﻿using Velopack.Packaging.Abstractions;
 
-namespace Velopack.Vpk.Logging
+namespace Velopack.Vpk.Logging;
+
+public class BasicConsole : IFancyConsole
 {
-    public class BasicConsole : IFancyConsole
+    private readonly ILogger logger;
+    private readonly DefaultPromptValueFactory defaultFactory;
+
+    public BasicConsole(ILogger logger, DefaultPromptValueFactory defaultFactory)
     {
-        private readonly ILogger logger;
-        private readonly DefaultPromptValueFactory defaultFactory;
+        this.logger = logger;
+        this.defaultFactory = defaultFactory;
+    }
 
-        public BasicConsole(ILogger logger, DefaultPromptValueFactory defaultFactory)
+    public async Task ExecuteProgressAsync(Func<IFancyConsoleProgress, Task> action)
+    {
+        var start = DateTime.UtcNow;
+        await action(new Progress(logger));
+        logger.Info($"Finished in {DateTime.UtcNow - start}.");
+    }
+
+    public Task<bool> PromptYesNo(string prompt, bool? defaultValue = null, TimeSpan? timeout = null)
+    {
+        return Task.FromResult(defaultValue ?? defaultFactory.DefaultPromptValue);
+    }
+
+    public void WriteLine(string text = "")
+    {
+        Console.WriteLine(text);
+    }
+
+    public void WriteTable(string tableName, IEnumerable<IEnumerable<string>> rows, bool hasHeaderRow = true)
+    {
+        Console.WriteLine(tableName);
+        foreach (var row in rows) {
+            Console.WriteLine("  " + String.Join("    ", row));
+        }
+    }
+
+    private class Progress : IFancyConsoleProgress
+    {
+        private readonly ILogger _logger;
+
+        public Progress(ILogger logger)
         {
-            this.logger = logger;
-            this.defaultFactory = defaultFactory;
+            _logger = logger;
         }
 
-        public async Task ExecuteProgressAsync(Func<IFancyConsoleProgress, Task> action)
+        public async Task RunTask(string name, Func<Action<int>, Task> fn)
         {
-            var start = DateTime.UtcNow;
-            await action(new Progress(logger));
-            logger.Info($"Finished in {DateTime.UtcNow - start}.");
-        }
-
-        public Task<bool> PromptYesNo(string prompt, bool? defaultValue = null, TimeSpan? timeout = null)
-        {
-            return Task.FromResult(defaultValue ?? defaultFactory.DefaultPromptValue);
-        }
-
-        public void WriteLine(string text = "")
-        {
-            Console.WriteLine(text);
-        }
-
-        public void WriteTable(string tableName, IEnumerable<IEnumerable<string>> rows, bool hasHeaderRow = true)
-        {
-            Console.WriteLine(tableName);
-            foreach (var row in rows) {
-                Console.WriteLine("  " + String.Join("    ", row));
-            }
-        }
-
-        private class Progress : IFancyConsoleProgress
-        {
-            private readonly ILogger _logger;
-
-            public Progress(ILogger logger)
-            {
-                _logger = logger;
-            }
-
-            public async Task RunTask(string name, Func<Action<int>, Task> fn)
-            {
-                _logger.Info("Starting: " + name);
-                await Task.Run(() => fn(_ => { }));
-                _logger.Info("Complete: " + name);
-            }
+            _logger.Info("Starting: " + name);
+            await Task.Run(() => fn(_ => { }));
+            _logger.Info("Complete: " + name);
         }
     }
 }

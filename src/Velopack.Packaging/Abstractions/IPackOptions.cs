@@ -1,9 +1,8 @@
-﻿namespace Velopack.Packaging.Abstractions
+﻿namespace Velopack.Packaging.Abstractions;
+
+public interface IPackOptions : INugetPackCommand, IPlatformOptions
 {
-    public interface IPackOptions : INugetPackCommand, IPlatformOptions
-    {
-        string Channel { get; }
-        DeltaMode DeltaMode { get; }
-        string EntryExecutableName { get; }
-    }
+    string Channel { get; }
+    DeltaMode DeltaMode { get; }
+    string EntryExecutableName { get; }
 }

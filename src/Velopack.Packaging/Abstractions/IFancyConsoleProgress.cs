@@ -1,7 +1,6 @@
-﻿namespace Velopack.Packaging.Abstractions
+﻿namespace Velopack.Packaging.Abstractions;
+
+public interface IFancyConsoleProgress
 {
-    public interface IFancyConsoleProgress
-    {
-        Task RunTask(string name, Func<Action<int>, Task> fn);
-    }
+    Task RunTask(string name, Func<Action<int>, Task> fn);
 }

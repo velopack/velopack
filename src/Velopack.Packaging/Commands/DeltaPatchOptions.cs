@@ -1,11 +1,10 @@
-﻿namespace Velopack.Packaging.Commands
+﻿namespace Velopack.Packaging.Commands;
+
+public class DeltaPatchOptions
 {
-    public class DeltaPatchOptions
-    {
-        public string BasePackage { get; set; }
+    public string BasePackage { get; set; }
 
-        public FileInfo[] PatchFiles { get; set; }
+    public FileInfo[] PatchFiles { get; set; }
 
-        public string OutputFile { get; set; }
-    }
+    public string OutputFile { get; set; }
 }
