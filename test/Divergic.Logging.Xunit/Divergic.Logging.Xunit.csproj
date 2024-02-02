@@ -6,6 +6,7 @@
 		<Nullable>enable</Nullable>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\..\Velopack.snk</AssemblyOriginatorKeyFile>
+    <NoWarn>$(NoWarn);IDE0161</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>

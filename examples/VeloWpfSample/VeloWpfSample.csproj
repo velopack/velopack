@@ -7,6 +7,7 @@
     <UseWPF>true</UseWPF>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <LangVersion>latest</LangVersion>
+    <NoWarn>$(NoWarn);IDE0161</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup>

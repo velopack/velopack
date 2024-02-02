@@ -202,5 +202,9 @@ cpp_wrap_preserve_blocks = one_liners
 indent_size = 2
 
 [*.cs]
+# for mapperly
 dotnet_diagnostic.RMG012.severity = error # Unmapped target member
 dotnet_diagnostic.RMG020.severity = error # Unmapped source member
+
+# file scoped namespaces
+csharp_style_namespace_declarations = file_scoped:warning
