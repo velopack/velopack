@@ -1,7 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using NuGet.Versioning;
 using Velopack.NuGet;
-using Velopack.Windows;
 
 namespace Velopack.Vpk.Commands;
 

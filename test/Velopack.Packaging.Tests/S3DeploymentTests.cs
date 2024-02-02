@@ -1,11 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using NuGet.Versioning;
+﻿using NuGet.Versioning;
 using Velopack.Deployment;
-using Velopack.Packaging.Exceptions;
 using Velopack.Sources;
 
 namespace Velopack.Packaging.Tests;

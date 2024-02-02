@@ -2,7 +2,6 @@
 using NuGet.Versioning;
 using Velopack.Json;
 using Velopack.NuGet;
-using Velopack.Packaging.Exceptions;
 
 namespace Velopack.Packaging;
 

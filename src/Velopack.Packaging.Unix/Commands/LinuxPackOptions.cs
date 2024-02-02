@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Velopack.Packaging.Abstractions;
+﻿using Velopack.Packaging.Abstractions;
 
 namespace Velopack.Packaging.Unix.Commands;
 

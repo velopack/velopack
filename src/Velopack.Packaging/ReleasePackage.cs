@@ -1,9 +1,4 @@
-﻿using System.IO.Compression;
-using System.Text;
-using System.Xml;
-using Microsoft.Extensions.Logging;
-using NuGet.Versioning;
-using Velopack.Compression;
+﻿using NuGet.Versioning;
 using Velopack.NuGet;
 
 namespace Velopack.Packaging;

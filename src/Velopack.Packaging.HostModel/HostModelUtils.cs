@@ -1,8 +1,7 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.InteropServices;
 
 namespace Microsoft.NET.HostModel
@@ -18,16 +17,14 @@ namespace Microsoft.NET.HostModel
             Debug.Assert(RuntimeInformation.IsOSPlatform(OSPlatform.OSX));
             Debug.Assert(IsCodesignAvailable());
 
-            var psi = new ProcessStartInfo()
-            {
+            var psi = new ProcessStartInfo() {
                 Arguments = $"{args} \"{appHostPath}\"",
                 FileName = CodesignPath,
                 RedirectStandardError = true,
                 UseShellExecute = false,
             };
 
-            using (var p = Process.Start(psi))
-            {
+            using (var p = Process.Start(psi)) {
                 p.WaitForExit();
                 return (p.ExitCode, p.StandardError.ReadToEnd());
             }

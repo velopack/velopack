@@ -1,8 +1,6 @@
-﻿using System.Diagnostics.Metrics;
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using NuGet.Versioning;
-using Velopack.Json;
 using Velopack.Locators;
 using Velopack.Sources;
 using Velopack.Tests.TestHelpers;

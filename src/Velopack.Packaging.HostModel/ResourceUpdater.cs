@@ -1,7 +1,6 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -21,12 +20,12 @@ namespace Microsoft.NET.HostModel
             // Native methods for updating resources
             //
 
-            [DllImport(nameof(Kernel32), CharSet = CharSet.Unicode, SetLastError=true)]
+            [DllImport(nameof(Kernel32), CharSet = CharSet.Unicode, SetLastError = true)]
             public static extern SafeUpdateHandle BeginUpdateResource(string pFileName,
-                                                                      [MarshalAs(UnmanagedType.Bool)]bool bDeleteExistingResources);
+                                                                      [MarshalAs(UnmanagedType.Bool)] bool bDeleteExistingResources);
 
             // Update a resource with data from an IntPtr
-            [DllImport(nameof(Kernel32), SetLastError=true)]
+            [DllImport(nameof(Kernel32), SetLastError = true)]
             [return: MarshalAs(UnmanagedType.Bool)]
             public static extern bool UpdateResource(SafeUpdateHandle hUpdate,
                                                      IntPtr lpType,
@@ -36,33 +35,33 @@ namespace Microsoft.NET.HostModel
                                                      uint cbData);
 
             // Update a resource with data from a managed byte[]
-            [DllImport(nameof(Kernel32), SetLastError=true)]
+            [DllImport(nameof(Kernel32), SetLastError = true)]
             [return: MarshalAs(UnmanagedType.Bool)]
             public static extern bool UpdateResource(SafeUpdateHandle hUpdate,
                                                      IntPtr lpType,
                                                      IntPtr lpName,
                                                      ushort wLanguage,
-                                                     [MarshalAs(UnmanagedType.LPArray, SizeParamIndex=5)] byte[] lpData,
+                                                     [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 5)] byte[] lpData,
                                                      uint cbData);
 
             // Update a resource with data from a managed byte[]
-            [DllImport(nameof(Kernel32), SetLastError=true)]
+            [DllImport(nameof(Kernel32), SetLastError = true)]
             [return: MarshalAs(UnmanagedType.Bool)]
             public static extern bool UpdateResource(SafeUpdateHandle hUpdate,
                                                      string lpType,
                                                      IntPtr lpName,
                                                      ushort wLanguage,
-                                                     [MarshalAs(UnmanagedType.LPArray, SizeParamIndex=5)] byte[] lpData,
+                                                     [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 5)] byte[] lpData,
                                                      uint cbData);
 
-            [DllImport(nameof(Kernel32), SetLastError=true)]
+            [DllImport(nameof(Kernel32), SetLastError = true)]
             [return: MarshalAs(UnmanagedType.Bool)]
             public static extern bool EndUpdateResource(SafeUpdateHandle hUpdate,
                                                         bool fDiscard);
 
             // The IntPtr version of this dllimport is used in the
             // SafeHandle implementation
-            [DllImport(nameof(Kernel32), SetLastError=true)]
+            [DllImport(nameof(Kernel32), SetLastError = true)]
             [return: MarshalAs(UnmanagedType.Bool)]
             public static extern bool EndUpdateResource(IntPtr hUpdate,
                                                         bool fDiscard);
@@ -81,12 +80,12 @@ namespace Microsoft.NET.HostModel
                 LOAD_LIBRARY_AS_IMAGE_RESOURCE = 0x00000020
             }
 
-            [DllImport(nameof(Kernel32), CharSet = CharSet.Unicode, SetLastError=true)]
+            [DllImport(nameof(Kernel32), CharSet = CharSet.Unicode, SetLastError = true)]
             public static extern IntPtr LoadLibraryEx(string lpFileName,
                                                       IntPtr hReservedNull,
                                                       LoadLibraryFlags dwFlags);
 
-            [DllImport(nameof(Kernel32), SetLastError=true)]
+            [DllImport(nameof(Kernel32), SetLastError = true)]
             [return: MarshalAs(UnmanagedType.Bool)]
             public static extern bool FreeLibrary(IntPtr hModule);
 
@@ -107,20 +106,20 @@ namespace Microsoft.NET.HostModel
                                                  ushort wLang,
                                                  IntPtr lParam);
 
-            [DllImport(nameof(Kernel32), SetLastError=true)]
+            [DllImport(nameof(Kernel32), SetLastError = true)]
             [return: MarshalAs(UnmanagedType.Bool)]
             public static extern bool EnumResourceTypes(IntPtr hModule,
                                                          EnumResTypeProc lpEnumFunc,
                                                          IntPtr lParam);
 
-            [DllImport(nameof(Kernel32), SetLastError=true)]
+            [DllImport(nameof(Kernel32), SetLastError = true)]
             [return: MarshalAs(UnmanagedType.Bool)]
             public static extern bool EnumResourceNames(IntPtr hModule,
                                                          IntPtr lpType,
                                                          EnumResNameProc lpEnumFunc,
                                                          IntPtr lParam);
 
-            [DllImport(nameof(Kernel32), SetLastError=true)]
+            [DllImport(nameof(Kernel32), SetLastError = true)]
             [return: MarshalAs(UnmanagedType.Bool)]
             public static extern bool EnumResourceLanguages(IntPtr hModule,
                                                             IntPtr lpType,
@@ -128,25 +127,25 @@ namespace Microsoft.NET.HostModel
                                                             EnumResLangProc lpEnumFunc,
                                                             IntPtr lParam);
 
-            public const int UserStoppedResourceEnumerationHRESULT = unchecked((int)0x80073B02);
-            public const int ResourceDataNotFoundHRESULT = unchecked((int)0x80070714);
+            public const int UserStoppedResourceEnumerationHRESULT = unchecked((int) 0x80073B02);
+            public const int ResourceDataNotFoundHRESULT = unchecked((int) 0x80070714);
 
             // Querying and loading resources
 
-            [DllImport(nameof(Kernel32), SetLastError=true)]
+            [DllImport(nameof(Kernel32), SetLastError = true)]
             public static extern IntPtr FindResourceEx(IntPtr hModule,
                                                        IntPtr lpType,
                                                        IntPtr lpName,
                                                        ushort wLanguage);
 
-            [DllImport(nameof(Kernel32), SetLastError=true)]
+            [DllImport(nameof(Kernel32), SetLastError = true)]
             public static extern IntPtr LoadResource(IntPtr hModule,
                                                      IntPtr hResInfo);
 
             [DllImport(nameof(Kernel32))] // does not call SetLastError
             public static extern IntPtr LockResource(IntPtr hResData);
 
-            [DllImport(nameof(Kernel32), SetLastError=true)]
+            [DllImport(nameof(Kernel32), SetLastError = true)]
             public static extern uint SizeofResource(IntPtr hModule,
                                                      IntPtr hResInfo);
 
@@ -188,29 +187,23 @@ namespace Microsoft.NET.HostModel
         public static bool IsSupportedOS()
         {
 #if NETSTANDARD2_0_OR_GREATER || NET5_0_OR_GREATER
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
                 return false;
             }
 #endif
 
-            try
-            {
+            try {
                 // On Nano Server 1709+, `BeginUpdateResource` is exported but returns a null handle with a zero error
                 // Try to call `BeginUpdateResource` with an invalid parameter; the error should be non-zero if supported
                 // On Nano Server 20213, `BeginUpdateResource` fails with ERROR_CALL_NOT_IMPLEMENTED
-                using (var handle = Kernel32.BeginUpdateResource("", false))
-                {
+                using (var handle = Kernel32.BeginUpdateResource("", false)) {
                     int lastWin32Error = Marshal.GetLastWin32Error();
 
-                    if (handle.IsInvalid && (lastWin32Error == 0 || lastWin32Error == Kernel32.ERROR_CALL_NOT_IMPLEMENTED))
-                    {
+                    if (handle.IsInvalid && (lastWin32Error == 0 || lastWin32Error == Kernel32.ERROR_CALL_NOT_IMPLEMENTED)) {
                         return false;
                     }
                 }
-            }
-            catch (EntryPointNotFoundException)
-            {
+            } catch (EntryPointNotFoundException) {
                 // BeginUpdateResource isn't exported from Kernel32
                 return false;
             }
@@ -230,8 +223,7 @@ namespace Microsoft.NET.HostModel
         public ResourceUpdater(string peFile)
         {
             hUpdate = Kernel32.BeginUpdateResource(peFile, false);
-            if (hUpdate.IsInvalid)
-            {
+            if (hUpdate.IsInvalid) {
                 ThrowExceptionForLastWin32Error();
             }
         }
@@ -245,8 +237,7 @@ namespace Microsoft.NET.HostModel
         /// </summary>
         public ResourceUpdater AddResourcesFromPEImage(string peFile)
         {
-            if (hUpdate.IsInvalid)
-            {
+            if (hUpdate.IsInvalid) {
                 ThrowExceptionForInvalidUpdate();
             }
 
@@ -256,8 +247,7 @@ namespace Microsoft.NET.HostModel
             IntPtr hModule = Kernel32.LoadLibraryEx(peFile, IntPtr.Zero,
                                                     Kernel32.LoadLibraryFlags.LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE |
                                                     Kernel32.LoadLibraryFlags.LOAD_LIBRARY_AS_IMAGE_RESOURCE);
-            if (hModule == IntPtr.Zero)
-            {
+            if (hModule == IntPtr.Zero) {
                 ThrowExceptionForLastWin32Error();
             }
 
@@ -266,23 +256,17 @@ namespace Microsoft.NET.HostModel
             GCHandle errorInfoHandle = GCHandle.Alloc(errorInfo);
             var errorInfoPtr = GCHandle.ToIntPtr(errorInfoHandle);
 
-            try
-            {
-                if (!Kernel32.EnumResourceTypes(hModule, enumTypesCallback, errorInfoPtr))
-                {
-                    if (Marshal.GetHRForLastWin32Error() != Kernel32.ResourceDataNotFoundHRESULT)
-                    {
+            try {
+                if (!Kernel32.EnumResourceTypes(hModule, enumTypesCallback, errorInfoPtr)) {
+                    if (Marshal.GetHRForLastWin32Error() != Kernel32.ResourceDataNotFoundHRESULT) {
                         CaptureEnumResourcesErrorInfo(errorInfoPtr);
                         errorInfo.ThrowException();
                     }
                 }
-            }
-            finally
-            {
+            } finally {
                 errorInfoHandle.Free();
 
-                if (!Kernel32.FreeLibrary(hModule))
-                {
+                if (!Kernel32.FreeLibrary(hModule)) {
                     ThrowExceptionForLastWin32Error();
                 }
             }
@@ -292,7 +276,7 @@ namespace Microsoft.NET.HostModel
 
         internal static bool IsIntResource(IntPtr lpType)
         {
-            return ((uint)lpType >> 16) == 0;
+            return ((uint) lpType >> 16) == 0;
         }
 
         /// <summary>
@@ -303,18 +287,15 @@ namespace Microsoft.NET.HostModel
         /// </summary>
         public ResourceUpdater AddResource(byte[] data, IntPtr lpType, IntPtr lpName)
         {
-            if (hUpdate.IsInvalid)
-            {
+            if (hUpdate.IsInvalid) {
                 ThrowExceptionForInvalidUpdate();
             }
 
-            if (!IsIntResource(lpType) || !IsIntResource(lpName))
-            {
+            if (!IsIntResource(lpType) || !IsIntResource(lpName)) {
                 throw new ArgumentException("AddResource can only be used with integer resource types");
             }
 
-            if (!Kernel32.UpdateResource(hUpdate, lpType, lpName, Kernel32.LangID_LangNeutral_SublangNeutral, data, (uint)data.Length))
-            {
+            if (!Kernel32.UpdateResource(hUpdate, lpType, lpName, Kernel32.LangID_LangNeutral_SublangNeutral, data, (uint) data.Length)) {
                 ThrowExceptionForLastWin32Error();
             }
 
@@ -329,18 +310,15 @@ namespace Microsoft.NET.HostModel
         /// </summary>
         public ResourceUpdater AddResource(byte[] data, string lpType, IntPtr lpName)
         {
-            if (hUpdate.IsInvalid)
-            {
+            if (hUpdate.IsInvalid) {
                 ThrowExceptionForInvalidUpdate();
             }
 
-            if (!IsIntResource(lpName))
-            {
+            if (!IsIntResource(lpName)) {
                 throw new ArgumentException("AddResource can only be used with integer resource names");
             }
 
-            if (!Kernel32.UpdateResource(hUpdate, lpType, lpName, Kernel32.LangID_LangNeutral_SublangNeutral, data, (uint)data.Length))
-            {
+            if (!Kernel32.UpdateResource(hUpdate, lpType, lpName, Kernel32.LangID_LangNeutral_SublangNeutral, data, (uint) data.Length)) {
                 ThrowExceptionForLastWin32Error();
             }
 
@@ -355,20 +333,15 @@ namespace Microsoft.NET.HostModel
         /// </summary>
         public void Update()
         {
-            if (hUpdate.IsInvalid)
-            {
+            if (hUpdate.IsInvalid) {
                 ThrowExceptionForInvalidUpdate();
             }
 
-            try
-            {
-                if (!Kernel32.EndUpdateResource(hUpdate, false))
-                {
+            try {
+                if (!Kernel32.EndUpdateResource(hUpdate, false)) {
                     ThrowExceptionForLastWin32Error();
                 }
-            }
-            finally
-            {
+            } finally {
                 hUpdate.SetHandleAsInvalid();
             }
         }
@@ -376,8 +349,7 @@ namespace Microsoft.NET.HostModel
         private bool EnumAndUpdateTypesCallback(IntPtr hModule, IntPtr lpType, IntPtr lParam)
         {
             var enumNamesCallback = new Kernel32.EnumResNameProc(EnumAndUpdateNamesCallback);
-            if (!Kernel32.EnumResourceNames(hModule, lpType, enumNamesCallback, lParam))
-            {
+            if (!Kernel32.EnumResourceNames(hModule, lpType, enumNamesCallback, lParam)) {
                 CaptureEnumResourcesErrorInfo(lParam);
                 return false;
             }
@@ -387,8 +359,7 @@ namespace Microsoft.NET.HostModel
         private bool EnumAndUpdateNamesCallback(IntPtr hModule, IntPtr lpType, IntPtr lpName, IntPtr lParam)
         {
             var enumLanguagesCallback = new Kernel32.EnumResLangProc(EnumAndUpdateLanguagesCallback);
-            if (!Kernel32.EnumResourceLanguages(hModule, lpType, lpName, enumLanguagesCallback, lParam))
-            {
+            if (!Kernel32.EnumResourceLanguages(hModule, lpType, lpName, enumLanguagesCallback, lParam)) {
                 CaptureEnumResourcesErrorInfo(lParam);
                 return false;
             }
@@ -398,8 +369,7 @@ namespace Microsoft.NET.HostModel
         private bool EnumAndUpdateLanguagesCallback(IntPtr hModule, IntPtr lpType, IntPtr lpName, ushort wLang, IntPtr lParam)
         {
             IntPtr hResource = Kernel32.FindResourceEx(hModule, lpType, lpName, wLang);
-            if (hResource == IntPtr.Zero)
-            {
+            if (hResource == IntPtr.Zero) {
                 CaptureEnumResourcesErrorInfo(lParam);
                 return false;
             }
@@ -407,8 +377,7 @@ namespace Microsoft.NET.HostModel
             // hResourceLoaded is just a handle to the resource, which
             // can be used to get the resource data
             IntPtr hResourceLoaded = Kernel32.LoadResource(hModule, hResource);
-            if (hResourceLoaded == IntPtr.Zero)
-            {
+            if (hResourceLoaded == IntPtr.Zero) {
                 CaptureEnumResourcesErrorInfo(lParam);
                 return false;
             }
@@ -417,13 +386,11 @@ namespace Microsoft.NET.HostModel
             // pointer to the resource data. The pointer is valid
             // until the module is unloaded.
             IntPtr lpResourceData = Kernel32.LockResource(hResourceLoaded);
-            if (lpResourceData == IntPtr.Zero)
-            {
-                ((EnumResourcesErrorInfo)GCHandle.FromIntPtr(lParam).Target).failedToLockResource = true;
+            if (lpResourceData == IntPtr.Zero) {
+                ((EnumResourcesErrorInfo) GCHandle.FromIntPtr(lParam).Target).failedToLockResource = true;
             }
 
-            if (!Kernel32.UpdateResource(hUpdate, lpType, lpName, wLang, lpResourceData, Kernel32.SizeofResource(hModule, hResource)))
-            {
+            if (!Kernel32.UpdateResource(hUpdate, lpType, lpName, wLang, lpResourceData, Kernel32.SizeofResource(hModule, hResource))) {
                 CaptureEnumResourcesErrorInfo(lParam);
                 return false;
             }
@@ -438,8 +405,7 @@ namespace Microsoft.NET.HostModel
 
             public void ThrowException()
             {
-                if (failedToLockResource)
-                {
+                if (failedToLockResource) {
                     Debug.Assert(hResult == 0);
                     throw new ResourceNotAvailableException("Failed to lock resource");
                 }
@@ -452,10 +418,9 @@ namespace Microsoft.NET.HostModel
         private static void CaptureEnumResourcesErrorInfo(IntPtr errorInfoPtr)
         {
             int hResult = Marshal.GetHRForLastWin32Error();
-            if (hResult != Kernel32.UserStoppedResourceEnumerationHRESULT)
-            {
+            if (hResult != Kernel32.UserStoppedResourceEnumerationHRESULT) {
                 GCHandle errorInfoHandle = GCHandle.FromIntPtr(errorInfoPtr);
-                var errorInfo = (EnumResourcesErrorInfo)errorInfoHandle.Target;
+                var errorInfo = (EnumResourcesErrorInfo) errorInfoHandle.Target;
                 errorInfo.hResult = hResult;
             }
         }
@@ -485,8 +450,7 @@ namespace Microsoft.NET.HostModel
 
         public void Dispose(bool disposing)
         {
-            if (disposing)
-            {
+            if (disposing) {
                 hUpdate.Dispose();
             }
         }

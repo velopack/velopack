@@ -1,7 +1,5 @@
-﻿using System.ComponentModel;
-using Humanizer;
+﻿using Humanizer;
 using Microsoft.Extensions.Configuration;
-using Velopack.Packaging.Abstractions;
 
 namespace Velopack.Vpk.Commands;
 

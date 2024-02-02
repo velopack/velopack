@@ -1,11 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Velopack.Packaging.Exceptions;
+﻿using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Windows;
-using Velopack.Packaging.Windows.Commands;
 
 namespace Velopack.Packaging.Tests;
 

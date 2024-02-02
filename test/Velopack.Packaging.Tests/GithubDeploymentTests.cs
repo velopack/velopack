@@ -1,7 +1,4 @@
-﻿using System.Diagnostics;
-using Velopack.Deployment;
-using Velopack.Packaging.Unix.Commands;
-using Velopack.Packaging.Windows.Commands;
+﻿using Velopack.Deployment;
 using Velopack.Sources;
 using Octokit;
 using Velopack.Packaging.Exceptions;
