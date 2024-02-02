@@ -226,7 +226,11 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         if (!VelopackRuntimeInfo.IsWindows) return;
 
         if (!string.IsNullOrEmpty(signParams)) {
-            Log.Info($"Preparing to sign {filePaths.Length} files with embedded signtool.exe with parallelism of {signParallel}");
+            string message = $"Preparing to sign {filePaths.Length} files with embedded signtool.exe";
+            if (signParallel > 1 && filePaths.Length > 1) {
+                message += $" with parallelism of {signParallel}";
+            }
+            Log.Info(message);
             helper.SignPEFilesWithSignTool(rootDir, filePaths, signParams, signParallel, progress);
         }
     }
