@@ -3,18 +3,17 @@
   <PropertyGroup>
     <TargetFrameworks>net6.0;netstandard2.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NoWarn>$(NoWarn);CA2007;CS8002</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Velopack.Packaging.HostModel\Velopack.Packaging.HostModel.csproj" />
     <ProjectReference Include="..\Velopack.Packaging\Velopack.Packaging.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="AsmResolver.DotNet" Version="5.5.0" />
     <PackageReference Include="AsmResolver.PE.Win32Resources" Version="5.5.0" />
-    <PackageReference Include="System.Reflection.Metadata" Version="8.0.0" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
   </ItemGroup>
   
 </Project>

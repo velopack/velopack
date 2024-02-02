@@ -1,4 +1,3 @@
-
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31815.197
@@ -48,6 +47,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VeloWpfSample", "examples\VeloWpfSample\VeloWpfSample.csproj", "{9E0F2B00-1B88-4B75-BEED-6DF8DBCA36B5}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Divergic.Logging.Xunit", "test\Divergic.Logging.Xunit\Divergic.Logging.Xunit.csproj", "{5ED2E9AF-101D-4D2D-B0B5-90A920EF692D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Velopack.Packaging.HostModel", "src\Velopack.Packaging.HostModel\Velopack.Packaging.HostModel.csproj", "{E9A2620C-C638-446C-BA30-F62C05709365}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -111,6 +112,10 @@ Global
 		{5ED2E9AF-101D-4D2D-B0B5-90A920EF692D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5ED2E9AF-101D-4D2D-B0B5-90A920EF692D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5ED2E9AF-101D-4D2D-B0B5-90A920EF692D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E9A2620C-C638-446C-BA30-F62C05709365}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E9A2620C-C638-446C-BA30-F62C05709365}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E9A2620C-C638-446C-BA30-F62C05709365}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E9A2620C-C638-446C-BA30-F62C05709365}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

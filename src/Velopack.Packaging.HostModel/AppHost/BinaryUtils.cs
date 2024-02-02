@@ -1,8 +1,6 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.IO;
 using System.IO.MemoryMappedFiles;
 
 namespace Microsoft.NET.HostModel.AppHost
@@ -17,14 +15,12 @@ namespace Microsoft.NET.HostModel.AppHost
         {
             byte* pointer = null;
 
-            try
-            {
+            try {
                 accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref pointer);
                 byte* bytes = pointer + accessor.PointerOffset;
 
                 int position = KMPSearch(searchPattern, bytes, accessor.Capacity);
-                if (position < 0)
-                {
+                if (position < 0) {
                     throw new PlaceHolderNotFoundInAppHostException(searchPattern);
                 }
 
@@ -34,15 +30,11 @@ namespace Microsoft.NET.HostModel.AppHost
                     offset: 0,
                     count: patternToReplace.Length);
 
-                if (pad0s)
-                {
+                if (pad0s) {
                     Pad0(searchPattern, patternToReplace, bytes, position);
                 }
-            }
-            finally
-            {
-                if (pointer != null)
-                {
+            } finally {
+                if (pointer != null) {
                     accessor.SafeMemoryMappedViewHandle.ReleasePointer();
                 }
             }
@@ -50,10 +42,8 @@ namespace Microsoft.NET.HostModel.AppHost
 
         private static unsafe void Pad0(byte[] searchPattern, byte[] patternToReplace, byte* bytes, int offset)
         {
-            if (patternToReplace.Length < searchPattern.Length)
-            {
-                for (int i = patternToReplace.Length; i < searchPattern.Length; i++)
-                {
+            if (patternToReplace.Length < searchPattern.Length) {
+                for (int i = patternToReplace.Length; i < searchPattern.Length; i++) {
                     bytes[i + offset] = 0x0;
                 }
             }
@@ -65,27 +55,23 @@ namespace Microsoft.NET.HostModel.AppHost
             byte[] patternToReplace,
             bool pad0s = true)
         {
-            using (var mappedFile = MemoryMappedFile.CreateFromFile(filePath))
-            {
-                using (var accessor = mappedFile.CreateViewAccessor())
-                {
+            using (var mappedFile = MemoryMappedFile.CreateFromFile(filePath)) {
+                using (var accessor = mappedFile.CreateViewAccessor()) {
                     SearchAndReplace(accessor, searchPattern, patternToReplace, pad0s);
                 }
             }
         }
 
-        internal static unsafe int SearchInFile(MemoryMappedViewAccessor accessor, byte[] searchPattern)
+        public static unsafe int SearchInFile(MemoryMappedViewAccessor accessor, byte[] searchPattern)
         {
             var safeBuffer = accessor.SafeMemoryMappedViewHandle;
-            return KMPSearch(searchPattern, (byte*)safeBuffer.DangerousGetHandle(), (int)safeBuffer.ByteLength);
+            return KMPSearch(searchPattern, (byte*) safeBuffer.DangerousGetHandle(), (int) safeBuffer.ByteLength);
         }
 
         public static unsafe int SearchInFile(string filePath, byte[] searchPattern)
         {
-            using (var mappedFile = MemoryMappedFile.CreateFromFile(filePath))
-            {
-                using (var accessor = mappedFile.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read))
-                {
+            using (var mappedFile = MemoryMappedFile.CreateFromFile(filePath)) {
+                using (var accessor = mappedFile.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read)) {
                     return SearchInFile(accessor, searchPattern);
                 }
             }
@@ -95,31 +81,23 @@ namespace Microsoft.NET.HostModel.AppHost
         private static int[] ComputeKMPFailureFunction(byte[] pattern)
         {
             int[] table = new int[pattern.Length];
-            if (pattern.Length >= 1)
-            {
+            if (pattern.Length >= 1) {
                 table[0] = -1;
             }
-            if (pattern.Length >= 2)
-            {
+            if (pattern.Length >= 2) {
                 table[1] = 0;
             }
 
             int pos = 2;
             int cnd = 0;
-            while (pos < pattern.Length)
-            {
-                if (pattern[pos - 1] == pattern[cnd])
-                {
+            while (pos < pattern.Length) {
+                if (pattern[pos - 1] == pattern[cnd]) {
                     table[pos] = cnd + 1;
                     cnd++;
                     pos++;
-                }
-                else if (cnd > 0)
-                {
+                } else if (cnd > 0) {
                     cnd = table[cnd];
-                }
-                else
-                {
+                } else {
                     table[pos] = 0;
                     pos++;
                 }
@@ -134,25 +112,17 @@ namespace Microsoft.NET.HostModel.AppHost
             int i = 0;
             int[] table = ComputeKMPFailureFunction(pattern);
 
-            while (m + i < bytesLength)
-            {
-                if (pattern[i] == bytes[m + i])
-                {
-                    if (i == pattern.Length - 1)
-                    {
+            while (m + i < bytesLength) {
+                if (pattern[i] == bytes[m + i]) {
+                    if (i == pattern.Length - 1) {
                         return m;
                     }
                     i++;
-                }
-                else
-                {
-                    if (table[i] > -1)
-                    {
+                } else {
+                    if (table[i] > -1) {
                         m = m + i - table[i];
                         i = table[i];
-                    }
-                    else
-                    {
+                    } else {
                         m++;
                         i = 0;
                     }
@@ -165,8 +135,7 @@ namespace Microsoft.NET.HostModel.AppHost
         public static void CopyFile(string sourcePath, string destinationPath)
         {
             var destinationDirectory = new FileInfo(destinationPath).Directory.FullName;
-            if (!Directory.Exists(destinationDirectory))
-            {
+            if (!Directory.Exists(destinationDirectory)) {
                 Directory.CreateDirectory(destinationDirectory);
             }
 
@@ -181,17 +150,14 @@ namespace Microsoft.NET.HostModel.AppHost
 
             byte[] buf = new byte[bufSize];
             length = Math.Min(length, sourceViewAccessor.Capacity);
-            do
-            {
-                int bytesRequested = Math.Min((int)length - pos, bufSize);
-                if (bytesRequested <= 0)
-                {
+            do {
+                int bytesRequested = Math.Min((int) length - pos, bufSize);
+                if (bytesRequested <= 0) {
                     break;
                 }
 
                 int bytesRead = sourceViewAccessor.ReadArray(pos, buf, 0, bytesRequested);
-                if (bytesRead > 0)
-                {
+                if (bytesRead > 0) {
                     fileStream.Write(buf, 0, bytesRead);
                     pos += bytesRead;
                 }
