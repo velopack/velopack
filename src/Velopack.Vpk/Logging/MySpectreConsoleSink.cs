@@ -22,6 +22,7 @@ public class MySpectreConsoleSink : ILogEventSink
         string message = logEvent.RenderMessage();
 
         if (VelopackRuntimeInfo.IsWindows) {
+            message = message.Replace("\r", "");
             message = message.Replace(_dirtmp, "%TEMP%\\");
         }
 
