@@ -47,7 +47,8 @@ If you are new to using `signtool.exe`, you can check the [command line referenc
 
 If you are using a USB / HSM and have the following signing error `Error: SignerSign() failed." (-2147023673/0x800704c7)`, this means that you are missing a password / unlock token. This can be added to your signing command with the `/csp /k` parameters. [[Read more]](https://stackoverflow.com/questions/17927895/automate-extended-validation-ev-code-signing-with-safenet-etoken/54439759#54439759)
 
-❗**Take care when providing parameters: If any have a space in a signing argument, you must wrap it with quotes and escape with a backslash.**
+> [!WARNING]
+> Take care when providing parameters with spaces. You must wrap anything containing spaces with quotes and escape with a backslash. For example, `--signParams "/n \"My Cert Name\""`. If you are using an MSBuild `<Exec>` task or similar, you will need to use `&quot;` instead.
 
 By default, Velopack will sign 10 files per call to `signtool.exe`, to speed up signing and reduce the number of times you need to interact with the console if you are using some kind of interactive signing method. This can be disabled with the `--signParallel 1` argument.
 
