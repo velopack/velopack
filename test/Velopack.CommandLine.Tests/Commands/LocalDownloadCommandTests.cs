@@ -24,7 +24,7 @@ public class LocalDownloadCommandTests : BaseCommandTests<LocalDownloadCommand>
         var command = new LocalDownloadCommand();
 
         // Parse with a fake path
-        ParseResult parseResult = command.ParseAndApply($"--path \"E:\releases\"");
+        ParseResult parseResult = command.ParseAndApply($"--path \"E:\\releases\"");
 
         Assert.Equal(1, parseResult.Errors.Count);
         Assert.StartsWith("--path directory is not found, but must exist", parseResult.Errors[0].Message);

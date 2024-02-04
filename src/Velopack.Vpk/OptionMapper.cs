@@ -21,7 +21,7 @@ public static partial class OptionMapper
     public static partial GitHubDownloadOptions ToOptions(this GitHubDownloadCommand cmd);
     public static partial GitHubUploadOptions ToOptions(this GitHubUploadCommand cmd);
     public static partial HttpDownloadOptions ToOptions(this HttpDownloadCommand cmd);
-    public static partial LocalDownloadOptions ToOption(this LocalDownloadCommand cmd);
+    public static partial LocalDownloadOptions ToOptions(this LocalDownloadCommand cmd);
     public static partial S3DownloadOptions ToOptions(this S3DownloadCommand cmd);
     public static partial S3UploadOptions ToOptions(this S3UploadCommand cmd);
     public static partial DeltaGenOptions ToOptions(this DeltaGenCommand cmd);
