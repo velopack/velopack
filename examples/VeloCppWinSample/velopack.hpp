@@ -252,7 +252,7 @@ void velo_download_updates(const char* url_or_path, const char* release_name,
 				uint8_t progress = static_cast<uint8_t>(std::stoi(line));
 				progress_fn(progress);
 			}
-			catch (const std::exception& e) {
+			catch (const std::exception&) {
 			}
 			return false;
 		};

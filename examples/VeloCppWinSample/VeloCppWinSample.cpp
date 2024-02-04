@@ -6,6 +6,7 @@
 #include <memory.h>
 #include <tchar.h>
 
+#include "constants.h"
 #include "velopack.hpp"
 
 #pragma comment(linker, \
@@ -20,7 +21,6 @@
 HINSTANCE hInst;
 const WCHAR szTitle[] = L"Velopack C++ Sample App";
 const WCHAR szWindowClass[] = L"VeloCppWinSample";
-const CHAR szUpdateUrl[] = "C:\\Source\\velopack\\build\\Debug\\net6.0\\Releases";
 velo_update_info updInfo = velo_update_info();
 std::string updPath = "";
 std::string currentVersion = "";
@@ -132,7 +132,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			if ((HWND)lParam == hCheckButton)
 			{
 				try {
-					velo_update_info info = velo_check_for_updates(szUpdateUrl);
+					velo_update_info info = velo_check_for_updates(UPDATE_URL);
 					if (info.is_update_available) {
 						// this is a hack to convert ascii to wide string
 						std::wstring message = L"Update available: " + std::wstring(info.version.begin(), info.version.end());
@@ -153,7 +153,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			{
 				if (updInfo.is_update_available) {
 					try {
-						velo_download_updates(szUpdateUrl, updInfo.file_name.c_str(), [](int x) {}, [&hWnd](std::string path)
+						velo_download_updates(UPDATE_URL, updInfo.file_name.c_str(), [](int x) {}, [&hWnd](std::string path)
 							{
 								updPath = path;
 								std::wstring message = L"Downloaded successfully to: " + std::wstring(path.begin(), path.end());
