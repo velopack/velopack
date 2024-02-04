@@ -1,11 +1,11 @@
 ﻿namespace Velopack.Vpk.Commands;
 
-public class PathDownloadCommand : OutputCommand
+public class LocalDownloadCommand : OutputCommand
 {
     public DirectoryInfo Path { get; private set; }
 
-    public PathDownloadCommand()
-        : base("path", "Download latest release from a specific path source.")
+    public LocalDownloadCommand()
+        : base("local", "Download latest release from a local path source.")
     {
         AddOption<DirectoryInfo>((p) => Path = p, "--path")
             .SetDescription("Path to download releases from.")

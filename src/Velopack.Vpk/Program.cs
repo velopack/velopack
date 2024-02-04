@@ -83,7 +83,7 @@ public class Program
         downloadCommand.AddRepositoryDownload<GitHubDownloadCommand, GitHubRepository, GitHubDownloadOptions>(provider);
         downloadCommand.AddRepositoryDownload<S3DownloadCommand, S3Repository, S3DownloadOptions>(provider);
         downloadCommand.AddRepositoryDownload<HttpDownloadCommand, HttpRepository, HttpDownloadOptions>(provider);
-        downloadCommand.AddRepositoryDownload<PathDownloadCommand, PathRepository, PathDownloadOptions>(provider);
+        downloadCommand.AddRepositoryDownload<LocalDownloadCommand, LocalRepository, LocalDownloadOptions>(provider);
         rootCommand.Add(downloadCommand);
 
         var uploadCommand = new CliCommand("upload", "Upload local package(s) to a remote update source.");

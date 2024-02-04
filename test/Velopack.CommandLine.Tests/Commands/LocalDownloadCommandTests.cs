@@ -2,12 +2,12 @@
 using Velopack.Vpk.Commands;
 
 namespace Velopack.CommandLine.Tests.Commands;
-public class PathDownloadCommandTests : BaseCommandTests<PathDownloadCommand>
+public class LocalDownloadCommandTests : BaseCommandTests<LocalDownloadCommand>
 {
     [Fact]
     public void Path_WithPath_ParsesValue()
     {
-        var command = new PathDownloadCommand();
+        var command = new LocalDownloadCommand();
 
         DirectoryInfo directory = Directory.CreateDirectory(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "releases"));
         ParseResult parseResult = command.ParseAndApply($"--path {directory.FullName}");
@@ -21,7 +21,7 @@ public class PathDownloadCommandTests : BaseCommandTests<PathDownloadCommand>
     [Fact]
     public void Path_WithNonExistingDirectory_ShowsError()
     {
-        var command = new PathDownloadCommand();
+        var command = new LocalDownloadCommand();
 
         // Parse with a fake path
         ParseResult parseResult = command.ParseAndApply($"--path \"E:\releases\"");
