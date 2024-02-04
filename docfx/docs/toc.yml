@@ -11,6 +11,8 @@
     href: https://github.com/velopack/velopack/tree/master/examples/AvaloniaCrossPlat
   - name: C# WPF / .Net Framework
     href: https://github.com/velopack/velopack/tree/master/examples/VeloWpfSample
+  - name: C++ / MSVC / Win32
+    href: https://github.com/velopack/velopack/tree/master/examples/VeloCppWinSample
 
 - name: 1. App Updating
   href: updating/toc.yml
