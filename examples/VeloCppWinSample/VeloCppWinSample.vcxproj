@@ -134,6 +134,7 @@
     <ClCompile Include="VeloCppWinSample.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="constants.h" />
     <ClInclude Include="subprocess.h" />
     <ClInclude Include="velopack.hpp" />
   </ItemGroup>
