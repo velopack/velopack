@@ -27,20 +27,6 @@ fn root_command() -> Command {
         .arg(arg!(--patch <FILE> "The Zstd patch to apply to the old file").required(true).value_parser(value_parser!(PathBuf)))
         .arg(arg!(--output <FILE> "The file to create with the patch applied").required(true).value_parser(value_parser!(PathBuf)))
     )
-    .subcommand(Command::new("check")
-        .about("Checks for available updates")
-        .arg(arg!(--url <URL> "URL or local folder containing an update source").required(true))
-        .arg(arg!(--downgrade "Allow version downgrade"))
-        .arg(arg!(--channel <NAME> "Explicitly switch to a specific channel"))
-        .arg(arg!(--format <FORMAT> "The format of the program output (json|text)").default_value("json"))
-    )
-    .subcommand(Command::new("download")
-        .about("Download/copies an available remote file into the packages directory")
-        .arg(arg!(--url <URL> "URL or local folder containing an update source").required(true))
-        .arg(arg!(--name <NAME> "The name of the asset to download").required(true))
-        .arg(arg!(--clean "Delete all other packages if download is successful"))
-        .arg(arg!(--format <FORMAT> "The format of the program output (json|text)").default_value("json"))
-    )
     .subcommand(Command::new("get-version")
         .about("Prints the current version of the application")
     )
@@ -51,6 +37,24 @@ fn root_command() -> Command {
     .arg(arg!(--forceLatest "Legacy / not used").hide(true))
     .disable_help_subcommand(true)
     .flatten_help(true);
+
+    #[cfg(feature = "extendedcli")]
+    let cmd = cmd.subcommand(Command::new("download")
+        .about("Download/copies an available remote file into the packages directory")
+        .arg(arg!(--url <URL> "URL or local folder containing an update source").required(true))
+        .arg(arg!(--name <NAME> "The name of the asset to download").required(true))
+        .arg(arg!(--clean "Delete all other packages if download is successful"))
+        .arg(arg!(--format <FORMAT> "The format of the program output (json|text)").default_value("json"))
+    );
+
+    #[cfg(feature = "extendedcli")]
+    let cmd = cmd.subcommand(Command::new("check")
+        .about("Checks for available updates")
+        .arg(arg!(--url <URL> "URL or local folder containing an update source").required(true))
+        .arg(arg!(--downgrade "Allow version downgrade"))
+        .arg(arg!(--channel <NAME> "Explicitly switch to a specific channel"))
+        .arg(arg!(--format <FORMAT> "The format of the program output (json|text)").default_value("json"))
+    );
 
     #[cfg(target_os = "windows")]
     let cmd = cmd.subcommand(Command::new("start")
@@ -126,7 +130,9 @@ fn main() -> Result<()> {
         "start" => start(subcommand_matches).map_err(|e| anyhow!("Start error: {}", e)),
         "apply" => apply(subcommand_matches).map_err(|e| anyhow!("Apply error: {}", e)),
         "patch" => patch(subcommand_matches).map_err(|e| anyhow!("Patch error: {}", e)),
+        #[cfg(feature = "extendedcli")]
         "check" => check(subcommand_matches).map_err(|e| anyhow!("Check error: {}", e)),
+        #[cfg(feature = "extendedcli")]
         "download" => download(subcommand_matches).map_err(|e| anyhow!("Download error: {}", e)),
         "get-version" => get_version(subcommand_matches).map_err(|e| anyhow!("Get-version error: {}", e)),
         _ => bail!("Unknown subcommand. Try `--help` for more information."),
@@ -146,6 +152,7 @@ fn get_version(_matches: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "extendedcli")]
 fn check(matches: &ArgMatches) -> Result<()> {
     let url = matches.get_one::<String>("url").unwrap();
     let format = matches.get_one::<String>("format").unwrap();
@@ -185,6 +192,7 @@ fn check(matches: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "extendedcli")]
 fn download(matches: &ArgMatches) -> Result<()> {
     let url = matches.get_one::<String>("url").unwrap();
     let name = matches.get_one::<String>("name").unwrap();

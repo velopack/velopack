@@ -5,6 +5,7 @@ edition = "2021"
 
 [features]
 windows = []
+extendedcli = []
 
 [lib]
 name = "velopack"

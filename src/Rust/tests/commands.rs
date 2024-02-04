@@ -9,6 +9,7 @@ use velopack::*;
 #[cfg(target_os = "windows")]
 use winsafe::{self as w, co};
 
+#[cfg(feature = "extendedcli")]
 #[test]
 pub fn test_check_updates() {
     let fixtures = find_fixtures();

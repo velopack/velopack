@@ -15,7 +15,7 @@ if "%~1"=="" (
 echo.
 echo Building Velopack Rust
 cd %~dp0..\..\src\Rust
-cargo build --features windows
+cargo build --features windows,extendedcli
 
 echo.
 echo Building Velopack Vpk
