@@ -75,6 +75,8 @@ remove_dir_all = { git = "https://github.com/caesay/remove_dir_all.git", feature
 zstd = "0.13"
 sha1_smol = "1.0"
 url = "2.5"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 [target.'cfg(unix)'.dependencies]
 native-dialog = "0.7"

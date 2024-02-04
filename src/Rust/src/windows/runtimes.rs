@@ -1,5 +1,5 @@
-use super::download;
 use crate::shared as util;
+use crate::shared::download;
 use anyhow::{anyhow, bail, Result};
 use regex::Regex;
 use std::process::Command as Process;

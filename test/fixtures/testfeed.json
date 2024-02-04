@@ -4,6 +4,7 @@
       "PackageId": "AvaloniaCrossPlat",
       "Version": "1.0.11",
       "Type": "Full",
+      "UnknownProperty": "To test that serializers will ignore this",
       "FileName": "AvaloniaCrossPlat-1.0.11-full.nupkg",
       "SHA1": "D9F1CE7DE35D9544DF65AE6A5674D1A2D7EE5EAC",
       "Size": 14763516,

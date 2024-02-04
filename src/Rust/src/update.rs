@@ -29,14 +29,20 @@ fn root_command() -> Command {
     )
     .subcommand(Command::new("check")
         .about("Checks for available updates")
-        .arg(arg!([PATH] "HTTP URL or path to local folder containing an update source.").required(true))
+        .arg(arg!(--url <URL> "URL or local folder containing an update source").required(true))
         .arg(arg!(--downgrade "Allow version downgrade"))
         .arg(arg!(--channel <NAME> "Explicitly switch to a specific channel"))
+        .arg(arg!(--format <FORMAT> "The format of the program output (json|text)").default_value("json"))
     )
     .subcommand(Command::new("download")
-        .about("Download/copies an available remote file into the packages directory.")
-        .arg(arg!([PATH] "HTTP URL or path to local folder containing an update source.").required(true))
-        .arg(arg!([NAME] "The remote package file to download.").required(true))
+        .about("Download/copies an available remote file into the packages directory")
+        .arg(arg!(--url <URL> "URL or local folder containing an update source").required(true))
+        .arg(arg!(--name <NAME> "The name of the asset to download").required(true))
+        .arg(arg!(--clean "Delete all other packages if download is successful"))
+        .arg(arg!(--format <FORMAT> "The format of the program output (json|text)").default_value("json"))
+    )
+    .subcommand(Command::new("get-version")
+        .about("Prints the current version of the application")
     )
     .arg(arg!(--verbose "Print debug messages to console / log").global(true))
     .arg(arg!(--nocolor "Disable colored output").hide(true).global(true))
@@ -82,17 +88,24 @@ fn main() -> Result<()> {
     #[cfg(unix)]
     let matches = root_command().get_matches();
 
+    let (subcommand, subcommand_matches) = matches.subcommand().ok_or_else(|| anyhow!("No subcommand was used. Try `--help` for more information."))?;
+
     let verbose = matches.get_flag("verbose");
-    let silent = matches.get_flag("silent");
+    let mut silent = matches.get_flag("silent");
     let nocolor = matches.get_flag("nocolor");
     let log_file = matches.get_one("log");
 
-    dialogs::set_silent(silent);
+    // these commands output machine-readable data, so we don't want to show dialogs or logs to stdout
+    let no_console = subcommand.eq_ignore_ascii_case("check") || subcommand.eq_ignore_ascii_case("download") || subcommand.eq_ignore_ascii_case("get-version");
+    if no_console {
+        silent = true;
+    }
 
+    dialogs::set_silent(silent);
     if let Some(log_file) = log_file {
-        logging::setup_logging(Some(&log_file), true, verbose, nocolor)?;
+        logging::setup_logging(Some(&log_file), !no_console, verbose, nocolor)?;
     } else {
-        default_logging(verbose, nocolor)?;
+        default_logging(verbose, nocolor, !no_console)?;
     }
 
     info!("Starting Velopack Updater ({})", env!("NGBV_VERSION"));
@@ -106,14 +119,16 @@ fn main() -> Result<()> {
     containing_dir.pop();
     env::set_current_dir(containing_dir)?;
 
-    let (subcommand, subcommand_matches) = matches.subcommand().ok_or_else(|| anyhow!("No subcommand was used. Try `--help` for more information."))?;
     let result = match subcommand {
         #[cfg(target_os = "windows")]
         "uninstall" => uninstall(subcommand_matches).map_err(|e| anyhow!("Uninstall error: {}", e)),
         #[cfg(target_os = "windows")]
-        "start" => start(&subcommand_matches).map_err(|e| anyhow!("Start error: {}", e)),
+        "start" => start(subcommand_matches).map_err(|e| anyhow!("Start error: {}", e)),
         "apply" => apply(subcommand_matches).map_err(|e| anyhow!("Apply error: {}", e)),
         "patch" => patch(subcommand_matches).map_err(|e| anyhow!("Patch error: {}", e)),
+        "check" => check(subcommand_matches).map_err(|e| anyhow!("Check error: {}", e)),
+        "download" => download(subcommand_matches).map_err(|e| anyhow!("Download error: {}", e)),
+        "get-version" => get_version(subcommand_matches).map_err(|e| anyhow!("Get-version error: {}", e)),
         _ => bail!("Unknown subcommand. Try `--help` for more information."),
     };
 
@@ -122,6 +137,94 @@ fn main() -> Result<()> {
         return Err(e.into());
     }
 
+    Ok(())
+}
+
+fn get_version(_matches: &ArgMatches) -> Result<()> {
+    let (_, app) = shared::detect_current_manifest()?;
+    println!("{}", app.version);
+    Ok(())
+}
+
+fn check(matches: &ArgMatches) -> Result<()> {
+    let url = matches.get_one::<String>("url").unwrap();
+    let format = matches.get_one::<String>("format").unwrap();
+    let allow_downgrade = matches.get_flag("downgrade");
+    let channel = matches.get_one::<String>("channel").map(|x| x.as_str());
+    let is_json = format.eq_ignore_ascii_case("json");
+
+    info!("Command: Check");
+    info!("    URL: {:?}", url);
+    info!("    Allow Downgrade: {:?}", allow_downgrade);
+    info!("    Channel: {:?}", channel);
+    info!("    Format: {:?}", format);
+
+    // this is a machine readable command, so we write program output to stdout in the desired format
+    let (_, app) = shared::detect_current_manifest()?;
+    match commands::check(&app, url, allow_downgrade, channel) {
+        Ok(opt) => match opt {
+            Some(info) => {
+                if is_json {
+                    println!("{}", serde_json::to_string(&info)?);
+                } else {
+                    let asset = info.TargetFullRelease;
+                    println!("{} {} {} {}", asset.Version, asset.SHA1, asset.FileName, asset.Size);
+                }
+            }
+            _ => println!("null"),
+        },
+        Err(e) => {
+            if is_json {
+                println!("{{ \"error\": \"{}\" }}", e);
+            } else {
+                println!("err: {}", e);
+            }
+            return Err(e);
+        }
+    }
+    Ok(())
+}
+
+fn download(matches: &ArgMatches) -> Result<()> {
+    let url = matches.get_one::<String>("url").unwrap();
+    let name = matches.get_one::<String>("name").unwrap();
+    let format = matches.get_one::<String>("format").unwrap();
+    let clean = matches.get_flag("clean");
+    let is_json = format.eq_ignore_ascii_case("json");
+
+    info!("Command: Download");
+    info!("    URL: {:?}", url);
+    info!("    Asset Name: {:?}", name);
+    info!("    Format: {:?}", format);
+    info!("    Clean: {:?}", clean);
+
+    // this is a machine readable command, so we write program output to stdout in the desired format
+    let (root_path, app) = shared::detect_current_manifest()?;
+    #[cfg(target_os = "windows")]
+    let _mutex = shared::retry_io(|| windows::create_global_mutex(&app))?;
+    match commands::download(&root_path, &app, url, clean, name, |p| {
+        if is_json {
+            println!("{{ \"progress\": {} }}", p);
+        } else {
+            println!("{}", p);
+        }
+    }) {
+        Ok(path) => {
+            if is_json {
+                println!("{{ \"complete\": true, \"progress\": 100, \"file\": \"{}\" }}", path.to_string_lossy());
+            } else {
+                println!("complete: {}", path.to_string_lossy());
+            }
+        }
+        Err(e) => {
+            if is_json {
+                println!("{{ \"error\": \"{}\" }}", e);
+            } else {
+                println!("err: {}", e);
+            }
+            return Err(e);
+        }
+    }
     Ok(())
 }
 
@@ -184,7 +287,7 @@ fn uninstall(_matches: &ArgMatches) -> Result<()> {
     commands::uninstall(&root_path, &app, true)
 }
 
-pub fn default_logging(verbose: bool, nocolor: bool) -> Result<()> {
+pub fn default_logging(verbose: bool, nocolor: bool, console: bool) -> Result<()> {
     #[cfg(windows)]
     let default_log_file = {
         let mut my_dir = env::current_exe().unwrap();
@@ -195,7 +298,7 @@ pub fn default_logging(verbose: bool, nocolor: bool) -> Result<()> {
     #[cfg(unix)]
     let default_log_file = std::path::Path::new("/tmp/velopack.log").to_path_buf();
 
-    logging::setup_logging(Some(&default_log_file), true, verbose, nocolor)
+    logging::setup_logging(Some(&default_log_file), console, verbose, nocolor)
 }
 
 #[cfg(target_os = "windows")]

@@ -7,6 +7,9 @@ pub use patch::*;
 mod check;
 pub use check::*;
 
+mod download;
+pub use download::*;
+
 #[cfg(target_os = "linux")]
 mod apply_linux_impl;
 #[cfg(target_os = "macos")]

@@ -3,6 +3,13 @@ use rand::distributions::{Alphanumeric, DistString};
 use regex::Regex;
 use std::{path::Path, thread, time::Duration};
 
+pub fn is_http_url(url: &str) -> bool {
+    match url::Url::parse(url) {
+        Ok(url) => url.scheme().eq_ignore_ascii_case("http") || url.scheme().eq_ignore_ascii_case("https"),
+        _ => false,
+    }
+}
+
 pub fn retry_io<F, T, E>(op: F) -> Result<T, E>
 where
     F: Fn() -> Result<T, E>,

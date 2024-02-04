@@ -1,5 +1,5 @@
-use super::{download, runtimes, splash};
-use crate::shared::{bundle, dialogs};
+use super::{runtimes, splash};
+use crate::shared::{bundle, dialogs, download};
 
 use anyhow::Result;
 use std::path::Path;

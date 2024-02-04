@@ -1,4 +1,5 @@
 pub mod bundle;
+pub mod download;
 
 mod dialogs_const;
 mod dialogs_common;

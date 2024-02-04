@@ -1,4 +1,3 @@
-pub mod download;
 pub mod prerequisite;
 pub mod runtimes;
 pub mod splash;
