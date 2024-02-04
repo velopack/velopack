@@ -49,6 +49,7 @@ pub fn download_url_as_string(url: &str) -> Result<String> {
 fn get_download_agent() -> Result<ureq::Agent> {
     let mut tls_builder = native_tls::TlsConnector::builder();
 
+    #[cfg(target_os = "windows")]
     if !winsafe::IsWindows10OrGreater()? {
         warn!("DANGER: Discontinued OS version. TLS certificate verification will be disabled.");
         warn!("DANGER: Discontinued OS version. TLS certificate verification will be disabled.");
