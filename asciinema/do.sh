@@ -1,4 +1,7 @@
 . ../../asciinema/demo-magic.sh
+
+alias vpk='../../build/Debug/net8.0/vpk'
+
 clear
 pei "dotnet publish -r osx-x64 -c Release --self-contained -o publish"
 echo " "
