@@ -1,5 +1,23 @@
 [data-bs-theme='dark'] body {
-    background-color: #0C1011 !important;
+    background-color: #020617 !important;
+    --main-bg-color: #020617 !important;
+    --bs-body-bg: #020617 !important;
+    --bs-body-bg-rgb: 2, 6, 23;
+    --bs-border-color: #232F3F !important;
+    /* --bs-link-color: #FFD148 !important;
+    --bs-link-color-rgb: 255, 209, 72; */
+}
+
+form.filter {
+    margin: 4px;
+}
+
+.form-control:focus {
+    color: var(--bs-body-color);
+    background-color: var(--bs-body-bg);
+    border-color: #ffe494;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(255, 201, 40, 0.25);
 }
 
 #velopack-logo {
@@ -15,7 +33,7 @@
     background-image: url(/images/velopack-white.svg);
 }
 
-.toc > div {
+.toc>div {
     padding-left: 16px;
 }
 
@@ -39,18 +57,20 @@
 }
 
 h1 {
-    border-bottom: solid 4px var(--bs-light-border-subtle);
+    border-bottom: solid 4px var(--bs-border-color);
     margin-bottom: 24px;
     padding-bottom: 8px;
 }
 
 h2 {
-    border-bottom: solid 2px var(--bs-dark-border-subtle);
-    margin-bottom: 24px;
+    border-bottom: solid 2px var(--bs-border-color);
+    margin-bottom: 16px;
+    margin-top: 48px;
     padding-bottom: 8px;
 }
 
 h3 {
+    margin-top: 36px;
     font-size: 1.5rem;
 }
 
@@ -68,4 +88,8 @@ ul {
 
 .navbar-nav {
     margin-bottom: 0 !important;
+}
+
+header {
+    height: 70px !important;
 }

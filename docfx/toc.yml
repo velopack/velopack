@@ -1,4 +1,6 @@
+- name: Home
+  href: /
 - name: Docs
   href: docs/
-- name: C# SDK
+- name: SDK
   href: sdk/
