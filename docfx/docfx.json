@@ -19,7 +19,8 @@
           "**/*.{md,yml}"
         ],
         "exclude": [
-          "_site/**"
+          "_site/**",
+          "README.md"
         ]
       }
     ],
