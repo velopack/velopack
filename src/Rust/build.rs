@@ -6,6 +6,9 @@ use std::process::Command;
 extern crate winres;
 
 fn main() {
+    #[cfg(target_os = "windows")]
+    link_locksmith();
+
     let ver_output = Command::new("nbgv").args(&["get-version", "-v", "NuGetPackageVersion"]).output().expect("Failed to execute nbgv get-version");
     let version = String::from_utf8(ver_output.stdout).expect("Unable to convert ngbv output to string");
     let version = version.trim();
@@ -27,4 +30,12 @@ fn main() {
         .set("LegalCopyright", "Caelan Sayler (c) 2023")
         .compile()
         .unwrap();
+}
+
+fn link_locksmith() {
+    #[cfg(target_arch = "x86")]
+    println!("cargo:rustc-link-lib=UpdateLocksmith_x86");
+
+    #[cfg(not(target_arch = "x86"))]
+    println!("cargo:rustc-link-lib=UpdateLocksmith_x64");
 }

@@ -1,6 +1,7 @@
 use crate::{
     dialogs,
     shared::{self, bundle, bundle::Manifest},
+    windows::locksmith,
     windows::splash,
 };
 use anyhow::{bail, Result};
@@ -54,47 +55,47 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &Pat
 
         let _ = shared::force_stop_package(&root_path);
 
-        let result: Result<()> = (|| {
-            info!("Replacing bundle at {}", &current_dir);
-            // so much stuff can lock folders on windows, so we retry a few times.
-            shared::retry_io(|| fs::rename(&current_dir, &temp_path_old))?;
-            shared::retry_io(|| fs::rename(&temp_path_new, &current_dir))?;
-            Ok(())
-        })();
+        let mut has_retried = false;
+        loop {
+            let result: std::io::Result<()> = (|| {
+                info!("Replacing bundle at {}", &current_dir);
+                // so much stuff can lock folders on windows, so we retry a few times.
+                shared::retry_io(|| fs::rename(&current_dir, &temp_path_old))?;
+                shared::retry_io(|| fs::rename(&temp_path_new, &current_dir))?;
+                Ok(())
+            })();
 
-        match result {
-            Ok(()) => {
-                info!("Bundle extracted successfully to {}", &current_dir);
-            }
-            Err(e) => {
-                let title = format!("{} Update", &manifest.title);
-                let header = format!("Failed to update, application is in use");
-                let body = format!(
-                    "Failed to update {} to version {}. Please close any applications (e.g Explorer, cmd.exe) that may be using the application's directory, or try restarting your computer. ({})", 
-                    &manifest.title, &manifest.version, e);
-                dialogs::show_error(&title, Some(&header), &body);
-                return Ok(()); // so that a generic error dialog is not shown.
-
-                // if shared::is_error_permission_denied(&e) {
-                //     error!("A permissions error occurred ({}), will attempt to elevate permissions and try again...", e);
-                //     dialogs::ask_user_to_elevate(&manifest)?;
-                //     let exe = std::env::current_exe()?;
-                //     let tmp = temp_path_new.to_string_lossy();
-                //     let args = vec!["swap", &current_dir, &tmp];
-                //     info!("Attempting to elevate: {} {:?}", exe.to_string_lossy(), args);
-                //     let mut cmd = RunAsCommand::new(&exe);
-                //     cmd.gui(true);
-                //     cmd.force_prompt(false);
-                //     cmd.args(&args);
-                //     let status = cmd.status().map_err(|z| anyhow!("Failed to restart elevated ({}).", z))?;
-                //     if status.success() {
-                //         info!("Bundle extracted successfully to {}", &current_dir);
-                //     } else {
-                //         bail!("elevated proess failed: exited with code: {}", status);
-                //     }
-                // } else {
-                //     bail!("Failed to extract bundle ({})", e);
-                // }
+            match result {
+                Ok(()) => {
+                    info!("Bundle extracted successfully to {}", &current_dir);
+                    break;
+                }
+                Err(e) => {
+                    match e.raw_os_error() {
+                        Some(32) => {
+                            // this is usually because the folder is locked by something on Windows.
+                            // in the future, we also need to handle the case where this is a folder permissions issue
+                            // and request elevation, but for now we will ask the user to close the program.
+                            // it's also possible that an admin process is locking the dir, in which case we won't see
+                            // it here unless we are also elevated.
+                            if locksmith::close_processes_locking_dir(&app.title, &current_dir) {
+                                // the processes were closed successfully, so we can retry the operation (only once)
+                                if has_retried {
+                                    bail!("Failed to swap current dir: {}", e);
+                                }
+                                has_retried = true;
+                                continue;
+                            }
+                        }
+                        _ => {
+                            let title = format!("{} Update", &manifest.title);
+                            let header = format!("Failed to update");
+                            let body = format!("Failed to update {} to version {}. ({})", &manifest.title, &manifest.version, e);
+                            dialogs::show_error(&title, Some(&header), &body);
+                            return Ok(()); // so that a generic error dialog is not shown.
+                        }
+                    }
+                }
             }
         }
 
