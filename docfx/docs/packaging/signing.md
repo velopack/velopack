@@ -7,6 +7,11 @@ On both platforms, signing needs to be performed by Velopack itself, this is bec
 
 ## Signing on Windows
 
+Here is the general rule of thumb for Windows Defender/Smart Screen warnings:
+- You don't sign your code. You release MyApp-v1.exe. People get smart screen warnings for a while until the reputation on that file increases. You release MyApp-v2.exe. People get warnings again until MyApp-v2.exe builds up enough reputation.
+- You sign your code with an OV certificate. You release MyApp-v1.exe. People get smart screen warnings for a while until the reputation on that certificate increases. You release MyApp-v2.exe. People don't get warnings because the certificate already has a good reputation. Eventually your certificate expires and it comes time to release MyApp-v47.exe. You renew your certificate, and people get warnings again until the new certificate builds up reputation.
+- You sign your code with an EV certificate. People never get warnings.
+
 ### Acquiring a code signing certificate
 First, you need to acquire a code-signing certificate from a reputable brand. Microsoft lists the following trusted issuers [in their documentation](https://learn.microsoft.com/en-us/windows-hardware/drivers/dashboard/code-signing-cert-manage):
 
