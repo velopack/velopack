@@ -89,6 +89,7 @@ public class Program
         var uploadCommand = new CliCommand("upload", "Upload local package(s) to a remote update source.");
         uploadCommand.AddRepositoryUpload<GitHubUploadCommand, GitHubRepository, GitHubUploadOptions>(provider);
         uploadCommand.AddRepositoryUpload<S3UploadCommand, S3Repository, S3UploadOptions>(provider);
+        uploadCommand.AddRepositoryUpload<LocalUploadCommand, LocalRepository, LocalUploadOptions>(provider);
         rootCommand.Add(uploadCommand);
 
         var deltaCommand = new CliCommand("delta", "Utilities for creating or applying delta packages.");
