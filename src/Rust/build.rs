@@ -1,4 +1,5 @@
 #![allow(unused_variables)]
+use core::panic;
 use semver;
 use std::process::Command;
 
@@ -33,9 +34,12 @@ fn main() {
 }
 
 fn link_locksmith() {
-    #[cfg(target_arch = "x86")]
-    println!("cargo:rustc-link-lib=UpdateLocksmith_x86");
-
-    #[cfg(not(target_arch = "x86"))]
-    println!("cargo:rustc-link-lib=UpdateLocksmith_x64");
+    let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
+    if arch == "x86_64" {
+        println!("cargo:rustc-link-lib=UpdateLocksmith_x64");
+    } else if arch == "x86" {
+        println!("cargo:rustc-link-lib=UpdateLocksmith_x86");
+    } else {
+        panic!("Unsupported architecture: {}", arch);
+    }
 }
