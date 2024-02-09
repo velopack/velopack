@@ -73,7 +73,7 @@ namespace Velopack.Compression
             deltaPathRelativePaths
                 .Where(x => x.StartsWith("lib", StringComparison.InvariantCultureIgnoreCase) 
                             && !x.EndsWith(".shasum", StringComparison.InvariantCultureIgnoreCase)
-                            && !pathsVisited.Contains(x))
+                            && !pathsVisited.Contains(DIFF_SUFFIX.Replace(x, ""), StringComparer.InvariantCultureIgnoreCase))
                 .ForEach(x => {
                     Log.Trace($"{x} was in new package but not in old one, adding");
                     File.Copy(Path.Combine(deltaPath, x), Path.Combine(workingPath, x));
