@@ -295,7 +295,7 @@ public class WindowsPackTests
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         string id = "SquirrelDeltaTest";
         PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
-        PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
+        PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger, true);
 
         // did a zsdiff get created for our v2 update?
         var deltaPath = Path.Combine(releaseDir, $"{id}-2.0.0-delta.nupkg");
@@ -652,7 +652,7 @@ public class WindowsPackTests
         return RunImpl(psi, logger, exitCode);
     }
 
-    private void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger)
+    private void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger, bool addNewFile = false)
     {
         var projDir = PathHelper.GetTestRootPath("TestApp");
         var testStringFile = Path.Combine(projDir, "Const.cs");
@@ -673,6 +673,16 @@ public class WindowsPackTests
 
             if (p.ExitCode != 0)
                 throw new Exception($"dotnet publish failed with exit code {p.ExitCode}");
+
+            var newFilePath = Path.Combine(projDir, "publish", "NewFile.txt");
+            if (addNewFile) {
+                File.WriteAllText(newFilePath, "New File Test");
+            } else {
+                // This is needed as the presence of this file in v1.0.0 can give false positives in the delta test
+                if (File.Exists(newFilePath)) {
+                    File.Delete(newFilePath);
+                }
+            }
 
             //RunNoCoverage("dotnet", args, projDir, logger);
 
