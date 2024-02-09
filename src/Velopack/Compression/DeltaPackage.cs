@@ -38,14 +38,14 @@ namespace Velopack.Compression
             var deltaPathRelativePaths = new DirectoryInfo(deltaPath).GetAllFilesRecursively()
                 .Select(x => x.FullName.Replace(deltaPath + Path.DirectorySeparatorChar, ""))
                 .ToArray();
-
+            
             // Apply all of the .diff files
             var files = deltaPathRelativePaths
                 .Where(x => x.StartsWith("lib", StringComparison.InvariantCultureIgnoreCase))
                 .Where(x => !x.EndsWith(".shasum", StringComparison.InvariantCultureIgnoreCase))
                 .Where(x => DIFF_SUFFIX.IsMatch(x))
                 .ToArray();
-
+            
             for (var index = 0; index < files.Length; index++) {
                 var file = files[index];
                 pathsVisited.Add(DIFF_SUFFIX.Replace(file, "").ToLowerInvariant());
@@ -54,8 +54,8 @@ namespace Velopack.Compression
                 progress(Utility.CalculateProgress((int) perc, 10, 90));
             }
 
-            progress(90);
-
+            progress(80);
+            
             // Delete all of the files that were in the old package but
             // not in the new one.
             new DirectoryInfo(workingPath).GetAllFilesRecursively()
@@ -64,6 +64,19 @@ namespace Velopack.Compression
                 .ForEach(x => {
                     Log.Trace($"{x} was in old package but not in new one, deleting");
                     File.Delete(Path.Combine(workingPath, x));
+                });
+            
+            progress(85);
+            
+            // Add all of the files that are in the new package but
+            // not in the old one.
+            deltaPathRelativePaths
+                .Where(x => x.StartsWith("lib", StringComparison.InvariantCultureIgnoreCase) 
+                            && !x.EndsWith(".shasum", StringComparison.InvariantCultureIgnoreCase)
+                            && !pathsVisited.Contains(x))
+                .ForEach(x => {
+                    Log.Trace($"{x} was in new package but not in old one, adding");
+                    File.Copy(Path.Combine(deltaPath, x), Path.Combine(workingPath, x));
                 });
 
             progress(95);
