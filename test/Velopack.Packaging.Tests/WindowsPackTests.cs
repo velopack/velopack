@@ -296,6 +296,7 @@ public class WindowsPackTests
         string id = "SquirrelDeltaTest";
         PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
         PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger, true);
+        PackTestApp(id, "3.0.0", "version 3 test", releaseDir, logger);
 
         // did a zsdiff get created for our v2 update?
         var deltaPath = Path.Combine(releaseDir, $"{id}-2.0.0-delta.nupkg");
@@ -303,11 +304,25 @@ public class WindowsPackTests
         using var _2 = Utility.GetTempDirectory(out var extractDir);
         EasyZip.ExtractZipToDirectory(logger, deltaPath, extractDir);
         var extractDllDiff = Path.Combine(extractDir, "lib", "app", "testapp.dll.zsdiff");
+        var extractDllShasum = Path.Combine(extractDir, "lib", "app", "testapp.dll.shasum");
         Assert.True(File.Exists(extractDllDiff));
         Assert.True(new FileInfo(extractDllDiff).Length > 0);
+        Assert.True(File.Exists(extractDllShasum));
+        Assert.True(new FileInfo(extractDllShasum).Length > 0);
+
         var extractAppDiff = Path.Combine(extractDir, "lib", "app", "testapp.exe.diff"); // not changed
         Assert.True(File.Exists(extractAppDiff));
         Assert.True(new FileInfo(extractAppDiff).Length == 0);
+        var extractAppShasum = Path.Combine(extractDir, "lib", "app", "testapp.exe.shasum");
+        Assert.True(File.Exists(extractAppDiff));
+        Assert.True(new FileInfo(extractAppDiff).Length == 0);
+
+        // new file should exist but not have shasum
+        var extractNewFile = Path.Combine(extractDir, "lib", "app", "NewFile.txt");
+        Assert.True(File.Exists(extractNewFile));
+        Assert.True(new FileInfo(extractDllDiff).Length > 0);
+        var extractNewFileShasum = Path.Combine(extractDir, "lib", "app", "NewFile.txt.shasum");
+        Assert.False(File.Exists(extractNewFileShasum));
 
         // apply delta and check package
         var output = Path.Combine(releaseDir, "delta.patched");
@@ -324,6 +339,23 @@ public class WindowsPackTests
         var f2 = File.ReadAllBytes(v2);
         Assert.True(new ReadOnlySpan<byte>(f1).SequenceEqual(new ReadOnlySpan<byte>(f2)));
         Assert.True(DeltaPackageBuilder.AreFilesEqualFast(output, v2));
+
+        // can apply multiple deltas, and handle add/removing files?
+        output = Path.Combine(releaseDir, "delta.patched2");
+        var deltav3 = Path.Combine(releaseDir, $"{id}-3.0.0-delta.nupkg");
+        new DeltaPatchCommandRunner(logger, new BasicConsole(logger, new DefaultPromptValueFactory(false))).Run(new DeltaPatchOptions {
+            BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-full.nupkg"),
+            OutputFile = output,
+            PatchFiles = new[] { new FileInfo(deltaPath), new FileInfo(deltav3) },
+        }).GetAwaiterResult();
+
+        // are the packages the same?
+        Assert.True(File.Exists(output));
+        var v3 = Path.Combine(releaseDir, $"{id}-3.0.0-full.nupkg");
+        var f4 = File.ReadAllBytes(output);
+        var f5 = File.ReadAllBytes(v3);
+        Assert.True(new ReadOnlySpan<byte>(f4).SequenceEqual(new ReadOnlySpan<byte>(f5)));
+        Assert.True(DeltaPackageBuilder.AreFilesEqualFast(output, v3));
     }
 
     [SkippableFact]
