@@ -33,7 +33,7 @@
        await mgr.DownloadUpdatesAsync(newVersion);
 
        // install new version and restart app
-       mgr.ApplyUpdatesAndRestart();
+       mgr.ApplyUpdatesAndRestart(newVersion);
    }
    ```
 5. Publish dotnet and build your first Velopack release! 🎉

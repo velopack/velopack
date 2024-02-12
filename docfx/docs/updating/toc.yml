@@ -2,3 +2,9 @@
   href: overview.md
 - name: Windows Shortcuts
   href: shortcuts.md
+- name: Release Notes
+  href: release-notes.md
+- name: Switching Channels
+  href: switching-channels.md
+- name: Handling Hooks
+  href: hooks.md
