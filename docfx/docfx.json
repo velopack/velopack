@@ -40,7 +40,6 @@
     "globalMetadata": {
       "_appName": "Velopack",
       "_appTitle": "Velopack",
-      "_appFaviconPath": "images/velopack.ico",
       "_enableSearch": true,
       "_disableNextArticle": true,
       "pdf": false

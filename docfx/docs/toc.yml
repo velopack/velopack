@@ -1,9 +1,11 @@
+
+- name: Get started
+
 - name: Welcome
   href: index.md
 
-- name: Getting Started
-  href: getting-started/toc.yml
-  homepage: getting-started/csharp.md
+- name: Quick - C# .NET
+  href: getting-started/csharp.md
 
 - name: Sample Apps
   items:
@@ -14,17 +16,21 @@
   - name: C++ / MSVC / Win32
     href: https://github.com/velopack/velopack/tree/master/examples/VeloCppWinSample
 
-- name: 1. App Updating
+- name: Essentials
+
+- name: App Updating
   href: updating/toc.yml
   homepage: updating/overview.md
 
-- name: 2. Packaging Releases
+- name: Packaging Releases
   href: packaging/toc.yml
   homepage: packaging/overview.md
 
-- name: 3. Distributing Releases
+- name: Distributing Releases
   href: distributing/toc.yml
   homepage: distributing/overview.md
+
+- name: Advanced
 
 - name: Troubleshooting
   href: troubleshooting/toc.yml
