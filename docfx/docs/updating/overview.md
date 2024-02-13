@@ -8,7 +8,7 @@ For .NET applications, you should first install the [Velopack Nuget Package](htt
 ## Application Startup
 Velopack requires you add some code to your application startup to handle hooks. This is because Velopack will run your main binary at certain stages of the install/update process with special arguments, to allow you to customise behavior. It expects your app to respond to these arguments in the right way and then exit as soon as possible. 
 
-The simplest/minimal way to handle this properly is to add the SDK startup code to your `Main()` method.
+The simplest/minimal way to handle this properly is to add the SDK startup code to your `Main()` method. This should be in the "main" binary (the one specified when packaging with `--mainExe {exeName}`).
 
 ```cs
 static void Main(string[] args)
@@ -88,3 +88,19 @@ Lastly, if you do not call any of these "Apply" methods, when you re-launch your
 
 > [!TIP]
 > It is recommended that you use one of the functions which explicitly applies a package (eg. `ApplyUpdatesAndRestart`), and do not rely on the AutoApply behavior as a rule of thumb. The auto behavior will only apply a downloaded version if it is > the currently installed version, so will not work if trying to downgrade or switch channels, and if more than one instance of your process is running it could result in the update failing or those other processes being terminated.
+
+## How updates work
+In a typical Windows install the application structure will look like this:
+```
+%LocalAppData%
+└── {packId}
+    ├── current
+    │   ├── YourFile.dll
+    │   ├── sq.version
+    │   └── YourApp.exe
+    └── Update.exe
+```
+
+`sq.version` is a special file created by Velopack which contains some metadata about your currently installed application. During install/uninstall, the entire `{packId}` folder is replaced or removed. During updates, only the `current` folder is replaced. If you store settings in the same folder as your main binary, they will be erased during updates. 
+
+If you want to create files that persist through updates, but are erased when the app is uninstalled, you should store them one level up (`..`) outside of the `current` dir. If you want to create files which persist even if the app is uninstalled (eg. important user settings) then you should store them in `%AppData%\{packId}` (that's the roaming app data, not local app data).
