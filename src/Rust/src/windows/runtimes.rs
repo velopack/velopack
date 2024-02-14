@@ -442,14 +442,15 @@ impl RuntimeInfo for DotnetInfo {
         let uncached_feed = "https://dotnetcli.blob.core.windows.net/dotnet";
         let dotnet_feed = "https://dotnetcli.azureedge.net/dotnet";
         let (major, minor, _, _) = util::parse_version(&self.version)?;
-        let runtime_str = match self.runtime_type {
-            DotnetRuntimeType::Runtime => "dotnet",
-            DotnetRuntimeType::AspNetCore => "aspnetcore",
+        let latest_runtime_str = match self.runtime_type {
+            DotnetRuntimeType::Runtime => "Runtime",
+            DotnetRuntimeType::AspNetCore => "aspnetcore/Runtime",
             DotnetRuntimeType::WindowsDesktop => "WindowsDesktop",
         };
 
-        let get_latest_url = format!("{uncached_feed}/{runtime_str}/{major}.{minor}/latest.version");
+        let get_latest_url = format!("{uncached_feed}/{latest_runtime_str}/{major}.{minor}/latest.version");
         let version = download::download_url_as_string(&get_latest_url)?;
+        let version = version.trim();
         let cpu_arch_str = match self.architecture {
             RuntimeArch::X86 => "x86",
             RuntimeArch::X64 => "x64",
@@ -501,6 +502,14 @@ fn test_dotnet_resolves_latest_version() {
     assert_eq!(
         parse_dotnet_version("net5.0").unwrap().get_download_url().unwrap(),
         "https://dotnetcli.azureedge.net/dotnet/WindowsDesktop/5.0.17/windowsdesktop-runtime-5.0.17-win-x64.exe"
+    );
+    assert_eq!(
+        parse_dotnet_version("net5.0-x64-aspnetcore").unwrap().get_download_url().unwrap(),
+        "https://dotnetcli.azureedge.net/dotnet/aspnetcore/Runtime/5.0.17/aspnetcore-runtime-5.0.17-win-x64.exe"
+    );
+    assert_eq!(
+        parse_dotnet_version("net5.0-x64-runtime").unwrap().get_download_url().unwrap(),
+        "https://dotnetcli.azureedge.net/dotnet/Runtime/5.0.17/dotnet-runtime-5.0.17-win-x64.exe"
     );
 }
 
