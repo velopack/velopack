@@ -32,7 +32,8 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
     protected string RuntimeDependencies { get; private set; }
 
-    private readonly Regex REGEX_EXCLUDES = new Regex(@".*[\\\/]createdump.*|.*\.vshost\..*|.*\.nupkg$|.*\.pdb$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private readonly Regex REGEX_EXCLUDES = new Regex(@".*[\\\/]createdump.*|.*\.vshost\..*|.*\.nupkg$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private readonly Regex REGEX_EXCLUDES_NO_PDB = new Regex(@".*[\\\/]createdump.*|.*\.vshost\..*|.*\.nupkg$|.*\.pdb$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public PackageBuilder(RuntimeOs supportedOs, ILogger logger, IFancyConsole console)
     {
@@ -279,6 +280,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
     protected virtual void CopyFiles(DirectoryInfo source, DirectoryInfo target, Action<int> progress, bool excludeAnnoyances = false)
     {
+        var excludes = Options.IncludePdb ? REGEX_EXCLUDES : REGEX_EXCLUDES_NO_PDB;
         var numFiles = source.EnumerateFiles("*", SearchOption.AllDirectories).Count();
         int currentFile = 0;
 
@@ -288,7 +290,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
                 var path = Path.Combine(target.FullName, fileInfo.Name);
                 currentFile++;
                 progress((int) ((double) currentFile / numFiles * 100));
-                if (excludeAnnoyances && REGEX_EXCLUDES.IsMatch(path)) {
+                if (excludeAnnoyances && excludes.IsMatch(path)) {
                     Log.Debug("Skipping because matched exclude pattern: " + path);
                     continue;
                 }

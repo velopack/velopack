@@ -26,6 +26,8 @@ public class OsxPackCommand : OsxBundleCommand
 
     public string NotaryProfile { get; private set; }
 
+    public bool IncludePdb { get; set; }
+
     public OsxPackCommand()
         : base("pack", "Converts application files into a release and installer.")
     {
@@ -78,5 +80,9 @@ public class OsxPackCommand : OsxBundleCommand
         AddOption<string>((v) => NotaryProfile = v, "--notaryProfile")
             .SetDescription("Name of profile containing Apple credentials stored with notarytool.")
             .SetArgumentHelpName("NAME");
+
+        AddOption<bool>((v) => IncludePdb = v, "--includePdb")
+            .SetDescription("Include PDB files in the release instead of removing.")
+            .SetHidden();
     }
 }

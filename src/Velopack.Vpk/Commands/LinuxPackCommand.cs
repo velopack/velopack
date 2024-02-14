@@ -24,6 +24,8 @@ public class LinuxPackCommand : PlatformCommand
 
     public DeltaMode DeltaMode { get; set; } = DeltaMode.BestSpeed;
 
+    public bool IncludePdb { get; set; }
+
     public LinuxPackCommand()
         : this("pack", "Create's a Linux .AppImage bundle from a folder containing application files.")
     { }
@@ -75,13 +77,17 @@ public class LinuxPackCommand : PlatformCommand
             .SetDefault(DeltaMode.BestSpeed)
             .SetDescription("Set the delta generation mode.");
 
+        AddOption<bool>((v) => IncludePdb = v, "--includePdb")
+            .SetDescription("Include PDB files in the release instead of removing.")
+            .SetHidden();
+
         var appDir = AddOption<DirectoryInfo>((v) => {
-                var t = v.ToFullNameOrNull();
-                if (t != null) {
-                    PackDirectory = t;
-                    PackIsAppDir = true;
-                }
-            }, "--appDir")
+            var t = v.ToFullNameOrNull();
+            if (t != null) {
+                PackDirectory = t;
+                PackIsAppDir = true;
+            }
+        }, "--appDir")
             .SetDescription("Directory containing application in .AppDir format")
             .SetArgumentHelpName("DIR")
             .MustNotBeEmpty();

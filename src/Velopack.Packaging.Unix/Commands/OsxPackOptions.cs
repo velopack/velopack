@@ -29,4 +29,6 @@ public class OsxPackOptions : OsxBundleOptions, IPackOptions
     public string NotaryProfile { get; set; }
 
     public string Channel { get; set; }
+
+    public bool IncludePdb { get; set; }
 }

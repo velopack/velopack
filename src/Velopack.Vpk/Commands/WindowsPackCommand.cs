@@ -15,6 +15,8 @@ public class WindowsPackCommand : WindowsReleasifyCommand
 
     public string ReleaseNotes { get; private set; }
 
+    public bool IncludePdb { get; set; }
+
     public WindowsPackCommand()
         : base("pack", "Creates a release from a folder containing application files.")
     {
@@ -49,5 +51,9 @@ public class WindowsPackCommand : WindowsReleasifyCommand
             .SetDescription("File with markdown-formatted notes for this version.")
             .SetArgumentHelpName("PATH")
             .MustExist();
+
+        AddOption<bool>((v) => IncludePdb = v, "--includePdb")
+            .SetDescription("Include PDB files in the release instead of removing.")
+            .SetHidden();
     }
 }

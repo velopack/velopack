@@ -29,4 +29,6 @@ public class LinuxPackOptions : IPackOptions
     public string Channel { get; set; }
 
     public bool PackIsAppDir { get; set; }
+
+    public bool IncludePdb { get; set; }
 }
