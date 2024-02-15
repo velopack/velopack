@@ -80,7 +80,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
             throw new UserInfoException(
                 $"Could not find main application executable (the one that runs 'VelopackApp.Build().Run()'). " + Environment.NewLine +
                 $"I searched for '{mainExeName}' in {packDirectory}." + Environment.NewLine +
-                $"If your main binary is not named '{mainExeName}', please specify the name with the argument: --exeName {{yourBinary.exe}}");
+                $"If your main binary is not named '{mainExeName}', please specify the name with the argument: --mainExe {{yourBinary.exe}}");
         }
         MainExeName = mainExeName;
         MainExePath = mainExePath;
