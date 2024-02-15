@@ -45,7 +45,7 @@ namespace VeloWpfSample
 
         private void BtnRestartApplyClick(object sender, RoutedEventArgs e)
         {
-            _um.ApplyUpdatesAndRestart();
+            _um.ApplyUpdatesAndRestart(_update);
         }
 
         private void LogUpdated(object sender, LogUpdatedEventArgs e)

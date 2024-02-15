@@ -9,11 +9,7 @@ namespace Velopack
         [EditorBrowsable(EditorBrowsableState.Never)]
         [Obsolete("Please use one of the other overloads of ApplyUpdatesAndRestart() instead.")]
         public void ApplyUpdatesAndRestart(string[]? restartArgs = null)
-            => ApplyUpdatesAndRestart((VelopackAsset?) null, restartArgs);
-
-        /// <inheritdoc cref="ApplyUpdatesAndRestart(VelopackAsset, string[])"/>
-        public void ApplyUpdatesAndRestart(UpdateInfo? toApply, string[]? restartArgs = null)
-            => ApplyUpdatesAndRestart(toApply?.TargetFullRelease, restartArgs);
+            => ApplyUpdatesAndRestart(null, restartArgs);
 
         /// <summary>
         /// This will exit your app immediately, apply updates, and then optionally relaunch the app using the specified 
@@ -32,12 +28,8 @@ namespace Velopack
         /// <inheritdoc cref="ApplyUpdatesAndExit(VelopackAsset)"/>
         [EditorBrowsable(EditorBrowsableState.Never)]
         [Obsolete("Please use one of the other overloads of ApplyUpdatesAndExit() instead.")]
-        public void ApplyUpdatesAndExit(string[]? restartArgs = null)
-            => ApplyUpdatesAndExit((VelopackAsset?) null);
-
-        /// <inheritdoc cref="ApplyUpdatesAndExit(VelopackAsset)"/>
-        public void ApplyUpdatesAndExit(UpdateInfo? toApply)
-            => ApplyUpdatesAndExit(toApply?.TargetFullRelease);
+        public void ApplyUpdatesAndExit()
+            => ApplyUpdatesAndExit(null);
 
         /// <summary>
         /// This will exit your app immediately, apply updates, and then optionally relaunch the app using the specified 

@@ -39,5 +39,10 @@
             BaseRelease = deltaBaseRelease;
             DeltasToTarget = deltasToTarget ?? new VelopackAsset[0];
         }
+
+        /// <summary>
+        /// Implicitly convert an <see cref="UpdateInfo"/> to a <see cref="VelopackAsset"/>.
+        /// </summary>
+        public static implicit operator VelopackAsset(UpdateInfo updateInfo) => updateInfo.TargetFullRelease;
     }
 }
