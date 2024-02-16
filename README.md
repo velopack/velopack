@@ -62,7 +62,7 @@ This is a very simple example of the steps you would take to generate an install
        await mgr.DownloadUpdatesAsync(newVersion);
 
        // install new version and restart app
-       mgr.ApplyUpdatesAndRestart();
+       mgr.ApplyUpdatesAndRestart(newVersion);
    }
    ```
 
