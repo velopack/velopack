@@ -90,9 +90,10 @@ pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Res
         // the target directory is not empty, and not dead
         if !dialogs::show_overwrite_repair_dialog(&app, &root_path, root_is_default) {
             // user cancelled overwrite prompt
-            error!("Directory exists, and user cancelled overwrite.");
+            error!("Directory already exists, and user cancelled overwrite.");
             return Ok(());
         }
+        info!("User chose to overwrite existing installation.");
 
         shared::force_stop_package(&root_path)
             .map_err(|z| anyhow!("Failed to stop application ({}), please close the application and try running the installer again.", z))?;
