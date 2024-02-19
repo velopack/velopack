@@ -27,8 +27,8 @@ set "version=%~1"
 
 echo.
 echo Compiling AvaloniaCrossPlat with dotnet...
-dotnet publish -c Release --no-self-contained -r win-x64 -o publish -p:UseLocalVelopack=true
+dotnet publish -c Release --self-contained -r win-x64 -o publish -p:UseLocalVelopack=true
 
 echo.
 echo Building Velopack Release v%version%
-%~dp0..\..\..\build\Debug\net8.0\vpk pack -u AvaloniaCrossPlat -o releases -p publish -f net8-x64-desktop -v %*
+%~dp0..\..\..\build\Debug\net8.0\vpk pack -u AvaloniaCrossPlat -o releases -p publish -v %*
