@@ -4,7 +4,7 @@ use semver::Version;
 use std::{
     cell::RefCell,
     fs::{self, File},
-    io::{Cursor, Read, Seek},
+    io::{Cursor, Read, Write, Seek},
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -149,7 +149,7 @@ impl BundleInfo<'_> {
         }
         None
     }
-
+     
     pub fn extract_zip_idx_to_path<T: AsRef<Path>>(&self, index: usize, path: T) -> Result<()> {
         let path = path.as_ref();
         debug!("Extracting zip file to path: {}", path.to_string_lossy());
@@ -163,11 +163,18 @@ impl BundleInfo<'_> {
 
         let mut archive = self.zip.borrow_mut();
         let mut file = archive.by_index(index)?;
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer)?;
+        let mut outfile = super::retry_io(|| File::create(path))?;
+        let mut buffer = [0; 64000]; // Use a 64KB buffer; good balance for large/small files.
 
-        debug!("Writing file to disk: {:?}", path);
-        super::retry_io(|| fs::write(path, &buffer))?;
+        debug!("Writing file to disk with 64k buffer: {:?}", path);
+        loop {
+            let len = file.read(&mut buffer)?;
+            if len == 0 {
+                break; // End of file
+            }
+            outfile.write_all(&buffer[..len])?;
+        }
+
         Ok(())
     }
 
