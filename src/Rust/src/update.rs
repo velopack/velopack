@@ -8,6 +8,7 @@ use anyhow::{anyhow, bail, Result};
 use clap::{arg, value_parser, ArgMatches, Command};
 use std::{env, path::PathBuf};
 use velopack::*;
+use serde_json::json;
 
 #[rustfmt::skip]
 fn root_command() -> Command {
@@ -182,7 +183,7 @@ fn check(matches: &ArgMatches) -> Result<()> {
         },
         Err(e) => {
             if is_json {
-                println!("{{ \"error\": \"{}\" }}", e);
+                println!("{{ \"error\": {} }}", json!(format!("{}", e)));
             } else {
                 println!("err: {}", e);
             }
@@ -219,14 +220,14 @@ fn download(matches: &ArgMatches) -> Result<()> {
     }) {
         Ok(path) => {
             if is_json {
-                println!("{{ \"complete\": true, \"progress\": 100, \"file\": \"{}\" }}", path.to_string_lossy());
+                println!("{{ \"complete\": true, \"progress\": 100, \"file\": {} }}", json!(path.to_string_lossy()));
             } else {
                 println!("complete: {}", path.to_string_lossy());
             }
         }
         Err(e) => {
             if is_json {
-                println!("{{ \"error\": \"{}\" }}", e);
+                println!("{{ \"error\": {} }}", json!(format!("{}", e)));
             } else {
                 println!("err: {}", e);
             }
