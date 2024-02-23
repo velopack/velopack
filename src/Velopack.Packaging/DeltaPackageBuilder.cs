@@ -159,6 +159,9 @@ public class DeltaPackageBuilder
                             return; // success, so return from this function
                         } catch (ProcessFailedException ex) {
                             _logger.Error($"Failed to create zstd diff for file '{f.FullName}' (will try to fallback to legacy bsdiff format - this will be much slower). " + Environment.NewLine + ex.Message);
+                        } catch (Exception ex) {
+                            _logger.Error($"Failed to create zstd diff for file '{f.FullName}'. " + Environment.NewLine + ex.Message);
+                            throw;
                         }
                     }
                     // if we're here, either zstd is not available or it failed
@@ -203,6 +206,9 @@ public class DeltaPackageBuilder
         }
 
         long length = fileInfo1.Length;
+        if (length == 0) {
+            return true;
+        }
 
         using var mmf1 = MemoryMappedFile.CreateFromFile(filePath1, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
         using var mmf2 = MemoryMappedFile.CreateFromFile(filePath2, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
