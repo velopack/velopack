@@ -9,42 +9,6 @@ use velopack::*;
 #[cfg(target_os = "windows")]
 use winsafe::{self as w, co};
 
-#[cfg(feature = "extendedcli")]
-#[test]
-pub fn test_check_updates() {
-    let fixtures = find_fixtures();
-    let feedjson = fixtures.join("testfeed.json");
-
-    let tmp = tempdir().unwrap();
-
-    // verify that we can't check for updates without a manifest
-    let mut manifest = bundle::Manifest::default();
-    manifest.version = semver::Version::parse("1.0.5").unwrap();
-    let result = commands::check(&manifest, &tmp.path().to_string_lossy(), false, Some("stable"));
-    assert!(result.is_err());
-
-    // we should find a version greater than ours
-    fs::copy(feedjson, tmp.path().join("releases.stable.json")).unwrap();
-    let result = commands::check(&manifest, &tmp.path().to_string_lossy(), false, Some("stable")).unwrap();
-    assert!(result.is_some());
-    assert!(semver::Version::parse(&result.unwrap().TargetFullRelease.Version).unwrap() == semver::Version::parse("1.0.11").unwrap());
-
-    // we should not find a version equal to ours
-    manifest.version = semver::Version::parse("1.0.11").unwrap();
-    let result = commands::check(&manifest, &tmp.path().to_string_lossy(), false, Some("stable")).unwrap();
-    assert!(result.is_none());
-
-    // we should not find a version less than ours
-    manifest.version = semver::Version::parse("1.0.20").unwrap();
-    let result = commands::check(&manifest, &tmp.path().to_string_lossy(), false, Some("stable")).unwrap();
-    assert!(result.is_none());
-
-    // if downgrade is allowed, we should find a version less than ours
-    let result = commands::check(&manifest, &tmp.path().to_string_lossy(), true, Some("stable")).unwrap();
-    assert!(result.is_some());
-    assert!(semver::Version::parse(&result.unwrap().TargetFullRelease.Version).unwrap() == semver::Version::parse("1.0.11").unwrap());
-}
-
 #[cfg(target_os = "windows")]
 #[test]
 pub fn test_install_apply_uninstall() {

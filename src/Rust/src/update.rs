@@ -8,7 +8,6 @@ use anyhow::{anyhow, bail, Result};
 use clap::{arg, value_parser, ArgMatches, Command};
 use std::{env, path::PathBuf};
 use velopack::*;
-use serde_json::json;
 
 #[rustfmt::skip]
 fn root_command() -> Command {
@@ -38,24 +37,6 @@ fn root_command() -> Command {
     .arg(arg!(--forceLatest "Legacy / not used").hide(true))
     .disable_help_subcommand(true)
     .flatten_help(true);
-
-    #[cfg(feature = "extendedcli")]
-    let cmd = cmd.subcommand(Command::new("download")
-        .about("Download/copies an available remote file into the packages directory")
-        .arg(arg!(--url <URL> "URL or local folder containing an update source").required(true))
-        .arg(arg!(--name <NAME> "The name of the asset to download").required(true))
-        .arg(arg!(--clean "Delete all other packages if download is successful"))
-        .arg(arg!(--format <FORMAT> "The format of the program output (json|text)").default_value("json"))
-    );
-
-    #[cfg(feature = "extendedcli")]
-    let cmd = cmd.subcommand(Command::new("check")
-        .about("Checks for available updates")
-        .arg(arg!(--url <URL> "URL or local folder containing an update source").required(true))
-        .arg(arg!(--downgrade "Allow version downgrade"))
-        .arg(arg!(--channel <NAME> "Explicitly switch to a specific channel"))
-        .arg(arg!(--format <FORMAT> "The format of the program output (json|text)").default_value("json"))
-    );
 
     #[cfg(target_os = "windows")]
     let cmd = cmd.subcommand(Command::new("start")
@@ -131,11 +112,6 @@ fn main() -> Result<()> {
         "start" => start(subcommand_matches).map_err(|e| anyhow!("Start error: {}", e)),
         "apply" => apply(subcommand_matches).map_err(|e| anyhow!("Apply error: {}", e)),
         "patch" => patch(subcommand_matches).map_err(|e| anyhow!("Patch error: {}", e)),
-        #[cfg(feature = "extendedcli")]
-        "check" => check(subcommand_matches).map_err(|e| anyhow!("Check error: {}", e)),
-        #[cfg(feature = "extendedcli")]
-        "download" => download(subcommand_matches).map_err(|e| anyhow!("Download error: {}", e)),
-        "get-version" => get_version(subcommand_matches).map_err(|e| anyhow!("Get-version error: {}", e)),
         _ => bail!("Unknown subcommand. Try `--help` for more information."),
     };
 
@@ -144,96 +120,6 @@ fn main() -> Result<()> {
         return Err(e.into());
     }
 
-    Ok(())
-}
-
-fn get_version(_matches: &ArgMatches) -> Result<()> {
-    let (_, app) = shared::detect_current_manifest()?;
-    println!("{}", app.version);
-    Ok(())
-}
-
-#[cfg(feature = "extendedcli")]
-fn check(matches: &ArgMatches) -> Result<()> {
-    let url = matches.get_one::<String>("url").unwrap();
-    let format = matches.get_one::<String>("format").unwrap();
-    let allow_downgrade = matches.get_flag("downgrade");
-    let channel = matches.get_one::<String>("channel").map(|x| x.as_str());
-    let is_json = format.eq_ignore_ascii_case("json");
-
-    info!("Command: Check");
-    info!("    URL: {:?}", url);
-    info!("    Allow Downgrade: {:?}", allow_downgrade);
-    info!("    Channel: {:?}", channel);
-    info!("    Format: {:?}", format);
-
-    // this is a machine readable command, so we write program output to stdout in the desired format
-    let (_, app) = shared::detect_current_manifest()?;
-    match commands::check(&app, url, allow_downgrade, channel) {
-        Ok(opt) => match opt {
-            Some(info) => {
-                if is_json {
-                    println!("{}", serde_json::to_string(&info)?);
-                } else {
-                    let asset = info.TargetFullRelease;
-                    println!("{} {} {} {}", asset.Version, asset.SHA1, asset.FileName, asset.Size);
-                }
-            }
-            _ => println!("null"),
-        },
-        Err(e) => {
-            if is_json {
-                println!("{{ \"error\": {} }}", json!(format!("{}", e)));
-            } else {
-                println!("err: {}", e);
-            }
-            return Err(e);
-        }
-    }
-    Ok(())
-}
-
-#[cfg(feature = "extendedcli")]
-fn download(matches: &ArgMatches) -> Result<()> {
-    let url = matches.get_one::<String>("url").unwrap();
-    let name = matches.get_one::<String>("name").unwrap();
-    let format = matches.get_one::<String>("format").unwrap();
-    let clean = matches.get_flag("clean");
-    let is_json = format.eq_ignore_ascii_case("json");
-
-    info!("Command: Download");
-    info!("    URL: {:?}", url);
-    info!("    Asset Name: {:?}", name);
-    info!("    Format: {:?}", format);
-    info!("    Clean: {:?}", clean);
-
-    // this is a machine readable command, so we write program output to stdout in the desired format
-    let (root_path, app) = shared::detect_current_manifest()?;
-    #[cfg(target_os = "windows")]
-    let _mutex = shared::retry_io(|| windows::create_global_mutex(&app))?;
-    match commands::download(&root_path, &app, url, clean, name, |p| {
-        if is_json {
-            println!("{{ \"progress\": {} }}", p);
-        } else {
-            println!("{}", p);
-        }
-    }) {
-        Ok(path) => {
-            if is_json {
-                println!("{{ \"complete\": true, \"progress\": 100, \"file\": {} }}", json!(path.to_string_lossy()));
-            } else {
-                println!("complete: {}", path.to_string_lossy());
-            }
-        }
-        Err(e) => {
-            if is_json {
-                println!("{{ \"error\": {} }}", json!(format!("{}", e)));
-            } else {
-                println!("err: {}", e);
-            }
-            return Err(e);
-        }
-    }
     Ok(())
 }
 
