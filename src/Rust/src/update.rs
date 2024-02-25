@@ -18,6 +18,7 @@ fn root_command() -> Command {
         .about("Applies a staged / prepared update, installing prerequisite runtimes if necessary")
         .arg(arg!(-r --restart "Restart the application after the update"))
         .arg(arg!(-w --wait "Wait for the parent process to terminate before applying the update"))
+        .arg(arg!(--waitPid <PID> "Wait for the specified process to terminate before applying the update").value_parser(value_parser!(u32)))
         .arg(arg!(-p --package <FILE> "Update package to apply").value_parser(value_parser!(PathBuf)))
         .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceeded by '--'.").required(false).last(true).num_args(0..))
     )
@@ -43,6 +44,7 @@ fn root_command() -> Command {
         .about("Starts the currently installed version of the application")
         .arg(arg!(-a --args <ARGS> "Legacy args format").aliases(vec!["processStartArgs", "process-start-args"]).hide(true).allow_hyphen_values(true).num_args(1))
         .arg(arg!(-w --wait "Wait for the parent process to terminate before starting the application"))
+        .arg(arg!(--waitPid <PID> "Wait for the specified process to terminate before applying the update").value_parser(value_parser!(u32)))
         .arg(arg!([EXE_NAME] "The optional name of the binary to execute"))
         .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceeded by '--'.").required(false).last(true).num_args(0..))
         .long_flag_aliases(vec!["processStart", "processStartAndWait"])
@@ -139,30 +141,34 @@ fn patch(matches: &ArgMatches) -> Result<()> {
 fn apply(matches: &ArgMatches) -> Result<()> {
     let restart = matches.get_flag("restart");
     let wait_for_parent = matches.get_flag("wait");
+    let wait_pid = matches.get_one::<u32>("waitPid").map(|v| v.to_owned());
     let package = matches.get_one::<PathBuf>("package");
     let exe_args: Option<Vec<&str>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect());
 
     info!("Command: Apply");
     info!("    Restart: {:?}", restart);
     info!("    Wait: {:?}", wait_for_parent);
+    info!("    Wait PID: {:?}", wait_pid);
     info!("    Package: {:?}", package);
     info!("    Exe Args: {:?}", exe_args);
 
     let (root_path, app) = shared::detect_current_manifest()?;
     #[cfg(target_os = "windows")]
     let _mutex = shared::retry_io(|| windows::create_global_mutex(&app))?;
-    commands::apply(&root_path, &app, restart, wait_for_parent, package, exe_args, true)
+    commands::apply(&root_path, &app, restart, wait_for_parent, wait_pid, package, exe_args, true)
 }
 
 #[cfg(target_os = "windows")]
 fn start(matches: &ArgMatches) -> Result<()> {
     let legacy_args = matches.get_one::<String>("args");
     let wait_for_parent = matches.get_flag("wait");
+    let wait_pid = matches.get_one::<u32>("waitPid").map(|v| v.to_owned());
     let exe_name = matches.get_one::<String>("EXE_NAME");
     let exe_args: Option<Vec<&str>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect());
 
     info!("Command: Start");
     info!("    Wait: {:?}", wait_for_parent);
+    info!("    Wait PID: {:?}", wait_pid);
     info!("    Exe Name: {:?}", exe_name);
     info!("    Exe Args: {:?}", exe_args);
     if legacy_args.is_some() {
@@ -172,7 +178,7 @@ fn start(matches: &ArgMatches) -> Result<()> {
 
     let (_root_path, app) = shared::detect_current_manifest()?;
     let _mutex = shared::retry_io(|| windows::create_global_mutex(&app))?;
-    commands::start(wait_for_parent, exe_name, exe_args, legacy_args)
+    commands::start(wait_for_parent, wait_pid, exe_name, exe_args, legacy_args)
 }
 
 #[cfg(target_os = "windows")]

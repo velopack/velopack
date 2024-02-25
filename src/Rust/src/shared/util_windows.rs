@@ -15,6 +15,16 @@ use winsafe::{self as w, co, prelude::*};
 
 use super::bundle::{self, EntryNameInfo, Manifest};
 
+pub fn wait_for_pid_to_exit(pid: u32, ms_to_wait: u32) -> Result<()> {
+    info!("Waiting {}ms for process ({}) to exit.", ms_to_wait, pid);
+    let handle = w::HPROCESS::OpenProcess(co::PROCESS::SYNCHRONIZE, false, pid)?;
+    match handle.WaitForSingleObject(Some(ms_to_wait)) {
+        Ok(co::WAIT::OBJECT_0) => Ok(()),
+        // Ok(co::WAIT::TIMEOUT) => Ok(()),
+        _ => Err(anyhow!("WaitForSingleObject Failed.")),
+    }
+}
+
 pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
     info!("Reading parent process information.");
     let basic_info = ProcessBasicInformation;

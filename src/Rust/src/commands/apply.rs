@@ -17,11 +17,16 @@ pub fn apply<'a>(
     app: &Manifest,
     restart: bool,
     wait_for_parent: bool,
+    wait_pid: Option<u32>,
     package: Option<&PathBuf>,
     exe_args: Option<Vec<&str>>,
     runhooks: bool,
 ) -> Result<()> {
-    if wait_for_parent {
+    if let Some(pid) = wait_pid {
+        if let Err(e) = shared::wait_for_pid_to_exit(pid, 60_000) {
+            warn!("Failed to wait for process ({}) to exit ({}).", pid, e);
+        }
+    } else if wait_for_parent {
         if let Err(e) = shared::wait_for_parent_to_exit(60_000) {
             warn!("Failed to wait for parent process to exit ({}).", e);
         }

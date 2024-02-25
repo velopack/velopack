@@ -47,7 +47,9 @@ namespace Velopack
             var args = new List<string>();
             if (silent) args.Add("--silent");
             args.Add("apply");
-            args.Add("--wait");
+
+            args.Add("--waitPid");
+            args.Add(Process.GetCurrentProcess().Id.ToString());
 
             var entry = toApply ?? locator.GetLatestLocalFullPackage();
             if (entry != null && locator.PackagesDir != null) {
