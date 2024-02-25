@@ -27,7 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NuGet.Versioning" Version="6.8.0" />
+    <PackageReference Include="NuGet.Versioning" Version="6.9.1" />
   </ItemGroup>
 
   <ItemGroup Condition=" $(TargetFramework.StartsWith('net4')) ">
