@@ -13,9 +13,9 @@
 - name: Sample Apps
   items:
   - name: C# Avalonia / Cross Platform
-    href: https://github.com/velopack/velopack/tree/master/examples/AvaloniaCrossPlat
+    href: https://github.com/velopack/velopack/tree/master/samples/AvaloniaCrossPlat
   - name: C# WPF / .Net Framework
-    href: https://github.com/velopack/velopack/tree/master/examples/VeloWpfSample
+    href: https://github.com/velopack/velopack/tree/master/samples/VeloWpfSample
   - name: C++ / MSVC / Win32
     href: https://github.com/velopack/velopack.fusion/tree/master/for-cpp/samples/win32
   - name: Rust / iced-rs

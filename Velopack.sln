@@ -38,13 +38,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Velopack.Packaging.Tests", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestApp", "test\TestApp\TestApp.csproj", "{784B5987-2E71-4AEE-81B9-E0CC7F1DBEB3}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{3EBFA551-780C-473D-A197-0EE56F2CBA82}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{3EBFA551-780C-473D-A197-0EE56F2CBA82}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AvaloniaCrossPlat", "examples\AvaloniaCrossPlat\AvaloniaCrossPlat.csproj", "{1FF6A262-13D0-45DF-B818-77AC84C52C6F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AvaloniaCrossPlat", "samples\AvaloniaCrossPlat\AvaloniaCrossPlat.csproj", "{1FF6A262-13D0-45DF-B818-77AC84C52C6F}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LegacyTestApp", "test\LegacyTestApp\LegacyTestApp.csproj", "{8B27C4BF-21B8-48B0-80F8-74520227C35F}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VeloWpfSample", "examples\VeloWpfSample\VeloWpfSample.csproj", "{9E0F2B00-1B88-4B75-BEED-6DF8DBCA36B5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VeloWpfSample", "samples\VeloWpfSample\VeloWpfSample.csproj", "{9E0F2B00-1B88-4B75-BEED-6DF8DBCA36B5}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Divergic.Logging.Xunit", "test\Divergic.Logging.Xunit\Divergic.Logging.Xunit.csproj", "{5ED2E9AF-101D-4D2D-B0B5-90A920EF692D}"
 EndProject

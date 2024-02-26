@@ -25,7 +25,7 @@ https://github.com/velopack/velopack/assets/1287295/0ff1bea7-15ed-42ae-8bdd-9519
 
 ## Documentation
 - ⚡ [Quick start guides](https://velopack.io/docs/getting-started/csharp.html)
-- 🕶️ [View example apps](examples)
+- 🕶️ [View example apps](samples)
 - 📖 [Read the docs](https://velopack.io/docs/)
 
 ## Community

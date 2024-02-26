@@ -1,4 +1,4 @@
-# Velopack Examples
+# Velopack Samples
 
 - [**AvaloniaCrossPlat**](AvaloniaCrossPlat) - uses Avalonia to provide a desktop UI, installer, and updates for Mac, Linux, and Windows.
 
