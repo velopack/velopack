@@ -1,1 +1,0 @@
-#define UPDATE_URL "REPLACE_ME" 

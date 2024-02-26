@@ -17,7 +17,9 @@
   - name: C# WPF / .Net Framework
     href: https://github.com/velopack/velopack/tree/master/examples/VeloWpfSample
   - name: C++ / MSVC / Win32
-    href: https://github.com/velopack/velopack/tree/master/examples/VeloCppWinSample
+    href: https://github.com/velopack/velopack.fusion/tree/master/for-cpp/samples/win32
+  - name: Rust / iced-rs
+    href: https://github.com/velopack/velopack.fusion/tree/master/for-rust/samples/iced
 
 - name: Essentials
 
