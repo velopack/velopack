@@ -1,5 +1,4 @@
 #![allow(unused_variables)]
-use core::panic;
 use semver;
 use std::process::Command;
 
@@ -33,7 +32,9 @@ fn main() {
         .unwrap();
 }
 
+#[cfg(target_os = "windows")]
 fn link_locksmith() {
+    use core::panic;
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
     if arch == "x86_64" {
         println!("cargo:rustc-link-lib=UpdateLocksmith_x64");

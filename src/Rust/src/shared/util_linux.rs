@@ -5,10 +5,11 @@ use std::{path::Path, path::PathBuf, process::Command as Process, time::Duration
 
 pub fn wait_for_pid_to_exit(pid: u32, ms_to_wait: u32) -> Result<()> {
     info!("Waiting {}ms for process ({}) to exit.", ms_to_wait, pid);
-    let mut handle = waitpid_any::WaitHandle::open(pid)?;
+    let mut handle = waitpid_any::WaitHandle::open(pid.try_into()?)?;
     let result = handle.wait_timeout(Duration::from_millis(ms_to_wait as u64))?;
     if result.is_some() {
         info!("Parent process exited.");
+        Ok(())
     } else {
         bail!("Parent process timed out.");
     }
