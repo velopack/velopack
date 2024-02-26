@@ -7,6 +7,9 @@
 - name: Quick - C# .NET
   href: getting-started/csharp.md
 
+- name: Quick - Rust
+  href: getting-started/rust.md
+
 - name: Sample Apps
   items:
   - name: C# Avalonia / Cross Platform

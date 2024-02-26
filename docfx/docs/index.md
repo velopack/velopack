@@ -1,5 +1,5 @@
 # Documentation
-Velopack is an installation and auto-update framework for cross-platform .NET applications. It's opinionated, extremely easy to use with zero config needed. With just one command you can be up and running with an installable application, and it's lightning fast for your users, too.
+Velopack is an installation and auto-update framework for cross-platform desktop applications. It's opinionated, extremely easy to use with zero config needed. With just one command you can be up and running with an installable application, and it's lightning fast for your users, too.
 
 Be sure to check us out on [GitHub](https://github.com/velopack/velopack) and [join our Discord](https://discord.gg/CjrCrNzd3F) for any questions/support!
 
