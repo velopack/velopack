@@ -23,6 +23,8 @@
     href: https://github.com/velopack/velopack.fusion/tree/master/for-cpp/samples/win32
   - name: Rust / iced-rs
     href: https://github.com/velopack/velopack.fusion/tree/master/for-rust/samples/iced
+  - name: JS / Electron
+    href: https://github.com/velopack/velopack.fusion/tree/master/for-js/samples/electron-forge
 
 - name: Essentials
 
