@@ -10,6 +10,9 @@
 - name: Quick - Rust
   href: getting-started/rust.md
 
+- name: Quick - JS & Electron
+  href: getting-started/electron.md
+
 - name: Sample Apps
   items:
   - name: C# Avalonia / Cross Platform
