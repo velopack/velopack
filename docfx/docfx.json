@@ -9,7 +9,7 @@
           ]
         }
       ],
-      "dest": "sdk"
+      "dest": "ref/cs"
     }
   ],
   "build": {
