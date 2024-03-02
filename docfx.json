@@ -1,0 +1,15 @@
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          "src": "src/Velopack",
+          "files": [
+            "**/*.csproj"
+          ]
+        }
+      ],
+      "dest": "_docyml"
+    }
+  ]
+}

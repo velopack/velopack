@@ -31,7 +31,7 @@ namespace Velopack.Sources
         Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null, VelopackAsset? latestLocalRelease = null);
 
         /// <summary>
-        /// Download the specified <see cref="ReleaseEntry"/> to the provided local file path.
+        /// Download the specified <see cref="VelopackAsset"/> to the provided local file path.
         /// </summary>
         /// <param name="releaseEntry">The release to download.</param>
         /// <param name="localFile">The path on the local disk to store the file. If this file exists,

@@ -1,6 +1,0 @@
-- name: Overview
-  href: overview.md
-- name: Deployment CLI
-  href: deploy-cli.md
-- name: CI - Github Actions
-  href: github-actions.md
