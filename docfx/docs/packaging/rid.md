@@ -19,4 +19,4 @@ On MacOS, the RID (min version and arch) is just stored as metadata in the `.pkg
 #### Also read
 - [Windows 10 version history](https://en.wikipedia.org/wiki/Windows_10_version_history)
 - [Windows 11 version history](https://en.wikipedia.org/wiki/Windows_11_version_history)
-- [.NET RID Catalog](https://learn.microsoft.com/en-us/dotnet/core/rid-catalog)
+- [.NET RID Catalog](https://learn.microsoft.com/dotnet/core/rid-catalog)

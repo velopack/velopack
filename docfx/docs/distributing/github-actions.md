@@ -77,7 +77,7 @@ You can publish without the self-contained flag if using Velopack to install suc
 configuration to `Release` mode, `-o` to set the output directory to `publish`, `-r` to set the runtime
 to `win-x64` for distributing on 64-bit Windows, and `--self-contained` to publish the .NET runtime with the
 application. Adapt this command to your needs. You can learn more about
-`dotnet publish` in the [Microsoft Documentation](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-publish).
+`dotnet publish` in the [Microsoft Documentation](https://learn.microsoft.com/dotnet/core/tools/dotnet-publish).
 
 ```yml
       - name: Publish Application

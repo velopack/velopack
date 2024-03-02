@@ -4,8 +4,8 @@
 Velopack is made up of some Rust binaries which are re-distributed with installed apps, a .NET NuGet package, and a .NET command line tool. In order to test the project, you need to build the Rust binaries before compiling dotnet.   
 
 ### Prerequisites
- - [.NET 6 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/6.0)
- - [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+ - [.NET 6 SDK](https://dotnet.microsoft.com/download/dotnet/6.0)
+ - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
  - [Rust / Cargo](https://www.rust-lang.org/tools/install)
  - `dotnet tool install -g dotnet-coverage`
  - `dotnet tool install -g nbgv`

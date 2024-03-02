@@ -457,7 +457,7 @@ fn version() -> (Version, Option<String>) {
     }
 }
 
-// According to https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/ns-sysinfoapi-system_info
+// According to https://learn.microsoft.com/windows/win32/api/sysinfoapi/ns-sysinfoapi-system_info
 // there is a variant for AMD64 CPUs, but it's not defined in generated bindings.
 const PROCESSOR_ARCHITECTURE_ARM64: u16 = 12;
 
@@ -520,7 +520,7 @@ fn bitness() -> Bitness {
 }
 
 // Calls the Win32 API function RtlGetVersion to get the OS version information:
-// https://msdn.microsoft.com/en-us/library/mt723418(v=vs.85).aspx
+// https://msdn.microsoft.com/library/mt723418(v=vs.85).aspx
 fn version_info() -> Option<OSVERSIONINFOEX> {
     let rtl_get_version = match get_proc_address(b"ntdll\0", b"RtlGetVersion\0") {
         None => return None,
@@ -621,7 +621,7 @@ fn to_wide(value: &str) -> Vec<u16> {
 }
 
 // Examines data in the OSVERSIONINFOEX structure to determine the Windows edition:
-// https://msdn.microsoft.com/en-us/library/windows/desktop/ms724833(v=vs.85).aspx
+// https://msdn.microsoft.com/library/windows/desktop/ms724833(v=vs.85).aspx
 fn edition(version_info: &OSVERSIONINFOEX) -> Option<String> {
     match (
         version_info.dwMajorVersion,

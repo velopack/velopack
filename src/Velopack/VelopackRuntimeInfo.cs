@@ -233,7 +233,7 @@ namespace Velopack
                 return;
             }
 
-            // https://docs.microsoft.com/en-gb/windows/win32/winprog64/wow64-implementation-details?redirectedfrom=MSDN
+            // https://docs.microsoft.com/windows/win32/winprog64/wow64-implementation-details?redirectedfrom=MSDN
             var pf64compat =
                 Environment.GetEnvironmentVariable("PROCESSOR_ARCHITEW6432") ??
                 Environment.GetEnvironmentVariable("PROCESSOR_ARCHITECTURE");
