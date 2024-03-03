@@ -9,6 +9,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionLevel", "SolutionLevel", "{ED657D2C-F8A0-4012-A64F-7367D41BE4D2}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
+		.gitignore = .gitignore
 		.github\workflows\build.yml = .github\workflows\build.yml
 		src\Directory.Build.props = src\Directory.Build.props
 		nuget.config = nuget.config
@@ -48,7 +49,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VeloWpfSample", "samples\Ve
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Divergic.Logging.Xunit", "test\Divergic.Logging.Xunit\Divergic.Logging.Xunit.csproj", "{5ED2E9AF-101D-4D2D-B0B5-90A920EF692D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Velopack.Packaging.HostModel", "src\Velopack.Packaging.HostModel\Velopack.Packaging.HostModel.csproj", "{E9A2620C-C638-446C-BA30-F62C05709365}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Velopack.Packaging.HostModel", "src\Velopack.Packaging.HostModel\Velopack.Packaging.HostModel.csproj", "{E9A2620C-C638-446C-BA30-F62C05709365}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
