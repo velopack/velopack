@@ -76,6 +76,10 @@ public abstract class PackageBuilder<T> : ICommand<T>
         if (!File.Exists(mainExePath) && VelopackRuntimeInfo.IsLinux)
             mainExePath = Path.Combine(packDirectory, "usr", "bin", mainExeName);
 
+        // TODO: since we already have a hack, here's another...
+        if (!File.Exists(mainExePath) && VelopackRuntimeInfo.IsOSX && options.PackDirectory.EndsWith(".app"))
+            mainExePath = Path.Combine(packDirectory, "Contents", "MacOS", mainExeName);
+
         if (!File.Exists(mainExePath)) {
             throw new UserInfoException(
                 $"Could not find main application executable (the one that runs 'VelopackApp.Build().Run()'). " + Environment.NewLine +
