@@ -64,6 +64,13 @@ Categories=Development;
         return Task.FromResult(dir.FullName);
     }
 
+    protected override string[] GetMainExeSearchPaths(string packDirectory, string mainExeName)
+    {
+        return base.GetMainExeSearchPaths(packDirectory, mainExeName)
+            .Concat(new[] { Path.Combine(packDirectory, "usr", "bin", mainExeName) })
+            .ToArray();
+    }
+
     protected override Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath)
     {
         progress(-1);

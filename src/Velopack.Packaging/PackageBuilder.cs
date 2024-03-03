@@ -70,22 +70,23 @@ public abstract class PackageBuilder<T> : ICommand<T>
         // check that entry exe exists
         var mainExt = options.TargetRuntime.BaseRID == RuntimeOs.Windows ? ".exe" : "";
         var mainExeName = options.EntryExecutableName ?? (options.PackId + mainExt);
-        var mainExePath = Path.Combine(packDirectory, mainExeName);
-
-        // TODO: this is a hack, fix this.
-        if (!File.Exists(mainExePath) && VelopackRuntimeInfo.IsLinux)
-            mainExePath = Path.Combine(packDirectory, "usr", "bin", mainExeName);
-
-        // TODO: since we already have a hack, here's another...
-        if (!File.Exists(mainExePath) && VelopackRuntimeInfo.IsOSX && options.PackDirectory.EndsWith(".app"))
-            mainExePath = Path.Combine(packDirectory, "Contents", "MacOS", mainExeName);
-
-        if (!File.Exists(mainExePath)) {
+        var mainSearchPaths = GetMainExeSearchPaths(packDirectory, mainExeName);
+        string mainExePath = null;
+        foreach (var path in mainSearchPaths) {
+            if (File.Exists(path)) {
+                mainExePath = path;
+                break;
+            }
+        }
+        if (mainExePath == null) {
             throw new UserInfoException(
                 $"Could not find main application executable (the one that runs 'VelopackApp.Build().Run()'). " + Environment.NewLine +
-                $"I searched for '{mainExeName}' in {packDirectory}." + Environment.NewLine +
-                $"If your main binary is not named '{mainExeName}', please specify the name with the argument: --mainExe {{yourBinary.exe}}");
+                $"If your main binary is not named '{mainExeName}', please specify the name with the argument: --mainExe {{yourBinary.exe}}" + Environment.NewLine +
+                $"I searched the following paths and none exist: " + Environment.NewLine +
+                String.Join(Environment.NewLine, mainSearchPaths)
+            );
         }
+
         MainExeName = mainExeName;
         MainExePath = mainExePath;
 
@@ -175,6 +176,11 @@ public abstract class PackageBuilder<T> : ICommand<T>
     protected virtual string GetRuntimeDependencies()
     {
         return null;
+    }
+
+    protected virtual string[] GetMainExeSearchPaths(string packDirectory, string mainExeName)
+    {
+        return new[] { Path.Combine(packDirectory, mainExeName) };
     }
 
     protected virtual string GenerateNuspecContent()

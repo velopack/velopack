@@ -45,6 +45,15 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
         return Task.FromResult(dir.FullName);
     }
 
+    protected override string[] GetMainExeSearchPaths(string packDirectory, string mainExeName)
+    {
+        if (packDirectory.EndsWith(".app", StringComparison.OrdinalIgnoreCase)) {
+            // if the user pre-bundled the app, we need to look in the Contents/MacOS directory
+            return new[] { Path.Combine(packDirectory, "Contents", "MacOS", mainExeName) };
+        }
+        return base.GetMainExeSearchPaths(packDirectory, mainExeName);
+    }
+
     protected override Task CodeSign(Action<int> progress, string packDir)
     {
         var helper = new OsxBuildTools(Log);
