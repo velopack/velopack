@@ -19,7 +19,7 @@ public class OsxBuildTools
     {
         if (String.IsNullOrEmpty(entitlements)) {
             Log.Info("No entitlements specified, using default: " +
-                     "https://docs.microsoft.com/en-us/dotnet/core/install/macos-notarization-issues");
+                     "https://docs.microsoft.com/dotnet/core/install/macos-notarization-issues");
             entitlements = HelperFile.VelopackEntitlements;
         }
 

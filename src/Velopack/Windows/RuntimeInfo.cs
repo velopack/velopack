@@ -548,8 +548,8 @@ namespace Velopack.Windows
             public override Task<string> GetDownloadUrl()
             {
                 // from 2015-2022, the binaries are all compatible, so we can always just install the latest version
-                // https://docs.microsoft.com/en-US/cpp/windows/latest-supported-vc-redist?view=msvc-170#visual-studio-2015-2017-2019-and-2022
-                // https://docs.microsoft.com/en-us/cpp/porting/binary-compat-2015-2017?view=msvc-170
+                // https://docs.microsoft.com/cpp/windows/latest-supported-vc-redist?view=msvc-170#visual-studio-2015-2017-2019-and-2022
+                // https://docs.microsoft.com/cpp/porting/binary-compat-2015-2017?view=msvc-170
                 return Task.FromResult(CpuArchitecture switch {
                     RuntimeCpu.x86 => "https://aka.ms/vs/17/release/vc_redist.x86.exe",
                     RuntimeCpu.x64 => "https://aka.ms/vs/17/release/vc_redist.x64.exe",

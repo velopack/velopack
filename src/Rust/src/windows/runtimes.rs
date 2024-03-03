@@ -17,7 +17,7 @@ const WEBVIEW2_EVERGREEN: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124
 lazy_static! {
     static ref HM_NET_FX: HashMap<String, FullFrameworkInfo> = {
         let mut net_fx: HashMap<String, FullFrameworkInfo> = HashMap::new();
-        // https://learn.microsoft.com/en-us/dotnet/framework/migration-guide/how-to-determine-which-versions-are-installed#detect-net-framework-45-and-later-versions
+        // https://learn.microsoft.com/dotnet/framework/migration-guide/how-to-determine-which-versions-are-installed#detect-net-framework-45-and-later-versions
         net_fx.insert("net45".to_owned(), FullFrameworkInfo::new(".NET Framework 4.5", "http://go.microsoft.com/fwlink/?LinkId=397707", 378389));
         net_fx.insert("net451".to_owned(), FullFrameworkInfo::new(".NET Framework 4.5.1", "http://go.microsoft.com/fwlink/?LinkId=397707", 378675));
         net_fx.insert("net452".to_owned(), FullFrameworkInfo::new(".NET Framework 4.5.2", "http://go.microsoft.com/fwlink/?LinkId=397707", 379893));
@@ -41,8 +41,8 @@ lazy_static! {
         vcredist.insert("vcredist120-x86".to_owned(), VCRedistInfo::new("Visual C++ 2013 Redist (x86)", "12.00.40664", RuntimeArch::X86, "https://aka.ms/highdpimfc2013x86enu"));
         vcredist.insert("vcredist120-x64".to_owned(), VCRedistInfo::new("Visual C++ 2013 Redist (x64)", "12.00.40664", RuntimeArch::X64, "https://aka.ms/highdpimfc2013x64enu"));
         // from 2015-2022, the binaries are all compatible, so we can always just install the latest version
-        // https://docs.microsoft.com/en-US/cpp/windows/latest-supported-vc-redist?view=msvc-170#visual-studio-2015-2017-2019-and-2022
-        // https://docs.microsoft.com/en-us/cpp/porting/binary-compat-2015-2017?view=msvc-170
+        // https://docs.microsoft.com/cpp/windows/latest-supported-vc-redist?view=msvc-170#visual-studio-2015-2017-2019-and-2022
+        // https://docs.microsoft.com/cpp/porting/binary-compat-2015-2017?view=msvc-170
         vcredist.insert("vcredist140-x86".to_owned(), VCRedistInfo::new("Visual C++ 2015 Redist (x86)", "14.00.23506", RuntimeArch::X86, REDIST_2015_2022_X86));
         vcredist.insert("vcredist140-x64".to_owned(), VCRedistInfo::new("Visual C++ 2015 Redist (x64)", "14.00.23506", RuntimeArch::X64, REDIST_2015_2022_X64));
         vcredist.insert("vcredist141-x86".to_owned(), VCRedistInfo::new("Visual C++ 2017 Redist (x86)", "14.15.26706", RuntimeArch::X86, REDIST_2015_2022_X86));
@@ -364,7 +364,7 @@ fn get_dotnet_base_path(runtime_arch: RuntimeArch, runtime_type: DotnetRuntimeTy
     #[cfg(not(target_arch = "x86"))]
     let pf64 = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::ProgramFilesX64, co::KF::DONT_UNEXPAND, None)?;
 
-    // set by WOW64 for x86 processes. https://learn.microsoft.com/en-us/windows/win32/winprog64/wow64-implementation-details
+    // set by WOW64 for x86 processes. https://learn.microsoft.com/windows/win32/winprog64/wow64-implementation-details
     #[cfg(target_arch = "x86")]
     let pf64 = std::env::var("ProgramW6432")?;
 

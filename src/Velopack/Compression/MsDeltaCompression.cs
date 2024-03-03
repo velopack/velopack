@@ -21,7 +21,7 @@ namespace Velopack.Compression
         ///     Returns TRUE on success or FALSE otherwise.
         /// </returns>
         /// <remarks>
-        ///     http://msdn.microsoft.com/en-us/library/bb417345.aspx#applydeltaaw
+        ///     http://msdn.microsoft.com/library/bb417345.aspx#applydeltaaw
         /// </remarks>
         [DllImport("msdelta.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -49,7 +49,7 @@ namespace Velopack.Compression
         ///     Returns TRUE on success or FALSE otherwise.
         /// </returns>
         /// <remarks>
-        ///     http://msdn.microsoft.com/en-us/library/bb417345.aspx#createdeltaaw
+        ///     http://msdn.microsoft.com/library/bb417345.aspx#createdeltaaw
         /// </remarks>
         [DllImport("msdelta.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -76,7 +76,7 @@ namespace Velopack.Compression
         }
 
         /// <remarks>
-        ///     http://msdn.microsoft.com/en-us/library/bb417345.aspx#deltaflagtypeflags
+        ///     http://msdn.microsoft.com/library/bb417345.aspx#deltaflagtypeflags
         /// </remarks>
         private enum ApplyFlags : long
         {
@@ -88,7 +88,7 @@ namespace Velopack.Compression
         }
 
         /// <remarks>
-        ///     http://msdn.microsoft.com/en-us/library/bb417345.aspx#filetypesets
+        ///     http://msdn.microsoft.com/library/bb417345.aspx#filetypesets
         /// </remarks>
         [Flags]
         private enum FileTypeSet : long
@@ -100,7 +100,7 @@ namespace Velopack.Compression
         }
 
         /// <remarks>
-        ///     http://msdn.microsoft.com/en-us/library/bb417345.aspx#deltaflagtypeflags
+        ///     http://msdn.microsoft.com/library/bb417345.aspx#deltaflagtypeflags
         /// </remarks>
         private enum CreateFlags : long
         {
@@ -112,7 +112,7 @@ namespace Velopack.Compression
         }
 
         /// <remarks>
-        ///     http://msdn.microsoft.com/en-us/library/bb417345.aspx#deltainputstructure
+        ///     http://msdn.microsoft.com/library/bb417345.aspx#deltainputstructure
         /// </remarks>
         [StructLayout(LayoutKind.Sequential)]
         private struct DeltaInput
