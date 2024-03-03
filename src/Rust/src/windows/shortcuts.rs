@@ -85,7 +85,7 @@ fn _create_lnk(output: &str, target: &str, work_dir: &str, app_model_id: Option<
         link.SetWorkingDirectory(&HSTRING::from(work_dir))?;
 
         // Set app user model ID property
-        // Docs: https://docs.microsoft.com/en-us/windows/win32/properties/props-system-appusermodel-id
+        // Docs: https://docs.microsoft.com/windows/win32/properties/props-system-appusermodel-id
         if let Some(app_model_id) = app_model_id {
             let store: IPropertyStore = link.cast()?;
             let id: Param<PCWSTR> = HSTRING::from(app_model_id).into_param();
