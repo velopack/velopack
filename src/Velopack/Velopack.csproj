@@ -22,7 +22,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\..\docfx\images\Velopack_200.png" Pack="true" PackagePath="\" />
+    <None Include="..\..\artwork\Velopack_200.png" Pack="true" PackagePath="\" />
     <None Include="..\..\README_NUGET.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 

@@ -1,6 +1,6 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docfx/images/velopack-white.svg">
-  <img alt="Velopack Logo" src="docfx/images/velopack-black.svg" width="400">
+  <source media="(prefers-color-scheme: dark)" srcset="artwork/velopack-white.svg">
+  <img alt="Velopack Logo" src="artwork/velopack-black.svg" width="400">
 </picture>
 
 ---
@@ -15,18 +15,18 @@ Velopack is an installation and auto-update framework for cross-platform applica
 
 ## Features
 
-- 😍 **Zero config** – Velopack takes your dotnet build output (eg. `dotnet publish`), and generates an installer, and updates and delta packages in a single command.
-- 🎯 **Cross platform** – Velopack supports building packages for **Windows**, **OSX**, and **Linux**. No matter your target, Velopack can create a release in just one command.
-- 🚀 **Automatic migrations** - If you are coming from [Squirrel.Windows](https://github.com/Squirrel/Squirrel.Windows) or [Clowd.Squirrel](https://github.com/clowd/Clowd.Squirrel), Velopack will automatically migrate your application. Just build your Velopack release and deploy! [Read more.](https://velopack.io/docs/migrating.html)
-- ⚡️ **Lightning fast** – Velopack is written in Rust for native performance. Creating releases is multi-threaded, and produces delta packages for ultra fast app updates. Applying update packages is highly optimised, and often can be done in the background.
-- 📔 **Language agnostic** - With support for C#, Rust, JS, and more. Use a familiar API for updates no matter what your project is written in. Check out [Velopack Fusion](https://github.com/velopack/velopack.fusion) for more info.
+- 😍 **Zero config** – Velopack takes your compiler output and generates an installer, updates, delta packages, and self-updating portable package in just one command.
+- 🎯 **Cross platform** – Velopack supports building packages for **Windows**, **OSX**, and **Linux**, so you can use one solution for every target.
+- 🚀 **Automatic migrations** - If you are coming from other popular frameworks (eg. [Squirrel](https://github.com/Squirrel/Squirrel.Windows)), Velopack can automatically migrate your application.
+- ⚡️ **Lightning fast** – Velopack is written in Rust for native performance. Delta packages mean your user only downloads what's changed between versions.
+- 📔 **Language agnostic** - With support for C#, C++, JS, Rust and more. Use a familiar API for updates no matter what language your project is.
 
 https://github.com/velopack/velopack/assets/1287295/0ff1bea7-15ed-42ae-8bdd-9519f1033432
 
 ## Documentation
-- ⚡ [Quick start guides](https://velopack.io/docs/getting-started/csharp.html)
-- 🕶️ [View example apps](samples)
-- 📖 [Read the docs](https://velopack.io/docs/)
+- 📖 [Read the docs](https://docs.velopack.io/)
+- ⚡ [Quick start guides](https://docs.velopack.io/category/quick-start)
+- 🕶️ [View example apps](https://docs.velopack.io/category/sample-apps)
 
 ## Community
 - ❓ Ask questions, get support, or discuss ideas on [our Discord server](https://discord.gg/CjrCrNzd3F)
@@ -34,7 +34,7 @@ https://github.com/velopack/velopack/assets/1287295/0ff1bea7-15ed-42ae-8bdd-9519
 
 ## Contributing
 - 💬 Join us on [Discord](https://discord.gg/CjrCrNzd3F) to get involved in dev discussions
-- 🚦 Read our [compiling guide](https://velopack.io/docs/compiling.html)
+- 🚦 Read our [contributing guide](https://docs.velopack.io/category/contributing)
 
 ## Testimonials 
 I have now got my external facing application using velopack. I am very impressed. Seems to work fabulously well and be much faster both in the initial build and in the upgrading of the software on the end user's  machine than Squirrel was. It's amazing and the best installer I've ever used in over 30 years of development. Thanks so much!  You are doing some great work!

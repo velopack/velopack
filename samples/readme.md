@@ -7,4 +7,4 @@
 ## Other Languages
 Note that only sample apps written in C# using the core reference library are available here. 
 
-For other programming languages (Rust, C++, JS, etc) please visit the [Velopack Fusion](https://github.com/velopack/velopack.fusion) repository.
+For other programming languages (Rust, C++, JS, etc) please visit the [Velopack Documentation](https://docs.velopack.io/category/sample-apps).
