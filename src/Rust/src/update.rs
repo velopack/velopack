@@ -79,33 +79,28 @@ fn main() -> Result<()> {
     let (subcommand, subcommand_matches) = matches.subcommand().ok_or_else(|| anyhow!("No subcommand was used. Try `--help` for more information."))?;
 
     let verbose = matches.get_flag("verbose");
-    let mut silent = matches.get_flag("silent");
+    let silent = matches.get_flag("silent");
     let nocolor = matches.get_flag("nocolor");
     let log_file = matches.get_one("log");
 
-    // these commands output machine-readable data, so we don't want to show dialogs or logs to stdout
-    let no_console = subcommand.eq_ignore_ascii_case("check") || subcommand.eq_ignore_ascii_case("download") || subcommand.eq_ignore_ascii_case("get-version");
-    if no_console {
-        silent = true;
-    }
-
     dialogs::set_silent(silent);
     if let Some(log_file) = log_file {
-        logging::setup_logging(Some(&log_file), !no_console, verbose, nocolor)?;
+        logging::setup_logging(Some(&log_file), true, verbose, nocolor)?;
     } else {
-        default_logging(verbose, nocolor, !no_console)?;
+        default_logging(verbose, nocolor, true)?;
     }
 
-    info!("Starting Velopack Updater ({})", env!("NGBV_VERSION"));
-    info!("    Location: {}", env::current_exe()?.to_string_lossy());
-    info!("    Verbose: {}", verbose);
-    info!("    Silent: {}", silent);
-    info!("    Log File: {:?}", log_file);
-
-    // change working directory to the containing directory of the exe
+    // change working directory to the parent directory of the exe
     let mut containing_dir = env::current_exe()?;
     containing_dir.pop();
     env::set_current_dir(containing_dir)?;
+
+    info!("Starting Velopack Updater ({})", env!("NGBV_VERSION"));
+    info!("    Location: {}", env::current_exe()?.to_string_lossy());
+    info!("    CWD: {}", env::current_dir()?.to_string_lossy());
+    info!("    Verbose: {}", verbose);
+    info!("    Silent: {}", silent);
+    info!("    Log File: {:?}", log_file);
 
     let result = match subcommand {
         #[cfg(target_os = "windows")]
