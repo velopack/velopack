@@ -346,7 +346,7 @@ public class WindowsPackTests
         new DeltaPatchCommandRunner(logger, new BasicConsole(logger, new DefaultPromptValueFactory(false))).Run(new DeltaPatchOptions {
             BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-full.nupkg"),
             OutputFile = output,
-            PatchFiles = new[] { new FileInfo(deltaPath), new FileInfo(deltav3) },
+            PatchFiles = [new FileInfo(deltaPath), new FileInfo(deltav3)],
         }).GetAwaiterResult();
 
         // are the packages the same?
@@ -373,7 +373,7 @@ public class WindowsPackTests
 
         // install app
         var setupPath1 = Path.Combine(releaseDir, $"{id}-win-Setup.exe");
-        RunNoCoverage(setupPath1, new string[] { "--nocolor", "--installto", installDir },
+        RunNoCoverage(setupPath1, ["--nocolor", "--installto", installDir],
             Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
 
         var argsPath = Path.Combine(installDir, "args.txt");
@@ -388,8 +388,8 @@ public class WindowsPackTests
         PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
 
         // install v2
-        RunCoveredDotnet(appPath, new string[] { "download", releaseDir }, installDir, logger);
-        RunCoveredDotnet(appPath, new string[] { "apply", releaseDir }, installDir, logger, exitCode: null);
+        RunCoveredDotnet(appPath, ["download", releaseDir], installDir, logger);
+        RunCoveredDotnet(appPath, ["apply", releaseDir], installDir, logger, exitCode: null);
 
         Thread.Sleep(2000);
 
@@ -404,7 +404,7 @@ public class WindowsPackTests
         Assert.Equal("2.0.0,test,args !!", File.ReadAllText(restartedPath).Trim());
 
         var updatePath = Path.Combine(installDir, "Update.exe");
-        RunNoCoverage(updatePath, new string[] { "--nocolor", "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
+        RunNoCoverage(updatePath, ["--nocolor", "--silent", "--uninstall"], Environment.CurrentDirectory, logger);
     }
 
     [SkippableFact]
@@ -550,7 +550,7 @@ public class WindowsPackTests
 
     //private string RunCoveredRust(string binName, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
     //{
-    //    var outputfile = GetPath($"coverage.runrust.{RandomString(8)}.xml");
+    //    var outputFile = GetPath($"coverage.runrust.{RandomString(8)}.xml");
     //    var manifestFile = GetPath("..", "src", "Rust", "Cargo.toml");
 
     //    var psi = new ProcessStartInfo("cargo");
@@ -565,7 +565,7 @@ public class WindowsPackTests
     //    psi.ArgumentList.Add("--manifest-path");
     //    psi.ArgumentList.Add(manifestFile);
     //    psi.ArgumentList.Add("--output");
-    //    psi.ArgumentList.Add(outputfile);
+    //    psi.ArgumentList.Add(outputFile);
     //    psi.ArgumentList.Add("--bin");
     //    psi.ArgumentList.Add(binName);
     //    psi.ArgumentList.Add("--");
@@ -579,7 +579,7 @@ public class WindowsPackTests
         //logger.Info($"TEST: Running {psi.FileName} {psi.ArgumentList.Aggregate((a, b) => $"{a} {b}")}");
         //using var p = Process.Start(psi);
 
-        var outputfile = PathHelper.GetTestRootPath($"run.{RandomString(8)}.log");
+        var outputFile = PathHelper.GetTestRootPath($"run.{RandomString(8)}.log");
 
         try {
             // this is a huge hack, but WaitForProcess hangs in the test runner when the output is redirected
@@ -591,7 +591,7 @@ public class WindowsPackTests
             var fix = new ProcessStartInfo("cmd.exe");
             fix.CreateNoWindow = true;
             fix.WorkingDirectory = psi.WorkingDirectory;
-            fix.Arguments = $"/c \"{psi.FileName}\" {debug} > {outputfile} 2>&1";
+            fix.Arguments = $"/c \"{psi.FileName}\" {debug} > {outputFile} 2>&1";
 
             Stopwatch sw = new Stopwatch();
             sw.Start();
@@ -609,7 +609,7 @@ public class WindowsPackTests
             logger.Info($"TEST: Process exited with code {p.ExitCode} in {elapsed.TotalSeconds}s");
 
             using var fs = Utility.Retry(() => {
-                return File.Open(outputfile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                return File.Open(outputFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
             }, 10, 1000, logger);
 
             using var reader = new StreamReader(fs);
@@ -633,7 +633,7 @@ public class WindowsPackTests
                 ).Trim();
         } finally {
             try {
-                File.Delete(outputfile);
+                File.Delete(outputFile);
             } catch { }
         }
     }

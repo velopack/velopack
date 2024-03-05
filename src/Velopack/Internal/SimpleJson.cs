@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using NuGet.Versioning;
 
 #if NET5_0_OR_GREATER

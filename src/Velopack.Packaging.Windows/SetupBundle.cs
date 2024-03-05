@@ -21,16 +21,16 @@ public static class SetupBundle
 
         void FindBundleHeader()
         {
-            using (var memoryMappedFile = MemoryMappedFile.CreateFromFile(setupPath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read))
-            using (MemoryMappedViewAccessor accessor = memoryMappedFile.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read)) {
-                int position = BinaryUtils.SearchInFile(accessor, bundleSignature);
-                if (position == -1) {
-                    throw new PlaceHolderNotFoundInAppHostException(bundleSignature);
-                }
+            using var memoryMappedFile = MemoryMappedFile.CreateFromFile(setupPath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
+            using MemoryMappedViewAccessor accessor = memoryMappedFile.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
 
-                offset = accessor.ReadInt64(position - 16);
-                length = accessor.ReadInt64(position - 8);
+            int position = BinaryUtils.SearchInFile(accessor, bundleSignature);
+            if (position == -1) {
+                throw new PlaceHolderNotFoundInAppHostException(bundleSignature);
             }
+
+            offset = accessor.ReadInt64(position - 16);
+            length = accessor.ReadInt64(position - 8);
         }
 
         Utility.Retry(FindBundleHeader);
@@ -53,8 +53,8 @@ public static class SetupBundle
             bundleLength = pkgStream.Length;
             pkgStream.CopyTo(setupStream);
         } finally {
-            if (pkgStream != null) pkgStream.Dispose();
-            if (setupStream != null) setupStream.Dispose();
+            pkgStream?.Dispose();
+            setupStream?.Dispose();
         }
 
         byte[] placeholder = {

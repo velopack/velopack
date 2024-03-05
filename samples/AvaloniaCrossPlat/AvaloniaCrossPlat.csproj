@@ -7,6 +7,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <NoWarn>$(NoWarn);IDE0161</NoWarn>
+    <!--<UseLocalVelopack>true</UseLocalVelopack>-->
   </PropertyGroup>
 
   <ItemGroup>
@@ -32,6 +33,8 @@
     </Otherwise>
   </Choose>
 
+
+
   <!-- For demonstrating updates, so the installed application can find the Release directory -->
   <ItemGroup>
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
@@ -40,4 +43,5 @@
     </AssemblyAttribute>
   </ItemGroup>
 
+  <Import Project="..\..\src\Velopack.Build\Velopack.Build.targets" Condition=" $(UseLocalVelopack) != '' " />
 </Project>

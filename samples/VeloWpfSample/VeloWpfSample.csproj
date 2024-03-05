@@ -8,6 +8,7 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <LangVersion>latest</LangVersion>
     <NoWarn>$(NoWarn);IDE0161</NoWarn>
+    <!--<UseLocalVelopack>true</UseLocalVelopack>-->
   </PropertyGroup>
 
   <PropertyGroup>
@@ -15,11 +16,22 @@
     <StartupObject>VeloWpfSample.Program</StartupObject>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Velopack" Version="0.*" />
-  </ItemGroup>
+  <!-- For test build scripts which target the local Velopack project instead of the NuGet package -->
+  <Choose>
+    <When Condition=" $(UseLocalVelopack) != '' ">
+      <ItemGroup>
+        <ProjectReference Include="..\..\src\Velopack\Velopack.csproj" />
+      </ItemGroup>
+    </When>
+    <Otherwise>
+      <ItemGroup>
+        <PackageReference Include="Velopack" Version="0.*" />
+      </ItemGroup>
+    </Otherwise>
+  </Choose>
 
   <!-- Used for demonstrating updates, so the installed application can find the Release directory, remove in your app -->
+  <!-- Used for demonstrating updates, so the installed application can find the Release directory -->
   <ItemGroup>
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
       <_Parameter1>WpfSampleReleaseDir</_Parameter1>
@@ -27,4 +39,5 @@
     </AssemblyAttribute>
   </ItemGroup>
 
+  <Import Project="..\..\src\Velopack.Build\Velopack.Build.targets" Condition=" $(UseLocalVelopack) != '' " />
 </Project>

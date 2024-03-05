@@ -4,6 +4,7 @@ using Velopack;
 
 namespace VeloWpfSample
 {
+
     public class Program
     {
         public static bool WasFirstRun { get; private set; }

@@ -504,5 +504,4 @@ tests/Test.xml
 *.opendb
 .vs/
 
-
 launchsettings.json

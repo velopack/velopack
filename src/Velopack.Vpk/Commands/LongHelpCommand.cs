@@ -142,7 +142,7 @@ public class LongHelpCommand : CliOption<bool>
                 output.Add(Text.NewLine);
 
                 var commandsTable = CreateTable();
-                foreach (var cmd in command.Subcommands) {
+                foreach (var cmd in command.Subcommands.Where(x => !x.Hidden)) {
                     var columns = GetTwoColumnRowCommand(cmd);
                     commandsTable.AddRow(new Markup($"[bold]{columns.FirstColumnText}[/]"), new Text(columns.SecondColumnText));
                 }
@@ -154,7 +154,7 @@ public class LongHelpCommand : CliOption<bool>
             return 0;
         }
 
-        public TwoColumnHelpRow GetTwoColumnRowCommand(CliCommand command)
+        public static TwoColumnHelpRow GetTwoColumnRowCommand(CliCommand command)
         {
             if (command is null) {
                 throw new ArgumentNullException(nameof(command));
@@ -165,7 +165,7 @@ public class LongHelpCommand : CliOption<bool>
             return new TwoColumnHelpRow(firstColumnText, secondColumnText);
         }
 
-        public TwoColumnHelpRow GetTwoColumnRowOption(CliOption symbol)
+        public static TwoColumnHelpRow GetTwoColumnRowOption(CliOption symbol)
         {
             if (symbol is null) {
                 throw new ArgumentNullException(nameof(symbol));
@@ -187,7 +187,7 @@ public class LongHelpCommand : CliOption<bool>
             return new TwoColumnHelpRow(firstColumnText, secondColumnText);
         }
 
-        private string GetUsage(CliCommand command)
+        private static string GetUsage(CliCommand command)
         {
             return string.Join(" ", GetUsageParts().Where(x => !string.IsNullOrWhiteSpace(x)));
 
@@ -230,7 +230,7 @@ public class LongHelpCommand : CliOption<bool>
             }
         }
 
-        private string FormatArgumentUsage(IList<CliArgument> arguments)
+        private static string FormatArgumentUsage(IList<CliArgument> arguments)
         {
             var sb = new StringBuilder(arguments.Count * 100);
 
@@ -281,7 +281,7 @@ public class LongHelpCommand : CliOption<bool>
 public static class HelpExtensions
 {
     public static bool HasArguments(this CliCommand command) => command.Arguments?.Count > 0;
-    public static bool HasSubcommands(this CliCommand command) => command.Subcommands?.Count > 0;
+    public static bool HasSubcommands(this CliCommand command) => command.Subcommands?.Where(x => !x.Hidden).Any() == true;
     public static bool HasOptions(this CliCommand command) => command.Options?.Count > 0;
 
     internal static IEnumerable<T> RecurseWhileNotNull<T>(

@@ -18,7 +18,7 @@ namespace Velopack.Sources
         [JsonPropertyName("prerelease")]
         public bool Prerelease { get; set; }
 
-        /// <summary> The date which this release was published publically. </summary>
+        /// <summary> The date which this release was published publicly. </summary>
         [JsonPropertyName("published_at")]
         public DateTime? PublishedAt { get; set; }
 

@@ -15,7 +15,7 @@ namespace Velopack.Sources
         /// <param name="url">The url which will be downloaded.</param>
         /// <param name="targetFile">
         /// The local path where the file will be stored
-        /// If a file exists at this path, it will be overritten.</param>
+        /// If a file exists at this path, it will be overwritten.</param>
         /// <param name="progress">
         /// A delegate for reporting download progress, with expected values from 0-100.
         /// </param>

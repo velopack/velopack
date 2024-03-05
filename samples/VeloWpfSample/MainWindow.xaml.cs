@@ -2,6 +2,7 @@
 using System.Windows;
 using Microsoft.Extensions.Logging;
 using Velopack;
+using Velopack.Sources;
 
 namespace VeloWpfSample
 {
@@ -14,6 +15,7 @@ namespace VeloWpfSample
         {
             InitializeComponent();
             _um = new UpdateManager(Program.UpdateUrl, logger: Program.Log);
+            //_um = new UpdateManager(new VelopackFlowUpdateSource(), logger: Program.Log);
             TextLog.Text = Program.Log.ToString();
             Program.Log.LogUpdated += LogUpdated;
             UpdateStatus();
