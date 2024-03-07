@@ -34,27 +34,33 @@ namespace Velopack.Sources
             // if a feed exists in the folder, let's use that.
             var feedLoc = Path.Combine(BaseDirectory.FullName, Utility.GetVeloReleaseIndexName(channel));
             if (File.Exists(feedLoc)) {
+                logger.Debug($"Found local file feed at '{feedLoc}'.");
                 return Task.FromResult(VelopackAssetFeed.FromJson(File.ReadAllText(feedLoc)));
             }
 
-            // if not, we can try to iterate the packages, hopefully this is not a remote/network folder!
-            var list = new List<VelopackAsset>();
-            foreach (var pkg in Directory.EnumerateFiles(BaseDirectory.FullName, "*.nupkg")) {
-                try {
-                    var zip = new ZipPackage(pkg);
-                    var asset = VelopackAsset.FromZipPackage(zip);
-                    if (asset?.Version != null) {
-                        if (channel == null || zip?.Channel == null || zip?.Channel == channel) {
-                            list.Add(asset);
-                        } else {
-                            logger.Warn($"Skipping local package '{pkg}' because it is not in the '{channel}' channel.");
+            logger.Warn($"No local feed found at '{feedLoc}', will search for *.nupkg in directory '{BaseDirectory.FullName}'.");
+
+            return Task.Run(() => {
+                // if not, we can try to iterate the packages, hopefully this is not a remote/network folder!
+                var list = new List<VelopackAsset>();
+                foreach (var pkg in Directory.EnumerateFiles(BaseDirectory.FullName, "*.nupkg")) {
+                    try {
+                        var zip = new ZipPackage(pkg);
+                        var asset = VelopackAsset.FromZipPackage(zip);
+                        if (asset?.Version != null) {
+                            if (channel == null || zip?.Channel == null || zip?.Channel == channel) {
+                                logger.Debug($"Read package '{pkg}' with version '{asset.Version}' in channel '{zip?.Channel}'.");
+                                list.Add(asset);
+                            } else {
+                                logger.Warn($"Skipping local package '{pkg}' because it is not in the '{channel}' channel.");
+                            }
                         }
+                    } catch (Exception ex) {
+                        logger.Warn(ex, $"Error while reading local package '{pkg}'.");
                     }
-                } catch (Exception ex) {
-                    logger.Warn(ex, $"Error while reading local package '{pkg}'.");
                 }
-            }
-            return Task.FromResult(new VelopackAssetFeed { Assets = list.ToArray() });
+                return new VelopackAssetFeed { Assets = list.ToArray() };
+            });
         }
 
         /// <inheritdoc />
