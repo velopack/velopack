@@ -8,6 +8,7 @@ using Velopack.Deployment;
 using Velopack.Packaging.Abstractions;
 using Velopack.Packaging.Commands;
 using Velopack.Packaging.Exceptions;
+using Velopack.Packaging.Flow;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Vpk.Commands;
@@ -64,6 +65,7 @@ public class Program
 
         SetupConfig(builder);
         SetupLogging(builder, verbose, legacyConsole, defaultYes);
+        SetupVelopackService(builder.Services);
 
         var host = builder.Build();
         var provider = host.Services;
@@ -96,6 +98,11 @@ public class Program
         deltaCommand.AddCommand<DeltaPatchCommand, DeltaPatchCommandRunner, DeltaPatchOptions>(provider);
         rootCommand.Add(deltaCommand);
 
+        rootCommand.AddCommand<LoginCommand, LoginCommandRunner, LoginOptions>(provider);
+        rootCommand.AddCommand<LogoutCommand, LogoutCommandRunner, LogoutOptions>(provider);
+        
+        rootCommand.AddRepositoryUpload<VelopackPublishCommand, VelopackRepository, VelopackUploadOptions>(provider);
+
         var cli = new CliConfiguration(rootCommand);
         return await cli.InvokeAsync(args);
     }
@@ -126,9 +133,16 @@ public class Program
             builder.Services.AddSingleton<IFancyConsole, SpectreConsole>();
             conf.WriteTo.Spectre();
         }
+        builder.Services.AddSingleton<IConsole>(sp => sp.GetRequiredService<IFancyConsole>());
 
         Log.Logger = conf.CreateLogger();
         builder.Logging.AddSerilog();
+    }
+
+    private static void SetupVelopackService(IServiceCollection services)
+    {
+        services.AddSingleton<IVelopackFlowServiceClient, VelopackFlowServiceClient>();
+        services.AddHttpClient();
     }
 }
 
