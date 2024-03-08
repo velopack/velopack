@@ -135,13 +135,13 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
     protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe)
     {
-        var bundledzp = new ZipPackage(releasePkg);
+        var bundledZip = new ZipPackage(releasePkg);
         Utility.Retry(() => File.Copy(HelperFile.SetupPath, targetSetupExe, true));
         progress(10);
         if (VelopackRuntimeInfo.IsWindows) {
-            Rcedit.SetPEVersionBlockFromPackageInfo(targetSetupExe, bundledzp, Options.Icon);
+            Rcedit.SetPEVersionBlockFromPackageInfo(targetSetupExe, bundledZip, Options.Icon);
         } else {
-            Log.Warn("Unable to set Setup.exe icon (only supported on windows)");
+            Log.Warn("Unable to set PE Version on Setup.exe (only supported on windows)");
         }
         progress(25);
         Log.Debug($"Creating Setup bundle");

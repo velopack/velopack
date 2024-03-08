@@ -25,7 +25,7 @@ namespace Velopack.Sources
         public bool UpcomingRelease { get; set; }
 
         /// <summary>
-        /// The date which this release was published publically.
+        /// The date which this release was published publicly.
         /// </summary>
         [JsonPropertyName("released_at")]
         public DateTime? ReleasedAt { get; set; }

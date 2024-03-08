@@ -142,7 +142,7 @@ namespace Velopack
             VelopackDisplayVersion = VelopackNugetVersion.ToNormalizedString() + (VelopackNugetVersion.IsPrerelease ? " (prerelease)" : "");
 #pragma warning restore CS0612
 
-            // get real cpu architecture, even when virtualised by Wow64
+            // get real cpu architecture, even when virtualized by Wow64
 #if NETFRAMEWORK
             CheckArchitectureWindows();
 #else
@@ -216,7 +216,7 @@ namespace Velopack
             SystemOs = RuntimeOs.Windows;
 
             // find the actual OS architecture. We can't rely on the framework alone for this on Windows
-            // because Wow64 virtualisation is good enough to trick us to believing we're running natively
+            // because Wow64 virtualization is good enough to trick us to believing we're running natively
             // in some cases unless we use functions that are not virtualized (such as IsWow64Process2)
 
             try {
