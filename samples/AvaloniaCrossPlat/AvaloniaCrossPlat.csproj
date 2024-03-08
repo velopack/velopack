@@ -40,4 +40,6 @@
     </AssemblyAttribute>
   </ItemGroup>
 
+  <!--<Import Project="..\..\src\Velopack.Build\Velopack.Build.targets" Condition=" $(UseLocalVelopack) != '' " />-->
+
 </Project>

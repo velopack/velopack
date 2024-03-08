@@ -1,0 +1,73 @@
+<Project>
+  <PropertyGroup>
+    <!-- 
+    TODO: Should we default this to false? 
+    Is the action of adding the NuGet package sufficient to assume the user wants this to always 
+    create a release on publish? 
+    -->
+    <VelopackPackOnPublish Condition="$(VelopackPackOnPublish) == ''">true</VelopackPackOnPublish>
+    
+    <!-- By default we will push if packing is enabled -->
+    <VelopackPushOnPublish Condition="$(VelopackPushOnPublish) == ''">$(VelopackPackOnPublish)</VelopackPushOnPublish>
+
+    <!-- 
+    https://learn.microsoft.com/visualstudio/msbuild/tutorial-custom-task-code-generation?view=vs-2022&WT.mc_id=DT-MVP-5003472#changes-required-to-multitarget
+    -->
+    <VelopackStronglyTyped_TFM Condition=" '$(MSBuildRuntimeType)' != 'Core' ">net472</VelopackStronglyTyped_TFM>
+    <VelopackStronglyTyped_TFM Condition=" '$(MSBuildRuntimeType)' == 'Core' ">net6.0</VelopackStronglyTyped_TFM>
+  </PropertyGroup>
+
+  <UsingTask TaskName="Velopack.Build.PackTask"
+        AssemblyFile="..\..\build\$(Configuration)\$(VelopackStronglyTyped_TFM)\Velopack.Build.dll"/>
+
+  <UsingTask TaskName="Velopack.Build.PublishTask"
+          AssemblyFile="..\..\build\$(Configuration)\$(VelopackStronglyTyped_TFM)\Velopack.Build.dll"/>
+
+  <Target Name="_VelopackResolveProperties" AfterTargets="Publish" BeforeTargets="VelopackBuildRelease">
+    <PropertyGroup>
+      <VelopackPackVersion Condition="'$(VelopackPackVersion)' == ''">$(Version)</VelopackPackVersion>
+      <VelopackPackId Condition="'$(VelopackPackId)' == ''">$(AssemblyName)</VelopackPackId>
+      <VelopackPackDirectory Condition="'$(VelopackPackDirectory)' == ''">$(PublishDir)</VelopackPackDirectory>
+
+      <!-- TODO: Is there a way to try and determine this from the project? -->
+      <VelopackRuntimes Condition="'$(VelopackRuntimes)' == ''">net8-x64-desktop</VelopackRuntimes>
+
+      <!-- TODO: is this a reasonable default? -->
+      <VelopackReleaseDirectory Condition="'$(VelopackReleaseDirectory)' == ''">releases</VelopackReleaseDirectory>
+    </PropertyGroup>
+
+    <ConvertToAbsolutePath Paths="$(VelopackReleaseDirectory)">
+      <Output TaskParameter="AbsolutePaths" PropertyName="VelopackReleaseDirectory"/>
+    </ConvertToAbsolutePath>
+
+    <ConvertToAbsolutePath Paths="$(VelopackPackDirectory)">
+      <Output TaskParameter="AbsolutePaths" PropertyName="VelopackPackDirectory"/>
+    </ConvertToAbsolutePath>
+  </Target>
+
+  <Target Name="VelopackBuildRelease" AfterTargets="Publish" Condition="'$(VelopackPackOnPublish)' == 'true'">
+    <!-- 
+    TODO: Add additional error checking for the rest of the parameters.
+    -->
+    <Warning Condition="'$(VelopackPackVersion)' == ''"
+             Text="No version specified, Velopack will not publish a release."
+             />
+
+    <PackTask
+      Condition="'$(VelopackPackVersion)' != ''"
+      Runtimes="$(VelopackRuntimes)"
+      PackId="$(VelopackPackId)"
+      ReleaseDirectory="$(VelopackReleaseDirectory)"
+      PackDirectory="$(VelopackPackDirectory)"
+      PackVersion="$(VelopackPackVersion)"
+      />
+  </Target>
+
+  <Target Name="VelopackPushRelease" AfterTargets="VelopackBuildRelease" Condition="'$(VelopackPushOnPublish)' == 'true'">
+    <PublishTask 
+      ReleaseDirectory="$(VelopackReleaseDirectory)"
+      Version="$(VelopackPackVersion)"
+      ServiceUrl="$(VelopackFlowServiceUrl)"
+      />
+  </Target>
+</Project>
