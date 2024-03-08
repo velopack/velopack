@@ -326,7 +326,10 @@ public abstract class PackageBuilder<T> : ICommand<T>
             CopyFilesInternal(source, target);
         } else {
             Log.Debug($"Copying '{source}' to '{target}' (preserving symlinks)");
-            Log.Debug(Exe.InvokeAndThrowIfNonZero("cp", new[] { "-a", source.FullName, target.FullName }, null));
+            // copy the contents of the folder, not the folder itself.
+            var src = source.FullName.TrimEnd('/') + "/.";
+            var dest = target.FullName.TrimEnd('/') + "/";
+            Log.Debug(Exe.InvokeAndThrowIfNonZero("cp", new[] { "-a", src, dest }, null));
 
             if (excludeAnnoyances) {
                 foreach (var f in target.EnumerateFiles("*", SearchOption.AllDirectories)) {
