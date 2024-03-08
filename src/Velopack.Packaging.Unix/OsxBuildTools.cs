@@ -76,7 +76,11 @@ public class OsxBuildTools
             throw new ArgumentException("Source directory does not exist: " + source);
         }
         Log.Debug($"Copying '{source}' to '{dest}' (preserving symlinks)");
-        Log.Debug(Exe.InvokeAndThrowIfNonZero("cp", new[] { "-a", source, dest }, null));
+        
+        // copy the contents of the folder, not the folder itself.
+        var src = source.TrimEnd('/') + "/.";
+        var des = dest.TrimEnd('/') + "/";
+        Log.Debug(Exe.InvokeAndThrowIfNonZero("cp", new[] { "-a", src, des }, null));
     }
 
     public void CreateInstallerPkg(string appBundlePath, string appTitle, string appId, IEnumerable<KeyValuePair<string, string>> extraContent,
