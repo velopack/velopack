@@ -54,6 +54,21 @@ public static class HelperFile
     [SupportedOSPlatform("windows")]
     public static string RceditPath => FindHelperFile("rcedit.exe");
 
+    public static string GetDefaultAppIcon(RuntimeOs? os = null)
+    {
+        var _os = os ?? VelopackRuntimeInfo.SystemOs;
+        switch (_os) {
+        case RuntimeOs.Windows:
+            return null;
+        case RuntimeOs.Linux:
+            return FindHelperFile("DefaultApp_64.png");
+        case RuntimeOs.OSX:
+            return FindHelperFile("DefaultApp.icns");
+        default:
+            throw new PlatformNotSupportedException("Default Icon is not available for this platform.");
+        }
+    }
+
     private static List<string> _searchPaths = new List<string>();
 
     static HelperFile()
@@ -61,6 +76,7 @@ public static class HelperFile
 #if DEBUG
         AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "src", "Rust", "target", "debug");
         AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "vendor");
+        AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "artwork");
 #else
         AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "vendor");
 #endif

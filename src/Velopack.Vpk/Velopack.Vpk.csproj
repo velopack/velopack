@@ -34,6 +34,8 @@
     <None Include="..\..\vendor\zstd.exe" Pack="true" PackagePath="vendor" />
     <None Include="..\..\vendor\signtool.exe" Pack="true" PackagePath="vendor" />
     <None Include="..\..\Velopack.entitlements" Pack="true" PackagePath="vendor" />
+    <None Include="..\..\artwork\DefaultApp.icns" Pack="true" PackagePath="vendor" />
+    <None Include="..\..\artwork\DefaultApp_64.png" Pack="true" PackagePath="vendor" />
   </ItemGroup>
 
   <ItemGroup>

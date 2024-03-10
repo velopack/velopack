@@ -92,9 +92,8 @@ public class LinuxPackCommand : PlatformCommand
             .SetArgumentHelpName("DIR")
             .MustNotBeEmpty();
 
-        this.AreMutuallyExclusive(packDir, appDir);
         this.AtLeastOneRequired(packDir, appDir);
+        this.AreMutuallyExclusive(packDir, appDir);
         this.AreMutuallyExclusive(icon, appDir);
-        this.AtLeastOneRequired(icon, appDir);
     }
 }

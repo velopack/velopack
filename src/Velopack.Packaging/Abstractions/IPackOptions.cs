@@ -6,4 +6,5 @@ public interface IPackOptions : INugetPackCommand, IPlatformOptions
     DeltaMode DeltaMode { get; }
     string EntryExecutableName { get; }
     bool IncludePdb { get; }
+    string Icon { get; }
 }

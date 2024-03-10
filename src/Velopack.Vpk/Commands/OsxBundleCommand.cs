@@ -62,7 +62,6 @@ public class OsxBundleCommand : PlatformCommand
             .SetDescription("Path to the .icns file for this bundle.")
             .SetArgumentHelpName("PATH")
             .MustExist()
-            .SetRequired()
             .RequiresExtension(".icns");
 
         var bundleId = AddOption<string>((v) => BundleId = v, "--bundleId")

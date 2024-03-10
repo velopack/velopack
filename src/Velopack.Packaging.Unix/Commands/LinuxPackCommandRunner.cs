@@ -54,7 +54,8 @@ Categories=Development;
             // copy existing app files 
             CopyFiles(new DirectoryInfo(packDir), bin, progress, true);
             // app icon
-            File.Copy(Options.Icon, Path.Combine(dir.FullName, Options.PackId + Path.GetExtension(Options.Icon)), true);
+            var icon = Options.Icon ?? HelperFile.GetDefaultAppIcon();
+            File.Copy(icon, Path.Combine(dir.FullName, Options.PackId + Path.GetExtension(icon)), true);
         }
 
         // velopack required files
