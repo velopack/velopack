@@ -1,7 +1,7 @@
 ﻿using System.Runtime.Versioning;
 using System.Security;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+using Velopack.Json;
 
 namespace Velopack.Packaging.Unix;
 
@@ -76,7 +76,7 @@ public class OsxBuildTools
             throw new ArgumentException("Source directory does not exist: " + source);
         }
         Log.Debug($"Copying '{source}' to '{dest}' (preserving symlinks)");
-        
+
         // copy the contents of the folder, not the folder itself.
         var src = source.TrimEnd('/') + "/.";
         var des = dest.TrimEnd('/') + "/";
@@ -196,7 +196,7 @@ exit 0
 
         // try to catch any notarization errors. if we have a submission id, retrieve notary logs.
         try {
-            var ntresult = JsonConvert.DeserializeObject<NotaryToolResult>(ntresultjson.StdOutput);
+            var ntresult = SimpleJson.DeserializeObject<NotaryToolResult>(ntresultjson.StdOutput);
             if (ntresult?.status != "Accepted" || ntresultjson.ExitCode != 0) {
                 if (ntresult?.id != null) {
                     var logargs = new List<string> {
@@ -212,8 +212,8 @@ exit 0
 
                 throw new Exception("Notarization failed: " + ntresultjson.StdOutput);
             }
-        } catch (JsonReaderException) {
-            throw new Exception("Notarization failed: " + ntresultjson.StdOutput);
+        } catch (Exception ex) {
+            throw new Exception("Notarization failed: " + ntresultjson.StdOutput + Environment.NewLine + ex.Message);
         }
 
         Log.Info("Notarization completed successfully");
