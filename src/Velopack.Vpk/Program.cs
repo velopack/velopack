@@ -101,7 +101,7 @@ public class Program
         rootCommand.AddCommand<LoginCommand, LoginCommandRunner, LoginOptions>(provider);
         rootCommand.AddCommand<LogoutCommand, LogoutCommandRunner, LogoutOptions>(provider);
         
-        rootCommand.AddRepositoryUpload<VelopackPublishCommand, VelopackRepository, VelopackUploadOptions>(provider);
+        rootCommand.AddRepositoryUpload<VelopackPublishCommand, VelopackFlowRepository, VelopackFlowUploadOptions>(provider);
 
         var cli = new CliConfiguration(rootCommand);
         return await cli.InvokeAsync(args);
