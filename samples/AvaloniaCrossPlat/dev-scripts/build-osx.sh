@@ -13,7 +13,6 @@ fi
 BUILD_VERSION="$1"
 RELEASE_DIR="$SCRIPT_DIR/../releases"
 PUBLISH_DIR="$SCRIPT_DIR/../publish"
-ICON_PATH="$SCRIPT_DIR/../Velopack.icns"
 
 echo ""
 echo "Building Velopack Rust"
@@ -32,4 +31,4 @@ dotnet publish -c Release --self-contained -r osx-x64 -o "$PUBLISH_DIR" -p:UseLo
 
 echo ""
 echo "Building Velopack Release v$BUILD_VERSION"
-"$SCRIPT_DIR/../../../build/Debug/net8.0/vpk" pack -u AvaloniaCrossPlat -v $BUILD_VERSION -o "$RELEASE_DIR" -p "$PUBLISH_DIR" -i "$ICON_PATH"
+"$SCRIPT_DIR/../../../build/Debug/net8.0/vpk" pack -u AvaloniaCrossPlat -v $BUILD_VERSION -o "$RELEASE_DIR" -p "$PUBLISH_DIR"
