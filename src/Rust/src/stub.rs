@@ -23,6 +23,9 @@ fn main() -> ExitCode {
 
     let _ = logging::setup_logging(Some(&default_log_file), false, false, false);
 
+    info!("--");
+    info!("Starting Velopack Stub (at {:?})", my_path);
+
     let mut update_exe = my_path.clone();
     update_exe.pop();
     update_exe.push("Update.exe");

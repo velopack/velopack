@@ -95,6 +95,7 @@ fn main() -> Result<()> {
     containing_dir.pop();
     env::set_current_dir(containing_dir)?;
 
+    info!("--");
     info!("Starting Velopack Updater ({})", env!("NGBV_VERSION"));
     info!("    Location: {}", env::current_exe()?.to_string_lossy());
     info!("    CWD: {}", env::current_dir()?.to_string_lossy());
