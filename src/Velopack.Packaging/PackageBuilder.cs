@@ -68,8 +68,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
         var semVer = SemanticVersion.Parse(packVersion);
 
         // check that entry exe exists
-        var mainExt = options.TargetRuntime.BaseRID == RuntimeOs.Windows ? ".exe" : "";
-        var mainExeName = options.EntryExecutableName ?? (options.PackId + mainExt);
+        var mainExeName = options.EntryExecutableName ?? options.PackId;
         var mainSearchPaths = GetMainExeSearchPaths(packDirectory, mainExeName);
         string mainExePath = null;
         foreach (var path in mainSearchPaths) {
@@ -178,10 +177,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
         return null;
     }
 
-    protected virtual string[] GetMainExeSearchPaths(string packDirectory, string mainExeName)
-    {
-        return new[] { Path.Combine(packDirectory, mainExeName) };
-    }
+    protected abstract string[] GetMainExeSearchPaths(string packDirectory, string mainExeName);
 
     protected virtual string GenerateNuspecContent()
     {

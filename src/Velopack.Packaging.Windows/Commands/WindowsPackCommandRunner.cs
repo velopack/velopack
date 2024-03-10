@@ -234,4 +234,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             helper.SignPEFilesWithSignTool(rootDir, filePaths, signParams, signParallel, progress);
         }
     }
+
+    protected override string[] GetMainExeSearchPaths(string packDirectory, string mainExeName)
+    {
+        return new[] {
+            Path.Combine(packDirectory, mainExeName),
+            Path.Combine(packDirectory, mainExeName) + ".exe",
+        };
+    }
 }
