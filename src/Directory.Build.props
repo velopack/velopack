@@ -30,6 +30,7 @@
   <ItemGroup Condition=" '$(MSBuildProjectExtension)'=='.csproj' ">
     <PackageReference Include="Nerdbank.GitVersioning" Version="3.6.*" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
+    <PackageReference Include="NuGetizer" Version="1.2.1" PrivateAssets="all" Condition=" '$(NoNuGetizer)'=='' " />
   </ItemGroup>
 
   <PropertyGroup Condition=" '$(MSBuildProjectExtension)'=='.vcxproj' ">

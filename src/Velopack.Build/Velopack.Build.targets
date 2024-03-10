@@ -8,10 +8,11 @@
     -->
     <VelopackStronglyTyped_TFM Condition=" '$(MSBuildRuntimeType)' != 'Core' ">net472</VelopackStronglyTyped_TFM>
     <VelopackStronglyTyped_TFM Condition=" '$(MSBuildRuntimeType)' == 'Core' ">net6.0</VelopackStronglyTyped_TFM>
+    <VelopackBuildDll>$(MSBuildThisFileDirectory)..\lib\$(VelopackStronglyTyped_TFM)\Velopack.Build.dll</VelopackBuildDll>
   </PropertyGroup>
 
-  <UsingTask TaskName="Velopack.Build.PackTask" AssemblyFile="..\..\build\$(Configuration)\$(VelopackStronglyTyped_TFM)\Velopack.Build.dll"/>
-  <UsingTask TaskName="Velopack.Build.PublishTask" AssemblyFile="..\..\build\$(Configuration)\$(VelopackStronglyTyped_TFM)\Velopack.Build.dll"/>
+  <UsingTask TaskName="Velopack.Build.PackTask" AssemblyFile="$(VelopackBuildDll)"/>
+  <UsingTask TaskName="Velopack.Build.PublishTask" AssemblyFile="$(VelopackBuildDll)"/>
 
   <Target Name="_VelopackResolveProperties" AfterTargets="Publish" BeforeTargets="VelopackBuildRelease">
     <PropertyGroup>
@@ -22,10 +23,11 @@
       <VelopackReleaseDirectory Condition="'$(VelopackReleaseDirectory)' == ''">Releases</VelopackReleaseDirectory>
       <VelopackPackTitle Condition="'$(VelopackPackTitle)' == ''">$(Product)</VelopackPackTitle>
       <VelopackPackAuthors Condition="'$(VelopackPackAuthors)' == ''">$(Authors)</VelopackPackAuthors>
+      <VelopackTargetRuntime Condition="'$(VelopackTargetRuntime)' == ''">$(RuntimeIdentifier)</VelopackTargetRuntime>
 
       <!-- 
       TODO: the required runtimes can be automatically set (windows only)
-      We need to know the TargetFramework and the RID that's being published.
+      We need to know the TargetFramework, RID, and SelfContained properties.
       Probably we should pass these both into the C# Task and let it figure out the runtimes.
       <VelopackRuntimes Condition="'$(VelopackRuntimes)' == ''">net8-x64-desktop</VelopackRuntimes>
       -->

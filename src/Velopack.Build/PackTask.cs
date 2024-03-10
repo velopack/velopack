@@ -17,9 +17,6 @@ public class PackTask : MSBuildAsyncTask
     public string PackVersion { get; set; } = "";
 
     [Required]
-    public string Runtimes { get; set; } = "";
-
-    [Required]
     public string PackId { get; set; } = "";
 
     [Required]
@@ -27,6 +24,8 @@ public class PackTask : MSBuildAsyncTask
 
     [Required]
     public string ReleaseDir { get; set; } = null!;
+
+    public string Runtimes { get; set; } = "";
 
     public string? PackAuthors { get; set; }
 
@@ -38,7 +37,7 @@ public class PackTask : MSBuildAsyncTask
 
     public string? ReleaseNotes { get; set; }
 
-    public DeltaMode DeltaMode { get; set; } = DeltaMode.BestSpeed;
+    public string? DeltaMode { get; set; } = "BestSpeed";
 
     public string? Channel { get; set; }
 

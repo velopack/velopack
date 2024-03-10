@@ -9,6 +9,9 @@
     https://learn.microsoft.com/dotnet/core/project-sdk/msbuild-props?WT.mc_id=DT-MVP-5003472#copylocallockfileassemblies
     -->
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <PackDependencies>true</PackDependencies>
+    <PackTransitive>true</PackTransitive>
+    
   </PropertyGroup>
 
   <PropertyGroup>
@@ -24,41 +27,45 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Velopack.Packaging.Unix\Velopack.Packaging.Unix.csproj" />
-    <ProjectReference Include="..\Velopack.Packaging.Windows\Velopack.Packaging.Windows.csproj" />
-    <ProjectReference Include="..\Velopack\Velopack.csproj" />
+    <PackInference Include="Compile" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.9.5" />
-    <PackageReference Include="Riok.Mapperly" Version="3.3.0" />
+    <ProjectReference Include="..\Velopack.Packaging.Unix\Velopack.Packaging.Unix.csproj" PrivateAssets="all" PackInclude="all" />
+    <ProjectReference Include="..\Velopack.Packaging.Windows\Velopack.Packaging.Windows.csproj" PrivateAssets="all" PackInclude="all" />
+    <ProjectReference Include="..\Velopack\Velopack.csproj" PrivateAssets="all" PackInclude="all" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\artwork\Velopack_200.png" Pack="true" PackagePath="\" />
-    <None Include="..\..\README_NUGET.md" Pack="true" PackagePath="\" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.9.5" PrivateAssets="all" />
+    <PackageReference Include="Riok.Mapperly" Version="3.3.0" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\artwork\Velopack_200.png" Pack="true" PackagePath="/" />
+    <None Include="..\..\README_NUGET.md" Pack="true" PackagePath="/" />
     <None Include="Velopack.Build.targets" Pack="true" PackagePath="build\Velopack.Build.targets" />
   </ItemGroup>
 
   <ItemGroup Condition=" $([System.OperatingSystem]::IsWindows()) or '$(PackRustAssets)' == 'true' ">
-    <None Include="..\Rust\target\release\update.exe" Pack="true" PackagePath="vendor" />
-    <None Include="..\Rust\target\release\setup.exe" Pack="true" PackagePath="vendor" />
-    <None Include="..\Rust\target\release\stub.exe" Pack="true" PackagePath="vendor" />
-    <None Include="..\..\vendor\rcedit.exe" Pack="true" PackagePath="vendor" />
-    <None Include="..\..\vendor\zstd.exe" Pack="true" PackagePath="vendor" />
-    <None Include="..\..\vendor\signtool.exe" Pack="true" PackagePath="vendor" />
+    <None Include="..\Rust\target\release\update.exe" Pack="true" PackagePath="vendor/" />
+    <None Include="..\Rust\target\release\setup.exe" Pack="true" PackagePath="vendor/" />
+    <None Include="..\Rust\target\release\stub.exe" Pack="true" PackagePath="vendor/" />
+    <None Include="..\..\vendor\rcedit.exe" Pack="true" PackagePath="vendor/" />
+    <None Include="..\..\vendor\zstd.exe" Pack="true" PackagePath="vendor/" />
+    <None Include="..\..\vendor\signtool.exe" Pack="true" PackagePath="vendor/" />
   </ItemGroup>
 
   <ItemGroup Condition=" $([System.OperatingSystem]::IsMacOS()) or '$(PackRustAssets)' == 'true' ">
-    <None Include="..\Rust\target\release\UpdateMac" Pack="true" PackagePath="vendor" />
-    <None Include="..\..\Velopack.entitlements" Pack="true" PackagePath="vendor" />
-    <None Include="..\..\artwork\DefaultApp.icns" Pack="true" PackagePath="vendor" />
+    <None Include="..\Rust\target\release\UpdateMac" Pack="true" PackagePath="vendor/" />
+    <None Include="..\..\Velopack.entitlements" Pack="true" PackagePath="vendor/" />
+    <None Include="..\..\artwork\DefaultApp.icns" Pack="true" PackagePath="vendor/" />
   </ItemGroup>
 
   <ItemGroup Condition=" $([System.OperatingSystem]::IsLinux()) or '$(PackRustAssets)' == 'true' ">
-    <None Include="..\Rust\target\release\UpdateNix" Pack="true" PackagePath="vendor" />
-    <None Include="..\..\vendor\appimagetool-x86_64.AppImage" Pack="true" PackagePath="vendor" />
-    <None Include="..\..\artwork\DefaultApp_64.png" Pack="true" PackagePath="vendor" />
+    <None Include="..\Rust\target\release\UpdateNix" Pack="true" PackagePath="vendor/" />
+    <None Include="..\..\vendor\appimagetool-x86_64.AppImage" Pack="true" PackagePath="vendor/" />
+    <None Include="..\..\artwork\DefaultApp_64.png" Pack="true" PackagePath="vendor/" />
   </ItemGroup>
 
   <!--<PropertyGroup>
