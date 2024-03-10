@@ -70,12 +70,14 @@ public class MSBuildLogger(TaskLoggingHelper loggingHelper) : ILogger, IFancyCon
 
     public void WriteTable(string tableName, IEnumerable<IEnumerable<string>> rows, bool hasHeaderRow = true)
     {
-        //Do we need this output for MSBuild?
+        LoggingHelper.LogMessage(tableName);
+        foreach (var row in rows) {
+            LoggingHelper.LogMessage("  " + String.Join("    ", row));
+        }
     }
 
     public System.Threading.Tasks.Task<bool> PromptYesNo(string prompt, bool? defaultValue = null, TimeSpan? timeout = null)
     {
-        //TODO: This API is problematic as it assumes interactive.
         return Task.FromResult(true);
     }
 

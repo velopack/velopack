@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Build.Framework;
 using Velopack.Packaging;
+using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
 
 namespace Velopack.Build;
@@ -25,44 +26,84 @@ public class PackTask : MSBuildAsyncTask
     public string PackDirectory { get; set; } = null!;
 
     [Required]
-    public string ReleaseDirectory { get; set; } = null!;
+    public string ReleaseDir { get; set; } = null!;
+
+    public string? PackAuthors { get; set; }
+
+    public string? PackTitle { get; set; }
+
+    public string? EntryExecutableName { get; set; }
+
+    public string? Icon { get; set; }
+
+    public string? ReleaseNotes { get; set; }
+
+    public DeltaMode DeltaMode { get; set; } = DeltaMode.BestSpeed;
+
+    public string? Channel { get; set; }
+
+    public bool PackIsAppDir { get; set; }
+
+    public bool IncludePdb { get; set; }
+
+    public bool NoPackage { get; set; }
+
+    public string? PackageWelcome { get; set; }
+
+    public string? PackageReadme { get; set; }
+
+    public string? PackageLicense { get; set; }
+
+    public string? PackageConclusion { get; set; }
+
+    public string? SigningAppIdentity { get; set; }
+
+    public string? SigningInstallIdentity { get; set; }
+
+    public string? SigningEntitlements { get; set; }
+
+    public string? NotaryProfile { get; set; }
+
+    public string? BundleId { get; set; }
+
+    public string? InfoPlistPath { get; set; }
+
+    public string? SplashImage { get; set; }
+
+    public bool SkipVelopackAppCheck { get; set; }
+
+    public string? SignParameters { get; set; }
+
+    public bool SignSkipDll { get; set; }
+
+    public int SignParallel { get; set; } = 10;
+
+    public string? SignTemplate { get; set; }
 
     protected override async Task<bool> ExecuteAsync()
     {
         //System.Diagnostics.Debugger.Launch();
-        HelperFile.AddSearchPath(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+        HelperFile.ClearSearchPaths();
+        HelperFile.AddSearchPath(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "..", "..", "vendor");
 
         if (VelopackRuntimeInfo.IsWindows) {
-
-            var targetRuntime = RID.Parse(TargetRuntime ?? VelopackRuntimeInfo.SystemOs.GetOsShortName());
-            if (targetRuntime.BaseRID == RuntimeOs.Unknown) {
-                //TODO: handle this error case
-            }
-
-            DirectoryInfo releaseDir = new(ReleaseDirectory);
-            releaseDir.Create();
-
+            var options = this.ToWinPackOptions();
             var runner = new WindowsPackCommandRunner(Logger, Logger);
-            await runner.Run(new WindowsPackOptions() {
-                PackId = PackId,
-                ReleaseDir = releaseDir,
-                PackDirectory = PackDirectory,
-                Runtimes = Runtimes,
-                TargetRuntime = targetRuntime,
-                PackVersion = PackVersion,
-            }).ConfigureAwait(false);
-
-            Log.LogMessage(MessageImportance.High, $"{PackId} ({PackVersion}) created in {ReleaseDirectory}");
+            await runner.Run(options).ConfigureAwait(false);
         } else if (VelopackRuntimeInfo.IsOSX) {
-            //TODO: Implement
+            var options = this.ToOSXPackOptions();
+            var runner = new OsxPackCommandRunner(Logger, Logger);
+            await runner.Run(options).ConfigureAwait(false);
 
         } else if (VelopackRuntimeInfo.IsLinux) {
-            //TODO: Implement
-
+            var options = this.ToLinuxPackOptions();
+            var runner = new LinuxPackCommandRunner(Logger, Logger);
+            await runner.Run(options).ConfigureAwait(false);
         } else {
-            //TODO: Do we really want to fail to pack (effectively failing the user's publish, or should we just warn?
             throw new NotSupportedException("Unsupported OS platform: " + VelopackRuntimeInfo.SystemOs.GetOsLongName());
         }
+
+        Log.LogMessage(MessageImportance.High, $"{PackId} ({PackVersion}) created in {Path.GetFullPath(ReleaseDir)}");
         return true;
     }
 }

@@ -1,14 +1,7 @@
 <Project>
   <PropertyGroup>
-    <!-- 
-    TODO: Should we default this to false? 
-    Is the action of adding the NuGet package sufficient to assume the user wants this to always 
-    create a release on publish? 
-    -->
     <VelopackPackOnPublish Condition="$(VelopackPackOnPublish) == ''">true</VelopackPackOnPublish>
-    
-    <!-- By default we will push if packing is enabled -->
-    <VelopackPushOnPublish Condition="$(VelopackPushOnPublish) == ''">$(VelopackPackOnPublish)</VelopackPushOnPublish>
+    <VelopackPushOnPublish Condition="$(VelopackPushOnPublish) == ''">false</VelopackPushOnPublish>
 
     <!-- 
     https://learn.microsoft.com/visualstudio/msbuild/tutorial-custom-task-code-generation?view=vs-2022&WT.mc_id=DT-MVP-5003472#changes-required-to-multitarget
@@ -17,23 +10,25 @@
     <VelopackStronglyTyped_TFM Condition=" '$(MSBuildRuntimeType)' == 'Core' ">net6.0</VelopackStronglyTyped_TFM>
   </PropertyGroup>
 
-  <UsingTask TaskName="Velopack.Build.PackTask"
-        AssemblyFile="..\..\build\$(Configuration)\$(VelopackStronglyTyped_TFM)\Velopack.Build.dll"/>
-
-  <UsingTask TaskName="Velopack.Build.PublishTask"
-          AssemblyFile="..\..\build\$(Configuration)\$(VelopackStronglyTyped_TFM)\Velopack.Build.dll"/>
+  <UsingTask TaskName="Velopack.Build.PackTask" AssemblyFile="..\..\build\$(Configuration)\$(VelopackStronglyTyped_TFM)\Velopack.Build.dll"/>
+  <UsingTask TaskName="Velopack.Build.PublishTask" AssemblyFile="..\..\build\$(Configuration)\$(VelopackStronglyTyped_TFM)\Velopack.Build.dll"/>
 
   <Target Name="_VelopackResolveProperties" AfterTargets="Publish" BeforeTargets="VelopackBuildRelease">
     <PropertyGroup>
       <VelopackPackVersion Condition="'$(VelopackPackVersion)' == ''">$(Version)</VelopackPackVersion>
-      <VelopackPackId Condition="'$(VelopackPackId)' == ''">$(AssemblyName)</VelopackPackId>
+      <!--<VelopackPackId Condition="'$(VelopackPackId)' == ''">$(AssemblyName)</VelopackPackId>-->
+      <VelopackEntryExecutableName Condition="'$(VelopackEntryExecutableName)' == ''">$(AssemblyName)</VelopackEntryExecutableName>
       <VelopackPackDirectory Condition="'$(VelopackPackDirectory)' == ''">$(PublishDir)</VelopackPackDirectory>
+      <VelopackReleaseDirectory Condition="'$(VelopackReleaseDirectory)' == ''">Releases</VelopackReleaseDirectory>
+      <VelopackPackTitle Condition="'$(VelopackPackTitle)' == ''">$(Product)</VelopackPackTitle>
+      <VelopackPackAuthors Condition="'$(VelopackPackAuthors)' == ''">$(Authors)</VelopackPackAuthors>
 
-      <!-- TODO: Is there a way to try and determine this from the project? -->
+      <!-- 
+      TODO: the required runtimes can be automatically set (windows only)
+      We need to know the TargetFramework and the RID that's being published.
+      Probably we should pass these both into the C# Task and let it figure out the runtimes.
       <VelopackRuntimes Condition="'$(VelopackRuntimes)' == ''">net8-x64-desktop</VelopackRuntimes>
-
-      <!-- TODO: is this a reasonable default? -->
-      <VelopackReleaseDirectory Condition="'$(VelopackReleaseDirectory)' == ''">releases</VelopackReleaseDirectory>
+      -->
     </PropertyGroup>
 
     <ConvertToAbsolutePath Paths="$(VelopackReleaseDirectory)">
@@ -49,25 +44,51 @@
     <!-- 
     TODO: Add additional error checking for the rest of the parameters.
     -->
-    <Warning Condition="'$(VelopackPackVersion)' == ''"
+    <!--<Warning Condition="'$(VelopackPackVersion)' == ''"
              Text="No version specified, Velopack will not publish a release."
-             />
+             />-->
 
     <PackTask
-      Condition="'$(VelopackPackVersion)' != ''"
+      TargetRuntime="$(VelopackTargetRuntime)"
+      PackVersion="$(VelopackPackVersion)"
       Runtimes="$(VelopackRuntimes)"
       PackId="$(VelopackPackId)"
-      ReleaseDirectory="$(VelopackReleaseDirectory)"
       PackDirectory="$(VelopackPackDirectory)"
-      PackVersion="$(VelopackPackVersion)"
-      />
+      ReleaseDir="$(VelopackReleaseDirectory)"
+      PackAuthors="$(VelopackPackAuthors)"
+      PackTitle="$(VelopackPackTitle)"
+      EntryExecutableName="$(VelopackEntryExecutableName)"
+      Icon="$(VelopackIcon)"
+      ReleaseNotes="$(VelopackReleaseNotes)"
+      DeltaMode="$(VelopackDeltaMode)"
+      Channel="$(VelopackChannel)"
+      PackIsAppDir="$(VelopackPackIsAppDir)"
+      IncludePdb="$(VelopackIncludePdb)"
+      NoPackage="$(VelopackNoPackage)"
+      PackageWelcome="$(VelopackPackageWelcome)"
+      PackageReadme="$(VelopackPackageReadme)"
+      PackageLicense="$(VelopackPackageLicense)"
+      PackageConclusion="$(VelopackPackageConclusion)"
+      SigningAppIdentity="$(VelopackSigningAppIdentity)"
+      SigningInstallIdentity="$(VelopackSigningInstallIdentity)"
+      SigningEntitlements="$(VelopackSigningEntitlements)"
+      NotaryProfile="$(VelopackNotaryProfile)"
+      BundleId="$(VelopackBundleId)"
+      InfoPlistPath="$(VelopackInfoPlistPath)"
+      SplashImage="$(VelopackSplashImage)"
+      SkipVelopackAppCheck="$(VelopackSkipVelopackAppCheck)"
+      SignParameters="$(VelopackSignParameters)"
+      SignSkipDll="$(VelopackSignSkipDll)"
+      SignParallel="$(VelopackSignParallel)"
+      SignTemplate="$(VelopackSignTemplate)"
+    />
   </Target>
 
   <Target Name="VelopackPushRelease" AfterTargets="VelopackBuildRelease" Condition="'$(VelopackPushOnPublish)' == 'true'">
-    <PublishTask 
+    <PublishTask
       ReleaseDirectory="$(VelopackReleaseDirectory)"
       Version="$(VelopackPackVersion)"
       ServiceUrl="$(VelopackFlowServiceUrl)"
-      />
+    />
   </Target>
 </Project>

@@ -82,6 +82,8 @@ public static class HelperFile
 #endif
     }
 
+    public static void ClearSearchPaths() => _searchPaths.Clear();
+
     public static void AddSearchPath(params string[] pathParts)
     {
         AddSearchPath(Path.Combine(pathParts));
