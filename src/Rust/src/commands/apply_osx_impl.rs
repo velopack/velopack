@@ -7,8 +7,14 @@ use anyhow::{bail, Result};
 use std::{fs, path::PathBuf, process::Command};
 
 pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, pkg: &PathBuf, _runhooks: bool) -> Result<Manifest> {
-    let tmp_path_new = format!("/tmp/velopack/{}/{}", app.id, shared::random_string(8));
-    let tmp_path_old = format!("/tmp/velopack/{}/{}", app.id, shared::random_string(8));
+    let mut cache_dir = std::env::home_dir().expect("Could not locate user home directory via $HOME or /etc/passwd");
+    cache_dir.push("Library");
+    cache_dir.push("Caches");
+    cache_dir.push("velopack");
+    cache_dir.push(&app.id);
+
+    let tmp_path_new = cache_dir.join(shared::random_string(8)).to_string_lossy();
+    let tmp_path_old = cache_dir.join(shared::random_string(8)).to_string_lossy();
     let bundle = bundle::load_bundle_from_file(pkg)?;
     let manifest = bundle.read_manifest()?;
 

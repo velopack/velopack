@@ -87,7 +87,8 @@ fn main() -> Result<()> {
     if let Some(log_file) = log_file {
         logging::setup_logging(Some(&log_file), true, verbose, nocolor)?;
     } else {
-        default_logging(verbose, nocolor, true)?;
+        let default_log_file = logging::default_log_location();
+        logging::setup_logging(Some(&default_log_file), true, verbose, nocolor)?;
     }
 
     // change working directory to the parent directory of the exe
@@ -182,20 +183,6 @@ fn uninstall(_matches: &ArgMatches) -> Result<()> {
     info!("Command: Uninstall");
     let (root_path, app) = shared::detect_current_manifest()?;
     commands::uninstall(&root_path, &app, true)
-}
-
-pub fn default_logging(verbose: bool, nocolor: bool, console: bool) -> Result<()> {
-    #[cfg(windows)]
-    let default_log_file = {
-        let mut my_dir = env::current_exe().unwrap();
-        my_dir.pop();
-        my_dir.join("Velopack.log")
-    };
-
-    #[cfg(unix)]
-    let default_log_file = std::path::Path::new("/tmp/velopack.log").to_path_buf();
-
-    logging::setup_logging(Some(&default_log_file), console, verbose, nocolor)
 }
 
 #[cfg(target_os = "windows")]

@@ -33,7 +33,13 @@ namespace Velopack.Locators
         public override string? AppTempDir => CreateSubDirIfDoesNotExist(Utility.GetDefaultTempBaseDirectory(), AppId);
 
         /// <inheritdoc />
-        public override string? PackagesDir => CreateSubDirIfDoesNotExist(AppTempDir, "packages");
+        public override string? PackagesDir => CreateSubDirIfDoesNotExist(CachesAppDir, "packages");
+
+        private string? CachesAppDir => CreateSubDirIfDoesNotExist(CachesVelopackDir, AppId);
+        private string? CachesVelopackDir => CreateSubDirIfDoesNotExist(CachesDir, "velopack");
+        private string? CachesDir => CreateSubDirIfDoesNotExist(LibraryDir, "Caches");
+        private string? LibraryDir => CreateSubDirIfDoesNotExist(HomeDir, "Library");
+        private string? HomeDir => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
         /// <inheritdoc />
         public override string? Channel { get; }
