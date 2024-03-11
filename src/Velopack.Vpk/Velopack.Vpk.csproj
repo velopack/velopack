@@ -16,7 +16,6 @@
     <PackageIcon>Velopack_200.png</PackageIcon>
     <LangVersion>latest</LangVersion>
     <NoWarn>$(NoWarn);CA2007;CS8002</NoWarn>
-    <NoNuGetizer>true</NoNuGetizer>
   </PropertyGroup>
 
   <ItemGroup>

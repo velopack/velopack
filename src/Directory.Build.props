@@ -20,7 +20,7 @@
     <Product>Velopack</Product>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <Copyright>Copyright © Caelan Sayler 2021</Copyright>
-    <Authors>Caelan Sayler</Authors>
+    <Authors>Caelan Sayler;Kevin Bost</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/velopack/velopack</PackageProjectUrl>
     <RepositoryUrl>https://github.com/velopack/velopack</RepositoryUrl>
@@ -30,7 +30,6 @@
   <ItemGroup Condition=" '$(MSBuildProjectExtension)'=='.csproj' ">
     <PackageReference Include="Nerdbank.GitVersioning" Version="3.6.*" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
-    <PackageReference Include="NuGetizer" Version="1.2.1" PrivateAssets="all" Condition=" '$(NoNuGetizer)'=='' " />
   </ItemGroup>
 
   <PropertyGroup Condition=" '$(MSBuildProjectExtension)'=='.vcxproj' ">

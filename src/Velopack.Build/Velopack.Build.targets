@@ -8,7 +8,7 @@
     -->
     <VelopackStronglyTyped_TFM Condition=" '$(MSBuildRuntimeType)' != 'Core' ">net472</VelopackStronglyTyped_TFM>
     <VelopackStronglyTyped_TFM Condition=" '$(MSBuildRuntimeType)' == 'Core' ">net6.0</VelopackStronglyTyped_TFM>
-    <VelopackBuildDll>$(MSBuildThisFileDirectory)..\lib\$(VelopackStronglyTyped_TFM)\Velopack.Build.dll</VelopackBuildDll>
+    <VelopackBuildDll>$(MSBuildThisFileDirectory)$(VelopackStronglyTyped_TFM)\Velopack.Build.dll</VelopackBuildDll>
   </PropertyGroup>
 
   <UsingTask TaskName="Velopack.Build.PackTask" AssemblyFile="$(VelopackBuildDll)"/>

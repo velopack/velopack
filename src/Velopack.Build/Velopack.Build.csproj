@@ -5,13 +5,18 @@
     <Nullable>enable</Nullable>
     <LangVersion>12</LangVersion>
     <SignAssembly>false</SignAssembly>
-    <!-- 
+    <!--
     https://learn.microsoft.com/dotnet/core/project-sdk/msbuild-props?WT.mc_id=DT-MVP-5003472#copylocallockfileassemblies
     -->
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <PackDependencies>true</PackDependencies>
     <PackTransitive>true</PackTransitive>
-    
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);IncludeTfmDependenciesInPackage</TargetsForTfmSpecificContentInPackage>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -27,13 +32,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackInference Include="Compile" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Velopack.Packaging.Unix\Velopack.Packaging.Unix.csproj" PrivateAssets="all" PackInclude="all" />
-    <ProjectReference Include="..\Velopack.Packaging.Windows\Velopack.Packaging.Windows.csproj" PrivateAssets="all" PackInclude="all" />
-    <ProjectReference Include="..\Velopack\Velopack.csproj" PrivateAssets="all" PackInclude="all" />
+    <ProjectReference Include="..\Velopack.Packaging.Unix\Velopack.Packaging.Unix.csproj"
+      PrivateAssets="all" />
+    <ProjectReference Include="..\Velopack.Packaging.Windows\Velopack.Packaging.Windows.csproj"
+      PrivateAssets="all" />
+    <ProjectReference Include="..\Velopack\Velopack.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -68,6 +71,14 @@
     <None Include="..\..\artwork\DefaultApp_64.png" Pack="true" PackagePath="vendor/" />
   </ItemGroup>
 
+  <Target Name="IncludeTfmDependenciesInPackage">
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(TargetDir)*.*">
+        <PackagePath>build\$(TargetFramework)</PackagePath>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
+  </Target>
+
   <!--<PropertyGroup>
   </PropertyGroup>
 
@@ -94,27 +105,32 @@
   </ItemGroup>
 
   <PropertyGroup Label="Windows" Condition="$([System.OperatingSystem]::IsWindows())">
-    <VelopackRustOutputDirectory>..\Rust\target\$(Configuration.ToLower())</VelopackRustOutputDirectory>
+  <VelopackRustOutputDirectory>..\Rust\target\$(Configuration.ToLower())</VelopackRustOutputDirectory>
     <VelopackUpdateExe>update.exe</VelopackUpdateExe>
     <VelopackStubExe>stub.exe</VelopackStubExe>
     <VelopackSetupExe>setup.exe</VelopackSetupExe>
   </PropertyGroup>
 
   <ItemGroup Condition="$([System.OperatingSystem]::IsWindows())">
-    <None Include="..\Rust\target\$(Configuration.ToLower())\$(VelopackUpdateExe)" Link="$(VelopackUpdateExe)" Visible="false">
+    <None Include="..\Rust\target\$(Configuration.ToLower())\$(VelopackUpdateExe)"
+  Link="$(VelopackUpdateExe)" Visible="false">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\Rust\target\$(Configuration.ToLower())\$(VelopackStubExe)" Link="$(VelopackStubExe)" Visible="false">
+    <None Include="..\Rust\target\$(Configuration.ToLower())\$(VelopackStubExe)"
+  Link="$(VelopackStubExe)" Visible="false">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\Rust\target\$(Configuration.ToLower())\$(VelopackSetupExe)" Link="$(VelopackSetupExe)" Visible="false">
+    <None Include="..\Rust\target\$(Configuration.ToLower())\$(VelopackSetupExe)"
+  Link="$(VelopackSetupExe)" Visible="false">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
 
-    <None Include="..\..\vendor\rcedit.exe" Link="rcedit.exe" Visible="false" Condition="$([System.OperatingSystem]::IsWindows())">
+    <None Include="..\..\vendor\rcedit.exe" Link="rcedit.exe" Visible="false"
+  Condition="$([System.OperatingSystem]::IsWindows())">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\..\vendor\zstd.exe" Link="zstd.exe" Visible="false" Condition="$([System.OperatingSystem]::IsWindows())">
+    <None Include="..\..\vendor\zstd.exe" Link="zstd.exe" Visible="false"
+  Condition="$([System.OperatingSystem]::IsWindows())">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>-->
