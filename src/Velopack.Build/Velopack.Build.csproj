@@ -5,17 +5,21 @@
     <Nullable>enable</Nullable>
     <LangVersion>12</LangVersion>
     <SignAssembly>false</SignAssembly>
-    <!--
-    https://learn.microsoft.com/dotnet/core/project-sdk/msbuild-props?WT.mc_id=DT-MVP-5003472#copylocallockfileassemblies
-    -->
+    <!-- https://learn.microsoft.com/dotnet/core/project-sdk/msbuild-props?WT.mc_id=DT-MVP-5003472#copylocallockfileassemblies -->
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <PackDependencies>true</PackDependencies>
-    <PackTransitive>true</PackTransitive>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
-    <IncludeBuildOutput>false</IncludeBuildOutput>
   </PropertyGroup>
 
   <PropertyGroup>
+    <!-- Improve devloop by clearing this package from NuGet cache before building -->
+    <HttpNuGetCache>$(LocalAppData)\NuGet\v3-cache</HttpNuGetCache>
+    <CleanHttpNuGetCacheOnPack Condition="'$(CleanHttpNuGetCacheOnPack)' == ''">true</CleanHttpNuGetCacheOnPack>
+    <NuGetCache>$(UserProfile)\.nuget\packages</NuGetCache>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Include all project/package dependencies in produced NuGet package -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
     <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);IncludeTfmDependenciesInPackage</TargetsForTfmSpecificContentInPackage>
   </PropertyGroup>
 
@@ -32,11 +36,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Velopack.Packaging.Unix\Velopack.Packaging.Unix.csproj"
-      PrivateAssets="all" />
-    <ProjectReference Include="..\Velopack.Packaging.Windows\Velopack.Packaging.Windows.csproj"
-      PrivateAssets="all" />
-    <ProjectReference Include="..\Velopack\Velopack.csproj" />
+    <ProjectReference Include="..\Velopack.Packaging.Unix\Velopack.Packaging.Unix.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\Velopack.Packaging.Windows\Velopack.Packaging.Windows.csproj" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
@@ -47,28 +48,28 @@
   <ItemGroup>
     <None Include="..\..\artwork\Velopack_200.png" Pack="true" PackagePath="/" />
     <None Include="..\..\README_NUGET.md" Pack="true" PackagePath="/" />
-    <None Include="Velopack.Build.targets" Pack="true" PackagePath="build\Velopack.Build.targets" />
+    <None Include="Velopack.Build.targets" Pack="true" PackagePath="build/Velopack.Build.targets" />
   </ItemGroup>
 
   <ItemGroup Condition=" $([System.OperatingSystem]::IsWindows()) or '$(PackRustAssets)' == 'true' ">
-    <None Include="..\Rust\target\release\update.exe" Pack="true" PackagePath="vendor/" />
-    <None Include="..\Rust\target\release\setup.exe" Pack="true" PackagePath="vendor/" />
-    <None Include="..\Rust\target\release\stub.exe" Pack="true" PackagePath="vendor/" />
-    <None Include="..\..\vendor\rcedit.exe" Pack="true" PackagePath="vendor/" />
-    <None Include="..\..\vendor\zstd.exe" Pack="true" PackagePath="vendor/" />
-    <None Include="..\..\vendor\signtool.exe" Pack="true" PackagePath="vendor/" />
+    <None Include="..\Rust\target\release\update.exe" Pack="true" PackagePath="vendor" />
+    <None Include="..\Rust\target\release\setup.exe" Pack="true" PackagePath="vendor" />
+    <None Include="..\Rust\target\release\stub.exe" Pack="true" PackagePath="vendor" />
+    <None Include="..\..\vendor\rcedit.exe" Pack="true" PackagePath="vendor" />
+    <None Include="..\..\vendor\zstd.exe" Pack="true" PackagePath="vendor" />
+    <None Include="..\..\vendor\signtool.exe" Pack="true" PackagePath="vendor" />
   </ItemGroup>
 
   <ItemGroup Condition=" $([System.OperatingSystem]::IsMacOS()) or '$(PackRustAssets)' == 'true' ">
-    <None Include="..\Rust\target\release\UpdateMac" Pack="true" PackagePath="vendor/" />
-    <None Include="..\..\Velopack.entitlements" Pack="true" PackagePath="vendor/" />
-    <None Include="..\..\artwork\DefaultApp.icns" Pack="true" PackagePath="vendor/" />
+    <None Include="..\Rust\target\release\UpdateMac" Pack="true" PackagePath="vendor" />
+    <None Include="..\..\Velopack.entitlements" Pack="true" PackagePath="vendor" />
+    <None Include="..\..\artwork\DefaultApp.icns" Pack="true" PackagePath="vendor" />
   </ItemGroup>
 
   <ItemGroup Condition=" $([System.OperatingSystem]::IsLinux()) or '$(PackRustAssets)' == 'true' ">
-    <None Include="..\Rust\target\release\UpdateNix" Pack="true" PackagePath="vendor/" />
-    <None Include="..\..\vendor\appimagetool-x86_64.AppImage" Pack="true" PackagePath="vendor/" />
-    <None Include="..\..\artwork\DefaultApp_64.png" Pack="true" PackagePath="vendor/" />
+    <None Include="..\Rust\target\release\UpdateNix" Pack="true" PackagePath="vendor" />
+    <None Include="..\..\vendor\appimagetool-x86_64.AppImage" Pack="true" PackagePath="vendor" />
+    <None Include="..\..\artwork\DefaultApp_64.png" Pack="true" PackagePath="vendor" />
   </ItemGroup>
 
   <Target Name="IncludeTfmDependenciesInPackage">
@@ -79,61 +80,35 @@
     </ItemGroup>
   </Target>
 
-  <!--<PropertyGroup>
-  </PropertyGroup>
+  <Target Name="CleanPackageOutput" BeforeTargets="Build">
+    <ItemGroup>
+      <_ExistingPackage Include="$(PackageOutputPath)\$(PackageId)*.nupkg" />
+      <_PackageToDelete Include="@(_ExistingPackage)"
+                        Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Filename)', '$(PackageId)\.\d\.\d\.\d.*'))" />
+    </ItemGroup>
+    <Delete Files="@(_PackageToDelete)" ContinueOnError="true">
+      <Output TaskParameter="DeletedFiles" ItemName="_CleanedPackages" />
+    </Delete>
+    <Message Text="Cleaned existing packages: @(_CleanedPackages -> '%(Filename)%(Extension)')"
+             Condition="'@(_CleanedPackages)' != ''" />
+  </Target>
 
-  <PropertyGroup Label="MacOS" Condition="$([System.OperatingSystem]::IsMacOS())">
-    <VelopackRustOutputDirectory>..\Rust\target</VelopackRustOutputDirectory>
-    <VelopackUpdateExe>UpdateMac</VelopackUpdateExe>
-  </PropertyGroup>
+  <Target Name="CleanCachedPackageId" AfterTargets="Build;Pack">
+    <PropertyGroup>
+      <PackageFolder>$(NuGetCache)\$(PackageId.ToLowerInvariant())</PackageFolder>
+    </PropertyGroup>
 
-  <ItemGroup Condition="$([System.OperatingSystem]::IsMacOS())">
-    <None Include="..\Rust\target\$(VelopackUpdateExe)" Link="$(VelopackUpdateExe)" Visible="false">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+    <Message Text="Cleaning $(PackageFolder)" Condition="Exists($(PackageFolder))" />
+    <Exec Command='rd "$(PackageFolder)" /q /s' Condition="Exists($(PackageFolder)) and '$(OS)' == 'Windows_NT'" />
+    <Exec Command='rm -rf "$(PackageFolder)"' Condition="Exists($(PackageFolder)) and '$(OS)' != 'Windows_NT'" />
+  </Target>
 
-  <PropertyGroup Label="Linux" Condition="$([System.OperatingSystem]::IsLinux())">
-    <VelopackRustOutputDirectory>..\Rust\target</VelopackRustOutputDirectory>
-    <VelopackUpdateExe>UpdateNix</VelopackUpdateExe>
-  </PropertyGroup>
-
-  <ItemGroup Condition="$([System.OperatingSystem]::IsMacOS())">
-    <None Include="..\Rust\target\$(VelopackUpdateExe)" Link="$(VelopackUpdateExe)" Visible="false">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
-  <PropertyGroup Label="Windows" Condition="$([System.OperatingSystem]::IsWindows())">
-  <VelopackRustOutputDirectory>..\Rust\target\$(Configuration.ToLower())</VelopackRustOutputDirectory>
-    <VelopackUpdateExe>update.exe</VelopackUpdateExe>
-    <VelopackStubExe>stub.exe</VelopackStubExe>
-    <VelopackSetupExe>setup.exe</VelopackSetupExe>
-  </PropertyGroup>
-
-  <ItemGroup Condition="$([System.OperatingSystem]::IsWindows())">
-    <None Include="..\Rust\target\$(Configuration.ToLower())\$(VelopackUpdateExe)"
-  Link="$(VelopackUpdateExe)" Visible="false">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="..\Rust\target\$(Configuration.ToLower())\$(VelopackStubExe)"
-  Link="$(VelopackStubExe)" Visible="false">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="..\Rust\target\$(Configuration.ToLower())\$(VelopackSetupExe)"
-  Link="$(VelopackSetupExe)" Visible="false">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-
-    <None Include="..\..\vendor\rcedit.exe" Link="rcedit.exe" Visible="false"
-  Condition="$([System.OperatingSystem]::IsWindows())">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="..\..\vendor\zstd.exe" Link="zstd.exe" Visible="false"
-  Condition="$([System.OperatingSystem]::IsWindows())">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>-->
-
+  <Target Name="CleanHttpNuGetCache"
+          Condition="'$(CleanHttpNuGetCacheOnPack)' == 'true' and Exists('$(HttpNuGetCache)')"
+          AfterTargets="Build;Pack">
+    <Message Text="Cleaning $(HttpNuGetCache)" />
+    <Exec Command='rd "$(HttpNuGetCache)" /q /s' Condition="'$(OS)' == 'Windows_NT'" />
+    <Exec Command='rm -rf "$(HttpNuGetCache)"' Condition="'$(OS)' != 'Windows_NT'" />
+  </Target>
 
 </Project>
