@@ -184,6 +184,10 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
     private void CreateExecutableStubForExe(string exeToCopy, string targetStubPath)
     {
+        if (!File.Exists(exeToCopy)) {
+            throw new ArgumentException($"Cannot create StubExecutable for '{exeToCopy}' because it does not exist.");
+        }
+
         try {
             Utility.Retry(() => File.Copy(HelperFile.StubExecutablePath, targetStubPath, true));
             Utility.Retry(() => {

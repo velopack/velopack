@@ -83,7 +83,8 @@ public class PackTask : MSBuildAsyncTask
     {
         //System.Diagnostics.Debugger.Launch();
         HelperFile.ClearSearchPaths();
-        HelperFile.AddSearchPath(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "..", "..", "vendor");
+        var searchPath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "..", "..", "vendor"));
+        HelperFile.AddSearchPath(searchPath);
 
         if (VelopackRuntimeInfo.IsWindows) {
             var options = this.ToWinPackOptions();

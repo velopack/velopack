@@ -115,7 +115,7 @@ public static class HelperFile
 
         var result = files.FirstOrDefault();
         if (result == null && throwWhenNotFound)
-            throw new Exception($"Could not find '{toFind}'.");
+            throw new Exception($"HelperFile could not find '{toFind}'.");
 
         return result;
     }

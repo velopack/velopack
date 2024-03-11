@@ -48,7 +48,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
             throw new UserInfoException($"To build packages for {SupportedTargetOs.GetOsLongName()}, " +
                 $"the target rid must be {SupportedTargetOs} (actually was {options.TargetRuntime?.BaseRID}).");
 
-        Log.Info("Beginning to package release.");
+        Log.Info($"Beginning to package Velopack release {options.PackVersion}.");
         Log.Info("Releases Directory: " + options.ReleaseDir.FullName);
 
         var releaseDir = options.ReleaseDir;
@@ -86,8 +86,8 @@ public abstract class PackageBuilder<T> : ICommand<T>
             );
         }
 
-        MainExeName = mainExeName;
         MainExePath = mainExePath;
+        MainExeName = Path.GetFileName(mainExePath);
 
         using var _1 = Utility.GetTempDirectory(out var pkgTempDir);
         TempDir = new DirectoryInfo(pkgTempDir);
