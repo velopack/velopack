@@ -2,10 +2,7 @@
   <PropertyGroup>
     <VelopackPackOnPublish Condition="$(VelopackPackOnPublish) == ''">true</VelopackPackOnPublish>
     <VelopackPushOnPublish Condition="$(VelopackPushOnPublish) == ''">false</VelopackPushOnPublish>
-
-    <!-- 
-    https://learn.microsoft.com/visualstudio/msbuild/tutorial-custom-task-code-generation?view=vs-2022&WT.mc_id=DT-MVP-5003472#changes-required-to-multitarget
-    -->
+    <!-- https://learn.microsoft.com/visualstudio/msbuild/tutorial-custom-task-code-generation?view=vs-2022&WT.mc_id=DT-MVP-5003472#changes-required-to-multitarget -->
     <VelopackStronglyTyped_TFM Condition=" '$(MSBuildRuntimeType)' != 'Core' ">net472</VelopackStronglyTyped_TFM>
     <VelopackStronglyTyped_TFM Condition=" '$(MSBuildRuntimeType)' == 'Core' ">net6.0</VelopackStronglyTyped_TFM>
     <VelopackBuildDll>$(MSBuildThisFileDirectory)$(VelopackStronglyTyped_TFM)\Velopack.Build.dll</VelopackBuildDll>
@@ -17,20 +14,21 @@
   <Target Name="_VelopackResolveProperties" AfterTargets="Publish" BeforeTargets="VelopackBuildRelease">
     <PropertyGroup>
       <VelopackPackVersion Condition="'$(VelopackPackVersion)' == ''">$(Version)</VelopackPackVersion>
-      <!--<VelopackPackId Condition="'$(VelopackPackId)' == ''">$(AssemblyName)</VelopackPackId>-->
+      <VelopackImplicitPackId Condition="'$(VelopackPackId)' == ''">true</VelopackImplicitPackId>
+      <VelopackPackId Condition="'$(VelopackPackId)' == ''">$(AssemblyName)</VelopackPackId>
       <VelopackEntryExecutableName Condition="'$(VelopackEntryExecutableName)' == ''">$(AssemblyName)</VelopackEntryExecutableName>
       <VelopackPackDirectory Condition="'$(VelopackPackDirectory)' == ''">$(PublishDir)</VelopackPackDirectory>
       <VelopackReleaseDirectory Condition="'$(VelopackReleaseDirectory)' == ''">Releases</VelopackReleaseDirectory>
       <VelopackPackTitle Condition="'$(VelopackPackTitle)' == ''">$(Product)</VelopackPackTitle>
       <VelopackPackAuthors Condition="'$(VelopackPackAuthors)' == ''">$(Authors)</VelopackPackAuthors>
       <VelopackTargetRuntime Condition="'$(VelopackTargetRuntime)' == ''">$(RuntimeIdentifier)</VelopackTargetRuntime>
-
-      <!-- 
-      TODO: the required runtimes can be automatically set (windows only)
-      We need to know the TargetFramework, RID, and SelfContained properties.
-      Probably we should pass these both into the C# Task and let it figure out the runtimes.
-      <VelopackRuntimes Condition="'$(VelopackRuntimes)' == ''">net8-x64-desktop</VelopackRuntimes>
-      -->
+      
+      <!-- Allows a cross platform app (eg. Avalonia) to specify all three via csproj and have them applied correctly -->
+      <!-- TODO: this should probably switch based on the target RID and not the current OS, but we currently don't 
+           support packing for an OS != target RID so we're probably okay for now. -->
+      <VelopackIcon Condition="'$(VelopackIcon)' == '' and $([System.OperatingSystem]::IsWindows())">$(ApplicationIcon)</VelopackIcon>
+      <VelopackIcon Condition="'$(VelopackIcon)' == '' and $([System.OperatingSystem]::IsLinux())">$(ApplicationPng)</VelopackIcon>
+      <VelopackIcon Condition="'$(VelopackIcon)' == '' and $([System.OperatingSystem]::IsMacOS())">$(ApplicationIcns)</VelopackIcon>
     </PropertyGroup>
 
     <ConvertToAbsolutePath Paths="$(VelopackReleaseDirectory)">
@@ -39,6 +37,10 @@
 
     <ConvertToAbsolutePath Paths="$(VelopackPackDirectory)">
       <Output TaskParameter="AbsolutePaths" PropertyName="VelopackPackDirectory"/>
+    </ConvertToAbsolutePath>
+
+    <ConvertToAbsolutePath Paths="$(VelopackIcon)">
+      <Output TaskParameter="AbsolutePaths" PropertyName="VelopackIcon"/>
     </ConvertToAbsolutePath>
   </Target>
 
@@ -50,6 +52,11 @@
              Text="No version specified, Velopack will not publish a release."
              />-->
 
+    <Error Condition=" '$(SelfContained)' != 'true' and $([System.OperatingSystem]::IsMacOS()) "
+           Text="Only SelfContained=true releases are supported on MacOS. Please dotnet publish with the --self-contained option." />
+    <Error Condition=" '$(SelfContained)' != 'true' and $([System.OperatingSystem]::IsLinux()) "
+           Text="Only SelfContained=true releases are supported on Linux. Please dotnet publish with the --self-contained option." />
+    
     <PackTask
       SelfContained="$(SelfContained)"
       TargetFramework="$(TargetFramework)"
@@ -89,6 +96,7 @@
   </Target>
 
   <Target Name="VelopackPushRelease" AfterTargets="VelopackBuildRelease" Condition="'$(VelopackPushOnPublish)' == 'true'">
+    <Error Condition="'$(VelopackImplicitPackId)' == 'true'" Text="VelopackPackId must be set explictly before pushing a release to remote." />
     <PublishTask
       ReleaseDirectory="$(VelopackReleaseDirectory)"
       Version="$(VelopackPackVersion)"
