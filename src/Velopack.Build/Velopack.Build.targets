@@ -51,6 +51,8 @@
              />-->
 
     <PackTask
+      SelfContained="$(SelfContained)"
+      TargetFramework="$(TargetFramework)"
       TargetRuntime="$(VelopackTargetRuntime)"
       PackVersion="$(VelopackPackVersion)"
       Runtimes="$(VelopackRuntimes)"

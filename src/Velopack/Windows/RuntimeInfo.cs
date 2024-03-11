@@ -187,7 +187,7 @@ namespace Velopack.Windows
             };
 
             /// <inheritdoc/>
-            protected DotnetInfo(Version minversion, RuntimeCpu architecture, DotnetRuntimeType runtimeType = DotnetRuntimeType.WindowsDesktop)
+            public DotnetInfo(Version minversion, RuntimeCpu architecture, DotnetRuntimeType runtimeType = DotnetRuntimeType.WindowsDesktop)
             {
                 MinVersion = new NuGetVersion(minversion);
                 CpuArchitecture = architecture;

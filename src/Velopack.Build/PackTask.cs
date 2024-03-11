@@ -11,7 +11,12 @@ namespace Velopack.Build;
 
 public class PackTask : MSBuildAsyncTask
 {
+    public bool SelfContained { get; set; }
+
     public string? TargetRuntime { get; set; }
+
+    [Required]
+    public string TargetFramework { get; set; } = null!;
 
     [Required]
     public string PackVersion { get; set; } = "";
@@ -88,13 +93,33 @@ public class PackTask : MSBuildAsyncTask
 
         if (VelopackRuntimeInfo.IsWindows) {
             var options = this.ToWinPackOptions();
+
+            // we can auto-compute the requires runtimes on Windows from the TFM/RID
+            if (!SelfContained && String.IsNullOrEmpty(options.Runtimes)) {
+#pragma warning disable CS0618 // Type or member is obsolete
+                if (TargetFramework.Contains("-")) {
+                    TargetFramework = TargetFramework.Substring(0, TargetFramework.IndexOf('-'));
+                }
+                var runtime = Windows.Runtimes.GetRuntimeByName(TargetFramework);
+                if (runtime is Windows.Runtimes.FrameworkInfo) {
+                    options.Runtimes = runtime.Id;
+                    Log.LogMessage(MessageImportance.High, $"Setup.exe will automatically bootstrap {runtime.DisplayName}.");
+                } else if (!SelfContained && runtime is Windows.Runtimes.DotnetInfo dni && options.TargetRuntime.HasArchitecture) {
+                    var rt = new Windows.Runtimes.DotnetInfo(dni.MinVersion.Version, options.TargetRuntime.Architecture);
+                    options.Runtimes = rt.Id;
+                    Log.LogMessage(MessageImportance.High, $"Setup.exe will automatically bootstrap {rt.DisplayName}.");
+                } else {
+                    Log.LogWarning($"No runtime specified and no default runtime found for TFM '{TargetFramework}', please specify runtimes via VelopackRuntimes property in your csproj.");
+                }
+#pragma warning restore CS0618 // Type or member is obsolete
+            }
+
             var runner = new WindowsPackCommandRunner(Logger, Logger);
             await runner.Run(options).ConfigureAwait(false);
         } else if (VelopackRuntimeInfo.IsOSX) {
             var options = this.ToOSXPackOptions();
             var runner = new OsxPackCommandRunner(Logger, Logger);
             await runner.Run(options).ConfigureAwait(false);
-
         } else if (VelopackRuntimeInfo.IsLinux) {
             var options = this.ToLinuxPackOptions();
             var runner = new LinuxPackCommandRunner(Logger, Logger);
