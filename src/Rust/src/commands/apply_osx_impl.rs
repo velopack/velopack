@@ -7,14 +7,15 @@ use anyhow::{bail, Result};
 use std::{fs, path::PathBuf, process::Command};
 
 pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, pkg: &PathBuf, _runhooks: bool) -> Result<Manifest> {
+    #[allow(deprecated)]
     let mut cache_dir = std::env::home_dir().expect("Could not locate user home directory via $HOME or /etc/passwd");
     cache_dir.push("Library");
     cache_dir.push("Caches");
     cache_dir.push("velopack");
     cache_dir.push(&app.id);
 
-    let tmp_path_new = cache_dir.join(shared::random_string(8)).to_string_lossy();
-    let tmp_path_old = cache_dir.join(shared::random_string(8)).to_string_lossy();
+    let tmp_path_new = cache_dir.join(shared::random_string(8) + ".tmp").to_string_lossy().to_string();
+    let tmp_path_old = cache_dir.join(shared::random_string(8) + ".tmp").to_string_lossy().to_string();
     let bundle = bundle::load_bundle_from_file(pkg)?;
     let manifest = bundle.read_manifest()?;
 
@@ -43,11 +44,12 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, pkg: &PathBuf
                     error!("A permissions error occurred ({}), will attempt to elevate permissions and try again...", e);
                     dialogs::ask_user_to_elevate(&manifest)?;
                     let script = format!(
-                        "do shell script \"mv -f '{}' '{}' && mv -f '{}' '{}'\" with administrator privileges",
+                        "do shell script \"mv -f '{}' '{}' && mv -f '{}' '{}' && rm -rf '{}'\" with administrator privileges",
                         &root_path.to_string_lossy(),
                         &tmp_path_old,
                         &tmp_path_new,
-                        &root_path.to_string_lossy()
+                        &root_path.to_string_lossy(),
+                        &tmp_path_old
                     );
                     info!("Running elevated process via osascript: {}", script);
                     let output = Command::new("osascript").arg("-e").arg(&script).status()?;
