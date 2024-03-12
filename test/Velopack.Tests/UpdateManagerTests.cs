@@ -295,6 +295,18 @@ public class UpdateManagerTests
     }
 
     [Fact]
+    public void CheckFromEmptyFileSource()
+    {
+        using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
+        using var _1 = Utility.GetTempDirectory(out var tempPath);
+        var source = new SimpleFileSource(new DirectoryInfo(tempPath));
+        var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
+        var um = new UpdateManager(source, null, logger, locator);
+        var info = um.CheckForUpdates();
+        Assert.Null(info);
+    }
+
+    [Fact]
     public void NoUpdatesIfCurrentEqualsRemoteVersion()
     {
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
