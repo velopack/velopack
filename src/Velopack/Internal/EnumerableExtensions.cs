@@ -105,7 +105,7 @@ namespace Velopack
             var result = new List<TSource>();
 
             using (var e = source.GetEnumerator()) {
-                if (!e.MoveNext()) throw new InvalidOperationException("Source sequence doesn't contain any elements.");
+                if (!e.MoveNext()) return result;
 
                 var current = e.Current;
                 var resKey = keySelector(current);
