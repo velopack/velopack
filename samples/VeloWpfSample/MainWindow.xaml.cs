@@ -13,7 +13,10 @@ namespace VeloWpfSample
         public MainWindow()
         {
             InitializeComponent();
-            _um = new UpdateManager(Program.UpdateUrl, logger: Program.Log);
+
+            string updateUrl = SampleHelper.GetReleasesDir(); // replace with your update url
+            _um = new UpdateManager(updateUrl, logger: Program.Log);
+
             TextLog.Text = Program.Log.ToString();
             Program.Log.LogUpdated += LogUpdated;
             UpdateStatus();

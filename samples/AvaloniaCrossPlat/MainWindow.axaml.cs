@@ -16,7 +16,10 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        _um = new UpdateManager(Program.UpdateUrl, logger: Program.Log);
+
+        var updateUrl = SampleHelper.GetReleasesDir(); // replace with your update path/url
+        _um = new UpdateManager(updateUrl, logger: Program.Log);
+
         TextLog.Text = Program.Log.ToString();
         Program.Log.LogUpdated += LogUpdated;
         UpdateStatus();

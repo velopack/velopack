@@ -15,8 +15,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionLevel", "SolutionLe
 		src\Directory.Build.targets = src\Directory.Build.targets
 		nuget.config = nuget.config
 		README.md = README.md
-		Velopack.entitlements = Velopack.entitlements
 		src\SelfContained.targets = src\SelfContained.targets
+		Velopack.entitlements = Velopack.entitlements
 		version.json = version.json
 	EndProjectSection
 EndProject
@@ -43,7 +43,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestApp", "test\TestApp\Tes
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{3EBFA551-780C-473D-A197-0EE56F2CBA82}"
 	ProjectSection(SolutionItems) = preProject
-		samples\Directory.Build.props = samples\Directory.Build.props
+		samples\Directory.Build.targets = samples\Directory.Build.targets
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AvaloniaCrossPlat", "samples\AvaloniaCrossPlat\AvaloniaCrossPlat.csproj", "{1FF6A262-13D0-45DF-B818-77AC84C52C6F}"

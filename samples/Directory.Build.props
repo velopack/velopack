@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project>
-  <PropertyGroup>
-    <RestoreSources>https://api.nuget.org/v3/index.json;$(RestoreSources)</RestoreSources>
-    <RestoreSources Condition="Exists('$(MSBuildThisFileDirectory)..\build\$(Configuration)')">
-      $([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\build\$(Configuration)'));$(RestoreSources)
-    </RestoreSources>
-  </PropertyGroup>
-</Project>

@@ -1,13 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net48</TargetFramework>
     <ImplicitUsings>true</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <LangVersion>latest</LangVersion>
-    <NoWarn>$(NoWarn);IDE0161</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -16,15 +13,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Velopack" Version="0.*" />
-  </ItemGroup>
-
-  <!-- Used for demonstrating updates, so the installed application can find the Release directory, remove in your app -->
-  <ItemGroup>
-    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
-      <_Parameter1>WpfSampleReleaseDir</_Parameter1>
-      <_Parameter2>$(MSBuildThisFileDirectory)releases</_Parameter2>
-    </AssemblyAttribute>
+    <!--Condition below is only needed to test this sample project against the local projects instead of the NuGet package. Remove it in your app.-->
+    <PackageReference Include="Velopack" Version="0.*" Condition="$(UseLocalVelopack) == ''" />
   </ItemGroup>
 
 </Project>

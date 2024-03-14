@@ -6,7 +6,6 @@
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <NoWarn>$(NoWarn);IDE0161</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,32 +13,13 @@
     <PackageReference Include="Avalonia.Desktop" Version="11.0.9" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.9" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.9" />
-    <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+    <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration. Keep it in your app.-->
     <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.0.9" />
   </ItemGroup>
 
-  <!-- For test build scripts which target the local Velopack project instead of the NuGet package -->
-  <Choose>
-    <When Condition=" $(UseLocalVelopack) != '' ">
-      <ItemGroup>
-        <ProjectReference Include="..\..\src\Velopack\Velopack.csproj" />
-      </ItemGroup>
-    </When>
-    <Otherwise>
-      <ItemGroup>
-        <PackageReference Include="Velopack" Version="0.*" />
-      </ItemGroup>
-    </Otherwise>
-  </Choose>
-
-  <!-- For demonstrating updates, so the installed application can find the Release directory -->
   <ItemGroup>
-    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
-      <_Parameter1>AvaloniaSampleReleaseDir</_Parameter1>
-      <_Parameter2>$(MSBuildThisFileDirectory)releases</_Parameter2>
-    </AssemblyAttribute>
+    <!--Condition below is only needed to test this sample project against the local projects instead of the NuGet package. Remove it in your app.-->
+    <PackageReference Include="Velopack" Version="0.*" Condition="$(UseLocalVelopack) == ''" />
   </ItemGroup>
-
-  <!--<Import Project="..\..\src\Velopack.Build\Velopack.Build.targets" Condition=" $(UseLocalVelopack) != '' " />-->
 
 </Project>

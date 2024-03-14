@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);IDE0161</NoWarn>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>VelopackSampleReleaseDir</_Parameter1>
+      <_Parameter2>$(MSBuildThisFileDirectory)$(ProjectName)/releases</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\SampleHelper.cs" Link="SampleHelper.cs" Visible="false" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="$(UseLocalVelopack) != ''">
+    <RestoreSources>https://api.nuget.org/v3/index.json;$(RestoreSources)</RestoreSources>
+    <RestoreSources Condition="Exists('$(MSBuildThisFileDirectory)..\build\$(Configuration)')">
+      $([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\build\$(Configuration)'));$(RestoreSources)
+    </RestoreSources>
+  </PropertyGroup>
+  
+  <ItemGroup Condition="$(UseLocalVelopack) != ''">
+    <ProjectReference Include="..\..\src\Velopack\Velopack.csproj" />
+  </ItemGroup>
+  
+</Project>

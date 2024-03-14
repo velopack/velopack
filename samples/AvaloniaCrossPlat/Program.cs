@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Linq;
-using System.Reflection;
 using Avalonia;
 using Velopack;
 
@@ -8,8 +6,6 @@ namespace AvaloniaCrossPlat;
 
 class Program
 {
-    public static string UpdateUrl { get; private set; }
-
     public static MemoryLogger Log { get; private set; }
 
     // Initialization code. Don't use any Avalonia, third-party APIs or any
@@ -24,19 +20,12 @@ class Program
 
             // It's important to Run() the VelopackApp as early as possible in app startup.
             VelopackApp.Build()
+                .WithFirstRun((v) => { /* Your first run code here */ })
                 .Run(Log);
 
-            // This is purely for demonstration purposes, we get the update URL from a
-            // property defined by MSBuild, so we can locate the local releases directory.
-            // In your production app, this should point to your update server.
-            UpdateUrl = Assembly.GetEntryAssembly()
-                .GetCustomAttributes<AssemblyMetadataAttribute>()
-                .Where(x => x.Key == "AvaloniaSampleReleaseDir")
-                .Single().Value;
-
             // Now it's time to run Avalonia
-            BuildAvaloniaApp()
-                .StartWithClassicDesktopLifetime(args);
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+
         } catch (Exception ex) {
             string message = "Unhandled exception: " + ex.ToString();
             Console.WriteLine(message);
