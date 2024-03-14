@@ -9,6 +9,7 @@
     <OutputPath>$(BaseOutputPath)$(Configuration)\</OutputPath>
     <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <BeforeTargetFrameworkInferenceTargets>$(MSBuildThisFileDirectory)SelfContained.targets</BeforeTargetFrameworkInferenceTargets>
 
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <DebugType>embedded</DebugType>

@@ -11,34 +11,22 @@
   <PropertyGroup>
     <VelopackPackageId>Velopack.Build</VelopackPackageId>
     <VelopackPackageVendorLibs>true</VelopackPackageVendorLibs>
+    <VelopackPackageSelfContained>true</VelopackPackageSelfContained>
     <DevelopmentDependency>true</DevelopmentDependency>
-    <!-- Include all project/package dependencies in produced NuGet package -->
-    <IncludeBuildOutput>false</IncludeBuildOutput>
-    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);IncludeTfmDependenciesInPackage</TargetsForTfmSpecificContentInPackage>
-    <!-- https://learn.microsoft.com/dotnet/core/project-sdk/msbuild-props?WT.mc_id=DT-MVP-5003472#copylocallockfileassemblies -->
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Velopack.Packaging.Unix\Velopack.Packaging.Unix.csproj" PrivateAssets="all" />
-    <ProjectReference Include="..\Velopack.Packaging.Windows\Velopack.Packaging.Windows.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\Velopack.Packaging.Unix\Velopack.Packaging.Unix.csproj" />
+    <ProjectReference Include="..\Velopack.Packaging.Windows\Velopack.Packaging.Windows.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.9.5" PrivateAssets="all" />
-    <PackageReference Include="Riok.Mapperly" Version="3.3.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.9.5" />
+    <PackageReference Include="Riok.Mapperly" Version="3.3.0" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="Velopack.Build.targets" Pack="true" PackagePath="build/Velopack.Build.targets" />
   </ItemGroup>
-
-  <Target Name="IncludeTfmDependenciesInPackage">
-    <ItemGroup>
-      <TfmSpecificPackageFile Include="$(TargetDir)*.*">
-        <PackagePath>build\$(TargetFramework)</PackagePath>
-      </TfmSpecificPackageFile>
-    </ItemGroup>
-  </Target>
 
 </Project>

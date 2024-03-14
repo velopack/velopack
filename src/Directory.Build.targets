@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
-  
-  <!-- Automatically add all NuGet related properties if VelopackPackageId is set -->
+
   <PropertyGroup Condition=" '$(VelopackPackageId)' != '' ">
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <Copyright>Copyright © Velopack Ltd. All rights reserved.</Copyright>
@@ -79,5 +78,5 @@
     <Exec Command='rd "$(HttpNuGetCache)" /q /s' Condition="'$(OS)' == 'Windows_NT'" />
     <Exec Command='rm -rf "$(HttpNuGetCache)"' Condition="'$(OS)' != 'Windows_NT'" />
   </Target>
-  
+
 </Project>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  
+  <PropertyGroup Condition=" '$(VelopackPackageSelfContained)' == 'true' ">
+    <!-- Include all project/package dependencies in produced NuGet package -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);IncludeTfmDependenciesInPackage</TargetsForTfmSpecificContentInPackage>
+    <!-- https://learn.microsoft.com/dotnet/core/project-sdk/msbuild-props?WT.mc_id=DT-MVP-5003472#copylocallockfileassemblies -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <OutputPath>$(BaseOutputPath)$(Configuration)\$(ProjectName)\</OutputPath>
+  </PropertyGroup>
+
+  <Target Name="IncludeTfmDependenciesInPackage">
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(TargetDir)**/*.*">
+        <PackagePath>build\$(TargetFramework)</PackagePath>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
+  </Target>
+  
+</Project>
