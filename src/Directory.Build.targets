@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  
+  <!-- Automatically add all NuGet related properties if VelopackPackageId is set -->
+  <PropertyGroup Condition=" '$(VelopackPackageId)' != '' ">
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <Copyright>Copyright © Velopack Ltd. All rights reserved.</Copyright>
+    <Authors>Velopack Ltd;Caelan Sayler;Kevin Bost</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/velopack/velopack</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/velopack/velopack</RepositoryUrl>
+    <PackageTags>windows;macos;osx;updater;dotnet;installer;desktop;squirrel;velopack;autoupdate;automatic-updates</PackageTags>
+    <PackageIcon>Velopack_200.png</PackageIcon>
+    <PackageReadmeFile>README_NUGET.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Title>$(VelopackPackageId)</Title>
+    <Product>$(VelopackPackageId)</Product>
+    <PackageId>$(VelopackPackageId)</PackageId>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <Target Name="AddNugetStaticFiles" BeforeTargets="Build">
+    <ItemGroup Condition=" '$(VelopackPackageId)' != '' ">
+      <None Include="..\..\artwork\Velopack_200.png" Pack="true" PackagePath="\" />
+      <None Include="..\..\README_NUGET.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="AddNugetVendorLibs" BeforeTargets="Build" Condition=" '$(VelopackPackageVendorLibs)' == 'true' ">
+    <ItemGroup Condition=" $([System.OperatingSystem]::IsWindows()) or '$(PackRustAssets)' == 'true' ">
+      <None Include="..\Rust\target\release\update.exe" Pack="true" PackagePath="vendor" />
+      <None Include="..\Rust\target\release\setup.exe" Pack="true" PackagePath="vendor" />
+      <None Include="..\Rust\target\release\stub.exe" Pack="true" PackagePath="vendor" />
+      <None Include="..\..\vendor\rcedit.exe" Pack="true" PackagePath="vendor" />
+      <None Include="..\..\vendor\zstd.exe" Pack="true" PackagePath="vendor" />
+      <None Include="..\..\vendor\signtool.exe" Pack="true" PackagePath="vendor" />
+    </ItemGroup>
+
+    <ItemGroup Condition=" $([System.OperatingSystem]::IsMacOS()) or '$(PackRustAssets)' == 'true' ">
+      <None Include="..\Rust\target\release\UpdateMac" Pack="true" PackagePath="vendor" />
+      <None Include="..\..\Velopack.entitlements" Pack="true" PackagePath="vendor" />
+      <None Include="..\..\artwork\DefaultApp.icns" Pack="true" PackagePath="vendor" />
+    </ItemGroup>
+
+    <ItemGroup Condition=" $([System.OperatingSystem]::IsLinux()) or '$(PackRustAssets)' == 'true' ">
+      <None Include="..\Rust\target\release\UpdateNix" Pack="true" PackagePath="vendor" />
+      <None Include="..\..\vendor\appimagetool-x86_64.AppImage" Pack="true" PackagePath="vendor" />
+      <None Include="..\..\artwork\DefaultApp_64.png" Pack="true" PackagePath="vendor" />
+    </ItemGroup>
+  </Target>
+  
+</Project>

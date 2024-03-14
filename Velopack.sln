@@ -12,6 +12,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionLevel", "SolutionLe
 		.gitignore = .gitignore
 		.github\workflows\build.yml = .github\workflows\build.yml
 		src\Directory.Build.props = src\Directory.Build.props
+		src\Directory.Build.targets = src\Directory.Build.targets
 		nuget.config = nuget.config
 		README.md = README.md
 		Velopack.entitlements = Velopack.entitlements

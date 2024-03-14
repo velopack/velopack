@@ -3,40 +3,18 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
-    <IsPackable>true</IsPackable>
     <AssemblyName>vpk</AssemblyName>
-    <PackageId>vpk</PackageId>
-    <PackageReadmeFile>README_NUGET.md</PackageReadmeFile>
-    <Title>Velopack CLI</Title>
-    <ToolCommandName>vpk</ToolCommandName>
-    <DevelopmentDependency>true</DevelopmentDependency>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackAsTool>true</PackAsTool>
-    <Description>A .NET Core Tool to build Velopack releases.</Description>
-    <PackageIcon>Velopack_200.png</PackageIcon>
     <LangVersion>latest</LangVersion>
     <NoWarn>$(NoWarn);CA2007;CS8002</NoWarn>
   </PropertyGroup>
 
-  <ItemGroup>
-    <None Include="..\..\artwork\Velopack_200.png" Pack="true" PackagePath="\" />
-    <None Include="..\..\README_NUGET.md" Pack="true" PackagePath="\" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(PackRustAssets)' == 'true'">
-    <None Include="..\Rust\target\release\UpdateMac" Pack="true" PackagePath="vendor" />
-    <None Include="..\Rust\target\release\UpdateNix" Pack="true" PackagePath="vendor" />
-    <None Include="..\Rust\target\release\update.exe" Pack="true" PackagePath="vendor" />
-    <None Include="..\Rust\target\release\setup.exe" Pack="true" PackagePath="vendor" />
-    <None Include="..\Rust\target\release\stub.exe" Pack="true" PackagePath="vendor" />
-    <None Include="..\..\vendor\appimagetool-x86_64.AppImage" Pack="true" PackagePath="vendor" />
-    <None Include="..\..\vendor\rcedit.exe" Pack="true" PackagePath="vendor" />
-    <None Include="..\..\vendor\zstd.exe" Pack="true" PackagePath="vendor" />
-    <None Include="..\..\vendor\signtool.exe" Pack="true" PackagePath="vendor" />
-    <None Include="..\..\Velopack.entitlements" Pack="true" PackagePath="vendor" />
-    <None Include="..\..\artwork\DefaultApp.icns" Pack="true" PackagePath="vendor" />
-    <None Include="..\..\artwork\DefaultApp_64.png" Pack="true" PackagePath="vendor" />
-  </ItemGroup>
+  <PropertyGroup>
+    <VelopackPackageId>vpk</VelopackPackageId>
+    <VelopackPackageVendorLibs>true</VelopackPackageVendorLibs>
+    <ToolCommandName>vpk</ToolCommandName>
+    <PackAsTool>true</PackAsTool>
+    <DevelopmentDependency>true</DevelopmentDependency>
+  </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />

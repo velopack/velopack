@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
+  
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <ProjectName Condition=" '$(ProjectName)' == '' ">$(MSBuildProjectName)</ProjectName>
@@ -8,23 +9,17 @@
     <OutputPath>$(BaseOutputPath)$(Configuration)\</OutputPath>
     <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
-    
-    <LangVersion>latest</LangVersion>
-    <SignAssembly>True</SignAssembly>
+
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <AssemblyOriginatorKeyFile>..\..\Velopack.snk</AssemblyOriginatorKeyFile>
     <DebugType>embedded</DebugType>
     <DebugSymbols>true</DebugSymbols>
     <PathMap>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)'))=./</PathMap>
-    
+
     <Product>Velopack</Product>
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <Copyright>Copyright © Caelan Sayler 2021</Copyright>
-    <Authors>Caelan Sayler;Kevin Bost</Authors>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/velopack/velopack</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/velopack/velopack</RepositoryUrl>
-    <PackageTags>windows;macos;osx;updater;dotnet;installer;desktop;squirrel;velopack;autoupdate;automatic-updates</PackageTags>
+    <Description>Installer and automatic update framework for cross-platform desktop applications</Description>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>..\..\Velopack.snk</AssemblyOriginatorKeyFile>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <ItemGroup Condition=" '$(MSBuildProjectExtension)'=='.csproj' ">
@@ -32,9 +27,4 @@
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
   </ItemGroup>
 
-  <PropertyGroup Condition=" '$(MSBuildProjectExtension)'=='.vcxproj' ">
-    <Platform Condition=" '$(Platform)' == '' OR '$(Platform)' == 'AnyCPU' ">Win32</Platform>
-    <IntDir>$(BaseIntermediateOutputPath)$(Configuration)\$(Platform)\</IntDir>
-    <OutDir>$(OutputPath)$(Platform)\</OutDir>
-  </PropertyGroup>
 </Project>
