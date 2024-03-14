@@ -98,10 +98,11 @@ public class Program
         deltaCommand.AddCommand<DeltaPatchCommand, DeltaPatchCommandRunner, DeltaPatchOptions>(provider);
         rootCommand.Add(deltaCommand);
 
+#if DEBUG
         rootCommand.AddCommand<LoginCommand, LoginCommandRunner, LoginOptions>(provider);
         rootCommand.AddCommand<LogoutCommand, LogoutCommandRunner, LogoutOptions>(provider);
-        
         rootCommand.AddRepositoryUpload<VelopackPublishCommand, VelopackFlowRepository, VelopackFlowUploadOptions>(provider);
+#endif
 
         var cli = new CliConfiguration(rootCommand);
         return await cli.InvokeAsync(args);
