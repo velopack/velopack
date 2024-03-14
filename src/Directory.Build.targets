@@ -48,5 +48,36 @@
       <None Include="..\..\artwork\DefaultApp_64.png" Pack="true" PackagePath="vendor" />
     </ItemGroup>
   </Target>
+
+  <Target Name="CleanPackageOutput" BeforeTargets="Build" Condition=" '$(VelopackPackageId)' != '' ">
+    <ItemGroup>
+      <_ExistingPackage Include="$(PackageOutputPath)\$(PackageId)*.nupkg" />
+      <_PackageToDelete Include="@(_ExistingPackage)"
+                        Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Filename)', '$(PackageId)\.\d\.\d\.\d.*'))" />
+    </ItemGroup>
+    <Delete Files="@(_PackageToDelete)" ContinueOnError="true">
+      <Output TaskParameter="DeletedFiles" ItemName="_CleanedPackages" />
+    </Delete>
+    <Message Text="Cleaned existing packages: @(_CleanedPackages -> '%(Filename)%(Extension)')"
+             Condition="'@(_CleanedPackages)' != ''" />
+  </Target>
+
+  <Target Name="CleanCachedPackageId" AfterTargets="Build;Pack" Condition=" '$(VelopackPackageId)' != '' ">
+    <PropertyGroup>
+      <PackageFolder>$(NuGetCache)\$(PackageId.ToLowerInvariant())</PackageFolder>
+    </PropertyGroup>
+
+    <Message Text="Cleaning $(PackageFolder)" Condition="Exists($(PackageFolder))" />
+    <Exec Command='rd "$(PackageFolder)" /q /s' Condition="Exists($(PackageFolder)) and '$(OS)' == 'Windows_NT'" />
+    <Exec Command='rm -rf "$(PackageFolder)"' Condition="Exists($(PackageFolder)) and '$(OS)' != 'Windows_NT'" />
+  </Target>
+
+  <Target Name="CleanHttpNuGetCache"
+          Condition="'$(CleanHttpNuGetCacheOnPack)' == 'true' and Exists('$(HttpNuGetCache)') and '$(VelopackPackageId)' != ''"
+          AfterTargets="Build;Pack">
+    <Message Text="Cleaning $(HttpNuGetCache)" />
+    <Exec Command='rd "$(HttpNuGetCache)" /q /s' Condition="'$(OS)' == 'Windows_NT'" />
+    <Exec Command='rm -rf "$(HttpNuGetCache)"' Condition="'$(OS)' != 'Windows_NT'" />
+  </Target>
   
 </Project>

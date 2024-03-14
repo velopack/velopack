@@ -5,8 +5,6 @@
     <Nullable>enable</Nullable>
     <LangVersion>12</LangVersion>
     <SignAssembly>false</SignAssembly>
-    <!-- https://learn.microsoft.com/dotnet/core/project-sdk/msbuild-props?WT.mc_id=DT-MVP-5003472#copylocallockfileassemblies -->
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
   </PropertyGroup>
 
@@ -14,19 +12,11 @@
     <VelopackPackageId>Velopack.Build</VelopackPackageId>
     <VelopackPackageVendorLibs>true</VelopackPackageVendorLibs>
     <DevelopmentDependency>true</DevelopmentDependency>
-  </PropertyGroup>
-
-  <PropertyGroup>
-    <!-- Improve devloop by clearing this package from NuGet cache before building -->
-    <HttpNuGetCache>$(LocalAppData)\NuGet\v3-cache</HttpNuGetCache>
-    <CleanHttpNuGetCacheOnPack Condition="'$(CleanHttpNuGetCacheOnPack)' == ''">true</CleanHttpNuGetCacheOnPack>
-    <NuGetCache>$(UserProfile)\.nuget\packages</NuGetCache>
-  </PropertyGroup>
-
-  <PropertyGroup>
     <!-- Include all project/package dependencies in produced NuGet package -->
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);IncludeTfmDependenciesInPackage</TargetsForTfmSpecificContentInPackage>
+    <!-- https://learn.microsoft.com/dotnet/core/project-sdk/msbuild-props?WT.mc_id=DT-MVP-5003472#copylocallockfileassemblies -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
@@ -49,37 +39,6 @@
         <PackagePath>build\$(TargetFramework)</PackagePath>
       </TfmSpecificPackageFile>
     </ItemGroup>
-  </Target>
-
-  <Target Name="CleanPackageOutput" BeforeTargets="Build">
-    <ItemGroup>
-      <_ExistingPackage Include="$(PackageOutputPath)\$(PackageId)*.nupkg" />
-      <_PackageToDelete Include="@(_ExistingPackage)"
-                        Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Filename)', '$(PackageId)\.\d\.\d\.\d.*'))" />
-    </ItemGroup>
-    <Delete Files="@(_PackageToDelete)" ContinueOnError="true">
-      <Output TaskParameter="DeletedFiles" ItemName="_CleanedPackages" />
-    </Delete>
-    <Message Text="Cleaned existing packages: @(_CleanedPackages -> '%(Filename)%(Extension)')"
-             Condition="'@(_CleanedPackages)' != ''" />
-  </Target>
-
-  <Target Name="CleanCachedPackageId" AfterTargets="Build;Pack">
-    <PropertyGroup>
-      <PackageFolder>$(NuGetCache)\$(PackageId.ToLowerInvariant())</PackageFolder>
-    </PropertyGroup>
-
-    <Message Text="Cleaning $(PackageFolder)" Condition="Exists($(PackageFolder))" />
-    <Exec Command='rd "$(PackageFolder)" /q /s' Condition="Exists($(PackageFolder)) and '$(OS)' == 'Windows_NT'" />
-    <Exec Command='rm -rf "$(PackageFolder)"' Condition="Exists($(PackageFolder)) and '$(OS)' != 'Windows_NT'" />
-  </Target>
-
-  <Target Name="CleanHttpNuGetCache"
-          Condition="'$(CleanHttpNuGetCacheOnPack)' == 'true' and Exists('$(HttpNuGetCache)')"
-          AfterTargets="Build;Pack">
-    <Message Text="Cleaning $(HttpNuGetCache)" />
-    <Exec Command='rd "$(HttpNuGetCache)" /q /s' Condition="'$(OS)' == 'Windows_NT'" />
-    <Exec Command='rm -rf "$(HttpNuGetCache)"' Condition="'$(OS)' != 'Windows_NT'" />
   </Target>
 
 </Project>

@@ -17,6 +17,10 @@
 
     <Product>Velopack</Product>
     <Description>Installer and automatic update framework for cross-platform desktop applications</Description>
+    <HttpNuGetCache>$(LocalAppData)\NuGet\v3-cache</HttpNuGetCache>
+    <CleanHttpNuGetCacheOnPack Condition="'$(CleanHttpNuGetCacheOnPack)' == ''">true</CleanHttpNuGetCacheOnPack>
+    <NuGetCache>$(UserProfile)\.nuget\packages</NuGetCache>
+
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>..\..\Velopack.snk</AssemblyOriginatorKeyFile>
     <LangVersion>latest</LangVersion>
