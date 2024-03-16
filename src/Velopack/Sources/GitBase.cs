@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -41,7 +41,7 @@ namespace Velopack.Sources
         /// <inheritdoc />
         public GitBase(string repoUrl, string? accessToken, bool prerelease, IFileDownloader? downloader = null)
         {
-            RepoUri = new Uri(repoUrl);
+            RepoUri = new Uri(repoUrl.TrimEnd('/'));
             AccessToken = accessToken;
             Prerelease = prerelease;
             Downloader = downloader ?? Utility.CreateDefaultDownloader();
