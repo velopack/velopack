@@ -25,7 +25,7 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="AddNugetVendorLibs" BeforeTargets="Build" Condition=" '$(VelopackPackageVendorLibs)' == 'true' ">
+  <!--<Target Name="AddNugetVendorLibs" BeforeTargets="Build" Condition=" '$(VelopackPackageVendorLibs)' == 'true' ">
     <ItemGroup Condition=" $([System.OperatingSystem]::IsWindows()) or '$(PackRustAssets)' == 'true' ">
       <None Include="..\Rust\target\release\update.exe" Pack="true" PackagePath="vendor" />
       <None Include="..\Rust\target\release\setup.exe" Pack="true" PackagePath="vendor" />
@@ -77,6 +77,6 @@
     <Message Text="Cleaning $(HttpNuGetCache)" />
     <Exec Command='rd "$(HttpNuGetCache)" /q /s' Condition="'$(OS)' == 'Windows_NT'" />
     <Exec Command='rm -rf "$(HttpNuGetCache)"' Condition="'$(OS)' != 'Windows_NT'" />
-  </Target>
+  </Target>-->
 
 </Project>
