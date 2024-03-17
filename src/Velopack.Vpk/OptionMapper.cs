@@ -24,6 +24,8 @@ public static partial class OptionMapper
     public static partial LocalDownloadOptions ToOptions(this LocalDownloadCommand cmd);
     public static partial S3DownloadOptions ToOptions(this S3DownloadCommand cmd);
     public static partial S3UploadOptions ToOptions(this S3UploadCommand cmd);
+    public static partial AzureDownloadOptions ToOptions(this AzureDownloadCommand cmd);
+    public static partial AzureUploadOptions ToOptions(this AzureUploadCommand cmd);
     public static partial DeltaGenOptions ToOptions(this DeltaGenCommand cmd);
     public static partial DeltaPatchOptions ToOptions(this DeltaPatchCommand cmd);
     public static partial LoginOptions ToOptions(this LoginCommand cmd);
