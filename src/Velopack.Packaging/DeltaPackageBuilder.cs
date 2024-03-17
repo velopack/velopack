@@ -179,7 +179,7 @@ public class DeltaPackageBuilder
                 throw new UserInfoException("Delta creation failed for one or more files. See log for details. To skip delta generation, use the '--delta none' argument.");
             }
 
-            EasyZip.CreateZipFromDirectory(_logger, outputFile, tempInfo.FullName, Utility.CreateProgressDelegate(progress, 70, 100));
+            EasyZip.CreateZipFromDirectoryAsync(_logger, outputFile, tempInfo.FullName, Utility.CreateProgressDelegate(progress, 70, 100)).GetAwaiterResult();
             progress(100);
             fRemoved = baseLibFiles.Count;
 

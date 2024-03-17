@@ -114,10 +114,10 @@ namespace Velopack
         internal static bool InUnitTestRunner { get; }
 
         internal static StringComparer PathStringComparer =>
-            IsWindows ? StringComparer.InvariantCultureIgnoreCase : StringComparer.InvariantCulture;
+            IsWindows ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
         internal static StringComparison PathStringComparison =>
-            IsWindows ? StringComparison.InvariantCultureIgnoreCase : StringComparison.InvariantCulture;
+            IsWindows ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
         static VelopackRuntimeInfo()
         {
