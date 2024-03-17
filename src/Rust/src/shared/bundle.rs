@@ -294,8 +294,9 @@ impl BundleInfo<'_> {
         let mut archive = self.zip.borrow_mut();
         for i in 0..archive.len() {
             let file = archive.by_index(i)?;
-            let key = file.name();
-            files.push(key.to_string());
+            let key = file.enclosed_name().ok_or_else(
+                || anyhow!("Could not extract file safely ({}). Ensure no paths in archive are absolute or point to a path outside the archive.", file.name()))?;
+            files.push(key.to_string_lossy().to_string());
         }
         Ok(files)
     }
