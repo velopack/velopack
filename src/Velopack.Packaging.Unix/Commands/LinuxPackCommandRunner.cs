@@ -30,7 +30,7 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
 #!/bin/sh
 HERE="$(dirname "$(readlink -f "${0}")")"
 export PATH="${HERE}"/usr/bin/:"${PATH}"
-EXEC=$(grep -e '^Exec=.*' "${HERE}"/*.desktop | head -n 1 | cut -d "=" -f 2 | cut -d " " -f 1)
+EXEC=$(grep -e '^Exec=.*' "${HERE}"/*.desktop | head -n 1 | cut -d "=" -f 2 | cut -d " " -f 1 | sed 's/\\s/ /g')
 exec "${EXEC}" $@
 """);
             Chmod.ChmodFileAsExecutable(appRunPath);
@@ -39,6 +39,10 @@ exec "${EXEC}" $@
             var mainExePath = Path.Combine(packDir, mainExeName);
             if (!File.Exists(mainExePath))
                 throw new Exception($"Could not find main executable at '{mainExePath}'. Please specify with --exeName.");
+
+            // spaces should be represented by \s
+            // https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-1.0.html
+            mainExeName = mainExeName.Replace(" ", "\\s");
 
             File.WriteAllText(Path.Combine(dir.FullName, Options.PackId + ".desktop"), $"""
 [Desktop Entry]
