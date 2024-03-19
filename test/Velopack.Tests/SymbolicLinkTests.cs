@@ -1,12 +1,12 @@
 ﻿namespace Velopack.Tests;
 
-public class JunctionPointTests
+public class SymbolicLinkTests
 {
     [Fact]
     public void Exists_NoSuchFile()
     {
         using var _1 = Utility.GetTempDirectory(out var tempFolder);
-        Assert.False(JunctionPoint.Exists(Path.Combine(tempFolder, "$$$NoSuchFolder$$$")));
+        Assert.False(SymbolicLink.Exists(Path.Combine(tempFolder, "$$$NoSuchFolder$$$")));
     }
 
     [Fact]
@@ -15,11 +15,11 @@ public class JunctionPointTests
         using var _1 = Utility.GetTempDirectory(out var tempFolder);
         File.Create(Path.Combine(tempFolder, "AFile")).Close();
 
-        Assert.False(JunctionPoint.Exists(Path.Combine(tempFolder, "AFile")));
+        Assert.False(SymbolicLink.Exists(Path.Combine(tempFolder, "AFile")));
     }
 
     [Fact]
-    public void Create_VerifyExists_GetTarget_Delete()
+    public void CreateDirectory_VerifyExists_GetTarget_Delete()
     {
         using var _1 = Utility.GetTempDirectory(out var tempFolder);
         string targetFolder = Path.Combine(tempFolder, "ADirectory");
@@ -32,22 +32,22 @@ public class JunctionPointTests
         Assert.False(File.Exists(Path.Combine(junctionPoint, "AFile")),
             "File should not be located until junction point created.");
 
-        Assert.False(JunctionPoint.Exists(junctionPoint), "Junction point not created yet.");
+        Assert.False(SymbolicLink.Exists(junctionPoint), "Junction point not created yet.");
 
         // Create junction point and confirm its properties.
-        JunctionPoint.Create(junctionPoint, targetFolder, false /*don't overwrite*/);
+        SymbolicLink.Create(junctionPoint, targetFolder, false /*don't overwrite*/);
 
-        Assert.True(JunctionPoint.Exists(junctionPoint), "Junction point exists now.");
+        Assert.True(SymbolicLink.Exists(junctionPoint), "Junction point exists now.");
 
-        Assert.Equal(targetFolder, JunctionPoint.GetTarget(junctionPoint));
+        Assert.Equal(targetFolder, SymbolicLink.GetTarget(junctionPoint));
 
         Assert.True(File.Exists(Path.Combine(junctionPoint, "AFile")),
             "File should be accessible via the junction point.");
 
         // Delete junction point.
-        JunctionPoint.Delete(junctionPoint);
+        SymbolicLink.Delete(junctionPoint);
 
-        Assert.False(JunctionPoint.Exists(junctionPoint), "Junction point should not exist now.");
+        Assert.False(SymbolicLink.Exists(junctionPoint), "Junction point should not exist now.");
 
         Assert.False(File.Exists(Path.Combine(junctionPoint, "AFile")),
             "File should not be located after junction point deleted.");
@@ -59,6 +59,34 @@ public class JunctionPointTests
     }
 
     [Fact]
+    public void CreateFile_VerifyExists_GetTarget_Delete()
+    {
+        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        var tmpFile = Path.Combine(tempFolder, "AFile");
+        var symFile = Path.Combine(tempFolder, "SymFile");
+        File.Create(tmpFile).Close();
+
+        Assert.False(File.Exists(symFile), "File should not be located until junction point created.");
+        Assert.False(SymbolicLink.Exists(symFile), "File should not be located until junction point created.");
+
+        SymbolicLink.Create(symFile, tmpFile, true);
+
+        Assert.True(File.Exists(symFile), "Symfile point exists now.");
+        Assert.True(SymbolicLink.Exists(symFile), "Junction point exists now.");
+
+        Assert.Equal(tmpFile, SymbolicLink.GetTarget(symFile));
+
+        // verify symlink contents match real file.
+        Assert.Empty(File.ReadAllBytes(symFile));
+        File.WriteAllText(tmpFile, "Hello, World!");
+        Assert.Equal("Hello, World!", File.ReadAllText(symFile));
+
+        SymbolicLink.Delete(symFile);
+        Assert.False(File.Exists(symFile));
+        Assert.False(SymbolicLink.Exists(symFile));
+    }
+
+    [Fact]
     public void Create_ThrowsIfOverwriteNotSpecifiedAndDirectoryExists()
     {
         using var _1 = Utility.GetTempDirectory(out var tempFolder);
@@ -66,7 +94,7 @@ public class JunctionPointTests
         string junctionPoint = Path.Combine(tempFolder, "SymLink");
 
         Directory.CreateDirectory(junctionPoint);
-        Assert.Throws<IOException>(() => JunctionPoint.Create(junctionPoint, targetFolder, false));
+        Assert.Throws<IOException>(() => SymbolicLink.Create(junctionPoint, targetFolder, false));
     }
 
     [Fact]
@@ -79,9 +107,9 @@ public class JunctionPointTests
         Directory.CreateDirectory(junctionPoint);
         Directory.CreateDirectory(targetFolder);
 
-        JunctionPoint.Create(junctionPoint, targetFolder, true);
+        SymbolicLink.Create(junctionPoint, targetFolder, true);
 
-        Assert.Equal(targetFolder, JunctionPoint.GetTarget(junctionPoint));
+        Assert.Equal(targetFolder, SymbolicLink.GetTarget(junctionPoint));
     }
 
     [Fact]
@@ -90,21 +118,21 @@ public class JunctionPointTests
         using var _1 = Utility.GetTempDirectory(out var tempFolder);
         string targetFolder = Path.Combine(tempFolder, "ADirectory");
         string junctionPoint = Path.Combine(tempFolder, "SymLink");
-        Assert.Throws<IOException>(() => JunctionPoint.Create(junctionPoint, targetFolder, false));
+        Assert.Throws<IOException>(() => SymbolicLink.Create(junctionPoint, targetFolder, false));
     }
 
     [Fact]
     public void GetTarget_NonExistentJunctionPoint()
     {
         using var _1 = Utility.GetTempDirectory(out var tempFolder);
-        Assert.Throws<IOException>(() => JunctionPoint.GetTarget(Path.Combine(tempFolder, "SymLink")));
+        Assert.Throws<IOException>(() => SymbolicLink.GetTarget(Path.Combine(tempFolder, "SymLink")));
     }
 
     [Fact]
     public void GetTarget_CalledOnADirectoryThatIsNotAJunctionPoint()
     {
         using var _1 = Utility.GetTempDirectory(out var tempFolder);
-        Assert.Throws<IOException>(() => JunctionPoint.GetTarget(tempFolder));
+        Assert.Throws<IOException>(() => SymbolicLink.GetTarget(tempFolder));
     }
 
     [Fact]
@@ -113,7 +141,7 @@ public class JunctionPointTests
         using var _1 = Utility.GetTempDirectory(out var tempFolder);
         File.Create(Path.Combine(tempFolder, "AFile")).Close();
 
-        Assert.Throws<IOException>(() => JunctionPoint.GetTarget(Path.Combine(tempFolder, "AFile")));
+        Assert.Throws<IOException>(() => SymbolicLink.GetTarget(Path.Combine(tempFolder, "AFile")));
     }
 
     [Fact]
@@ -121,14 +149,14 @@ public class JunctionPointTests
     {
         // Should do nothing.
         using var _1 = Utility.GetTempDirectory(out var tempFolder);
-        JunctionPoint.Delete(Path.Combine(tempFolder, "SymLink"));
+        SymbolicLink.Delete(Path.Combine(tempFolder, "SymLink"));
     }
 
     [Fact]
     public void Delete_CalledOnADirectoryThatIsNotAJunctionPoint()
     {
         using var _1 = Utility.GetTempDirectory(out var tempFolder);
-        Assert.Throws<IOException>(() => JunctionPoint.Delete(tempFolder));
+        Assert.Throws<IOException>(() => SymbolicLink.Delete(tempFolder));
     }
 
     [Fact]
@@ -137,6 +165,6 @@ public class JunctionPointTests
         using var _1 = Utility.GetTempDirectory(out var tempFolder);
         File.Create(Path.Combine(tempFolder, "AFile")).Close();
 
-        Assert.Throws<IOException>(() => JunctionPoint.Delete(Path.Combine(tempFolder, "AFile")));
+        Assert.Throws<IOException>(() => SymbolicLink.Delete(Path.Combine(tempFolder, "AFile")));
     }
 }
