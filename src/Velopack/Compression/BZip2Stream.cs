@@ -67,7 +67,7 @@ namespace Velopack.Compression
 
         public override void SetLength(long value) => stream.SetLength(value);
 
-#if !NETFRAMEWORK && !NETSTANDARD2_0
+#if NET5_0_OR_GREATER
 
         public override int Read(Span<byte> buffer) => stream.Read(buffer);
 
