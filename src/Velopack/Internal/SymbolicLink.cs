@@ -15,8 +15,10 @@ namespace Velopack
         /// <param name="linkPath">The symlink path</param>
         /// <param name="targetPath">The target directory or file</param>
         /// <param name="overwrite">If true overwrites an existing reparse point or empty directory</param>
-        public static void Create(string linkPath, string targetPath, bool overwrite = true)
+        /// <param name="relative">If true, stores a relative path from the link to the target, rather than an absolute path.</param>
+        public static void Create(string linkPath, string targetPath, bool overwrite = true, bool relative = false)
         {
+            linkPath = Path.GetFullPath(linkPath);
             targetPath = Path.GetFullPath(targetPath);
 
             if (!Directory.Exists(targetPath) && !File.Exists(targetPath)) {
@@ -27,23 +29,25 @@ namespace Velopack
                 if (overwrite) {
                     Utility.DeleteFileOrDirectoryHard(linkPath);
                 } else {
-                    throw new IOException("Junction already exists and overwrite parameter is false.");
+                    throw new IOException("Junction / symlink path already exists and overwrite parameter is false.");
                 }
             }
 
+            var finalTarget = relative ? GetRelativePath(linkPath, targetPath) : targetPath;
+
             if (Directory.Exists(targetPath)) {
 #if NETFRAMEWORK
-                if (!CreateSymbolicLink(linkPath, targetPath, SYMBOLIC_LINK_FLAG_DIRECTORY | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE))
+                if (!CreateSymbolicLink(linkPath, finalTarget, SYMBOLIC_LINK_FLAG_DIRECTORY | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE))
                     ThrowLastWin32Error("Unable to create junction point / symlink.");
 #else
-                Directory.CreateSymbolicLink(linkPath, targetPath);
+                Directory.CreateSymbolicLink(linkPath, finalTarget);
 #endif
             } else if (File.Exists(targetPath)) {
 #if NETFRAMEWORK
-                if (!CreateSymbolicLink(linkPath, targetPath, SYMBOLIC_LINK_FLAG_FILE | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE))
+                if (!CreateSymbolicLink(linkPath, finalTarget, SYMBOLIC_LINK_FLAG_FILE | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE))
                     ThrowLastWin32Error("Unable to create junction point / symlink.");
 #else
-                File.CreateSymbolicLink(linkPath, targetPath);
+                File.CreateSymbolicLink(linkPath, finalTarget);
 #endif
             } else {
                 throw new IOException("Target path does not exist.");
@@ -68,13 +72,27 @@ namespace Velopack
         public static string GetTarget(string linkPath)
         {
             if (TryGetLinkFsi(linkPath, out var fsi)) {
+                string target;
 #if NETFRAMEWORK
-                return GetTargetWin32(linkPath);
+                target = GetTargetWin32(linkPath);
 #else
-                return fsi.LinkTarget!;
+                target = fsi.LinkTarget!;
 #endif
+                if (Path.IsPathRooted(target)) {
+                    // if the path is absolute, we can return it as is.
+                    return Path.GetFullPath(target);
+                } else {
+                    // if it is a relative path, we need to resolve it as it relates to the location of linkPath
+                    return Path.GetFullPath(Path.Combine(Path.GetDirectoryName(linkPath)!, target));
+                }
             }
             throw new IOException("Path does not exist or is not a junction point / symlink.");
+        }
+
+        public static string GetTargetRelativeToLink(string linkPath)
+        {
+            var targetPath = GetTarget(linkPath);
+            return GetRelativePath(linkPath, targetPath);
         }
 
         private static bool TryGetLinkFsi(string path, out FileSystemInfo fsi)
@@ -89,7 +107,7 @@ namespace Velopack
             return fsi != null && (fsi.Attributes & FileAttributes.ReparsePoint) != 0;
         }
 
-        public static string GetRelativePath(string relativeTo, string path)
+        private static string GetRelativePath(string relativeTo, string path)
         {
 #if NETFRAMEWORK
             relativeTo = Path.GetFullPath(relativeTo);
@@ -218,12 +236,13 @@ namespace Velopack
 
             try { basePath = Path.GetFullPath(basePath + "\\"); } catch { throw new Exception("InvalidBasePath"); }
 
-            if (!Path.IsPathRooted(toggledPath))
+            if (!Path.IsPathRooted(toggledPath)) {
                 try {
                     return StripTrailingSeparator(Path.GetFullPath(Path.Combine(basePath, toggledPath)));
                 } catch {
                     throw new Exception("InvalidToggledPath");
                 }
+            }
 
             // Both basePath and toggledPath are absolute. Need to relativize toggledPath.
             try { toggledPath = Path.GetFullPath(toggledPath + "\\"); } catch { throw new Exception("InvalidToggledPath"); }
