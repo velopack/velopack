@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -33,7 +34,9 @@ namespace Velopack
                 }
             }
 
-            var finalTarget = relative ? GetRelativePath(linkPath, targetPath) : targetPath;
+            var finalTarget = relative
+                ? GetRelativePath(Path.GetDirectoryName(linkPath)!, targetPath)
+                : targetPath;
 
             if (Directory.Exists(targetPath)) {
 #if NETFRAMEWORK
@@ -54,11 +57,19 @@ namespace Velopack
             }
         }
 
+        /// <summary>
+        /// Returns true if the specified path exists and is a junction point or symlink.
+        /// If the path exists but is not a junction point or symlink, returns false.
+        /// </summary>
         public static bool Exists(string linkPath)
         {
             return TryGetLinkFsi(linkPath, out var _);
         }
 
+        /// <summary>
+        /// Does nothing if the path does not exist. If the path exists but is not 
+        /// a junction / symlink, throws an IOException.
+        /// </summary>
         public static void Delete(string linkPath)
         {
             var isLink = TryGetLinkFsi(linkPath, out var fsi);
@@ -69,15 +80,25 @@ namespace Velopack
             }
         }
 
-        public static string GetTarget(string linkPath)
+        /// <summary>
+        /// Get the target of a junction point or symlink.
+        /// </summary>
+        /// <param name="linkPath">The location of the symlink or junction point</param>
+        /// <param name="resolve">If true, will return the full path to the target.
+        /// If false, will return the link target unadulterated - so it may be a 
+        /// relative or an absolute path.</param>
+        public static string GetTarget(string linkPath, bool resolve = true)
         {
             if (TryGetLinkFsi(linkPath, out var fsi)) {
                 string target;
 #if NETFRAMEWORK
+
                 target = GetTargetWin32(linkPath);
 #else
                 target = fsi.LinkTarget!;
 #endif
+                if (!resolve) return target;
+
                 if (Path.IsPathRooted(target)) {
                     // if the path is absolute, we can return it as is.
                     return Path.GetFullPath(target);
@@ -87,12 +108,6 @@ namespace Velopack
                 }
             }
             throw new IOException("Path does not exist or is not a junction point / symlink.");
-        }
-
-        public static string GetTargetRelativeToLink(string linkPath)
-        {
-            var targetPath = GetTarget(linkPath);
-            return GetRelativePath(linkPath, targetPath);
         }
 
         private static bool TryGetLinkFsi(string path, out FileSystemInfo fsi)
@@ -119,33 +134,6 @@ namespace Velopack
         }
 
 #if NETFRAMEWORK
-        [Flags]
-        private enum EFileAccess : uint
-        {
-            GenericRead = 0x80000000,
-            GenericWrite = 0x40000000,
-            GenericExecute = 0x20000000,
-            GenericAll = 0x10000000,
-        }
-
-        [Flags]
-        private enum EFileShare : uint
-        {
-            None = 0x00000000,
-            Read = 0x00000001,
-            Write = 0x00000002,
-            Delete = 0x00000004,
-        }
-
-        private enum ECreationDisposition : uint
-        {
-            New = 1,
-            CreateAlways = 2,
-            OpenExisting = 3,
-            OpenAlways = 4,
-            TruncateExisting = 5,
-        }
-
         [Flags]
         private enum EFileAttributes : uint
         {
@@ -177,12 +165,12 @@ namespace Velopack
         }
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern IntPtr CreateFile(
+        private static extern SafeFileHandle CreateFile(
             string lpFileName,
-            EFileAccess dwDesiredAccess,
-            EFileShare dwShareMode,
+            FileAccess dwDesiredAccess,
+            FileShare dwShareMode,
             IntPtr lpSecurityAttributes,
-            ECreationDisposition dwCreationDisposition,
+            FileMode dwCreationDisposition,
             EFileAttributes dwFlagsAndAttributes,
             IntPtr hTemplateFile);
 
@@ -192,31 +180,95 @@ namespace Velopack
         private const int SYMBOLIC_LINK_FLAG_FILE = 0x0;
         private const int SYMBOLIC_LINK_FLAG_DIRECTORY = 0x1;
         private const int SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE = 0x2;
+        private const int INITIAL_REPARSE_DATA_BUFFER_SIZE = 1024;
+        private const int FSCTL_GET_REPARSE_POINT = 0x000900a8;
+        private const int ERROR_INSUFFICIENT_BUFFER = 0x7A;
+        private const int ERROR_MORE_DATA = 0xEA;
+        private const uint IO_REPARSE_TAG_SYMLINK = 0xA000000C;
+        private const uint IO_REPARSE_TAG_MOUNT_POINT = 0xA0000003;
 
         [DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         private static extern uint GetFinalPathNameByHandle(IntPtr hFile, [MarshalAs(UnmanagedType.LPTStr)] StringBuilder lpszFilePath, uint cchFilePath, uint dwFlags);
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool DeviceIoControl(
+            SafeFileHandle deviceHandle,
+            uint ioControlCode,
+            IntPtr inputBuffer,
+            int inputBufferSize,
+            byte[] outputBuffer,
+            int outputBufferSize,
+            out int bytesReturned,
+            IntPtr overlapped);
+
         private static string GetTargetWin32(string linkPath)
         {
-            using var handle = new SafeFileHandle(CreateFile(linkPath, EFileAccess.GenericRead,
-                EFileShare.Read | EFileShare.Write | EFileShare.Delete,
-                IntPtr.Zero, ECreationDisposition.OpenExisting,
-                EFileAttributes.BackupSemantics, IntPtr.Zero), true);
+            // https://github.com/microsoft/BuildXL/blob/main/Public/Src/Utilities/Native/IO/Windows/FileSystem.Win.cs#L2711
+            // http://blog.kalmbach-software.de/2008/02/28/howto-correctly-read-reparse-data-in-vista/
+            // https://github.com/dotnet/runtime/blob/e5f0c361f5baea5e2b56e1776143d841b0cc6e6c/src/libraries/System.Private.CoreLib/src/System/IO/FileSystem.Windows.cs#L544
+            SafeFileHandle handle = CreateFile(
+                linkPath,
+                dwDesiredAccess: 0,
+                FileShare.ReadWrite | FileShare.Delete,
+                lpSecurityAttributes: IntPtr.Zero,
+                FileMode.Open,
+                dwFlagsAndAttributes: EFileAttributes.BackupSemantics | EFileAttributes.OpenReparsePoint,
+                hTemplateFile: IntPtr.Zero);
 
             if (Marshal.GetLastWin32Error() != 0)
                 ThrowLastWin32Error("Unable to open reparse point.");
 
-            var sb = new StringBuilder(1024);
-            var res = GetFinalPathNameByHandle(handle.DangerousGetHandle(), sb, 1024, 0);
-            if (res == 0)
-                ThrowLastWin32Error("Unable to resolve reparse point target.");
+            int bufferSize = INITIAL_REPARSE_DATA_BUFFER_SIZE;
+            int errorCode = ERROR_INSUFFICIENT_BUFFER;
 
-            var result = sb.ToString();
-            if (result.StartsWith(@"\\?\"))
-                result = result.Substring(4);
-            if (result.StartsWith(@"\\?\UNC\"))
-                result = @"\\" + result.Substring(8);
-            return result;
+            byte[] buffer = null!;
+            while (errorCode == ERROR_MORE_DATA || errorCode == ERROR_INSUFFICIENT_BUFFER) {
+                buffer = new byte[bufferSize];
+                bool success = false;
+
+                int bufferReturnedSize;
+                success = DeviceIoControl(
+                    handle,
+                    FSCTL_GET_REPARSE_POINT,
+                    IntPtr.Zero,
+                    0,
+                    buffer,
+                    bufferSize,
+                    out bufferReturnedSize,
+                    IntPtr.Zero);
+
+                bufferSize *= 2;
+                errorCode = success ? 0 : Marshal.GetLastWin32Error();
+            }
+
+            if (errorCode != 0) {
+                throw new Win32Exception(errorCode);
+            }
+
+            const uint PrintNameOffsetIndex = 12;
+            const uint PrintNameLengthIndex = 14;
+            const uint SubsNameOffsetIndex = 8;
+            const uint SubsNameLengthIndex = 10;
+
+            uint reparsePointTag = BitConverter.ToUInt32(buffer, 0);
+            if (reparsePointTag != IO_REPARSE_TAG_SYMLINK && reparsePointTag != IO_REPARSE_TAG_MOUNT_POINT) {
+                throw new NotSupportedException($"Reparse point tag {reparsePointTag:X} not supported");
+            }
+
+            uint pathBufferOffsetIndex = (uint) ((reparsePointTag == IO_REPARSE_TAG_SYMLINK) ? 20 : 16);
+
+            int nameOffset = BitConverter.ToInt16(buffer, (int) PrintNameOffsetIndex);
+            int nameLength = BitConverter.ToInt16(buffer, (int) PrintNameLengthIndex);
+            string targetPath = Encoding.Unicode.GetString(buffer, (int) pathBufferOffsetIndex + nameOffset, nameLength);
+
+            if (string.IsNullOrWhiteSpace(targetPath)) {
+                nameOffset = BitConverter.ToInt16(buffer, (int) SubsNameOffsetIndex);
+                nameLength = BitConverter.ToInt16(buffer, (int) SubsNameLengthIndex);
+                targetPath = Encoding.Unicode.GetString(buffer, (int) pathBufferOffsetIndex + nameOffset, nameLength);
+            }
+
+            return targetPath;
         }
 
         private static void ThrowLastWin32Error(string message)

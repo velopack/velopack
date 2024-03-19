@@ -87,6 +87,53 @@ public class SymbolicLinkTests
     }
 
     [Fact]
+    public void CreateFile_RelativePath()
+    {
+        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        var subDir = Directory.CreateDirectory(Path.Combine(tempFolder, "SubDir")).FullName;
+
+        var tmpFile = Path.Combine(tempFolder, "AFile");
+        var symFile1 = Path.Combine(tempFolder, "SymFile");
+        var symFile2 = Path.Combine(subDir, "SymFile2");
+        File.WriteAllText(tmpFile, "Hello!");
+
+        SymbolicLink.Create(symFile1, tmpFile, relative: true);
+        SymbolicLink.Create(symFile2, tmpFile, relative: true);
+
+        Assert.Equal("Hello!", File.ReadAllText(symFile1));
+        Assert.Equal("Hello!", File.ReadAllText(symFile2));
+
+        Assert.Equal("AFile", SymbolicLink.GetTarget(symFile1, resolve: false));
+        Assert.Equal("..\\AFile", SymbolicLink.GetTarget(symFile2, resolve: false));
+
+        Assert.Equal(tmpFile, SymbolicLink.GetTarget(symFile1));
+        Assert.Equal(tmpFile, SymbolicLink.GetTarget(symFile2));
+    }
+
+    [Fact]
+    public void CreateDirectory_RelativePath()
+    {
+        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        var subDir = Directory.CreateDirectory(Path.Combine(tempFolder, "SubDir")).FullName;
+        var subSubDir = Directory.CreateDirectory(Path.Combine(subDir, "SubSub")).FullName;
+        var subDir2 = Directory.CreateDirectory(Path.Combine(tempFolder, "SubDir2")).FullName;
+
+        File.WriteAllText(Path.Combine(subSubDir, "AFile"), "Hello!");
+        var sym1 = Path.Combine(subSubDir, "Sym1");
+        var sym2 = Path.Combine(tempFolder, "Sym2");
+
+        SymbolicLink.Create(sym1, subDir2, relative: true);
+        SymbolicLink.Create(sym2, subSubDir, relative: true);
+
+        Assert.Equal("Hello!", File.ReadAllText(Path.Combine(sym2, "AFile")));
+
+        Assert.Equal(subSubDir, SymbolicLink.GetTarget(sym2));
+        Assert.Equal(subDir2, SymbolicLink.GetTarget(sym1));
+        Assert.Equal("..\\..\\SubDir2", SymbolicLink.GetTarget(sym1, resolve: false));
+        Assert.Equal("SubDir\\SubSub", SymbolicLink.GetTarget(sym2, resolve: false));
+    }
+
+    [Fact]
     public void Create_ThrowsIfOverwriteNotSpecifiedAndDirectoryExists()
     {
         using var _1 = Utility.GetTempDirectory(out var tempFolder);
