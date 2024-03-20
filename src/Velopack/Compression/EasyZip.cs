@@ -110,6 +110,7 @@ namespace Velopack.Compression
 
             var directories = directoryInfo
                 .EnumerateDirectories("*", SearchOption.AllDirectories)
+                .Concat(new[] { directoryInfo })
                 .OrderBy(f => f.FullName)
                 .ToArray();
 
