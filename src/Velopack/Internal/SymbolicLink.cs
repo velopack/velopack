@@ -84,28 +84,34 @@ namespace Velopack
         /// Get the target of a junction point or symlink.
         /// </summary>
         /// <param name="linkPath">The location of the symlink or junction point</param>
-        /// <param name="resolve">If true, will return the full path to the target.
-        /// If false, will return the link target unadulterated - so it may be a 
-        /// relative or an absolute path.</param>
-        public static string GetTarget(string linkPath, bool resolve = true)
+        /// <param name="relative">If true, the returned target path will be relative to the linkPath. Otherwise, it will be an absolute path.</param>
+        public static string GetTarget(string linkPath, bool relative = false)
         {
-            if (TryGetLinkFsi(linkPath, out var fsi)) {
-                string target;
-#if NETFRAMEWORK
-
-                target = GetTargetWin32(linkPath);
-#else
-                target = fsi.LinkTarget!;
-#endif
-                if (!resolve) return target;
-
+            var target = GetUnresolvedTarget(linkPath);
+            if (relative) {
                 if (Path.IsPathRooted(target)) {
-                    // if the path is absolute, we can return it as is.
+                    return GetRelativePath(Path.GetDirectoryName(linkPath)!, target);
+                } else {
+                    return target;
+                }
+            } else {
+                if (Path.IsPathRooted(target)) {
                     return Path.GetFullPath(target);
                 } else {
-                    // if it is a relative path, we need to resolve it as it relates to the location of linkPath
                     return Path.GetFullPath(Path.Combine(Path.GetDirectoryName(linkPath)!, target));
                 }
+            }
+        }
+
+        private static string GetUnresolvedTarget(string linkPath)
+        {
+            if (TryGetLinkFsi(linkPath, out var fsi)) {
+#if NETFRAMEWORK
+
+                return GetTargetWin32(linkPath);
+#else
+                return fsi.LinkTarget!;
+#endif
             }
             throw new IOException("Path does not exist or is not a junction point / symlink.");
         }

@@ -18,9 +18,20 @@ namespace Velopack.Compression
         {
             logger.Debug($"Extracting '{inputFile}' to '{outputDirectory}' using System.IO.Compression...");
             Utility.DeleteFileOrDirectoryHard(outputDirectory);
+
+            List<ZipArchiveEntry> symlinks = new();
             using (ZipArchive archive = ZipFile.Open(inputFile, ZipArchiveMode.Read)) {
                 foreach (ZipArchiveEntry entry in archive.Entries) {
-                    entry.ExtractRelativeToDirectory(outputDirectory, true);
+                    if (entry.FullName.EndsWith(SYMLINK_EXT)) {
+                        symlinks.Add(entry);
+                    } else {
+                        entry.ExtractRelativeToDirectory(outputDirectory, true);
+                    }
+                }
+
+                // process symlinks after, because creating them requires the target to exist
+                foreach (var sym in symlinks) {
+                    sym.ExtractRelativeToDirectory(outputDirectory, true);
                 }
             }
         }
@@ -40,25 +51,17 @@ namespace Velopack.Compression
             if (!fileDestinationPath.StartsWith(destinationDirectoryFullPath, VelopackRuntimeInfo.PathStringComparison))
                 throw new IOException("IO_ExtractingResultsInOutside");
 
-#if NET5_0_OR_GREATER
             if (source.FullName.EndsWith(SYMLINK_EXT)) {
                 // Handle symlink extraction
                 fileDestinationPath = fileDestinationPath.Replace(SYMLINK_EXT, string.Empty);
+                Directory.CreateDirectory(Path.GetDirectoryName(fileDestinationPath)!);
                 using (var reader = new StreamReader(source.Open())) {
                     var targetPath = reader.ReadToEnd();
-                    var isDir = targetPath.EndsWith(s_pathSeperator.ToString(), StringComparison.OrdinalIgnoreCase);
-                    var absoluteTargetPath = Path.GetFullPath(Path.Combine(destinationDirectoryName, targetPath));
-                    var relativeTargetPath = Path.GetRelativePath(Path.GetDirectoryName(fileDestinationPath)!, absoluteTargetPath);
-                    if (isDir) {
-                        Directory.CreateSymbolicLink(fileDestinationPath, relativeTargetPath);
-                    } else {
-                        Directory.CreateDirectory(Path.GetDirectoryName(fileDestinationPath)!);
-                        File.CreateSymbolicLink(fileDestinationPath, relativeTargetPath);
-                    }
+                    var absolute = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(fileDestinationPath)!, targetPath));
+                    SymbolicLink.Create(fileDestinationPath, absolute, true, true);
                 }
                 return;
             }
-#endif
 
             if (Path.GetFileName(fileDestinationPath).Length == 0) {
                 // If it is a directory:
@@ -113,12 +116,10 @@ namespace Velopack.Compression
             foreach (var dir in directories) {
                 cancelToken.ThrowIfCancellationRequested();
 
-#if NET5_0_OR_GREATER
                 // if dir is a symlink, write it as a file containing path to target
-                if ((dir.Attributes & FileAttributes.ReparsePoint) != 0) {
+                if (SymbolicLink.Exists(dir.FullName)) {
                     string entryName = EntryFromPath(dir.FullName, fullName.Length, dir.FullName.Length - fullName.Length);
-                    var targetInfo = Directory.ResolveLinkTarget(dir.FullName, true);
-                    string symlinkTarget = Path.GetRelativePath(sourceDirectoryName, targetInfo!.FullName)
+                    string symlinkTarget = SymbolicLink.GetTarget(dir.FullName, relative: true)
                         .Replace(Path.DirectorySeparatorChar, s_pathSeperator) + s_pathSeperator;
                     var entry = zipArchive.CreateEntry(entryName + SYMLINK_EXT);
                     using (var writer = new StreamWriter(entry.Open())) {
@@ -126,7 +127,7 @@ namespace Velopack.Compression
                     }
                     continue;
                 }
-#endif
+
                 // if directory is empty, write it as an empty entry ending in s_pathSeperator
                 if (IsDirEmpty(dir)) {
                     string entryName = EntryFromPath(dir.FullName, fullName.Length, dir.FullName.Length - fullName.Length);
@@ -147,19 +148,17 @@ namespace Velopack.Compression
                     int length = fileInfo.FullName.Length - fullName.Length;
                     string entryName = EntryFromPath(fileInfo.FullName, fullName.Length, length);
 
-#if NET5_0_OR_GREATER
-                    if ((fileInfo.Attributes & FileAttributes.ReparsePoint) != 0) {
+                    if (SymbolicLink.Exists(fileInfo.FullName)) {
                         // Handle symlink: Store the symlink target instead of its content
-                        var targetInfo = File.ResolveLinkTarget(fileInfo.FullName, true);
-                        string symlinkTarget = Path.GetRelativePath(sourceDirectoryName, targetInfo!.FullName)
-                            .Replace(Path.DirectorySeparatorChar, s_pathSeperator);
+                        string symlinkTarget = SymbolicLink.GetTarget(fileInfo.FullName, relative: true)
+                                .Replace(Path.DirectorySeparatorChar, s_pathSeperator);
                         var entry = zipArchive.CreateEntry(entryName + SYMLINK_EXT);
                         using (var writer = new StreamWriter(entry.Open())) {
                             await writer.WriteAsync(symlinkTarget).ConfigureAwait(false);
                         }
                         continue;
                     }
-#endif
+
                     // Regular file handling
                     var sourceFileName = fileInfo.FullName;
                     using Stream stream = File.Open(sourceFileName, FileMode.Open, FileAccess.Read, FileShare.Read);

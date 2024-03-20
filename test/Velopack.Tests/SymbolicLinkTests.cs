@@ -95,16 +95,22 @@ public class SymbolicLinkTests
         var tmpFile = Path.Combine(tempFolder, "AFile");
         var symFile1 = Path.Combine(tempFolder, "SymFile");
         var symFile2 = Path.Combine(subDir, "SymFile2");
+        var symFile3 = Path.Combine(subDir, "SymFile3");
         File.WriteAllText(tmpFile, "Hello!");
 
         SymbolicLink.Create(symFile1, tmpFile, relative: true);
         SymbolicLink.Create(symFile2, tmpFile, relative: true);
+        SymbolicLink.Create(symFile3, tmpFile, relative: false);
 
         Assert.Equal("Hello!", File.ReadAllText(symFile1));
         Assert.Equal("Hello!", File.ReadAllText(symFile2));
 
-        Assert.Equal("AFile", SymbolicLink.GetTarget(symFile1, resolve: false));
-        Assert.Equal("..\\AFile", SymbolicLink.GetTarget(symFile2, resolve: false));
+        Assert.Equal("AFile", SymbolicLink.GetTarget(symFile1, relative: true));
+        Assert.Equal("..\\AFile", SymbolicLink.GetTarget(symFile2, relative: true));
+        Assert.Equal("..\\AFile", SymbolicLink.GetTarget(symFile3, relative: true));
+        Assert.Equal(tmpFile, SymbolicLink.GetTarget(symFile1, relative: false));
+        Assert.Equal(tmpFile, SymbolicLink.GetTarget(symFile2, relative: false));
+        Assert.Equal(tmpFile, SymbolicLink.GetTarget(symFile3, relative: false));
 
         Assert.Equal(tmpFile, SymbolicLink.GetTarget(symFile1));
         Assert.Equal(tmpFile, SymbolicLink.GetTarget(symFile2));
@@ -129,8 +135,8 @@ public class SymbolicLinkTests
 
         Assert.Equal(subSubDir, SymbolicLink.GetTarget(sym2));
         Assert.Equal(subDir2, SymbolicLink.GetTarget(sym1));
-        Assert.Equal("..\\..\\SubDir2", SymbolicLink.GetTarget(sym1, resolve: false));
-        Assert.Equal("SubDir\\SubSub", SymbolicLink.GetTarget(sym2, resolve: false));
+        Assert.Equal("..\\..\\SubDir2", SymbolicLink.GetTarget(sym1, relative: true));
+        Assert.Equal("SubDir\\SubSub", SymbolicLink.GetTarget(sym2, relative: true));
     }
 
     [Fact]
