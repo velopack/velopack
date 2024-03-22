@@ -52,6 +52,28 @@ pub fn test_install_apply_uninstall() {
     assert!(!lnk_path.exists());
 }
 
+#[cfg(target_os = "windows")]
+#[test]
+pub fn test_install_preserve_symlinks() {
+    logging::trace_logger();
+    dialogs::set_silent(true);
+    let fixtures = find_fixtures();
+    let pkg_name = "Test.Squirrel-App-1.0.0-symlinks-full.nupkg";
+    let nupkg = fixtures.join(pkg_name);
+
+    let tmp_dir = tempdir().unwrap();
+    let tmp_buf = tmp_dir.path().to_path_buf();
+    commands::install(Some(&nupkg), Some(&tmp_buf)).unwrap();
+
+    assert!(tmp_buf.join("current").join("actual").join("file.txt").exists());
+    assert!(tmp_buf.join("current").join("other").join("syml").exists());
+    assert!(tmp_buf.join("current").join("other").join("sym.txt").exists());
+    assert!(tmp_buf.join("current").join("other").join("syml").join("file.txt").exists());
+
+    assert_eq!("hello", fs::read_to_string(tmp_buf.join("current").join("actual").join("file.txt")).unwrap());
+    assert_eq!("hello", fs::read_to_string(tmp_buf.join("current").join("other").join("sym.txt")).unwrap());
+}
+
 #[test]
 pub fn test_patch_apply() {
     dialogs::set_silent(true);

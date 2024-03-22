@@ -4,7 +4,7 @@ use semver::Version;
 use std::{
     cell::RefCell,
     fs::{self, File},
-    io::{Cursor, Read, Write, Seek},
+    io::{Cursor, Read, Seek, Write},
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -149,7 +149,7 @@ impl BundleInfo<'_> {
         }
         None
     }
-     
+
     pub fn extract_zip_idx_to_path<T: AsRef<Path>>(&self, index: usize, path: T) -> Result<()> {
         let path = path.as_ref();
         debug!("Extracting zip file to path: {}", path.to_string_lossy());
@@ -166,7 +166,7 @@ impl BundleInfo<'_> {
         let mut outfile = super::retry_io(|| File::create(path))?;
         let mut buffer = [0; 64000]; // Use a 64KB buffer; good balance for large/small files.
 
-        debug!("Writing file to disk with 64k buffer: {:?}", path);
+        debug!("Writing normal file to disk with 64k buffer: {:?}", path);
         loop {
             let len = file.read(&mut buffer)?;
             if len == 0 {
@@ -191,6 +191,33 @@ impl BundleInfo<'_> {
         Ok(idx)
     }
 
+    fn create_symlink(link_path: &PathBuf, target_path: &PathBuf) -> Result<()> {
+        #[cfg(target_os = "windows")]
+        {
+            let absolute_path = link_path.parent().unwrap().join(&target_path);
+            trace!(
+                "Creating symlink '{}' -> '{}', target isfile={}, isdir={}, relative={}",
+                link_path.to_string_lossy(),
+                absolute_path.to_string_lossy(),
+                absolute_path.is_file(),
+                absolute_path.is_dir(),
+                target_path.to_string_lossy()
+            );
+            if absolute_path.is_file() {
+                std::os::windows::fs::symlink_file(target_path, link_path)?;
+            } else if absolute_path.is_dir() {
+                std::os::windows::fs::symlink_dir(target_path, link_path)?;
+            } else {
+                bail!("Could not create symlink: target is not a file or directory.")
+            }
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            std::os::unix::fs::symlink(absolute_path, link_path)?;
+        }
+        Ok(())
+    }
+
     #[cfg(not(target_os = "linux"))]
     pub fn extract_lib_contents_to_path<P: AsRef<Path>, F: Fn(i16)>(&self, current_path: P, progress: F) -> Result<()> {
         let current_path = current_path.as_ref();
@@ -200,8 +227,11 @@ impl BundleInfo<'_> {
         info!("Extracting {} app files...", num_files);
         let re = Regex::new(r"lib[\\\/][^\\\/]*[\\\/]").unwrap();
         let stub_regex = Regex::new("_ExecutionStub.exe$").unwrap();
+        let symlink_regex = Regex::new(".__symlink$").unwrap();
         let updater_idx = self.find_zip_file(|name| name.ends_with("Squirrel.exe"));
 
+        // for legacy support, we still extract the nuspec file to the current dir.
+        // in newer versions, the nuspec is in the current dir in the package itself.
         #[cfg(target_os = "windows")]
         {
             let nuspec_path = current_path.join("sq.version");
@@ -209,6 +239,9 @@ impl BundleInfo<'_> {
                 .extract_zip_predicate_to_path(|name| name.ends_with(".nuspec"), nuspec_path)
                 .map_err(|_| anyhow!("This package is missing a nuspec manifest."))?;
         }
+
+        // we extract the symlinks after, because the target must exist.
+        let mut symlinks: Vec<(usize, PathBuf)> = Vec::new();
 
         for (i, key) in files.iter().enumerate() {
             if Some(i) == updater_idx || !re.is_match(key) || key.ends_with("/") || key.ends_with("\\") {
@@ -218,6 +251,13 @@ impl BundleInfo<'_> {
 
             let file_path_in_zip = re.replace(key, "").to_string();
             let file_path_on_disk = Path::new(&current_path).join(&file_path_in_zip);
+
+            if symlink_regex.is_match(&file_path_in_zip) {
+                let sym_key = symlink_regex.replace(&file_path_in_zip, "").to_string();
+                let file_path_on_disk = Path::new(&current_path).join(&sym_key);
+                symlinks.push((i, file_path_on_disk));
+                continue;
+            }
 
             if stub_regex.is_match(&file_path_in_zip) {
                 // let stub_key = stub_regex.replace(&file_path_in_zip, ".exe").to_string();
@@ -260,6 +300,27 @@ impl BundleInfo<'_> {
             progress(((i as f32 / num_files as f32) * 100.0) as i16);
         }
 
+        // we extract the symlinks after, because the target must exist.
+        for (i, link_path) in symlinks {
+            let mut archive = self.zip.borrow_mut();
+            let mut file = archive.by_index(i)?;
+            let mut contents = String::new();
+            file.read_to_string(&mut contents)?;
+            info!("    {} Creating symlink '{}' -> '{}'", i, link_path.to_string_lossy(), contents);
+
+            let contents = contents.trim_end_matches('/');
+            #[cfg(target_os = "windows")]
+            let contents = contents.replace("/", "\\");
+            let contents = PathBuf::from(contents);
+
+            let parent = link_path.parent().unwrap();
+            if !parent.exists() {
+                debug!("Creating parent directory: {:?}", parent);
+                super::retry_io(|| fs::create_dir_all(parent))?;
+            }
+            super::retry_io(|| Self::create_symlink(&link_path, &contents))?;
+        }
+
         Ok(())
     }
 
@@ -294,8 +355,9 @@ impl BundleInfo<'_> {
         let mut archive = self.zip.borrow_mut();
         for i in 0..archive.len() {
             let file = archive.by_index(i)?;
-            let key = file.enclosed_name().ok_or_else(
-                || anyhow!("Could not extract file safely ({}). Ensure no paths in archive are absolute or point to a path outside the archive.", file.name()))?;
+            let key = file.enclosed_name().ok_or_else(|| {
+                anyhow!("Could not extract file safely ({}). Ensure no paths in archive are absolute or point to a path outside the archive.", file.name())
+            })?;
             files.push(key.to_string_lossy().to_string());
         }
         Ok(files)

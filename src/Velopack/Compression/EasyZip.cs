@@ -58,6 +58,9 @@ namespace Velopack.Compression
                 using (var reader = new StreamReader(source.Open())) {
                     var targetPath = reader.ReadToEnd();
                     var absolute = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(fileDestinationPath)!, targetPath));
+                    if (!Utility.IsFileInDirectory(absolute, destinationDirectoryName)) {
+                        throw new IOException("IO_SymlinkTargetNotInDirectory");
+                    }
                     SymbolicLink.Create(fileDestinationPath, absolute, true, true);
                 }
                 return;
@@ -119,6 +122,9 @@ namespace Velopack.Compression
 
                 // if dir is a symlink, write it as a file containing path to target
                 if (SymbolicLink.Exists(dir.FullName)) {
+                    if (!Utility.IsFileInDirectory(SymbolicLink.GetTarget(dir.FullName, relative: false), sourceDirectoryName)) {
+                        throw new IOException("IO_SymlinkTargetNotInDirectory");
+                    }
                     string entryName = EntryFromPath(dir.FullName, fullName.Length, dir.FullName.Length - fullName.Length);
                     string symlinkTarget = SymbolicLink.GetTarget(dir.FullName, relative: true)
                         .Replace(Path.DirectorySeparatorChar, s_pathSeperator) + s_pathSeperator;
@@ -151,8 +157,11 @@ namespace Velopack.Compression
 
                     if (SymbolicLink.Exists(fileInfo.FullName)) {
                         // Handle symlink: Store the symlink target instead of its content
+                        if (!Utility.IsFileInDirectory(SymbolicLink.GetTarget(fileInfo.FullName, relative: false), sourceDirectoryName)) {
+                            throw new IOException("IO_SymlinkTargetNotInDirectory");
+                        }
                         string symlinkTarget = SymbolicLink.GetTarget(fileInfo.FullName, relative: true)
-                                .Replace(Path.DirectorySeparatorChar, s_pathSeperator);
+                            .Replace(Path.DirectorySeparatorChar, s_pathSeperator);
                         var entry = zipArchive.CreateEntry(entryName + SYMLINK_EXT);
                         using (var writer = new StreamWriter(entry.Open())) {
                             await writer.WriteAsync(symlinkTarget).ConfigureAwait(false);
