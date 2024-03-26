@@ -191,6 +191,7 @@ impl BundleInfo<'_> {
         Ok(idx)
     }
 
+    #[cfg(not(target_os = "linux"))]
     fn create_symlink(link_path: &PathBuf, target_path: &PathBuf) -> Result<()> {
         #[cfg(target_os = "windows")]
         {
@@ -213,7 +214,7 @@ impl BundleInfo<'_> {
         }
         #[cfg(not(target_os = "windows"))]
         {
-            std::os::unix::fs::symlink(absolute_path, link_path)?;
+            std::os::unix::fs::symlink(target_path, link_path)?;
         }
         Ok(())
     }
