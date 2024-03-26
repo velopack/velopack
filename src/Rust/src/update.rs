@@ -16,7 +16,7 @@ fn root_command() -> Command {
     .about(format!("Velopack Updater ({}) manages packages and installs updates.\nhttps://github.com/velopack/velopack", env!("NGBV_VERSION")))
     .subcommand(Command::new("apply")
         .about("Applies a staged / prepared update, installing prerequisite runtimes if necessary")
-        .arg(arg!(-r --restart "Restart the application after the update"))
+        .arg(arg!(--norestart "Do not restart the application after the update"))
         .arg(arg!(-w --wait "Wait for the parent process to terminate before applying the update"))
         .arg(arg!(--waitPid <PID> "Wait for the specified process to terminate before applying the update").value_parser(value_parser!(u32)))
         .arg(arg!(-p --package <FILE> "Update package to apply").value_parser(value_parser!(PathBuf)))
@@ -35,6 +35,8 @@ fn root_command() -> Command {
     .arg(arg!(--nocolor "Disable colored output").hide(true).global(true))
     .arg(arg!(-s --silent "Don't show any prompts / dialogs").global(true))
     .arg(arg!(-l --log <PATH> "Override the default log file location").global(true).value_parser(value_parser!(PathBuf)))
+    .arg(arg!(--forceLatest "Legacy argument").hide(true).global(true))
+    .arg(arg!(-r --restart "Legacy argument").hide(true).global(true))
     .ignore_errors(true)
     .disable_help_subcommand(true)
     .flatten_help(true);
@@ -153,7 +155,7 @@ fn patch(matches: &ArgMatches) -> Result<()> {
 }
 
 fn apply(matches: &ArgMatches) -> Result<()> {
-    let restart = get_flag_or_false(&matches, "restart");
+    let restart = !get_flag_or_false(&matches, "norestart");
     let package = matches.get_one::<PathBuf>("package");
     let exe_args: Option<Vec<&str>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect());
     let wait = get_op_wait(&matches);
