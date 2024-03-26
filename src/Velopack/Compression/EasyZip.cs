@@ -14,7 +14,7 @@ namespace Velopack.Compression
     {
         private const string SYMLINK_EXT = ".__symlink";
 
-        public static void ExtractZipToDirectory(ILogger logger, string inputFile, string outputDirectory)
+        public static void ExtractZipToDirectory(ILogger logger, string inputFile, string outputDirectory, bool expandSymlinks = false)
         {
             logger.Debug($"Extracting '{inputFile}' to '{outputDirectory}' using System.IO.Compression...");
             Utility.DeleteFileOrDirectoryHard(outputDirectory);
@@ -25,18 +25,18 @@ namespace Velopack.Compression
                     if (entry.FullName.EndsWith(SYMLINK_EXT)) {
                         symlinks.Add(entry);
                     } else {
-                        entry.ExtractRelativeToDirectory(outputDirectory, true);
+                        entry.ExtractRelativeToDirectory(outputDirectory, true, expandSymlinks);
                     }
                 }
 
                 // process symlinks after, because creating them requires the target to exist
                 foreach (var sym in symlinks) {
-                    sym.ExtractRelativeToDirectory(outputDirectory, true);
+                    sym.ExtractRelativeToDirectory(outputDirectory, true, expandSymlinks);
                 }
             }
         }
 
-        private static void ExtractRelativeToDirectory(this ZipArchiveEntry source, string destinationDirectoryName, bool overwrite)
+        private static void ExtractRelativeToDirectory(this ZipArchiveEntry source, string destinationDirectoryName, bool overwrite, bool expandSymlinks)
         {
             // Note that this will give us a good DirectoryInfo even if destinationDirectoryName exists:
             DirectoryInfo di = Directory.CreateDirectory(destinationDirectoryName);
@@ -51,7 +51,7 @@ namespace Velopack.Compression
             if (!fileDestinationPath.StartsWith(destinationDirectoryFullPath, VelopackRuntimeInfo.PathStringComparison))
                 throw new IOException("IO_ExtractingResultsInOutside");
 
-            if (source.FullName.EndsWith(SYMLINK_EXT)) {
+            if (expandSymlinks && source.FullName.EndsWith(SYMLINK_EXT)) {
                 // Handle symlink extraction
                 fileDestinationPath = fileDestinationPath.Replace(SYMLINK_EXT, string.Empty);
                 Directory.CreateDirectory(Path.GetDirectoryName(fileDestinationPath)!);
