@@ -110,6 +110,7 @@ public class OsxBuildTools
         File.WriteAllText(postinstall, $"""
 #!/bin/sh
 rm -rf /tmp/velopack/{appId}
+sudo -u "$USER" rm -rf ~/Library/Caches/velopack/{appId}
 sudo -u "$USER" open "$2/{bundleName}/"
 exit 0
 """);
