@@ -38,7 +38,7 @@ public class ZipPackageTests
         SymbolicLink.Create(symfile, actualFile);
 
         Compression.EasyZip.CreateZipFromDirectoryAsync(logger, zipFile, tempDir).GetAwaiterResult();
-        Compression.EasyZip.ExtractZipToDirectory(logger, zipFile, extractedDir);
+        Compression.EasyZip.ExtractZipToDirectory(logger, zipFile, extractedDir, expandSymlinks: true);
 
         Assert.True(File.Exists(Path.Combine(extractedDir, "actual", "file.txt")));
         Assert.Equal("hello", File.ReadAllText(Path.Combine(extractedDir, "actual", "file.txt")));
@@ -50,7 +50,7 @@ public class ZipPackageTests
         Assert.True(SymbolicLink.Exists(Path.Combine(extractedDir, "other", "syml")));
         Assert.True(SymbolicLink.Exists(Path.Combine(extractedDir, "other", "sym.txt")));
 
-        Assert.Equal("..\\actual\\file.txt", SymbolicLink.GetTarget(Path.Combine(extractedDir, "other", "sym.txt"), relative: true));
+        Assert.Equal($"..{Path.DirectorySeparatorChar}actual{Path.DirectorySeparatorChar}file.txt", SymbolicLink.GetTarget(Path.Combine(extractedDir, "other", "sym.txt"), relative: true));
     }
 
     [Fact]

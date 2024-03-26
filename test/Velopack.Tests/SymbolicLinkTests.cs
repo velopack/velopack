@@ -106,8 +106,8 @@ public class SymbolicLinkTests
         Assert.Equal("Hello!", File.ReadAllText(symFile2));
 
         Assert.Equal("AFile", SymbolicLink.GetTarget(symFile1, relative: true));
-        Assert.Equal("..\\AFile", SymbolicLink.GetTarget(symFile2, relative: true));
-        Assert.Equal("..\\AFile", SymbolicLink.GetTarget(symFile3, relative: true));
+        Assert.Equal($"..{Path.DirectorySeparatorChar}AFile", SymbolicLink.GetTarget(symFile2, relative: true));
+        Assert.Equal($"..{Path.DirectorySeparatorChar}AFile", SymbolicLink.GetTarget(symFile3, relative: true));
         Assert.Equal(tmpFile, SymbolicLink.GetTarget(symFile1, relative: false));
         Assert.Equal(tmpFile, SymbolicLink.GetTarget(symFile2, relative: false));
         Assert.Equal(tmpFile, SymbolicLink.GetTarget(symFile3, relative: false));
@@ -135,8 +135,8 @@ public class SymbolicLinkTests
 
         Assert.Equal(subSubDir, SymbolicLink.GetTarget(sym2));
         Assert.Equal(subDir2, SymbolicLink.GetTarget(sym1));
-        Assert.Equal("..\\..\\SubDir2", SymbolicLink.GetTarget(sym1, relative: true));
-        Assert.Equal("SubDir\\SubSub", SymbolicLink.GetTarget(sym2, relative: true));
+        Assert.Equal($"..{Path.DirectorySeparatorChar}..{Path.DirectorySeparatorChar}SubDir2", SymbolicLink.GetTarget(sym1, relative: true));
+        Assert.Equal($"SubDir{Path.DirectorySeparatorChar}SubSub", SymbolicLink.GetTarget(sym2, relative: true));
     }
 
     [Fact]
