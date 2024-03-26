@@ -55,7 +55,6 @@ pub fn test_install_apply_uninstall() {
 #[cfg(target_os = "windows")]
 #[test]
 pub fn test_install_preserve_symlinks() {
-    logging::trace_logger();
     dialogs::set_silent(true);
     let fixtures = find_fixtures();
     let pkg_name = "Test.Squirrel-App-1.0.0-symlinks-full.nupkg";
