@@ -1,6 +1,6 @@
 use crate::{
     bundle,
-    shared::{self, bundle::Manifest},
+    shared::{self, bundle::Manifest, OperationWait},
 };
 use anyhow::{bail, Result};
 use std::path::PathBuf;
@@ -16,21 +16,12 @@ pub fn apply<'a>(
     root_path: &PathBuf,
     app: &Manifest,
     restart: bool,
-    wait_for_parent: bool,
-    wait_pid: Option<u32>,
+    wait: OperationWait,
     package: Option<&PathBuf>,
     exe_args: Option<Vec<&str>>,
     runhooks: bool,
 ) -> Result<()> {
-    if let Some(pid) = wait_pid {
-        if let Err(e) = shared::wait_for_pid_to_exit(pid, 60_000) {
-            warn!("Failed to wait for process ({}) to exit ({}).", pid, e);
-        }
-    } else if wait_for_parent {
-        if let Err(e) = shared::wait_for_parent_to_exit(60_000) {
-            warn!("Failed to wait for parent process to exit ({}).", e);
-        }
-    }
+    shared::operation_wait(wait);
 
     let package = package.cloned().map_or_else(|| auto_locate_package(&app, &root_path), Ok);
     match package {

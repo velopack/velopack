@@ -3,6 +3,27 @@ use rand::distributions::{Alphanumeric, DistString};
 use regex::Regex;
 use std::{path::Path, thread, time::Duration};
 
+#[derive(Debug, Clone, Copy)]
+pub enum OperationWait {
+    NoWait,
+    WaitParent,
+    WaitPid(u32),
+}
+
+pub fn operation_wait(wait: OperationWait) {
+    if let OperationWait::WaitPid(pid) = wait {
+        if let Err(e) = super::wait_for_pid_to_exit(pid, 60_000) {
+            warn!("Failed to wait for process ({}) to exit ({}). Continuing...", pid, e);
+        }
+    } else if let OperationWait::WaitParent = wait {
+        if let Err(e) = super::wait_for_parent_to_exit(60_000) {
+            warn!("Failed to wait for parent process to exit ({}). Continuing...", e);
+        }
+    } else {
+        debug!("NoWait was specified, will not wait for any process before continuing.");
+    }
+}
+
 pub fn is_http_url(url: &str) -> bool {
     match url::Url::parse(url) {
         Ok(url) => url.scheme().eq_ignore_ascii_case("http") || url.scheme().eq_ignore_ascii_case("https"),

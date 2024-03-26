@@ -1,6 +1,6 @@
 use crate::{
     dialogs,
-    shared::{self, bundle},
+    shared::{self, bundle, OperationWait},
     windows,
 };
 use anyhow::{anyhow, bail, Result};
@@ -9,20 +9,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub fn start(wait_for_parent: bool, wait_pid: Option<u32>, exe_name: Option<&String>, exe_args: Option<Vec<&str>>, legacy_args: Option<&String>) -> Result<()> {
+pub fn start(wait: OperationWait, exe_name: Option<&String>, exe_args: Option<Vec<&str>>, legacy_args: Option<&String>) -> Result<()> {
     if legacy_args.is_some() && exe_args.is_some() {
         bail!("Cannot use both legacy args and new args format.");
     }
 
-    if let Some(pid) = wait_pid {
-        if let Err(e) = shared::wait_for_pid_to_exit(pid, 60_000) {
-            warn!("Failed to wait for process ({}) to exit ({}).", pid, e);
-        }
-    } else if wait_for_parent {
-        if let Err(e) = shared::wait_for_parent_to_exit(60_000) {
-            warn!("Failed to wait for parent process to exit ({}).", e);
-        }
-    }
+    shared::operation_wait(wait);
 
     let (root_dir, app) = shared::detect_current_manifest()?;
 
@@ -97,7 +89,7 @@ fn try_legacy_migration(root_dir: &PathBuf, app: &bundle::Manifest) -> Result<()
 
     info!("Applying latest full package...");
     let buf = Path::new(&package.file_path).to_path_buf();
-    super::apply(&root_dir, &app, false, false, None, Some(&buf), None, false)?;
+    super::apply(&root_dir, &app, false, OperationWait::NoWait, Some(&buf), None, false)?;
 
     info!("Removing old app-* folders...");
     shared::delete_app_prefixed_folders(&root_dir)?;

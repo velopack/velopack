@@ -75,6 +75,18 @@ fn get_flag_or_false(matches: &ArgMatches, id: &str) -> bool {
     matches.try_get_one::<bool>(id).unwrap_or(None).map(|x| x.to_owned()).unwrap_or(false)
 }
 
+fn get_op_wait(matches: &ArgMatches) -> shared::OperationWait {
+    let wait_for_parent = get_flag_or_false(&matches, "wait");
+    let wait_pid = matches.try_get_one::<u32>("waitPid").unwrap_or(None).map(|v| v.to_owned());
+    if wait_for_parent {
+        shared::OperationWait::WaitParent
+    } else if wait_pid.is_some() {
+        shared::OperationWait::WaitPid(wait_pid.unwrap())
+    } else {
+        shared::OperationWait::NoWait
+    }
+}
+
 fn main() -> Result<()> {
     #[cfg(windows)]
     let matches = parse_command_line_matches(env::args().collect());
@@ -142,35 +154,31 @@ fn patch(matches: &ArgMatches) -> Result<()> {
 
 fn apply(matches: &ArgMatches) -> Result<()> {
     let restart = get_flag_or_false(&matches, "restart");
-    let wait_for_parent = get_flag_or_false(&matches, "wait");
-    let wait_pid = matches.get_one::<u32>("waitPid").map(|v| v.to_owned());
     let package = matches.get_one::<PathBuf>("package");
     let exe_args: Option<Vec<&str>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect());
+    let wait = get_op_wait(&matches);
 
     info!("Command: Apply");
     info!("    Restart: {:?}", restart);
-    info!("    Wait: {:?}", wait_for_parent);
-    info!("    Wait PID: {:?}", wait_pid);
+    info!("    Wait: {:?}", wait);
     info!("    Package: {:?}", package);
     info!("    Exe Args: {:?}", exe_args);
 
     let (root_path, app) = shared::detect_current_manifest()?;
     #[cfg(target_os = "windows")]
     let _mutex = shared::retry_io(|| windows::create_global_mutex(&app))?;
-    commands::apply(&root_path, &app, restart, wait_for_parent, wait_pid, package, exe_args, true)
+    commands::apply(&root_path, &app, restart, wait, package, exe_args, true)
 }
 
 #[cfg(target_os = "windows")]
 fn start(matches: &ArgMatches) -> Result<()> {
     let legacy_args = matches.get_one::<String>("args");
-    let wait_for_parent = get_flag_or_false(&matches, "wait");
-    let wait_pid = matches.get_one::<u32>("waitPid").map(|v| v.to_owned());
     let exe_name = matches.get_one::<String>("EXE_NAME");
     let exe_args: Option<Vec<&str>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect());
+    let wait = get_op_wait(&matches);
 
     info!("Command: Start");
-    info!("    Wait: {:?}", wait_for_parent);
-    info!("    Wait PID: {:?}", wait_pid);
+    info!("    Wait: {:?}", wait);
     info!("    Exe Name: {:?}", exe_name);
     info!("    Exe Args: {:?}", exe_args);
     if legacy_args.is_some() {
@@ -180,7 +188,7 @@ fn start(matches: &ArgMatches) -> Result<()> {
 
     let (_root_path, app) = shared::detect_current_manifest()?;
     let _mutex = shared::retry_io(|| windows::create_global_mutex(&app))?;
-    commands::start(wait_for_parent, wait_pid, exe_name, exe_args, legacy_args)
+    commands::start(wait, exe_name, exe_args, legacy_args)
 }
 
 #[cfg(target_os = "windows")]

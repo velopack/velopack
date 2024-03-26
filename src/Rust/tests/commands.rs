@@ -41,7 +41,7 @@ pub fn test_install_apply_uninstall() {
 
     let pkg_name_apply = "AvaloniaCrossPlat-1.0.15-win-full.nupkg";
     let nupkg_apply = fixtures.join(pkg_name_apply);
-    commands::apply(&root_dir, &app, false, false, None, Some(&nupkg_apply), None, false).unwrap();
+    commands::apply(&root_dir, &app, false, shared::OperationWait::NoWait, Some(&nupkg_apply), None, false).unwrap();
 
     let (root_dir, app) = shared::detect_manifest_from_update_path(&tmp_buf.join("Update.exe")).unwrap();
     assert!(semver::Version::parse("1.0.15").unwrap() == app.version);
