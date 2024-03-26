@@ -15,7 +15,7 @@ public class OsxBuildTools
         Log = logger;
     }
 
-    public void CodeSign(string identity, string entitlements, string filePath)
+    public void CodeSign(string identity, string entitlements, string filePath, string keychainPath)
     {
         if (String.IsNullOrEmpty(entitlements)) {
             Log.Info("No entitlements specified, using default: " +
@@ -35,13 +35,18 @@ public class OsxBuildTools
             "--timestamp",
             "--options", "runtime",
             "--entitlements", entitlements,
-            filePath
         };
 
+        if (!String.IsNullOrEmpty(keychainPath)) {
+            Log.Info($"Using non-default keychain at '{keychainPath}'");
+            args.Add("--keychain");
+            args.Add(keychainPath);
+        }
+
+        args.Add(filePath);
+
         Log.Info($"Beginning codesign for package...");
-
         Log.Info(Exe.InvokeAndThrowIfNonZero("codesign", args, null));
-
         Log.Info("codesign completed successfully");
     }
 
@@ -179,7 +184,7 @@ exit 0
         Log.Info("Installer created successfully");
     }
 
-    public void Notarize(string filePath, string keychainProfileName)
+    public void Notarize(string filePath, string keychainProfileName, string keychainPath)
     {
         Log.Info($"Preparing to Notarize. This will upload to Apple and usually takes minutes, [underline]but could take hours.[/]");
 
@@ -187,10 +192,17 @@ exit 0
             "notarytool",
             "submit",
             "-f", "json",
-            "--keychain-profile", keychainProfileName,
             "--wait",
-            filePath
+            "--keychain-profile", keychainProfileName,
         };
+
+        if (!String.IsNullOrEmpty(keychainPath)) {
+            Log.Info($"Using non-default keychain at '{keychainPath}'");
+            args.Add("--keychain");
+            args.Add(keychainPath);
+        }
+
+        args.Add(filePath);
 
         var ntresultjson = Exe.InvokeProcess("xcrun", args, null);
         Log.Info(ntresultjson.StdOutput);

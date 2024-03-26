@@ -30,6 +30,9 @@ public class OsxPackOptions : OsxBundleOptions, IPackOptions
 
     public string NotaryProfile { get; set; }
 
+    public string Keychain { get; set; }
+
     public string Channel { get; set; }
+
     public string Exclude { get; set; }
 }

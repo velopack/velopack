@@ -70,6 +70,8 @@ public class PackTask : MSBuildAsyncTask
 
     public string? NotaryProfile { get; set; }
 
+    public string? Keychain { get; set; }
+
     public string? BundleId { get; set; }
 
     public string? InfoPlistPath { get; set; }
@@ -119,7 +121,7 @@ public class PackTask : MSBuildAsyncTask
             var runner = new WindowsPackCommandRunner(Logger, Logger);
             await runner.Run(options).ConfigureAwait(false);
         } else if (VelopackRuntimeInfo.IsOSX) {
-            var options = this.ToOSXPackOptions();
+            var options = this.ToOsxPackOptions();
             var runner = new OsxPackCommandRunner(Logger, Logger);
             await runner.Run(options).ConfigureAwait(false);
         } else if (VelopackRuntimeInfo.IsLinux) {

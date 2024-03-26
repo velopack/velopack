@@ -18,6 +18,8 @@ public class OsxPackCommand : OsxBundleCommand
 
     public string NotaryProfile { get; private set; }
 
+    public string Keychain { get; private set; }
+
     public OsxPackCommand()
         : base("pack", "Converts application files into a release and installer.")
     {
@@ -58,5 +60,11 @@ public class OsxPackCommand : OsxBundleCommand
         AddOption<string>((v) => NotaryProfile = v, "--notaryProfile")
             .SetDescription("Name of profile containing Apple credentials stored with notarytool.")
             .SetArgumentHelpName("NAME");
+
+        AddOption<FileInfo>((v) => Keychain = v.ToFullNameOrNull(), "--keychain")
+            .SetDescription("Path to keychain file to use for codesign and notarytool.")
+            .SetArgumentHelpName("PATH")
+            .MustExist()
+            .SetHidden(true);
     }
 }

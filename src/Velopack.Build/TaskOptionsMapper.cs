@@ -14,7 +14,7 @@ public static partial class TaskOptionsMapper
 {
     public static partial WindowsPackOptions ToWinPackOptions(this PackTask cmd);
     public static partial LinuxPackOptions ToLinuxPackOptions(this PackTask cmd);
-    public static partial OsxPackOptions ToOSXPackOptions(this PackTask cmd);
+    public static partial OsxPackOptions ToOsxPackOptions(this PackTask cmd);
 
     private static DirectoryInfo StringToDirectoryInfo(string t)
     {

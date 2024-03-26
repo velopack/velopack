@@ -58,13 +58,14 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
     protected override Task CodeSign(Action<int> progress, string packDir)
     {
         var helper = new OsxBuildTools(Log);
+        var keychainPath = Options.Keychain;
         // code signing all mach-o binaries
         if (!string.IsNullOrEmpty(Options.SignAppIdentity) && !string.IsNullOrEmpty(Options.NotaryProfile)) {
             progress(-1); // indeterminate
             var zipPath = Path.Combine(TempDir.FullName, "notarize.zip");
-            helper.CodeSign(Options.SignAppIdentity, Options.SignEntitlements, packDir);
+            helper.CodeSign(Options.SignAppIdentity, Options.SignEntitlements, packDir, keychainPath);
             helper.CreateDittoZip(packDir, zipPath);
-            helper.Notarize(zipPath, Options.NotaryProfile);
+            helper.Notarize(zipPath, Options.NotaryProfile, keychainPath);
             helper.Staple(packDir);
             helper.SpctlAssessCode(packDir);
             File.Delete(zipPath);
@@ -72,7 +73,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
         } else if (!string.IsNullOrEmpty(Options.SignAppIdentity)) {
             progress(-1); // indeterminate
             Log.Warn("Package will be signed, but [underline]not notarized[/]. Missing the --notaryProfile option.");
-            helper.CodeSign(Options.SignAppIdentity, Options.SignEntitlements, packDir);
+            helper.CodeSign(Options.SignAppIdentity, Options.SignEntitlements, packDir, keychainPath);
             progress(100);
         } else {
             Log.Warn("Package will not be signed or notarized. Missing the --signAppIdentity and --notaryProfile options.");
@@ -98,7 +99,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
             if (!string.IsNullOrEmpty(Options.SignInstallIdentity) && !string.IsNullOrEmpty(Options.NotaryProfile)) {
                 helper.CreateInstallerPkg(packDir, packTitle, packId, pkgContent, pkgPath, Options.SignInstallIdentity, Utility.CreateProgressDelegate(progress, 0, 60));
                 progress(-1); // indeterminate
-                helper.Notarize(pkgPath, Options.NotaryProfile);
+                helper.Notarize(pkgPath, Options.NotaryProfile, Options.Keychain);
                 progress(80);
                 helper.Staple(pkgPath);
                 progress(90);
