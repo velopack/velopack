@@ -33,7 +33,6 @@ public abstract class PackageBuilder<T> : ICommand<T>
     protected string RuntimeDependencies { get; private set; }
 
     private readonly Regex REGEX_EXCLUDES = new Regex(@".*[\\\/]createdump.*|.*\.vshost\..*|.*\.nupkg$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private readonly Regex REGEX_EXCLUDES_NO_PDB = new Regex(@".*[\\\/]createdump.*|.*\.vshost\..*|.*\.nupkg$|.*\.pdb$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public PackageBuilder(RuntimeOs supportedOs, ILogger logger, IFancyConsole console)
     {
@@ -290,13 +289,17 @@ public abstract class PackageBuilder<T> : ICommand<T>
         // On OSX, it's a bit tricker because it's common practice to have internal symlinks which this will recursively copy as directories.
         // We need to preserve the internal symlinks, so we will use 'cp -a' and then manually delete annoying files.
 
+        Regex manualExclude = null;
+        if (!String.IsNullOrEmpty(Options.Exclude)) {
+            manualExclude = new Regex(Options.Exclude, RegexOptions.Compiled);
+        }
+
         if (!source.Exists) {
             throw new ArgumentException("Source directory does not exist: " + source.FullName);
         }
 
         if (VelopackRuntimeInfo.IsWindows) {
             Log.Debug($"Copying '{source}' to '{target}' (built-in recursive)");
-            var excludes = Options.IncludePdb ? REGEX_EXCLUDES : REGEX_EXCLUDES_NO_PDB;
             var numFiles = source.EnumerateFiles("*", SearchOption.AllDirectories).Count();
             int currentFile = 0;
 
@@ -306,7 +309,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
                     var path = Path.Combine(target.FullName, fileInfo.Name);
                     currentFile++;
                     progress((int) ((double) currentFile / numFiles * 100));
-                    if (excludeAnnoyances && excludes.IsMatch(path)) {
+                    if (excludeAnnoyances && (REGEX_EXCLUDES.IsMatch(path) || manualExclude?.IsMatch(path) == true)) {
                         Log.Debug("Skipping because matched exclude pattern: " + path);
                         continue;
                     }
@@ -329,7 +332,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
             if (excludeAnnoyances) {
                 foreach (var f in target.EnumerateFiles("*", SearchOption.AllDirectories)) {
-                    if (REGEX_EXCLUDES.IsMatch(f.FullName)) {
+                    if (excludeAnnoyances && (REGEX_EXCLUDES.IsMatch(f.FullName) || manualExclude?.IsMatch(f.FullName) == true)) {
                         Log.Debug("Deleting because matched exclude pattern: " + f.FullName);
                         f.Delete();
                     }

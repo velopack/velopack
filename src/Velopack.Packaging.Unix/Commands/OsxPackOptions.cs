@@ -10,25 +10,26 @@ public class OsxPackOptions : OsxBundleOptions, IPackOptions
 
     public DeltaMode DeltaMode { get; set; } = DeltaMode.BestSpeed;
 
-    public bool NoPackage { get; set; }
+    public bool NoInst { get; set; }
 
-    public string PackageWelcome { get; set; }
+    public bool NoPortable { get; set; }
 
-    public string PackageReadme { get; set; }
+    public string InstWelcome { get; set; }
 
-    public string PackageLicense { get; set; }
+    public string InstReadme { get; set; }
 
-    public string PackageConclusion { get; set; }
+    public string InstLicense { get; set; }
 
-    public string SigningAppIdentity { get; set; }
+    public string InstConclusion { get; set; }
 
-    public string SigningInstallIdentity { get; set; }
+    public string SignAppIdentity { get; set; }
 
-    public string SigningEntitlements { get; set; }
+    public string SignInstallIdentity { get; set; }
+
+    public string SignEntitlements { get; set; }
 
     public string NotaryProfile { get; set; }
 
     public string Channel { get; set; }
-
-    public bool IncludePdb { get; set; }
+    public string Exclude { get; set; }
 }

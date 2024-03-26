@@ -2,7 +2,7 @@
 
 public abstract class PlatformCommand : OutputCommand
 {
-    public string TargetRuntime { get; set; }
+    public string TargetRuntime { get; private set; }
 
     protected CliOption<string> TargetRuntimeOption { get; private set; }
 

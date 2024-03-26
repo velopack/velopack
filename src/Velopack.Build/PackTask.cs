@@ -48,23 +48,25 @@ public class PackTask : MSBuildAsyncTask
 
     public bool PackIsAppDir { get; set; }
 
-    public bool IncludePdb { get; set; }
+    public string? Exclude { get; set; }
 
-    public bool NoPackage { get; set; }
+    public bool NoPortable { get; private set; }
 
-    public string? PackageWelcome { get; set; }
+    public bool NoInst { get; private set; }
 
-    public string? PackageReadme { get; set; }
+    public string? InstWelcome { get; set; }
 
-    public string? PackageLicense { get; set; }
+    public string? InstReadme { get; set; }
 
-    public string? PackageConclusion { get; set; }
+    public string? InstLicense { get; set; }
 
-    public string? SigningAppIdentity { get; set; }
+    public string? InstConclusion { get; set; }
 
-    public string? SigningInstallIdentity { get; set; }
+    public string? SignAppIdentity { get; set; }
 
-    public string? SigningEntitlements { get; set; }
+    public string? SignInstallIdentity { get; set; }
+
+    public string? SignEntitlements { get; set; }
 
     public string? NotaryProfile { get; set; }
 

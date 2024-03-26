@@ -51,6 +51,13 @@ public class BaseCommand : CliCommand
         return opt;
     }
 
+    protected virtual void RemoveOption(CliOption option)
+    {
+        _setters.Remove(option);
+        _envHelp.Remove(option);
+        Options.Remove(option);
+    }
+
     public string GetEnvVariableName(CliOption option) => _envHelp.ContainsKey(option) ? _envHelp[option] : null;
 
     public virtual void SetProperties(ParseResult context, IConfiguration config)
