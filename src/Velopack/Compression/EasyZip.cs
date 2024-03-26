@@ -111,6 +111,9 @@ namespace Velopack.Compression
             DirectoryInfo directoryInfo = new DirectoryInfo(sourceDirectoryName);
             string fullName = directoryInfo.FullName;
 
+            long totalBytes = directoryInfo.EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length);
+            long processedBytes = 0L;
+
             var directories = directoryInfo
                 .EnumerateDirectories("*", SearchOption.AllDirectories)
                 .Concat(new[] { directoryInfo })
@@ -174,11 +177,17 @@ namespace Velopack.Compression
                     using Stream stream = File.Open(sourceFileName, FileMode.Open, FileAccess.Read, FileShare.Read);
                     ZipArchiveEntry zipArchiveEntry = zipArchive.CreateEntry(entryName, compressionLevel);
                     zipArchiveEntry.LastWriteTime = ZipFormatMinDate;
-                    using (Stream destination = zipArchiveEntry.Open()) {
-                        await stream.CopyToAsync(destination, 81920, cancelToken).ConfigureAwait(false);
-                    }
 
-                    progress((int) ((double) i / files.Length * 100));
+                    byte[] buffer = new byte[81920];
+                    int bytesRead;
+                    using (Stream destination = zipArchiveEntry.Open()) {
+                        while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancelToken).ConfigureAwait(false)) > 0) {
+                            cancelToken.ThrowIfCancellationRequested();
+                            await destination.WriteAsync(buffer, 0, bytesRead, cancelToken).ConfigureAwait(false);
+                            processedBytes += bytesRead;
+                            progress((int) ((double) ++processedBytes / totalBytes * 100));
+                        }
+                    }
                 }
             }
         }
