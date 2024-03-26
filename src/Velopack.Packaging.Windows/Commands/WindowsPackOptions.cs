@@ -17,4 +17,8 @@ public class WindowsPackOptions : WindowsReleasifyOptions, INugetPackCommand, IP
     public string ReleaseNotes { get; set; }
 
     public string Exclude { get; set; }
+
+    public bool NoPortable { get; set; }
+
+    public bool NoInst { get; set; }
 }

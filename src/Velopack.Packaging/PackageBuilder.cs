@@ -117,11 +117,14 @@ public abstract class PackageBuilder<T> : ICommand<T>
                 });
             }
 
-            var portableTask = ctx.RunTask("Building portable package", async (progress) => {
-                var suggestedName = ReleaseEntryHelper.GetSuggestedPortableName(packId, channel);
-                var path = getIncompletePath(suggestedName);
-                await CreatePortablePackage(progress, packDirectory, path);
-            });
+            Task portableTask = null;
+            if (!VelopackRuntimeInfo.IsLinux && !Options.NoPortable) {
+                portableTask = ctx.RunTask("Building portable package", async (progress) => {
+                    var suggestedName = ReleaseEntryHelper.GetSuggestedPortableName(packId, channel);
+                    var path = getIncompletePath(suggestedName);
+                    await CreatePortablePackage(progress, packDirectory, path);
+                });
+            }
 
             // TODO: hack, this is a prerequisite for building full package but only on linux
             if (VelopackRuntimeInfo.IsLinux) await portableTask;
@@ -134,7 +137,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
             });
 
             Task setupTask = null;
-            if (VelopackRuntimeInfo.IsWindows || VelopackRuntimeInfo.IsOSX) {
+            if (!Options.NoInst && (VelopackRuntimeInfo.IsWindows || VelopackRuntimeInfo.IsOSX)) {
                 setupTask = ctx.RunTask("Building setup package", async (progress) => {
                     var suggestedName = ReleaseEntryHelper.GetSuggestedSetupName(packId, channel);
                     var path = getIncompletePath(suggestedName);
@@ -149,16 +152,10 @@ public abstract class PackageBuilder<T> : ICommand<T>
                 });
             }
 
-            if (!VelopackRuntimeInfo.IsLinux) await portableTask;
+            if (!VelopackRuntimeInfo.IsLinux && portableTask != null) await portableTask;
             if (setupTask != null) await setupTask;
 
             await ctx.RunTask("Post-process steps", (progress) => {
-                var expectedAssets = VelopackRuntimeInfo.IsLinux ? 2 : 3;
-                if (prev != null && options.DeltaMode != DeltaMode.None) expectedAssets += 1;
-                if (filesToCopy.Count != expectedAssets) {
-                    throw new Exception($"Expected {expectedAssets} assets to be created, but only {filesToCopy.Count} were.");
-                }
-
                 foreach (var f in filesToCopy) {
                     Utility.MoveFile(f.from, f.to, true);
                 }

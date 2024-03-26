@@ -31,4 +31,8 @@ public class LinuxPackOptions : IPackOptions
     public bool PackIsAppDir { get; set; }
 
     public string Exclude { get; set; }
+
+    public bool NoPortable { get; set; }
+
+    public bool NoInst { get; set; }
 }

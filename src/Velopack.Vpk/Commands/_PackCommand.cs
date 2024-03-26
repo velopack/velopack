@@ -113,5 +113,7 @@ public abstract class PackCommand : PlatformCommand
         NoInstOption = AddOption<bool>((v) => NoInst = v, "--noInst")
             .SetDescription("Skip generating an installer package.")
             .SetHidden(true);
+
+        this.AreMutuallyExclusive(NoPortableOption, NoInstOption);
     }
 }
