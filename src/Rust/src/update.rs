@@ -35,7 +35,7 @@ fn root_command() -> Command {
     .arg(arg!(--nocolor "Disable colored output").hide(true).global(true))
     .arg(arg!(-s --silent "Don't show any prompts / dialogs").global(true))
     .arg(arg!(-l --log <PATH> "Override the default log file location").global(true).value_parser(value_parser!(PathBuf)))
-    .arg(arg!(--forceLatest "Legacy / not used").hide(true))
+    .ignore_errors(true)
     .disable_help_subcommand(true)
     .flatten_help(true);
 
@@ -70,6 +70,11 @@ fn parse_command_line_matches(input_args: Vec<String>) -> ArgMatches {
     root_command().get_matches_from(&args)
 }
 
+fn get_flag_or_false(matches: &ArgMatches, id: &str) -> bool {
+    // matches.get_flag throws when used with ignore_errors when any unknown arg is encountered and the flag is not present
+    matches.try_get_one::<bool>(id).unwrap_or(None).map(|x| x.to_owned()).unwrap_or(false)
+}
+
 fn main() -> Result<()> {
     #[cfg(windows)]
     let matches = parse_command_line_matches(env::args().collect());
@@ -78,9 +83,9 @@ fn main() -> Result<()> {
 
     let (subcommand, subcommand_matches) = matches.subcommand().ok_or_else(|| anyhow!("No subcommand was used. Try `--help` for more information."))?;
 
-    let verbose = matches.get_flag("verbose");
-    let silent = matches.get_flag("silent");
-    let nocolor = matches.get_flag("nocolor");
+    let verbose = get_flag_or_false(&matches, "verbose");
+    let silent = get_flag_or_false(&matches, "silent");
+    let nocolor = get_flag_or_false(&matches, "nocolor");
     let log_file = matches.get_one("log");
 
     dialogs::set_silent(silent);
@@ -136,8 +141,8 @@ fn patch(matches: &ArgMatches) -> Result<()> {
 }
 
 fn apply(matches: &ArgMatches) -> Result<()> {
-    let restart = matches.get_flag("restart");
-    let wait_for_parent = matches.get_flag("wait");
+    let restart = get_flag_or_false(&matches, "restart");
+    let wait_for_parent = get_flag_or_false(&matches, "wait");
     let wait_pid = matches.get_one::<u32>("waitPid").map(|v| v.to_owned());
     let package = matches.get_one::<PathBuf>("package");
     let exe_args: Option<Vec<&str>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect());
@@ -158,7 +163,7 @@ fn apply(matches: &ArgMatches) -> Result<()> {
 #[cfg(target_os = "windows")]
 fn start(matches: &ArgMatches) -> Result<()> {
     let legacy_args = matches.get_one::<String>("args");
-    let wait_for_parent = matches.get_flag("wait");
+    let wait_for_parent = get_flag_or_false(&matches, "wait");
     let wait_pid = matches.get_one::<u32>("waitPid").map(|v| v.to_owned());
     let exe_name = matches.get_one::<String>("EXE_NAME");
     let exe_args: Option<Vec<&str>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect());
@@ -190,7 +195,7 @@ fn uninstall(_matches: &ArgMatches) -> Result<()> {
 fn test_start_command_supports_legacy_commands() {
     fn get_start_args(matches: &ArgMatches) -> (bool, Option<&String>, Option<&String>, Option<Vec<&String>>) {
         let legacy_args = matches.get_one::<String>("args");
-        let wait_for_parent = matches.get_flag("wait");
+        let wait_for_parent = get_flag_or_false(&matches, "wait");
         let exe_name = matches.get_one::<String>("EXE_NAME");
         let exe_args: Option<Vec<&String>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.collect());
         return (wait_for_parent, exe_name, legacy_args, exe_args);
