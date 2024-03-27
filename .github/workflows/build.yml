@@ -145,6 +145,7 @@ jobs:
       #   with:
       #     name: dotnet-${{ matrix.os }}
       #     path: build
+      
       - name: Build .NET
         run: dotnet build -c Release
       - name: Test .NET Velopack.Tests
