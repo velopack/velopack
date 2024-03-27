@@ -91,35 +91,44 @@ jobs:
             src/Rust/target/release/*.exe
             src/Rust/target/release/*.pdb
 
-  build-dotnet:
-    strategy:
-      matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Print dotnet version
-        run: dotnet --info
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Build .NET
-        run: dotnet build -c Release
-      - name: Upload Dotnet Build Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dotnet-${{ matrix.os }}
-          path: build/**
+  # build-dotnet:
+  #   strategy:
+  #     matrix:
+  #       os: [macos-latest, windows-latest, ubuntu-latest]
+  #   runs-on: ${{ matrix.os }}
+  #   steps:
+  #     - name: Print dotnet version
+  #       run: dotnet --info
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+  #     - name: Build .NET
+  #       run: dotnet build -c Release
+  #     - name: Upload Dotnet Build Artifacts
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: dotnet-${{ matrix.os }}
+  #         path: build/**
 
   test-dotnet:
     strategy:
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
-    needs: [build-rust-bins, build-dotnet]
+    # needs: [build-rust-bins, build-dotnet]
+    needs: [build-rust-bins]
     runs-on: ${{ matrix.os }}
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
       - name: Install NBGV
         run: dotnet tool install -g nbgv
         if: ${{ matrix.os == 'macos-latest' }}
@@ -131,11 +140,13 @@ jobs:
         with:
           name: rust-${{ matrix.os }}
           path: src/Rust/target/release
-      - name: Download Dotnet Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dotnet-${{ matrix.os }}
-          path: build
+      # - name: Download Dotnet Artifacts
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: dotnet-${{ matrix.os }}
+      #     path: build
+      - name: Build .NET
+        run: dotnet build -c Release
       - name: Test .NET Velopack.Tests
         run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Velopack.Tests/Velopack.Tests.csproj
       - name: Test .NET Velopack.Packaging.Tests
@@ -150,15 +161,15 @@ jobs:
           directory: ./test
           fail_ci_if_error: true
 
-  clean-artifacts:
-    if: ${{ always() }}
-    needs: [build-dotnet, test-dotnet]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Delete Dotnet Artifacts
-        uses: geekyeggo/delete-artifact@v5
-        with:
-          name: dotnet-*
+  # clean-artifacts:
+  #   if: ${{ always() }}
+  #   needs: [build-dotnet, test-dotnet]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Delete Dotnet Artifacts
+  #       uses: geekyeggo/delete-artifact@v5
+  #       with:
+  #         name: dotnet-*
   
   package:
     runs-on: ubuntu-latest
