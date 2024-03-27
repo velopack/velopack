@@ -11,7 +11,6 @@ pub fn default_log_location() -> PathBuf {
     {
         let mut my_dir = std::env::current_exe().unwrap();
         my_dir.pop();
-        my_dir.pop();
         return my_dir.join("Velopack.log");
     }
     #[cfg(target_os = "linux")]

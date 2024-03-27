@@ -58,7 +58,8 @@ public class WindowsPackTests
             PackAuthors = "author",
             PackTitle = "Test Squirrel App",
             PackDirectory = tmpOutput,
-            Channel = "asd123"
+            Channel = "asd123",
+            Exclude = @".*\.pdb",
         };
 
         var runner = GetPackRunner(logger);
