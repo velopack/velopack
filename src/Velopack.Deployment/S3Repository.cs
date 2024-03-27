@@ -57,12 +57,16 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
     protected override async Task<byte[]> GetObjectBytes(AmazonS3Client client, string container, string key)
     {
         return await RetryAsyncRet(async () => {
-            var ms = new MemoryStream();
-            using (var obj = await client.GetObjectAsync(container, key))
-            using (var stream = obj.ResponseStream) {
-                await stream.CopyToAsync(ms);
+            try {
+                var ms = new MemoryStream();
+                using (var obj = await client.GetObjectAsync(container, key))
+                using (var stream = obj.ResponseStream) {
+                    await stream.CopyToAsync(ms);
+                }
+                return ms.ToArray();
+            } catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound) {
+                return null;
             }
-            return ms.ToArray();
         }, $"Downloading {key}...");
     }
 

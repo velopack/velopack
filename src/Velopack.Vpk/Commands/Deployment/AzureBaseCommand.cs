@@ -10,6 +10,8 @@ public class AzureBaseCommand : OutputCommand
 
     public string ContainerName { get; private set; }
 
+    public string SasToken { get; private set; }
+
     protected AzureBaseCommand(string name, string description)
         : base(name, description)
     {
@@ -18,10 +20,13 @@ public class AzureBaseCommand : OutputCommand
             .SetArgumentHelpName("ACCOUNT")
             .SetRequired();
 
-        AddOption<string>((v) => Key = v, "--key")
+        var key = AddOption<string>((v) => Key = v, "--key")
             .SetDescription("Account secret key")
-            .SetArgumentHelpName("KEY")
-            .SetRequired();
+            .SetArgumentHelpName("KEY");
+
+        var sas = AddOption<string>((v) => SasToken = v, "--sas")
+            .SetDescription("Shared access signature token (not the url)")
+            .SetArgumentHelpName("TOKEN");
 
         AddOption<string>((v) => ContainerName = v, "--container")
             .SetDescription("Azure container name")
@@ -29,9 +34,11 @@ public class AzureBaseCommand : OutputCommand
             .SetRequired();
 
         AddOption<Uri>((v) => Endpoint = v.ToAbsoluteOrNull(), "--endpoint")
-            .SetDescription("Service url (eg. https://<storage-account-name>.blob.core.windows.net)")
+            .SetDescription("Service url (eg. https://<account-name>.blob.core.windows.net)")
             .SetArgumentHelpName("URL")
-            .MustBeValidHttpUri()
-            .SetRequired();
+            .MustBeValidHttpUri();
+
+        this.AtLeastOneRequired(sas, key);
+        this.AreMutuallyExclusive(sas, key);
     }
 }

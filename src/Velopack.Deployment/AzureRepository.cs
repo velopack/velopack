@@ -13,6 +13,8 @@ public class AzureDownloadOptions : RepositoryOptions, IObjectDownloadOptions
     public string Endpoint { get; set; }
 
     public string ContainerName { get; set; }
+
+    public string SasToken { get; set; }
 }
 
 public class AzureUploadOptions : AzureDownloadOptions, IObjectUploadOptions
@@ -28,7 +30,16 @@ public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploa
 
     protected override BlobServiceClient CreateClient(AzureDownloadOptions options)
     {
-        return new BlobServiceClient(new Uri(options.Endpoint), new StorageSharedKeyCredential(options.Account, options.Key));
+        var serviceUrl = options.Endpoint ?? "https://" + options.Account + ".blob.core.windows.net";
+        if (options.Endpoint == null) {
+            Log.Info($"Endpoint not specified, default to: {serviceUrl}");
+        }
+
+        if (!String.IsNullOrEmpty(options.SasToken)) {
+            return new BlobServiceClient(new Uri(serviceUrl), new Azure.AzureSasCredential(options.SasToken));
+        }
+
+        return new BlobServiceClient(new Uri(serviceUrl), new StorageSharedKeyCredential(options.Account, options.Key));
     }
 
     protected override async Task DeleteObject(BlobServiceClient client, string container, string key)
@@ -42,11 +53,15 @@ public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploa
     protected override async Task<byte[]> GetObjectBytes(BlobServiceClient client, string container, string key)
     {
         return await RetryAsyncRet(async () => {
-            var containerClient = client.GetBlobContainerClient(container);
-            var obj = containerClient.GetBlobClient(key);
-            var ms = new MemoryStream();
-            using var response = await obj.DownloadToAsync(ms, CancellationToken.None);
-            return ms.ToArray();
+            try {
+                var containerClient = client.GetBlobContainerClient(container);
+                var obj = containerClient.GetBlobClient(key);
+                var ms = new MemoryStream();
+                using var response = await obj.DownloadToAsync(ms, CancellationToken.None);
+                return ms.ToArray();
+            } catch (Azure.RequestFailedException ex) when (ex.Status == 404) {
+                return null;
+            }
         }, $"Downloading {key}...");
     }
 

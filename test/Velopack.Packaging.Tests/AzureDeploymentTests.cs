@@ -6,10 +6,10 @@ namespace Velopack.Packaging.Tests;
 
 public class AzureDeploymentTests
 {
-    public readonly static string B2_KEYID = "xstg";
-    public readonly static string B2_SECRET = Environment.GetEnvironmentVariable("VELOPACK_AZ_TEST_TOKEN");
-    public readonly static string B2_BUCKET = "test-releases";
-    public readonly static string B2_ENDPOINT = "xstg.blob.core.windows.net";
+    public readonly static string AZ_ACCOUNT = "velopacktest";
+    public readonly static string AZ_KEY = Environment.GetEnvironmentVariable("VELOPACK_AZ_TEST_TOKEN");
+    public readonly static string AZ_CONTAINER = "test1";
+    public readonly static string AZ_ENDPOINT = "velopacktest.blob.core.windows.net";
 
     private readonly ITestOutputHelper _output;
 
@@ -21,7 +21,7 @@ public class AzureDeploymentTests
     [SkippableFact]
     public void CanDeployToAzure()
     {
-        Skip.If(String.IsNullOrWhiteSpace(B2_SECRET), "VELOPACK_AZ_TEST_TOKEN is not set.");
+        Skip.If(String.IsNullOrWhiteSpace(AZ_KEY), "VELOPACK_AZ_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<S3DeploymentTests>();
         using var _1 = Utility.GetTempDirectory(out var releaseDir);
 
@@ -30,7 +30,7 @@ public class AzureDeploymentTests
             : "ci-" + VelopackRuntimeInfo.SystemOs.GetOsShortName();
 
         // get latest version, and increment patch by one
-        var updateUrl = $"https://{B2_ENDPOINT}/{B2_BUCKET}";
+        var updateUrl = $"https://{AZ_ENDPOINT}/{AZ_CONTAINER}";
         var source = new SimpleWebSource(updateUrl);
         VelopackAssetFeed feed = new VelopackAssetFeed();
         try {
@@ -47,18 +47,17 @@ public class AzureDeploymentTests
         var repo = new AzureRepository(logger);
         var options = new AzureUploadOptions {
             ReleaseDir = new DirectoryInfo(releaseDir),
-            ContainerName = B2_BUCKET,
+            ContainerName = AZ_CONTAINER,
             Channel = channel,
-            Endpoint = "https://" + B2_ENDPOINT,
-            Account = B2_KEYID,
-            Key = B2_SECRET,
+            Account = AZ_ACCOUNT,
+            Key = AZ_KEY,
             KeepMaxReleases = 4,
         };
 
         // download latest version and create delta
         repo.DownloadLatestFullPackageAsync(options).GetAwaiterResult();
-        var id = "B2TestApp";
-        TestApp.PackTestApp(id, newVer.ToFullString(), $"b2-{DateTime.UtcNow.ToLongDateString()}", releaseDir, logger, channel: channel);
+        var id = "AZTestApp";
+        TestApp.PackTestApp(id, newVer.ToFullString(), $"az-{DateTime.UtcNow.ToLongDateString()}", releaseDir, logger, channel: channel);
         if (latest != null) {
             // check delta was created
             Assert.True(Directory.EnumerateFiles(releaseDir, "*-delta.nupkg").Any(), "No delta package was created.");

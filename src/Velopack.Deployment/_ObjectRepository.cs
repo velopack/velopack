@@ -14,11 +14,6 @@ public interface IObjectDownloadOptions
     string ContainerName { get; set; }
 }
 
-public class ObjectNotFoundException : Exception
-{
-    public ObjectNotFoundException(string message) : base(message) { }
-}
-
 public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDown>, IRepositoryCanUpload<TUp>
     where TDown : RepositoryOptions, IObjectDownloadOptions
     where TUp : IObjectUploadOptions, TDown
@@ -45,14 +40,11 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
     {
         var releasesName = Utility.GetVeloReleaseIndexName(options.Channel);
         var client = CreateClient(options);
-        return await RetryAsyncRet(async () => {
-            try {
-                var bytes = await GetObjectBytes(client, options.ContainerName, releasesName);
-                return VelopackAssetFeed.FromJson(Encoding.UTF8.GetString(bytes));
-            } catch (ObjectNotFoundException) {
-                return new VelopackAssetFeed();
-            }
-        }, $"Fetching {releasesName}...");
+        var bytes = await GetObjectBytes(client, options.ContainerName, releasesName);
+        if (bytes == null || bytes.Length == 0) {
+            return new VelopackAssetFeed();
+        }
+        return VelopackAssetFeed.FromJson(Encoding.UTF8.GetString(bytes));
     }
 
     public async Task UploadMissingAssetsAsync(TUp options)
@@ -112,8 +104,7 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
         if (toDelete.Length > 0) {
             Log.Info($"Retention policy about to delete {toDelete.Length} releases...");
             foreach (var del in toDelete) {
-                //var metadata = await client.GetObjectMetadataAsync(options.Bucket, del.FileName);
-                await RetryAsync(() => DeleteObject(client, options.ContainerName, del.FileName), "Deleting " + del.FileName);
+                await DeleteObject(client, options.ContainerName, del.FileName);
             }
         }
 
