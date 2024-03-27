@@ -41,6 +41,8 @@ public static class PathHelper
     public static string CopyRustAssetTo(string assetName, string dir)
     {
         var path = GetRustAsset(assetName);
+        if (!File.Exists(path))
+            throw new FileNotFoundException($"File not found: {path}");
         var newPath = Path.Combine(dir, assetName);
         File.Copy(path, newPath);
         return newPath;
@@ -49,6 +51,8 @@ public static class PathHelper
     public static string CopyFixtureTo(string fixtureName, string dir)
     {
         var path = GetFixture(fixtureName);
+        if (!File.Exists(path))
+            throw new FileNotFoundException($"File not found: {path}");
         var newPath = Path.Combine(dir, fixtureName);
         File.Copy(path, newPath);
         return newPath;
@@ -56,9 +60,29 @@ public static class PathHelper
 
     public static string CopyUpdateTo(string dir)
     {
-        var updateName = VelopackRuntimeInfo.IsWindows ? "update.exe" : "update";
-        var path = GetRustAsset(updateName);
-        var newPath = Path.Combine(dir, updateName);
+        string GetUpdatePath()
+        {
+            if (VelopackRuntimeInfo.IsWindows && File.Exists(GetRustAsset("update.exe"))) {
+                return GetRustAsset("update.exe");
+            }
+
+            if (VelopackRuntimeInfo.IsLinux && File.Exists(GetRustAsset("UpdateNix"))) {
+                return GetRustAsset("UpdateNix");
+            }
+
+            if (VelopackRuntimeInfo.IsOSX && File.Exists(GetRustAsset("UpdateMac"))) {
+                return GetRustAsset("UpdateMac");
+            }
+
+            if (!VelopackRuntimeInfo.IsWindows && File.Exists(GetRustAsset("update"))) {
+                return GetRustAsset("update");
+            }
+
+            throw new FileNotFoundException("update.exe not found");
+        }
+
+        var path = GetUpdatePath();
+        var newPath = Path.Combine(dir, Path.GetFileName(path));
         File.Copy(path, newPath);
         return newPath;
     }
