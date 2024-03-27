@@ -33,11 +33,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         if (Directory.EnumerateFiles(packDir, "*.application").Any(f => File.ReadAllText(f).Contains("clickonce"))) {
             throw new ArgumentException(
                 "Velopack does not support building releases for ClickOnce applications. " +
-                "Please publish your application to a folder without ClickOnce.");
+                "Please remove all ClickOnce properties from your .csproj before continuing.");
         }
 
         if (!Options.SkipVelopackAppCheck) {
-            DotnetUtil.VerifyVelopackApp(MainExePath, Log);
+            var compat = new CompatUtil(Log, Console);
+            compat.Verify(MainExePath);
         } else {
             Log.Info("Skipping VelopackApp.Build.Run() check.");
         }

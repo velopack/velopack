@@ -10,6 +10,10 @@
     <DefineConstants>NO_VELO_BUILDER</DefineConstants>
   </PropertyGroup>
 
+  <PropertyGroup Condition=" $(UseAsyncMain) != '' ">
+    <DefineConstants>USE_ASYNC_MAIN</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\Velopack\Velopack.csproj" />
   </ItemGroup>

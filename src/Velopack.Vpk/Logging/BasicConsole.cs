@@ -13,6 +13,11 @@ public class BasicConsole : IFancyConsole
         this.defaultFactory = defaultFactory;
     }
 
+    public string EscapeMarkup(string text)
+    {
+        return text;
+    }
+
     public async Task ExecuteProgressAsync(Func<IFancyConsoleProgress, Task> action)
     {
         var start = DateTime.UtcNow;

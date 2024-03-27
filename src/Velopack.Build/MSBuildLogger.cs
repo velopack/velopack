@@ -85,4 +85,9 @@ public class MSBuildLogger(TaskLoggingHelper loggingHelper) : ILogger, IFancyCon
     {
         Log(LogLevel.Information, 0, null, null, (object? state, Exception? exception) => text);
     }
+
+    public string EscapeMarkup(string text)
+    {
+        return text;
+    }
 }

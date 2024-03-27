@@ -7,6 +7,10 @@ try {
     bool shouldExit = false;
     bool shouldAutoUpdate = args.Any(a => a.Equals("--autoupdate", StringComparison.OrdinalIgnoreCase));
 
+#if USE_ASYNC_MAIN
+    await Task.Delay(10).ConfigureAwait(false);
+#endif
+
 #if !NO_VELO_BUILDER
     VelopackApp.Build()
         .SetAutoApplyOnStartup(shouldAutoUpdate)

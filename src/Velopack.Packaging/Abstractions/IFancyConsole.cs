@@ -7,4 +7,6 @@ public interface IFancyConsole : IConsole
     void WriteTable(string tableName, IEnumerable<IEnumerable<string>> rows, bool hasHeaderRow = true);
 
     Task<bool> PromptYesNo(string prompt, bool? defaultValue = null, TimeSpan? timeout = null);
+
+    string EscapeMarkup(string text);
 }
