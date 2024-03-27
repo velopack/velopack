@@ -24,6 +24,9 @@ namespace Velopack
         /// <summary> True if this application is currently installed, and is able to download/check for updates. </summary>
         public virtual bool IsInstalled => Locator.CurrentlyInstalledVersion != null;
 
+        /// <inheritdoc cref="IVelopackLocator.IsPortable" />
+        public virtual bool IsPortable => Locator.IsPortable;
+
         /// <summary> True if there is a local update prepared that requires a call to <see cref="ApplyUpdatesAndRestart(VelopackAsset, string[])"/> to be applied. </summary>
         public virtual bool IsUpdatePendingRestart {
             get {

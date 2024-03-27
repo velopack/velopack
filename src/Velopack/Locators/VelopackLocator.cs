@@ -60,6 +60,9 @@ namespace Velopack.Locators
         public abstract string? Channel { get; }
 
         /// <inheritdoc/>
+        public virtual bool IsPortable => false;
+
+        /// <inheritdoc/>
         public virtual string? ThisExeRelativePath {
             get {
                 if (AppContentDir == null) return null;

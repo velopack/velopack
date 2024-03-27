@@ -171,6 +171,9 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         var stubName = (Options.PackTitle ?? Options.PackId) + ".exe";
         File.Move(stubPath, Path.Combine(dir.FullName, stubName));
 
+        // create a .portable file to indicate this is a portable package
+        File.Create(Path.Combine(dir.FullName, ".portable")).Close();
+
         await EasyZip.CreateZipFromDirectoryAsync(Log, outputPath, dir.FullName, Utility.CreateProgressDelegate(progress, 40, 100));
         progress(100);
     }

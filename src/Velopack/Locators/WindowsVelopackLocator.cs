@@ -32,6 +32,10 @@ namespace Velopack.Locators
         public override string? PackagesDir => CreateSubDirIfDoesNotExist(RootAppDir, "packages");
 
         /// <inheritdoc />
+        public override bool IsPortable =>
+            RootAppDir != null ? File.Exists(Path.Combine(RootAppDir, ".portable")) : false;
+
+        /// <inheritdoc />
         public override string? Channel { get; }
 
         /// <inheritdoc cref="WindowsVelopackLocator" />

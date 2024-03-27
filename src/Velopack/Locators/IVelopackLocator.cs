@@ -40,6 +40,14 @@ namespace Velopack.Locators
         public string? Channel { get; }
 
         /// <summary>
+        /// A flag indicating if this is a portable build, and that the settings should be self-contained in the package.
+        /// On Windows, this is true for portable builds, and false for non-portable builds which were installed by Setup.exe
+        /// On OSX and Linux, this is always false, because settings and application files should be stored in the user's 
+        /// home directory.
+        /// </summary>
+        public bool IsPortable { get; }
+
+        /// <summary>
         /// Finds .nupkg files in the PackagesDir and returns a list of ReleaseEntryName objects.
         /// </summary>
         public List<VelopackAsset> GetLocalPackages();
