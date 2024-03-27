@@ -26,8 +26,8 @@
       },
       "Markdig": {
         "type": "Transitive",
-        "resolved": "0.34.0",
-        "contentHash": "kUS8Y/oW2Cshwq3kv08Lz5hpMjt9MuAaDIGxv86d0RtEUUe4xKKXxdZYS7bV0ZXRfeAAOfjYIrt7zybcIOYvmg==",
+        "resolved": "0.36.2",
+        "contentHash": "jQoU7pIDSGBuorR6mxAmGPXAiTmG1/1bSzuXsL7DfmDe/ueokSld5abE0M+lYHI7IeKs/HvkhRnKl0Gt9MF5cw==",
         "dependencies": {
           "System.Memory": "4.5.5"
         }
@@ -239,7 +239,7 @@
       "velopack.packaging": {
         "type": "Project",
         "dependencies": {
-          "Markdig": "[0.34.0, )",
+          "Markdig": "[0.36.2, )",
           "Microsoft.Identity.Client": "[4.59.0, )",
           "Microsoft.Identity.Client.Broker": "[4.59.0, )",
           "Microsoft.Identity.Client.Extensions.Msal": "[4.59.0, )",
@@ -274,8 +274,8 @@
       },
       "Markdig": {
         "type": "Transitive",
-        "resolved": "0.34.0",
-        "contentHash": "kUS8Y/oW2Cshwq3kv08Lz5hpMjt9MuAaDIGxv86d0RtEUUe4xKKXxdZYS7bV0ZXRfeAAOfjYIrt7zybcIOYvmg=="
+        "resolved": "0.36.2",
+        "contentHash": "jQoU7pIDSGBuorR6mxAmGPXAiTmG1/1bSzuXsL7DfmDe/ueokSld5abE0M+lYHI7IeKs/HvkhRnKl0Gt9MF5cw=="
       },
       "Microsoft.Bcl.AsyncInterfaces": {
         "type": "Transitive",
@@ -939,7 +939,7 @@
       "velopack.packaging": {
         "type": "Project",
         "dependencies": {
-          "Markdig": "[0.34.0, )",
+          "Markdig": "[0.36.2, )",
           "Microsoft.Identity.Client": "[4.59.0, )",
           "Microsoft.Identity.Client.Broker": "[4.59.0, )",
           "Microsoft.Identity.Client.Extensions.Msal": "[4.59.0, )",

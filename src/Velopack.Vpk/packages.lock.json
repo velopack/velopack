@@ -78,9 +78,9 @@
       },
       "Riok.Mapperly": {
         "type": "Direct",
-        "requested": "[3.3.0, )",
-        "resolved": "3.3.0",
-        "contentHash": "zncD+ur/lys3vdStUsJa8A/g6fLABsfVOHKx7aFjZ3xBCGmSde8BEGcoLdhuC1Tpcyo6pgWSTigJqB4aPXSFiw=="
+        "requested": "[3.4.0, )",
+        "resolved": "3.4.0",
+        "contentHash": "bTxBEQ0+2x816IL78Fv0B/KkaGRtzfisit9dfWTfa7jjjwMMzpMW9A+V/hyxqHdJtYvtDL6dUNMLJige4zxJvw=="
       },
       "Serilog.Expressions": {
         "type": "Direct",
@@ -133,54 +133,86 @@
       },
       "AsmResolver": {
         "type": "Transitive",
-        "resolved": "5.5.0",
-        "contentHash": "IuOC+b/D/da4fohYVNwo/NL+8w+q89O9B32bLotegJ+hmFlBEpQEKgtyhxc9ZfEd+x0KzwzD52RISuyLgf/BAA=="
+        "resolved": "5.5.1",
+        "contentHash": "bRmB4wEJWnPGywj8nAHQUaByOui1g5aqaBTwY3t+8YYokae1HZJffBx1p/XShRYJ3+/owHNQX3EPFJ4b+AAkxw=="
       },
       "AsmResolver.DotNet": {
         "type": "Transitive",
-        "resolved": "5.5.0",
-        "contentHash": "T19DazP0h4qKXwPspTEB0ZzwlftPuvVAd68HhsS8eNYd9lRd/rtppcBmM2QLQdZeGGNJc+QEzLiAW+wrA3nKAw==",
+        "resolved": "5.5.1",
+        "contentHash": "J9C/Aqi6PlPWu0mZQpxPmH7nhxTCDuTgaEiTRKdqgvWu/r07gEe8f6tx1JOqzW5xjIBKQyZst5/HfHvYaRvvfA==",
         "dependencies": {
-          "AsmResolver.PE": "5.5.0",
+          "AsmResolver.PE": "5.5.1",
           "System.Text.Json": "6.0.8"
         }
       },
       "AsmResolver.PE": {
         "type": "Transitive",
-        "resolved": "5.5.0",
-        "contentHash": "bSPe0A+z4iEAabpD9h7ACQ5dkcTirx4fx05P194u/+OIUqlexHf7Zq/PEPdOkesbqHoZmgVmJ1H0GWqqouvZfA==",
+        "resolved": "5.5.1",
+        "contentHash": "PD6kwI6sNPGky2jJmGH1sseQvCGhQosQIElpaiA393mhafiSH0J8Q0re+mQ1yrtjd76TSBrd1JqwgjsM+mXe/g==",
         "dependencies": {
-          "AsmResolver.PE.File": "5.5.0"
+          "AsmResolver.PE.File": "5.5.1"
         }
       },
       "AsmResolver.PE.File": {
         "type": "Transitive",
-        "resolved": "5.5.0",
-        "contentHash": "XHWHnPQf0e0VEJPTaWMoiajuikF0n0fDXS2XWzEXM+/xcY+LABsp1p7ETlg+bFsDVITQRtNTa/xV8eSDlSZjNQ==",
+        "resolved": "5.5.1",
+        "contentHash": "1UO4pAOp9URrxItUr9ORnRn8UybQ7k5m0lWbXWFu0RzsL3xrgfV+7j2HfAEZRj9bG7uVE4q2UFQ8K/dORVPfTg==",
         "dependencies": {
-          "AsmResolver": "5.5.0"
+          "AsmResolver": "5.5.1"
         }
       },
       "AsmResolver.PE.Win32Resources": {
         "type": "Transitive",
-        "resolved": "5.5.0",
-        "contentHash": "DALeEZyBwcgXKlJaMAo/BqqWqKQSxHimgNsQAE2zY2kvVkCLHc4CApCvGUmrKfMk3v3zcLtReLX/SaMYrw/dzg==",
+        "resolved": "5.5.1",
+        "contentHash": "gNA1VuchLbx84qsaPGagNS/BTlB9q13KXzu5UQKGPit9cr0+yAO7bRbbsCTQCMXd66nbu3XqWbo340+ghr1LAg==",
         "dependencies": {
-          "AsmResolver": "5.5.0",
-          "AsmResolver.PE": "5.5.0"
+          "AsmResolver": "5.5.1",
+          "AsmResolver.PE": "5.5.1"
         }
       },
       "AWSSDK.Core": {
         "type": "Transitive",
-        "resolved": "3.7.300.29",
-        "contentHash": "BMvjbKNzA7Y1eFbhnRbexaUKZ6FwR/hAdvmPYYYA35kw0Ig5E12shMiCEqtRL1EQYVpAqmLdSPZNxV4hu5Ncng=="
+        "resolved": "3.7.303.2",
+        "contentHash": "xKFKRSBxlil1mH2JeARoX9qcw1snPJadmcz/gdLF/M12Nvcg+R+DdlHOtf1jA79kdrYQrLLxK1UPHh98/0hkLA=="
       },
       "AWSSDK.S3": {
         "type": "Transitive",
-        "resolved": "3.7.305.4",
-        "contentHash": "1s3dXEDgcWEMhUe6tLlV7uhgE9WagoGTGXQ6JZyzHvH9FjCyEBSAtojPviNyApqvmIJjMPrqgZxC8+VixPmxAA==",
+        "resolved": "3.7.307.3",
+        "contentHash": "Nt5geBEJb/jAnkyrzPMAqHnOngtVYG5pytESXebn5jGRHEv8b96zlo5FZ5+pxokRUysaYHCpm1uSitXuycyepA==",
         "dependencies": {
-          "AWSSDK.Core": "[3.7.300.29, 4.0.0)"
+          "AWSSDK.Core": "[3.7.303.2, 4.0.0)"
+        }
+      },
+      "Azure.Core": {
+        "type": "Transitive",
+        "resolved": "1.36.0",
+        "contentHash": "vwqFZdHS4dzPlI7FFRkPx9ctA+aGGeRev3gnzG8lntWvKMmBhAmulABi1O9CEvS3/jzYt7yA+0pqVdxkpAd7dQ==",
+        "dependencies": {
+          "Microsoft.Bcl.AsyncInterfaces": "1.1.1",
+          "System.Diagnostics.DiagnosticSource": "6.0.1",
+          "System.Memory.Data": "1.0.2",
+          "System.Numerics.Vectors": "4.5.0",
+          "System.Text.Encodings.Web": "4.7.2",
+          "System.Text.Json": "4.7.2",
+          "System.Threading.Tasks.Extensions": "4.5.4"
+        }
+      },
+      "Azure.Storage.Blobs": {
+        "type": "Transitive",
+        "resolved": "12.19.1",
+        "contentHash": "x43hWFJ4sPQ23TD4piCwT+KlQpZT8pNDAzqj6yUCqh+WJ2qcQa17e1gh6ZOeT2QNFQTTDSuR56fm2bIV7i11/w==",
+        "dependencies": {
+          "Azure.Storage.Common": "12.18.1",
+          "System.Text.Json": "4.7.2"
+        }
+      },
+      "Azure.Storage.Common": {
+        "type": "Transitive",
+        "resolved": "12.18.1",
+        "contentHash": "ohCslqP9yDKIn+DVjBEOBuieB1QwsUCz+BwHYNaJ3lcIsTSiI4Evnq81HcKe8CqM8qvdModbipVQKpnxpbdWqA==",
+        "dependencies": {
+          "Azure.Core": "1.36.0",
+          "System.IO.Hashing": "6.0.0"
         }
       },
       "ELFSharp": {
@@ -190,8 +222,8 @@
       },
       "Markdig": {
         "type": "Transitive",
-        "resolved": "0.34.0",
-        "contentHash": "kUS8Y/oW2Cshwq3kv08Lz5hpMjt9MuAaDIGxv86d0RtEUUe4xKKXxdZYS7bV0ZXRfeAAOfjYIrt7zybcIOYvmg=="
+        "resolved": "0.36.2",
+        "contentHash": "jQoU7pIDSGBuorR6mxAmGPXAiTmG1/1bSzuXsL7DfmDe/ueokSld5abE0M+lYHI7IeKs/HvkhRnKl0Gt9MF5cw=="
       },
       "Microsoft.Bcl.AsyncInterfaces": {
         "type": "Transitive",
@@ -559,8 +591,8 @@
       },
       "Octokit": {
         "type": "Transitive",
-        "resolved": "9.1.0",
-        "contentHash": "aIxATAhMWn3IquZsoho8yK12MDU81YhexLWLGDoCp1vhJP7Z23Pu5JBEkNaTIkl9KqALJPqGLN1an7YfA7BhvA=="
+        "resolved": "10.0.0",
+        "contentHash": "PHUXVZwE0C2wW9Slkfvw85YNr+uPvLKDgnmxVOzDds+jsv7TgTW9GiGNs4ENYKx1vHfZuH2/VmUlJ9W6GKfDSA=="
       },
       "runtime.debian.8-x64.runtime.native.System.Security.Cryptography.OpenSsl": {
         "type": "Transitive",
@@ -817,6 +849,11 @@
           "System.Runtime": "4.3.0"
         }
       },
+      "System.IO.Hashing": {
+        "type": "Transitive",
+        "resolved": "6.0.0",
+        "contentHash": "Rfm2jYCaUeGysFEZjDe7j1R4x6Z6BzumS/vUT5a1AA/AWJuGX71PoGB0RmpyX3VmrGqVnAwtfMn39OHR8Y/5+g=="
+      },
       "System.Linq": {
         "type": "Transitive",
         "resolved": "4.3.0",
@@ -841,6 +878,15 @@
         "type": "Transitive",
         "resolved": "4.5.5",
         "contentHash": "XIWiDvKPXaTveaB7HVganDlOCRoj03l+jrwNvcge/t8vhGYKvqV+dMv6G4SAX2NoNmN0wZfVPTAlFwZcZvVOUw=="
+      },
+      "System.Memory.Data": {
+        "type": "Transitive",
+        "resolved": "1.0.2",
+        "contentHash": "JGkzeqgBsiZwKJZ1IxPNsDFZDhUvuEdX8L8BDC8N3KOj+6zMcNU28CNN59TpZE/VJYy9cP+5M+sbxtWJx3/xtw==",
+        "dependencies": {
+          "System.Text.Encodings.Web": "4.7.2",
+          "System.Text.Json": "4.6.0"
+        }
       },
       "System.Net.Http": {
         "type": "Transitive",
@@ -885,6 +931,11 @@
           "System.Runtime": "4.3.0",
           "System.Runtime.Handles": "4.3.0"
         }
+      },
+      "System.Numerics.Vectors": {
+        "type": "Transitive",
+        "resolved": "4.5.0",
+        "contentHash": "QQTlPTl06J/iiDbJCiepZ4H//BVraReU4O4EoRw1U02H5TLUIT7xn3GnDp9AXPSlJUDyFs4uWjWafNX6WrAojQ=="
       },
       "System.Reflection": {
         "type": "Transitive",
@@ -1195,6 +1246,11 @@
           "System.Runtime": "4.3.0"
         }
       },
+      "System.Threading.Tasks.Extensions": {
+        "type": "Transitive",
+        "resolved": "4.5.4",
+        "contentHash": "zteT+G8xuGu6mS+mzDzYXbzS7rd3K6Fjb9RiZlYlJPam2/hU7JCBZBVEcywNuR+oZ1ncTvc/cq0faRr3P01OVg=="
+      },
       "velopack": {
         "type": "Project",
         "dependencies": {
@@ -1205,15 +1261,16 @@
       "velopack.deployment": {
         "type": "Project",
         "dependencies": {
-          "AWSSDK.S3": "[3.7.305.4, )",
-          "Octokit": "[9.1.0, )",
+          "AWSSDK.S3": "[3.7.307.3, )",
+          "Azure.Storage.Blobs": "[12.19.1, )",
+          "Octokit": "[10.0.0, )",
           "Velopack.Packaging": "[1.0.0, )"
         }
       },
       "velopack.packaging": {
         "type": "Project",
         "dependencies": {
-          "Markdig": "[0.34.0, )",
+          "Markdig": "[0.36.2, )",
           "Microsoft.Identity.Client": "[4.59.0, )",
           "Microsoft.Identity.Client.Broker": "[4.59.0, )",
           "Microsoft.Identity.Client.Extensions.Msal": "[4.59.0, )",
@@ -1235,8 +1292,8 @@
       "velopack.packaging.windows": {
         "type": "Project",
         "dependencies": {
-          "AsmResolver.DotNet": "[5.5.0, )",
-          "AsmResolver.PE.Win32Resources": "[5.5.0, )",
+          "AsmResolver.DotNet": "[5.5.1, )",
+          "AsmResolver.PE.Win32Resources": "[5.5.1, )",
           "Velopack.Packaging": "[1.0.0, )",
           "Velopack.Packaging.HostModel": "[1.0.0, )"
         }
@@ -1320,9 +1377,9 @@
       },
       "Riok.Mapperly": {
         "type": "Direct",
-        "requested": "[3.3.0, )",
-        "resolved": "3.3.0",
-        "contentHash": "zncD+ur/lys3vdStUsJa8A/g6fLABsfVOHKx7aFjZ3xBCGmSde8BEGcoLdhuC1Tpcyo6pgWSTigJqB4aPXSFiw=="
+        "requested": "[3.4.0, )",
+        "resolved": "3.4.0",
+        "contentHash": "bTxBEQ0+2x816IL78Fv0B/KkaGRtzfisit9dfWTfa7jjjwMMzpMW9A+V/hyxqHdJtYvtDL6dUNMLJige4zxJvw=="
       },
       "Serilog.Expressions": {
         "type": "Direct",
@@ -1372,54 +1429,86 @@
       },
       "AsmResolver": {
         "type": "Transitive",
-        "resolved": "5.5.0",
-        "contentHash": "IuOC+b/D/da4fohYVNwo/NL+8w+q89O9B32bLotegJ+hmFlBEpQEKgtyhxc9ZfEd+x0KzwzD52RISuyLgf/BAA=="
+        "resolved": "5.5.1",
+        "contentHash": "bRmB4wEJWnPGywj8nAHQUaByOui1g5aqaBTwY3t+8YYokae1HZJffBx1p/XShRYJ3+/owHNQX3EPFJ4b+AAkxw=="
       },
       "AsmResolver.DotNet": {
         "type": "Transitive",
-        "resolved": "5.5.0",
-        "contentHash": "T19DazP0h4qKXwPspTEB0ZzwlftPuvVAd68HhsS8eNYd9lRd/rtppcBmM2QLQdZeGGNJc+QEzLiAW+wrA3nKAw==",
+        "resolved": "5.5.1",
+        "contentHash": "J9C/Aqi6PlPWu0mZQpxPmH7nhxTCDuTgaEiTRKdqgvWu/r07gEe8f6tx1JOqzW5xjIBKQyZst5/HfHvYaRvvfA==",
         "dependencies": {
-          "AsmResolver.PE": "5.5.0",
+          "AsmResolver.PE": "5.5.1",
           "System.Text.Json": "6.0.8"
         }
       },
       "AsmResolver.PE": {
         "type": "Transitive",
-        "resolved": "5.5.0",
-        "contentHash": "bSPe0A+z4iEAabpD9h7ACQ5dkcTirx4fx05P194u/+OIUqlexHf7Zq/PEPdOkesbqHoZmgVmJ1H0GWqqouvZfA==",
+        "resolved": "5.5.1",
+        "contentHash": "PD6kwI6sNPGky2jJmGH1sseQvCGhQosQIElpaiA393mhafiSH0J8Q0re+mQ1yrtjd76TSBrd1JqwgjsM+mXe/g==",
         "dependencies": {
-          "AsmResolver.PE.File": "5.5.0"
+          "AsmResolver.PE.File": "5.5.1"
         }
       },
       "AsmResolver.PE.File": {
         "type": "Transitive",
-        "resolved": "5.5.0",
-        "contentHash": "XHWHnPQf0e0VEJPTaWMoiajuikF0n0fDXS2XWzEXM+/xcY+LABsp1p7ETlg+bFsDVITQRtNTa/xV8eSDlSZjNQ==",
+        "resolved": "5.5.1",
+        "contentHash": "1UO4pAOp9URrxItUr9ORnRn8UybQ7k5m0lWbXWFu0RzsL3xrgfV+7j2HfAEZRj9bG7uVE4q2UFQ8K/dORVPfTg==",
         "dependencies": {
-          "AsmResolver": "5.5.0"
+          "AsmResolver": "5.5.1"
         }
       },
       "AsmResolver.PE.Win32Resources": {
         "type": "Transitive",
-        "resolved": "5.5.0",
-        "contentHash": "DALeEZyBwcgXKlJaMAo/BqqWqKQSxHimgNsQAE2zY2kvVkCLHc4CApCvGUmrKfMk3v3zcLtReLX/SaMYrw/dzg==",
+        "resolved": "5.5.1",
+        "contentHash": "gNA1VuchLbx84qsaPGagNS/BTlB9q13KXzu5UQKGPit9cr0+yAO7bRbbsCTQCMXd66nbu3XqWbo340+ghr1LAg==",
         "dependencies": {
-          "AsmResolver": "5.5.0",
-          "AsmResolver.PE": "5.5.0"
+          "AsmResolver": "5.5.1",
+          "AsmResolver.PE": "5.5.1"
         }
       },
       "AWSSDK.Core": {
         "type": "Transitive",
-        "resolved": "3.7.300.29",
-        "contentHash": "BMvjbKNzA7Y1eFbhnRbexaUKZ6FwR/hAdvmPYYYA35kw0Ig5E12shMiCEqtRL1EQYVpAqmLdSPZNxV4hu5Ncng=="
+        "resolved": "3.7.303.2",
+        "contentHash": "xKFKRSBxlil1mH2JeARoX9qcw1snPJadmcz/gdLF/M12Nvcg+R+DdlHOtf1jA79kdrYQrLLxK1UPHh98/0hkLA=="
       },
       "AWSSDK.S3": {
         "type": "Transitive",
-        "resolved": "3.7.305.4",
-        "contentHash": "1s3dXEDgcWEMhUe6tLlV7uhgE9WagoGTGXQ6JZyzHvH9FjCyEBSAtojPviNyApqvmIJjMPrqgZxC8+VixPmxAA==",
+        "resolved": "3.7.307.3",
+        "contentHash": "Nt5geBEJb/jAnkyrzPMAqHnOngtVYG5pytESXebn5jGRHEv8b96zlo5FZ5+pxokRUysaYHCpm1uSitXuycyepA==",
         "dependencies": {
-          "AWSSDK.Core": "[3.7.300.29, 4.0.0)"
+          "AWSSDK.Core": "[3.7.303.2, 4.0.0)"
+        }
+      },
+      "Azure.Core": {
+        "type": "Transitive",
+        "resolved": "1.36.0",
+        "contentHash": "vwqFZdHS4dzPlI7FFRkPx9ctA+aGGeRev3gnzG8lntWvKMmBhAmulABi1O9CEvS3/jzYt7yA+0pqVdxkpAd7dQ==",
+        "dependencies": {
+          "Microsoft.Bcl.AsyncInterfaces": "1.1.1",
+          "System.Diagnostics.DiagnosticSource": "6.0.1",
+          "System.Memory.Data": "1.0.2",
+          "System.Numerics.Vectors": "4.5.0",
+          "System.Text.Encodings.Web": "4.7.2",
+          "System.Text.Json": "4.7.2",
+          "System.Threading.Tasks.Extensions": "4.5.4"
+        }
+      },
+      "Azure.Storage.Blobs": {
+        "type": "Transitive",
+        "resolved": "12.19.1",
+        "contentHash": "x43hWFJ4sPQ23TD4piCwT+KlQpZT8pNDAzqj6yUCqh+WJ2qcQa17e1gh6ZOeT2QNFQTTDSuR56fm2bIV7i11/w==",
+        "dependencies": {
+          "Azure.Storage.Common": "12.18.1",
+          "System.Text.Json": "4.7.2"
+        }
+      },
+      "Azure.Storage.Common": {
+        "type": "Transitive",
+        "resolved": "12.18.1",
+        "contentHash": "ohCslqP9yDKIn+DVjBEOBuieB1QwsUCz+BwHYNaJ3lcIsTSiI4Evnq81HcKe8CqM8qvdModbipVQKpnxpbdWqA==",
+        "dependencies": {
+          "Azure.Core": "1.36.0",
+          "System.IO.Hashing": "6.0.0"
         }
       },
       "ELFSharp": {
@@ -1429,8 +1518,8 @@
       },
       "Markdig": {
         "type": "Transitive",
-        "resolved": "0.34.0",
-        "contentHash": "kUS8Y/oW2Cshwq3kv08Lz5hpMjt9MuAaDIGxv86d0RtEUUe4xKKXxdZYS7bV0ZXRfeAAOfjYIrt7zybcIOYvmg=="
+        "resolved": "0.36.2",
+        "contentHash": "jQoU7pIDSGBuorR6mxAmGPXAiTmG1/1bSzuXsL7DfmDe/ueokSld5abE0M+lYHI7IeKs/HvkhRnKl0Gt9MF5cw=="
       },
       "Microsoft.Bcl.AsyncInterfaces": {
         "type": "Transitive",
@@ -1793,8 +1882,8 @@
       },
       "Octokit": {
         "type": "Transitive",
-        "resolved": "9.1.0",
-        "contentHash": "aIxATAhMWn3IquZsoho8yK12MDU81YhexLWLGDoCp1vhJP7Z23Pu5JBEkNaTIkl9KqALJPqGLN1an7YfA7BhvA=="
+        "resolved": "10.0.0",
+        "contentHash": "PHUXVZwE0C2wW9Slkfvw85YNr+uPvLKDgnmxVOzDds+jsv7TgTW9GiGNs4ENYKx1vHfZuH2/VmUlJ9W6GKfDSA=="
       },
       "runtime.debian.8-x64.runtime.native.System.Security.Cryptography.OpenSsl": {
         "type": "Transitive",
@@ -2048,6 +2137,11 @@
           "System.Runtime": "4.3.0"
         }
       },
+      "System.IO.Hashing": {
+        "type": "Transitive",
+        "resolved": "6.0.0",
+        "contentHash": "Rfm2jYCaUeGysFEZjDe7j1R4x6Z6BzumS/vUT5a1AA/AWJuGX71PoGB0RmpyX3VmrGqVnAwtfMn39OHR8Y/5+g=="
+      },
       "System.Linq": {
         "type": "Transitive",
         "resolved": "4.3.0",
@@ -2072,6 +2166,15 @@
         "type": "Transitive",
         "resolved": "4.5.5",
         "contentHash": "XIWiDvKPXaTveaB7HVganDlOCRoj03l+jrwNvcge/t8vhGYKvqV+dMv6G4SAX2NoNmN0wZfVPTAlFwZcZvVOUw=="
+      },
+      "System.Memory.Data": {
+        "type": "Transitive",
+        "resolved": "1.0.2",
+        "contentHash": "JGkzeqgBsiZwKJZ1IxPNsDFZDhUvuEdX8L8BDC8N3KOj+6zMcNU28CNN59TpZE/VJYy9cP+5M+sbxtWJx3/xtw==",
+        "dependencies": {
+          "System.Text.Encodings.Web": "4.7.2",
+          "System.Text.Json": "4.6.0"
+        }
       },
       "System.Net.Http": {
         "type": "Transitive",
@@ -2116,6 +2219,11 @@
           "System.Runtime": "4.3.0",
           "System.Runtime.Handles": "4.3.0"
         }
+      },
+      "System.Numerics.Vectors": {
+        "type": "Transitive",
+        "resolved": "4.5.0",
+        "contentHash": "QQTlPTl06J/iiDbJCiepZ4H//BVraReU4O4EoRw1U02H5TLUIT7xn3GnDp9AXPSlJUDyFs4uWjWafNX6WrAojQ=="
       },
       "System.Reflection": {
         "type": "Transitive",
@@ -2417,6 +2525,11 @@
           "System.Runtime": "4.3.0"
         }
       },
+      "System.Threading.Tasks.Extensions": {
+        "type": "Transitive",
+        "resolved": "4.5.4",
+        "contentHash": "zteT+G8xuGu6mS+mzDzYXbzS7rd3K6Fjb9RiZlYlJPam2/hU7JCBZBVEcywNuR+oZ1ncTvc/cq0faRr3P01OVg=="
+      },
       "velopack": {
         "type": "Project",
         "dependencies": {
@@ -2427,15 +2540,16 @@
       "velopack.deployment": {
         "type": "Project",
         "dependencies": {
-          "AWSSDK.S3": "[3.7.305.4, )",
-          "Octokit": "[9.1.0, )",
+          "AWSSDK.S3": "[3.7.307.3, )",
+          "Azure.Storage.Blobs": "[12.19.1, )",
+          "Octokit": "[10.0.0, )",
           "Velopack.Packaging": "[1.0.0, )"
         }
       },
       "velopack.packaging": {
         "type": "Project",
         "dependencies": {
-          "Markdig": "[0.34.0, )",
+          "Markdig": "[0.36.2, )",
           "Microsoft.Identity.Client": "[4.59.0, )",
           "Microsoft.Identity.Client.Broker": "[4.59.0, )",
           "Microsoft.Identity.Client.Extensions.Msal": "[4.59.0, )",
@@ -2457,8 +2571,8 @@
       "velopack.packaging.windows": {
         "type": "Project",
         "dependencies": {
-          "AsmResolver.DotNet": "[5.5.0, )",
-          "AsmResolver.PE.Win32Resources": "[5.5.0, )",
+          "AsmResolver.DotNet": "[5.5.1, )",
+          "AsmResolver.PE.Win32Resources": "[5.5.1, )",
           "Velopack.Packaging": "[1.0.0, )",
           "Velopack.Packaging.HostModel": "[1.0.0, )"
         }
