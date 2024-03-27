@@ -1,6 +1,6 @@
 ﻿using Velopack.Packaging.Flow;
 
-namespace Velopack.Vpk.Commands;
+namespace Velopack.Vpk.Commands.Flow;
 
 public abstract class VelopackServiceCommand : BaseCommand
 {

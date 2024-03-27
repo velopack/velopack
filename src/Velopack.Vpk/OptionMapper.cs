@@ -4,6 +4,8 @@ using Velopack.Packaging.Commands;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Vpk.Commands;
+using Velopack.Vpk.Commands.Deployment;
+using Velopack.Vpk.Commands.Flow;
 
 namespace Velopack.Vpk;
 

@@ -1,5 +1,5 @@
 ﻿using System.CommandLine;
-using Velopack.Vpk.Commands;
+using Velopack.Vpk.Commands.Deployment;
 
 namespace Velopack.CommandLine.Tests.Commands;
 public class LocalDownloadCommandTests : BaseCommandTests<LocalDownloadCommand>

@@ -1,4 +1,4 @@
-﻿namespace Velopack.Vpk.Commands;
+﻿namespace Velopack.Vpk.Commands.Deployment;
 
 public abstract class GitHubBaseCommand : OutputCommand
 {

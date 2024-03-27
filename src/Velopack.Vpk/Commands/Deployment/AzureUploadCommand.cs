@@ -1,12 +1,11 @@
-﻿
-namespace Velopack.Vpk.Commands;
+﻿namespace Velopack.Vpk.Commands.Deployment;
 
-public class S3UploadCommand : S3BaseCommand
+public class AzureUploadCommand : AzureBaseCommand
 {
     public int KeepMaxReleases { get; private set; }
 
-    public S3UploadCommand()
-        : base("s3", "Upload releases to a S3 bucket.")
+    public AzureUploadCommand()
+        : base("az", "Upload releases to an Azure Blob Storage container.")
     {
         AddOption<int>((x) => KeepMaxReleases = x, "--keepMaxReleases")
             .SetDescription("The maximum number of releases to keep in the bucket, anything older will be deleted.")

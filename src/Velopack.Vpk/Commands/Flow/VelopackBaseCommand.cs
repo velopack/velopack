@@ -1,4 +1,4 @@
-﻿namespace Velopack.Vpk.Commands;
+﻿namespace Velopack.Vpk.Commands.Flow;
 #nullable enable
 
 public abstract class VelopackBaseCommand : OutputCommand
@@ -7,7 +7,7 @@ public abstract class VelopackBaseCommand : OutputCommand
 
     public string? ProjectName { get; private set; }
 
-    protected VelopackBaseCommand(string name, string description) 
+    protected VelopackBaseCommand(string name, string description)
         : base(name, description)
     {
         AddOption<string>((v) => TeamName = v, "--team-name", "-t")
@@ -17,16 +17,5 @@ public abstract class VelopackBaseCommand : OutputCommand
         AddOption<string>((v) => ProjectName = v, "--project-name", "-p")
             .SetDescription("The name of the project")
             .SetRequired();
-    }
-}
-
-public class VelopackPublishCommand : VelopackBaseCommand
-{
-    public string? Version { get; set; }
-
-    public VelopackPublishCommand()
-        : base ("publish", "Uploads a release to Velopack's hosted service")
-    {
-        
     }
 }

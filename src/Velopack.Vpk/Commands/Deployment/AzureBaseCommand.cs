@@ -1,5 +1,4 @@
-﻿
-namespace Velopack.Vpk.Commands;
+﻿namespace Velopack.Vpk.Commands.Deployment;
 
 public class AzureBaseCommand : OutputCommand
 {
@@ -26,38 +25,13 @@ public class AzureBaseCommand : OutputCommand
 
         AddOption<string>((v) => ContainerName = v, "--container")
             .SetDescription("Azure container name")
-         .SetArgumentHelpName("CONTAINER")
-         .SetRequired();
+            .SetArgumentHelpName("NAME")
+            .SetRequired();
 
         AddOption<Uri>((v) => Endpoint = v.ToAbsoluteOrNull(), "--endpoint")
             .SetDescription("Service url (eg. https://<storage-account-name>.blob.core.windows.net)")
             .SetArgumentHelpName("URL")
             .MustBeValidHttpUri()
             .SetRequired();
-
-    }
-}
-
-public class AzureDownloadCommand : AzureBaseCommand
-{
-    public AzureDownloadCommand()
-        : base("az", "Download latest release from an AZ container.")
-    {
-    }
-}
-
-public class AzureUploadCommand : AzureBaseCommand
-{
-    public int KeepMaxReleases { get; private set; }
-
-    public AzureUploadCommand()
-        : base("az", "Upload releases to an Azure container.")
-    {
-        AddOption<int>((x) => KeepMaxReleases = x, "--keepMaxReleases")
-            .SetDescription("The maximum number of releases to keep in the bucket, anything older will be deleted.")
-            .SetArgumentHelpName("COUNT");
-
-        ReleaseDirectoryOption.SetRequired();
-        ReleaseDirectoryOption.MustNotBeEmpty();
     }
 }

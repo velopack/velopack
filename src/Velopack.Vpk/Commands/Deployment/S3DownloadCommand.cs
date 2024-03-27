@@ -1,5 +1,4 @@
-﻿
-namespace Velopack.Vpk.Commands;
+﻿namespace Velopack.Vpk.Commands.Deployment;
 
 public class S3DownloadCommand : S3BaseCommand
 {
