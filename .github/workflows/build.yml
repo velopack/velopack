@@ -7,100 +7,68 @@ env:
   VELOPACK_B2_TEST_TOKEN: ${{ secrets.VELOPACK_B2_TEST_TOKEN }}
 
 jobs:
-  build:
+  test-rust:
     strategy:
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
+        include: 
+          - os: windows-latest
+            rust_flags: "--target i686-pc-windows-msvc --features windows"
+          - os: ubuntu-latest
+            rust_flags: "--target x86_64-unknown-linux-gnu"
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Print dotnet version
-        run: dotnet --info
-
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ matrix.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - uses: actions/cache@v4
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-test-nuget-${{ hashFiles('**/packages.lock.json') }}
-          restore-keys: ${{ runner.os }}-test-nuget-
-
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
-
       - name: Install NBGV
         run: dotnet tool install -g nbgv
         if: ${{ matrix.os == 'macos-latest' }}
         continue-on-error: true
-
-      - name: Install FUSE
-        run: |
-          sudo add-apt-repository universe
-          sudo apt install libfuse2
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-
-      - name: Install .Net Coverage
-        run: dotnet tool install -g dotnet-coverage
-
-      - name: Set Rust Flags (Windows)
-        shell: pwsh
-        run: |
-          rustup target add i686-pc-windows-msvc
-          Add-Content -Path $env:GITHUB_ENV -Value "EXTRA_RUST_FLAGS=--target i686-pc-windows-msvc --features windows"
-        if: ${{ matrix.os == 'windows-latest' }}
-
-      - name: Set Rust Flags (Linux)
-        run: echo "EXTRA_RUST_FLAGS=--target x86_64-unknown-linux-gnu" >> "$GITHUB_ENV"
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-
-      - name: Build Rust
-        working-directory: src/Rust
-        run: cargo build --release ${{ env.EXTRA_RUST_FLAGS }}
-
       - name: Test Rust
         working-directory: src/Rust
-        run: cargo llvm-cov ${{ env.EXTRA_RUST_FLAGS }} --cobertura --output-path ../../test/coverage.rust.${{ matrix.os }}.xml
+        run: cargo llvm-cov ${{ matrix.rust_flags }} --cobertura --output-path ../../test/coverage.rust.${{ matrix.os }}.xml
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          directory: ./test
+          fail_ci_if_error: true
 
+  build-rust:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+        include: 
+          - os: windows-latest
+            rust_flags: "--target i686-pc-windows-msvc --features windows"
+          - os: ubuntu-latest
+            rust_flags: "--target x86_64-unknown-linux-gnu"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build Rust
+        working-directory: src/Rust
+        run: cargo build --release ${{ matrix.rust_flags }}
       - name: Collect Rust Binaries (Windows)
         working-directory: src/Rust/target
         run: |
           copy i686-pc-windows-msvc\release\*.exe release
           copy i686-pc-windows-msvc\release\*.pdb release
         if: ${{ matrix.os == 'windows-latest' }}
-
       - name: Collect Rust Binaries (Linux)
         working-directory: src/Rust/target
         run: cp ./x86_64-unknown-linux-gnu/release/update ./release/UpdateNix
         if: ${{ matrix.os == 'ubuntu-latest' }}
-
       - name: Collect Rust Binaries (OSX)
         working-directory: src/Rust/target/release
         run: cp update UpdateMac
         if: ${{ matrix.os == 'macos-latest' }}
-
-      - name: Build .NET
-        run: dotnet build -c Release 
-
-      - name: Test .NET Velopack.Tests
-        run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Velopack.Tests/Velopack.Tests.csproj
-
-      - name: Test .NET Velopack.Packaging.Tests
-        run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj
-
-      - name: Test .NET Velopack.CommandLine.Tests
-        run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj
-
       - name: Upload Rust Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -110,6 +78,41 @@ jobs:
             src/Rust/target/release/UpdateMac
             src/Rust/target/release/*.exe
 
+  test-dotnet:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    needs: [build-rust]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Print dotnet version
+        run: dotnet --info
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download Rust OSX
+        uses: actions/download-artifact@v4
+        with:
+          name: rust-macos-latest
+          path: src/Rust/target/release
+      - name: Download Rust Windows
+        uses: actions/download-artifact@v4
+        with:
+          name: rust-windows-latest
+          path: src/Rust/target/release
+      - name: Download Rust Linux
+        uses: actions/download-artifact@v4
+        with:
+          name: rust-ubuntu-latest
+          path: src/Rust/target/release
+      - name: Build .NET
+        run: dotnet build -c Release 
+      - name: Test .NET Velopack.Tests
+        run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Velopack.Tests/Velopack.Tests.csproj
+      - name: Test .NET Velopack.Packaging.Tests
+        run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj
+      - name: Test .NET Velopack.CommandLine.Tests
+        run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v4
         env:
@@ -120,7 +123,7 @@ jobs:
   
   package:
     runs-on: ubuntu-latest
-    needs: [build]
+    needs: [build-rust]
     steps:
       - name: Print dotnet version
         run: dotnet --info
