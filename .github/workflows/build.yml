@@ -7,7 +7,7 @@ env:
   VELOPACK_B2_TEST_TOKEN: ${{ secrets.VELOPACK_B2_TEST_TOKEN }}
 
 jobs:
-  test-rust:
+  test-rust-bins:
     strategy:
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
@@ -38,7 +38,7 @@ jobs:
           directory: ./test
           fail_ci_if_error: true
 
-  build-rust:
+  build-rust-bins:
     strategy:
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
@@ -52,6 +52,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Install NBGV
+        run: dotnet tool install -g nbgv
+        if: ${{ matrix.os == 'macos-latest' }}
+        continue-on-error: true
       - name: Build Rust
         working-directory: src/Rust
         run: cargo build --release ${{ matrix.rust_flags }}
@@ -82,7 +86,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
-    needs: [build-rust]
+    needs: [build-rust-bins]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Print dotnet version
@@ -90,6 +94,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Install NBGV
+        run: dotnet tool install -g nbgv
+        if: ${{ matrix.os == 'macos-latest' }}
+        continue-on-error: true
+      - name: Install dotnet-coverage
+        run: dotnet tool install -g dotnet-coverage
       - name: Download Rust OSX
         uses: actions/download-artifact@v4
         with:
@@ -123,42 +133,30 @@ jobs:
   
   package:
     runs-on: ubuntu-latest
-    needs: [build-rust]
+    needs: [build-rust-bins]
     steps:
       - name: Print dotnet version
         run: dotnet --info
-
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - uses: actions/cache@v4
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
-          restore-keys: ${{ runner.os }}-nuget-
-
       - name: Download Rust OSX
         uses: actions/download-artifact@v4
         with:
           name: rust-macos-latest
           path: src/Rust/target/release
-
       - name: Download Rust Windows
         uses: actions/download-artifact@v4
         with:
           name: rust-windows-latest
           path: src/Rust/target/release
-
       - name: Download Rust Linux
         uses: actions/download-artifact@v4
         with:
           name: rust-ubuntu-latest
           path: src/Rust/target/release
-
       - name: Build .NET
         run: dotnet build -c Release /p:PackRustAssets=true
-
       - name: Upload Package Artifacts
         uses: actions/upload-artifact@v4
         with:
