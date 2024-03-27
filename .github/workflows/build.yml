@@ -83,15 +83,32 @@ jobs:
             src/Rust/target/release/*.exe
             src/Rust/target/release/*.pdb
 
-  test-dotnet:
+  build-dotnet:
     strategy:
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
-    needs: [build-rust-bins]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Print dotnet version
         run: dotnet --info
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build .NET
+        run: dotnet build -c Release
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-${{ matrix.os }}
+          path: build/**
+
+  test-dotnet:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    needs: [build-rust-bins, build-dotnet]
+    runs-on: ${{ matrix.os }}
+    steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -101,23 +118,20 @@ jobs:
         continue-on-error: true
       - name: Install dotnet-coverage
         run: dotnet tool install -g dotnet-coverage
-      - name: Download Rust OSX
+      - name: Download Rust Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: rust-macos-latest
+          name: rust-${{ matrix.os }}
           path: src/Rust/target/release
-      - name: Download Rust Windows
+      - name: Download Dotnet Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: rust-windows-latest
-          path: src/Rust/target/release
-      - name: Download Rust Linux
-        uses: actions/download-artifact@v4
+          name: dotnet-${{ matrix.os }}
+          path: build
+      - name: Delete Dotnet Artifacts
+        uses: geekyeggo/delete-artifact@v5
         with:
-          name: rust-ubuntu-latest
-          path: src/Rust/target/release
-      - name: Build .NET
-        run: dotnet build -c Release 
+          name: dotnet-${{ matrix.os }}
       - name: Test .NET Velopack.Tests
         run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Velopack.Tests/Velopack.Tests.csproj
       - name: Test .NET Velopack.Packaging.Tests
