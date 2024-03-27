@@ -75,7 +75,7 @@ public class S3Repository : DownRepository<S3DownloadOptions>, IRepositoryCanUpl
         using var _1 = Utility.GetTempFileName(out var tmpReleases);
         File.WriteAllText(tmpReleases, ReleaseEntryHelper.GetAssetFeedJson(new VelopackAssetFeed { Assets = releaseEntries }));
         var releasesName = Utility.GetVeloReleaseIndexName(options.Channel);
-        await UploadFile(client, options.Bucket, releasesName, new FileInfo(tmpReleases), true);
+        await UploadFile(client, options.Bucket, releasesName, new FileInfo(tmpReleases), true, noCache: true);
 
 #pragma warning disable CS0612 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
@@ -84,7 +84,7 @@ public class S3Repository : DownRepository<S3DownloadOptions>, IRepositoryCanUpl
         using (var fs = File.Create(tmpReleases2)) {
             ReleaseEntry.WriteReleaseFile(releaseEntries.Select(ReleaseEntry.FromVelopackAsset), fs);
         }
-        await UploadFile(client, options.Bucket, legacyKey, new FileInfo(tmpReleases2), true);
+        await UploadFile(client, options.Bucket, legacyKey, new FileInfo(tmpReleases2), true, noCache: true);
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning restore CS0612 // Type or member is obsolete
 
@@ -148,7 +148,7 @@ public class S3Repository : DownRepository<S3DownloadOptions>, IRepositoryCanUpl
         }
     }
 
-    private async Task UploadFile(AmazonS3Client client, string bucket, string key, FileInfo f, bool overwriteRemote)
+    private async Task UploadFile(AmazonS3Client client, string bucket, string key, FileInfo f, bool overwriteRemote, bool noCache = false)
     {
         string deleteOldVersionId = null;
 
@@ -181,7 +181,11 @@ public class S3Repository : DownRepository<S3DownloadOptions>, IRepositoryCanUpl
             Key = key,
         };
 
-        await RetryAsync(() => client.PutObjectAsync(req), "Uploading " + key);
+        if (noCache) {
+            req.Headers.CacheControl = "no-cache";
+        }
+
+        await RetryAsync(() => client.PutObjectAsync(req), "Uploading " + key + (noCache ? " (no-cache)" : ""));
 
         if (deleteOldVersionId != null) {
             try {
