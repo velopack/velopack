@@ -81,6 +81,7 @@ jobs:
             src/Rust/target/release/UpdateNix
             src/Rust/target/release/UpdateMac
             src/Rust/target/release/*.exe
+            src/Rust/target/release/*.pdb
 
   test-dotnet:
     strategy:
