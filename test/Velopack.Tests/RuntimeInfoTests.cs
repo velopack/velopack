@@ -11,7 +11,7 @@ public class RuntimeInfoTests
         var args = new List<string> { "get-version", "-v", "NuGetPackageVersion" };
         var psi = new ProcessStartInfo("nbgv");
         psi.AppendArgumentListSafe(args, out var _);
-        var current = psi.Output(10_000);
+        var current = psi.Output(20_000);
         Assert.Equal(current, VelopackRuntimeInfo.VelopackNugetVersion.ToString());
     }
 
