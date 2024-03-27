@@ -18,7 +18,7 @@ public abstract class S3CommandTests<T> : BaseCommandTests<T>
         Assert.Equal("some key", command.KeyId);
         Assert.Equal("shhhh", command.Secret);
         Assert.Equal("http://endpoint/", command.Endpoint);
-        Assert.Equal("a-bucket", command.Bucket);
+        Assert.Equal("a-bucket", command.ContainerName);
     }
 
     [Fact]
@@ -33,7 +33,7 @@ public abstract class S3CommandTests<T> : BaseCommandTests<T>
         Assert.Equal("some key", command.KeyId);
         Assert.Equal("shhhh", command.Secret);
         Assert.Equal("us-west-1", command.Region);
-        Assert.Equal("a-bucket", command.Bucket);
+        Assert.Equal("a-bucket", command.ContainerName);
     }
 
     [Fact]

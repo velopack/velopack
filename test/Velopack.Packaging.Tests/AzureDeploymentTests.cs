@@ -47,7 +47,7 @@ public class AzureDeploymentTests
         var repo = new AzureRepository(logger);
         var options = new AzureUploadOptions {
             ReleaseDir = new DirectoryInfo(releaseDir),
-            Container = B2_BUCKET,
+            ContainerName = B2_BUCKET,
             Channel = channel,
             Endpoint = "https://" + B2_ENDPOINT,
             Account = B2_KEYID,

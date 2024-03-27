@@ -1,4 +1,4 @@
-using Riok.Mapperly.Abstractions;
+﻿using Riok.Mapperly.Abstractions;
 using Velopack.Deployment;
 using Velopack.Packaging.Commands;
 using Velopack.Packaging.Unix.Commands;

@@ -18,7 +18,7 @@ public abstract class AzureCommandTests<T> : BaseCommandTests<T>
         Assert.Equal("account-name", command.Account);
         Assert.Equal("shhhh", command.Key);
         Assert.Equal("https://endpoint/", command.Endpoint);
-        Assert.Equal("mycontainer", command.Container);
+        Assert.Equal("mycontainer", command.ContainerName);
     }
 }
 

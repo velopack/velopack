@@ -9,7 +9,7 @@ public class AzureBaseCommand : OutputCommand
 
     public string Endpoint { get; private set; }
 
-    public string Container { get; private set; }
+    public string ContainerName { get; private set; }
 
     protected AzureBaseCommand(string name, string description)
         : base(name, description)
@@ -24,7 +24,7 @@ public class AzureBaseCommand : OutputCommand
             .SetArgumentHelpName("KEY")
             .SetRequired();
 
-        AddOption<string>((v) => Container = v, "--container")
+        AddOption<string>((v) => ContainerName = v, "--container")
             .SetDescription("Azure container name")
          .SetArgumentHelpName("CONTAINER")
          .SetRequired();
