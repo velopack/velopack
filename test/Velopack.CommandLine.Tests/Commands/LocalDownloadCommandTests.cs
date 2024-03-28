@@ -9,13 +9,25 @@ public class LocalDownloadCommandTests : BaseCommandTests<LocalDownloadCommand>
     {
         var command = new LocalDownloadCommand();
 
-        DirectoryInfo directory = Directory.CreateDirectory(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "releases"));
-        ParseResult parseResult = command.ParseAndApply($"--path {directory.FullName}");
+        using var _1 = Utility.GetTempDirectory(out var releaseDir);
+        File.Create(Path.Combine(releaseDir, "test.txt")).Close();
+
+        ParseResult parseResult = command.ParseAndApply($"--path {releaseDir}");
 
         Assert.Empty(parseResult.Errors);
-        Assert.Equal(directory.FullName, command.TargetPath.FullName);
+        Assert.Equal(releaseDir, command.TargetPath.FullName);
+    }
 
-        Directory.Delete(directory.FullName);
+    [Fact]
+    public void Path_WithEmptyPath_ParsesValue()
+    {
+        var command = new LocalDownloadCommand();
+        using var _1 = Utility.GetTempDirectory(out var releaseDir);
+
+        ParseResult parseResult = command.ParseAndApply($"--path {releaseDir}");
+
+        Assert.True(parseResult.Errors.Count > 0);
+        Assert.Contains("must be a non-empty directory", parseResult.Errors[0].Message);
     }
 
     [Fact]
@@ -26,7 +38,7 @@ public class LocalDownloadCommandTests : BaseCommandTests<LocalDownloadCommand>
         // Parse with a fake path
         ParseResult parseResult = command.ParseAndApply($"--path \"E:\\releases\"");
 
-        Assert.Equal(1, parseResult.Errors.Count);
-        Assert.StartsWith("--path directory is not found, but must exist", parseResult.Errors[0].Message);
+        Assert.True(parseResult.Errors.Count > 0);
+        Assert.Contains("must be a non-empty directory", parseResult.Errors[0].Message);
     }
 }

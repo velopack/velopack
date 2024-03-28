@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 [assembly: InternalsVisibleTo("Velopack.Tests, PublicKey=" + SNK.SHA1)]
 [assembly: InternalsVisibleTo("Velopack.Packaging.Tests, PublicKey=" + SNK.SHA1)]
+[assembly: InternalsVisibleTo("Velopack.CommandLine.Tests, PublicKey=" + SNK.SHA1)]
 [assembly: InternalsVisibleTo("Velopack, PublicKey=" + SNK.SHA1)]
 [assembly: InternalsVisibleTo("Velopack.Deployment, PublicKey=" + SNK.SHA1)]
 [assembly: InternalsVisibleTo("Velopack.Packaging, PublicKey=" + SNK.SHA1)]
