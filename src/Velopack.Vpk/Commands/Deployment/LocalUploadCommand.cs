@@ -10,7 +10,7 @@ public class LocalUploadCommand : LocalBaseCommand
         : base("local", "Upload releases to a local path or network share.")
     {
         AddOption<int>((x) => KeepMaxReleases = x, "--keepMaxReleases")
-         .SetDescription("The maximum number of releases to keep in the bucket, anything older will be deleted.")
+         .SetDescription("The maximum number of releases to keep in the target directory, anything older will be deleted.")
          .SetArgumentHelpName("COUNT");
 
         AddOption<bool>((x) => ForceRegenerate = x, "--regenerate")

@@ -57,6 +57,9 @@ public class LocalRepository(ILogger logger) : ObjectRepository<LocalDownloadOpt
             ReleaseEntryHelper.UpdateReleaseFiles(options.TargetPath.FullName, Log);
         }
 
+        // create directory if it doesn't exist
+        Directory.CreateDirectory(options.TargetPath.FullName);
+
         return base.UploadMissingAssetsAsync(options);
     }
 
