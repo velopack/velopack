@@ -35,9 +35,9 @@
       },
       "Riok.Mapperly": {
         "type": "Direct",
-        "requested": "[3.4.0, )",
-        "resolved": "3.4.0",
-        "contentHash": "bTxBEQ0+2x816IL78Fv0B/KkaGRtzfisit9dfWTfa7jjjwMMzpMW9A+V/hyxqHdJtYvtDL6dUNMLJige4zxJvw=="
+        "requested": "[3.3.0, )",
+        "resolved": "3.3.0",
+        "contentHash": "zncD+ur/lys3vdStUsJa8A/g6fLABsfVOHKx7aFjZ3xBCGmSde8BEGcoLdhuC1Tpcyo6pgWSTigJqB4aPXSFiw=="
       },
       "AsmResolver": {
         "type": "Transitive",
@@ -445,9 +445,9 @@
       },
       "Riok.Mapperly": {
         "type": "Direct",
-        "requested": "[3.4.0, )",
-        "resolved": "3.4.0",
-        "contentHash": "bTxBEQ0+2x816IL78Fv0B/KkaGRtzfisit9dfWTfa7jjjwMMzpMW9A+V/hyxqHdJtYvtDL6dUNMLJige4zxJvw=="
+        "requested": "[3.3.0, )",
+        "resolved": "3.3.0",
+        "contentHash": "zncD+ur/lys3vdStUsJa8A/g6fLABsfVOHKx7aFjZ3xBCGmSde8BEGcoLdhuC1Tpcyo6pgWSTigJqB4aPXSFiw=="
       },
       "AsmResolver": {
         "type": "Transitive",
