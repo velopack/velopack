@@ -40,12 +40,8 @@ public class CompatUtil
             var result = SearchAssemblyForVelopackApp(mainModule);
             if (result == null) {
                 // if we've iterated the whole main assembly and not found the call, then the velopack builder is missing
-                //throw new UserInfoException($"Unable to verify VelopackApp is called. " +
-                //    "Please ensure that 'VelopackApp.Build().Run()' is present in your Program.Main().");
-                _log.Error("Unable to verify VelopackApp is called. " +
-                    "Please ensure that 'VelopackApp.Build().Run()' is present in your Program.Main(). " +
-                    "[red underline]In a future version this will be a fatal error.[/]");
-                return;
+                throw new UserInfoException($"Unable to verify VelopackApp is called. " +
+                    "Please ensure that 'VelopackApp.Build().Run()' is present in your Program.Main().");
             }
 
             result = _console.EscapeMarkup(result);
@@ -77,10 +73,12 @@ public class CompatUtil
         }
 
         if (dllVersion > myVersion) {
-            throw new UserInfoException($"Velopack library version is greater than vpk version ({dllVersion} > {myVersion}). This can cause compatibility issues, please update vpk first.");
+            //throw new UserInfoException($"Velopack library version is greater than vpk version ({dllVersion} > {myVersion}). This can cause compatibility issues, please update vpk first.");
+            _log.Error($"Velopack library version is greater than vpk version ({dllVersion} > {myVersion}). " +
+                $"This can cause compatibility issues, please update vpk first. [red underline]In a future version this will be a fatal error.[/]");
+        } else {
+            _log.Warn($"Velopack library version is lower than vpk version ({dllVersion} < {myVersion}). This can occasionally cause compatibility issues.");
         }
-
-        _log.Warn($"Velopack library version is lower than vpk version ({dllVersion} < {myVersion}). This can occasionally cause compatibility issues.");
         return new NuGetVersion(dllVersion);
     }
 
