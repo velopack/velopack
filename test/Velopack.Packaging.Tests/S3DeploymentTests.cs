@@ -47,7 +47,7 @@ public class S3DeploymentTests
         var repo = new S3Repository(logger);
         var options = new S3UploadOptions {
             ReleaseDir = new DirectoryInfo(releaseDir),
-            ContainerName = B2_BUCKET,
+            Bucket = B2_BUCKET,
             Channel = channel,
             Endpoint = "https://" + B2_ENDPOINT,
             KeyId = B2_KEYID,

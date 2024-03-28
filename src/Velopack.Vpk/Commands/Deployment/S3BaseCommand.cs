@@ -12,7 +12,7 @@ public class S3BaseCommand : OutputCommand
 
     public string Endpoint { get; private set; }
 
-    public string ContainerName { get; private set; } // Bucket
+    public string Bucket { get; private set; }
 
     protected S3BaseCommand(string name, string description)
         : base(name, description)
@@ -43,7 +43,7 @@ public class S3BaseCommand : OutputCommand
         this.AreMutuallyExclusive(region, endpoint);
         this.AtLeastOneRequired(region, endpoint);
 
-        AddOption<string>((v) => ContainerName = v, "--bucket")
+        AddOption<string>((v) => Bucket = v, "--bucket")
             .SetDescription("Name of the S3 bucket.")
             .SetArgumentHelpName("NAME")
             .SetRequired();

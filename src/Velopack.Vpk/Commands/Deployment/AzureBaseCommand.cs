@@ -8,7 +8,7 @@ public class AzureBaseCommand : OutputCommand
 
     public string Endpoint { get; private set; }
 
-    public string ContainerName { get; private set; }
+    public string Container { get; private set; }
 
     public string SasToken { get; private set; }
 
@@ -28,7 +28,7 @@ public class AzureBaseCommand : OutputCommand
             .SetDescription("Shared access signature token (not the url)")
             .SetArgumentHelpName("TOKEN");
 
-        AddOption<string>((v) => ContainerName = v, "--container")
+        AddOption<string>((v) => Container = v, "--container")
             .SetDescription("Azure container name")
             .SetArgumentHelpName("NAME")
             .SetRequired();

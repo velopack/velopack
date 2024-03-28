@@ -12,7 +12,7 @@ public class AzureDownloadOptions : RepositoryOptions, IObjectDownloadOptions
 
     public string Endpoint { get; set; }
 
-    public string ContainerName { get; set; }
+    public string Container { get; set; }
 
     public string SasToken { get; set; }
 }
@@ -22,40 +22,40 @@ public class AzureUploadOptions : AzureDownloadOptions, IObjectUploadOptions
     public int KeepMaxReleases { get; set; }
 }
 
-public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploadOptions, BlobServiceClient>
+public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploadOptions, BlobContainerClient>
 {
     public AzureRepository(ILogger logger) : base(logger)
     {
     }
 
-    protected override BlobServiceClient CreateClient(AzureDownloadOptions options)
+    protected override BlobContainerClient CreateClient(AzureDownloadOptions options)
     {
         var serviceUrl = options.Endpoint ?? "https://" + options.Account + ".blob.core.windows.net";
         if (options.Endpoint == null) {
             Log.Info($"Endpoint not specified, default to: {serviceUrl}");
         }
 
+        BlobServiceClient client;
         if (!String.IsNullOrEmpty(options.SasToken)) {
-            return new BlobServiceClient(new Uri(serviceUrl), new Azure.AzureSasCredential(options.SasToken));
+            client = new BlobServiceClient(new Uri(serviceUrl), new Azure.AzureSasCredential(options.SasToken));
+        } else {
+            client = new BlobServiceClient(new Uri(serviceUrl), new StorageSharedKeyCredential(options.Account, options.Key));
         }
-
-        return new BlobServiceClient(new Uri(serviceUrl), new StorageSharedKeyCredential(options.Account, options.Key));
+        return client.GetBlobContainerClient(options.Container);
     }
 
-    protected override async Task DeleteObject(BlobServiceClient client, string container, string key)
+    protected override async Task DeleteObject(BlobContainerClient client, string key)
     {
         await RetryAsync(async () => {
-            var containerClient = client.GetBlobContainerClient(container);
-            await containerClient.DeleteBlobIfExistsAsync(key);
+            await client.DeleteBlobIfExistsAsync(key);
         }, "Deleting " + key);
     }
 
-    protected override async Task<byte[]> GetObjectBytes(BlobServiceClient client, string container, string key)
+    protected override async Task<byte[]> GetObjectBytes(BlobContainerClient client, string key)
     {
         return await RetryAsyncRet(async () => {
             try {
-                var containerClient = client.GetBlobContainerClient(container);
-                var obj = containerClient.GetBlobClient(key);
+                var obj = client.GetBlobClient(key);
                 var ms = new MemoryStream();
                 using var response = await obj.DownloadToAsync(ms, CancellationToken.None);
                 return ms.ToArray();
@@ -69,16 +69,14 @@ public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploa
     {
         await RetryAsync(async () => {
             var client = CreateClient(options);
-            var containerClient = client.GetBlobContainerClient(options.ContainerName);
-            var obj = containerClient.GetBlobClient(entry.FileName);
+            var obj = client.GetBlobClient(entry.FileName);
             using var response = await obj.DownloadToAsync(filePath, CancellationToken.None);
         }, $"Downloading {entry.FileName}...");
     }
 
-    protected override async Task UploadObject(BlobServiceClient client, string container, string key, FileInfo f, bool overwriteRemote, bool noCache)
+    protected override async Task UploadObject(BlobContainerClient client, string key, FileInfo f, bool overwriteRemote, bool noCache)
     {
-        var containerClient = client.GetBlobContainerClient(container);
-        var blobClient = containerClient.GetBlobClient(key);
+        var blobClient = client.GetBlobClient(key);
         try {
             var properties = await blobClient.GetPropertiesAsync();
             var md5 = GetFileMD5Checksum(f.FullName);

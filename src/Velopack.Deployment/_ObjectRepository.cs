@@ -11,7 +11,6 @@ public interface IObjectUploadOptions
 
 public interface IObjectDownloadOptions
 {
-    string ContainerName { get; set; }
 }
 
 public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDown>, IRepositoryCanUpload<TUp>
@@ -22,9 +21,9 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
     {
     }
 
-    protected abstract Task UploadObject(TClient client, string container, string key, FileInfo f, bool overwriteRemote, bool noCache);
-    protected abstract Task DeleteObject(TClient client, string container, string key);
-    protected abstract Task<byte[]> GetObjectBytes(TClient client, string container, string key);
+    protected abstract Task UploadObject(TClient client, string key, FileInfo f, bool overwriteRemote, bool noCache);
+    protected abstract Task DeleteObject(TClient client, string key);
+    protected abstract Task<byte[]> GetObjectBytes(TClient client, string key);
     protected abstract TClient CreateClient(TDown options);
 
     protected byte[] GetFileMD5Checksum(string filePath)
@@ -40,7 +39,7 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
     {
         var releasesName = Utility.GetVeloReleaseIndexName(options.Channel);
         var client = CreateClient(options);
-        var bytes = await GetObjectBytes(client, options.ContainerName, releasesName);
+        var bytes = await GetObjectBytes(client, releasesName);
         if (bytes == null || bytes.Length == 0) {
             return new VelopackAssetFeed();
         }
@@ -82,13 +81,13 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
         }
 
         foreach (var asset in build.Files) {
-            await UploadObject(client, options.ContainerName, Path.GetFileName(asset), new FileInfo(asset), true, noCache: false);
+            await UploadObject(client, Path.GetFileName(asset), new FileInfo(asset), true, noCache: false);
         }
 
         using var _1 = Utility.GetTempFileName(out var tmpReleases);
         File.WriteAllText(tmpReleases, ReleaseEntryHelper.GetAssetFeedJson(new VelopackAssetFeed { Assets = releaseEntries }));
         var releasesName = Utility.GetVeloReleaseIndexName(options.Channel);
-        await UploadObject(client, options.ContainerName, releasesName, new FileInfo(tmpReleases), true, noCache: true);
+        await UploadObject(client, releasesName, new FileInfo(tmpReleases), true, noCache: true);
 
 #pragma warning disable CS0612 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
@@ -97,14 +96,14 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
         using (var fs = File.Create(tmpReleases2)) {
             ReleaseEntry.WriteReleaseFile(releaseEntries.Select(ReleaseEntry.FromVelopackAsset), fs);
         }
-        await UploadObject(client, options.ContainerName, legacyKey, new FileInfo(tmpReleases2), true, noCache: true);
+        await UploadObject(client, legacyKey, new FileInfo(tmpReleases2), true, noCache: true);
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning restore CS0612 // Type or member is obsolete
 
         if (toDelete.Length > 0) {
             Log.Info($"Retention policy about to delete {toDelete.Length} releases...");
             foreach (var del in toDelete) {
-                await DeleteObject(client, options.ContainerName, del.FileName);
+                await DeleteObject(client, del.FileName);
             }
         }
 

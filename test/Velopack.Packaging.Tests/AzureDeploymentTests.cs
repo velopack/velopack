@@ -47,7 +47,7 @@ public class AzureDeploymentTests
         var repo = new AzureRepository(logger);
         var options = new AzureUploadOptions {
             ReleaseDir = new DirectoryInfo(releaseDir),
-            ContainerName = AZ_CONTAINER,
+            Container = AZ_CONTAINER,
             Channel = channel,
             Account = AZ_ACCOUNT,
             Key = AZ_KEY,

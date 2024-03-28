@@ -17,7 +17,7 @@ public class S3DownloadOptions : RepositoryOptions, IObjectDownloadOptions
 
     public string Endpoint { get; set; }
 
-    public string ContainerName { get; set; }
+    public string Bucket { get; set; }
 }
 
 public class S3UploadOptions : S3DownloadOptions, IObjectUploadOptions
@@ -25,13 +25,50 @@ public class S3UploadOptions : S3DownloadOptions, IObjectUploadOptions
     public int KeepMaxReleases { get; set; }
 }
 
-public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions, AmazonS3Client>
+public class S3BucketClient
+{
+    public AmazonS3Client Amazon { get; }
+
+    public string Bucket { get; }
+
+    public S3BucketClient(AmazonS3Client client, string bucket)
+    {
+        Amazon = client;
+        Bucket = bucket;
+    }
+
+    public virtual Task<DeleteObjectResponse> DeleteObjectAsync(string key, CancellationToken cancellationToken = default)
+    {
+        var request = new DeleteObjectRequest();
+        request.BucketName = Bucket;
+        request.Key = key;
+        return Amazon.DeleteObjectAsync(request, cancellationToken);
+    }
+
+    public virtual Task<GetObjectResponse> GetObjectAsync(string key, CancellationToken cancellationToken = default)
+    {
+        var request = new GetObjectRequest();
+        request.BucketName = Bucket;
+        request.Key = key;
+        return Amazon.GetObjectAsync(request, cancellationToken);
+    }
+
+    public virtual Task<GetObjectMetadataResponse> GetObjectMetadataAsync(string key, CancellationToken cancellationToken = default)
+    {
+        var request = new GetObjectMetadataRequest();
+        request.BucketName = Bucket;
+        request.Key = key;
+        return Amazon.GetObjectMetadataAsync(request, cancellationToken);
+    }
+}
+
+public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions, S3BucketClient>
 {
     public S3Repository(ILogger logger) : base(logger)
     {
     }
 
-    protected override AmazonS3Client CreateClient(S3DownloadOptions options)
+    protected override S3BucketClient CreateClient(S3DownloadOptions options)
     {
         var config = new AmazonS3Config() { ServiceURL = options.Endpoint };
         if (options.Endpoint != null) {
@@ -42,24 +79,26 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
             throw new InvalidOperationException("Missing endpoint");
         }
 
+        AmazonS3Client client;
         if (options.Session != null) {
-            return new AmazonS3Client(options.KeyId, options.Secret, options.Session, config);
+            client = new AmazonS3Client(options.KeyId, options.Secret, options.Session, config);
         } else {
-            return new AmazonS3Client(options.KeyId, options.Secret, config);
+            client = new AmazonS3Client(options.KeyId, options.Secret, config);
         }
+        return new S3BucketClient(client, options.Bucket);
     }
 
-    protected override async Task DeleteObject(AmazonS3Client client, string container, string key)
+    protected override async Task DeleteObject(S3BucketClient client, string key)
     {
-        await RetryAsync(() => client.DeleteObjectAsync(container, key), "Deleting " + key);
+        await RetryAsync(() => client.DeleteObjectAsync(key), "Deleting " + key);
     }
 
-    protected override async Task<byte[]> GetObjectBytes(AmazonS3Client client, string container, string key)
+    protected override async Task<byte[]> GetObjectBytes(S3BucketClient client, string key)
     {
         return await RetryAsyncRet(async () => {
             try {
                 var ms = new MemoryStream();
-                using (var obj = await client.GetObjectAsync(container, key))
+                using (var obj = await client.GetObjectAsync(key))
                 using (var stream = obj.ResponseStream) {
                     await stream.CopyToAsync(ms);
                 }
@@ -74,19 +113,19 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
     {
         var client = CreateClient(options);
         await RetryAsync(async () => {
-            using (var obj = await client.GetObjectAsync(options.ContainerName, entry.FileName)) {
+            using (var obj = await client.GetObjectAsync(entry.FileName)) {
                 await obj.WriteResponseStreamToFileAsync(filePath, false, CancellationToken.None);
             }
         }, $"Downloading {entry.FileName}...");
     }
 
-    protected override async Task UploadObject(AmazonS3Client client, string container, string key, FileInfo f, bool overwriteRemote, bool noCache)
+    protected override async Task UploadObject(S3BucketClient client, string key, FileInfo f, bool overwriteRemote, bool noCache)
     {
         string deleteOldVersionId = null;
 
         // try to detect an existing remote file of the same name
         try {
-            var metadata = await client.GetObjectMetadataAsync(container, key);
+            var metadata = await client.GetObjectMetadataAsync(key);
             var md5bytes = GetFileMD5Checksum(f.FullName);
             var md5 = BitConverter.ToString(md5bytes).Replace("-", String.Empty);
             var stored = metadata?.ETag?.Trim().Trim('"');
@@ -108,8 +147,9 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
             // already exists. storage providers should prefer the newer file of the same name.
         }
 
+        var bucket = client.Bucket;
         var req = new PutObjectRequest {
-            BucketName = container,
+            BucketName = bucket,
             FilePath = f.FullName,
             Key = key,
         };
@@ -118,11 +158,11 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
             req.Headers.CacheControl = "no-cache";
         }
 
-        await RetryAsync(() => client.PutObjectAsync(req), "Uploading " + key + (noCache ? " (no-cache)" : ""));
+        await RetryAsync(() => client.Amazon.PutObjectAsync(req), "Uploading " + key + (noCache ? " (no-cache)" : ""));
 
         if (deleteOldVersionId != null) {
             try {
-                await RetryAsync(() => client.DeleteObjectAsync(container, key, deleteOldVersionId),
+                await RetryAsync(() => client.Amazon.DeleteObjectAsync(bucket, key, deleteOldVersionId),
                     "Removing old version of " + key);
             } catch { }
         }
