@@ -11,8 +11,8 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, _app: &Manifest, pkg: &PathBu
     info!("Loading bundle from {}", pkg.to_string_lossy());
     let bundle = bundle::load_bundle_from_file(pkg)?;
     let manifest = bundle.read_manifest()?;
-    let temp_path = std::env::temp_dir().join(format!("velopack_{}", shared::random_string(8)));
-    let script_path = std::env::temp_dir().join(format!("update_{}.sh", manifest.id));
+    let temp_path = format!("/var/tmp/velopack_{}", shared::random_string(8));
+    let script_path = format!("/var/tmp/velopack_update_{}.sh", manifest.id);
 
     let action: Result<()> = (|| {
         info!("Extracting bundle to temp file: {}", temp_path.to_string_lossy());
@@ -48,7 +48,7 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, _app: &Manifest, pkg: &PathBu
                         bail!("pkexec exited with status: {}", status);
                     }
                 } else {
-                    bail!("Unable to extract AppImage ({})", e);
+                    bail!("Unable to move extracted AppImage into final destination ({})", e);
                 }
             }
         }
