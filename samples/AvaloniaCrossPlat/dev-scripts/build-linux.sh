@@ -18,7 +18,7 @@ echo ""
 echo "Building Velopack Rust"
 cd "$SCRIPT_DIR/../../../src/Rust"
 cargo build --target x86_64-unknown-linux-gnu
-cp target/x86_64-unknown-linux-gnu/release/update target/release/update
+cp target/x86_64-unknown-linux-gnu/debug/update target/debug/update
 
 echo ""
 echo "Building Velopack Vpk"
