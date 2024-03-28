@@ -40,8 +40,12 @@ public class CompatUtil
             var result = SearchAssemblyForVelopackApp(mainModule);
             if (result == null) {
                 // if we've iterated the whole main assembly and not found the call, then the velopack builder is missing
-                throw new UserInfoException($"Unable to verify VelopackApp is called. " +
-                    "Please ensure that 'VelopackApp.Build().Run()' is present in your Program.Main().");
+                //throw new UserInfoException($"Unable to verify VelopackApp is called. " +
+                //    "Please ensure that 'VelopackApp.Build().Run()' is present in your Program.Main().");
+                _log.Error("Unable to verify VelopackApp is called. " +
+                    "Please ensure that 'VelopackApp.Build().Run()' is present in your Program.Main(). " +
+                    "[red underline]In a future version this will be a fatal error.[/]");
+                return;
             }
 
             result = _console.EscapeMarkup(result);
