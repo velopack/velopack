@@ -43,8 +43,7 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, _app: &Manifest, pkg: &PathBu
         }
 
         // if the operation failed with permission denied, let's try again elevated with pkexec
-        // the second check (Text file busy (os error 26)) is what we get from fs::copy for permission denied
-        if result_err.kind() == std::io::ErrorKind::PermissionDenied || result_err.raw_os_error() == Some(26) {
+        if result_err.kind() == std::io::ErrorKind::PermissionDenied {
             error!("An error occurred {}, will attempt to elevate permissions and try again...", result_err);
             dialogs::ask_user_to_elevate(&manifest)?;
             let script = format!("#!/bin/sh\nmv -f '{}' '{}'", temp_path, &root_path.to_string_lossy());
