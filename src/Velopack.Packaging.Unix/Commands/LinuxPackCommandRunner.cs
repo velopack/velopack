@@ -26,12 +26,26 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
         } else {
             Log.Info("Building new .AppDir");
             var appRunPath = Path.Combine(dir.FullName, "AppRun");
-            File.WriteAllText(appRunPath, """
+
+            // app icon
+            var icon = Options.Icon ?? HelperFile.GetDefaultAppIcon();
+            var iconFilename = Options.PackId + Path.GetExtension(icon);
+            File.Copy(icon, Path.Combine(dir.FullName, iconFilename), true);
+
+            File.WriteAllText(appRunPath, $$"""
 #!/bin/sh
+
+if [ ! -z "$APPIMAGE" ] && [ ! -z "$APPDIR" ]; then
+    MD5=$(echo -n "file://$APPIMAGE" | md5sum | cut -d' ' -f1)
+    cp "$APPDIR/{{iconFilename}}" "$HOME/.cache/thumbnails/normal/$MD5.png"
+    cp "$APPDIR/{{iconFilename}}" "$HOME/.cache/thumbnails/large/$MD5.png"
+    xdg-icon-resource forceupdate
+fi
+
 HERE="$(dirname "$(readlink -f "${0}")")"
 export PATH="${HERE}"/usr/bin/:"${PATH}"
 EXEC=$(grep -e '^Exec=.*' "${HERE}"/*.desktop | head -n 1 | cut -d "=" -f 2 | cut -d " " -f 1 | sed 's/\\s/ /g')
-exec "${EXEC}" $@
+exec "${EXEC}" "$@"
 """);
             Chmod.ChmodFileAsExecutable(appRunPath);
 
@@ -51,15 +65,12 @@ Name={Options.PackTitle ?? Options.PackId}
 Comment={Options.PackTitle ?? Options.PackId} {Options.PackVersion}
 Icon={Options.PackId}
 Exec={mainExeName}
-Path=~
+StartupWMClass={Options.PackId}
 Categories=Development;
 """);
 
             // copy existing app files 
             CopyFiles(new DirectoryInfo(packDir), bin, progress, true);
-            // app icon
-            var icon = Options.Icon ?? HelperFile.GetDefaultAppIcon();
-            File.Copy(icon, Path.Combine(dir.FullName, Options.PackId + Path.GetExtension(icon)), true);
         }
 
         // velopack required files
