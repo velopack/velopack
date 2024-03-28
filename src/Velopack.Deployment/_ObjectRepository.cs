@@ -46,7 +46,7 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
         return VelopackAssetFeed.FromJson(Encoding.UTF8.GetString(bytes));
     }
 
-    public async Task UploadMissingAssetsAsync(TUp options)
+    public virtual async Task UploadMissingAssetsAsync(TUp options)
     {
         var build = BuildAssets.Read(options.ReleaseDir.FullName, options.Channel);
         var client = CreateClient(options);

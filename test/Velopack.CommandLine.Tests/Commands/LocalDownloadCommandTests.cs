@@ -13,7 +13,7 @@ public class LocalDownloadCommandTests : BaseCommandTests<LocalDownloadCommand>
         ParseResult parseResult = command.ParseAndApply($"--path {directory.FullName}");
 
         Assert.Empty(parseResult.Errors);
-        Assert.Equal(directory.FullName, command.Path.FullName);
+        Assert.Equal(directory.FullName, command.TargetPath.FullName);
 
         Directory.Delete(directory.FullName);
     }
