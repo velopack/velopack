@@ -1,5 +1,7 @@
-﻿using Azure.Storage;
+﻿using Azure;
+using Azure.Storage;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Velopack.Deployment;
@@ -98,6 +100,15 @@ public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploa
             // already exists. storage providers should prefer the newer file of the same name.
         }
 
-        await RetryAsync(() => blobClient.UploadAsync(f.FullName, overwriteRemote), "Uploading " + key);
+        var options = new BlobUploadOptions {
+            HttpHeaders = new BlobHttpHeaders(),
+            Conditions = overwriteRemote ? null : new BlobRequestConditions { IfNoneMatch = new ETag("*") }
+        };
+
+        if (noCache) {
+            options.HttpHeaders.CacheControl = "no-cache";
+        }
+
+        await RetryAsync(() => blobClient.UploadAsync(f.FullName, options), "Uploading " + key);
     }
 }
