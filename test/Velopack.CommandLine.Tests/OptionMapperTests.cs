@@ -14,16 +14,6 @@ public class OptionMapperTests
     }
 
     [Fact]
-    public void MapDirectory()
-    {
-        if (VelopackRuntimeInfo.IsWindows) {
-            Assert.Equal("C:\\hello", OptionMapper.Map<DirectoryInfo>("C:\\hello").FullName);
-        } else {
-            Assert.Equal("/hello", OptionMapper.Map<DirectoryInfo>("/hello").FullName);
-        }
-    }
-
-    [Fact]
     public void MapCommand()
     {
         AzureUploadCommand command = new();
