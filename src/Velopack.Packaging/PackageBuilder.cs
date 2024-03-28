@@ -118,7 +118,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
             }
 
             Task portableTask = null;
-            if (!VelopackRuntimeInfo.IsLinux && !Options.NoPortable) {
+            if (VelopackRuntimeInfo.IsLinux || !Options.NoPortable) {
                 portableTask = ctx.RunTask("Building portable package", async (progress) => {
                     var suggestedName = ReleaseEntryHelper.GetSuggestedPortableName(packId, channel);
                     var path = getIncompletePath(suggestedName);
