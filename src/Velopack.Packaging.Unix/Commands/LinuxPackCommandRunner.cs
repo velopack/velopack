@@ -32,8 +32,9 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
             var iconFilename = Options.PackId + Path.GetExtension(icon);
             File.Copy(icon, Path.Combine(dir.FullName, iconFilename), true);
 
-            var categories = String.IsNullOrWhiteSpace(Options.Categories) ? "" :
-                $"Categories={Options.Categories.TrimEnd(';')};";
+            var categories = String.IsNullOrWhiteSpace(Options.Categories) 
+                ? "Utility" 
+                : Options.Categories.TrimEnd(';');
 
             File.WriteAllText(appRunPath, $$"""
 #!/bin/sh
@@ -69,7 +70,7 @@ Comment={Options.PackTitle ?? Options.PackId} {Options.PackVersion}
 Icon={Options.PackId}
 Exec={mainExeName}
 StartupWMClass={Options.PackId}
-{categories}
+Categories={categories};
 """);
 
             // copy existing app files 
