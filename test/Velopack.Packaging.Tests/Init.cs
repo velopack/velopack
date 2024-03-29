@@ -11,5 +11,6 @@ public class TestsInit : XunitTestFramework
     {
         HelperFile.AddSearchPath(PathHelper.GetRustBuildOutputDir());
         HelperFile.AddSearchPath(PathHelper.GetVendorLibDir());
+        HelperFile.AddSearchPath(PathHelper.GetArtworkDir());
     }
 }

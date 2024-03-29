@@ -18,6 +18,9 @@ public static class PathHelper
     public static string GetVendorLibDir()
         => Path.Combine(GetProjectDir(), "vendor");
 
+    public static string GetArtworkDir()
+        => Path.Combine(GetProjectDir(), "artwork");
+
     public static string GetFixture(params string[] names)
         => Path.Combine(new string[] { GetTestRoot(), "fixtures" }.Concat(names).ToArray());
 
