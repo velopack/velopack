@@ -10,6 +10,7 @@
     <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <BeforeTargetFrameworkInferenceTargets>$(MSBuildThisFileDirectory)SelfContained.targets</BeforeTargetFrameworkInferenceTargets>
+    <NoWarn>$(NoWarn);NETSDK1188</NoWarn>
 
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <DebugType>embedded</DebugType>
