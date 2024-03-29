@@ -6,10 +6,10 @@ namespace Velopack.Packaging.Tests;
 
 public class AzureDeploymentTests
 {
-    public readonly static string AZ_ACCOUNT = "velopacktest";
+    public readonly static string AZ_ACCOUNT = "velopacktesting";
     public readonly static string AZ_KEY = Environment.GetEnvironmentVariable("VELOPACK_AZ_TEST_TOKEN");
-    public readonly static string AZ_CONTAINER = "test1";
-    public readonly static string AZ_ENDPOINT = "velopacktest.blob.core.windows.net";
+    public readonly static string AZ_CONTAINER = "ci-deployment";
+    public readonly static string AZ_ENDPOINT = "velopacktesting.blob.core.windows.net";
 
     private readonly ITestOutputHelper _output;
 
