@@ -61,7 +61,7 @@ public static class HelperFile
         case RuntimeOs.Windows:
             return null;
         case RuntimeOs.Linux:
-            return FindHelperFile("DefaultApp_64.png");
+            return FindHelperFile("DefaultApp.png");
         case RuntimeOs.OSX:
             return FindHelperFile("DefaultApp.icns");
         default:

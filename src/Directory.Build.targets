@@ -33,7 +33,7 @@
       <None Include="..\..\vendor\appimagetool-x86_64.AppImage" Pack="true" PackagePath="vendor" />
       <None Include="..\..\Velopack.entitlements" Pack="true" PackagePath="vendor" />
       <None Include="..\..\artwork\DefaultApp.icns" Pack="true" PackagePath="vendor" />
-      <None Include="..\..\artwork\DefaultApp_64.png" Pack="true" PackagePath="vendor" />
+      <None Include="..\..\artwork\DefaultApp.png" Pack="true" PackagePath="vendor" />
     </ItemGroup>
     <ItemGroup Condition=" '$(PackRustAssets)' == 'true' ">
       <None Include="..\Rust\target\release\update.exe" Pack="true" PackagePath="vendor" />
