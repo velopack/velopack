@@ -94,6 +94,7 @@
       SignSkipDll="$(VelopackSignSkipDll)"
       SignParallel="$(VelopackSignParallel)"
       SignTemplate="$(VelopackSignTemplate)"
+      Categories="$(VelopackCategories)"
     />
   </Target>
 

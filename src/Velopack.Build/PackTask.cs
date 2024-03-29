@@ -88,6 +88,8 @@ public class PackTask : MSBuildAsyncTask
 
     public string? SignTemplate { get; set; }
 
+    public string? Categories { get; set; }
+
     protected override async Task<bool> ExecuteAsync()
     {
         //System.Diagnostics.Debugger.Launch();
