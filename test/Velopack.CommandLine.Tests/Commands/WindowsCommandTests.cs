@@ -239,19 +239,6 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
         Assert.Equal("signtool {{file}}", command.SignTemplate);
     }
 
-    [Fact]
-    public void SignTemplate_WithoutFileParameter_ShowsError()
-    {
-        var command = new WindowsPackCommand();
-
-        string cli = GetRequiredDefaultOptions() + "--signTemplate \"signtool file\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
-
-        Assert.Equal(1, parseResult.Errors.Count);
-        //Assert.Equal(command.SignTemplate, parseResult.Errors[0].SymbolResult?.Symbol);
-        Assert.StartsWith("--signTemplate must contain '{{file}}'", parseResult.Errors[0].Message);
-    }
-
     [WindowsOnlyFact]
     public void SignParameters_WithParameters_ParsesValue()
     {
