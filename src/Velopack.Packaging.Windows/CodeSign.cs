@@ -16,33 +16,33 @@ public class CodeSign
         Log = logger;
     }
 
-    private bool CheckIsAlreadySigned(string filePath)
+    private bool ShouldSign(string filePath)
     {
         if (String.IsNullOrWhiteSpace(filePath)) return true;
 
         if (!File.Exists(filePath)) {
             Log.Warn($"Cannot sign '{filePath}', file does not exist.");
-            return true;
+            return false;
         }
 
         try {
-            if (AuthenticodeTools.IsTrusted(filePath)) {
+            if (VelopackRuntimeInfo.IsWindows && AuthenticodeTools.IsTrusted(filePath)) {
                 Log.Debug($"'{filePath}' is already signed, skipping...");
-                return true;
+                return false;
             }
         } catch (Exception ex) {
             Log.Error(ex, "Failed to determine signing status for " + filePath);
         }
 
-        return false;
+        return true;
     }
 
-    public void SignPEFilesWithSignTool(string rootDir, string[] filePaths, string signArguments, int parallelism, Action<int> progress)
+    public void Sign(string rootDir, string[] filePaths, string signArguments, int parallelism, Action<int> progress, bool signAsTemplate)
     {
         Queue<string> pendingSign = new Queue<string>();
 
         foreach (var f in filePaths) {
-            if (!CheckIsAlreadySigned(f)) {
+            if (ShouldSign(f)) {
                 // try to find the path relative to rootDir
                 if (String.IsNullOrEmpty(rootDir)) {
                     pendingSign.Enqueue(f);
@@ -50,22 +50,31 @@ public class CodeSign
                     var partialPath = Utility.NormalizePath(f).Substring(Utility.NormalizePath(rootDir).Length).Trim('/', '\\');
                     pendingSign.Enqueue(partialPath);
                 }
-            } else {
-                Log.Debug($"'{f}' is already signed, and will not be signed again.");
             }
+        }
+
+        using var _1 = Utility.GetTempFileName(out var signLogFile);
+        var totalToSign = pendingSign.Count;
+
+        if (signAsTemplate) {
+            if (signArguments.Contains("{{file}}")) {
+                Log.Info("Preparing to codesign using a single file signing template ({{file}}), ignoring --signParallel option.");
+                parallelism = 1;
+            } else if (signArguments.Contains("{{file...}}")) {
+                Log.Info($"Preparing to codesign using a single file signing template, with a parallelism of {parallelism}.");
+                signArguments = signArguments.Replace("{{file...}}", "{{file}}");
+            } else {
+                throw new UserInfoException("The sign template must contain '{{file}}' or '{{file...}}', " +
+                    "which will be substituted by one, or many files, respectively.");
+            }
+        } else {
+            Log.Info($"Preparing to codesign using embedded signtool.exe, with a parallelism of {parallelism}.");
         }
 
         if (filePaths.Length != pendingSign.Count) {
             var diff = filePaths.Length - pendingSign.Count;
-            Log.Info($"{pendingSign.Count} files will be signed, {diff} will be skipped because they are already signed.");
+            Log.Info($"{pendingSign.Count} files will be signed, {diff} will be skipped.");
         }
-
-        // here we invoke signtool.exe with 'cmd.exe /C' and redirect output to a file, because something
-        // about how the dotnet tool host works prevents signtool from being able to open a token password
-        // prompt, meaning signing fails for those with an HSM.
-        using var _1 = Utility.GetTempFileName(out var signLogFile);
-
-        var totalToSign = pendingSign.Count;
 
         do {
             List<string> filesToSign = new List<string>();
@@ -74,7 +83,14 @@ public class CodeSign
             }
 
             var filesToSignStr = String.Join(" ", filesToSign.Select(f => $"\"{f}\""));
-            var command = $"\"{HelperFile.SignToolPath}\" sign {signArguments} {filesToSignStr}";
+
+            string command;
+            if (signAsTemplate) {
+                command = signArguments.Replace("{{file}}", filesToSignStr);
+            } else {
+                command = $"\"{HelperFile.SignToolPath}\" sign {signArguments} {filesToSignStr}";
+            }
+
             RunSigningCommand(command, rootDir, signLogFile);
 
             int processed = totalToSign - pendingSign.Count;
@@ -82,19 +98,6 @@ public class CodeSign
             progress((int) ((double) processed / totalToSign * 100));
         } while (pendingSign.Count > 0);
 
-        Log.Debug("SignTool Output: " + Environment.NewLine + File.ReadAllText(signLogFile).Trim());
-    }
-
-    public void SignPEFileWithTemplate(string filePath, string signTemplate)
-    {
-        if (VelopackRuntimeInfo.IsWindows && CheckIsAlreadySigned(filePath)) {
-            Log.Debug($"'{filePath}' is already signed, and will not be signed again.");
-            return;
-        }
-
-        using var _1 = Utility.GetTempFileName(out var signLogFile);
-        var command = signTemplate.Replace("\"{{file}}\"", "{{file}}").Replace("{{file}}", $"\"{filePath}\"");
-        RunSigningCommand(command, Path.GetDirectoryName(filePath), signLogFile);
         Log.Debug("SignTool Output: " + Environment.NewLine + File.ReadAllText(signLogFile).Trim());
     }
 

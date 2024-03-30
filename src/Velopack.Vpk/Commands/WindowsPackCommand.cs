@@ -37,12 +37,18 @@ public class WindowsPackCommand : PackCommand
 
         var signTemplate = AddOption<string>((v) => SignTemplate = v, "--signTemplate")
           .SetDescription("Use a custom signing command. {{file}} will be substituted.")
-          .SetArgumentHelpName("COMMAND")
-          .MustContain("{{file}}");
+          .SetArgumentHelpName("COMMAND");
 
         AddOption<bool>((v) => SignSkipDll = v, "--signSkipDll")
             .SetDescription("Only signs EXE files, and skips signing DLL files.")
             .SetHidden();
+
+        AddOption<int>((v) => SignParallel = v, "--signParallel")
+             .SetDescription("The number of files to sign in each signing command.")
+             .SetArgumentHelpName("NUM")
+             .MustBeBetween(1, 1000)
+             .SetHidden()
+             .SetDefault(10);
 
         if (VelopackRuntimeInfo.IsWindows) {
             var signParams = AddOption<string>((v) => SignParameters = v, "--signParams", "-n")
@@ -50,13 +56,6 @@ public class WindowsPackCommand : PackCommand
                 .SetArgumentHelpName("PARAMS");
 
             this.AreMutuallyExclusive(signTemplate, signParams);
-
-            AddOption<int>((v) => SignParallel = v, "--signParallel")
-                .SetDescription("The number of files to sign in each call to signtool.exe.")
-                .SetArgumentHelpName("NUM")
-                .MustBeBetween(1, 1000)
-                .SetHidden()
-                .SetDefault(10);
         }
     }
 }

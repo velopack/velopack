@@ -221,25 +221,14 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
 
         if (!string.IsNullOrEmpty(signTemplate)) {
-            Log.Info($"Preparing to sign {filePaths.Length} files with custom signing template");
-            for (var i = 0; i < filePaths.Length; i++) {
-                var f = filePaths[i];
-                helper.SignPEFileWithTemplate(f, signTemplate);
-                progress((int) ((double) i / filePaths.Length * 100));
-            }
-            return;
+            helper.Sign(rootDir, filePaths, signTemplate, signParallel, progress, true);
         }
 
         // signtool.exe does not work if we're not on windows.
         if (!VelopackRuntimeInfo.IsWindows) return;
 
         if (!string.IsNullOrEmpty(signParams)) {
-            string message = $"Preparing to sign {filePaths.Length} files with embedded signtool.exe";
-            if (signParallel > 1 && filePaths.Length > 1) {
-                message += $" with parallelism of {signParallel}";
-            }
-            Log.Info(message);
-            helper.SignPEFilesWithSignTool(rootDir, filePaths, signParams, signParallel, progress);
+            helper.Sign(rootDir, filePaths, signParams, signParallel, progress, false);
         }
     }
 
