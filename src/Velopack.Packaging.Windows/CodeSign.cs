@@ -58,13 +58,13 @@ public class CodeSign
 
         if (signAsTemplate) {
             if (signArguments.Contains("{{file}}")) {
-                Log.Info("Preparing to codesign using a single file signing template ({{file}}), ignoring --signParallel option.");
+                Log.Info("Preparing to codesign using a single file signing template, ignoring --signParallel option.");
                 parallelism = 1;
             } else if (signArguments.Contains("{{file...}}")) {
                 Log.Info($"Preparing to codesign using a single file signing template, with a parallelism of {parallelism}.");
                 signArguments = signArguments.Replace("{{file...}}", "{{file}}");
             } else {
-                throw new UserInfoException("The sign template must contain '{{file}}' or '{{file...}}', " +
+                throw new UserInfoException("The sign template must contain '{{{file}}}' or '{{{file...}}}', " +
                     "which will be substituted by one, or many files, respectively.");
             }
         } else {
