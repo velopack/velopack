@@ -52,13 +52,13 @@ public class LocalRepository(ILogger logger) : ObjectRepository<LocalDownloadOpt
 
     public override Task UploadMissingAssetsAsync(LocalUploadOptions options)
     {
+        // create directory if it doesn't exist
+        Directory.CreateDirectory(options.TargetPath.FullName);
+
         if (options.ForceRegenerate) {
             Log.Info("Force regenerating release index files...");
             ReleaseEntryHelper.UpdateReleaseFiles(options.TargetPath.FullName, Log);
         }
-
-        // create directory if it doesn't exist
-        Directory.CreateDirectory(options.TargetPath.FullName);
 
         return base.UploadMissingAssetsAsync(options);
     }
