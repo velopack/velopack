@@ -82,8 +82,10 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
         AmazonS3Client client;
         if (options.Session != null) {
             client = new AmazonS3Client(options.KeyId, options.Secret, options.Session, config);
-        } else {
+        } else if (options.KeyId != null || options.Secret != null) {
             client = new AmazonS3Client(options.KeyId, options.Secret, config);
+        } else {
+            client = new AmazonS3Client(config);
         }
         return new S3BucketClient(client, options.Bucket);
     }

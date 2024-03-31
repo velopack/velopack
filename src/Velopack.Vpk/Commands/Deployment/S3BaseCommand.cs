@@ -31,7 +31,7 @@ public class S3BaseCommand : OutputCommand
 
         AddOption<string>((v) => Session = v, "--session")
             .SetDescription("Authentication session token.")
-            .SetArgumentHelpName("SESSION");
+            .SetArgumentHelpName("TOKEN");
 
         region.Validators.Add(MustBeValidAwsRegion);
 
