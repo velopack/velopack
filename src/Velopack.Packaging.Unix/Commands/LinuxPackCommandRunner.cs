@@ -41,8 +41,8 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
 
 if [ ! -z "$APPIMAGE" ] && [ ! -z "$APPDIR" ]; then
     MD5=$(echo -n "file://$APPIMAGE" | md5sum | cut -d' ' -f1)
-    cp "$APPDIR/{{iconFilename}}" "$HOME/.cache/thumbnails/normal/$MD5.png"
-    cp "$APPDIR/{{iconFilename}}" "$HOME/.cache/thumbnails/large/$MD5.png"
+    mkdir -p "$HOME/.cache/thumbnails/normal" && cp "$APPDIR/{{iconFilename}}" "$HOME/.cache/thumbnails/normal/$MD5.png"
+    mkdir -p "$HOME/.cache/thumbnails/large" && cp "$APPDIR/{{iconFilename}}" "$HOME/.cache/thumbnails/large/$MD5.png"
     xdg-icon-resource forceupdate
 fi
 
