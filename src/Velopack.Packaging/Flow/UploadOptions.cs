@@ -1,7 +1,4 @@
-﻿
-#nullable enable
-
-using NuGet.Versioning;
+﻿#nullable enable
 
 namespace Velopack.Packaging.Flow;
 

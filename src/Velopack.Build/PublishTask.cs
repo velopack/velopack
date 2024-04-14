@@ -13,7 +13,7 @@ namespace Velopack.Build;
 
 public class PublishTask : MSBuildAsyncTask
 {
-    private static HttpClient HttpClient { get; } = new();
+    private static HttpClient HttpClient { get; } = new(new HmacAuthHttpClientHandler());
 
     [Required]
     public string ReleaseDirectory { get; set; } = "";
@@ -22,7 +22,9 @@ public class PublishTask : MSBuildAsyncTask
 
     public string? Channel { get; set; }
 
-    public string? Version { get; set; } 
+    public string? Version { get; set; }
+
+    public string? ApiKey { get; set; }
 
     protected override async Task<bool> ExecuteAsync()
     {
@@ -31,7 +33,8 @@ public class PublishTask : MSBuildAsyncTask
         if (!await client.LoginAsync(new() {
             AllowDeviceCodeFlow = false,
             AllowInteractiveLogin = false,
-            VelopackBaseUrl = ServiceUrl
+            VelopackBaseUrl = ServiceUrl,
+            ApiKey = ApiKey
         }).ConfigureAwait(false)) {
             Logger.LogWarning("Not logged into Velopack service, skipping publish. Please run vpk login.");
             return true;
@@ -79,7 +82,7 @@ public class PublishTask : MSBuildAsyncTask
             Logger.LogInformation("Uploaded {FileName} to Velopack", assetFileName);
         }
 
-        foreach(var installerFile in installers) {
+        foreach (var installerFile in installers) {
             var latestPath = Path.Combine(ReleaseDirectory, installerFile);
 
             using var fileStream = File.OpenRead(latestPath);

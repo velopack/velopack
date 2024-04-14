@@ -1,12 +1,13 @@
-﻿using System.Net.Http;
-using Microsoft.Identity.Client;
+﻿using Microsoft.Identity.Client;
 using Microsoft.Identity.Client.Extensions.Msal;
-
 
 using Velopack.Packaging.Abstractions;
 
+
 #if NET6_0_OR_GREATER
 using System.Net.Http.Json;
+#else
+using System.Net.Http;
 #endif
 
 #nullable enable
@@ -38,26 +39,33 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, IConsole Console) 
 
         var pca = await BuildPublicApplicationAsync(authConfiguration);
 
-        AuthenticationResult? rv = null;
-        if (options.AllowCacheCredentials) {
-            rv = await AcquireSilentlyAsync(pca);
-        }
-        if (rv is null && options.AllowInteractiveLogin) {
-            rv = await AcquireInteractiveAsync(pca, authConfiguration);
-        }
-        if (rv is null && options.AllowDeviceCodeFlow) {
-            rv = await AcquireByDeviceCodeAsync(pca);
-        }
-
-        if (rv != null) {
-            HttpClient.DefaultRequestHeaders.Authorization = new("Bearer", rv.IdToken ?? rv.AccessToken);
+        if (!string.IsNullOrWhiteSpace(options.ApiKey)) {
+            HttpClient.DefaultRequestHeaders.Authorization = new(HmacHelper.HmacScheme, options.ApiKey);
             var profile = await GetProfileAsync(options);
-
-            Console.WriteLine($"{profile?.Name} logged into Velopack");
+            Console.WriteLine($"{profile?.Name} logged into Velopack with API key");
             return true;
         } else {
-            Console.WriteLine("Failed to login to Velopack");
-            return false;
+            AuthenticationResult? rv = null;
+            if (options.AllowCacheCredentials) {
+                rv = await AcquireSilentlyAsync(pca);
+            }
+            if (rv is null && options.AllowInteractiveLogin) {
+                rv = await AcquireInteractiveAsync(pca, authConfiguration);
+            }
+            if (rv is null && options.AllowDeviceCodeFlow) {
+                rv = await AcquireByDeviceCodeAsync(pca);
+            }
+
+            if (rv != null) {
+                HttpClient.DefaultRequestHeaders.Authorization = new("Bearer", rv.IdToken ?? rv.AccessToken);
+                var profile = await GetProfileAsync(options);
+
+                Console.WriteLine($"{profile?.Name} logged into Velopack");
+                return true;
+            } else {
+                Console.WriteLine("Failed to login to Velopack");
+                return false;
+            }
         }
     }
 
@@ -78,7 +86,7 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, IConsole Console) 
     public async Task<Profile?> GetProfileAsync(VelopackServiceOptions? options = null)
     {
         AssertAuthenticated();
-        var endpoint = GetEndpoint("/api/v1/user/profile", options);
+        var endpoint = GetEndpoint("v1/user/profile", options);
 
         return await HttpClient.GetFromJsonAsync<Profile>(endpoint);
     }
@@ -95,7 +103,7 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, IConsole Console) 
         using var fileContent = new StreamContent(options.ReleaseData);
         formData.Add(fileContent, "File", options.FileName);
 
-        var endpoint = GetEndpoint("api/v1/upload-release", options);
+        var endpoint = GetEndpoint("v1/upload-release", options);
 
         var response = await HttpClient.PostAsync(endpoint, formData);
 
@@ -116,7 +124,7 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, IConsole Console) 
         using var fileContent = new StreamContent(options.ReleaseData);
         formData.Add(fileContent, "File", options.FileName);
 
-        var endpoint = GetEndpoint("api/v1/upload-installer", options);
+        var endpoint = GetEndpoint("v1/upload-installer", options);
 
         var response = await HttpClient.PostAsync(endpoint, formData);
 
@@ -128,7 +136,7 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, IConsole Console) 
         if (AuthConfiguration is not null)
             return AuthConfiguration;
 
-        var endpoint = GetEndpoint("/api/v1/auth/config", options);
+        var endpoint = GetEndpoint("v1/auth/config", options);
 
         var authConfig = await HttpClient.GetFromJsonAsync<AuthConfiguration>(endpoint);
         if (authConfig is null)

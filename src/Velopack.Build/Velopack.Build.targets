@@ -45,13 +45,6 @@
   </Target>
 
   <Target Name="VelopackBuildRelease" AfterTargets="Publish" Condition="'$(VelopackPackOnPublish)' == 'true'">
-    <!-- 
-    TODO: Add additional error checking for the rest of the parameters.
-    -->
-    <!--<Warning Condition="'$(VelopackPackVersion)' == ''"
-             Text="No version specified, Velopack will not publish a release."
-             />-->
-
     <Error Condition=" '$(SelfContained)' != 'true' and $([System.OperatingSystem]::IsMacOS()) "
            Text="Only SelfContained=true releases are supported on MacOS. Please dotnet publish with the --self-contained option." />
     <Error Condition=" '$(SelfContained)' != 'true' and $([System.OperatingSystem]::IsLinux()) "
@@ -104,6 +97,7 @@
       ReleaseDirectory="$(VelopackReleaseDirectory)"
       Version="$(VelopackPackVersion)"
       ServiceUrl="$(VelopackFlowServiceUrl)"
+      ApiKey="$(VelopackFlowApiKey)"
     />
   </Target>
 </Project>
