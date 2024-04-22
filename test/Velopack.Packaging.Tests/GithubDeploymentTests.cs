@@ -184,22 +184,95 @@ This is just a _test_!
         Assert.True(File.Exists(Path.Combine(releaseDirNew, filename)));
     }
 
+    [SkippableFact]
+    public void WillCreateTagOnDefaultBranchIfTargetCommitishNotSet()
+    {
+        Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
+        using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
+        using var _1 = Utility.GetTempDirectory(out var releaseDir);
+        using var ghvar = GitHubReleaseTest.Create("targetCommitish", logger, true);
+        var (repoOwner, repoName) = GitHubRepository.GetOwnerAndRepo(GITHUB_REPOURL);
+        var id = "GithubUpdateTest";
+        var releaseName = ghvar.ReleaseName;
+        var client = ghvar.Client;
+        var uniqueSuffix = ghvar.UniqueSuffix;
+        var version = $"0.0.1-{uniqueSuffix}";
+        TestApp.PackTestApp(id, version, "t1", releaseDir, logger, channel: uniqueSuffix);
+
+        var gh = new GitHubRepository(logger);
+        var options = new GitHubUploadOptions {
+            ReleaseName = releaseName,
+            ReleaseDir = new DirectoryInfo(releaseDir),
+            RepoUrl = GITHUB_REPOURL,
+            Token = GITHUB_TOKEN,
+            Prerelease = false,
+            Publish = true,
+            Channel = uniqueSuffix,
+            TagName = version
+        };
+
+        gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+
+        var expected = "main"; //Default branch in VelopackGithubUpdateTest repo
+        var newRelease = client.Repository.Release.GetAll(repoOwner, repoName).GetAwaiterResult().Single(s => s.Name == releaseName);
+        Assert.Equal(expected, newRelease.TargetCommitish);
+    }
+
+    [SkippableTheory]
+    [InlineData("main")]
+    [InlineData("31fca3d97e657a4fbee076462c5efb271f074656")] //Commit SHA in VelopackGithubUpdateTest repo
+    public void WillCreateTagUsingTargetCommitish(string targetCommitish)
+    {
+        Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
+        using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
+        using var _1 = Utility.GetTempDirectory(out var releaseDir);
+        using var ghvar = GitHubReleaseTest.Create("targetCommitish", logger, true);
+        var (repoOwner, repoName) = GitHubRepository.GetOwnerAndRepo(GITHUB_REPOURL);
+        var id = "GithubUpdateTest";
+        var releaseName = ghvar.ReleaseName;
+        var client = ghvar.Client;
+        var uniqueSuffix = ghvar.UniqueSuffix;
+        var version = $"0.0.1-{uniqueSuffix}";
+        TestApp.PackTestApp(id, version, "t1", releaseDir, logger, channel: uniqueSuffix);
+
+        var gh = new GitHubRepository(logger);
+        var options = new GitHubUploadOptions {
+            ReleaseName = releaseName,
+            ReleaseDir = new DirectoryInfo(releaseDir),
+            RepoUrl = GITHUB_REPOURL,
+            Token = GITHUB_TOKEN,
+            Prerelease = false,
+            Publish = true,
+            Channel = uniqueSuffix,
+            TagName = version,
+            TargetCommitish = targetCommitish
+        };
+
+        gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+
+        var newRelease = client.Repository.Release.GetAll(repoOwner, repoName).GetAwaiterResult().Single(s => s.Name == releaseName);
+        Assert.Equal(targetCommitish, newRelease.TargetCommitish);
+    }
+
     private class GitHubReleaseTest : IDisposable
     {
+        private readonly bool deleteTagOnDispose;
+
         public string ReleaseName { get; }
         public string UniqueSuffix { get; }
         public GitHubClient Client { get; }
         public ILogger Logger { get; }
 
-        public GitHubReleaseTest(string releaseName, string uniqueSuffix, GitHubClient client, ILogger logger)
+        public GitHubReleaseTest(string releaseName, string uniqueSuffix, GitHubClient client, ILogger logger, bool deleteTagOnDispose = false)
         {
             ReleaseName = releaseName;
             UniqueSuffix = uniqueSuffix;
             Client = client;
             Logger = logger;
+            this.deleteTagOnDispose = deleteTagOnDispose;
         }
 
-        public static GitHubReleaseTest Create(string method, ILogger logger)
+        public static GitHubReleaseTest Create(string method, ILogger logger, bool deleteTagOnDispose = false)
         {
             var ci = !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI"));
             var uniqueSuffix = (ci ? "ci-" : "local-") + VelopackRuntimeInfo.SystemOs.GetOsShortName();
@@ -213,9 +286,12 @@ This is just a _test_!
             var existingRelease = client.Repository.Release.GetAll(repoOwner, repoName).GetAwaiterResult().SingleOrDefault(s => s.Name == releaseName);
             if (existingRelease != null) {
                 client.Repository.Release.Delete(repoOwner, repoName, existingRelease.Id).GetAwaiterResult();
+                if (deleteTagOnDispose) {
+                    client.Git.Reference.Delete(repoOwner, repoName, $"tags/{existingRelease.TagName}").GetAwaiterResult();
+                }
                 logger.Info("Deleted existing release: " + releaseName);
             }
-            return new GitHubReleaseTest(releaseName, uniqueSuffix, client, logger);
+            return new GitHubReleaseTest(releaseName, uniqueSuffix, client, logger, deleteTagOnDispose);
         }
 
         public void Dispose()
@@ -224,6 +300,9 @@ This is just a _test_!
             var finalRelease = Client.Repository.Release.GetAll(repoOwner, repoName).GetAwaiterResult().SingleOrDefault(s => s.Name == ReleaseName);
             if (finalRelease != null) {
                 Client.Repository.Release.Delete(repoOwner, repoName, finalRelease.Id).GetAwaiterResult();
+                if (deleteTagOnDispose) {
+                    Client.Git.Reference.Delete(repoOwner, repoName, $"tags/{finalRelease.TagName}").GetAwaiterResult();
+                }
                 Logger.Info($"Deleted final release '{ReleaseName}'");
             }
         }
