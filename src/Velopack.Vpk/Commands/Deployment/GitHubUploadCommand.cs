@@ -8,6 +8,8 @@ public class GitHubUploadCommand : GitHubBaseCommand
 
     public string TagName { get; private set; }
 
+    public string TargetCommitish { get; private set; }
+
     public bool Prerelease { get; private set; }
 
     public bool Merge { get; private set; }
@@ -31,6 +33,10 @@ public class GitHubUploadCommand : GitHubBaseCommand
         AddOption<string>((v) => TagName = v, "--tag")
             .SetDescription("A custom tag for the release.")
             .SetArgumentHelpName("NAME");
+
+        AddOption<string>((v) => TargetCommitish = v, "--targetCommitish")
+           .SetDescription("A commitish value for tag (branch or commit SHA).")
+           .SetArgumentHelpName("NAME");
 
         ReleaseDirectoryOption.SetRequired();
         ReleaseDirectoryOption.MustNotBeEmpty();

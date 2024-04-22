@@ -25,6 +25,8 @@ public class GitHubUploadOptions : GitHubDownloadOptions
 
     public string TagName { get; set; }
 
+    public string TargetCommitish { get; set; }
+
     public bool Merge { get; set; }
 }
 
@@ -92,6 +94,7 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
                 Draft = true,
                 Prerelease = options.Prerelease,
                 Name = string.IsNullOrWhiteSpace(options.ReleaseName) ? semVer.ToString() : options.ReleaseName,
+                TargetCommitish = options.TargetCommitish,
             };
             Log.Info($"Creating draft release titled '{newReleaseReq.Name}'");
             release = await client.Repository.Release.Create(repoOwner, repoName, newReleaseReq);
