@@ -15,4 +15,4 @@ dotnet publish -c Release -o %~dp0publish
 
 echo.
 echo Building Velopack Release v%version%
-vpk pack -u VeloWpfSample -v %version% -o %~dp0releases -p %~dp0publish -f net8-x64-desktop
+vpk pack -u VeloWpfSample -v %version% -o %~dp0releases -p %~dp0publish -f net48-x64-desktop
