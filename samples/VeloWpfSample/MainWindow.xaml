@@ -20,6 +20,8 @@
                 <Button Margin="10,0" Name="BtnDownloadUpdate" Content="Download" Click="BtnDownloadUpdateClick" Padding="10,5" IsEnabled="False" />
                 <Button Name="BtnRestartApply" Content="Restart &amp; Apply" Click="BtnRestartApplyClick" Padding="10,5" IsEnabled="False" />
             </StackPanel>
+            <TextBlock Text="Channel:" />
+            <TextBox x:Name="TxtChannel" Text="" TextChanged="TxtChannel_TextChanged" />
         </StackPanel>
         <ScrollViewer Name="ScrollLog" Grid.Row="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" VerticalScrollBarVisibility="Auto">
             <TextBlock Name="TextLog" Background="DarkGoldenrod" Foreground="White" TextWrapping="Wrap" />
