@@ -76,7 +76,15 @@ namespace Velopack.Compression
                             && !pathsVisited.Contains(DIFF_SUFFIX.Replace(x, ""), StringComparer.InvariantCultureIgnoreCase))
                 .ForEach(x => {
                     Log.Trace($"{x} was in new package but not in old one, adding");
-                    File.Copy(Path.Combine(deltaPath, x), Path.Combine(workingPath, x));
+
+                    string outputFile = Path.Combine(workingPath, x);
+                    string outputDirectory = Path.GetDirectoryName(outputFile)!;
+
+                    if (!Directory.Exists(outputDirectory)) {
+                        Directory.CreateDirectory(outputDirectory);
+                    }
+
+                    File.Copy(Path.Combine(deltaPath, x), outputFile);
                 });
 
             progress(95);
