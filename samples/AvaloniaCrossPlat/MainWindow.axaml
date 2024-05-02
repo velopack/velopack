@@ -6,22 +6,24 @@
         x:Class="AvaloniaCrossPlat.MainWindow"
         WindowStartupLocation="CenterScreen"
         Title="AvaloniaCrossPlat">
-  <Grid>
-    <Grid.RowDefinitions>
-      <RowDefinition Height="Auto" />
-      <RowDefinition Height="15" />
-      <RowDefinition Height="*" />
-    </Grid.RowDefinitions>
-    <StackPanel>
-      <TextBlock Margin="10" Name="TextStatus" />
-      <StackPanel Orientation="Horizontal" Margin="10">
-        <Button Name="BtnCheckUpdate" Content="Check for Updates" Click="BtnCheckUpdateClick" />
-        <Button Margin="10,0" Name="BtnDownloadUpdate" Content="Download" Click="BtnDownloadUpdateClick" IsEnabled="False" />
-        <Button Name="BtnRestartApply" Content="Restart &amp; Apply" Click="BtnRestartApplyClick" IsEnabled="False" />
-      </StackPanel>
-    </StackPanel>
-    <ScrollViewer Name="ScrollLog" Grid.Row="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-      <TextBlock Name="TextLog" Background="BlueViolet" Foreground="White" TextWrapping="Wrap" />
-    </ScrollViewer>
-  </Grid>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="15" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel>
+            <TextBlock Margin="10" Name="TextStatus" />
+            <StackPanel Orientation="Horizontal" Margin="10">
+                <Button Name="BtnCheckUpdate" Content="Check for Updates" Click="BtnCheckUpdateClick" />
+                <Button Margin="10,0" Name="BtnDownloadUpdate" Content="Download" Click="BtnDownloadUpdateClick" IsEnabled="False" />
+                <Button Name="BtnRestartApply" Content="Restart &amp; Apply" Click="BtnRestartApplyClick" IsEnabled="False" />
+            </StackPanel>
+            <TextBlock Text="Channel:" />
+            <TextBox x:Name="TxtChannel" Text="" TextChanged="TxtChannel_TextChanged" />
+        </StackPanel>
+        <ScrollViewer Name="ScrollLog" Grid.Row="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <TextBlock Name="TextLog" Background="BlueViolet" Foreground="White" TextWrapping="Wrap" />
+        </ScrollViewer>
+    </Grid>
 </Window>
