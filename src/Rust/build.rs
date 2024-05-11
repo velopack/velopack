@@ -60,7 +60,7 @@ fn delay_load_exe(bin_name: &str) {
     //
     // This will work on all supported Windows versions but it relies on
     // us using `SetDefaultDllDirectories` before any libraries are loaded.
-    let delay_load_dlls = ["gdi32", "advapi32", "shell32", "ole32", "psapi", "propsys", "secur32", "crypt32", "ws2_32", "oleaut32", "bcrypt", "comctl32"];
+    let delay_load_dlls = ["propsys", "secur32", "crypt32", "bcrypt", "comctl32"];
     for dll in delay_load_dlls {
         println!("cargo:rustc-link-arg-bin={bin_name}=/delayload:{dll}.dll");
     }
