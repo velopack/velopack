@@ -41,6 +41,8 @@ fn delay_load() {
     delay_load_exe("setup");
     println!("cargo:rustc-link-arg=/DEPENDENTLOADFLAG:0x800");
     println!("cargo:rustc-link-arg=/WX");
+    println!("cargo:rustc-link-arg=/IGNORE:4099"); // PDB was not found
+    println!("cargo:rustc-link-arg=/IGNORE:4199"); // delayload ignored, no imports found
 }
 
 // https://github.com/rust-lang/rustup/blob/master/build.rs#L45
@@ -60,7 +62,7 @@ fn delay_load_exe(bin_name: &str) {
     //
     // This will work on all supported Windows versions but it relies on
     // us using `SetDefaultDllDirectories` before any libraries are loaded.
-    let delay_load_dlls = ["propsys", "secur32", "crypt32", "bcrypt", "comctl32"];
+    let delay_load_dlls = ["gdi32", "advapi32", "shell32", "ole32", "psapi", "propsys", "secur32", "crypt32", "ws2_32", "oleaut32", "bcrypt", "comctl32"];
     for dll in delay_load_dlls {
         println!("cargo:rustc-link-arg-bin={bin_name}=/delayload:{dll}.dll");
     }
@@ -75,6 +77,7 @@ fn delay_load_exe(bin_name: &str) {
     // If we do want to ignore specific warnings then `/IGNORE:` should be used.
     println!("cargo:rustc-link-arg-bin={bin_name}=/WX");
     println!("cargo:rustc-link-arg-bin={bin_name}=/IGNORE:4099"); // PDB was not found
+    println!("cargo:rustc-link-arg-bin={bin_name}=/IGNORE:4199"); // delayload ignored, no imports found
 }
 
 #[cfg(target_os = "windows")]
