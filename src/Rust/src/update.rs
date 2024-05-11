@@ -91,6 +91,9 @@ fn get_op_wait(matches: &ArgMatches) -> shared::OperationWait {
 
 fn main() -> Result<()> {
     #[cfg(windows)]
+    windows::mitigate::pre_main_sideload_mitigation();
+
+    #[cfg(windows)]
     let matches = parse_command_line_matches(env::args().collect());
     #[cfg(unix)]
     let matches = root_command().get_matches();

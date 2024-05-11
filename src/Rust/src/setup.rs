@@ -10,6 +10,9 @@ use std::{env, path::PathBuf};
 use velopack::*;
 
 fn main() -> Result<()> {
+    #[cfg(windows)]
+    windows::mitigate::pre_main_sideload_mitigation();
+
     let mut arg_config = Command::new("Setup")
         .about(format!("Velopack Setup ({}) installs applications.\nhttps://github.com/velopack/velopack", env!("NGBV_VERSION")))
         .arg(arg!(-s --silent "Hides all dialogs and answers 'yes' to all prompts"))
