@@ -74,6 +74,7 @@ fn delay_load_exe(bin_name: &str) {
     // Turning them into errors forces them to be displayed (and the build to fail).
     // If we do want to ignore specific warnings then `/IGNORE:` should be used.
     println!("cargo:rustc-link-arg-bin={bin_name}=/WX");
+    println!("cargo:rustc-link-arg-bin={bin_name}=/IGNORE:4099"); // PDB was not found
 }
 
 #[cfg(target_os = "windows")]
