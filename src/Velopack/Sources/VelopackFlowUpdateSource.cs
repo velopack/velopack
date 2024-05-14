@@ -32,7 +32,7 @@ namespace Velopack.Sources
         public async Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null, 
             VelopackAsset? latestLocalRelease = null)
         {
-            Uri baseUri = new(BaseUri, $"api/v1.0/manifest/");
+            Uri baseUri = new(BaseUri, $"v1.0/manifest/");
             var uri = Utility.AppendPathToUri(baseUri, Utility.GetVeloReleaseIndexName(channel));
             var args = new Dictionary<string, string>();
 
@@ -54,7 +54,7 @@ namespace Velopack.Sources
 
             var uriAndQuery = Utility.AddQueryParamsToUri(uri, args);
 
-            logger.Info($"Downloading releases from '{uriAndQuery}'.");
+            logger.LogInformation("Downloading releases from '{Uri}'.", uriAndQuery);
 
             var json = await Downloader.DownloadString(uriAndQuery.ToString()).ConfigureAwait(false);
 
@@ -75,9 +75,9 @@ namespace Velopack.Sources
 
             Uri sourceBaseUri = Utility.EnsureTrailingSlash(BaseUri);
 
-            Uri downloadUri = new(sourceBaseUri, $"api/v1.0/download/{velopackRelease.Id}");
+            Uri downloadUri = new(sourceBaseUri, $"v1.0/download/{velopackRelease.Id}");
 
-            logger.Info($"Downloading '{releaseEntry.FileName}' from '{downloadUri}'.");
+            logger.LogInformation("Downloading '{ReleaseFileName}' from '{Uri}'.", releaseEntry.FileName, downloadUri);
             await Downloader.DownloadFile(downloadUri.AbsoluteUri, localFile, progress, cancelToken: cancelToken).ConfigureAwait(false);
         }
     }
