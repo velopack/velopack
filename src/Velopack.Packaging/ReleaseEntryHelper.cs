@@ -105,7 +105,13 @@ public class ReleaseEntryHelper
 #pragma warning disable CS0618 // Type or member is obsolete
             var name = Utility.GetReleasesFileName(kvp.Key);
             var path = Path.Combine(outputDir, name);
-            ReleaseEntry.WriteReleaseFile(kvp.Value.Except(exclude).Select(ReleaseEntry.FromVelopackAsset), path);
+
+            ReleaseEntry.WriteReleaseFile(
+                kvp.Value
+                    .Except(exclude)
+                    .Select(ReleaseEntry.FromVelopackAsset)
+                    .Where(entry => !entry.IsDelta),
+                path);
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning restore CS0612 // Type or member is obsolete
 
