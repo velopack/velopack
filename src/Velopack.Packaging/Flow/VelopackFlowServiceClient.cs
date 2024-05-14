@@ -1,8 +1,7 @@
 ﻿using Microsoft.Identity.Client;
 using Microsoft.Identity.Client.Extensions.Msal;
-
-using Velopack.Packaging.Abstractions;
-
+using NuGet.Versioning;
+using Microsoft.Extensions.Logging;
 
 #if NET6_0_OR_GREATER
 using System.Net.Http.Json;
@@ -19,10 +18,11 @@ public interface IVelopackFlowServiceClient
     Task LogoutAsync(VelopackServiceOptions? options = null);
 
     Task<Profile?> GetProfileAsync(VelopackServiceOptions? options = null);
-    Task UploadReleaseAssetAsync(UploadOptions options);
+
+    Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory, string? serviceUrl);
 }
 
-public class VelopackFlowServiceClient(HttpClient HttpClient, IConsole Console) : IVelopackFlowServiceClient
+public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : IVelopackFlowServiceClient
 {
     private static readonly string[] Scopes = ["openid", "offline_access"];
 
@@ -33,7 +33,7 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, IConsole Console) 
     public async Task<bool> LoginAsync(VelopackLoginOptions? options = null)
     {
         options ??= new VelopackLoginOptions();
-        Console.WriteLine($"Preparing to login to Velopack ({options.VelopackBaseUrl})");
+        Logger.LogInformation("Preparing to login to Velopack ({ServiceUrl})", options.VelopackBaseUrl);
 
         var authConfiguration = await GetAuthConfigurationAsync(options);
 
@@ -42,7 +42,7 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, IConsole Console) 
         if (!string.IsNullOrWhiteSpace(options.ApiKey)) {
             HttpClient.DefaultRequestHeaders.Authorization = new(HmacHelper.HmacScheme, options.ApiKey);
             var profile = await GetProfileAsync(options);
-            Console.WriteLine($"{profile?.Name} logged into Velopack with API key");
+            Logger.LogInformation("{UserName} logged into Velopack with API key", profile?.GetDisplayName());
             return true;
         } else {
             AuthenticationResult? rv = null;
@@ -60,10 +60,10 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, IConsole Console) 
                 HttpClient.DefaultRequestHeaders.Authorization = new("Bearer", rv.IdToken ?? rv.AccessToken);
                 var profile = await GetProfileAsync(options);
 
-                Console.WriteLine($"{profile?.Name} logged into Velopack");
+                Logger.LogInformation("{UserName} logged into Velopack", profile?.GetDisplayName());
                 return true;
             } else {
-                Console.WriteLine("Failed to login to Velopack");
+                Logger.LogError("Failed to login to Velopack");
                 return false;
             }
         }
@@ -78,9 +78,9 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, IConsole Console) 
         // clear the cache
         while ((await pca.GetAccountsAsync()).FirstOrDefault() is { } account) {
             await pca.RemoveAsync(account);
-            Console.WriteLine($"Logged out of {account.Username}");
+            Logger.LogInformation("Logged out of {Username}", account.Username);
         }
-        Console.WriteLine("Cleared saved login(s) for Velopack");
+        Logger.LogInformation("Cleared saved login(s) for Velopack");
     }
 
     public async Task<Profile?> GetProfileAsync(VelopackServiceOptions? options = null)
@@ -91,7 +91,65 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, IConsole Console) 
         return await HttpClient.GetFromJsonAsync<Profile>(endpoint);
     }
 
-    public async Task UploadReleaseAssetAsync(UploadOptions options)
+    public async Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory, string? serviceUrl)
+    {
+        channel ??= ReleaseEntryHelper.GetDefaultChannel(VelopackRuntimeInfo.SystemOs);
+        ReleaseEntryHelper helper = new(releaseDirectory, channel, Logger);
+        var latestAssets = helper.GetLatestAssets().ToList();
+
+        List<string> installers = [];
+
+        List<string> files = latestAssets.Select(x => x.FileName).ToList();
+        string? packageId = null;
+        SemanticVersion? version = null;
+        if (latestAssets.Count > 0) {
+            packageId = latestAssets[0].PackageId;
+            version = latestAssets[0].Version;
+
+            if (VelopackRuntimeInfo.IsWindows || VelopackRuntimeInfo.IsOSX) {
+                var setupName = ReleaseEntryHelper.GetSuggestedSetupName(packageId, channel);
+                if (File.Exists(Path.Combine(releaseDirectory, setupName))) {
+                    installers.Add(setupName);
+                }
+            }
+
+            var portableName = ReleaseEntryHelper.GetSuggestedPortableName(packageId, channel);
+            if (File.Exists(Path.Combine(releaseDirectory, portableName))) {
+                installers.Add(portableName);
+            }
+        }
+
+        Logger.LogInformation("Preparing to upload {AssetCount} assets to Velopack ({ServiceUrl})", latestAssets.Count + installers.Count, serviceUrl);
+
+        foreach (var assetFileName in files) {
+
+            var latestPath = Path.Combine(releaseDirectory, assetFileName);
+
+            using var fileStream = File.OpenRead(latestPath);
+            var options = new UploadOptions(fileStream, assetFileName, channel) {
+                VelopackBaseUrl = serviceUrl
+            };
+
+            await UploadReleaseAssetAsync(options).ConfigureAwait(false);
+
+            Logger.LogInformation("Uploaded {FileName} to Velopack", assetFileName);
+        }
+
+        foreach (var installerFile in installers) {
+            var latestPath = Path.Combine(releaseDirectory, installerFile);
+
+            using var fileStream = File.OpenRead(latestPath);
+            var options = new UploadInstallerOptions(packageId!, version!, fileStream, installerFile, channel) {
+                VelopackBaseUrl = serviceUrl
+            };
+
+            await UploadInstallerAssetAsync(options).ConfigureAwait(false);
+
+            Logger.LogInformation("Uploaded {FileName} installer to Velopack", installerFile);
+        }
+    }
+
+    private async Task UploadReleaseAssetAsync(UploadOptions options)
     {
         AssertAuthenticated();
 
@@ -110,7 +168,7 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, IConsole Console) 
         response.EnsureSuccessStatusCode();
     }
 
-    public async Task UploadInstallerAssetAsync(UploadInstallerOptions options)
+    private async Task UploadInstallerAssetAsync(UploadInstallerOptions options)
     {
         AssertAuthenticated();
 
@@ -207,11 +265,11 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, IConsole Console) 
                     // * The timeout specified by the server for the lifetime of this code (typically ~15 minutes) has been reached
                     // * The developing application calls the Cancel() method on a CancellationToken sent into the method.
                     //   If this occurs, an OperationCanceledException will be thrown (see catch below for more details).
-                    Console.WriteLine(deviceCodeResult.Message);
+                    Logger.LogInformation(deviceCodeResult.Message);
                     return Task.FromResult(0);
                 }).ExecuteAsync();
 
-            Console.WriteLine(result.Account.Username);
+            Logger.LogInformation(result.Account.Username);
             return result;
         } catch (MsalException) {
         }

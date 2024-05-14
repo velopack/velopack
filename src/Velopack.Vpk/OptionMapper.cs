@@ -33,7 +33,7 @@ public static partial class OptionMapper
     public static partial DeltaPatchOptions ToOptions(this DeltaPatchCommand cmd);
     public static partial LoginOptions ToOptions(this LoginCommand cmd);
     public static partial LogoutOptions ToOptions(this LogoutCommand cmd);
-    public static partial VelopackFlowUploadOptions ToOptions(this VelopackPublishCommand cmd);
+    public static partial PublishOptions ToOptions(this PublishCommand cmd);
 
     private static DirectoryInfo StringToDirectoryInfo(string t)
     {

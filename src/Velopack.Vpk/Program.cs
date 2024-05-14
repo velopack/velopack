@@ -103,14 +103,14 @@ public class Program
         deltaCommand.AddCommand<DeltaPatchCommand, DeltaPatchCommandRunner, DeltaPatchOptions>(provider);
         rootCommand.Add(deltaCommand);
 
-#if DEBUG
-        rootCommand.AddCommand<LoginCommand, LoginCommandRunner, LoginOptions>(provider);
-        rootCommand.AddCommand<LogoutCommand, LogoutCommandRunner, LogoutOptions>(provider);
-        rootCommand.AddRepositoryUpload<VelopackPublishCommand, VelopackFlowRepository, VelopackFlowUploadOptions>(provider);
-#endif
+        HideCommand(rootCommand.AddCommand<LoginCommand, LoginCommandRunner, LoginOptions>(provider));
+        HideCommand(rootCommand.AddCommand<LogoutCommand, LogoutCommandRunner, LogoutOptions>(provider));
+        HideCommand(rootCommand.AddCommand<PublishCommand, PublishCommandRunner, PublishOptions>(provider));
 
         var cli = new CliConfiguration(rootCommand);
         return await cli.InvokeAsync(args);
+
+        static void HideCommand(CliCommand command) => command.Hidden = true;
     }
 
     private static void SetupConfig(IHostApplicationBuilder builder)

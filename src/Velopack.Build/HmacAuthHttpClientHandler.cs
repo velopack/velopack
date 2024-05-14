@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
-using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
@@ -13,7 +11,6 @@ internal class HmacAuthHttpClientHandler : HttpClientHandler
 {
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        Debugger.Launch();
         if (request.Headers.Authorization?.Scheme == HmacHelper.HmacScheme &&
             request.Headers.Authorization.Parameter is { } authParameter &&
             authParameter.Split(':') is var keyParts &&
