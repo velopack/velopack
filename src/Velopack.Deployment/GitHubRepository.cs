@@ -62,7 +62,7 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
         var semVer = options.TagName ?? latest.Version.ToString();
         var releaseName = string.IsNullOrWhiteSpace(options.ReleaseName) ? semVer.ToString() : options.ReleaseName;
 
-        Log.Info($"Preparing to upload {build.Files.Count} assets to GitHub");
+        Log.Info($"Preparing to upload {build.Files.Count} asset(s) to GitHub");
 
         var client = new GitHubClient(new ProductHeaderValue("Velopack")) {
             Credentials = new Credentials(options.Token)

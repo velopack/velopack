@@ -96,7 +96,7 @@ public class ReleaseEntryHelper
         foreach (var kvp in releases) {
             var exclude = kvp.Value.Where(x => x.Version.ReleaseLabels.Any(r => r.Contains('.')) || x.Version.HasMetadata).ToArray();
             if (exclude.Any()) {
-                log.Warn($"Excluding {exclude.Length} assets from legacy RELEASES file, because they " +
+                log.Warn($"Excluding {exclude.Length} asset(s) from legacy RELEASES file, because they " +
                     $"contain an invalid character in the version: {string.Join(", ", exclude.Select(x => x.FileName))}");
             }
 

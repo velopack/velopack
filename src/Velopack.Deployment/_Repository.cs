@@ -60,7 +60,7 @@ public abstract class DownRepository<TDown> : IRepositoryCanDownload<TDown>
         VelopackAssetFeed feed = await RetryAsyncRet(() => GetReleasesAsync(options), $"Fetching releases for channel {options.Channel}...");
         var releases = feed.Assets;
 
-        Log.Info($"Found {releases.Length} release in remote file");
+        Log.Info($"Found {releases.Length} release(s) in remote file");
 
         var latest = releases.Where(r => r.Type == VelopackAssetType.Full).OrderByDescending(r => r.Version).FirstOrDefault();
         if (latest == null) {
