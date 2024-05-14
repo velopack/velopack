@@ -50,16 +50,17 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
     {
         var build = BuildAssets.Read(options.ReleaseDir.FullName, options.Channel);
         var client = CreateClient(options);
+        var releasesFilename = Path.GetFileName(options.ReleaseDir.FullName);
 
-        Log.Info($"Preparing to upload {build.Files.Count} local assets.");
+        Log.Info($"Preparing to upload {build.Files.Count} local asset(s).");
 
         var remoteReleases = await GetReleasesAsync(options);
-        Log.Info($"There are {remoteReleases.Assets.Length} assets in remote RELEASES file.");
+        Log.Info($"There are {remoteReleases.Assets.Length} asset(s) in remote releases file '{releasesFilename}'.");
 
         var localEntries = build.GetReleaseEntries();
         var releaseEntries = ReleaseEntryHelper.MergeAssets(localEntries, remoteReleases.Assets).ToArray();
 
-        Log.Info($"{releaseEntries.Length} merged local/remote releases.");
+        Log.Info($"{releaseEntries.Length} merged local/remote release(s).");
 
         var toDelete = new VelopackAsset[0];
 
@@ -74,9 +75,9 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
                     .Where(x => x.Version < minVersion)
                     .ToArray();
                 releaseEntries = releaseEntries.Except(toDelete).ToArray();
-                Log.Info($"Retention policy (keepMaxReleases={options.KeepMaxReleases}) will delete {toDelete.Length} releases.");
+                Log.Info($"Retention policy (keepMaxReleases={options.KeepMaxReleases}) will delete {toDelete.Length} release(s).");
             } else {
-                Log.Info($"Retention policy (keepMaxReleases={options.KeepMaxReleases}) will not be applied, because there will only be {fullReleases.Length} full releases when this upload has completed.");
+                Log.Info($"Retention policy (keepMaxReleases={options.KeepMaxReleases}) will not be applied, because there will only be {fullReleases.Length} full release(s) when this upload has completed.");
             }
         }
 
@@ -101,7 +102,7 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
 #pragma warning restore CS0612 // Type or member is obsolete
 
         if (toDelete.Length > 0) {
-            Log.Info($"Retention policy about to delete {toDelete.Length} releases...");
+            Log.Info($"Retention policy about to delete {toDelete.Length} release(s)...");
             foreach (var del in toDelete) {
                 await DeleteObject(client, del.FileName);
             }

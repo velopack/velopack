@@ -34,7 +34,8 @@ namespace Velopack.Sources
         /// <inheritdoc />
         public async Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null, VelopackAsset? latestLocalRelease = null)
         {
-            var uri = Utility.AppendPathToUri(BaseUri, Utility.GetVeloReleaseIndexName(channel));
+            var releaseFilename = Utility.GetVeloReleaseIndexName(channel);
+            var uri = Utility.AppendPathToUri(BaseUri, releaseFilename);
             var args = new Dictionary<string, string>();
 
             if (VelopackRuntimeInfo.SystemArch != RuntimeCpu.Unknown) {
@@ -53,7 +54,7 @@ namespace Velopack.Sources
 
             var uriAndQuery = Utility.AddQueryParamsToUri(uri, args);
 
-            logger.Info($"Downloading RELEASES from '{uriAndQuery}'.");
+            logger.Info($"Downloading release file '{releaseFilename}' from '{uriAndQuery}'.");
 
             var json = await Downloader.DownloadString(uriAndQuery.ToString()).ConfigureAwait(false);
             return VelopackAssetFeed.FromJson(json);

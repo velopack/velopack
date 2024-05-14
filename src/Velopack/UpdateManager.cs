@@ -178,7 +178,7 @@ namespace Velopack
             SemanticVersion deltaFromVer = latestLocalFull.Version;
 
             var deltas = feed.Where(r => r.Type == VelopackAssetType.Delta && r.Version > deltaFromVer && r.Version <= latestRemoteFull.Version).ToArray();
-            Log.Debug($"Found {deltas.Length} delta releases between {deltaFromVer} and {latestRemoteFull.Version}.");
+            Log.Debug($"Found {deltas.Length} delta release(s) between {deltaFromVer} and {latestRemoteFull.Version}.");
             return new UpdateInfo(latestRemoteFull, false, latestLocalFull, deltas);
         }
 

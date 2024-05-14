@@ -132,7 +132,7 @@ public class UtilityTests
 
             var count = files.Count();
 
-            logger.Info($"Created {count} files under directory {tempDir}");
+            logger.Info($"Created {count} file(s) under directory {tempDir}");
 
             var sw = new Stopwatch();
             sw.Start();

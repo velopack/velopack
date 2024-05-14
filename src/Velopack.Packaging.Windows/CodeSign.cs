@@ -73,7 +73,7 @@ public class CodeSign
 
         if (filePaths.Length != pendingSign.Count) {
             var diff = filePaths.Length - pendingSign.Count;
-            Log.Info($"{pendingSign.Count} files will be signed, {diff} will be skipped.");
+            Log.Info($"{pendingSign.Count} file(s) will be signed, {diff} will be skipped.");
         }
 
         do {
