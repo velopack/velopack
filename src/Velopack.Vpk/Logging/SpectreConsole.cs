@@ -45,22 +45,15 @@ public class SpectreConsole : IFancyConsole
         cts.CancelAfter(timeout ?? TimeSpan.FromSeconds(30));
 
         try {
-            // all of this nonsense in CancellableTextPrompt.cs is to work-around a bug in Spectre.
-            // Once the following issue is merged it can be removed.
-            // https://github.com/spectreconsole/spectre.console/pull/1439
-
             AnsiConsole.WriteLine();
             var comparer = StringComparer.CurrentCultureIgnoreCase;
             var textPrompt = "[underline bold orange3]QUESTION:[/]" + Environment.NewLine + prompt;
-            var clip = new CancellableTextPrompt<char>(textPrompt, comparer);
-            clip.Choices.Add('y');
-            clip.Choices.Add('n');
-            clip.ShowChoices = true;
-            clip.ShowDefaultValue = true;
-            clip.DefaultValue = new DefaultPromptValue<char>(def ? 'y' : 'n');
-            var result = await clip.ShowAsync(AnsiConsole.Console, cts.Token).ConfigureAwait(false);
+            var confirm = new ConfirmationPrompt(prompt) {
+                DefaultValue = def,
+            };
+            var result = await confirm.ShowAsync(AnsiConsole.Console, cts.Token);
             AnsiConsole.WriteLine();
-            return comparer.Compare("y", result.ToString()) == 0;
+            return result;
         } catch (OperationCanceledException) {
             AnsiConsole.Write($" Accepted default value ({(def ? "y" : "n")}) because the prompt timed out." + Environment.NewLine + Environment.NewLine);
             return def;
