@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Runtime.Versioning;
@@ -213,7 +213,7 @@ namespace Velopack
                 log.Info($"Launching app is out-dated. Current: {myVersion}, Newest Local Available: {latestLocal.Version}");
                 if (!restarted && _autoApply) {
                     log.Info("Auto apply is true, so restarting to apply update...");
-                    UpdateExe.Apply(locator, latestLocal, true, true, args, log);
+                    UpdateExe.Apply(locator, latestLocal, false, true, args, log);
                     Exit(0);
                 } else {
                     log.Info("Pre-condition failed, we will not restart to apply updates. (restarted: " + restarted + ", autoApply: " + _autoApply + ")");
