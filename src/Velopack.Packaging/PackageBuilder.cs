@@ -346,6 +346,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
         var extensions = Directory.EnumerateFiles(rootDirectory, "*", SearchOption.AllDirectories)
             .Select(p => Path.GetExtension(p).TrimStart('.').ToLower())
             .Distinct()
+            .Where(ext => !String.IsNullOrWhiteSpace(ext))
             .Select(ext => $"""  <Default Extension="{ext}" ContentType="application/octet" />""")
             .ToArray();
 
