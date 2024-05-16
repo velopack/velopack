@@ -27,6 +27,9 @@ pub trait ReadSeek: Read + Seek {}
 impl<T: Read + Seek> ReadSeek for T {}
 
 #[cfg(target_os = "windows")]
+#[used]
+#[link_section = ".rodata"]
+#[no_mangle]
 static BUNDLE_PLACEHOLDER: [u8; 48] = [
     0, 0, 0, 0, 0, 0, 0, 0, // 8 bytes for package offset
     0, 0, 0, 0, 0, 0, 0, 0, // 8 bytes for package length
