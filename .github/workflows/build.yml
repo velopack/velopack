@@ -23,6 +23,20 @@ jobs:
         run: |
           rustup update
           rustc --version
+      # https://github.com/actions/runner-images/issues/9701
+      - name: Install missing MSVC components
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          Set-Location "C:\Program Files (x86)\Microsoft Visual Studio\Installer\"
+          $InstallPath = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
+          $componentsToAdd= @(
+            "Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
+          )
+          [string]$workloadArgs = $componentsToAdd | ForEach-Object {" --add " +  $_}
+          $Arguments = ('/c', "vs_installer.exe", 'modify', '--installPath', "`"$InstallPath`"",$workloadArgs, '--quiet', '--norestart', '--nocache')
+          # should be run twice
+          $process = Start-Process -FilePath cmd.exe -ArgumentList $Arguments -Wait -PassThru -WindowStyle Hidden
+          $process = Start-Process -FilePath cmd.exe -ArgumentList $Arguments -Wait -PassThru -WindowStyle Hidden
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -62,6 +76,20 @@ jobs:
         run: |
           rustup update
           rustc --version
+      # https://github.com/actions/runner-images/issues/9701
+      - name: Install missing MSVC components
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          Set-Location "C:\Program Files (x86)\Microsoft Visual Studio\Installer\"
+          $InstallPath = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
+          $componentsToAdd= @(
+            "Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
+          )
+          [string]$workloadArgs = $componentsToAdd | ForEach-Object {" --add " +  $_}
+          $Arguments = ('/c', "vs_installer.exe", 'modify', '--installPath', "`"$InstallPath`"",$workloadArgs, '--quiet', '--norestart', '--nocache')
+          # should be run twice
+          $process = Start-Process -FilePath cmd.exe -ArgumentList $Arguments -Wait -PassThru -WindowStyle Hidden
+          $process = Start-Process -FilePath cmd.exe -ArgumentList $Arguments -Wait -PassThru -WindowStyle Hidden
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
