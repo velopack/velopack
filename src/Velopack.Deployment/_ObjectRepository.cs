@@ -94,7 +94,7 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
         var legacyKey = Utility.GetReleasesFileName(options.Channel);
         using var _2 = Utility.GetTempFileName(out var tmpReleases2);
         using (var fs = File.Create(tmpReleases2)) {
-            ReleaseEntry.WriteReleaseFile(releaseEntries.Select(ReleaseEntry.FromVelopackAsset), fs);
+            ReleaseEntry.WriteReleaseFile(releaseEntries.Select(ReleaseEntry.FromVelopackAsset).Where(entry => !entry.IsDelta), fs);
         }
         await UploadObject(client, legacyKey, new FileInfo(tmpReleases2), true, noCache: true);
 #pragma warning restore CS0618 // Type or member is obsolete
