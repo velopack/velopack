@@ -30,6 +30,7 @@ jobs:
           Set-Location "C:\Program Files (x86)\Microsoft Visual Studio\Installer\"
           $InstallPath = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
           $componentsToAdd= @(
+            "Microsoft.VisualStudio.Component.Windows10SDK.19041"
             "Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
           )
           [string]$workloadArgs = $componentsToAdd | ForEach-Object {" --add " +  $_}
@@ -83,6 +84,7 @@ jobs:
           Set-Location "C:\Program Files (x86)\Microsoft Visual Studio\Installer\"
           $InstallPath = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
           $componentsToAdd= @(
+            "Microsoft.VisualStudio.Component.Windows10SDK.19041"
             "Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
           )
           [string]$workloadArgs = $componentsToAdd | ForEach-Object {" --add " +  $_}
