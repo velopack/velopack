@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Microsoft.Extensions.Logging;
 using Velopack.Packaging;
 
@@ -85,21 +85,19 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
             await UploadObject(client, Path.GetFileName(asset), new FileInfo(asset), true, noCache: false);
         }
 
+        var newReleaseFeed = new VelopackAssetFeed { Assets = releaseEntries };
+
         using var _1 = Utility.GetTempFileName(out var tmpReleases);
-        File.WriteAllText(tmpReleases, ReleaseEntryHelper.GetAssetFeedJson(new VelopackAssetFeed { Assets = releaseEntries }));
+        File.WriteAllText(tmpReleases, ReleaseEntryHelper.GetAssetFeedJson(newReleaseFeed));
         var releasesName = Utility.GetVeloReleaseIndexName(options.Channel);
         await UploadObject(client, releasesName, new FileInfo(tmpReleases), true, noCache: true);
 
 #pragma warning disable CS0612 // Type or member is obsolete
-#pragma warning disable CS0618 // Type or member is obsolete
         var legacyKey = Utility.GetReleasesFileName(options.Channel);
-        using var _2 = Utility.GetTempFileName(out var tmpReleases2);
-        using (var fs = File.Create(tmpReleases2)) {
-            ReleaseEntry.WriteReleaseFile(releaseEntries.Select(ReleaseEntry.FromVelopackAsset).Where(entry => !entry.IsDelta), fs);
-        }
-        await UploadObject(client, legacyKey, new FileInfo(tmpReleases2), true, noCache: true);
-#pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning restore CS0612 // Type or member is obsolete
+        using var _2 = Utility.GetTempFileName(out var tmpReleases2);
+        File.WriteAllText(tmpReleases2, ReleaseEntryHelper.GetLegacyMigrationReleaseFeedString(newReleaseFeed));
+        await UploadObject(client, legacyKey, new FileInfo(tmpReleases2), true, noCache: true);
 
         if (toDelete.Length > 0) {
             Log.Info($"Retention policy about to delete {toDelete.Length} release(s)...");

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Text;
+using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 using Velopack.Json;
 using Velopack.NuGet;
@@ -135,6 +136,21 @@ public class ReleaseEntryHelper
     public static string GetAssetFeedJson(VelopackAssetFeed feed)
     {
         return SimpleJson.SerializeObject(feed);
+    }
+
+    public static string GetLegacyMigrationReleaseFeedString(VelopackAssetFeed feed)
+    {
+        var newestRelease = feed.Assets
+            .OrderByDescending(f => f.Version)
+            .Where(f => f.Type == VelopackAssetType.Full)
+            .FirstOrDefault();
+
+        var ms = new MemoryStream();
+#pragma warning disable CS0618 // Type or member is obsolete
+        ReleaseEntry.WriteReleaseFile([ReleaseEntry.FromVelopackAsset(newestRelease)], ms);
+#pragma warning restore CS0618 // Type or member is obsolete
+
+        return Encoding.UTF8.GetString(ms.ToArray());
     }
 
     public static string GetSuggestedReleaseName(string id, string version, string channel, bool delta)
