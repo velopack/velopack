@@ -19,6 +19,10 @@ jobs:
             rust_flags: "--target x86_64-unknown-linux-gnu"
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Update Rust
+        run: |
+          rustup update
+          rustc --version
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -54,6 +58,10 @@ jobs:
             rust_flags: "--target x86_64-unknown-linux-gnu"
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Update Rust
+        run: |
+          rustup update
+          rustc --version
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
