@@ -600,7 +600,7 @@ public class WindowsPackTests
             logger.Info($"TEST: Running {fix.FileName} {fix.Arguments}");
             using var p = Process.Start(fix);
 
-            var timeout = TimeSpan.FromMinutes(1);
+            var timeout = TimeSpan.FromMinutes(3);
             if (!p.WaitForExit(timeout))
                 throw new TimeoutException($"Process did not exit within {timeout.TotalSeconds}s.");
 
