@@ -9,7 +9,8 @@ public class LoginCommandRunner(IVelopackFlowServiceClient Client) : ICommand<Lo
     public async Task Run(LoginOptions options)
     {
         await Client.LoginAsync(new() {
-            VelopackBaseUrl = options.VelopackBaseUrl
+            VelopackBaseUrl = options.VelopackBaseUrl,
+            ApiKey = options.ApiKey,
         });
     }
 }

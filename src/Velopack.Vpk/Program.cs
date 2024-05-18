@@ -148,7 +148,8 @@ public class Program
     private static void SetupVelopackService(IServiceCollection services)
     {
         services.AddSingleton<IVelopackFlowServiceClient, VelopackFlowServiceClient>();
-        services.AddHttpClient();
+        services.AddSingleton<HmacAuthHttpClientHandler>();
+        services.AddHttpClient().ConfigureHttpClientDefaults(x => x.AddHttpMessageHandler<HmacAuthHttpClientHandler>());
     }
 }
 
