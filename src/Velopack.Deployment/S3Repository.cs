@@ -154,6 +154,10 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
             BucketName = bucket,
             FilePath = f.FullName,
             Key = key,
+            //due to compatibility reasons CloudFlare R2, Oracle Object storage (maybe some other providers)
+            // doesn't support Streaming SigV4 which is used in chunked uploading
+            DisablePayloadSigning = true,
+            DisableDefaultChecksumValidation = false,
         };
 
         if (noCache) {
