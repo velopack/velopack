@@ -1,4 +1,5 @@
-﻿using System.Net.Http;
+﻿using System;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Build.Framework;
 using Microsoft.Extensions.Logging;
@@ -8,7 +9,9 @@ namespace Velopack.Build;
 
 public class PublishTask : MSBuildAsyncTask
 {
-    private static HttpClient HttpClient { get; } = new(new HmacAuthHttpClientHandler());
+    private static HttpClient HttpClient { get; } = new(new HmacAuthHttpClientHandler()) {
+        Timeout = TimeSpan.FromMinutes(10)
+    };
 
     [Required]
     public string ReleaseDirectory { get; set; } = "";

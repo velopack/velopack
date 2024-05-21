@@ -119,7 +119,7 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
             }
         }
 
-        Logger.LogInformation("Preparing to upload {AssetCount} assets to Velopack ({ServiceUrl})", latestAssets.Count + installers.Count, serviceUrl);
+        Logger.LogInformation("Uploading {AssetCount} assets to Velopack ({ServiceUrl})", latestAssets.Count + installers.Count, serviceUrl);
 
         foreach (var assetFileName in files) {
 
@@ -301,7 +301,9 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
                 .Create(authConfiguration.ClientId)
                 .WithB2CAuthority(authConfiguration.B2CAuthority)
                 .WithRedirectUri(authConfiguration.RedirectUri)
-                //.WithLogging((LogLevel level, string message, bool containsPii) => System.Console.WriteLine($"[{level}]: {message}"))
+#if DEBUG
+                .WithLogging((Microsoft.Identity.Client.LogLevel level, string message, bool containsPii) => System.Console.WriteLine($"[{level}]: {message}"), enablePiiLogging: true, enableDefaultPlatformLogging: true)
+#endif
                 .WithClientName("velopack")
                 .Build();
 
