@@ -27,6 +27,8 @@ pub trait ReadSeek: Read + Seek {}
 impl<T: Read + Seek> ReadSeek for T {}
 
 #[cfg(target_os = "windows")]
+#[used]
+#[no_mangle]
 static BUNDLE_PLACEHOLDER: [u8; 48] = [
     0, 0, 0, 0, 0, 0, 0, 0, // 8 bytes for package offset
     0, 0, 0, 0, 0, 0, 0, 0, // 8 bytes for package length
@@ -37,10 +39,34 @@ static BUNDLE_PLACEHOLDER: [u8; 48] = [
 ];
 
 #[cfg(target_os = "windows")]
+#[inline(never)]
 pub fn header_offset_and_length() -> (i64, i64) {
-    let offset = i64::from_ne_bytes(BUNDLE_PLACEHOLDER[0..8].try_into().unwrap());
-    let length = i64::from_ne_bytes(BUNDLE_PLACEHOLDER[8..16].try_into().unwrap());
-    (offset, length)
+    use core::ptr;
+    // Perform volatile reads to avoid optimization issues
+    // TODO: refactor to use little-endian, also need to update the writer in dotnet
+    unsafe {
+        let offset = i64::from_ne_bytes([
+            ptr::read_volatile(&BUNDLE_PLACEHOLDER[0]),
+            ptr::read_volatile(&BUNDLE_PLACEHOLDER[1]),
+            ptr::read_volatile(&BUNDLE_PLACEHOLDER[2]),
+            ptr::read_volatile(&BUNDLE_PLACEHOLDER[3]),
+            ptr::read_volatile(&BUNDLE_PLACEHOLDER[4]),
+            ptr::read_volatile(&BUNDLE_PLACEHOLDER[5]),
+            ptr::read_volatile(&BUNDLE_PLACEHOLDER[6]),
+            ptr::read_volatile(&BUNDLE_PLACEHOLDER[7]),
+        ]);
+        let length = i64::from_ne_bytes([
+            ptr::read_volatile(&BUNDLE_PLACEHOLDER[8]),
+            ptr::read_volatile(&BUNDLE_PLACEHOLDER[9]),
+            ptr::read_volatile(&BUNDLE_PLACEHOLDER[10]),
+            ptr::read_volatile(&BUNDLE_PLACEHOLDER[11]),
+            ptr::read_volatile(&BUNDLE_PLACEHOLDER[12]),
+            ptr::read_volatile(&BUNDLE_PLACEHOLDER[13]),
+            ptr::read_volatile(&BUNDLE_PLACEHOLDER[14]),
+            ptr::read_volatile(&BUNDLE_PLACEHOLDER[15]),
+        ]);
+        (offset, length)
+    }
 }
 
 #[cfg(target_os = "windows")]

@@ -2,11 +2,6 @@ name: Build
 
 on: [ push, pull_request ]
 
-env:
-  VELOPACK_GITHUB_TEST_TOKEN: ${{ secrets.VELOPACK_GITHUB_TEST_TOKEN }}
-  VELOPACK_B2_TEST_TOKEN: ${{ secrets.VELOPACK_B2_TEST_TOKEN }}
-  VELOPACK_AZ_TEST_TOKEN: ${{ secrets.VELOPACK_AZ_TEST_TOKEN }}
-
 jobs:
   test-rust-bins:
     strategy:
@@ -23,81 +18,6 @@ jobs:
         run: |
           rustup update
           rustc --version
-      # https://github.com/actions/runner-images/issues/9701
-      - name: Install missing MSVC components
-        if: ${{ matrix.os == 'windows-latest' }}
-        run: |
-          Set-Location "C:\Program Files (x86)\Microsoft Visual Studio\Installer\"
-          $InstallPath = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
-          $componentsToAdd = @(
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.ATL",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.ATL.ARM",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.ATL.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.ATL.ARM64",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.ATL.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.ATL.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.MFC",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.MFC.ARM",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.MFC.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.MFC.ARM64",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.MFC.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.MFC.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.x86.x64",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.x86.x64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ARM",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ARM64",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ATL",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ATL.ARM",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ATL.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ATL.ARM64",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ATL.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ATL.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.MFC",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.MFC.ARM",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.MFC.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.MFC.ARM64",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.MFC.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.MFC.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.x86.x64",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.x86.x64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ARM",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ARM64",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ATL",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ATL.ARM",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ATL.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ATL.ARM64",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ATL.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ATL.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.MFC",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.MFC.ARM",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.MFC.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.MFC.ARM64",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.MFC.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.MFC.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.x86.x64",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.x86.x64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.v141.ARM",
-            "Microsoft.VisualStudio.Component.VC.v141.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.v141.ARM64",
-            "Microsoft.VisualStudio.Component.VC.v141.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.v141.ATL",
-            "Microsoft.VisualStudio.Component.VC.v141.ATL.Spectre",
-            "Microsoft.VisualStudio.Component.VC.v141.MFC",
-            "Microsoft.VisualStudio.Component.VC.v141.MFC.Spectre",
-            "Microsoft.VisualStudio.Component.VC.v141.x86.x64",
-            "Microsoft.VisualStudio.Component.VC.v141.x86.x64.Spectre"
-          )
-          [string]$workloadArgs = $componentsToAdd | ForEach-Object {" --add " +  $_}
-          $Arguments = ('/c', "vs_installer.exe", 'modify', '--installPath', "`"$InstallPath`"",$workloadArgs, '--quiet', '--norestart', '--nocache')
-          # should be run twice
-          $process = Start-Process -FilePath cmd.exe -ArgumentList $Arguments -Wait -PassThru -WindowStyle Hidden
-          $process = Start-Process -FilePath cmd.exe -ArgumentList $Arguments -Wait -PassThru -WindowStyle Hidden
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -114,13 +34,11 @@ jobs:
       - name: Test Rust
         working-directory: src/Rust
         run: cargo llvm-cov ${{ matrix.rust_flags }} --cobertura --output-path ../../test/coverage.rust.${{ matrix.os }}.xml
-      - name: Upload Coverage to Codecov
-        uses: codecov/codecov-action@v4
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload Coverage Artifacts
+        uses: actions/upload-artifact@v4
         with:
-          directory: ./test
-          fail_ci_if_error: true
+          name: coverage-rust-${{ matrix.os }}
+          path: ./test/*.xml
 
   build-rust-bins:
     strategy:
@@ -137,81 +55,6 @@ jobs:
         run: |
           rustup update
           rustc --version
-      # https://github.com/actions/runner-images/issues/9701
-      - name: Install missing MSVC components
-        if: ${{ matrix.os == 'windows-latest' }}
-        run: |
-          Set-Location "C:\Program Files (x86)\Microsoft Visual Studio\Installer\"
-          $InstallPath = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
-          $componentsToAdd = @(
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.ATL",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.ATL.ARM",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.ATL.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.ATL.ARM64",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.ATL.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.ATL.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.MFC",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.MFC.ARM",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.MFC.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.MFC.ARM64",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.MFC.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.MFC.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.x86.x64",
-            "Microsoft.VisualStudio.Component.VC.14.29.16.11.x86.x64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ARM",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ARM64",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ATL",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ATL.ARM",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ATL.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ATL.ARM64",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ATL.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.ATL.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.MFC",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.MFC.ARM",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.MFC.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.MFC.ARM64",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.MFC.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.MFC.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.x86.x64",
-            "Microsoft.VisualStudio.Component.VC.14.38.17.8.x86.x64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ARM",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ARM64",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ATL",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ATL.ARM",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ATL.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ATL.ARM64",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ATL.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.ATL.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.MFC",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.MFC.ARM",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.MFC.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.MFC.ARM64",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.MFC.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.MFC.Spectre",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.x86.x64",
-            "Microsoft.VisualStudio.Component.VC.14.39.17.9.x86.x64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.v141.ARM",
-            "Microsoft.VisualStudio.Component.VC.v141.ARM.Spectre",
-            "Microsoft.VisualStudio.Component.VC.v141.ARM64",
-            "Microsoft.VisualStudio.Component.VC.v141.ARM64.Spectre",
-            "Microsoft.VisualStudio.Component.VC.v141.ATL",
-            "Microsoft.VisualStudio.Component.VC.v141.ATL.Spectre",
-            "Microsoft.VisualStudio.Component.VC.v141.MFC",
-            "Microsoft.VisualStudio.Component.VC.v141.MFC.Spectre",
-            "Microsoft.VisualStudio.Component.VC.v141.x86.x64",
-            "Microsoft.VisualStudio.Component.VC.v141.x86.x64.Spectre"
-          )
-          [string]$workloadArgs = $componentsToAdd | ForEach-Object {" --add " +  $_}
-          $Arguments = ('/c', "vs_installer.exe", 'modify', '--installPath', "`"$InstallPath`"",$workloadArgs, '--quiet', '--norestart', '--nocache')
-          # should be run twice
-          $process = Start-Process -FilePath cmd.exe -ArgumentList $Arguments -Wait -PassThru -WindowStyle Hidden
-          $process = Start-Process -FilePath cmd.exe -ArgumentList $Arguments -Wait -PassThru -WindowStyle Hidden
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -254,10 +97,13 @@ jobs:
     strategy:
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
-    needs: [build-rust-bins]
     runs-on: ${{ matrix.os }}
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+      VELOPACK_GITHUB_TEST_TOKEN: ${{ secrets.VELOPACK_GITHUB_TEST_TOKEN }}
+      VELOPACK_B2_TEST_TOKEN: ${{ secrets.VELOPACK_B2_TEST_TOKEN }}
+      VELOPACK_AZ_TEST_TOKEN: ${{ secrets.VELOPACK_AZ_TEST_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # for gh cli
     steps:
       - uses: actions/checkout@v4
         with:
@@ -279,26 +125,54 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' }}
       - name: Install dotnet-coverage
         run: dotnet tool install -g dotnet-coverage
+      - name: Build .NET
+        run: dotnet build -c Release
+      - name: Wait for artifacts
+        shell: pwsh
+        run: |
+          # Wait 15 minutes for the artifact to become available
+          $artifactName = "rust-${{ matrix.os }}"
+          $maxAttempts = 90
+          $sleepSeconds = 10
+          $attempt = 0
+          $workflowRunId = $env:GITHUB_RUN_ID
+
+          Write-Host "Waiting for artifact '$artifactName' to become available in workflow run $workflowRunId..."
+
+          while ($attempt -lt $maxAttempts) {
+            Write-Host "Checking for artifact '$artifactName', attempt $($attempt + 1)/$maxAttempts"
+            $artifactsJson = gh api repos/$env:GITHUB_REPOSITORY/actions/runs/$workflowRunId/artifacts
+            $artifacts = $artifactsJson | ConvertFrom-Json
+  
+            if ($artifacts.artifacts | Where-Object { $_.name -eq $artifactName }) {
+              Write-Host "Artifact '$artifactName' is available."
+              break
+            }
+            Write-Host "Artifact not available yet. Sleeping for $sleepSeconds seconds..."
+            Start-Sleep -Seconds $sleepSeconds
+            $attempt++
+          }
+  
+          if ($attempt -ge $maxAttempts) {
+            Write-Host "Artifact '$artifactName' did not become available in time."
+            exit 1
+          }
       - name: Download Rust Artifacts
         uses: actions/download-artifact@v4
         with:
           name: rust-${{ matrix.os }}
           path: src/Rust/target/release
-      - name: Build .NET
-        run: dotnet build -c Release
       - name: Test .NET Velopack.Tests
         run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Velopack.Tests/Velopack.Tests.csproj
       - name: Test .NET Velopack.Packaging.Tests
         run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj
       - name: Test .NET Velopack.CommandLine.Tests
         run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj
-      - name: Upload Coverage to Codecov
-        uses: codecov/codecov-action@v4
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload Coverage Artifacts
+        uses: actions/upload-artifact@v4
         with:
-          directory: ./test
-          fail_ci_if_error: true
+          name: coverage-dotnet-${{ matrix.os }}
+          path: ./test/*.xml
 
   package:
     runs-on: ubuntu-latest
@@ -331,6 +205,25 @@ jobs:
         with:
           name: packages
           path: build/Release/*.nupkg
+
+  upload-coverage:
+    runs-on: ubuntu-latest
+    needs: [test-rust-bins, test-dotnet, package]
+    steps:
+      - name: Download Coverage Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          path: ./test
+     
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          directory: ./test
+          fail_ci_if_error: true
+    
 
       # - name: Publish to GitHub Packages
       #   shell: pwsh
