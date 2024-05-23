@@ -14,12 +14,12 @@ namespace Velopack.Packaging.Flow;
 
 public interface IVelopackFlowServiceClient
 {
-    Task<bool> LoginAsync(VelopackLoginOptions? options = null);
-    Task LogoutAsync(VelopackServiceOptions? options = null);
+    Task<bool> LoginAsync(VelopackLoginOptions? options, CancellationToken cancellationToken);
+    Task LogoutAsync(VelopackServiceOptions? options, CancellationToken cancellationToken);
 
-    Task<Profile?> GetProfileAsync(VelopackServiceOptions? options = null);
+    Task<Profile?> GetProfileAsync(VelopackServiceOptions? options, CancellationToken cancellationToken);
 
-    Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory, string? serviceUrl);
+    Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory, string? serviceUrl, CancellationToken cancellationToken);
 }
 
 public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : IVelopackFlowServiceClient
@@ -30,35 +30,35 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
 
     private AuthConfiguration? AuthConfiguration { get; set; }
 
-    public async Task<bool> LoginAsync(VelopackLoginOptions? options = null)
+    public async Task<bool> LoginAsync(VelopackLoginOptions? options, CancellationToken cancellationToken)
     {
         options ??= new VelopackLoginOptions();
         Logger.LogInformation("Preparing to login to Velopack ({ServiceUrl})", options.VelopackBaseUrl);
 
-        var authConfiguration = await GetAuthConfigurationAsync(options);
+        var authConfiguration = await GetAuthConfigurationAsync(options, cancellationToken);
 
         var pca = await BuildPublicApplicationAsync(authConfiguration);
 
         if (!string.IsNullOrWhiteSpace(options.ApiKey)) {
             HttpClient.DefaultRequestHeaders.Authorization = new(HmacHelper.HmacScheme, options.ApiKey);
-            var profile = await GetProfileAsync(options);
+            var profile = await GetProfileAsync(options, cancellationToken);
             Logger.LogInformation("{UserName} logged into Velopack with API key", profile?.GetDisplayName());
             return true;
         } else {
             AuthenticationResult? rv = null;
             if (options.AllowCacheCredentials) {
-                rv = await AcquireSilentlyAsync(pca);
+                rv = await AcquireSilentlyAsync(pca, cancellationToken);
             }
             if (rv is null && options.AllowInteractiveLogin) {
-                rv = await AcquireInteractiveAsync(pca, authConfiguration);
+                rv = await AcquireInteractiveAsync(pca, authConfiguration, cancellationToken);
             }
             if (rv is null && options.AllowDeviceCodeFlow) {
-                rv = await AcquireByDeviceCodeAsync(pca);
+                rv = await AcquireByDeviceCodeAsync(pca, cancellationToken);
             }
 
             if (rv != null) {
                 HttpClient.DefaultRequestHeaders.Authorization = new("Bearer", rv.IdToken ?? rv.AccessToken);
-                var profile = await GetProfileAsync(options);
+                var profile = await GetProfileAsync(options, cancellationToken);
 
                 Logger.LogInformation("{UserName} logged into Velopack", profile?.GetDisplayName());
                 return true;
@@ -69,9 +69,9 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
         }
     }
 
-    public async Task LogoutAsync(VelopackServiceOptions? options = null)
+    public async Task LogoutAsync(VelopackServiceOptions? options, CancellationToken cancellationToken)
     {
-        var authConfiguration = await GetAuthConfigurationAsync(options);
+        var authConfiguration = await GetAuthConfigurationAsync(options, cancellationToken);
 
         var pca = await BuildPublicApplicationAsync(authConfiguration);
 
@@ -83,15 +83,15 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
         Logger.LogInformation("Cleared saved login(s) for Velopack");
     }
 
-    public async Task<Profile?> GetProfileAsync(VelopackServiceOptions? options = null)
+    public async Task<Profile?> GetProfileAsync(VelopackServiceOptions? options, CancellationToken cancellationToken)
     {
         AssertAuthenticated();
         var endpoint = GetEndpoint("v1/user/profile", options);
 
-        return await HttpClient.GetFromJsonAsync<Profile>(endpoint);
+        return await HttpClient.GetFromJsonAsync<Profile>(endpoint, cancellationToken);
     }
 
-    public async Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory, string? serviceUrl)
+    public async Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory, string? serviceUrl, CancellationToken cancellationToken)
     {
         channel ??= ReleaseEntryHelper.GetDefaultChannel(VelopackRuntimeInfo.SystemOs);
         ReleaseEntryHelper helper = new(releaseDirectory, channel, Logger);
@@ -130,7 +130,7 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
                 VelopackBaseUrl = serviceUrl
             };
 
-            await UploadReleaseAssetAsync(options).ConfigureAwait(false);
+            await UploadReleaseAssetAsync(options, cancellationToken).ConfigureAwait(false);
 
             Logger.LogInformation("Uploaded {FileName} to Velopack", assetFileName);
         }
@@ -143,13 +143,13 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
                 VelopackBaseUrl = serviceUrl
             };
 
-            await UploadInstallerAssetAsync(options).ConfigureAwait(false);
+            await UploadInstallerAssetAsync(options, cancellationToken).ConfigureAwait(false);
 
             Logger.LogInformation("Uploaded {FileName} installer to Velopack", installerFile);
         }
     }
 
-    private async Task UploadReleaseAssetAsync(UploadOptions options)
+    private async Task UploadReleaseAssetAsync(UploadOptions options, CancellationToken cancellationToken)
     {
         AssertAuthenticated();
 
@@ -163,12 +163,12 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
 
         var endpoint = GetEndpoint("v1/upload-release", options);
 
-        var response = await HttpClient.PostAsync(endpoint, formData);
+        var response = await HttpClient.PostAsync(endpoint, formData, cancellationToken);
 
         response.EnsureSuccessStatusCode();
     }
 
-    private async Task UploadInstallerAssetAsync(UploadInstallerOptions options)
+    private async Task UploadInstallerAssetAsync(UploadInstallerOptions options, CancellationToken cancellationToken)
     {
         AssertAuthenticated();
 
@@ -184,19 +184,19 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
 
         var endpoint = GetEndpoint("v1/upload-installer", options);
 
-        var response = await HttpClient.PostAsync(endpoint, formData);
+        var response = await HttpClient.PostAsync(endpoint, formData, cancellationToken);
 
         response.EnsureSuccessStatusCode();
     }
 
-    private async Task<AuthConfiguration> GetAuthConfigurationAsync(VelopackServiceOptions? options)
+    private async Task<AuthConfiguration> GetAuthConfigurationAsync(VelopackServiceOptions? options, CancellationToken cancellationToken)
     {
         if (AuthConfiguration is not null)
             return AuthConfiguration;
 
         var endpoint = GetEndpoint("v1/auth/config", options);
 
-        var authConfig = await HttpClient.GetFromJsonAsync<AuthConfiguration>(endpoint);
+        var authConfig = await HttpClient.GetFromJsonAsync<AuthConfiguration>(endpoint, cancellationToken);
         if (authConfig is null)
             throw new Exception("Failed to get auth configuration.");
         if (authConfig.B2CAuthority is null)
@@ -223,13 +223,13 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
         }
     }
 
-    private static async Task<AuthenticationResult?> AcquireSilentlyAsync(IPublicClientApplication pca)
+    private static async Task<AuthenticationResult?> AcquireSilentlyAsync(IPublicClientApplication pca, CancellationToken cancellationToken)
     {
         foreach (var account in await pca.GetAccountsAsync()) {
             try {
                 if (account is not null) {
                     return await pca.AcquireTokenSilent(Scopes, account)
-                        .ExecuteAsync();
+                        .ExecuteAsync(cancellationToken);
                 }
             } catch (MsalException) {
                 await pca.RemoveAsync(account);
@@ -239,18 +239,18 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
         return null;
     }
 
-    private static async Task<AuthenticationResult?> AcquireInteractiveAsync(IPublicClientApplication pca, AuthConfiguration authConfiguration)
+    private static async Task<AuthenticationResult?> AcquireInteractiveAsync(IPublicClientApplication pca, AuthConfiguration authConfiguration, CancellationToken cancellationToken)
     {
         try {
             return await pca.AcquireTokenInteractive(Scopes)
                         .WithB2CAuthority(authConfiguration.B2CAuthority)
-                        .ExecuteAsync();
+                        .ExecuteAsync(cancellationToken);
         } catch (MsalException) {
         }
         return null;
     }
 
-    private async Task<AuthenticationResult?> AcquireByDeviceCodeAsync(IPublicClientApplication pca)
+    private async Task<AuthenticationResult?> AcquireByDeviceCodeAsync(IPublicClientApplication pca, CancellationToken cancellationToken)
     {
         try {
             var result = await pca.AcquireTokenWithDeviceCode(Scopes,
@@ -267,7 +267,7 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
                     //   If this occurs, an OperationCanceledException will be thrown (see catch below for more details).
                     Logger.LogInformation(deviceCodeResult.Message);
                     return Task.FromResult(0);
-                }).ExecuteAsync();
+                }).ExecuteAsync(cancellationToken);
 
             Logger.LogInformation(result.Account.Username);
             return result;

@@ -1,12 +1,16 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Build.Framework;
 using MSBuildTask = Microsoft.Build.Utilities.Task;
 
 namespace Velopack.Build;
 
-public abstract class MSBuildAsyncTask : MSBuildTask
+public abstract class MSBuildAsyncTask : MSBuildTask, ICancelableTask
 {
     protected MSBuildLogger Logger { get; }
+
+    private CancellationTokenSource CancellationTokenSource { get; } = new();
 
     protected MSBuildAsyncTask()
     {
@@ -15,8 +19,18 @@ public abstract class MSBuildAsyncTask : MSBuildTask
 
     public sealed override bool Execute()
     {
+        CancellationToken token = CancellationTokenSource.Token;
         try {
-            return Task.Run(ExecuteAsync).Result;
+            return Task.Run(async () => {
+                try {
+                    return await ExecuteAsync(token).ConfigureAwait(false);
+                } catch (OperationCanceledException) {
+                    return false;
+                } catch (Exception ex) {
+                    Log.LogErrorFromException(ex, true, true, null);
+                    return false;
+                }
+            }, token).Result;
         } catch (AggregateException ex) {
             ex.Flatten().Handle((x) => {
                 Log.LogError(x.Message);
@@ -26,5 +40,7 @@ public abstract class MSBuildAsyncTask : MSBuildTask
         }
     }
 
-    protected abstract Task<bool> ExecuteAsync();
+    protected abstract Task<bool> ExecuteAsync(CancellationToken cancellationToken);
+
+    public void Cancel() => CancellationTokenSource.Cancel();
 }

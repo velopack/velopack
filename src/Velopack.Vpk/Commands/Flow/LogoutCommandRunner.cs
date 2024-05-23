@@ -1,4 +1,5 @@
-﻿using Velopack.Packaging.Abstractions;
+﻿using System.Threading;
+using Velopack.Packaging.Abstractions;
 using Velopack.Packaging.Flow;
 
 #nullable enable
@@ -8,6 +9,6 @@ internal class LogoutCommandRunner(IVelopackFlowServiceClient Client) : ICommand
 {
     public async Task Run(LogoutOptions options)
     {
-        await Client.LogoutAsync(options);
+        await Client.LogoutAsync(options, CancellationToken.None);
     }
 }

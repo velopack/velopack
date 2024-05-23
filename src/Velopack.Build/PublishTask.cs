@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Build.Framework;
 using Microsoft.Extensions.Logging;
@@ -9,9 +10,8 @@ namespace Velopack.Build;
 
 public class PublishTask : MSBuildAsyncTask
 {
-    private static HttpClient HttpClient { get; } = new(new HmacAuthHttpClientHandler 
-    { 
-        InnerHandler = new HttpClientHandler() 
+    private static HttpClient HttpClient { get; } = new(new HmacAuthHttpClientHandler {
+        InnerHandler = new HttpClientHandler()
     }) {
         Timeout = TimeSpan.FromMinutes(10)
     };
@@ -25,29 +25,23 @@ public class PublishTask : MSBuildAsyncTask
 
     public string? ApiKey { get; set; }
 
-    protected override async Task<bool> ExecuteAsync()
+    protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
     {
-        
         //System.Diagnostics.Debugger.Launch();
-        try {
-            IVelopackFlowServiceClient client = new VelopackFlowServiceClient(HttpClient, Logger);
-            if (!await client.LoginAsync(new() {
-                AllowDeviceCodeFlow = false,
-                AllowInteractiveLogin = false,
-                VelopackBaseUrl = ServiceUrl,
-                ApiKey = ApiKey
-            }).ConfigureAwait(false)) {
-                Logger.LogWarning("Not logged into Velopack Flow service, skipping publish. Please run vpk login.");
-                return true;
-            }
-
-            await client.UploadLatestReleaseAssetsAsync(Channel, ReleaseDirectory, ServiceUrl)
-                .ConfigureAwait(false);
-
+        IVelopackFlowServiceClient client = new VelopackFlowServiceClient(HttpClient, Logger);
+        if (!await client.LoginAsync(new() {
+            AllowDeviceCodeFlow = false,
+            AllowInteractiveLogin = false,
+            VelopackBaseUrl = ServiceUrl,
+            ApiKey = ApiKey
+        }, cancellationToken).ConfigureAwait(false)) {
+            Logger.LogWarning("Not logged into Velopack Flow service, skipping publish. Please run vpk login.");
             return true;
-        } catch (Exception ex) {
-            Log.LogErrorFromException(ex, true, true, null);
-            return false;
         }
+
+        await client.UploadLatestReleaseAssetsAsync(Channel, ReleaseDirectory, ServiceUrl, cancellationToken)
+            .ConfigureAwait(false);
+
+        return true;
     }
 }

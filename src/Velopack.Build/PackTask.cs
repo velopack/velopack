@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Build.Framework;
 using Velopack.Packaging;
@@ -90,7 +91,7 @@ public class PackTask : MSBuildAsyncTask
 
     public string? Categories { get; set; }
 
-    protected override async Task<bool> ExecuteAsync()
+    protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
     {
         //System.Diagnostics.Debugger.Launch();
         try {

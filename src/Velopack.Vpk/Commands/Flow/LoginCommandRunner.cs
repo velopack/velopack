@@ -1,4 +1,5 @@
-﻿using Velopack.Packaging.Abstractions;
+﻿using System.Threading;
+using Velopack.Packaging.Abstractions;
 using Velopack.Packaging.Flow;
 
 namespace Velopack.Vpk.Commands.Flow;
@@ -11,6 +12,6 @@ public class LoginCommandRunner(IVelopackFlowServiceClient Client) : ICommand<Lo
         await Client.LoginAsync(new() {
             VelopackBaseUrl = options.VelopackBaseUrl,
             ApiKey = options.ApiKey,
-        });
+        }, CancellationToken.None);
     }
 }
