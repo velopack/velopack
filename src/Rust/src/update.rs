@@ -64,11 +64,33 @@ fn root_command() -> Command {
 fn parse_command_line_matches(input_args: Vec<String>) -> ArgMatches {
     // Split the arguments manually to handle the legacy `--flag=value` syntax
     // Also, replace `--processStartAndWait` with `--processStart --wait`
-    let args: Vec<String> = input_args
-        .into_iter()
-        .flat_map(|arg| if arg.contains('=') { arg.splitn(2, '=').map(String::from).collect::<Vec<_>>() } else { vec![arg] })
-        .flat_map(|arg| if arg.eq_ignore_ascii_case("--processStartAndWait") { vec!["--processStart".to_string(), "--wait".to_string()] } else { vec![arg] })
-        .collect();
+    let mut args = Vec::new();
+    let mut preserve = false;
+    for arg in input_args {
+        if preserve {
+            args.push(arg);
+        } else if arg == "--" {
+            args.push("--".to_string());
+            preserve = true;
+        } else if arg.eq_ignore_ascii_case("--processStartAndWait") {
+            args.push("--processStart".to_string());
+            args.push("--wait".to_string());
+        } else if arg.starts_with("--processStartAndWait=") {
+            let mut split_arg = arg.splitn(2, '=');
+            split_arg.next(); // Skip the `--processStartAndWait` part
+            args.push("--processStart".to_string());
+            args.push("--wait".to_string());
+            if let Some(rest) = split_arg.next() {
+                args.push(rest.to_string());
+            }
+        } else if arg.contains('=') {
+            let mut split_arg = arg.splitn(2, '=');
+            args.push(split_arg.next().unwrap().to_string());
+            args.push(split_arg.next().unwrap().to_string());
+        } else {
+            args.push(arg);
+        }
+    }
     root_command().get_matches_from(&args)
 }
 
@@ -217,13 +239,33 @@ fn test_start_command_supports_legacy_commands() {
     fn try_parse_command_line_matches(input_args: Vec<String>) -> Result<ArgMatches> {
         // Split the arguments manually to handle the legacy `--flag=value` syntax
         // Also, replace `--processStartAndWait` with `--processStart --wait`
-        let args: Vec<String> = input_args
-            .into_iter()
-            .flat_map(|arg| if arg.contains('=') { arg.splitn(2, '=').map(String::from).collect::<Vec<_>>() } else { vec![arg] })
-            .flat_map(
-                |arg| if arg.eq_ignore_ascii_case("--processStartAndWait") { vec!["--processStart".to_string(), "--wait".to_string()] } else { vec![arg] },
-            )
-            .collect();
+        let mut args = Vec::new();
+        let mut preserve = false;
+        for arg in input_args {
+            if preserve {
+                args.push(arg);
+            } else if arg == "--" {
+                args.push("--".to_string());
+                preserve = true;
+            } else if arg.eq_ignore_ascii_case("--processStartAndWait") {
+                args.push("--processStart".to_string());
+                args.push("--wait".to_string());
+            } else if arg.starts_with("--processStartAndWait=") {
+                let mut split_arg = arg.splitn(2, '=');
+                split_arg.next(); // Skip the `--processStartAndWait` part
+                args.push("--processStart".to_string());
+                args.push("--wait".to_string());
+                if let Some(rest) = split_arg.next() {
+                    args.push(rest.to_string());
+                }
+            } else if arg.contains('=') {
+                let mut split_arg = arg.splitn(2, '=');
+                args.push(split_arg.next().unwrap().to_string());
+                args.push(split_arg.next().unwrap().to_string());
+            } else {
+                args.push(arg);
+            }
+        }
         root_command().try_get_matches_from(&args).map_err(|e| anyhow!("{}", e))
     }
 
@@ -250,6 +292,14 @@ fn test_start_command_supports_legacy_commands() {
     assert_eq!(exe_name, Some(&"hello.exe".to_string()));
     assert_eq!(legacy_args, None);
     assert_eq!(exe_args, None);
+
+    let command = vec!["Update.exe", "--processStartAndWait=hello.exe", "--", "Foo=Bar"];
+    let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
+    let (wait_for_parent, exe_name, legacy_args, exe_args) = get_start_args(matches.subcommand_matches("start").unwrap());
+    assert_eq!(wait_for_parent, true);
+    assert_eq!(exe_name, Some(&"hello.exe".to_string()));
+    assert_eq!(legacy_args, None);
+    assert_eq!(exe_args, Some(vec![&"Foo=Bar".to_string()]));
 
     let command = vec!["Update.exe", "--processStartAndWait", "hello.exe", "-a", "myarg"];
     let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
