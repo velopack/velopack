@@ -9,7 +9,10 @@ namespace Velopack.Build;
 
 public class PublishTask : MSBuildAsyncTask
 {
-    private static HttpClient HttpClient { get; } = new(new HmacAuthHttpClientHandler()) {
+    private static HttpClient HttpClient { get; } = new(new HmacAuthHttpClientHandler 
+    { 
+        InnerHandler = new HttpClientHandler() 
+    }) {
         Timeout = TimeSpan.FromMinutes(10)
     };
 
@@ -24,21 +27,27 @@ public class PublishTask : MSBuildAsyncTask
 
     protected override async Task<bool> ExecuteAsync()
     {
+        
         //System.Diagnostics.Debugger.Launch();
-        IVelopackFlowServiceClient client = new VelopackFlowServiceClient(HttpClient, Logger);
-        if (!await client.LoginAsync(new() {
-            AllowDeviceCodeFlow = false,
-            AllowInteractiveLogin = false,
-            VelopackBaseUrl = ServiceUrl,
-            ApiKey = ApiKey
-        }).ConfigureAwait(false)) {
-            Logger.LogWarning("Not logged into Velopack service, skipping publish. Please run vpk login.");
+        try {
+            IVelopackFlowServiceClient client = new VelopackFlowServiceClient(HttpClient, Logger);
+            if (!await client.LoginAsync(new() {
+                AllowDeviceCodeFlow = false,
+                AllowInteractiveLogin = false,
+                VelopackBaseUrl = ServiceUrl,
+                ApiKey = ApiKey
+            }).ConfigureAwait(false)) {
+                Logger.LogWarning("Not logged into Velopack Flow service, skipping publish. Please run vpk login.");
+                return true;
+            }
+
+            await client.UploadLatestReleaseAssetsAsync(Channel, ReleaseDirectory, ServiceUrl)
+                .ConfigureAwait(false);
+
             return true;
+        } catch (Exception ex) {
+            Log.LogErrorFromException(ex, true, true, null);
+            return false;
         }
-
-        await client.UploadLatestReleaseAssetsAsync(Channel, ReleaseDirectory, ServiceUrl)
-            .ConfigureAwait(false);
-
-        return true;
     }
 }

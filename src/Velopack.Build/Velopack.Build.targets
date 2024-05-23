@@ -95,9 +95,9 @@
     <Error Condition="'$(VelopackImplicitPackId)' == 'true'" Text="VelopackPackId must be set explictly before pushing a release to remote." />
     <PublishTask
       ReleaseDirectory="$(VelopackReleaseDirectory)"
-      Version="$(VelopackPackVersion)"
       ServiceUrl="$(VelopackFlowServiceUrl)"
       ApiKey="$(VelopackFlowApiKey)"
+      Channel="$(VelopackChannel)"
     />
   </Target>
 </Project>
