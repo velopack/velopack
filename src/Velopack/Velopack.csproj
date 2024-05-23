@@ -9,6 +9,7 @@
     <CheckEolTargetFramework>false</CheckEolTargetFramework>
     <LangVersion>9</LangVersion>
     <VelopackPackageId>Velopack</VelopackPackageId>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
   </PropertyGroup>
 
   <ItemGroup>
