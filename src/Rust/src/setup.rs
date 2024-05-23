@@ -34,7 +34,7 @@ fn main() -> Result<()> {
     let nocolor = matches.get_flag("nocolor");
 
     shared::dialogs::set_silent(silent);
-    logging::setup_logging(logfile, true, verbose, nocolor)?;
+    logging::setup_logging("setup", logfile, true, verbose, nocolor)?;
 
     info!("Starting Velopack Setup ({})", env!("NGBV_VERSION"));
     info!("    Location: {:?}", std::env::current_exe()?);

@@ -107,10 +107,10 @@ fn main() -> Result<()> {
 
     dialogs::set_silent(silent);
     if let Some(log_file) = log_file {
-        logging::setup_logging(Some(&log_file), true, verbose, nocolor)?;
+        logging::setup_logging("update", Some(&log_file), true, verbose, nocolor)?;
     } else {
         let default_log_file = logging::default_log_location();
-        logging::setup_logging(Some(&default_log_file), true, verbose, nocolor)?;
+        logging::setup_logging("update", Some(&default_log_file), true, verbose, nocolor)?;
     }
 
     // change working directory to the parent directory of the exe

@@ -21,7 +21,7 @@ fn main() -> ExitCode {
         my_dir.join("Velopack.log")
     };
 
-    let _ = logging::setup_logging(Some(&default_log_file), false, false, false);
+    let _ = logging::setup_logging("stub", Some(&default_log_file), false, false, false);
 
     info!("--");
     info!("Starting Velopack Stub (at {:?})", my_path);
