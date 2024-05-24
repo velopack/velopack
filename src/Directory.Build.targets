@@ -16,6 +16,13 @@
     <Product>$(VelopackPackageId)</Product>
     <PackageId>$(VelopackPackageId)</PackageId>
     <IsPackable>true</IsPackable>
+    <!-- source link -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
 
   <Target Name="AddNugetStaticFiles" BeforeTargets="Build">

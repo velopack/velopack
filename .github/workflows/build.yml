@@ -103,7 +103,6 @@ jobs:
       VELOPACK_GITHUB_TEST_TOKEN: ${{ secrets.VELOPACK_GITHUB_TEST_TOKEN }}
       VELOPACK_B2_TEST_TOKEN: ${{ secrets.VELOPACK_B2_TEST_TOKEN }}
       VELOPACK_AZ_TEST_TOKEN: ${{ secrets.VELOPACK_AZ_TEST_TOKEN }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # for gh cli
     steps:
       - uses: actions/checkout@v4
         with:
@@ -129,6 +128,8 @@ jobs:
         run: dotnet build -c Release
       - name: Wait for artifacts
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # for gh cli
         run: |
           # Wait 15 minutes for the artifact to become available
           $artifactName = "rust-${{ matrix.os }}"
@@ -138,23 +139,20 @@ jobs:
           $workflowRunId = $env:GITHUB_RUN_ID
 
           Write-Host "Waiting for artifact '$artifactName' to become available in workflow run $workflowRunId..."
-
           while ($attempt -lt $maxAttempts) {
-            Write-Host "Checking for artifact '$artifactName', attempt $($attempt + 1)/$maxAttempts"
             $artifactsJson = gh api repos/$env:GITHUB_REPOSITORY/actions/runs/$workflowRunId/artifacts
             $artifacts = $artifactsJson | ConvertFrom-Json
-  
             if ($artifacts.artifacts | Where-Object { $_.name -eq $artifactName }) {
-              Write-Host "Artifact '$artifactName' is available."
+              Write-Host "Artifact '$artifactName' is available, continuing..."
               break
             }
-            Write-Host "Artifact not available yet. Sleeping for $sleepSeconds seconds..."
+            Write-Host "Artifact not available yet. Attempt $($attempt + 1)/$maxAttempts"
             Start-Sleep -Seconds $sleepSeconds
             $attempt++
           }
   
           if ($attempt -ge $maxAttempts) {
-            Write-Host "Artifact '$artifactName' did not become available in time."
+            Write-Host "Error: Artifact '$artifactName' did not become available in time."
             exit 1
           }
       - name: Download Rust Artifacts
@@ -204,7 +202,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: packages
-          path: build/Release/*.nupkg
+          path: build/Release/*nupkg
 
   upload-coverage:
     runs-on: ubuntu-latest
