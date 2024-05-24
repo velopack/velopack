@@ -1,0 +1,39 @@
+name: Release to NuGet.org
+
+on:
+  workflow_dispatch:
+    inputs:
+      workflow_run_id:
+        description: 'Workflow Run ID to publish'
+        required: true
+        default: ''
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: packages
+          run-id: ${{ github.event.inputs.workflow_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./packages
+  
+      - name: Set up NuGet
+        uses: nuget/setup-nuget@v2
+        with:
+          nuget-version: 'latest'
+          nuget-api-key: ${{ secrets.NUGET_API_KEY }}
+  
+      - name: Publish .nupkg files
+        run: |
+          for f in packages/*.nupkg; do
+            dotnet nuget push "$f" 
+          done
+  
+      - name: Publish .snupkg files
+        run: |
+          for f in packages/*.snupkg; do
+            dotnet nuget push "$f"
+          done
