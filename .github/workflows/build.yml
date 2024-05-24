@@ -197,7 +197,7 @@ jobs:
           name: rust-ubuntu-latest
           path: src/Rust/target/release
       - name: Build .NET
-        run: dotnet build -c Release /p:PackRustAssets=true
+        run: dotnet build -c Release /p:PackRustAssets=true /p:ContinuousIntegrationBuild=true
       - name: Upload Package Artifacts
         uses: actions/upload-artifact@v4
         with:
