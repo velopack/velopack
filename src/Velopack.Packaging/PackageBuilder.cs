@@ -30,7 +30,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
     protected string Channel { get; private set; }
 
-    protected string RuntimeDependencies { get; private set; }
+    protected Dictionary<string, string> ExtraNuspecMetadata { get; } = new();
 
     private readonly Regex REGEX_EXCLUDES = new Regex(@".*[\\\/]createdump.*|.*\.vshost\..*|.*\.nupkg$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
@@ -91,7 +91,6 @@ public abstract class PackageBuilder<T> : ICommand<T>
         using var _1 = Utility.GetTempDirectory(out var pkgTempDir);
         TempDir = new DirectoryInfo(pkgTempDir);
         Options = options;
-        RuntimeDependencies = GetRuntimeDependencies();
 
         ConcurrentBag<(string from, string to)> filesToCopy = new();
 
@@ -168,11 +167,6 @@ public abstract class PackageBuilder<T> : ICommand<T>
         });
     }
 
-    protected virtual string GetRuntimeDependencies()
-    {
-        return null;
-    }
-
     protected abstract string[] GetMainExeSearchPaths(string packDirectory, string mainExeName);
 
     protected virtual string GenerateNuspecContent()
@@ -184,29 +178,35 @@ public abstract class PackageBuilder<T> : ICommand<T>
         var releaseNotes = Options.ReleaseNotes;
         var rid = Options.TargetRuntime;
 
-        string releaseNotesText = "";
+        string extraMetadata = "";
+        void addMetadata(string key, string value)
+        {
+            if (!String.IsNullOrEmpty(key) && !String.IsNullOrEmpty(value)) {
+                if (!SecurityElement.IsValidText(value)) {
+                    value = $"""<![CDATA[{"\n"}{value}{"\n"}]]>""";
+                }
+                extraMetadata += $"<{key}>{value}</{key}>{Environment.NewLine}";
+            }
+        }
+
+        if (ExtraNuspecMetadata.Any()) {
+            foreach (var kvp in ExtraNuspecMetadata) {
+                addMetadata(kvp.Key, kvp.Value);
+            }
+        }
+
         if (!String.IsNullOrEmpty(releaseNotes)) {
             var markdown = File.ReadAllText(releaseNotes);
-            var html = Markdown.ToHtml(markdown);
-            releaseNotesText = $"""
-<releaseNotes>{SecurityElement.Escape(markdown)}</releaseNotes>
-<releaseNotesHtml><![CDATA[{"\n"}{html}{"\n"}]]></releaseNotesHtml>
-""";
+            addMetadata("releaseNotes", markdown);
+            addMetadata("releaseNotesHtml", Markdown.ToHtml(markdown));
         }
 
-        string osMinVersionText = "";
         if (rid?.HasVersion == true) {
-            osMinVersionText = $"<osMinVersion>{rid.Version}</osMinVersion>";
+            addMetadata("osMinVersion", rid.Version.ToString());
         }
 
-        string machineArchitectureText = "";
         if (rid?.HasArchitecture == true) {
-            machineArchitectureText = $"<machineArchitecture>{rid.Architecture}</machineArchitecture>";
-        }
-
-        string runtimeDependenciesText = "";
-        if (!String.IsNullOrWhiteSpace(RuntimeDependencies)) {
-            runtimeDependenciesText = $"<runtimeDependencies>{RuntimeDependencies}</runtimeDependencies>";
+            addMetadata("machineArchitecture", rid.Architecture.ToString());
         }
 
         string nuspec = $"""
@@ -222,10 +222,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
 <mainExe>{MainExeName}</mainExe>
 <os>{rid.BaseRID.GetOsShortName()}</os>
 <rid>{rid.ToDisplay(RidDisplayType.NoVersion)}</rid>
-{osMinVersionText}
-{machineArchitectureText}
-{releaseNotesText}
-{runtimeDependenciesText}
+{extraMetadata.Trim()}
 </metadata>
 </package>
 """.Trim();

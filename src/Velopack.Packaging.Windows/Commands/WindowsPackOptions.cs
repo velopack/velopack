@@ -21,4 +21,6 @@ public class WindowsPackOptions : WindowsReleasifyOptions, INugetPackCommand, IP
     public bool NoPortable { get; set; }
 
     public bool NoInst { get; set; }
+
+    public string Shortcuts { get; set; }
 }

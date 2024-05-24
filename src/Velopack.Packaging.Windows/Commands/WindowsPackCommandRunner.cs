@@ -36,6 +36,10 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             Log.Info("Skipping VelopackApp.Build.Run() check.");
         }
 
+        // add nuspec metadata
+        ExtraNuspecMetadata["runtimeDependencies"] = GetRuntimeDependencies();
+        ExtraNuspecMetadata["shortcutLocations"] = GetShortcutLocations();
+
         // copy files to temp dir, so we can modify them
         var dir = TempDir.CreateSubdirectory("PreprocessPackDirWin");
         CopyFiles(new DirectoryInfo(packDir), dir, progress, true);
@@ -76,7 +80,32 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         return Task.FromResult(packDir);
     }
 
-    protected override string GetRuntimeDependencies()
+    protected string GetShortcutLocations()
+    {
+        if (String.IsNullOrWhiteSpace(Options.Shortcuts))
+            return null;
+
+        try {
+            var shortcuts = Options.Shortcuts.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim())
+                .Select(x => (ShortcutLocation) Enum.Parse(typeof(ShortcutLocation), x, true))
+                .ToList();
+
+            if (shortcuts.Count == 0)
+                return null;
+
+            var shortcutString = string.Join(",", shortcuts.Select(x => x.ToString()));
+            Log.Debug($"Shortcut Locations: {shortcutString}");
+            return shortcutString;
+        } catch (Exception ex) {
+            throw new UserInfoException(
+                $"Invalid shortcut locations '{Options.Shortcuts}'. " +
+                $"Valid values for comma delimited list are: {string.Join(", ", Enum.GetNames(typeof(ShortcutLocation)))}." +
+                $"Error was {ex.Message}");
+        }
+    }
+
+    protected string GetRuntimeDependencies()
     {
         if (string.IsNullOrWhiteSpace(Options.Runtimes))
             return "";

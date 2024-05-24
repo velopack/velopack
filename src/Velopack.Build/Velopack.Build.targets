@@ -22,6 +22,7 @@
       <VelopackPackTitle Condition="'$(VelopackPackTitle)' == ''">$(Product)</VelopackPackTitle>
       <VelopackPackAuthors Condition="'$(VelopackPackAuthors)' == ''">$(Authors)</VelopackPackAuthors>
       <VelopackTargetRuntime Condition="'$(VelopackTargetRuntime)' == ''">$(RuntimeIdentifier)</VelopackTargetRuntime>
+      <VelopackShortcuts Condition="'$(VelopackShortcuts)' == ''">Desktop,StartMenuRoot</VelopackShortcuts>
 
       <!-- Allows a cross platform app (eg. Avalonia) to specify all three via csproj and have them applied correctly -->
       <!-- TODO: this should probably switch based on the target RID and not the current OS, but we currently don't 
@@ -88,6 +89,7 @@
       SignParallel="$(VelopackSignParallel)"
       SignTemplate="$(VelopackSignTemplate)"
       Categories="$(VelopackCategories)"
+      Shortcuts="$(VelopackShortcuts)"
     />
   </Target>
 

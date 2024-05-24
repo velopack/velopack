@@ -16,6 +16,8 @@ public class WindowsPackCommand : PackCommand
 
     public string SignTemplate { get; private set; }
 
+    public string Shortcuts { get; private set; }
+
     public WindowsPackCommand()
         : base("pack", "Creates a release from a folder containing application files.")
     {
@@ -23,7 +25,7 @@ public class WindowsPackCommand : PackCommand
         IconOption.RequiresExtension(".ico");
 
         AddOption<string>((v) => Runtimes = v, "-f", "--framework")
-            .SetDescription("List of required runtimes to install during setup. example: 'net6-x64-desktop,vcredist143'.")
+            .SetDescription("List of required runtimes to install during setup. Example: 'net6-x64-desktop,vcredist143'.")
             .SetArgumentHelpName("RUNTIMES");
 
         AddOption<FileInfo>((v) => SplashImage = v.ToFullNameOrNull(), "-s", "--splashImage")
@@ -49,6 +51,11 @@ public class WindowsPackCommand : PackCommand
              .MustBeBetween(1, 1000)
              .SetHidden()
              .SetDefault(10);
+
+        AddOption<string>((v) => Shortcuts = v, "--shortcuts")
+            .SetDescription("List of locations to install shortcuts to during setup.")
+            .SetArgumentHelpName("LOC")
+            .SetDefault("Desktop,StartMenuRoot");
 
         if (VelopackRuntimeInfo.IsWindows) {
             var signParams = AddOption<string>((v) => SignParameters = v, "--signParams", "-n")

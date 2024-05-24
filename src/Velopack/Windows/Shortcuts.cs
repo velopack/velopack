@@ -19,6 +19,11 @@ namespace Velopack.Windows
     public enum ShortcutLocation
     {
         /// <summary>
+        /// Represents no shortcut location
+        /// </summary>
+        None = 0,
+
+        /// <summary>
         /// A shortcut in ProgramFiles within a publisher sub-directory
         /// </summary>
         StartMenu = 1 << 0,
