@@ -10,6 +10,7 @@ use std::{
     time::Duration,
 };
 use wait_timeout::ChildExt;
+use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use windows::{
     core::PCWSTR,
     Win32::{
@@ -18,7 +19,6 @@ use windows::{
     },
 };
 use winsafe::{self as w, co};
-use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 
 pub fn run_hook(app: &shared::bundle::Manifest, root_path: &PathBuf, hook_name: &str, timeout_secs: u64) {
     let sw = simple_stopwatch::Stopwatch::start_new();
@@ -69,6 +69,7 @@ pub fn create_global_mutex(app: &shared::bundle::Manifest) -> Result<MutexDropGu
 pub fn is_sub_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, parent: P2) -> Result<bool> {
     let path = path.as_ref().to_string_lossy().to_lowercase();
     let parent = parent.as_ref().to_string_lossy().to_lowercase();
+    let parent = parent.trim_end_matches('\\').trim_end_matches('/').to_owned() + "\\";
 
     // some quick bails before we do the more expensive path normalization
     if path.is_empty() || parent.is_empty() {
@@ -144,6 +145,14 @@ fn test_is_sub_path_works_with_non_existing_paths() {
     let path = PathBuf::from(r"C:\Some/Non-existing\Path/Whatever.exe");
     let parent = PathBuf::from(r"c:\some/non-existing/");
     assert!(is_sub_path(&path, &parent).unwrap());
+
+    let path = PathBuf::from(r"C:\AppData\JamLogic");
+    let parent = PathBuf::from(r"C:\AppData\JamLogicDev");
+    assert!(!is_sub_path(&path, &parent).unwrap());
+
+    let path = PathBuf::from(r"C:\AppData\JamLogicDev");
+    let parent = PathBuf::from(r"C:\AppData\JamLogic");
+    assert!(!is_sub_path(&path, &parent).unwrap());
 }
 
 #[test]
