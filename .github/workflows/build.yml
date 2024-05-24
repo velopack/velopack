@@ -161,7 +161,7 @@ jobs:
           name: rust-${{ matrix.os }}
           path: src/Rust/target/release
       - name: Test .NET
-        run: dotnet test --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly;ForceConsoleColor;Summary" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+        run: dotnet test --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
       # - name: Test .NET Velopack.Tests
       #   run: dotnet test --no-build -c Release  test/Velopack.Tests/Velopack.Tests.csproj
       # - name: Test .NET Velopack.Packaging.Tests
