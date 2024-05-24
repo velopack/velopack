@@ -152,20 +152,19 @@ fn _remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<()>
     let root_dir = root_dir.as_ref();
     info!("Searching for shortcuts containing root: '{}'", root_dir.to_string_lossy());
 
-    let mut search_paths = vec![
-        w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Desktop, co::KF::DONT_UNEXPAND, None)?,
-        w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Startup, co::KF::DONT_UNEXPAND, None)?,
-        w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::StartMenu, co::KF::DONT_UNEXPAND, None)?,
-    ];
-
     let pinned_str = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::RoamingAppData, co::KF::DONT_UNEXPAND, None)?;
     let pinned_path = Path::new(&pinned_str).join("Microsoft\\Internet Explorer\\Quick Launch\\User Pinned");
-    search_paths.push(pinned_path.to_string_lossy().to_string());
 
-    for search_root in search_paths {
-        let g = format!("{}/**/*.lnk", search_root);
-        info!("Searching for shortcuts in: '{}'", g);
-        if let Ok(paths) = glob(&g) {
+    let search_paths = vec![
+        format!("{}/*.lnk", w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Desktop, co::KF::DONT_UNEXPAND, None)?),
+        format!("{}/*.lnk", w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Startup, co::KF::DONT_UNEXPAND, None)?),
+        format!("{}/**/*.lnk", w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::StartMenu, co::KF::DONT_UNEXPAND, None)?),
+        format!("{}/**/*.lnk", pinned_path.to_string_lossy()),
+    ];
+
+    for search_glob in search_paths {
+        info!("Searching for shortcuts in: '{}'", search_glob);
+        if let Ok(paths) = glob(&search_glob) {
             for path in paths {
                 if let Ok(path) = path {
                     trace!("Checking shortcut: '{}'", path.to_string_lossy());
