@@ -114,8 +114,7 @@ namespace Velopack.Windows
 
             var fileVerInfo = FileVersionInfo.GetVersionInfo(exePath);
 
-            foreach (var f in (ShortcutLocation[]) Enum.GetValues(typeof(ShortcutLocation))) {
-                if (!locations.HasFlag(f)) continue;
+            foreach (var f in GetLocations(locations)) {
                 var file = LinkPathForVersionInfo(f, zf, fileVerInfo, rootAppDirectory);
                 if (File.Exists(file)) {
                     Log.Info($"Opening existing shortcut for {relativeExeName} ({file})");
@@ -150,9 +149,7 @@ namespace Velopack.Windows
 
             var fileVerInfo = FileVersionInfo.GetVersionInfo(exePath);
 
-            foreach (var f in (ShortcutLocation[]) Enum.GetValues(typeof(ShortcutLocation))) {
-                if (!locations.HasFlag(f)) continue;
-
+            foreach (var f in GetLocations(locations)) {
                 var file = LinkPathForVersionInfo(f, zf, fileVerInfo, rootAppDirectory);
                 var fileExists = File.Exists(file);
 
@@ -215,8 +212,7 @@ namespace Velopack.Windows
 
             var fileVerInfo = FileVersionInfo.GetVersionInfo(exePath);
 
-            foreach (var f in (ShortcutLocation[]) Enum.GetValues(typeof(ShortcutLocation))) {
-                if (!locations.HasFlag(f)) continue;
+            foreach (var f in GetLocations(locations)) {
                 var file = LinkPathForVersionInfo(f, zf, fileVerInfo, rootAppDirectory);
                 Log.Info($"Removing shortcut for {relativeExeName} => {file}");
                 try {
@@ -280,6 +276,15 @@ namespace Velopack.Windows
             }
 
             return Path.Combine(dir, title + ".lnk");
+        }
+
+        private ShortcutLocation[] GetLocations(ShortcutLocation flag)
+        {
+            var locations = (ShortcutLocation[]) Enum.GetValues(typeof(ShortcutLocation));
+            return locations
+                .Where(x => x != ShortcutLocation.None)
+                .Where(x => flag.HasFlag(x))
+                .ToArray();
         }
     }
 }
