@@ -99,7 +99,7 @@ jobs:
         os: [macos-latest, windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     env:
-      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+      # NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
       VELOPACK_GITHUB_TEST_TOKEN: ${{ secrets.VELOPACK_GITHUB_TEST_TOKEN }}
       VELOPACK_B2_TEST_TOKEN: ${{ secrets.VELOPACK_B2_TEST_TOKEN }}
       VELOPACK_AZ_TEST_TOKEN: ${{ secrets.VELOPACK_AZ_TEST_TOKEN }}
@@ -107,12 +107,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/cache@v4
-        with:
-          path: ${{ github.workspace }}/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-nuget-
+      # - uses: actions/cache@v4
+      #   with:
+      #     path: ${{ github.workspace }}/.nuget/packages
+      #     key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-nuget-
       - name: Install NBGV
         run: dotnet tool install -g nbgv
         if: ${{ matrix.os == 'macos-latest' }}
@@ -160,12 +160,14 @@ jobs:
         with:
           name: rust-${{ matrix.os }}
           path: src/Rust/target/release
-      - name: Test .NET Velopack.Tests
-        run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Velopack.Tests/Velopack.Tests.csproj
-      - name: Test .NET Velopack.Packaging.Tests
-        run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj
-      - name: Test .NET Velopack.CommandLine.Tests
-        run: dotnet test --no-build -c Release -l "console;verbosity=detailed" test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj
+      - name: Test .NET
+        run: dotnet test --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+      # - name: Test .NET Velopack.Tests
+      #   run: dotnet test --no-build -c Release  test/Velopack.Tests/Velopack.Tests.csproj
+      # - name: Test .NET Velopack.Packaging.Tests
+      #   run: dotnet test --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj
+      # - name: Test .NET Velopack.CommandLine.Tests
+      #   run: dotnet test --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj
       - name: Upload Coverage Artifacts
         uses: actions/upload-artifact@v4
         with:
