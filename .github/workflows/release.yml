@@ -29,11 +29,5 @@ jobs:
       - name: Publish .nupkg files
         run: |
           for f in packages/*.nupkg; do
-            dotnet nuget push "$f" 
-          done
-  
-      - name: Publish .snupkg files
-        run: |
-          for f in packages/*.snupkg; do
-            dotnet nuget push "$f"
+            nuget push "$f"
           done
