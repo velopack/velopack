@@ -27,6 +27,7 @@ namespace Velopack.NuGet
         public string? Title { get; private set; }
         public string? Summary { get; private set; }
         public string? Copyright { get; private set; }
+        public string? ShortcutAmuid { get; private set; }
         public IEnumerable<string> ShortcutLocations { get; private set; } = Enumerable.Empty<string>();
         public IEnumerable<string> Authors { get; private set; } = Enumerable.Empty<string>();
         public IEnumerable<string> RuntimeDependencies { get; private set; } = Enumerable.Empty<string>();
@@ -140,6 +141,9 @@ namespace Velopack.NuGet
                 break;
             case "shortcutLocations":
                 ShortcutLocations = getCommaDelimitedValue(value);
+                break;
+            case "shortcutAmuid":
+                ShortcutAmuid = value;
                 break;
             }
         }
