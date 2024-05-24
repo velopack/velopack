@@ -29,13 +29,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
     protected override Task<string> PreprocessPackDir(Action<int> progress, string packDir)
     {
-        // fail the release if this is a clickonce application
-        if (Directory.EnumerateFiles(packDir, "*.application").Any(f => File.ReadAllText(f).Contains("clickonce"))) {
-            throw new ArgumentException(
-                "Velopack does not support building releases for ClickOnce applications. " +
-                "Please remove all ClickOnce properties from your .csproj before continuing.");
-        }
-
         if (!Options.SkipVelopackAppCheck) {
             var compat = new CompatUtil(Log, Console);
             compat.Verify(MainExePath);
@@ -51,6 +44,20 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
         var updatePath = Path.Combine(TempDir.FullName, "Update.exe");
         File.Copy(HelperFile.GetUpdatePath(), updatePath, true);
+
+        // check for and delete clickonce manifest
+        var clickonceManifests = Directory.EnumerateFiles(packDir, "*.application")
+            .Where(f => File.ReadAllText(f).Contains("clickonce"))
+            .ToArray();
+        if (clickonceManifests.Any()) {
+            foreach (var manifest in clickonceManifests) {
+                Log.Warn(
+                    $"Clickonce manifest found in pack directory: '{Path.GetFileName(manifest)}'. " +
+                    $"Velopack does not support building clickonce applications, and so will delete this file automatically. " +
+                    $"It is recommended that you remove clickonce from your .csproj to avoid this warning.");
+                File.Delete(manifest);
+            }
+        }
 
         // update icon for Update.exe if requested
         if (Options.Icon != null && VelopackRuntimeInfo.IsWindows) {
