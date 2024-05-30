@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using NuGet.Versioning;
 
 #if NET5_0_OR_GREATER
@@ -31,7 +31,13 @@ namespace Velopack.Json
             PropertyNameCaseInsensitive = true,
             WriteIndented = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            Converters = { new JsonStringEnumConverter(), new SemanticVersionConverter() },
+            Converters = {
+#if NET8_0_OR_GREATER
+                new JsonStringEnumConverter<VelopackAssetType>(),
+#endif
+                new JsonStringEnumConverter(),
+                new SemanticVersionConverter()
+            },
         };
 
         public static T? DeserializeObject<T>(string json)
