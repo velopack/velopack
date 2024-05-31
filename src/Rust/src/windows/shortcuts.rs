@@ -31,8 +31,11 @@ fn create_instance<T: Interface>(clsid: &GUID) -> WindowsResult<T> {
     unsafe { CoCreateInstance(clsid, None, CLSCTX_ALL) }
 }
 
-pub fn create_default_lnks(root_path: &PathBuf, app: &Manifest) -> Result<()> {
-    let app = app.clone();
+pub fn create_or_update_manifest_lnks(root_path: &PathBuf, next_app: &Manifest, previous_app: Option<&Manifest>) -> Result<()> {
+    let app = next_app.clone();
+
+    if (app.shortcut_locations)
+
     let current_path = app.get_current_path(root_path);
     let main_exe_path = app.get_main_exe_path(root_path);
     let t = std::thread::spawn(move || {
@@ -66,7 +69,7 @@ pub fn create_default_lnks(root_path: &PathBuf, app: &Manifest) -> Result<()> {
     t.join().unwrap()
 }
 
-#[allow(dead_code)]
+#[allow(dead_code)] // currently only used in our test
 fn create_lnk(output: &str, target: &str, work_dir: &str, app_model_id: Option<&str>) -> WindowsResult<()> {
     let output = output.to_string();
     let target = target.to_string();
@@ -107,7 +110,8 @@ fn _create_lnk(output: &str, target: &str, work_dir: &str, app_model_id: Option<
     Ok(())
 }
 
-pub fn resolve_lnk(link_path: &str) -> WindowsResult<(String, String)> {
+#[allow(dead_code)] // currently only used in our test
+fn resolve_lnk(link_path: &str) -> WindowsResult<(String, String)> {
     let link_path = link_path.to_string();
     let t = std::thread::spawn(move || {
         init_com()?;

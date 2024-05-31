@@ -396,6 +396,8 @@ pub struct Manifest {
     pub os: String,
     pub os_min_version: String,
     pub channel: String,
+    pub shortcut_locations: String,
+    pub shortcut_amuid: String,
 }
 
 #[cfg(target_os = "windows")]
@@ -497,6 +499,10 @@ pub fn read_manifest_from_string(xml: &str) -> Result<Manifest> {
                     obj.os_min_version = text;
                 } else if el_name == "channel" {
                     obj.channel = text;
+                } else if el_name == "shortcutLocations" {
+                    obj.shortcut_locations = text;
+                } else if el_name == "shortcutAmuid" {
+                    obj.shortcut_amuid = text;
                 }
             }
             Ok(XmlEvent::EndElement { .. }) => {
