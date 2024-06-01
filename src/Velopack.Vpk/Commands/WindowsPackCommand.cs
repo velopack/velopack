@@ -52,10 +52,12 @@ public class WindowsPackCommand : PackCommand
              .SetHidden()
              .SetDefault(10);
 
-        AddOption<string>((v) => Shortcuts = v, "--shortcuts")
-            .SetDescription("List of locations to install shortcuts to during setup.")
-            .SetArgumentHelpName("LOC")
-            .SetDefault("Desktop,StartMenuRoot");
+        //AddOption<string>((v) => Shortcuts = v, "--shortcuts")
+        //    .SetDescription("List of locations to install shortcuts to during setup.")
+        //    .SetArgumentHelpName("LOC")
+        //    .SetDefault("Desktop,StartMenuRoot")
+        //    .SetHidden(true); // this argument currently has no effect
+        Shortcuts = "Desktop,StartMenuRoot";
 
         if (VelopackRuntimeInfo.IsWindows) {
             var signParams = AddOption<string>((v) => SignParameters = v, "--signParams", "-n")
