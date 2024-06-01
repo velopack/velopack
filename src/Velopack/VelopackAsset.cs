@@ -26,14 +26,14 @@ namespace Velopack
         /// <summary>
         /// A list of assets available in this feed.
         /// </summary>
-        public VelopackAsset[] Assets { get; init; } = Array.Empty<VelopackAsset>();
+        public VelopackAsset[] Assets { get; set; } = Array.Empty<VelopackAsset>();
 
         /// <summary>
         /// Parse a json string into a <see cref="VelopackAssetFeed"/>.
         /// </summary>
         public static VelopackAssetFeed FromJson(string json)
         {
-            return SimpleJson.DeserializeObject<VelopackAssetFeed>(json) ?? new VelopackAssetFeed();
+            return CompiledJson.DeserializeVelopackAssetFeed(json) ?? new VelopackAssetFeed();
         }
     }
 
@@ -43,28 +43,28 @@ namespace Velopack
     public record VelopackAsset
     {
         /// <summary> The name or Id of the package containing this release. </summary>
-        public string PackageId { get; init; }
+        public string PackageId { get; set; }
 
         /// <summary> The version of this release. </summary>
-        public SemanticVersion Version { get; init; }
+        public SemanticVersion Version { get; set; }
 
         /// <summary> The type of asset (eg. full or delta). </summary>
-        public VelopackAssetType Type { get; init; }
+        public VelopackAssetType Type { get; set; }
 
         /// <summary> The filename of the update package containing this release. </summary>
-        public string FileName { get; init; }
+        public string FileName { get; set; }
 
         /// <summary> The SHA1 checksum of the update package containing this release. </summary>
-        public string SHA1 { get; init; }
+        public string SHA1 { get; set; }
 
         /// <summary> The size in bytes of the update package containing this release. </summary>
-        public long Size { get; init; }
+        public long Size { get; set; }
 
         /// <summary> The release notes in markdown format, as passed to Velopack when packaging the release. </summary>
-        public string NotesMarkdown { get; init; }
+        public string NotesMarkdown { get; set; }
 
         /// <summary> The release notes in HTML format, transformed from Markdown when packaging the release. </summary>
-        public string NotesHTML { get; init; }
+        public string NotesHTML { get; set; }
 
         /// <summary>
         /// Convert a <see cref="ZipPackage"/> to a <see cref="VelopackAsset"/>.

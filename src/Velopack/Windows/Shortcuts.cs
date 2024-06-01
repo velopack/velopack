@@ -280,7 +280,7 @@ namespace Velopack.Windows
 
         private ShortcutLocation[] GetLocations(ShortcutLocation flag)
         {
-            var locations = (ShortcutLocation[]) Enum.GetValues(typeof(ShortcutLocation));
+            var locations = Utility.GetEnumValues<ShortcutLocation>();
             return locations
                 .Where(x => x != ShortcutLocation.None)
                 .Where(x => flag.HasFlag(x))

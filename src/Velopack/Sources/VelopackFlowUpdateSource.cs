@@ -29,7 +29,7 @@ namespace Velopack.Sources
         public IFileDownloader Downloader { get; }
 
         /// <inheritdoc />
-        public async Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null, 
+        public async Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null,
             VelopackAsset? latestLocalRelease = null)
         {
             Uri baseUri = new(BaseUri, $"v1.0/manifest/");
@@ -58,7 +58,7 @@ namespace Velopack.Sources
 
             var json = await Downloader.DownloadString(uriAndQuery.ToString()).ConfigureAwait(false);
 
-            var releaseAssets = SimpleJson.DeserializeObject<VelopackReleaseAsset[]>(json);
+            var releaseAssets = CompiledJson.DeserializeVelopackAssetArray(json);
             return new VelopackAssetFeed() {
                 Assets = releaseAssets
             };

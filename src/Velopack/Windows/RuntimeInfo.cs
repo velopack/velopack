@@ -317,8 +317,10 @@ namespace Velopack.Windows
                 var typestr = match.Groups["type"].Value; // default is WindowsDesktop
 
                 var archValid = Enum.TryParse<RuntimeCpu>(String.IsNullOrWhiteSpace(archstr) ? "x64" : archstr, true, out var cpu);
-                if (!archValid)
-                    throw new ArgumentException($"Invalid machine architecture '{archstr}'. Valid values: {String.Join(", ", Enum.GetValues(typeof(RuntimeCpu)))}");
+                if (!archValid) {
+                    throw new ArgumentException($"Invalid machine architecture '{archstr}'. " +
+                        $"Valid values: {String.Join(", ", Utility.GetEnumValues<RuntimeCpu>())}");
+                }
 
                 var type = DotnetRuntimeType.WindowsDesktop;
                 if (!String.IsNullOrEmpty(typestr)) {

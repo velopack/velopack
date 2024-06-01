@@ -644,5 +644,14 @@ namespace Velopack
             File.Move(source, dest);
 #endif
         }
+
+        public static TEnum[] GetEnumValues<TEnum>() where TEnum : struct, Enum
+        {
+#if NET6_0_OR_GREATER
+            return Enum.GetValues<TEnum>();
+#else
+            return Enum.GetValues(typeof(TEnum)).Cast<TEnum>().ToArray();
+#endif
+        }
     }
 }

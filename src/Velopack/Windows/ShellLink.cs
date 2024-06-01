@@ -1066,7 +1066,7 @@ namespace Velopack.Windows
             displayName = "";
 
             SHFILEINFO shfi = new SHFILEINFO();
-            uint shfiSize = (uint) Marshal.SizeOf(shfi.GetType());
+            uint shfiSize = (uint) Marshal.SizeOf<SHFILEINFO>();
 
             IntPtr ret = SHGetFileInfo(
                 fileName, 0, ref shfi, shfiSize, (uint) (flags));

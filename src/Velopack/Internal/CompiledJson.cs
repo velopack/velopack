@@ -1,7 +1,9 @@
-using System;
+﻿using System;
 using NuGet.Versioning;
+using Velopack.Sources;
+using System.Collections.Generic;
 
-#if NET5_0_OR_GREATER
+#if NET6_0_OR_GREATER
 using System.Text.Json;
 using System.Text.Json.Serialization;
 #else
@@ -11,7 +13,7 @@ using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Serialization;
 #endif
 
-#if !NET5_0_OR_GREATER
+#if !NET6_0_OR_GREATER
 namespace System.Text.Json.Serialization
 {
     // this is just here so our code can "use" System.Text.Json.Serialization
@@ -22,26 +24,54 @@ namespace System.Text.Json.Serialization
 
 namespace Velopack.Json
 {
-#if NET5_0_OR_GREATER
-    internal static class SimpleJson
+#if NET6_0_OR_GREATER
+
+    [JsonSerializable(typeof(List<GithubRelease>))]
+    [JsonSerializable(typeof(List<GitlabRelease>))]
+    [JsonSerializable(typeof(VelopackAssetFeed))]
+#if NET8_0_OR_GREATER
+    [JsonSourceGenerationOptions(UseStringEnumConverter = true)]
+#endif
+    internal partial class CompiledJsonSourceGenerationContext : JsonSerializerContext
     {
-        public static readonly JsonSerializerOptions Options = new JsonSerializerOptions {
+    }
+
+    internal static class CompiledJson
+    {
+        private static readonly JsonSerializerOptions Options = new JsonSerializerOptions {
             AllowTrailingCommas = true,
             ReadCommentHandling = JsonCommentHandling.Skip,
             PropertyNameCaseInsensitive = true,
             WriteIndented = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            Converters = { new JsonStringEnumConverter(), new SemanticVersionConverter() },
+            Converters = {
+#if !NET8_0_OR_GREATER
+                new JsonStringEnumConverter(),
+#endif
+                new SemanticVersionConverter(),
+            },
         };
 
-        public static T? DeserializeObject<T>(string json)
+        private static readonly CompiledJsonSourceGenerationContext Context = new CompiledJsonSourceGenerationContext(Options);
+
+        public static List<GithubRelease>? DeserializeGithubReleaseList(string json)
         {
-            return JsonSerializer.Deserialize<T>(json, Options);
+            return JsonSerializer.Deserialize(json, Context.ListGithubRelease);
         }
 
-        public static string SerializeObject<T>(T obj)
+        public static List<GitlabRelease>? DeserializeGitlabReleaseList(string json)
         {
-            return JsonSerializer.Serialize(obj, Options);
+            return JsonSerializer.Deserialize(json, Context.ListGitlabRelease);
+        }
+
+        public static VelopackAsset[]? DeserializeVelopackAssetArray(string json)
+        {
+            return JsonSerializer.Deserialize(json, Context.VelopackAssetArray);
+        }
+
+        public static VelopackAssetFeed? DeserializeVelopackAssetFeed(string json)
+        {
+            return JsonSerializer.Deserialize(json, Context.VelopackAssetFeed);
         }
     }
 
@@ -70,22 +100,32 @@ namespace Velopack.Json
         }
     }
 
-    internal static class SimpleJson
+    internal static class CompiledJson
     {
-        private static readonly JsonSerializerSettings Options = new JsonSerializerSettings {
+        public static readonly JsonSerializerSettings Options = new JsonSerializerSettings {
             Converters = { new StringEnumConverter(), new SemanticVersionConverter() },
             ContractResolver = new JsonNameContractResolver(),
             NullValueHandling = NullValueHandling.Ignore,
         };
 
-        public static T? DeserializeObject<T>(string json)
+        public static List<GithubRelease>? DeserializeGithubReleaseList(string json)
         {
-            return JsonConvert.DeserializeObject<T>(json, Options);
+            return JsonConvert.DeserializeObject<List<GithubRelease>>(json, Options);
         }
 
-        public static string SerializeObject<T>(T obj)
+        public static List<GitlabRelease>? DeserializeGitlabReleaseList(string json)
         {
-            return JsonConvert.SerializeObject(obj, Formatting.Indented, Options);
+            return JsonConvert.DeserializeObject<List<GitlabRelease>>(json, Options);
+        }
+
+        public static VelopackAsset[]? DeserializeVelopackAssetArray(string json)
+        {
+            return JsonConvert.DeserializeObject<VelopackAsset[]>(json, Options);
+        }
+
+        public static VelopackAssetFeed? DeserializeVelopackAssetFeed(string json)
+        {
+            return JsonConvert.DeserializeObject<VelopackAssetFeed>(json, Options);
         }
     }
 

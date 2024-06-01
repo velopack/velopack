@@ -1,7 +1,7 @@
 ﻿#pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0612 // Type or member is obsolete
 using System.Text;
-using System.Text.Json;
+using Velopack.Json;
 using Velopack.Sources;
 
 namespace Velopack.Tests.TestHelpers;
@@ -63,7 +63,7 @@ internal class FakeFixtureRepository : Sources.IFileDownloader
         }
 
         if (url.Contains($"/{_releasesNameNew}?")) {
-            var json = JsonSerializer.Serialize(_releasesNew, SimpleJsonTests.Options);
+            var json = SimpleJson.SerializeObject(_releasesNew);
             return Task.FromResult(Encoding.UTF8.GetBytes(json));
         }
 
@@ -104,7 +104,7 @@ internal class FakeFixtureRepository : Sources.IFileDownloader
         }
 
         if (url.Contains($"/{_releasesNameNew}?")) {
-            var json = JsonSerializer.Serialize(_releasesNew, SimpleJsonTests.Options);
+            var json = SimpleJson.SerializeObject(_releasesNew);
             return Task.FromResult(json);
         }
 

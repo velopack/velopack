@@ -92,7 +92,7 @@ namespace Velopack.Sources
             var baseUri = GetApiBaseUrl(RepoUri);
             var getReleasesUri = new Uri(baseUri, releasesPath);
             var response = await Downloader.DownloadString(getReleasesUri.ToString(), Authorization, "application/vnd.github.v3+json").ConfigureAwait(false);
-            var releases = SimpleJson.DeserializeObject<List<GithubRelease>>(response);
+            var releases = CompiledJson.DeserializeGithubReleaseList(response);
             if (releases == null) return new GithubRelease[0];
             return releases.OrderByDescending(d => d.PublishedAt).Where(x => includePrereleases || !x.Prerelease).ToArray();
         }

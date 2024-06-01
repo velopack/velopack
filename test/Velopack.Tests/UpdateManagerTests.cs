@@ -1,6 +1,6 @@
 ﻿using System.Text;
-using System.Text.Json;
 using NuGet.Versioning;
+using Velopack.Json;
 using Velopack.Locators;
 using Velopack.Sources;
 using Velopack.Tests.TestHelpers;
@@ -38,7 +38,7 @@ public class UpdateManagerTests
                 },
             }
         };
-        var json = JsonSerializer.Serialize(feed, SimpleJsonTests.Options);
+        var json = SimpleJson.SerializeObject(feed);
         return new FakeDownloader() { MockedResponseBytes = Encoding.UTF8.GetBytes(json) };
     }
 
@@ -96,7 +96,7 @@ public class UpdateManagerTests
                 },
             }
         };
-        var json = JsonSerializer.Serialize(feed, SimpleJsonTests.Options);
+        var json = SimpleJson.SerializeObject(feed);
         return new FakeDownloader() { MockedResponseBytes = Encoding.UTF8.GetBytes(json) };
     }
 
