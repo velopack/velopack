@@ -2,17 +2,17 @@ use std::fs::File;
 use std::io::{self, Read};
 use std::path::Path;
 
+// https://developer.apple.com/documentation/kernel/fat_header/1558632-magic/
+// https://opensource.apple.com/source/file/file-80.40.2/file/magic/Magdir/cafebabe.auto.html
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
 enum MagicMachO {
-    MH_MAGIC = 0xfeedface,
-    MH_CIGAM = 0xcefaedfe,
-    MH_MAGIC_64 = 0xfeedfacf,
-    MH_CIGAM_64 = 0xcffaedfe,
-    // https://developer.apple.com/documentation/kernel/fat_header/1558632-magic/
-    // https://opensource.apple.com/source/file/file-80.40.2/file/magic/Magdir/cafebabe.auto.html
-    FAT_MAGIC = 0xcafebabe,
-    FAT_CIGAM = 0xbebafeca,
+    MH_MAGIC,
+    MH_CIGAM,
+    MH_MAGIC_64,
+    MH_CIGAM_64,
+    FAT_MAGIC,
+    FAT_CIGAM,
 }
 
 impl MagicMachO {
