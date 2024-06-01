@@ -6,7 +6,7 @@ jobs:
   test-rust-bins:
     strategy:
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        os: [macos-13, macos-14, windows-latest, ubuntu-latest]
         include: 
           - os: windows-latest
             rust_flags: "--target i686-pc-windows-msvc --features windows"
@@ -14,10 +14,6 @@ jobs:
             rust_flags: "--target x86_64-unknown-linux-gnu"
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Update Rust
-        run: |
-          rustup update
-          rustc --version
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -29,7 +25,7 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Install NBGV
         run: dotnet tool install -g nbgv
-        if: ${{ matrix.os == 'macos-latest' }}
+        if: startsWith(matrix.os, 'macos-')
         continue-on-error: true
       - name: Test Rust
         working-directory: src/Rust
@@ -40,21 +36,60 @@ jobs:
           name: coverage-rust-${{ matrix.os }}
           path: ./test/*.xml
 
-  build-rust-bins:
+  build-rust-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: "rust-build-windows"
+          workspaces: "src/Rust -> target"
+      - name: Build Rust
+        working-directory: src/Rust
+        run: cargo bw86 --release
+      - name: Upload Rust Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-windows-latest
+          path: |
+            src/Rust/target/i686-pc-windows-msvc/release/*.exe
+            src/Rust/target/i686-pc-windows-msvc/release/*.pdb
+      - name: Cancel workflow if failed
+        uses: andymckay/cancel-action@0.4
+        if: ${{ failure() }}
+
+  build-rust-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: "rust-build-linux"
+          workspaces: "src/Rust -> target"
+      - name: Build Rust
+        working-directory: src/Rust
+        run: |
+          cargo build --release --target x86_64-unknown-linux-gnu
+          cp ./target/x86_64-unknown-linux-gnu/release/update ./target/release/UpdateNix
+      - name: Upload Rust Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-ubuntu-latest
+          path: src/Rust/target/release/UpdateNix
+      - name: Cancel workflow if failed
+        uses: andymckay/cancel-action@0.4
+        if: ${{ failure() }}
+
+  build-rust-macos:
     strategy:
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
-        include: 
-          - os: windows-latest
-            rust_flags: "--target i686-pc-windows-msvc --features windows"
-          - os: ubuntu-latest
-            rust_flags: "--target x86_64-unknown-linux-gnu"
+        os: [macos-13, macos-14]
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Update Rust
-        run: |
-          rustup update
-          rustc --version
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -64,34 +99,49 @@ jobs:
           workspaces: "src/Rust -> target"
       - name: Install NBGV
         run: dotnet tool install -g nbgv
-        if: ${{ matrix.os == 'macos-latest' }}
         continue-on-error: true
       - name: Build Rust
         working-directory: src/Rust
-        run: cargo build --release ${{ matrix.rust_flags }}
-      - name: Collect Rust Binaries (Windows)
-        working-directory: src/Rust/target
         run: |
-          copy i686-pc-windows-msvc\release\*.exe release
-          copy i686-pc-windows-msvc\release\*.pdb release
-        if: ${{ matrix.os == 'windows-latest' }}
-      - name: Collect Rust Binaries (Linux)
-        working-directory: src/Rust/target
-        run: cp ./x86_64-unknown-linux-gnu/release/update ./release/UpdateNix
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-      - name: Collect Rust Binaries (OSX)
-        working-directory: src/Rust/target/release
-        run: cp update UpdateMac
-        if: ${{ matrix.os == 'macos-latest' }}
+          cargo build --release
+          cp ./target/release/update ./target/release/UpdateMac
       - name: Upload Rust Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: rust-${{ matrix.os }}
-          path: |
-            src/Rust/target/release/UpdateNix
-            src/Rust/target/release/UpdateMac
-            src/Rust/target/release/*.exe
-            src/Rust/target/release/*.pdb
+          path: src/Rust/target/release/UpdateMac
+      - name: Cancel workflow if failed
+        uses: andymckay/cancel-action@0.4
+        if: ${{ failure() }}
+
+  build-mac-universal:
+    runs-on: macos-latest
+    needs: [build-rust-macos]
+    steps:
+      - name: Download x64
+        uses: actions/download-artifact@v4
+        with:
+          name: rust-macos-13
+          path: macos-x64
+      - name: Download arm64
+        uses: actions/download-artifact@v4
+        with:
+          name: rust-macos-14
+          path: macos-arm64
+      - name: Create Universal Binary
+        run: |
+          mkdir -p macos-universal
+          lipo -create -output macos-universal/UpdateMac macos-x64/UpdateMac macos-arm64/UpdateMac
+          file macos-universal/UpdateMac
+          lipo -archs macos-universal/UpdateMac
+      - name: Upload Universal Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-macos-latest
+          path: macos-universal/UpdateMac
+      - name: Cancel workflow if failed
+        uses: andymckay/cancel-action@0.4
+        if: ${{ failure() }}
 
   test-dotnet:
     strategy:
@@ -162,12 +212,6 @@ jobs:
           path: src/Rust/target/release
       - name: Test .NET
         run: dotnet test --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
-      # - name: Test .NET Velopack.Tests
-      #   run: dotnet test --no-build -c Release  test/Velopack.Tests/Velopack.Tests.csproj
-      # - name: Test .NET Velopack.Packaging.Tests
-      #   run: dotnet test --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj
-      # - name: Test .NET Velopack.CommandLine.Tests
-      #   run: dotnet test --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj
       - name: Upload Coverage Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -176,7 +220,7 @@ jobs:
 
   package:
     runs-on: ubuntu-latest
-    needs: [build-rust-bins]
+    needs: [build-rust-windows, build-rust-linux, build-mac-universal]
     steps:
       - name: Print dotnet version
         run: dotnet --info
