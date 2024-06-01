@@ -82,7 +82,6 @@ time = "0.3"
 [target.'cfg(unix)'.dependencies]
 native-dialog = "0.7"
 waitpid-any = "0.2"
-bindet = "0.3"
 dialog = "0.3"
 libc = "0.2"
 

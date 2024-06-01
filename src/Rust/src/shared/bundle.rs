@@ -305,21 +305,11 @@ impl BundleInfo<'_> {
             // on macos, we need to chmod +x the executable files
             #[cfg(target_os = "macos")]
             {
-                if let Ok(file) = std::fs::OpenOptions::new().read(true).open(&file_path_on_disk) {
-                    let buf = std::io::BufReader::new(file);
-                    if let Ok(det) = bindet::detect(buf).map_err(|e| e.kind()) {
-                        if let Some(matches) = det {
-                            for m in matches.likely_to_be {
-                                if m == bindet::FileType::Mach {
-                                    if let Err(e) = std::fs::set_permissions(&file_path_on_disk, std::fs::Permissions::from_mode(0o755)) {
-                                        warn!("Failed to set executable permissions on '{}': {}", file_path_on_disk.to_string_lossy(), e);
-                                    } else {
-                                        info!("    {} Set executable permissions on '{}'", i, file_path_on_disk.to_string_lossy());
-                                    }
-                                    break;
-                                }
-                            }
-                        }
+                if let Ok(true) = super::macho::is_macho_image(&file_path_on_disk) {
+                    if let Err(e) = std::fs::set_permissions(&file_path_on_disk, std::fs::Permissions::from_mode(0o755)) {
+                        warn!("Failed to set executable permissions on '{}': {}", file_path_on_disk.to_string_lossy(), e);
+                    } else {
+                        info!("    {} Set executable permissions on '{}'", i, file_path_on_disk.to_string_lossy());
                     }
                 }
             }
