@@ -2081,9 +2081,9 @@ dependencies = [
 
 [[package]]
 name = "winsafe"
-version = "0.0.21"
+version = "0.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c4afa7176f9fadc45817419f5fe481b9e8b90299c62af90e8c19486d0320274"
+checksum = "a40369220be405a294b88b13ccc3d916fac12423250b30092c8c4ea19001f7f1"
 
 [[package]]
 name = "xml"

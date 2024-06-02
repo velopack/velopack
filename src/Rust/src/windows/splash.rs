@@ -8,10 +8,12 @@ use std::{
     sync::mpsc::{self, Receiver, Sender},
     thread,
 };
-use winsafe::{self as w, co, guard::DeleteObjectGuard, gui, msg, prelude::*};
+use w::WString;
+use winsafe::{self as w, co, guard::DeleteObjectGuard, gui, prelude::*};
 
 const TMR_GIF: usize = 1;
 const MSG_NOMESSAGE: i16 = -99;
+
 pub const MSG_CLOSE: i16 = -1;
 // pub const MSG_INDEFINITE: i16 = -2;
 
@@ -166,7 +168,7 @@ impl SplashWindow {
                 if msg == MSG_NOMESSAGE {
                     break;
                 } else if msg == MSG_CLOSE {
-                    unsafe { self2.wnd.hwnd().SendMessage(msg::wm::Close {}) };
+                    self2.wnd.hwnd().SendMessage(w::msg::wm::Close {});
                     return Ok(());
                 } else if msg >= 0 {
                     let mut p = self2.progress.borrow_mut();
@@ -289,14 +291,22 @@ pub struct ComCtlProgressWindow {
 }
 
 fn show_com_ctl_progress_dialog(rx: Receiver<i16>, window_title: &str, content: &str) {
-    let buttons = vec![(co::DLGID::OK.into(), "Hide")];
+    let mut window_title = WString::from_str(window_title);
+    let mut content = WString::from_str(content);
+
+    let mut ok_text_buf = WString::from_str("Hide");
+    let mut td_btn = w::TASKDIALOG_BUTTON::default();
+    td_btn.set_nButtonID(co::DLGID::OK.into());
+    td_btn.set_pszButtonText(Some(&mut ok_text_buf));
+    let mut custom_btns = Vec::with_capacity(1);
+    custom_btns.push(td_btn);
 
     let mut config: w::TASKDIALOGCONFIG = Default::default();
-    config.flags = co::TDF::SIZE_TO_CONTENT | co::TDF::SHOW_PROGRESS_BAR | co::TDF::CALLBACK_TIMER;
-    config.main_icon = w::IconIdTd::Td(co::TD_ICON::INFORMATION);
-    config.window_title = Some(window_title);
-    config.main_instruction = Some(content);
-    config.buttons = &buttons;
+    config.dwFlags = co::TDF::SIZE_TO_CONTENT | co::TDF::SHOW_PROGRESS_BAR | co::TDF::CALLBACK_TIMER;
+    config.set_pszMainIcon(w::IconIdTdicon::Tdicon(co::TD_ICON::INFORMATION));
+    config.set_pszWindowTitle(Some(&mut window_title));
+    config.set_pszMainInstruction(Some(&mut content));
+    config.set_pButtons(Some(&mut custom_btns));
 
     // if (_icon != null) {
     //     config.dwFlags |= TASKDIALOG_FLAGS.TDF_USE_HICON_MAIN;
@@ -304,10 +314,10 @@ fn show_com_ctl_progress_dialog(rx: Receiver<i16>, window_title: &str, content: 
     // }
 
     let me = ComCtlProgressWindow { rx: Rc::new(rx) };
-    config.callback_data = &me as *const ComCtlProgressWindow as usize;
-    config.callback = Some(task_dialog_callback);
+    config.lpCallbackData = &me as *const ComCtlProgressWindow as usize;
+    config.pfCallback = Some(task_dialog_callback);
 
-    let _ = w::TaskDialogIndirect(&config);
+    let _ = w::TaskDialogIndirect(&config, None);
 }
 
 extern "system" fn task_dialog_callback(hwnd: w::HWND, msg: co::TDN, _: usize, _: isize, lp_ref_data: usize) -> co::HRESULT {
@@ -328,7 +338,7 @@ extern "system" fn task_dialog_callback(hwnd: w::HWND, msg: co::TDN, _: usize, _
             }
         }
         if progress > 0 {
-            unsafe { hwnd.SendMessage(MsgSetProgressPos { pos: progress as usize }); }
+            hwnd.SendMessage(MsgSetProgressPos { pos: progress as usize });
         }
     }
 
