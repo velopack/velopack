@@ -56,11 +56,7 @@ pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
     }
 
     fn get_pid_start_time(process: w::HPROCESS) -> Result<u64> {
-        let mut creation = w::FILETIME::default();
-        let mut exit = w::FILETIME::default();
-        let mut kernel = w::FILETIME::default();
-        let mut user = w::FILETIME::default();
-        process.GetProcessTimes(&mut creation, &mut exit, &mut kernel, &mut user)?;
+        let (creation, _, _, _) = process.GetProcessTimes()?;
         Ok(((creation.dwHighDateTime as u64) << 32) | creation.dwLowDateTime as u64)
     }
 

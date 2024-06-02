@@ -47,7 +47,7 @@ rpath = false            # disable rpath
 [dependencies]
 anyhow = "1.0"
 pretty-bytes-rust = "0.3"
-zip = { version = "0.6", default-features = false, features = ["deflate"] }
+zip = { version = "2.1", default-features = false, features = ["deflate"] }
 regex = "1.10"
 rand = "0.8"
 log = "0.4"
@@ -89,13 +89,13 @@ libc = "0.2"
 [target.'cfg(windows)'.dependencies]
 fs_extra = "1.2"
 memmap2 = "0.9"
-winsafe = { version = "0.0.19", features = ["version", "user", "gui"] }
-image = { version = "0.24", default-features = false, features = [
+winsafe = { version = "0.0.21", features = ["version", "user", "gui"] }
+image = { version = "0.25.1", default-features = false, features = [
     "gif",
     "jpeg",
     "png",
 ] }
-windows = { version = "0.52", default-features = false, features = [
+windows = { version = "0.56", default-features = false, features = [
     "Win32_Foundation",
     "Win32_Security",
     "Win32_System_Com",
@@ -127,7 +127,7 @@ windows-sys = { version = "0.52", default-features = false, features = [
     "Wdk_System_Threading",
 ] }
 normpath = "1.0.1"
-webview2-com = "0.28.0"
+webview2-com = "0.30"
 
 [dev-dependencies]
 tempfile = "3.9"
