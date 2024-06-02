@@ -1,4 +1,4 @@
-use crate::shared;
+use crate::shared::{self, runtime_arch::RuntimeArch};
 use anyhow::{anyhow, bail, Result};
 use normpath::PathExt;
 use std::{
@@ -301,37 +301,31 @@ where
 }
 
 pub fn is_cpu_architecture_supported(architecture: &str) -> Result<bool> {
-    let info = super::os_info::get();
-    let machine = info.architecture();
+    let machine = RuntimeArch::from_current_system();
     if machine.is_none() {
-        return Ok(true); // we can't detect current arch so try installing anyway.
-    }
-
-    let mut machine = machine.unwrap();
-    let is_win_11 = is_os_version_or_greater("11")?;
-
-    if machine.is_empty() || architecture.is_empty() {
+        // we can't detect current os arch so try installing anyway
         return Ok(true);
     }
 
-    // https://github.com/stanislav-tkach/os_info/blob/master/os_info/src/windows/winapi.rs#L82
-    if machine == "x86_64" {
-        machine = "x64";
-    } else if machine == "i386" {
-        machine = "x86";
-    } else if machine == "aarch64" {
-        machine = "arm64";
+    let architecture = RuntimeArch::from_str(architecture);
+    if architecture.is_none() {
+        // no arch specified in this package, so install on any arch
+        return Ok(true);
     }
 
-    if machine == "x86" {
+    let machine = machine.unwrap();
+    let architecture = architecture.unwrap();
+    let is_win_11 = is_os_version_or_greater("11")?;
+
+    if machine == RuntimeArch::X86 {
         // windows x86 only supports x86
-        Ok(architecture == "x86")
-    } else if machine == "x64" {
+        Ok(architecture == RuntimeArch::X86)
+    } else if machine == RuntimeArch::X64 {
         // windows x64 only supports x86 and x64
-        Ok(architecture == "x86" || architecture == "x64")
-    } else if machine == "arm64" {
+        Ok(architecture == RuntimeArch::X86 || architecture == RuntimeArch::X64)
+    } else if machine == RuntimeArch::Arm64 {
         // windows arm64 supports x86, and arm64, and only on windows 11 does it support x64
-        Ok(architecture == "x86" || (architecture == "x64" && is_win_11) || architecture == "arm64")
+        Ok(architecture == RuntimeArch::X86 || (architecture == RuntimeArch::X64 && is_win_11) || architecture == RuntimeArch::Arm64)
     } else {
         // we don't know what this is, so try installing anyway
         Ok(true)
@@ -341,7 +335,7 @@ pub fn is_cpu_architecture_supported(architecture: &str) -> Result<bool> {
 #[test]
 pub fn test_x64_and_x86_is_supported_but_not_arm64_or_invalid() {
     assert!(!is_cpu_architecture_supported("arm64").unwrap());
-    assert!(!is_cpu_architecture_supported("invalid").unwrap());
+    assert!(is_cpu_architecture_supported("invalid").unwrap());
     assert!(is_cpu_architecture_supported("x64").unwrap());
     assert!(is_cpu_architecture_supported("x86").unwrap());
 }

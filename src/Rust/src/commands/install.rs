@@ -1,4 +1,8 @@
-use crate::{dialogs, shared, shared::bundle, windows};
+use crate::{
+    dialogs,
+    shared::{self, bundle, runtime_arch::RuntimeArch},
+    windows,
+};
 use anyhow::{anyhow, bail, Result};
 use memmap2::Mmap;
 use pretty_bytes_rust::pretty_bytes;
@@ -11,8 +15,9 @@ use std::{
 use winsafe::{self as w, co};
 
 pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Result<()> {
-    let osinfo = windows::os_info::get();
-    info!("OS: {}, Arch={}", osinfo, osinfo.architecture().unwrap_or("unknown"));
+    let osinfo = os_info::get();
+    let osarch = RuntimeArch::from_current_system();
+    info!("OS: {osinfo}, Arch={osarch:#?}");
 
     if !w::IsWindows7OrGreater()? {
         bail!("This installer requires Windows 7 or later and cannot run.");
@@ -121,7 +126,7 @@ pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Res
         let splash_bytes = pkg.get_splash_bytes();
         windows::splash::show_splash_dialog(app.title.to_owned(), splash_bytes)
     };
-    
+
     let install_result = install_impl(&pkg, &root_path, &tx);
     let _ = tx.send(windows::splash::MSG_CLOSE);
 

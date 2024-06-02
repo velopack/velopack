@@ -78,6 +78,7 @@ url = "2.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 time = "0.3"
+os_info = "3.8"
 
 [target.'cfg(unix)'.dependencies]
 native-dialog = "0.7"
@@ -101,6 +102,7 @@ windows = { version = "0.52", default-features = false, features = [
     "Win32_UI",
     "Win32_UI_Shell",
     "Win32_System_Threading",
+    "Win32_System_SystemInformation",
     "Win32_System_Variant",
     "Win32_Storage_EnhancedStorage",
     "Win32_Storage_FileSystem",
@@ -123,13 +125,6 @@ windows-sys = { version = "0.52", default-features = false, features = [
     "Wdk",
     "Wdk_System",
     "Wdk_System_Threading",
-    # below are just for os_info
-    "Win32_UI_WindowsAndMessaging",
-    "Win32_System_Diagnostics_Debug",
-    "Win32_System_LibraryLoader",
-    "Win32_System_SystemInformation",
-    "Win32_System_Registry",
-    "Win32_System_SystemServices",
 ] }
 normpath = "1.0.1"
 webview2-com = "0.28.0"

@@ -1,6 +1,5 @@
 pub mod locksmith;
 pub mod mitigate;
-pub mod os_info;
 pub mod prerequisite;
 pub mod runtimes;
 pub mod splash;

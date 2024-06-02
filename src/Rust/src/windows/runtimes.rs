@@ -1,5 +1,6 @@
 use crate::shared as util;
 use crate::shared::download;
+use crate::shared::runtime_arch::RuntimeArch;
 use anyhow::{anyhow, bail, Result};
 use regex::Regex;
 use std::process::Command as Process;
@@ -54,54 +55,6 @@ lazy_static! {
         vcredist.insert("vcredist143-arm64".to_owned(), VCRedistInfo::new("Visual C++ 2022 Redist (arm64)", "14.30.30704", RuntimeArch::Arm64, REDIST_2015_2022_ARM64));
         vcredist
     };
-}
-
-#[derive(PartialEq, Debug, Clone, strum::IntoStaticStr)]
-pub enum RuntimeArch {
-    X86,
-    X64,
-    Arm64,
-}
-
-impl RuntimeArch {
-    pub fn from_str(arch_str: &str) -> Option<Self> {
-        match arch_str.to_lowercase().as_str() {
-            "x86" => Some(RuntimeArch::X86),
-            "x64" => Some(RuntimeArch::X64),
-            "arm64" => Some(RuntimeArch::Arm64),
-            _ => None,
-        }
-    }
-    pub fn from_current_system() -> Option<Self> {
-        let info = super::os_info::get();
-        let machine = info.architecture();
-        if machine.is_none() {
-            return None;
-        }
-        let mut machine = machine.unwrap();
-        if machine.is_empty() {
-            return None;
-        }
-        if machine == "x86_64" {
-            machine = "x64";
-        } else if machine == "i386" {
-            machine = "x86";
-        } else if machine == "aarch64" {
-            machine = "arm64";
-        }
-        Self::from_str(machine)
-    }
-}
-
-#[test]
-fn test_cpu_arch_from_str() {
-    assert_eq!(RuntimeArch::from_str("x86"), Some(RuntimeArch::X86));
-    assert_eq!(RuntimeArch::from_str("x64"), Some(RuntimeArch::X64));
-    assert_eq!(RuntimeArch::from_str("arm64"), Some(RuntimeArch::Arm64));
-    assert_eq!(RuntimeArch::from_str("foo"), None);
-    assert_eq!(RuntimeArch::from_str("X86"), Some(RuntimeArch::X86));
-    assert_eq!(RuntimeArch::from_str("X64"), Some(RuntimeArch::X64));
-    assert_eq!(RuntimeArch::from_str("ARM64"), Some(RuntimeArch::Arm64));
 }
 
 #[derive(Debug, PartialEq, Clone, strum::IntoStaticStr)]
