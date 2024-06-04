@@ -3,7 +3,6 @@ use crate::shared::{bundle, dialogs, download};
 
 use anyhow::Result;
 use std::path::Path;
-use winsafe::{self as w, co};
 
 pub fn prompt_and_install_all_missing(app: &bundle::Manifest, updating_from: Option<&semver::Version>) -> Result<bool> {
     info!("Checking application pre-requisites...");
@@ -38,7 +37,7 @@ pub fn prompt_and_install_all_missing(app: &bundle::Manifest, updating_from: Opt
             }
         }
 
-        let downloads = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Downloads, co::KF::DONT_UNEXPAND, None)?;
+        let downloads = super::known_path::get_downloads()?;
         let downloads = Path::new(downloads.as_str());
 
         info!("Downloading {} missing pre-requisites...", missing.len());

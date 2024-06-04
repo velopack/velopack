@@ -9,8 +9,6 @@ use std::{
     sync::mpsc::{self, Receiver, Sender},
     thread,
 };
-use w::WString;
-use winsafe::{self as w, co, guard::DeleteObjectGuard, gui, prelude::*};
 
 const TMR_GIF: usize = 1;
 const MSG_NOMESSAGE: i16 = -99;

@@ -89,7 +89,6 @@ libc = "0.2"
 [target.'cfg(windows)'.dependencies]
 fs_extra = "1.2"
 memmap2 = "0.9"
-winsafe = { version = "0.0.20", features = ["version", "user", "gui"] }
 image = { version = "0.25", default-features = false, features = [
     "gif",
     "jpeg",
@@ -104,6 +103,7 @@ windows = { version = "0.56", default-features = false, features = [
     "Win32_System_Threading",
     "Win32_System_SystemInformation",
     "Win32_System_Variant",
+    "Win32_System_Environment",
     "Win32_Storage_EnhancedStorage",
     "Win32_Storage_FileSystem",
     "Win32_System_Com_StructuredStorage",

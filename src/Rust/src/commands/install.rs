@@ -8,18 +8,19 @@ use memmap2::Mmap;
 use pretty_bytes_rust::pretty_bytes;
 use std::{
     env,
+    ffi::OsString,
     fs::{self, File},
     path::{Path, PathBuf},
 };
-use winsafe::{self as w, co};
+use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 
 pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Result<()> {
     let osinfo = os_info::get();
     let osarch = RuntimeArch::from_current_system();
     info!("OS: {osinfo}, Arch={osarch:#?}");
 
-    if !w::IsWindows7OrGreater()? {
-        bail!("This installer requires Windows 7 or later and cannot run.");
+    if !windows::is_windows_7_sp1_or_greater() {
+        bail!("This installer requires Windows 7 SPA1 or later and cannot run.");
     }
 
     let file = File::open(env::current_exe()?)?;
@@ -51,7 +52,7 @@ pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Res
     let (root_path, root_is_default) = if install_to.is_some() {
         (install_to.unwrap().clone(), false)
     } else {
-        let appdata = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::LocalAppData, co::KF::DONT_UNEXPAND, None)?;
+        let appdata = windows::known_path::get_local_app_data()?;
         (Path::new(&appdata).join(&app.id), true)
     };
 
@@ -67,7 +68,10 @@ pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Res
     let (compressed_size, extracted_size) = pkg.calculate_size();
     let required_space = compressed_size + extracted_size + (50 * 1000 * 1000); // archive + velopack overhead
     let mut free_space: u64 = 0;
-    w::GetDiskFreeSpaceEx(Some(&root_path_str), None, None, Some(&mut free_space))?;
+
+    let root_wide: Vec<u16> = OsString::from(root_path_str).encode_wide().chain(Some(0).into_iter()).collect();
+    let root_pwstr = ::windows::core::PWSTR(root_wide.as_ptr() as *mut _);
+    unsafe { GetDiskFreeSpaceExW(root_pwstr, None, None, Some(&mut free_space)) };
     if free_space < required_space {
         bail!(
             "{} requires at least {} disk space to be installed. There is only {} available.",

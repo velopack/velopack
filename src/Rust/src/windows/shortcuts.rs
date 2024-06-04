@@ -1,11 +1,13 @@
 use crate::bundle::Manifest;
 use crate::shared as util;
+use crate::windows::known_path as known;
+use crate::windows::strings::*;
 use anyhow::{bail, Result};
 use glob::glob;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use windows::core::{Interface, Result as WindowsResult, GUID, HSTRING, PCWSTR};
+use windows::core::{Interface, Result as WindowsResult, GUID, PCWSTR};
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
 use windows::Win32::System::Com::StructuredStorage::InitPropVariantFromStringVector;
@@ -42,7 +44,7 @@ pub fn create_or_update_manifest_lnks(root_path: &PathBuf, next_app: &Manifest, 
         let mut was_error = false;
 
         info!("Creating desktop shortcut...");
-        let desktop = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Desktop, co::KF::DONT_UNEXPAND, None)?;
+        let desktop = known::get_user_desktop()?;
         let desktop_lnk = Path::new(&desktop).join(format!("{}.lnk", &app.title));
         if let Err(e) = _create_lnk(&desktop_lnk.to_string_lossy(), &main_exe_path, &current_path, None) {
             warn!("Failed to create start menu shortcut: {}", e);
@@ -52,7 +54,7 @@ pub fn create_or_update_manifest_lnks(root_path: &PathBuf, next_app: &Manifest, 
         std::thread::sleep(Duration::from_millis(1));
 
         info!("Creating start menu shortcut...");
-        let startmenu = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::StartMenu, co::KF::DONT_UNEXPAND, None)?;
+        let startmenu = known::get_start_menu()?;
         let start_lnk = Path::new(&startmenu).join("Programs").join(format!("{}.lnk", &app.title));
         if let Err(e) = _create_lnk(&start_lnk.to_string_lossy(), &main_exe_path, &current_path, None) {
             warn!("Failed to create start menu shortcut: {}", e);
@@ -86,16 +88,14 @@ fn _create_lnk(output: &str, target: &str, work_dir: &str, app_model_id: Option<
     let link: IShellLinkW = create_instance(&ShellLink)?;
 
     unsafe {
-        link.SetPath(&HSTRING::from(target))?;
-        link.SetWorkingDirectory(&HSTRING::from(work_dir))?;
+        link.SetPath(string_to_pcwstr(target))?;
+        link.SetWorkingDirectory(string_to_pcwstr(work_dir))?;
 
         // Set app user model ID property
         // Docs: https://docs.microsoft.com/windows/win32/properties/props-system-appusermodel-id
         if let Some(app_model_id) = app_model_id {
             let store: IPropertyStore = link.cast()?;
-            let hstring = HSTRING::from(app_model_id);
-            let widearr = hstring.as_wide();
-            let id: PCWSTR = PCWSTR(widearr.as_ptr());
+            let id: PCWSTR = string_to_pcwstr(app_model_id);
             let variant = InitPropVariantFromStringVector(Some(&[id]))?;
             store.SetValue(&PKEY_AppUserModel_ID, &variant)?;
             store.Commit()?;
@@ -103,7 +103,7 @@ fn _create_lnk(output: &str, target: &str, work_dir: &str, app_model_id: Option<
 
         // Save shortcut to file
         let persist: IPersistFile = link.cast()?;
-        persist.Save(&HSTRING::from(output), true)?;
+        persist.Save(string_to_pcwstr(output), true)?;
     }
 
     Ok(())
@@ -125,7 +125,7 @@ fn _resolve_lnk(link_path: &str) -> WindowsResult<(String, String)> {
 
     unsafe {
         debug!("Loading link: {}", link_path);
-        persist.Load(&HSTRING::from(link_path), STGM_READ)?;
+        persist.Load(string_to_pcwstr(link_path), STGM_READ)?;
         let flags = 1 | 2 | 1 << 16;
         if let Err(e) = link.Resolve(HWND(0), flags) {
             // this happens if the target path is missing and the link is broken
@@ -136,12 +136,7 @@ fn _resolve_lnk(link_path: &str) -> WindowsResult<(String, String)> {
         let mut pszdir = [0u16; 260];
         link.GetPath(&mut pszfile, std::ptr::null_mut(), 0)?;
         link.GetWorkingDirectory(&mut pszdir)?;
-
-        let target_len = pszfile.iter().position(|&c| c == 0).unwrap_or(pszfile.len());
-        let target = HSTRING::from_wide(&pszfile[..target_len])?;
-        let work_len = pszdir.iter().position(|&c| c == 0).unwrap_or(pszdir.len());
-        let work_dir = HSTRING::from_wide(&pszdir[..work_len])?;
-        Ok((target.to_string(), work_dir.to_string()))
+        Ok((u16_to_string(pszfile), u16_to_string(pszdir)))
     }
 }
 
@@ -159,14 +154,11 @@ fn _remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<()>
     let root_dir = root_dir.as_ref();
     info!("Searching for shortcuts containing root: '{}'", root_dir.to_string_lossy());
 
-    let pinned_str = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::RoamingAppData, co::KF::DONT_UNEXPAND, None)?;
-    let pinned_path = Path::new(&pinned_str).join("Microsoft\\Internet Explorer\\Quick Launch\\User Pinned");
-
     let search_paths = vec![
-        format!("{}/*.lnk", w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Desktop, co::KF::DONT_UNEXPAND, None)?),
-        format!("{}/*.lnk", w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Startup, co::KF::DONT_UNEXPAND, None)?),
-        format!("{}/**/*.lnk", w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::StartMenu, co::KF::DONT_UNEXPAND, None)?),
-        format!("{}/**/*.lnk", pinned_path.to_string_lossy()),
+        format!("{}/*.lnk", known::get_user_desktop()?),
+        format!("{}/*.lnk", known::get_startup()?),
+        format!("{}/**/*.lnk", known::get_start_menu()?),
+        format!("{}/**/*.lnk", known::get_user_pinned()?),
     ];
 
     for search_glob in search_paths {
@@ -202,7 +194,7 @@ fn _remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<()>
 #[test]
 #[ignore]
 fn test_shortcut_intense_intermittent() {
-    let startmenu = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::StartMenu, co::KF::DONT_UNEXPAND, None).unwrap();
+    let startmenu = known::get_start_menu().unwrap();
     let lnk_path = Path::new(&startmenu).join("Programs").join(format!("{}.lnk", "veloshortcuttest"));
     let target = "C:\\Users\\Caelan\\AppData\\Local\\Discord\\Update.exe";
     let work = "C:\\Users\\Caelan\\AppData\\Local\\Discord";
@@ -227,7 +219,7 @@ fn test_can_resolve_existing_shortcut() {
 
 #[test]
 fn shortcut_full_integration_test() {
-    let desktop = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Desktop, co::KF::DONT_UNEXPAND, None).unwrap();
+    let desktop = known::get_user_desktop().unwrap();
     let link_location = Path::new(&desktop).join("testclowd123hi.lnk");
     let target = r"C:\Users\Caelan\AppData\Local\NonExistingAppHello123\current\HelloWorld.exe";
     let work = r"C:\Users\Caelan/appData\Local/NonExistingAppHello123\current";
