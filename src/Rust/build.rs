@@ -30,7 +30,7 @@ fn main() {
         .set("ProductName", "Velopack")
         .set("ProductVersion", version)
         .set("FileDescription", &desc)
-        .set("LegalCopyright", "Caelan Sayler (c) 2023")
+        .set("LegalCopyright", "Caelan Sayler (c) 2023, Velopack (c) 2024")
         .compile()
         .unwrap();
 }
@@ -39,6 +39,7 @@ fn main() {
 fn delay_load() {
     delay_load_exe("update");
     delay_load_exe("setup");
+    delay_load_exe("stub");
     println!("cargo:rustc-link-arg=/DEPENDENTLOADFLAG:0x800");
     println!("cargo:rustc-link-arg=/WX");
     println!("cargo:rustc-link-arg=/IGNORE:4099"); // PDB was not found
