@@ -19,7 +19,7 @@ public interface IVelopackFlowServiceClient
 
     Task<Profile?> GetProfileAsync(VelopackServiceOptions? options, CancellationToken cancellationToken);
 
-    Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory, string? serviceUrl, CancellationToken cancellationToken);
+    Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory, string? serviceUrl, RuntimeOs os, CancellationToken cancellationToken);
 }
 
 public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : IVelopackFlowServiceClient
@@ -91,10 +91,11 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
         return await HttpClient.GetFromJsonAsync<Profile>(endpoint, cancellationToken);
     }
 
-    public async Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory, string? serviceUrl, CancellationToken cancellationToken)
+    public async Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory, string? serviceUrl,
+        RuntimeOs os, CancellationToken cancellationToken)
     {
-        channel ??= ReleaseEntryHelper.GetDefaultChannel(VelopackRuntimeInfo.SystemOs);
-        ReleaseEntryHelper helper = new(releaseDirectory, channel, Logger);
+        channel ??= ReleaseEntryHelper.GetDefaultChannel(os);
+        ReleaseEntryHelper helper = new(releaseDirectory, channel, Logger, os);
         var latestAssets = helper.GetLatestAssets().ToList();
 
         List<string> installers = [];
@@ -107,13 +108,13 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
             version = latestAssets[0].Version;
 
             if (VelopackRuntimeInfo.IsWindows || VelopackRuntimeInfo.IsOSX) {
-                var setupName = ReleaseEntryHelper.GetSuggestedSetupName(packageId, channel);
+                var setupName = ReleaseEntryHelper.GetSuggestedSetupName(packageId, channel, os);
                 if (File.Exists(Path.Combine(releaseDirectory, setupName))) {
                     installers.Add(setupName);
                 }
             }
 
-            var portableName = ReleaseEntryHelper.GetSuggestedPortableName(packageId, channel);
+            var portableName = ReleaseEntryHelper.GetSuggestedPortableName(packageId, channel, os);
             if (File.Exists(Path.Combine(releaseDirectory, portableName))) {
                 installers.Add(portableName);
             }

@@ -7,7 +7,14 @@ namespace Velopack.Deployment;
 
 public class RepositoryOptions : IOutputOptions
 {
-    public string Channel { get; set; } = ReleaseEntryHelper.GetDefaultChannel();
+    private string _channel;
+
+    public RuntimeOs TargetOs { get; set; }
+
+    public string Channel {
+        get => _channel ?? ReleaseEntryHelper.GetDefaultChannel(TargetOs);
+        set => _channel = value;
+    }
 
     public DirectoryInfo ReleaseDir { get; set; }
 }

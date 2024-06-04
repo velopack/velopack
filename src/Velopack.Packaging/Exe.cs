@@ -5,7 +5,7 @@ namespace Velopack.Packaging;
 
 public static class Exe
 {
-    public static void AssertSystemBinaryExists(string binaryName)
+    public static void AssertSystemBinaryExists(string binaryName, string linuxInstallCmd, string osxInstallCmd)
     {
         try {
             if (VelopackRuntimeInfo.IsWindows) {
@@ -20,8 +20,50 @@ public static class Exe
                 throw new PlatformNotSupportedException();
             }
         } catch (ProcessFailedException) {
-            throw new Exception($"Could not find '{binaryName}' on the system, ensure it is installed and on the PATH.");
+            string recommendedCmd = null;
+            if (VelopackRuntimeInfo.IsLinux && !String.IsNullOrEmpty(linuxInstallCmd))
+                recommendedCmd = linuxInstallCmd;
+            else if (VelopackRuntimeInfo.IsOSX && !String.IsNullOrEmpty(osxInstallCmd))
+                recommendedCmd = osxInstallCmd;
+
+            string message = $"Could not find '{binaryName}' binary on the system, ensure it is installed and on the PATH.";
+            if (!String.IsNullOrEmpty(recommendedCmd)) {
+                message += $" You might be able to install it by running: '{recommendedCmd}'";
+            }
+
+            throw new UserInfoException(message);
         }
+    }
+
+    public static string RunHostedCommand(string command, string workDir = null)
+    {
+        using var _1 = Utility.GetTempFileName(out var outputFile);
+        File.Create(outputFile).Close();
+
+        var fileName = "cmd.exe";
+        var args = $"/S /C \"{command} >> \"{outputFile}\" 2>&1\"";
+
+        if (!VelopackRuntimeInfo.IsWindows) {
+            fileName = "/bin/bash";
+            string escapedCommand = command.Replace("'", "'\\''");
+            args = $"-c '{escapedCommand} >> \"{outputFile}\" 2>&1'";
+        }
+
+        var psi = new ProcessStartInfo {
+            FileName = fileName,
+            Arguments = args,
+            UseShellExecute = false,
+            WorkingDirectory = workDir,
+            CreateNoWindow = true,
+        };
+
+        using var process = Process.Start(psi);
+        process.WaitForExit();
+
+        var stdout = Utility.Retry(() => File.ReadAllText(outputFile).Trim(), 10, 1000);
+        var result = (process.ExitCode, stdout, command);
+        ProcessFailedException.ThrowIfNonZero(result);
+        return result.Item2;
     }
 
     public static string InvokeAndThrowIfNonZero(string exePath, IEnumerable<string> args, string workingDir, IDictionary<string, string> envVar = null)

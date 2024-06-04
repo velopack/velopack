@@ -7,9 +7,9 @@ namespace Velopack.Vpk.Logging;
 public class SpectreConsole : IFancyConsole
 {
     private readonly ILogger logger;
-    private readonly DefaultPromptValueFactory defaultFactory;
+    private readonly VelopackDefaults defaultFactory;
 
-    public SpectreConsole(ILogger logger, DefaultPromptValueFactory defaultFactory)
+    public SpectreConsole(ILogger logger, VelopackDefaults defaultFactory)
     {
         this.logger = logger;
         this.defaultFactory = defaultFactory;

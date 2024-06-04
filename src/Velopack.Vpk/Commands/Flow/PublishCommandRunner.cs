@@ -19,6 +19,7 @@ public class PublishCommandRunner(IVelopackFlowServiceClient Client) : ICommand<
             return;
         }
 
-        await Client.UploadLatestReleaseAssetsAsync(options.Channel, options.ReleaseDirectory, options.VelopackBaseUrl, token);
+        await Client.UploadLatestReleaseAssetsAsync(options.Channel, options.ReleaseDirectory,
+            options.VelopackBaseUrl, options.TargetOs, token);
     }
 }

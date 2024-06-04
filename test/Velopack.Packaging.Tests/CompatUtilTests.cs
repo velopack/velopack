@@ -1,6 +1,7 @@
 ﻿using Divergic.Logging.Xunit;
 using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Windows;
+using Velopack.Vpk;
 using Velopack.Vpk.Logging;
 
 namespace Velopack.Packaging.Tests;
@@ -17,7 +18,7 @@ public class CompatUtilTests
     private ICacheLogger<CompatUtilTests> GetCompat(out CompatUtil compat)
     {
         var logger = _output.BuildLoggerFor<CompatUtilTests>();
-        compat = new CompatUtil(logger, new BasicConsole(logger, new DefaultPromptValueFactory(true)));
+        compat = new CompatUtil(logger, new BasicConsole(logger, new VelopackDefaults(true)));
         return logger;
     }
 

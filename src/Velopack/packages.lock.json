@@ -30,8 +30,8 @@
       "Nerdbank.GitVersioning": {
         "type": "Direct",
         "requested": "[3.6.*, )",
-        "resolved": "3.6.133",
-        "contentHash": "VZWMd5YAeDxpjWjAP/X6bAxnRMiEf6tES/ITN0X5CHJgkWLLeHGmEALivmTAfYM6P+P/3Szy6VCITUAkqjcHVw=="
+        "resolved": "3.6.139",
+        "contentHash": "rq0Ub/Jik7PtMtZtLn0tHuJ01Yt36RQ+eeBe+S7qnJ/EFOX6D4T9zuYD3vQPYKGI6Ro4t2iWgFm3fGDgjBrMfg=="
       },
       "Newtonsoft.Json": {
         "type": "Direct",
@@ -41,9 +41,9 @@
       },
       "NuGet.Versioning": {
         "type": "Direct",
-        "requested": "[6.9.1, )",
-        "resolved": "6.9.1",
-        "contentHash": "ypnSvEtpNGo48bAWn95J1oHChycCXcevFSbn53fqzLxlXFSZP7dawu8p/7mHAfGufZQSV2sBpW80XQGIfXO8kQ=="
+        "requested": "[6.10.0, )",
+        "resolved": "6.10.0",
+        "contentHash": "ytTA08tgZWo/Pbk333hnzQfiMyyynkkwMt4GyC5T0bzExYYSRNrkwv4jT8jmWr5LUOYsumEZvXdoven2SA7YZw=="
       },
       "Microsoft.Build.Tasks.Git": {
         "type": "Transitive",
@@ -81,8 +81,8 @@
       "Nerdbank.GitVersioning": {
         "type": "Direct",
         "requested": "[3.6.*, )",
-        "resolved": "3.6.133",
-        "contentHash": "VZWMd5YAeDxpjWjAP/X6bAxnRMiEf6tES/ITN0X5CHJgkWLLeHGmEALivmTAfYM6P+P/3Szy6VCITUAkqjcHVw=="
+        "resolved": "3.6.139",
+        "contentHash": "rq0Ub/Jik7PtMtZtLn0tHuJ01Yt36RQ+eeBe+S7qnJ/EFOX6D4T9zuYD3vQPYKGI6Ro4t2iWgFm3fGDgjBrMfg=="
       },
       "Newtonsoft.Json": {
         "type": "Direct",
@@ -92,9 +92,9 @@
       },
       "NuGet.Versioning": {
         "type": "Direct",
-        "requested": "[6.9.1, )",
-        "resolved": "6.9.1",
-        "contentHash": "ypnSvEtpNGo48bAWn95J1oHChycCXcevFSbn53fqzLxlXFSZP7dawu8p/7mHAfGufZQSV2sBpW80XQGIfXO8kQ=="
+        "requested": "[6.10.0, )",
+        "resolved": "6.10.0",
+        "contentHash": "ytTA08tgZWo/Pbk333hnzQfiMyyynkkwMt4GyC5T0bzExYYSRNrkwv4jT8jmWr5LUOYsumEZvXdoven2SA7YZw=="
       },
       "Microsoft.Build.Tasks.Git": {
         "type": "Transitive",
@@ -127,14 +127,14 @@
       "Nerdbank.GitVersioning": {
         "type": "Direct",
         "requested": "[3.6.*, )",
-        "resolved": "3.6.133",
-        "contentHash": "VZWMd5YAeDxpjWjAP/X6bAxnRMiEf6tES/ITN0X5CHJgkWLLeHGmEALivmTAfYM6P+P/3Szy6VCITUAkqjcHVw=="
+        "resolved": "3.6.139",
+        "contentHash": "rq0Ub/Jik7PtMtZtLn0tHuJ01Yt36RQ+eeBe+S7qnJ/EFOX6D4T9zuYD3vQPYKGI6Ro4t2iWgFm3fGDgjBrMfg=="
       },
       "NuGet.Versioning": {
         "type": "Direct",
-        "requested": "[6.9.1, )",
-        "resolved": "6.9.1",
-        "contentHash": "ypnSvEtpNGo48bAWn95J1oHChycCXcevFSbn53fqzLxlXFSZP7dawu8p/7mHAfGufZQSV2sBpW80XQGIfXO8kQ=="
+        "requested": "[6.10.0, )",
+        "resolved": "6.10.0",
+        "contentHash": "ytTA08tgZWo/Pbk333hnzQfiMyyynkkwMt4GyC5T0bzExYYSRNrkwv4jT8jmWr5LUOYsumEZvXdoven2SA7YZw=="
       },
       "Microsoft.Build.Tasks.Git": {
         "type": "Transitive",
@@ -176,14 +176,14 @@
       "Nerdbank.GitVersioning": {
         "type": "Direct",
         "requested": "[3.6.*, )",
-        "resolved": "3.6.133",
-        "contentHash": "VZWMd5YAeDxpjWjAP/X6bAxnRMiEf6tES/ITN0X5CHJgkWLLeHGmEALivmTAfYM6P+P/3Szy6VCITUAkqjcHVw=="
+        "resolved": "3.6.139",
+        "contentHash": "rq0Ub/Jik7PtMtZtLn0tHuJ01Yt36RQ+eeBe+S7qnJ/EFOX6D4T9zuYD3vQPYKGI6Ro4t2iWgFm3fGDgjBrMfg=="
       },
       "NuGet.Versioning": {
         "type": "Direct",
-        "requested": "[6.9.1, )",
-        "resolved": "6.9.1",
-        "contentHash": "ypnSvEtpNGo48bAWn95J1oHChycCXcevFSbn53fqzLxlXFSZP7dawu8p/7mHAfGufZQSV2sBpW80XQGIfXO8kQ=="
+        "requested": "[6.10.0, )",
+        "resolved": "6.10.0",
+        "contentHash": "ytTA08tgZWo/Pbk333hnzQfiMyyynkkwMt4GyC5T0bzExYYSRNrkwv4jT8jmWr5LUOYsumEZvXdoven2SA7YZw=="
       },
       "Microsoft.Build.Tasks.Git": {
         "type": "Transitive",

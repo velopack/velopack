@@ -1,11 +1,9 @@
-﻿using System.Runtime.Versioning;
-using ELFSharp.ELF;
+﻿using ELFSharp.ELF;
 using Microsoft.Extensions.Logging;
 using Velopack.Packaging.Abstractions;
 
 namespace Velopack.Packaging.Unix.Commands;
 
-[SupportedOSPlatform("linux")]
 public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
 {
     protected string PortablePackagePath { get; set; }
@@ -21,36 +19,34 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
         var bin = dir.CreateSubdirectory("usr").CreateSubdirectory("bin");
 
         if (Options.PackIsAppDir) {
-            Log.Info("Using provided .AppDir, will skip building new one.");
+            Log.Info("Using provided AppDir, will skip building new one.");
             CopyFiles(new DirectoryInfo(Options.PackDirectory), dir, progress, true);
         } else {
-            Log.Info("Building new .AppDir");
+            Log.Info("Building automatic AppDir from pack directory");
             var appRunPath = Path.Combine(dir.FullName, "AppRun");
 
             // app icon
-            var icon = Options.Icon ?? HelperFile.GetDefaultAppIcon();
+            var icon = Options.Icon ?? HelperFile.GetDefaultAppIcon(RuntimeOs.Linux);
             var iconFilename = Options.PackId + Path.GetExtension(icon);
             File.Copy(icon, Path.Combine(dir.FullName, iconFilename), true);
 
-            var categories = String.IsNullOrWhiteSpace(Options.Categories) 
-                ? "Utility" 
+            var categories = String.IsNullOrWhiteSpace(Options.Categories)
+                ? "Utility"
                 : Options.Categories.TrimEnd(';');
 
             File.WriteAllText(appRunPath, $$"""
 #!/bin/sh
-
 if [ ! -z "$APPIMAGE" ] && [ ! -z "$APPDIR" ]; then
     MD5=$(echo -n "file://$APPIMAGE" | md5sum | cut -d' ' -f1)
-    cp "$APPDIR/{{iconFilename}}" "$HOME/.cache/thumbnails/normal/$MD5.png"
-    cp "$APPDIR/{{iconFilename}}" "$HOME/.cache/thumbnails/large/$MD5.png"
-    xdg-icon-resource forceupdate
+    cp "$APPDIR/{{iconFilename}}" "$HOME/.cache/thumbnails/normal/$MD5.png" >/dev/null 2>&1
+    cp "$APPDIR/{{iconFilename}}" "$HOME/.cache/thumbnails/large/$MD5.png" >/dev/null 2>&1
+    xdg-icon-resource forceupdate >/dev/null 2>&1
 fi
-
 HERE="$(dirname "$(readlink -f "${0}")")"
 export PATH="${HERE}"/usr/bin/:"${PATH}"
 EXEC=$(grep -e '^Exec=.*' "${HERE}"/*.desktop | head -n 1 | cut -d "=" -f 2 | cut -d " " -f 1 | sed 's/\\s/ /g')
 exec "${EXEC}" "$@"
-""");
+""".Replace("\r", ""));
             Chmod.ChmodFileAsExecutable(appRunPath);
 
             var mainExeName = Options.EntryExecutableName ?? Options.PackId;
@@ -71,7 +67,7 @@ Icon={Options.PackId}
 Exec={mainExeName}
 StartupWMClass={Options.PackId}
 Categories={categories};
-""");
+""".Replace("\r", ""));
 
             // copy existing app files 
             CopyFiles(new DirectoryInfo(packDir), bin, progress, true);
@@ -79,7 +75,7 @@ Categories={categories};
 
         // velopack required files
         File.WriteAllText(Path.Combine(bin.FullName, "sq.version"), GenerateNuspecContent());
-        File.Copy(HelperFile.GetUpdatePath(), Path.Combine(bin.FullName, "UpdateNix"), true);
+        File.Copy(HelperFile.GetUpdatePath(RuntimeOs.Linux), Path.Combine(bin.FullName, "UpdateNix"), true);
         progress(100);
         return Task.FromResult(dir.FullName);
     }

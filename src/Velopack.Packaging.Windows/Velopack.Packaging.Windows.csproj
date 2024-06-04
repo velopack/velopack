@@ -4,10 +4,11 @@
     <TargetFrameworks>net472;net6.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <NoWarn>$(NoWarn);CA2007;CS8002</NoWarn>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Velopack.Packaging.HostModel\Velopack.Packaging.HostModel.csproj" />
+    <ProjectReference Include="..\Velopack.IcoLib\Velopack.IcoLib.csproj" />
     <ProjectReference Include="..\Velopack.Packaging\Velopack.Packaging.csproj" />
   </ItemGroup>
 
@@ -15,5 +16,5 @@
     <PackageReference Include="AsmResolver.DotNet" Version="5.5.1" />
     <PackageReference Include="AsmResolver.PE.Win32Resources" Version="5.5.1" />
   </ItemGroup>
-  
+
 </Project>

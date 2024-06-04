@@ -14,7 +14,7 @@ namespace Velopack.Packaging;
 public abstract class PackageBuilder<T> : ICommand<T>
     where T : class, IPackOptions
 {
-    protected RuntimeOs SupportedTargetOs { get; }
+    protected RuntimeOs TargetOs { get; }
 
     protected ILogger Log { get; }
 
@@ -36,25 +36,28 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
     public PackageBuilder(RuntimeOs supportedOs, ILogger logger, IFancyConsole console)
     {
-        SupportedTargetOs = supportedOs;
+        TargetOs = supportedOs;
         Log = logger;
         Console = console;
     }
 
     public async Task Run(T options)
     {
-        if (options.TargetRuntime?.BaseRID != SupportedTargetOs)
-            throw new UserInfoException($"To build packages for {SupportedTargetOs.GetOsLongName()}, " +
-                $"the target rid must be {SupportedTargetOs} (actually was {options.TargetRuntime?.BaseRID}).");
+        if (options.TargetRuntime?.BaseRID != TargetOs) {
+            throw new UserInfoException($"To build packages for {TargetOs.GetOsLongName()}, " +
+                $"the target rid must be {TargetOs} (actually was {options.TargetRuntime?.BaseRID}). " +
+                $"If your real intention was to cross-compile a release for {options.TargetRuntime?.BaseRID} then you " +
+                $"should provide an OS directive: eg. 'vpk [{options.TargetRuntime?.BaseRID.GetOsShortName()}] pack ...'");
+        }
 
         Log.Info($"Beginning to package Velopack release {options.PackVersion}.");
         Log.Info("Releases Directory: " + options.ReleaseDir.FullName);
 
         var releaseDir = options.ReleaseDir;
-        var channel = options.Channel?.ToLower() ?? ReleaseEntryHelper.GetDefaultChannel(SupportedTargetOs);
+        var channel = options.Channel?.ToLower() ?? ReleaseEntryHelper.GetDefaultChannel(TargetOs);
         Channel = channel;
 
-        var entryHelper = new ReleaseEntryHelper(releaseDir.FullName, channel, Log);
+        var entryHelper = new ReleaseEntryHelper(releaseDir.FullName, channel, Log, TargetOs);
         if (entryHelper.DoesSimilarVersionExist(SemanticVersion.Parse(options.PackVersion))) {
             if (await Console.PromptYesNo("A release in this channel with the same or greater version already exists. Do you want to continue and potentially overwrite files?") != true) {
                 throw new UserInfoException($"There is a release in channel {channel} which is equal or greater to the current version {options.PackVersion}. Please increase the current package version or remove that release.");
@@ -110,35 +113,35 @@ public abstract class PackageBuilder<T> : ICommand<T>
                 packDirectory = await PreprocessPackDir(progress, packDirectory);
             });
 
-            if (VelopackRuntimeInfo.IsWindows || VelopackRuntimeInfo.IsOSX) {
+            if (TargetOs != RuntimeOs.Linux) {
                 await ctx.RunTask("Code-sign application", async (progress) => {
                     await CodeSign(progress, packDirectory);
                 });
             }
 
             Task portableTask = null;
-            if (VelopackRuntimeInfo.IsLinux || !Options.NoPortable) {
+            if (TargetOs == RuntimeOs.Linux || !Options.NoPortable) {
                 portableTask = ctx.RunTask("Building portable package", async (progress) => {
-                    var suggestedName = ReleaseEntryHelper.GetSuggestedPortableName(packId, channel);
+                    var suggestedName = ReleaseEntryHelper.GetSuggestedPortableName(packId, channel, TargetOs);
                     var path = getIncompletePath(suggestedName);
                     await CreatePortablePackage(progress, packDirectory, path);
                 });
             }
 
             // TODO: hack, this is a prerequisite for building full package but only on linux
-            if (VelopackRuntimeInfo.IsLinux) await portableTask;
+            if (TargetOs == RuntimeOs.Linux) await portableTask;
 
             string releasePath = null;
             await ctx.RunTask($"Building release {packVersion}", async (progress) => {
-                var suggestedName = ReleaseEntryHelper.GetSuggestedReleaseName(packId, packVersion, channel, false);
+                var suggestedName = ReleaseEntryHelper.GetSuggestedReleaseName(packId, packVersion, channel, false, TargetOs);
                 releasePath = getIncompletePath(suggestedName);
                 await CreateReleasePackage(progress, packDirectory, releasePath);
             });
 
             Task setupTask = null;
-            if (!Options.NoInst && (VelopackRuntimeInfo.IsWindows || VelopackRuntimeInfo.IsOSX)) {
+            if (!Options.NoInst && TargetOs != RuntimeOs.Linux) {
                 setupTask = ctx.RunTask("Building setup package", async (progress) => {
-                    var suggestedName = ReleaseEntryHelper.GetSuggestedSetupName(packId, channel);
+                    var suggestedName = ReleaseEntryHelper.GetSuggestedSetupName(packId, channel, TargetOs);
                     var path = getIncompletePath(suggestedName);
                     await CreateSetupPackage(progress, releasePath, packDirectory, path);
                 });
@@ -146,12 +149,12 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
             if (prev != null && options.DeltaMode != DeltaMode.None) {
                 await ctx.RunTask($"Building delta {prev.Version} -> {packVersion}", async (progress) => {
-                    var suggestedName = ReleaseEntryHelper.GetSuggestedReleaseName(packId, packVersion, channel, true);
+                    var suggestedName = ReleaseEntryHelper.GetSuggestedReleaseName(packId, packVersion, channel, true, TargetOs);
                     var deltaPkg = await CreateDeltaPackage(progress, releasePath, prev.PackageFile, getIncompletePath(suggestedName), options.DeltaMode);
                 });
             }
 
-            if (!VelopackRuntimeInfo.IsLinux && portableTask != null) await portableTask;
+            if (TargetOs != RuntimeOs.Linux && portableTask != null) await portableTask;
             if (setupTask != null) await setupTask;
 
             await ctx.RunTask("Post-process steps", (progress) => {

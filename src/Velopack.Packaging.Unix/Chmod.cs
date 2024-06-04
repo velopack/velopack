@@ -4,8 +4,6 @@ using System.Runtime.Versioning;
 
 namespace Velopack.Packaging.Unix;
 
-[SupportedOSPlatform("linux")]
-[SupportedOSPlatform("macos")]
 public class Chmod
 {
     private const string OSX_CSTD_LIB = "libSystem.dylib";

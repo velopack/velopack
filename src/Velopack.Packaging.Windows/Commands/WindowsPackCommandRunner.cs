@@ -1,5 +1,4 @@
-﻿using System.Runtime.Versioning;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Velopack.Compression;
 using Velopack.NuGet;
 using Velopack.Packaging.Abstractions;
@@ -8,7 +7,6 @@ using Velopack.Windows;
 
 namespace Velopack.Packaging.Windows.Commands;
 
-[SupportedOSPlatform("windows")]
 public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 {
     public WindowsPackCommandRunner(ILogger logger, IFancyConsole console)
@@ -48,7 +46,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         packDir = dir.FullName;
 
         var updatePath = Path.Combine(TempDir.FullName, "Update.exe");
-        File.Copy(HelperFile.GetUpdatePath(), updatePath, true);
+        File.Copy(HelperFile.GetUpdatePath(RuntimeOs.Windows), updatePath, true);
 
         // check for and delete clickonce manifest
         var clickonceManifests = Directory.EnumerateFiles(packDir, "*.application")
@@ -65,10 +63,10 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
 
         // update icon for Update.exe if requested
-        if (Options.Icon != null && VelopackRuntimeInfo.IsWindows) {
-            Rcedit.SetExeIcon(updatePath, Options.Icon);
-        } else if (Options.Icon != null) {
-            Log.Warn("Unable to set icon for Update.exe (only supported on windows).");
+        if (Options.Icon != null) {
+            var editor = new ResourceEdit(updatePath, Log);
+            editor.SetExeIcon(Options.Icon);
+            editor.Commit();
         }
 
         File.Copy(updatePath, Path.Combine(packDir, "Squirrel.exe"), true);
@@ -176,11 +174,14 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         var bundledZip = new ZipPackage(releasePkg);
         Utility.Retry(() => File.Copy(HelperFile.SetupPath, targetSetupExe, true));
         progress(10);
-        if (VelopackRuntimeInfo.IsWindows) {
-            Rcedit.SetPEVersionBlockFromPackageInfo(targetSetupExe, bundledZip, Options.Icon);
-        } else {
-            Log.Warn("Unable to set PE Version on Setup.exe (only supported on windows)");
+
+        var editor = new ResourceEdit(targetSetupExe, Log);
+        editor.SetVersionInfo(bundledZip);
+        if (Options.Icon != null) {
+            editor.SetExeIcon(Options.Icon);
         }
+        editor.Commit();
+
         progress(25);
         Log.Debug($"Creating Setup bundle");
         SetupBundle.CreatePackageBundle(targetSetupExe, releasePkg);
@@ -231,15 +232,9 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
         try {
             Utility.Retry(() => File.Copy(HelperFile.StubExecutablePath, targetStubPath, true));
-            Utility.Retry(() => {
-                if (VelopackRuntimeInfo.IsWindows) {
-                    using var writer = new Microsoft.NET.HostModel.ResourceUpdater(targetStubPath, true);
-                    writer.AddResourcesFromPEImage(exeToCopy);
-                    writer.Update();
-                } else {
-                    Log.Warn($"Cannot set resources/icon for {targetStubPath} (only supported on windows).");
-                }
-            });
+            var edit = new ResourceEdit(targetStubPath, Log);
+            edit.CopyResourcesFrom(exeToCopy);
+            edit.Commit();
         } catch (Exception ex) {
             Log.Error(ex, $"Error creating StubExecutable and copying resources for '{exeToCopy}'. This stub may or may not work properly.");
         }
