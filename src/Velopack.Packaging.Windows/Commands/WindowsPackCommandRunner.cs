@@ -72,8 +72,9 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         File.Copy(updatePath, Path.Combine(packDir, "Squirrel.exe"), true);
 
         // create a stub for portable packages
-        var mainPath = Path.Combine(packDir, MainExeName);
-        var stubPath = Path.Combine(packDir, Path.GetFileNameWithoutExtension(MainExeName) + "_ExecutionStub.exe");
+        var mainExeName = Options.EntryExecutableName;
+        var mainPath = Path.Combine(packDir, mainExeName);
+        var stubPath = Path.Combine(packDir, Path.GetFileNameWithoutExtension(mainExeName) + "_ExecutionStub.exe");
         CreateExecutableStubForExe(mainPath, stubPath);
 
         return Task.FromResult(packDir);
@@ -205,7 +206,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         File.Delete(Path.Combine(current.FullName, "Squirrel.exe"));
 
         // move the stub to the root of the portable package
-        var stubPath = Path.Combine(current.FullName, Path.GetFileNameWithoutExtension(MainExeName) + "_ExecutionStub.exe");
+        var stubPath = Path.Combine(current.FullName,
+            Path.GetFileNameWithoutExtension(Options.EntryExecutableName) + "_ExecutionStub.exe");
         var stubName = (Options.PackTitle ?? Options.PackId) + ".exe";
         File.Move(stubPath, Path.Combine(dir.FullName, stubName));
 

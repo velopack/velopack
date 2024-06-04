@@ -2,10 +2,10 @@
 
 public interface INugetPackCommand
 {
-    string PackId { get; }
-    string PackVersion { get; }
-    string PackDirectory { get; }
-    string PackAuthors { get; }
-    string PackTitle { get; }
-    string ReleaseNotes { get; }
+    string PackId { get; set; }
+    string PackVersion { get; set; }
+    string PackDirectory { get; set; }
+    string PackAuthors { get; set; }
+    string PackTitle { get; set; }
+    string ReleaseNotes { get; set; }
 }

@@ -24,11 +24,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
     protected T Options { get; private set; }
 
-    protected string MainExeName { get; private set; }
-
     protected string MainExePath { get; private set; }
-
-    protected string Channel { get; private set; }
 
     protected Dictionary<string, string> ExtraNuspecMetadata { get; } = new();
 
@@ -43,7 +39,11 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
     public async Task Run(T options)
     {
-        if (options.TargetRuntime?.BaseRID != TargetOs) {
+        if (options.TargetRuntime == null) {
+            options.TargetRuntime = RID.Parse(TargetOs.GetOsShortName());
+        }
+
+        if (options.TargetRuntime.BaseRID != TargetOs) {
             throw new UserInfoException($"To build packages for {TargetOs.GetOsLongName()}, " +
                 $"the target rid must be {TargetOs} (actually was {options.TargetRuntime?.BaseRID}). " +
                 $"If your real intention was to cross-compile a release for {options.TargetRuntime?.BaseRID} then you " +
@@ -55,7 +55,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
         var releaseDir = options.ReleaseDir;
         var channel = options.Channel?.ToLower() ?? ReleaseEntryHelper.GetDefaultChannel(TargetOs);
-        Channel = channel;
+        options.Channel = channel;
 
         var entryHelper = new ReleaseEntryHelper(releaseDir.FullName, channel, Log, TargetOs);
         if (entryHelper.DoesSimilarVersionExist(SemanticVersion.Parse(options.PackVersion))) {
@@ -89,7 +89,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
         }
 
         MainExePath = mainExePath;
-        MainExeName = Path.GetFileName(mainExePath);
+        options.EntryExecutableName = Path.GetFileName(mainExePath);
 
         using var _1 = Utility.GetTempDirectory(out var pkgTempDir);
         TempDir = new DirectoryInfo(pkgTempDir);
@@ -221,8 +221,8 @@ public abstract class PackageBuilder<T> : ICommand<T>
 <description>{packTitle ?? packId}</description>
 <authors>{packAuthors ?? packId}</authors>
 <version>{packVersion}</version>
-<channel>{Channel}</channel>
-<mainExe>{MainExeName}</mainExe>
+<channel>{Options.Channel}</channel>
+<mainExe>{Options.EntryExecutableName}</mainExe>
 <os>{rid.BaseRID.GetOsShortName()}</os>
 <rid>{rid.ToDisplay(RidDisplayType.NoVersion)}</rid>
 {extraMetadata.Trim()}
