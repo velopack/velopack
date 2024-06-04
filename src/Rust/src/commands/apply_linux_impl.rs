@@ -25,7 +25,7 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, _app: &Manifest, pkg: &PathBu
         // we use mv instead of fs::rename / fs::copy because rename fails cross-device
         // and copy fails if the process is running (presumably because rust opens the file for writing)
         // while mv works in both cases.
-        let mv_args = vec![&temp_path, &root_path.to_string_lossy().to_string()];
+        let mv_args = vec!["-f", &temp_path, &root_path.to_string_lossy().to_string()];
         let mv_output = Command::new("mv").args(mv_args).output()?;
 
         if mv_output.status.success() {
