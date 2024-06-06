@@ -2468,6 +2468,7 @@
         "dependencies": {
           "System.Configuration.ConfigurationManager": "6.0.0"
         }
+      },
       "System.Runtime.CompilerServices.Unsafe": {
         "type": "Transitive",
         "resolved": "5.0.0",

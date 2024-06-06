@@ -64,7 +64,7 @@ public class GiteaRepository : SourceRepository<GiteaDownloadOptions, GiteaSourc
     public async Task UploadMissingAssetsAsync(GiteaUploadOptions options)
     {
         var (repoOwner, repoName) = GetOwnerAndRepo(options.RepoUrl);
-        var helper = new ReleaseEntryHelper(options.ReleaseDir.FullName, options.Channel, Log);
+        var helper = new ReleaseEntryHelper(options.ReleaseDir.FullName, options.Channel, Log, options.TargetOs);
         var build = BuildAssets.Read(options.ReleaseDir.FullName, options.Channel);
         var latest = helper.GetLatestFullRelease();
         var latestPath = Path.Combine(options.ReleaseDir.FullName, latest.FileName);
