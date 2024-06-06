@@ -35,7 +35,6 @@ impl RuntimeArch {
 
     #[cfg(not(target_os = "windows"))]
     pub fn from_current_system() -> Option<Self> {
-        use os_info;
         let info = os_info::get();
         let machine = info.architecture();
         if machine.is_none() {

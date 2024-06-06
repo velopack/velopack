@@ -1,12 +1,10 @@
 ﻿using System.Diagnostics;
-using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Velopack.Packaging.Exceptions;
 
 namespace Velopack.Packaging.Windows;
 
-[SupportedOSPlatform("windows")]
 public class CodeSign
 {
     public ILogger Log { get; }
@@ -88,7 +86,11 @@ public class CodeSign
             if (signAsTemplate) {
                 command = signArguments.Replace("{{file}}", filesToSignStr);
             } else {
-                command = $"\"{HelperFile.SignToolPath}\" sign {signArguments} {filesToSignStr}";
+                if (VelopackRuntimeInfo.IsWindows) {
+                    command = $"\"{HelperFile.SignToolPath}\" sign {signArguments} {filesToSignStr}";
+                } else {
+                    throw new PlatformNotSupportedException("signtool.exe does not work on non-Windows platforms.");
+                }
             }
 
             RunSigningCommand(command, rootDir, signLogFile);
@@ -107,22 +109,29 @@ public class CodeSign
         // about how the dotnet tool host works prevents signtool from being able to open a token password
         // prompt, meaning signing fails for those with an HSM.
 
-        string args = $"/S /C \"{command} >> \"{signLogFile}\" 2>&1\"";
+        var fileName = "cmd.exe";
+        var args = $"/S /C \"{command} >> \"{signLogFile}\" 2>&1\"";
+
+        if (!VelopackRuntimeInfo.IsWindows) {
+            fileName = "/bin/bash";
+            string escapedCommand = command.Replace("'", "'\\''");
+            args = $"-c '{escapedCommand} >> \"{signLogFile}\" 2>&1'";
+        }
 
         var psi = new ProcessStartInfo {
-            FileName = "cmd.exe",
+            FileName = fileName,
             Arguments = args,
             UseShellExecute = false,
             WorkingDirectory = workDir,
             CreateNoWindow = true,
         };
 
-        var process = Process.Start(psi);
+        using var process = Process.Start(psi);
         process.WaitForExit();
 
         if (process.ExitCode != 0) {
-            var cmdWithPasswordHidden = "cmd.exe " + new Regex(@"\/p\s+?[^\s]+").Replace(command, "/p ********");
-            Log.Debug($"Signing command failed: {cmdWithPasswordHidden}");
+            var cmdWithPasswordHidden = fileName + " " + new Regex(@"\/p\s+?[^\s]+").Replace(args, "/p ********");
+            Log.Debug($"Signing command failed - {Environment.NewLine}    {cmdWithPasswordHidden}");
             var output = File.Exists(signLogFile) ? File.ReadAllText(signLogFile).Trim() : "No output file was created.";
             throw new UserInfoException(
                 $"Signing command failed. Specify --verbose argument to print signing command." + Environment.NewLine +

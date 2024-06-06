@@ -5,6 +5,8 @@ namespace Velopack.Vpk.Commands;
 
 public class BaseCommand : CliCommand
 {
+    public RuntimeOs TargetOs { get; private set; }
+
     private readonly Dictionary<CliOption, Action<ParseResult, IConfiguration>> _setters = new();
 
     private readonly Dictionary<CliOption, string> _envHelp = new();
@@ -60,17 +62,18 @@ public class BaseCommand : CliCommand
 
     public string GetEnvVariableName(CliOption option) => _envHelp.ContainsKey(option) ? _envHelp[option] : null;
 
-    public virtual void SetProperties(ParseResult context, IConfiguration config)
+    public virtual void SetProperties(ParseResult context, IConfiguration config, RuntimeOs targetOs)
     {
+        TargetOs = targetOs;
         foreach (var kvp in _setters) {
             kvp.Value(context, config);
         }
     }
 
-    public virtual ParseResult ParseAndApply(string command, IConfiguration config = null)
+    public virtual ParseResult ParseAndApply(string command, IConfiguration config = null, RuntimeOs? targetOs = null)
     {
         var x = Parse(command);
-        SetProperties(x, config ?? new ConfigurationManager());
+        SetProperties(x, config ?? new ConfigurationManager(), targetOs ?? VelopackRuntimeInfo.SystemOs);
         return x;
     }
 }

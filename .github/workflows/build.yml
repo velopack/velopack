@@ -134,6 +134,9 @@ jobs:
           lipo -create -output macos-universal/UpdateMac macos-x64/UpdateMac macos-arm64/UpdateMac
           file macos-universal/UpdateMac
           lipo -archs macos-universal/UpdateMac
+      - uses: geekyeggo/delete-artifact@v5
+        with:
+          name: rust-macos-*
       - name: Upload Universal Binary
         uses: actions/upload-artifact@v4
         with:
@@ -172,51 +175,74 @@ jobs:
           sudo add-apt-repository universe
           sudo apt install libfuse2
         if: ${{ matrix.os == 'ubuntu-latest' }}
+      - name: Install squashfs-tools
+        run: brew install squashfs
+        if: ${{ matrix.os == 'macos-latest' }}
       - name: Install dotnet-coverage
         run: dotnet tool install -g dotnet-coverage
       - name: Build .NET
         run: dotnet build -c Release
-      - name: Wait for artifacts
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # for gh cli
-        run: |
-          # Wait 15 minutes for the artifact to become available
-          $artifactName = "rust-${{ matrix.os }}"
-          $maxAttempts = 90
-          $sleepSeconds = 10
-          $attempt = 0
-          $workflowRunId = $env:GITHUB_RUN_ID
-
-          Write-Host "Waiting for artifact '$artifactName' to become available in workflow run $workflowRunId..."
-          while ($attempt -lt $maxAttempts) {
-            $artifactsJson = gh api repos/$env:GITHUB_REPOSITORY/actions/runs/$workflowRunId/artifacts
-            $artifacts = $artifactsJson | ConvertFrom-Json
-            if ($artifacts.artifacts | Where-Object { $_.name -eq $artifactName }) {
-              Write-Host "Artifact '$artifactName' is available, continuing..."
-              break
-            }
-            Write-Host "Artifact not available yet. Attempt $($attempt + 1)/$maxAttempts"
-            Start-Sleep -Seconds $sleepSeconds
-            $attempt++
-          }
-  
-          if ($attempt -ge $maxAttempts) {
-            Write-Host "Error: Artifact '$artifactName' did not become available in time."
-            exit 1
-          }
+      - uses: caesay/wait-artifact-action@494939e840383463b1686ce3624a8aab059c2c8b
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max_wait_seconds: 900
+          artifacts: rust-macos-latest,rust-windows-latest,rust-ubuntu-latest
+          verbose: true
       - name: Download Rust Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: rust-${{ matrix.os }}
           path: src/Rust/target/release
+          pattern: rust-*
+          merge-multiple: true
       - name: Test .NET
         run: dotnet test --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+      - name: Upload Cross-Compile Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-${{ matrix.os }}
+          path: test/artifacts/*
       - name: Upload Coverage Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: coverage-dotnet-${{ matrix.os }}
           path: ./test/*.xml
+
+  test-cross:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    needs: [test-dotnet]
+    runs-on: ${{ matrix.os }}
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+      - name: Install FUSE
+        run: |
+          sudo add-apt-repository universe
+          sudo apt install libfuse2
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+      - name: Download Cross Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: test/artifacts
+          pattern: cross-*
+          merge-multiple: true
+      - name: Test Cross-Compiled Apps
+        env:
+          VELOPACK_CROSS_ARTIFACTS: true
+        run: dotnet test -c Release test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj --filter "FullyQualifiedName~RunCrossApp" -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+      - uses: geekyeggo/delete-artifact@v5
+        with:
+          name: cross-*
 
   package:
     runs-on: ubuntu-latest
@@ -227,21 +253,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Download Rust OSX
+      - name: Download Rust Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: rust-macos-latest
           path: src/Rust/target/release
-      - name: Download Rust Windows
-        uses: actions/download-artifact@v4
-        with:
-          name: rust-windows-latest
-          path: src/Rust/target/release
-      - name: Download Rust Linux
-        uses: actions/download-artifact@v4
-        with:
-          name: rust-ubuntu-latest
-          path: src/Rust/target/release
+          pattern: rust-*
+          merge-multiple: true
       - name: Build .NET
         run: dotnet build -c Release /p:PackRustAssets=true /p:ContinuousIntegrationBuild=true
       - name: Upload Package Artifacts
@@ -267,6 +284,9 @@ jobs:
         with:
           directory: ./test
           fail_ci_if_error: true
+      - uses: geekyeggo/delete-artifact@v5
+        with:
+          name: coverage-*
     
 
       # - name: Publish to GitHub Packages

@@ -1,5 +1,5 @@
 use crate::shared::{self, runtime_arch::RuntimeArch};
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use normpath::PathExt;
 use std::{
     ffi::OsStr,
@@ -55,14 +55,9 @@ pub fn create_global_mutex(app: &shared::bundle::Manifest) -> Result<MutexDropGu
     let pw = PCWSTR(encoded.as_ptr());
     let mutex = unsafe { CreateMutexW(None, true, pw) }?;
     match unsafe { GetLastError() } {
-        Ok(_) => Ok(MutexDropGuard { mutex }),
-        Err(err) => {
-            if err == Foundation::ERROR_ALREADY_EXISTS.into() {
-                bail!("Another installer or updater for this application is running, quit that process and try again.");
-            } else {
-                bail!("Unable to create global mutex: {}", err);
-            }
-        }
+        Foundation::ERROR_SUCCESS => Ok(MutexDropGuard { mutex }),
+        Foundation::ERROR_ALREADY_EXISTS => Err(anyhow!("Another installer or updater for this application is running, quit that process and try again.")),
+        err => Err(anyhow!("Unable to create global mutex. Error code {:?}", err)),
     }
 }
 

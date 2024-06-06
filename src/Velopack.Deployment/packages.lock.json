@@ -4,11 +4,11 @@
     "net6.0": {
       "AWSSDK.S3": {
         "type": "Direct",
-        "requested": "[3.7.308, )",
-        "resolved": "3.7.308",
-        "contentHash": "U4LWi1yTKVK6IFHWQc4anKPJKXj9dPN+dT1oXto4ndXXlr+DVzm9dULkquyXBjAHlr6jf339ojuYlE6t9Mk6pQ==",
+        "requested": "[3.7.308.8, )",
+        "resolved": "3.7.308.8",
+        "contentHash": "lUQgJsj9n/sJo1CRQFsiB2Gqh3rC21I4e5CWR1b+oYBnc9m8LIsGewctX6YQRzGzuv7Im7iIZo7XoirmYhhqEA==",
         "dependencies": {
-          "AWSSDK.Core": "[3.7.304.1, 4.0.0)"
+          "AWSSDK.Core": "[3.7.304.10, 4.0.0)"
         }
       },
       "Azure.Storage.Blobs": {
@@ -58,8 +58,8 @@
       },
       "AWSSDK.Core": {
         "type": "Transitive",
-        "resolved": "3.7.304.1",
-        "contentHash": "O/gyE5ptF5zEc3QDk3JI3+AOgBfRfmg6eLH5z3x7hUPmV1Wxu0V4Fm86FSyT6czRviMmQGY0q0SVMbWRbP4vDA=="
+        "resolved": "3.7.304.10",
+        "contentHash": "0CXnPzoM+KYXODm2bvRW8eYs7ic2VLop45sphL8FBfvxHfBK/3OJgpxEE2InSdWS1Iby+6KXpz3NplJJY5+Y1A=="
       },
       "Azure.Core": {
         "type": "Transitive",
@@ -131,8 +131,8 @@
       },
       "Microsoft.Identity.Client": {
         "type": "Transitive",
-        "resolved": "4.61.0",
-        "contentHash": "3TDPEie+9t/NgBhoNifLFwM6nkypYUa8GUHfMnkYtovDDTQM8bsS2KEIP5tAh28BgfJZgof/KlCEKvGxz0H3Eg==",
+        "resolved": "4.61.2",
+        "contentHash": "zXPDXjTju1yOZQzi5PeNmQfBzlxv+VlCfgfZ70VqyFuhaPtFXwvbLSlwCOMoVALR/MzOR6xkiadoyVDmWDmqKw==",
         "dependencies": {
           "Microsoft.IdentityModel.Abstractions": "6.35.0",
           "System.Diagnostics.DiagnosticSource": "6.0.1"
@@ -140,26 +140,26 @@
       },
       "Microsoft.Identity.Client.Broker": {
         "type": "Transitive",
-        "resolved": "4.61.0",
-        "contentHash": "D5M7plyrXrQwhj/PILHLS7G3TqDg8rUO9lR+5awUSXueGxsdA2qHpeKiSR0sVfX6wxziWszOLDUR2vjFFKHPSg==",
+        "resolved": "4.61.2",
+        "contentHash": "+13pImNYfPGl04qZh3Rtq8wPfo55FScAUEio4ymPzeWJ/PE04jCsKH6ZIlrYbPCqe6t9u0lru1eZ+ho9Dsnvpw==",
         "dependencies": {
-          "Microsoft.Identity.Client": "4.61.0",
-          "Microsoft.Identity.Client.NativeInterop": "0.16.0"
+          "Microsoft.Identity.Client": "4.61.2",
+          "Microsoft.Identity.Client.NativeInterop": "0.16.1"
         }
       },
       "Microsoft.Identity.Client.Extensions.Msal": {
         "type": "Transitive",
-        "resolved": "4.61.0",
-        "contentHash": "tCX3c1bSkwH89AKjtB/oAOLlv661tOsEA8ULOCavOc6te/CKlqmMmFs8zMI58Qlv3XkbLOrswYr50IhDntiiPA==",
+        "resolved": "4.61.2",
+        "contentHash": "GCSBhzkr7/7DZDk2kYS9dfihB5ieM2CqwGAhtjuE6T1GtAqzuh62UJhMgO0dSx/PLgIYMzNHnh+pfHK8aWJQJQ==",
         "dependencies": {
-          "Microsoft.Identity.Client": "4.61.0",
+          "Microsoft.Identity.Client": "4.61.2",
           "System.Security.Cryptography.ProtectedData": "4.5.0"
         }
       },
       "Microsoft.Identity.Client.NativeInterop": {
         "type": "Transitive",
-        "resolved": "0.16.0",
-        "contentHash": "riaIH9tT4kRG4xKFxx+wpuo+VAZVOr1ElbNubcvpFXb82gjEmZtJRzpdiS4tdRYTVh6CUKNz9AINAptActTtBQ=="
+        "resolved": "0.16.1",
+        "contentHash": "OvY/+/AHESi24f5zOCf9kL4HXwPxXVQ3A+tMQsJvFk2DmP+sc88FYWL49zlku5q0bvx5yFvBLNpHQeRT9a6A5g=="
       },
       "Microsoft.IdentityModel.Abstractions": {
         "type": "Transitive",
@@ -193,8 +193,8 @@
       },
       "NuGet.Versioning": {
         "type": "Transitive",
-        "resolved": "6.9.1",
-        "contentHash": "ypnSvEtpNGo48bAWn95J1oHChycCXcevFSbn53fqzLxlXFSZP7dawu8p/7mHAfGufZQSV2sBpW80XQGIfXO8kQ=="
+        "resolved": "6.10.0",
+        "contentHash": "ytTA08tgZWo/Pbk333hnzQfiMyyynkkwMt4GyC5T0bzExYYSRNrkwv4jT8jmWr5LUOYsumEZvXdoven2SA7YZw=="
       },
       "Polly": {
         "type": "Transitive",
@@ -867,16 +867,16 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "[6.0.0, )",
-          "NuGet.Versioning": "[6.9.1, )"
+          "NuGet.Versioning": "[6.10.0, )"
         }
       },
       "velopack.packaging": {
         "type": "Project",
         "dependencies": {
           "Markdig": "[0.37.0, )",
-          "Microsoft.Identity.Client": "[4.61.0, )",
-          "Microsoft.Identity.Client.Broker": "[4.61.0, )",
-          "Microsoft.Identity.Client.Extensions.Msal": "[4.61.0, )",
+          "Microsoft.Identity.Client": "[4.61.2, )",
+          "Microsoft.Identity.Client.Broker": "[4.61.2, )",
+          "Microsoft.Identity.Client.Extensions.Msal": "[4.61.2, )",
           "System.Linq.Async": "[6.0.1, )",
           "System.Net.Http": "[4.3.4, )",
           "Velopack": "[1.0.0, )"

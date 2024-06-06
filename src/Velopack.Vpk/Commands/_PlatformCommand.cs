@@ -11,11 +11,6 @@ public abstract class PlatformCommand : OutputCommand
         TargetRuntimeOption = AddOption<string>((v) => TargetRuntime = v, "-r", "--runtime")
             .SetDescription("The target runtime to build packages for.")
             .SetArgumentHelpName("RID")
-            .SetDefault(VelopackRuntimeInfo.SystemOs.GetOsShortName())
             .MustBeSupportedRid();
     }
-
-    public RID GetRid() => RID.Parse(TargetRuntime ?? VelopackRuntimeInfo.SystemOs.GetOsShortName());
-
-    public RuntimeOs GetRuntimeOs() => GetRid().BaseRID;
 }

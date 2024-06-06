@@ -10,7 +10,7 @@
     <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <BeforeTargetFrameworkInferenceTargets>$(MSBuildThisFileDirectory)SelfContained.targets</BeforeTargetFrameworkInferenceTargets>
-    <NoWarn>$(NoWarn);NETSDK1188</NoWarn>
+    <NoWarn>$(NoWarn);NETSDK1188;NU5100</NoWarn>
 
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <PathMap>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)'))=./</PathMap>

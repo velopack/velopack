@@ -25,7 +25,7 @@ public class OsxBundleCommandRunner : ICommand<OsxBundleOptions>
 
     public string Bundle(OsxBundleOptions options)
     {
-        var icon = options.Icon ?? HelperFile.GetDefaultAppIcon();
+        var icon = options.Icon ?? HelperFile.GetDefaultAppIcon(RuntimeOs.OSX);
         var packId = options.PackId;
         var packDirectory = options.PackDirectory;
         var packVersion = options.PackVersion;
@@ -41,7 +41,7 @@ public class OsxBundleCommandRunner : ICommand<OsxBundleOptions>
             throw new UserInfoException($"--exeName '{mainExePath}' does not exist.");
         }
 
-        if (!MachO.IsMachOImage(mainExePath)) {
+        if (!BinDetect.IsMachOImage(mainExePath)) {
             throw new UserInfoException($"--exeName '{mainExePath}' is not a mach-o executable.");
         }
 

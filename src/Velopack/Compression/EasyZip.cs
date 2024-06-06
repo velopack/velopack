@@ -99,7 +99,7 @@ namespace Velopack.Compression
         }
 
         private static char s_pathSeperator = '/';
-        private static readonly DateTime ZipFormatMinDate = new DateTime(1980, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        public static readonly DateTime ZipFormatMinDate = new DateTime(1980, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         private static async Task DeterministicCreateFromDirectoryAsync(string sourceDirectoryName, string destinationArchiveFileName, CompressionLevel compressionLevel,
             Action<int> progress, CancellationToken cancelToken)

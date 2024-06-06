@@ -32,10 +32,10 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
         var structure = new OsxStructureBuilder(dir.FullName);
         var macosdir = structure.MacosDirectory;
         File.WriteAllText(Path.Combine(macosdir, "sq.version"), GenerateNuspecContent());
-        File.Copy(HelperFile.GetUpdatePath(), Path.Combine(macosdir, "UpdateMac"), true);
+        File.Copy(HelperFile.GetUpdatePath(RuntimeOs.OSX), Path.Combine(macosdir, "UpdateMac"), true);
 
         foreach (var f in Directory.GetFiles(macosdir, "*", SearchOption.AllDirectories)) {
-            if (MachO.IsMachOImage(f)) {
+            if (BinDetect.IsMachOImage(f)) {
                 Log.Debug(f + " is a mach-o binary, chmod as executable.");
                 Chmod.ChmodFileAsExecutable(f);
             }

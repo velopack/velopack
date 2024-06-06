@@ -4,12 +4,11 @@ namespace Velopack.Packaging;
 
 public static class HelperFile
 {
-    public static string GetUpdateExeName(RuntimeOs? os = null)
+    public static string GetUpdateExeName(RuntimeOs os)
     {
-        var _os = os ?? VelopackRuntimeInfo.SystemOs;
-        switch (_os) {
+        switch (os) {
         case RuntimeOs.Windows:
-            return FindHelperFile("Update.exe");
+            return FindHelperFile("update.exe");
 #if DEBUG
         case RuntimeOs.Linux:
             return FindHelperFile("update");
@@ -26,38 +25,43 @@ public static class HelperFile
         }
     }
 
-    public static string GetUpdatePath(RuntimeOs? os = null) => FindHelperFile(GetUpdateExeName(os));
+    public static string GetUpdatePath(RuntimeOs os) => FindHelperFile(GetUpdateExeName(os));
 
     public static string GetZstdPath()
     {
         if (VelopackRuntimeInfo.IsWindows)
             return FindHelperFile("zstd.exe");
-        Exe.AssertSystemBinaryExists("zstd");
+        Exe.AssertSystemBinaryExists("zstd", "sudo apt install zstd", "brew install zstd");
         return "zstd";
+    }
+
+    public static string GetMkSquashFsPath()
+    {
+        if (VelopackRuntimeInfo.IsWindows)
+            return FindHelperFile("squashfs-tools\\gensquashfs.exe");
+        Exe.AssertSystemBinaryExists("mksquashfs", "sudo apt install squashfs-tools", "brew install squashfs");
+        return "mksquashfs";
     }
 
     [SupportedOSPlatform("macos")]
     public static string VelopackEntitlements => FindHelperFile("Velopack.entitlements");
 
-    [SupportedOSPlatform("linux")]
-    public static string AppImageToolX64 => FindHelperFile("appimagetool-x86_64.AppImage");
+    public static string AppImageRuntimeArm64 => FindHelperFile("appimagekit-runtime-aarch64");
 
-    [SupportedOSPlatform("windows")]
-    public static string SetupPath => FindHelperFile("Setup.exe");
+    public static string AppImageRuntimeX64 => FindHelperFile("appimagekit-runtime-x86_64");
 
-    [SupportedOSPlatform("windows")]
+    public static string AppImageRuntimeX86 => FindHelperFile("appimagekit-runtime-i686");
+
+    public static string SetupPath => FindHelperFile("setup.exe");
+
     public static string StubExecutablePath => FindHelperFile("stub.exe");
 
     [SupportedOSPlatform("windows")]
     public static string SignToolPath => FindHelperFile("signtool.exe");
 
-    [SupportedOSPlatform("windows")]
-    public static string RceditPath => FindHelperFile("rcedit.exe");
-
-    public static string GetDefaultAppIcon(RuntimeOs? os = null)
+    public static string GetDefaultAppIcon(RuntimeOs os)
     {
-        var _os = os ?? VelopackRuntimeInfo.SystemOs;
-        switch (_os) {
+        switch (os) {
         case RuntimeOs.Windows:
             return null;
         case RuntimeOs.Linux:

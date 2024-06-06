@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use winsafe::{self as w, co};
 
-use windows::core::{ComInterface, IntoParam, Param, Result as WindowsResult, GUID, HSTRING, PCWSTR};
+use windows::core::{Interface, Result as WindowsResult, GUID, HSTRING, PCWSTR};
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
 use windows::Win32::System::Com::StructuredStorage::InitPropVariantFromStringVector;
@@ -18,13 +18,16 @@ use windows::Win32::UI::Shell::{IShellLinkW, ShellLink};
 
 #[inline]
 fn init_com() -> WindowsResult<()> {
-    unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) }?;
+    let hr = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) };
+    if hr.is_err() {
+        return Err(hr.into());
+    }
     std::thread::sleep(Duration::from_millis(1));
     Ok(())
 }
 
 #[inline]
-fn create_instance<T: ComInterface>(clsid: &GUID) -> WindowsResult<T> {
+fn create_instance<T: Interface>(clsid: &GUID) -> WindowsResult<T> {
     unsafe { CoCreateInstance(clsid, None, CLSCTX_ALL) }
 }
 
@@ -88,8 +91,9 @@ fn _create_lnk(output: &str, target: &str, work_dir: &str, app_model_id: Option<
         // Docs: https://docs.microsoft.com/windows/win32/properties/props-system-appusermodel-id
         if let Some(app_model_id) = app_model_id {
             let store: IPropertyStore = link.cast()?;
-            let id: Param<PCWSTR> = HSTRING::from(app_model_id).into_param();
-            let id: PCWSTR = id.abi();
+            let hstring = HSTRING::from(app_model_id);
+            let widearr = hstring.as_wide();
+            let id: PCWSTR = PCWSTR(widearr.as_ptr());
             let variant = InitPropVariantFromStringVector(Some(&[id]))?;
             store.SetValue(&PKEY_AppUserModel_ID, &variant)?;
             store.Commit()?;

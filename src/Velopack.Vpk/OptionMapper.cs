@@ -39,10 +39,15 @@ public static partial class OptionMapper
 
     private static DirectoryInfo StringToDirectoryInfo(string t)
     {
+        if (t == null) return null;
         var di = new DirectoryInfo(t);
         if (!di.Exists) di.Create();
         return di;
     }
 
-    private static RID StringToRID(string t) => RID.Parse(t);
+    private static RID StringToRID(string t)
+    {
+        if (t == null) return null;
+        return RID.Parse(t);
+    }
 }

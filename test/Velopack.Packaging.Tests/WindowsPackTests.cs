@@ -8,6 +8,7 @@ using Velopack.Compression;
 using Velopack.Packaging.Commands;
 using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Windows.Commands;
+using Velopack.Vpk;
 using Velopack.Vpk.Logging;
 using Velopack.Windows;
 
@@ -25,7 +26,7 @@ public class WindowsPackTests
 
     private WindowsPackCommandRunner GetPackRunner(ILogger logger)
     {
-        var console = new BasicConsole(logger, new DefaultPromptValueFactory(false));
+        var console = new BasicConsole(logger, new VelopackDefaults(false));
         return new WindowsPackCommandRunner(logger, console);
     }
 
@@ -327,7 +328,7 @@ public class WindowsPackTests
 
         // apply delta and check package
         var output = Path.Combine(releaseDir, "delta.patched");
-        new DeltaPatchCommandRunner(logger, new BasicConsole(logger, new DefaultPromptValueFactory(false))).Run(new DeltaPatchOptions {
+        new DeltaPatchCommandRunner(logger, new BasicConsole(logger, new VelopackDefaults(false))).Run(new DeltaPatchOptions {
             BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-full.nupkg"),
             OutputFile = output,
             PatchFiles = new[] { new FileInfo(deltaPath) },
@@ -344,7 +345,7 @@ public class WindowsPackTests
         // can apply multiple deltas, and handle add/removing files?
         output = Path.Combine(releaseDir, "delta.patched2");
         var deltav3 = Path.Combine(releaseDir, $"{id}-3.0.0-delta.nupkg");
-        new DeltaPatchCommandRunner(logger, new BasicConsole(logger, new DefaultPromptValueFactory(false))).Run(new DeltaPatchOptions {
+        new DeltaPatchCommandRunner(logger, new BasicConsole(logger, new VelopackDefaults(false))).Run(new DeltaPatchOptions {
             BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-full.nupkg"),
             OutputFile = output,
             PatchFiles = [new FileInfo(deltaPath), new FileInfo(deltav3)],
