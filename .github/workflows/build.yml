@@ -240,9 +240,6 @@ jobs:
         env:
           VELOPACK_CROSS_ARTIFACTS: true
         run: dotnet test -c Release test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj --filter "FullyQualifiedName~RunCrossApp" -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
-      - uses: geekyeggo/delete-artifact@v5
-        with:
-          name: cross-*
 
   package:
     runs-on: ubuntu-latest
