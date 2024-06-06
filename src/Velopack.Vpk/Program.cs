@@ -85,6 +85,7 @@ public class Program
 
         var downloadCommand = new CliCommand("download", "Download's the latest release from a remote update source.");
         downloadCommand.AddRepositoryDownload<GitHubDownloadCommand, GitHubRepository, GitHubDownloadOptions>(provider);
+        downloadCommand.AddRepositoryDownload<GiteaDownloadCommand, GiteaRepository, GiteaDownloadOptions>(provider);
         downloadCommand.AddRepositoryDownload<S3DownloadCommand, S3Repository, S3DownloadOptions>(provider);
         downloadCommand.AddRepositoryDownload<AzureDownloadCommand, AzureRepository, AzureDownloadOptions>(provider);
         downloadCommand.AddRepositoryDownload<LocalDownloadCommand, LocalRepository, LocalDownloadOptions>(provider);
@@ -93,6 +94,7 @@ public class Program
 
         var uploadCommand = new CliCommand("upload", "Upload local package(s) to a remote update source.");
         uploadCommand.AddRepositoryUpload<GitHubUploadCommand, GitHubRepository, GitHubUploadOptions>(provider);
+        uploadCommand.AddRepositoryUpload<GiteaUploadCommand, GiteaRepository, GiteaUploadOptions>(provider);
         uploadCommand.AddRepositoryUpload<S3UploadCommand, S3Repository, S3UploadOptions>(provider);
         uploadCommand.AddRepositoryUpload<AzureUploadCommand, AzureRepository, AzureUploadOptions>(provider);
         uploadCommand.AddRepositoryUpload<LocalUploadCommand, LocalRepository, LocalUploadOptions>(provider);
