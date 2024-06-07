@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using NuGet.Versioning;
 using Velopack.Sources;
 using System.Collections.Generic;
@@ -29,6 +29,7 @@ namespace Velopack.Json
     [JsonSerializable(typeof(List<GithubRelease>))]
     [JsonSerializable(typeof(List<GitlabRelease>))]
     [JsonSerializable(typeof(VelopackAssetFeed))]
+    [JsonSerializable(typeof(VelopackFlowReleaseAsset[]))]
 #if NET8_0_OR_GREATER
     [JsonSourceGenerationOptions(UseStringEnumConverter = true)]
 #endif
@@ -38,7 +39,7 @@ namespace Velopack.Json
 
     internal static class CompiledJson
     {
-        private static readonly JsonSerializerOptions Options = new JsonSerializerOptions {
+        private static readonly JsonSerializerOptions Options = new() {
             AllowTrailingCommas = true,
             ReadCommentHandling = JsonCommentHandling.Skip,
             PropertyNameCaseInsensitive = true,
@@ -52,7 +53,7 @@ namespace Velopack.Json
             },
         };
 
-        private static readonly CompiledJsonSourceGenerationContext Context = new CompiledJsonSourceGenerationContext(Options);
+        private static readonly CompiledJsonSourceGenerationContext Context = new(Options);
 
         public static List<GithubRelease>? DeserializeGithubReleaseList(string json)
         {
@@ -67,6 +68,11 @@ namespace Velopack.Json
         public static VelopackAsset[]? DeserializeVelopackAssetArray(string json)
         {
             return JsonSerializer.Deserialize(json, Context.VelopackAssetArray);
+        }
+
+        public static VelopackFlowReleaseAsset[]? DeserializeVelopackFlowAssetArray(string json)
+        {
+            return JsonSerializer.Deserialize(json, Context.VelopackFlowReleaseAssetArray);
         }
 
         public static VelopackAssetFeed? DeserializeVelopackAssetFeed(string json)
@@ -121,6 +127,11 @@ namespace Velopack.Json
         public static VelopackAsset[]? DeserializeVelopackAssetArray(string json)
         {
             return JsonConvert.DeserializeObject<VelopackAsset[]>(json, Options);
+        }
+
+        public static VelopackFlowReleaseAsset[]? DeserializeVelopackFlowAssetArray(string json)
+        {
+            return JsonConvert.DeserializeObject<VelopackFlowReleaseAsset[]>(json, Options);
         }
 
         public static VelopackAssetFeed? DeserializeVelopackAssetFeed(string json)
