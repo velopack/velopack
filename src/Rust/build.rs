@@ -30,7 +30,7 @@ fn main() {
         .set("ProductName", "Velopack")
         .set("ProductVersion", version)
         .set("FileDescription", &desc)
-        .set("LegalCopyright", "Caelan Sayler (c) 2023, Velopack (c) 2024")
+        .set("LegalCopyright", "Caelan Sayler (c) 2023, Velopack Ltd. (c) 2024")
         .compile()
         .unwrap();
 }
