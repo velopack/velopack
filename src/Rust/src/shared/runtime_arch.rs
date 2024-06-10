@@ -1,3 +1,5 @@
+use anyhow::Result;
+
 #[derive(PartialEq, Debug, Clone, strum::IntoStaticStr)]
 pub enum RuntimeArch {
     X86,
@@ -7,7 +9,7 @@ pub enum RuntimeArch {
 
 impl RuntimeArch {
     #[cfg(target_os = "windows")]
-    fn from_u32(value: u32) -> Option<Self> {
+    fn from_u16(value: u16) -> Option<Self> {
         match value {
             0x014c => Some(RuntimeArch::X86),
             0x8664 => Some(RuntimeArch::X64),
@@ -51,16 +53,12 @@ impl RuntimeArch {
 #[cfg(target_os = "windows")]
 fn check_arch_windows() -> Option<RuntimeArch> {
     use windows::Win32::Foundation::{FALSE, TRUE};
-    use windows::Win32::System::SystemInformation::IMAGE_FILE_MACHINE;
-    use windows::Win32::System::Threading::{GetCurrentProcess, IsWow64Process, IsWow64Process2};
+    use windows::Win32::System::Threading::{GetCurrentProcess, IsWow64Process};
 
     unsafe {
         let handle = GetCurrentProcess();
-
-        let mut process_machine: IMAGE_FILE_MACHINE = Default::default();
-        let mut native_machine: IMAGE_FILE_MACHINE = Default::default();
-        if let Ok(()) = IsWow64Process2(handle, &mut process_machine, Some(&mut native_machine)) {
-            return RuntimeArch::from_u32(native_machine.0.into());
+        if let Ok(x) = is_wow64_process2(handle) {
+            return RuntimeArch::from_u16(x);
         }
 
         let mut iswow64 = FALSE;
@@ -77,6 +75,31 @@ fn check_arch_windows() -> Option<RuntimeArch> {
 
         #[cfg(not(target_arch = "x86_64"))]
         return Some(RuntimeArch::X86);
+    }
+}
+
+#[cfg(target_os = "windows")]
+type IsWow64Process2Fn = unsafe extern "system" fn(
+    hProcess: windows::Win32::Foundation::HANDLE,
+    pprocessmachine: *mut windows::Win32::System::SystemInformation::IMAGE_FILE_MACHINE,
+    pnativemachine: *mut windows::Win32::System::SystemInformation::IMAGE_FILE_MACHINE,
+) -> windows::Win32::Foundation::BOOL;
+
+#[cfg(target_os = "windows")]
+unsafe fn is_wow64_process2(handle: windows::Win32::Foundation::HANDLE) -> Result<u16> {
+    use windows::Win32::Foundation::TRUE;
+    use windows::Win32::System::SystemInformation::IMAGE_FILE_MACHINE;
+
+    let lib = libloading::Library::new("kernel32.dll")?;
+    let func: libloading::Symbol<IsWow64Process2Fn> = lib.get(b"IsWow64Process2")?;
+    let mut process_machine: IMAGE_FILE_MACHINE = Default::default();
+    let mut native_machine: IMAGE_FILE_MACHINE = Default::default();
+
+    let result = func(handle, &mut process_machine, &mut native_machine);
+    if result == TRUE {
+        Ok(native_machine.0)
+    } else {
+        Err(anyhow::anyhow!("IsWow64Process2 failed"))
     }
 }
 
