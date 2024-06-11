@@ -26,12 +26,10 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
 
-  <Target Name="AddNugetStaticFiles" BeforeTargets="Build">
-    <ItemGroup Condition=" '$(VelopackPackageId)' != '' ">
-      <None Include="..\..\artwork\Velopack_200.png" Pack="true" PackagePath="\" />
-      <None Include="..\..\README_NUGET.md" Pack="true" PackagePath="\" />
-    </ItemGroup>
-  </Target>
+  <ItemGroup Condition=" '$(VelopackPackageId)' != '' ">
+    <None Include="..\..\artwork\Velopack_200.png" Pack="true" PackagePath="\" />
+    <None Include="..\..\README_NUGET.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <Target Name="AddNugetVendorLibs" BeforeTargets="Build" Condition=" '$(VelopackPackageVendorLibs)' == 'true' ">
     <ItemGroup>
