@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -232,7 +231,7 @@ namespace Velopack
             var appTempDir = Locator.AppTempDir!;
             var appPackageDir = Locator.PackagesDir!;
 
-            var completeFile = Path.Combine(appPackageDir, GetSafeFilename(targetRelease.FileName));
+            var completeFile = Path.Combine(appPackageDir, Utility.GetSafeFilename(targetRelease.FileName));
             var incompleteFile = completeFile + ".partial";
 
             try {
@@ -261,7 +260,7 @@ namespace Velopack
                                     $"Only full update will be available.");
                             } else {
                                 using var _1 = Utility.GetTempDirectory(out var deltaStagingDir, appTempDir);
-                                string basePackagePath = Path.Combine(appPackageDir, GetSafeFilename(updates.BaseRelease.FileName));
+                                string basePackagePath = Path.Combine(appPackageDir, Utility.GetSafeFilename(updates.BaseRelease.FileName));
                                 if (!File.Exists(basePackagePath))
                                     throw new Exception($"Unable to find base package {basePackagePath} for delta update.");
                                 EasyZip.ExtractZipToDirectory(Log, basePackagePath, deltaStagingDir);
@@ -318,27 +317,6 @@ namespace Velopack
                 }
 
                 CleanPackagesExcept(completeFile);
-            }
-
-
-            // Ensures that the file name is safe for writing to disk without escaping the packages folder
-            static string GetSafeFilename(string fileName)
-            {
-                string safeFileName = Path.GetFileName(fileName);
-                char[] invalidFileNameChars = Path.GetInvalidFileNameChars();
-
-                if (safeFileName.IndexOfAny(invalidFileNameChars) != -1 ) {
-                    StringBuilder safeName = new();
-                    foreach(char ch in safeFileName) { 
-                        if (Array.IndexOf(invalidFileNameChars, ch) == -1)
-                            safeName.Append(ch);
-                        else
-                            safeName.Append('_');
-                    }
-                    safeFileName = safeName.ToString();
-                }
-
-                return safeFileName;
             }
         }
 

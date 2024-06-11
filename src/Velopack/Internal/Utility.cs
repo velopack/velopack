@@ -264,6 +264,28 @@ namespace Velopack
                 }));
         }
 
+        /// <summary>
+        /// Escapes file name such that the file name is safe for writing to disk in the packages folder
+        /// </summary>
+        public static string GetSafeFilename(string fileName)
+        {
+            string safeFileName = Path.GetFileName(fileName);
+            char[] invalidFileNameChars = Path.GetInvalidFileNameChars();
+
+            if (safeFileName.IndexOfAny(invalidFileNameChars) != -1) {
+                StringBuilder safeName = new();
+                foreach (char ch in safeFileName) {
+                    if (Array.IndexOf(invalidFileNameChars, ch) == -1)
+                        safeName.Append(ch);
+                    else
+                        safeName.Append('_');
+                }
+                safeFileName = safeName.ToString();
+            }
+
+            return safeFileName;
+        }
+
         public static string GetDefaultTempBaseDirectory()
         {
             string tempDir;
