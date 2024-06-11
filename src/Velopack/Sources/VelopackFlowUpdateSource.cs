@@ -84,6 +84,6 @@ namespace Velopack.Sources
 
     internal record VelopackFlowReleaseAsset : VelopackAsset
     {
-        public string? Id { get; init; }
+        public string? Id { get; set; }
     }
 }
