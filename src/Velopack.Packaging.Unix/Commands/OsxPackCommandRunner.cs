@@ -32,7 +32,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
         var structure = new OsxStructureBuilder(dir.FullName);
         var macosdir = structure.MacosDirectory;
         File.WriteAllText(Path.Combine(macosdir, "sq.version"), GenerateNuspecContent());
-        File.Copy(HelperFile.GetUpdatePath(RuntimeOs.OSX), Path.Combine(macosdir, "UpdateMac"), true);
+        File.Copy(HelperFile.GetUpdatePath(Options.TargetRuntime, Log), Path.Combine(macosdir, "UpdateMac"), true);
 
         foreach (var f in Directory.GetFiles(macosdir, "*", SearchOption.AllDirectories)) {
             if (BinDetect.IsMachOImage(f)) {

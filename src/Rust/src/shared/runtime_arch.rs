@@ -1,5 +1,3 @@
-use anyhow::Result;
-
 #[derive(PartialEq, Debug, Clone, strum::IntoStaticStr)]
 pub enum RuntimeArch {
     X86,
@@ -86,7 +84,7 @@ type IsWow64Process2Fn = unsafe extern "system" fn(
 ) -> windows::Win32::Foundation::BOOL;
 
 #[cfg(target_os = "windows")]
-unsafe fn is_wow64_process2(handle: windows::Win32::Foundation::HANDLE) -> Result<u16> {
+unsafe fn is_wow64_process2(handle: windows::Win32::Foundation::HANDLE) -> anyhow::Result<u16> {
     use windows::Win32::Foundation::TRUE;
     use windows::Win32::System::SystemInformation::IMAGE_FILE_MACHINE;
 

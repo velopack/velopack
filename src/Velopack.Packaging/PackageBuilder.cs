@@ -67,7 +67,6 @@ public abstract class PackageBuilder<T> : ICommand<T>
         var packId = options.PackId;
         var packDirectory = options.PackDirectory;
         var packVersion = options.PackVersion;
-        var semVer = SemanticVersion.Parse(packVersion);
 
         // check that entry exe exists
         var mainExeName = options.EntryExecutableName ?? options.PackId;

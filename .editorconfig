@@ -10,6 +10,7 @@ indent_style = space
 # ReSharper properties
 resharper_csharp_wrap_after_invocation_lpar = true
 resharper_csharp_wrap_arguments_style = chop_if_long
+resharper_indent_raw_literal_string = indent
 
 # MSBuild files
 [*.{csproj,targets,props}]
@@ -138,6 +139,19 @@ dotnet_diagnostic.il3000.severity = error
 dotnet_diagnostic.il3001.severity = error
 dotnet_diagnostic.il3002.severity = error
 dotnet_diagnostic.il3003.severity = error
+
+# Resharper
+resharper_place_accessorholder_attribute_on_same_line = false
+resharper_place_accessor_attribute_on_same_line = false
+resharper_place_event_attribute_on_same_line = false
+resharper_place_field_attribute_on_same_line = false
+resharper_place_method_attribute_on_same_line = false
+resharper_place_property_attribute_on_same_line = false
+resharper_place_record_field_attribute_on_same_line = false
+resharper_place_type_attribute_on_same_line = false
+csharp_max_attribute_length_for_same_line = 0
+
+
 ############################### 
 # VB Coding Conventions       # 
 ############################### 

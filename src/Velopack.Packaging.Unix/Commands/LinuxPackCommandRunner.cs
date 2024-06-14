@@ -35,18 +35,18 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
                 : Options.Categories.TrimEnd(';');
 
             File.WriteAllText(appRunPath, $$"""
-#!/bin/sh
-if [ ! -z "$APPIMAGE" ] && [ ! -z "$APPDIR" ]; then
-    MD5=$(echo -n "file://$APPIMAGE" | md5sum | cut -d' ' -f1)
-    cp "$APPDIR/{{iconFilename}}" "$HOME/.cache/thumbnails/normal/$MD5.png" >/dev/null 2>&1
-    cp "$APPDIR/{{iconFilename}}" "$HOME/.cache/thumbnails/large/$MD5.png" >/dev/null 2>&1
-    xdg-icon-resource forceupdate >/dev/null 2>&1
-fi
-HERE="$(dirname "$(readlink -f "${0}")")"
-export PATH="${HERE}"/usr/bin/:"${PATH}"
-EXEC=$(grep -e '^Exec=.*' "${HERE}"/*.desktop | head -n 1 | cut -d "=" -f 2 | cut -d " " -f 1 | sed 's/\\s/ /g')
-exec "${EXEC}" "$@"
-""".Replace("\r", ""));
+                #!/bin/sh
+                if [ ! -z "$APPIMAGE" ] && [ ! -z "$APPDIR" ]; then
+                    MD5=$(echo -n "file://$APPIMAGE" | md5sum | cut -d' ' -f1)
+                    cp "$APPDIR/{{iconFilename}}" "$HOME/.cache/thumbnails/normal/$MD5.png" >/dev/null 2>&1
+                    cp "$APPDIR/{{iconFilename}}" "$HOME/.cache/thumbnails/large/$MD5.png" >/dev/null 2>&1
+                    xdg-icon-resource forceupdate >/dev/null 2>&1
+                fi
+                HERE="$(dirname "$(readlink -f "${0}")")"
+                export PATH="${HERE}"/usr/bin/:"${PATH}"
+                EXEC=$(grep -e '^Exec=.*' "${HERE}"/*.desktop | head -n 1 | cut -d "=" -f 2 | cut -d " " -f 1 | sed 's/\\s/ /g')
+                exec "${EXEC}" "$@"
+                """.Replace("\r", ""));
             Chmod.ChmodFileAsExecutable(appRunPath);
 
             var mainExeName = Options.EntryExecutableName ?? Options.PackId;
@@ -59,23 +59,28 @@ exec "${EXEC}" "$@"
             mainExeName = mainExeName.Replace(" ", "\\s");
 
             File.WriteAllText(Path.Combine(dir.FullName, Options.PackId + ".desktop"), $"""
-[Desktop Entry]
-Type=Application
-Name={Options.PackTitle ?? Options.PackId}
-Comment={Options.PackTitle ?? Options.PackId} {Options.PackVersion}
-Icon={Options.PackId}
-Exec={mainExeName}
-StartupWMClass={Options.PackId}
-Categories={categories};
-""".Replace("\r", ""));
+                [Desktop Entry]
+                Type=Application
+                Name={Options.PackTitle ?? Options.PackId}
+                Comment={Options.PackTitle ?? Options.PackId} {Options.PackVersion}
+                Icon={Options.PackId}
+                Exec={mainExeName}
+                StartupWMClass={Options.PackId}
+                Categories={categories};
+                """.Replace("\r", ""));
 
             // copy existing app files 
             CopyFiles(new DirectoryInfo(packDir), bin, progress, true);
         }
 
+        Options.TargetRuntime.Architecture = Options.TargetRuntime.HasArchitecture
+            ? Options.TargetRuntime.Architecture
+            : GetMachineForBinary(MainExePath);
+
+
         // velopack required files
         File.WriteAllText(Path.Combine(bin.FullName, "sq.version"), GenerateNuspecContent());
-        File.Copy(HelperFile.GetUpdatePath(RuntimeOs.Linux), Path.Combine(bin.FullName, "UpdateNix"), true);
+        File.Copy(HelperFile.GetUpdatePath(Options.TargetRuntime, Log), Path.Combine(bin.FullName, "UpdateNix"), true);
         progress(100);
         return Task.FromResult(dir.FullName);
     }
@@ -91,10 +96,7 @@ Categories={categories};
     protected override Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath)
     {
         progress(-1);
-        var machine = Options.TargetRuntime.HasArchitecture
-            ? Options.TargetRuntime.Architecture
-            : GetMachineForBinary(MainExePath);
-        AppImageTool.CreateLinuxAppImage(packDir, outputPath, machine, Log);
+        AppImageTool.CreateLinuxAppImage(packDir, outputPath, Options.TargetRuntime.Architecture, Log);
         PortablePackagePath = outputPath;
         progress(100);
         return Task.CompletedTask;

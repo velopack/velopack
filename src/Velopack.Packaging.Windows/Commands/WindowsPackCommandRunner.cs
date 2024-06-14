@@ -46,7 +46,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         packDir = dir.FullName;
 
         var updatePath = Path.Combine(TempDir.FullName, "Update.exe");
-        File.Copy(HelperFile.GetUpdatePath(RuntimeOs.Windows), updatePath, true);
+        File.Copy(HelperFile.GetUpdatePath(Options.TargetRuntime, Log), updatePath, true);
 
         // check for and delete clickonce manifest
         var clickonceManifests = Directory.EnumerateFiles(packDir, "*.application")
