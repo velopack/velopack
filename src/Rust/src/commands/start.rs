@@ -1,13 +1,16 @@
 use crate::{
     dialogs,
     shared::{self, bundle, OperationWait},
-    windows,
+    windows as win,
 };
 use anyhow::{anyhow, bail, Result};
+use std::os::windows::process::CommandExt;
 use std::{
     fs,
     path::{Path, PathBuf},
+    process::Command as Process,
 };
+use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 
 pub fn start(wait: OperationWait, exe_name: Option<&String>, exe_args: Option<Vec<&str>>, legacy_args: Option<&String>) -> Result<()> {
     if legacy_args.is_some() && exe_args.is_some() {
@@ -61,14 +64,17 @@ pub fn start(wait: OperationWait, exe_name: Option<&String>, exe_args: Option<Ve
 
     info!("About to launch: '{}' in dir '{}'", exe_to_execute.to_string_lossy(), current);
 
-    if let Some(args) = exe_args {
-        crate::windows::run_process(exe_to_execute, args, current)?;
-    } else if let Some(args) = legacy_args {
-        crate::windows::run_process_raw_args(exe_to_execute, args, current)?;
-    } else {
-        crate::windows::run_process(exe_to_execute, vec![], current)?;
-    };
+    let mut cmd = Process::new(&exe_to_execute);
+    cmd.current_dir(&current);
 
+    if let Some(args) = exe_args {
+        cmd.args(args);
+    } else if let Some(args) = legacy_args {
+        cmd.raw_arg(args);
+    }
+
+    let cmd = cmd.spawn()?;
+    let _ = unsafe { AllowSetForegroundWindow(cmd.id()) };
     Ok(())
 }
 
@@ -96,12 +102,12 @@ fn try_legacy_migration(root_dir: &PathBuf, app: &bundle::Manifest) -> Result<()
     let _ = remove_dir_all::remove_dir_all(root_dir.join("staging"));
 
     info!("Removing old shortcuts...");
-    if let Err(e) = windows::remove_all_shortcuts_for_root_dir(&root_dir) {
+    if let Err(e) = win::remove_all_shortcuts_for_root_dir(&root_dir) {
         warn!("Failed to remove shortcuts ({}).", e);
     }
 
     info!("Creating new default shortcuts...");
-    let _ = windows::create_default_lnks(&root_dir, &app);
+    let _ = win::create_default_lnks(&root_dir, &app);
 
     Ok(())
 }

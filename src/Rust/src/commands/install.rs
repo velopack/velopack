@@ -10,7 +10,6 @@ use std::{
     env,
     fs::{self, File},
     path::{Path, PathBuf},
-    time::Duration,
 };
 use winsafe::{self as w, co};
 
@@ -184,22 +183,13 @@ fn install_impl(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::m
     info!("Creating new default shortcuts...");
     let _ = windows::create_default_lnks(&root_path, &app);
 
-    let ver_string = app.version.to_string();
-    info!("Starting process install hook: \"{}\" --veloapp-install {}", &main_exe_path, &ver_string);
-    let args = vec!["--veloapp-install", &ver_string];
-    if let Err(e) = windows::run_process_no_console_and_wait(&main_exe_path, args, &current_path, Some(Duration::from_secs(30))) {
+    info!("Starting process install hook");
+    if windows::run_hook(&app, &root_path, "--veloapp-install", 30) == false {
         let setup_name = format!("{} Setup {}", app.title, app.version);
-        error!("Process install hook failed: {}", e);
-        let _ = tx.send(windows::splash::MSG_CLOSE);
-        dialogs::show_warn(
-            &setup_name,
-            None,
-            format!("Installation has completed, but the application install hook failed ({}). It may not have installed correctly.", e).as_str(),
-        );
+        dialogs::show_warn(&setup_name, None, "Installation has completed, but the application install hook failed. It may not have installed correctly.");
     }
 
     let _ = tx.send(100);
-
     app.write_uninstall_entry(root_path)?;
 
     if !dialogs::get_silent() {
