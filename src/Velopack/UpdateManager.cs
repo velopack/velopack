@@ -430,9 +430,9 @@ namespace Velopack
                 throw new ChecksumFailedException(targetPackage.FullName, $"Size doesn't match ({targetPackage.Length} != {release.Size}).");
             }
 
-            if (release.SHA256 is not null) {
+            if (!string.IsNullOrEmpty(release.SHA256)) {
                 var hash = Utility.CalculateFileSHA256(targetPackage.FullName);
-                if (!hash.Equals(release.SHA256, StringComparison.OrdinalIgnoreCase)) {
+                if (!hash.Equals(release.SHA256, StringComparison.Ordinal)) {
                     throw new ChecksumFailedException(targetPackage.FullName, $"SHA256 doesn't match ({release.SHA256} != {hash}).");
                 }
             } else {
