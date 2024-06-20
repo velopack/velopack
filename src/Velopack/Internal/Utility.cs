@@ -163,6 +163,25 @@ namespace Velopack
             }
         }
 
+        /// <inheritdoc cref="CalculateStreamSHA256"/>
+        public static string CalculateFileSHA256(string filePath)
+        {
+            var bufferSize = 1000000; // 1mb
+            using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize)) {
+                return CalculateStreamSHA256(stream);
+            }
+        }
+
+        /// <summary>
+        /// Get SHA256 hash of the specified file and returns the result as a base64 encoded string (with length 44)
+        /// </summary>
+        public static string CalculateStreamSHA256(Stream file)
+        {
+            using (var sha256 = SHA256.Create()) {
+                return Convert.ToBase64String(sha256.ComputeHash(file));
+            }
+        }
+
         public static Sources.IFileDownloader CreateDefaultDownloader()
         {
             return new Sources.HttpClientFileDownloader();

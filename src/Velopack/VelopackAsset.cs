@@ -57,6 +57,9 @@ namespace Velopack
         /// <summary> The SHA1 checksum of the update package containing this release. </summary>
         public string SHA1 { get; set; }
 
+        /// <summary> The SHA256 checksum (if availible) of the update package containing this release. </summary>
+        public string SHA256 { get; set; }
+
         /// <summary> The size in bytes of the update package containing this release. </summary>
         public long Size { get; set; }
 
@@ -79,6 +82,7 @@ namespace Velopack
                 NotesHTML = zip.ReleaseNotesHtml,
                 Size = new FileInfo(filePath).Length,
                 SHA1 = Utility.CalculateFileSHA1(filePath),
+                SHA256 = Utility.CalculateFileSHA256(filePath),
                 FileName = Path.GetFileName(filePath),
                 Type = IsDeltaFile(filePath) ? VelopackAssetType.Delta : VelopackAssetType.Full,
             };
