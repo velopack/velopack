@@ -506,4 +506,5 @@ tests/Test.xml
 
 
 launchsettings.json
-/samples/Signing/keys/rsa.pem
+/samples/Signing/keys/*.pem
+/samples/Signing/keys/*.xml

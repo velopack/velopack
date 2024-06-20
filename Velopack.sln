@@ -62,13 +62,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Signing", "Signing", "{A6F9
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReleaseSigner", "samples\Signing\ReleaseSigner\ReleaseSigner.csproj", "{DDDBBC67-0E95-4FD6-B2BD-102507302FC6}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "keys", "keys", "{AF744AB4-8CEA-463F-B36D-99587BEA6426}"
-	ProjectSection(SolutionItems) = preProject
-		samples\Signing\ReleaseSigner\rsa.pem = samples\Signing\ReleaseSigner\rsa.pem
-		samples\Signing\ReleaseSigner\rsa.public.pem = samples\Signing\ReleaseSigner\rsa.public.pem
-		samples\Signing\ReleaseSigner\rsa.public.xml = samples\Signing\ReleaseSigner\rsa.public.xml
-	EndProjectSection
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SigningSample", "samples\Signing\SigningSample\SigningSample.csproj", "{3EE56FBD-784F-4B22-888A-0B0EA5215AF1}"
 EndProject
 Global
@@ -164,7 +157,6 @@ Global
 		{5ED2E9AF-101D-4D2D-B0B5-90A920EF692D} = {7AC3A776-B582-4B65-9D03-BD52332B5CA3}
 		{A6F90676-D296-47BB-955B-BCB5EEACF214} = {3EBFA551-780C-473D-A197-0EE56F2CBA82}
 		{DDDBBC67-0E95-4FD6-B2BD-102507302FC6} = {A6F90676-D296-47BB-955B-BCB5EEACF214}
-		{AF744AB4-8CEA-463F-B36D-99587BEA6426} = {A6F90676-D296-47BB-955B-BCB5EEACF214}
 		{3EE56FBD-784F-4B22-888A-0B0EA5215AF1} = {A6F90676-D296-47BB-955B-BCB5EEACF214}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
