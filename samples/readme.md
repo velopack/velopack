@@ -4,6 +4,8 @@
 
 - [**VeloWpfSample**](VeloWpfSample) - demonstrates how to use Velopack effectively with WPF.
 
+- [**Signing**](Signing) - demonstrates a POC of how the releases.json can be digitally signed and verified to prevent tampering of the updates.
+
 ## Other Languages
 Note that only sample apps written in C# using the core reference library are available here. 
 
