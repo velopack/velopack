@@ -125,6 +125,7 @@ namespace Velopack.Sources
                 Type = entry.Type;
                 FileName = entry.FileName;
                 SHA1 = entry.SHA1;
+                SHA256 = entry.SHA256;
                 Size = entry.Size;
                 NotesMarkdown = entry.NotesMarkdown;
                 NotesHTML = entry.NotesHTML;

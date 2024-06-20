@@ -430,10 +430,17 @@ namespace Velopack
                 throw new ChecksumFailedException(targetPackage.FullName, $"Size doesn't match ({targetPackage.Length} != {release.Size}).");
             }
 
-            var hash = Utility.CalculateFileSHA1(targetPackage.FullName);
-            if (!hash.Equals(release.SHA1, StringComparison.OrdinalIgnoreCase)) {
-                throw new ChecksumFailedException(targetPackage.FullName, $"SHA1 doesn't match ({release.SHA1} != {hash}).");
-            }
+            if (release.SHA256 is not null) {
+                var hash = Utility.CalculateFileSHA256(targetPackage.FullName);
+                if (!hash.Equals(release.SHA256, StringComparison.OrdinalIgnoreCase)) {
+                    throw new ChecksumFailedException(targetPackage.FullName, $"SHA256 doesn't match ({release.SHA256} != {hash}).");
+                }
+            } else {
+                var hash = Utility.CalculateFileSHA1(targetPackage.FullName);
+                if (!hash.Equals(release.SHA1, StringComparison.OrdinalIgnoreCase)) {
+                    throw new ChecksumFailedException(targetPackage.FullName, $"SHA1 doesn't match ({release.SHA1} != {hash}).");
+                }
+            }           
         }
 
         /// <summary>
