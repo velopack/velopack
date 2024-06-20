@@ -229,9 +229,8 @@ namespace Velopack
             using var _mut = AcquireUpdateLock();
 
             var appTempDir = Locator.AppTempDir!;
-            var appPackageDir = Locator.PackagesDir!;
 
-            var completeFile = Path.Combine(appPackageDir, Utility.GetSafeFilename(targetRelease.FileName));
+            var completeFile = Locator.GetLocalPackagePath(targetRelease);
             var incompleteFile = completeFile + ".partial";
 
             try {
@@ -239,7 +238,7 @@ namespace Velopack
                 if (File.Exists(completeFile)) {
                     Log.Info($"Package already exists on disk: '{completeFile}', verifying checksum...");
                     try {
-                        VerifyPackageChecksum(targetRelease);
+                        VerifyPackageChecksum(targetRelease, completeFile);
                         Log.Info("Package checksum verified, skipping download.");
                         return;
                     } catch (ChecksumFailedException ex) {
@@ -260,7 +259,7 @@ namespace Velopack
                                     $"Only full update will be available.");
                             } else {
                                 using var _1 = Utility.GetTempDirectory(out var deltaStagingDir, appTempDir);
-                                string basePackagePath = Path.Combine(appPackageDir, Utility.GetSafeFilename(updates.BaseRelease.FileName));
+                                string basePackagePath = Locator.GetLocalPackagePath(updates.BaseRelease);
                                 if (!File.Exists(basePackagePath))
                                     throw new Exception($"Unable to find base package {basePackagePath} for delta update.");
                                 EasyZip.ExtractZipToDirectory(Log, basePackagePath, deltaStagingDir);
@@ -333,14 +332,13 @@ namespace Velopack
             var releasesToDownload = updates.DeltasToTarget.OrderBy(d => d.Version).ToArray();
 
             var appTempDir = Locator.AppTempDir!;
-            var appPackageDir = Locator.PackagesDir!;
             var updateExe = Locator.UpdateExePath!;
 
             // downloading accounts for 0%-50% of progress
             double current = 0;
             double toIncrement = 100.0 / releasesToDownload.Count();
             await releasesToDownload.ForEachAsync(async x => {
-                var targetFile = Path.Combine(appPackageDir, x.FileName);
+                var targetFile = Locator.GetLocalPackagePath(x);
                 double component = 0;
                 Log.Debug($"Downloading delta version {x.Version}");
                 await Source.DownloadReleaseEntry(Log, x, targetFile, p => {
@@ -351,7 +349,7 @@ namespace Velopack
                         progress(Utility.CalculateProgress(progressOfStep, 0, 50));
                     }
                 }, cancelToken).ConfigureAwait(false);
-                VerifyPackageChecksum(x);
+                VerifyPackageChecksum(x, targetFile);
                 cancelToken.ThrowIfCancellationRequested();
                 Log.Debug($"Download complete for delta version {x.Version}");
             }).ConfigureAwait(false);
@@ -365,7 +363,7 @@ namespace Velopack
                 cancelToken.ThrowIfCancellationRequested();
                 var rel = releasesToDownload[i];
                 double baseProgress = i * progressStepSize;
-                var packageFile = Path.Combine(appPackageDir, rel.FileName);
+                var packageFile = Locator.GetLocalPackagePath(rel);
                 builder.ApplyDeltaPackageFast(extractedBasePackage, packageFile, x => {
                     var progressOfStep = (int) (baseProgress + (progressStepSize * (x / 100d)));
                     progress(Utility.CalculateProgress(progressOfStep, 50, 100));
@@ -418,9 +416,7 @@ namespace Velopack
         /// <param name="filePathOverride">Optional file path, if not specified the package will be loaded from %pkgdir%/release.OriginalFilename.</param>
         protected internal virtual void VerifyPackageChecksum(VelopackAsset release, string? filePathOverride = null)
         {
-            var targetPackage = filePathOverride == null
-                ? new FileInfo(Path.Combine(Locator.PackagesDir!, release.FileName))
-                : new FileInfo(filePathOverride);
+            var targetPackage = new FileInfo(filePathOverride ?? Locator.GetLocalPackagePath(release));
 
             if (!targetPackage.Exists) {
                 throw new ChecksumFailedException(targetPackage.FullName, "File doesn't exist.");
