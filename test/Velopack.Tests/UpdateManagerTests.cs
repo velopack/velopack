@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using NuGet.Versioning;
+using Velopack.Compression;
 using Velopack.Json;
 using Velopack.Locators;
 using Velopack.Sources;
@@ -273,6 +274,74 @@ public class UpdateManagerTests
         Assert.True(new SemanticVersion(1, 2, 0) == info.TargetFullRelease.Version);
         Assert.Equal(2, info.DeltasToTarget.Count());
     }
+
+    [Fact]
+    public void CheckSumShouldUseSha256()
+    {
+        string id = "Clowd";
+        string version = "3.4.287";
+
+        using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
+        using var _1 = Utility.GetTempDirectory(out var packagesDir);
+        var repo = new FakeFixtureRepository(id, false);
+        var source = new SimpleWebSource("http://any.com", repo);
+        var locator = new TestVelopackLocator(id, "1.0.0", packagesDir, logger);
+        var um = new UpdateManager(source, null, logger, locator);
+
+        var info = um.CheckForUpdates();
+        Assert.NotNull(info);
+        Assert.True(SemanticVersion.Parse(version) == info.TargetFullRelease.Version);
+        Assert.Equal(0, info.DeltasToTarget.Count());
+
+        string actualHash = info.TargetFullRelease.SHA256;
+        string modifiedHash = info.TargetFullRelease.SHA256.ToLowerInvariant();
+        info.TargetFullRelease.SHA256 = modifiedHash;
+        
+        var ex = Assert.Throws<ChecksumFailedException>(() => um.DownloadUpdates(info));
+
+        Assert.Contains("SHA256 doesn't match", ex.Message);
+        Assert.Contains(actualHash, ex.Message);
+        Assert.Contains(modifiedHash, ex.Message);
+
+        // Restore SHA256 hash, it should not work even if SHA1 is changed
+        info.TargetFullRelease.SHA256 = actualHash;
+        info.TargetFullRelease.SHA1 = "wrong";
+        um.DownloadUpdates(info);
+    }
+
+    [Fact]
+    public void CheckSumShouldFallbackToSha1()
+    {
+        string id = "Clowd";
+        string version = "3.4.287";
+
+        using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
+        using var _1 = Utility.GetTempDirectory(out var packagesDir);
+        var repo = new FakeFixtureRepository(id, false);
+        var source = new SimpleWebSource("http://any.com", repo);
+        var locator = new TestVelopackLocator(id, "1.0.0", packagesDir, logger);
+        var um = new UpdateManager(source, null, logger, locator);
+
+        var info = um.CheckForUpdates();
+        Assert.NotNull(info);
+        Assert.True(SemanticVersion.Parse(version) == info.TargetFullRelease.Version);
+        Assert.Equal(0, info.DeltasToTarget.Count());
+
+        info.TargetFullRelease.SHA256 = null;
+        um.DownloadUpdates(info);
+
+        // change hash, it should now fail
+        string actualHash = info.TargetFullRelease.SHA1;
+        string modifiedHash = info.TargetFullRelease.SHA1.Substring(1) + "A";
+        info.TargetFullRelease.SHA1 = modifiedHash;
+
+        var ex = Assert.Throws<ChecksumFailedException>(() => um.DownloadUpdates(info));
+
+        Assert.Contains("SHA1 doesn't match", ex.Message);
+        Assert.Contains(actualHash, ex.Message);
+        Assert.Contains(modifiedHash, ex.Message);
+    }
+
 
     [Fact]
     public void NoDeltaIfNoBasePackage()
