@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 
+
 namespace Velopack
 {
     public partial class UpdateManager
@@ -22,7 +23,7 @@ namespace Velopack
         public void ApplyUpdatesAndRestart(VelopackAsset? toApply, string[]? restartArgs = null)
         {
             WaitExitThenApplyUpdates(toApply, silent: false, restart: true, restartArgs);
-            Environment.Exit(0);
+            StopApplication();
         }
 
         /// <inheritdoc cref="ApplyUpdatesAndExit(VelopackAsset)"/>
@@ -41,7 +42,7 @@ namespace Velopack
         public void ApplyUpdatesAndExit(VelopackAsset? toApply)
         {
             WaitExitThenApplyUpdates(toApply, silent: true, restart: false);
-            Environment.Exit(0);
+            StopApplication();
         }
 
         /// <summary>
@@ -58,5 +59,17 @@ namespace Velopack
         {
             UpdateExe.Apply(Locator, toApply, silent, restart, restartArgs, Log);
         }
+
+        private void StopApplication() 
+        {
+#if !UNITY_5 && !UNITY_5_3_OR_NEWER
+            Environment.Exit(0);
+#else
+            // Unity does not support Environment.Exit
+            // https://docs.unity3d.com/ScriptReference/Application.Quit.html
+            UnityEngine.Application.Quit();
+#endif
+        }
+
     }
 }

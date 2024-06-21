@@ -7,12 +7,17 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <LangVersion>9</LangVersion>
     <VelopackPackageId>Velopack</VelopackPackageId>
+    <Configurations>Debug;Release;UnityDll</Configurations>
   </PropertyGroup>
 
   <PropertyGroup>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
     <CheckEolTargetFramework>false</CheckEolTargetFramework>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net7.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='UnityDll|net462|AnyCPU'">
+    <DefineConstants>$(DefineConstants);UNITY_5_3_OR_NEWER</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -34,6 +39,12 @@
 
   <ItemGroup Condition=" $(TargetFramework) == 'net8.0' ">
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="[8.0.0,)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>C:\Program Files\Unity\Hub\Editor\2023.1.14f1\Editor\Data\Managed\UnityEngine\UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>
