@@ -231,7 +231,7 @@ namespace Velopack
             var appTempDir = Locator.AppTempDir!;
             var appPackageDir = Locator.PackagesDir!;
 
-            var completeFile = Path.Combine(appPackageDir, targetRelease.FileName);
+            var completeFile = Path.Combine(appPackageDir, Utility.GetSafeFilename(targetRelease.FileName));
             var incompleteFile = completeFile + ".partial";
 
             try {
@@ -260,7 +260,7 @@ namespace Velopack
                                     $"Only full update will be available.");
                             } else {
                                 using var _1 = Utility.GetTempDirectory(out var deltaStagingDir, appTempDir);
-                                string basePackagePath = Path.Combine(appPackageDir, updates.BaseRelease.FileName);
+                                string basePackagePath = Path.Combine(appPackageDir, Utility.GetSafeFilename(updates.BaseRelease.FileName));
                                 if (!File.Exists(basePackagePath))
                                     throw new Exception($"Unable to find base package {basePackagePath} for delta update.");
                                 EasyZip.ExtractZipToDirectory(Log, basePackagePath, deltaStagingDir);

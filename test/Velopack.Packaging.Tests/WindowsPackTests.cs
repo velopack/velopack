@@ -505,8 +505,9 @@ public class WindowsPackTests
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
 
         var rootDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LegacyTestApp");
-        if (Directory.Exists(rootDir))
-            Utility.DeleteFileOrDirectoryHard(rootDir);
+        if (Directory.Exists(rootDir)) {
+            Utility.Retry(() => Utility.DeleteFileOrDirectoryHard(rootDir), 10, 1000);
+        }
 
         var setup = PathHelper.GetFixture(fixture);
         var p = Process.Start(setup);

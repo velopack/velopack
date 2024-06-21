@@ -17,16 +17,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: dotnet/nbgv@master
+        with:
+          setAllVars: true
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-test-${{ matrix.os }}"
           workspaces: "src/Rust -> target"
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
-      - name: Install NBGV
-        run: dotnet tool install -g nbgv
-        if: startsWith(matrix.os, 'macos-')
-        continue-on-error: true
       - name: Test Rust
         working-directory: src/Rust
         run: cargo llvm-cov ${{ matrix.rust_flags }} --cobertura --output-path ../../test/coverage.rust.${{ matrix.os }}.xml
@@ -42,13 +41,20 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: dotnet/nbgv@master
+        with:
+          setAllVars: true
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-build-windows"
           workspaces: "src/Rust -> target"
+      - name: Install Windows7 Rust Toolchain
+        run: |
+          rustup toolchain install 1.75.0-x86_64-pc-windows-msvc 
+          rustup target add i686-pc-windows-msvc --toolchain 1.75.0-x86_64-pc-windows-msvc 
       - name: Build Rust
         working-directory: src/Rust
-        run: cargo bw86 --release
+        run: cargo +1.75.0-x86_64-pc-windows-msvc build --target i686-pc-windows-msvc --features windows --release
       - name: Upload Rust Build Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -66,20 +72,33 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: dotnet/nbgv@master
+        id: nbgv
+        with:
+          setAllVars: true
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-build-linux"
           workspaces: "src/Rust -> target"
-      - name: Build Rust
+      - name: Build Rust (x64)
         working-directory: src/Rust
         run: |
           cargo build --release --target x86_64-unknown-linux-gnu
-          cp ./target/x86_64-unknown-linux-gnu/release/update ./target/release/UpdateNix
+          cp ./target/x86_64-unknown-linux-gnu/release/update ./target/release/UpdateNix_x64
+      - name: Build Rust (arm64)
+        working-directory: src/Rust
+        env:
+          CROSS_NuGetPackageVersion: ${{ steps.nbgv.outputs.NuGetPackageVersion }}
+        run: |
+          curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+          cargo binstall cross --no-confirm
+          cross build --release --target aarch64-unknown-linux-gnu
+          cp ./target/aarch64-unknown-linux-gnu/release/update ./target/release/UpdateNix_arm64
       - name: Upload Rust Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: rust-ubuntu-latest
-          path: src/Rust/target/release/UpdateNix
+          path: src/Rust/target/release/UpdateNix*
       - name: Cancel workflow if failed
         uses: andymckay/cancel-action@0.4
         if: ${{ failure() }}
@@ -93,13 +112,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: dotnet/nbgv@master
+        with:
+          setAllVars: true
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-build-${{ matrix.os }}"
           workspaces: "src/Rust -> target"
-      - name: Install NBGV
-        run: dotnet tool install -g nbgv
-        continue-on-error: true
       - name: Build Rust
         working-directory: src/Rust
         run: |
@@ -166,10 +185,6 @@ jobs:
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
           restore-keys: |
             ${{ runner.os }}-nuget-
-      - name: Install NBGV
-        run: dotnet tool install -g nbgv
-        if: ${{ matrix.os == 'macos-latest' }}
-        continue-on-error: true
       - name: Install FUSE
         run: |
           sudo add-apt-repository universe
@@ -240,9 +255,6 @@ jobs:
         env:
           VELOPACK_CROSS_ARTIFACTS: true
         run: dotnet test -c Release test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj --filter "FullyQualifiedName~RunCrossApp" -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
-      - uses: geekyeggo/delete-artifact@v5
-        with:
-          name: cross-*
 
   package:
     runs-on: ubuntu-latest

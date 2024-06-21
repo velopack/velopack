@@ -39,7 +39,7 @@ lto = true               # link-time optimization
 debug = false            # disable debug info
 debug-assertions = false # disable debug assertions
 overflow-checks = false  # disable overflow checks
-# panic = "abort"          # abort on panic
+panic = "abort"          # abort on panic
 incremental = false      # disable incremental compilation
 codegen-units = 1        # compile all code into a single unit
 rpath = false            # disable rpath
@@ -128,6 +128,7 @@ windows-sys = { version = "0.52", default-features = false, features = [
 ] }
 normpath = "1.0.1"
 webview2-com = "0.30"
+libloading = "0.8"
 
 [dev-dependencies]
 tempfile = "3.9"

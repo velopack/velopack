@@ -1,6 +1,7 @@
 #![allow(unused_variables)]
+
 use semver;
-use std::process::Command;
+use std::env;
 
 #[cfg(target_os = "windows")]
 extern crate winres;
@@ -12,9 +13,7 @@ fn main() {
     #[cfg(target_os = "windows")]
     delay_load();
 
-    let ver_output = Command::new("nbgv").args(&["get-version", "-v", "NuGetPackageVersion"]).output().expect("Failed to execute nbgv get-version");
-    let version = String::from_utf8(ver_output.stdout).expect("Unable to convert ngbv output to string");
-    let version = version.trim();
+    let version = get_package_version();
     let ver = semver::Version::parse(&version).expect("Unable to parse ngbv output as semver version");
     let ver: u64 = ver.major << 48 | ver.minor << 32 | ver.patch << 16;
     let desc = format!("Velopack {}", version);
@@ -28,11 +27,30 @@ fn main() {
         .set_version_info(winres::VersionInfo::FILEVERSION, ver)
         .set("CompanyName", "Velopack")
         .set("ProductName", "Velopack")
-        .set("ProductVersion", version)
+        .set("ProductVersion", &version)
         .set("FileDescription", &desc)
-        .set("LegalCopyright", "Caelan Sayler (c) 2023, Velopack (c) 2024")
+        .set("LegalCopyright", "Caelan Sayler (c) 2023, Velopack Ltd. (c) 2024")
         .compile()
         .unwrap();
+}
+
+fn get_package_version() -> String {
+    if let Ok(version) = env::var("NuGetPackageVersion") {
+        // NuGetPackageVersion is set, return it trimmed
+        return version.trim().to_string();
+    } else if let Ok(version) = env::var("NBGV_NuGetPackageVersion") {
+        // NBGV_NuGetPackageVersion is set, return it trimmed
+        return version.trim().to_string();
+    } else if let Ok(version) = env::var("CROSS_NuGetPackageVersion") {
+        // NBGV_NuGetPackageVersion is set, return it trimmed
+        return version.trim().to_string();
+    } else if env::var("CI").is_ok() {
+        // CI is set, NuGetPackageVersion should be set always in CI
+        panic!("Error: NuGetPackageVersion must be set in CI");
+    } else {
+        // CI is not set, return "v0.0.0-local"
+        return "0.0.0-local".to_string();
+    }
 }
 
 #[cfg(target_os = "windows")]

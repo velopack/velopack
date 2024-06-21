@@ -1,12 +1,13 @@
 ﻿using System.Runtime.Versioning;
+using Microsoft.Extensions.Logging;
 
 namespace Velopack.Packaging;
 
 public static class HelperFile
 {
-    public static string GetUpdateExeName(RuntimeOs os)
+    private static string GetUpdateExeName(RID target, ILogger log)
     {
-        switch (os) {
+        switch (target.BaseRID) {
         case RuntimeOs.Windows:
             return FindHelperFile("update.exe");
 #if DEBUG
@@ -16,16 +17,25 @@ public static class HelperFile
             return FindHelperFile("update");
 #else
         case RuntimeOs.Linux:
-            return FindHelperFile("UpdateNix");
+            if (!target.HasArchitecture) {
+                log.Warn("No architecture specified with --runtime, defaulting to x64. If this was not intended please specify via the --runtime parameter");
+                return FindHelperFile("UpdateNix_x64");
+            }
+
+            return target.Architecture switch {
+                RuntimeCpu.arm64 => FindHelperFile("UpdateNix_arm64"),
+                RuntimeCpu.x64 => FindHelperFile("UpdateNix_x64"),
+                _ => throw new PlatformNotSupportedException($"Update binary is not available for this platform ({target}).")
+            };
         case RuntimeOs.OSX:
             return FindHelperFile("UpdateMac");
 #endif
-        default:
-            throw new PlatformNotSupportedException("Update binary is not available for this platform.");
         }
+
+        throw new PlatformNotSupportedException($"Update binary is not available for this platform ({target}).");
     }
 
-    public static string GetUpdatePath(RuntimeOs os) => FindHelperFile(GetUpdateExeName(os));
+    public static string GetUpdatePath(RID target, ILogger log) => FindHelperFile(GetUpdateExeName(target, log));
 
     public static string GetZstdPath()
     {
@@ -73,7 +83,7 @@ public static class HelperFile
         }
     }
 
-    private static List<string> _searchPaths = new List<string>();
+    private static readonly List<string> _searchPaths = new List<string>();
 
     static HelperFile()
     {

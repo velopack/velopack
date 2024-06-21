@@ -58,7 +58,7 @@ namespace Velopack.Sources
 
             var json = await Downloader.DownloadString(uriAndQuery.ToString()).ConfigureAwait(false);
 
-            var releaseAssets = CompiledJson.DeserializeVelopackAssetArray(json);
+            var releaseAssets = CompiledJson.DeserializeVelopackFlowAssetArray(json);
             return new VelopackAssetFeed() {
                 Assets = releaseAssets
             };
@@ -68,8 +68,8 @@ namespace Velopack.Sources
         public async Task DownloadReleaseEntry(ILogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress, CancellationToken cancelToken = default)
         {
             if (releaseEntry is null) throw new ArgumentNullException(nameof(releaseEntry));
-            if (releaseEntry is not VelopackReleaseAsset velopackRelease) {
-                throw new ArgumentException($"Expected {nameof(releaseEntry)} to be {nameof(VelopackReleaseAsset)} but was {releaseEntry.GetType().FullName}");
+            if (releaseEntry is not VelopackFlowReleaseAsset velopackRelease) {
+                throw new ArgumentException($"Expected {nameof(releaseEntry)} to be {nameof(VelopackFlowReleaseAsset)} but was {releaseEntry.GetType().FullName}");
             }
             if (localFile is null) throw new ArgumentNullException(nameof(localFile));
 
@@ -82,8 +82,8 @@ namespace Velopack.Sources
         }
     }
 
-    internal record VelopackReleaseAsset : VelopackAsset
+    internal record VelopackFlowReleaseAsset : VelopackAsset
     {
-        public string? Id { get; init; }
+        public string? Id { get; set; }
     }
 }

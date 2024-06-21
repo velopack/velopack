@@ -101,6 +101,46 @@ public class UpdateManagerTests
     }
 
     [Fact]
+    public void CanDownloadFilesAsUrl()
+    {
+        var fixture = PathHelper.GetFixture("AvaloniaCrossPlat-1.0.11-win-full.nupkg");
+
+        using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
+        using var _1 = Utility.GetTempDirectory(out var tempPath);
+        var dl = new FakeDownloader() {
+            MockedResponseBytes = Encoding.UTF8.GetBytes(SimpleJson.SerializeObject(
+            new VelopackAssetFeed {
+                Assets = new VelopackAsset[] {
+                  new VelopackAsset() {
+                    PackageId = "AvaloniaCrossPlat",
+                    Version = new SemanticVersion(1, 0, 11),
+                    Type = VelopackAssetType.Full,
+                    FileName = $"https://mysite.com/releases/AvaloniaCrossPlat$-1.1.0.nupkg",
+                    SHA1 = Utility.CalculateFileSHA1(fixture),
+                    Size = new FileInfo(fixture).Length,
+                } }
+            }))
+        };
+        var source = new SimpleWebSource("http://any.com", dl);
+        var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
+        var um = new UpdateManager(source, null, logger, locator);
+        var info = um.CheckForUpdates();
+        Assert.NotNull(info);
+        Assert.True(new SemanticVersion(1, 0, 11) == info.TargetFullRelease.Version);
+        Assert.Equal(0, info.DeltasToTarget.Count());
+        Assert.False(info.IsDowngrade);
+        Assert.StartsWith($"http://any.com/releases.{VelopackRuntimeInfo.SystemOs.GetOsShortName()}.json?", dl.LastUrl);
+
+        dl.MockedResponseBytes = File.ReadAllBytes(fixture);
+        dl.WriteMockLocalFile = true;
+        um.DownloadUpdates(info);
+
+        Assert.True(File.Exists(Path.Combine(tempPath, "AvaloniaCrossPlat$-1.1.0.nupkg")));
+        Assert.Equal(Path.Combine(tempPath, "AvaloniaCrossPlat$-1.1.0.nupkg.partial"), dl.LastLocalFile);
+        Assert.Equal("https://mysite.com/releases/AvaloniaCrossPlat$-1.1.0.nupkg", dl.LastUrl);
+    }
+
+    [Fact]
     public void CheckFromLocal()
     {
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
