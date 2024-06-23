@@ -13,9 +13,9 @@
       },
       "Microsoft.Identity.Client": {
         "type": "Direct",
-        "requested": "[4.61.2, )",
-        "resolved": "4.61.2",
-        "contentHash": "zXPDXjTju1yOZQzi5PeNmQfBzlxv+VlCfgfZ70VqyFuhaPtFXwvbLSlwCOMoVALR/MzOR6xkiadoyVDmWDmqKw==",
+        "requested": "[4.61.3, )",
+        "resolved": "4.61.3",
+        "contentHash": "naJo/Qm35Caaoxp5utcw+R8eU8ZtLz2ALh8S+gkekOYQ1oazfCQMWVT4NJ/FnHzdIJlm8dMz0oMpMGCabx5odA==",
         "dependencies": {
           "Microsoft.IdentityModel.Abstractions": "6.35.0",
           "System.Diagnostics.DiagnosticSource": "6.0.1"
@@ -246,9 +246,9 @@
       },
       "Microsoft.Identity.Client": {
         "type": "Direct",
-        "requested": "[4.61.2, )",
-        "resolved": "4.61.2",
-        "contentHash": "zXPDXjTju1yOZQzi5PeNmQfBzlxv+VlCfgfZ70VqyFuhaPtFXwvbLSlwCOMoVALR/MzOR6xkiadoyVDmWDmqKw==",
+        "requested": "[4.61.3, )",
+        "resolved": "4.61.3",
+        "contentHash": "naJo/Qm35Caaoxp5utcw+R8eU8ZtLz2ALh8S+gkekOYQ1oazfCQMWVT4NJ/FnHzdIJlm8dMz0oMpMGCabx5odA==",
         "dependencies": {
           "Microsoft.IdentityModel.Abstractions": "6.35.0",
           "System.Diagnostics.DiagnosticSource": "6.0.1"
