@@ -54,9 +54,9 @@
   <!--
   Disables the auto-generated Main method so that we can add in the Velopack calls at startup.
   -->
-  <PropertyGroup Condition="'$(TargetFramework)'=='net8.0-windows10.0.19041'">
+  <!--<PropertyGroup Condition="'$(TargetFramework)'=='net8.0-windows10.0.19041'">
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
-  </PropertyGroup>
+  </PropertyGroup>-->
 
   <ItemGroup>
     <PackageReference Include="Velopack" />

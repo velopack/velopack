@@ -87,8 +87,8 @@
       },
       "Microsoft.Identity.Client": {
         "type": "Transitive",
-        "resolved": "4.61.2",
-        "contentHash": "zXPDXjTju1yOZQzi5PeNmQfBzlxv+VlCfgfZ70VqyFuhaPtFXwvbLSlwCOMoVALR/MzOR6xkiadoyVDmWDmqKw==",
+        "resolved": "4.61.3",
+        "contentHash": "naJo/Qm35Caaoxp5utcw+R8eU8ZtLz2ALh8S+gkekOYQ1oazfCQMWVT4NJ/FnHzdIJlm8dMz0oMpMGCabx5odA==",
         "dependencies": {
           "Microsoft.IdentityModel.Abstractions": "6.35.0",
           "System.Diagnostics.DiagnosticSource": "6.0.1"
@@ -331,7 +331,7 @@
         "type": "Project",
         "dependencies": {
           "Markdig": "[0.37.0, )",
-          "Microsoft.Identity.Client": "[4.61.2, )",
+          "Microsoft.Identity.Client": "[4.61.3, )",
           "Microsoft.Identity.Client.Broker": "[4.61.2, )",
           "Microsoft.Identity.Client.Extensions.Msal": "[4.61.2, )",
           "System.Linq.Async": "[6.0.1, )",
@@ -420,8 +420,8 @@
       },
       "Microsoft.Identity.Client": {
         "type": "Transitive",
-        "resolved": "4.61.2",
-        "contentHash": "zXPDXjTju1yOZQzi5PeNmQfBzlxv+VlCfgfZ70VqyFuhaPtFXwvbLSlwCOMoVALR/MzOR6xkiadoyVDmWDmqKw==",
+        "resolved": "4.61.3",
+        "contentHash": "naJo/Qm35Caaoxp5utcw+R8eU8ZtLz2ALh8S+gkekOYQ1oazfCQMWVT4NJ/FnHzdIJlm8dMz0oMpMGCabx5odA==",
         "dependencies": {
           "Microsoft.IdentityModel.Abstractions": "6.35.0",
           "System.Diagnostics.DiagnosticSource": "6.0.1"
@@ -1082,7 +1082,7 @@
         "type": "Project",
         "dependencies": {
           "Markdig": "[0.37.0, )",
-          "Microsoft.Identity.Client": "[4.61.2, )",
+          "Microsoft.Identity.Client": "[4.61.3, )",
           "Microsoft.Identity.Client.Broker": "[4.61.2, )",
           "Microsoft.Identity.Client.Extensions.Msal": "[4.61.2, )",
           "System.Linq.Async": "[6.0.1, )",
