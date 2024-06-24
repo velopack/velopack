@@ -1,4 +1,5 @@
 using Uno.Resizetizer;
+using Velopack;
 
 namespace UnoSample;
 public partial class App : Application
@@ -9,6 +10,11 @@ public partial class App : Application
     /// </summary>
     public App()
     {
+        // It's important to Run() the VelopackApp as early as possible in app startup.
+        VelopackApp.Build()
+            .WithFirstRun((v) => { /* Your first run code here */ })
+            .Run();
+
         this.InitializeComponent();
     }
 
