@@ -178,7 +178,7 @@ namespace Velopack
         public static string CalculateStreamSHA256(Stream file)
         {
             using (var sha256 = SHA256.Create()) {
-                return Convert.ToBase64String(sha256.ComputeHash(file));
+                return BitConverter.ToString(sha256.ComputeHash(file)).Replace("-", String.Empty);
             }
         }
 
