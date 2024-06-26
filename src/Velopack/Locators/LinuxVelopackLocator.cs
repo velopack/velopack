@@ -63,7 +63,7 @@ namespace Velopack.Locators
             var ourPath = VelopackRuntimeInfo.EntryExePath;
             var ix = ourPath.IndexOf("/usr/bin/", StringComparison.InvariantCultureIgnoreCase);
             if (ix <= 0) {
-                Log.Warn($"Unable to locate .AppImage root from '{ourPath}'");
+                Log.Warn($"Unable to locate .AppImage root from '{ourPath}'. This warning indicates that the application is not running from a mounted .AppImage, for example during development.");
                 return;
             }
 
