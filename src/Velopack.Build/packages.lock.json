@@ -35,9 +35,9 @@
       },
       "Riok.Mapperly": {
         "type": "Direct",
-        "requested": "[3.5.1, )",
-        "resolved": "3.5.1",
-        "contentHash": "ECFSdemqIN7HoCu8lOtGYW15fYK5XgSg9tpaspdevi4rj6Z4KomMQz6bKID1L5WMHxjyexix250wP5eAF0iKNw=="
+        "requested": "[3.6.0, )",
+        "resolved": "3.6.0",
+        "contentHash": "eQkT3evicd5fdb8HgAJjJ+uvbhfA76ozZZsBtounFrOvk0mj+9tozv1hCYV0f0cTmXIZsxtU93FMWPzd76wSaw=="
       },
       "AsmResolver": {
         "type": "Transitive",
@@ -128,19 +128,19 @@
       },
       "Microsoft.Identity.Client.Broker": {
         "type": "Transitive",
-        "resolved": "4.61.2",
-        "contentHash": "+13pImNYfPGl04qZh3Rtq8wPfo55FScAUEio4ymPzeWJ/PE04jCsKH6ZIlrYbPCqe6t9u0lru1eZ+ho9Dsnvpw==",
+        "resolved": "4.61.3",
+        "contentHash": "VX8YJYmjNZzWjLuwAwBWzTtfNRTqjj5DKPEci6eNa2tedBWSyOGvcsVMVUL/vy1oRSAjfpwzUIFlXCmhWnCAeA==",
         "dependencies": {
-          "Microsoft.Identity.Client": "4.61.2",
+          "Microsoft.Identity.Client": "4.61.3",
           "Microsoft.Identity.Client.NativeInterop": "0.16.1"
         }
       },
       "Microsoft.Identity.Client.Extensions.Msal": {
         "type": "Transitive",
-        "resolved": "4.61.2",
-        "contentHash": "GCSBhzkr7/7DZDk2kYS9dfihB5ieM2CqwGAhtjuE6T1GtAqzuh62UJhMgO0dSx/PLgIYMzNHnh+pfHK8aWJQJQ==",
+        "resolved": "4.61.3",
+        "contentHash": "PWnJcznrSGr25MN8ajlc2XIDW4zCFu0U6FkpaNLEWLgd1NgFCp5uDY3mqLDgM8zCN8hqj8yo5wHYfLB2HjcdGw==",
         "dependencies": {
-          "Microsoft.Identity.Client": "4.61.2",
+          "Microsoft.Identity.Client": "4.61.3",
           "System.IO.FileSystem.AccessControl": "5.0.0",
           "System.Security.Cryptography.ProtectedData": "4.5.0"
         }
@@ -405,8 +405,8 @@
         "dependencies": {
           "Markdig": "[0.37.0, )",
           "Microsoft.Identity.Client": "[4.61.3, )",
-          "Microsoft.Identity.Client.Broker": "[4.61.2, )",
-          "Microsoft.Identity.Client.Extensions.Msal": "[4.61.2, )",
+          "Microsoft.Identity.Client.Broker": "[4.61.3, )",
+          "Microsoft.Identity.Client.Extensions.Msal": "[4.61.3, )",
           "System.Linq.Async": "[6.0.1, )",
           "System.Net.Http": "[4.3.4, )",
           "Velopack": "[1.0.0, )"
@@ -466,9 +466,9 @@
       },
       "Riok.Mapperly": {
         "type": "Direct",
-        "requested": "[3.5.1, )",
-        "resolved": "3.5.1",
-        "contentHash": "ECFSdemqIN7HoCu8lOtGYW15fYK5XgSg9tpaspdevi4rj6Z4KomMQz6bKID1L5WMHxjyexix250wP5eAF0iKNw=="
+        "requested": "[3.6.0, )",
+        "resolved": "3.6.0",
+        "contentHash": "eQkT3evicd5fdb8HgAJjJ+uvbhfA76ozZZsBtounFrOvk0mj+9tozv1hCYV0f0cTmXIZsxtU93FMWPzd76wSaw=="
       },
       "AsmResolver": {
         "type": "Transitive",
@@ -556,19 +556,19 @@
       },
       "Microsoft.Identity.Client.Broker": {
         "type": "Transitive",
-        "resolved": "4.61.2",
-        "contentHash": "+13pImNYfPGl04qZh3Rtq8wPfo55FScAUEio4ymPzeWJ/PE04jCsKH6ZIlrYbPCqe6t9u0lru1eZ+ho9Dsnvpw==",
+        "resolved": "4.61.3",
+        "contentHash": "VX8YJYmjNZzWjLuwAwBWzTtfNRTqjj5DKPEci6eNa2tedBWSyOGvcsVMVUL/vy1oRSAjfpwzUIFlXCmhWnCAeA==",
         "dependencies": {
-          "Microsoft.Identity.Client": "4.61.2",
+          "Microsoft.Identity.Client": "4.61.3",
           "Microsoft.Identity.Client.NativeInterop": "0.16.1"
         }
       },
       "Microsoft.Identity.Client.Extensions.Msal": {
         "type": "Transitive",
-        "resolved": "4.61.2",
-        "contentHash": "GCSBhzkr7/7DZDk2kYS9dfihB5ieM2CqwGAhtjuE6T1GtAqzuh62UJhMgO0dSx/PLgIYMzNHnh+pfHK8aWJQJQ==",
+        "resolved": "4.61.3",
+        "contentHash": "PWnJcznrSGr25MN8ajlc2XIDW4zCFu0U6FkpaNLEWLgd1NgFCp5uDY3mqLDgM8zCN8hqj8yo5wHYfLB2HjcdGw==",
         "dependencies": {
-          "Microsoft.Identity.Client": "4.61.2",
+          "Microsoft.Identity.Client": "4.61.3",
           "System.Security.Cryptography.ProtectedData": "4.5.0"
         }
       },
@@ -1268,8 +1268,8 @@
         "dependencies": {
           "Markdig": "[0.37.0, )",
           "Microsoft.Identity.Client": "[4.61.3, )",
-          "Microsoft.Identity.Client.Broker": "[4.61.2, )",
-          "Microsoft.Identity.Client.Extensions.Msal": "[4.61.2, )",
+          "Microsoft.Identity.Client.Broker": "[4.61.3, )",
+          "Microsoft.Identity.Client.Extensions.Msal": "[4.61.3, )",
           "System.Linq.Async": "[6.0.1, )",
           "System.Net.Http": "[4.3.4, )",
           "Velopack": "[1.0.0, )"

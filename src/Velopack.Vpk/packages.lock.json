@@ -78,17 +78,17 @@
       },
       "Riok.Mapperly": {
         "type": "Direct",
-        "requested": "[3.5.1, )",
-        "resolved": "3.5.1",
-        "contentHash": "ECFSdemqIN7HoCu8lOtGYW15fYK5XgSg9tpaspdevi4rj6Z4KomMQz6bKID1L5WMHxjyexix250wP5eAF0iKNw=="
+        "requested": "[3.6.0, )",
+        "resolved": "3.6.0",
+        "contentHash": "eQkT3evicd5fdb8HgAJjJ+uvbhfA76ozZZsBtounFrOvk0mj+9tozv1hCYV0f0cTmXIZsxtU93FMWPzd76wSaw=="
       },
       "Serilog.Expressions": {
         "type": "Direct",
-        "requested": "[4.0.0, )",
-        "resolved": "4.0.0",
-        "contentHash": "dsC8GtalMDXMzywA60fHeBvqAjQ1EM75zSrdA7j7TxJfmrfss6BOxzgoT5thqjY+icLNbovUsC5KTYRlXzCpXg==",
+        "requested": "[5.0.0, )",
+        "resolved": "5.0.0",
+        "contentHash": "QhZjXtUcA2QfQRA60m+DfyIfidKsQV7HBstbYEDqzJKMbJH/KnKthkkjciRuYrmFE+scWv1JibC5LlXrdtOUmw==",
         "dependencies": {
-          "Serilog": "3.1.0"
+          "Serilog": "4.0.0"
         }
       },
       "Serilog.Extensions.Hosting": {
@@ -106,11 +106,11 @@
       },
       "Serilog.Sinks.Console": {
         "type": "Direct",
-        "requested": "[5.0.1, )",
-        "resolved": "5.0.1",
-        "contentHash": "6Jt8jl9y2ey8VV7nVEUAyjjyxjAQuvd5+qj4XYAT9CwcsvR70HHULGBeD+K2WCALFXf7CFsNQT4lON6qXcu2AA==",
+        "requested": "[6.0.0, )",
+        "resolved": "6.0.0",
+        "contentHash": "fQGWqVMClCP2yEyTXPIinSr5c+CBGUvBybPxjAGcf7ctDhadFhrQw03Mv8rJ07/wR5PDfFjewf2LimvXCDzpbA==",
         "dependencies": {
-          "Serilog": "3.1.1"
+          "Serilog": "4.0.0"
         }
       },
       "Spectre.Console": {
@@ -169,15 +169,15 @@
       },
       "AWSSDK.Core": {
         "type": "Transitive",
-        "resolved": "3.7.304.10",
-        "contentHash": "0CXnPzoM+KYXODm2bvRW8eYs7ic2VLop45sphL8FBfvxHfBK/3OJgpxEE2InSdWS1Iby+6KXpz3NplJJY5+Y1A=="
+        "resolved": "3.7.304.21",
+        "contentHash": "MD1UcVQPbJmE/s3JJ2/TFc3tuhHqxn5XOMOCKS3WloXFmJM/oKW/e7FEWSmce65WghVKGkscIdCR5Ckh552o7A=="
       },
       "AWSSDK.S3": {
         "type": "Transitive",
-        "resolved": "3.7.308.8",
-        "contentHash": "lUQgJsj9n/sJo1CRQFsiB2Gqh3rC21I4e5CWR1b+oYBnc9m8LIsGewctX6YQRzGzuv7Im7iIZo7XoirmYhhqEA==",
+        "resolved": "3.7.309.10",
+        "contentHash": "2eNqXLckwopqLNS+fkZjUmIHMBHZggaOKSQZz/Equgbxke4lVGl04PXWv3od54a2OcdrXbaR/Wyz1i/HFXJPpA==",
         "dependencies": {
-          "AWSSDK.Core": "[3.7.304.10, 4.0.0)"
+          "AWSSDK.Core": "[3.7.304.21, 4.0.0)"
         }
       },
       "Azure.Core": {
@@ -538,19 +538,19 @@
       },
       "Microsoft.Identity.Client.Broker": {
         "type": "Transitive",
-        "resolved": "4.61.2",
-        "contentHash": "+13pImNYfPGl04qZh3Rtq8wPfo55FScAUEio4ymPzeWJ/PE04jCsKH6ZIlrYbPCqe6t9u0lru1eZ+ho9Dsnvpw==",
+        "resolved": "4.61.3",
+        "contentHash": "VX8YJYmjNZzWjLuwAwBWzTtfNRTqjj5DKPEci6eNa2tedBWSyOGvcsVMVUL/vy1oRSAjfpwzUIFlXCmhWnCAeA==",
         "dependencies": {
-          "Microsoft.Identity.Client": "4.61.2",
+          "Microsoft.Identity.Client": "4.61.3",
           "Microsoft.Identity.Client.NativeInterop": "0.16.1"
         }
       },
       "Microsoft.Identity.Client.Extensions.Msal": {
         "type": "Transitive",
-        "resolved": "4.61.2",
-        "contentHash": "GCSBhzkr7/7DZDk2kYS9dfihB5ieM2CqwGAhtjuE6T1GtAqzuh62UJhMgO0dSx/PLgIYMzNHnh+pfHK8aWJQJQ==",
+        "resolved": "4.61.3",
+        "contentHash": "PWnJcznrSGr25MN8ajlc2XIDW4zCFu0U6FkpaNLEWLgd1NgFCp5uDY3mqLDgM8zCN8hqj8yo5wHYfLB2HjcdGw==",
         "dependencies": {
-          "Microsoft.Identity.Client": "4.61.2",
+          "Microsoft.Identity.Client": "4.61.3",
           "System.Security.Cryptography.ProtectedData": "4.5.0"
         }
       },
@@ -629,8 +629,8 @@
       },
       "Octokit": {
         "type": "Transitive",
-        "resolved": "11.0.1",
-        "contentHash": "fpwF/DxMJyGS+pIXDKQozx0wCIpOfG8VDr10ls+m9Gn9Lz8GslhhApxkKD9JCNO60HRUeMJsedsAS24gCjTD7Q=="
+        "resolved": "13.0.0",
+        "contentHash": "EgDott7VovDqbVoiJioWQG/ut/dgfEss7ZJigNAzh4HfG6FHs66IWhKoqZEOVKoei6+0rx0tD76WkyzCjN7dPg=="
       },
       "Polly": {
         "type": "Transitive",
@@ -753,8 +753,8 @@
       },
       "Serilog": {
         "type": "Transitive",
-        "resolved": "3.1.1",
-        "contentHash": "P6G4/4Kt9bT635bhuwdXlJ2SCqqn2nhh4gqFqQueCOr9bK/e7W9ll/IoX1Ter948cV2Z/5+5v8pAfJYUISY03A=="
+        "resolved": "4.0.0",
+        "contentHash": "2jDkUrSh5EofOp7Lx5Zgy0EB+7hXjjxE2ktTb1WVQmU00lDACR2TdROGKU0K1pDTBSJBN1PqgYpgOZF8mL7NJw=="
       },
       "Serilog.Extensions.Logging": {
         "type": "Transitive",
@@ -1375,10 +1375,10 @@
       "velopack.deployment": {
         "type": "Project",
         "dependencies": {
-          "AWSSDK.S3": "[3.7.308.8, )",
+          "AWSSDK.S3": "[3.7.309.10, )",
           "Azure.Storage.Blobs": "[12.20.0, )",
           "Gitea.Net.API": "[1.0.0, )",
-          "Octokit": "[11.0.1, )",
+          "Octokit": "[13.0.0, )",
           "Velopack.Packaging": "[1.0.0, )"
         }
       },
@@ -1393,8 +1393,8 @@
         "dependencies": {
           "Markdig": "[0.37.0, )",
           "Microsoft.Identity.Client": "[4.61.3, )",
-          "Microsoft.Identity.Client.Broker": "[4.61.2, )",
-          "Microsoft.Identity.Client.Extensions.Msal": "[4.61.2, )",
+          "Microsoft.Identity.Client.Broker": "[4.61.3, )",
+          "Microsoft.Identity.Client.Extensions.Msal": "[4.61.3, )",
           "System.Linq.Async": "[6.0.1, )",
           "System.Net.Http": "[4.3.4, )",
           "Velopack": "[1.0.0, )"
@@ -1496,17 +1496,17 @@
       },
       "Riok.Mapperly": {
         "type": "Direct",
-        "requested": "[3.5.1, )",
-        "resolved": "3.5.1",
-        "contentHash": "ECFSdemqIN7HoCu8lOtGYW15fYK5XgSg9tpaspdevi4rj6Z4KomMQz6bKID1L5WMHxjyexix250wP5eAF0iKNw=="
+        "requested": "[3.6.0, )",
+        "resolved": "3.6.0",
+        "contentHash": "eQkT3evicd5fdb8HgAJjJ+uvbhfA76ozZZsBtounFrOvk0mj+9tozv1hCYV0f0cTmXIZsxtU93FMWPzd76wSaw=="
       },
       "Serilog.Expressions": {
         "type": "Direct",
-        "requested": "[4.0.0, )",
-        "resolved": "4.0.0",
-        "contentHash": "dsC8GtalMDXMzywA60fHeBvqAjQ1EM75zSrdA7j7TxJfmrfss6BOxzgoT5thqjY+icLNbovUsC5KTYRlXzCpXg==",
+        "requested": "[5.0.0, )",
+        "resolved": "5.0.0",
+        "contentHash": "QhZjXtUcA2QfQRA60m+DfyIfidKsQV7HBstbYEDqzJKMbJH/KnKthkkjciRuYrmFE+scWv1JibC5LlXrdtOUmw==",
         "dependencies": {
-          "Serilog": "3.1.0"
+          "Serilog": "4.0.0"
         }
       },
       "Serilog.Extensions.Hosting": {
@@ -1524,11 +1524,11 @@
       },
       "Serilog.Sinks.Console": {
         "type": "Direct",
-        "requested": "[5.0.1, )",
-        "resolved": "5.0.1",
-        "contentHash": "6Jt8jl9y2ey8VV7nVEUAyjjyxjAQuvd5+qj4XYAT9CwcsvR70HHULGBeD+K2WCALFXf7CFsNQT4lON6qXcu2AA==",
+        "requested": "[6.0.0, )",
+        "resolved": "6.0.0",
+        "contentHash": "fQGWqVMClCP2yEyTXPIinSr5c+CBGUvBybPxjAGcf7ctDhadFhrQw03Mv8rJ07/wR5PDfFjewf2LimvXCDzpbA==",
         "dependencies": {
-          "Serilog": "3.1.1"
+          "Serilog": "4.0.0"
         }
       },
       "Spectre.Console": {
@@ -1584,15 +1584,15 @@
       },
       "AWSSDK.Core": {
         "type": "Transitive",
-        "resolved": "3.7.304.10",
-        "contentHash": "0CXnPzoM+KYXODm2bvRW8eYs7ic2VLop45sphL8FBfvxHfBK/3OJgpxEE2InSdWS1Iby+6KXpz3NplJJY5+Y1A=="
+        "resolved": "3.7.304.21",
+        "contentHash": "MD1UcVQPbJmE/s3JJ2/TFc3tuhHqxn5XOMOCKS3WloXFmJM/oKW/e7FEWSmce65WghVKGkscIdCR5Ckh552o7A=="
       },
       "AWSSDK.S3": {
         "type": "Transitive",
-        "resolved": "3.7.308.8",
-        "contentHash": "lUQgJsj9n/sJo1CRQFsiB2Gqh3rC21I4e5CWR1b+oYBnc9m8LIsGewctX6YQRzGzuv7Im7iIZo7XoirmYhhqEA==",
+        "resolved": "3.7.309.10",
+        "contentHash": "2eNqXLckwopqLNS+fkZjUmIHMBHZggaOKSQZz/Equgbxke4lVGl04PXWv3od54a2OcdrXbaR/Wyz1i/HFXJPpA==",
         "dependencies": {
-          "AWSSDK.Core": "[3.7.304.10, 4.0.0)"
+          "AWSSDK.Core": "[3.7.304.21, 4.0.0)"
         }
       },
       "Azure.Core": {
@@ -1940,19 +1940,19 @@
       },
       "Microsoft.Identity.Client.Broker": {
         "type": "Transitive",
-        "resolved": "4.61.2",
-        "contentHash": "+13pImNYfPGl04qZh3Rtq8wPfo55FScAUEio4ymPzeWJ/PE04jCsKH6ZIlrYbPCqe6t9u0lru1eZ+ho9Dsnvpw==",
+        "resolved": "4.61.3",
+        "contentHash": "VX8YJYmjNZzWjLuwAwBWzTtfNRTqjj5DKPEci6eNa2tedBWSyOGvcsVMVUL/vy1oRSAjfpwzUIFlXCmhWnCAeA==",
         "dependencies": {
-          "Microsoft.Identity.Client": "4.61.2",
+          "Microsoft.Identity.Client": "4.61.3",
           "Microsoft.Identity.Client.NativeInterop": "0.16.1"
         }
       },
       "Microsoft.Identity.Client.Extensions.Msal": {
         "type": "Transitive",
-        "resolved": "4.61.2",
-        "contentHash": "GCSBhzkr7/7DZDk2kYS9dfihB5ieM2CqwGAhtjuE6T1GtAqzuh62UJhMgO0dSx/PLgIYMzNHnh+pfHK8aWJQJQ==",
+        "resolved": "4.61.3",
+        "contentHash": "PWnJcznrSGr25MN8ajlc2XIDW4zCFu0U6FkpaNLEWLgd1NgFCp5uDY3mqLDgM8zCN8hqj8yo5wHYfLB2HjcdGw==",
         "dependencies": {
-          "Microsoft.Identity.Client": "4.61.2",
+          "Microsoft.Identity.Client": "4.61.3",
           "System.Security.Cryptography.ProtectedData": "4.5.0"
         }
       },
@@ -2031,8 +2031,8 @@
       },
       "Octokit": {
         "type": "Transitive",
-        "resolved": "11.0.1",
-        "contentHash": "fpwF/DxMJyGS+pIXDKQozx0wCIpOfG8VDr10ls+m9Gn9Lz8GslhhApxkKD9JCNO60HRUeMJsedsAS24gCjTD7Q=="
+        "resolved": "13.0.0",
+        "contentHash": "EgDott7VovDqbVoiJioWQG/ut/dgfEss7ZJigNAzh4HfG6FHs66IWhKoqZEOVKoei6+0rx0tD76WkyzCjN7dPg=="
       },
       "Polly": {
         "type": "Transitive",
@@ -2152,8 +2152,8 @@
       },
       "Serilog": {
         "type": "Transitive",
-        "resolved": "3.1.1",
-        "contentHash": "P6G4/4Kt9bT635bhuwdXlJ2SCqqn2nhh4gqFqQueCOr9bK/e7W9ll/IoX1Ter948cV2Z/5+5v8pAfJYUISY03A=="
+        "resolved": "4.0.0",
+        "contentHash": "2jDkUrSh5EofOp7Lx5Zgy0EB+7hXjjxE2ktTb1WVQmU00lDACR2TdROGKU0K1pDTBSJBN1PqgYpgOZF8mL7NJw=="
       },
       "Serilog.Extensions.Logging": {
         "type": "Transitive",
@@ -2762,10 +2762,10 @@
       "velopack.deployment": {
         "type": "Project",
         "dependencies": {
-          "AWSSDK.S3": "[3.7.308.8, )",
+          "AWSSDK.S3": "[3.7.309.10, )",
           "Azure.Storage.Blobs": "[12.20.0, )",
           "Gitea.Net.API": "[1.0.0, )",
-          "Octokit": "[11.0.1, )",
+          "Octokit": "[13.0.0, )",
           "Velopack.Packaging": "[1.0.0, )"
         }
       },
@@ -2780,8 +2780,8 @@
         "dependencies": {
           "Markdig": "[0.37.0, )",
           "Microsoft.Identity.Client": "[4.61.3, )",
-          "Microsoft.Identity.Client.Broker": "[4.61.2, )",
-          "Microsoft.Identity.Client.Extensions.Msal": "[4.61.2, )",
+          "Microsoft.Identity.Client.Broker": "[4.61.3, )",
+          "Microsoft.Identity.Client.Extensions.Msal": "[4.61.3, )",
           "System.Linq.Async": "[6.0.1, )",
           "System.Net.Http": "[4.3.4, )",
           "Velopack": "[1.0.0, )"
