@@ -91,7 +91,7 @@ jobs:
           CROSS_NuGetPackageVersion: ${{ steps.nbgv.outputs.NuGetPackageVersion }}
         run: |
           curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
-          cargo binstall cross --no-confirm
+          cargo binstall cross --no-confirm --force
           cross build --release --target aarch64-unknown-linux-gnu
           cp ./target/aarch64-unknown-linux-gnu/release/update ./target/release/UpdateNix_arm64
       - name: Upload Rust Build Artifacts
