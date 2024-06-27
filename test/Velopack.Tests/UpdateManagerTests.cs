@@ -389,7 +389,6 @@ public class UpdateManagerTests
         Assert.True(new SemanticVersion(1, 0, 1) == info.TargetFullRelease.Version);
         Assert.Equal(0, info.DeltasToTarget.Count());
     }
-
     [Fact(Skip = "Consumes API Quota")]
     public void CheckGithubWithNonExistingChannel()
     {
@@ -402,7 +401,20 @@ public class UpdateManagerTests
         var um = new UpdateManager(source, opt, logger, locator);
         Assert.Throws<ArgumentException>(() => um.CheckForUpdates());
     }
-
+    [Fact(Skip = "Consumes API Quota")]
+    public void CheckGitea()
+    {
+        // https://github.com/caesay/SquirrelCustomLauncherTestApp
+        using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
+        using var _1 = Utility.GetTempDirectory(out var tempPath);
+        var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
+        var source = new GiteaSource("https://gitea.com/remco1271/VeloPackTest", null, false);
+        var um = new UpdateManager(source, null, logger, locator);
+        var info = um.CheckForUpdates();
+        Assert.NotNull(info);
+        Assert.True(new SemanticVersion(1, 0, 1) == info.TargetFullRelease.Version);
+        Assert.Equal(0, info.DeltasToTarget.Count());
+    }
     [Fact]
     public void CheckFromEmptyFileSource()
     {
