@@ -8,12 +8,17 @@ on:
         required: true
         default: ''
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Checkout original build commit
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           COMMIT_HASH=$(gh run view ${{ github.event.inputs.workflow_run_id }} --json headSha -q ".headSha")
           git checkout $COMMIT_HASH
