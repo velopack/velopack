@@ -265,6 +265,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: dotnet/nbgv@master
+        with:
+          setAllVars: true
       - name: Download Rust Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -273,6 +276,13 @@ jobs:
           merge-multiple: true
       - name: Build .NET
         run: dotnet build -c Release /p:PackRustAssets=true /p:ContinuousIntegrationBuild=true
+      - name: Write Version File
+        run: echo $NBGV_NuGetPackageVersion > version.txt
+      - name: Upload version file as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: build-version
+          path: version.txt
       - name: Upload Package Artifacts
         uses: actions/upload-artifact@v4
         with:
