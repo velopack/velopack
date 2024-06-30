@@ -52,12 +52,6 @@ jobs:
           git tag $TAG_NAME
           git push origin $TAG_NAME
 
-      # - name: Publish .nupkg and .snupkg files
-      #   run: |
-      #     for f in packages/*.nupkg; do
-      #       dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
-      #     done
-
       - name: Generate Release
         shell: pwsh
         run: |
@@ -84,9 +78,8 @@ jobs:
 
           # Generate release notes
           Write-Host "Generating release notes..."
-          $token = "${{ github.token }}"
           $headers = @{
-              "Authorization" = "Bearer $token"
+              "Authorization" = "Bearer ${{ github.token }}"
               "Accept" = "application/vnd.github.v3+json"
           }
           $body = @{
@@ -105,7 +98,8 @@ jobs:
           $releaseBody | Out-File -FilePath $notesFilePath -Encoding utf8
           gh release create $currentTag --title $releaseName --notes-file $notesFilePath $releaseArg --verify-tag --draft
           
-
-
-        
-  
+      - name: Publish .nupkg and .snupkg files
+        run: |
+          for f in packages/*.nupkg; do
+            dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
+          done
