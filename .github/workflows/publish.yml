@@ -58,17 +58,54 @@ jobs:
       #       dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
       #     done
 
-      - name: Generate Release Notes
+      - name: Generate Release
         shell: pwsh
         run: |
-            $response = gh api --method POST -H "Accept: application/vnd.github+json" /repos/${{ github.repository }}/releases/generate-notes -f tag_name='v${{ inputs.milestone }}'
-            $json = $response | ConvertFrom-Json
-            $releaseNotes = $json.body
-            $contributors = "${{ steps.get-contribs.outputs.contributors }}"
-            $releaseNotes | Out-File -Append "ReleaseNotes.md"
-            "`n" | Out-File -Append "ReleaseNotes.md"
-            $contributors | Out-File -Append "ReleaseNotes.md"
-            cat "ReleaseNotes.md"
+          $ErrorActionPreference = "Stop"
+
+          # Get the previous release tag
+          $currentTag = "0.0.553-g1c3d838"
+          Write-Host "Detecting previous release tag..."
+          if ($currentTag -like "*-*") {
+          # For prerelease versions, retain the full tag for output
+              $previousTag = git tag --list | Where { $_ -like "*-*" } | 
+                  ForEach-Object { 
+                      $versionPart = $_.Split('-')[0]
+                      [PSCustomObject]@{ FullTag = $_; Version = [System.Version]$versionPart }
+                  } | Sort-Object Version -Descending | Select-Object -Skip 1 -First 1 | ForEach-Object { $_.FullTag }
+              $releaseArg = "--prerelease"
+          } else {
+              $previousTag = git tag --list | where { $_ -notlike "*-*" } | %{ [System.Version]$_ } | sort -Descending | select -Skip 1 -First 1
+              $releaseArg = "--latest"
+          }
+
+          Write-Host "Current tag: $currentTag"
+          Write-Host "Previous tag: $previousTag"
+
+          # Generate release notes
+          Write-Host "Generating release notes..."
+          $token = "${{ github.token }}"
+          $headers = @{
+              "Authorization" = "Bearer $token"
+              "Accept" = "application/vnd.github.v3+json"
+          }
+          $body = @{
+              "tag_name" = "$currentTag"
+              "previous_tag_name" = "$previousTag"
+          } | ConvertTo-Json
+          $apiUrl = "https://api.github.com/repos/velopack/velopack/releases/generate-notes"
+          $response = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $body -ContentType 'application/json'
+
+          $releaseName = $response.name
+          $releaseBody = $response.body
+
+          # Create release
+          Write-Host "Creating release..."
+          $notesFilePath = "./RELEASE_NOTES.md"
+          $releaseBody | Out-File -FilePath $notesFilePath -Encoding utf8
+          gh release create $currentTag --title $releaseName --notes-file $notesFilePath $releaseArg --verify-tag --draft
+          
+
 
         
   

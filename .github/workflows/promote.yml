@@ -3,9 +3,6 @@ name: Promote Stable Release
 on:
   workflow_dispatch:
 
-env:
-  GH_TOKEN: ${{ github.token }}
-
 permissions:
   contents: write
 
