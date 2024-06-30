@@ -1,0 +1,21 @@
+name: Promote Stable Release
+
+on:
+  workflow_dispatch:
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fast-forward master branch
+        run: |
+          git checkout master
+          git merge develop --ff-only
+          git push origin master

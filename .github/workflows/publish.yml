@@ -8,20 +8,25 @@ on:
         required: true
         default: ''
 
+env:
+  GH_TOKEN: ${{ github.token }}
+
 permissions:
   contents: write
 
 jobs:
-  release:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Checkout original build commit
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           COMMIT_HASH=$(gh run view ${{ github.event.inputs.workflow_run_id }} --json headSha -q ".headSha")
           git checkout $COMMIT_HASH
+
       - name: Download build version
         uses: actions/download-artifact@v4
         with:
@@ -29,6 +34,7 @@ jobs:
           run-id: ${{ github.event.inputs.workflow_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./
+
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
@@ -36,17 +42,33 @@ jobs:
           run-id: ${{ github.event.inputs.workflow_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./packages
+
       - name: Show version
         run: cat version.txt
+
       - name: Tag the commit with version
         run: |
           TAG_NAME=$(cat version.txt)
           git tag $TAG_NAME
           git push origin $TAG_NAME
-      
-  
+
       # - name: Publish .nupkg and .snupkg files
       #   run: |
       #     for f in packages/*.nupkg; do
       #       dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
       #     done
+
+      - name: Generate Release Notes
+        shell: pwsh
+        run: |
+            $response = gh api --method POST -H "Accept: application/vnd.github+json" /repos/${{ github.repository }}/releases/generate-notes -f tag_name='v${{ inputs.milestone }}'
+            $json = $response | ConvertFrom-Json
+            $releaseNotes = $json.body
+            $contributors = "${{ steps.get-contribs.outputs.contributors }}"
+            $releaseNotes | Out-File -Append "ReleaseNotes.md"
+            "`n" | Out-File -Append "ReleaseNotes.md"
+            $contributors | Out-File -Append "ReleaseNotes.md"
+            cat "ReleaseNotes.md"
+
+        
+  
