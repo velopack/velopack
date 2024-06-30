@@ -57,8 +57,10 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
+          $currentTag = Get-Content -Path "./version.txt" -Raw
+          $currentTag = $currentTag.Trim()
+
           # Get the previous release tag
-          $currentTag = "0.0.553-g1c3d838"
           Write-Host "Detecting previous release tag..."
           if ($currentTag -like "*-*") {
           # For prerelease versions, retain the full tag for output
@@ -98,8 +100,8 @@ jobs:
           $releaseBody | Out-File -FilePath $notesFilePath -Encoding utf8
           gh release create $currentTag --title $releaseName --notes-file $notesFilePath $releaseArg --verify-tag --draft
           
-      - name: Publish .nupkg and .snupkg files
-        run: |
-          for f in packages/*.nupkg; do
-            dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
-          done
+      # - name: Publish .nupkg and .snupkg files
+      #   run: |
+      #     for f in packages/*.nupkg; do
+      #       dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
+      #     done
