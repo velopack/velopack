@@ -98,7 +98,7 @@ jobs:
           Write-Host "Creating release..."
           $notesFilePath = "./RELEASE_NOTES.md"
           $releaseBody | Out-File -FilePath $notesFilePath -Encoding utf8
-          gh release create $currentTag --title $releaseName --notes-file $notesFilePath $releaseArg --verify-tag --draft
+          gh release create $currentTag --title $releaseName --notes-file $notesFilePath $releaseArg --verify-tag
           
       - name: Publish .nupkg and .snupkg files
         run: |
