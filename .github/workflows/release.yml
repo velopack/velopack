@@ -64,14 +64,14 @@ jobs:
           Write-Host "Detecting previous release tag..."
           if ($currentTag -like "*-*") {
           # For prerelease versions, retain the full tag for output
-              $previousTag = git tag --list | Where { $_ -like "*-*" } | 
+              $previousTag = git tag --list | Where-Object { $_ -like "*-*" } | 
                   ForEach-Object { 
                       $versionPart = $_.Split('-')[0]
                       [PSCustomObject]@{ FullTag = $_; Version = [System.Version]$versionPart }
                   } | Sort-Object Version -Descending | Select-Object -Skip 1 -First 1 | ForEach-Object { $_.FullTag }
               $releaseArg = "--prerelease"
           } else {
-              $previousTag = git tag --list | where { $_ -notlike "*-*" } | %{ [System.Version]$_ } | sort -Descending | select -Skip 1 -First 1
+              $previousTag = git tag --list | Where-Object { $_ -notlike "*-*" } | %{ [System.Version]$_ } | Sort-Object -Descending | Select-Object -Skip 1 -First 1
               $releaseArg = "--latest"
           }
 
