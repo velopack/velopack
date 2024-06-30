@@ -1,4 +1,4 @@
-name: Release Build to NuGet.org
+name: Publish to NuGet.org
 
 on:
   workflow_dispatch:
@@ -12,6 +12,11 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - name: Checkout original build commit
+        run: |
+          COMMIT_HASH=$(gh run view ${{ github.event.inputs.workflow_run_id }} --json headSha -q ".headSha")
+          git checkout $COMMIT_HASH
       - name: Download build version
         uses: actions/download-artifact@v4
         with:
@@ -26,8 +31,14 @@ jobs:
           run-id: ${{ github.event.inputs.workflow_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./packages
-      - name: Show Version
-        run: cat version.txt 
+      - name: Show version
+        run: cat version.txt
+      - name: Tag the commit with version
+        run: |
+          TAG_NAME=$(cat version.txt)
+          git tag $TAG_NAME
+          git push origin $TAG_NAME
+      
   
       # - name: Publish .nupkg and .snupkg files
       #   run: |
