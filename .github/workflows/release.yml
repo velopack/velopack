@@ -1,4 +1,4 @@
-name: Release to NuGet.org
+name: Release Build to NuGet.org
 
 on:
   workflow_dispatch:
@@ -12,16 +12,25 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - name: Download artifact
+      - name: Download build version
+        uses: actions/download-artifact@v4
+        with:
+          name: build-version
+          run-id: ${{ github.event.inputs.workflow_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./
+      - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
           name: packages
           run-id: ${{ github.event.inputs.workflow_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./packages
+      - name: Show Version
+        run: cat version.txt 
   
-      - name: Publish .nupkg and .snupkg files
-        run: |
-          for f in packages/*.nupkg; do
-            dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
-          done
+      # - name: Publish .nupkg and .snupkg files
+      #   run: |
+      #     for f in packages/*.nupkg; do
+      #       dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
+      #     done

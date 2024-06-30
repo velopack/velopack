@@ -209,8 +209,12 @@ jobs:
           path: src/Rust/target/release
           pattern: rust-*
           merge-multiple: true
-      - name: Test .NET
-        run: dotnet test --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+      - name: Test Velopack.Tests
+        run: dotnet test test/Velopack.Tests/Velopack.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+      - name: Test Velopack.Packaging.Tests
+        run: dotnet test test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+      - name: Test Velopack.CommandLine.Tests
+        run: dotnet test test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
       - name: Upload Cross-Compile Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -279,7 +283,7 @@ jobs:
       - name: Write Version File
         run: echo $NBGV_NuGetPackageVersion > version.txt
       - name: Upload version file as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: build-version
           path: version.txt
@@ -298,7 +302,6 @@ jobs:
         with:
           pattern: coverage-*
           path: ./test
-     
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v4
         env:
@@ -309,8 +312,14 @@ jobs:
       - uses: geekyeggo/delete-artifact@v5
         with:
           name: coverage-*
-    
 
-      # - name: Publish to GitHub Packages
-      #   shell: pwsh
-      #   run: dotnet nuget push build/Release/*.nupkg -k ${{ secrets.GITHUB_TOKEN }} -s https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --skip-duplicate
+  release:
+    runs-on: ubuntu-latest
+    needs: [package, test-cross, test-dotnet, test-rust-bins]
+    # if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    steps:
+      - name: Invoke Release Workflow
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: release.yml
+          inputs: '{ "workflow_run_id": "${{ github.run_id }}" }'
