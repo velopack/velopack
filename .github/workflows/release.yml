@@ -100,8 +100,8 @@ jobs:
           $releaseBody | Out-File -FilePath $notesFilePath -Encoding utf8
           gh release create $currentTag --title $releaseName --notes-file $notesFilePath $releaseArg --verify-tag --draft
           
-      # - name: Publish .nupkg and .snupkg files
-      #   run: |
-      #     for f in packages/*.nupkg; do
-      #       dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
-      #     done
+      - name: Publish .nupkg and .snupkg files
+        run: |
+          for f in packages/*.nupkg; do
+            dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
+          done
