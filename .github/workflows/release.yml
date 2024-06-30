@@ -1,4 +1,4 @@
-name: Release to NuGet.org
+name: Publish to NuGet.org
 
 on:
   workflow_dispatch:
@@ -8,18 +8,98 @@ on:
         required: true
         default: ''
 
+env:
+  GH_TOKEN: ${{ github.token }}
+
+permissions:
+  contents: write
+
 jobs:
-  release:
+  publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Download artifact
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout original build commit
+        run: |
+          COMMIT_HASH=$(gh run view ${{ github.event.inputs.workflow_run_id }} --json headSha -q ".headSha")
+          git checkout $COMMIT_HASH
+
+      - name: Download build version
+        uses: actions/download-artifact@v4
+        with:
+          name: build-version
+          run-id: ${{ github.event.inputs.workflow_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./
+
+      - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
           name: packages
           run-id: ${{ github.event.inputs.workflow_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./packages
-  
+
+      - name: Show version
+        run: cat version.txt
+
+      - name: Tag the commit with version
+        run: |
+          TAG_NAME=$(cat version.txt)
+          git tag $TAG_NAME
+          git push origin $TAG_NAME
+
+      - name: Generate Release
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $currentTag = Get-Content -Path "./version.txt" -Raw
+          $currentTag = $currentTag.Trim()
+
+          # Get the previous release tag
+          Write-Host "Detecting previous release tag..."
+          if ($currentTag -like "*-*") {
+          # For prerelease versions, retain the full tag for output
+              $previousTag = git tag --list | Where { $_ -like "*-*" } | 
+                  ForEach-Object { 
+                      $versionPart = $_.Split('-')[0]
+                      [PSCustomObject]@{ FullTag = $_; Version = [System.Version]$versionPart }
+                  } | Sort-Object Version -Descending | Select-Object -Skip 1 -First 1 | ForEach-Object { $_.FullTag }
+              $releaseArg = "--prerelease"
+          } else {
+              $previousTag = git tag --list | where { $_ -notlike "*-*" } | %{ [System.Version]$_ } | sort -Descending | select -Skip 1 -First 1
+              $releaseArg = "--latest"
+          }
+
+          Write-Host "Current tag: $currentTag"
+          Write-Host "Previous tag: $previousTag"
+
+          # Generate release notes
+          Write-Host "Generating release notes..."
+          $headers = @{
+              "Authorization" = "Bearer ${{ github.token }}"
+              "Accept" = "application/vnd.github.v3+json"
+          }
+          $body = @{
+              "tag_name" = "$currentTag"
+              "previous_tag_name" = "$previousTag"
+          } | ConvertTo-Json
+          $apiUrl = "https://api.github.com/repos/velopack/velopack/releases/generate-notes"
+          $response = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $body -ContentType 'application/json'
+
+          $releaseName = $response.name
+          $releaseBody = $response.body
+
+          # Create release
+          Write-Host "Creating release..."
+          $notesFilePath = "./RELEASE_NOTES.md"
+          $releaseBody | Out-File -FilePath $notesFilePath -Encoding utf8
+          gh release create $currentTag --title $releaseName --notes-file $notesFilePath $releaseArg --verify-tag
+          
       - name: Publish .nupkg and .snupkg files
         run: |
           for f in packages/*.nupkg; do
