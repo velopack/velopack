@@ -16,7 +16,7 @@ public class BaseCommand : CliCommand
     {
     }
 
-    protected virtual CliOption<T> AddOption<T>(Action<T> setValue, params string[] aliases)
+    protected CliOption<T> AddOption<T>(Action<T> setValue, params string[] aliases)
     {
         return AddOption(setValue, new CliOption<T>(aliases.OrderByDescending(a => a.Length).First(), aliases));
     }
@@ -53,7 +53,7 @@ public class BaseCommand : CliCommand
         return opt;
     }
 
-    protected virtual void RemoveOption(CliOption option)
+    protected void RemoveOption(CliOption option)
     {
         _setters.Remove(option);
         _envHelp.Remove(option);
@@ -62,7 +62,7 @@ public class BaseCommand : CliCommand
 
     public string GetEnvVariableName(CliOption option) => _envHelp.ContainsKey(option) ? _envHelp[option] : null;
 
-    public virtual void SetProperties(ParseResult context, IConfiguration config, RuntimeOs targetOs)
+    public void SetProperties(ParseResult context, IConfiguration config, RuntimeOs targetOs)
     {
         TargetOs = targetOs;
         foreach (var kvp in _setters) {
@@ -70,7 +70,7 @@ public class BaseCommand : CliCommand
         }
     }
 
-    public virtual ParseResult ParseAndApply(string command, IConfiguration config = null, RuntimeOs? targetOs = null)
+    public ParseResult ParseAndApply(string command, IConfiguration config = null, RuntimeOs? targetOs = null)
     {
         var x = Parse(command);
         SetProperties(x, config ?? new ConfigurationManager(), targetOs ?? VelopackRuntimeInfo.SystemOs);

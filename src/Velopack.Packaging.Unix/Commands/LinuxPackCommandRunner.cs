@@ -18,11 +18,11 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
         var dir = TempDir.CreateSubdirectory("PreprocessPackDir.AppDir");
         var bin = dir.CreateSubdirectory("usr").CreateSubdirectory("bin");
 
-        if (Options.PackIsAppDir) {
-            Log.Info("Using provided AppDir, will skip building new one.");
+        if (Options.PackDirectory.EndsWith(".AppDir", StringComparison.OrdinalIgnoreCase)) {
+            Log.Info("Pack directory ends with .AppDir, will skip building new one.");
             CopyFiles(new DirectoryInfo(Options.PackDirectory), dir, progress, true);
         } else {
-            Log.Info("Building automatic AppDir from pack directory");
+            Log.Info("Building new AppDir from pack directory contents");
             var appRunPath = Path.Combine(dir.FullName, "AppRun");
 
             // app icon
@@ -76,7 +76,6 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
         Options.TargetRuntime.Architecture = Options.TargetRuntime.HasArchitecture
             ? Options.TargetRuntime.Architecture
             : GetMachineForBinary(MainExePath);
-
 
         // velopack required files
         File.WriteAllText(Path.Combine(bin.FullName, "sq.version"), GenerateNuspecContent());

@@ -13,7 +13,7 @@ public abstract class PackCommand : PlatformCommand
 
     protected CliOption<string> PackVersionOption { get; private set; }
 
-    public string PackDirectory { get; set; }
+    public string PackDirectory { get; private set; }
 
     protected CliOption<DirectoryInfo> PackDirectoryOption { get; private set; }
 
