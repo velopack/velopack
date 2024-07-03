@@ -17,10 +17,19 @@ fn root_command() -> Command {
     .subcommand(Command::new("apply")
         .about("Applies a staged / prepared update, installing prerequisite runtimes if necessary")
         .arg(arg!(--norestart "Do not restart the application after the update"))
-        .arg(arg!(-w --wait "Wait for the parent process to terminate before applying the update"))
+        .arg(arg!(-w --wait "Wait for the parent process to terminate before applying the update").hide(true))
         .arg(arg!(--waitPid <PID> "Wait for the specified process to terminate before applying the update").value_parser(value_parser!(u32)))
         .arg(arg!(-p --package <FILE> "Update package to apply").value_parser(value_parser!(PathBuf)))
         .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceeded by '--'.").required(false).last(true).num_args(0..))
+    )
+    .subcommand(Command::new("start")
+        .about("Starts the currently installed version of the application")
+        .arg(arg!(-a --args <ARGS> "Legacy args format").aliases(vec!["processStartArgs", "process-start-args"]).hide(true).allow_hyphen_values(true).num_args(1))
+        .arg(arg!(-w --wait "Wait for the parent process to terminate before starting the application").hide(true))
+        .arg(arg!(--waitPid <PID> "Wait for the specified process to terminate before applying the update").value_parser(value_parser!(u32)))
+        .arg(arg!([EXE_NAME] "The optional name of the binary to execute"))
+        .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceeded by '--'.").required(false).last(true).num_args(0..))
+        .long_flag_aliases(vec!["processStart", "processStartAndWait"])
     )
     .subcommand(Command::new("patch")
         .about("Applies a Zstd patch file")
@@ -40,17 +49,6 @@ fn root_command() -> Command {
     .ignore_errors(true)
     .disable_help_subcommand(true)
     .flatten_help(true);
-
-    #[cfg(target_os = "windows")]
-    let cmd = cmd.subcommand(Command::new("start")
-        .about("Starts the currently installed version of the application")
-        .arg(arg!(-a --args <ARGS> "Legacy args format").aliases(vec!["processStartArgs", "process-start-args"]).hide(true).allow_hyphen_values(true).num_args(1))
-        .arg(arg!(-w --wait "Wait for the parent process to terminate before starting the application"))
-        .arg(arg!(--waitPid <PID> "Wait for the specified process to terminate before applying the update").value_parser(value_parser!(u32)))
-        .arg(arg!([EXE_NAME] "The optional name of the binary to execute"))
-        .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceeded by '--'.").required(false).last(true).num_args(0..))
-        .long_flag_aliases(vec!["processStart", "processStartAndWait"])
-    );
 
     #[cfg(target_os = "windows")]
     let cmd = cmd.subcommand(Command::new("uninstall")
@@ -102,10 +100,10 @@ fn get_flag_or_false(matches: &ArgMatches, id: &str) -> bool {
 fn get_op_wait(matches: &ArgMatches) -> shared::OperationWait {
     let wait_for_parent = get_flag_or_false(&matches, "wait");
     let wait_pid = matches.try_get_one::<u32>("waitPid").unwrap_or(None).map(|v| v.to_owned());
-    if wait_for_parent {
-        shared::OperationWait::WaitParent
-    } else if wait_pid.is_some() {
+    if wait_pid.is_some() {
         shared::OperationWait::WaitPid(wait_pid.unwrap())
+    } else if wait_for_parent {
+        shared::OperationWait::WaitParent
     } else {
         shared::OperationWait::NoWait
     }
@@ -197,7 +195,6 @@ fn apply(matches: &ArgMatches) -> Result<()> {
     commands::apply(&root_path, &app, restart, wait, package, exe_args, true)
 }
 
-#[cfg(target_os = "windows")]
 fn start(matches: &ArgMatches) -> Result<()> {
     let legacy_args = matches.get_one::<String>("args");
     let exe_name = matches.get_one::<String>("EXE_NAME");
@@ -213,9 +210,10 @@ fn start(matches: &ArgMatches) -> Result<()> {
         warn!("Legacy args format is deprecated and will be removed in a future release. Please update your application to use the new format.");
     }
 
-    let (_root_path, app) = shared::detect_current_manifest()?;
+    let (root_path, app) = shared::detect_current_manifest()?;
+    #[cfg(target_os = "windows")]
     let _mutex = shared::retry_io(|| windows::create_global_mutex(&app))?;
-    commands::start(wait, exe_name, exe_args, legacy_args)
+    commands::start(&root_path, &app, wait, exe_name, exe_args, legacy_args)
 }
 
 #[cfg(target_os = "windows")]
