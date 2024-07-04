@@ -149,11 +149,10 @@ fn main() -> Result<()> {
     let result = match subcommand {
         #[cfg(target_os = "windows")]
         "uninstall" => uninstall(subcommand_matches).map_err(|e| anyhow!("Uninstall error: {}", e)),
-        #[cfg(target_os = "windows")]
         "start" => start(subcommand_matches).map_err(|e| anyhow!("Start error: {}", e)),
         "apply" => apply(subcommand_matches).map_err(|e| anyhow!("Apply error: {}", e)),
         "patch" => patch(subcommand_matches).map_err(|e| anyhow!("Patch error: {}", e)),
-        _ => bail!("Unknown subcommand. Try `--help` for more information."),
+        _ => bail!("Unknown subcommand '{subcommand}'. Try `--help` for more information."),
     };
 
     if let Err(e) = result {
