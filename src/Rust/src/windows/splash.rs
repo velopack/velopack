@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use image::{codecs::gif::GifDecoder, io::Reader as ImageReader, AnimationDecoder, DynamicImage, ImageFormat};
+use std::sync::atomic::{AtomicI16, Ordering};
 use std::{
     cell::RefCell,
     io::Cursor,
@@ -15,7 +16,7 @@ const TMR_GIF: usize = 1;
 const MSG_NOMESSAGE: i16 = -99;
 
 pub const MSG_CLOSE: i16 = -1;
-// pub const MSG_INDEFINITE: i16 = -2;
+pub const MSG_INDEFINITE: i16 = -2;
 
 pub fn show_progress_dialog<T1: AsRef<str>, T2: AsRef<str>>(window_title: T1, content: T2) -> Sender<i16> {
     let window_title = window_title.as_ref().to_string();
@@ -239,37 +240,37 @@ impl SplashWindow {
     }
 }
 
-// pub const TDM_SET_PROGRESS_BAR_MARQUEE: co::WM = unsafe { co::WM::from_raw(1131) };
-// pub const TDM_SET_MARQUEE_PROGRESS_BAR: co::WM = unsafe { co::WM::from_raw(1127) };
+pub const TDM_SET_PROGRESS_BAR_MARQUEE: co::WM = unsafe { co::WM::from_raw(1131) };
+pub const TDM_SET_MARQUEE_PROGRESS_BAR: co::WM = unsafe { co::WM::from_raw(1127) };
 pub const TDM_SET_PROGRESS_BAR_POS: co::WM = unsafe { co::WM::from_raw(1130) };
 
-// struct MsgSetProgressMarqueeOnOff {
-//     is_marquee_on: bool,
-// }
-// unsafe impl MsgSend for MsgSetProgressMarqueeOnOff {
-//     type RetType = ();
-//     fn convert_ret(&self, _: isize) -> Self::RetType {
-//         ()
-//     }
-//     fn as_generic_wm(&mut self) -> w::msg::WndMsg {
-//         let v: usize = if self.is_marquee_on { 1 } else { 0 };
-//         w::msg::WndMsg { msg_id: TDM_SET_PROGRESS_BAR_MARQUEE, wparam: v, lparam: 0 }
-//     }
-// }
+struct MsgSetProgressMarqueeOnOff {
+    is_marquee_on: bool,
+}
+unsafe impl MsgSend for MsgSetProgressMarqueeOnOff {
+    type RetType = ();
+    fn convert_ret(&self, _: isize) -> Self::RetType {
+        ()
+    }
+    fn as_generic_wm(&mut self) -> w::msg::WndMsg {
+        let v: usize = if self.is_marquee_on { 1 } else { 0 };
+        w::msg::WndMsg { msg_id: TDM_SET_PROGRESS_BAR_MARQUEE, wparam: v, lparam: 0 }
+    }
+}
 
-// struct MsgSetProgressMarqueeMode {
-//     is_marquee_on: bool,
-// }
-// unsafe impl MsgSend for MsgSetProgressMarqueeMode {
-//     type RetType = ();
-//     fn convert_ret(&self, _: isize) -> Self::RetType {
-//         ()
-//     }
-//     fn as_generic_wm(&mut self) -> w::msg::WndMsg {
-//         let v: usize = if self.is_marquee_on { 1 } else { 0 };
-//         w::msg::WndMsg { msg_id: TDM_SET_MARQUEE_PROGRESS_BAR, wparam: v, lparam: 0 }
-//     }
-// }
+struct MsgSetProgressMarqueeMode {
+    is_marquee_on: bool,
+}
+unsafe impl MsgSend for MsgSetProgressMarqueeMode {
+    type RetType = ();
+    fn convert_ret(&self, _: isize) -> Self::RetType {
+        ()
+    }
+    fn as_generic_wm(&mut self) -> w::msg::WndMsg {
+        let v: usize = if self.is_marquee_on { 1 } else { 0 };
+        w::msg::WndMsg { msg_id: TDM_SET_MARQUEE_PROGRESS_BAR, wparam: v, lparam: 0 }
+    }
+}
 
 struct MsgSetProgressPos {
     pos: usize,
@@ -288,6 +289,28 @@ unsafe impl MsgSend for MsgSetProgressPos {
 pub struct ComCtlProgressWindow {
     // hwnd: Rc<RefCell<w::HWND>>,
     rx: Rc<Receiver<i16>>,
+    last_progress: Rc<AtomicI16>,
+}
+
+impl ComCtlProgressWindow {
+    pub fn set_progress(&self, value: i16) {
+        self.last_progress.store(value, Ordering::SeqCst);
+    }
+    pub fn get_progress(&self) -> i16 {
+        self.last_progress.load(Ordering::SeqCst)
+    }
+    pub fn get_next_message(&self) -> i16 {
+        let mut progress: i16 = MSG_NOMESSAGE;
+        loop {
+            let msg = self.rx.try_recv().unwrap_or(MSG_NOMESSAGE);
+            if msg == MSG_NOMESSAGE {
+                break;
+            } else {
+                progress = msg;
+            }
+        }
+        progress
+    }
 }
 
 fn show_com_ctl_progress_dialog(rx: Receiver<i16>, window_title: &str, content: &str) {
@@ -313,7 +336,7 @@ fn show_com_ctl_progress_dialog(rx: Receiver<i16>, window_title: &str, content: 
     //     config.mainIcon = _icon.Handle;
     // }
 
-    let me = ComCtlProgressWindow { rx: Rc::new(rx) };
+    let me = ComCtlProgressWindow { rx: Rc::new(rx), last_progress: Rc::new(AtomicI16::new(0)) };
     config.lpCallbackData = &me as *const ComCtlProgressWindow as usize;
     config.pfCallback = Some(task_dialog_callback);
 
@@ -325,20 +348,21 @@ extern "system" fn task_dialog_callback(hwnd: w::HWND, msg: co::TDN, _: usize, _
     let me: &ComCtlProgressWindow = unsafe { &*raw };
 
     if msg == co::TDN::TIMER {
-        let mut progress: i16 = -1;
-        loop {
-            let msg = me.rx.try_recv().unwrap_or(MSG_NOMESSAGE);
-            if msg == MSG_NOMESSAGE {
-                break;
-            } else if msg == MSG_CLOSE {
-                let _ = hwnd.EndDialog(0);
-                return co::HRESULT::S_OK;
-            } else if msg >= 0 {
-                progress = msg;
+        let next_message = me.get_next_message();
+        if next_message == MSG_CLOSE {
+            let _ = hwnd.EndDialog(0);
+            return co::HRESULT::S_OK;
+        } else if next_message == MSG_INDEFINITE {
+            hwnd.SendMessage(MsgSetProgressMarqueeOnOff { is_marquee_on: true });
+            hwnd.SendMessage(MsgSetProgressMarqueeMode { is_marquee_on: true });
+            me.set_progress(MSG_INDEFINITE);
+        } else if next_message >= 0 {
+            if me.get_progress() < 0 {
+                hwnd.SendMessage(MsgSetProgressMarqueeOnOff { is_marquee_on: false });
+                hwnd.SendMessage(MsgSetProgressMarqueeMode { is_marquee_on: false });
             }
-        }
-        if progress > 0 {
-            hwnd.SendMessage(MsgSetProgressPos { pos: progress as usize });
+            hwnd.SendMessage(MsgSetProgressPos { pos: next_message as usize });
+            me.set_progress(next_message);
         }
     }
 
@@ -365,15 +389,14 @@ fn show_test_progress() {
     let _ = tx.send(75);
     std::thread::sleep(std::time::Duration::from_secs(1));
     let _ = tx.send(100);
-    std::thread::sleep(std::time::Duration::from_secs(1));
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    let _ = tx.send(MSG_INDEFINITE);
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    let _ = tx.send(50);
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
     let _ = tx.send(MSG_CLOSE);
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    std::thread::sleep(std::time::Duration::from_secs(1));
+    std::thread::sleep(std::time::Duration::from_secs(3));
 }
