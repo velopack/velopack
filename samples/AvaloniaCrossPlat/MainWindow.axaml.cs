@@ -103,4 +103,10 @@ public partial class MainWindow : Window
         TextStatus.Text = sb.ToString();
         BtnCheckUpdate.IsEnabled = true;
     }
+
+    private void BtnRestartNoApply_OnClickClick(object sender, RoutedEventArgs e)
+    {
+        UpdateExe.Start(waitForExit: true);
+        Environment.Exit(0);
+    }
 }
