@@ -6,7 +6,7 @@ public abstract class PlatformCommand : OutputCommand
 
     protected CliOption<string> TargetRuntimeOption { get; private set; }
 
-    protected PlatformCommand(string name, string description) : base(name, description)
+    protected PlatformCommand(string name, string description, RuntimeOs targetOs = RuntimeOs.Unknown) : base(name, description, targetOs)
     {
         TargetRuntimeOption = AddOption<string>((v) => TargetRuntime = v, "-r", "--runtime")
             .SetDescription("The target runtime to build packages for.")

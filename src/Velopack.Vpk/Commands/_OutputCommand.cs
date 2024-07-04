@@ -12,7 +12,7 @@ public abstract class OutputCommand : BaseCommand
 
     protected CliOption<string> ChannelOption { get; private set; }
 
-    protected OutputCommand(string name, string description)
+    protected OutputCommand(string name, string description, RuntimeOs targetOs = RuntimeOs.Unknown)
         : base(name, description)
     {
         ReleaseDirectoryOption = AddOption<DirectoryInfo>((v) => ReleaseDir = v.ToFullNameOrNull(), "-o", "--outputDir")
@@ -24,7 +24,7 @@ public abstract class OutputCommand : BaseCommand
             .SetDescription("The channel to use for this release.")
             .RequiresValidNuGetId()
             .SetArgumentHelpName("NAME")
-            .SetDefault(ReleaseEntryHelper.GetDefaultChannel(VelopackRuntimeInfo.SystemOs));
+            .SetDefault(ReleaseEntryHelper.GetDefaultChannel(targetOs == RuntimeOs.Unknown ? VelopackRuntimeInfo.SystemOs : targetOs));
     }
 
     public DirectoryInfo GetReleaseDirectory()
