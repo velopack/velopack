@@ -21,6 +21,66 @@ namespace Velopack
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool AllowSetForegroundWindow(int dwProcessId);
 
+        private static Process StartUpdateExe(ILogger logger, IVelopackLocator locator, IEnumerable<string> args)
+        {
+            var psi = new ProcessStartInfo() {
+                CreateNoWindow = true,
+                FileName = locator.UpdateExePath!,
+                WorkingDirectory = Path.GetDirectoryName(locator.UpdateExePath)!,
+            };
+
+            psi.AppendArgumentListSafe(args, out var debugArgs);
+            logger.Debug($"Running: {psi.FileName} {debugArgs}");
+
+            var p = Process.Start(psi);
+            if (p == null) {
+                throw new Exception("Failed to launch Update.exe process.");
+            }
+
+            if (VelopackRuntimeInfo.IsWindows) {
+                try {
+                    // this is an attempt to work around a bug where the restarted app fails to come to foreground.
+                    AllowSetForegroundWindow(p.Id);
+                } catch (Exception ex) {
+                    logger.LogWarning(ex, "Failed to allow Update.exe to set foreground window.");
+                }
+            }
+            
+            logger.Info("Update.exe executed successfully.");
+            return p;
+        }
+
+        /// <summary>
+        /// Runs Update.exe in the current working directory with the 'start' command which will simply start the application.
+        /// Combined with the `waitForExit` parameter, this can be used to gracefully restart the application.
+        /// </summary>
+        /// <param name="waitForExit">If true, Update.exe will wait for the current process to exit before re-starting the application.</param>
+        /// <param name="locator">The locator to use to find the path to Update.exe and the packages directory.</param>
+        /// <param name="startArgs">The arguments to pass to the application when it is restarted.</param>
+        /// <param name="logger">The logger to use for diagnostic messages</param>
+        public static void Start(IVelopackLocator? locator = null, bool waitForExit = true, string[]? startArgs = null, ILogger? logger = null)
+        {
+            logger ??= NullLogger.Instance;
+            locator ??= VelopackLocator.GetDefault(logger);
+            
+            var args = new List<string>();
+            args.Add("start");
+
+            if (waitForExit) {
+                args.Add("--waitPid");
+                args.Add(Process.GetCurrentProcess().Id.ToString());
+            }
+            
+            if (startArgs != null && startArgs.Length > 0) {
+                args.Add("--");
+                foreach (var a in startArgs) {
+                    args.Add(a);
+                }
+            }
+
+            StartUpdateExe(logger, locator, args);
+        }
+
         /// <summary>
         /// Runs Update.exe in the current working directory to apply updates, optionally restarting the application.
         /// </summary>
@@ -37,12 +97,6 @@ namespace Velopack
         {
             logger ??= NullLogger.Instance;
             locator ??= VelopackLocator.GetDefault(logger);
-
-            var psi = new ProcessStartInfo() {
-                CreateNoWindow = true,
-                FileName = locator.UpdateExePath,
-                WorkingDirectory = Path.GetDirectoryName(locator.UpdateExePath),
-            };
 
             var args = new List<string>();
             if (silent) args.Add("--silent");
@@ -69,30 +123,13 @@ namespace Velopack
                 }
             }
 
-            psi.AppendArgumentListSafe(args, out var debugArgs);
-            logger.Debug($"Restarting app to apply updates. Running: {psi.FileName} {debugArgs}");
-
-            var p = Process.Start(psi);
-
-            if (VelopackRuntimeInfo.IsWindows) {
-                if (p is not null) {
-                    try {
-                        // this is an attempt to work around a bug where the restarted app fails to come to foreground.
-                        AllowSetForegroundWindow(p.Id);
-                    } catch (Exception ex) {
-                        logger.LogWarning(ex, "Failed to allow Update.exe to set foreground window.");
-                    }
-                }
-            }
+            var p = StartUpdateExe(logger, locator, args);
 
             Thread.Sleep(300);
-            if (p == null) {
-                throw new Exception("Failed to launch Update.exe process.");
-            }
+
             if (p.HasExited) {
                 throw new Exception($"Update.exe process exited too soon ({p.ExitCode}).");
             }
-            logger.Info("Update.exe apply triggered successfully.");
         }
     }
 }
