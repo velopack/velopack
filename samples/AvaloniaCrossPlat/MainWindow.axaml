@@ -18,7 +18,6 @@
         <Button Name="BtnCheckUpdate" Content="Check for Updates" Click="BtnCheckUpdateClick" />
         <Button Margin="10,0" Name="BtnDownloadUpdate" Content="Download" Click="BtnDownloadUpdateClick" IsEnabled="False" />
         <Button Name="BtnRestartApply" Content="Restart &amp; Apply" Click="BtnRestartApplyClick" IsEnabled="False" />
-        <Button Name="BtnRestartNoApply" Content="Restart w/o Apply" Click="BtnRestartNoApply_OnClickClick" IsEnabled="True" />
       </StackPanel>
     </StackPanel>
     <ScrollViewer Name="ScrollLog" Grid.Row="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
