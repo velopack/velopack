@@ -251,7 +251,7 @@ impl BundleInfo<'_> {
         let files = self.get_file_names()?;
         let num_files = files.len();
 
-        info!("Extracting {} app files...", num_files);
+        info!("Extracting {} app files to '{}'...", num_files, current_path.to_string_lossy());
         let re = Regex::new(r"lib[\\\/][^\\\/]*[\\\/]").unwrap();
         let stub_regex = Regex::new("_ExecutionStub.exe$").unwrap();
         let symlink_regex = Regex::new(".__symlink$").unwrap();

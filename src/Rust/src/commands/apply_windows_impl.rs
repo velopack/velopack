@@ -5,114 +5,138 @@ use crate::{
     windows::splash,
 };
 use anyhow::{bail, Result};
+use std::sync::mpsc;
 use std::{
     fs,
     path::{Path, PathBuf},
 };
 
+fn ropycopy<P1: AsRef<Path>, P2: AsRef<Path>>(source: &P1, dest: &P2) -> Result<()> {
+    let source = source.as_ref();
+    let dest = dest.as_ref();
+
+    // robocopy C:\source\something.new C:\destination\something /MIR /ZB /W:5 /R:5 /MT:8 /LOG:C:\logs\copy_log.txt
+    let cmd = std::process::Command::new("robocopy").arg(source).arg(dest).arg("/MIR").arg("/IS").arg("/W:1").arg("/R:5").arg("/MT:2").output()?;
+
+    let stdout = String::from_utf8_lossy(&cmd.stdout);
+    let stderr = String::from_utf8_lossy(&cmd.stderr);
+
+    let exit_code = cmd.status.code().unwrap_or(-9999);
+    if (0..7).contains(&exit_code) {
+        info!("{stdout}");
+        info!("Robocopy completed successfully.");
+    } else {
+        error!("{stdout}");
+        error!("{stderr}");
+        bail!("Robocopy failed with code: {:?}", exit_code);
+    }
+    Ok(())
+}
+
 pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &PathBuf, runhooks: bool) -> Result<Manifest> {
-    let bundle = bundle::load_bundle_from_file(&package)?;
+    let bundle = bundle::load_bundle_from_file(package)?;
     let manifest = bundle.read_manifest()?;
 
-    let found_version = (&manifest.version).to_owned();
+    let found_version = (manifest.version).to_owned();
     info!("Applying package to current: {}", found_version);
 
     if !crate::windows::prerequisite::prompt_and_install_all_missing(&manifest, Some(&app.version))? {
         bail!("Stopping apply. Pre-requisites are missing and user cancelled.");
     }
 
-    if runhooks {
-        crate::windows::run_hook(&app, &root_path, "--veloapp-obsolete", 15);
-    } else {
-        info!("Skipping --veloapp-obsolete hook.");
+    let packages_dir = app.get_packages_path(root_path);
+    let packages_dir = Path::new(&packages_dir);
+    let current_dir = app.get_current_path(root_path);
+    let temp_path_new = packages_dir.join(format!("tmp_{}", shared::random_string(16)));
+    let temp_path_old = packages_dir.join(format!("tmp_{}", shared::random_string(16)));
+
+    // open a dialog showing progress...
+    let (mut tx, _) = mpsc::channel::<i16>();
+    if !dialogs::get_silent() {
+        let title = format!("{} Update", &manifest.title);
+        let message = format!("Installing update {}...", &manifest.version);
+        tx = splash::show_progress_dialog(title, message);
     }
 
-    // we are going to be replacing the current dir with temp_path_new
-    let current_dir = app.get_current_path(&root_path);
-
-    // we extract to a temp directory inside $root/packages.tmp_XXXXX so that we know it's
-    // on the same volume as the current dir, and we can rename it quickly.
-    let packages_dir = app.get_packages_path(&root_path);
-    let packages_dir = Path::new(&packages_dir);
-    let temp_path_new = packages_dir.join(format!("tmp_{}", shared::random_string(8)));
-    let temp_path_old = packages_dir.join(format!("tmp_{}", shared::random_string(8)));
-
     let action: Result<()> = (|| {
-        info!("Extracting bundle to {}", &temp_path_new.to_string_lossy());
+        // first, extract the update to temp_path_new
         fs::create_dir_all(&temp_path_new)?;
+        bundle.extract_lib_contents_to_path(&temp_path_new, |p| {
+            let _ = tx.send(p);
+        })?;
 
-        if dialogs::get_silent() {
-            bundle.extract_lib_contents_to_path(&temp_path_new, |_| {})?;
+        let _ = tx.send(splash::MSG_INDEFINITE);
+
+        // second, run application hooks (but don't care if it fails)
+        if runhooks {
+            crate::windows::run_hook(app, root_path, "--veloapp-obsolete", 15);
         } else {
-            let title = format!("{} Update", &manifest.title);
-            let message = format!("Installing update {}...", &manifest.version);
-            let tx = splash::show_progress_dialog(title, message);
-            bundle.extract_lib_contents_to_path(&temp_path_new, |p| {
-                let _ = tx.send(p);
-            })?;
-            let _ = tx.send(splash::MSG_CLOSE);
+            info!("Skipping --veloapp-obsolete hook.");
         }
 
-        let _ = shared::force_stop_package(&root_path);
+        // third, we try _REALLY HARD_ to stop the package
+        let _ = shared::force_stop_package(root_path);
+        if winsafe::IsWindows10OrGreater() == Ok(true) && !locksmith::close_processes_locking_dir(&app.title, &current_dir) {
+            bail!("Failed to close processes locking directory / user cancelled.");
+        }
 
-        let mut has_retried = false;
-        loop {
-            let result: std::io::Result<()> = (|| {
-                info!("Replacing bundle at {}", &current_dir);
-                // so much stuff can lock folders on windows, so we retry a few times.
-                shared::retry_io(|| fs::rename(&current_dir, &temp_path_old))?;
-                shared::retry_io(|| fs::rename(&temp_path_new, &current_dir))?;
-                Ok(())
-            })();
+        // fourth, we make as backup of the current dir to temp_path_old
+        info!("Backing up current dir to {}", &temp_path_old.to_string_lossy());
+        let mut requires_robocopy = false;
+        if let Err(e) = fs::rename(&current_dir, &temp_path_old) {
+            warn!("Failed to rename current_dir to temp_path_old ({}). Retrying with robocopy...", e);
+            ropycopy(&current_dir, &temp_path_old)?;
+            requires_robocopy = true;
+        }
 
-            match result {
-                Ok(()) => {
-                    info!("Bundle extracted successfully to {}", &current_dir);
-                    break;
-                }
-                Err(e) => {
-                    match e.raw_os_error() {
-                        Some(32) => {
-                            // this is usually because the folder is locked by something on Windows.
-                            // in the future, we also need to handle the case where this is a folder permissions issue
-                            // and request elevation, but for now we will ask the user to close the program.
-                            // it's also possible that an admin process is locking the dir, in which case we won't see
-                            // it here unless we are also elevated.
-                            if locksmith::close_processes_locking_dir(&app.title, &current_dir) {
-                                // the processes were closed successfully, so we can retry the operation (only once)
-                                if has_retried {
-                                    bail!("Failed to swap current dir: {}", e);
-                                }
-                                has_retried = true;
-                                continue;
-                            }
-                        }
-                        _ => {
-                            let title = format!("{} Update", &manifest.title);
-                            let header = format!("Failed to update");
-                            let body = format!("Failed to update {} to version {}. ({})", &manifest.title, &manifest.version, e);
-                            dialogs::show_error(&title, Some(&header), &body);
-                            return Ok(()); // so that a generic error dialog is not shown.
-                        }
-                    }
-                }
+        // fifth, we try to replace the current dir with temp_path_new
+        // if this fails we will yolo a rollback...
+        info!("Replacing current dir with {}", &temp_path_new.to_string_lossy());
+
+        if !requires_robocopy {
+            // if we didn't need robocopy for the backup, we don't need it for the deploy hopefully
+            if let Err(e1) = fs::rename(&temp_path_new, &current_dir) {
+                fs::rename(&temp_path_new, &current_dir)?;
+                warn!("Failed to rename temp_path_new to current_dir ({}). Retrying with robocopy...", e1);
+                requires_robocopy = true;
             }
         }
 
+        if requires_robocopy {
+            if let Err(e2) = ropycopy(&temp_path_new, &current_dir) {
+                error!("Failed to robocopy temp_path_new to current_dir ({}). Will attempt a rollback...", e2);
+                let _ = ropycopy(&temp_path_old, &current_dir);
+                let _ = tx.send(splash::MSG_CLOSE);
+
+                info!("Showing error dialog...");
+                let title = format!("{} Update", &manifest.title);
+                let header = "Failed to update";
+                let body = format!("Failed to update {} to version {}. Please check the logs for more details.", &manifest.title, &manifest.version);
+                dialogs::show_error(&title, Some(header), &body);
+
+                bail!("Fatal error performing update.");
+            }
+        }
+
+        // from this point on, we're past the point of no return and should not bail
+        // sixth, we write the uninstall entry
         if let Err(e) = manifest.write_uninstall_entry(root_path) {
             warn!("Failed to write uninstall entry ({}).", e);
         }
 
+        // seventh, we run the post-install hooks
         if runhooks {
             crate::windows::run_hook(&manifest, &root_path, "--veloapp-updated", 15);
         } else {
             info!("Skipping --veloapp-updated hook.");
         }
 
+        // done!
         info!("Package applied successfully.");
         Ok(())
     })();
 
+    let _ = tx.send(splash::MSG_CLOSE);
     let _ = remove_dir_all::remove_dir_all(&temp_path_new);
     let _ = remove_dir_all::remove_dir_all(&temp_path_old);
     action?;

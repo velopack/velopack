@@ -41,16 +41,16 @@ where
         return Ok(res.unwrap());
     }
 
-    warn!("Retrying operation in 333ms... (error was: {:?})", res.err());
-    thread::sleep(Duration::from_millis(333));
+    warn!("Retrying operation in 1000ms... (error was: {:?})", res.err());
+    thread::sleep(Duration::from_millis(1000));
 
     let res = op();
     if res.is_ok() {
         return Ok(res.unwrap());
     }
 
-    warn!("Retrying operation in 666ms... (error was: {:?})", res.err());
-    thread::sleep(Duration::from_millis(666));
+    warn!("Retrying operation in 1000ms... (error was: {:?})", res.err());
+    thread::sleep(Duration::from_millis(1000));
 
     let res = op();
     if res.is_ok() {
