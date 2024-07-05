@@ -33,6 +33,7 @@ pub fn pcwstr_to_string(input: PCWSTR) -> Result<String> {
 }
 
 pub fn u16_to_string<T: AsRef<[u16]>>(input: T) -> Result<String> {
+    let input = input.as_ref();
     let hstring = HSTRING::from_wide(input)?;
     let string = hstring.to_string_lossy();
     Ok(string.trim_end_matches('\0').to_string())

@@ -8,7 +8,6 @@ use memmap2::Mmap;
 use pretty_bytes_rust::pretty_bytes;
 use std::{
     env,
-    ffi::OsString,
     fs::{self, File},
     path::{Path, PathBuf},
 };
@@ -67,11 +66,12 @@ pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Res
     // do we have enough disk space?
     let (compressed_size, extracted_size) = pkg.calculate_size();
     let required_space = compressed_size + extracted_size + (50 * 1000 * 1000); // archive + velopack overhead
-    let mut free_space: u64 = 0;
 
-    let root_wide: Vec<u16> = OsString::from(root_path_str).encode_wide().chain(Some(0).into_iter()).collect();
-    let root_pwstr = ::windows::core::PWSTR(root_wide.as_ptr() as *mut _);
-    unsafe { GetDiskFreeSpaceExW(root_pwstr, None, None, Some(&mut free_space)) };
+    let mut free_space: u64 = 0;
+    let mut free_bytes_available_to_caller: u64 = 0;
+    let mut total_number_of_bytes: u64 = 0;
+    let root_pcwstr = windows::strings::string_to_u16(root_path_str);
+    unsafe { GetDiskFreeSpaceExW(root_pcwstr.as_ptr(), &mut free_bytes_available_to_caller, &mut total_number_of_bytes, &mut free_space) };
     if free_space < required_space {
         bail!(
             "{} requires at least {} disk space to be installed. There is only {} available.",

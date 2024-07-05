@@ -1,3 +1,5 @@
+use ::windows::Win32::System::ProcessStatus::EnumProcesses;
+use ::windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use anyhow::{anyhow, bail, Result};
 use regex::Regex;
 use semver::Version;
@@ -7,10 +9,9 @@ use std::{
     path::{Path, PathBuf},
     process::Command as Process,
 };
-use windows::Win32::System::ProcessStatus::EnumProcesses;
-use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use windows_sys::Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasicInformation};
 use windows_sys::Win32::System::Threading::{GetCurrentProcess, PROCESS_BASIC_INFORMATION};
+use winsafe::{self as w, co, prelude::*};
 
 use crate::windows;
 

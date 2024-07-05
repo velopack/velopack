@@ -1,3 +1,4 @@
+use anyhow::Result;
 use std::path::Path;
 
 use windows::{
@@ -8,51 +9,52 @@ use windows::{
     },
 };
 
-fn get_known_folder(rfid: *const GUID) -> Result<String, windows::core::Error> {
+fn get_known_folder(rfid: *const GUID) -> Result<String> {
     unsafe {
-        let result = SHGetKnownFolderPath(rfid, 0, None)?;
+        let flag = windows::Win32::UI::Shell::KNOWN_FOLDER_FLAG(0);
+        let result = SHGetKnownFolderPath(rfid, flag, None)?;
         Ok(super::strings::pwstr_to_string(result)?)
     }
 }
 
-pub fn get_local_app_data() -> Result<String, windows::core::Error> {
+pub fn get_local_app_data() -> Result<String> {
     get_known_folder(&FOLDERID_LocalAppData)
 }
 
-pub fn get_roaming_app_data() -> Result<String, windows::core::Error> {
+pub fn get_roaming_app_data() -> Result<String> {
     get_known_folder(&FOLDERID_RoamingAppData)
 }
 
-pub fn get_user_desktop() -> Result<String, windows::core::Error> {
+pub fn get_user_desktop() -> Result<String> {
     get_known_folder(&FOLDERID_Desktop)
 }
 
-pub fn get_user_profile() -> Result<String, windows::core::Error> {
+pub fn get_user_profile() -> Result<String> {
     get_known_folder(&FOLDERID_Profile)
 }
 
-pub fn get_start_menu() -> Result<String, windows::core::Error> {
+pub fn get_start_menu() -> Result<String> {
     get_known_folder(&FOLDERID_StartMenu)
 }
 
-pub fn get_startup() -> Result<String, windows::core::Error> {
+pub fn get_startup() -> Result<String> {
     get_known_folder(&FOLDERID_Startup)
 }
 
-pub fn get_downloads() -> Result<String, windows::core::Error> {
+pub fn get_downloads() -> Result<String> {
     get_known_folder(&FOLDERID_Downloads)
 }
 
-pub fn get_program_files_x64() -> Result<String, windows::core::Error> {
+pub fn get_program_files_x64() -> Result<String> {
     get_known_folder(&FOLDERID_ProgramFilesX64)
 }
 
-pub fn get_program_files_x86() -> Result<String, windows::core::Error> {
+pub fn get_program_files_x86() -> Result<String> {
     get_known_folder(&FOLDERID_ProgramFilesX86)
 }
 
-pub fn get_user_pinned() -> Result<String, windows::core::Error> {
+pub fn get_user_pinned() -> Result<String> {
     let pinned_str = get_roaming_app_data()?;
     let pinned_path = Path::new(&pinned_str).join("Microsoft\\Internet Explorer\\Quick Launch\\User Pinned");
-    Ok(pinned_path.to_string_lossy())
+    Ok(pinned_path.to_string_lossy().to_string())
 }

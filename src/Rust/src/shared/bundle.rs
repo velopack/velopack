@@ -20,6 +20,8 @@ use chrono::{Datelike, Local as DateTime};
 use memmap2::Mmap;
 #[cfg(target_os = "windows")]
 use normpath::PathExt;
+#[cfg(target_os = "windows")]
+use winsafe::{self as w, co, prelude::*};
 
 pub trait ReadSeek: Read + Seek {}
 impl<T: Read + Seek> ReadSeek for T {}

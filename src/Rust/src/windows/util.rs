@@ -81,22 +81,22 @@ pub fn create_global_mutex(app: &shared::bundle::Manifest) -> Result<MutexDropGu
     }
 }
 
-pub fn expand_environment_strings<P: AsRef<str>>(input: P) -> String {
+pub fn expand_environment_strings<P: AsRef<str>>(input: P) -> Result<String> {
     use windows::Win32::System::Environment::ExpandEnvironmentStringsW;
 
     let input_pwstr = super::strings::string_to_pwstr(input);
     let mut buffer_size = unsafe { ExpandEnvironmentStringsW(input_pwstr, None) };
     if buffer_size == 0 {
-        return Err(windows::core::Error::from_win32());
+        return Err(anyhow!(windows::core::Error::from_win32()));
     }
 
     let mut buffer: Vec<u16> = vec![0; buffer_size as usize];
     buffer_size = unsafe { ExpandEnvironmentStringsW(input_pwstr, Some(&mut buffer)) };
     if buffer_size == 0 {
-        return Err(windows::core::Error::from_win32());
+        return Err(anyhow!(windows::core::Error::from_win32()));
     }
 
-    Ok(super::strings::u16_to_string(buffer))
+    Ok(super::strings::u16_to_string(buffer)?)
 }
 
 pub fn is_sub_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, parent: P2) -> Result<bool> {
@@ -217,19 +217,27 @@ fn test_is_sub_path_works_with_empty_paths() {
 
 fn is_os_version_or_greater_internal(major: u16, minor: u16, sp: u16) -> bool {
     use windows::Win32::System::SystemInformation::{VerSetConditionMask, VerifyVersionInfoW, OSVERSIONINFOEXW, VER_FLAGS};
-    const VER_GREATER_EQUAL: u32 = 3u32;
+    // Version condition mask constants defined as per Windows SDK
+    const VER_GREATER_EQUAL: u8 = 3;
+    const VER_MINORVERSION: VER_FLAGS = VER_FLAGS(0x0000001);
+    const VER_MAJORVERSION: VER_FLAGS = VER_FLAGS(0x0000002);
+    const VER_BUILDNUMBER: VER_FLAGS = VER_FLAGS(0x0000004);
+    const VER_SERVICEPACKMAJOR: VER_FLAGS = VER_FLAGS(0x0000020);
+
+    let flags = VER_MAJORVERSION | VER_MINORVERSION | VER_SERVICEPACKMAJOR;
+
     unsafe {
         let mut mask: u64 = 0;
-        mask = VerSetConditionMask(mask, VER_FLAGS::MAJORVERSION, VER_GREATER_EQUAL);
-        mask = VerSetConditionMask(mask, VER_FLAGS::MINORVERSION, VER_GREATER_EQUAL);
-        mask = VerSetConditionMask(mask, VER_FLAGS::BUILDNUMBER, VER_GREATER_EQUAL);
+        mask = VerSetConditionMask(mask, VER_MAJORVERSION, VER_GREATER_EQUAL);
+        mask = VerSetConditionMask(mask, VER_MINORVERSION, VER_GREATER_EQUAL);
+        mask = VerSetConditionMask(mask, VER_BUILDNUMBER, VER_GREATER_EQUAL);
 
-        let flags = VER_FLAGS::VER_MAJORVERSION | VER_FLAGS::VER_MINORVERSION | VER_FLAGS::VER_SERVICEPACKMAJOR;
         let mut osvi: OSVERSIONINFOEXW = Default::default();
-        osvi.dwMajorVersion = major;
-        osvi.dwMinorVersion = minor;
-        osvi.wServicePackMajor = sp;
-        VerifyVersionInfoW(&osvi, flags, mask).is_ok()
+        osvi.dwMajorVersion = major.into();
+        osvi.dwMinorVersion = minor.into();
+        osvi.wServicePackMajor = sp.into();
+
+        VerifyVersionInfoW(&mut osvi, flags, mask).is_ok()
     }
 }
 
@@ -249,7 +257,7 @@ pub fn is_windows_8_1_or_greater() -> bool {
     is_os_version_or_greater_internal(6, 3, 0)
 }
 
-pub fn is_os_version_or_greater(version: &str) -> bool {
+pub fn is_os_version_or_greater(version: &str) -> Result<bool> {
     let (mut major, mut minor, mut build, _) = shared::parse_version(version)?;
 
     if major < 8 {
@@ -273,7 +281,7 @@ pub fn is_os_version_or_greater(version: &str) -> bool {
         return Ok(is_windows_10_or_greater());
     }
 
-    return Ok(is_os_version_or_greater_internal(major, minor, build));
+    return Ok(is_os_version_or_greater_internal(major.try_into()?, minor.try_into()?, build.try_into()?));
 }
 
 #[test]
@@ -304,7 +312,7 @@ pub fn is_cpu_architecture_supported(architecture: &str) -> Result<bool> {
 
     let machine = machine.unwrap();
     let architecture = architecture.unwrap();
-    let is_win_11 = is_os_version_or_greater("11")?;
+    let is_win_11 = is_os_version_or_greater("11").unwrap();
 
     if machine == RuntimeArch::X86 {
         // windows x86 only supports x86

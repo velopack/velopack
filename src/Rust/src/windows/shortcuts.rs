@@ -35,8 +35,6 @@ fn create_instance<T: Interface>(clsid: &GUID) -> WindowsResult<T> {
 pub fn create_or_update_manifest_lnks(root_path: &PathBuf, next_app: &Manifest, previous_app: Option<&Manifest>) -> Result<()> {
     let app = next_app.clone();
 
-    if (app.shortcut_locations)
-
     let current_path = app.get_current_path(root_path);
     let main_exe_path = app.get_main_exe_path(root_path);
     let t = std::thread::spawn(move || {
@@ -110,16 +108,16 @@ fn _create_lnk(output: &str, target: &str, work_dir: &str, app_model_id: Option<
 }
 
 #[allow(dead_code)] // currently only used in our test
-fn resolve_lnk(link_path: &str) -> WindowsResult<(String, String)> {
+fn resolve_lnk(link_path: &str) -> Result<(String, String)> {
     let link_path = link_path.to_string();
     let t = std::thread::spawn(move || {
         init_com()?;
-        Ok(_resolve_lnk(&link_path)?)
+        _resolve_lnk(&link_path)
     });
     t.join().unwrap()
 }
 
-fn _resolve_lnk(link_path: &str) -> WindowsResult<(String, String)> {
+fn _resolve_lnk(link_path: &str) -> Result<(String, String)> {
     let link: IShellLinkW = create_instance(&ShellLink)?;
     let persist: IPersistFile = link.cast()?;
 
@@ -136,7 +134,7 @@ fn _resolve_lnk(link_path: &str) -> WindowsResult<(String, String)> {
         let mut pszdir = [0u16; 260];
         link.GetPath(&mut pszfile, std::ptr::null_mut(), 0)?;
         link.GetWorkingDirectory(&mut pszdir)?;
-        Ok((u16_to_string(pszfile), u16_to_string(pszdir)))
+        Ok((u16_to_string(pszfile)?, u16_to_string(pszdir)?))
     }
 }
 

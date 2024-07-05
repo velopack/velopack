@@ -1,3 +1,5 @@
+use winsafe::WString;
+
 extern "C" {
     fn TryCloseProcessesUsingPath(pszAppName: *mut u16, pszPath: *mut u16) -> bool;
 }

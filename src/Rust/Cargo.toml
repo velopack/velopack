@@ -89,6 +89,7 @@ libc = "0.2"
 [target.'cfg(windows)'.dependencies]
 fs_extra = "1.2"
 memmap2 = "0.9"
+winsafe = { version = "0.0.20", features = ["version", "user", "gui"] }
 image = { version = "0.25", default-features = false, features = [
     "gif",
     "jpeg",

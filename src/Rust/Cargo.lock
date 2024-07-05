@@ -1663,6 +1663,7 @@ dependencies = [
  "windows",
  "windows-sys 0.52.0",
  "winres",
+ "winsafe",
  "xml",
  "zip",
  "zstd",
@@ -2088,6 +2089,12 @@ checksum = "b68db261ef59e9e52806f688020631e987592bd83619edccda9c47d42cde4f6c"
 dependencies = [
  "toml",
 ]
+
+[[package]]
+name = "winsafe"
+version = "0.0.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a40369220be405a294b88b13ccc3d916fac12423250b30092c8c4ea19001f7f1"
 
 [[package]]
 name = "xml"
