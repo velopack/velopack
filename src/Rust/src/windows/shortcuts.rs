@@ -4,7 +4,6 @@ use anyhow::{bail, Result};
 use glob::glob;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use winsafe::{self as w, co};
 
 use windows::core::{Interface, Result as WindowsResult, GUID, HSTRING, PCWSTR};
 use windows::Win32::Foundation::HWND;

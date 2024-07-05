@@ -130,6 +130,9 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &Pat
             info!("Skipping --veloapp-updated hook.");
         }
 
+        // update application shortcuts
+        crate::windows::create_or_update_manifest_lnks(root_path, app, Some(&manifest))?;
+
         // done!
         info!("Package applied successfully.");
         Ok(())
