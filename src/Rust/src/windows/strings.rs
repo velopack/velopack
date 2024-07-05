@@ -1,16 +1,6 @@
 use anyhow::Result;
 use windows::core::{HSTRING, PCWSTR, PWSTR};
 
-pub fn string_to_pwstr<P: AsRef<str>>(input: P) -> PWSTR {
-    let mut arr = string_to_u16(input);
-    PWSTR(arr.as_mut_ptr())
-}
-
-pub fn string_to_pcwstr<P: AsRef<str>>(input: P) -> PCWSTR {
-    let arr = string_to_u16(input);
-    PCWSTR(arr.as_ptr())
-}
-
 pub fn string_to_u16<P: AsRef<str>>(input: P) -> Vec<u16> {
     let input = input.as_ref();
     input.encode_utf16().chain(Some(0)).collect::<Vec<u16>>()

@@ -16,7 +16,15 @@ fn ropycopy<P1: AsRef<Path>, P2: AsRef<Path>>(source: &P1, dest: &P2) -> Result<
     let dest = dest.as_ref();
 
     // robocopy C:\source\something.new C:\destination\something /MIR /ZB /W:5 /R:5 /MT:8 /LOG:C:\logs\copy_log.txt
-    let cmd = std::process::Command::new("robocopy").arg(source).arg(dest).arg("/MIR").arg("/IS").arg("/W:1").arg("/R:5").arg("/MT:2").output()?;
+    let cmd = std::process::Command::new("robocopy")
+        .arg(source)
+        .arg(dest)
+        .arg("/MIR")
+        .arg("/IS")
+        .arg("/W:1")
+        .arg("/R:5")
+        .arg("/MT:2")
+        .output()?;
 
     let stdout = String::from_utf8_lossy(&cmd.stdout);
     let stderr = String::from_utf8_lossy(&cmd.stderr);
@@ -110,7 +118,10 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &Pat
                 info!("Showing error dialog...");
                 let title = format!("{} Update", &manifest.title);
                 let header = "Failed to update";
-                let body = format!("Failed to update {} to version {}. Please check the logs for more details.", &manifest.title, &manifest.version);
+                let body = format!(
+                    "Failed to update {} to version {}. Please check the logs for more details.",
+                    &manifest.title, &manifest.version
+                );
                 dialogs::show_error(&title, Some(header), &body);
 
                 bail!("Fatal error performing update.");
@@ -131,7 +142,7 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &Pat
         }
 
         // update application shortcuts
-        crate::windows::create_or_update_manifest_lnks(root_path, app, Some(&manifest))?;
+        crate::windows::create_or_update_manifest_lnks(root_path, app, Some(&manifest));
 
         // done!
         info!("Package applied successfully.");

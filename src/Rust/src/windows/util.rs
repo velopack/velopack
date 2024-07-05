@@ -8,6 +8,7 @@ use std::{
     time::Duration,
 };
 use wait_timeout::ChildExt;
+use windows::core::PCWSTR;
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use windows::Win32::{
     Foundation::{self, GetLastError},
@@ -72,7 +73,8 @@ impl Drop for MutexDropGuard {
 pub fn create_global_mutex(app: &shared::bundle::Manifest) -> Result<MutexDropGuard> {
     let mutex_name = format!("velopack-{}", &app.id);
     info!("Attempting to open global system mutex: '{}'", &mutex_name);
-    let encoded = super::strings::string_to_pwstr(mutex_name);
+    let encodedu16 = super::strings::string_to_u16(mutex_name);
+    let encoded = PCWSTR(encodedu16.as_ptr());
     let mutex = unsafe { CreateMutexW(None, true, encoded) }?;
     match unsafe { GetLastError() } {
         Foundation::ERROR_SUCCESS => Ok(MutexDropGuard { mutex }),
@@ -83,15 +85,15 @@ pub fn create_global_mutex(app: &shared::bundle::Manifest) -> Result<MutexDropGu
 
 pub fn expand_environment_strings<P: AsRef<str>>(input: P) -> Result<String> {
     use windows::Win32::System::Environment::ExpandEnvironmentStringsW;
-
-    let input_pwstr = super::strings::string_to_pwstr(input);
-    let mut buffer_size = unsafe { ExpandEnvironmentStringsW(input_pwstr, None) };
+    let encodedu16 = super::strings::string_to_u16(input);
+    let encoded = PCWSTR(encodedu16.as_ptr());
+    let mut buffer_size = unsafe { ExpandEnvironmentStringsW(encoded, None) };
     if buffer_size == 0 {
         return Err(anyhow!(windows::core::Error::from_win32()));
     }
 
     let mut buffer: Vec<u16> = vec![0; buffer_size as usize];
-    buffer_size = unsafe { ExpandEnvironmentStringsW(input_pwstr, Some(&mut buffer)) };
+    buffer_size = unsafe { ExpandEnvironmentStringsW(encoded, Some(&mut buffer)) };
     if buffer_size == 0 {
         return Err(anyhow!(windows::core::Error::from_win32()));
     }

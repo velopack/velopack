@@ -373,7 +373,10 @@ impl BundleInfo<'_> {
         for i in 0..archive.len() {
             let file = archive.by_index(i)?;
             let key = file.enclosed_name().ok_or_else(|| {
-                anyhow!("Could not extract file safely ({}). Ensure no paths in archive are absolute or point to a path outside the archive.", file.name())
+                anyhow!(
+                    "Could not extract file safely ({}). Ensure no paths in archive are absolute or point to a path outside the archive.",
+                    file.name()
+                )
             })?;
             files.push(key.to_string_lossy().to_string());
         }
@@ -396,6 +399,7 @@ pub struct Manifest {
     pub os: String,
     pub os_min_version: String,
     pub channel: String,
+    #[derivative(Default(value = "\"Desktop,StartMenuRoot\".to_string()"))]
     pub shortcut_locations: String,
     pub shortcut_amuid: String,
 }
@@ -438,7 +442,8 @@ impl Manifest {
         let uninstall_cmd = format!("\"{}\" --uninstall", updater_path);
         let uninstall_quiet = format!("\"{}\" --uninstall --silent", updater_path);
 
-        let reg_uninstall = w::HKEY::CURRENT_USER.RegCreateKeyEx(Self::UNINST_STR, None, co::REG_OPTION::NoValue, co::KEY::CREATE_SUB_KEY, None)?.0;
+        let reg_uninstall =
+            w::HKEY::CURRENT_USER.RegCreateKeyEx(Self::UNINST_STR, None, co::REG_OPTION::NoValue, co::KEY::CREATE_SUB_KEY, None)?.0;
         let reg_app = reg_uninstall.RegCreateKeyEx(&self.id, None, co::REG_OPTION::NoValue, co::KEY::ALL_ACCESS, None)?.0;
         reg_app.RegSetKeyValue(None, Some("DisplayIcon"), w::RegistryValue::Sz(main_exe_path))?;
         reg_app.RegSetKeyValue(None, Some("DisplayName"), w::RegistryValue::Sz(self.title.to_owned()))?;
@@ -456,7 +461,8 @@ impl Manifest {
     }
     pub fn remove_uninstall_entry(&self) -> Result<()> {
         info!("Removing uninstall registry keys...");
-        let reg_uninstall = w::HKEY::CURRENT_USER.RegCreateKeyEx(Self::UNINST_STR, None, co::REG_OPTION::NoValue, co::KEY::CREATE_SUB_KEY, None)?.0;
+        let reg_uninstall =
+            w::HKEY::CURRENT_USER.RegCreateKeyEx(Self::UNINST_STR, None, co::REG_OPTION::NoValue, co::KEY::CREATE_SUB_KEY, None)?.0;
         reg_uninstall.RegDeleteKey(&self.id)?;
         Ok(())
     }
