@@ -81,7 +81,11 @@ pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Res
         );
     }
 
-    info!("There is {} free space available at destination, this package requires {}.", pretty_bytes(free_space, None), pretty_bytes(required_space, None));
+    info!(
+        "There is {} free space available at destination, this package requires {}.",
+        pretty_bytes(free_space, None),
+        pretty_bytes(required_space, None)
+    );
 
     // does this app support this OS / architecture?
     if !app.os_min_version.is_empty() && !windows::is_os_version_or_greater(&app.os_min_version)? {
@@ -103,8 +107,9 @@ pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Res
         }
         info!("User chose to overwrite existing installation.");
 
-        shared::force_stop_package(&root_path)
-            .map_err(|z| anyhow!("Failed to stop application ({}), please close the application and try running the installer again.", z))?;
+        shared::force_stop_package(&root_path).map_err(|z| {
+            anyhow!("Failed to stop application ({}), please close the application and try running the installer again.", z)
+        })?;
 
         root_path_renamed = format!("{}_{}", root_path_str, shared::random_string(8));
         info!("Renaming existing directory to '{}' to allow rollback...", root_path_renamed);
@@ -185,12 +190,16 @@ fn install_impl(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::m
     }
 
     info!("Creating shortcuts...");
-    let _ = windows::create_or_update_manifest_lnks(&root_path, &app, None);
+    windows::create_or_update_manifest_lnks(&root_path, &app, None);
 
     info!("Starting process install hook");
-    if windows::run_hook(&app, &root_path, "--veloapp-install", 30) == false {
+    if !windows::run_hook(&app, &root_path, "--veloapp-install", 30) {
         let setup_name = format!("{} Setup {}", app.title, app.version);
-        dialogs::show_warn(&setup_name, None, "Installation has completed, but the application install hook failed. It may not have installed correctly.");
+        dialogs::show_warn(
+            &setup_name,
+            None,
+            "Installation has completed, but the application install hook failed. It may not have installed correctly.",
+        );
     }
 
     let _ = tx.send(100);

@@ -37,7 +37,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         // add nuspec metadata
         ExtraNuspecMetadata["runtimeDependencies"] = GetRuntimeDependencies();
         ExtraNuspecMetadata["shortcutLocations"] = GetShortcutLocations();
-        ExtraNuspecMetadata["shortcutAmuid"] = Utility.CreateGuidFromHash(Options.PackId).ToString();
+        ExtraNuspecMetadata["shortcutAmuid"] = Utility.GetAppUserModelId(Options.PackId);
 
         // copy files to temp dir, so we can modify them
         var dir = TempDir.CreateSubdirectory("PreprocessPackDirWin");

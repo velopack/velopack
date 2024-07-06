@@ -48,10 +48,13 @@ impl ShortcutLocationFlags {
     }
 }
 
+// Get-StartApps | sort-object -property name
+
 pub fn create_or_update_manifest_lnks<P: AsRef<Path>>(root_path: P, next_app: &Manifest, previous_app: Option<&Manifest>) {
     let root_path = root_path.as_ref().to_owned().to_path_buf();
     let next_app = next_app.clone();
     let previous_app = previous_app.cloned();
+
     unsafe {
         if let Err(e) = unsafe_run_delegate_in_com_context(move || {
             unsafe_update_app_manifest_lnks(&root_path, &next_app, previous_app.as_ref())?;
@@ -106,12 +109,20 @@ unsafe fn unsafe_update_app_manifest_lnks(root_path: &PathBuf, next_app: &Manife
         ShortcutLocationFlags::NONE
     };
 
+    info!("Shortcut Previous locations: {:?} ({:?})", prev_locations, previous_app.map(|a| a.version.clone()));
+    info!("Shortcut Next locations: {:?} ({:?})", next_locations, next_app.version);
+
     // get lnks that were deleted from the previous app
     let deleted_locations = prev_locations - next_locations;
     let same_locations = prev_locations & next_locations;
     let new_locations = next_locations - prev_locations;
 
+    info!("Shortcut Deleted locations: {:?}", deleted_locations);
+    info!("Shortcut Same locations: {:?}", same_locations);
+    info!("Shortcut New locations: {:?}", new_locations);
+
     let current_shortcuts = unsafe_get_shortcuts_for_root_dir(next_app.get_current_path(root_path))?;
+    info!("Current shortcuts: {:?}", current_shortcuts);
 
     let mut app_model_id: Option<String> = None;
     if !next_app.shortcut_amuid.is_empty() {
@@ -122,8 +133,8 @@ unsafe fn unsafe_update_app_manifest_lnks(root_path: &PathBuf, next_app: &Manife
 
     // delete removed shortcut locations
     for (flag, path) in current_shortcuts.iter() {
-        info!("Removing shortcuts for flag {:?}.", flag);
         if deleted_locations.contains(flag.to_owned()) {
+            info!("Removing shortcut for deleted flag '{:?}' ({:?}).", path, flag);
             if let Err(e) = unsafe_delete_lnk_file(&path) {
                 warn!("Failed to remove shortcut: {}", e);
             }
@@ -136,6 +147,7 @@ unsafe fn unsafe_update_app_manifest_lnks(root_path: &PathBuf, next_app: &Manife
         let path = get_path_for_shortcut_location(next_app, flag)?;
         let target = next_app.get_main_exe_path(root_path);
         let work_dir = next_app.get_current_path(root_path);
+        info!("Creating new shortcut for flag '{:?}' ({:?}).", path, flag);
         if let Err(e) = unsafe_create_new_lnk(&path.to_string_lossy(), &target, &work_dir, app_model_id.as_deref()) {
             warn!("Failed to create shortcut: {}", e);
         }
@@ -154,6 +166,8 @@ unsafe fn unsafe_update_app_manifest_lnks(root_path: &PathBuf, next_app: &Manife
             std::fs::rename(&old_path, &new_path)?;
         }
 
+        info!("Updating existing shortcut for flag '{:?}' ({:?}).", new_path, flag);
+
         unsafe_update_existing_lnk(
             &new_path.to_string_lossy(),
             &next_app.get_main_exe_path(root_path),
@@ -168,6 +182,7 @@ unsafe fn unsafe_update_app_manifest_lnks(root_path: &PathBuf, next_app: &Manife
     // remove any remaining shortcuts that were not visited AND resolve to an invalid target
     for (_, path) in current_shortcuts.iter() {
         if !visited.contains(path) {
+            info!("Checking shortcut for valid paths: '{}'", path.to_string_lossy());
             if let Ok((target, work_dir)) = unsafe_resolve_lnk(&path.to_string_lossy()) {
                 if !Path::new(&target).exists() || !Path::new(&work_dir).exists() {
                     warn!("Removing invalid/broken shortcut: '{}'", path.to_string_lossy());

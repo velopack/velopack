@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -22,6 +23,9 @@ namespace Velopack
     /// </summary>
     public sealed class VelopackApp
     {
+        [DllImport("shell32.dll", SetLastError = true)]
+        private static extern void SetCurrentProcessExplicitAppUserModelID([MarshalAs(UnmanagedType.LPWStr)] string AppID);
+
         internal static ILogger DefaultLogger { get; private set; } = NullLogger.Instance;
 
         internal static IVelopackLocator? DefaultLocator { get; private set; }
@@ -165,6 +169,12 @@ namespace Velopack
 
             log.Info("Starting Velopack App (Run).");
 
+            if (VelopackRuntimeInfo.IsWindows && locator.AppId != null) {
+                var appUserModelId = Utility.GetAppUserModelId(locator.AppId);
+                log.Info($"Setting current process explicit AppUserModelID to '{appUserModelId}'");
+                SetCurrentProcessExplicitAppUserModelID(appUserModelId);
+            }
+
             // first, we run any fast exit hooks
             VelopackHook defaultBlock = ((v) => { });
             var fastExitlookup = new[] {
@@ -227,6 +237,7 @@ namespace Velopack
                     if (package.Type == VelopackAssetType.Full && (package.Version == latestLocal?.Version || package.Version == myVersion)) {
                         continue;
                     }
+
                     try {
                         log.Info("Removing old package: " + package.FileName);
                         var p = Path.Combine(pkgPath, package.FileName);
@@ -245,6 +256,7 @@ namespace Velopack
                     log.Error(ex, $"Error occurred executing user defined Velopack hook. (firstrun)");
                 }
             }
+
             if (restarted) {
                 try {
                     _restarted?.Invoke(myVersion);

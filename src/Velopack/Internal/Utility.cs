@@ -205,6 +205,7 @@ namespace Velopack
                 if (String.IsNullOrWhiteSpace(channel) || channel.ToLower() == "win") {
                     return "RELEASES";
                 }
+
                 // all other cases the RELEASES file includes the channel name.
                 return $"RELEASES-{channel.ToLower()}";
             }
@@ -212,10 +213,14 @@ namespace Velopack
 
         public static void Retry(this Action block, int retries = 4, int retryDelay = 250, ILogger? logger = null)
         {
-            Retry(() => {
-                block();
-                return true;
-            }, retries, retryDelay, logger);
+            Retry(
+                () => {
+                    block();
+                    return true;
+                },
+                retries,
+                retryDelay,
+                logger);
         }
 
         public static T Retry<T>(this Func<T> block, int retries = 4, int retryDelay = 250, ILogger? logger = null)
@@ -237,10 +242,14 @@ namespace Velopack
 
         public static Task RetryAsync(this Func<Task> block, int retries = 4, int retryDelay = 250, ILogger? logger = null)
         {
-            return RetryAsync(async () => {
-                await block().ConfigureAwait(false);
-                return true;
-            }, retries, retryDelay, logger);
+            return RetryAsync(
+                async () => {
+                    await block().ConfigureAwait(false);
+                    return true;
+                },
+                retries,
+                retryDelay,
+                logger);
         }
 
         public static async Task<T> RetryAsync<T>(this Func<Task<T>> block, int retries = 4, int retryDelay = 250, ILogger? logger = null)
@@ -276,11 +285,12 @@ namespace Velopack
         {
             return Task.WhenAll(
                 from partition in Partitioner.Create(source).GetPartitions(degreeOfParallelism)
-                select Task.Run(async () => {
-                    using (partition)
-                        while (partition.MoveNext())
-                            await body(partition.Current).ConfigureAwait(false);
-                }));
+                select Task.Run(
+                    async () => {
+                        using (partition)
+                            while (partition.MoveNext())
+                                await body(partition.Current).ConfigureAwait(false);
+                    }));
         }
 
         /// <summary>
@@ -299,6 +309,7 @@ namespace Velopack
                     else
                         safeName.Append('_');
                 }
+
                 safeFileName = safeName.ToString();
             }
 
@@ -465,13 +476,16 @@ namespace Velopack
             // retry a few times. if a directory in this tree is open in Windows Explorer,
             // it might be locked for a little while WE cleans up handles
             try {
-                Retry(() => {
-                    try {
-                        deleteMe();
-                    } catch (DirectoryNotFoundException) {
-                        return; // good!
-                    }
-                }, retries: 4, retryDelay: 50);
+                Retry(
+                    () => {
+                        try {
+                            deleteMe();
+                        } catch (DirectoryNotFoundException) {
+                            return; // good!
+                        }
+                    },
+                    retries: 4,
+                    retryDelay: 50);
             } catch (Exception ex) {
                 logger?.Warn(ex, $"Unable to delete child '{fileSystemInfo.FullName}'");
                 throw;
@@ -519,10 +533,9 @@ namespace Velopack
         //        .OrderByDescending(x => x.Version);
         //}
 
-        public static string GetAppUserModelId(string packageId, string exeName)
+        public static string GetAppUserModelId(string packageId)
         {
-            return String.Format("com.velopack.{0}.{1}", packageId.Replace(" ", ""),
-                exeName.Replace(".exe", "").Replace(" ", ""));
+            return $"velopack.{packageId}";
         }
 
         public static bool IsHttpUrl(string urlOrPath)

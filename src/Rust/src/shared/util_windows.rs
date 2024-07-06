@@ -13,8 +13,6 @@ use windows_sys::Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasi
 use windows_sys::Win32::System::Threading::{GetCurrentProcess, PROCESS_BASIC_INFORMATION};
 use winsafe::{self as w, co, prelude::*};
 
-use crate::windows;
-
 use super::bundle::{self, EntryNameInfo, Manifest};
 
 pub fn wait_for_pid_to_exit(pid: u32, ms_to_wait: u32) -> Result<()> {
@@ -348,7 +346,7 @@ fn get_all_packages(root_path: &PathBuf) -> Vec<EntryNameInfo> {
 
 #[test]
 fn test_get_running_processes_finds_cargo() {
-    let profile = windows::known_path::get_user_profile().unwrap();
+    let profile = crate::windows::known_path::get_user_profile().unwrap();
     let path = Path::new(&profile);
     let rustup = path.join(".rustup");
 
