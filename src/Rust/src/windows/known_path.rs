@@ -1,6 +1,4 @@
 use anyhow::Result;
-use std::path::Path;
-
 use windows::{
     core::GUID,
     Win32::UI::Shell::{
@@ -13,7 +11,7 @@ fn get_known_folder(rfid: *const GUID) -> Result<String> {
     unsafe {
         let flag = windows::Win32::UI::Shell::KNOWN_FOLDER_FLAG(0);
         let result = SHGetKnownFolderPath(rfid, flag, None)?;
-        Ok(super::strings::pwstr_to_string(result)?)
+        super::strings::pwstr_to_string(result)
     }
 }
 
@@ -53,8 +51,8 @@ pub fn get_program_files_x86() -> Result<String> {
     get_known_folder(&FOLDERID_ProgramFilesX86)
 }
 
-pub fn get_user_pinned() -> Result<String> {
-    let pinned_str = get_roaming_app_data()?;
-    let pinned_path = Path::new(&pinned_str).join("Microsoft\\Internet Explorer\\Quick Launch\\User Pinned");
-    Ok(pinned_path.to_string_lossy().to_string())
-}
+// pub fn get_user_pinned() -> Result<String> {
+//     let pinned_str = get_roaming_app_data()?;
+//     let pinned_path = Path::new(&pinned_str).join("Microsoft\\Internet Explorer\\Quick Launch\\User Pinned");
+//     Ok(pinned_path.to_string_lossy().to_string())
+// }
