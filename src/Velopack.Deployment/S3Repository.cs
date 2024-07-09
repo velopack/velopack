@@ -18,6 +18,8 @@ public class S3DownloadOptions : RepositoryOptions, IObjectDownloadOptions
     public string Endpoint { get; set; }
 
     public string Bucket { get; set; }
+
+    public string Prefix { get; set; }
 }
 
 public class S3UploadOptions : S3DownloadOptions, IObjectUploadOptions
@@ -30,18 +32,20 @@ public class S3BucketClient
     public AmazonS3Client Amazon { get; }
 
     public string Bucket { get; }
+    public string Prefix { get; }
 
-    public S3BucketClient(AmazonS3Client client, string bucket)
+    public S3BucketClient(AmazonS3Client client, string bucket, string prefix)
     {
         Amazon = client;
         Bucket = bucket;
+        Prefix = prefix;
     }
 
     public virtual Task<DeleteObjectResponse> DeleteObjectAsync(string key, CancellationToken cancellationToken = default)
     {
         var request = new DeleteObjectRequest();
         request.BucketName = Bucket;
-        request.Key = key;
+        request.Key = Prefix + key;
         return Amazon.DeleteObjectAsync(request, cancellationToken);
     }
 
@@ -49,7 +53,7 @@ public class S3BucketClient
     {
         var request = new GetObjectRequest();
         request.BucketName = Bucket;
-        request.Key = key;
+        request.Key = Prefix + key;
         return Amazon.GetObjectAsync(request, cancellationToken);
     }
 
@@ -57,7 +61,7 @@ public class S3BucketClient
     {
         var request = new GetObjectMetadataRequest();
         request.BucketName = Bucket;
-        request.Key = key;
+        request.Key = Prefix + key;
         return Amazon.GetObjectMetadataAsync(request, cancellationToken);
     }
 }
@@ -87,7 +91,16 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
         } else {
             client = new AmazonS3Client(config);
         }
-        return new S3BucketClient(client, options.Bucket);
+        var prefix = options.Prefix?.Trim();
+        if (prefix == null) {
+            prefix = "";
+        }
+
+        if (!string.IsNullOrEmpty(prefix) && !prefix.EndsWith("/")) {
+            prefix += "/";
+        }
+
+        return new S3BucketClient(client, options.Bucket, prefix);
     }
 
     protected override async Task DeleteObject(S3BucketClient client, string key)
