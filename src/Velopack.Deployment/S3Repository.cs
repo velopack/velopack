@@ -29,14 +29,14 @@ public class S3UploadOptions : S3DownloadOptions, IObjectUploadOptions
 
 public class S3BucketClient
 {
-    public AmazonS3Client Amazon { get; }
+    private readonly AmazonS3Client amazon;
 
     public string Bucket { get; }
     public string Prefix { get; }
 
     public S3BucketClient(AmazonS3Client client, string bucket, string prefix)
     {
-        Amazon = client;
+        this.amazon = client;
         Bucket = bucket;
         Prefix = prefix;
     }
@@ -46,7 +46,34 @@ public class S3BucketClient
         var request = new DeleteObjectRequest();
         request.BucketName = Bucket;
         request.Key = Prefix + key;
-        return Amazon.DeleteObjectAsync(request, cancellationToken);
+        return amazon.DeleteObjectAsync(request, cancellationToken);
+    }
+
+    public virtual Task<DeleteObjectResponse> DeleteObjectAsync(string key, string versionId, CancellationToken cancellationToken = default)
+    {
+        var request = new DeleteObjectRequest();
+        request.BucketName = Bucket;
+        request.Key = Prefix + key;
+        request.VersionId = versionId;
+        return amazon.DeleteObjectAsync(request, cancellationToken);
+    }
+
+    public virtual Task<PutObjectResponse> PutObjectAsync(string key, string fullName, bool noCache, CancellationToken cancellationToken = default)
+    {
+        var request = new PutObjectRequest();
+        request.BucketName = Bucket;
+        request.FilePath = fullName;
+        request.Key = Prefix + key;
+        //due to compatibility reasons CloudFlare R2, Oracle Object storage (maybe some other providers)
+        // doesn't support Streaming SigV4 which is used in chunked uploading
+        request.DisablePayloadSigning = true;
+        request.DisableDefaultChecksumValidation = false;
+
+        if (noCache) {
+            request.Headers.CacheControl = "no-cache";
+        }
+
+        return amazon.PutObjectAsync(request, cancellationToken);
     }
 
     public virtual Task<GetObjectResponse> GetObjectAsync(string key, CancellationToken cancellationToken = default)
@@ -54,7 +81,7 @@ public class S3BucketClient
         var request = new GetObjectRequest();
         request.BucketName = Bucket;
         request.Key = Prefix + key;
-        return Amazon.GetObjectAsync(request, cancellationToken);
+        return amazon.GetObjectAsync(request, cancellationToken);
     }
 
     public virtual Task<GetObjectMetadataResponse> GetObjectMetadataAsync(string key, CancellationToken cancellationToken = default)
@@ -62,8 +89,9 @@ public class S3BucketClient
         var request = new GetObjectMetadataRequest();
         request.BucketName = Bucket;
         request.Key = Prefix + key;
-        return Amazon.GetObjectMetadataAsync(request, cancellationToken);
+        return amazon.GetObjectMetadataAsync(request, cancellationToken);
     }
+
 }
 
 public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions, S3BucketClient>
@@ -162,26 +190,11 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
             // already exists. storage providers should prefer the newer file of the same name.
         }
 
-        var bucket = client.Bucket;
-        var req = new PutObjectRequest {
-            BucketName = bucket,
-            FilePath = f.FullName,
-            Key = key,
-            //due to compatibility reasons CloudFlare R2, Oracle Object storage (maybe some other providers)
-            // doesn't support Streaming SigV4 which is used in chunked uploading
-            DisablePayloadSigning = true,
-            DisableDefaultChecksumValidation = false,
-        };
-
-        if (noCache) {
-            req.Headers.CacheControl = "no-cache";
-        }
-
-        await RetryAsync(() => client.Amazon.PutObjectAsync(req), "Uploading " + key + (noCache ? " (no-cache)" : ""));
+        await RetryAsync(() => client.PutObjectAsync(key, f.FullName, noCache), "Uploading " + key + (noCache ? " (no-cache)" : ""));
 
         if (deleteOldVersionId != null) {
             try {
-                await RetryAsync(() => client.Amazon.DeleteObjectAsync(bucket, key, deleteOldVersionId),
+                await RetryAsync(() => client.DeleteObjectAsync(key, deleteOldVersionId),
                     "Removing old version of " + key);
             } catch { }
         }
