@@ -96,7 +96,6 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &Pat
         if !requires_robocopy {
             // if we didn't need robocopy for the backup, we don't need it for the deploy hopefully
             if let Err(e1) = fs::rename(&temp_path_new, &current_dir) {
-                fs::rename(&temp_path_new, &current_dir)?;
                 warn!("Failed to rename temp_path_new to current_dir ({}). Retrying with robocopy...", e1);
                 requires_robocopy = true;
             }
