@@ -90,7 +90,7 @@ libc = "0.2"
 [target.'cfg(windows)'.dependencies]
 fs_extra = "1.2"
 memmap2 = "0.9"
-winsafe = { version = "0.0.20", features = ["version", "user", "gui"] }
+winsafe = { version = "0.0.20", features = ["gui"] }
 image = { version = "0.25", default-features = false, features = [
     "gif",
     "jpeg",
@@ -113,17 +113,10 @@ windows = { version = "0.56", default-features = false, features = [
     "Win32_System_Threading",
     "Win32_System_ProcessStatus",
     "Win32_System_WindowsProgramming",
+    "Win32_System_LibraryLoader",
     "Win32_UI_Shell_Common",
     "Win32_UI_Shell_PropertiesSystem",
-] }
-windows-sys = { version = "0.52", default-features = false, features = [
-    "Win32_Foundation",
-    "Win32_Security",
-    "Win32_Storage",
-    "Win32_Storage_FileSystem",
     "Win32_System_Kernel",
-    "Win32_System_Threading",
-    "Win32_System_WindowsProgramming",
     "Wdk",
     "Wdk_System",
     "Wdk_System_Threading",
@@ -131,6 +124,8 @@ windows-sys = { version = "0.52", default-features = false, features = [
 normpath = "1.0.1"
 webview2-com = "0.30"
 libloading = "0.8"
+strsim = "0.11"
+same-file = "1.0"
 
 [dev-dependencies]
 tempfile = "3.9"

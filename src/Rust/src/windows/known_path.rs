@@ -1,4 +1,5 @@
 use anyhow::Result;
+use std::path::Path;
 use windows::{
     core::GUID,
     Win32::UI::Shell::{

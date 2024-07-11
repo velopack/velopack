@@ -399,7 +399,6 @@ pub struct Manifest {
     pub os: String,
     pub os_min_version: String,
     pub channel: String,
-    #[derivative(Default(value = "\"Desktop,StartMenuRoot\".to_string()"))]
     pub shortcut_locations: String,
     pub shortcut_amuid: String,
 }
