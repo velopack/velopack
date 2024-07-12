@@ -14,6 +14,11 @@ namespace Velopack
     /// </summary>
     /// <param name="version">The currently executing version of this application</param>
     public delegate void VelopackHook(SemanticVersion version);
+    /// <summary>
+    /// A delegate type for handling Velopack app exit request
+    /// </summary>
+    /// <param name="exitCode">The exit code to return to the operating system. Use 0 (zero) to indicate that the process completed successfully.</param>
+    public delegate void VelopackExitHook(int exitCode);
 
     /// <summary>
     /// VelopackApp helps you to handle app activation events correctly.
@@ -32,6 +37,7 @@ namespace Velopack
         VelopackHook? _uninstall;
         VelopackHook? _firstrun;
         VelopackHook? _restarted;
+        VelopackExitHook? _exit;
         string[]? _args;
         bool _autoApply = true;
 
@@ -88,6 +94,15 @@ namespace Velopack
         public VelopackApp WithRestarted(VelopackHook hook)
         {
             _restarted += hook;
+            return this;
+        }
+
+        /// <summary>
+        /// This hook is triggered when the application should terminate.
+        /// </summary>
+        public VelopackApp WithExitRequest(VelopackExitHook hook)
+        {
+            _exit += hook;
             return this;
         }
 
@@ -215,6 +230,7 @@ namespace Velopack
                     log.Info("Auto apply is true, so restarting to apply update...");
                     UpdateExe.Apply(locator, latestLocal, false, true, args, log);
                     Exit(0);
+                    return;
                 } else {
                     log.Info("Pre-condition failed, we will not restart to apply updates. (restarted: " + restarted + ", autoApply: " + _autoApply + ")");
                 }
@@ -256,6 +272,11 @@ namespace Velopack
 
         private void Exit(int code)
         {
+            if (_exit != null) {
+                _exit(code);
+                return;
+            }
+
             if (!VelopackRuntimeInfo.InUnitTestRunner) {
                 Environment.Exit(code);
             }
