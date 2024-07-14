@@ -92,7 +92,7 @@ namespace Velopack
             }
             Source = source;
             Log = logger ?? VelopackApp.DefaultLogger ?? NullLogger.Instance;
-            Locator = locator ?? VelopackLocator.GetDefault(Log);
+            Locator = locator ?? VelopackApp.DefaultLocator ?? VelopackLocator.GetDefault(Log);
             Channel = options?.ExplicitChannel ?? DefaultChannel;
             ShouldAllowVersionDowngrade = options?.AllowVersionDowngrade ?? false;
         }
