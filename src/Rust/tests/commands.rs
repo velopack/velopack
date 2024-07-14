@@ -14,6 +14,8 @@ use winsafe::{self as w, co};
 #[test]
 pub fn test_install_apply_uninstall() {
     dialogs::set_silent(true);
+    trace_logger();
+
     let fixtures = find_fixtures();
 
     let app_id = "AvaloniaCrossPlat";

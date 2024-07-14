@@ -196,6 +196,7 @@ public class WindowsPackTests
             PackVersion = version,
             TargetRuntime = RID.Parse("win-x64"),
             PackDirectory = tmpOutput,
+            Shortcuts = "Desktop,StartMenuRoot",
         };
 
         var runner = GetPackRunner(logger);
