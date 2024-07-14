@@ -9,6 +9,7 @@ use anyhow::{anyhow, Result};
 use normpath::PathExt;
 use wait_timeout::ChildExt;
 use windows::core::PCWSTR;
+use windows::Win32::Storage::FileSystem::GetLongPathNameW;
 use windows::Win32::System::SystemInformation::{VerSetConditionMask, VerifyVersionInfoW, OSVERSIONINFOEXW, VER_FLAGS};
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use windows::Win32::{
@@ -17,6 +18,7 @@ use windows::Win32::{
 };
 
 use crate::shared::{self, runtime_arch::RuntimeArch};
+use crate::windows::strings::{string_to_u16, u16_to_string};
 
 pub fn run_hook(app: &shared::bundle::Manifest, root_path: &PathBuf, hook_name: &str, timeout_secs: u64) -> bool {
     let sw = simple_stopwatch::Stopwatch::start_new();
@@ -113,6 +115,26 @@ fn test_expand_environment_strings() {
     assert_eq!(expand_environment_strings("%windir%\\system32\\").unwrap(), "C:\\Windows\\system32\\");
 }
 
+pub fn get_long_path<P: AsRef<str>>(str: P) -> Result<String> {
+    let str = str.as_ref().to_string();
+    let str = string_to_u16(str);
+    let str = PCWSTR(str.as_ptr());
+    // SAFETY: str is a valid wide string, this call will return required size of buffer
+    let len = unsafe { GetLongPathNameW(str, None) };
+    if len == 0 {
+        return Err(anyhow!(windows::core::Error::from_win32()));
+    }
+
+    let mut vec = vec![0u16; len as usize];
+    let len = unsafe { GetLongPathNameW(str, Some(vec.as_mut_slice())) };
+    if len == 0 {
+        return Err(anyhow!(windows::core::Error::from_win32()));
+    }
+
+    let result = u16_to_string(vec)?;
+    Ok(result)
+}
+
 pub fn is_sub_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, parent: P2) -> Result<bool> {
     let path = path.as_ref().to_string_lossy().to_lowercase();
     let parent = parent.as_ref().to_string_lossy().to_lowercase();
@@ -148,8 +170,22 @@ pub fn is_sub_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, parent: P2) -> Re
     // calls GetFullPathNameW
     let path = path.normalize().or_else(|_| path.normalize_virtually())?;
     let parent = parent.normalize().or_else(|_| parent.normalize_virtually())?;
-    let path = path.as_path().to_string_lossy().to_lowercase();
-    let parent = parent.as_path().to_string_lossy().to_lowercase();
+
+    let mut path = path.as_path().to_string_lossy().to_string();
+    let mut parent = parent.as_path().to_string_lossy().to_string();
+
+    // calls GetLongPathNameW
+    match get_long_path(&path) {
+        Ok(p) => path = p,
+        Err(e) => warn!("Failed to get long path for '{}': {}", path, e),
+    }
+    match get_long_path(&parent) {
+        Ok(p) => parent = p,
+        Err(e) => warn!("Failed to get long path for '{}': {}", parent, e),
+    }
+
+    path = path.to_lowercase();
+    parent = parent.to_lowercase();
 
     let path = PathBuf::from(path);
     let parent = PathBuf::from(parent);
