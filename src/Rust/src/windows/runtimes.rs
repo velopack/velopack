@@ -5,8 +5,8 @@ use anyhow::{anyhow, bail, Result};
 use regex::Regex;
 use std::process::Command as Process;
 use std::{collections::HashMap, fs, path::Path};
+#[cfg(target_os = "windows")]
 use winsafe::{self as w, co, prelude::*};
-
 const REDIST_2015_2022_X86: &str = "https://aka.ms/vs/17/release/vc_redist.x86.exe";
 const REDIST_2015_2022_X64: &str = "https://aka.ms/vs/17/release/vc_redist.x64.exe";
 const REDIST_2015_2022_ARM64: &str = "https://aka.ms/vs/17/release/vc_redist.arm64.exe";
@@ -307,7 +307,7 @@ fn get_dotnet_base_path(runtime_arch: RuntimeArch, runtime_type: DotnetRuntimeTy
 
     // it's easy to check if we're looking for x86 dotnet because it's always in the same place.
     if runtime_arch == RuntimeArch::X86 {
-        let pf32 = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::ProgramFilesX86, co::KF::DONT_UNEXPAND, None)?;
+        let pf32 = super::known_path::get_program_files_x86()?;
         let join = Path::new(&pf32).join("dotnet").join(dotnet_path);
         let result = join.to_str().ok_or_else(|| anyhow!("Unable to convert path to string."))?;
         return Ok(result.to_string());
@@ -315,7 +315,7 @@ fn get_dotnet_base_path(runtime_arch: RuntimeArch, runtime_type: DotnetRuntimeTy
 
     // this only works in a 64 bit process, otherwise it throws
     #[cfg(not(target_arch = "x86"))]
-    let pf64 = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::ProgramFilesX64, co::KF::DONT_UNEXPAND, None)?;
+    let pf64 = super::known_path::get_program_files_x64()?;
 
     // set by WOW64 for x86 processes. https://learn.microsoft.com/windows/win32/winprog64/wow64-implementation-details
     #[cfg(target_arch = "x86")]

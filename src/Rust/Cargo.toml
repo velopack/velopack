@@ -52,14 +52,14 @@ regex = "1.10"
 rand = "0.8"
 log = "0.4"
 simplelog = "0.12"
-clap = "4.4"
+clap = "4.5"
 xml = "0.8"
 semver = "1.0"
 chrono = "0.4"
 wait-timeout = "0.2"
-lazy_static = "1.4"
+lazy_static = "1.5"
 strum = { version = "0.26", features = ["derive"] }
-ureq = { version = "2.9", default-features = false, features = [
+ureq = { version = "2.10", default-features = false, features = [
     "native-tls",
     "gzip",
 ] }
@@ -79,6 +79,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 time = "0.3"
 os_info = "3.8"
+bitflags = "2.6"
 
 [target.'cfg(unix)'.dependencies]
 native-dialog = "0.7"
@@ -87,15 +88,15 @@ dialog = "0.3"
 libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
-fs_extra = "1.2"
+fs_extra = "1.3"
 memmap2 = "0.9"
-winsafe = { version = "0.0.20", features = ["version", "user", "gui"] }
+winsafe = { version = "0.0.20", features = ["gui"] }
 image = { version = "0.25", default-features = false, features = [
     "gif",
     "jpeg",
     "png",
 ] }
-windows = { version = "0.56", default-features = false, features = [
+windows = { version = "0.57", default-features = false, features = [
     "Win32_Foundation",
     "Win32_Security",
     "Win32_System_Com",
@@ -104,6 +105,7 @@ windows = { version = "0.56", default-features = false, features = [
     "Win32_System_Threading",
     "Win32_System_SystemInformation",
     "Win32_System_Variant",
+    "Win32_System_Environment",
     "Win32_Storage_EnhancedStorage",
     "Win32_Storage_FileSystem",
     "Win32_System_Com_StructuredStorage",
@@ -111,24 +113,20 @@ windows = { version = "0.56", default-features = false, features = [
     "Win32_System_Threading",
     "Win32_System_ProcessStatus",
     "Win32_System_WindowsProgramming",
+    "Win32_System_LibraryLoader",
     "Win32_UI_Shell_Common",
     "Win32_UI_Shell_PropertiesSystem",
-] }
-windows-sys = { version = "0.52", default-features = false, features = [
-    "Win32_Foundation",
-    "Win32_Security",
-    "Win32_Storage",
-    "Win32_Storage_FileSystem",
+    "Win32_UI_WindowsAndMessaging",
     "Win32_System_Kernel",
-    "Win32_System_Threading",
-    "Win32_System_WindowsProgramming",
     "Wdk",
     "Wdk_System",
     "Wdk_System_Threading",
 ] }
-normpath = "1.0.1"
-webview2-com = "0.30"
+normpath = "1.2"
+webview2-com = "0.31"
 libloading = "0.8"
+strsim = "0.11"
+same-file = "1.0"
 
 [dev-dependencies]
 tempfile = "3.9"

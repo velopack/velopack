@@ -16,10 +16,8 @@ pub fn uninstall(root_path: &PathBuf, app: &Manifest, delete_self: bool) -> Resu
         // run uninstall hook
         windows::run_hook(&app, root_path, "--veloapp-uninstall", 60);
 
-        if let Err(e) = windows::remove_all_shortcuts_for_root_dir(&root_path) {
-            error!("Unable to remove shortcuts ({}).", e);
-            // finished_with_errors = true;
-        }
+        // remove all shortcuts pointing to the app
+        windows::remove_all_shortcuts_for_root_dir(&root_path);
 
         info!("Removing directory '{}'", root_path.to_string_lossy());
         if let Err(e) = shared::retry_io(|| remove_dir_all::remove_dir_but_not_self(&root_path)) {

@@ -1,22 +1,24 @@
-use crate::shared::{self, runtime_arch::RuntimeArch};
-use anyhow::{anyhow, Result};
-use normpath::PathExt;
 use std::{
     os::windows::process::CommandExt,
     path::{Path, PathBuf},
     process::Command as Process,
     time::Duration,
 };
+
+use anyhow::{anyhow, Result};
+use normpath::PathExt;
 use wait_timeout::ChildExt;
+use windows::core::PCWSTR;
+use windows::Win32::Storage::FileSystem::GetLongPathNameW;
+use windows::Win32::System::SystemInformation::{VerSetConditionMask, VerifyVersionInfoW, OSVERSIONINFOEXW, VER_FLAGS};
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
-use windows::{
-    core::PCWSTR,
-    Win32::{
-        Foundation::{self, GetLastError},
-        System::Threading::CreateMutexW,
-    },
+use windows::Win32::{
+    Foundation::{self, GetLastError},
+    System::Threading::CreateMutexW,
 };
-use winsafe::{self as w, co};
+
+use crate::shared::{self, runtime_arch::RuntimeArch};
+use crate::windows::strings::{string_to_u16, u16_to_string};
 
 pub fn run_hook(app: &shared::bundle::Manifest, root_path: &PathBuf, hook_name: &str, timeout_secs: u64) -> bool {
     let sw = simple_stopwatch::Stopwatch::start_new();
@@ -76,14 +78,61 @@ impl Drop for MutexDropGuard {
 pub fn create_global_mutex(app: &shared::bundle::Manifest) -> Result<MutexDropGuard> {
     let mutex_name = format!("velopack-{}", &app.id);
     info!("Attempting to open global system mutex: '{}'", &mutex_name);
-    let encoded = mutex_name.encode_utf16().chain([0u16]).collect::<Vec<u16>>();
-    let pw = PCWSTR(encoded.as_ptr());
-    let mutex = unsafe { CreateMutexW(None, true, pw) }?;
+    let encodedu16 = super::strings::string_to_u16(mutex_name);
+    let encoded = PCWSTR(encodedu16.as_ptr());
+    let mutex = unsafe { CreateMutexW(None, true, encoded) }?;
     match unsafe { GetLastError() } {
         Foundation::ERROR_SUCCESS => Ok(MutexDropGuard { mutex }),
-        Foundation::ERROR_ALREADY_EXISTS => Err(anyhow!("Another installer or updater for this application is running, quit that process and try again.")),
+        Foundation::ERROR_ALREADY_EXISTS => {
+            Err(anyhow!("Another installer or updater for this application is running, quit that process and try again."))
+        }
         err => Err(anyhow!("Unable to create global mutex. Error code {:?}", err)),
     }
+}
+
+pub fn expand_environment_strings<P: AsRef<str>>(input: P) -> Result<String> {
+    use windows::Win32::System::Environment::ExpandEnvironmentStringsW;
+    let encoded_u16 = super::strings::string_to_u16(input);
+    let encoded = PCWSTR(encoded_u16.as_ptr());
+    let mut buffer_size = unsafe { ExpandEnvironmentStringsW(encoded, None) };
+    if buffer_size == 0 {
+        return Err(anyhow!(windows::core::Error::from_win32()));
+    }
+
+    let mut buffer: Vec<u16> = vec![0; buffer_size as usize];
+    buffer_size = unsafe { ExpandEnvironmentStringsW(encoded, Some(&mut buffer)) };
+    if buffer_size == 0 {
+        return Err(anyhow!(windows::core::Error::from_win32()));
+    }
+
+    super::strings::u16_to_string(buffer)
+}
+
+#[test]
+fn test_expand_environment_strings() {
+    assert_eq!(expand_environment_strings("%windir%").unwrap(), "C:\\Windows");
+    assert_eq!(expand_environment_strings("%windir%\\system32").unwrap(), "C:\\Windows\\system32");
+    assert_eq!(expand_environment_strings("%windir%\\system32\\").unwrap(), "C:\\Windows\\system32\\");
+}
+
+pub fn get_long_path<P: AsRef<str>>(str: P) -> Result<String> {
+    let str = str.as_ref().to_string();
+    let str = string_to_u16(str);
+    let str = PCWSTR(str.as_ptr());
+    // SAFETY: str is a valid wide string, this call will return required size of buffer
+    let len = unsafe { GetLongPathNameW(str, None) };
+    if len == 0 {
+        return Err(anyhow!(windows::core::Error::from_win32()));
+    }
+
+    let mut vec = vec![0u16; len as usize];
+    let len = unsafe { GetLongPathNameW(str, Some(vec.as_mut_slice())) };
+    if len == 0 {
+        return Err(anyhow!(windows::core::Error::from_win32()));
+    }
+
+    let result = u16_to_string(vec)?;
+    Ok(result)
 }
 
 pub fn is_sub_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, parent: P2) -> Result<bool> {
@@ -104,8 +153,8 @@ pub fn is_sub_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, parent: P2) -> Re
         return Ok(true);
     }
 
-    let path = w::ExpandEnvironmentStrings(&path)?;
-    let parent = w::ExpandEnvironmentStrings(&parent)?;
+    let path = expand_environment_strings(&path)?;
+    let parent = expand_environment_strings(&parent)?;
 
     let path = Path::new(&path);
     let parent = Path::new(&parent);
@@ -119,8 +168,24 @@ pub fn is_sub_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, parent: P2) -> Re
     }
 
     // calls GetFullPathNameW
-    let path = path.normalize_virtually()?.as_path().to_string_lossy().to_lowercase();
-    let parent = parent.normalize_virtually()?.as_path().to_string_lossy().to_lowercase();
+    let path = path.normalize().or_else(|_| path.normalize_virtually())?;
+    let parent = parent.normalize().or_else(|_| parent.normalize_virtually())?;
+
+    let mut path = path.as_path().to_string_lossy().to_string();
+    let mut parent = parent.as_path().to_string_lossy().to_string();
+
+    // calls GetLongPathNameW
+    match get_long_path(&path) {
+        Ok(p) => path = p,
+        Err(e) => warn!("Failed to get long path for '{}': {}", path, e),
+    }
+    match get_long_path(&parent) {
+        Ok(p) => parent = p,
+        Err(e) => warn!("Failed to get long path for '{}': {}", parent, e),
+    }
+
+    path = path.to_lowercase();
+    parent = parent.to_lowercase();
 
     let path = PathBuf::from(path);
     let parent = PathBuf::from(parent);
@@ -169,10 +234,7 @@ fn test_is_sub_path_works_with_non_existing_paths() {
     let path = PathBuf::from(r"C:\AppData\JamLogic");
     let parent = PathBuf::from(r"C:\AppData\JamLogicDev");
     assert!(!is_sub_path(&path, &parent).unwrap());
-
-    let path = PathBuf::from(r"C:\AppData\JamLogicDev");
-    let parent = PathBuf::from(r"C:\AppData\JamLogic");
-    assert!(!is_sub_path(&path, &parent).unwrap());
+    assert!(!is_sub_path(&parent, &path).unwrap());
 }
 
 #[test]
@@ -202,15 +264,58 @@ fn test_is_sub_path_works_with_empty_paths() {
     assert!(!is_sub_path(&path, &parent).unwrap());
 }
 
+// Version condition mask constants defined as per Windows SDK
+const VER_GREATER_EQUAL: u8 = 3;
+const VER_MINORVERSION: VER_FLAGS = VER_FLAGS(0x0000001);
+const VER_MAJORVERSION: VER_FLAGS = VER_FLAGS(0x0000002);
+const VER_BUILDNUMBER: VER_FLAGS = VER_FLAGS(0x0000004);
+const VER_SERVICEPACKMAJOR: VER_FLAGS = VER_FLAGS(0x0000020);
+
+fn is_os_version_or_greater_internal(major: u16, minor: u16, build: u16, service_pack: u16) -> bool {
+    let flags = VER_MAJORVERSION | VER_MINORVERSION | VER_SERVICEPACKMAJOR;
+
+    unsafe {
+        let mut mask: u64 = 0;
+        mask = VerSetConditionMask(mask, VER_MAJORVERSION, VER_GREATER_EQUAL);
+        mask = VerSetConditionMask(mask, VER_MINORVERSION, VER_GREATER_EQUAL);
+        mask = VerSetConditionMask(mask, VER_BUILDNUMBER, VER_GREATER_EQUAL);
+        mask = VerSetConditionMask(mask, VER_SERVICEPACKMAJOR, VER_GREATER_EQUAL);
+
+        let mut osvi: OSVERSIONINFOEXW = Default::default();
+        osvi.dwMajorVersion = major.into();
+        osvi.dwMinorVersion = minor.into();
+        osvi.dwBuildNumber = build.into();
+        osvi.wServicePackMajor = service_pack.into();
+
+        VerifyVersionInfoW(&mut osvi, flags, mask).is_ok()
+    }
+}
+
+pub fn is_windows_10_or_greater() -> bool {
+    is_os_version_or_greater_internal(10, 0, 0, 0)
+}
+
+pub fn is_windows_7_sp1_or_greater() -> bool {
+    is_os_version_or_greater_internal(6, 1, 0, 1)
+}
+
+pub fn is_windows_8_or_greater() -> bool {
+    is_os_version_or_greater_internal(6, 2, 0, 0)
+}
+
+pub fn is_windows_8_1_or_greater() -> bool {
+    is_os_version_or_greater_internal(6, 3, 0, 0)
+}
+
 pub fn is_os_version_or_greater(version: &str) -> Result<bool> {
     let (mut major, mut minor, mut build, _) = shared::parse_version(version)?;
 
     if major < 8 {
-        return Ok(w::IsWindows7OrGreater()?);
+        return Ok(is_windows_7_sp1_or_greater());
     }
 
     if major == 8 {
-        return Ok(if minor >= 1 { w::IsWindows8Point1OrGreater()? } else { w::IsWindows8OrGreater()? });
+        return Ok(if minor >= 1 { is_windows_8_or_greater() } else { is_windows_8_1_or_greater() });
     }
 
     // https://en.wikipedia.org/wiki/List_of_Microsoft_Windows_versions
@@ -222,20 +327,7 @@ pub fn is_os_version_or_greater(version: &str) -> Result<bool> {
         minor = 0;
     }
 
-    if major == 10 && build <= 0 {
-        return Ok(w::IsWindows10OrGreater()?);
-    }
-
-    let mut mask: u64 = 0;
-    mask = w::VerSetConditionMask(mask, co::VER_MASK::MAJORVERSION, co::VER_COND::GREATER_EQUAL);
-    mask = w::VerSetConditionMask(mask, co::VER_MASK::MINORVERSION, co::VER_COND::GREATER_EQUAL);
-    mask = w::VerSetConditionMask(mask, co::VER_MASK::BUILDNUMBER, co::VER_COND::GREATER_EQUAL);
-
-    let mut osvi: w::OSVERSIONINFOEX = Default::default();
-    osvi.dwMajorVersion = major;
-    osvi.dwMinorVersion = minor;
-    osvi.dwBuildNumber = build;
-    return Ok(w::VerifyVersionInfo(&mut osvi, co::VER_MASK::MAJORVERSION | co::VER_MASK::MINORVERSION | co::VER_MASK::BUILDNUMBER, mask)?);
+    Ok(is_os_version_or_greater_internal(major.try_into()?, minor.try_into()?, build.try_into()?, 0))
 }
 
 #[test]

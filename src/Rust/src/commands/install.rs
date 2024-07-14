@@ -3,6 +3,8 @@ use crate::{
     shared::{self, bundle, runtime_arch::RuntimeArch},
     windows,
 };
+use ::windows::core::PCWSTR;
+use ::windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 use anyhow::{anyhow, bail, Result};
 use memmap2::Mmap;
 use pretty_bytes_rust::pretty_bytes;
@@ -11,15 +13,14 @@ use std::{
     fs::{self, File},
     path::{Path, PathBuf},
 };
-use winsafe::{self as w, co};
 
 pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Result<()> {
     let osinfo = os_info::get();
     let osarch = RuntimeArch::from_current_system();
     info!("OS: {osinfo}, Arch={osarch:#?}");
 
-    if !w::IsWindows7OrGreater()? {
-        bail!("This installer requires Windows 7 or later and cannot run.");
+    if !windows::is_windows_7_sp1_or_greater() {
+        bail!("This installer requires Windows 7 SPA1 or later and cannot run.");
     }
 
     let file = File::open(env::current_exe()?)?;
@@ -51,7 +52,7 @@ pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Res
     let (root_path, root_is_default) = if install_to.is_some() {
         (install_to.unwrap().clone(), false)
     } else {
-        let appdata = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::LocalAppData, co::KF::DONT_UNEXPAND, None)?;
+        let appdata = windows::known_path::get_local_app_data()?;
         (Path::new(&appdata).join(&app.id), true)
     };
 
@@ -66,18 +67,26 @@ pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Res
     // do we have enough disk space?
     let (compressed_size, extracted_size) = pkg.calculate_size();
     let required_space = compressed_size + extracted_size + (50 * 1000 * 1000); // archive + velopack overhead
+
     let mut free_space: u64 = 0;
-    w::GetDiskFreeSpaceEx(Some(&root_path_str), None, None, Some(&mut free_space))?;
-    if free_space < required_space {
-        bail!(
-            "{} requires at least {} disk space to be installed. There is only {} available.",
-            &app.title,
-            pretty_bytes(required_space, None),
-            pretty_bytes(free_space, None)
-        );
+    let root_pcwstr = windows::strings::string_to_u16(root_path_str);
+    let root_pcwstr: PCWSTR = PCWSTR(root_pcwstr.as_ptr());
+    if let Ok(()) = unsafe { GetDiskFreeSpaceExW(root_pcwstr, None, None, Some(&mut free_space)) } {
+        if free_space < required_space {
+            bail!(
+                "{} requires at least {} disk space to be installed. There is only {} available.",
+                &app.title,
+                pretty_bytes(required_space, None),
+                pretty_bytes(free_space, None)
+            );
+        }
     }
 
-    info!("There is {} free space available at destination, this package requires {}.", pretty_bytes(free_space, None), pretty_bytes(required_space, None));
+    info!(
+        "There is {} free space available at destination, this package requires {}.",
+        pretty_bytes(free_space, None),
+        pretty_bytes(required_space, None)
+    );
 
     // does this app support this OS / architecture?
     if !app.os_min_version.is_empty() && !windows::is_os_version_or_greater(&app.os_min_version)? {
@@ -99,8 +108,9 @@ pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Res
         }
         info!("User chose to overwrite existing installation.");
 
-        shared::force_stop_package(&root_path)
-            .map_err(|z| anyhow!("Failed to stop application ({}), please close the application and try running the installer again.", z))?;
+        shared::force_stop_package(&root_path).map_err(|z| {
+            anyhow!("Failed to stop application ({}), please close the application and try running the installer again.", z)
+        })?;
 
         root_path_renamed = format!("{}_{}", root_path_str, shared::random_string(8));
         info!("Renaming existing directory to '{}' to allow rollback...", root_path_renamed);
@@ -180,13 +190,17 @@ fn install_impl(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::m
         bail!("The main executable could not be found in the package. Please contact the application author.");
     }
 
-    info!("Creating new default shortcuts...");
-    let _ = windows::create_default_lnks(&root_path, &app);
+    info!("Creating shortcuts...");
+    windows::create_or_update_manifest_lnks(&root_path, &app, None);
 
     info!("Starting process install hook");
-    if windows::run_hook(&app, &root_path, "--veloapp-install", 30) == false {
+    if !windows::run_hook(&app, &root_path, "--veloapp-install", 30) {
         let setup_name = format!("{} Setup {}", app.title, app.version);
-        dialogs::show_warn(&setup_name, None, "Installation has completed, but the application install hook failed. It may not have installed correctly.");
+        dialogs::show_warn(
+            &setup_name,
+            None,
+            "Installation has completed, but the application install hook failed. It may not have installed correctly.",
+        );
     }
 
     let _ = tx.send(100);

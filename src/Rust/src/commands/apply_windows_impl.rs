@@ -16,7 +16,15 @@ fn ropycopy<P1: AsRef<Path>, P2: AsRef<Path>>(source: &P1, dest: &P2) -> Result<
     let dest = dest.as_ref();
 
     // robocopy C:\source\something.new C:\destination\something /MIR /ZB /W:5 /R:5 /MT:8 /LOG:C:\logs\copy_log.txt
-    let cmd = std::process::Command::new("robocopy").arg(source).arg(dest).arg("/MIR").arg("/IS").arg("/W:1").arg("/R:5").arg("/MT:2").output()?;
+    let cmd = std::process::Command::new("robocopy")
+        .arg(source)
+        .arg(dest)
+        .arg("/MIR")
+        .arg("/IS")
+        .arg("/W:1")
+        .arg("/R:5")
+        .arg("/MT:2")
+        .output()?;
 
     let stdout = String::from_utf8_lossy(&cmd.stdout);
     let stderr = String::from_utf8_lossy(&cmd.stderr);
@@ -33,28 +41,28 @@ fn ropycopy<P1: AsRef<Path>, P2: AsRef<Path>>(source: &P1, dest: &P2) -> Result<
     Ok(())
 }
 
-pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &PathBuf, runhooks: bool) -> Result<Manifest> {
+pub fn apply_package_impl(root_path: &PathBuf, old_app: &Manifest, package: &PathBuf, run_hooks: bool) -> Result<Manifest> {
     let bundle = bundle::load_bundle_from_file(package)?;
-    let manifest = bundle.read_manifest()?;
+    let new_app = bundle.read_manifest()?;
 
-    let found_version = (manifest.version).to_owned();
-    info!("Applying package to current: {}", found_version);
+    let found_version = (new_app.version).to_owned();
+    info!("Applying package to current: {} (old version {})", found_version, old_app.version);
 
-    if !crate::windows::prerequisite::prompt_and_install_all_missing(&manifest, Some(&app.version))? {
+    if !crate::windows::prerequisite::prompt_and_install_all_missing(&new_app, Some(&old_app.version))? {
         bail!("Stopping apply. Pre-requisites are missing and user cancelled.");
     }
 
-    let packages_dir = app.get_packages_path(root_path);
+    let packages_dir = old_app.get_packages_path(root_path);
     let packages_dir = Path::new(&packages_dir);
-    let current_dir = app.get_current_path(root_path);
+    let current_dir = old_app.get_current_path(root_path);
     let temp_path_new = packages_dir.join(format!("tmp_{}", shared::random_string(16)));
     let temp_path_old = packages_dir.join(format!("tmp_{}", shared::random_string(16)));
 
     // open a dialog showing progress...
     let (mut tx, _) = mpsc::channel::<i16>();
     if !dialogs::get_silent() {
-        let title = format!("{} Update", &manifest.title);
-        let message = format!("Installing update {}...", &manifest.version);
+        let title = format!("{} Update", &new_app.title);
+        let message = format!("Installing update {}...", &new_app.version);
         tx = splash::show_progress_dialog(title, message);
     }
 
@@ -68,15 +76,15 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &Pat
         let _ = tx.send(splash::MSG_INDEFINITE);
 
         // second, run application hooks (but don't care if it fails)
-        if runhooks {
-            crate::windows::run_hook(app, root_path, "--veloapp-obsolete", 15);
+        if run_hooks {
+            crate::windows::run_hook(old_app, root_path, "--veloapp-obsolete", 15);
         } else {
             info!("Skipping --veloapp-obsolete hook.");
         }
 
         // third, we try _REALLY HARD_ to stop the package
         let _ = shared::force_stop_package(root_path);
-        if winsafe::IsWindows10OrGreater() == Ok(true) && !locksmith::close_processes_locking_dir(&app.title, &current_dir) {
+        if winsafe::IsWindows10OrGreater() == Ok(true) && !locksmith::close_processes_locking_dir(&old_app.title, &current_dir) {
             bail!("Failed to close processes locking directory / user cancelled.");
         }
 
@@ -108,9 +116,10 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &Pat
                 let _ = tx.send(splash::MSG_CLOSE);
 
                 info!("Showing error dialog...");
-                let title = format!("{} Update", &manifest.title);
+                let title = format!("{} Update", &new_app.title);
                 let header = "Failed to update";
-                let body = format!("Failed to update {} to version {}. Please check the logs for more details.", &manifest.title, &manifest.version);
+                let body =
+                    format!("Failed to update {} to version {}. Please check the logs for more details.", &new_app.title, &new_app.version);
                 dialogs::show_error(&title, Some(header), &body);
 
                 bail!("Fatal error performing update.");
@@ -119,16 +128,24 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &Pat
 
         // from this point on, we're past the point of no return and should not bail
         // sixth, we write the uninstall entry
-        if let Err(e) = manifest.write_uninstall_entry(root_path) {
+        if let Err(e) = new_app.write_uninstall_entry(root_path) {
             warn!("Failed to write uninstall entry ({}).", e);
         }
 
         // seventh, we run the post-install hooks
-        if runhooks {
-            crate::windows::run_hook(&manifest, &root_path, "--veloapp-updated", 15);
+        if run_hooks {
+            crate::windows::run_hook(&new_app, &root_path, "--veloapp-updated", 15);
         } else {
             info!("Skipping --veloapp-updated hook.");
         }
+
+        // update application shortcuts
+        // should try and remove the temp dirs before recalculating the shortcuts,
+        // because windows may try to use the "Distributed Link Tracking and Object Identifiers (DLT) service"
+        // to update the shortcut to point at the temp/renamed location
+        let _ = remove_dir_all::remove_dir_all(&temp_path_new);
+        let _ = remove_dir_all::remove_dir_all(&temp_path_old);
+        crate::windows::create_or_update_manifest_lnks(root_path, &new_app, Some(old_app));
 
         // done!
         info!("Package applied successfully.");
@@ -139,5 +156,5 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, package: &Pat
     let _ = remove_dir_all::remove_dir_all(&temp_path_new);
     let _ = remove_dir_all::remove_dir_all(&temp_path_old);
     action?;
-    Ok(manifest)
+    Ok(new_app)
 }

@@ -1,3 +1,5 @@
+use ::windows::Win32::System::ProcessStatus::EnumProcesses;
+use ::windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use anyhow::{anyhow, bail, Result};
 use regex::Regex;
 use semver::Version;
@@ -7,10 +9,8 @@ use std::{
     path::{Path, PathBuf},
     process::Command as Process,
 };
-use windows::Win32::System::ProcessStatus::EnumProcesses;
-use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
-use windows_sys::Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasicInformation};
-use windows_sys::Win32::System::Threading::{GetCurrentProcess, PROCESS_BASIC_INFORMATION};
+use windows::Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasicInformation};
+use windows::Win32::System::Threading::{GetCurrentProcess, PROCESS_BASIC_INFORMATION};
 use winsafe::{self as w, co, prelude::*};
 
 use super::bundle::{self, EntryNameInfo, Manifest};
@@ -35,7 +35,7 @@ pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
     let mut info = PROCESS_BASIC_INFORMATION {
         AffinityMask: 0,
         BasePriority: 0,
-        ExitStatus: 0,
+        ExitStatus: Default::default(),
         InheritedFromUniqueProcessId: 0,
         PebBaseAddress: std::ptr::null_mut(),
         UniqueProcessId: 0,
@@ -43,10 +43,9 @@ pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
 
     let info_ptr: *mut ::core::ffi::c_void = &mut info as *mut _ as *mut ::core::ffi::c_void;
     let info_size = std::mem::size_of::<PROCESS_BASIC_INFORMATION>() as u32;
-    let hr = unsafe { NtQueryInformationProcess(handle, basic_info, info_ptr, info_size, return_length_ptr) };
-
-    if hr != 0 {
-        return Err(anyhow!("Failed to query process information: {}", hr));
+    let hres = unsafe { NtQueryInformationProcess(handle, basic_info, info_ptr, info_size, return_length_ptr) };
+    if hres.is_err() {
+        return Err(anyhow!("Failed to query process information: {:?}", hres));
     }
 
     if info.InheritedFromUniqueProcessId <= 1 {
@@ -346,7 +345,7 @@ fn get_all_packages(root_path: &PathBuf) -> Vec<EntryNameInfo> {
 
 #[test]
 fn test_get_running_processes_finds_cargo() {
-    let profile = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Profile, co::KF::DONT_UNEXPAND, None).unwrap();
+    let profile = crate::windows::known_path::get_user_profile().unwrap();
     let path = Path::new(&profile);
     let rustup = path.join(".rustup");
 

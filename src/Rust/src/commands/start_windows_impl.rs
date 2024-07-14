@@ -13,7 +13,13 @@ use std::{
 };
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 
-pub fn start_impl(root_dir: &PathBuf, app: &Manifest, exe_name: Option<&String>, exe_args: Option<Vec<&str>>, legacy_args: Option<&String>) -> Result<()> {
+pub fn start_impl(
+    root_dir: &PathBuf,
+    app: &Manifest,
+    exe_name: Option<&String>,
+    exe_args: Option<Vec<&str>>,
+    legacy_args: Option<&String>,
+) -> Result<()> {
     match shared::has_app_prefixed_folder(root_dir) {
         Ok(has_prefix) => {
             if has_prefix {
@@ -86,21 +92,19 @@ fn try_legacy_migration(root_dir: &PathBuf, app: &bundle::Manifest) -> Result<()
         }
     }
 
+    info!("Removing old shortcuts...");
+    win::remove_all_shortcuts_for_root_dir(root_dir);
+
+    let mut modified_app = app.clone();
+    modified_app.shortcut_locations = "".to_string(); // reset, so we install new shortcuts
+
     info!("Applying latest full package...");
     let buf = Path::new(&package.file_path).to_path_buf();
-    super::apply(root_dir, app, false, OperationWait::NoWait, Some(&buf), None, false)?;
+    super::apply(root_dir, &modified_app, false, OperationWait::NoWait, Some(&buf), None, false)?;
 
     info!("Removing old app-* folders...");
     shared::delete_app_prefixed_folders(root_dir)?;
     let _ = remove_dir_all::remove_dir_all(root_dir.join("staging"));
-
-    info!("Removing old shortcuts...");
-    if let Err(e) = win::remove_all_shortcuts_for_root_dir(root_dir) {
-        warn!("Failed to remove shortcuts ({}).", e);
-    }
-
-    info!("Creating new default shortcuts...");
-    let _ = win::create_default_lnks(root_dir, app);
 
     Ok(())
 }
