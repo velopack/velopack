@@ -358,7 +358,7 @@ pub fn is_cpu_architecture_supported(architecture: &str) -> Result<bool> {
 
     let machine = machine.unwrap();
     let architecture = architecture.unwrap();
-    let is_win_11 = is_os_version_or_greater("11").unwrap();
+    let is_win_11 = is_os_version_or_greater("11")?;
 
     if machine == RuntimeArch::X86 {
         // windows x86 only supports x86
