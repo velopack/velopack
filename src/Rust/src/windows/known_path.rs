@@ -33,7 +33,9 @@ pub fn get_user_profile() -> Result<String> {
 }
 
 pub fn get_start_menu() -> Result<String> {
-    get_known_folder(&FOLDERID_StartMenu)
+    let start_menu = get_known_folder(&FOLDERID_StartMenu)?;
+    let programs_path = Path::new(&start_menu).join("Programs");
+    Ok(programs_path.to_string_lossy().to_string())
 }
 
 pub fn get_startup() -> Result<String> {

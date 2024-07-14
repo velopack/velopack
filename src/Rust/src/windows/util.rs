@@ -1,19 +1,22 @@
-use crate::shared::{self, runtime_arch::RuntimeArch};
-use anyhow::{anyhow, Result};
-use normpath::PathExt;
 use std::{
     os::windows::process::CommandExt,
     path::{Path, PathBuf},
     process::Command as Process,
     time::Duration,
 };
+
+use anyhow::{anyhow, Result};
+use normpath::PathExt;
 use wait_timeout::ChildExt;
 use windows::core::PCWSTR;
+use windows::Win32::System::SystemInformation::{VerSetConditionMask, VerifyVersionInfoW, OSVERSIONINFOEXW, VER_FLAGS};
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use windows::Win32::{
     Foundation::{self, GetLastError},
     System::Threading::CreateMutexW,
 };
+
+use crate::shared::{self, runtime_arch::RuntimeArch};
 
 pub fn run_hook(app: &shared::bundle::Manifest, root_path: &PathBuf, hook_name: &str, timeout_secs: u64) -> bool {
     let sw = simple_stopwatch::Stopwatch::start_new();
@@ -78,15 +81,17 @@ pub fn create_global_mutex(app: &shared::bundle::Manifest) -> Result<MutexDropGu
     let mutex = unsafe { CreateMutexW(None, true, encoded) }?;
     match unsafe { GetLastError() } {
         Foundation::ERROR_SUCCESS => Ok(MutexDropGuard { mutex }),
-        Foundation::ERROR_ALREADY_EXISTS => Err(anyhow!("Another installer or updater for this application is running, quit that process and try again.")),
+        Foundation::ERROR_ALREADY_EXISTS => {
+            Err(anyhow!("Another installer or updater for this application is running, quit that process and try again."))
+        }
         err => Err(anyhow!("Unable to create global mutex. Error code {:?}", err)),
     }
 }
 
 pub fn expand_environment_strings<P: AsRef<str>>(input: P) -> Result<String> {
     use windows::Win32::System::Environment::ExpandEnvironmentStringsW;
-    let encodedu16 = super::strings::string_to_u16(input);
-    let encoded = PCWSTR(encodedu16.as_ptr());
+    let encoded_u16 = super::strings::string_to_u16(input);
+    let encoded = PCWSTR(encoded_u16.as_ptr());
     let mut buffer_size = unsafe { ExpandEnvironmentStringsW(encoded, None) };
     if buffer_size == 0 {
         return Err(anyhow!(windows::core::Error::from_win32()));
@@ -98,7 +103,14 @@ pub fn expand_environment_strings<P: AsRef<str>>(input: P) -> Result<String> {
         return Err(anyhow!(windows::core::Error::from_win32()));
     }
 
-    Ok(super::strings::u16_to_string(buffer)?)
+    super::strings::u16_to_string(buffer)
+}
+
+#[test]
+fn test_expand_environment_strings() {
+    assert_eq!(expand_environment_strings("%windir%").unwrap(), "C:\\Windows");
+    assert_eq!(expand_environment_strings("%windir%\\system32").unwrap(), "C:\\Windows\\system32");
+    assert_eq!(expand_environment_strings("%windir%\\system32\\").unwrap(), "C:\\Windows\\system32\\");
 }
 
 pub fn is_sub_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, parent: P2) -> Result<bool> {
@@ -184,10 +196,7 @@ fn test_is_sub_path_works_with_non_existing_paths() {
     let path = PathBuf::from(r"C:\AppData\JamLogic");
     let parent = PathBuf::from(r"C:\AppData\JamLogicDev");
     assert!(!is_sub_path(&path, &parent).unwrap());
-
-    let path = PathBuf::from(r"C:\AppData\JamLogicDev");
-    let parent = PathBuf::from(r"C:\AppData\JamLogic");
-    assert!(!is_sub_path(&path, &parent).unwrap());
+    assert!(!is_sub_path(&parent, &path).unwrap());
 }
 
 #[test]
@@ -217,15 +226,14 @@ fn test_is_sub_path_works_with_empty_paths() {
     assert!(!is_sub_path(&path, &parent).unwrap());
 }
 
-fn is_os_version_or_greater_internal(major: u16, minor: u16, sp: u16) -> bool {
-    use windows::Win32::System::SystemInformation::{VerSetConditionMask, VerifyVersionInfoW, OSVERSIONINFOEXW, VER_FLAGS};
-    // Version condition mask constants defined as per Windows SDK
-    const VER_GREATER_EQUAL: u8 = 3;
-    const VER_MINORVERSION: VER_FLAGS = VER_FLAGS(0x0000001);
-    const VER_MAJORVERSION: VER_FLAGS = VER_FLAGS(0x0000002);
-    const VER_BUILDNUMBER: VER_FLAGS = VER_FLAGS(0x0000004);
-    const VER_SERVICEPACKMAJOR: VER_FLAGS = VER_FLAGS(0x0000020);
+// Version condition mask constants defined as per Windows SDK
+const VER_GREATER_EQUAL: u8 = 3;
+const VER_MINORVERSION: VER_FLAGS = VER_FLAGS(0x0000001);
+const VER_MAJORVERSION: VER_FLAGS = VER_FLAGS(0x0000002);
+const VER_BUILDNUMBER: VER_FLAGS = VER_FLAGS(0x0000004);
+const VER_SERVICEPACKMAJOR: VER_FLAGS = VER_FLAGS(0x0000020);
 
+fn is_os_version_or_greater_internal(major: u16, minor: u16, build: u16, service_pack: u16) -> bool {
     let flags = VER_MAJORVERSION | VER_MINORVERSION | VER_SERVICEPACKMAJOR;
 
     unsafe {
@@ -233,30 +241,32 @@ fn is_os_version_or_greater_internal(major: u16, minor: u16, sp: u16) -> bool {
         mask = VerSetConditionMask(mask, VER_MAJORVERSION, VER_GREATER_EQUAL);
         mask = VerSetConditionMask(mask, VER_MINORVERSION, VER_GREATER_EQUAL);
         mask = VerSetConditionMask(mask, VER_BUILDNUMBER, VER_GREATER_EQUAL);
+        mask = VerSetConditionMask(mask, VER_SERVICEPACKMAJOR, VER_GREATER_EQUAL);
 
         let mut osvi: OSVERSIONINFOEXW = Default::default();
         osvi.dwMajorVersion = major.into();
         osvi.dwMinorVersion = minor.into();
-        osvi.wServicePackMajor = sp.into();
+        osvi.dwBuildNumber = build.into();
+        osvi.wServicePackMajor = service_pack.into();
 
         VerifyVersionInfoW(&mut osvi, flags, mask).is_ok()
     }
 }
 
 pub fn is_windows_10_or_greater() -> bool {
-    is_os_version_or_greater_internal(10, 0, 0)
+    is_os_version_or_greater_internal(10, 0, 0, 0)
 }
 
 pub fn is_windows_7_sp1_or_greater() -> bool {
-    is_os_version_or_greater_internal(6, 1, 1)
+    is_os_version_or_greater_internal(6, 1, 0, 1)
 }
 
 pub fn is_windows_8_or_greater() -> bool {
-    is_os_version_or_greater_internal(6, 2, 0)
+    is_os_version_or_greater_internal(6, 2, 0, 0)
 }
 
 pub fn is_windows_8_1_or_greater() -> bool {
-    is_os_version_or_greater_internal(6, 3, 0)
+    is_os_version_or_greater_internal(6, 3, 0, 0)
 }
 
 pub fn is_os_version_or_greater(version: &str) -> Result<bool> {
@@ -279,11 +289,7 @@ pub fn is_os_version_or_greater(version: &str) -> Result<bool> {
         minor = 0;
     }
 
-    if major == 10 && build <= 0 {
-        return Ok(is_windows_10_or_greater());
-    }
-
-    return Ok(is_os_version_or_greater_internal(major.try_into()?, minor.try_into()?, build.try_into()?));
+    Ok(is_os_version_or_greater_internal(major.try_into()?, minor.try_into()?, build.try_into()?, 0))
 }
 
 #[test]

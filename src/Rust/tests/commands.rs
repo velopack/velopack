@@ -6,6 +6,7 @@ use std::{fs, path::Path, path::PathBuf};
 use tempfile::tempdir;
 use velopack::*;
 
+use velopack::logging::trace_logger;
 #[cfg(target_os = "windows")]
 use winsafe::{self as w, co};
 
@@ -18,11 +19,19 @@ pub fn test_install_apply_uninstall() {
     let app_id = "AvaloniaCrossPlat";
     let pkg_name = "AvaloniaCrossPlat-1.0.11-win-full.nupkg";
 
-    let startmenu = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::StartMenu, co::KF::DONT_UNEXPAND, None).unwrap();
-    let lnk_path = Path::new(&startmenu).join("Programs").join(format!("{}.lnk", app_id));
-    if lnk_path.exists() {
-        fs::remove_file(&lnk_path).unwrap();
-    }
+    let start_menu = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::StartMenu, co::KF::DONT_UNEXPAND, None).unwrap();
+    let start_menu = Path::new(&start_menu).join("Programs");
+    let desktop = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Desktop, co::KF::DONT_UNEXPAND, None).unwrap();
+    let desktop = Path::new(&desktop);
+
+    let lnk_start_1 = start_menu.join(format!("{}.lnk", app_id));
+    let lnk_desktop_1 = desktop.join(format!("{}.lnk", app_id));
+    let lnk_start_2 = start_menu.join(format!("{}.lnk", "AvaloniaCross Updated"));
+    let lnk_desktop_2 = desktop.join(format!("{}.lnk", "AvaloniaCross Updated"));
+    let _ = fs::remove_file(&lnk_start_1);
+    let _ = fs::remove_file(&lnk_desktop_1);
+    let _ = fs::remove_file(&lnk_start_2);
+    let _ = fs::remove_file(&lnk_desktop_2);
 
     let nupkg = fixtures.join(pkg_name);
 
@@ -30,26 +39,38 @@ pub fn test_install_apply_uninstall() {
     let tmp_buf = tmp_dir.path().to_path_buf();
     commands::install(Some(&nupkg), Some(&tmp_buf)).unwrap();
 
-    assert!(lnk_path.exists());
+    assert!(!lnk_desktop_1.exists()); // desktop is created during update
+    assert!(lnk_start_1.exists());
+
     assert!(tmp_buf.join("Update.exe").exists());
     assert!(tmp_buf.join("current").join("AvaloniaCrossPlat.exe").exists());
     assert!(tmp_buf.join("current").join("sq.version").exists());
 
     let (root_dir, app) = shared::detect_manifest_from_update_path(&tmp_buf.join("Update.exe")).unwrap();
     assert_eq!(app_id, app.id);
-    assert!(semver::Version::parse("1.0.11").unwrap() == app.version);
+    assert_eq!(semver::Version::parse("1.0.11").unwrap(), app.version);
 
     let pkg_name_apply = "AvaloniaCrossPlat-1.0.15-win-full.nupkg";
     let nupkg_apply = fixtures.join(pkg_name_apply);
     commands::apply(&root_dir, &app, false, shared::OperationWait::NoWait, Some(&nupkg_apply), None, false).unwrap();
 
+    // shortcuts are renamed, and desktop is created
+    assert!(!lnk_desktop_1.exists());
+    assert!(!lnk_start_1.exists());
+    assert!(lnk_desktop_2.exists());
+    assert!(lnk_start_2.exists());
+
     let (root_dir, app) = shared::detect_manifest_from_update_path(&tmp_buf.join("Update.exe")).unwrap();
-    assert!(semver::Version::parse("1.0.15").unwrap() == app.version);
+    assert_eq!(semver::Version::parse("1.0.15").unwrap(), app.version);
 
     commands::uninstall(&root_dir, &app, false).unwrap();
     assert!(!tmp_buf.join("current").exists());
     assert!(tmp_buf.join(".dead").exists());
-    assert!(!lnk_path.exists());
+
+    assert!(!lnk_desktop_1.exists());
+    assert!(!lnk_start_1.exists());
+    assert!(!lnk_desktop_2.exists());
+    assert!(!lnk_start_2.exists());
 }
 
 #[cfg(target_os = "windows")]
