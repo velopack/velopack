@@ -7,7 +7,6 @@ use bitflags::bitflags;
 use glob::glob;
 use same_file::is_same_file;
 use windows::core::{Interface, GUID, PCWSTR};
-use windows::Win32::Foundation::HWND;
 use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
 use windows::Win32::System::Com::{
     CoCreateInstance, CoInitializeEx, CoUninitialize, IPersistFile, StructuredStorage::InitPropVariantFromStringVector, CLSCTX_ALL,
