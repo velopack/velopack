@@ -32,7 +32,7 @@ bitflags! {
         const STARTUP = 1 << 2;
         //const APP_ROOT = 1 << 3,
         const START_MENU_ROOT = 1 << 4;
-        // const USER_PINNED = 1 << 5;
+        const USER_PINNED = 1 << 5;
     }
 }
 
@@ -140,7 +140,7 @@ unsafe fn unsafe_update_app_manifest_lnks(root_path: &PathBuf, next_app: &Manife
     let app_work_dir = next_app.get_current_path(root_path);
 
     info!("App Model ID: {:?}", app_model_id);
-    let mut current_shortcuts = unsafe_get_shortcuts_for_root_dir(next_app.get_current_path(root_path))?;
+    let mut current_shortcuts = unsafe_get_shortcuts_for_root_dir(root_path)?;
 
     // update all existing shortcuts, verify target/workdir/amuid and icon is correct.
     info!("Will update all current shortcuts: {:?}", current_shortcuts);
@@ -149,22 +149,22 @@ unsafe fn unsafe_update_app_manifest_lnks(root_path: &PathBuf, next_app: &Manife
         let flag = flag.to_owned();
         info!("Updating existing shortcut '{:?}' ({:?}).", lnk.get_link_path(), flag);
 
-        if let Ok(target) = lnk.get_target_path() {
-            // set the target path to the main exe if it is missing or incorrect
-            if !PathBuf::from(&target).exists() {
-                warn!("Shortcut {} target does not exist, updating to mainExe and setting workdir to current.", lnk.get_link_path());
-                if let Err(e) = lnk.set_target_path(&app_main_exe) {
-                    warn!("Failed to update shortcut target: {}", e);
-                }
-                if let Err(e) = lnk.set_working_directory(&app_work_dir) {
-                    warn!("Failed to update shortcut working directory: {}", e);
-                }
-            }
+        let target_option = lnk.get_target_path().ok();
 
-            // force icon refresh by resetting the icon location
-            if let Err(e) = lnk.set_icon_location(&target, 0) {
-                warn!("Failed to update shortcut icon location: {}", e);
+        // set the target path to the main exe if it is missing or incorrect
+        if target_option.is_none() || !PathBuf::from(target_option.unwrap()).exists() {
+            warn!("Shortcut {} target does not exist, updating to mainExe and setting workdir to current.", lnk.get_link_path());
+            if let Err(e) = lnk.set_target_path(&app_main_exe) {
+                warn!("Failed to update shortcut target: {}", e);
             }
+            if let Err(e) = lnk.set_working_directory(&app_work_dir) {
+                warn!("Failed to update shortcut working directory: {}", e);
+            }
+        }
+
+        // force icon refresh by resetting the icon location
+        if let Err(e) = lnk.set_icon_location(&app_main_exe, 0) {
+            warn!("Failed to update shortcut icon location: {}", e);
         }
 
         if let Err(e) = lnk.set_aumid(app_model_id.as_deref()) {
@@ -185,7 +185,8 @@ unsafe fn unsafe_update_app_manifest_lnks(root_path: &PathBuf, next_app: &Manife
     }
 
     // rename existing shortcuts if packTitle has changed
-    let shortcuts_to_rename = unsafe_find_best_shortcut_matches(&next_app.title, &app_main_exe, current_shortcuts);
+    let last_app_name = previous_app.map(|a| a.title.clone()).unwrap_or(next_app.title.clone());
+    let shortcuts_to_rename = unsafe_find_best_rename_candidates(&last_app_name, &app_main_exe, current_shortcuts);
     for (flag, path) in shortcuts_to_rename {
         let shortcut_file_name = get_shortcut_filename(next_app);
 
@@ -246,7 +247,7 @@ unsafe fn unsafe_update_app_manifest_lnks(root_path: &PathBuf, next_app: &Manife
     Ok(())
 }
 
-unsafe fn unsafe_find_best_shortcut_matches<P: AsRef<Path>>(
+unsafe fn unsafe_find_best_rename_candidates<P: AsRef<Path>>(
     app_name: &str,
     target_path: P,
     current_shortcuts: Vec<(ShortcutLocationFlags, Lnk)>,
@@ -261,6 +262,11 @@ unsafe fn unsafe_find_best_shortcut_matches<P: AsRef<Path>>(
             if !args.is_empty() {
                 continue;
             }
+        }
+
+        // filter out shortcuts in user-pinned dir, we're not allowed to rename those
+        if enum_val == &ShortcutLocationFlags::USER_PINNED {
+            continue;
         }
 
         // filter out shortcuts which do not point to our main_exe
@@ -301,9 +307,9 @@ unsafe fn unsafe_get_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Resu
     let search_paths = vec![
         (ShortcutLocationFlags::DESKTOP, format!("{}/*.lnk", known::get_user_desktop()?)),
         (ShortcutLocationFlags::STARTUP, format!("{}/*.lnk", known::get_startup()?)),
-        (ShortcutLocationFlags::START_MENU_ROOT, format!("{}/*.lnk", known::get_start_menu()?)),
+        // (ShortcutLocationFlags::START_MENU_ROOT, format!("{}/*.lnk", known::get_start_menu()?)),
         (ShortcutLocationFlags::START_MENU, format!("{}/**/*.lnk", known::get_start_menu()?)),
-        // (ShortcutLocationFlags::USER_PINNED, format!("{}/**/*.lnk", known::get_user_pinned()?)),
+        (ShortcutLocationFlags::USER_PINNED, format!("{}/**/*.lnk", known::get_user_pinned()?)),
     ];
 
     let mut paths: Vec<(ShortcutLocationFlags, Lnk)> = Vec::new();
@@ -315,34 +321,17 @@ unsafe fn unsafe_get_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Resu
                 match Lnk::open_write(&path) {
                     Ok(properties) => {
                         if let Ok(target) = properties.get_target_path() {
-                            if let Ok(work_dir) = properties.get_working_directory() {
-                                let target_match = super::is_sub_path(&target, root_dir).unwrap_or(false);
-                                let work_dir_match = super::is_sub_path(&work_dir, root_dir).unwrap_or(false);
-                                if target_match || work_dir_match {
-                                    let match_str = if target_match && work_dir_match {
-                                        format!("both target ({:?}) and work dir ({:?})", target, work_dir)
-                                    } else if target_match {
-                                        format!("target ({:?})", target)
-                                    } else {
-                                        format!("work dir ({:?})", work_dir)
-                                    };
-
-                                    if flag == ShortcutLocationFlags::START_MENU {
-                                        // if there is already a matching 'path' in the list (e.g. in Start_Menu_Root)
-                                        // then we should continue/not add it again here
-                                        if paths.iter().any(|(_, p)| PathBuf::from(p.get_link_path()) == path.clone()) {
-                                            continue;
-                                        }
-                                    }
-
-                                    warn!("Selected shortcut '{}' because {} matched.", path.to_string_lossy(), match_str);
-                                    paths.push((flag, properties));
-                                }
-                            } else {
-                                warn!("Failed to get working directory for shortcut: '{}'", path.to_string_lossy());
+                            if super::is_sub_path(&target, root_dir).unwrap_or(false) {
+                                info!("Selected shortcut for update '{}' because target '{}' matched.", path.to_string_lossy(), target);
+                                paths.push((flag, properties));
+                            }
+                        } else if let Ok(work_dir) = properties.get_working_directory() {
+                            if super::is_sub_path(&work_dir, root_dir).unwrap_or(false) {
+                                info!("Selected shortcut for update '{}' because work_dir '{}' matched.", path.to_string_lossy(), work_dir);
+                                paths.push((flag, properties));
                             }
                         } else {
-                            warn!("Failed to get target path for shortcut: '{}'", path.to_string_lossy());
+                            warn!("Could not resolve target or work_dir for shortcut '{}'.", path.to_string_lossy());
                         }
                     }
                     Err(e) => {
@@ -360,7 +349,7 @@ unsafe fn unsafe_remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) 
     let shortcuts = unsafe_get_shortcuts_for_root_dir(root_dir)?;
     for (flag, properties) in shortcuts {
         let path = properties.get_link_path();
-        warn!("Removing shortcut '{}' ({:?}).", path, flag);
+        info!("Removing shortcut '{}' ({:?}).", path, flag);
         let remove_parent_if_empty = flag == ShortcutLocationFlags::START_MENU;
         if let Err(e) = unsafe_delete_lnk_file(&path, remove_parent_if_empty) {
             warn!("Failed to remove shortcut: {}", e);
@@ -550,9 +539,9 @@ impl Lnk {
         Ok(self.pf.Save(output, true)?)
     }
 
-    const SLR_NO_UI: u32 = 1;
-    const SLR_ANY_MATCH: u32 = 2;
-    const TIMEOUT_1MS: u32 = 1 << 16;
+    // const SLR_NO_UI: u32 = 1;
+    // const SLR_ANY_MATCH: u32 = 2;
+    // const TIMEOUT_1MS: u32 = 1 << 16;
 
     pub unsafe fn open_write<P: AsRef<Path>>(link_path: P) -> Result<Lnk> {
         let link_path = link_path.as_ref().to_string_lossy().to_string();
@@ -565,11 +554,13 @@ impl Lnk {
 
         persist.Load(link_pcwstr, STGM_READWRITE)?;
 
-        let flags = Lnk::SLR_NO_UI | Lnk::SLR_ANY_MATCH | Lnk::TIMEOUT_1MS;
-        if let Err(e) = link.Resolve(HWND(0), flags) {
-            // this happens if the target path is missing and the link is broken
-            warn!("Failed to resolve link {} ({:?})", link_path, e);
-        }
+        // we don't really want to "resolve" the shortcut in the middle of an update operation
+        // this can cause Windows to move the target path of a shortcut to one of our temp dirs etc
+        // let flags = Lnk::SLR_NO_UI | Lnk::SLR_ANY_MATCH | Lnk::TIMEOUT_1MS;
+        // if let Err(e) = link.Resolve(HWND(0), flags) {
+        //     // this happens if the target path is missing and the link is broken
+        //     warn!("Failed to resolve link {} ({:?})", link_path, e);
+        // }
         Ok(Lnk { me: link, pf: persist, my_path: link_path })
     }
 
@@ -734,10 +725,10 @@ fn test_shortcut_full_integration() {
             assert_eq!(shortcuts.len(), 3);
             assert_eq!(shortcuts[0].0, ShortcutLocationFlags::DESKTOP);
             assert_eq!(PathBuf::from(&shortcuts[0].1.my_path), link1);
-            assert_eq!(shortcuts[1].0, ShortcutLocationFlags::START_MENU_ROOT);
-            assert_eq!(PathBuf::from(&shortcuts[1].1.my_path), link2);
+            assert_eq!(shortcuts[1].0, ShortcutLocationFlags::START_MENU);
+            assert_eq!(PathBuf::from(&shortcuts[1].1.my_path), link3);
             assert_eq!(shortcuts[2].0, ShortcutLocationFlags::START_MENU);
-            assert_eq!(PathBuf::from(&shortcuts[2].1.my_path), link3);
+            assert_eq!(PathBuf::from(&shortcuts[2].1.my_path), link2);
 
             assert_eq!(shortcuts[0].1.get_target_path().unwrap(), target);
             assert_eq!(shortcuts[0].1.get_working_directory().unwrap(), work);

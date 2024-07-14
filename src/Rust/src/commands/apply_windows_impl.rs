@@ -140,6 +140,11 @@ pub fn apply_package_impl(root_path: &PathBuf, old_app: &Manifest, package: &Pat
         }
 
         // update application shortcuts
+        // should try and remove the temp dirs before recalculating the shortcuts,
+        // because windows may try to use the "Distributed Link Tracking and Object Identifiers (DLT) service"
+        // to update the shortcut to point at the temp/renamed location
+        let _ = remove_dir_all::remove_dir_all(&temp_path_new);
+        let _ = remove_dir_all::remove_dir_all(&temp_path_old);
         crate::windows::create_or_update_manifest_lnks(root_path, &new_app, Some(old_app));
 
         // done!
