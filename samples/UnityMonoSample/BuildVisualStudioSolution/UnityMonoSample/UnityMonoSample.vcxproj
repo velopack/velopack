@@ -1,0 +1,226 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Master|Win32">
+      <Configuration>Master</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Master|x64">
+      <Configuration>Master</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MasterWithLTCG|Win32">
+      <Configuration>MasterWithLTCG</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MasterWithLTCG|x64">
+      <Configuration>MasterWithLTCG</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="DebugServer|Win32">
+      <Configuration>DebugServer</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MasterServer|Win32">
+      <Configuration>MasterServer</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MasterServer|x64">
+      <Configuration>MasterServer</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MasterServerWithLTCG|Win32">
+      <Configuration>MasterServerWithLTCG</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MasterServerWithLTCG|x64">
+      <Configuration>MasterServerWithLTCG</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseServer|Win32">
+      <Configuration>ReleaseServer</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="DebugServer|x64">
+      <Configuration>DebugServer</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseServer|x64">
+      <Configuration>ReleaseServer</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{57571793-BF11-47DB-A9BA-049C9AA938C7}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>$(ProjectName)</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <Choose>
+    <When Condition="'$(Configuration)'=='DebugServer'">
+      <PropertyGroup>
+        <ConfigurationBuildDir>Debug</ConfigurationBuildDir>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(Configuration)'=='ReleaseServer'">
+      <PropertyGroup>
+        <ConfigurationBuildDir>Release</ConfigurationBuildDir>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(Configuration)'=='MasterServer'">
+      <PropertyGroup>
+        <ConfigurationBuildDir>Master</ConfigurationBuildDir>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(Configuration)'=='MasterServerWithLTCG'">
+      <PropertyGroup>
+        <ConfigurationBuildDir>MasterWithLTCG</ConfigurationBuildDir>
+      </PropertyGroup>
+    </When>
+    <Otherwise>
+      <PropertyGroup>
+        <ConfigurationBuildDir>$(Configuration)</ConfigurationBuildDir>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+  <PropertyGroup Label="UserMacros">
+    <ArtifactsDir>$(SolutionDir)build\obj\$(PlatformShortName)\$(ConfigurationBuildDir)\</ArtifactsDir>
+    <PlayerOutputDir>$(SolutionDir)build\bin\$(PlatformShortName)\$(ConfigurationBuildDir)\</PlayerOutputDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Debug' OR '$(Configuration)'=='DebugServer'">
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'!='Debug' AND '$(Configuration)'!='DebugServer'">
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Debug' OR '$(Configuration)'=='Release' OR '$(Configuration)'=='DebugServer' OR '$(Configuration)'=='ReleaseServer'" Label="Configuration">
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Master' OR '$(Configuration)'=='MasterWithLTCG' OR '$(Configuration)'=='MasterServer' OR '$(Configuration)'=='MasterServerWithLTCG'" Label="Configuration">
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup>
+    <OutDir>$(PlayerOutputDir)</OutDir>
+    <IntDir>$(ArtifactsDir)WindowsPlayer\</IntDir>
+    <GenerateManifest>false</GenerateManifest>
+    <CommonDefines>UNITY_WIN=1;UNITY_STANDALONE=1;UNITY_STANDALONE_WIN=1;WIN32;_WINDOWS</CommonDefines>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <PrecompiledHeaderFile>PrecompiledHeader.h</PrecompiledHeaderFile>
+      <TreatWarningAsError>true</TreatWarningAsError>
+    </ClCompile>
+    <Link>
+      <SubSystem Condition="'$(Configuration)'=='Debug' OR '$(Configuration)'=='Release' OR '$(Configuration)'=='Master' OR '$(Configuration)'=='MasterWithLTCG'">Windows</SubSystem>
+      <SubSystem Condition="'$(Configuration)'=='DebugServer' OR '$(Configuration)'=='ReleaseServer' OR '$(Configuration)'=='MasterServer' OR '$(Configuration)'=='MasterServerWithLTCG'">Console</SubSystem>
+      <EntryPointSymbol Condition="'$(Configuration)'=='DebugServer' OR '$(Configuration)'=='ReleaseServer' OR '$(Configuration)'=='MasterServer' OR '$(Configuration)'=='MasterServerWithLTCG'">wWinMainCRTStartup</EntryPointSymbol>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ProgramDatabaseFile>$(OutDir)$(TargetName)_$(PlatformShortName)_$(Configuration)_$(ScriptingBackend).pdb</ProgramDatabaseFile>
+      <AdditionalOptions>"$(ArtifactsDir)UnityPlayerStub\bin\UnityPlayerStub.lib" %(AdditionalOptions)</AdditionalOptions>
+      <LargeAddressAware>true</LargeAddressAware>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug' OR '$(Configuration)'=='DebugServer'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>$(CommonDefines);ENABLE_PROFILER=1;DEBUGMODE=1;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <LanguageStandard_C Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">stdc11</LanguageStandard_C>
+      <LanguageStandard_C Condition="'$(Configuration)|$(Platform)'=='DebugServer|x64'">stdc11</LanguageStandard_C>
+      <LanguageStandard Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">stdcpp20</LanguageStandard>
+      <LanguageStandard Condition="'$(Configuration)|$(Platform)'=='DebugServer|x64'">stdcpp20</LanguageStandard>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'!='Debug' AND '$(Configuration)'!='DebugServer'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release' OR '$(Configuration)'=='ReleaseServer'">
+    <ClCompile>
+      <PreprocessorDefinitions>$(CommonDefines);ENABLE_PROFILER=1;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard_C Condition="'$(Configuration)|$(Platform)'=='Release|x64'">stdc11</LanguageStandard_C>
+      <LanguageStandard_C Condition="'$(Configuration)|$(Platform)'=='ReleaseServer|x64'">stdc11</LanguageStandard_C>
+      <LanguageStandard Condition="'$(Configuration)|$(Platform)'=='Release|x64'">stdcpp20</LanguageStandard>
+      <LanguageStandard Condition="'$(Configuration)|$(Platform)'=='ReleaseServer|x64'">stdcpp20</LanguageStandard>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Master' OR '$(Configuration)'=='MasterWithLTCG' OR '$(Configuration)'=='MasterServer' OR '$(Configuration)'=='MasterServerWithLTCG'">
+    <ClCompile>
+      <PreprocessorDefinitions>$(CommonDefines);NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard_C Condition="'$(Configuration)|$(Platform)'=='Master|x64'">stdc11</LanguageStandard_C>
+      <LanguageStandard_C Condition="'$(Configuration)|$(Platform)'=='MasterServer|x64'">stdc11</LanguageStandard_C>
+      <LanguageStandard_C Condition="'$(Configuration)|$(Platform)'=='MasterServerWithLTCG|x64'">stdc11</LanguageStandard_C>
+      <LanguageStandard_C Condition="'$(Configuration)|$(Platform)'=='MasterWithLTCG|x64'">stdc11</LanguageStandard_C>
+      <LanguageStandard Condition="'$(Configuration)|$(Platform)'=='Master|x64'">stdcpp20</LanguageStandard>
+      <LanguageStandard Condition="'$(Configuration)|$(Platform)'=='MasterServer|x64'">stdcpp20</LanguageStandard>
+      <LanguageStandard Condition="'$(Configuration)|$(Platform)'=='MasterServerWithLTCG|x64'">stdcpp20</LanguageStandard>
+      <LanguageStandard Condition="'$(Configuration)|$(Platform)'=='MasterWithLTCG|x64'">stdcpp20</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\Velopack.cpp" />
+    <ClCompile Include="Main.cpp" />
+    <ClCompile Include="PrecompiledHeader.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\Velopack.hpp" />
+    <ClInclude Include="PrecompiledHeader.h" />
+    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="WindowsPlayer.rc">
+      <AdditionalIncludeDirectories>$(VersionInfoResourceDir)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Manifest Include="WindowsPlayer.manifest" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="UnityData.vcxitems" Label="UnityData" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
