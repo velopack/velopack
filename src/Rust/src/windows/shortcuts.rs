@@ -6,12 +6,12 @@ use anyhow::{anyhow, bail, Result};
 use bitflags::bitflags;
 use glob::glob;
 use same_file::is_same_file;
-use windows::core::{GUID, Interface, PCWSTR};
+use windows::core::{Interface, GUID, PCWSTR};
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
 use windows::Win32::System::Com::{
-    CLSCTX_ALL, CoCreateInstance, COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE, CoInitializeEx, CoUninitialize,
-    IPersistFile, STGM_READWRITE, StructuredStorage::InitPropVariantFromStringVector,
+    CoCreateInstance, CoInitializeEx, CoUninitialize, IPersistFile, StructuredStorage::InitPropVariantFromStringVector, CLSCTX_ALL,
+    COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE, STGM_READWRITE,
 };
 use windows::Win32::UI::Shell::{
     IShellItem, IShellLinkW, IStartMenuPinnedList, PropertiesSystem::IPropertyStore, SHCreateItemFromParsingName, ShellLink, StartMenuPin,
@@ -32,7 +32,7 @@ bitflags! {
         const STARTUP = 1 << 2;
         //const APP_ROOT = 1 << 3,
         const START_MENU_ROOT = 1 << 4;
-        const USER_PINNED = 1 << 5;
+        // const USER_PINNED = 1 << 5;
     }
 }
 
@@ -303,7 +303,7 @@ unsafe fn unsafe_get_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Resu
         (ShortcutLocationFlags::STARTUP, format!("{}/*.lnk", known::get_startup()?)),
         (ShortcutLocationFlags::START_MENU_ROOT, format!("{}/*.lnk", known::get_start_menu()?)),
         (ShortcutLocationFlags::START_MENU, format!("{}/**/*.lnk", known::get_start_menu()?)),
-        (ShortcutLocationFlags::USER_PINNED, format!("{}/**/*.lnk", known::get_user_pinned()?)),
+        // (ShortcutLocationFlags::USER_PINNED, format!("{}/**/*.lnk", known::get_user_pinned()?)),
     ];
 
     let mut paths: Vec<(ShortcutLocationFlags, Lnk)> = Vec::new();
