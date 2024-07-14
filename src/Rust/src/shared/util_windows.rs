@@ -1,7 +1,6 @@
 use ::windows::Win32::System::ProcessStatus::EnumProcesses;
 use ::windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use anyhow::{anyhow, bail, Result};
-use normpath::PathExt;
 use regex::Regex;
 use semver::Version;
 use std::{

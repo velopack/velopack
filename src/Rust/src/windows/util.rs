@@ -146,11 +146,10 @@ pub fn is_sub_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, parent: P2) -> Re
     }
 
     // calls GetFullPathNameW
-
-    // let path = path.no
-
-    let path = path.normalize()?.as_path().to_string_lossy().to_lowercase();
-    let parent = parent.normalize()?.as_path().to_string_lossy().to_lowercase();
+    let path = path.normalize().or_else(|_| path.normalize_virtually())?;
+    let parent = parent.normalize().or_else(|_| parent.normalize_virtually())?;
+    let path = path.as_path().to_string_lossy().to_lowercase();
+    let parent = parent.as_path().to_string_lossy().to_lowercase();
 
     let path = PathBuf::from(path);
     let parent = PathBuf::from(parent);
