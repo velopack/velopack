@@ -1,4 +1,4 @@
-use crate::{shared, windows};
+use crate::shared;
 use anyhow::Result;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -51,7 +51,7 @@ fn get_download_agent() -> Result<ureq::Agent> {
     let mut tls_builder = native_tls::TlsConnector::builder();
 
     #[cfg(target_os = "windows")]
-    if !windows::is_windows_10_or_greater() {
+    if !crate::windows::is_windows_10_or_greater() {
         warn!("DANGER: Discontinued OS version. TLS certificate verification will be disabled.");
         warn!("DANGER: Discontinued OS version. TLS certificate verification will be disabled.");
         warn!("DANGER: Discontinued OS version. TLS certificate verification will be disabled.");
@@ -65,7 +65,10 @@ fn get_download_agent() -> Result<ureq::Agent> {
 
 #[test]
 fn test_download_uses_tls_and_encoding_correctly() {
-    assert_eq!(download_url_as_string("https://dotnetcli.blob.core.windows.net/dotnet/WindowsDesktop/5.0/latest.version").unwrap(), "5.0.17");
+    assert_eq!(
+        download_url_as_string("https://dotnetcli.blob.core.windows.net/dotnet/WindowsDesktop/5.0/latest.version").unwrap(),
+        "5.0.17"
+    );
 }
 
 #[test]
