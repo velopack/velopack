@@ -1,6 +1,7 @@
 use ::windows::Win32::System::ProcessStatus::EnumProcesses;
 use ::windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use anyhow::{anyhow, bail, Result};
+use normpath::PathExt;
 use regex::Regex;
 use semver::Version;
 use std::{
@@ -198,7 +199,7 @@ pub fn start_package<P: AsRef<Path>>(app: &Manifest, root_dir: P, exe_args: Opti
 }
 
 pub fn detect_manifest_from_update_path(update_exe: &PathBuf) -> Result<(PathBuf, Manifest)> {
-    let root_path = update_exe.parent().unwrap().to_path_buf().canonicalize()?;
+    let root_path = update_exe.parent().unwrap().normalize_virtually()?.as_path().to_path_buf();
     let app = find_manifest_from_root_dir(&root_path)
         .map_err(|m| anyhow!("Unable to read application manifest ({}). Is this a properly installed application?", m))?;
     info!("Loaded manifest for application: {}", app.id);
