@@ -27,71 +27,61 @@ public class S3UploadOptions : S3DownloadOptions, IObjectUploadOptions
     public int KeepMaxReleases { get; set; }
 }
 
-public class S3BucketClient
+public class S3BucketClient(AmazonS3Client client, string bucket, string prefix, bool disableSigning)
 {
-    private readonly AmazonS3Client amazon;
-
-    public string Bucket { get; }
-    public string Prefix { get; }
-
-    public S3BucketClient(AmazonS3Client client, string bucket, string prefix)
-    {
-        this.amazon = client;
-        Bucket = bucket;
-        Prefix = prefix;
-    }
-
     public virtual Task<DeleteObjectResponse> DeleteObjectAsync(string key, CancellationToken cancellationToken = default)
     {
         var request = new DeleteObjectRequest();
-        request.BucketName = Bucket;
-        request.Key = Prefix + key;
-        return amazon.DeleteObjectAsync(request, cancellationToken);
+        request.BucketName = bucket;
+        request.Key = prefix + key;
+        return client.DeleteObjectAsync(request, cancellationToken);
     }
 
     public virtual Task<DeleteObjectResponse> DeleteObjectAsync(string key, string versionId, CancellationToken cancellationToken = default)
     {
         var request = new DeleteObjectRequest();
-        request.BucketName = Bucket;
-        request.Key = Prefix + key;
+        request.BucketName = bucket;
+        request.Key = prefix + key;
         request.VersionId = versionId;
-        return amazon.DeleteObjectAsync(request, cancellationToken);
+        return client.DeleteObjectAsync(request, cancellationToken);
     }
 
     public virtual Task<PutObjectResponse> PutObjectAsync(string key, string fullName, bool noCache, CancellationToken cancellationToken = default)
     {
         var request = new PutObjectRequest();
-        request.BucketName = Bucket;
+        request.BucketName = bucket;
         request.FilePath = fullName;
-        request.Key = Prefix + key;
-        //due to compatibility reasons CloudFlare R2, Oracle Object storage (maybe some other providers)
-        // doesn't support Streaming SigV4 which is used in chunked uploading
-        request.DisablePayloadSigning = true;
-        request.DisableDefaultChecksumValidation = false;
+        request.Key = prefix + key;
+
+        if (disableSigning) {
+            // due to compatibility reasons CloudFlare R2, Oracle Object storage (maybe some other providers)
+            // doesn't support Streaming SigV4 which is used in chunked uploading
+            request.DisablePayloadSigning = true;
+            request.DisableDefaultChecksumValidation = false;
+        }
 
         if (noCache) {
             request.Headers.CacheControl = "no-cache";
         }
 
-        return amazon.PutObjectAsync(request, cancellationToken);
+        return client.PutObjectAsync(request, cancellationToken);
     }
 
     public virtual Task<GetObjectResponse> GetObjectAsync(string key, CancellationToken cancellationToken = default)
     {
         var request = new GetObjectRequest();
-        request.BucketName = Bucket;
-        request.Key = Prefix + key;
-        return amazon.GetObjectAsync(request, cancellationToken);
+        request.BucketName = bucket;
+        request.Key = prefix + key;
+        return client.GetObjectAsync(request, cancellationToken);
     }
 
     public virtual Task<GetObjectMetadataResponse> GetObjectMetadataAsync(string key, CancellationToken cancellationToken = default)
     {
         var request = new GetObjectMetadataRequest();
-        request.BucketName = Bucket;
-        request.Key = Prefix + key;
-        return amazon.GetObjectMetadataAsync(request, cancellationToken);
+        request.BucketName = bucket;
+        request.Key = prefix + key;
+        return client.GetObjectMetadataAsync(request, cancellationToken);
     }
-
 }
 
 public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions, S3BucketClient>
@@ -102,9 +92,21 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
 
     protected override S3BucketClient CreateClient(S3DownloadOptions options)
     {
-        var config = new AmazonS3Config() { ServiceURL = options.Endpoint };
+        bool disableSigning = false;
+        var config = new AmazonS3Config() {
+            ServiceURL = options.Endpoint,
+            ForcePathStyle = true, // support for MINIO
+        };
+        
         if (options.Endpoint != null) {
             config.ServiceURL = options.Endpoint;
+            // if the endpoint is using https, and is _not_ an AWS endpoint, we can disable signing 
+            // not all providers support the AWS signing mechanism. the AWS SDK will refuse to upload
+            // something which is not signed to an http endpoint which is why this is only done for https.
+            var uri = new Uri(options.Endpoint);
+            if (uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase) && !uri.Host.Equals("amazonaws.com", StringComparison.OrdinalIgnoreCase)) {
+                disableSigning = true;
+            }
         } else if (options.Region != null) {
             config.RegionEndpoint = RegionEndpoint.GetBySystemName(options.Region);
         } else {
@@ -119,6 +121,7 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
         } else {
             client = new AmazonS3Client(config);
         }
+
         var prefix = options.Prefix?.Trim();
         if (prefix == null) {
             prefix = "";
@@ -128,7 +131,7 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
             prefix += "/";
         }
 
-        return new S3BucketClient(client, options.Bucket, prefix);
+        return new S3BucketClient(client, options.Bucket, prefix, disableSigning);
     }
 
     protected override async Task DeleteObject(S3BucketClient client, string key)
@@ -138,28 +141,33 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
 
     protected override async Task<byte[]> GetObjectBytes(S3BucketClient client, string key)
     {
-        return await RetryAsyncRet(async () => {
-            try {
-                var ms = new MemoryStream();
-                using (var obj = await client.GetObjectAsync(key))
-                using (var stream = obj.ResponseStream) {
-                    await stream.CopyToAsync(ms);
+        return await RetryAsyncRet(
+            async () => {
+                try {
+                    var ms = new MemoryStream();
+                    using (var obj = await client.GetObjectAsync(key))
+                    using (var stream = obj.ResponseStream) {
+                        await stream.CopyToAsync(ms);
+                    }
+
+                    return ms.ToArray();
+                } catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound) {
+                    return null;
                 }
-                return ms.ToArray();
-            } catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound) {
-                return null;
-            }
-        }, $"Downloading {key}...");
+            },
+            $"Downloading {key}...");
     }
 
     protected override async Task SaveEntryToFileAsync(S3DownloadOptions options, VelopackAsset entry, string filePath)
     {
         var client = CreateClient(options);
-        await RetryAsync(async () => {
-            using (var obj = await client.GetObjectAsync(entry.FileName)) {
-                await obj.WriteResponseStreamToFileAsync(filePath, false, CancellationToken.None);
-            }
-        }, $"Downloading {entry.FileName}...");
+        await RetryAsync(
+            async () => {
+                using (var obj = await client.GetObjectAsync(entry.FileName)) {
+                    await obj.WriteResponseStreamToFileAsync(filePath, false, CancellationToken.None);
+                }
+            },
+            $"Downloading {entry.FileName}...");
     }
 
     protected override async Task UploadObject(S3BucketClient client, string key, FileInfo f, bool overwriteRemote, bool noCache)
@@ -194,7 +202,8 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
 
         if (deleteOldVersionId != null) {
             try {
-                await RetryAsync(() => client.DeleteObjectAsync(key, deleteOldVersionId),
+                await RetryAsync(
+                    () => client.DeleteObjectAsync(key, deleteOldVersionId),
                     "Removing old version of " + key);
             } catch { }
         }
