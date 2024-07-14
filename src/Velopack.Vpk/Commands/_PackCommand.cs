@@ -53,8 +53,8 @@ public abstract class PackCommand : PlatformCommand
 
     protected CliOption<bool> NoInstOption { get; private set; }
 
-    public PackCommand(string name, string description)
-        : base(name, description)
+    public PackCommand(string name, string description, RuntimeOs targetOs = RuntimeOs.Unknown)
+        : base(name, description, targetOs)
     {
         PackIdOption = AddOption<string>((v) => PackId = v, "--packId", "-u")
            .SetDescription("Unique Id for application bundle.")

@@ -16,7 +16,7 @@ public class OsxBundleCommand : PackCommand
     }
 
     public OsxBundleCommand(string name, string description)
-        : base(name, description)
+        : base(name, description, RuntimeOs.OSX)
     {
         IconOption.RequiresExtension(".icns");
 

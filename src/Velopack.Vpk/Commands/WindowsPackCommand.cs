@@ -19,7 +19,7 @@ public class WindowsPackCommand : PackCommand
     public string Shortcuts { get; private set; }
 
     public WindowsPackCommand()
-        : base("pack", "Creates a release from a folder containing application files.")
+        : base("pack", "Creates a release from a folder containing application files.", RuntimeOs.Windows)
     {
         EntryExecutableNameOption.RequiresExtension(".exe");
         IconOption.RequiresExtension(".ico");

@@ -5,7 +5,7 @@ public class LinuxPackCommand : PackCommand
     public string Categories { get; private set; }
 
     public LinuxPackCommand()
-        : base("pack", "Create a Linux .AppImage bundle from application files.")
+        : base("pack", "Create a Linux .AppImage bundle from application files.", RuntimeOs.Linux)
     {
         this.RemoveOption(NoPortableOption);
         this.RemoveOption(NoInstOption);
