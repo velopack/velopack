@@ -28,6 +28,8 @@ public class GitHubUploadOptions : GitHubDownloadOptions
     public string TargetCommitish { get; set; }
 
     public bool Merge { get; set; }
+
+    public TimeSpan? Timeout { get; set; }
 }
 
 public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSource>, IRepositoryCanUpload<GitHubUploadOptions>
@@ -69,6 +71,9 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
         var client = new GitHubClient(new ProductHeaderValue("Velopack")) {
             Credentials = new Credentials(options.Token)
         };
+        if (options.Timeout is { } timeout) {
+            client.SetRequestTimeout(timeout);
+        }
 
         var existingReleases = await client.Repository.Release.GetAll(repoOwner, repoName);
         if (!options.Merge) {
