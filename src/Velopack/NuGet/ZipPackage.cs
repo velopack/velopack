@@ -46,7 +46,7 @@ namespace Velopack.NuGet
             return ms.ToArray();
         }
 
-        private ZipArchiveEntry GetManifestEntry(ZipArchive zip)
+        private static ZipArchiveEntry GetManifestEntry(ZipArchive zip)
         {
             var manifest = zip.Entries
                 .FirstOrDefault(f => f.FullName.EndsWith(NugetUtil.ManifestExtension, StringComparison.OrdinalIgnoreCase));

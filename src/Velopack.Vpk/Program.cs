@@ -196,7 +196,7 @@ public class Program
     {
         services.AddSingleton<IVelopackFlowServiceClient, VelopackFlowServiceClient>();
         services.AddSingleton<HmacAuthHttpClientHandler>();
-        services.AddHttpClient().ConfigureHttpClientDefaults(x => x.AddHttpMessageHandler<HmacAuthHttpClientHandler>().ConfigureHttpClient(httpClient => httpClient.Timeout = TimeSpan.FromMinutes(10)));
+        services.AddHttpClient().ConfigureHttpClientDefaults(x => x.AddHttpMessageHandler<HmacAuthHttpClientHandler>().ConfigureHttpClient(httpClient => httpClient.Timeout = TimeSpan.FromMinutes(30)));
     }
 }
 

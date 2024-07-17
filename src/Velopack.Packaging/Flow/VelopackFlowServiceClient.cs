@@ -2,6 +2,7 @@
 using Microsoft.Identity.Client.Extensions.Msal;
 using NuGet.Versioning;
 using Microsoft.Extensions.Logging;
+using System.Text;
 
 #if NET6_0_OR_GREATER
 using System.Net.Http.Json;
@@ -94,10 +95,13 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
     public async Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory, string? serviceUrl,
         RuntimeOs os, CancellationToken cancellationToken)
     {
+        AssertAuthenticated();
+
         channel ??= ReleaseEntryHelper.GetDefaultChannel(os);
         ReleaseEntryHelper helper = new(releaseDirectory, channel, Logger, os);
         var latestAssets = helper.GetLatestAssets().ToList();
 
+        
         List<string> installers = [];
 
         List<string> files = latestAssets.Select(x => x.FileName).ToList();
@@ -150,10 +154,25 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
         }
     }
 
+    private async Task<ReleaseGroup> CreateReleaseGroup(UploadOptions options, CancellationToken cancellationToken)
+    {
+        CreateReleaseGroupRequest request = new() {
+            ChannelIdentifier = options.Channel,
+            PackageId = "",
+            Version = ""
+        };
+        
+        var endpoint = GetEndpoint("v1/releaseGroups/create", options);
+        var response = await HttpClient.PostAsJsonAsync(endpoint, request, cancellationToken);
+
+        response.EnsureSuccessStatusCode();
+
+        string responseString = await response.Content.ReadAsStringAsync();
+        return null!;
+    }
+
     private async Task UploadReleaseAssetAsync(UploadOptions options, CancellationToken cancellationToken)
     {
-        AssertAuthenticated();
-
         using var formData = new MultipartFormDataContent
         {
             { new StringContent(options.Channel ?? ""), "Channel" }
@@ -171,8 +190,6 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
 
     private async Task UploadInstallerAssetAsync(UploadInstallerOptions options, CancellationToken cancellationToken)
     {
-        AssertAuthenticated();
-
         using var formData = new MultipartFormDataContent
         {
             { new StringContent(options.PackageId ?? ""), "PackageId" },
