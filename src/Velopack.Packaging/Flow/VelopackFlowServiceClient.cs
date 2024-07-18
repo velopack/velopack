@@ -3,6 +3,8 @@ using Microsoft.Identity.Client.Extensions.Msal;
 using NuGet.Versioning;
 using Microsoft.Extensions.Logging;
 using System.Text;
+using System.IO;
+
 
 #if NET6_0_OR_GREATER
 using System.Net.Http.Json;
@@ -87,7 +89,7 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
     public async Task<Profile?> GetProfileAsync(VelopackServiceOptions? options, CancellationToken cancellationToken)
     {
         AssertAuthenticated();
-        var endpoint = GetEndpoint("v1/user/profile", options);
+        var endpoint = GetEndpoint("v1/user/profile", options?.VelopackBaseUrl);
 
         return await HttpClient.GetFromJsonAsync<Profile>(endpoint, cancellationToken);
     }
@@ -101,7 +103,6 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
         ReleaseEntryHelper helper = new(releaseDirectory, channel, Logger, os);
         var latestAssets = helper.GetLatestAssets().ToList();
 
-        
         List<string> installers = [];
 
         List<string> files = latestAssets.Select(x => x.FileName).ToList();
@@ -124,86 +125,70 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
             }
         }
 
-        Logger.LogInformation("Uploading {AssetCount} assets to Velopack ({ServiceUrl})", latestAssets.Count + installers.Count, serviceUrl);
+        if (packageId is null) {
+            Logger.LogError("No package ID found in release directory {ReleaseDirectory}", releaseDirectory);
+            return;
+        }
+        if (version is null) {
+            Logger.LogError("No version found in release directory {ReleaseDirectory}", releaseDirectory);
+            return;
+        }
+
+        Logger.LogInformation("Uploading {AssetCount} assets to Velopack Flow ({ServiceUrl})", latestAssets.Count + installers.Count, serviceUrl);
+
+        ReleaseGroup releaseGroup = await CreateReleaseGroupAsync(packageId, version, channel, serviceUrl, cancellationToken);
 
         foreach (var assetFileName in files) {
+            await UploadReleaseAssetAsync(releaseDirectory, assetFileName, serviceUrl, releaseGroup.Id, FileType.Release, cancellationToken).ConfigureAwait(false);
 
-            var latestPath = Path.Combine(releaseDirectory, assetFileName);
-
-            using var fileStream = File.OpenRead(latestPath);
-            var options = new UploadOptions(fileStream, assetFileName, channel) {
-                VelopackBaseUrl = serviceUrl
-            };
-
-            await UploadReleaseAssetAsync(options, cancellationToken).ConfigureAwait(false);
-
-            Logger.LogInformation("Uploaded {FileName} to Velopack", assetFileName);
+            Logger.LogInformation("Uploaded {FileName} to Velopack Flow", assetFileName);
         }
 
         foreach (var installerFile in installers) {
-            var latestPath = Path.Combine(releaseDirectory, installerFile);
+            await UploadReleaseAssetAsync(releaseDirectory, installerFile, serviceUrl, releaseGroup.Id, FileType.Installer, cancellationToken).ConfigureAwait(false);
 
-            using var fileStream = File.OpenRead(latestPath);
-            var options = new UploadInstallerOptions(packageId!, version!, fileStream, installerFile, channel) {
-                VelopackBaseUrl = serviceUrl
-            };
-
-            await UploadInstallerAssetAsync(options, cancellationToken).ConfigureAwait(false);
-
-            Logger.LogInformation("Uploaded {FileName} installer to Velopack", installerFile);
+            Logger.LogInformation("Uploaded {FileName} installer to Velopack Flow", installerFile);
         }
     }
 
-    private async Task<ReleaseGroup> CreateReleaseGroup(UploadOptions options, CancellationToken cancellationToken)
+    private async Task<ReleaseGroup> CreateReleaseGroupAsync(
+        string packageId, SemanticVersion version, string channel,
+        string? velopackBaseUrl, CancellationToken cancellationToken)
     {
         CreateReleaseGroupRequest request = new() {
-            ChannelIdentifier = options.Channel,
-            PackageId = "",
-            Version = ""
+            ChannelIdentifier = channel,
+            PackageId = packageId,
+            Version = version.ToNormalizedString()
         };
-        
-        var endpoint = GetEndpoint("v1/releaseGroups/create", options);
+
+        var endpoint = GetEndpoint("v1/releaseGroups/create", velopackBaseUrl);
         var response = await HttpClient.PostAsJsonAsync(endpoint, request, cancellationToken);
 
         response.EnsureSuccessStatusCode();
 
-        string responseString = await response.Content.ReadAsStringAsync();
-        return null!;
+        return await response.Content.ReadFromJsonAsync<ReleaseGroup>(cancellationToken: cancellationToken)
+            ?? throw new InvalidOperationException($"Failed to create release group with version {version.ToNormalizedString()}");
     }
 
-    private async Task UploadReleaseAssetAsync(UploadOptions options, CancellationToken cancellationToken)
+    private async Task UploadReleaseAssetAsync(string releaseDirectory, string fileName,
+        string? serviceUrl, Guid releaseGroupId, FileType fileType, CancellationToken cancellationToken)
     {
         using var formData = new MultipartFormDataContent
         {
-            { new StringContent(options.Channel ?? ""), "Channel" }
+            { new StringContent(releaseGroupId.ToString()), "ReleaseGroupId" },
+            { new StringContent(fileType.ToString()), "FileType" }
         };
 
-        using var fileContent = new StreamContent(options.ReleaseData);
-        formData.Add(fileContent, "File", options.FileName);
+        var latestPath = Path.Combine(releaseDirectory, fileName);
 
-        var endpoint = GetEndpoint("v1/upload-release", options);
+        using var fileStream = File.OpenRead(latestPath);
+        
+        using var fileContent = new StreamContent(fileStream);
+        formData.Add(fileContent, "File", fileName);
 
-        var response = await HttpClient.PostAsync(endpoint, formData, cancellationToken);
-
-        response.EnsureSuccessStatusCode();
-    }
-
-    private async Task UploadInstallerAssetAsync(UploadInstallerOptions options, CancellationToken cancellationToken)
-    {
-        using var formData = new MultipartFormDataContent
-        {
-            { new StringContent(options.PackageId ?? ""), "PackageId" },
-            { new StringContent(options.Channel ?? ""), "Channel" },
-            { new StringContent(options.Version.ToNormalizedString() ?? ""), "Version" },
-        };
-
-        using var fileContent = new StreamContent(options.ReleaseData);
-        formData.Add(fileContent, "File", options.FileName);
-
-        var endpoint = GetEndpoint("v1/upload-installer", options);
+        var endpoint = GetEndpoint("v1/releases/upload", serviceUrl);
 
         var response = await HttpClient.PostAsync(endpoint, formData, cancellationToken);
-
         response.EnsureSuccessStatusCode();
     }
 
@@ -228,8 +213,11 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
     }
 
     private static Uri GetEndpoint(string relativePath, VelopackServiceOptions? options)
+        => GetEndpoint(relativePath, options?.VelopackBaseUrl);
+
+    private static Uri GetEndpoint(string relativePath, string? velopackBaseUrl)
     {
-        var baseUrl = options?.VelopackBaseUrl ?? VelopackServiceOptions.DefaultBaseUrl;
+        var baseUrl = velopackBaseUrl ?? VelopackServiceOptions.DefaultBaseUrl;
         var endpoint = new Uri(relativePath, UriKind.Relative);
         return new(new Uri(baseUrl), endpoint);
     }
@@ -327,5 +315,12 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
 
         cacheHelper.RegisterCache(pca.UserTokenCache);
         return pca;
+    }
+
+    private enum FileType
+    {
+        Unknown,
+        Release,
+        Installer,
     }
 }
