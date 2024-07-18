@@ -29,7 +29,7 @@ namespace Velopack.Sources
         public IFileDownloader Downloader { get; }
 
         /// <inheritdoc />
-        public async Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null,
+        public async virtual Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null,
             VelopackAsset? latestLocalRelease = null)
         {
             Uri baseUri = new(BaseUri, $"v1.0/manifest/");
@@ -65,7 +65,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public async Task DownloadReleaseEntry(ILogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress, CancellationToken cancelToken = default)
+        public async virtual Task DownloadReleaseEntry(ILogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress, CancellationToken cancelToken = default)
         {
             if (releaseEntry is null) throw new ArgumentNullException(nameof(releaseEntry));
             if (releaseEntry is not VelopackFlowReleaseAsset velopackRelease) {
