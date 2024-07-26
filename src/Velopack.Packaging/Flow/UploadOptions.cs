@@ -2,17 +2,9 @@
 
 namespace Velopack.Packaging.Flow;
 
-public class UploadOptions : VelopackServiceOptions
+public class UploadOptions(Stream releaseData, string fileName, string channel) : VelopackServiceOptions
 {
-    public Stream ReleaseData { get; }
-    public string FileName { get; }
-    public string? Channel { get; }
-
-    public UploadOptions(Stream releaseData, string fileName, string? channel)
-    {
-        ReleaseData = releaseData;
-        FileName = fileName;
-
-        Channel = channel;
-    }
+    public Stream ReleaseData { get; } = releaseData;
+    public string FileName { get; } = fileName;
+    public string Channel { get; } = channel;
 }

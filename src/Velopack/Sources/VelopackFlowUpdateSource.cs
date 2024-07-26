@@ -9,7 +9,7 @@ using Velopack.Locators;
 namespace Velopack.Sources
 {
     /// <summary>
-    /// Retrieves updates from the hosted Velopack service. 
+    /// Retrieves updates from the hosted Velopack service.
     /// </summary>
     public sealed class VelopackFlowUpdateSource : IUpdateSource
     {

@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 using Velopack.Json;

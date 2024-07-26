@@ -13,7 +13,7 @@ public class PublishTask : MSBuildAsyncTask
     private static HttpClient HttpClient { get; } = new(new HmacAuthHttpClientHandler {
         InnerHandler = new HttpClientHandler()
     }) {
-        Timeout = TimeSpan.FromMinutes(10)
+        Timeout = TimeSpan.FromMinutes(60)
     };
 
     [Required]

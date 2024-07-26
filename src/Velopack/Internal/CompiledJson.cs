@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using NuGet.Versioning;
 using Velopack.Sources;
 using System.Collections.Generic;
