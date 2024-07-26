@@ -93,20 +93,20 @@ namespace Velopack.Sources
             var getReleasesUri = new Uri(baseUri, releasesPath);
             var response = await Downloader.DownloadString(getReleasesUri.ToString(), Authorization, "application/vnd.github.v3+json").ConfigureAwait(false);
             var releases = CompiledJson.DeserializeGithubReleaseList(response);
-            if (releases == null) return new GithubRelease[0];
+            if (releases == null) return Array.Empty<GithubRelease>();
             return releases.OrderByDescending(d => d.PublishedAt).Where(x => includePrereleases || !x.Prerelease).ToArray();
         }
 
         /// <inheritdoc />
         protected override string GetAssetUrlFromName(GithubRelease release, string assetName)
         {
-            if (release.Assets == null || release.Assets.Count() == 0) {
-                throw new ArgumentException($"No assets found in Github Release '{release.Name}'.");
+            if (release.Assets == null || release.Assets.Length == 0) {
+                throw new ArgumentException($"No assets found in GitHub Release '{release.Name}'.");
             }
 
             IEnumerable<GithubReleaseAsset> allReleasesFiles = release.Assets.Where(a => a.Name?.Equals(assetName, StringComparison.InvariantCultureIgnoreCase) == true);
-            if (allReleasesFiles == null || allReleasesFiles.Count() == 0) {
-                throw new ArgumentException($"Could not find asset called '{assetName}' in Github Release '{release.Name}'.");
+            if (!allReleasesFiles.Any()) {
+                throw new ArgumentException($"Could not find asset called '{assetName}' in GitHub Release '{release.Name}'.");
             }
 
             var asset = allReleasesFiles.First();
