@@ -14,8 +14,6 @@ public class GitHubUploadCommand : GitHubBaseCommand
 
     public bool Merge { get; private set; }
 
-    public TimeSpan? Timeout { get; private set; }
-
     public GitHubUploadCommand()
         : base("github", "Upload releases to a GitHub repository.")
     {
@@ -39,10 +37,6 @@ public class GitHubUploadCommand : GitHubBaseCommand
         AddOption<string>((v) => TargetCommitish = v, "--targetCommitish")
            .SetDescription("A commitish value for tag (branch or commit SHA).")
            .SetArgumentHelpName("NAME");
-
-        AddOption<TimeSpan>((v) => Timeout = v, "--timeout")
-            .SetDescription("The maximum time to wait for the upload to complete.")
-            .SetArgumentHelpName("TIMEOUT");
 
         ReleaseDirectoryOption.SetRequired();
         ReleaseDirectoryOption.MustNotBeEmpty();

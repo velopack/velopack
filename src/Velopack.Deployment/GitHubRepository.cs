@@ -28,16 +28,10 @@ public class GitHubUploadOptions : GitHubDownloadOptions
     public string TargetCommitish { get; set; }
 
     public bool Merge { get; set; }
-
-    public TimeSpan? Timeout { get; set; }
 }
 
-public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSource>, IRepositoryCanUpload<GitHubUploadOptions>
+public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadOptions, GithubSource>(logger), IRepositoryCanUpload<GitHubUploadOptions>
 {
-    public GitHubRepository(ILogger logger) : base(logger)
-    {
-    }
-
     public override GithubSource CreateSource(GitHubDownloadOptions options)
     {
         return new GithubSource(options.RepoUrl, options.Token, options.Prerelease);
@@ -71,15 +65,13 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
         var client = new GitHubClient(new ProductHeaderValue("Velopack")) {
             Credentials = new Credentials(options.Token)
         };
-        if (options.Timeout is { } timeout) {
-            client.SetRequestTimeout(timeout);
-        }
 
         var existingReleases = await client.Repository.Release.GetAll(repoOwner, repoName);
         if (!options.Merge) {
             if (existingReleases.Any(r => r.TagName == semVer.ToString())) {
                 throw new UserInfoException($"There is already an existing release tagged '{semVer}'. Please delete this release or provide a new version number.");
             }
+
             if (existingReleases.Any(r => r.Name == releaseName)) {
                 throw new UserInfoException($"There is already an existing release named '{releaseName}'. Please delete this release or provide a new release name.");
             }
@@ -87,7 +79,7 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
 
         // create or retrieve github release
         var release = existingReleases.FirstOrDefault(r => r.TagName == semVer.ToString())
-            ?? existingReleases.FirstOrDefault(r => r.Name == releaseName);
+                      ?? existingReleases.FirstOrDefault(r => r.Name == releaseName);
 
         if (release != null) {
             if (release.TagName != semVer.ToString())
@@ -122,18 +114,22 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
         };
         var json = ReleaseEntryHelper.GetAssetFeedJson(feed);
 
-        await RetryAsync(async () => {
-            var data = new ReleaseAssetUpload(releasesFileName, "application/json", new MemoryStream(Encoding.UTF8.GetBytes(json)), TimeSpan.FromMinutes(1));
-            await client.Repository.Release.UploadAsset(release, data, CancellationToken.None);
-        }, "Uploading " + releasesFileName);
+        await RetryAsync(
+            async () => {
+                var data = new ReleaseAssetUpload(releasesFileName, "application/json", new MemoryStream(Encoding.UTF8.GetBytes(json)), TimeSpan.FromMinutes(1));
+                await client.Repository.Release.UploadAsset(release, data, CancellationToken.None);
+            },
+            "Uploading " + releasesFileName);
 
         if (options.Channel == ReleaseEntryHelper.GetDefaultChannel(RuntimeOs.Windows)) {
             var legacyReleasesContent = ReleaseEntryHelper.GetLegacyMigrationReleaseFeedString(feed);
             var legacyReleasesBytes = Encoding.UTF8.GetBytes(legacyReleasesContent);
-            await RetryAsync(async () => {
-                var data = new ReleaseAssetUpload("RELEASES", "application/octet-stream", new MemoryStream(legacyReleasesBytes), TimeSpan.FromMinutes(1));
-                await client.Repository.Release.UploadAsset(release, data, CancellationToken.None);
-            }, "Uploading legacy RELEASES (compatibility)");
+            await RetryAsync(
+                async () => {
+                    var data = new ReleaseAssetUpload("RELEASES", "application/octet-stream", new MemoryStream(legacyReleasesBytes), TimeSpan.FromMinutes(1));
+                    await client.Repository.Release.UploadAsset(release, data, CancellationToken.None);
+                },
+                "Uploading legacy RELEASES (compatibility)");
         }
 
         // convert draft to full release
@@ -151,8 +147,11 @@ public class GitHubRepository : SourceRepository<GitHubDownloadOptions, GithubSo
 
     private async Task UploadFileAsAsset(GitHubClient client, Release release, string filePath)
     {
+        var timeout = TimeSpan.FromHours(1);
+        client.SetRequestTimeout(timeout);
         using var stream = File.OpenRead(filePath);
-        var data = new ReleaseAssetUpload(Path.GetFileName(filePath), "application/octet-stream", stream, TimeSpan.FromMinutes(30));
+        var data = new ReleaseAssetUpload(Path.GetFileName(filePath), "application/octet-stream", stream, timeout);
         await client.Repository.Release.UploadAsset(release, data, CancellationToken.None);
+        client.SetRequestTimeout(TimeSpan.FromSeconds(100));
     }
 }
