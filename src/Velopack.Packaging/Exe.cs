@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Text;
 using Velopack.Packaging.Exceptions;
 
 namespace Velopack.Packaging;
@@ -76,6 +77,27 @@ public static class Exe
     public static (int ExitCode, string StdOutput) InvokeProcess(ProcessStartInfo psi, CancellationToken ct)
     {
         var pi = Process.Start(psi);
+
+        var process = new Process();
+        process.StartInfo = psi;
+
+        var sOut = new StringBuilder();
+        var sErr = new StringBuilder();
+
+        pi.OutputDataReceived += (sender, e) => {
+            if (e.Data != null) sOut.AppendLine(e.Data);
+        };
+
+        pi.ErrorDataReceived += (sender, e) => {
+            if (e.Data != null) sErr.AppendLine(e.Data);
+        };
+
+        if (!pi.Start())
+            throw new Exception("Failed to start process");
+
+        pi.BeginOutputReadLine();
+        pi.BeginErrorReadLine();
+
         while (!ct.IsCancellationRequested) {
             if (pi.WaitForExit(500)) break;
         }
@@ -85,14 +107,12 @@ public static class Exe
             ct.ThrowIfCancellationRequested();
         }
 
-        string output = pi.StandardOutput.ReadToEnd();
-        string error = pi.StandardError.ReadToEnd();
-        var all = (output ?? "") + Environment.NewLine + (error ?? "");
-
+        var all = (sOut.ToString().Trim()) + Environment.NewLine + (sOut.ToString().Trim());
         return (pi.ExitCode, all.Trim());
     }
 
-    public static (int ExitCode, string StdOutput, string Command) InvokeProcess(string fileName, IEnumerable<string> args, string workingDirectory, CancellationToken ct = default, IDictionary<string, string> envVar = null)
+    public static (int ExitCode, string StdOutput, string Command) InvokeProcess(string fileName, IEnumerable<string> args, string workingDirectory, CancellationToken ct = default,
+        IDictionary<string, string> envVar = null)
     {
         var psi = CreateProcessStartInfo(fileName, workingDirectory);
         if (envVar != null) {
@@ -100,6 +120,7 @@ public static class Exe
                 psi.EnvironmentVariables[kvp.Key] = kvp.Value;
             }
         }
+
         psi.AppendArgumentListSafe(args, out var argString);
         var p = InvokeProcess(psi, ct);
         return (p.ExitCode, p.StdOutput, $"{fileName} {argString}");
