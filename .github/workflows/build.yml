@@ -226,19 +226,21 @@ jobs:
           name: coverage-dotnet-${{ matrix.os }}
           path: ./test/*.xml
       - uses: caesay/wait-artifact-action@494939e840383463b1686ce3624a8aab059c2c8b
-        if: ${{ matrix.os == 'ubuntu-latest' || 'windows-latest' }}
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           max_wait_seconds: 900
           artifacts: cross-macos-latest,cross-ubuntu-latest,cross-windows-latest
           verbose: true
       - name: Download Cross Artifacts
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
         uses: actions/download-artifact@v4
         with:
           path: test/artifacts
           pattern: cross-*
           merge-multiple: true
       - name: Test Cross-Compiled Apps
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
         env:
           VELOPACK_CROSS_ARTIFACTS: true
         run: dotnet test test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj --no-build -c Release --filter "FullyQualifiedName~RunCrossApp" -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
