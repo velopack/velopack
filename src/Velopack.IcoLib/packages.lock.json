@@ -29,9 +29,9 @@
       },
       "SixLabors.ImageSharp": {
         "type": "Direct",
-        "requested": "[2.1.8, )",
-        "resolved": "2.1.8",
-        "contentHash": "ML1++vactR5xMW36wHA2nAX3vc6VpR62qYnpopQdLNGbP8BAJ/ckv1IrGIIFRUEQ0JS9EgWr1y1gEa/81f+HaA==",
+        "requested": "[2.1.9, )",
+        "resolved": "2.1.9",
+        "contentHash": "VcjfKbOExie3RgZGrQL1jJMI4iZ3J9B6ifDo2QpDVJUYhTZKVcKnBhpNOHqbvNjHgadAks1jzhRjB7OZet1PJA==",
         "dependencies": {
           "System.Buffers": "4.5.1",
           "System.Memory": "4.5.4",

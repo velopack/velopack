@@ -13,9 +13,9 @@
       },
       "Microsoft.Identity.Client": {
         "type": "Direct",
-        "requested": "[4.61.3, )",
-        "resolved": "4.61.3",
-        "contentHash": "naJo/Qm35Caaoxp5utcw+R8eU8ZtLz2ALh8S+gkekOYQ1oazfCQMWVT4NJ/FnHzdIJlm8dMz0oMpMGCabx5odA==",
+        "requested": "[4.62.0, )",
+        "resolved": "4.62.0",
+        "contentHash": "2q5m8ASh9lJ714CkCxA1lmj60K6OeDR2vV78adviOM/ZEoISldY+THr7gmqJ6rtSbZ0J4R/a9KcgL/wm8Ogi4Q==",
         "dependencies": {
           "Microsoft.IdentityModel.Abstractions": "6.35.0",
           "System.Diagnostics.DiagnosticSource": "6.0.1"
@@ -33,11 +33,11 @@
       },
       "Microsoft.Identity.Client.Extensions.Msal": {
         "type": "Direct",
-        "requested": "[4.61.3, )",
-        "resolved": "4.61.3",
-        "contentHash": "PWnJcznrSGr25MN8ajlc2XIDW4zCFu0U6FkpaNLEWLgd1NgFCp5uDY3mqLDgM8zCN8hqj8yo5wHYfLB2HjcdGw==",
+        "requested": "[4.62.0, )",
+        "resolved": "4.62.0",
+        "contentHash": "ylCHQwNpT+YYu4Le+r0x5XRHKsFtIgIIAHshDWIlgeA/AoFs/9yREdtSeIELdN7X3lJAIiUjJR8z7r7KJ3ETLw==",
         "dependencies": {
-          "Microsoft.Identity.Client": "4.61.3",
+          "Microsoft.Identity.Client": "4.62.0",
           "System.IO.FileSystem.AccessControl": "5.0.0",
           "System.Security.Cryptography.ProtectedData": "4.5.0"
         }
@@ -116,8 +116,8 @@
       },
       "NuGet.Versioning": {
         "type": "Transitive",
-        "resolved": "6.10.0",
-        "contentHash": "ytTA08tgZWo/Pbk333hnzQfiMyyynkkwMt4GyC5T0bzExYYSRNrkwv4jT8jmWr5LUOYsumEZvXdoven2SA7YZw=="
+        "resolved": "6.10.1",
+        "contentHash": "tovHZ3OlMVmsTdhv2z5nwnnhoA1ryhfJMyVQ9/+iv6d3h78fp230XaGy3K/iVcLwB50DdfNfIsitW97KSOWDFg=="
       },
       "System.Buffers": {
         "type": "Transitive",
@@ -233,7 +233,7 @@
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "[2.2.0, )",
           "Newtonsoft.Json": "[13.0.1, )",
-          "NuGet.Versioning": "[6.10.0, )"
+          "NuGet.Versioning": "[6.10.1, )"
         }
       }
     },
@@ -246,9 +246,9 @@
       },
       "Microsoft.Identity.Client": {
         "type": "Direct",
-        "requested": "[4.61.3, )",
-        "resolved": "4.61.3",
-        "contentHash": "naJo/Qm35Caaoxp5utcw+R8eU8ZtLz2ALh8S+gkekOYQ1oazfCQMWVT4NJ/FnHzdIJlm8dMz0oMpMGCabx5odA==",
+        "requested": "[4.62.0, )",
+        "resolved": "4.62.0",
+        "contentHash": "2q5m8ASh9lJ714CkCxA1lmj60K6OeDR2vV78adviOM/ZEoISldY+THr7gmqJ6rtSbZ0J4R/a9KcgL/wm8Ogi4Q==",
         "dependencies": {
           "Microsoft.IdentityModel.Abstractions": "6.35.0",
           "System.Diagnostics.DiagnosticSource": "6.0.1"
@@ -266,11 +266,11 @@
       },
       "Microsoft.Identity.Client.Extensions.Msal": {
         "type": "Direct",
-        "requested": "[4.61.3, )",
-        "resolved": "4.61.3",
-        "contentHash": "PWnJcznrSGr25MN8ajlc2XIDW4zCFu0U6FkpaNLEWLgd1NgFCp5uDY3mqLDgM8zCN8hqj8yo5wHYfLB2HjcdGw==",
+        "requested": "[4.62.0, )",
+        "resolved": "4.62.0",
+        "contentHash": "ylCHQwNpT+YYu4Le+r0x5XRHKsFtIgIIAHshDWIlgeA/AoFs/9yREdtSeIELdN7X3lJAIiUjJR8z7r7KJ3ETLw==",
         "dependencies": {
-          "Microsoft.Identity.Client": "4.61.3",
+          "Microsoft.Identity.Client": "4.62.0",
           "System.Security.Cryptography.ProtectedData": "4.5.0"
         }
       },
@@ -375,8 +375,8 @@
       },
       "NuGet.Versioning": {
         "type": "Transitive",
-        "resolved": "6.10.0",
-        "contentHash": "ytTA08tgZWo/Pbk333hnzQfiMyyynkkwMt4GyC5T0bzExYYSRNrkwv4jT8jmWr5LUOYsumEZvXdoven2SA7YZw=="
+        "resolved": "6.10.1",
+        "contentHash": "tovHZ3OlMVmsTdhv2z5nwnnhoA1ryhfJMyVQ9/+iv6d3h78fp230XaGy3K/iVcLwB50DdfNfIsitW97KSOWDFg=="
       },
       "runtime.debian.8-x64.runtime.native.System.Security.Cryptography.OpenSsl": {
         "type": "Transitive",
@@ -897,7 +897,7 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "[6.0.0, )",
-          "NuGet.Versioning": "[6.10.0, )"
+          "NuGet.Versioning": "[6.10.1, )"
         }
       }
     }

@@ -87,8 +87,8 @@
       },
       "Microsoft.Identity.Client": {
         "type": "Transitive",
-        "resolved": "4.61.3",
-        "contentHash": "naJo/Qm35Caaoxp5utcw+R8eU8ZtLz2ALh8S+gkekOYQ1oazfCQMWVT4NJ/FnHzdIJlm8dMz0oMpMGCabx5odA==",
+        "resolved": "4.62.0",
+        "contentHash": "2q5m8ASh9lJ714CkCxA1lmj60K6OeDR2vV78adviOM/ZEoISldY+THr7gmqJ6rtSbZ0J4R/a9KcgL/wm8Ogi4Q==",
         "dependencies": {
           "Microsoft.IdentityModel.Abstractions": "6.35.0",
           "System.Diagnostics.DiagnosticSource": "6.0.1"
@@ -105,10 +105,10 @@
       },
       "Microsoft.Identity.Client.Extensions.Msal": {
         "type": "Transitive",
-        "resolved": "4.61.3",
-        "contentHash": "PWnJcznrSGr25MN8ajlc2XIDW4zCFu0U6FkpaNLEWLgd1NgFCp5uDY3mqLDgM8zCN8hqj8yo5wHYfLB2HjcdGw==",
+        "resolved": "4.62.0",
+        "contentHash": "ylCHQwNpT+YYu4Le+r0x5XRHKsFtIgIIAHshDWIlgeA/AoFs/9yREdtSeIELdN7X3lJAIiUjJR8z7r7KJ3ETLw==",
         "dependencies": {
-          "Microsoft.Identity.Client": "4.61.3",
+          "Microsoft.Identity.Client": "4.62.0",
           "System.IO.FileSystem.AccessControl": "5.0.0",
           "System.Security.Cryptography.ProtectedData": "4.5.0"
         }
@@ -135,13 +135,13 @@
       },
       "NuGet.Versioning": {
         "type": "Transitive",
-        "resolved": "6.10.0",
-        "contentHash": "ytTA08tgZWo/Pbk333hnzQfiMyyynkkwMt4GyC5T0bzExYYSRNrkwv4jT8jmWr5LUOYsumEZvXdoven2SA7YZw=="
+        "resolved": "6.10.1",
+        "contentHash": "tovHZ3OlMVmsTdhv2z5nwnnhoA1ryhfJMyVQ9/+iv6d3h78fp230XaGy3K/iVcLwB50DdfNfIsitW97KSOWDFg=="
       },
       "SixLabors.ImageSharp": {
         "type": "Transitive",
-        "resolved": "2.1.8",
-        "contentHash": "ML1++vactR5xMW36wHA2nAX3vc6VpR62qYnpopQdLNGbP8BAJ/ckv1IrGIIFRUEQ0JS9EgWr1y1gEa/81f+HaA==",
+        "resolved": "2.1.9",
+        "contentHash": "VcjfKbOExie3RgZGrQL1jJMI4iZ3J9B6ifDo2QpDVJUYhTZKVcKnBhpNOHqbvNjHgadAks1jzhRjB7OZet1PJA==",
         "dependencies": {
           "System.Buffers": "4.5.1",
           "System.Memory": "4.5.4",
@@ -318,22 +318,22 @@
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "[2.2.0, )",
           "Newtonsoft.Json": "[13.0.1, )",
-          "NuGet.Versioning": "[6.10.0, )"
+          "NuGet.Versioning": "[6.10.1, )"
         }
       },
       "velopack.icolib": {
         "type": "Project",
         "dependencies": {
-          "SixLabors.ImageSharp": "[2.1.8, )"
+          "SixLabors.ImageSharp": "[2.1.9, )"
         }
       },
       "velopack.packaging": {
         "type": "Project",
         "dependencies": {
           "Markdig": "[0.37.0, )",
-          "Microsoft.Identity.Client": "[4.61.3, )",
+          "Microsoft.Identity.Client": "[4.62.0, )",
           "Microsoft.Identity.Client.Broker": "[4.61.3, )",
-          "Microsoft.Identity.Client.Extensions.Msal": "[4.61.3, )",
+          "Microsoft.Identity.Client.Extensions.Msal": "[4.62.0, )",
           "System.Linq.Async": "[6.0.1, )",
           "System.Net.Http": "[4.3.4, )",
           "Velopack": "[1.0.0, )"
@@ -420,8 +420,8 @@
       },
       "Microsoft.Identity.Client": {
         "type": "Transitive",
-        "resolved": "4.61.3",
-        "contentHash": "naJo/Qm35Caaoxp5utcw+R8eU8ZtLz2ALh8S+gkekOYQ1oazfCQMWVT4NJ/FnHzdIJlm8dMz0oMpMGCabx5odA==",
+        "resolved": "4.62.0",
+        "contentHash": "2q5m8ASh9lJ714CkCxA1lmj60K6OeDR2vV78adviOM/ZEoISldY+THr7gmqJ6rtSbZ0J4R/a9KcgL/wm8Ogi4Q==",
         "dependencies": {
           "Microsoft.IdentityModel.Abstractions": "6.35.0",
           "System.Diagnostics.DiagnosticSource": "6.0.1"
@@ -438,10 +438,10 @@
       },
       "Microsoft.Identity.Client.Extensions.Msal": {
         "type": "Transitive",
-        "resolved": "4.61.3",
-        "contentHash": "PWnJcznrSGr25MN8ajlc2XIDW4zCFu0U6FkpaNLEWLgd1NgFCp5uDY3mqLDgM8zCN8hqj8yo5wHYfLB2HjcdGw==",
+        "resolved": "4.62.0",
+        "contentHash": "ylCHQwNpT+YYu4Le+r0x5XRHKsFtIgIIAHshDWIlgeA/AoFs/9yREdtSeIELdN7X3lJAIiUjJR8z7r7KJ3ETLw==",
         "dependencies": {
-          "Microsoft.Identity.Client": "4.61.3",
+          "Microsoft.Identity.Client": "4.62.0",
           "System.Security.Cryptography.ProtectedData": "4.5.0"
         }
       },
@@ -472,8 +472,8 @@
       },
       "NuGet.Versioning": {
         "type": "Transitive",
-        "resolved": "6.10.0",
-        "contentHash": "ytTA08tgZWo/Pbk333hnzQfiMyyynkkwMt4GyC5T0bzExYYSRNrkwv4jT8jmWr5LUOYsumEZvXdoven2SA7YZw=="
+        "resolved": "6.10.1",
+        "contentHash": "tovHZ3OlMVmsTdhv2z5nwnnhoA1ryhfJMyVQ9/+iv6d3h78fp230XaGy3K/iVcLwB50DdfNfIsitW97KSOWDFg=="
       },
       "runtime.debian.8-x64.runtime.native.System.Security.Cryptography.OpenSsl": {
         "type": "Transitive",
@@ -575,8 +575,8 @@
       },
       "SixLabors.ImageSharp": {
         "type": "Transitive",
-        "resolved": "2.1.8",
-        "contentHash": "ML1++vactR5xMW36wHA2nAX3vc6VpR62qYnpopQdLNGbP8BAJ/ckv1IrGIIFRUEQ0JS9EgWr1y1gEa/81f+HaA==",
+        "resolved": "2.1.9",
+        "contentHash": "VcjfKbOExie3RgZGrQL1jJMI4iZ3J9B6ifDo2QpDVJUYhTZKVcKnBhpNOHqbvNjHgadAks1jzhRjB7OZet1PJA==",
         "dependencies": {
           "System.Runtime.CompilerServices.Unsafe": "5.0.0",
           "System.Text.Encoding.CodePages": "5.0.0"
@@ -1069,22 +1069,22 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "[6.0.0, )",
-          "NuGet.Versioning": "[6.10.0, )"
+          "NuGet.Versioning": "[6.10.1, )"
         }
       },
       "velopack.icolib": {
         "type": "Project",
         "dependencies": {
-          "SixLabors.ImageSharp": "[2.1.8, )"
+          "SixLabors.ImageSharp": "[2.1.9, )"
         }
       },
       "velopack.packaging": {
         "type": "Project",
         "dependencies": {
           "Markdig": "[0.37.0, )",
-          "Microsoft.Identity.Client": "[4.61.3, )",
+          "Microsoft.Identity.Client": "[4.62.0, )",
           "Microsoft.Identity.Client.Broker": "[4.61.3, )",
-          "Microsoft.Identity.Client.Extensions.Msal": "[4.61.3, )",
+          "Microsoft.Identity.Client.Extensions.Msal": "[4.62.0, )",
           "System.Linq.Async": "[6.0.1, )",
           "System.Net.Http": "[4.3.4, )",
           "Velopack": "[1.0.0, )"

@@ -169,21 +169,21 @@
       },
       "AWSSDK.Core": {
         "type": "Transitive",
-        "resolved": "3.7.304.21",
-        "contentHash": "MD1UcVQPbJmE/s3JJ2/TFc3tuhHqxn5XOMOCKS3WloXFmJM/oKW/e7FEWSmce65WghVKGkscIdCR5Ckh552o7A=="
+        "resolved": "3.7.400",
+        "contentHash": "qw+WGhxcYtZ6wc1uibOu9XXLsfUpQ1r+gWa0euFnm1e9HowQbcwvKvOqQzwBNqIBO7S5IJ26T9kV/eFiwvZAkQ=="
       },
       "AWSSDK.S3": {
         "type": "Transitive",
-        "resolved": "3.7.309.10",
-        "contentHash": "2eNqXLckwopqLNS+fkZjUmIHMBHZggaOKSQZz/Equgbxke4lVGl04PXWv3od54a2OcdrXbaR/Wyz1i/HFXJPpA==",
+        "resolved": "3.7.400",
+        "contentHash": "OWCTOIDLd9tisJBigWlws3zXXU8IPc6MGracx0zojB4z0ki7ruL77ZWbj5j9j3zSVvnnLe4uOL/4w2lco/9kBw==",
         "dependencies": {
-          "AWSSDK.Core": "[3.7.304.21, 4.0.0)"
+          "AWSSDK.Core": "[3.7.400, 4.0.0)"
         }
       },
       "Azure.Core": {
         "type": "Transitive",
-        "resolved": "1.39.0",
-        "contentHash": "9vaV4ZICtVQp+2wjOKrIAjEjMzBkUohaBbKGqqcTW993MRfHA0N4L1BszQjWynS7lRvlYQLxaFK4wh9ewNm4HQ==",
+        "resolved": "1.41.0",
+        "contentHash": "7OO8rPCVSvXj2IQET3NkRf8hU2ZDCCvCIUhlrE089qkLNpNfWufJnBwHRKLAOWF3bhKBGJS/9hPBgjJ8kupUIg==",
         "dependencies": {
           "Microsoft.Bcl.AsyncInterfaces": "1.1.1",
           "System.ClientModel": "1.0.0",
@@ -197,19 +197,19 @@
       },
       "Azure.Storage.Blobs": {
         "type": "Transitive",
-        "resolved": "12.20.0",
-        "contentHash": "96HBFceJCwfv9Kg51F4C+MVIRhbAPtX2KupRaZqpGJW1FSWmo4JjOhi1sl3ZpZfPAiixYgTxhewMxSc/yd47/Q==",
+        "resolved": "12.21.1",
+        "contentHash": "j0+6k/DHmSQROQTR2DlKvCzt5FzCoivmOLX3N2kXMPlWL/kvVckOPzlHpTIJaHrOXEHH4Y1LUe4QHMMTAISAWg==",
         "dependencies": {
-          "Azure.Storage.Common": "12.19.0",
+          "Azure.Storage.Common": "12.20.1",
           "System.Text.Json": "4.7.2"
         }
       },
       "Azure.Storage.Common": {
         "type": "Transitive",
-        "resolved": "12.19.0",
-        "contentHash": "aKW5fK4ZSQb9VjENSDbsQoKCDSG6d6mgsBA+groGoHyG2F38QCXThuwcmC7R1XLQOSIh28viE7CJw1BpNdl11A==",
+        "resolved": "12.20.1",
+        "contentHash": "KKBFnc4WZ6m9HgsKgwfO1cIxd154b8cAnP3uWhuelvFkzxqBXQQgIsHF0n3DYBG2AoTJCZDXwJpKuVC7CsKJWg==",
         "dependencies": {
-          "Azure.Core": "1.39.0",
+          "Azure.Core": "1.41.0",
           "System.IO.Hashing": "6.0.0"
         }
       },
@@ -529,8 +529,8 @@
       },
       "Microsoft.Identity.Client": {
         "type": "Transitive",
-        "resolved": "4.61.3",
-        "contentHash": "naJo/Qm35Caaoxp5utcw+R8eU8ZtLz2ALh8S+gkekOYQ1oazfCQMWVT4NJ/FnHzdIJlm8dMz0oMpMGCabx5odA==",
+        "resolved": "4.62.0",
+        "contentHash": "2q5m8ASh9lJ714CkCxA1lmj60K6OeDR2vV78adviOM/ZEoISldY+THr7gmqJ6rtSbZ0J4R/a9KcgL/wm8Ogi4Q==",
         "dependencies": {
           "Microsoft.IdentityModel.Abstractions": "6.35.0",
           "System.Diagnostics.DiagnosticSource": "6.0.1"
@@ -547,10 +547,10 @@
       },
       "Microsoft.Identity.Client.Extensions.Msal": {
         "type": "Transitive",
-        "resolved": "4.61.3",
-        "contentHash": "PWnJcznrSGr25MN8ajlc2XIDW4zCFu0U6FkpaNLEWLgd1NgFCp5uDY3mqLDgM8zCN8hqj8yo5wHYfLB2HjcdGw==",
+        "resolved": "4.62.0",
+        "contentHash": "ylCHQwNpT+YYu4Le+r0x5XRHKsFtIgIIAHshDWIlgeA/AoFs/9yREdtSeIELdN7X3lJAIiUjJR8z7r7KJ3ETLw==",
         "dependencies": {
-          "Microsoft.Identity.Client": "4.61.3",
+          "Microsoft.Identity.Client": "4.62.0",
           "System.Security.Cryptography.ProtectedData": "4.5.0"
         }
       },
@@ -624,8 +624,8 @@
       },
       "NuGet.Versioning": {
         "type": "Transitive",
-        "resolved": "6.10.0",
-        "contentHash": "ytTA08tgZWo/Pbk333hnzQfiMyyynkkwMt4GyC5T0bzExYYSRNrkwv4jT8jmWr5LUOYsumEZvXdoven2SA7YZw=="
+        "resolved": "6.10.1",
+        "contentHash": "tovHZ3OlMVmsTdhv2z5nwnnhoA1ryhfJMyVQ9/+iv6d3h78fp230XaGy3K/iVcLwB50DdfNfIsitW97KSOWDFg=="
       },
       "Octokit": {
         "type": "Transitive",
@@ -772,8 +772,8 @@
       },
       "SixLabors.ImageSharp": {
         "type": "Transitive",
-        "resolved": "2.1.8",
-        "contentHash": "ML1++vactR5xMW36wHA2nAX3vc6VpR62qYnpopQdLNGbP8BAJ/ckv1IrGIIFRUEQ0JS9EgWr1y1gEa/81f+HaA==",
+        "resolved": "2.1.9",
+        "contentHash": "VcjfKbOExie3RgZGrQL1jJMI4iZ3J9B6ifDo2QpDVJUYhTZKVcKnBhpNOHqbvNjHgadAks1jzhRjB7OZet1PJA==",
         "dependencies": {
           "System.Runtime.CompilerServices.Unsafe": "5.0.0",
           "System.Text.Encoding.CodePages": "5.0.0"
@@ -1369,14 +1369,14 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "[6.0.0, )",
-          "NuGet.Versioning": "[6.10.0, )"
+          "NuGet.Versioning": "[6.10.1, )"
         }
       },
       "velopack.deployment": {
         "type": "Project",
         "dependencies": {
-          "AWSSDK.S3": "[3.7.309.10, )",
-          "Azure.Storage.Blobs": "[12.20.0, )",
+          "AWSSDK.S3": "[3.7.400, )",
+          "Azure.Storage.Blobs": "[12.21.1, )",
           "Gitea.Net.API": "[1.0.0, )",
           "Octokit": "[13.0.0, )",
           "Velopack.Packaging": "[1.0.0, )"
@@ -1385,16 +1385,16 @@
       "velopack.icolib": {
         "type": "Project",
         "dependencies": {
-          "SixLabors.ImageSharp": "[2.1.8, )"
+          "SixLabors.ImageSharp": "[2.1.9, )"
         }
       },
       "velopack.packaging": {
         "type": "Project",
         "dependencies": {
           "Markdig": "[0.37.0, )",
-          "Microsoft.Identity.Client": "[4.61.3, )",
+          "Microsoft.Identity.Client": "[4.62.0, )",
           "Microsoft.Identity.Client.Broker": "[4.61.3, )",
-          "Microsoft.Identity.Client.Extensions.Msal": "[4.61.3, )",
+          "Microsoft.Identity.Client.Extensions.Msal": "[4.62.0, )",
           "System.Linq.Async": "[6.0.1, )",
           "System.Net.Http": "[4.3.4, )",
           "Velopack": "[1.0.0, )"
@@ -1584,21 +1584,21 @@
       },
       "AWSSDK.Core": {
         "type": "Transitive",
-        "resolved": "3.7.304.21",
-        "contentHash": "MD1UcVQPbJmE/s3JJ2/TFc3tuhHqxn5XOMOCKS3WloXFmJM/oKW/e7FEWSmce65WghVKGkscIdCR5Ckh552o7A=="
+        "resolved": "3.7.400",
+        "contentHash": "qw+WGhxcYtZ6wc1uibOu9XXLsfUpQ1r+gWa0euFnm1e9HowQbcwvKvOqQzwBNqIBO7S5IJ26T9kV/eFiwvZAkQ=="
       },
       "AWSSDK.S3": {
         "type": "Transitive",
-        "resolved": "3.7.309.10",
-        "contentHash": "2eNqXLckwopqLNS+fkZjUmIHMBHZggaOKSQZz/Equgbxke4lVGl04PXWv3od54a2OcdrXbaR/Wyz1i/HFXJPpA==",
+        "resolved": "3.7.400",
+        "contentHash": "OWCTOIDLd9tisJBigWlws3zXXU8IPc6MGracx0zojB4z0ki7ruL77ZWbj5j9j3zSVvnnLe4uOL/4w2lco/9kBw==",
         "dependencies": {
-          "AWSSDK.Core": "[3.7.304.21, 4.0.0)"
+          "AWSSDK.Core": "[3.7.400, 4.0.0)"
         }
       },
       "Azure.Core": {
         "type": "Transitive",
-        "resolved": "1.39.0",
-        "contentHash": "9vaV4ZICtVQp+2wjOKrIAjEjMzBkUohaBbKGqqcTW993MRfHA0N4L1BszQjWynS7lRvlYQLxaFK4wh9ewNm4HQ==",
+        "resolved": "1.41.0",
+        "contentHash": "7OO8rPCVSvXj2IQET3NkRf8hU2ZDCCvCIUhlrE089qkLNpNfWufJnBwHRKLAOWF3bhKBGJS/9hPBgjJ8kupUIg==",
         "dependencies": {
           "Microsoft.Bcl.AsyncInterfaces": "1.1.1",
           "System.ClientModel": "1.0.0",
@@ -1612,19 +1612,19 @@
       },
       "Azure.Storage.Blobs": {
         "type": "Transitive",
-        "resolved": "12.20.0",
-        "contentHash": "96HBFceJCwfv9Kg51F4C+MVIRhbAPtX2KupRaZqpGJW1FSWmo4JjOhi1sl3ZpZfPAiixYgTxhewMxSc/yd47/Q==",
+        "resolved": "12.21.1",
+        "contentHash": "j0+6k/DHmSQROQTR2DlKvCzt5FzCoivmOLX3N2kXMPlWL/kvVckOPzlHpTIJaHrOXEHH4Y1LUe4QHMMTAISAWg==",
         "dependencies": {
-          "Azure.Storage.Common": "12.19.0",
+          "Azure.Storage.Common": "12.20.1",
           "System.Text.Json": "4.7.2"
         }
       },
       "Azure.Storage.Common": {
         "type": "Transitive",
-        "resolved": "12.19.0",
-        "contentHash": "aKW5fK4ZSQb9VjENSDbsQoKCDSG6d6mgsBA+groGoHyG2F38QCXThuwcmC7R1XLQOSIh28viE7CJw1BpNdl11A==",
+        "resolved": "12.20.1",
+        "contentHash": "KKBFnc4WZ6m9HgsKgwfO1cIxd154b8cAnP3uWhuelvFkzxqBXQQgIsHF0n3DYBG2AoTJCZDXwJpKuVC7CsKJWg==",
         "dependencies": {
-          "Azure.Core": "1.39.0",
+          "Azure.Core": "1.41.0",
           "System.IO.Hashing": "6.0.0"
         }
       },
@@ -1931,8 +1931,8 @@
       },
       "Microsoft.Identity.Client": {
         "type": "Transitive",
-        "resolved": "4.61.3",
-        "contentHash": "naJo/Qm35Caaoxp5utcw+R8eU8ZtLz2ALh8S+gkekOYQ1oazfCQMWVT4NJ/FnHzdIJlm8dMz0oMpMGCabx5odA==",
+        "resolved": "4.62.0",
+        "contentHash": "2q5m8ASh9lJ714CkCxA1lmj60K6OeDR2vV78adviOM/ZEoISldY+THr7gmqJ6rtSbZ0J4R/a9KcgL/wm8Ogi4Q==",
         "dependencies": {
           "Microsoft.IdentityModel.Abstractions": "6.35.0",
           "System.Diagnostics.DiagnosticSource": "6.0.1"
@@ -1949,10 +1949,10 @@
       },
       "Microsoft.Identity.Client.Extensions.Msal": {
         "type": "Transitive",
-        "resolved": "4.61.3",
-        "contentHash": "PWnJcznrSGr25MN8ajlc2XIDW4zCFu0U6FkpaNLEWLgd1NgFCp5uDY3mqLDgM8zCN8hqj8yo5wHYfLB2HjcdGw==",
+        "resolved": "4.62.0",
+        "contentHash": "ylCHQwNpT+YYu4Le+r0x5XRHKsFtIgIIAHshDWIlgeA/AoFs/9yREdtSeIELdN7X3lJAIiUjJR8z7r7KJ3ETLw==",
         "dependencies": {
-          "Microsoft.Identity.Client": "4.61.3",
+          "Microsoft.Identity.Client": "4.62.0",
           "System.Security.Cryptography.ProtectedData": "4.5.0"
         }
       },
@@ -2026,8 +2026,8 @@
       },
       "NuGet.Versioning": {
         "type": "Transitive",
-        "resolved": "6.10.0",
-        "contentHash": "ytTA08tgZWo/Pbk333hnzQfiMyyynkkwMt4GyC5T0bzExYYSRNrkwv4jT8jmWr5LUOYsumEZvXdoven2SA7YZw=="
+        "resolved": "6.10.1",
+        "contentHash": "tovHZ3OlMVmsTdhv2z5nwnnhoA1ryhfJMyVQ9/+iv6d3h78fp230XaGy3K/iVcLwB50DdfNfIsitW97KSOWDFg=="
       },
       "Octokit": {
         "type": "Transitive",
@@ -2171,8 +2171,8 @@
       },
       "SixLabors.ImageSharp": {
         "type": "Transitive",
-        "resolved": "2.1.8",
-        "contentHash": "ML1++vactR5xMW36wHA2nAX3vc6VpR62qYnpopQdLNGbP8BAJ/ckv1IrGIIFRUEQ0JS9EgWr1y1gEa/81f+HaA==",
+        "resolved": "2.1.9",
+        "contentHash": "VcjfKbOExie3RgZGrQL1jJMI4iZ3J9B6ifDo2QpDVJUYhTZKVcKnBhpNOHqbvNjHgadAks1jzhRjB7OZet1PJA==",
         "dependencies": {
           "System.Runtime.CompilerServices.Unsafe": "5.0.0",
           "System.Text.Encoding.CodePages": "5.0.0"
@@ -2756,14 +2756,14 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "[8.0.0, )",
-          "NuGet.Versioning": "[6.10.0, )"
+          "NuGet.Versioning": "[6.10.1, )"
         }
       },
       "velopack.deployment": {
         "type": "Project",
         "dependencies": {
-          "AWSSDK.S3": "[3.7.309.10, )",
-          "Azure.Storage.Blobs": "[12.20.0, )",
+          "AWSSDK.S3": "[3.7.400, )",
+          "Azure.Storage.Blobs": "[12.21.1, )",
           "Gitea.Net.API": "[1.0.0, )",
           "Octokit": "[13.0.0, )",
           "Velopack.Packaging": "[1.0.0, )"
@@ -2772,16 +2772,16 @@
       "velopack.icolib": {
         "type": "Project",
         "dependencies": {
-          "SixLabors.ImageSharp": "[2.1.8, )"
+          "SixLabors.ImageSharp": "[2.1.9, )"
         }
       },
       "velopack.packaging": {
         "type": "Project",
         "dependencies": {
           "Markdig": "[0.37.0, )",
-          "Microsoft.Identity.Client": "[4.61.3, )",
+          "Microsoft.Identity.Client": "[4.62.0, )",
           "Microsoft.Identity.Client.Broker": "[4.61.3, )",
-          "Microsoft.Identity.Client.Extensions.Msal": "[4.61.3, )",
+          "Microsoft.Identity.Client.Extensions.Msal": "[4.62.0, )",
           "System.Linq.Async": "[6.0.1, )",
           "System.Net.Http": "[4.3.4, )",
           "Velopack": "[1.0.0, )"
