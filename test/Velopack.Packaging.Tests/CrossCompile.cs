@@ -46,8 +46,9 @@ public class CrossCompile
     public void RunCrossAppLinux(string artifactId)
     {
         using var logger = _output.BuildLoggerFor<CrossCompile>();
-        Skip.If(String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VELOPACK_CROSS_ARTIFACTS")),
-                "VELOPACK_CROSS_ARTIFACTS not set");
+        Skip.If(
+            String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VELOPACK_CROSS_ARTIFACTS")),
+            "VELOPACK_CROSS_ARTIFACTS not set");
         Skip.IfNot(VelopackRuntimeInfo.IsLinux, "AppImage's can only run on Linux");
 
         var artifactsDir = PathHelper.GetTestRootPath("artifacts");
@@ -68,7 +69,8 @@ public class CrossCompile
     public void RunCrossAppWindows(string artifactId)
     {
         using var logger = _output.BuildLoggerFor<CrossCompile>();
-        Skip.If(String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VELOPACK_CROSS_ARTIFACTS")),
+        Skip.If(
+            String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VELOPACK_CROSS_ARTIFACTS")),
             "VELOPACK_CROSS_ARTIFACTS not set");
         Skip.IfNot(VelopackRuntimeInfo.IsWindows, "PE files can only run on Windows");
 
@@ -85,7 +87,8 @@ public class CrossCompile
         Utility.DeleteFileOrDirectoryHard(appRoot);
 
         Assert.False(File.Exists(appExe));
-        var installOutput = Exe.InvokeAndThrowIfNonZero(artifactPath, new[] { "--silent" }, null);
+
+        var installOutput = Exe.InvokeAndThrowIfNonZero(artifactPath, new[] { "--silent", "--nocolor" }, null);
         logger.LogInformation(installOutput);
 
         Assert.True(File.Exists(appExe));
@@ -94,7 +97,11 @@ public class CrossCompile
         logger.LogInformation(output);
         Assert.EndsWith(artifactId, output.Trim());
 
-        Exe.RunHostedCommand($"\"{appUpdate}\" --uninstall --silent");
+        var uninstallOutput = Exe.RunHostedCommand($"\"{appUpdate}\" --uninstall --silent --nocolor");
+        logger.LogInformation(uninstallOutput);
+
         Assert.False(File.Exists(appExe));
+        Assert.True(File.Exists(Path.Combine(appRoot, ".dead")));
+        Utility.DeleteFileOrDirectoryHard(appRoot);
     }
 }

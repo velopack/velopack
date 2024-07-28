@@ -54,17 +54,46 @@ public static class Exe
             FileName = fileName,
             Arguments = args,
             UseShellExecute = false,
-            WorkingDirectory = workDir,
+            WorkingDirectory = workDir ?? "",
             CreateNoWindow = true,
         };
 
         using var process = Process.Start(psi);
+        if (process == null)
+            throw new Exception("Failed to start process");
+
         process.WaitForExit();
 
         var stdout = Utility.Retry(() => File.ReadAllText(outputFile).Trim(), 10, 1000);
         var result = (process.ExitCode, stdout, command);
         ProcessFailedException.ThrowIfNonZero(result);
         return result.Item2;
+    }
+
+    public static void RunHostedCommandNoWait(string command, string workDir = null)
+    {
+        using var _1 = Utility.GetTempFileName(out var outputFile);
+        File.Create(outputFile).Close();
+
+        var fileName = "cmd.exe";
+        var args = $"/S /C \"{command} >> \"{outputFile}\" 2>&1\"";
+
+        if (!VelopackRuntimeInfo.IsWindows) {
+            fileName = "/bin/bash";
+            string escapedCommand = command.Replace("'", "'\\''");
+            args = $"-c '{escapedCommand} >> \"{outputFile}\" 2>&1'";
+        }
+
+        var psi = new ProcessStartInfo {
+            FileName = fileName,
+            Arguments = args,
+            UseShellExecute = false,
+            WorkingDirectory = workDir ?? "",
+            CreateNoWindow = true,
+        };
+
+        if (Process.Start(psi) == null)
+            throw new Exception("Failed to start process");
     }
 
     public static string InvokeAndThrowIfNonZero(string exePath, IEnumerable<string> args, string workingDir, IDictionary<string, string> envVar = null)
@@ -76,39 +105,37 @@ public static class Exe
 
     public static (int ExitCode, string StdOutput) InvokeProcess(ProcessStartInfo psi, CancellationToken ct)
     {
-        var pi = Process.Start(psi);
-
         var process = new Process();
         process.StartInfo = psi;
 
         var sOut = new StringBuilder();
         var sErr = new StringBuilder();
 
-        pi.OutputDataReceived += (sender, e) => {
+        process.OutputDataReceived += (sender, e) => {
             if (e.Data != null) sOut.AppendLine(e.Data);
         };
 
-        pi.ErrorDataReceived += (sender, e) => {
+        process.ErrorDataReceived += (sender, e) => {
             if (e.Data != null) sErr.AppendLine(e.Data);
         };
 
-        if (!pi.Start())
+        if (!process.Start())
             throw new Exception("Failed to start process");
 
-        pi.BeginOutputReadLine();
-        pi.BeginErrorReadLine();
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
 
         while (!ct.IsCancellationRequested) {
-            if (pi.WaitForExit(500)) break;
+            if (process.WaitForExit(500)) break;
         }
 
-        if (ct.IsCancellationRequested && !pi.HasExited) {
-            pi.Kill();
+        if (ct.IsCancellationRequested && !process.HasExited) {
+            process.Kill();
             ct.ThrowIfCancellationRequested();
         }
 
         var all = (sOut.ToString().Trim()) + Environment.NewLine + (sOut.ToString().Trim());
-        return (pi.ExitCode, all.Trim());
+        return (process.ExitCode, all.Trim());
     }
 
     public static (int ExitCode, string StdOutput, string Command) InvokeProcess(string fileName, IEnumerable<string> args, string workingDirectory, CancellationToken ct = default,
