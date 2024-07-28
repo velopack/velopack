@@ -191,7 +191,9 @@ fn install_impl(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::m
     }
 
     info!("Creating shortcuts...");
-    windows::create_or_update_manifest_lnks(&root_path, &app, None);
+    if !app.shortcut_locations.is_empty() {
+        windows::create_or_update_manifest_lnks(&root_path, &app, None);
+    }
 
     info!("Starting process install hook");
     if !windows::run_hook(&app, &root_path, "--veloapp-install", 30) {
