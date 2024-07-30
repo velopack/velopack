@@ -66,14 +66,18 @@ public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadO
             Credentials = new Credentials(options.Token)
         };
 
+        client.SetRequestTimeout(TimeSpan.FromHours(1));
+
         var existingReleases = await client.Repository.Release.GetAll(repoOwner, repoName);
         if (!options.Merge) {
             if (existingReleases.Any(r => r.TagName == semVer.ToString())) {
-                throw new UserInfoException($"There is already an existing release tagged '{semVer}'. Please delete this release or provide a new version number.");
+                throw new UserInfoException(
+                    $"There is already an existing release tagged '{semVer}'. Please delete this release or provide a new version number.");
             }
 
             if (existingReleases.Any(r => r.Name == releaseName)) {
-                throw new UserInfoException($"There is already an existing release named '{releaseName}'. Please delete this release or provide a new release name.");
+                throw new UserInfoException(
+                    $"There is already an existing release named '{releaseName}'. Please delete this release or provide a new release name.");
             }
         }
 
@@ -83,7 +87,8 @@ public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadO
 
         if (release != null) {
             if (release.TagName != semVer.ToString())
-                throw new UserInfoException($"Found existing release matched by name ({release.Name} [{release.TagName}]), but tag name does not match ({semVer}).");
+                throw new UserInfoException(
+                    $"Found existing release matched by name ({release.Name} [{release.TagName}]), but tag name does not match ({semVer}).");
             Log.Info($"Found existing release ({release.Name} [{release.TagName}]). Merge flag is enabled.");
         } else {
             var newReleaseReq = new NewRelease(semVer.ToString()) {
@@ -116,7 +121,11 @@ public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadO
 
         await RetryAsync(
             async () => {
-                var data = new ReleaseAssetUpload(releasesFileName, "application/json", new MemoryStream(Encoding.UTF8.GetBytes(json)), TimeSpan.FromMinutes(1));
+                var data = new ReleaseAssetUpload(
+                    releasesFileName,
+                    "application/json",
+                    new MemoryStream(Encoding.UTF8.GetBytes(json)),
+                    TimeSpan.FromMinutes(5));
                 await client.Repository.Release.UploadAsset(release, data, CancellationToken.None);
             },
             "Uploading " + releasesFileName);
@@ -126,7 +135,7 @@ public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadO
             var legacyReleasesBytes = Encoding.UTF8.GetBytes(legacyReleasesContent);
             await RetryAsync(
                 async () => {
-                    var data = new ReleaseAssetUpload("RELEASES", "application/octet-stream", new MemoryStream(legacyReleasesBytes), TimeSpan.FromMinutes(1));
+                    var data = new ReleaseAssetUpload("RELEASES", "application/octet-stream", new MemoryStream(legacyReleasesBytes), TimeSpan.FromMinutes(5));
                     await client.Repository.Release.UploadAsset(release, data, CancellationToken.None);
                 },
                 "Uploading legacy RELEASES (compatibility)");
@@ -147,11 +156,8 @@ public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadO
 
     private async Task UploadFileAsAsset(GitHubClient client, Release release, string filePath)
     {
-        var timeout = TimeSpan.FromHours(1);
-        client.SetRequestTimeout(timeout);
         using var stream = File.OpenRead(filePath);
-        var data = new ReleaseAssetUpload(Path.GetFileName(filePath), "application/octet-stream", stream, timeout);
+        var data = new ReleaseAssetUpload(Path.GetFileName(filePath), "application/octet-stream", stream, timeout: null);
         await client.Repository.Release.UploadAsset(release, data, CancellationToken.None);
-        client.SetRequestTimeout(TimeSpan.FromSeconds(100));
     }
 }
