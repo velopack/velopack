@@ -42,6 +42,8 @@ pub struct VelopackAsset {
     pub FileName: String,
     /// The SHA1 checksum of the update package containing this release.
     pub SHA1: String,
+    /// The SHA256 checksum of the update package containing this release.
+    pub SHA256: String,
     /// The size in bytes of the update package containing this release.
     pub Size: u64,
     /// The release notes in markdown format, as passed to Velopack when packaging the release. This may be an empty string.
