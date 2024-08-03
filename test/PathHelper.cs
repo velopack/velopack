@@ -10,10 +10,10 @@ public static class PathHelper
         => Path.Combine(GetTestRoot(), "..");
 
     public static string GetAvaloniaSample()
-        => Path.Combine(GetProjectDir(), "samples", "AvaloniaCrossPlat");
+        => Path.Combine(GetProjectDir(), "samples", "CSharpAvalonia");
 
     public static string GetWpfSample()
-        => Path.Combine(GetProjectDir(), "samples", "VeloWpfSample");
+        => Path.Combine(GetProjectDir(), "samples", "CSharpWpf");
 
     public static string GetVendorLibDir()
         => Path.Combine(GetProjectDir(), "vendor");

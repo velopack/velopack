@@ -3,7 +3,7 @@ using System.Windows;
 using Microsoft.Extensions.Logging;
 using Velopack;
 
-namespace VeloWpfSample
+namespace CSharpWpf
 {
     public partial class MainWindow : Window
     {

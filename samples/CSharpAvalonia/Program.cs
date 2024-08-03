@@ -2,7 +2,7 @@
 using Avalonia;
 using Velopack;
 
-namespace AvaloniaCrossPlat;
+namespace CSharpAvalonia;
 
 class Program
 {

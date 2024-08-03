@@ -1,6 +1,6 @@
 ﻿using System.Windows;
 
-namespace VeloWpfSample
+namespace CSharpWpf
 {
     public partial class App : Application
     {

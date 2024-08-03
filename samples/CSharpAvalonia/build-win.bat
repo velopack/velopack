@@ -10,9 +10,9 @@ if "%~1"=="" (
 set "version=%~1"
 
 echo.
-echo Compiling AvaloniaCrossPlat with dotnet...
+echo Compiling VelopackCSharpAvalonia with dotnet...
 dotnet publish -c Release --no-self-contained -r win-x64 -o %~dp0publish
 
 echo.
 echo Building Velopack Release v%version%
-vpk pack -u AvaloniaCrossPlat -o %~dp0releases -p %~dp0publish -f net8-x64-desktop -v %*
+vpk pack -u VelopackCSharpAvalonia -o %~dp0releases -p %~dp0publish -f net8-x64-desktop -v %*

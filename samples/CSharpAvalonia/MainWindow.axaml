@@ -3,9 +3,9 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" Width="600" Height="600"
-        x:Class="AvaloniaCrossPlat.MainWindow"
+        x:Class="CSharpAvalonia.MainWindow"
         WindowStartupLocation="CenterScreen"
-        Title="AvaloniaCrossPlat">
+        Title="CSharpAvalonia">
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />

@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using Microsoft.Extensions.Logging;
 
-namespace VeloWpfSample
+namespace CSharpWpf
 {
     public class LogUpdatedEventArgs : EventArgs
     {

@@ -2,7 +2,7 @@
 using System.Text;
 using Microsoft.Extensions.Logging;
 
-namespace AvaloniaCrossPlat;
+namespace CSharpAvalonia;
 
 public class LogUpdatedEventArgs : EventArgs
 {

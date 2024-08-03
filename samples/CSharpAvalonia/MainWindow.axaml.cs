@@ -6,7 +6,7 @@ using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
 using Velopack;
 
-namespace AvaloniaCrossPlat;
+namespace CSharpAvalonia;
 
 public partial class MainWindow : Window
 {

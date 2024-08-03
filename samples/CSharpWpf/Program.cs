@@ -1,11 +1,11 @@
 ﻿using System.Windows;
 using Velopack;
 
-namespace VeloWpfSample
+namespace CSharpWpf
 {
     // Since WPF has an "automatic" Program.Main, we need to create our own.
     // In order for this to work, you must also add the following to your .csproj:
-    // <StartupObject>VeloWpfSample.Program</StartupObject>
+    // <StartupObject>CSharpWpf.Program</StartupObject>
     public class Program
     {
         public static MemoryLogger Log { get; private set; }

@@ -17,7 +17,8 @@ PUBLISH_DIR="$SCRIPT_DIR/../publish"
 echo ""
 echo "Building Velopack Rust"
 cd "$SCRIPT_DIR/../../../src/Rust"
-cargo build
+cargo build --target x86_64-unknown-linux-gnu
+cp target/x86_64-unknown-linux-gnu/debug/update target/debug/update
 
 echo ""
 echo "Building Velopack Vpk"
@@ -26,9 +27,9 @@ dotnet build src/Velopack.Vpk/Velopack.Vpk.csproj
 
 echo ""
 cd "$SCRIPT_DIR/.."
-echo "Compiling AvaloniaCrossPlat with dotnet..."
-dotnet publish -c Release --self-contained -r osx-x64 -o "$PUBLISH_DIR" -p:UseLocalVelopack=true
+echo "Compiling VelopackCSharpAvalonia with dotnet..."
+dotnet publish -c Release --self-contained -r linux-x64 -o "$PUBLISH_DIR" -p:UseLocalVelopack=true
 
 echo ""
 echo "Building Velopack Release v$BUILD_VERSION"
-"$SCRIPT_DIR/../../../build/Debug/net8.0/vpk" pack -u AvaloniaCrossPlat -v $BUILD_VERSION -o "$RELEASE_DIR" -p "$PUBLISH_DIR"
+"$SCRIPT_DIR/../../../build/Debug/net8.0/vpk" pack -u VelopackCSharpAvalonia -v $BUILD_VERSION -o "$RELEASE_DIR" -p "$PUBLISH_DIR"

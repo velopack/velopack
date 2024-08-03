@@ -43,10 +43,10 @@ public class CompatUtilTests
                 "-p:UseLocalVelopack=true", "-p:PublishSingleFile=true" },
             sample);
 
-        var path = Path.Combine(dir, "AvaloniaCrossPlat.exe");
+        var path = Path.Combine(dir, "CSharpAvalonia.exe");
         Assert.Equal(VelopackRuntimeInfo.VelopackProductVersion, compat.Verify(path));
 
-        var newPath = Path.Combine(dir, "AvaloniaCrossPlat-asd2.exe");
+        var newPath = Path.Combine(dir, "CSharpAvalonia-asd2.exe");
         File.Move(path, newPath);
         Assert.Equal(VelopackRuntimeInfo.VelopackProductVersion, compat.Verify(newPath));
     }
@@ -64,10 +64,10 @@ public class CompatUtilTests
                 "-p:UseLocalVelopack=true" },
             sample);
 
-        var path = Path.Combine(dir, "AvaloniaCrossPlat.exe");
+        var path = Path.Combine(dir, "CSharpAvalonia.exe");
         Assert.Equal(VelopackRuntimeInfo.VelopackProductVersion, compat.Verify(path));
 
-        var newPath = Path.Combine(dir, "AvaloniaCrossPlat-asd2.exe");
+        var newPath = Path.Combine(dir, "CSharpAvalonia-asd2.exe");
         File.Move(path, newPath);
         Assert.Equal(VelopackRuntimeInfo.VelopackProductVersion, compat.Verify(newPath));
     }
@@ -84,10 +84,10 @@ public class CompatUtilTests
             new string[] { "publish", "-o", dir },
             sample);
 
-        var path = Path.Combine(dir, "VeloWpfSample.exe");
+        var path = Path.Combine(dir, "CSharpWpf.exe");
         Assert.NotNull(compat.Verify(path));
 
-        var newPath = Path.Combine(dir, "VeloWpfSample-asd2.exe");
+        var newPath = Path.Combine(dir, "CSharpWpf-asd2.exe");
         File.Move(path, newPath);
         Assert.NotNull(compat.Verify(newPath));
     }
@@ -125,7 +125,7 @@ public class CompatUtilTests
         var path = Path.Combine(dir, "TestApp.exe");
         Assert.NotNull(compat.Verify(path));
 
-        var newPath = Path.Combine(dir, "VeloWpfSample-asd2.exe");
+        var newPath = Path.Combine(dir, "CSharpWpf-asd2.exe");
         File.Move(path, newPath);
         Assert.NotNull(compat.Verify(newPath));
     }

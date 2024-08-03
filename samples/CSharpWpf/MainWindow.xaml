@@ -1,12 +1,12 @@
-﻿<Window x:Class="VeloWpfSample.MainWindow"
+﻿<Window x:Class="CSharpWpf.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:VeloWpfSample"
+        xmlns:local="clr-namespace:CSharpWpf"
         mc:Ignorable="d"
         WindowStartupLocation="CenterScreen"
-        Title="VeloWpfSample" Height="600" Width="600">
+        Title="CSharpWpf" Height="600" Width="600">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />

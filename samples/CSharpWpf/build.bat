@@ -10,9 +10,9 @@ if "%~1"=="" (
 set "version=%~1"
 
 echo.
-echo Compiling VeloWpfSample with dotnet...
+echo Compiling VelopackCSharpWpf with dotnet...
 dotnet publish -c Release -o %~dp0publish
 
 echo.
 echo Building Velopack Release v%version%
-vpk pack -u VeloWpfSample -v %version% -o %~dp0releases -p %~dp0publish -f net8-x64-desktop
+vpk pack -u VelopackCSharpWpf -v %version% -o %~dp0releases -p %~dp0publish -f net8-x64-desktop
