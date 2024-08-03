@@ -1,10 +1,6 @@
 # Velopack Samples
 
-- [**AvaloniaCrossPlat**](AvaloniaCrossPlat) - uses Avalonia to provide a desktop UI, installer, and updates for Mac, Linux, and Windows.
-
-- [**VeloWpfSample**](VeloWpfSample) - demonstrates how to use Velopack effectively with WPF.
-
-## Other Languages
-Note that only sample apps written in C# using the core reference library are available here. 
-
-For other programming languages (Rust, C++, JS, etc) please visit the [Velopack Documentation](https://docs.velopack.io/category/sample-apps).
+- [**CSharpAvalonia**](AvaloniaCrossPlat) - Velopack in a cross-platform app with [Avalonia](https://avaloniaui.net/).
+- [**CSharpWpf**](VeloWpfSample) - Velopack with WPF on Windows.
+- [**CSharpUno**](UnoSample) - Velopack in a cross-platform app with [Uno Platform](https://github.com/unoplatform/uno).
+- [**CSharpUnityMono**](CSharpUnityMono) - Velopack with [Unity Game Engine](https://unity.com/) and Mono.
