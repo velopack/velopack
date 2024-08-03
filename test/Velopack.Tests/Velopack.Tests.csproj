@@ -31,7 +31,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\lib-csharp\Velopack\Velopack.csproj" />
+    <ProjectReference Include="..\..\src\lib-csharp\Velopack.csproj" />
   </ItemGroup>
 
 </Project>

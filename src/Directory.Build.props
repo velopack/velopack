@@ -20,7 +20,7 @@
     <HttpNuGetCache>$(LocalAppData)\NuGet\v3-cache</HttpNuGetCache>
     <CleanHttpNuGetCacheOnPack Condition="'$(CleanHttpNuGetCacheOnPack)' == ''">true</CleanHttpNuGetCacheOnPack>
     <NuGetCache>$(UserProfile)\.nuget\packages</NuGetCache>
-    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
 
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)..\Velopack.snk</AssemblyOriginatorKeyFile>
