@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use image::{codecs::gif::GifDecoder, io::Reader as ImageReader, AnimationDecoder, DynamicImage, ImageFormat};
+use image::{codecs::gif::GifDecoder, AnimationDecoder, DynamicImage, ImageFormat, ImageReader};
 use std::sync::atomic::{AtomicI16, Ordering};
 use std::{
     cell::RefCell,
