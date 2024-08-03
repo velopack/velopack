@@ -1,0 +1,18 @@
+
+[package]
+name = "velopack_cpp"
+version = "0.0.0-local"
+edition = "2021"
+
+[lib]
+name = "velopack_cpp"
+path = "src/lib.rs"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+rifgen = "*"
+velopack = { path = "../../lib-rust" }
+
+[build-dependencies]
+flapigen  = "*"
+rifgen = "*"

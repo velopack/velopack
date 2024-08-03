@@ -1,0 +1,19 @@
+message(STATUS "Generate rust swig headers")
+
+execute_process(
+  COMMAND @CARGO_CMD@ check --release @CARGO_ADDON_ARGS@ @RUST_TARGET@
+  WORKING_DIRECTORY ${RUST_BUILD_CWD}
+  RESULT_VARIABLE retcode
+  )
+if(NOT "${retcode}" STREQUAL "0")
+  message(FATAL_ERROR "cargo: @CARGO_CMD@ check --release @CARGO_ADDON_ARGS@ @RUST_TARGET@ failed")
+endif()
+
+set(RUST_SWIG_OUTPUT_DIR "${SRCDIR}/rust-api")
+file(GLOB RUST_SWIG_CPP_HEADERS "${RUST_SWIG_OUTPUT_DIR}/*.h*")
+set(RUST_SWIG_SRCS @RUST_SWIG_SRCS@)
+set(CARGO_CMD @CARGO_CMD@)
+set(CARGO_ADDON_ARGS @CARGO_ADDON_ARGS@)
+set(RUST_TARGET @RUST_TARGET@)
+configure_file(${SRCDIR}/cmake/flapigen_regen_headers.cmake.in
+               ${BINDIR}/flapigen_regen_headers.cmake @ONLY)
