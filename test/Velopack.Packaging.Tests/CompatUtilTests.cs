@@ -43,10 +43,10 @@ public class CompatUtilTests
                 "-p:UseLocalVelopack=true", "-p:PublishSingleFile=true" },
             sample);
 
-        var path = Path.Combine(dir, "CSharpAvalonia.exe");
+        var path = Path.Combine(dir, "VelopackCSharpAvalonia.exe");
         Assert.Equal(VelopackRuntimeInfo.VelopackProductVersion, compat.Verify(path));
 
-        var newPath = Path.Combine(dir, "CSharpAvalonia-asd2.exe");
+        var newPath = Path.Combine(dir, "VelopackCSharpAvalonia-asd2.exe");
         File.Move(path, newPath);
         Assert.Equal(VelopackRuntimeInfo.VelopackProductVersion, compat.Verify(newPath));
     }
@@ -64,10 +64,10 @@ public class CompatUtilTests
                 "-p:UseLocalVelopack=true" },
             sample);
 
-        var path = Path.Combine(dir, "CSharpAvalonia.exe");
+        var path = Path.Combine(dir, "VelopackCSharpAvalonia.exe");
         Assert.Equal(VelopackRuntimeInfo.VelopackProductVersion, compat.Verify(path));
 
-        var newPath = Path.Combine(dir, "CSharpAvalonia-asd2.exe");
+        var newPath = Path.Combine(dir, "VelopackCSharpAvalonia-asd2.exe");
         File.Move(path, newPath);
         Assert.Equal(VelopackRuntimeInfo.VelopackProductVersion, compat.Verify(newPath));
     }
@@ -84,10 +84,10 @@ public class CompatUtilTests
             new string[] { "publish", "-o", dir },
             sample);
 
-        var path = Path.Combine(dir, "CSharpWpf.exe");
+        var path = Path.Combine(dir, "VelopackCSharpWpf.exe");
         Assert.NotNull(compat.Verify(path));
 
-        var newPath = Path.Combine(dir, "CSharpWpf-asd2.exe");
+        var newPath = Path.Combine(dir, "VelopackCSharpWpf-asd2.exe");
         File.Move(path, newPath);
         Assert.NotNull(compat.Verify(newPath));
     }
