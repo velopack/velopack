@@ -23,7 +23,7 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
 
     <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>..\..\Velopack.snk</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)..\Velopack.snk</AssemblyOriginatorKeyFile>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 

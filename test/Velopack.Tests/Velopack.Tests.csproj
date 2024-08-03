@@ -15,7 +15,7 @@
   </Choose>
 
   <ItemGroup>
-    <Compile Include="..\..\src\Velopack.Packaging\SimpleJson.cs" Link="SimpleJson.cs" />
+    <Compile Include="..\..\src\vpk\Velopack.Packaging\SimpleJson.cs" Link="SimpleJson.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -31,7 +31,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Velopack\Velopack.csproj" />
+    <ProjectReference Include="..\..\src\lib-csharp\Velopack\Velopack.csproj" />
   </ItemGroup>
 
 </Project>

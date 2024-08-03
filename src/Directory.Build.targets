@@ -27,24 +27,24 @@
   </PropertyGroup>
 
   <ItemGroup Condition=" '$(VelopackPackageId)' != '' ">
-    <None Include="..\..\artwork\Velopack_200.png" Pack="true" PackagePath="\" />
-    <None Include="..\..\README_NUGET.md" Pack="true" PackagePath="\" />
+    <None Include="$(MSBuildThisFileDirectory)..\artwork\Velopack_200.png" Pack="true" PackagePath="\" />
+    <None Include="$(MSBuildThisFileDirectory)..\README_NUGET.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <Target Name="AddNugetVendorLibs" BeforeTargets="Build" Condition=" '$(VelopackPackageVendorLibs)' == 'true' ">
     <ItemGroup>
-      <None Include="..\..\vendor\**" Pack="true" PackagePath="vendor" />
-      <None Include="..\..\Velopack.entitlements" Pack="true" PackagePath="vendor" />
-      <None Include="..\..\artwork\DefaultApp.icns" Pack="true" PackagePath="vendor" />
-      <None Include="..\..\artwork\DefaultApp.png" Pack="true" PackagePath="vendor" />
+      <None Include="$(MSBuildThisFileDirectory)..\vendor\**" Pack="true" PackagePath="vendor" />
+      <None Include="$(MSBuildThisFileDirectory)..\Velopack.entitlements" Pack="true" PackagePath="vendor" />
+      <None Include="$(MSBuildThisFileDirectory)..\artwork\DefaultApp.icns" Pack="true" PackagePath="vendor" />
+      <None Include="$(MSBuildThisFileDirectory)..\artwork\DefaultApp.png" Pack="true" PackagePath="vendor" />
     </ItemGroup>
     <ItemGroup Condition=" '$(PackRustAssets)' == 'true' ">
-      <None Include="..\Rust\target\release\update.exe" Pack="true" PackagePath="vendor" />
-      <None Include="..\Rust\target\release\setup.exe" Pack="true" PackagePath="vendor" />
-      <None Include="..\Rust\target\release\stub.exe" Pack="true" PackagePath="vendor" />
-      <None Include="..\Rust\target\release\UpdateMac" Pack="true" PackagePath="vendor" />
-      <None Include="..\Rust\target\release\UpdateNix_x64" Pack="true" PackagePath="vendor" />
-      <None Include="..\Rust\target\release\UpdateNix_arm64" Pack="true" PackagePath="vendor" />
+      <None Include="$(MSBuildThisFileDirectory)bins\target\release\update.exe" Pack="true" PackagePath="vendor" />
+      <None Include="$(MSBuildThisFileDirectory)bins\target\release\setup.exe" Pack="true" PackagePath="vendor" />
+      <None Include="$(MSBuildThisFileDirectory)bins\target\release\stub.exe" Pack="true" PackagePath="vendor" />
+      <None Include="$(MSBuildThisFileDirectory)bins\target\release\UpdateMac" Pack="true" PackagePath="vendor" />
+      <None Include="$(MSBuildThisFileDirectory)bins\target\release\UpdateNix_x64" Pack="true" PackagePath="vendor" />
+      <None Include="$(MSBuildThisFileDirectory)bins\target\release\UpdateNix_arm64" Pack="true" PackagePath="vendor" />
     </ItemGroup>
   </Target>
 
