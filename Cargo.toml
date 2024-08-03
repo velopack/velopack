@@ -13,7 +13,7 @@ keywords = ["update", "install", "velopack", "squirrel", "automatic-updates"]
 categories = ["development-tools"]
 license = "MIT"
 edition = "2021"
-# rust-version = "1.75"
+rust-version = "1.75"
 
 # default to small, optimized workspace release binaries
 [profile.release]

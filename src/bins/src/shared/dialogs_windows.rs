@@ -11,7 +11,12 @@ pub fn show_restart_required(app: &Manifest) {
     );
 }
 
-pub fn show_update_missing_dependencies_dialog(app: &Manifest, depedency_string: &str, from: &semver::Version, to: &semver::Version) -> bool {
+pub fn show_update_missing_dependencies_dialog(
+    app: &Manifest,
+    depedency_string: &str,
+    from: &semver::Version,
+    to: &semver::Version,
+) -> bool {
     if get_silent() {
         // this has different behavior to show_setup_missing_dependencies_dialog,
         // if silent is true then we will bail because the app is probably exiting
@@ -23,7 +28,11 @@ pub fn show_update_missing_dependencies_dialog(app: &Manifest, depedency_string:
     show_ok_cancel(
         format!("{} Update", app.title).as_str(),
         Some(format!("{} would like to update from {} to {}", app.title, from, to).as_str()),
-        format!("{} {to} has missing dependencies which need to be installed: {}, would you like to continue?", app.title, depedency_string).as_str(),
+        format!(
+            "{} {to} has missing dependencies which need to be installed: {}, would you like to continue?",
+            app.title, depedency_string
+        )
+        .as_str(),
         Some("Install & Update"),
     )
 }
@@ -36,7 +45,8 @@ pub fn show_setup_missing_dependencies_dialog(app: &Manifest, depedency_string: 
     show_ok_cancel(
         format!("{} Setup {}", app.title, app.version).as_str(),
         Some(format!("{} has missing system dependencies.", app.title).as_str()),
-        format!("{} requires the following packages to be installed: {}, would you like to continue?", app.title, depedency_string).as_str(),
+        format!("{} requires the following packages to be installed: {}, would you like to continue?", app.title, depedency_string)
+            .as_str(),
         Some("Install"),
     )
 }
@@ -74,6 +84,49 @@ pub fn show_uninstall_complete_with_errors_dialog(app: &Manifest, log_path: Opti
     let _ = w::TaskDialogIndirect(&config, None);
 }
 
+pub fn show_processes_locking_folder_dialog(app: &Manifest, process_names: &str) -> DialogResult {
+    if get_silent() {
+        return DialogResult::Cancel;
+    }
+
+    let mut config: w::TASKDIALOGCONFIG = Default::default();
+    config.set_pszMainIcon(w::IconIdTdicon::Tdicon(co::TD_ICON::INFORMATION));
+
+    let mut update_name = WString::from_str(format!("{} Update {}", app.title, app.version));
+    let mut instruction = WString::from_str(format!("{} Update", app.title));
+
+    let mut content = WString::from_str(format!(
+        "There are programs ({}) preventing the {} update from proceeding. \n\n\
+        You can press Continue to have this updater attempt to close them automatically, or if you've closed them yourself press Retry for the updater to check again.",
+    process_names, app.title));
+
+    let mut btn_retry_txt = WString::from_str("Retry\nTry again if you've closed the program(s)");
+    let mut btn_continue_txt = WString::from_str("Continue\nAttempt to close the program(s) automatically");
+    let mut btn_cancel_txt = WString::from_str("Cancel\nThe update will not continue");
+
+    let mut btn_retry = w::TASKDIALOG_BUTTON::default();
+    btn_retry.set_nButtonID(co::DLGID::RETRY.into());
+    btn_retry.set_pszButtonText(Some(&mut btn_retry_txt));
+
+    let mut btn_continue = w::TASKDIALOG_BUTTON::default();
+    btn_continue.set_nButtonID(co::DLGID::CONTINUE.into());
+    btn_continue.set_pszButtonText(Some(&mut btn_continue_txt));
+
+    let mut btn_cancel = w::TASKDIALOG_BUTTON::default();
+    btn_cancel.set_nButtonID(co::DLGID::CANCEL.into());
+    btn_cancel.set_pszButtonText(Some(&mut btn_cancel_txt));
+
+    let mut custom_btns = vec![btn_retry, btn_continue, btn_cancel];
+    config.dwFlags = co::TDF::USE_COMMAND_LINKS;
+    config.set_pButtons(Some(&mut custom_btns));
+    config.set_pszWindowTitle(Some(&mut update_name));
+    config.set_pszMainInstruction(Some(&mut instruction));
+    config.set_pszContent(Some(&mut content));
+
+    let (btn, _) = w::TaskDialogIndirect(&config, None).ok().unwrap_or((co::DLGID::CANCEL, 0));
+    DialogResult::from_win(btn)
+}
+
 pub fn show_overwrite_repair_dialog(app: &Manifest, root_path: &PathBuf, root_is_default: bool) -> bool {
     if get_silent() {
         return true;
@@ -85,7 +138,9 @@ pub fn show_overwrite_repair_dialog(app: &Manifest, root_path: &PathBuf, root_is
 
     let mut setup_name = WString::from_str(format!("{} Setup {}", app.title, app.version));
     let mut instruction = WString::from_str(format!("{} is already installed.", app.title));
-    let mut content = WString::from_str("This application is installed on your computer. If it is not functioning correctly, you can attempt to repair it.");
+    let mut content = WString::from_str(
+        "This application is installed on your computer. If it is not functioning correctly, you can attempt to repair it.",
+    );
     let mut btn_yes_txt = WString::from_str(format!("Repair\nErase the application and re-install version {}.", app.version));
     let mut btn_cancel_txt = WString::from_str("Cancel\nBackup or save your work first");
 
@@ -152,7 +207,14 @@ extern "system" fn task_dialog_callback(_: w::HWND, msg: co::TDN, _: usize, _: i
     return co::HRESULT::S_OK; // close dialog on button press
 }
 
-pub fn generate_confirm(title: &str, header: Option<&str>, body: &str, ok_text: Option<&str>, btns: DialogButton, ico: DialogIcon) -> Result<DialogResult> {
+pub fn generate_confirm(
+    title: &str,
+    header: Option<&str>,
+    body: &str,
+    ok_text: Option<&str>,
+    btns: DialogButton,
+    ico: DialogIcon,
+) -> Result<DialogResult> {
     let hparent = w::HWND::GetDesktopWindow();
     let mut ok_text_buf = WString::from_opt_str(ok_text);
     let mut custom_btns = if ok_text.is_some() {
@@ -191,7 +253,14 @@ pub fn generate_confirm(title: &str, header: Option<&str>, body: &str, ok_text: 
     Ok(DialogResult::from_win(result))
 }
 
-pub fn generate_alert(title: &str, header: Option<&str>, body: &str, ok_text: Option<&str>, btns: DialogButton, ico: DialogIcon) -> Result<()> {
+pub fn generate_alert(
+    title: &str,
+    header: Option<&str>,
+    body: &str,
+    ok_text: Option<&str>,
+    btns: DialogButton,
+    ico: DialogIcon,
+) -> Result<()> {
     let _ = generate_confirm(title, header, body, ok_text, btns, ico).map(|_| ())?;
     Ok(())
 }

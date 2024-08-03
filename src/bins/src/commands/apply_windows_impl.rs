@@ -84,7 +84,7 @@ pub fn apply_package_impl(root_path: &PathBuf, old_app: &Manifest, package: &Pat
 
         // third, we try _REALLY HARD_ to stop the package
         let _ = shared::force_stop_package(root_path);
-        if winsafe::IsWindows10OrGreater() == Ok(true) && !locksmith::close_processes_locking_dir(&old_app.title, &current_dir) {
+        if winsafe::IsWindows10OrGreater() == Ok(true) && !locksmith::close_processes_locking_dir(&new_app, &current_dir) {
             bail!("Failed to close processes locking directory / user cancelled.");
         }
 

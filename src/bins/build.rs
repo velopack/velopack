@@ -1,15 +1,8 @@
 #![allow(unused_variables)]
 
-use semver;
 use std::env;
 
-#[cfg(target_os = "windows")]
-extern crate winres;
-
 fn main() {
-    #[cfg(target_os = "windows")]
-    link_locksmith();
-
     #[cfg(target_os = "windows")]
     delay_load();
 
@@ -21,7 +14,7 @@ fn main() {
     println!("cargo:rustc-env=NGBV_VERSION={}", version);
 
     #[cfg(target_os = "windows")]
-    let _ = winres::WindowsResource::new()
+    winres::WindowsResource::new()
         .set_manifest_file("app.manifest")
         .set_version_info(winres::VersionInfo::PRODUCTVERSION, ver)
         .set_version_info(winres::VersionInfo::FILEVERSION, ver)
@@ -81,7 +74,8 @@ fn delay_load_exe(bin_name: &str) {
     //
     // This will work on all supported Windows versions but it relies on
     // us using `SetDefaultDllDirectories` before any libraries are loaded.
-    let delay_load_dlls = ["gdi32", "advapi32", "shell32", "ole32", "psapi", "propsys", "secur32", "crypt32", "ws2_32", "oleaut32", "bcrypt", "comctl32"];
+    let delay_load_dlls =
+        ["gdi32", "advapi32", "shell32", "ole32", "psapi", "propsys", "secur32", "crypt32", "ws2_32", "oleaut32", "bcrypt", "comctl32"];
     for dll in delay_load_dlls {
         println!("cargo:rustc-link-arg-bin={bin_name}=/delayload:{dll}.dll");
     }
@@ -97,17 +91,4 @@ fn delay_load_exe(bin_name: &str) {
     println!("cargo:rustc-link-arg-bin={bin_name}=/WX");
     println!("cargo:rustc-link-arg-bin={bin_name}=/IGNORE:4099"); // PDB was not found
     println!("cargo:rustc-link-arg-bin={bin_name}=/IGNORE:4199"); // delayload ignored, no imports found
-}
-
-#[cfg(target_os = "windows")]
-fn link_locksmith() {
-    use core::panic;
-    let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
-    if arch == "x86_64" {
-        println!("cargo:rustc-link-lib=UpdateLocksmith_x64");
-    } else if arch == "x86" {
-        println!("cargo:rustc-link-lib=UpdateLocksmith_x86");
-    } else {
-        panic!("Unsupported architecture: {}", arch);
-    }
 }

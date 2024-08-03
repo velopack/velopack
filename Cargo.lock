@@ -721,6 +721,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "filelocksmith"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3583db48ba300c88320942d08b6ef5856e5f7a354da57a471604fa95034fab7"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "flate2"
 version = "1.0.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2090,6 +2099,7 @@ dependencies = [
  "dialog",
  "enum-flags",
  "file-rotate",
+ "filelocksmith",
  "fs_extra",
  "glob",
  "image",
