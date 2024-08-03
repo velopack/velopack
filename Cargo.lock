@@ -2269,7 +2269,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "velopack_cpp"
+name = "velopack_cpp_bridge"
 version = "0.0.0-local"
 dependencies = [
  "flapigen",

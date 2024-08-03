@@ -1,4 +1,11 @@
+mod cpp_glue;
+pub use crate::cpp_glue::*;
+
 use rifgen::rifgen_attr::*;
+
+extern crate velopack;
+
+velopack::
 
 pub struct Foo {
     data: i32,
@@ -35,3 +42,4 @@ mod tests {
         assert_eq!(8, foo.f(1, 2));
     }
 }
+

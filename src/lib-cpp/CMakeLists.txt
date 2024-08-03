@@ -1,33 +1,47 @@
 cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
-project(cpp-example)
+project(velopack_cpp)
 include(CheckIncludeFileCXX)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-set(CMAKE_CXX_EXTENSIONS False)
 
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+include_directories(${CMAKE_SOURCE_DIR}/api)
 
-find_package(Boost 1.66.0 REQUIRED)
-include_directories(${Boost_INCLUDE_DIRS})
-set(CMAKE_REQUIRED_INCLUDES "${Boost_INCLUDE_DIRS}")
+if(WIN32)
+    set(RUST_STATIC_LIB "velopack_cpp_bridge.lib")
+    link_libraries(ntdll)
+    foreach(flag_var
+            CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
+            CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+        if(${flag_var} MATCHES "/MD")
+            string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
+        endif()
+    endforeach()
+elseif(UNIX AND NOT APPLE)
+    set(RUST_STATIC_LIB "velopack_cpp_bridge.a")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+elseif(APPLE)
+    set(RUST_STATIC_LIB "velopack_cpp_bridge.a")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
+endif()
 
-check_include_file_cxx(boost/optional.hpp HAVE_BOOST_OPTIONAL_HPP)
-if (NOT HAVE_BOOST_OPTIONAL_HPP)
-  message(FATAL_ERROR "Can not find boost/optional.hpp")
-endif ()
+# Full path for the library
+set(RUST_STATIC_LIB_PATH "${CMAKE_SOURCE_DIR}/../../target/release/${RUST_STATIC_LIB}")
 
-check_include_file_cxx(boost/variant.hpp HAVE_BOOST_VARIANT_HPP)
-if (NOT HAVE_BOOST_VARIANT_HPP)
-  message(FATAL_ERROR "Can not find boost/variant.hpp")
-endif ()
+# Custom command to build the library
+add_custom_command(OUTPUT ${RUST_STATIC_LIB_PATH}
+                   COMMAND cargo build --release
+                   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/generator
+                   COMMENT "Running pre-build command")
 
-check_include_file_cxx(boost/utility/string_view.hpp HAS_BOOST_STRING_VIEW_HPP)
-if (NOT HAS_BOOST_STRING_VIEW_HPP)
-  message(FATAL_ERROR "Can not find boost/utility/string_view.hpp")
-endif ()
+# Custom target to handle the build of the library
+add_custom_target(build_rust_lib DEPENDS ${RUST_STATIC_LIB_PATH})
 
-include(rust_part_lib)
+# Main executable
+add_executable(${PROJECT_NAME} main.cpp)
 
-add_executable(app main.cpp)
-target_link_libraries(app rust_part_lib)
+# Ensure the library is built before the main project
+add_dependencies(${PROJECT_NAME} build_rust_lib)
+
+# Link the library after it has been built
+target_link_libraries(${PROJECT_NAME} ${RUST_STATIC_LIB_PATH})

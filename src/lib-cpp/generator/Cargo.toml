@@ -1,11 +1,11 @@
 
 [package]
-name = "velopack_cpp"
+name = "velopack_cpp_bridge"
 version = "0.0.0-local"
 edition = "2021"
 
 [lib]
-name = "velopack_cpp"
+name = "velopack_cpp_bridge"
 path = "src/lib.rs"
 crate-type = ["cdylib", "staticlib"]
 
