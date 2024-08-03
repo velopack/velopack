@@ -7,12 +7,13 @@ extern crate log;
 use anyhow::Result;
 use clap::{arg, value_parser, Command};
 use std::{env, path::PathBuf};
-use velopack::*;
+use velopack_bins::*;
 
 fn main() -> Result<()> {
     #[cfg(windows)]
     windows::mitigate::pre_main_sideload_mitigation();
 
+    #[rustfmt::skip]
     let mut arg_config = Command::new("Setup")
         .about(format!("Velopack Setup ({}) installs applications.\nhttps://github.com/velopack/velopack", env!("NGBV_VERSION")))
         .arg(arg!(-s --silent "Hides all dialogs and answers 'yes' to all prompts"))
@@ -22,7 +23,8 @@ fn main() -> Result<()> {
         .arg(arg!(--nocolor "Disable colored output").hide(true));
 
     if cfg!(debug_assertions) {
-        arg_config = arg_config.arg(arg!(-d --debug <FILE> "Debug mode, install from a nupkg file").required(false).value_parser(value_parser!(PathBuf)));
+        arg_config = arg_config
+            .arg(arg!(-d --debug <FILE> "Debug mode, install from a nupkg file").required(false).value_parser(value_parser!(PathBuf)));
     }
 
     let matches = arg_config.get_matches();
