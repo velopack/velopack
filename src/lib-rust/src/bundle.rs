@@ -5,9 +5,10 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
+
 use zip::ZipArchive;
 
-use crate::{manifest::*, util, VelopackError};
+use crate::{Error, manifest::*, util};
 
 pub trait ReadSeek: Read + Seek {}
 
@@ -19,7 +20,7 @@ pub struct BundleZip<'a> {
 }
 
 #[allow(dead_code)]
-pub fn load_bundle_from_file<'a, P: AsRef<Path>>(file_name: P) -> Result<BundleZip<'a>, VelopackError> {
+pub fn load_bundle_from_file<'a, P: AsRef<Path>>(file_name: P) -> Result<BundleZip<'a>, Error> {
     let file_name = file_name.as_ref();
     debug!("Loading bundle from file '{}'...", file_name.to_string_lossy());
     let file = util::retry_io(|| File::open(&file_name))?;
@@ -91,7 +92,7 @@ impl BundleZip<'_> {
         None
     }
 
-    pub fn extract_zip_idx_to_path<T: AsRef<Path>>(&self, index: usize, path: T) -> Result<(), VelopackError> {
+    pub fn extract_zip_idx_to_path<T: AsRef<Path>>(&self, index: usize, path: T) -> Result<(), Error> {
         let path = path.as_ref();
         debug!("Extracting zip file to path: {}", path.to_string_lossy());
         let p = PathBuf::from(path);
@@ -119,22 +120,22 @@ impl BundleZip<'_> {
         Ok(())
     }
 
-    pub fn extract_zip_predicate_to_path<F, T: AsRef<Path>>(&self, predicate: F, path: T) -> Result<usize, VelopackError>
+    pub fn extract_zip_predicate_to_path<F, T: AsRef<Path>>(&self, predicate: F, path: T) -> Result<usize, Error>
         where F: Fn(&str) -> bool,
     {
         let idx = self.find_zip_file(predicate);
         if idx.is_none() {
-            return Err(VelopackError::FileNotFound("(zip bundle predicate)".to_owned()));
+            return Err(Error::FileNotFound("(zip bundle predicate)".to_owned()));
         }
         let idx = idx.unwrap();
         self.extract_zip_idx_to_path(idx, path)?;
         Ok(idx)
     }
 
-    pub fn read_manifest(&self) -> Result<Manifest, VelopackError> {
+    pub fn read_manifest(&self) -> Result<Manifest, Error> {
         let nuspec_idx = self.find_zip_file(|name| name.ends_with(".nuspec"))
-            .ok_or(VelopackError::MissingNuspec)?;
-        
+            .ok_or(Error::MissingNuspec)?;
+
         let mut contents = String::new();
         let mut archive = self.zip.borrow_mut();
         archive.by_index(nuspec_idx)?.read_to_string(&mut contents)?;
@@ -147,7 +148,7 @@ impl BundleZip<'_> {
         archive.len()
     }
 
-    pub fn get_file_names(&self) -> Result<Vec<String>, VelopackError> {
+    pub fn get_file_names(&self) -> Result<Vec<String>, Error> {
         let mut files: Vec<String> = Vec::new();
         let mut archive = self.zip.borrow_mut();
         for i in 0..archive.len() {

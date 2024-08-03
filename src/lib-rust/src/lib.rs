@@ -44,13 +44,13 @@
 //! fn update_my_app() {
 //!     let source = sources::HttpSource::new("https://the.place/you-host/updates");
 //!     let um = UpdateManager::new(source, None).unwrap();
-//! 
-//!     if let UpdateCheckResult::UpdateAvailable(updates) = um.check_for_updates().unwrap() {
+//!
+//!     if let UpdateCheck::UpdateAvailable(updates) = um.check_for_updates().unwrap() {
 //!         // there was an update available. Download it.
 //!         um.download_updates(&updates, |progress| {
 //!             println!("Download progress: {}%", progress);
 //!         }).unwrap();
-//! 
+//!
 //!         // download completed, let's restart and update
 //!         um.apply_updates_and_restart(&updates, RestartArgs::None).unwrap();
 //!     }
@@ -116,7 +116,7 @@ pub enum NetworkError
 
 #[derive(thiserror::Error, Debug)]
 #[allow(missing_docs)]
-pub enum VelopackError
+pub enum Error
 {
     #[error("File does not exist: {0}")]
     FileNotFound(String),
@@ -138,20 +138,20 @@ pub enum VelopackError
     MissingUpdateExe,
 }
 
-impl From<url::ParseError> for VelopackError {
+impl From<url::ParseError> for Error {
     fn from(err: url::ParseError) -> Self {
-        VelopackError::Network(Box::new(NetworkError::Url(err)))
+        Error::Network(Box::new(NetworkError::Url(err)))
     }
 }
 
-impl From<ureq::Error> for VelopackError {
+impl From<ureq::Error> for Error {
     fn from(err: ureq::Error) -> Self {
-        VelopackError::Network(Box::new(NetworkError::Http(err)))
+        Error::Network(Box::new(NetworkError::Http(err)))
     }
 }
 
-impl From<native_tls::Error> for VelopackError {
+impl From<native_tls::Error> for Error {
     fn from(err: native_tls::Error) -> Self {
-        VelopackError::Network(Box::new(NetworkError::Tls(err)))
+        Error::Network(Box::new(NetworkError::Tls(err)))
     }
 }

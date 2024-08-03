@@ -1,18 +1,18 @@
 use std::{fs, io, path::Path};
-use crate::VelopackError;
+use crate::Error;
 
 /// Applies a zstd patch to a single file by loading the patch as a dictionary.
-pub fn zstd_patch_single<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(old_file: P1, patch_file: P2, output_file: P3) -> Result<(), VelopackError> {
+pub fn zstd_patch_single<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(old_file: P1, patch_file: P2, output_file: P3) -> Result<(), Error> {
     let old_file = old_file.as_ref();
     let patch_file = patch_file.as_ref();
     let output_file = output_file.as_ref();
 
     if !old_file.exists() {
-        return Err(VelopackError::FileNotFound(old_file.to_string_lossy().to_string()));
+        return Err(Error::FileNotFound(old_file.to_string_lossy().to_string()));
     }
 
     if !patch_file.exists() {
-        return Err(VelopackError::FileNotFound(patch_file.to_string_lossy().to_string()));
+        return Err(Error::FileNotFound(patch_file.to_string_lossy().to_string()));
     }
 
     let dict = fs::read(old_file)?;

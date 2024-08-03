@@ -1,10 +1,10 @@
-use crate::{util, VelopackError};
 use std::fs::File;
 use std::io::{Read, Write};
 
-pub fn download_url_to_file<A>(url: &str, file_path: &str, mut progress: A) -> Result<(), VelopackError>
-where
-    A: FnMut(i16),
+use crate::{Error, util};
+
+pub fn download_url_to_file<A>(url: &str, file_path: &str, mut progress: A) -> Result<(), Error>
+    where A: FnMut(i16),
 {
     let agent = get_download_agent()?;
     let response = agent.get(url).call()?;
@@ -39,13 +39,13 @@ where
     Ok(())
 }
 
-pub fn download_url_as_string(url: &str) -> Result<String, VelopackError> {
+pub fn download_url_as_string(url: &str) -> Result<String, Error> {
     let agent = get_download_agent()?;
     let r = agent.get(url).call()?.into_string()?;
     Ok(r)
 }
 
-fn get_download_agent() -> Result<ureq::Agent, VelopackError> {
+fn get_download_agent() -> Result<ureq::Agent, Error> {
     let tls_builder = native_tls::TlsConnector::builder();
     let tls_connector = tls_builder.build()?;
     Ok(ureq::AgentBuilder::new().tls_connector(tls_connector.into()).build())
@@ -67,8 +67,7 @@ fn test_download_file_reports_progress() {
         assert!(p >= last_prog);
         prog_count += 1;
         last_prog = p;
-    })
-    .unwrap();
+    }).unwrap();
 
     assert!(prog_count >= 4);
     assert!(prog_count <= 20);
