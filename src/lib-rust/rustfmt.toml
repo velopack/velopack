@@ -1,5 +1,0 @@
-max_width = 140
-use_small_heuristics = "Max"
-indent_style = "Visual"
-unstable_features = true
-format_strings = true

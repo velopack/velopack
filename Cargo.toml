@@ -9,6 +9,7 @@ members = [
 authors = ["Caelan Sayler <git@caesay.com>"]
 homepage = "https://velopack.io"
 repository = "https://github.com/velopack/velopack"
+documentation = "https://docs.velopack.io"
 keywords = ["update", "install", "velopack", "squirrel", "automatic-updates"]
 categories = ["development-tools"]
 license = "MIT"

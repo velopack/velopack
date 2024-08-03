@@ -1,9 +1,8 @@
-use crate::util;
-use anyhow::Result;
+use crate::{util, VelopackError};
 use std::fs::File;
 use std::io::{Read, Write};
 
-pub fn download_url_to_file<A>(url: &str, file_path: &str, mut progress: A) -> Result<()>
+pub fn download_url_to_file<A>(url: &str, file_path: &str, mut progress: A) -> Result<(), VelopackError>
 where
     A: FnMut(i16),
 {
@@ -40,13 +39,13 @@ where
     Ok(())
 }
 
-pub fn download_url_as_string(url: &str) -> Result<String> {
+pub fn download_url_as_string(url: &str) -> Result<String, VelopackError> {
     let agent = get_download_agent()?;
     let r = agent.get(url).call()?.into_string()?;
     Ok(r)
 }
 
-fn get_download_agent() -> Result<ureq::Agent> {
+fn get_download_agent() -> Result<ureq::Agent, VelopackError> {
     let tls_builder = native_tls::TlsConnector::builder();
     let tls_connector = tls_builder.build()?;
     Ok(ureq::AgentBuilder::new().tls_connector(tls_connector.into()).build())

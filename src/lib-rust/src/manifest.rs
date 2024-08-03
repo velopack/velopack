@@ -1,7 +1,7 @@
-use anyhow::{bail, Result};
 use semver::Version;
 use std::io::Cursor;
 use xml::reader::{EventReader, XmlEvent};
+use crate::VelopackError;
 
 #[derive(Debug, derivative::Derivative, Clone)]
 #[derivative(Default)]
@@ -20,7 +20,7 @@ pub struct Manifest {
     pub channel: String,
 }
 
-pub fn read_manifest_from_string(xml: &str) -> Result<Manifest> {
+pub fn read_manifest_from_string(xml: &str) -> Result<Manifest, VelopackError> {
     let mut obj: Manifest = Default::default();
     let cursor = Cursor::new(xml);
     let parser = EventReader::new(cursor);
@@ -72,16 +72,16 @@ pub fn read_manifest_from_string(xml: &str) -> Result<Manifest> {
     }
 
     if obj.id.is_empty() {
-        bail!("Missing 'id' in package manifest. Please contact the application author.");
+        return Err(VelopackError::MissingNuspecProperty("id".to_owned()));
     }
 
     if obj.version == Version::new(0, 0, 0) {
-        bail!("Missing 'version' in package manifest. Please contact the application author.");
+        return Err(VelopackError::MissingNuspecProperty("version".to_owned()));
     }
 
     #[cfg(target_os = "windows")]
     if obj.main_exe.is_empty() {
-        bail!("Missing 'mainExe' in package manifest. Please contact the application author.");
+        return Err(VelopackError::MissingNuspecProperty("mainExe".to_owned()));
     }
 
     if obj.title.is_empty() {

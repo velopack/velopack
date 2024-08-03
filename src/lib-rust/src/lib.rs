@@ -40,21 +40,20 @@
 //! 3. Add auto-updates somewhere to your app:
 //! ```rust
 //! use velopack::*;
-//! use anyhow::Result;
 //!
-//! fn update_my_app() -> Result<()> {
+//! fn update_my_app() {
 //!     let source = sources::HttpSource::new("https://the.place/you-host/updates");
-//!     let um = UpdateManager::new(source, None)?;
-//!     let updates: Option<UpdateInfo> = um.check_for_updates()?;
-//!     if updates.is_none() {
-//!         return Ok(()); // no updates available
+//!     let um = UpdateManager::new(source, None).unwrap();
+//! 
+//!     if let UpdateCheckResult::UpdateAvailable(updates) = um.check_for_updates().unwrap() {
+//!         // there was an update available. Download it.
+//!         um.download_updates(&updates, |progress| {
+//!             println!("Download progress: {}%", progress);
+//!         }).unwrap();
+//! 
+//!         // download completed, let's restart and update
+//!         um.apply_updates_and_restart(&updates, RestartArgs::None).unwrap();
 //!     }
-//!     let updates = updates.unwrap();
-//!     um.download_updates(&updates, |progress| {
-//!         println!("Download progress: {}%", progress);
-//!     })?;
-//!     um.apply_updates_and_restart(&updates, RestartArgs::None)?;
-//!     Ok(())
 //! }
 //! ```
 //!
@@ -90,13 +89,69 @@ mod util;
 
 /// Locator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
 pub mod locator;
+
 /// Sources contains abstractions for custom update sources (eg. url, local file, github releases, etc).
 pub mod sources;
+
+/// Functions to patch files and reconstruct Velopack delta packages.
+pub mod delta;
 
 pub use app::*;
 pub use manager::*;
 
 #[macro_use]
-extern crate anyhow;
-#[macro_use]
 extern crate log;
+
+#[derive(thiserror::Error, Debug)]
+#[allow(missing_docs, clippy::large_enum_variant)]
+pub enum NetworkError
+{
+    #[error("Http error: {0}")]
+    Http(#[from] ureq::Error),
+    #[error("Tls error: {0}")]
+    Tls(#[from] native_tls::Error),
+    #[error("Url error: {0}")]
+    Url(#[from] url::ParseError),
+}
+
+#[derive(thiserror::Error, Debug)]
+#[allow(missing_docs)]
+pub enum VelopackError
+{
+    #[error("File does not exist: {0}")]
+    FileNotFound(String),
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("Zip error: {0}")]
+    Zip(#[from] zip::result::ZipError),
+    #[error("Network error: {0}")]
+    Network(Box<NetworkError>),
+    #[error("Json error: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error("Semver parse error: {0}")]
+    Semver(#[from] semver::Error),
+    #[error("This application is missing a package manifest (.nuspec) or it could not be parsed.")]
+    MissingNuspec,
+    #[error("This application is missing a required property in its package manifest: {0}")]
+    MissingNuspecProperty(String),
+    #[error("This application is missing an Update binary.")]
+    MissingUpdateExe,
+}
+
+impl From<url::ParseError> for VelopackError {
+    fn from(err: url::ParseError) -> Self {
+        VelopackError::Network(Box::new(NetworkError::Url(err)))
+    }
+}
+
+impl From<ureq::Error> for VelopackError {
+    fn from(err: ureq::Error) -> Self {
+        VelopackError::Network(Box::new(NetworkError::Http(err)))
+    }
+}
+
+impl From<native_tls::Error> for VelopackError {
+    fn from(err: native_tls::Error) -> Self {
+        VelopackError::Network(Box::new(NetworkError::Tls(err)))
+    }
+}

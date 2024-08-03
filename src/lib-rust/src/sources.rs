@@ -1,4 +1,3 @@
-use anyhow::Result;
 use std::path::{Path, PathBuf};
 
 use crate::*;
@@ -9,11 +8,10 @@ use crate::*;
 pub trait UpdateSource: Clone + Send + Sync {
     /// Retrieve the list of available remote releases from the package source. These releases
     /// can subsequently be downloaded with download_release_entry.
-    fn get_release_feed(&self, channel: &str, app: &manifest::Manifest) -> Result<VelopackAssetFeed>;
+    fn get_release_feed(&self, channel: &str, app: &manifest::Manifest) -> Result<VelopackAssetFeed, VelopackError>;
     /// Download the specified VelopackAsset to the provided local file path.
-    fn download_release_entry<A>(&self, asset: &VelopackAsset, local_file: &str, progress: A) -> Result<()>
-    where
-        A: FnMut(i16);
+    fn download_release_entry<A>(&self, asset: &VelopackAsset, local_file: &str, progress: A) -> Result<(), VelopackError>
+        where A: FnMut(i16);
 }
 
 #[derive(Clone)]
@@ -32,7 +30,7 @@ impl HttpSource {
 }
 
 impl UpdateSource for HttpSource {
-    fn get_release_feed(&self, channel: &str, app: &manifest::Manifest) -> Result<VelopackAssetFeed> {
+    fn get_release_feed(&self, channel: &str, app: &manifest::Manifest) -> Result<VelopackAssetFeed, VelopackError> {
         let releases_name = format!("releases.{}.json", channel);
 
         let path = self.url.trim_end_matches('/').to_owned() + "/";
@@ -46,9 +44,8 @@ impl UpdateSource for HttpSource {
         Ok(feed)
     }
 
-    fn download_release_entry<A>(&self, asset: &VelopackAsset, local_file: &str, progress: A) -> Result<()>
-    where
-        A: FnMut(i16),
+    fn download_release_entry<A>(&self, asset: &VelopackAsset, local_file: &str, progress: A) -> Result<(), VelopackError>
+        where A: FnMut(i16),
     {
         let path = self.url.trim_end_matches('/').to_owned() + "/";
         let url = url::Url::parse(&path)?;
@@ -76,7 +73,7 @@ impl FileSource {
 }
 
 impl UpdateSource for FileSource {
-    fn get_release_feed(&self, channel: &str, _: &manifest::Manifest) -> Result<VelopackAssetFeed> {
+    fn get_release_feed(&self, channel: &str, _: &manifest::Manifest) -> Result<VelopackAssetFeed, VelopackError> {
         let releases_name = format!("releases.{}.json", channel);
         let releases_path = self.path.join(&releases_name);
 
@@ -86,9 +83,8 @@ impl UpdateSource for FileSource {
         Ok(feed)
     }
 
-    fn download_release_entry<A>(&self, asset: &VelopackAsset, local_file: &str, mut progress: A) -> Result<()>
-    where
-        A: FnMut(i16),
+    fn download_release_entry<A>(&self, asset: &VelopackAsset, local_file: &str, mut progress: A) -> Result<(), VelopackError>
+        where A: FnMut(i16),
     {
         let asset_path = self.path.join(&asset.FileName);
         info!("About to copy from file '{}' to file '{}'", asset_path.display(), local_file);

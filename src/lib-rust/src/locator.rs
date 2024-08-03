@@ -1,10 +1,6 @@
-use anyhow::Result;
 use std::path::PathBuf;
 
-use crate::{
-    manifest::{self, Manifest},
-    util,
-};
+use crate::{manifest::{self, Manifest}, util, VelopackError};
 
 #[derive(Clone)]
 /// VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
@@ -45,7 +41,7 @@ pub fn default_log_location() -> PathBuf {
 
 #[cfg(target_os = "windows")]
 /// Automatically locates the current app's important paths. If the app is not installed, it will return an error.
-pub fn auto_locate() -> Result<VelopackLocator> {
+pub fn auto_locate() -> Result<VelopackLocator, VelopackError> {
     // check if Update.exe exists in parent dir, if it does, that's the root dir.
     let mut path = std::env::current_exe()?;
     path.pop(); // current dir
@@ -78,7 +74,7 @@ pub fn auto_locate() -> Result<VelopackLocator> {
         }
     }
 
-    bail!("Unable to locate Update.exe in parent directory, and not able to find '/current' dir in path");
+    Err(VelopackError::MissingUpdateExe)
 }
 
 #[cfg(target_os = "linux")]
@@ -148,11 +144,11 @@ pub fn auto_locate() -> Result<VelopackLocator> {
     })
 }
 
-fn read_current_manifest(nuspec_path: &PathBuf) -> Result<Manifest> {
+fn read_current_manifest(nuspec_path: &PathBuf) -> Result<Manifest, VelopackError> {
     if nuspec_path.exists() {
         if let Ok(nuspec) = util::retry_io(|| std::fs::read_to_string(&nuspec_path)) {
             return Ok(manifest::read_manifest_from_string(&nuspec)?);
         }
     }
-    bail!("Unable to read nuspec file in current directory.")
+    Err(VelopackError::MissingNuspec)
 }

@@ -30,10 +30,6 @@ path = "src/update.rs"
 name = "testapp"
 path = "src/testapp.rs"
 
-[[bin]]
-name = "testawareapp"
-path = "src/testawareapp.rs"
-
 [dependencies]
 anyhow = "1.0"
 pretty-bytes-rust = "0.3"

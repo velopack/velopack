@@ -1,12 +1,8 @@
-use anyhow::Result;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::{fs, process::exit, process::Command as Process};
 
-use crate::{
-    locator::{self, VelopackLocator},
-    sources::UpdateSource,
-};
+use crate::{locator::{self, VelopackLocator}, sources::UpdateSource, VelopackError};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -95,8 +91,8 @@ pub struct UpdateOptions {
 
 /// Provides functionality for checking for updates, downloading updates, and applying updates to the current application.
 pub struct UpdateManager<T>
-where
-    T: UpdateSource,
+    where
+        T: UpdateSource,
 {
     allow_version_downgrade: bool,
     explicit_channel: Option<String>,
@@ -138,6 +134,16 @@ impl<'a> IntoIterator for RestartArgs<'a> {
     }
 }
 
+/// Represents the result of a call to check for updates.
+pub enum UpdateCheckResult {
+    /// The remote feed is empty, so no update check was performed
+    RemoteIsEmpty,
+    /// The remote feed had releases, but none were newer or more relevant than the current version
+    NoUpdateAvailable,
+    /// The remote feed had an update available
+    UpdateAvailable(UpdateInfo),
+}
+
 impl<T: UpdateSource> UpdateManager<T> {
     /// Create a new UpdateManager instance using the specified UpdateSource.
     /// This will return an error if the application is not yet installed.
@@ -148,7 +154,7 @@ impl<T: UpdateSource> UpdateManager<T> {
     /// let source = sources::HttpSource::new("https://the.place/you-host/updates");
     /// let um = UpdateManager::new(source, None);
     /// ```
-    pub fn new(source: T, options: Option<UpdateOptions>) -> Result<UpdateManager<T>> {
+    pub fn new(source: T, options: Option<UpdateOptions>) -> Result<UpdateManager<T>, VelopackError> {
         Ok(UpdateManager {
             paths: locator::auto_locate()?,
             allow_version_downgrade: options.as_ref().map(|f| f.AllowVersionDowngrade).unwrap_or(false),
@@ -167,21 +173,21 @@ impl<T: UpdateSource> UpdateManager<T> {
     }
 
     /// The currently installed app version when you created your release.
-    pub fn current_version(&self) -> Result<String> {
+    pub fn current_version(&self) -> Result<String, VelopackError> {
         Ok(self.paths.manifest.version.to_string())
     }
 
     /// Get a list of available remote releases from the package source.
-    pub fn get_release_feed(&self) -> Result<VelopackAssetFeed> {
+    pub fn get_release_feed(&self) -> Result<VelopackAssetFeed, VelopackError> {
         let channel = self.get_practical_channel();
         self.source.get_release_feed(&channel, &self.paths.manifest)
     }
 
     #[cfg(feature = "async")]
     /// Get a list of available remote releases from the package source.
-    pub fn get_release_feed_async(&self) -> JoinHandle<Result<VelopackAssetFeed>>
-    where
-        T: 'static,
+    pub fn get_release_feed_async(&self) -> JoinHandle<Result<VelopackAssetFeed, VelopackError>>
+        where
+            T: 'static,
     {
         let self_clone = self.clone();
         async_std::task::spawn_blocking(move || self_clone.get_release_feed())
@@ -189,7 +195,7 @@ impl<T: UpdateSource> UpdateManager<T> {
 
     /// Checks for updates, returning None if there are none available. If there are updates available, this method will return an
     /// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
-    pub fn check_for_updates(&self) -> Result<Option<UpdateInfo>> {
+    pub fn check_for_updates(&self) -> Result<UpdateCheckResult, VelopackError> {
         let allow_downgrade = self.allow_version_downgrade;
         let app = &self.paths.manifest;
         let feed = self.get_release_feed()?;
@@ -199,7 +205,7 @@ impl<T: UpdateSource> UpdateManager<T> {
         let is_non_default_channel = practical_channel != app.channel;
 
         if assets.is_empty() {
-            bail!("Zero assets found in releases feed.");
+            return Ok(UpdateCheckResult::RemoteIsEmpty);
         }
 
         let mut latest: Option<VelopackAsset> = None;
@@ -217,7 +223,7 @@ impl<T: UpdateSource> UpdateManager<T> {
         }
 
         if latest.is_none() {
-            bail!("No valid full releases found in feed.");
+            return Ok(UpdateCheckResult::RemoteIsEmpty);
         }
 
         let remote_version = latest_version;
@@ -225,33 +231,29 @@ impl<T: UpdateSource> UpdateManager<T> {
 
         debug!("Latest remote release: {} ({}).", remote_asset.FileName, remote_version.to_string());
 
-        let mut result: Option<UpdateInfo> = None;
 
         if remote_version > app.version {
             info!("Found newer remote release available ({} -> {}).", app.version, remote_version);
-            result = Some(UpdateInfo { TargetFullRelease: remote_asset, IsDowngrade: false });
+            Ok(UpdateCheckResult::UpdateAvailable(UpdateInfo { TargetFullRelease: remote_asset, IsDowngrade: false }))
         } else if remote_version < app.version && allow_downgrade {
             info!("Found older remote release available and downgrade is enabled ({} -> {}).", app.version, remote_version);
-            result = Some(UpdateInfo { TargetFullRelease: remote_asset, IsDowngrade: true });
+            Ok(UpdateCheckResult::UpdateAvailable(UpdateInfo { TargetFullRelease: remote_asset, IsDowngrade: true }))
         } else if remote_version == app.version && allow_downgrade && is_non_default_channel {
             info!(
                 "Latest remote release is the same version of a different channel, and downgrade is enabled ({} -> {}).",
                 app.version, remote_version
             );
-            result = Some(UpdateInfo { TargetFullRelease: remote_asset, IsDowngrade: true });
+            Ok(UpdateCheckResult::UpdateAvailable(UpdateInfo { TargetFullRelease: remote_asset, IsDowngrade: true }))
         } else {
-            info!("No update available.");
+            Ok(UpdateCheckResult::NoUpdateAvailable)
         }
-
-        Ok(result)
     }
 
     #[cfg(feature = "async")]
     /// Checks for updates, returning None if there are none available. If there are updates available, this method will return an
     /// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
-    pub fn check_for_updates_async(&self) -> JoinHandle<Result<Option<UpdateInfo>>>
-    where
-        T: 'static,
+    pub fn check_for_updates_async(&self) -> JoinHandle<Result<UpdateCheckResult, VelopackError>>
+        where T: 'static,
     {
         let self_clone = self.clone();
         async_std::task::spawn_blocking(move || self_clone.check_for_updates())
@@ -261,9 +263,9 @@ impl<T: UpdateSource> UpdateManager<T> {
     /// this method will attempt to unpack and prepare them. If there is no delta update available, or there is an error preparing delta
     /// packages, this method will fall back to downloading the full version of the update. This function will acquire a global update lock
     /// so may fail if there is already another update operation in progress.
-    pub fn download_updates<A>(&self, update: &UpdateInfo, progress: A) -> Result<()>
-    where
-        A: FnMut(i16),
+    pub fn download_updates<A>(&self, update: &UpdateInfo, progress: A) -> Result<(), VelopackError>
+        where
+            A: FnMut(i16),
     {
         let name = &update.TargetFullRelease.FileName;
         let packages_dir = &self.paths.packages_dir;
@@ -322,9 +324,9 @@ impl<T: UpdateSource> UpdateManager<T> {
     /// this method will attempt to unpack and prepare them. If there is no delta update available, or there is an error preparing delta
     /// packages, this method will fall back to downloading the full version of the update. This function will acquire a global update lock
     /// so may fail if there is already another update operation in progress.
-    pub fn download_updates_async(&self, update: &UpdateInfo, progress: Option<Sender<i16>>) -> JoinHandle<Result<()>>
-    where
-        T: 'static,
+    pub fn download_updates_async(&self, update: &UpdateInfo, progress: Option<Sender<i16>>) -> JoinHandle<Result<(), VelopackError>>
+        where
+            T: 'static,
     {
         let self_clone = self.clone();
         let update_clone = update.clone();
@@ -342,7 +344,7 @@ impl<T: UpdateSource> UpdateManager<T> {
     /// This will exit your app immediately, apply updates, and then optionally relaunch the app using the specified
     /// restart arguments. If you need to save state or clean up, you should do that before calling this method.
     /// The user may be prompted during the update, if the update requires additional frameworks to be installed etc.
-    pub fn apply_updates_and_restart<A: AsRef<VelopackAsset>>(&self, to_apply: A, restart_args: RestartArgs) -> Result<()> {
+    pub fn apply_updates_and_restart<A: AsRef<VelopackAsset>>(&self, to_apply: A, restart_args: RestartArgs) -> Result<(), VelopackError> {
         self.wait_exit_then_apply_updates(to_apply, false, true, restart_args)?;
         exit(0);
     }
@@ -350,7 +352,7 @@ impl<T: UpdateSource> UpdateManager<T> {
     /// This will exit your app immediately, apply updates, and then optionally relaunch the app using the specified
     /// restart arguments. If you need to save state or clean up, you should do that before calling this method.
     /// The user may be prompted during the update, if the update requires additional frameworks to be installed etc.
-    pub fn apply_updates_and_exit<A: AsRef<VelopackAsset>>(&self, to_apply: A) -> Result<()> {
+    pub fn apply_updates_and_exit<A: AsRef<VelopackAsset>>(&self, to_apply: A) -> Result<(), VelopackError> {
         self.wait_exit_then_apply_updates(to_apply, false, false, RestartArgs::None)?;
         exit(0);
     }
@@ -364,7 +366,7 @@ impl<T: UpdateSource> UpdateManager<T> {
         silent: bool,
         restart: bool,
         restart_args: RestartArgs,
-    ) -> Result<()> {
+    ) -> Result<(), VelopackError> {
         let to_apply = to_apply.as_ref();
         let pkg_path = self.paths.packages_dir.join(&to_apply.FileName);
         let pkg_path_str = pkg_path.to_string_lossy();
