@@ -7,7 +7,7 @@ extern crate log;
 use anyhow::{anyhow, bail, Result};
 use clap::{arg, value_parser, ArgMatches, Command};
 use std::{env, path::PathBuf};
-use velopack::*;
+use velopack_bins::*;
 
 #[rustfmt::skip]
 fn root_command() -> Command {

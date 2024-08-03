@@ -4,9 +4,9 @@ mod common;
 use common::*;
 use std::{fs, path::Path, path::PathBuf};
 use tempfile::tempdir;
-use velopack::*;
+use velopack_bins::*;
 
-use velopack::logging::trace_logger;
+use velopack_bins::logging::trace_logger;
 #[cfg(target_os = "windows")]
 use winsafe::{self as w, co};
 

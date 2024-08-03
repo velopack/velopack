@@ -1,13 +1,14 @@
 [package]
-name = "velopack"
+name = "velopack_bins"
 version = "0.0.0-local"
 edition = "2021"
+publish = false
 
 [features]
 windows = []
 
 [lib]
-name = "velopack"
+name = "velopack_bins"
 path = "src/lib.rs"
 doctest = false
 
@@ -32,17 +33,6 @@ path = "src/testapp.rs"
 [[bin]]
 name = "testawareapp"
 path = "src/testawareapp.rs"
-
-[profile.release]
-opt-level = "z"          # optimize for size
-lto = true               # link-time optimization
-debug = false            # disable debug info
-debug-assertions = false # disable debug assertions
-overflow-checks = false  # disable overflow checks
-panic = "abort"          # abort on panic
-incremental = false      # disable incremental compilation
-codegen-units = 1        # compile all code into a single unit
-rpath = false            # disable rpath
 
 [dependencies]
 anyhow = "1.0"
