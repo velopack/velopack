@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>true</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- This overrides the default Program.Main that WPF creates for you, and allows you to add VelopackApp -->
+    <StartupObject>SigningSample.Program</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\ReleaseSigner\VelopackSignatureHelper.cs" Link="VelopackSignatureHelper.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--Condition below is only needed to test this sample project against the local projects instead of the NuGet package. Remove it in your app.-->
+    <PackageReference Include="Velopack" Version="0.*" Condition="$(UseLocalVelopack) == ''" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="keys\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\keys\rsa.public.pem" Link="keys\rsa.public.pem">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
