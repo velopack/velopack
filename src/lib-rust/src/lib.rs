@@ -134,8 +134,10 @@ pub enum Error
     MissingNuspec,
     #[error("This application is missing a required property in its package manifest: {0}")]
     MissingNuspecProperty(String),
-    #[error("This application is missing an Update binary.")]
+    #[error("This application is missing an Update.exe/UpdateNix/UpdateMac binary.")]
     MissingUpdateExe,
+    #[error("This application is not properly installed: {0}")]
+    NotInstalled(String),
 }
 
 impl From<url::ParseError> for Error {

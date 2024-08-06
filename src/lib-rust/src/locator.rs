@@ -79,12 +79,12 @@ pub fn auto_locate() -> Result<VelopackLocator, Error> {
 
 #[cfg(target_os = "linux")]
 /// Automatically locates the current app's important paths. If the app is not installed, it will return an error.
-pub fn auto_locate() -> Result<VelopackLocator> {
+pub fn auto_locate() -> Result<VelopackLocator, Error> {
     let path = std::env::current_exe()?;
     let path = path.to_string_lossy();
     let idx = path.rfind("/usr/bin/");
     if idx.is_none() {
-        bail!("Unable to locate '/usr/bin/' directory in path: {}", path);
+        return Err(Error::NotInstalled(format!("Could not locate '/usr/bin/' in executable path {}", path)));
     }
     let idx = idx.unwrap();
     let root_app_dir = PathBuf::from(path[..idx].to_string());
@@ -93,7 +93,7 @@ pub fn auto_locate() -> Result<VelopackLocator> {
     let metadata_path = contents_dir.join("sq.version");
 
     if !update_exe_path.exists() {
-        bail!("Unable to locate UpdateMac in directory: {}", contents_dir.to_string_lossy());
+        return Err(Error::MissingUpdateExe);
     }
 
     let app = read_current_manifest(&metadata_path)?;
@@ -107,12 +107,12 @@ pub fn auto_locate() -> Result<VelopackLocator> {
 
 #[cfg(target_os = "macos")]
 /// Automatically locates the current app's important paths. If the app is not installed, it will return an error.
-pub fn auto_locate() -> Result<VelopackLocator> {
+pub fn auto_locate() -> Result<VelopackLocator, Error> {
     let path = std::env::current_exe()?;
     let path = path.to_string_lossy();
     let idx = path.rfind(".app/");
     if idx.is_none() {
-        bail!("Unable to locate '.app' directory in path: {}", path);
+        return Err(Error::NotInstalled(format!("Could not locate '.app' in executable path {}", path)));
     }
     let idx = idx.unwrap();
     let path = path[..(idx + 4)].to_string();
@@ -123,7 +123,7 @@ pub fn auto_locate() -> Result<VelopackLocator> {
     let metadata_path = contents_dir.join("sq.version");
 
     if !update_exe_path.exists() {
-        bail!("Unable to locate UpdateMac in directory: {}", contents_dir.to_string_lossy());
+        return Err(Error::MissingUpdateExe);
     }
 
     let app = read_current_manifest(&metadata_path)?;
