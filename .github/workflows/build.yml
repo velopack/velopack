@@ -6,7 +6,7 @@ env:
   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
 jobs:
-  test-rust-bins:
+  test-rust:
     strategy:
       matrix:
         os: [macos-13, macos-14, windows-latest, ubuntu-latest]
