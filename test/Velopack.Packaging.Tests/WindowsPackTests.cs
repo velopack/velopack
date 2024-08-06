@@ -41,7 +41,7 @@ public class WindowsPackTests
         using var _2 = Utility.GetTempDirectory(out var tmpReleaseDir);
         using var _3 = Utility.GetTempDirectory(out var unzipDir);
 
-        var exe = "testawareapp.exe";
+        var exe = "testapp.exe";
         var pdb = Path.ChangeExtension(exe, ".pdb");
         var id = "Test.Squirrel-App";
         var version = "1.0.0";
@@ -109,7 +109,7 @@ public class WindowsPackTests
         using var _1 = Utility.GetTempDirectory(out var tmpOutput);
         using var _2 = Utility.GetTempDirectory(out var tmpReleaseDir);
 
-        var exe = "testawareapp.exe";
+        var exe = "testapp.exe";
         var pdb = Path.ChangeExtension(exe, ".pdb");
         var id = "Test.Squirrel-App";
         var version = "1.0.0";
@@ -142,7 +142,7 @@ public class WindowsPackTests
         using var _1 = Utility.GetTempDirectory(out var tmpOutput);
         using var _2 = Utility.GetTempDirectory(out var tmpReleaseDir);
 
-        var exe = "testawareapp.exe";
+        var exe = "testapp.exe";
         var pdb = Path.ChangeExtension(exe, ".pdb");
         var id = "Test.Squirrel-App";
         var version = "1.0.0";
@@ -181,7 +181,7 @@ public class WindowsPackTests
         using var _2 = Utility.GetTempDirectory(out var tmpReleaseDir);
         using var _3 = Utility.GetTempDirectory(out var tmpInstallDir);
 
-        var exe = "testawareapp.exe";
+        var exe = "testapp.exe";
         var pdb = Path.ChangeExtension(exe, ".pdb");
         var id = "Test.Squirrel-App";
         var version = "1.0.0";
@@ -210,7 +210,7 @@ public class WindowsPackTests
         var updatePath = Path.Combine(tmpInstallDir, "Update.exe");
         Assert.True(File.Exists(updatePath));
 
-        var appPath = Path.Combine(tmpInstallDir, "current", "testawareapp.exe");
+        var appPath = Path.Combine(tmpInstallDir, "current", "testapp.exe");
         Assert.True(File.Exists(appPath));
 
         var argsPath = Path.Combine(tmpInstallDir, "current", "args.txt");
