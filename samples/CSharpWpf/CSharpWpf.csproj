@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>VelopackCSharpWpf</AssemblyName>
+    <TargetFramework>net48</TargetFramework>
+    <ImplicitUsings>true</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- This overrides the default Program.Main that WPF creates for you, and allows you to add VelopackApp -->
+    <StartupObject>CSharpWpf.Program</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--Condition below is only needed to test this sample project against the local projects instead of the NuGet package. Remove it in your app.-->
+    <PackageReference Include="Velopack" Version="0.*" Condition="$(UseLocalVelopack) == ''" />
+  </ItemGroup>
+
+</Project>

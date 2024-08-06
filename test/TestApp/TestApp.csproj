@@ -15,7 +15,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Velopack\Velopack.csproj" />
+    <ProjectReference Include="..\..\src\lib-csharp\Velopack.csproj" />
   </ItemGroup>
 
   <ItemGroup>

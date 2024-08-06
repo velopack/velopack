@@ -1,0 +1,30 @@
+[workspace]
+resolver = "2"
+members = [
+    "src/bins",
+    "src/lib-rust",
+    # "src/lib-cpp/generator"
+]
+
+[workspace.package]
+authors = ["Caelan Sayler <git@caesay.com>"]
+homepage = "https://velopack.io"
+repository = "https://github.com/velopack/velopack"
+documentation = "https://docs.velopack.io"
+keywords = ["update", "install", "velopack", "squirrel", "automatic-updates"]
+categories = ["development-tools"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.75"
+
+# default to small, optimized workspace release binaries
+[profile.release]
+opt-level = "z"          # optimize for size
+lto = true               # link-time optimization
+debug = false            # disable debug info
+debug-assertions = false # disable debug assertions
+overflow-checks = false  # disable overflow checks
+panic = "abort"          # abort on panic
+incremental = false      # disable incremental compilation
+codegen-units = 1        # compile all code into a single unit
+rpath = false            # disable rpath

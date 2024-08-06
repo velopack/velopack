@@ -1,0 +1,39 @@
+[package]
+name = "velopack"
+version = "0.0.0-local"
+edition = "2021"
+description = "Installer and automatic updates for cross-platform desktop applications"
+readme = "readme.md"
+exclude = ["/samples"]
+
+[features]
+default = ["zstd"]
+delta = ["zstd"]
+async = ["async-std"]
+
+[package.metadata.docs.rs]
+features = ["async", "zstd"]
+
+[lib]
+name = "velopack"
+path = "src/lib.rs"
+
+[dependencies]
+log = "0.4"
+native-tls = "0.2"
+ureq = { version = "2.10", default-features = false, features = ["native-tls", "gzip"] }
+url = "2.5"
+semver = "1.0"
+xml = "0.8"
+derivative = "2.2"
+glob = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0" }
+zip = { version = "2.1", default-features = false, features = ["deflate"] }
+thiserror = "1.0"
+
+# delta packages
+zstd = { version = "0.13", optional = true }
+
+# async
+async-std = { version = "1.5", optional = true }

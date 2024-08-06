@@ -2,8 +2,11 @@ name: Build
 
 on: [ push, pull_request ]
 
+env:
+  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
 jobs:
-  test-rust-bins:
+  test-rust:
     strategy:
       matrix:
         os: [macos-13, macos-14, windows-latest, ubuntu-latest]
@@ -23,17 +26,14 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-test-${{ matrix.os }}"
-          workspaces: "src/Rust -> target"
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Test Rust
-        working-directory: src/Rust
-        run: cargo llvm-cov ${{ matrix.rust_flags }} --cobertura --output-path ../../test/coverage.rust.${{ matrix.os }}.xml
-      - name: Upload Coverage Artifacts
-        uses: actions/upload-artifact@v4
+        run: cargo llvm-cov ${{ matrix.rust_flags }} --cobertura --output-path ./test/coverage.rust.${{ matrix.os }}.xml
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v4
         with:
-          name: coverage-rust-${{ matrix.os }}
-          path: ./test/*.xml
+          file: ./test/coverage.rust.${{ matrix.os }}.xml
 
   build-rust-windows:
     runs-on: windows-latest
@@ -47,21 +47,19 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-build-windows"
-          workspaces: "src/Rust -> target"
       - name: Install Windows7 Rust Toolchain
         run: |
           rustup toolchain install 1.75.0-x86_64-pc-windows-msvc 
           rustup target add i686-pc-windows-msvc --toolchain 1.75.0-x86_64-pc-windows-msvc 
       - name: Build Rust
-        working-directory: src/Rust
         run: cargo +1.75.0-x86_64-pc-windows-msvc build --target i686-pc-windows-msvc --features windows --release
       - name: Upload Rust Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: rust-windows-latest
           path: |
-            src/Rust/target/i686-pc-windows-msvc/release/*.exe
-            src/Rust/target/i686-pc-windows-msvc/release/*.pdb
+            target/i686-pc-windows-msvc/release/*.exe
+            target/i686-pc-windows-msvc/release/*.pdb
       - name: Cancel workflow if failed
         uses: andymckay/cancel-action@0.4
         if: ${{ failure() }}
@@ -79,14 +77,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-build-linux"
-          workspaces: "src/Rust -> target"
       - name: Build Rust (x64)
-        working-directory: src/Rust
         run: |
           cargo build --release --target x86_64-unknown-linux-gnu
           cp ./target/x86_64-unknown-linux-gnu/release/update ./target/release/UpdateNix_x64
       - name: Build Rust (arm64)
-        working-directory: src/Rust
         env:
           CROSS_NuGetPackageVersion: ${{ steps.nbgv.outputs.NuGetPackageVersion }}
         run: |
@@ -98,7 +93,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rust-ubuntu-latest
-          path: src/Rust/target/release/UpdateNix*
+          path: target/release/UpdateNix*
       - name: Cancel workflow if failed
         uses: andymckay/cancel-action@0.4
         if: ${{ failure() }}
@@ -118,9 +113,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-build-${{ matrix.os }}"
-          workspaces: "src/Rust -> target"
       - name: Build Rust
-        working-directory: src/Rust
         run: |
           cargo build --release
           cp ./target/release/update ./target/release/UpdateMac
@@ -128,7 +121,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rust-${{ matrix.os }}
-          path: src/Rust/target/release/UpdateMac
+          path: target/release/UpdateMac
       - name: Cancel workflow if failed
         uses: andymckay/cancel-action@0.4
         if: ${{ failure() }}
@@ -179,12 +172,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/cache@v4
-        with:
-          path: ${{ github.workspace }}/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-nuget-
+      # - uses: actions/cache@v4
+      #   with:
+      #     path: ${{ github.workspace }}/.nuget/packages
+      #     key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-nuget-
       - name: Install FUSE
         run: |
           sudo add-apt-repository universe
@@ -206,7 +199,7 @@ jobs:
       - name: Download Rust Artifacts
         uses: actions/download-artifact@v4
         with:
-          path: src/Rust/target/release
+          path: target/release
           pattern: rust-*
           merge-multiple: true
       - name: Test Velopack.Tests
@@ -220,11 +213,10 @@ jobs:
         with:
           name: cross-${{ matrix.os }}
           path: test/artifacts/*
-      - name: Upload Coverage Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v4
         with:
-          name: coverage-dotnet-${{ matrix.os }}
-          path: ./test/*.xml
+          directory: ./test
       - uses: caesay/wait-artifact-action@494939e840383463b1686ce3624a8aab059c2c8b
         if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
         with:
@@ -260,7 +252,7 @@ jobs:
       - name: Download Rust Artifacts
         uses: actions/download-artifact@v4
         with:
-          path: src/Rust/target/release
+          path: target/release
           pattern: rust-*
           merge-multiple: true
       - name: Build .NET
@@ -278,29 +270,9 @@ jobs:
           name: packages
           path: build/Release/*nupkg
 
-  upload-coverage:
-    runs-on: ubuntu-latest
-    needs: [package, test-dotnet, test-rust-bins]
-    steps:
-      - name: Download Coverage Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: coverage-*
-          path: ./test
-      - name: Upload Coverage to Codecov
-        uses: codecov/codecov-action@v4
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        with:
-          directory: ./test
-          fail_ci_if_error: true
-      - uses: geekyeggo/delete-artifact@v5
-        with:
-          name: coverage-*
-
   release:
     runs-on: ubuntu-latest
-    needs: [package, test-dotnet, test-rust-bins]
+    needs: [package, test-dotnet, test-rust]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     steps:
       - name: Invoke Release Workflow
