@@ -27,15 +27,12 @@ public static class PathHelper
     public static string GetTestRootPath(params string[] names)
         => Path.Combine(new string[] { GetTestRoot() }.Concat(names).ToArray());
 
-    public static string GetRustSrcDir()
-        => Path.Combine(GetProjectDir(), "src", "Rust");
-
 #if DEBUG
     public static string GetRustBuildOutputDir()
-        => Path.Combine(GetRustSrcDir(), "target", "debug");
+        => Path.Combine(GetProjectDir(), "target", "debug");
 #else
     public static string GetRustBuildOutputDir()
-        => Path.Combine(GetRustSrcDir(), "target", "release");
+        => Path.Combine(GetProjectDir(), "target", "release");
 #endif
 
     public static string GetRustAsset(params string[] names)
