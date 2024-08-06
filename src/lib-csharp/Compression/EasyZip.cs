@@ -61,8 +61,10 @@ namespace Velopack.Compression
                     if (!Utility.IsFileInDirectory(absolute, destinationDirectoryName)) {
                         throw new IOException("IO_SymlinkTargetNotInDirectory");
                     }
+
                     SymbolicLink.Create(fileDestinationPath, absolute, true, true);
                 }
+
                 return;
             }
 
@@ -94,6 +96,7 @@ namespace Velopack.Compression
                 await DeterministicCreateFromDirectoryAsync(directoryToCompress, outputFile, compressionLevel, progress, cancelToken).ConfigureAwait(false);
             } catch {
                 try { File.Delete(outputFile); } catch { }
+
                 throw;
             }
         }
@@ -101,7 +104,8 @@ namespace Velopack.Compression
         private static char s_pathSeperator = '/';
         public static readonly DateTime ZipFormatMinDate = new DateTime(1980, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        private static async Task DeterministicCreateFromDirectoryAsync(string sourceDirectoryName, string destinationArchiveFileName, CompressionLevel compressionLevel,
+        private static async Task DeterministicCreateFromDirectoryAsync(string sourceDirectoryName, string destinationArchiveFileName,
+            CompressionLevel compressionLevel,
             Action<int> progress, CancellationToken cancelToken)
         {
             Encoding entryNameEncoding = Encoding.UTF8;
@@ -114,20 +118,19 @@ namespace Velopack.Compression
             long totalBytes = directoryInfo.EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length);
             long processedBytes = 0L;
 
-            var directories = directoryInfo
-                .EnumerateDirectories("*", SearchOption.AllDirectories)
-                .Concat(new[] { directoryInfo })
-                .OrderBy(f => f.FullName)
-                .ToArray();
+            var dirsToProcess = new Stack<DirectoryInfo>();
+            dirsToProcess.Push(directoryInfo);
 
-            foreach (var dir in directories) {
+            while (dirsToProcess.Count > 0) {
                 cancelToken.ThrowIfCancellationRequested();
+                var dir = dirsToProcess.Pop();
 
                 // if dir is a symlink, write it as a file containing path to target
                 if (SymbolicLink.Exists(dir.FullName)) {
                     if (!Utility.IsFileInDirectory(SymbolicLink.GetTarget(dir.FullName, relative: false), sourceDirectoryName)) {
                         throw new IOException("IO_SymlinkTargetNotInDirectory");
                     }
+
                     string entryName = EntryFromPath(dir.FullName, fullName.Length, dir.FullName.Length - fullName.Length);
                     string symlinkTarget = SymbolicLink.GetTarget(dir.FullName, relative: true)
                         .Replace(Path.DirectorySeparatorChar, s_pathSeperator) + s_pathSeperator;
@@ -135,6 +138,7 @@ namespace Velopack.Compression
                     using (var writer = new StreamWriter(entry.Open())) {
                         await writer.WriteAsync(symlinkTarget).ConfigureAwait(false);
                     }
+
                     continue;
                 }
 
@@ -146,7 +150,12 @@ namespace Velopack.Compression
                     continue;
                 }
 
-                // if none of the above, enumerate files and add them to the archive
+                // if none of the above, this is just a regular folder - so we'll enumerate dirs and add them to the search stack and
+                // enumerate files and add them to the archive
+                foreach (var subdir in dir.EnumerateDirectories("*", SearchOption.TopDirectoryOnly)) {
+                    dirsToProcess.Push(subdir);
+                }
+
                 var files = dir
                     .EnumerateFiles("*", SearchOption.TopDirectoryOnly)
                     .OrderBy(f => f.FullName)
@@ -163,12 +172,14 @@ namespace Velopack.Compression
                         if (!Utility.IsFileInDirectory(SymbolicLink.GetTarget(fileInfo.FullName, relative: false), sourceDirectoryName)) {
                             throw new IOException("IO_SymlinkTargetNotInDirectory");
                         }
+
                         string symlinkTarget = SymbolicLink.GetTarget(fileInfo.FullName, relative: true)
                             .Replace(Path.DirectorySeparatorChar, s_pathSeperator);
                         var entry = zipArchive.CreateEntry(entryName + SYMLINK_EXT);
                         using (var writer = new StreamWriter(entry.Open())) {
                             await writer.WriteAsync(symlinkTarget).ConfigureAwait(false);
                         }
+
                         continue;
                     }
 
