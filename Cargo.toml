@@ -3,7 +3,7 @@ resolver = "2"
 members = [
     "src/bins",
     "src/lib-rust",
-    "src/lib-cpp/generator"
+    # "src/lib-cpp/generator"
 ]
 
 [workspace.package]
