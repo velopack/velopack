@@ -1,4 +1,7 @@
-﻿namespace Velopack.Tests;
+﻿using System.IO.Compression;
+using Velopack.Compression;
+
+namespace Velopack.Tests;
 
 public class SymbolicLinkTests
 {
@@ -219,5 +222,46 @@ public class SymbolicLinkTests
         File.Create(Path.Combine(tempFolder, "AFile")).Close();
 
         Assert.Throws<IOException>(() => SymbolicLink.Delete(Path.Combine(tempFolder, "AFile")));
+    }
+
+    [Fact]
+    public async Task ComplexSymlinkDirGetsZippedCorrectly()
+    {
+        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        var temp = new DirectoryInfo(tempFolder);
+        var versions = temp.CreateSubdirectory("Versions");
+        var a = versions.CreateSubdirectory("A");
+        var resources = a.CreateSubdirectory("Resources");
+        File.WriteAllText(Path.Combine(resources.FullName, "Info.plist"), "Hello, Resources!");
+        File.WriteAllText(Path.Combine(a.FullName, "App"), "Hello, App!");
+        SymbolicLink.Create(Path.Combine(versions.FullName, "Current"), a.FullName, false, true);
+        SymbolicLink.Create(Path.Combine(temp.FullName, "Resources"), Path.Combine(versions.FullName, "Current", "Resources"), false, true);
+        SymbolicLink.Create(Path.Combine(temp.FullName, "App"), Path.Combine(versions.FullName, "Current", "App"), false, true);
+
+        using var _2 = Utility.GetTempDirectory(out var tempOutput);
+        var output = Path.Combine(tempOutput, "output.zip");
+
+        await EasyZip.CreateZipFromDirectoryAsync(NullLogger.Instance, output, tempFolder);
+        ZipFile.ExtractToDirectory(output, tempOutput);
+
+        var appSym = Path.Combine(tempOutput, "App.__symlink");
+        Assert.True(File.Exists(appSym));
+        Assert.Equal("Versions/Current/App", File.ReadAllText(appSym));
+        
+        var resSym = Path.Combine(tempOutput, "Resources.__symlink");
+        Assert.True(File.Exists(resSym));
+        Assert.Equal("Versions/Current/Resources/", File.ReadAllText(resSym));
+        
+        Assert.True(Directory.Exists(Path.Combine(tempOutput, "Versions")));
+        Assert.False(Directory.Exists(Path.Combine(tempOutput, "App")));
+        Assert.False(Directory.Exists(Path.Combine(tempOutput, "Resources")));
+        
+        Assert.True(Directory.Exists(Path.Combine(tempOutput, "Versions", "A")));
+        Assert.False(Directory.Exists(Path.Combine(tempOutput, "Versions", "Current")));
+        Assert.False(File.Exists(Path.Combine(tempOutput, "Versions", "Current")));
+        
+        var currentSym = Path.Combine(tempOutput, "Versions", "Current.__symlink");
+        Assert.True(File.Exists(currentSym));
+        Assert.Equal("A/", File.ReadAllText(currentSym));
     }
 }
