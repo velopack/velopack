@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "src/bins",
     "src/lib-rust",
+    "src/lib-node/crates/velopack_nodeffi",
     # "src/lib-cpp/generator"
 ]
 
