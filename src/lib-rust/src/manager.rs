@@ -1,4 +1,4 @@
-use std::{fs, process::Command as Process, process::exit};
+use std::{fs, process::{exit, Command as Process}, rc::Rc, sync::mpsc::Sender};
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
@@ -91,26 +91,24 @@ pub struct UpdateOptions {
 }
 
 /// Provides functionality for checking for updates, downloading updates, and applying updates to the current application.
-pub struct UpdateManager<T>
-    where
-        T: UpdateSource,
+pub struct UpdateManager<'a>
 {
     allow_version_downgrade: bool,
     explicit_channel: Option<String>,
-    source: T,
+    source: Rc<Box<dyn UpdateSource + 'a>>,
     paths: VelopackLocator,
 }
 
-impl<T: UpdateSource> Clone for UpdateManager<T> {
-    fn clone(&self) -> Self {
-        UpdateManager {
-            allow_version_downgrade: self.allow_version_downgrade,
-            explicit_channel: self.explicit_channel.clone(),
-            source: self.source.clone(),
-            paths: self.paths.clone(),
-        }
-    }
-}
+// impl Clone for UpdateManager {
+//     fn clone(&self) -> Self {
+//         UpdateManager {
+//             allow_version_downgrade: self.allow_version_downgrade,
+//             explicit_channel: self.explicit_channel.clone(),
+//             source: self.source.clone(),
+//             paths: self.paths.clone(),
+//         }
+//     }
+// }
 
 /// Arguments to pass to the Update.exe process when restarting the application after applying updates.
 pub enum RestartArgs<'a> {
@@ -145,7 +143,7 @@ pub enum UpdateCheck {
     UpdateAvailable(UpdateInfo),
 }
 
-impl<T: UpdateSource> UpdateManager<T> {
+impl<'a> UpdateManager<'a> {
     /// Create a new UpdateManager instance using the specified UpdateSource.
     /// This will return an error if the application is not yet installed.
     /// ## Example:
@@ -155,12 +153,12 @@ impl<T: UpdateSource> UpdateManager<T> {
     /// let source = sources::HttpSource::new("https://the.place/you-host/updates");
     /// let um = UpdateManager::new(source, None);
     /// ```
-    pub fn new(source: T, options: Option<UpdateOptions>) -> Result<UpdateManager<T>, Error> {
+    pub fn new<T: UpdateSource + 'a>(source: T, options: Option<UpdateOptions>) -> Result<UpdateManager::<'a>, Error> {
         Ok(UpdateManager {
             paths: locator::auto_locate()?,
             allow_version_downgrade: options.as_ref().map(|f| f.AllowVersionDowngrade).unwrap_or(false),
             explicit_channel: options.as_ref().map(|f| f.ExplicitChannel.clone()).unwrap_or(None),
-            source,
+            source: Rc::new(Box::new(source)),
         })
     }
 
@@ -232,7 +230,6 @@ impl<T: UpdateSource> UpdateManager<T> {
 
         debug!("Latest remote release: {} ({}).", remote_asset.FileName, remote_version.to_string());
 
-
         if remote_version > app.version {
             info!("Found newer remote release available ({} -> {}).", app.version, remote_version);
             Ok(UpdateCheck::UpdateAvailable(UpdateInfo { TargetFullRelease: remote_asset, IsDowngrade: false }))
@@ -260,13 +257,13 @@ impl<T: UpdateSource> UpdateManager<T> {
         async_std::task::spawn_blocking(move || self_clone.check_for_updates())
     }
 
-    /// Downloads the specified updates to the local app packages directory. If the update contains delta packages and the delta feature is enabled
-    /// this method will attempt to unpack and prepare them. If there is no delta update available, or there is an error preparing delta
-    /// packages, this method will fall back to downloading the full version of the update. This function will acquire a global update lock
-    /// so may fail if there is already another update operation in progress.
-    pub fn download_updates<A>(&self, update: &UpdateInfo, progress: A) -> Result<(), Error>
-        where
-            A: FnMut(i16),
+    /// Downloads the specified updates to the local app packages directory. Progress is reported back to the caller via an optional Sender.
+    /// This function will acquire a global update lock so may fail if there is already another update operation in progress.
+    /// - If the update contains delta packages and the delta feature is enabled
+    ///   this method will attempt to unpack and prepare them. 
+    /// - If there is no delta update available, or there is an error preparing delta
+    ///   packages, this method will fall back to downloading the full version of the update. 
+    pub fn download_updates(&self, update: &UpdateInfo, progress: Option<Sender<i16>>) -> Result<(), Error>
     {
         let name = &update.TargetFullRelease.FileName;
         let packages_dir = &self.paths.packages_dir;
@@ -321,25 +318,17 @@ impl<T: UpdateSource> UpdateManager<T> {
     }
 
     #[cfg(feature = "async")]
-    /// Downloads the specified updates to the local app packages directory. If the update contains delta packages and the delta feature is enabled
-    /// this method will attempt to unpack and prepare them. If there is no delta update available, or there is an error preparing delta
-    /// packages, this method will fall back to downloading the full version of the update. This function will acquire a global update lock
-    /// so may fail if there is already another update operation in progress.
+    /// Downloads the specified updates to the local app packages directory. Progress is reported back to the caller via an optional Sender.
+    /// This function will acquire a global update lock so may fail if there is already another update operation in progress.
+    /// - If the update contains delta packages and the delta feature is enabled
+    ///   this method will attempt to unpack and prepare them. 
+    /// - If there is no delta update available, or there is an error preparing delta
+    ///   packages, this method will fall back to downloading the full version of the update. 
     pub fn download_updates_async(&self, update: &UpdateInfo, progress: Option<Sender<i16>>) -> JoinHandle<Result<(), Error>>
-        where
-            T: 'static,
     {
         let self_clone = self.clone();
         let update_clone = update.clone();
-        if let Some(p) = progress {
-            async_std::task::spawn_blocking(move || {
-                self_clone.download_updates(&update_clone, move |x| {
-                    let _ = p.try_send(x);
-                })
-            })
-        } else {
-            async_std::task::spawn_blocking(move || self_clone.download_updates(&update_clone, |_| {}))
-        }
+        async_std::task::spawn_blocking(move || self_clone.download_updates(&update_clone, progress))
     }
 
     /// This will exit your app immediately, apply updates, and then optionally relaunch the app using the specified

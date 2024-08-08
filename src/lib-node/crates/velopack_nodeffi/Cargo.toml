@@ -1,7 +1,7 @@
 [package]
-name = "veloz"
+name = "velopack_nodeffi"
 version = "0.1.0"
-license = "ISC"
+license = "MIT"
 edition = "2021"
 exclude = ["index.node"]
 
@@ -12,3 +12,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 neon = "1"
+velopack = { path = "../../../lib-rust" }
