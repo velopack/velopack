@@ -133,6 +133,9 @@ public static class Exe
             process.Kill();
             ct.ThrowIfCancellationRequested();
         }
+        
+        // need to call this once more to wait for the streams to finish. if WaitForExit is called with a timeout, the streams will not be fully read.
+        process.WaitForExit(); 
 
         return (process.ExitCode, sOut.ToString().Trim(), sErr.ToString().Trim());
     }
