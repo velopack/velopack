@@ -1,17 +1,19 @@
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::mpsc::Sender,
+};
 
 use crate::*;
 
 /// Abstraction for finding and downloading updates from a package source / repository.
 /// An implementation may copy a file from a local repository, download from a web address,
 /// or even use third party services and parse proprietary data to produce a package feed.
-pub trait UpdateSource: Clone + Send + Sync {
+pub trait UpdateSource: Send + Sync {
     /// Retrieve the list of available remote releases from the package source. These releases
     /// can subsequently be downloaded with download_release_entry.
     fn get_release_feed(&self, channel: &str, app: &manifest::Manifest) -> Result<VelopackAssetFeed, Error>;
     /// Download the specified VelopackAsset to the provided local file path.
-    fn download_release_entry<A>(&self, asset: &VelopackAsset, local_file: &str, progress: A) -> Result<(), Error>
-        where A: FnMut(i16);
+    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress_sender: Option<Sender<i16>>) -> Result<(), Error>;
 }
 
 #[derive(Clone)]
@@ -44,15 +46,17 @@ impl UpdateSource for HttpSource {
         Ok(feed)
     }
 
-    fn download_release_entry<A>(&self, asset: &VelopackAsset, local_file: &str, progress: A) -> Result<(), Error>
-        where A: FnMut(i16),
-    {
+    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
         let path = self.url.trim_end_matches('/').to_owned() + "/";
         let url = url::Url::parse(&path)?;
         let asset_url = url.join(&asset.FileName)?;
 
         info!("About to download from URL '{}' to file '{}'", asset_url, local_file);
-        download::download_url_to_file(asset_url.as_str(), local_file, progress)?;
+        download::download_url_to_file(asset_url.as_str(), local_file, move |p| {
+            if let Some(progress_sender) = &progress_sender {
+                let _ = progress_sender.send(p);
+            }
+        })?;
         Ok(())
     }
 }
@@ -83,14 +87,16 @@ impl UpdateSource for FileSource {
         Ok(feed)
     }
 
-    fn download_release_entry<A>(&self, asset: &VelopackAsset, local_file: &str, mut progress: A) -> Result<(), Error>
-        where A: FnMut(i16),
-    {
+    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
         let asset_path = self.path.join(&asset.FileName);
         info!("About to copy from file '{}' to file '{}'", asset_path.display(), local_file);
-        progress(50);
+        if let Some(progress_sender) = &progress_sender {
+            let _ = progress_sender.send(50);
+        }
         std::fs::copy(asset_path, local_file)?;
-        progress(100);
+        if let Some(progress_sender) = &progress_sender {
+            let _ = progress_sender.send(100);
+        }
         Ok(())
     }
 }
