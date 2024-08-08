@@ -12,7 +12,7 @@ public static class Exe
             if (VelopackRuntimeInfo.IsWindows) {
                 var output = InvokeAndThrowIfNonZero("where", new[] { binaryName }, null);
                 if (String.IsNullOrWhiteSpace(output) || !File.Exists(output))
-                    throw new ProcessFailedException("", "");
+                    throw new ProcessFailedException("", "", "");
             } else if (VelopackRuntimeInfo.IsOSX) {
                 InvokeAndThrowIfNonZero("command", new[] { "-v", binaryName }, null);
             } else if (VelopackRuntimeInfo.IsLinux) {
@@ -65,7 +65,7 @@ public static class Exe
         process.WaitForExit();
 
         var stdout = Utility.Retry(() => File.ReadAllText(outputFile).Trim(), 10, 1000);
-        var result = (process.ExitCode, stdout, command);
+        var result = (process.ExitCode, stdout, "", command);
         ProcessFailedException.ThrowIfNonZero(result);
         return result.Item2;
     }
@@ -103,7 +103,7 @@ public static class Exe
         return result.StdOutput;
     }
 
-    public static (int ExitCode, string StdOutput) InvokeProcess(ProcessStartInfo psi, CancellationToken ct)
+    public static (int ExitCode, string StdOutput, string StdErr) InvokeProcess(ProcessStartInfo psi, CancellationToken ct)
     {
         var process = new Process();
         process.StartInfo = psi;
@@ -134,11 +134,10 @@ public static class Exe
             ct.ThrowIfCancellationRequested();
         }
 
-        var all = (sOut.ToString().Trim()) + Environment.NewLine + (sOut.ToString().Trim());
-        return (process.ExitCode, all.Trim());
+        return (process.ExitCode, sOut.ToString().Trim(), sErr.ToString().Trim());
     }
 
-    public static (int ExitCode, string StdOutput, string Command) InvokeProcess(string fileName, IEnumerable<string> args, string workingDirectory, CancellationToken ct = default,
+    public static (int ExitCode, string StdOutput, string StdErr, string Command) InvokeProcess(string fileName, IEnumerable<string> args, string workingDirectory, CancellationToken ct = default,
         IDictionary<string, string> envVar = null)
     {
         var psi = CreateProcessStartInfo(fileName, workingDirectory);
@@ -150,7 +149,7 @@ public static class Exe
 
         psi.AppendArgumentListSafe(args, out var argString);
         var p = InvokeProcess(psi, ct);
-        return (p.ExitCode, p.StdOutput, $"{fileName} {argString}");
+        return (p.ExitCode, p.StdOutput, p.StdErr, $"{fileName} {argString}");
     }
 
     public static ProcessStartInfo CreateProcessStartInfo(string fileName, string workingDirectory)
