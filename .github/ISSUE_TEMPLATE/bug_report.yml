@@ -6,10 +6,6 @@ body:
     attributes:
       value: |
         Thanks for taking the time to fill out this bug report!
-
-  - type: markdown
-    attributes:
-      value: |
         > [!IMPORTANT]
         > If you are not using the latest version of Velopack, please update to the latest version and see if the issue persists before filing a bug report.
 
@@ -43,9 +39,9 @@ body:
   - type: input
     id: lib_version
     attributes:
-      label: Library / Compiler Version
-      description: Please provide the version of the library (eg. Velopack Nuget v0.0.583) or compiler (eg. dotnet 8.0) you are using.
-      placeholder: Velopack Nuget v0.0.583, dotnet 8.0
+      label: Library Version
+      description: Please provide the version of the library you are using and the package repository you got it from.
+      placeholder: Nuget v0.0.583, crates.io v0.0.583, etc.
     validations:
       required: true
 
