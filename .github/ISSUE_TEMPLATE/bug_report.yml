@@ -7,6 +7,12 @@ body:
       value: |
         Thanks for taking the time to fill out this bug report!
 
+  - type: markdown
+    attributes:
+      value: |
+        > [!IMPORTANT]
+        > If you are not using the latest version of Velopack, please update to the latest version and see if the issue persists before filing a bug report.
+
   - type: input
     id: os_version
     attributes:
@@ -43,11 +49,6 @@ body:
     validations:
       required: true
 
-  - type: markdown
-    attributes:
-      value: |
-        ***Note, if you are not using the latest version of Velopack, please update to the latest version and see if the issue persists before filing a bug report.***
-
   - type: textarea
     id: what-happened
     attributes:
@@ -63,7 +64,6 @@ body:
       label: Relevant log output
       description: |
         Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
-        Please check your logs before submission to ensure sensitive information is redacted. You should provide file logs produced
-        by Velopack binaries themselves (eg. [Velopack.log](https://docs.velopack.io/troubleshooting/debugging#logging-in-the-velopack-binaries))
-        as well as any logs produced by the [Velopack library](https://docs.velopack.io/troubleshooting/debugging#logging-updatemanager) in your app.
+        Please check your logs before submission to ensure sensitive information is redacted. 
+        You should provide file logs produced by Velopack binaries themselves (eg. [Velopack.log](https://docs.velopack.io/troubleshooting/debugging#logging-in-the-velopack-binaries)) as well as any logs produced by the [Velopack library](https://docs.velopack.io/troubleshooting/debugging#logging-updatemanager) in your app.
       render: shell
