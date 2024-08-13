@@ -6,7 +6,6 @@ use std::{fs, path::Path, path::PathBuf};
 use tempfile::tempdir;
 use velopack_bins::*;
 
-use velopack_bins::logging::trace_logger;
 #[cfg(target_os = "windows")]
 use winsafe::{self as w, co};
 
@@ -14,7 +13,6 @@ use winsafe::{self as w, co};
 #[test]
 pub fn test_install_apply_uninstall() {
     dialogs::set_silent(true);
-    trace_logger();
 
     let fixtures = find_fixtures();
 

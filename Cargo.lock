@@ -2050,6 +2050,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c06d3da6113f116aaee68e4d601191614c9053067f9ab7f6edbcb161237daa54"
 
 [[package]]
+name = "ts-rs"
+version = "9.0.1"
+source = "git+https://github.com/Aleph-Alpha/ts-rs.git?branch=cli#7c9643e16038dd82e8ae2faf7914cdda6941b0a2"
+dependencies = [
+ "lazy_static",
+ "thiserror",
+ "ts-rs-macros",
+]
+
+[[package]]
+name = "ts-rs-macros"
+version = "9.0.1"
+source = "git+https://github.com/Aleph-Alpha/ts-rs.git?branch=cli#7c9643e16038dd82e8ae2faf7914cdda6941b0a2"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.72",
+ "termcolor",
+]
+
+[[package]]
 name = "unicode-bidi"
 version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2126,6 +2147,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "ts-rs",
  "ureq",
  "url",
  "xml",
@@ -2193,6 +2215,8 @@ name = "velopack_nodeffi"
 version = "0.1.0"
 dependencies = [
  "neon",
+ "serde_json",
+ "ts-rs",
  "velopack",
 ]
 
