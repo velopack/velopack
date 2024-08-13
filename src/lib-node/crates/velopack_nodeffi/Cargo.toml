@@ -4,14 +4,16 @@ version = "0.1.0"
 license = "MIT"
 edition = "2021"
 exclude = ["index.node"]
+publish = false
 
 [lib]
 crate-type = ["cdylib"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 neon = "1"
 serde_json = "1"
-ts-rs = { git = "https://github.com/Aleph-Alpha/ts-rs.git", branch = "cli" }
+velopack = { path = "../../../lib-rust" }
+
+[build-dependencies]
+ts-rs = "9"
 velopack = { path = "../../../lib-rust" }

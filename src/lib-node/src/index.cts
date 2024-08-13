@@ -1,4 +1,8 @@
 import * as addon from './load.cjs';
+import { UpdateInfo } from './bindings/UpdateInfo';
+import { UpdateOptions } from './bindings/UpdateOptions';
+
+export { UpdateInfo, UpdateOptions };
 
 type UpdateManagerOpaque = {};
 declare module "./load.cjs" {
@@ -11,31 +15,6 @@ declare module "./load.cjs" {
   function js_check_for_updates_async(um: UpdateManagerOpaque): Promise<string | null>;
   function js_download_update_async(um: UpdateManagerOpaque, update: string, progress: (perc: number) => void, ignoreDeltas: boolean): Promise<void>;
   function js_wait_then_apply_update_async(um: UpdateManagerOpaque, update?: string): Promise<void>;
-}
-
-export type UpdateOptions = {
-  AllowVersionDowngrade: boolean;
-  ExplicitChannel: string;
-}
-
-/** An individual Velopack asset, could refer to an asset on-disk or in a remote package feed. */
-export type VelopackAsset = {
-  FileName: string;
-  Version: string;
-  NotesHtml: string;
-  NotesMarkdown: string;
-  PackageId: string;
-  SHA1: string;
-  SHA256: string;
-  Size: number;
-  Type: "Full" | "Delta";
-}
-
-export type UpdateInfo = {
-  BaseRelease: VelopackAsset;
-  DeltasToTarget: VelopackAsset[];
-  IsDowngrade: boolean;
-  TargetFullRelease: VelopackAsset;
 }
 
 export class UpdateManager {
