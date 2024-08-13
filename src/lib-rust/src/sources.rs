@@ -14,6 +14,54 @@ pub trait UpdateSource: Send + Sync {
     fn get_release_feed(&self, channel: &str, app: &manifest::Manifest) -> Result<VelopackAssetFeed, Error>;
     /// Download the specified VelopackAsset to the provided local file path.
     fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress_sender: Option<Sender<i16>>) -> Result<(), Error>;
+    /// Clone the source to create a new lifetime.
+    fn clone_boxed(&self) -> Box<dyn UpdateSource>;
+}
+
+impl Clone for Box<dyn UpdateSource> {
+    fn clone(&self) -> Self {
+        self.clone_boxed()
+    }
+}
+
+#[derive(Clone)]
+/// Automatically delegates to the appropriate source based on the provided input string. If the input is a local path,
+/// it will use a FileSource. If the input is a URL, it will use an HttpSource.
+pub struct AutoSource {
+    source: Box<dyn UpdateSource>,
+}
+
+impl AutoSource {
+    /// Create a new AutoSource with the specified input string.
+    pub fn new(input: &str) -> AutoSource {
+        let source: Box<dyn UpdateSource> = if Self::is_http_url(input) {
+            Box::new(HttpSource::new(input))
+        } else {
+            Box::new(FileSource::new(input))
+        };
+        AutoSource { source }
+    }
+
+    fn is_http_url(url: &str) -> bool {
+        match url::Url::parse(url) {
+            Ok(url) => url.scheme().eq_ignore_ascii_case("http") || url.scheme().eq_ignore_ascii_case("https"),
+            _ => false,
+        }
+    }
+}
+
+impl UpdateSource for AutoSource {
+    fn get_release_feed(&self, channel: &str, app: &manifest::Manifest) -> Result<VelopackAssetFeed, Error> {
+        self.source.get_release_feed(channel, app)
+    }
+
+    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
+        self.source.download_release_entry(asset, local_file, progress_sender)
+    }
+
+    fn clone_boxed(&self) -> Box<dyn UpdateSource> {
+        self.source.clone_boxed()
+    }
 }
 
 #[derive(Clone)]
@@ -59,6 +107,10 @@ impl UpdateSource for HttpSource {
         })?;
         Ok(())
     }
+
+    fn clone_boxed(&self) -> Box<dyn UpdateSource> {
+        Box::new(self.clone())
+    }
 }
 
 #[derive(Clone)]
@@ -98,5 +150,9 @@ impl UpdateSource for FileSource {
             let _ = progress_sender.send(100);
         }
         Ok(())
+    }
+
+    fn clone_boxed(&self) -> Box<dyn UpdateSource> {
+        Box::new(self.clone())
     }
 }

@@ -1,6 +1,10 @@
-use std::{fs, process::{exit, Command as Process}, rc::Rc, sync::mpsc::Sender};
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
+use std::{
+    fs,
+    process::{exit, Command as Process},
+    sync::mpsc::Sender,
+};
 
 #[cfg(feature = "async")]
 use async_std::channel::Sender;
@@ -9,7 +13,11 @@ use async_std::task::JoinHandle;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use crate::{Error, locator::{self, VelopackLocator}, sources::UpdateSource};
+use crate::{
+    locator::{self, VelopackLocator},
+    sources::UpdateSource,
+    Error,
+};
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -28,7 +36,7 @@ impl VelopackAssetFeed {
 }
 
 #[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, ts_rs::TS)]
 #[serde(default)]
 /// An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
 pub struct VelopackAsset {
@@ -53,7 +61,7 @@ pub struct VelopackAsset {
 }
 
 #[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, ts_rs::TS)]
 #[serde(default)]
 /// Holds information about the current version and pending updates, such as how many there are, and access to release notes.
 pub struct UpdateInfo {
@@ -71,8 +79,9 @@ impl AsRef<VelopackAsset> for UpdateInfo {
     }
 }
 
-#[derive(Clone)]
 #[allow(non_snake_case)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, ts_rs::TS)]
+#[serde(default)]
 /// Options to customise the behaviour of UpdateManager.
 pub struct UpdateOptions {
     /// Allows UpdateManager to update to a version that's lower than the current version (i.e. downgrading).
@@ -91,11 +100,11 @@ pub struct UpdateOptions {
 }
 
 /// Provides functionality for checking for updates, downloading updates, and applying updates to the current application.
-pub struct UpdateManager<'a>
-{
+#[derive(Clone)]
+pub struct UpdateManager {
     allow_version_downgrade: bool,
     explicit_channel: Option<String>,
-    source: Rc<Box<dyn UpdateSource + 'a>>,
+    source: Box<dyn UpdateSource>,
     paths: VelopackLocator,
 }
 
@@ -143,7 +152,7 @@ pub enum UpdateCheck {
     UpdateAvailable(UpdateInfo),
 }
 
-impl<'a> UpdateManager<'a> {
+impl UpdateManager {
     /// Create a new UpdateManager instance using the specified UpdateSource.
     /// This will return an error if the application is not yet installed.
     /// ## Example:
@@ -153,12 +162,12 @@ impl<'a> UpdateManager<'a> {
     /// let source = sources::HttpSource::new("https://the.place/you-host/updates");
     /// let um = UpdateManager::new(source, None);
     /// ```
-    pub fn new<T: UpdateSource + 'a>(source: T, options: Option<UpdateOptions>) -> Result<UpdateManager::<'a>, Error> {
+    pub fn new<T: UpdateSource>(source: T, options: Option<UpdateOptions>) -> Result<UpdateManager, Error> {
         Ok(UpdateManager {
             paths: locator::auto_locate()?,
             allow_version_downgrade: options.as_ref().map(|f| f.AllowVersionDowngrade).unwrap_or(false),
             explicit_channel: options.as_ref().map(|f| f.ExplicitChannel.clone()).unwrap_or(None),
-            source: Rc::new(Box::new(source)),
+            source: source.clone_boxed(),
         })
     }
 
@@ -185,8 +194,8 @@ impl<'a> UpdateManager<'a> {
     #[cfg(feature = "async")]
     /// Get a list of available remote releases from the package source.
     pub fn get_release_feed_async(&self) -> JoinHandle<Result<VelopackAssetFeed, Error>>
-        where
-            T: 'static,
+    where
+        T: 'static,
     {
         let self_clone = self.clone();
         async_std::task::spawn_blocking(move || self_clone.get_release_feed())
@@ -251,7 +260,8 @@ impl<'a> UpdateManager<'a> {
     /// Checks for updates, returning None if there are none available. If there are updates available, this method will return an
     /// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
     pub fn check_for_updates_async(&self) -> JoinHandle<Result<UpdateCheck, Error>>
-        where T: 'static,
+    where
+        T: 'static,
     {
         let self_clone = self.clone();
         async_std::task::spawn_blocking(move || self_clone.check_for_updates())
@@ -260,11 +270,10 @@ impl<'a> UpdateManager<'a> {
     /// Downloads the specified updates to the local app packages directory. Progress is reported back to the caller via an optional Sender.
     /// This function will acquire a global update lock so may fail if there is already another update operation in progress.
     /// - If the update contains delta packages and the delta feature is enabled
-    ///   this method will attempt to unpack and prepare them. 
+    ///   this method will attempt to unpack and prepare them.
     /// - If there is no delta update available, or there is an error preparing delta
-    ///   packages, this method will fall back to downloading the full version of the update. 
-    pub fn download_updates(&self, update: &UpdateInfo, progress: Option<Sender<i16>>) -> Result<(), Error>
-    {
+    ///   packages, this method will fall back to downloading the full version of the update.
+    pub fn download_updates(&self, update: &UpdateInfo, progress: Option<Sender<i16>>) -> Result<(), Error> {
         let name = &update.TargetFullRelease.FileName;
         let packages_dir = &self.paths.packages_dir;
         fs::create_dir_all(packages_dir)?;
@@ -321,11 +330,10 @@ impl<'a> UpdateManager<'a> {
     /// Downloads the specified updates to the local app packages directory. Progress is reported back to the caller via an optional Sender.
     /// This function will acquire a global update lock so may fail if there is already another update operation in progress.
     /// - If the update contains delta packages and the delta feature is enabled
-    ///   this method will attempt to unpack and prepare them. 
+    ///   this method will attempt to unpack and prepare them.
     /// - If there is no delta update available, or there is an error preparing delta
-    ///   packages, this method will fall back to downloading the full version of the update. 
-    pub fn download_updates_async(&self, update: &UpdateInfo, progress: Option<Sender<i16>>) -> JoinHandle<Result<(), Error>>
-    {
+    ///   packages, this method will fall back to downloading the full version of the update.
+    pub fn download_updates_async(&self, update: &UpdateInfo, progress: Option<Sender<i16>>) -> JoinHandle<Result<(), Error>> {
         let self_clone = self.clone();
         let update_clone = update.clone();
         async_std::task::spawn_blocking(move || self_clone.download_updates(&update_clone, progress))

@@ -1,3 +1,10 @@
+
+
+installing ts tool: cargo install --git https://github.com/Aleph-Alpha/ts-rs.git --branch cli cargo-ts
+
+
+
+
 # veloz
 
 This project was bootstrapped by [create-neon](https://www.npmjs.com/package/create-neon).
