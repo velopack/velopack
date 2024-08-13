@@ -4,18 +4,6 @@ use std::thread;
 use velopack::sources::*;
 use velopack::*;
 
-#[derive(ts_rs::TS)]
-#[ts(as = "T")]
-pub struct Wrapper<T: ts_rs::TS>(T);
-
-#[derive(ts_rs::TS)]
-#[ts(export, export_to = "../../../bindings/")]
-#[allow(dead_code)]
-struct TsBindings {
-    pub t1: UpdateInfo,
-    pub t2: UpdateOptions,
-}
-
 struct UpdateManagerWrapper {
     manager: UpdateManager,
 }
@@ -32,7 +20,7 @@ fn js_new_update_manager(mut cx: FunctionContext) -> JsResult<BoxedUpdateManager
         let new_opt = serde_json::from_str::<UpdateOptions>(&arg_options).or_else(|e| cx.throw_error(e.to_string()))?;
         options = Some(new_opt);
     }
-
+    
     let source = AutoSource::new(&arg_source);
     let manager = UpdateManager::new(source, options).or_else(|e| cx.throw_error(e.to_string()))?;
     let wrapper = UpdateManagerWrapper { manager };
