@@ -5,7 +5,7 @@
   "main": "./lib/index.cjs",
   "scripts": {
     "test": "npm run debug && jest --silent=false",
-    "debug": "tsc && cargo build && neon dist -f ../../target/debug/velopack_nodeffi.dll",
+    "debug": "tsc -p tsconfig.build.json && cargo build && neon dist -f ../../target/debug/velopack_nodeffi.dll",
     "clean": "cargo clean && del-cli platforms/**/index.node index.node lib"
   },
   "author": "Velopack Ltd, Caelan Sayler",
