@@ -1,24 +1,15 @@
 {
-  "name": "veloz",
+  "name": "velopack",
   "version": "0.1.0",
   "description": "",
   "main": "./lib/index.cjs",
   "scripts": {
-    "test": "tsc &&cargo test",
-    "cargo-build": "tsc &&cargo build --message-format=json > cargo.log",
-    "cross-build": "tsc &&cross build --message-format=json > cross.log",
-    "postcargo-build": "neon dist < cargo.log",
-    "postcross-build": "neon dist -m /target < cross.log",
-    "debug": "npm run cargo-build --",
-    "build": "npm run cargo-build -- --release",
-    "cross": "npm run cross-build -- --release",
-    "prepack": "tsc &&neon update",
-    "version": "neon bump --binaries platforms && git add .",
-    "release": "gh workflow run release.yml -f dryrun=false -f version=patch",
-    "dryrun": "gh workflow run publish.yml -f dryrun=true"
+    "test": "npm run debug && jest --silent=false",
+    "debug": "tsc && cargo build && neon dist -f ../../target/debug/velopack_nodeffi.dll",
+    "clean": "cargo clean && del-cli platforms/**/index.node index.node lib"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Velopack Ltd, Caelan Sayler",
+  "license": "MIT",
   "exports": {
     ".": {
       "import": {
@@ -44,10 +35,20 @@
   "devDependencies": {
     "@neon-rs/cli": "^0.1.73",
     "@tsconfig/node20": "^20.1.4",
+    "@types/jest": "^29.5.12",
     "@types/node": "^20.11.16",
+    "del-cli": "^5.1.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
     "typescript": "^5.3.3"
   },
   "dependencies": {
     "@neon-rs/load": "^0.1.73"
+  },
+  "optionalDependencies": {
+    "@velopack/darwin-arm64": "0.1.0",
+    "@velopack/darwin-x64": "0.1.0",
+    "@velopack/linux-x64-gnu": "0.1.0",
+    "@velopack/win32-x64-msvc": "0.1.0"
   }
 }

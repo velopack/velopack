@@ -1,11 +1,11 @@
-import * as addon from './load.cjs';
-import { UpdateInfo } from './bindings/UpdateInfo';
-import { UpdateOptions } from './bindings/UpdateOptions';
+import * as addon from './load';
+import type { UpdateInfo } from './bindings/UpdateInfo';
+import type { UpdateOptions } from './bindings/UpdateOptions';
 
 export { UpdateInfo, UpdateOptions };
 
 type UpdateManagerOpaque = {};
-declare module "./load.cjs" {
+declare module "./load" {
   function js_new_update_manager(urlOrPath: string, options?: string): UpdateManagerOpaque;
   function js_get_current_version(um: UpdateManagerOpaque): string;
   // function js_get_app_id(um: UpdateManagerOpaque): string;
