@@ -2216,6 +2216,7 @@ name = "velopack_nodeffi"
 version = "0.1.0"
 dependencies = [
  "neon",
+ "semver",
  "serde_json",
  "ts-rs",
  "velopack",

@@ -36,7 +36,8 @@ impl VelopackAssetFeed {
 }
 
 #[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug, Clone, Default, ts_rs::TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[cfg_attr(feature = "typescript", derive(ts_rs::TS))]
 #[serde(default)]
 /// An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
 pub struct VelopackAsset {
@@ -61,7 +62,8 @@ pub struct VelopackAsset {
 }
 
 #[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug, Clone, Default, ts_rs::TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[cfg_attr(feature = "typescript", derive(ts_rs::TS))]
 #[serde(default)]
 /// Holds information about the current version and pending updates, such as how many there are, and access to release notes.
 pub struct UpdateInfo {
@@ -80,7 +82,8 @@ impl AsRef<VelopackAsset> for UpdateInfo {
 }
 
 #[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug, Clone, Default, ts_rs::TS)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[cfg_attr(feature = "typescript", derive(ts_rs::TS))]
 #[serde(default)]
 /// Options to customise the behaviour of UpdateManager.
 pub struct UpdateOptions {
@@ -106,40 +109,6 @@ pub struct UpdateManager {
     explicit_channel: Option<String>,
     source: Box<dyn UpdateSource>,
     paths: VelopackLocator,
-}
-
-// impl Clone for UpdateManager {
-//     fn clone(&self) -> Self {
-//         UpdateManager {
-//             allow_version_downgrade: self.allow_version_downgrade,
-//             explicit_channel: self.explicit_channel.clone(),
-//             source: self.source.clone(),
-//             paths: self.paths.clone(),
-//         }
-//     }
-// }
-
-/// Arguments to pass to the Update.exe process when restarting the application after applying updates.
-pub enum RestartArgs<'a> {
-    /// No arguments to pass to the restart process.
-    None,
-    /// Arguments to pass to the restart process, as borrowed strings.
-    Some(Vec<&'a str>),
-    /// Arguments to pass to the restart process, as owned strings.
-    SomeOwned(Vec<String>),
-}
-
-impl<'a> IntoIterator for RestartArgs<'a> {
-    type Item = String;
-    type IntoIter = std::vec::IntoIter<String>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        match self {
-            RestartArgs::None => Vec::new().into_iter(),
-            RestartArgs::Some(args) => args.into_iter().map(|s| s.to_string()).collect::<Vec<String>>().into_iter(),
-            RestartArgs::SomeOwned(args) => args.into_iter().collect::<Vec<String>>().into_iter(),
-        }
-    }
 }
 
 /// Represents the result of a call to check for updates.
@@ -339,32 +308,51 @@ impl UpdateManager {
         async_std::task::spawn_blocking(move || self_clone.download_updates(&update_clone, progress))
     }
 
-    /// This will exit your app immediately, apply updates, and then optionally relaunch the app using the specified
+    /// This will exit your app immediately, apply updates, and then relaunch the app.
+    /// If you need to save state or clean up, you should do that before calling this method.
+    /// The user may be prompted during the update, if the update requires additional frameworks to be installed etc.
+    pub fn apply_updates_and_restart<A, C, S>(&self, to_apply: A) -> Result<(), Error>
+    where
+        A: AsRef<VelopackAsset>,
+    {
+        self.wait_exit_then_apply_updates(to_apply, false, true, Vec::<String>::new())?;
+        exit(0);
+    }
+
+    /// This will exit your app immediately, apply updates, and then relaunch the app using the specified
     /// restart arguments. If you need to save state or clean up, you should do that before calling this method.
     /// The user may be prompted during the update, if the update requires additional frameworks to be installed etc.
-    pub fn apply_updates_and_restart<A: AsRef<VelopackAsset>>(&self, to_apply: A, restart_args: RestartArgs) -> Result<(), Error> {
+    pub fn apply_updates_and_restart_with_args<A, C, S>(&self, to_apply: A, restart_args: C) -> Result<(), Error>
+    where
+        A: AsRef<VelopackAsset>,
+        S: AsRef<str>,
+        C: IntoIterator<Item = S>,
+    {
         self.wait_exit_then_apply_updates(to_apply, false, true, restart_args)?;
         exit(0);
     }
 
-    /// This will exit your app immediately, apply updates, and then optionally relaunch the app using the specified
-    /// restart arguments. If you need to save state or clean up, you should do that before calling this method.
+    /// This will exit your app immediately and apply specified updates. It will not restart your app afterwards.
+    /// If you need to save state or clean up, you should do that before calling this method.
     /// The user may be prompted during the update, if the update requires additional frameworks to be installed etc.
-    pub fn apply_updates_and_exit<A: AsRef<VelopackAsset>>(&self, to_apply: A) -> Result<(), Error> {
-        self.wait_exit_then_apply_updates(to_apply, false, false, RestartArgs::None)?;
+    pub fn apply_updates_and_exit<A, C, S>(&self, to_apply: A) -> Result<(), Error>
+    where
+        A: AsRef<VelopackAsset>,
+    {
+        self.wait_exit_then_apply_updates(to_apply, false, false, Vec::<String>::new())?;
         exit(0);
     }
 
     /// This will launch the Velopack updater and tell it to wait for this program to exit gracefully.
-    /// You should then clean up any state and exit your app. The updater will apply updates and then
-    /// optionally restart your app. The updater will only wait for 60 seconds before giving up.
-    pub fn wait_exit_then_apply_updates<A: AsRef<VelopackAsset>>(
-        &self,
-        to_apply: A,
-        silent: bool,
-        restart: bool,
-        restart_args: RestartArgs,
-    ) -> Result<(), Error> {
+    /// You clean up any state and exit your app after calling this method.
+    /// Once your app exists, the updater will apply updates and optionally restart your app.
+    /// The updater will only wait for 60 seconds before giving up.
+    pub fn wait_exit_then_apply_updates<A, C, S>(&self, to_apply: A, silent: bool, restart: bool, restart_args: C) -> Result<(), Error>
+    where
+        A: AsRef<VelopackAsset>,
+        S: AsRef<str>,
+        C: IntoIterator<Item = S>,
+    {
         let to_apply = to_apply.as_ref();
         let pkg_path = self.paths.packages_dir.join(&to_apply.FileName);
         let pkg_path_str = pkg_path.to_string_lossy();
@@ -379,23 +367,16 @@ impl UpdateManager {
         if silent {
             args.push("--silent".to_string());
         }
-        if restart {
-            args.push("--restart".to_string());
+        if !restart {
+            args.push("--norestart".to_string());
         }
 
-        match restart_args {
-            RestartArgs::None => {}
-            RestartArgs::Some(ref ra) => {
-                args.push("--".to_string());
-                for arg in ra {
-                    args.push(arg.to_string());
-                }
-            }
-            RestartArgs::SomeOwned(ref ra) => {
-                args.push("--".to_string());
-                for arg in ra {
-                    args.push(arg.clone());
-                }
+        let restart_args: Vec<String> = restart_args.into_iter().map(|item| item.as_ref().to_string()).collect();
+
+        if !restart_args.is_empty() {
+            args.push("--".to_string());
+            for arg in restart_args {
+                args.push(arg);
             }
         }
 

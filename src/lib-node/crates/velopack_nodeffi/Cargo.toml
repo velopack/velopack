@@ -13,7 +13,8 @@ crate-type = ["cdylib"]
 neon = "1"
 serde_json = "1"
 velopack = { path = "../../../lib-rust" }
+semver = "1.0"
 
 [build-dependencies]
 ts-rs = "9"
-velopack = { path = "../../../lib-rust" }
+velopack = { path = "../../../lib-rust", features = ["typescript"] }

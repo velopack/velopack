@@ -10,9 +10,10 @@ exclude = ["/samples"]
 default = ["zstd"]
 delta = ["zstd"]
 async = ["async-std"]
+typescript = ["ts-rs"]
 
 [package.metadata.docs.rs]
-features = ["async", "zstd"]
+features = ["async", "delta"]
 
 [lib]
 name = "velopack"
@@ -31,7 +32,9 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 zip = { version = "2.1", default-features = false, features = ["deflate"] }
 thiserror = "1.0"
-ts-rs = "9"
+
+# typescript
+ts-rs = { version = "9", optional = true }
 
 # delta packages
 zstd = { version = "0.13", optional = true }
