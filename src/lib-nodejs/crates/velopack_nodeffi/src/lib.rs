@@ -14,20 +14,21 @@ struct UpdateManagerWrapper {
 impl Finalize for UpdateManagerWrapper {}
 type BoxedUpdateManager = JsBox<RefCell<UpdateManagerWrapper>>;
 
-fn args_get_locator(cx: &mut FunctionContext, i: usize) -> NeonResult<VelopackLocator> {
+fn args_get_locator(cx: &mut FunctionContext, i: usize) -> NeonResult<Option<VelopackLocator>> {
     let arg_locator = cx.argument_opt(i);
     if let Some(js_value) = arg_locator {
         if js_value.is_a::<JsString, _>(cx) {
             if let Ok(js_string) = js_value.downcast::<JsString, _>(cx) {
                 let arg_locator = js_string.value(cx);
                 if !arg_locator.is_empty() {
-                    return serde_json::from_str::<VelopackLocator>(&arg_locator).or_else(|e| cx.throw_error(e.to_string()));
+                    let locator = serde_json::from_str::<VelopackLocator>(&arg_locator).or_else(|e| cx.throw_error(e.to_string()))?;
+                    return Ok(Some(locator));
                 }
             }
         }
     }
 
-    return auto_locate().or_else(|e| cx.throw_error(e.to_string()));
+    Ok(None)
 }
 
 fn args_array_to_vec_string(cx: &mut FunctionContext, arg: Handle<JsArray>) -> NeonResult<Vec<String>> {
@@ -57,7 +58,7 @@ fn js_new_update_manager(mut cx: FunctionContext) -> JsResult<BoxedUpdateManager
     }
 
     let source = AutoSource::new(&arg_source);
-    let manager = UpdateManager::new(source, options, Some(locator)).or_else(|e| cx.throw_error(e.to_string()))?;
+    let manager = UpdateManager::new(source, options, locator).or_else(|e| cx.throw_error(e.to_string()))?;
     let wrapper = UpdateManagerWrapper { manager };
     Ok(cx.boxed(RefCell::new(wrapper)))
 }
@@ -188,15 +189,15 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     let arg_cb = cx.argument::<JsFunction>(0)?;
 
     let arg_argarray = cx.argument::<JsValue>(1)?;
-    let argarray = if arg_argarray.is_a::<JsArray, _>(&mut cx) {
+    let mut argarray: Option<Vec<String>> = None;
+
+    if arg_argarray.is_a::<JsArray, _>(&mut cx) {
         if let Ok(str) = arg_argarray.downcast::<JsArray, _>(&mut cx) {
-            args_array_to_vec_string(&mut cx, str)?
+            argarray = Some(args_array_to_vec_string(&mut cx, str)?)
         } else {
             return cx.throw_type_error("arg must be an array of strings");
         }
-    } else {
-        std::env::args().skip(1).collect()
-    };
+    }
 
     let locator = args_get_locator(&mut cx, 2)?;
 
@@ -214,16 +215,23 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
 
     println!("Running AppBuilder with args: {:?}", argarray);
 
-    VelopackApp::build()
+    let mut builder = VelopackApp::build()
         .on_after_install_fast_callback(|semver| hook_handler("after-install", semver))
         .on_before_uninstall_fast_callback(|semver| hook_handler("before-uninstall", semver))
         .on_before_update_fast_callback(|semver| hook_handler("before-update", semver))
         .on_after_update_fast_callback(|semver| hook_handler("after-update", semver))
         .on_restarted(|semver| hook_handler("restarted", semver))
-        .on_first_run(|semver| hook_handler("first-run", semver))
-        .set_args(argarray)
-        .set_locator(locator)
-        .run();
+        .on_first_run(|semver| hook_handler("first-run", semver));
+
+    if let Some(locator) = locator {
+        builder = builder.set_locator(locator);
+    }
+
+    if let Some(argarray) = argarray {
+        builder = builder.set_args(argarray);
+    }
+
+    builder.run();
 
     Ok(undefined)
 }
