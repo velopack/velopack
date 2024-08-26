@@ -1,18 +1,30 @@
 use std::path::PathBuf;
 
-use crate::{manifest::{self, Manifest}, util, Error};
+use crate::{
+    manifest::{self, Manifest},
+    util, Error,
+};
 
-#[derive(Clone)]
 /// VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
+#[allow(non_snake_case)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "typescript", derive(ts_rs::TS))]
 pub struct VelopackLocator {
     /// The root directory of the current app.
-    pub root_app_dir: PathBuf,
+    pub RootAppDir: PathBuf,
     /// The path to the Update.exe binary.
-    pub update_exe_path: PathBuf,
+    pub UpdateExePath: PathBuf,
     /// The path to the packages directory.
-    pub packages_dir: PathBuf,
+    pub PackagesDir: PathBuf,
     /// The current app manifest.
-    pub manifest: Manifest,
+    pub ManifestPath: PathBuf,
+}
+
+impl VelopackLocator {
+    /// Load and parse the current app manifest from the manifest_path field. This will return an error if the manifest is missing.
+    pub fn load_manifest(&self) -> Result<Manifest, Error> {
+        read_current_manifest(&self.ManifestPath)
+    }
 }
 
 /// Default log location for Velopack code.
@@ -49,10 +61,10 @@ pub fn auto_locate() -> Result<VelopackLocator, Error> {
     if (path.join("Update.exe")).exists() {
         info!("Found Update.exe in parent directory: {}", path.to_string_lossy());
         return Ok(VelopackLocator {
-            root_app_dir: path.clone(),
-            update_exe_path: path.join("Update.exe"),
-            packages_dir: path.join("packages"),
-            manifest: read_current_manifest(&path.join("current").join("sq.version"))?,
+            RootAppDir: path.clone(),
+            UpdateExePath: path.join("Update.exe"),
+            PackagesDir: path.join("packages"),
+            ManifestPath: path.join("current").join("sq.version"),
         });
     }
 
@@ -66,10 +78,10 @@ pub fn auto_locate() -> Result<VelopackLocator, Error> {
         if (maybe_root.join("Update.exe")).exists() {
             info!("Found Update.exe in parent directory: {}", maybe_root.to_string_lossy());
             return Ok(VelopackLocator {
-                root_app_dir: maybe_root.clone(),
-                update_exe_path: maybe_root.join("Update.exe"),
-                packages_dir: maybe_root.join("packages"),
-                manifest: read_current_manifest(&maybe_root.join("current").join("sq.version"))?,
+                RootAppDir: maybe_root.clone(),
+                UpdateExePath: maybe_root.join("Update.exe"),
+                PackagesDir: maybe_root.join("packages"),
+                ManifestPath: maybe_root.join("current").join("sq.version"),
             });
         }
     }
@@ -136,12 +148,7 @@ pub fn auto_locate() -> Result<VelopackLocator, Error> {
     packages_dir.push(&app.id);
     packages_dir.push("packages");
 
-    Ok(VelopackLocator {
-        root_app_dir,
-        update_exe_path,
-        packages_dir: packages_dir,
-        manifest: app,
-    })
+    Ok(VelopackLocator { root_app_dir, update_exe_path, packages_dir: packages_dir, manifest: app })
 }
 
 fn read_current_manifest(nuspec_path: &PathBuf) -> Result<Manifest, Error> {

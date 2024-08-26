@@ -1,28 +1,35 @@
 import * as addon from "./load";
 import type { UpdateInfo } from "./bindings/UpdateInfo";
 import type { UpdateOptions } from "./bindings/UpdateOptions";
+import type { VelopackLocator } from "./bindings/VelopackLocator";
 
-export { UpdateInfo, UpdateOptions };
+export { UpdateInfo, UpdateOptions, VelopackLocator };
 
 type UpdateManagerOpaque = {};
 declare module "./load" {
   function js_new_update_manager(
     urlOrPath: string,
-    options?: string,
+    options: string | null,
+    locator: string | null,
   ): UpdateManagerOpaque;
+
   function js_get_current_version(um: UpdateManagerOpaque): string;
+
   // function js_get_app_id(um: UpdateManagerOpaque): string;
   // function js_is_portable(um: UpdateManagerOpaque): boolean;
   // function js_is_installed(um: UpdateManagerOpaque): boolean;
   // function js_is_update_pending_restart(um: UpdateManagerOpaque): boolean;
+
   function js_check_for_updates_async(
     um: UpdateManagerOpaque,
   ): Promise<string | null>;
+
   function js_download_update_async(
     um: UpdateManagerOpaque,
     update: string,
     progress: (perc: number) => void,
   ): Promise<void>;
+
   function js_wait_exit_then_apply_update(
     um: UpdateManagerOpaque,
     update: string,
@@ -30,9 +37,11 @@ declare module "./load" {
     restart?: boolean,
     restartArgs?: string[],
   ): void;
+
   function js_appbuilder_run(
     cb: (hook_name: string, current_version: string) => void,
     customArgs: string[] | null,
+    locator: string | null,
   ): void;
 }
 
@@ -48,6 +57,7 @@ type VelopackHook = (version: string) => void;
 class VelopackAppBuilder {
   private _hooks = new Map<VelopackHookType, VelopackHook>();
   private _customArgs: string[] | null = null;
+  private _customLocator: VelopackLocator | null = null;
 
   /**
    * WARNING: FastCallback hooks are run during critical stages of Velopack operations.
@@ -118,16 +128,28 @@ class VelopackAppBuilder {
   }
 
   /**
+   * VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
+   */
+  setLocator(locator: VelopackLocator): VelopackAppBuilder {
+    this._customLocator = locator;
+    return this;
+  }
+
+  /**
    * Runs the Velopack startup logic. This should be the first thing to run in your app.
    * In some circumstances it may terminate/restart the process to perform tasks.
    */
   run(): void {
-    addon.js_appbuilder_run((hook_name: string, current_version: string) => {
-      let hook = this._hooks.get(hook_name as VelopackHookType);
-      if (hook) {
-        hook(current_version);
-      }
-    }, this._customArgs);
+    addon.js_appbuilder_run(
+      (hook_name: string, current_version: string) => {
+        let hook = this._hooks.get(hook_name as VelopackHookType);
+        if (hook) {
+          hook(current_version);
+        }
+      },
+      this._customArgs,
+      this._customLocator ? JSON.stringify(this._customLocator) : null,
+    );
   }
 }
 
@@ -140,10 +162,15 @@ export const VelopackApp = {
 export class UpdateManager {
   private opaque: UpdateManagerOpaque;
 
-  constructor(urlOrPath: string, options?: UpdateOptions) {
+  constructor(
+    urlOrPath: string,
+    options?: UpdateOptions,
+    locator?: VelopackLocator,
+  ) {
     this.opaque = addon.js_new_update_manager(
       urlOrPath,
       options ? JSON.stringify(options) : "",
+      locator ? JSON.stringify(locator) : null,
     );
   }
 
