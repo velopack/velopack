@@ -3,7 +3,7 @@
   "compilerOptions": {
     "module": "node16",
     "declaration": true,
-    "outDir": "lib",
+    "outDir": "lib"
   },
   "exclude": ["lib"]
 }

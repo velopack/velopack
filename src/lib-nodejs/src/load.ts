@@ -9,10 +9,10 @@ import { proxy } from "@neon-rs/load";
 
 module.exports = proxy({
   platforms: {
-    'win32-x64-msvc': () => require('@velopack/win32-x64-msvc'),
-    'darwin-x64': () => require('@velopack/darwin-x64'),
-    'darwin-arm64': () => require('@velopack/darwin-arm64'),
-    'linux-x64-gnu': () => require('@velopack/linux-x64-gnu')
+    "win32-x64-msvc": () => require("@velopack/win32-x64-msvc"),
+    "darwin-x64": () => require("@velopack/darwin-x64"),
+    "darwin-arm64": () => require("@velopack/darwin-arm64"),
+    "linux-x64-gnu": () => require("@velopack/linux-x64-gnu"),
   },
-  debug: () => require('../index.node'),
+  debug: () => require("../index.node"),
 });
