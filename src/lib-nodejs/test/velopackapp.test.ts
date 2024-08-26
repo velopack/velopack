@@ -43,7 +43,7 @@ class HookTester {
 test("VelopackApp should handle restarted event", () => {
   let [builder, tester] = HookTester.build();
   let locator: VelopackLocator = {
-    ManifestPath: "../../test/fixtures/FullNuspec.nuspec",
+    ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
     PackagesDir: "",
     RootAppDir: "",
     UpdateExePath: "",
@@ -58,26 +58,6 @@ test("VelopackApp should handle restarted event", () => {
   expect(tester.firstRun).toBe(false);
   expect(tester.version).toBe("1.0.0");
 });
-
-// test("VelopackApp should handle firstrun event with custom locator", () => {
-//   let [builder, tester] = HookTester.build();
-
-//   let locator: VelopackLocator = {
-//     ManifestPath: "../../test/fixtures/FullNuspec.nuspec",
-//     PackagesDir: "",
-//     RootAppDir: "",
-//     UpdateExePath: "",
-//   };
-//   builder.setLocator(locator).run();
-
-//   expect(tester.afterInstall).toBe(false);
-//   expect(tester.beforeUninstall).toBe(false);
-//   expect(tester.beforeUpdate).toBe(false);
-//   expect(tester.afterUpdate).toBe(false);
-//   expect(tester.restarted).toBe(false);
-//   expect(tester.firstRun).toBe(true);
-//   expect(tester.version).toBe("1.0.0");
-// });
 
 test("VelopackApp should handle after-install hook", () => {
   let [builder, tester] = HookTester.build();

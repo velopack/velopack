@@ -125,7 +125,13 @@ impl<'a> VelopackApp<'a> {
             }
         }
 
-        let my_version = if let Ok(ver) = self.get_current_version() { ver } else { semver::Version::new(0, 0, 0) };
+        let my_version = match self.get_current_version() {
+            Ok(ver) => ver,
+            Err(e) => {
+                warn!("VelopackApp: Error getting current version: {}", e);
+                semver::Version::new(0, 0, 0)
+            }
+        };
 
         let firstrun = env::var("VELOPACK_FIRSTRUN").is_ok();
         let restarted = env::var("VELOPACK_RESTART").is_ok();

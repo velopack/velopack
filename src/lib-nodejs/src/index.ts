@@ -219,7 +219,7 @@ export class UpdateManager {
    */
   downloadUpdateAsync(
     update: UpdateInfo,
-    progress: (perc: number) => void,
+    progress?: (perc: number) => void,
   ): Promise<void> {
     if (!update) {
       throw new Error("update is required");
