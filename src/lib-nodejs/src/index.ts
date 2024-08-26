@@ -52,12 +52,17 @@ type VelopackHookType =
   | "after-update"
   | "restarted"
   | "first-run";
+
 type VelopackHook = (version: string) => void;
 
-class VelopackAppBuilder {
+export class VelopackApp {
   private _hooks = new Map<VelopackHookType, VelopackHook>();
   private _customArgs: string[] | null = null;
   private _customLocator: VelopackLocator | null = null;
+
+  static build(): VelopackApp {
+    return new VelopackApp();
+  }
 
   /**
    * WARNING: FastCallback hooks are run during critical stages of Velopack operations.
@@ -65,7 +70,7 @@ class VelopackAppBuilder {
    * If your code has not completed within 30 seconds, it will be terminated.
    * Only supported on windows; On other operating systems, this will never be called.
    */
-  onAfterInstallFastCallback(callback: VelopackHook): VelopackAppBuilder {
+  onAfterInstallFastCallback(callback: VelopackHook): VelopackApp {
     this._hooks.set("after-install", callback);
     return this;
   }
@@ -76,7 +81,7 @@ class VelopackAppBuilder {
    * If your code has not completed within 30 seconds, it will be terminated.
    * Only supported on windows; On other operating systems, this will never be called.
    */
-  onBeforeUninstallFastCallback(callback: VelopackHook): VelopackAppBuilder {
+  onBeforeUninstallFastCallback(callback: VelopackHook): VelopackApp {
     this._hooks.set("before-uninstall", callback);
     return this;
   }
@@ -87,7 +92,7 @@ class VelopackAppBuilder {
    * If your code has not completed within 15 seconds, it will be terminated.
    * Only supported on windows; On other operating systems, this will never be called.
    */
-  onBeforeUpdateFastCallback(callback: VelopackHook): VelopackAppBuilder {
+  onBeforeUpdateFastCallback(callback: VelopackHook): VelopackApp {
     this._hooks.set("before-update", callback);
     return this;
   }
@@ -98,7 +103,7 @@ class VelopackAppBuilder {
    * If your code has not completed within 15 seconds, it will be terminated.
    * Only supported on windows; On other operating systems, this will never be called.
    */
-  onAfterUpdateFastCallback(callback: VelopackHook): VelopackAppBuilder {
+  onAfterUpdateFastCallback(callback: VelopackHook): VelopackApp {
     this._hooks.set("after-update", callback);
     return this;
   }
@@ -106,7 +111,7 @@ class VelopackAppBuilder {
   /**
    * This hook is triggered when the application is restarted by Velopack after installing updates.
    */
-  onRestarted(callback: VelopackHook): VelopackAppBuilder {
+  onRestarted(callback: VelopackHook): VelopackApp {
     this._hooks.set("restarted", callback);
     return this;
   }
@@ -114,7 +119,7 @@ class VelopackAppBuilder {
   /**
    * This hook is triggered when the application is started for the first time after installation.
    */
-  onFirstRun(callback: VelopackHook): VelopackAppBuilder {
+  onFirstRun(callback: VelopackHook): VelopackApp {
     this._hooks.set("first-run", callback);
     return this;
   }
@@ -122,7 +127,7 @@ class VelopackAppBuilder {
   /**
    * Override the command line arguments used by VelopackApp. (by default this is env::args().skip(1))
    */
-  setArgs(args: string[]): VelopackAppBuilder {
+  setArgs(args: string[]): VelopackApp {
     this._customArgs = args;
     return this;
   }
@@ -130,7 +135,7 @@ class VelopackAppBuilder {
   /**
    * VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
    */
-  setLocator(locator: VelopackLocator): VelopackAppBuilder {
+  setLocator(locator: VelopackLocator): VelopackApp {
     this._customLocator = locator;
     return this;
   }
@@ -152,12 +157,6 @@ class VelopackAppBuilder {
     );
   }
 }
-
-export const VelopackApp = {
-  build: () => {
-    return new VelopackAppBuilder();
-  },
-};
 
 export class UpdateManager {
   private opaque: UpdateManagerOpaque;
@@ -228,7 +227,7 @@ export class UpdateManager {
     return addon.js_download_update_async(
       this.opaque,
       JSON.stringify(update),
-      progress ?? (() => {}),
+      progress ?? (() => { }),
     );
   }
 

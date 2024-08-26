@@ -113,6 +113,8 @@ impl<'a> VelopackApp<'a> {
     pub fn run(&mut self) {
         let args: Vec<String> = self.args.clone();
 
+        info!("VelopackApp: Running with args: {:?}", args);
+
         if args.len() >= 2 {
             match args[0].as_str() {
                 "--veloapp-install" => Self::call_fast_hook(&mut self.install_hook, &args[1]),
@@ -149,7 +151,6 @@ impl<'a> VelopackApp<'a> {
         if let Some(hook) = hook_option.take() {
             if let Ok(version) = Version::parse(arg) {
                 hook(version);
-
                 let debug_mode = env::var("VELOPACK_DEBUG").is_ok();
                 if !debug_mode {
                     exit(0);

@@ -3,21 +3,20 @@
 /**
  * VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
  */
-export type VelopackLocator = {
-  /**
-   * The root directory of the current app.
-   */
-  RootAppDir: string;
-  /**
-   * The path to the Update.exe binary.
-   */
-  UpdateExePath: string;
-  /**
-   * The path to the packages directory.
-   */
-  PackagesDir: string;
-  /**
-   * The current app manifest.
-   */
-  ManifestPath: string;
-};
+export type VelopackLocator = { 
+/**
+ * The root directory of the current app.
+ */
+RootAppDir: string, 
+/**
+ * The path to the Update.exe binary.
+ */
+UpdateExePath: string, 
+/**
+ * The path to the packages directory.
+ */
+PackagesDir: string, 
+/**
+ * The current app manifest.
+ */
+ManifestPath: string, };

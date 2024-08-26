@@ -8,6 +8,8 @@ use std::thread;
 use velopack::sources::*;
 use velopack::*;
 
+mod logger;
+
 struct UpdateManagerWrapper {
     manager: UpdateManager,
 }
@@ -213,8 +215,6 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
         arg_cb.call(&mut *cx, this, args).unwrap();
     };
 
-    println!("Running AppBuilder with args: {:?}", argarray);
-
     let mut builder = VelopackApp::build()
         .on_after_install_fast_callback(|semver| hook_handler("after-install", semver))
         .on_before_uninstall_fast_callback(|semver| hook_handler("before-uninstall", semver))
@@ -238,6 +238,10 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
 
 #[neon::main]
 fn main(mut cx: ModuleContext) -> NeonResult<()> {
+    let mut log_channel = Channel::new(&mut cx);
+    log_channel.unref(&mut cx);
+    logger::init_logger_callback(log_channel);
+
     cx.export_function("js_new_update_manager", js_new_update_manager)?;
     cx.export_function("js_get_current_version", js_get_current_version)?;
     // cx.export_function("js_get_app_id", js_get_app_id)?;
