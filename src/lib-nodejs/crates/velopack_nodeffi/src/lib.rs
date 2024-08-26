@@ -1,3 +1,4 @@
+use locator::*;
 use neon::prelude::*;
 use semver::Version;
 use std::cell::RefCell;
@@ -13,11 +14,42 @@ struct UpdateManagerWrapper {
 impl Finalize for UpdateManagerWrapper {}
 type BoxedUpdateManager = JsBox<RefCell<UpdateManagerWrapper>>;
 
+fn args_get_locator(cx: &mut FunctionContext, i: usize) -> NeonResult<VelopackLocator> {
+    let arg_locator = cx.argument_opt(i);
+    if let Some(js_value) = arg_locator {
+        if js_value.is_a::<JsString, _>(cx) {
+            if let Ok(js_string) = js_value.downcast::<JsString, _>(cx) {
+                let arg_locator = js_string.value(cx);
+                if !arg_locator.is_empty() {
+                    return serde_json::from_str::<VelopackLocator>(&arg_locator).or_else(|e| cx.throw_error(e.to_string()));
+                }
+            }
+        }
+    }
+
+    return auto_locate().or_else(|e| cx.throw_error(e.to_string()));
+}
+
+fn args_array_to_vec_string(cx: &mut FunctionContext, arg: Handle<JsArray>) -> NeonResult<Vec<String>> {
+    let mut vec: Vec<String> = Vec::new();
+    for i in 0..arg.len(cx) {
+        let arg: Handle<JsValue> = arg.get(cx, i)?;
+        if let Ok(str) = arg.downcast::<JsString, _>(cx) {
+            let str = str.value(cx);
+            vec.push(str);
+        } else {
+            return cx.throw_type_error("arg must be an array of strings");
+        }
+    }
+    Ok(vec)
+}
+
 fn js_new_update_manager(mut cx: FunctionContext) -> JsResult<BoxedUpdateManager> {
     let arg_source = cx.argument::<JsString>(0)?.value(&mut cx);
     let arg_options = cx.argument::<JsString>(1)?.value(&mut cx);
 
     let mut options: Option<UpdateOptions> = None;
+    let locator = args_get_locator(&mut cx, 2)?;
 
     if !arg_options.is_empty() {
         let new_opt = serde_json::from_str::<UpdateOptions>(&arg_options).or_else(|e| cx.throw_error(e.to_string()))?;
@@ -25,7 +57,7 @@ fn js_new_update_manager(mut cx: FunctionContext) -> JsResult<BoxedUpdateManager
     }
 
     let source = AutoSource::new(&arg_source);
-    let manager = UpdateManager::new(source, options).or_else(|e| cx.throw_error(e.to_string()))?;
+    let manager = UpdateManager::new(source, options, Some(locator)).or_else(|e| cx.throw_error(e.to_string()))?;
     let wrapper = UpdateManagerWrapper { manager };
     Ok(cx.boxed(RefCell::new(wrapper)))
 }
@@ -136,20 +168,6 @@ fn js_download_update_async(mut cx: FunctionContext) -> JsResult<JsPromise> {
     Ok(promise)
 }
 
-fn js_array_to_vec_string(cx: &mut FunctionContext, arg: Handle<JsArray>) -> NeonResult<Vec<String>> {
-    let mut vec: Vec<String> = Vec::new();
-    for i in 0..arg.len(cx) {
-        let arg: Handle<JsValue> = arg.get(cx, i)?;
-        if let Ok(str) = arg.downcast::<JsString, _>(cx) {
-            let str = str.value(cx);
-            vec.push(str);
-        } else {
-            return cx.throw_type_error("arg must be an array of strings");
-        }
-    }
-    Ok(vec)
-}
-
 fn js_wait_exit_then_apply_update(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     let mgr_boxed = cx.argument::<BoxedUpdateManager>(0)?;
     let mgr_ref = &mgr_boxed.borrow().manager;
@@ -160,7 +178,7 @@ fn js_wait_exit_then_apply_update(mut cx: FunctionContext) -> JsResult<JsUndefin
     let update_info = serde_json::from_str::<UpdateInfo>(&arg_update).or_else(|e| cx.throw_error(e.to_string()))?;
 
     let arg_restart_args = cx.argument::<JsArray>(4)?;
-    let restart_args = js_array_to_vec_string(&mut cx, arg_restart_args)?;
+    let restart_args = args_array_to_vec_string(&mut cx, arg_restart_args)?;
 
     mgr_ref.wait_exit_then_apply_updates(update_info, arg_silent, arg_restart, restart_args).or_else(|e| cx.throw_error(e.to_string()))?;
     Ok(cx.undefined())
@@ -172,13 +190,15 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     let arg_argarray = cx.argument::<JsValue>(1)?;
     let argarray = if arg_argarray.is_a::<JsArray, _>(&mut cx) {
         if let Ok(str) = arg_argarray.downcast::<JsArray, _>(&mut cx) {
-            js_array_to_vec_string(&mut cx, str)?
+            args_array_to_vec_string(&mut cx, str)?
         } else {
             return cx.throw_type_error("arg must be an array of strings");
         }
     } else {
         std::env::args().skip(1).collect()
     };
+
+    let locator = args_get_locator(&mut cx, 2)?;
 
     let undefined = cx.undefined();
     let cx_ref = Rc::new(RefCell::new(cx));
@@ -202,6 +222,7 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
         .on_restarted(|semver| hook_handler("restarted", semver))
         .on_first_run(|semver| hook_handler("first-run", semver))
         .set_args(argarray)
+        .set_locator(locator)
         .run();
 
     Ok(undefined)

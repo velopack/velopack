@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     locator::{self, VelopackLocator},
+    manifest::Manifest,
     sources::UpdateSource,
     Error,
 };
@@ -108,7 +109,8 @@ pub struct UpdateManager {
     allow_version_downgrade: bool,
     explicit_channel: Option<String>,
     source: Box<dyn UpdateSource>,
-    paths: VelopackLocator,
+    locator: VelopackLocator,
+    manifest: Manifest,
 }
 
 /// Represents the result of a call to check for updates.
@@ -129,20 +131,27 @@ impl UpdateManager {
     /// use velopack::*;
     ///
     /// let source = sources::HttpSource::new("https://the.place/you-host/updates");
-    /// let um = UpdateManager::new(source, None);
+    /// let um = UpdateManager::new(source, None, None);
     /// ```
-    pub fn new<T: UpdateSource>(source: T, options: Option<UpdateOptions>) -> Result<UpdateManager, Error> {
+    pub fn new<T: UpdateSource>(
+        source: T,
+        options: Option<UpdateOptions>,
+        locator: Option<VelopackLocator>,
+    ) -> Result<UpdateManager, Error> {
+        let locator = if let Some(loc) = locator { loc } else { locator::auto_locate()? };
+        let manifest = locator.load_manifest()?;
         Ok(UpdateManager {
-            paths: locator::auto_locate()?,
             allow_version_downgrade: options.as_ref().map(|f| f.AllowVersionDowngrade).unwrap_or(false),
             explicit_channel: options.as_ref().map(|f| f.ExplicitChannel.clone()).unwrap_or(None),
             source: source.clone_boxed(),
+            locator,
+            manifest,
         })
     }
 
     fn get_practical_channel(&self) -> String {
         let channel = self.explicit_channel.as_deref();
-        let mut channel = channel.unwrap_or(&self.paths.manifest.channel).to_string();
+        let mut channel = channel.unwrap_or(&self.manifest.channel).to_string();
         if channel.is_empty() {
             channel = get_default_channel();
         }
@@ -151,13 +160,13 @@ impl UpdateManager {
 
     /// The currently installed app version when you created your release.
     pub fn current_version(&self) -> Result<String, Error> {
-        Ok(self.paths.manifest.version.to_string())
+        Ok(self.manifest.version.to_string())
     }
 
     /// Get a list of available remote releases from the package source.
     pub fn get_release_feed(&self) -> Result<VelopackAssetFeed, Error> {
         let channel = self.get_practical_channel();
-        self.source.get_release_feed(&channel, &self.paths.manifest)
+        self.source.get_release_feed(&channel, &self.manifest)
     }
 
     #[cfg(feature = "async")]
@@ -174,7 +183,7 @@ impl UpdateManager {
     /// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
     pub fn check_for_updates(&self) -> Result<UpdateCheck, Error> {
         let allow_downgrade = self.allow_version_downgrade;
-        let app = &self.paths.manifest;
+        let app = &self.manifest;
         let feed = self.get_release_feed()?;
         let assets = feed.Assets;
 
@@ -244,7 +253,7 @@ impl UpdateManager {
     ///   packages, this method will fall back to downloading the full version of the update.
     pub fn download_updates(&self, update: &UpdateInfo, progress: Option<Sender<i16>>) -> Result<(), Error> {
         let name = &update.TargetFullRelease.FileName;
-        let packages_dir = &self.paths.packages_dir;
+        let packages_dir = &self.locator.PackagesDir;
         fs::create_dir_all(packages_dir)?;
         let target_file = packages_dir.join(name);
 
@@ -278,7 +287,7 @@ impl UpdateManager {
         match crate::bundle::load_bundle_from_file(&target_file) {
             Ok(bundle) => {
                 info!("Bundle loaded successfully.");
-                if let Err(e) = bundle.extract_zip_predicate_to_path(|f| f.ends_with("Squirrel.exe"), &self.paths.update_exe_path) {
+                if let Err(e) = bundle.extract_zip_predicate_to_path(|f| f.ends_with("Squirrel.exe"), &self.locator.UpdateExePath) {
                     error!("Error extracting Update.exe from bundle: {}", e);
                 }
             }
@@ -354,7 +363,7 @@ impl UpdateManager {
         C: IntoIterator<Item = S>,
     {
         let to_apply = to_apply.as_ref();
-        let pkg_path = self.paths.packages_dir.join(&to_apply.FileName);
+        let pkg_path = self.locator.PackagesDir.join(&to_apply.FileName);
         let pkg_path_str = pkg_path.to_string_lossy();
 
         let mut args = Vec::new();
@@ -380,9 +389,9 @@ impl UpdateManager {
             }
         }
 
-        let mut p = Process::new(&self.paths.update_exe_path);
+        let mut p = Process::new(&self.locator.UpdateExePath);
         p.args(&args);
-        p.current_dir(&self.paths.root_app_dir);
+        p.current_dir(&self.locator.RootAppDir);
 
         #[cfg(target_os = "windows")]
         {
@@ -390,7 +399,7 @@ impl UpdateManager {
             p.creation_flags(CREATE_NO_WINDOW);
         }
 
-        info!("About to run Update.exe: {} {:?}", self.paths.update_exe_path.to_string_lossy(), args);
+        info!("About to run Update.exe: {} {:?}", self.locator.UpdateExePath.to_string_lossy(), args);
         p.spawn()?;
         Ok(())
     }

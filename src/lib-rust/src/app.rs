@@ -123,13 +123,7 @@ impl<'a> VelopackApp<'a> {
             }
         }
 
-        let my_version = match self.get_locator() {
-            Ok(locator) => locator.manifest.version,
-            Err(e) => {
-                warn!("Error locating Velopack bundle: {}, is this app installed?", e);
-                semver::Version::new(0, 0, 0)
-            }
-        };
+        let my_version = if let Ok(ver) = self.get_current_version() { ver } else { semver::Version::new(0, 0, 0) };
 
         let firstrun = env::var("VELOPACK_FIRSTRUN").is_ok();
         let restarted = env::var("VELOPACK_RESTART").is_ok();
@@ -170,5 +164,9 @@ impl<'a> VelopackApp<'a> {
         }
 
         return auto_locate();
+    }
+
+    fn get_current_version(&self) -> Result<Version, Error> {
+        self.get_locator().map(|l| l.load_manifest()).map(|m| m.map(|m| m.version))?
     }
 }
