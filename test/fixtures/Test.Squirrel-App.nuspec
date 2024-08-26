@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+<metadata>
+<id>Test.Squirrel-App</id>
+<title>Test Squirrel App</title>
+<description>Test Squirrel App</description>
+<authors>author</authors>
+<version>1.0.0</version>
+<channel>asd123</channel>
+<mainExe>testawareapp.exe</mainExe>
+<os>win</os>
+<rid>win-x64</rid>
+<osMinVersion>10.0.19043</osMinVersion>
+<machineArchitecture>x64</machineArchitecture>
+
+<runtimeDependencies>net6-x64-desktop</runtimeDependencies>
+</metadata>
+</package>
