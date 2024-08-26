@@ -38,7 +38,7 @@ impl<'a> VelopackApp<'a> {
         }
     }
 
-    /// Override the command line arguments
+    /// Override the command line arguments used by VelopackApp. (by default this is env::args().skip(1))
     pub fn set_args(mut self, args: Vec<String>) -> Self {
         self.args = args;
         self
@@ -123,15 +123,13 @@ impl<'a> VelopackApp<'a> {
             }
         }
 
-        let locator = match self.get_locator() {
-            Ok(locator) => locator,
+        let my_version = match self.get_locator() {
+            Ok(locator) => locator.manifest.version,
             Err(e) => {
                 warn!("Error locating Velopack bundle: {}, is this app installed?", e);
-                return;
+                semver::Version::new(0, 0, 0)
             }
         };
-
-        let my_version = &locator.manifest.version;
 
         let firstrun = env::var("VELOPACK_FIRSTRUN").is_ok();
         let restarted = env::var("VELOPACK_RESTART").is_ok();
@@ -139,11 +137,11 @@ impl<'a> VelopackApp<'a> {
         env::remove_var("VELOPACK_RESTART");
 
         if firstrun {
-            Self::call_hook(&mut self.firstrun_hook, my_version);
+            Self::call_hook(&mut self.firstrun_hook, &my_version);
         }
 
         if restarted {
-            Self::call_hook(&mut self.restarted_hook, my_version);
+            Self::call_hook(&mut self.restarted_hook, &my_version);
         }
     }
 
@@ -157,7 +155,11 @@ impl<'a> VelopackApp<'a> {
         if let Some(hook) = hook_option.take() {
             if let Ok(version) = Version::parse(arg) {
                 hook(version);
-                exit(0);
+
+                let debug_mode = env::var("VELOPACK_DEBUG").is_ok();
+                if !debug_mode {
+                    exit(0);
+                }
             }
         }
     }
