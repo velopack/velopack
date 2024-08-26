@@ -227,7 +227,7 @@ export class UpdateManager {
     return addon.js_download_update_async(
       this.opaque,
       JSON.stringify(update),
-      progress ?? (() => { }),
+      progress ?? (() => {}),
     );
   }
 
