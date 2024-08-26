@@ -136,6 +136,20 @@ fn js_download_update_async(mut cx: FunctionContext) -> JsResult<JsPromise> {
     Ok(promise)
 }
 
+fn js_array_to_vec_string(cx: &mut FunctionContext, arg: Handle<JsArray>) -> NeonResult<Vec<String>> {
+    let mut vec: Vec<String> = Vec::new();
+    for i in 0..arg.len(cx) {
+        let arg: Handle<JsValue> = arg.get(cx, i)?;
+        if let Ok(str) = arg.downcast::<JsString, _>(cx) {
+            let str = str.value(cx);
+            vec.push(str);
+        } else {
+            return cx.throw_type_error("arg must be an array of strings");
+        }
+    }
+    Ok(vec)
+}
+
 fn js_wait_exit_then_apply_update(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     let mgr_boxed = cx.argument::<BoxedUpdateManager>(0)?;
     let mgr_ref = &mgr_boxed.borrow().manager;
@@ -146,16 +160,7 @@ fn js_wait_exit_then_apply_update(mut cx: FunctionContext) -> JsResult<JsUndefin
     let update_info = serde_json::from_str::<UpdateInfo>(&arg_update).or_else(|e| cx.throw_error(e.to_string()))?;
 
     let arg_restart_args = cx.argument::<JsArray>(4)?;
-    let mut restart_args: Vec<String> = Vec::new();
-    for i in 0..arg_restart_args.len(&mut cx) {
-        let arg: Handle<JsValue> = arg_restart_args.get(&mut cx, i)?;
-        if let Ok(str) = arg.downcast::<JsString, _>(&mut cx) {
-            let str = str.value(&mut cx);
-            restart_args.push(str);
-        } else {
-            return cx.throw_type_error("restart args must be an array of strings");
-        }
-    }
+    let restart_args = js_array_to_vec_string(&mut cx, arg_restart_args)?;
 
     mgr_ref.wait_exit_then_apply_updates(update_info, arg_silent, arg_restart, restart_args).or_else(|e| cx.throw_error(e.to_string()))?;
     Ok(cx.undefined())
@@ -163,6 +168,18 @@ fn js_wait_exit_then_apply_update(mut cx: FunctionContext) -> JsResult<JsUndefin
 
 fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     let arg_cb = cx.argument::<JsFunction>(0)?;
+
+    let arg_argarray = cx.argument::<JsValue>(1)?;
+    let argarray = if arg_argarray.is_a::<JsArray, _>(&mut cx) {
+        if let Ok(str) = arg_argarray.downcast::<JsArray, _>(&mut cx) {
+            js_array_to_vec_string(&mut cx, str)?
+        } else {
+            return cx.throw_type_error("arg must be an array of strings");
+        }
+    } else {
+        std::env::args().skip(1).collect()
+    };
+
     let undefined = cx.undefined();
     let cx_ref = Rc::new(RefCell::new(cx));
 
@@ -175,6 +192,8 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
         arg_cb.call(&mut *cx, this, args).unwrap();
     };
 
+    println!("Running AppBuilder with args: {:?}", argarray);
+
     VelopackApp::build()
         .on_after_install_fast_callback(|semver| hook_handler("after-install", semver))
         .on_before_uninstall_fast_callback(|semver| hook_handler("before-uninstall", semver))
@@ -182,6 +201,7 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
         .on_after_update_fast_callback(|semver| hook_handler("after-update", semver))
         .on_restarted(|semver| hook_handler("restarted", semver))
         .on_first_run(|semver| hook_handler("first-run", semver))
+        .set_args(argarray)
         .run();
 
     Ok(undefined)

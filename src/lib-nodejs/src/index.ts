@@ -15,14 +15,15 @@ declare module "./load" {
   function js_check_for_updates_async(um: UpdateManagerOpaque): Promise<string | null>;
   function js_download_update_async(um: UpdateManagerOpaque, update: string, progress: (perc: number) => void): Promise<void>;
   function js_wait_exit_then_apply_update(um: UpdateManagerOpaque, update: string, silent?: boolean, restart?: boolean, restartArgs?: string[]): void;
-  function js_appbuilder_run(cb: (hook_name: string, current_version: string) => void): void;
+  function js_appbuilder_run(cb: (hook_name: string, current_version: string) => void, customArgs: string[] | null): void;
 }
 
 type VelopackHookType = "after-install" | "before-uninstall" | "before-update" | "after-update" | "restarted" | "first-run";
 type VelopackHook = (version: string) => void;
 
 class VelopackAppBuilder {
-  private hooks = new Map<VelopackHookType, VelopackHook>();
+  private _hooks = new Map<VelopackHookType, VelopackHook>();
+  private _customArgs: string[] | null = null;
 
   /** 
   WARNING: FastCallback hooks are run during critical stages of Velopack operations.
@@ -31,7 +32,7 @@ class VelopackAppBuilder {
   Only supported on windows; On other operating systems, this will never be called.
   */
   onAfterInstallFastCallback(callback: VelopackHook): VelopackAppBuilder {
-    this.hooks.set("after-install", callback);
+    this._hooks.set("after-install", callback);
     return this;
   }
 
@@ -42,7 +43,7 @@ class VelopackAppBuilder {
   Only supported on windows; On other operating systems, this will never be called.
   */
   onBeforeUninstallFastCallback(callback: VelopackHook): VelopackAppBuilder {
-    this.hooks.set("before-uninstall", callback);
+    this._hooks.set("before-uninstall", callback);
     return this;
   }
 
@@ -53,7 +54,7 @@ class VelopackAppBuilder {
   Only supported on windows; On other operating systems, this will never be called.
   */
   onBeforeUpdateFastCallback(callback: VelopackHook): VelopackAppBuilder {
-    this.hooks.set("before-update", callback);
+    this._hooks.set("before-update", callback);
     return this;
   }
 
@@ -64,7 +65,7 @@ class VelopackAppBuilder {
   Only supported on windows; On other operating systems, this will never be called.
   */
   onAfterUpdateFastCallback(callback: VelopackHook): VelopackAppBuilder {
-    this.hooks.set("after-update", callback);
+    this._hooks.set("after-update", callback);
     return this;
   }
 
@@ -72,7 +73,7 @@ class VelopackAppBuilder {
   This hook is triggered when the application is restarted by Velopack after installing updates.
   */
   onRestarted(callback: VelopackHook): VelopackAppBuilder {
-    this.hooks.set("restarted", callback);
+    this._hooks.set("restarted", callback);
     return this;
   }
 
@@ -80,7 +81,15 @@ class VelopackAppBuilder {
   This hook is triggered when the application is started for the first time after installation.
   */
   onFirstRun(callback: VelopackHook): VelopackAppBuilder {
-    this.hooks.set("first-run", callback);
+    this._hooks.set("first-run", callback);
+    return this;
+  }
+
+  /**
+  Override the command line arguments used by VelopackApp. (by default this is env::args().skip(1))
+  */
+  setArgs(args: string[]): VelopackAppBuilder {
+    this._customArgs = args;
     return this;
   }
 
@@ -90,11 +99,11 @@ class VelopackAppBuilder {
   */
   run(): void {
     addon.js_appbuilder_run((hook_name: string, current_version: string) => {
-      let hook = this.hooks.get(hook_name as VelopackHookType);
+      let hook = this._hooks.get(hook_name as VelopackHookType);
       if (hook) {
         hook(current_version);
       }
-    });
+    }, this._customArgs);
   }
 }
 
