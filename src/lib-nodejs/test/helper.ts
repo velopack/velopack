@@ -23,41 +23,41 @@ export function makeId(length: number): string {
   return result;
 }
 
-export function tempd1<T>(cb: (dir: string) => T): T {
-  const id = makeId(10);
-  const dir = path.join(os.tmpdir(), id);
-  fs.mkdirSync(dir);
-  try {
-    return cb(dir);
-  } finally {
-    fs.rmSync(dir, { recursive: true });
-  }
-}
+// export function tempd1<T>(cb: (dir: string) => T): T {
+//   const id = makeId(10);
+//   const dir = path.join(os.tmpdir(), id);
+//   fs.mkdirSync(dir);
+//   try {
+//     return cb(dir);
+//   } finally {
+//     fs.rmSync(dir, { recursive: true });
+//   }
+// }
 
-export function tempd2<T>(cb: (dir1: string, dir2: string) => T): T {
-  const dir1 = path.join(os.tmpdir(), makeId(10));
-  const dir2 = path.join(os.tmpdir(), makeId(10));
-  fs.mkdirSync(dir1);
-  fs.mkdirSync(dir2);
-  try {
-    return cb(dir1, dir2);
-  } finally {
-    fs.rmSync(dir1, { recursive: true });
-    fs.rmSync(dir2, { recursive: true });
-  }
-}
+// export function tempd2<T>(cb: (dir1: string, dir2: string) => T): T {
+//   const dir1 = path.join(os.tmpdir(), makeId(10));
+//   const dir2 = path.join(os.tmpdir(), makeId(10));
+//   fs.mkdirSync(dir1);
+//   fs.mkdirSync(dir2);
+//   try {
+//     return cb(dir1, dir2);
+//   } finally {
+//     fs.rmSync(dir1, { recursive: true });
+//     fs.rmSync(dir2, { recursive: true });
+//   }
+// }
 
-export function tempd3<T>(
+export async function tempd3<T>(
   cb: (dir1: string, dir2: string, dir3: string) => T,
-): T {
-  const dir1 = path.join(os.tmpdir(), makeId(10));
-  const dir2 = path.join(os.tmpdir(), makeId(10));
-  const dir3 = path.join(os.tmpdir(), makeId(10));
+): Promise<T> {
+  const dir1 = path.join(os.tmpdir(), makeId(16));
+  const dir2 = path.join(os.tmpdir(), makeId(16));
+  const dir3 = path.join(os.tmpdir(), makeId(16));
   fs.mkdirSync(dir1);
   fs.mkdirSync(dir2);
   fs.mkdirSync(dir3);
   try {
-    return cb(dir1, dir2, dir3);
+    return await cb(dir1, dir2, dir3);
   } finally {
     fs.rmSync(dir1, { recursive: true });
     fs.rmSync(dir2, { recursive: true });
@@ -84,6 +84,10 @@ export function updateExe(): string {
   }
 
   throw new Error("Update.exe not found");
+}
+
+export function shortDelay(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 100));
 }
 
 // export function copyUpdateExeTo(dir: string, filename?: string): string {

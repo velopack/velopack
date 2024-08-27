@@ -4,7 +4,7 @@
   "description": "",
   "main": "./lib/index.cjs",
   "scripts": {
-    "test": "npm run debug && cross-env VELOPACK_RESTART=true VELOPACK_DEBUG=true jest --silent=false",
+    "test": "npm run debug && cross-env VELOPACK_RESTART=true VELOPACK_DEBUG=true jest",
     "debug": "tsc -p tsconfig.build.json && cargo build && neon dist -f ../../target/debug/velopack_nodeffi.dll && npm run lint",
     "build": "tsc -p tsconfig.build.json && cargo build --release && neon dist -f ../../target/release/velopack_nodeffi.dll",
     "clean": "cargo clean && del-cli platforms/**/index.node index.node lib",
@@ -44,6 +44,7 @@
     "jest": "^29.7.0",
     "prettier": "3.3.3",
     "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   },
   "dependencies": {

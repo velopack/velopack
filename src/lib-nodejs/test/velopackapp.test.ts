@@ -1,4 +1,5 @@
 import { VelopackApp, VelopackLocator } from "../src/index";
+import { shortDelay } from "./helper";
 
 class HookTester {
   public afterInstall = false;
@@ -36,11 +37,14 @@ class HookTester {
       tester.firstRun = true;
       tester.version = ver;
     });
+    builder.setLogger((level, msg) => {
+      console.log(level, msg);
+    });
     return [builder, tester];
   }
 }
 
-test("VelopackApp should handle restarted event", () => {
+test("VelopackApp should handle restarted event", async () => {
   let [builder, tester] = HookTester.build();
   let locator: VelopackLocator = {
     ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
@@ -57,9 +61,10 @@ test("VelopackApp should handle restarted event", () => {
   expect(tester.restarted).toBe(true);
   expect(tester.firstRun).toBe(false);
   expect(tester.version).toBe("1.0.0");
+  await shortDelay();
 });
 
-test("VelopackApp should handle after-install hook", () => {
+test("VelopackApp should handle after-install hook", async () => {
   let [builder, tester] = HookTester.build();
   builder.setArgs(["--veloapp-install", "1.2.3-test.4"]).run();
 
@@ -70,9 +75,10 @@ test("VelopackApp should handle after-install hook", () => {
   expect(tester.restarted).toBe(false);
   expect(tester.firstRun).toBe(false);
   expect(tester.version).toBe("1.2.3-test.4");
+  await shortDelay();
 });
 
-test("VelopackApp should handle before-uninstall hook", () => {
+test("VelopackApp should handle before-uninstall hook", async () => {
   let [builder, tester] = HookTester.build();
   builder.setArgs(["--veloapp-uninstall", "1.2.3-test"]).run();
 
@@ -83,9 +89,10 @@ test("VelopackApp should handle before-uninstall hook", () => {
   expect(tester.restarted).toBe(false);
   expect(tester.firstRun).toBe(false);
   expect(tester.version).toBe("1.2.3-test");
+  await shortDelay();
 });
 
-test("VelopackApp should handle after-update hook", () => {
+test("VelopackApp should handle after-update hook", async () => {
   let [builder, tester] = HookTester.build();
   builder.setArgs(["--veloapp-updated", "1.2.3"]).run();
 
@@ -96,9 +103,10 @@ test("VelopackApp should handle after-update hook", () => {
   expect(tester.restarted).toBe(false);
   expect(tester.firstRun).toBe(false);
   expect(tester.version).toBe("1.2.3");
+  await shortDelay();
 });
 
-test("VelopackApp should handle before-update hook", () => {
+test("VelopackApp should handle before-update hook", async () => {
   let [builder, tester] = HookTester.build();
   builder.setArgs(["--veloapp-obsolete", "1.2.3-test.4"]).run();
 
@@ -109,4 +117,5 @@ test("VelopackApp should handle before-update hook", () => {
   expect(tester.restarted).toBe(false);
   expect(tester.firstRun).toBe(false);
   expect(tester.version).toBe("1.2.3-test.4");
+  await shortDelay();
 });
