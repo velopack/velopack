@@ -2215,6 +2215,7 @@ dependencies = [
 name = "velopack_nodeffi"
 version = "0.1.0"
 dependencies = [
+ "lazy_static",
  "log",
  "neon",
  "semver",

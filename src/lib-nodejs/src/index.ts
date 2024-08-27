@@ -43,6 +43,10 @@ declare module "./load" {
     customArgs: string[] | null,
     locator: string | null,
   ): void;
+
+  function js_set_logger_callback(
+    cb: (loglevel: LogLevel, msg: string) => void,
+  ): void;
 }
 
 type VelopackHookType =
@@ -54,6 +58,8 @@ type VelopackHookType =
   | "first-run";
 
 type VelopackHook = (version: string) => void;
+
+type LogLevel = "info" | "warn" | "error" | "debug" | "trace";
 
 export class VelopackApp {
   private _hooks = new Map<VelopackHookType, VelopackHook>();
@@ -137,6 +143,14 @@ export class VelopackApp {
    */
   setLocator(locator: VelopackLocator): VelopackApp {
     this._customLocator = locator;
+    return this;
+  }
+
+  /**
+   * Set a custom logger callback to receive log messages from Velopack. The default behavior is to log to console.log.
+   */
+  setLogger(callback: (loglevel: LogLevel, msg: string) => void): VelopackApp {
+    addon.js_set_logger_callback(callback);
     return this;
   }
 

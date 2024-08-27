@@ -236,11 +236,16 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     Ok(undefined)
 }
 
+fn js_set_logger_callback(mut cx: FunctionContext) -> JsResult<JsUndefined> {
+    let arg_cb = cx.argument::<JsFunction>(0)?;
+    let cb_root = arg_cb.root(&mut cx);
+    logger::set_logger_callback(Some(cb_root), &mut cx);
+    Ok(cx.undefined())
+}
+
 #[neon::main]
 fn main(mut cx: ModuleContext) -> NeonResult<()> {
-    let mut log_channel = Channel::new(&mut cx);
-    log_channel.unref(&mut cx);
-    logger::init_logger_callback(log_channel);
+    logger::init_logger(&mut cx);
 
     cx.export_function("js_new_update_manager", js_new_update_manager)?;
     cx.export_function("js_get_current_version", js_get_current_version)?;
@@ -252,5 +257,6 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("js_download_update_async", js_download_update_async)?;
     cx.export_function("js_wait_exit_then_apply_update", js_wait_exit_then_apply_update)?;
     cx.export_function("js_appbuilder_run", js_appbuilder_run)?;
+    cx.export_function("js_set_logger_callback", js_set_logger_callback)?;
     Ok(())
 }

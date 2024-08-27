@@ -1,10 +1,20 @@
 import { copyFileSync, existsSync } from "fs";
-import { UpdateManager, UpdateOptions, VelopackLocator } from "../src";
+import {
+  UpdateManager,
+  UpdateOptions,
+  VelopackApp,
+  VelopackLocator,
+} from "../src";
 import path from "path";
-import { tempd3, fixture, updateExe } from "./helper";
+import { tempd3, fixture, updateExe, shortDelay } from "./helper";
 
 test("UpdateManager detects local update", () => {
   return tempd3(async (tmpDir, packagesDir, rootDir) => {
+    VelopackApp.build()
+      .setLogger((level, msg) => {
+        console.log(level, msg);
+      })
+      .run();
     const locator: VelopackLocator = {
       ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
       PackagesDir: packagesDir,
@@ -30,12 +40,17 @@ test("UpdateManager detects local update", () => {
     expect(update?.TargetFullRelease?.FileName).toBe(
       "AvaloniaCrossPlat-1.0.11-full.nupkg",
     );
+    await shortDelay();
   });
 });
 
 test("UpdateManager downloads full update", () => {
   return tempd3(async (feedDir, packagesDir, rootDir) => {
-
+    VelopackApp.build()
+      .setLogger((level, msg) => {
+        console.log(level, msg);
+      })
+      .run();
     const locator: VelopackLocator = {
       ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
       PackagesDir: packagesDir,
@@ -60,10 +75,15 @@ test("UpdateManager downloads full update", () => {
     );
 
     const update = await um.checkForUpdatesAsync();
-    await um.downloadUpdateAsync(update!, () => { });
+
+    console.log(
+      `about to download update from ${feedDir} to ${packagesDir} ...`,
+    );
+    await um.downloadUpdateAsync(update!, () => {});
 
     expect(
       existsSync(path.join(packagesDir, "AvaloniaCrossPlat-1.0.11-full.nupkg")),
     ).toBe(true);
+    await shortDelay();
   });
 });
