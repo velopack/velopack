@@ -1,4 +1,4 @@
-use std::{sync::{Arc, Mutex}, thread::{self, ThreadId}};
+use std::sync::{Arc, Mutex};
 
 use lazy_static::lazy_static;
 use log::{Level, Log, Metadata, Record};
@@ -10,7 +10,6 @@ lazy_static! {
     static ref LOGGER_CB: Arc<Mutex<Option<Root<JsFunction>>>> = Arc::new(Mutex::new(None));
     static ref LOGGER_CONSOLE_LOG: Arc<Mutex<Option<Root<JsFunction>>>> = Arc::new(Mutex::new(None));
     static ref LOGGER_CHANNEL: Arc<Mutex<Option<Channel>>> = Arc::new(Mutex::new(None));
-    // static ref LOGGER_MAIN_THREADID: Arc<Mutex<Option<ThreadId>>> = Arc::new(Mutex::new(None));
 }
 
 struct LoggerImpl {}
@@ -71,10 +70,6 @@ impl Log for LoggerImpl {
 pub fn init_logger(cx: &mut ModuleContext) {
     let _ = log::set_logger(&LOGGER);
     log::set_max_level(log::LevelFilter::Trace);
-  
-    // if let Ok(mut ch) = LOGGER_MAIN_THREADID.lock() {
-    //     *ch = Some(thread::current().id());
-    // }
 
     if let Ok(mut ch) = LOGGER_CONSOLE_LOG.lock() {
         if let Ok(console) = cx.global::<JsObject>("console") {
