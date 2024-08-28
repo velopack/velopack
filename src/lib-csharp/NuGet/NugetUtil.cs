@@ -41,7 +41,7 @@ namespace Velopack.NuGet
         public static void ThrowIfVersionNotSemverCompliant(string version)
         {
             if (SemanticVersion.TryParse(version, out var parsed)) {
-                if (parsed < new SemanticVersion(0, 0, 1)) {
+                if (parsed < new SemanticVersion(0, 0, 1, parsed.Release)) {
                     throw new Exception($"Invalid package version '{version}', it must be >= 0.0.1.");
                 }
             } else {
