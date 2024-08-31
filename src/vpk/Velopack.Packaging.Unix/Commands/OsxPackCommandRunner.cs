@@ -14,7 +14,8 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
 
     protected override Task<string> PreprocessPackDir(Action<int> progress, string packDir)
     {
-        var dir = TempDir.CreateSubdirectory(Options.PackId + ".app");
+        var packTitle = Options.PackTitle ?? Options.PackId;
+        var dir = TempDir.CreateSubdirectory(packTitle + ".app");
         bool deleteAppBundle = false;
         string appBundlePath = Options.PackDirectory;
         if (!Options.PackDirectory.EndsWith(".app", StringComparison.OrdinalIgnoreCase)) {
