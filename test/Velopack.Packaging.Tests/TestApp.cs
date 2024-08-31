@@ -9,7 +9,7 @@ namespace Velopack.Packaging.Tests;
 public static class TestApp
 {
     public static void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
-        string releaseNotes = null, string channel = null, RID targetRid = null)
+        string releaseNotes = null, string channel = null, RID targetRid = null, string packTitle = null)
     {
         targetRid ??= RID.Parse(VelopackRuntimeInfo.SystemRid);
 
@@ -40,6 +40,7 @@ public static class TestApp
                 var options = new WindowsPackOptions {
                     EntryExecutableName = "TestApp.exe",
                     ReleaseDir = new DirectoryInfo(releaseDir),
+                    PackTitle = packTitle,
                     PackId = id,
                     TargetRuntime = targetRid,
                     PackVersion = version,
@@ -53,6 +54,7 @@ public static class TestApp
                 var options = new OsxPackOptions {
                     EntryExecutableName = "TestApp",
                     ReleaseDir = new DirectoryInfo(releaseDir),
+                    PackTitle = packTitle,
                     PackId = id,
                     TargetRuntime = targetRid,
                     PackVersion = version,
@@ -70,6 +72,7 @@ public static class TestApp
                 var options = new LinuxPackOptions {
                     EntryExecutableName = "TestApp",
                     ReleaseDir = new DirectoryInfo(releaseDir),
+                    PackTitle = packTitle,
                     PackId = id,
                     TargetRuntime = targetRid,
                     PackVersion = version,
