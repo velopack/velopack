@@ -293,7 +293,7 @@ internal static class SystemCommandLineExtensions
                 string version = result.Tokens[i].Value;
                 //TODO: This is duplicating NugetUtil.ThrowIfVersionNotSemverCompliant
                 if (SemanticVersion.TryParse(version, out var parsed)) {
-                    if (parsed < new SemanticVersion(0, 0, 1)) {
+                    if (parsed < new SemanticVersion(0, 0, 1, parsed.Release)) {
                         result.AddError($"{result.IdentifierToken.Value} contains an invalid package version '{version}', it must be >= 0.0.1.");
                         break;
                     }
