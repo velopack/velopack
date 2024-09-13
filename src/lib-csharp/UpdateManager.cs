@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Security.Extensions;
 using NuGet.Versioning;
 using Velopack.Compression;
 using Velopack.Locators;
@@ -61,6 +62,9 @@ namespace Velopack
         /// <summary> If true, UpdateManager should return the latest asset in the feed, even if that version is lower than the current version. </summary>
         protected bool ShouldAllowVersionDowngrade { get; }
 
+        /// <summary> If true, the package will be checked for a valid signature before being applied. </summary>
+        protected bool ValidatePackageIsSigned { get; }
+
         /// <summary>
         /// Creates a new UpdateManager instance using the specified URL or file path to the releases feed, and the specified channel name.
         /// </summary>
@@ -95,6 +99,7 @@ namespace Velopack
             Locator = locator ?? VelopackApp.DefaultLocator ?? VelopackLocator.GetDefault(Log);
             Channel = options?.ExplicitChannel ?? DefaultChannel;
             ShouldAllowVersionDowngrade = options?.AllowVersionDowngrade ?? false;
+            ValidatePackageIsSigned = options?.ValidatePackageIsSigned ?? false;
         }
 
         /// <inheritdoc cref="CheckForUpdatesAsync()"/>
@@ -244,6 +249,15 @@ namespace Velopack
                     } catch (ChecksumFailedException ex) {
                         Log.Warn(ex, $"Checksum failed for file '{completeFile}'. Deleting and starting over.");
                     }
+                    if (ValidatePackageIsSigned) {
+                        try {
+                            VerifyPackageSigning(targetRelease, completeFile);
+                            Log.Info("Package signing verified, resuming download.");
+                            return;
+                        } catch (SigningCheckFailedException ex) {
+                            Log.Warn(ex, $"Signing check failed for file '{completeFile}'. Deleting and starting over.");
+                        }
+                    }
                 }
 
                 var deltasSize = updates.DeltasToTarget.Sum(x => x.Size);
@@ -290,6 +304,9 @@ namespace Velopack
                 await Source.DownloadReleaseEntry(Log, targetRelease, incompleteFile, reportProgress, cancelToken).ConfigureAwait(false);
                 Log.Info("Verifying package checksum...");
                 VerifyPackageChecksum(targetRelease, incompleteFile);
+                if (ValidatePackageIsSigned) {
+                    VerifyPackageSigning(targetRelease, incompleteFile);
+                }
 
                 Utility.MoveFile(incompleteFile, completeFile, true);
                 Log.Info("Full release download complete. Package moved to: " + completeFile);
@@ -350,6 +367,9 @@ namespace Velopack
                     }
                 }, cancelToken).ConfigureAwait(false);
                 VerifyPackageChecksum(x, targetFile);
+                if (ValidatePackageIsSigned) {
+                    VerifyPackageSigning(x, targetFile);
+                }
                 cancelToken.ThrowIfCancellationRequested();
                 Log.Debug($"Download complete for delta version {x.Version}");
             }).ConfigureAwait(false);
@@ -436,7 +456,30 @@ namespace Velopack
                 if (!hash.Equals(release.SHA1, StringComparison.OrdinalIgnoreCase)) {
                     throw new ChecksumFailedException(targetPackage.FullName, $"SHA1 doesn't match ({release.SHA1} != {hash}).");
                 }
-            }           
+            }
+        }
+
+        /// <summary>
+        /// Check a package signing cert is valid, otherwise throw.
+        /// </summary>
+        /// <param name="release">The entry to check</param>
+        /// <param name="filePathOverride">Optional file path, if not specified the package will be loaded from %pkgdir%/release.OriginalFilename.</param>
+        protected internal virtual void VerifyPackageSigning(VelopackAsset release, string? filePathOverride = null)
+        {
+            var targetPackage = new FileInfo(filePathOverride ?? Locator.GetLocalPackagePath(release));
+
+            if (!targetPackage.Exists) {
+                throw new SigningCheckFailedException(targetPackage.FullName, "File doesn't exist.");
+            }
+
+            if (targetPackage.Length != release.Size) {
+                throw new SigningCheckFailedException(targetPackage.FullName, $"Size doesn't match ({targetPackage.Length} != {release.Size}).");
+            }
+            using var targetPackageStream = targetPackage.OpenRead();
+            var targetPackageSignatureInfo = FileSignatureInfo.GetFromFileStream(targetPackageStream);
+            if (targetPackageSignatureInfo.State != SignatureState.SignedAndTrusted) {
+                throw new SigningCheckFailedException(targetPackage.FullName, "Signature is invalid");
+            }
         }
 
         /// <summary>
