@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace Velopack.Compression
 {
     /// <summary>
-    /// Represents an error that occurs when a package does not match it's expected SHA checksum
+    /// Represents an error that occurs when a package is not properly signed per the optional check
     /// </summary>
     [ExcludeFromCodeCoverage]
     public class SigningCheckFailedException : Exception
