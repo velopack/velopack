@@ -16,7 +16,7 @@ namespace Velopack.Compression
 
         /// <inheritdoc cref="SigningCheckFailedException"/>
         public SigningCheckFailedException(string filePath)
-            : this(filePath, "Checksum failed")
+            : this(filePath, "Signature validation failed")
         {
         }
 
