@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
+using Serilog.Core;
 using Serilog.Events;
 using Velopack.Deployment;
 using Velopack.Packaging.Abstractions;
@@ -156,6 +157,10 @@ public class Program
         HideCommand(rootCommand.AddCommand<LogoutCommand, LogoutCommandRunner, LogoutOptions>(provider));
         HideCommand(rootCommand.AddCommand<PublishCommand, PublishCommandRunner, PublishOptions>(provider));
 
+        var flowCommand = new CliCommand("flow", "Commands for interacting with Velopack Flow.") { Hidden = true };
+        HideCommand(flowCommand.AddCommand<ApiCommand, ApiCommandRunner, ApiOptions>(provider));
+        rootCommand.Add(flowCommand); 
+
         var cli = new CliConfiguration(rootCommand);
         return await cli.InvokeAsync(args);
 
@@ -173,8 +178,11 @@ public class Program
 
     private static void SetupLogging(IHostApplicationBuilder builder, bool verbose, bool legacyConsole)
     {
+        var levelSwitch = new LoggingLevelSwitch {
+            MinimumLevel = verbose ? LogEventLevel.Debug : LogEventLevel.Information
+        };
         var conf = new LoggerConfiguration()
-            .MinimumLevel.Is(verbose ? LogEventLevel.Debug : LogEventLevel.Information)
+            .MinimumLevel.ControlledBy(levelSwitch)
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
             .MinimumLevel.Override("System", LogEventLevel.Warning);
 
@@ -186,6 +194,7 @@ public class Program
             builder.Services.AddSingleton<IFancyConsole, SpectreConsole>();
             conf.WriteTo.Spectre();
         }
+        builder.Services.AddSingleton(levelSwitch);
         builder.Services.AddSingleton<IConsole>(sp => sp.GetRequiredService<IFancyConsole>());
 
         Log.Logger = conf.CreateLogger();
@@ -247,6 +256,9 @@ public static class ProgramCommandExtensions
             var console = provider.GetRequiredService<IFancyConsole>();
             var config = provider.GetRequiredService<IConfiguration>();
             var defaults = provider.GetRequiredService<VelopackDefaults>();
+            var logLevelSwitch = provider.GetRequiredService<LoggingLevelSwitch>();
+
+            command.Initialize(logLevelSwitch);
 
             logger.LogInformation($"[bold]{Program.INTRO}[/]");
             var updateCheck = new UpdateChecker(logger);

@@ -36,5 +36,10 @@ public static class HttpClientExtensions
         var json = await content.ReadAsStringAsync();
         return Newtonsoft.Json.JsonConvert.DeserializeObject<TValue>(json);
     }
+
+    public static async Task<string> ReadAsStringAsync(this HttpContent content, CancellationToken _)
+    {
+        return await content.ReadAsStringAsync();
+    }
 }
 #endif
