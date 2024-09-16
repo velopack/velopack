@@ -6,16 +6,20 @@ namespace Velopack.Vpk.Updates;
 public class UpdateChecker
 {
     private readonly ILogger _logger;
+    private readonly VelopackDefaults _defaults;
     private IPackageSearchMetadata _cache;
 
-    public UpdateChecker(ILogger logger)
+    public UpdateChecker(ILogger logger, VelopackDefaults defaults)
     {
         _logger = logger;
+        _defaults = defaults;
     }
 
     public async Task<bool> CheckForUpdates()
     {
+        if (_defaults.SkipUpdates) return false;
         try {
+
             var myVer = VelopackRuntimeInfo.VelopackNugetVersion;
             var isPre = myVer.IsPrerelease || myVer.HasMetadata;
 
