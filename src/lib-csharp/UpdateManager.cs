@@ -472,9 +472,6 @@ namespace Velopack
                 throw new SigningCheckFailedException(targetPackage.FullName, "File doesn't exist.");
             }
 
-            if (targetPackage.Length != release.Size) {
-                throw new SigningCheckFailedException(targetPackage.FullName, $"Size doesn't match ({targetPackage.Length} != {release.Size}).");
-            }
             using var targetPackageStream = targetPackage.OpenRead();
             var targetPackageSignatureInfo = FileSignatureInfo.GetFromFileStream(targetPackageStream);
             if (targetPackageSignatureInfo.State != SignatureState.SignedAndTrusted) {
