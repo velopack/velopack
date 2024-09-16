@@ -12,6 +12,6 @@ public class LoginCommandRunner(IVelopackFlowServiceClient Client) : ICommand<Lo
         await Client.LoginAsync(new() {
             VelopackBaseUrl = options.VelopackBaseUrl,
             ApiKey = options.ApiKey,
-        }, CancellationToken.None);
+        }, false, CancellationToken.None);
     }
 }

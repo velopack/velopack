@@ -7,11 +7,11 @@ using Spectre.Console.Rendering;
 
 namespace Velopack.Vpk.Logging;
 
-public class MySpectreConsoleSink : ILogEventSink
+public class SpectreConsoleSink : ILogEventSink
 {
     private readonly string _dirtmp;
 
-    public MySpectreConsoleSink()
+    public SpectreConsoleSink()
     {
         _dirtmp = Path.GetTempPath();
     }
@@ -53,13 +53,13 @@ public class MySpectreConsoleSink : ILogEventSink
     }
 }
 
-public static class MySpectreConsoleSinkExtensions
+public static class SpectreConsoleSinkExtensions
 {
     public static LoggerConfiguration Spectre(
         this LoggerSinkConfiguration loggerConfiguration,
         LogEventLevel restrictedToMinimumLevel = LevelAlias.Minimum,
         LoggingLevelSwitch levelSwitch = null)
     {
-        return loggerConfiguration.Sink(new MySpectreConsoleSink(), restrictedToMinimumLevel, levelSwitch);
+        return loggerConfiguration.Sink(new SpectreConsoleSink(), restrictedToMinimumLevel, levelSwitch);
     }
 }

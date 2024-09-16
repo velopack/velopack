@@ -34,7 +34,7 @@ public class PublishTask : MSBuildAsyncTask
             AllowInteractiveLogin = false,
             VelopackBaseUrl = ServiceUrl,
             ApiKey = ApiKey
-        }, cancellationToken).ConfigureAwait(false)) {
+        }, false, cancellationToken).ConfigureAwait(false)) {
             Logger.LogWarning("Not logged into Velopack Flow service, skipping publish. Please run vpk login.");
             return true;
         }

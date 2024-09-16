@@ -1,5 +1,6 @@
 ﻿using Humanizer;
 using Microsoft.Extensions.Configuration;
+using Serilog.Core;
 
 namespace Velopack.Vpk.Commands;
 
@@ -69,6 +70,9 @@ public class BaseCommand : CliCommand
             kvp.Value(context, config);
         }
     }
+
+    public virtual void Initialize(LoggingLevelSwitch logLevelSwitch)
+    { }
 
     public ParseResult ParseAndApply(string command, IConfiguration config = null, RuntimeOs? targetOs = null)
     {

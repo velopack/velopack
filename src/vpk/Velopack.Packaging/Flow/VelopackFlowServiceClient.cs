@@ -4,6 +4,8 @@ using NuGet.Versioning;
 using Microsoft.Extensions.Logging;
 using System.Text;
 using System.IO;
+using Markdig.Helpers;
+
 
 
 #if NET6_0_OR_GREATER
@@ -17,11 +19,15 @@ namespace Velopack.Packaging.Flow;
 
 public interface IVelopackFlowServiceClient
 {
-    Task<bool> LoginAsync(VelopackLoginOptions? options, CancellationToken cancellationToken);
+    Task<bool> LoginAsync(VelopackLoginOptions? options, bool suppressOutput, CancellationToken cancellationToken);
     Task LogoutAsync(VelopackServiceOptions? options, CancellationToken cancellationToken);
 
     Task<Profile?> GetProfileAsync(VelopackServiceOptions? options, CancellationToken cancellationToken);
 
+    Task<string> InvokeEndpointAsync(VelopackServiceOptions? options, string endpointUri,
+        string method,
+        string? body,
+        CancellationToken cancellationToken);
     Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory, string? serviceUrl, RuntimeOs os, CancellationToken cancellationToken);
 }
 
@@ -33,10 +39,12 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
 
     private AuthConfiguration? AuthConfiguration { get; set; }
 
-    public async Task<bool> LoginAsync(VelopackLoginOptions? options, CancellationToken cancellationToken)
+    public async Task<bool> LoginAsync(VelopackLoginOptions? options, bool suppressOutput, CancellationToken cancellationToken)
     {
         options ??= new VelopackLoginOptions();
-        Logger.LogInformation("Preparing to login to Velopack ({ServiceUrl})", options.VelopackBaseUrl);
+        if (!suppressOutput) {
+            Logger.LogInformation("Preparing to login to Velopack ({ServiceUrl})", options.VelopackBaseUrl);
+        }
 
         var authConfiguration = await GetAuthConfigurationAsync(options, cancellationToken);
 
@@ -45,7 +53,9 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
         if (!string.IsNullOrWhiteSpace(options.ApiKey)) {
             HttpClient.DefaultRequestHeaders.Authorization = new(HmacHelper.HmacScheme, options.ApiKey);
             var profile = await GetProfileAsync(options, cancellationToken);
-            Logger.LogInformation("{UserName} logged into Velopack with API key", profile?.GetDisplayName());
+            if (!suppressOutput) {
+                Logger.LogInformation("{UserName} logged into Velopack with API key", profile?.GetDisplayName());
+            }
             return true;
         } else {
             AuthenticationResult? rv = null;
@@ -63,7 +73,9 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
                 HttpClient.DefaultRequestHeaders.Authorization = new("Bearer", rv.IdToken ?? rv.AccessToken);
                 var profile = await GetProfileAsync(options, cancellationToken);
 
-                Logger.LogInformation("{UserName} logged into Velopack", profile?.GetDisplayName());
+                if (!suppressOutput) {
+                    Logger.LogInformation("{UserName} logged into Velopack", profile?.GetDisplayName());
+                }
                 return true;
             } else {
                 Logger.LogError("Failed to login to Velopack");
@@ -92,6 +104,35 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
         var endpoint = GetEndpoint("v1/user/profile", options?.VelopackBaseUrl);
 
         return await HttpClient.GetFromJsonAsync<Profile>(endpoint, cancellationToken);
+    }
+
+    public async Task<string> InvokeEndpointAsync(
+        VelopackServiceOptions? options,
+        string endpointUri,
+        string method,
+        string? body,
+        CancellationToken cancellationToken)
+    {
+        AssertAuthenticated();
+        var endpoint = GetEndpoint(endpointUri, options?.VelopackBaseUrl);
+
+        HttpRequestMessage request = new(new HttpMethod(method), endpoint);
+        if (body is not null) {
+            request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+        }
+        HttpResponseMessage response = await HttpClient.SendAsync(request, cancellationToken);
+
+#if NET6_0_OR_GREATER
+        string responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+#else
+        string responseBody = await response.Content.ReadAsStringAsync();
+#endif
+
+        if (response.IsSuccessStatusCode) {
+            return responseBody;
+        } else {
+            throw new InvalidOperationException($"Failed to invoke endpoint {endpointUri} with status code {response.StatusCode}{Environment.NewLine}{responseBody}");
+        }
     }
 
     public async Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory, string? serviceUrl,
@@ -164,7 +205,10 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
         var endpoint = GetEndpoint("v1/releaseGroups/create", velopackBaseUrl);
         var response = await HttpClient.PostAsJsonAsync(endpoint, request, cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode) {
+            string content = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new InvalidOperationException($"Failed to create release group with version {version.ToNormalizedString()}{Environment.NewLine}Response status code: {response.StatusCode}{Environment.NewLine}{content}");
+        }
 
         return await response.Content.ReadFromJsonAsync<ReleaseGroup>(cancellationToken: cancellationToken)
             ?? throw new InvalidOperationException($"Failed to create release group with version {version.ToNormalizedString()}");
@@ -182,7 +226,7 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
         var latestPath = Path.Combine(releaseDirectory, fileName);
 
         using var fileStream = File.OpenRead(latestPath);
-        
+
         using var fileContent = new StreamContent(fileStream);
         formData.Add(fileContent, "File", fileName);
 
