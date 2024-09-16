@@ -1,8 +1,9 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
+using Serilog.Core;
 using Serilog.Events;
 using Velopack.Deployment;
 using Velopack.Packaging.Abstractions;
@@ -37,6 +38,11 @@ public class Program
         .SetRecursive(true)
         .SetDescription("'yes' by instead of 'no' in non-interactive prompts.");
 
+    public static CliOption<bool> SkipUpdatesOption { get; }
+        = new CliOption<bool>("--skip-updates")
+        .SetRecursive(true)
+        .SetDescription("Skip update checks");
+
     public static CliDirective WindowsDirective { get; } = new CliDirective("win") {
         Description = "Show and run Windows specific commands."
     };
@@ -60,6 +66,7 @@ public class Program
         rootCommand.Options.Add(LegacyConsoleOption);
         rootCommand.Options.Add(YesOption);
         rootCommand.Options.Add(VerboseOption);
+        rootCommand.Options.Add(SkipUpdatesOption);
         rootCommand.Directives.Add(WindowsDirective);
         rootCommand.Directives.Add(LinuxDirective);
         rootCommand.Directives.Add(OsxDirective);
@@ -74,6 +81,7 @@ public class Program
         bool directiveWin = parseResult.GetResult(WindowsDirective) != null;
         bool directiveLinux = parseResult.GetResult(LinuxDirective) != null;
         bool directiveOsx = parseResult.GetResult(OsxDirective) != null;
+        bool skipUpdates = parseResult.GetValue(SkipUpdatesOption);
         rootCommand.TreatUnmatchedTokensAsErrors = true;
 
         var builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings {
@@ -101,7 +109,7 @@ public class Program
             targetOs = RuntimeOs.OSX;
         }
 
-        builder.Services.AddSingleton(new VelopackDefaults(defaultYes, targetOs));
+        builder.Services.AddSingleton(new VelopackDefaults(defaultYes, targetOs, skipUpdates));
 
         var host = builder.Build();
         var provider = host.Services;
@@ -157,12 +165,12 @@ public class Program
         HideCommand(rootCommand.AddCommand<PublishCommand, PublishCommandRunner, PublishOptions>(provider));
 
         var cli = new CliConfiguration(rootCommand);
-        return await cli.InvokeAsync(args);
+        return await cli.InvokeAsync(args); 
 
         static void HideCommand(CliCommand command) => command.Hidden = true;
     }
 
-    private static void SetupConfig(IHostApplicationBuilder builder)
+    private static void SetupConfig(HostApplicationBuilder builder)
     {
         //builder.Configuration.AddJsonFile("vpk.json", optional: true);
         builder.Configuration.AddEnvironmentVariables("VPK_");
@@ -171,13 +179,13 @@ public class Program
         builder.Services.AddTransient(s => s.GetService<ILoggerFactory>().CreateLogger("vpk"));
     }
 
-    private static void SetupLogging(IHostApplicationBuilder builder, bool verbose, bool legacyConsole)
+    private static void SetupLogging(HostApplicationBuilder builder, bool verbose, bool legacyConsole)
     {
         var conf = new LoggerConfiguration()
             .MinimumLevel.Is(verbose ? LogEventLevel.Debug : LogEventLevel.Information)
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
             .MinimumLevel.Override("System", LogEventLevel.Warning);
-
+        
         if (legacyConsole) {
             // spectre can have issues with redirected output, so we disable it.
             builder.Services.AddSingleton<IFancyConsole, BasicConsole>();
@@ -249,7 +257,7 @@ public static class ProgramCommandExtensions
             var defaults = provider.GetRequiredService<VelopackDefaults>();
 
             logger.LogInformation($"[bold]{Program.INTRO}[/]");
-            var updateCheck = new UpdateChecker(logger);
+            var updateCheck = new UpdateChecker(logger, defaults);
             await updateCheck.CheckForUpdates();
 
             command.SetProperties(ctx, config, defaults.TargetOs);
