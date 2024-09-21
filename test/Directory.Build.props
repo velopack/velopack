@@ -37,8 +37,8 @@
   </ItemGroup>
 
   <ItemGroup Condition=" $(MSBuildProjectName.EndsWith('Tests')) ">
-    <ProjectReference Include="..\Divergic.Logging.Xunit\Divergic.Logging.Xunit.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
+    <PackageReference Include="Neovolve.Logging.Xunit.Signed" Version="6.1.0" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="xunit" Version="2.9.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
