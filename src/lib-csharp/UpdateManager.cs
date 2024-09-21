@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -27,13 +28,18 @@ namespace Velopack
         /// <inheritdoc cref="IVelopackLocator.IsPortable" />
         public virtual bool IsPortable => Locator.IsPortable;
 
-        /// <summary> True if there is a local update prepared that requires a call to <see cref="ApplyUpdatesAndRestart(VelopackAsset, string[])"/> to be applied. </summary>
-        public virtual bool IsUpdatePendingRestart {
+        /// <summary> OBSOLETE: Use <see cref="UpdatePendingRestart"/> instead. </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        [Obsolete("Use UpdatePendingRestart instead.")]
+        public virtual bool IsUpdatePendingRestart => UpdatePendingRestart != null;
+
+        /// <summary> Returns a VelopackAsset if there is a local update prepared that requires a call to <see cref="ApplyUpdatesAndRestart(VelopackAsset, string[])"/> to be applied. </summary>
+        public virtual VelopackAsset? UpdatePendingRestart {
             get {
                 var latestLocal = Locator.GetLatestLocalFullPackage();
                 if (latestLocal != null && CurrentVersion != null && latestLocal.Version > CurrentVersion)
-                    return true;
-                return false;
+                    return latestLocal;
+                return null;
             }
         }
 
