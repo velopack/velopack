@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using NuGet.Versioning;
+using Velopack.Util;
 
 #if !NETFRAMEWORK
 using InteropArchitecture = System.Runtime.InteropServices.Architecture;
@@ -221,7 +222,7 @@ namespace Velopack
 
             try {
                 if (IsWow64Process2(GetCurrentProcess(), out var _, out var nativeMachine)) {
-                    if (Utility.TryParseEnumU16<RuntimeCpu>(nativeMachine, out var val)) {
+                    if (CoreUtil.TryParseEnumU16<RuntimeCpu>(nativeMachine, out var val)) {
                         SystemArch = val;
                     }
                 }

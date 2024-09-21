@@ -1,6 +1,7 @@
 ﻿using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
 using Velopack.Packaging.Abstractions;
+using Velopack.Util;
 
 namespace Velopack.Packaging.Unix.Commands;
 
@@ -27,7 +28,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
 
         if (deleteAppBundle) {
             Log.Debug("Removing temporary .app bundle.");
-            Utility.DeleteFileOrDirectoryHard(appBundlePath);
+            IoUtil.DeleteFileOrDirectoryHard(appBundlePath);
         }
 
         var structure = new OsxStructureBuilder(dir.FullName);
@@ -98,7 +99,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
             var packId = Options.PackId;
 
             if (!string.IsNullOrEmpty(Options.SignInstallIdentity) && !string.IsNullOrEmpty(Options.NotaryProfile)) {
-                helper.CreateInstallerPkg(packDir, packTitle, packId, pkgContent, pkgPath, Options.SignInstallIdentity, Utility.CreateProgressDelegate(progress, 0, 60));
+                helper.CreateInstallerPkg(packDir, packTitle, packId, pkgContent, pkgPath, Options.SignInstallIdentity, CoreUtil.CreateProgressDelegate(progress, 0, 60));
                 progress(-1); // indeterminate
                 helper.Notarize(pkgPath, Options.NotaryProfile, Options.Keychain);
                 progress(80);

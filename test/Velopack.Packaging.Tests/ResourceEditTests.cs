@@ -8,6 +8,7 @@ using AsmResolver.PE.Win32Resources.Icon;
 using AsmResolver.PE.Win32Resources.Version;
 using Velopack.NuGet;
 using Velopack.Packaging.Windows;
+using Velopack.Util;
 
 namespace Velopack.Packaging.Tests;
 
@@ -37,7 +38,7 @@ public class ResourceEditTests
     public void CommitResourcesInCorrectOrder()
     {
         using var logger = _output.BuildLoggerFor<ResourceEditTests>();
-        using var _1 = Utility.GetTempFileName(out var tempFile);
+        using var _1 = TempUtil.GetTempFileName(out var tempFile);
         var exe = PathHelper.GetRustAsset("setup.exe");
         File.Copy(exe, tempFile);
 
@@ -65,7 +66,7 @@ public class ResourceEditTests
     {
         using var logger = _output.BuildLoggerFor<ResourceEditTests>();
 
-        using var _1 = Utility.GetTempFileName(out var tempFile);
+        using var _1 = TempUtil.GetTempFileName(out var tempFile);
         CreateTestPEFileWithoutRsrc(tempFile);
 
         var edit = new ResourceEdit(tempFile, logger);
@@ -81,7 +82,7 @@ public class ResourceEditTests
     {
         using var logger = _output.BuildLoggerFor<ResourceEditTests>();
 
-        using var _1 = Utility.GetTempFileName(out var tempFile);
+        using var _1 = TempUtil.GetTempFileName(out var tempFile);
         var exe = PathHelper.GetFixture("SquirrelAwareTweakedNetCoreApp.exe");
         File.Copy(exe, tempFile);
 
@@ -98,7 +99,7 @@ public class ResourceEditTests
     {
         using var logger = _output.BuildLoggerFor<ResourceEditTests>();
 
-        using var _1 = Utility.GetTempFileName(out var tempFile);
+        using var _1 = TempUtil.GetTempFileName(out var tempFile);
         var exe = PathHelper.GetFixture("atom.exe");
         File.Copy(exe, tempFile);
 
@@ -125,7 +126,7 @@ public class ResourceEditTests
     {
         using var logger = _output.BuildLoggerFor<ResourceEditTests>();
 
-        using var _1 = Utility.GetTempFileName(out var tempFile);
+        using var _1 = TempUtil.GetTempFileName(out var tempFile);
         CreateTestPEFileWithoutRsrc(tempFile);
 
         var beforeRsrc = PEImage.FromFile(PEFile.FromFile(tempFile)).Resources;
@@ -146,7 +147,7 @@ public class ResourceEditTests
     public void SetVersionInfoWithPreExistingRsrc()
     {
         using var logger = _output.BuildLoggerFor<ResourceEditTests>();
-        using var _1 = Utility.GetTempFileName(out var tempFile);
+        using var _1 = TempUtil.GetTempFileName(out var tempFile);
         var exe = PathHelper.GetFixture("atom.exe");
         File.Copy(exe, tempFile);
 
@@ -165,7 +166,7 @@ public class ResourceEditTests
     public void SetVersionInfoWithoutRsrc()
     {
         using var logger = _output.BuildLoggerFor<ResourceEditTests>();
-        using var _1 = Utility.GetTempFileName(out var tempFile);
+        using var _1 = TempUtil.GetTempFileName(out var tempFile);
         CreateTestPEFileWithoutRsrc(tempFile);
 
         var nuspec = PathHelper.GetFixture("FullNuspec.nuspec");

@@ -6,6 +6,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.Versioning;
+using Velopack.Util;
 
 namespace Velopack.Locators
 {
@@ -162,7 +163,7 @@ namespace Velopack.Locators
             var buf = new byte[4096];
             prng.NextBytes(buf);
 
-            ret = Utility.CreateGuidFromHash(buf);
+            ret = GuidUtil.CreateGuidFromHash(buf);
             try {
                 File.WriteAllText(stagedUserIdFile, ret.ToString(), Encoding.UTF8);
                 Log.Info($"Generated new staging userId: {ret}");

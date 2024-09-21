@@ -3,6 +3,7 @@ using Velopack.Compression;
 using Velopack.NuGet;
 using Velopack.Packaging.Abstractions;
 using Velopack.Packaging.Exceptions;
+using Velopack.Util;
 using Velopack.Windows;
 
 namespace Velopack.Packaging.Windows.Commands;
@@ -17,7 +18,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
     protected override Task CodeSign(Action<int> progress, string packDir)
     {
         var filesToSign = new DirectoryInfo(packDir).GetAllFilesRecursively()
-            .Where(x => Options.SignSkipDll ? Utility.PathPartEndsWith(x.Name, ".exe") : Utility.FileIsLikelyPEImage(x.Name))
+            .Where(x => Options.SignSkipDll ? PathUtil.PathPartEndsWith(x.Name, ".exe") : PathUtil.FileIsLikelyPEImage(x.Name))
             .Select(x => x.FullName)
             .ToArray();
 
@@ -37,7 +38,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         // add nuspec metadata
         ExtraNuspecMetadata["runtimeDependencies"] = GetRuntimeDependencies();
         ExtraNuspecMetadata["shortcutLocations"] = GetShortcutLocations();
-        ExtraNuspecMetadata["shortcutAmuid"] = Utility.GetAppUserModelId(Options.PackId);
+        ExtraNuspecMetadata["shortcutAmuid"] = CoreUtil.GetAppUserModelId(Options.PackId);
 
         // copy files to temp dir, so we can modify them
         var dir = TempDir.CreateSubdirectory("PreprocessPackDirWin");
@@ -173,7 +174,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
     protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe)
     {
         var bundledZip = new ZipPackage(releasePkg);
-        Utility.Retry(() => File.Copy(HelperFile.SetupPath, targetSetupExe, true));
+        IoUtil.Retry(() => File.Copy(HelperFile.SetupPath, targetSetupExe, true));
         progress(10);
 
         var editor = new ResourceEdit(targetSetupExe, Log);
@@ -189,7 +190,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         progress(50);
         Log.Debug("Signing Setup bundle");
         var targetDir = Path.GetDirectoryName(targetSetupExe);
-        SignFilesImpl(Options, targetDir, Utility.CreateProgressDelegate(progress, 50, 100), targetSetupExe);
+        SignFilesImpl(Options, targetDir, CoreUtil.CreateProgressDelegate(progress, 50, 100), targetSetupExe);
         Log.Debug($"Setup bundle created '{Path.GetFileName(targetSetupExe)}'.");
         progress(100);
         return Task.CompletedTask;
@@ -201,7 +202,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         File.Copy(Path.Combine(packDir, "Squirrel.exe"), Path.Combine(dir.FullName, "Update.exe"), true);
         var current = dir.CreateSubdirectory("current");
 
-        CopyFiles(new DirectoryInfo(packDir), current, Utility.CreateProgressDelegate(progress, 0, 30));
+        CopyFiles(new DirectoryInfo(packDir), current, CoreUtil.CreateProgressDelegate(progress, 0, 30));
 
         File.Delete(Path.Combine(current.FullName, "Squirrel.exe"));
 
@@ -214,7 +215,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         // create a .portable file to indicate this is a portable package
         File.Create(Path.Combine(dir.FullName, ".portable")).Close();
 
-        await EasyZip.CreateZipFromDirectoryAsync(Log, outputPath, dir.FullName, Utility.CreateProgressDelegate(progress, 40, 100));
+        await EasyZip.CreateZipFromDirectoryAsync(Log, outputPath, dir.FullName, CoreUtil.CreateProgressDelegate(progress, 40, 100));
         progress(100);
     }
 
@@ -233,7 +234,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
 
         try {
-            Utility.Retry(() => File.Copy(HelperFile.StubExecutablePath, targetStubPath, true));
+            IoUtil.Retry(() => File.Copy(HelperFile.StubExecutablePath, targetStubPath, true));
             var edit = new ResourceEdit(targetStubPath, Log);
             edit.CopyResourcesFrom(exeToCopy);
             edit.Commit();

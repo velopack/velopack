@@ -2,7 +2,7 @@
 using System.Linq;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using Velopack.Json;
+using Velopack.Util;
 
 namespace Velopack.Sources
 {

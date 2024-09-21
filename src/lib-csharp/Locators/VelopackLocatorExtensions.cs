@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using Velopack.Util;
 
 namespace Velopack.Locators
 {
@@ -13,7 +14,7 @@ namespace Velopack.Locators
         /// </summary>
         public static string GetLocalPackagePath(this IVelopackLocator locator, VelopackAsset velopackAsset)
         {
-            return Path.Combine(locator.PackagesDir!, Utility.GetSafeFilename(velopackAsset.FileName));
+            return Path.Combine(locator.PackagesDir!, PathUtil.GetSafeFilename(velopackAsset.FileName));
         }
 
     }

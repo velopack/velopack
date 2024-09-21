@@ -1,10 +1,13 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Threading.Tasks;
 
-namespace Velopack
+namespace Velopack.Util
 {
     [ExcludeFromCodeCoverage]
     internal static class EnumerableExtensions
@@ -45,6 +48,7 @@ namespace Velopack
                         $" There were 2 or more.");
                 }
             }
+
             return result;
         }
 
@@ -72,14 +76,14 @@ namespace Velopack
         /// <param name="source">Source sequence.</param>
         /// <param name="keySelector">Key selector used to extract the key for each element in the sequence.</param>
         /// <returns>List with the elements that share the same maximum key value.</returns>
-        public static IList<TSource> MaxBy<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector)
+        public static IList<TSource> MaxByPolyfill<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector)
         {
             if (source == null)
                 throw new ArgumentNullException("source");
             if (keySelector == null)
                 throw new ArgumentNullException("keySelector");
-
-            return MaxBy(source, keySelector, Comparer<TKey>.Default);
+        
+            return MaxByPolyfill(source, keySelector, Comparer<TKey>.Default);
         }
 
         /// <summary>
@@ -91,12 +95,12 @@ namespace Velopack
         /// <param name="keySelector">Key selector used to extract the key for each element in the sequence.</param>
         /// <param name="comparer">Comparer used to determine the maximum key value.</param>
         /// <returns>List with the elements that share the same maximum key value.</returns>
-        public static IList<TSource> MaxBy<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, IComparer<TKey> comparer)
+        public static IList<TSource> MaxByPolyfill<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, IComparer<TKey> comparer)
         {
             if (source == null) throw new ArgumentNullException("source");
             if (keySelector == null) throw new ArgumentNullException("keySelector");
             if (comparer == null) throw new ArgumentNullException("comparer");
-
+        
             return ExtremaBy(source, keySelector, (key, minValue) => comparer.Compare(key, minValue));
         }
 
@@ -126,6 +130,23 @@ namespace Velopack
             }
 
             return result;
+        }
+
+        public static Task ForEachAsync<T>(this IEnumerable<T> source, Action<T> body, int degreeOfParallelism = 4)
+        {
+            return ForEachAsync(source, x => Task.Run(() => body(x)), degreeOfParallelism);
+        }
+
+        public static Task ForEachAsync<T>(this IEnumerable<T> source, Func<T, Task> body, int degreeOfParallelism = 4)
+        {
+            return Task.WhenAll(
+                from partition in Partitioner.Create(source).GetPartitions(degreeOfParallelism)
+                select Task.Run(
+                    async () => {
+                        using (partition)
+                            while (partition.MoveNext())
+                                await body(partition.Current).ConfigureAwait(false);
+                    }));
         }
     }
 }

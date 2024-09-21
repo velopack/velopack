@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Text;
+using Velopack.Util;
 
 namespace Velopack.Tests;
 

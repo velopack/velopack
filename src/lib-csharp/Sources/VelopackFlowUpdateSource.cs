@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Velopack.Json;
+using Velopack.Util;
 using Velopack.Locators;
 
 namespace Velopack.Sources
@@ -19,7 +19,7 @@ namespace Velopack.Sources
             IFileDownloader? downloader = null)
         {
             BaseUri = new Uri(baseUri);
-            Downloader = downloader ?? Utility.CreateDefaultDownloader();
+            Downloader = downloader ?? HttpUtil.CreateDefaultDownloader();
         }
 
         /// <summary> The URL of the server hosting packages to update to. </summary>
@@ -33,7 +33,7 @@ namespace Velopack.Sources
             VelopackAsset? latestLocalRelease = null)
         {
             Uri baseUri = new(BaseUri, $"v1.0/manifest/");
-            var uri = Utility.AppendPathToUri(baseUri, Utility.GetVeloReleaseIndexName(channel));
+            var uri = HttpUtil.AppendPathToUri(baseUri, CoreUtil.GetVeloReleaseIndexName(channel));
             var args = new Dictionary<string, string>();
 
             if (VelopackRuntimeInfo.SystemArch != RuntimeCpu.Unknown) {
@@ -52,7 +52,7 @@ namespace Velopack.Sources
                 args.Add("id", VelopackLocator.GetDefault(logger).AppId ?? "");
             }
 
-            var uriAndQuery = Utility.AddQueryParamsToUri(uri, args);
+            var uriAndQuery = HttpUtil.AddQueryParamsToUri(uri, args);
 
             logger.LogInformation("Downloading releases from '{Uri}'.", uriAndQuery);
 
@@ -73,7 +73,7 @@ namespace Velopack.Sources
             }
             if (localFile is null) throw new ArgumentNullException(nameof(localFile));
 
-            Uri sourceBaseUri = Utility.EnsureTrailingSlash(BaseUri);
+            Uri sourceBaseUri = HttpUtil.EnsureTrailingSlash(BaseUri);
 
             Uri downloadUri = new(sourceBaseUri, $"v1.0/download/{velopackRelease.Id}");
 

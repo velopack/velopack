@@ -1,7 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 using System.Text.Json;
 using NuGet.Versioning;
-using Velopack.Json;
 using Velopack.Packaging;
 using Velopack.Sources;
 using JsonPropertyNameAttribute = System.Text.Json.Serialization.JsonPropertyNameAttribute;

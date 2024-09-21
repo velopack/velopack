@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using NuGet.Versioning;
 using Velopack.Sources;
+using Velopack.Util;
 
 namespace Velopack.Windows
 {
@@ -77,7 +78,7 @@ namespace Velopack.Windows
             {
                 var url = await GetDownloadUrl().ConfigureAwait(false);
                 log?.Info($"Downloading {Id} from {url} to {localPath}");
-                downloader = downloader ?? Utility.CreateDefaultDownloader();
+                downloader = downloader ?? HttpUtil.CreateDefaultDownloader();
                 await downloader.DownloadFile(url, localPath, progress).ConfigureAwait(false);
             }
 
@@ -319,7 +320,7 @@ namespace Velopack.Windows
                 var archValid = Enum.TryParse<RuntimeCpu>(String.IsNullOrWhiteSpace(archstr) ? "x64" : archstr, true, out var cpu);
                 if (!archValid) {
                     throw new ArgumentException($"Invalid machine architecture '{archstr}'. " +
-                        $"Valid values: {String.Join(", ", Utility.GetEnumValues<RuntimeCpu>())}");
+                        $"Valid values: {String.Join(", ", CoreUtil.GetEnumValues<RuntimeCpu>())}");
                 }
 
                 var type = DotnetRuntimeType.WindowsDesktop;
@@ -404,7 +405,7 @@ namespace Velopack.Windows
                     _ => throw new NotImplementedException(),
                 };
 
-                downloader = downloader ?? Utility.CreateDefaultDownloader();
+                downloader = downloader ?? HttpUtil.CreateDefaultDownloader();
 
                 try {
                     return await downloader.DownloadString($"{UncachedDotNetFeed}/{runtime}/{channel}/latest.version").ConfigureAwait(false);

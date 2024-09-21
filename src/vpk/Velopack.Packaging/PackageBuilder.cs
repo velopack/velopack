@@ -8,6 +8,7 @@ using Velopack.Compression;
 using Velopack.NuGet;
 using Velopack.Packaging.Abstractions;
 using Velopack.Packaging.Exceptions;
+using Velopack.Util;
 
 namespace Velopack.Packaging;
 
@@ -90,7 +91,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
         MainExePath = mainExePath;
         options.EntryExecutableName = Path.GetFileName(mainExePath);
 
-        using var _1 = Utility.GetTempDirectory(out var pkgTempDir);
+        using var _1 = TempUtil.GetTempDirectory(out var pkgTempDir);
         TempDir = new DirectoryInfo(pkgTempDir);
         Options = options;
 
@@ -158,7 +159,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
             await ctx.RunTask("Post-process steps", (progress) => {
                 foreach (var f in filesToCopy) {
-                    Utility.MoveFile(f.from, f.to, true);
+                    IoUtil.MoveFile(f.from, f.to, true);
                 }
 
                 ReleaseEntryHelper.UpdateReleaseFiles(releaseDir.FullName, Log);
@@ -261,7 +262,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
         File.WriteAllText(nuspecPath, GenerateNuspecContent());
 
         var appDir = stagingDir.CreateSubdirectory("lib").CreateSubdirectory("app");
-        CopyFiles(new DirectoryInfo(packDir), appDir, Utility.CreateProgressDelegate(progress, 0, 30));
+        CopyFiles(new DirectoryInfo(packDir), appDir, CoreUtil.CreateProgressDelegate(progress, 0, 30));
 
         var metadataFiles = GetReleaseMetadataFiles();
         foreach (var kvp in metadataFiles) {
@@ -270,7 +271,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
         AddContentTypesAndRel(nuspecPath);
 
-        await EasyZip.CreateZipFromDirectoryAsync(Log, outputPath, stagingDir.FullName, Utility.CreateProgressDelegate(progress, 30, 100));
+        await EasyZip.CreateZipFromDirectoryAsync(Log, outputPath, stagingDir.FullName, CoreUtil.CreateProgressDelegate(progress, 30, 100));
         progress(100);
     }
 

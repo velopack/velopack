@@ -2,6 +2,7 @@
 using Velopack.Compression;
 using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Abstractions;
+using Velopack.Util;
 
 namespace Velopack.Packaging.Commands;
 
@@ -28,8 +29,8 @@ public class DeltaPatchCommandRunner : ICommand<DeltaPatchOptions>
             }
         }
 
-        var tmp = Utility.GetDefaultTempBaseDirectory();
-        using var _1 = Utility.GetTempDirectory(out var workDir);
+        var tmp = TempUtil.GetDefaultTempBaseDirectory();
+        using var _1 = TempUtil.GetTempDirectory(out var workDir);
 
         var delta = new DeltaEmbedded(HelperFile.GetZstdPath(), _logger, tmp);
         EasyZip.ExtractZipToDirectory(_logger, options.BasePackage, workDir);

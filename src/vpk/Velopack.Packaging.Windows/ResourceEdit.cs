@@ -7,6 +7,7 @@ using AsmResolver.PE.Win32Resources.Icon;
 using AsmResolver.PE.Win32Resources.Version;
 using Microsoft.Extensions.Logging;
 using Velopack.NuGet;
+using Velopack.Util;
 
 namespace Velopack.Packaging.Windows;
 
@@ -181,7 +182,7 @@ public class ResourceEdit
         _file.OptionalHeader.SetDataDirectory(DataDirectoryIndex.ResourceDirectory,
             new DataDirectory(resourceBuffer.Rva, resourceBuffer.GetPhysicalSize()));
 
-        Utility.Retry(() => {
+        IoUtil.Retry(() => {
             using var fs = File.Create(_exePath);
             _file.Write(fs);
         });

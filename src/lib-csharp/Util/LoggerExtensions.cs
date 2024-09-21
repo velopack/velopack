@@ -2,7 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 
-namespace Velopack
+namespace Velopack.Util
 {
     [ExcludeFromCodeCoverage]
     internal static class LoggerExtensions

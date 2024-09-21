@@ -1,5 +1,6 @@
 ﻿using System.IO.Compression;
 using Velopack.Compression;
+using Velopack.Util;
 
 namespace Velopack.Tests;
 
@@ -8,14 +9,14 @@ public class SymbolicLinkTests
     [Fact]
     public void Exists_NoSuchFile()
     {
-        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         Assert.False(SymbolicLink.Exists(Path.Combine(tempFolder, "$$$NoSuchFolder$$$")));
     }
 
     [Fact]
     public void Exists_IsADirectory()
     {
-        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         File.Create(Path.Combine(tempFolder, "AFile")).Close();
 
         Assert.False(SymbolicLink.Exists(Path.Combine(tempFolder, "AFile")));
@@ -24,7 +25,7 @@ public class SymbolicLinkTests
     [Fact]
     public void CreateDirectory_VerifyExists_GetTarget_Delete()
     {
-        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         string targetFolder = Path.Combine(tempFolder, "ADirectory");
         string junctionPoint = Path.Combine(tempFolder, "SymLink");
 
@@ -64,7 +65,7 @@ public class SymbolicLinkTests
     [Fact]
     public void CreateFile_VerifyExists_GetTarget_Delete()
     {
-        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var tmpFile = Path.Combine(tempFolder, "AFile");
         var symFile = Path.Combine(tempFolder, "SymFile");
         File.Create(tmpFile).Close();
@@ -92,7 +93,7 @@ public class SymbolicLinkTests
     [Fact]
     public void CreateFile_RelativePath()
     {
-        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var subDir = Directory.CreateDirectory(Path.Combine(tempFolder, "SubDir")).FullName;
 
         var tmpFile = Path.Combine(tempFolder, "AFile");
@@ -122,7 +123,7 @@ public class SymbolicLinkTests
     [Fact]
     public void CreateDirectory_RelativePath()
     {
-        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var subDir = Directory.CreateDirectory(Path.Combine(tempFolder, "SubDir")).FullName;
         var subSubDir = Directory.CreateDirectory(Path.Combine(subDir, "SubSub")).FullName;
         var subDir2 = Directory.CreateDirectory(Path.Combine(tempFolder, "SubDir2")).FullName;
@@ -145,7 +146,7 @@ public class SymbolicLinkTests
     [Fact]
     public void Create_ThrowsIfOverwriteNotSpecifiedAndDirectoryExists()
     {
-        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         string targetFolder = Path.Combine(tempFolder, "ADirectory");
         string junctionPoint = Path.Combine(tempFolder, "SymLink");
 
@@ -156,7 +157,7 @@ public class SymbolicLinkTests
     [Fact]
     public void Create_OverwritesIfSpecifiedAndDirectoryExists()
     {
-        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         string targetFolder = Path.Combine(tempFolder, "ADirectory");
         string junctionPoint = Path.Combine(tempFolder, "SymLink");
 
@@ -171,7 +172,7 @@ public class SymbolicLinkTests
     [Fact]
     public void Create_ThrowsIfTargetDirectoryDoesNotExist()
     {
-        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         string targetFolder = Path.Combine(tempFolder, "ADirectory");
         string junctionPoint = Path.Combine(tempFolder, "SymLink");
         Assert.Throws<IOException>(() => SymbolicLink.Create(junctionPoint, targetFolder, false));
@@ -180,21 +181,21 @@ public class SymbolicLinkTests
     [Fact]
     public void GetTarget_NonExistentJunctionPoint()
     {
-        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         Assert.Throws<IOException>(() => SymbolicLink.GetTarget(Path.Combine(tempFolder, "SymLink")));
     }
 
     [Fact]
     public void GetTarget_CalledOnADirectoryThatIsNotAJunctionPoint()
     {
-        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         Assert.Throws<IOException>(() => SymbolicLink.GetTarget(tempFolder));
     }
 
     [Fact]
     public void GetTarget_CalledOnAFile()
     {
-        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         File.Create(Path.Combine(tempFolder, "AFile")).Close();
 
         Assert.Throws<IOException>(() => SymbolicLink.GetTarget(Path.Combine(tempFolder, "AFile")));
@@ -204,21 +205,21 @@ public class SymbolicLinkTests
     public void Delete_NonExistentJunctionPoint()
     {
         // Should do nothing.
-        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         SymbolicLink.Delete(Path.Combine(tempFolder, "SymLink"));
     }
 
     [Fact]
     public void Delete_CalledOnADirectoryThatIsNotAJunctionPoint()
     {
-        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         Assert.Throws<IOException>(() => SymbolicLink.Delete(tempFolder));
     }
 
     [Fact]
     public void Delete_CalledOnAFile()
     {
-        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         File.Create(Path.Combine(tempFolder, "AFile")).Close();
 
         Assert.Throws<IOException>(() => SymbolicLink.Delete(Path.Combine(tempFolder, "AFile")));
@@ -227,7 +228,7 @@ public class SymbolicLinkTests
     [Fact]
     public async Task ComplexSymlinkDirGetsZippedCorrectly()
     {
-        using var _1 = Utility.GetTempDirectory(out var tempFolder);
+        using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var temp = new DirectoryInfo(tempFolder);
         var versions = temp.CreateSubdirectory("Versions");
         var a = versions.CreateSubdirectory("A");
@@ -238,7 +239,7 @@ public class SymbolicLinkTests
         SymbolicLink.Create(Path.Combine(temp.FullName, "Resources"), Path.Combine(versions.FullName, "Current", "Resources"), false, true);
         SymbolicLink.Create(Path.Combine(temp.FullName, "App"), Path.Combine(versions.FullName, "Current", "App"), false, true);
 
-        using var _2 = Utility.GetTempDirectory(out var tempOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tempOutput);
         var output = Path.Combine(tempOutput, "output.zip");
 
         await EasyZip.CreateZipFromDirectoryAsync(NullLogger.Instance, output, tempFolder);

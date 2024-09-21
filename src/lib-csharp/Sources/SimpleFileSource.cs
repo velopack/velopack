@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Velopack.NuGet;
+using Velopack.Util;
 
 namespace Velopack.Sources
 {
@@ -32,7 +33,7 @@ namespace Velopack.Sources
             }
 
             // if a feed exists in the folder, let's use that.
-            var feedLoc = Path.Combine(BaseDirectory.FullName, Utility.GetVeloReleaseIndexName(channel));
+            var feedLoc = Path.Combine(BaseDirectory.FullName, CoreUtil.GetVeloReleaseIndexName(channel));
             if (File.Exists(feedLoc)) {
                 logger.Debug($"Found local file feed at '{feedLoc}'.");
                 return Task.FromResult(VelopackAssetFeed.FromJson(File.ReadAllText(feedLoc)));

@@ -2,7 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
-namespace Velopack
+namespace Velopack.Util
 {
     [ExcludeFromCodeCoverage]
     internal static class Disposable

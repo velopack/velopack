@@ -1,5 +1,6 @@
 ﻿using System.Threading;
 using NuGet.Protocol.Core.Types;
+using Velopack.Util;
 
 namespace Velopack.Vpk.Updates;
 

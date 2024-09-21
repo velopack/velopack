@@ -2,6 +2,7 @@
 using Velopack.Sources;
 using Octokit;
 using Velopack.Packaging.Exceptions;
+using Velopack.Util;
 
 namespace Velopack.Packaging.Tests;
 
@@ -22,8 +23,8 @@ public class GithubDeploymentTests
     {
         Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
-        using var _1 = Utility.GetTempDirectory(out var releaseDir);
-        using var _2 = Utility.GetTempDirectory(out var releaseDir2);
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+        using var _2 = TempUtil.GetTempDirectory(out var releaseDir2);
         using var ghvar = GitHubReleaseTest.Create("nomerge", logger);
         var id = "GithubUpdateTest";
         TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger);
@@ -51,8 +52,8 @@ public class GithubDeploymentTests
     {
         Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
-        using var _1 = Utility.GetTempDirectory(out var releaseDir);
-        using var _2 = Utility.GetTempDirectory(out var releaseDir2);
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+        using var _2 = TempUtil.GetTempDirectory(out var releaseDir2);
         using var ghvar = GitHubReleaseTest.Create("mixmatched", logger);
         var id = "GithubUpdateTest";
         TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger);
@@ -81,8 +82,8 @@ public class GithubDeploymentTests
     {
         Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
-        using var _1 = Utility.GetTempDirectory(out var releaseDir);
-        using var _2 = Utility.GetTempDirectory(out var releaseDir2);
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+        using var _2 = TempUtil.GetTempDirectory(out var releaseDir2);
         using var ghvar = GitHubReleaseTest.Create("yesmerge", logger);
         var id = "GithubUpdateTest";
         TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger);
@@ -114,7 +115,7 @@ public class GithubDeploymentTests
         Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
         var id = "GithubUpdateTest";
-        using var _1 = Utility.GetTempDirectory(out var releaseDir);
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         var (repoOwner, repoName) = GitHubRepository.GetOwnerAndRepo(GITHUB_REPOURL);
         using var ghvar = GitHubReleaseTest.Create("integration", logger);
         var releaseName = ghvar.ReleaseName;
@@ -172,7 +173,7 @@ This is just a _test_!
             Assert.Equal(newVer, r.Version.ToNormalizedString());
         }
 
-        using var _2 = Utility.GetTempDirectory(out var releaseDirNew);
+        using var _2 = TempUtil.GetTempDirectory(out var releaseDirNew);
         gh.DownloadLatestFullPackageAsync(new GitHubDownloadOptions {
             Token = GITHUB_TOKEN,
             RepoUrl = GITHUB_REPOURL,
@@ -189,7 +190,7 @@ This is just a _test_!
     {
         Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
-        using var _1 = Utility.GetTempDirectory(out var releaseDir);
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var ghvar = GitHubReleaseTest.Create("targetCommitish", logger, true);
         var (repoOwner, repoName) = GitHubRepository.GetOwnerAndRepo(GITHUB_REPOURL);
         var id = "GithubUpdateTest";
@@ -225,7 +226,7 @@ This is just a _test_!
     {
         Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
-        using var _1 = Utility.GetTempDirectory(out var releaseDir);
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var ghvar = GitHubReleaseTest.Create("targetCommitish", logger, true);
         var (repoOwner, repoName) = GitHubRepository.GetOwnerAndRepo(GITHUB_REPOURL);
         var id = "GithubUpdateTest";

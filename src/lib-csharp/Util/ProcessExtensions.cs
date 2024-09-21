@@ -4,13 +4,37 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-namespace Velopack
+namespace Velopack.Util
 {
     [ExcludeFromCodeCoverage]
     internal static class ProcessStartExtensions
     {
+        public static async Task<int> GetExitCodeAsync(this Process p)
+        {
+#if NET5_0_OR_GREATER
+            await p.WaitForExitAsync().ConfigureAwait(false);
+            return p.ExitCode;
+#else
+            var tcs = new TaskCompletionSource<int>();
+            var thread = new Thread(
+                () => {
+                    try {
+                        p.WaitForExit();
+                        tcs.SetResult(p.ExitCode);
+                    } catch (Exception ex) {
+                        tcs.SetException(ex);
+                    }
+                });
+            thread.IsBackground = true;
+            thread.Start();
+            await tcs.Task.ConfigureAwait(false);
+            return p.ExitCode;
+#endif
+        }
 
 #if NET5_0_OR_GREATER
         public static void AppendArgumentListSafe(this ProcessStartInfo psi, IEnumerable<string> args, out string debug)

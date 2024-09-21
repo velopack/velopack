@@ -1,5 +1,4 @@
-﻿using Velopack.Json;
-using Velopack.Packaging.Exceptions;
+﻿using Velopack.Packaging.Exceptions;
 
 namespace Velopack.Packaging;
 

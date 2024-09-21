@@ -2,6 +2,7 @@
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text;
+using Velopack.Util;
 using Velopack.Windows;
 
 namespace Velopack.Tests;
@@ -26,7 +27,7 @@ public class UtilityTests
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
         var exp = Path.GetFullPath(expected);
-        var normal = Utility.NormalizePath(input);
+        var normal = PathUtil.NormalizePath(input);
         Assert.Equal(exp, normal);
     }
 
@@ -43,7 +44,7 @@ public class UtilityTests
     public void FileIsInDirectory(string directory, string file, bool isIn)
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
-        var fileInDir = Utility.IsFileInDirectory(file, directory);
+        var fileInDir = PathUtil.IsFileInDirectory(file, directory);
         Assert.Equal(isIn, fileInDir);
     }
 
@@ -84,24 +85,24 @@ public class UtilityTests
         var emptyString = string.Empty;
         string nullString = null;
         byte[] nullByteArray = { };
-        Assert.Equal(string.Empty, Utility.RemoveByteOrderMarkerIfPresent(emptyString));
-        Assert.Equal(string.Empty, Utility.RemoveByteOrderMarkerIfPresent(nullString));
-        Assert.Equal(string.Empty, Utility.RemoveByteOrderMarkerIfPresent(nullByteArray));
+        Assert.Equal(string.Empty, CoreUtil.RemoveByteOrderMarkerIfPresent(emptyString));
+        Assert.Equal(string.Empty, CoreUtil.RemoveByteOrderMarkerIfPresent(nullString));
+        Assert.Equal(string.Empty, CoreUtil.RemoveByteOrderMarkerIfPresent(nullByteArray));
 
-        Assert.Equal(string.Empty, Utility.RemoveByteOrderMarkerIfPresent(utf32Be));
-        Assert.Equal(string.Empty, Utility.RemoveByteOrderMarkerIfPresent(utf32Le));
-        Assert.Equal(string.Empty, Utility.RemoveByteOrderMarkerIfPresent(utf16Be));
-        Assert.Equal(string.Empty, Utility.RemoveByteOrderMarkerIfPresent(utf16Le));
-        Assert.Equal(string.Empty, Utility.RemoveByteOrderMarkerIfPresent(utf8));
+        Assert.Equal(string.Empty, CoreUtil.RemoveByteOrderMarkerIfPresent(utf32Be));
+        Assert.Equal(string.Empty, CoreUtil.RemoveByteOrderMarkerIfPresent(utf32Le));
+        Assert.Equal(string.Empty, CoreUtil.RemoveByteOrderMarkerIfPresent(utf16Be));
+        Assert.Equal(string.Empty, CoreUtil.RemoveByteOrderMarkerIfPresent(utf16Le));
+        Assert.Equal(string.Empty, CoreUtil.RemoveByteOrderMarkerIfPresent(utf8));
 
-        Assert.Equal("hello world", Utility.RemoveByteOrderMarkerIfPresent(utf32BeHelloWorld));
-        Assert.Equal("hello world", Utility.RemoveByteOrderMarkerIfPresent(utf32LeHelloWorld));
-        Assert.Equal("hello world", Utility.RemoveByteOrderMarkerIfPresent(utf16BeHelloWorld));
-        Assert.Equal("hello world", Utility.RemoveByteOrderMarkerIfPresent(utf16LeHelloWorld));
-        Assert.Equal("hello world", Utility.RemoveByteOrderMarkerIfPresent(utf8HelloWorld));
+        Assert.Equal("hello world", CoreUtil.RemoveByteOrderMarkerIfPresent(utf32BeHelloWorld));
+        Assert.Equal("hello world", CoreUtil.RemoveByteOrderMarkerIfPresent(utf32LeHelloWorld));
+        Assert.Equal("hello world", CoreUtil.RemoveByteOrderMarkerIfPresent(utf16BeHelloWorld));
+        Assert.Equal("hello world", CoreUtil.RemoveByteOrderMarkerIfPresent(utf16LeHelloWorld));
+        Assert.Equal("hello world", CoreUtil.RemoveByteOrderMarkerIfPresent(utf8HelloWorld));
 
-        Assert.Equal("hello world", Utility.RemoveByteOrderMarkerIfPresent(asciiMultipleChars));
-        Assert.Equal("A", Utility.RemoveByteOrderMarkerIfPresent(asciiSingleChar));
+        Assert.Equal("hello world", CoreUtil.RemoveByteOrderMarkerIfPresent(asciiMultipleChars));
+        Assert.Equal("A", CoreUtil.RemoveByteOrderMarkerIfPresent(asciiSingleChar));
     }
 
     [Fact]
@@ -110,7 +111,7 @@ public class UtilityTests
         var sha1FromExternalTool = "75255cfd229a1ed1447abe1104f5635e69975d30";
         var inputPackage = PathHelper.GetFixture("Squirrel.Core.1.0.0.0.nupkg");
         var stream = File.OpenRead(inputPackage);
-        var sha1 = Utility.CalculateStreamSHA1(stream);
+        var sha1 = IoUtil.CalculateStreamSHA1(stream);
 
         Assert.NotEqual(sha1FromExternalTool, sha1);
         Assert.Equal(sha1FromExternalTool, sha1, StringComparer.OrdinalIgnoreCase);
@@ -121,7 +122,7 @@ public class UtilityTests
     {
         using var logger = _output.BuildLoggerFor<UtilityTests>();
         string tempDir;
-        using (Utility.GetTempDirectory(out tempDir)) {
+        using (TempUtil.GetTempDirectory(out tempDir)) {
             for (var i = 0; i < 50; i++) {
                 var directory = Path.Combine(tempDir, newId());
                 CreateSampleDirectory(directory);
@@ -135,7 +136,7 @@ public class UtilityTests
 
             var sw = new Stopwatch();
             sw.Start();
-            Utility.DeleteFileOrDirectoryHard(tempDir);
+            IoUtil.DeleteFileOrDirectoryHard(tempDir);
             sw.Stop();
             logger.Info($"Delete took {sw.ElapsedMilliseconds}ms");
 
@@ -147,7 +148,7 @@ public class UtilityTests
     //public void CreateFakePackageSmokeTest()
     //{
     //    string path;
-    //    using (Utility.GetTempDirectory(out path)) {
+    //    using (TempUtil.GetTempDirectory(out path)) {
     //        var output = IntegrationTestHelper.CreateFakeInstalledApp("0.3.0", path);
     //        Assert.True(File.Exists(output));
     //    }
@@ -161,7 +162,7 @@ public class UtilityTests
     [InlineData(".rels", false)]
     public void FileIsLikelyPEImageTest(string input, bool result)
     {
-        Assert.Equal(result, Utility.FileIsLikelyPEImage(input));
+        Assert.Equal(result, PathUtil.FileIsLikelyPEImage(input));
     }
 
     [Fact(Skip = "Only really need to run this test after changes to FileDownloader")]
@@ -170,10 +171,10 @@ public class UtilityTests
         // this probably should use a local http server instead.
         const string testUrl = "http://speedtest.tele2.net/1MB.zip";
 
-        var dl = Utility.CreateDefaultDownloader();
+        var dl = HttpUtil.CreateDefaultDownloader();
 
         List<int> prog = new List<int>();
-        using (Utility.GetTempFileName(out var tempPath))
+        using (TempUtil.GetTempFileName(out var tempPath))
             await dl.DownloadFile(testUrl, tempPath, prog.Add);
 
         Assert.True(prog.Count > 10);

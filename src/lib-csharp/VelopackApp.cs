@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.Versioning;
 using Velopack.Locators;
+using Velopack.Util;
 
 namespace Velopack
 {
@@ -170,7 +171,7 @@ namespace Velopack
             log.Info("Starting Velopack App (Run).");
 
             if (VelopackRuntimeInfo.IsWindows && locator.AppId != null) {
-                var appUserModelId = Utility.GetAppUserModelId(locator.AppId);
+                var appUserModelId = CoreUtil.GetAppUserModelId(locator.AppId);
                 log.Info($"Setting current process explicit AppUserModelID to '{appUserModelId}'");
                 SetCurrentProcessExplicitAppUserModelID(appUserModelId);
             }
