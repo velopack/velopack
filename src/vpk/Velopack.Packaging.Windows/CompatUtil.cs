@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 using Velopack.Packaging.Abstractions;
 using Velopack.Packaging.Exceptions;
+using Velopack.Util;
 
 namespace Velopack.Packaging.Windows;
 

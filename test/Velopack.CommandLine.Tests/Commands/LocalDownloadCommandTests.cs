@@ -1,4 +1,5 @@
 ﻿using System.CommandLine;
+using Velopack.Util;
 using Velopack.Vpk.Commands.Deployment;
 
 namespace Velopack.CommandLine.Tests.Commands;
@@ -9,7 +10,7 @@ public class LocalDownloadCommandTests : BaseCommandTests<LocalDownloadCommand>
     {
         var command = new LocalDownloadCommand();
 
-        using var _1 = Utility.GetTempDirectory(out var releaseDir);
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         File.Create(Path.Combine(releaseDir, "test.txt")).Close();
 
         ParseResult parseResult = command.ParseAndApply($"--path {releaseDir}");
@@ -22,7 +23,7 @@ public class LocalDownloadCommandTests : BaseCommandTests<LocalDownloadCommand>
     public void Path_WithEmptyPath_ParsesValue()
     {
         var command = new LocalDownloadCommand();
-        using var _1 = Utility.GetTempDirectory(out var releaseDir);
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
 
         ParseResult parseResult = command.ParseAndApply($"--path {releaseDir}");
 

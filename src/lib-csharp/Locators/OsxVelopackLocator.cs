@@ -4,6 +4,7 @@ using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 using Velopack.NuGet;
+using Velopack.Util;
 
 namespace Velopack.Locators
 {
@@ -30,7 +31,7 @@ namespace Velopack.Locators
         public override string? AppContentDir => RootAppDir;
 
         /// <inheritdoc />
-        public override string? AppTempDir => CreateSubDirIfDoesNotExist(Utility.GetDefaultTempBaseDirectory(), AppId);
+        public override string? AppTempDir => CreateSubDirIfDoesNotExist(TempUtil.GetDefaultTempBaseDirectory(), AppId);
 
         /// <inheritdoc />
         public override string? PackagesDir => CreateSubDirIfDoesNotExist(CachesAppDir, "packages");
@@ -68,7 +69,7 @@ namespace Velopack.Locators
             var contentsDir = Path.Combine(appPath, "Contents");
             var macosDir = Path.Combine(contentsDir, "MacOS");
             var updateExe = Path.Combine(macosDir, "UpdateMac");
-            var metadataPath = Path.Combine(macosDir, Utility.SpecVersionFileName);
+            var metadataPath = Path.Combine(macosDir, CoreUtil.SpecVersionFileName);
 
             if (File.Exists(updateExe) && PackageManifest.TryParseFromFile(metadataPath, out var manifest)) {
                 Log.Info("Located valid manifest file at: " + metadataPath);

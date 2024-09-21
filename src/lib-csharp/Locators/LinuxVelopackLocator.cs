@@ -4,6 +4,7 @@ using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 using Velopack.NuGet;
+using Velopack.Util;
 
 namespace Velopack.Locators
 {
@@ -33,7 +34,7 @@ namespace Velopack.Locators
         public override string? Channel { get; }
 
         /// <inheritdoc />
-        public override string? AppTempDir => CreateSubDirIfDoesNotExist(Utility.GetDefaultTempBaseDirectory(), AppId);
+        public override string? AppTempDir => CreateSubDirIfDoesNotExist(TempUtil.GetDefaultTempBaseDirectory(), AppId);
 
         /// <inheritdoc />
         public override string? PackagesDir => CreateSubDirIfDoesNotExist(PersistentTempDir, "packages");
@@ -70,7 +71,7 @@ namespace Velopack.Locators
             var rootDir = ourPath.Substring(0, ix);
             var contentsDir = Path.Combine(rootDir, "usr", "bin");
             var updateExe = Path.Combine(contentsDir, "UpdateNix");
-            var metadataPath = Path.Combine(contentsDir, Utility.SpecVersionFileName);
+            var metadataPath = Path.Combine(contentsDir, CoreUtil.SpecVersionFileName);
 
             if (!String.IsNullOrEmpty(AppImagePath) && File.Exists(AppImagePath)) {
                 if (File.Exists(updateExe) && PackageManifest.TryParseFromFile(metadataPath, out var manifest)) {

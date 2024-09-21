@@ -8,6 +8,7 @@ using Velopack.NuGet;
 using Velopack.Packaging;
 using Velopack.Packaging.Exceptions;
 using Velopack.Sources;
+using Velopack.Util;
 
 namespace Velopack.Deployment;
 
@@ -132,7 +133,7 @@ public class GiteaRepository : SourceRepository<GiteaDownloadOptions, GiteaSourc
         }
 
         // check if there is an existing releasesFile to merge
-        var releasesFileName = Utility.GetVeloReleaseIndexName(options.Channel);
+        var releasesFileName = CoreUtil.GetVeloReleaseIndexName(options.Channel);
         var releaseAsset = release.Assets.FirstOrDefault(a => a.Name == releasesFileName);
         if (releaseAsset != null) {
             throw new UserInfoException($"There is already a remote asset named '{releasesFileName}', and merging release files on Gitea is not supported.");

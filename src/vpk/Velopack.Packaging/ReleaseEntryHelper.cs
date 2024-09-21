@@ -1,8 +1,8 @@
 ﻿using System.Text;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
-using Velopack.Json;
 using Velopack.NuGet;
+using Velopack.Util;
 
 namespace Velopack.Packaging;
 
@@ -64,7 +64,7 @@ public class ReleaseEntryHelper
     {
         var releases = _releases.ContainsKey(_channel) ? _releases[_channel] : null;
         if (releases == null || !releases.Any()) return null;
-        return releases.Where(z => z.Type == VelopackAssetType.Full).MaxBy(z => z.Version).First();
+        return releases.Where(z => z.Type == VelopackAssetType.Full).MaxByPolyfill(z => z.Version).First();
     }
 
     public IEnumerable<VelopackAsset> GetLatestAssets()
@@ -72,7 +72,7 @@ public class ReleaseEntryHelper
         if (!_releases.ContainsKey(_channel) || !_releases[_channel].Any())
             return Enumerable.Empty<VelopackAsset>();
 
-        var latest = _releases[_channel].MaxBy(x => x.Version).First();
+        var latest = _releases[_channel].MaxByPolyfill(x => x.Version).First();
         _logger.Info($"Latest release: {latest.FileName}");
 
         var assets = _releases[_channel]
@@ -102,9 +102,8 @@ public class ReleaseEntryHelper
             }
 
             // We write a legacy RELEASES file to allow older applications to update to velopack
-#pragma warning disable CS0612 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
-            var name = Utility.GetReleasesFileName(kvp.Key);
+            var name = CoreUtil.GetReleasesFileName(kvp.Key);
             var path = Path.Combine(outputDir, name);
 
             ReleaseEntry.WriteReleaseFile(
@@ -114,9 +113,8 @@ public class ReleaseEntryHelper
                     .Where(entry => !entry.IsDelta),
                 path);
 #pragma warning restore CS0618 // Type or member is obsolete
-#pragma warning restore CS0612 // Type or member is obsolete
 
-            var indexPath = Path.Combine(outputDir, Utility.GetVeloReleaseIndexName(kvp.Key));
+            var indexPath = Path.Combine(outputDir, CoreUtil.GetVeloReleaseIndexName(kvp.Key));
             var feed = new VelopackAssetFeed() {
                 Assets = kvp.Value.OrderByDescending(v => v.Version).ThenBy(v => v.Type).ToArray(),
             };

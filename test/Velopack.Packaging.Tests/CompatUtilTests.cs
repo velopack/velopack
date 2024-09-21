@@ -1,6 +1,7 @@
 ﻿using Neovolve.Logging.Xunit;
 using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Windows;
+using Velopack.Util;
 using Velopack.Vpk;
 using Velopack.Vpk.Logging;
 
@@ -35,7 +36,7 @@ public class CompatUtilTests
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
         using var logger = GetCompat(out var compat);
-        using var _1 = Utility.GetTempDirectory(out var dir);
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
         var sample = PathHelper.GetAvaloniaSample();
         Exe.InvokeAndThrowIfNonZero(
             "dotnet",
@@ -56,7 +57,7 @@ public class CompatUtilTests
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
         using var logger = GetCompat(out var compat);
-        using var _1 = Utility.GetTempDirectory(out var dir);
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
         var sample = PathHelper.GetAvaloniaSample();
         Exe.InvokeAndThrowIfNonZero(
             "dotnet",
@@ -77,7 +78,7 @@ public class CompatUtilTests
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
         using var logger = GetCompat(out var compat);
-        using var _1 = Utility.GetTempDirectory(out var dir);
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
         var sample = PathHelper.GetWpfSample();
         Exe.InvokeAndThrowIfNonZero(
             "dotnet",
@@ -97,7 +98,7 @@ public class CompatUtilTests
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
         using var logger = GetCompat(out var compat);
-        using var _1 = Utility.GetTempDirectory(out var dir);
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
         var sample = PathHelper.GetTestRootPath("TestApp");
         Exe.InvokeAndThrowIfNonZero(
             "dotnet",
@@ -114,7 +115,7 @@ public class CompatUtilTests
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
         using var logger = GetCompat(out var compat);
-        using var _1 = Utility.GetTempDirectory(out var dir);
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
         var sample = PathHelper.GetTestRootPath("TestApp");
         Exe.InvokeAndThrowIfNonZero(
             "dotnet",

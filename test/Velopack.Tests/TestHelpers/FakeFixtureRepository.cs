@@ -3,6 +3,7 @@
 using System.Text;
 using Velopack.Packaging;
 using Velopack.Sources;
+using Velopack.Util;
 
 namespace Velopack.Tests.TestHelpers;
 
@@ -16,8 +17,8 @@ internal class FakeFixtureRepository : Sources.IFileDownloader
 
     public FakeFixtureRepository(string pkgId, bool mockLatestFullVer, string channel = null)
     {
-        _releasesName = Utility.GetReleasesFileName(channel);
-        _releasesNameNew = Utility.GetVeloReleaseIndexName(channel);
+        _releasesName = CoreUtil.GetReleasesFileName(channel);
+        _releasesNameNew = CoreUtil.GetVeloReleaseIndexName(channel);
         _pkgId = pkgId;
         var releases = ReleaseEntry.BuildReleasesFile(PathHelper.GetFixturesDir(), false)
             .Where(r => r.OriginalFilename.StartsWith(_pkgId))

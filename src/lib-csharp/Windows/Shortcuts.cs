@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Velopack.Locators;
 using Velopack.NuGet;
+using Velopack.Util;
 
 namespace Velopack.Windows
 {
@@ -165,7 +166,7 @@ namespace Velopack.Windows
                 Log.Info($"Creating shortcut for {relativeExeName} => {file}");
 
                 ShellLink sl;
-                Utility.Retry(() => {
+                IoUtil.Retry(() => {
                     File.Delete(file);
 
                     var target = Path.Combine(currentDir, relativeExeName);
@@ -280,7 +281,7 @@ namespace Velopack.Windows
 
         private ShortcutLocation[] GetLocations(ShortcutLocation flag)
         {
-            var locations = Utility.GetEnumValues<ShortcutLocation>();
+            var locations = CoreUtil.GetEnumValues<ShortcutLocation>();
             return locations
                 .Where(x => x != ShortcutLocation.None)
                 .Where(x => flag.HasFlag(x))

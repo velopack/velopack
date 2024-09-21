@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Text;
 using Velopack.Packaging.Exceptions;
+using Velopack.Util;
 
 namespace Velopack.Packaging;
 
@@ -38,7 +39,7 @@ public static class Exe
 
     public static string RunHostedCommand(string command, string workDir = null)
     {
-        using var _1 = Utility.GetTempFileName(out var outputFile);
+        using var _1 = TempUtil.GetTempFileName(out var outputFile);
         File.Create(outputFile).Close();
 
         var fileName = "cmd.exe";
@@ -64,7 +65,7 @@ public static class Exe
 
         process.WaitForExit();
 
-        var stdout = Utility.Retry(() => File.ReadAllText(outputFile).Trim(), 10, 1000);
+        var stdout = IoUtil.Retry(() => File.ReadAllText(outputFile).Trim(), 10, 1000);
         var result = (process.ExitCode, stdout, "", command);
         ProcessFailedException.ThrowIfNonZero(result);
         return result.Item2;
@@ -72,7 +73,7 @@ public static class Exe
 
     public static void RunHostedCommandNoWait(string command, string workDir = null)
     {
-        using var _1 = Utility.GetTempFileName(out var outputFile);
+        using var _1 = TempUtil.GetTempFileName(out var outputFile);
         File.Create(outputFile).Close();
 
         var fileName = "cmd.exe";

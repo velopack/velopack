@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Velopack.Packaging;
+using Velopack.Util;
 
 namespace Velopack.Deployment;
 
@@ -37,7 +38,7 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
 
     protected override async Task<VelopackAssetFeed> GetReleasesAsync(TDown options)
     {
-        var releasesName = Utility.GetVeloReleaseIndexName(options.Channel);
+        var releasesName = CoreUtil.GetVeloReleaseIndexName(options.Channel);
         var client = CreateClient(options);
         var bytes = await GetObjectBytes(client, releasesName);
         if (bytes == null || bytes.Length == 0) {
@@ -87,15 +88,15 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
 
         var newReleaseFeed = new VelopackAssetFeed { Assets = releaseEntries };
 
-        using var _1 = Utility.GetTempFileName(out var tmpReleases);
+        using var _1 = TempUtil.GetTempFileName(out var tmpReleases);
         File.WriteAllText(tmpReleases, ReleaseEntryHelper.GetAssetFeedJson(newReleaseFeed));
-        var releasesName = Utility.GetVeloReleaseIndexName(options.Channel);
+        var releasesName = CoreUtil.GetVeloReleaseIndexName(options.Channel);
         await UploadObject(client, releasesName, new FileInfo(tmpReleases), true, noCache: true);
 
 #pragma warning disable CS0612 // Type or member is obsolete
-        var legacyKey = Utility.GetReleasesFileName(options.Channel);
+        var legacyKey = CoreUtil.GetReleasesFileName(options.Channel);
 #pragma warning restore CS0612 // Type or member is obsolete
-        using var _2 = Utility.GetTempFileName(out var tmpReleases2);
+        using var _2 = TempUtil.GetTempFileName(out var tmpReleases2);
         File.WriteAllText(tmpReleases2, ReleaseEntryHelper.GetLegacyMigrationReleaseFeedString(newReleaseFeed));
         await UploadObject(client, legacyKey, new FileInfo(tmpReleases2), true, noCache: true);
 

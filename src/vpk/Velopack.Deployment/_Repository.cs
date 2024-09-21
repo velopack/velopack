@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Velopack.Packaging;
 using Velopack.Packaging.Abstractions;
 using Velopack.Sources;
+using Velopack.Util;
 
 namespace Velopack.Deployment;
 
@@ -83,8 +84,8 @@ public abstract class DownRepository<TDown> : IRepositoryCanDownload<TDown>
             Log.Warn($"File '{path}' already exists on disk. Verifying checksum...");
 
             bool hashMatch = (latest.SHA256 != null)
-                ? latest.SHA256 == Utility.CalculateFileSHA256(path)
-                : latest.SHA1 == Utility.CalculateFileSHA1(path);
+                ? latest.SHA256 == IoUtil.CalculateFileSHA256(path)
+                : latest.SHA1 == IoUtil.CalculateFileSHA1(path);
 
             if (hashMatch) {
                 Log.Info("Checksum matches. Finished.");
@@ -99,12 +100,12 @@ public abstract class DownRepository<TDown> : IRepositoryCanDownload<TDown>
         Log.Info("Verifying checksum...");
         string newHash;
         if (!string.IsNullOrEmpty(latest.SHA256)) {
-            if (latest.SHA256 != (newHash = Utility.CalculateFileSHA256(incomplete))) {
+            if (latest.SHA256 != (newHash = IoUtil.CalculateFileSHA256(incomplete))) {
                 Log.Error($"Checksum mismatch, expected {latest.SHA256}, got {newHash}");
                 return;
             }
         }
-        else if (latest.SHA1 != (newHash = Utility.CalculateFileSHA1(incomplete))) {
+        else if (latest.SHA1 != (newHash = IoUtil.CalculateFileSHA1(incomplete))) {
             Log.Error($"Checksum mismatch, expected {latest.SHA1}, got {newHash}");
             return;
         }

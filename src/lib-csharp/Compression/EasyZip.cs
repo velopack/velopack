@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Velopack.Util;
 
 namespace Velopack.Compression
 {
@@ -17,7 +18,7 @@ namespace Velopack.Compression
         public static void ExtractZipToDirectory(ILogger logger, string inputFile, string outputDirectory, bool expandSymlinks = false)
         {
             logger.Debug($"Extracting '{inputFile}' to '{outputDirectory}' using System.IO.Compression...");
-            Utility.DeleteFileOrDirectoryHard(outputDirectory);
+            IoUtil.DeleteFileOrDirectoryHard(outputDirectory);
 
             List<ZipArchiveEntry> symlinks = new();
             using (ZipArchive archive = ZipFile.Open(inputFile, ZipArchiveMode.Read)) {
@@ -58,7 +59,7 @@ namespace Velopack.Compression
                 using (var reader = new StreamReader(source.Open())) {
                     var targetPath = reader.ReadToEnd();
                     var absolute = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(fileDestinationPath)!, targetPath));
-                    if (!Utility.IsFileInDirectory(absolute, destinationDirectoryName)) {
+                    if (!PathUtil.IsFileInDirectory(absolute, destinationDirectoryName)) {
                         throw new IOException("IO_SymlinkTargetNotInDirectory");
                     }
 
@@ -127,7 +128,7 @@ namespace Velopack.Compression
 
                 // if dir is a symlink, write it as a file containing path to target
                 if (SymbolicLink.Exists(dir.FullName)) {
-                    if (!Utility.IsFileInDirectory(SymbolicLink.GetTarget(dir.FullName, relative: false), sourceDirectoryName)) {
+                    if (!PathUtil.IsFileInDirectory(SymbolicLink.GetTarget(dir.FullName, relative: false), sourceDirectoryName)) {
                         throw new IOException("IO_SymlinkTargetNotInDirectory");
                     }
 
@@ -169,7 +170,7 @@ namespace Velopack.Compression
 
                     if (SymbolicLink.Exists(fileInfo.FullName)) {
                         // Handle symlink: Store the symlink target instead of its content
-                        if (!Utility.IsFileInDirectory(SymbolicLink.GetTarget(fileInfo.FullName, relative: false), sourceDirectoryName)) {
+                        if (!PathUtil.IsFileInDirectory(SymbolicLink.GetTarget(fileInfo.FullName, relative: false), sourceDirectoryName)) {
                             throw new IOException("IO_SymlinkTargetNotInDirectory");
                         }
 

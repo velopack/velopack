@@ -1,4 +1,5 @@
 ﻿using Velopack.Packaging.Unix;
+using Velopack.Util;
 
 namespace Velopack.Packaging.Tests;
 
@@ -20,7 +21,7 @@ public class CrossCompile
         var rid = RID.Parse(target);
 
         string id = $"from-{VelopackRuntimeInfo.SystemOs.GetOsShortName()}-targets-{rid.BaseRID.GetOsShortName()}";
-        using var _1 = Utility.GetTempDirectory(out var tempDir);
+        using var _1 = TempUtil.GetTempDirectory(out var tempDir);
         TestApp.PackTestApp(id, "1.0.0", id, tempDir, logger, targetRid: rid);
 
         var artifactsDir = PathHelper.GetTestRootPath("artifacts");
@@ -84,7 +85,7 @@ public class CrossCompile
         var appExe = Path.Combine(appRoot, "current", "TestApp.exe");
         var appUpdate = Path.Combine(appRoot, "Update.exe");
 
-        Utility.DeleteFileOrDirectoryHard(appRoot);
+        IoUtil.DeleteFileOrDirectoryHard(appRoot);
 
         Assert.False(File.Exists(appExe));
 
@@ -102,6 +103,6 @@ public class CrossCompile
 
         Assert.False(File.Exists(appExe));
         Assert.True(File.Exists(Path.Combine(appRoot, ".dead")));
-        Utility.DeleteFileOrDirectoryHard(appRoot);
+        IoUtil.DeleteFileOrDirectoryHard(appRoot);
     }
 }

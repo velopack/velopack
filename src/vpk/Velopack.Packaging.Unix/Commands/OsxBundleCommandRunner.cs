@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 using Velopack.Packaging.Abstractions;
 using Velopack.Packaging.Exceptions;
+using Velopack.Util;
 
 namespace Velopack.Packaging.Unix.Commands;
 
@@ -69,7 +70,7 @@ public class OsxBundleCommandRunner : ICommand<OsxBundleOptions>
         var builder = new OsxStructureBuilder(packId, releaseDir.FullName);
         if (Directory.Exists(builder.AppDirectory)) {
             _logger.Warn(builder.AppDirectory + " already exists, deleting...");
-            Utility.DeleteFileOrDirectoryHard(builder.AppDirectory);
+            IoUtil.DeleteFileOrDirectoryHard(builder.AppDirectory);
         }
 
         builder.Build();

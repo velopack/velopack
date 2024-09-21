@@ -1,6 +1,7 @@
 ﻿using NuGet.Versioning;
 using Velopack.Deployment;
 using Velopack.Sources;
+using Velopack.Util;
 
 namespace Velopack.Packaging.Tests;
 
@@ -23,7 +24,7 @@ public class AzureDeploymentTests
     {
         Skip.If(String.IsNullOrWhiteSpace(AZ_KEY), "VELOPACK_AZ_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<S3DeploymentTests>();
-        using var _1 = Utility.GetTempDirectory(out var releaseDir);
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
 
         string channel = String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CI"))
             ? VelopackRuntimeInfo.SystemOs.GetOsShortName()

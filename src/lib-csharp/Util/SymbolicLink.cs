@@ -1,12 +1,11 @@
 ﻿using System;
 using System.ComponentModel;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 
-namespace Velopack
+namespace Velopack.Util
 {
     internal static class SymbolicLink
     {
@@ -28,14 +27,14 @@ namespace Velopack
 
             if (Directory.Exists(linkPath) || File.Exists(linkPath)) {
                 if (overwrite) {
-                    Utility.DeleteFileOrDirectoryHard(linkPath);
+                    IoUtil.DeleteFileOrDirectoryHard(linkPath);
                 } else {
                     throw new IOException("Junction / symlink path already exists and overwrite parameter is false.");
                 }
             }
 
             var finalTarget = relative
-                ? GetRelativePath(Path.GetDirectoryName(linkPath)!, targetPath)
+                ? PathUtil.MakePathRelativeTo(Path.GetDirectoryName(linkPath)!, targetPath)
                 : targetPath;
 
             if (Directory.Exists(targetPath)) {
@@ -106,7 +105,7 @@ namespace Velopack
             var target = GetUnresolvedTarget(linkPath);
             if (relative) {
                 if (Path.IsPathRooted(target)) {
-                    return GetRelativePath(Path.GetDirectoryName(linkPath)!, target);
+                    return PathUtil.MakePathRelativeTo(Path.GetDirectoryName(linkPath)!, target);
                 } else {
                     return target;
                 }
@@ -150,79 +149,8 @@ namespace Velopack
             return fsi != null && (fsi.Attributes & FileAttributes.ReparsePoint) != 0;
         }
 
-        private static string GetRelativePath(string relativeTo, string path)
-        {
-#if NETFRAMEWORK || NETSTANDARD
-            relativeTo = Path.GetFullPath(relativeTo);
-            path = Path.GetFullPath(path);
-            return ToggleRelative(relativeTo, path);
-#else
-            return Path.GetRelativePath(relativeTo, path);
-#endif
-        }
 
 #if NETFRAMEWORK || NETSTANDARD
-        private static string ToggleRelative(string basePath, string toggledPath)
-        {
-            // from https://github.com/RT-Projects/RT.Util/blob/master/RT.Util.Core/Paths/PathUtil.cs#L297
-            if (basePath.Length == 0)
-                throw new Exception("InvalidBasePath");
-            if (toggledPath.Length == 0)
-                throw new Exception("InvalidToggledPath");
-            if (!Path.IsPathRooted(basePath))
-                throw new Exception("BasePathNotAbsolute");
-
-            try { basePath = Path.GetFullPath(basePath + "\\"); } catch { throw new Exception("InvalidBasePath"); }
-
-            if (!Path.IsPathRooted(toggledPath)) {
-                try {
-                    return StripTrailingSeparator(Path.GetFullPath(Path.Combine(basePath, toggledPath)));
-                } catch {
-                    throw new Exception("InvalidToggledPath");
-                }
-            }
-
-            // Both basePath and toggledPath are absolute. Need to relativize toggledPath.
-            try { toggledPath = Path.GetFullPath(toggledPath + "\\"); } catch { throw new Exception("InvalidToggledPath"); }
-
-            int prevPos = -1;
-            int pos = toggledPath.IndexOf(Path.DirectorySeparatorChar);
-            while (pos != -1 && pos < basePath.Length &&
-                   basePath.Substring(0, pos + 1).Equals(toggledPath.Substring(0, pos + 1), StringComparison.OrdinalIgnoreCase)) {
-                prevPos = pos;
-                pos = toggledPath.IndexOf(Path.DirectorySeparatorChar, pos + 1);
-            }
-
-            if (prevPos == -1)
-                throw new Exception("PathsOnDifferentDrives");
-            var piece = basePath.Substring(prevPos + 1);
-            var result = StripTrailingSeparator(
-                (".." + Path.DirectorySeparatorChar).Repeat(piece.Count(ch => ch == Path.DirectorySeparatorChar))
-                + toggledPath.Substring(prevPos + 1));
-            return result.Length == 0 ? "." : result;
-        }
-
-        private static string Repeat(this string input, int numTimes)
-        {
-            if (numTimes == 0) return "";
-            if (numTimes == 1) return input;
-            if (numTimes == 2) return input + input;
-            var sb = new StringBuilder();
-            for (int i = 0; i < numTimes; i++)
-                sb.Append(input);
-            return sb.ToString();
-        }
-
-        private static string StripTrailingSeparator(string path)
-        {
-            if (path.Length < 1)
-                return path;
-            if (path[path.Length - 1] == '/' || path[path.Length - 1] == '\\')
-                return (path.Length == 3 && path[1] == ':') ? path : path.Substring(0, path.Length - 1);
-            else
-                return path;
-        }
-
         [Flags]
         private enum EFileAttributes : uint
         {

@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Velopack.Packaging;
 using Velopack.Sources;
+using Velopack.Util;
 
 namespace Velopack.Deployment;
 
@@ -26,7 +27,7 @@ public class LocalRepository(ILogger logger) : ObjectRepository<LocalDownloadOpt
     {
         var target = Path.Combine(client.FullName, key);
         Log.Info("Deleting: " + target);
-        Utility.DeleteFileOrDirectoryHard(target);
+        IoUtil.DeleteFileOrDirectoryHard(target);
         return Task.CompletedTask;
     }
 

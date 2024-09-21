@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using Velopack.Util;
 
 namespace Velopack.Compression
 {
@@ -29,7 +30,7 @@ namespace Velopack.Compression
 
             Log.Info($"Applying delta package from {deltaPackageZip} to delta staging directory.");
 
-            using var _1 = Utility.GetTempDirectory(out var deltaPath, BaseTempDir);
+            using var _1 = TempUtil.GetTempDirectory(out var deltaPath, BaseTempDir);
             EasyZip.ExtractZipToDirectory(Log, deltaPackageZip, deltaPath);
             progress(10);
 
@@ -51,7 +52,7 @@ namespace Velopack.Compression
                 pathsVisited.Add(DIFF_SUFFIX.Replace(file, "").ToLowerInvariant());
                 applyDiffToFile(deltaPath, file, workingPath);
                 var perc = (index + 1) / (double) files.Length * 100;
-                progress(Utility.CalculateProgress((int) perc, 10, 90));
+                progress(CoreUtil.CalculateProgress((int) perc, 10, 90));
             }
 
             progress(80);
@@ -118,7 +119,7 @@ namespace Velopack.Compression
             var inputFile = Path.Combine(deltaPath, relativeFilePath);
             var finalTarget = Path.Combine(workingDirectory, DIFF_SUFFIX.Replace(relativeFilePath, ""));
 
-            using var _d = Utility.GetTempFileName(out var tempTargetFile, BaseTempDir);
+            using var _d = TempUtil.GetTempFileName(out var tempTargetFile, BaseTempDir);
 
             // NB: Zero-length diffs indicate the file hasn't actually changed
             if (new FileInfo(inputFile).Length == 0) {

@@ -5,6 +5,7 @@ using Velopack.Packaging;
 using Velopack.Locators;
 using Velopack.Sources;
 using Velopack.Tests.TestHelpers;
+using Velopack.Util;
 
 namespace Velopack.Tests;
 
@@ -107,7 +108,7 @@ public class UpdateManagerTests
         var fixture = PathHelper.GetFixture("AvaloniaCrossPlat-1.0.11-win-full.nupkg");
 
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
-        using var _1 = Utility.GetTempDirectory(out var tempPath);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
         var dl = new FakeDownloader() {
             MockedResponseBytes = Encoding.UTF8.GetBytes(SimpleJson.SerializeObject(
             new VelopackAssetFeed {
@@ -117,7 +118,7 @@ public class UpdateManagerTests
                     Version = new SemanticVersion(1, 0, 11),
                     Type = VelopackAssetType.Full,
                     FileName = $"https://mysite.com/releases/AvaloniaCrossPlat$-1.1.0.nupkg",
-                    SHA1 = Utility.CalculateFileSHA1(fixture),
+                    SHA1 = IoUtil.CalculateFileSHA1(fixture),
                     Size = new FileInfo(fixture).Length,
                 } }
             }))
@@ -145,7 +146,7 @@ public class UpdateManagerTests
     public void CheckFromLocal()
     {
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
-        using var _1 = Utility.GetTempDirectory(out var tempPath);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
         var dl = GetMockDownloaderNoDelta();
         var source = new SimpleWebSource("http://any.com", dl);
         var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
@@ -162,7 +163,7 @@ public class UpdateManagerTests
     public void CheckFromLocalWithChannel()
     {
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
-        using var _1 = Utility.GetTempDirectory(out var tempPath);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
         var dl = GetMockDownloaderNoDelta();
         var source = new SimpleWebSource("http://any.com", dl);
         var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
@@ -180,7 +181,7 @@ public class UpdateManagerTests
     public void CheckForSameAsInstalledVersion()
     {
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
-        using var _1 = Utility.GetTempDirectory(out var tempPath);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
         var dl = GetMockDownloaderWith2Delta();
         var myVer = new VelopackAsset() {
             PackageId = "MyCoolApp",
@@ -220,7 +221,7 @@ public class UpdateManagerTests
     public void CheckForLowerThanInstalledVersion()
     {
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
-        using var _1 = Utility.GetTempDirectory(out var tempPath);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
         var dl = GetMockDownloaderWith2Delta();
         var myVer = new VelopackAsset() {
             PackageId = "MyCoolApp",
@@ -254,7 +255,7 @@ public class UpdateManagerTests
     public void CheckFromLocalWithDelta()
     {
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
-        using var _1 = Utility.GetTempDirectory(out var tempPath);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
         var dl = GetMockDownloaderWith2Delta();
         var myVer = new VelopackAsset() {
             PackageId = "MyCoolApp",
@@ -282,7 +283,7 @@ public class UpdateManagerTests
         string version = "3.4.287";
 
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
-        using var _1 = Utility.GetTempDirectory(out var packagesDir);
+        using var _1 = TempUtil.GetTempDirectory(out var packagesDir);
         var repo = new FakeFixtureRepository(id, false);
         var source = new SimpleWebSource("http://any.com", repo);
         var locator = new TestVelopackLocator(id, "1.0.0", packagesDir, logger);
@@ -316,7 +317,7 @@ public class UpdateManagerTests
         string version = "3.4.287";
 
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
-        using var _1 = Utility.GetTempDirectory(out var packagesDir);
+        using var _1 = TempUtil.GetTempDirectory(out var packagesDir);
         var repo = new FakeFixtureRepository(id, false);
         var source = new SimpleWebSource("http://any.com", repo);
         var locator = new TestVelopackLocator(id, "1.0.0", packagesDir, logger);
@@ -347,7 +348,7 @@ public class UpdateManagerTests
     public void NoDeltaIfNoBasePackage()
     {
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
-        using var _1 = Utility.GetTempDirectory(out var tempPath);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
         var dl = GetMockDownloaderWith2Delta();
         var source = new SimpleWebSource("http://any.com", dl);
         var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger: logger);
@@ -363,7 +364,7 @@ public class UpdateManagerTests
     public void CheckFromLocalWithDeltaNoLocalPackage()
     {
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
-        using var _1 = Utility.GetTempDirectory(out var tempPath);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
         var dl = GetMockDownloaderWith2Delta();
         var source = new SimpleWebSource("http://any.com", dl);
         var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger: logger);
@@ -380,7 +381,7 @@ public class UpdateManagerTests
     {
         // https://github.com/caesay/SquirrelCustomLauncherTestApp
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
-        using var _1 = Utility.GetTempDirectory(out var tempPath);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
         var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
         var source = new GithubSource("https://github.com/caesay/SquirrelCustomLauncherTestApp", null, false);
         var um = new UpdateManager(source, null, logger, locator);
@@ -394,7 +395,7 @@ public class UpdateManagerTests
     {
         // https://github.com/caesay/SquirrelCustomLauncherTestApp
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
-        using var _1 = Utility.GetTempDirectory(out var tempPath);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
         var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
         var source = new GithubSource("https://github.com/caesay/SquirrelCustomLauncherTestApp", null, false);
         var opt = new UpdateOptions { ExplicitChannel = "hello" };
@@ -406,7 +407,7 @@ public class UpdateManagerTests
     {
         // https://github.com/caesay/SquirrelCustomLauncherTestApp
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
-        using var _1 = Utility.GetTempDirectory(out var tempPath);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
         var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
         var source = new GiteaSource("https://gitea.com/remco1271/VeloPackTest", null, false);
         var um = new UpdateManager(source, null, logger, locator);
@@ -419,7 +420,7 @@ public class UpdateManagerTests
     public void CheckFromEmptyFileSource()
     {
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
-        using var _1 = Utility.GetTempDirectory(out var tempPath);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
         var source = new SimpleFileSource(new DirectoryInfo(tempPath));
         var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger);
         var um = new UpdateManager(source, null, logger, locator);
@@ -431,7 +432,7 @@ public class UpdateManagerTests
     public void NoUpdatesIfCurrentEqualsRemoteVersion()
     {
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
-        using var _1 = Utility.GetTempDirectory(out var tempPath);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
         var dl = GetMockDownloaderNoDelta();
         var source = new SimpleWebSource("http://any.com", dl);
         var locator = new TestVelopackLocator("MyCoolApp", "1.1.0", tempPath, logger);
@@ -444,7 +445,7 @@ public class UpdateManagerTests
     public void NoUpdatesIfCurrentGreaterThanRemoteVersion()
     {
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
-        using var _1 = Utility.GetTempDirectory(out var tempPath);
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
         var dl = GetMockDownloaderNoDelta();
         var source = new SimpleWebSource("http://any.com", dl);
         var locator = new TestVelopackLocator("MyCoolApp", "1.2.0", tempPath, logger);
@@ -459,7 +460,7 @@ public class UpdateManagerTests
     public void DownloadsLatestFullVersion(string id, string version)
     {
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
-        using var _1 = Utility.GetTempDirectory(out var packagesDir);
+        using var _1 = TempUtil.GetTempDirectory(out var packagesDir);
         var repo = new FakeFixtureRepository(id, false);
         var source = new SimpleWebSource("http://any.com", repo);
         var locator = new TestVelopackLocator(id, "1.0.0", packagesDir, logger);
@@ -484,7 +485,7 @@ public class UpdateManagerTests
     {
         Skip.If(VelopackRuntimeInfo.IsLinux);
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
-        using var _1 = Utility.GetTempDirectory(out var packagesDir);
+        using var _1 = TempUtil.GetTempDirectory(out var packagesDir);
         var repo = new FakeFixtureRepository(id, true);
         var source = new SimpleWebSource("http://any.com", repo);
 

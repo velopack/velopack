@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
+using Velopack.Util;
 using Velopack.Vpk;
 using Velopack.Vpk.Logging;
 

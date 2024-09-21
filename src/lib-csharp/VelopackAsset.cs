@@ -2,7 +2,7 @@
 using System;
 using System.IO;
 using NuGet.Versioning;
-using Velopack.Json;
+using Velopack.Util;
 using Velopack.NuGet;
 
 namespace Velopack
@@ -81,8 +81,8 @@ namespace Velopack
                 NotesMarkdown = zip.ReleaseNotes,
                 NotesHTML = zip.ReleaseNotesHtml,
                 Size = new FileInfo(filePath).Length,
-                SHA1 = Utility.CalculateFileSHA1(filePath),
-                SHA256 = Utility.CalculateFileSHA256(filePath),
+                SHA1 = IoUtil.CalculateFileSHA1(filePath),
+                SHA256 = IoUtil.CalculateFileSHA256(filePath),
                 FileName = Path.GetFileName(filePath),
                 Type = IsDeltaFile(filePath) ? VelopackAssetType.Delta : VelopackAssetType.Full,
             };

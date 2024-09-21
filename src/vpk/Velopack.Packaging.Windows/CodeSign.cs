@@ -2,6 +2,7 @@
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Velopack.Packaging.Exceptions;
+using Velopack.Util;
 
 namespace Velopack.Packaging.Windows;
 
@@ -45,13 +46,13 @@ public class CodeSign
                 if (String.IsNullOrEmpty(rootDir)) {
                     pendingSign.Enqueue(f);
                 } else {
-                    var partialPath = Utility.NormalizePath(f).Substring(Utility.NormalizePath(rootDir).Length).Trim('/', '\\');
+                    var partialPath = PathUtil.NormalizePath(f).Substring(PathUtil.NormalizePath(rootDir).Length).Trim('/', '\\');
                     pendingSign.Enqueue(partialPath);
                 }
             }
         }
 
-        using var _1 = Utility.GetTempFileName(out var signLogFile);
+        using var _1 = TempUtil.GetTempFileName(out var signLogFile);
         var totalToSign = pendingSign.Count;
 
         if (signAsTemplate) {

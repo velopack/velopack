@@ -11,6 +11,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NuGet.Versioning;
+using Velopack.Util;
 
 namespace Velopack
 {
@@ -225,7 +226,7 @@ namespace Velopack
             string baseUrl = null;
             string query = null;
 
-            if (Utility.IsHttpUrl(filename)) {
+            if (HttpUtil.IsHttpUrl(filename)) {
                 var uri = new Uri(filename);
                 var path = uri.LocalPath;
                 var authority = uri.GetLeftPart(UriPartial.Authority);
@@ -281,7 +282,7 @@ namespace Velopack
                 return new ReleaseEntry[0];
             }
 
-            fileContents = Utility.RemoveByteOrderMarkerIfPresent(fileContents);
+            fileContents = CoreUtil.RemoveByteOrderMarkerIfPresent(fileContents);
 
             var ret = fileContents.Split('\n')
                 .Where(x => !String.IsNullOrWhiteSpace(x))
@@ -302,7 +303,7 @@ namespace Velopack
                 return new ReleaseEntry[0];
             }
 
-            fileContents = Utility.RemoveByteOrderMarkerIfPresent(fileContents);
+            fileContents = CoreUtil.RemoveByteOrderMarkerIfPresent(fileContents);
 
             var ret = fileContents.Split('\n')
                 .Where(x => !String.IsNullOrWhiteSpace(x))
@@ -350,7 +351,7 @@ namespace Velopack
             Contract.Requires(file != null && file.CanRead);
             Contract.Requires(!String.IsNullOrEmpty(filename));
 
-            var hash = Utility.CalculateStreamSHA1(file);
+            var hash = IoUtil.CalculateStreamSHA1(file);
             return new ReleaseEntry(hash, filename, file.Length, baseUrl);
         }
 
@@ -387,7 +388,7 @@ namespace Velopack
             var entries = entriesQueue.ToList();
 
             if (writeToDisk) {
-                using var _ = Utility.GetTempFileName(out var tempFile);
+                using var _ = TempUtil.GetTempFileName(out var tempFile);
                 using (var of = File.OpenWrite(tempFile)) {
                     if (entries.Count > 0) WriteReleaseFile(entries, of);
                 }

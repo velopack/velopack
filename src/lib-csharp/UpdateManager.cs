@@ -11,6 +11,7 @@ using Velopack.Compression;
 using Velopack.Locators;
 using Velopack.NuGet;
 using Velopack.Sources;
+using Velopack.Util;
 
 namespace Velopack
 {
@@ -126,7 +127,7 @@ namespace Velopack
             var feedObj = await Source.GetReleaseFeed(Log, Channel, betaId, latestLocalFull).ConfigureAwait(false);
             var feed = feedObj.Assets;
 
-            var latestRemoteFull = feed.Where(r => r.Type == VelopackAssetType.Full).MaxBy(x => x.Version).FirstOrDefault();
+            var latestRemoteFull = feed.Where(r => r.Type == VelopackAssetType.Full).MaxByPolyfill(x => x.Version).FirstOrDefault();
             if (latestRemoteFull == null) {
                 Log.Info("No remote full releases found.");
                 return null;
@@ -264,20 +265,20 @@ namespace Velopack
                                 Log.Info($"There are too many delta's ({deltasCount} > 10) or the sum of their size ({deltasSize} > {targetRelease.Size}) is too large. " +
                                     $"Only full update will be available.");
                             } else {
-                                using var _1 = Utility.GetTempDirectory(out var deltaStagingDir, appTempDir);
+                                using var _1 = TempUtil.GetTempDirectory(out var deltaStagingDir, appTempDir);
                                 string basePackagePath = Locator.GetLocalPackagePath(updates.BaseRelease);
                                 if (!File.Exists(basePackagePath))
                                     throw new Exception($"Unable to find base package {basePackagePath} for delta update.");
                                 EasyZip.ExtractZipToDirectory(Log, basePackagePath, deltaStagingDir);
 
                                 reportProgress(10);
-                                await DownloadAndApplyDeltaUpdates(deltaStagingDir, updates, x => reportProgress(Utility.CalculateProgress(x, 10, 80)), cancelToken)
+                                await DownloadAndApplyDeltaUpdates(deltaStagingDir, updates, x => reportProgress(CoreUtil.CalculateProgress(x, 10, 80)), cancelToken)
                                     .ConfigureAwait(false);
                                 reportProgress(80);
 
                                 Log.Info("Delta updates completed, creating final update package.");
                                 File.Delete(incompleteFile);
-                                await EasyZip.CreateZipFromDirectoryAsync(Log, incompleteFile, deltaStagingDir, x => reportProgress(Utility.CalculateProgress(x, 80, 100)),
+                                await EasyZip.CreateZipFromDirectoryAsync(Log, incompleteFile, deltaStagingDir, x => reportProgress(CoreUtil.CalculateProgress(x, 80, 100)),
                                     cancelToken: cancelToken).ConfigureAwait(false);
                                 File.Delete(completeFile);
                                 File.Move(incompleteFile, completeFile);
@@ -297,7 +298,7 @@ namespace Velopack
                 Log.Info("Verifying package checksum...");
                 VerifyPackageChecksum(targetRelease, incompleteFile);
 
-                Utility.MoveFile(incompleteFile, completeFile, true);
+                IoUtil.MoveFile(incompleteFile, completeFile, true);
                 Log.Info("Full release download complete. Package moved to: " + completeFile);
                 reportProgress(100);
             } finally {
@@ -310,7 +311,7 @@ namespace Velopack
                         if (zip.UpdateExeBytes == null) {
                             Log.Error("Update.exe not found in package, skipping extraction.");
                         } else {
-                            await Utility.RetryAsync(async () => {
+                            await IoUtil.RetryAsync(async () => {
                                 using var ms = new MemoryStream(zip.UpdateExeBytes);
                                 using var fs = File.Create(updateExe);
                                 await ms.CopyToAsync(fs).ConfigureAwait(false);
@@ -352,7 +353,7 @@ namespace Velopack
                         current -= component;
                         component = toIncrement / 100.0 * p;
                         var progressOfStep = (int) Math.Round(current += component);
-                        progress(Utility.CalculateProgress(progressOfStep, 0, 50));
+                        progress(CoreUtil.CalculateProgress(progressOfStep, 0, 50));
                     }
                 }, cancelToken).ConfigureAwait(false);
                 VerifyPackageChecksum(x, targetFile);
@@ -372,7 +373,7 @@ namespace Velopack
                 var packageFile = Locator.GetLocalPackagePath(rel);
                 builder.ApplyDeltaPackageFast(extractedBasePackage, packageFile, x => {
                     var progressOfStep = (int) (baseProgress + (progressStepSize * (x / 100d)));
-                    progress(Utility.CalculateProgress(progressOfStep, 50, 100));
+                    progress(CoreUtil.CalculateProgress(progressOfStep, 50, 100));
                 });
             }
 
@@ -391,11 +392,11 @@ namespace Velopack
                 var appPackageDir = Locator.PackagesDir!;
                 foreach (var l in Directory.EnumerateFiles(appPackageDir, "*.nupkg").ToArray()) {
                     try {
-                        if (assetToKeep != null && Utility.FullPathEquals(l, assetToKeep)) {
+                        if (assetToKeep != null && PathUtil.FullPathEquals(l, assetToKeep)) {
                             continue;
                         }
 
-                        Utility.DeleteFileOrDirectoryHard(l);
+                        IoUtil.DeleteFileOrDirectoryHard(l);
                         Log.Trace(l + " deleted.");
                     } catch (Exception ex) {
                         Log.Warn(ex, "Failed to delete partial package: " + l);
@@ -404,7 +405,7 @@ namespace Velopack
 
                 foreach (var l in Directory.EnumerateFiles(appPackageDir, "*.partial").ToArray()) {
                     try {
-                        Utility.DeleteFileOrDirectoryHard(l);
+                        IoUtil.DeleteFileOrDirectoryHard(l);
                         Log.Trace(l + " deleted.");
                     } catch (Exception ex) {
                         Log.Warn(ex, "Failed to delete partial package: " + l);
@@ -433,12 +434,12 @@ namespace Velopack
             }
 
             if (!string.IsNullOrEmpty(release.SHA256)) {
-                var hash = Utility.CalculateFileSHA256(targetPackage.FullName);
+                var hash = IoUtil.CalculateFileSHA256(targetPackage.FullName);
                 if (!hash.Equals(release.SHA256, StringComparison.Ordinal)) {
                     throw new ChecksumFailedException(targetPackage.FullName, $"SHA256 doesn't match ({release.SHA256} != {hash}).");
                 }
             } else {
-                var hash = Utility.CalculateFileSHA1(targetPackage.FullName);
+                var hash = IoUtil.CalculateFileSHA1(targetPackage.FullName);
                 if (!hash.Equals(release.SHA1, StringComparison.OrdinalIgnoreCase)) {
                     throw new ChecksumFailedException(targetPackage.FullName, $"SHA1 doesn't match ({release.SHA1} != {hash}).");
                 }
@@ -479,8 +480,8 @@ namespace Velopack
             if (String.IsNullOrWhiteSpace(urlOrPath)) {
                 throw new ArgumentException("Must pass a valid URL or file path to UpdateManager", nameof(urlOrPath));
             }
-            if (Utility.IsHttpUrl(urlOrPath)) {
-                return new SimpleWebSource(urlOrPath, Utility.CreateDefaultDownloader());
+            if (HttpUtil.IsHttpUrl(urlOrPath)) {
+                return new SimpleWebSource(urlOrPath, HttpUtil.CreateDefaultDownloader());
             } else {
                 return new SimpleFileSource(new DirectoryInfo(urlOrPath));
             }

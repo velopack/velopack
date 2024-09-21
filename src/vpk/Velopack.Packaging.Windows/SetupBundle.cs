@@ -1,4 +1,5 @@
 ﻿using System.IO.MemoryMappedFiles;
+using Velopack.Util;
 
 namespace Velopack.Packaging.Windows;
 
@@ -31,7 +32,7 @@ public static class SetupBundle
             length = accessor.ReadInt64(position - 8);
         }
 
-        Utility.Retry(FindBundleHeader);
+        IoUtil.Retry(FindBundleHeader);
 
         bundleOffset = offset;
         bundleLength = length;
@@ -45,8 +46,8 @@ public static class SetupBundle
         Stream pkgStream = null, setupStream = null;
 
         try {
-            pkgStream = Utility.Retry(() => File.OpenRead(packagePath), retries: 10);
-            setupStream = Utility.Retry(() => File.Open(setupPath, FileMode.Append, FileAccess.Write), retries: 10);
+            pkgStream = IoUtil.Retry(() => File.OpenRead(packagePath), retries: 10);
+            setupStream = IoUtil.Retry(() => File.Open(setupPath, FileMode.Append, FileAccess.Write), retries: 10);
             bundleOffset = setupStream.Position;
             bundleLength = pkgStream.Length;
             pkgStream.CopyTo(setupStream);

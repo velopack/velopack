@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Velopack.Util;
 
 namespace Velopack.Sources
 {
@@ -44,7 +45,7 @@ namespace Velopack.Sources
             RepoUri = new Uri(repoUrl.TrimEnd('/'));
             AccessToken = accessToken;
             Prerelease = prerelease;
-            Downloader = downloader ?? Utility.CreateDefaultDownloader();
+            Downloader = downloader ?? HttpUtil.CreateDefaultDownloader();
         }
 
         /// <inheritdoc />
@@ -69,7 +70,7 @@ namespace Velopack.Sources
                 return new VelopackAssetFeed();
             }
 
-            var releasesFileName = Utility.GetVeloReleaseIndexName(channel);
+            var releasesFileName = CoreUtil.GetVeloReleaseIndexName(channel);
             List<GitBaseAsset> entries = new List<GitBaseAsset>();
 
             foreach (var r in releases) {
@@ -83,7 +84,7 @@ namespace Velopack.Sources
                     continue;
                 }
                 var releaseBytes = await Downloader.DownloadBytes(assetUrl, Authorization, "application/octet-stream").ConfigureAwait(false);
-                var txt = Utility.RemoveByteOrderMarkerIfPresent(releaseBytes);
+                var txt = CoreUtil.RemoveByteOrderMarkerIfPresent(releaseBytes);
                 var feed = VelopackAssetFeed.FromJson(txt);
                 foreach (var f in feed.Assets) {
                     entries.Add(new GitBaseAsset(f, r));

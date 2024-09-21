@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using Velopack.Compression;
 using Velopack.Packaging.Exceptions;
+using Velopack.Util;
 
 namespace Velopack.Packaging;
 
@@ -61,8 +62,8 @@ public class DeltaPackageBuilder
 
         int fNew = 0, fSame = 0, fChanged = 0, fWarnings = 0, fProcessed = 0, fRemoved = 0;
 
-        using (Utility.GetTempDirectory(out var baseTempPath))
-        using (Utility.GetTempDirectory(out var tempPath)) {
+        using (TempUtil.GetTempDirectory(out var baseTempPath))
+        using (TempUtil.GetTempDirectory(out var tempPath)) {
             var baseTempInfo = new DirectoryInfo(baseTempPath);
             var tempInfo = new DirectoryInfo(tempPath);
 
@@ -139,12 +140,12 @@ public class DeltaPackageBuilder
                     targetFile.Delete();
                     baseLibFiles.Remove(relativePath);
                     var p = Interlocked.Increment(ref fProcessed);
-                    progress(Utility.CalculateProgress((int) ((double) p / numNewFiles * 100), 0, 70));
+                    progress(CoreUtil.CalculateProgress((int) ((double) p / numNewFiles * 100), 0, 70));
                 } catch (Exception ex) {
                     _logger.Debug(ex, String.Format("Failed to create a delta for {0}", targetFile.Name));
-                    Utility.DeleteFileOrDirectoryHard(targetFile.FullName + ".bsdiff", throwOnFailure: false);
-                    Utility.DeleteFileOrDirectoryHard(targetFile.FullName + ".diff", throwOnFailure: false);
-                    Utility.DeleteFileOrDirectoryHard(targetFile.FullName + ".shasum", throwOnFailure: false);
+                    IoUtil.DeleteFileOrDirectoryHard(targetFile.FullName + ".bsdiff", throwOnFailure: false);
+                    IoUtil.DeleteFileOrDirectoryHard(targetFile.FullName + ".diff", throwOnFailure: false);
+                    IoUtil.DeleteFileOrDirectoryHard(targetFile.FullName + ".shasum", throwOnFailure: false);
                     Interlocked.Increment(ref fWarnings);
                     throw;
                 }
@@ -179,7 +180,7 @@ public class DeltaPackageBuilder
                 throw new UserInfoException("Delta creation failed for one or more files. See log for details. To skip delta generation, use the '--delta none' argument.");
             }
 
-            EasyZip.CreateZipFromDirectoryAsync(_logger, outputFile, tempInfo.FullName, Utility.CreateProgressDelegate(progress, 70, 100)).GetAwaiterResult();
+            EasyZip.CreateZipFromDirectoryAsync(_logger, outputFile, tempInfo.FullName, CoreUtil.CreateProgressDelegate(progress, 70, 100)).GetAwaiterResult();
             progress(100);
             fRemoved = baseLibFiles.Count;
 

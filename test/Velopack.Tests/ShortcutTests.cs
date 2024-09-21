@@ -1,6 +1,7 @@
 ﻿#pragma warning disable CS0618 // Type or member is obsolete
 using System.Runtime.Versioning;
 using Velopack.Locators;
+using Velopack.Util;
 using Velopack.Windows;
 
 namespace Velopack.Tests;
@@ -21,7 +22,7 @@ public class ShortcutTests
         using var logger = _output.BuildLoggerFor<ShortcutTests>();
         string exeName = "NotSquirrelAwareApp.exe";
 
-        using var _1 = Utility.GetTempDirectory(out var rootDir);
+        using var _1 = TempUtil.GetTempDirectory(out var rootDir);
         var packages = Directory.CreateDirectory(Path.Combine(rootDir, "packages"));
         var current = Directory.CreateDirectory(Path.Combine(rootDir, "current"));
 

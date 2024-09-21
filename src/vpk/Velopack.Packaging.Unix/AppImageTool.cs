@@ -1,6 +1,7 @@
-﻿using ICSharpCode.SharpZipLib.Tar;
+using ICSharpCode.SharpZipLib.Tar;
 using Microsoft.Extensions.Logging;
 using Velopack.Compression;
+using Velopack.Util;
 
 namespace Velopack.Packaging.Unix;
 
@@ -81,8 +82,8 @@ public class AppImageTool
 
             Chmod.ChmodFileAsExecutable(outputFile);
         } finally {
-            Utility.DeleteFileOrDirectoryHard(tmpSquashFile);
-            Utility.DeleteFileOrDirectoryHard(tmpTarFile);
+            IoUtil.DeleteFileOrDirectoryHard(tmpSquashFile);
+            IoUtil.DeleteFileOrDirectoryHard(tmpTarFile);
         }
     }
 }

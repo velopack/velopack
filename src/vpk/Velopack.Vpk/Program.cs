@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -12,6 +12,7 @@ using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Flow;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
+using Velopack.Util;
 using Velopack.Vpk.Commands;
 using Velopack.Vpk.Commands.Deployment;
 using Velopack.Vpk.Commands.Flow;

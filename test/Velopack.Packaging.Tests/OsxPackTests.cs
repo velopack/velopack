@@ -1,5 +1,6 @@
 using System.Runtime.Versioning;
 using Velopack.Compression;
+using Velopack.Util;
 
 namespace Velopack.Packaging.Tests;
 
@@ -20,9 +21,9 @@ public class OsxPackTests
 
         using var logger = _output.BuildLoggerFor<OsxPackTests>();
 
-        using var _1 = Utility.GetTempDirectory(out var tmpOutput);
-        using var _2 = Utility.GetTempDirectory(out var tmpReleaseDir);
-        using var _3 = Utility.GetTempDirectory(out var unzipDir);
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
+        using var _3 = TempUtil.GetTempDirectory(out var unzipDir);
 
         const string id = "MyAppId";
         const string title = "MyAppTitle";

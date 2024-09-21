@@ -1,7 +1,7 @@
 ﻿using System.Runtime.Versioning;
 using System.Security;
 using Microsoft.Extensions.Logging;
-using Velopack.Json;
+using Velopack.Util;
 
 namespace Velopack.Packaging.Unix;
 
@@ -97,11 +97,11 @@ public class OsxBuildTools
 
         if (File.Exists(pkgOutputPath)) File.Delete(pkgOutputPath);
 
-        using var _1 = Utility.GetTempDirectory(out var tmp);
-        using var _2 = Utility.GetTempDirectory(out var tmpPayload1);
-        using var _3 = Utility.GetTempDirectory(out var tmpPayload2);
-        using var _4 = Utility.GetTempDirectory(out var tmpScripts);
-        using var _5 = Utility.GetTempDirectory(out var tmpResources);
+        using var _1 = TempUtil.GetTempDirectory(out var tmp);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpPayload1);
+        using var _3 = TempUtil.GetTempDirectory(out var tmpPayload2);
+        using var _4 = TempUtil.GetTempDirectory(out var tmpScripts);
+        using var _5 = TempUtil.GetTempDirectory(out var tmpResources);
 
         // copy .app to tmp folder
         var bundleName = Path.GetFileName(appBundlePath);

@@ -2,6 +2,7 @@
 using NuGet.Versioning;
 using Velopack.NuGet;
 using Velopack.Tests.TestHelpers;
+using Velopack.Util;
 using ZipPackage = Velopack.NuGet.ZipPackage;
 
 namespace Velopack.Tests;
@@ -19,9 +20,9 @@ public class ZipPackageTests
     {
         using var logger = _output.BuildLoggerFor<ZipPackageTests>();
 
-        using var _1 = Utility.GetTempDirectory(out var tempDir);
-        using var _2 = Utility.GetTempDirectory(out var zipDir);
-        using var _3 = Utility.GetTempDirectory(out var extractedDir);
+        using var _1 = TempUtil.GetTempDirectory(out var tempDir);
+        using var _2 = TempUtil.GetTempDirectory(out var zipDir);
+        using var _3 = TempUtil.GetTempDirectory(out var extractedDir);
 
         var actual = Path.Combine(tempDir, "actual");
         var actualFile = Path.Combine(actual, "file.txt");
@@ -56,7 +57,7 @@ public class ZipPackageTests
     [Fact]
     public void HasSameFilesAndDependenciesAsPackaging()
     {
-        using var _1 = Utility.GetTempDirectory(out var tempDir);
+        using var _1 = TempUtil.GetTempDirectory(out var tempDir);
         var inputPackage = PathHelper.GetFixture("slack-1.1.8-full.nupkg");
         var copyPackage = Path.Combine(tempDir, "slack-1.1.8-full.nupkg");
         File.Copy(inputPackage, copyPackage);

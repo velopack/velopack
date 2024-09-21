@@ -8,6 +8,7 @@ using Velopack.Compression;
 using Velopack.Packaging.Commands;
 using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Windows.Commands;
+using Velopack.Util;
 using Velopack.Vpk;
 using Velopack.Vpk.Logging;
 using Velopack.Windows;
@@ -37,9 +38,9 @@ public class WindowsPackTests
 
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
 
-        using var _1 = Utility.GetTempDirectory(out var tmpOutput);
-        using var _2 = Utility.GetTempDirectory(out var tmpReleaseDir);
-        using var _3 = Utility.GetTempDirectory(out var unzipDir);
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
+        using var _3 = TempUtil.GetTempDirectory(out var unzipDir);
 
         var exe = "testapp.exe";
         var pdb = Path.ChangeExtension(exe, ".pdb");
@@ -106,8 +107,8 @@ public class WindowsPackTests
 
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
 
-        using var _1 = Utility.GetTempDirectory(out var tmpOutput);
-        using var _2 = Utility.GetTempDirectory(out var tmpReleaseDir);
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
 
         var exe = "testapp.exe";
         var pdb = Path.ChangeExtension(exe, ".pdb");
@@ -139,8 +140,8 @@ public class WindowsPackTests
 
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
 
-        using var _1 = Utility.GetTempDirectory(out var tmpOutput);
-        using var _2 = Utility.GetTempDirectory(out var tmpReleaseDir);
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
 
         var exe = "testapp.exe";
         var pdb = Path.ChangeExtension(exe, ".pdb");
@@ -177,9 +178,9 @@ public class WindowsPackTests
 
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
 
-        using var _1 = Utility.GetTempDirectory(out var tmpOutput);
-        using var _2 = Utility.GetTempDirectory(out var tmpReleaseDir);
-        using var _3 = Utility.GetTempDirectory(out var tmpInstallDir);
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
+        using var _3 = TempUtil.GetTempDirectory(out var tmpInstallDir);
 
         var exe = "testapp.exe";
         var pdb = Path.ChangeExtension(exe, ".pdb");
@@ -260,8 +261,8 @@ public class WindowsPackTests
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
-        using var _1 = Utility.GetTempDirectory(out var releaseDir);
-        using var _2 = Utility.GetTempDirectory(out var installDir);
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+        using var _2 = TempUtil.GetTempDirectory(out var installDir);
         string id = "SquirrelAutoUpdateTest";
         var appPath = Path.Combine(installDir, "current", "TestApp.exe");
 
@@ -293,7 +294,7 @@ public class WindowsPackTests
     [SkippableFact]
     public void TestPackGeneratesValidDelta()
     {
-        using var _1 = Utility.GetTempDirectory(out var releaseDir);
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         string id = "SquirrelDeltaTest";
@@ -304,7 +305,7 @@ public class WindowsPackTests
         // did a zsdiff get created for our v2 update?
         var deltaPath = Path.Combine(releaseDir, $"{id}-2.0.0-delta.nupkg");
         Assert.True(File.Exists(deltaPath));
-        using var _2 = Utility.GetTempDirectory(out var extractDir);
+        using var _2 = TempUtil.GetTempDirectory(out var extractDir);
         EasyZip.ExtractZipToDirectory(logger, deltaPath, extractDir);
         var extractDllDiff = Path.Combine(extractDir, "lib", "app", "testapp.dll.zsdiff");
         var extractDllShasum = Path.Combine(extractDir, "lib", "app", "testapp.dll.shasum");
@@ -366,8 +367,8 @@ public class WindowsPackTests
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
-        using var _1 = Utility.GetTempDirectory(out var releaseDir);
-        using var _2 = Utility.GetTempDirectory(out var installDir);
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+        using var _2 = TempUtil.GetTempDirectory(out var installDir);
         string id = "SquirrelHookTest";
         var appPath = Path.Combine(installDir, "current", "TestApp.exe");
 
@@ -415,8 +416,8 @@ public class WindowsPackTests
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
-        using var _1 = Utility.GetTempDirectory(out var releaseDir);
-        using var _2 = Utility.GetTempDirectory(out var installDir);
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+        using var _2 = TempUtil.GetTempDirectory(out var installDir);
 
         string id = "SquirrelIntegrationTest";
 
@@ -507,7 +508,7 @@ public class WindowsPackTests
 
         var rootDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LegacyTestApp");
         if (Directory.Exists(rootDir)) {
-            Utility.Retry(() => Utility.DeleteFileOrDirectoryHard(rootDir), 10, 1000);
+            IoUtil.Retry(() => IoUtil.DeleteFileOrDirectoryHard(rootDir), 10, 1000);
         }
 
         var setup = PathHelper.GetFixture(fixture);
@@ -520,7 +521,7 @@ public class WindowsPackTests
         Assert.True(File.Exists(appExe));
         Assert.True(File.Exists(updateExe));
 
-        using var _1 = Utility.GetTempDirectory(out var releaseDir);
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         PackTestApp("LegacyTestApp", "2.0.0", "hello!", releaseDir, logger);
 
         RunNoCoverage(appExe, new string[] { "download", releaseDir }, currentDir, logger, exitCode: 0);
@@ -612,7 +613,7 @@ public class WindowsPackTests
 
             logger.Info($"TEST: Process exited with code {p.ExitCode} in {elapsed.TotalSeconds}s");
 
-            using var fs = Utility.Retry(() => {
+            using var fs = IoUtil.Retry(() => {
                 return File.Open(outputFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
             }, 10, 1000, logger);
 

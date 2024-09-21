@@ -22,7 +22,7 @@ namespace System.Text.Json.Serialization
 }
 #endif
 
-namespace Velopack.Json
+namespace Velopack.Util
 {
 #if NET6_0_OR_GREATER
 

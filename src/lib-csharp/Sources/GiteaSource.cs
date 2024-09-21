@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using Velopack.Json;
+using Velopack.Util;
 namespace Velopack.Sources
 {
     /// <summary> Describes a Gitea release, including attached assets. </summary>

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Velopack.Util;
 
 namespace Velopack.Sources
 {
@@ -28,14 +29,14 @@ namespace Velopack.Sources
         public SimpleWebSource(Uri baseUri, IFileDownloader? downloader = null)
         {
             BaseUri = baseUri;
-            Downloader = downloader ?? Utility.CreateDefaultDownloader();
+            Downloader = downloader ?? HttpUtil.CreateDefaultDownloader();
         }
 
         /// <inheritdoc />
         public async virtual Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null, VelopackAsset? latestLocalRelease = null)
         {
-            var releaseFilename = Utility.GetVeloReleaseIndexName(channel);
-            var uri = Utility.AppendPathToUri(BaseUri, releaseFilename);
+            var releaseFilename = CoreUtil.GetVeloReleaseIndexName(channel);
+            var uri = HttpUtil.AppendPathToUri(BaseUri, releaseFilename);
             var args = new Dictionary<string, string>();
 
             if (VelopackRuntimeInfo.SystemArch != RuntimeCpu.Unknown) {
@@ -52,7 +53,7 @@ namespace Velopack.Sources
                 args.Add("localVersion", latestLocalRelease.Version.ToString());
             }
 
-            var uriAndQuery = Utility.AddQueryParamsToUri(uri, args);
+            var uriAndQuery = HttpUtil.AddQueryParamsToUri(uri, args);
 
             logger.Info($"Downloading release file '{releaseFilename}' from '{uriAndQuery}'.");
 
@@ -68,11 +69,11 @@ namespace Velopack.Sources
 
             // releaseUri can be a relative url (eg. "MyPackage.nupkg") or it can be an 
             // absolute url (eg. "https://example.com/MyPackage.nupkg"). In the former case
-            var sourceBaseUri = Utility.EnsureTrailingSlash(BaseUri);
+            var sourceBaseUri = HttpUtil.EnsureTrailingSlash(BaseUri);
 
-            var source = Utility.IsHttpUrl(releaseEntry.FileName)
+            var source = HttpUtil.IsHttpUrl(releaseEntry.FileName)
                 ? releaseEntry.FileName
-                : Utility.AppendPathToUri(sourceBaseUri, releaseEntry.FileName).ToString();
+                : HttpUtil.AppendPathToUri(sourceBaseUri, releaseEntry.FileName).ToString();
 
             logger.Info($"Downloading '{releaseEntry.FileName}' from '{source}'.");
             await Downloader.DownloadFile(source, localFile, progress, cancelToken: cancelToken).ConfigureAwait(false);
