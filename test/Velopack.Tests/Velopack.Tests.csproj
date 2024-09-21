@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
+  
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
 
   <Choose>
     <When Condition="$([MSBuild]::IsOSPlatform('Windows'))">
       <PropertyGroup>
-        <TargetFrameworks>net8.0;net48</TargetFrameworks>
+        <TargetFrameworks>net6.0;net8.0;net48</TargetFrameworks>
       </PropertyGroup>
     </When>
     <Otherwise>
       <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
       </PropertyGroup>
     </Otherwise>
   </Choose>
@@ -20,7 +24,6 @@
 
   <ItemGroup>
     <PackageReference Include="System.IO.Packaging" Version="8.0.0" />
-    <PackageReference Include="System.Text.Json" Version="8.0.4" />
   </ItemGroup>
 
   <ItemGroup Condition=" $(TargetFramework.StartsWith('net4')) ">
@@ -30,8 +33,17 @@
     <Reference Include="System.IO.Compression.FileSystem" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\lib-csharp\Velopack.csproj" />
-  </ItemGroup>
+  <Choose>
+    <When Condition="'$(TargetFramework)' == 'net6.0'">
+      <ItemGroup>
+        <ProjectReference Include="..\..\src\lib-csharp\Velopack.csproj" SetTargetFramework="TargetFramework=netstandard2.0" />
+      </ItemGroup>
+    </When>
+    <Otherwise>
+      <ItemGroup>
+        <ProjectReference Include="..\..\src\lib-csharp\Velopack.csproj" />
+      </ItemGroup>
+    </Otherwise>
+  </Choose>
 
 </Project>

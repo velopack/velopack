@@ -5,7 +5,6 @@ using Velopack.Windows;
 
 namespace Velopack.Tests;
 
-[SupportedOSPlatform("windows")]
 public class ShortcutTests
 {
     private readonly ITestOutputHelper _output;

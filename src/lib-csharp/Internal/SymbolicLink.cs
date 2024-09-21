@@ -39,14 +39,30 @@ namespace Velopack
                 : targetPath;
 
             if (Directory.Exists(targetPath)) {
-#if NETFRAMEWORK || NETSTANDARD
+#if NETSTANDARD
+                if (VelopackRuntimeInfo.IsWindows) {
+                    if (!CreateSymbolicLink(linkPath, finalTarget, SYMBOLIC_LINK_FLAG_DIRECTORY | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE))
+                        ThrowLastWin32Error("Unable to create junction point / symlink.");
+                } else {
+                    var linkInfo = new Mono.Unix.UnixSymbolicLinkInfo(linkPath);
+                    linkInfo.CreateSymbolicLinkTo(targetPath);
+                }
+#elif NETFRAMEWORK
                 if (!CreateSymbolicLink(linkPath, finalTarget, SYMBOLIC_LINK_FLAG_DIRECTORY | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE))
                     ThrowLastWin32Error("Unable to create junction point / symlink.");
 #else
                 Directory.CreateSymbolicLink(linkPath, finalTarget);
 #endif
             } else if (File.Exists(targetPath)) {
-#if NETFRAMEWORK || NETSTANDARD
+#if NETSTANDARD
+                if (VelopackRuntimeInfo.IsWindows) {
+                    if (!CreateSymbolicLink(linkPath, finalTarget, SYMBOLIC_LINK_FLAG_FILE | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE))
+                        ThrowLastWin32Error("Unable to create junction point / symlink.");
+                } else {
+                    var fileInfo = new Mono.Unix.UnixFileInfo(targetPath);
+                    fileInfo.CreateSymbolicLink(linkPath);
+                }
+#elif NETFRAMEWORK
                 if (!CreateSymbolicLink(linkPath, finalTarget, SYMBOLIC_LINK_FLAG_FILE | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE))
                     ThrowLastWin32Error("Unable to create junction point / symlink.");
 #else
@@ -74,7 +90,7 @@ namespace Velopack
         {
             var isLink = TryGetLinkFsi(linkPath, out var fsi);
             if (fsi != null && !isLink) {
-                throw new IOException("Path is not a junction point.");
+                throw new IOException("Path is not a junction point / symlink.");
             } else {
                 fsi?.Delete();
             }
@@ -106,13 +122,19 @@ namespace Velopack
         private static string GetUnresolvedTarget(string linkPath)
         {
             if (TryGetLinkFsi(linkPath, out var fsi)) {
-#if NETFRAMEWORK || NETSTANDARD
-
+#if NETSTANDARD
+                if (VelopackRuntimeInfo.IsWindows) {
+                    return GetTargetWin32(linkPath);
+                } else {
+                    return Mono.Unix.UnixPath.ReadLink(linkPath);
+                }
+#elif NETFRAMEWORK
                 return GetTargetWin32(linkPath);
 #else
                 return fsi.LinkTarget!;
 #endif
             }
+
             throw new IOException("Path does not exist or is not a junction point / symlink.");
         }
 
@@ -140,6 +162,67 @@ namespace Velopack
         }
 
 #if NETFRAMEWORK || NETSTANDARD
+        private static string ToggleRelative(string basePath, string toggledPath)
+        {
+            // from https://github.com/RT-Projects/RT.Util/blob/master/RT.Util.Core/Paths/PathUtil.cs#L297
+            if (basePath.Length == 0)
+                throw new Exception("InvalidBasePath");
+            if (toggledPath.Length == 0)
+                throw new Exception("InvalidToggledPath");
+            if (!Path.IsPathRooted(basePath))
+                throw new Exception("BasePathNotAbsolute");
+
+            try { basePath = Path.GetFullPath(basePath + "\\"); } catch { throw new Exception("InvalidBasePath"); }
+
+            if (!Path.IsPathRooted(toggledPath)) {
+                try {
+                    return StripTrailingSeparator(Path.GetFullPath(Path.Combine(basePath, toggledPath)));
+                } catch {
+                    throw new Exception("InvalidToggledPath");
+                }
+            }
+
+            // Both basePath and toggledPath are absolute. Need to relativize toggledPath.
+            try { toggledPath = Path.GetFullPath(toggledPath + "\\"); } catch { throw new Exception("InvalidToggledPath"); }
+
+            int prevPos = -1;
+            int pos = toggledPath.IndexOf(Path.DirectorySeparatorChar);
+            while (pos != -1 && pos < basePath.Length &&
+                   basePath.Substring(0, pos + 1).Equals(toggledPath.Substring(0, pos + 1), StringComparison.OrdinalIgnoreCase)) {
+                prevPos = pos;
+                pos = toggledPath.IndexOf(Path.DirectorySeparatorChar, pos + 1);
+            }
+
+            if (prevPos == -1)
+                throw new Exception("PathsOnDifferentDrives");
+            var piece = basePath.Substring(prevPos + 1);
+            var result = StripTrailingSeparator(
+                (".." + Path.DirectorySeparatorChar).Repeat(piece.Count(ch => ch == Path.DirectorySeparatorChar))
+                + toggledPath.Substring(prevPos + 1));
+            return result.Length == 0 ? "." : result;
+        }
+
+        private static string Repeat(this string input, int numTimes)
+        {
+            if (numTimes == 0) return "";
+            if (numTimes == 1) return input;
+            if (numTimes == 2) return input + input;
+            var sb = new StringBuilder();
+            for (int i = 0; i < numTimes; i++)
+                sb.Append(input);
+            return sb.ToString();
+        }
+
+        private static string StripTrailingSeparator(string path)
+        {
+            if (path.Length < 1)
+                return path;
+            if (path[path.Length - 1] == '/' || path[path.Length - 1] == '\\')
+                return (path.Length == 3 && path[1] == ':') ? path : path.Substring(0, path.Length - 1);
+            else
+                return path;
+        }
+
         [Flags]
         private enum EFileAttributes : uint
         {
@@ -194,7 +277,8 @@ namespace Velopack
         private const uint IO_REPARSE_TAG_MOUNT_POINT = 0xA0000003;
 
         [DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        private static extern uint GetFinalPathNameByHandle(IntPtr hFile, [MarshalAs(UnmanagedType.LPTStr)] StringBuilder lpszFilePath, uint cchFilePath, uint dwFlags);
+        private static extern uint GetFinalPathNameByHandle(IntPtr hFile, [MarshalAs(UnmanagedType.LPTStr)] StringBuilder lpszFilePath, uint cchFilePath,
+            uint dwFlags);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -280,63 +364,6 @@ namespace Velopack
         private static void ThrowLastWin32Error(string message)
         {
             throw new IOException(message, Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error()));
-        }
-
-        private static string ToggleRelative(string basePath, string toggledPath)
-        {
-            // from https://github.com/RT-Projects/RT.Util/blob/master/RT.Util.Core/Paths/PathUtil.cs#L297
-            if (basePath.Length == 0)
-                throw new Exception("InvalidBasePath");
-            if (toggledPath.Length == 0)
-                throw new Exception("InvalidToggledPath");
-            if (!Path.IsPathRooted(basePath))
-                throw new Exception("BasePathNotAbsolute");
-
-            try { basePath = Path.GetFullPath(basePath + "\\"); } catch { throw new Exception("InvalidBasePath"); }
-
-            if (!Path.IsPathRooted(toggledPath)) {
-                try {
-                    return StripTrailingSeparator(Path.GetFullPath(Path.Combine(basePath, toggledPath)));
-                } catch {
-                    throw new Exception("InvalidToggledPath");
-                }
-            }
-
-            // Both basePath and toggledPath are absolute. Need to relativize toggledPath.
-            try { toggledPath = Path.GetFullPath(toggledPath + "\\"); } catch { throw new Exception("InvalidToggledPath"); }
-            int prevPos = -1;
-            int pos = toggledPath.IndexOf(Path.DirectorySeparatorChar);
-            while (pos != -1 && pos < basePath.Length && basePath.Substring(0, pos + 1).Equals(toggledPath.Substring(0, pos + 1), StringComparison.OrdinalIgnoreCase)) {
-                prevPos = pos;
-                pos = toggledPath.IndexOf(Path.DirectorySeparatorChar, pos + 1);
-            }
-            if (prevPos == -1)
-                throw new Exception("PathsOnDifferentDrives");
-            var piece = basePath.Substring(prevPos + 1);
-            var result = StripTrailingSeparator((".." + Path.DirectorySeparatorChar).Repeat(piece.Count(ch => ch == Path.DirectorySeparatorChar))
-                + toggledPath.Substring(prevPos + 1));
-            return result.Length == 0 ? "." : result;
-        }
-
-        private static string Repeat(this string input, int numTimes)
-        {
-            if (numTimes == 0) return "";
-            if (numTimes == 1) return input;
-            if (numTimes == 2) return input + input;
-            var sb = new StringBuilder();
-            for (int i = 0; i < numTimes; i++)
-                sb.Append(input);
-            return sb.ToString();
-        }
-
-        private static string StripTrailingSeparator(string path)
-        {
-            if (path.Length < 1)
-                return path;
-            if (path[path.Length - 1] == '/' || path[path.Length - 1] == '\\')
-                return (path.Length == 3 && path[1] == ':') ? path : path.Substring(0, path.Length - 1);
-            else
-                return path;
         }
 #endif
     }
