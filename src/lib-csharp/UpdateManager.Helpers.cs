@@ -1,16 +1,11 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Threading.Tasks;
 
 namespace Velopack
 {
     public partial class UpdateManager
     {
-        /// <inheritdoc cref="ApplyUpdatesAndRestart(VelopackAsset, string[])"/>
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        [Obsolete("Please use one of the other overloads of ApplyUpdatesAndRestart() instead.")]
-        public void ApplyUpdatesAndRestart(string[]? restartArgs = null)
-            => ApplyUpdatesAndRestart(null, restartArgs);
-
         /// <summary>
         /// This will exit your app immediately, apply updates, and then optionally relaunch the app using the specified 
         /// restart arguments. If you need to save state or clean up, you should do that before calling this method. 
@@ -25,12 +20,6 @@ namespace Velopack
             Environment.Exit(0);
         }
 
-        /// <inheritdoc cref="ApplyUpdatesAndExit(VelopackAsset)"/>
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        [Obsolete("Please use one of the other overloads of ApplyUpdatesAndExit() instead.")]
-        public void ApplyUpdatesAndExit()
-            => ApplyUpdatesAndExit(null);
-
         /// <summary>
         /// This will exit your app immediately, apply updates, and then optionally relaunch the app using the specified 
         /// restart arguments. If you need to save state or clean up, you should do that before calling this method. 
@@ -43,7 +32,7 @@ namespace Velopack
             WaitExitThenApplyUpdates(toApply, silent: true, restart: false);
             Environment.Exit(0);
         }
-
+        
         /// <summary>
         /// This will launch the Velopack updater and tell it to wait for this program to exit gracefully.
         /// You should then clean up any state and exit your app. The updater will apply updates and then
@@ -57,6 +46,12 @@ namespace Velopack
         public void WaitExitThenApplyUpdates(VelopackAsset? toApply, bool silent = false, bool restart = true, string[]? restartArgs = null)
         {
             UpdateExe.Apply(Locator, toApply, silent, restart, restartArgs, Log);
+        }
+        
+        /// <inheritdoc cref="WaitExitThenApplyUpdates"/>
+        public async Task WaitExitThenApplyUpdatesAsync(VelopackAsset? toApply, bool silent = false, bool restart = true, string[]? restartArgs = null)
+        {
+            await UpdateExe.ApplyAsync(Locator, toApply, silent, restart, restartArgs, Log).ConfigureAwait(false);
         }
     }
 }

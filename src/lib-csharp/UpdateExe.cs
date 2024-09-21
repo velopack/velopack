@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Velopack.Locators;
@@ -40,12 +42,13 @@ namespace Velopack
             if (VelopackRuntimeInfo.IsWindows) {
                 try {
                     // this is an attempt to work around a bug where the restarted app fails to come to foreground.
-                    AllowSetForegroundWindow(p.Id);
+                    if (!AllowSetForegroundWindow(p.Id))
+                        throw new Win32Exception();
                 } catch (Exception ex) {
                     logger.LogWarning(ex, "Failed to allow Update.exe to set foreground window.");
                 }
             }
-            
+
             logger.Info("Update.exe executed successfully.");
             return p;
         }
@@ -62,7 +65,7 @@ namespace Velopack
         {
             logger ??= NullLogger.Instance;
             locator ??= VelopackLocator.GetDefault(logger);
-            
+
             var args = new List<string>();
             args.Add("start");
 
@@ -70,7 +73,7 @@ namespace Velopack
                 args.Add("--waitPid");
                 args.Add(Process.GetCurrentProcess().Id.ToString());
             }
-            
+
             if (startArgs != null && startArgs.Length > 0) {
                 args.Add("--");
                 foreach (var a in startArgs) {
@@ -81,19 +84,8 @@ namespace Velopack
             StartUpdateExe(logger, locator, args);
         }
 
-        /// <summary>
-        /// Runs Update.exe in the current working directory to apply updates, optionally restarting the application.
-        /// </summary>
-        /// <param name="silent">If true, no dialogs will be shown during the update process. This could result 
-        /// in an update failing to install, such as when we need to ask the user for permission to install 
-        /// a new framework dependency.</param>
-        /// <param name="restart">If true, restarts the application after updates are applied (or if they failed)</param>
-        /// <param name="locator">The locator to use to find the path to Update.exe and the packages directory.</param>
-        /// <param name="toApply">The update package you wish to apply, can be left null.</param>
-        /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
-        /// <param name="logger">The logger to use for diagnostic messages</param>
-        /// <exception cref="Exception">Thrown if Update.exe does not initialize properly.</exception>
-        public static void Apply(IVelopackLocator? locator, VelopackAsset? toApply, bool silent, bool restart, string[]? restartArgs = null, ILogger? logger = null)
+        private static Process ApplyImpl(IVelopackLocator? locator, VelopackAsset? toApply, bool silent, bool restart, string[]? restartArgs = null,
+            ILogger? logger = null)
         {
             logger ??= NullLogger.Instance;
             locator ??= VelopackLocator.GetDefault(logger);
@@ -123,12 +115,41 @@ namespace Velopack
                 }
             }
 
-            var p = StartUpdateExe(logger, locator, args);
+            return StartUpdateExe(logger, locator, args);
+        }
 
-            Thread.Sleep(300);
+        /// <summary>
+        /// Runs Update.exe in the current working directory to apply updates, optionally restarting the application.
+        /// </summary>
+        /// <param name="silent">If true, no dialogs will be shown during the update process. This could result 
+        /// in an update failing to install, such as when we need to ask the user for permission to install 
+        /// a new framework dependency.</param>
+        /// <param name="restart">If true, restarts the application after updates are applied (or if they failed)</param>
+        /// <param name="locator">The locator to use to find the path to Update.exe and the packages directory.</param>
+        /// <param name="toApply">The update package you wish to apply, can be left null.</param>
+        /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
+        /// <param name="logger">The logger to use for diagnostic messages</param>
+        /// <exception cref="Exception">Thrown if Update.exe does not initialize properly.</exception>
+        public static void Apply(IVelopackLocator? locator, VelopackAsset? toApply, bool silent, bool restart, string[]? restartArgs = null,
+            ILogger? logger = null)
+        {
+            var process = ApplyImpl(locator, toApply, silent, restart, restartArgs, logger);
+            Thread.Sleep(500);
 
-            if (p.HasExited) {
-                throw new Exception($"Update.exe process exited too soon ({p.ExitCode}).");
+            if (process.HasExited) {
+                throw new Exception($"Update.exe process exited too soon ({process.ExitCode}).");
+            }
+        }
+
+        /// <inheritdoc cref="Apply"/>
+        public static async Task ApplyAsync(IVelopackLocator? locator, VelopackAsset? toApply, bool silent, bool restart, string[]? restartArgs = null,
+            ILogger? logger = null)
+        {
+            var process = ApplyImpl(locator, toApply, silent, restart, restartArgs, logger);
+            await Task.Delay(500).ConfigureAwait(false);
+
+            if (process.HasExited) {
+                throw new Exception($"Update.exe process exited too soon ({process.ExitCode}).");
             }
         }
     }
