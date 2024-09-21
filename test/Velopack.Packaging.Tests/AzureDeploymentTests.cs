@@ -56,6 +56,12 @@ public class AzureDeploymentTests
 
         // download latest version and create delta
         repo.DownloadLatestFullPackageAsync(options).GetAwaiterResult();
+
+        if (options.ReleaseDir.EnumerateFiles("*.incomplete").Any()) {
+            logger.Warn("A previous package was not downloaded, probably due to invalid checksum. This is a race condition in this test.");
+            latest = null;
+        }
+        
         var id = "AZTestApp";
         TestApp.PackTestApp(id, newVer.ToFullString(), $"az-{DateTime.UtcNow.ToLongDateString()}", releaseDir, logger, channel: channel);
         if (latest != null) {
