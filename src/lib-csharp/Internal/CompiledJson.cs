@@ -114,7 +114,7 @@ namespace Velopack.Json
 
     internal static class CompiledJson
     {
-        public static readonly JsonSerializerSettings Options = new JsonSerializerSettings {
+        private static readonly JsonSerializerSettings Options = new JsonSerializerSettings {
             Converters = { new StringEnumConverter(), new SemanticVersionConverter() },
             ContractResolver = new JsonNameContractResolver(),
             NullValueHandling = NullValueHandling.Ignore,

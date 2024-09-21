@@ -1,7 +1,7 @@
 ﻿#pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0612 // Type or member is obsolete
 using System.Text;
-using Velopack.Json;
+using Velopack.Packaging;
 using Velopack.Sources;
 
 namespace Velopack.Tests.TestHelpers;

@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using NuGet.Versioning;
 using Velopack.Compression;
-using Velopack.Json;
+using Velopack.Packaging;
 using Velopack.Locators;
 using Velopack.Sources;
 using Velopack.Tests.TestHelpers;

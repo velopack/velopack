@@ -74,8 +74,8 @@ public class SymbolicLinkTests
 
         SymbolicLink.Create(symFile, tmpFile, true);
 
-        Assert.True(File.Exists(symFile), "Symfile point exists now.");
-        Assert.True(SymbolicLink.Exists(symFile), "Junction point exists now.");
+        Assert.True(File.Exists(symFile), "Symlink should exist now.");
+        Assert.True(SymbolicLink.Exists(symFile), "Symlink should exist now.");
 
         Assert.Equal(tmpFile, SymbolicLink.GetTarget(symFile));
 

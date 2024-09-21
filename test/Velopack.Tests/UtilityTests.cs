@@ -48,7 +48,6 @@ public class UtilityTests
     }
 
     [SkippableFact]
-    [SupportedOSPlatform("windows")]
     public void SetAppIdOnShortcutTest()
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
