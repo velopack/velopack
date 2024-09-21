@@ -39,14 +39,14 @@ namespace Velopack
                 : targetPath;
 
             if (Directory.Exists(targetPath)) {
-#if NETFRAMEWORK
+#if NETFRAMEWORK || NETSTANDARD
                 if (!CreateSymbolicLink(linkPath, finalTarget, SYMBOLIC_LINK_FLAG_DIRECTORY | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE))
                     ThrowLastWin32Error("Unable to create junction point / symlink.");
 #else
                 Directory.CreateSymbolicLink(linkPath, finalTarget);
 #endif
             } else if (File.Exists(targetPath)) {
-#if NETFRAMEWORK
+#if NETFRAMEWORK || NETSTANDARD
                 if (!CreateSymbolicLink(linkPath, finalTarget, SYMBOLIC_LINK_FLAG_FILE | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE))
                     ThrowLastWin32Error("Unable to create junction point / symlink.");
 #else
@@ -106,7 +106,7 @@ namespace Velopack
         private static string GetUnresolvedTarget(string linkPath)
         {
             if (TryGetLinkFsi(linkPath, out var fsi)) {
-#if NETFRAMEWORK
+#if NETFRAMEWORK || NETSTANDARD
 
                 return GetTargetWin32(linkPath);
 #else
@@ -130,7 +130,7 @@ namespace Velopack
 
         private static string GetRelativePath(string relativeTo, string path)
         {
-#if NETFRAMEWORK
+#if NETFRAMEWORK || NETSTANDARD
             relativeTo = Path.GetFullPath(relativeTo);
             path = Path.GetFullPath(path);
             return ToggleRelative(relativeTo, path);
@@ -139,7 +139,7 @@ namespace Velopack
 #endif
         }
 
-#if NETFRAMEWORK
+#if NETFRAMEWORK || NETSTANDARD
         [Flags]
         private enum EFileAttributes : uint
         {

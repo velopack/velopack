@@ -11,17 +11,13 @@ This project integrates Velopack into unity by way of a [nuget for Unity](https:
 7. use vpk cli tool to pack your project `vpk pack -u UnityMonoSample -v 0.0.1 -p .\Build -e UnityMonoSample.exe`
 
 ## Requirements for your project
-install the nuget package `VelocyPack` in your project
+install the nuget package `Velopack` in your project
 you can use tool like [NuGetForUnity](https://github.com/GlitchEnzo/NuGetForUnity)
 ```
 openupm add com.github-glitchenzo.nugetforunity
 ```
-if your .net runtime is .NET Standard 2.0, you need use Velopack 0.0.359
 
-for .NET 4.x runtime, you can use the latest version of Velopack
-
-currently, the Velopack is only support for Unity mono runtime, not support for IL2CPP, due to the following reasons:
-
+Currently, Velopack is only support for Unity mono runtime, it does not support for IL2CPP, due to the following reasons:
 
 https://docs.unity3d.com/2022.3/Documentation/Manual/ScriptingRestrictions.html
 
@@ -37,16 +33,16 @@ If you still want to use Velopack in IL2CPP, you can use the following workaroun
 1. clone the Velopack repository
 2. edit the VelopackRuntimeInfo.cs file like this:
 ```csharp
-        static VelopackRuntimeInfo()
-        {
-            //delete the following line
-            //EntryExePath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
-            EntryExePath = Application.dataPath;
-            if (!Application.isEditor)
-            {
-                EntryExePath = Path.Combine(EntryExePath, "..", Application.productName + ".exe");
-            }
-        }
+static VelopackRuntimeInfo()
+{
+    //delete the following line
+    //EntryExePath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
+    EntryExePath = Application.dataPath;
+    if (!Application.isEditor)
+    {
+        EntryExePath = Path.Combine(EntryExePath, "..", Application.productName + ".exe");
+    }
+}
 ```
 3. build the Velopack project
 4. replace the Velopack.dll in your project with the new Velopack.dll
