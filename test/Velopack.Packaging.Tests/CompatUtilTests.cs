@@ -1,4 +1,4 @@
-﻿using Divergic.Logging.Xunit;
+﻿using Neovolve.Logging.Xunit;
 using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Windows;
 using Velopack.Vpk;
