@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net462;net48;net6.0;net8.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net462;net48;net6.0;net8.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <LangVersion>9</LangVersion>
@@ -26,6 +26,12 @@
     <Reference Include="System.IO.Compression.FileSystem" />
     <PackageReference Include="Newtonsoft.Json" Version="[13.0.1,)" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="[2.2.0,)" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" $(TargetFramework.StartsWith('netstandard2')) ">
+    <PackageReference Include="Newtonsoft.Json" Version="[13.0.1,)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="[2.2.0,)" />
+    <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
   </ItemGroup>
 
   <ItemGroup Condition=" $(TargetFramework) == 'net6.0' ">

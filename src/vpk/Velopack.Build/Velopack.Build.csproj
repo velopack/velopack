@@ -22,7 +22,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.10.4" />
-    <PackageReference Include="Microsoft.IO.Redist" Version="6.0.1" />
     <PackageReference Include="Riok.Mapperly" Version="3.6.0" />
   </ItemGroup>
 
