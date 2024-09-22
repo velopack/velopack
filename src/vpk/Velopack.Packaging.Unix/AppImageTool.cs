@@ -49,7 +49,7 @@ public class AppImageTool
 
                 logger.Info("Converting tar into squashfs filesystem");
                 var tool = HelperFile.FindHelperFile("squashfs-tools\\tar2sqfs.exe");
-                logger.Debug(Exe.RunHostedCommand($"\"{tool}\" \"{tmpSquashFile}\" < \"{tmpTarFile}\""));
+                logger.Debug(Exe.RunHostedCommand($"\"{tool}\" -c zstd \"{tmpSquashFile}\" < \"{tmpTarFile}\""));
             } else {
                 Exe.AssertSystemBinaryExists("mksquashfs", "sudo apt install squashfs-tools", "brew install squashfs");
                 var tool = "mksquashfs";
@@ -58,7 +58,7 @@ public class AppImageTool
                     appDir,
                     tmpSquashFile,
                     "-comp",
-                    "xz",
+                    "zstd",
                     "-root-owned",
                     "-noappend",
                     "-Xdict-size",
