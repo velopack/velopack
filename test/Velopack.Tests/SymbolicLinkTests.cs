@@ -1,4 +1,6 @@
-﻿using System.IO.Compression;
+﻿using System.ComponentModel;
+using System.IO.Compression;
+using NCode.ReparsePoints;
 using Velopack.Compression;
 using Velopack.Util;
 
@@ -33,7 +35,8 @@ public class SymbolicLinkTests
         File.Create(Path.Combine(targetFolder, "AFile")).Close();
 
         // Verify behavior before junction point created.
-        Assert.False(File.Exists(Path.Combine(junctionPoint, "AFile")),
+        Assert.False(
+            File.Exists(Path.Combine(junctionPoint, "AFile")),
             "File should not be located until junction point created.");
 
         Assert.False(SymbolicLink.Exists(junctionPoint), "Junction point not created yet.");
@@ -45,7 +48,8 @@ public class SymbolicLinkTests
 
         Assert.Equal(targetFolder, SymbolicLink.GetTarget(junctionPoint));
 
-        Assert.True(File.Exists(Path.Combine(junctionPoint, "AFile")),
+        Assert.True(
+            File.Exists(Path.Combine(junctionPoint, "AFile")),
             "File should be accessible via the junction point.");
 
         // Delete junction point.
@@ -53,7 +57,8 @@ public class SymbolicLinkTests
 
         Assert.False(SymbolicLink.Exists(junctionPoint), "Junction point should not exist now.");
 
-        Assert.False(File.Exists(Path.Combine(junctionPoint, "AFile")),
+        Assert.False(
+            File.Exists(Path.Combine(junctionPoint, "AFile")),
             "File should not be located after junction point deleted.");
 
         Assert.False(Directory.Exists(junctionPoint), "Ensure directory was deleted too.");
@@ -248,19 +253,19 @@ public class SymbolicLinkTests
         var appSym = Path.Combine(tempOutput, "App.__symlink");
         Assert.True(File.Exists(appSym));
         Assert.Equal("Versions/Current/App", File.ReadAllText(appSym));
-        
+
         var resSym = Path.Combine(tempOutput, "Resources.__symlink");
         Assert.True(File.Exists(resSym));
         Assert.Equal("Versions/Current/Resources/", File.ReadAllText(resSym));
-        
+
         Assert.True(Directory.Exists(Path.Combine(tempOutput, "Versions")));
         Assert.False(Directory.Exists(Path.Combine(tempOutput, "App")));
         Assert.False(Directory.Exists(Path.Combine(tempOutput, "Resources")));
-        
+
         Assert.True(Directory.Exists(Path.Combine(tempOutput, "Versions", "A")));
         Assert.False(Directory.Exists(Path.Combine(tempOutput, "Versions", "Current")));
         Assert.False(File.Exists(Path.Combine(tempOutput, "Versions", "Current")));
-        
+
         var currentSym = Path.Combine(tempOutput, "Versions", "Current.__symlink");
         Assert.True(File.Exists(currentSym));
         Assert.Equal("A/", File.ReadAllText(currentSym));
