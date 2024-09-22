@@ -61,7 +61,6 @@ public class AppImageTool
                     "zstd",
                     "-root-owned",
                     "-noappend",
-                    "-Xdict-size",
                     "100%",
                     "-b",
                     "16384",
