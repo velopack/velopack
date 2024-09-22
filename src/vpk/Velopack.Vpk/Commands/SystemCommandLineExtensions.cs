@@ -169,8 +169,25 @@ internal static class SystemCommandLineExtensions
         return option;
     }
 
+    public static CliOption MustBeOneOfStringValues(this CliOption<string> option, string[] validValues, bool caseInsensitive = true)
+    {
+        option.Validators.Add(x => Validate.MustBeOneOfValues(x, validValues, caseInsensitive));
+        return option;
+    }
+
     private static class Validate
     {
+        public static void MustBeOneOfValues(OptionResult result, string[] validValues, bool caseInsensitive)
+        {
+            for (int i = 0; i < result.Tokens.Count; i++) {
+                var value = result.Tokens[i].Value;
+                if (!validValues.Contains(value, caseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)) {
+                    result.AddError($"{result.IdentifierToken.Value} must be one of the following values: {string.Join(", ", validValues)}");
+                    break;
+                }
+            }
+        }
+
         public static void MustBeBetween(OptionResult result, int minimum, int maximum)
         {
             for (int i = 0; i < result.Tokens.Count; i++) {
@@ -259,7 +276,8 @@ internal static class SystemCommandLineExtensions
                 if (Uri.TryCreate(result.Tokens[i].Value, UriKind.RelativeOrAbsolute, out Uri uri) &&
                     uri.IsAbsoluteUri &&
                     !validSchemes.Contains(uri.Scheme)) {
-                    result.AddError($"{result.IdentifierToken.Value} must contain a Uri with one of the following schems: {string.Join(", ", validSchemes)}. Current value is '{result.Tokens[i].Value}'");
+                    result.AddError(
+                        $"{result.IdentifierToken.Value} must contain a Uri with one of the following schems: {string.Join(", ", validSchemes)}. Current value is '{result.Tokens[i].Value}'");
                     break;
                 }
             }
@@ -279,7 +297,8 @@ internal static class SystemCommandLineExtensions
         {
             for (int i = 0; i < result.Tokens.Count; i++) {
                 if (!NugetUtil.IsValidNuGetId(result.Tokens[i].Value)) {
-                    result.AddError($"{result.IdentifierToken.Value} is an invalid NuGet package id. It must contain only alphanumeric characters, underscores, dashes, and dots.. Current value is '{result.Tokens[i].Value}'");
+                    result.AddError(
+                        $"{result.IdentifierToken.Value} is an invalid NuGet package id. It must contain only alphanumeric characters, underscores, dashes, and dots.. Current value is '{result.Tokens[i].Value}'");
                     break;
                 }
             }
@@ -298,7 +317,8 @@ internal static class SystemCommandLineExtensions
                         break;
                     }
                 } else {
-                    result.AddError($"{result.IdentifierToken.Value} contains an invalid package version '{version}', it must be a 3-part SemVer2 compliant version string.");
+                    result.AddError(
+                        $"{result.IdentifierToken.Value} contains an invalid package version '{version}', it must be a 3-part SemVer2 compliant version string.");
                     break;
                 }
             }

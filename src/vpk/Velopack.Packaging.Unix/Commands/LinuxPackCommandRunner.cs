@@ -34,19 +34,21 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
                 ? "Utility"
                 : Options.Categories.TrimEnd(';');
 
-            File.WriteAllText(appRunPath, $$"""
-                #!/bin/sh
-                if [ ! -z "$APPIMAGE" ] && [ ! -z "$APPDIR" ]; then
-                    MD5=$(echo -n "file://$APPIMAGE" | md5sum | cut -d' ' -f1)
-                    cp "$APPDIR/{{iconFilename}}" "$HOME/.cache/thumbnails/normal/$MD5.png" >/dev/null 2>&1
-                    cp "$APPDIR/{{iconFilename}}" "$HOME/.cache/thumbnails/large/$MD5.png" >/dev/null 2>&1
-                    xdg-icon-resource forceupdate >/dev/null 2>&1
-                fi
-                HERE="$(dirname "$(readlink -f "${0}")")"
-                export PATH="${HERE}"/usr/bin/:"${PATH}"
-                EXEC=$(grep -e '^Exec=.*' "${HERE}"/*.desktop | head -n 1 | cut -d "=" -f 2 | cut -d " " -f 1 | sed 's/\\s/ /g')
-                exec "${EXEC}" "$@"
-                """.Replace("\r", ""));
+            File.WriteAllText(
+                appRunPath,
+                $$"""
+                    #!/bin/sh
+                    if [ ! -z "$APPIMAGE" ] && [ ! -z "$APPDIR" ]; then
+                        MD5=$(echo -n "file://$APPIMAGE" | md5sum | cut -d' ' -f1)
+                        cp "$APPDIR/{{iconFilename}}" "$HOME/.cache/thumbnails/normal/$MD5.png" >/dev/null 2>&1
+                        cp "$APPDIR/{{iconFilename}}" "$HOME/.cache/thumbnails/large/$MD5.png" >/dev/null 2>&1
+                        xdg-icon-resource forceupdate >/dev/null 2>&1
+                    fi
+                    HERE="$(dirname "$(readlink -f "${0}")")"
+                    export PATH="${HERE}"/usr/bin/:"${PATH}"
+                    EXEC=$(grep -e '^Exec=.*' "${HERE}"/*.desktop | head -n 1 | cut -d "=" -f 2 | cut -d " " -f 1 | sed 's/\\s/ /g')
+                    exec "${EXEC}" "$@"
+                    """.Replace("\r", ""));
             Chmod.ChmodFileAsExecutable(appRunPath);
 
             var mainExeName = Options.EntryExecutableName ?? Options.PackId;
@@ -58,16 +60,18 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
             // https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-1.0.html
             mainExeName = mainExeName.Replace(" ", "\\s");
 
-            File.WriteAllText(Path.Combine(dir.FullName, Options.PackId + ".desktop"), $"""
-                [Desktop Entry]
-                Type=Application
-                Name={Options.PackTitle ?? Options.PackId}
-                Comment={Options.PackTitle ?? Options.PackId} {Options.PackVersion}
-                Icon={Options.PackId}
-                Exec={mainExeName}
-                StartupWMClass={Options.PackId}
-                Categories={categories};
-                """.Replace("\r", ""));
+            File.WriteAllText(
+                Path.Combine(dir.FullName, Options.PackId + ".desktop"),
+                $"""
+                    [Desktop Entry]
+                    Type=Application
+                    Name={Options.PackTitle ?? Options.PackId}
+                    Comment={Options.PackTitle ?? Options.PackId} {Options.PackVersion}
+                    Icon={Options.PackId}
+                    Exec={mainExeName}
+                    StartupWMClass={Options.PackId}
+                    Categories={categories};
+                    """.Replace("\r", ""));
 
             // copy existing app files 
             CopyFiles(new DirectoryInfo(packDir), bin, progress, true);
@@ -95,7 +99,7 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
     protected override Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath)
     {
         progress(-1);
-        AppImageTool.CreateLinuxAppImage(packDir, outputPath, Options.TargetRuntime.Architecture, Log);
+        AppImageTool.CreateLinuxAppImage(packDir, outputPath, Options.TargetRuntime.Architecture, Log, Options.Compression);
         PortablePackagePath = outputPath;
         progress(100);
         return Task.CompletedTask;

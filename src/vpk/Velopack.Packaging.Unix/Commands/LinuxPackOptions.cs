@@ -35,4 +35,6 @@ public class LinuxPackOptions : IPackOptions
     public bool NoInst { get; set; }
 
     public string Categories { get; set; }
+    
+    public string Compression { get; set; }
 }

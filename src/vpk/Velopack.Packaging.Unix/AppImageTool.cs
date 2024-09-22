@@ -6,8 +6,10 @@ namespace Velopack.Packaging.Unix;
 
 public class AppImageTool
 {
-    public static void CreateLinuxAppImage(string appDir, string outputFile, RuntimeCpu machine, ILogger logger)
+    public static void CreateLinuxAppImage(string appDir, string outputFile, RuntimeCpu machine, ILogger logger, string compression)
     {
+        compression ??= "xz";
+        
         string runtime = machine switch {
             RuntimeCpu.x86 => HelperFile.AppImageRuntimeX86,
             RuntimeCpu.x64 => HelperFile.AppImageRuntimeX64,
@@ -49,7 +51,7 @@ public class AppImageTool
 
                 logger.Info("Converting tar into squashfs filesystem");
                 var tool = HelperFile.FindHelperFile("squashfs-tools\\tar2sqfs.exe");
-                logger.Debug(Exe.RunHostedCommand($"\"{tool}\" -c zstd \"{tmpSquashFile}\" < \"{tmpTarFile}\""));
+                logger.Debug(Exe.RunHostedCommand($"\"{tool}\" -c {compression} \"{tmpSquashFile}\" < \"{tmpTarFile}\""));
             } else {
                 Exe.AssertSystemBinaryExists("mksquashfs", "sudo apt install squashfs-tools", "brew install squashfs");
                 var tool = "mksquashfs";
@@ -58,7 +60,7 @@ public class AppImageTool
                     appDir,
                     tmpSquashFile,
                     "-comp",
-                    "zstd",
+                    compression,
                     "-root-owned",
                     "-noappend",
                     "-b",

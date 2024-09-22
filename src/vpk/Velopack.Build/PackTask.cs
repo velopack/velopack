@@ -92,6 +92,8 @@ public class PackTask : MSBuildAsyncTask
     public string? Categories { get; set; }
 
     public string? Shortcuts { get; set; }
+    
+    public string? Compression { get; set; }
 
     protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
     {
