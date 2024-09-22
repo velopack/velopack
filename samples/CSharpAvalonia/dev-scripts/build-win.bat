@@ -12,15 +12,15 @@ if "%~1"=="" (
     exit /b 1
 )
 
+cd %~dp0..\..\..\
+
 echo.
 echo Building Velopack Rust
-cd %~dp0..\..\..\src\Rust
 cargo build --features windows
 
 echo.
 echo Building Velopack Vpk
-cd %~dp0..\..\..\
-dotnet build src/Velopack.Vpk/Velopack.Vpk.csproj
+dotnet build src/vpk/Velopack.Vpk/Velopack.Vpk.csproj
 
 cd %~dp0..
 set "version=%~1"

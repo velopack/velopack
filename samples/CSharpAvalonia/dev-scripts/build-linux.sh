@@ -14,19 +14,20 @@ BUILD_VERSION="$1"
 RELEASE_DIR="$SCRIPT_DIR/../releases"
 PUBLISH_DIR="$SCRIPT_DIR/../publish"
 
+cd "$SCRIPT_DIR/../../.."
+
 echo ""
 echo "Building Velopack Rust"
-cd "$SCRIPT_DIR/../../../src/Rust"
 cargo build --target x86_64-unknown-linux-gnu
 cp target/x86_64-unknown-linux-gnu/debug/update target/debug/update
 
 echo ""
 echo "Building Velopack Vpk"
-cd "$SCRIPT_DIR/../../.."
-dotnet build src/Velopack.Vpk/Velopack.Vpk.csproj
+dotnet build src/vpk/Velopack.Vpk/Velopack.Vpk.csproj
+
+cd "$SCRIPT_DIR/.."
 
 echo ""
-cd "$SCRIPT_DIR/.."
 echo "Compiling VelopackCSharpAvalonia with dotnet..."
 dotnet publish -c Release --self-contained -r linux-x64 -o "$PUBLISH_DIR" -p:UseLocalVelopack=true
 
