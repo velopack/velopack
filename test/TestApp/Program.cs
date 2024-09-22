@@ -77,7 +77,7 @@ try {
 
         if (args[0] == "apply") {
             var um = new UpdateManager(args[1], null, new ConsoleLogger());
-            if (!um.IsUpdatePendingRestart) {
+            if (um.UpdatePendingRestart == null) {
                 Console.WriteLine("not pending restart");
                 return -1;
             }

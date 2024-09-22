@@ -90,7 +90,7 @@ namespace CSharpWpf
                 BtnDownloadUpdate.IsEnabled = false;
             }
 
-            if (_um.IsUpdatePendingRestart) {
+            if (_um.UpdatePendingRestart != null) {
                 sb.AppendLine("Update ready, pending restart to install");
                 BtnRestartApply.IsEnabled = true;
             } else {
