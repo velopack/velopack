@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using Microsoft.Win32.SafeHandles;
 using NCode.ReparsePoints;
 
 namespace Velopack.Util
@@ -100,8 +99,7 @@ namespace Velopack.Util
                 rp.CreateSymbolicLink(linkPath, targetPath, false);
             } else {
 #if NETSTANDARD
-                var fileInfo = new Mono.Unix.UnixFileInfo(targetPath);
-                fileInfo.CreateSymbolicLink(linkPath);
+                UnixCreateSymlink(targetPath, linkPath);
 #elif NET6_0_OR_GREATER
                 File.CreateSymbolicLink(linkPath, targetPath);
 #else
@@ -123,8 +121,7 @@ namespace Velopack.Util
                 }
             } else {
 #if NETSTANDARD
-                var linkInfo = new Mono.Unix.UnixSymbolicLinkInfo(linkPath);
-                linkInfo.CreateSymbolicLinkTo(targetPath);
+                UnixCreateSymlink(targetPath, linkPath);
 #elif NET6_0_OR_GREATER
                 Directory.CreateSymbolicLink(linkPath, targetPath);
 #else
@@ -145,7 +142,7 @@ namespace Velopack.Util
                 return link.Target;
             } else {
 #if NETSTANDARD
-                return Mono.Unix.UnixPath.ReadLink(linkPath);;
+                return UnixReadLink(linkPath);
 #elif NET6_0_OR_GREATER
                 return fsi!.LinkTarget!;
 #else
@@ -169,5 +166,37 @@ namespace Velopack.Util
 
             return (fsi.Attributes & FileAttributes.ReparsePoint) != 0;
         }
+
+#if NETSTANDARD
+        [DllImport("libc", SetLastError = true)]
+        private static extern nint readlink(string path, byte[] buffer, ulong bufferSize);
+
+        [DllImport("libc", SetLastError = true)]
+        private static extern int symlink(string target, string linkPath);
+
+        private static string UnixReadLink(string symlinkPath)
+        {
+            const int bufferSize = 1024;
+            byte[] buffer = new byte[bufferSize];
+            nint bytesWritten = readlink(symlinkPath, buffer, bufferSize);
+
+            if (bytesWritten < 1) {
+                throw new InvalidOperationException($"Error resolving symlink: {Marshal.GetLastWin32Error()}");
+            }
+
+            return Encoding.UTF8.GetString(buffer, 0, (int) bytesWritten);
+        }
+
+        private static void UnixCreateSymlink(string target, string linkPath)
+        {
+            // Call the symlink function from libc
+            int result = symlink(target, linkPath);
+
+            // Check for errors (-1 return value indicates failure)
+            if (result == -1) {
+                throw new InvalidOperationException($"Error creating symlink: {Marshal.GetLastWin32Error()}");
+            }
+        }
+#endif
     }
 }
