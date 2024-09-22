@@ -1,5 +1,6 @@
 ﻿using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
+using Velopack.Util;
 
 namespace Velopack.Packaging;
 
