@@ -90,6 +90,7 @@
       SignTemplate="$(VelopackSignTemplate)"
       Categories="$(VelopackCategories)"
       Shortcuts="$(VelopackShortcuts)"
+      Compression="$(VelopackAppImageCompression)"
     />
   </Target>
 
