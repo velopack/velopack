@@ -51,6 +51,7 @@ test("VelopackApp should handle restarted event", async () => {
     PackagesDir: "",
     RootAppDir: "",
     UpdateExePath: "",
+    TempDir: "",
   };
   builder.setLocator(locator).run();
 

@@ -47,21 +47,42 @@ export function makeId(length: number): string {
 //   }
 // }
 
-export async function tempd3<T>(
-  cb: (dir1: string, dir2: string, dir3: string) => T,
+// export async function tempd3<T>(
+//   cb: (dir1: string, dir2: string, dir3: string) => T,
+// ): Promise<T> {
+//   const dir1 = path.join(os.tmpdir(), makeId(16));
+//   const dir2 = path.join(os.tmpdir(), makeId(16));
+//   const dir3 = path.join(os.tmpdir(), makeId(16));
+//   fs.mkdirSync(dir1);
+//   fs.mkdirSync(dir2);
+//   fs.mkdirSync(dir3);
+//   try {
+//     return await cb(dir1, dir2, dir3);
+//   } finally {
+//     fs.rmSync(dir1, { recursive: true });
+//     fs.rmSync(dir2, { recursive: true });
+//     fs.rmSync(dir3, { recursive: true });
+//   }
+// }
+
+export async function tempd4<T>(
+    cb: (dir1: string, dir2: string, dir3: string, dir4: string) => T,
 ): Promise<T> {
   const dir1 = path.join(os.tmpdir(), makeId(16));
   const dir2 = path.join(os.tmpdir(), makeId(16));
   const dir3 = path.join(os.tmpdir(), makeId(16));
+  const dir4 = path.join(os.tmpdir(), makeId(16));
   fs.mkdirSync(dir1);
   fs.mkdirSync(dir2);
   fs.mkdirSync(dir3);
+  fs.mkdirSync(dir4);
   try {
-    return await cb(dir1, dir2, dir3);
+    return await cb(dir1, dir2, dir3, dir4);
   } finally {
     fs.rmSync(dir1, { recursive: true });
     fs.rmSync(dir2, { recursive: true });
     fs.rmSync(dir3, { recursive: true });
+    fs.rmSync(dir4, { recursive: true });
   }
 }
 
