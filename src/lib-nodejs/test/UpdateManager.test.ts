@@ -6,10 +6,10 @@ import {
   VelopackLocator,
 } from "../src";
 import path from "path";
-import { tempd3, fixture, updateExe, shortDelay } from "./helper";
+import { tempd4, fixture, updateExe, shortDelay } from "./helper";
 
 test("UpdateManager detects local update", () => {
-  return tempd3(async (tmpDir, packagesDir, rootDir) => {
+  return tempd4(async (tmpDir, packagesDir, rootDir, appTemp) => {
     VelopackApp.build()
       .setLogger((level, msg) => {
         console.log(level, msg);
@@ -20,6 +20,7 @@ test("UpdateManager detects local update", () => {
       PackagesDir: packagesDir,
       RootAppDir: rootDir,
       UpdateExePath: updateExe(),
+      TempDir: appTemp,
     };
 
     const options: UpdateOptions = {
@@ -45,7 +46,7 @@ test("UpdateManager detects local update", () => {
 });
 
 test("UpdateManager downloads full update", () => {
-  return tempd3(async (feedDir, packagesDir, rootDir) => {
+  return tempd4(async (feedDir, packagesDir, rootDir, appTemp) => {
     VelopackApp.build()
       .setLogger((level, msg) => {
         console.log(level, msg);
@@ -56,6 +57,7 @@ test("UpdateManager downloads full update", () => {
       PackagesDir: packagesDir,
       RootAppDir: rootDir,
       UpdateExePath: updateExe(),
+      TempDir: appTemp,
     };
 
     const options: UpdateOptions = {
