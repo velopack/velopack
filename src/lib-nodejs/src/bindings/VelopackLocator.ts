@@ -19,4 +19,8 @@ PackagesDir: string,
 /**
  * The current app manifest.
  */
-ManifestPath: string, };
+ManifestPath: string, 
+/**
+ * The temporary directory for the current app.
+ */
+TempDir: string, };

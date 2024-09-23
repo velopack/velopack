@@ -170,7 +170,8 @@ impl<'a> VelopackApp<'a> {
             return Ok(locator.clone());
         }
 
-        return auto_locate();
+        let exe_path = env::current_exe()?;
+        auto_locate(exe_path)
     }
 
     fn get_current_version(&self) -> Result<Version, Error> {

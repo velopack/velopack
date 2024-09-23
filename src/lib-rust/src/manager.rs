@@ -7,7 +7,7 @@ use std::{
 };
 
 #[cfg(feature = "async")]
-use async_std::channel::Sender;
+use async_std::channel::Sender as AsyncSender;
 #[cfg(feature = "async")]
 use async_std::task::JoinHandle;
 use semver::Version;
@@ -138,7 +138,10 @@ impl UpdateManager {
         options: Option<UpdateOptions>,
         locator: Option<VelopackLocator>,
     ) -> Result<UpdateManager, Error> {
-        let locator = if let Some(loc) = locator { loc } else { locator::auto_locate()? };
+        let locator = if let Some(loc) = locator { loc } else {
+            let my_exe = std::env::current_exe()?;
+            locator::auto_locate(my_exe)? 
+        };
         let manifest = locator.load_manifest()?;
         Ok(UpdateManager {
             allow_version_downgrade: options.as_ref().map(|f| f.AllowVersionDowngrade).unwrap_or(false),
@@ -153,7 +156,7 @@ impl UpdateManager {
         let channel = self.explicit_channel.as_deref();
         let mut channel = channel.unwrap_or(&self.manifest.channel).to_string();
         if channel.is_empty() {
-            channel = get_default_channel();
+            channel = locator::default_channel_name();
         }
         channel
     }
@@ -172,8 +175,6 @@ impl UpdateManager {
     #[cfg(feature = "async")]
     /// Get a list of available remote releases from the package source.
     pub fn get_release_feed_async(&self) -> JoinHandle<Result<VelopackAssetFeed, Error>>
-    where
-        T: 'static,
     {
         let self_clone = self.clone();
         async_std::task::spawn_blocking(move || self_clone.get_release_feed())
@@ -238,8 +239,6 @@ impl UpdateManager {
     /// Checks for updates, returning None if there are none available. If there are updates available, this method will return an
     /// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
     pub fn check_for_updates_async(&self) -> JoinHandle<Result<UpdateCheck, Error>>
-    where
-        T: 'static,
     {
         let self_clone = self.clone();
         async_std::task::spawn_blocking(move || self_clone.check_for_updates())
@@ -311,10 +310,25 @@ impl UpdateManager {
     ///   this method will attempt to unpack and prepare them.
     /// - If there is no delta update available, or there is an error preparing delta
     ///   packages, this method will fall back to downloading the full version of the update.
-    pub fn download_updates_async(&self, update: &UpdateInfo, progress: Option<Sender<i16>>) -> JoinHandle<Result<(), Error>> {
+    pub fn download_updates_async(&self, update: &UpdateInfo, progress: Option<AsyncSender<i16>>) -> JoinHandle<Result<(), Error>> {
+        let mut sync_progress: Option<Sender<i16>> = None;
+
+        if let Some(async_sender) = progress {
+            let (sync_sender, sync_receiver) = std::sync::mpsc::channel::<i16>();
+            sync_progress = Some(sync_sender);
+
+            // Spawn an async task to bridge from sync to async
+            async_std::task::spawn(async move {
+                for progress_value in sync_receiver {
+                    // Send to the async_std channel, ignore errors (e.g., receiver dropped)
+                    let _ = async_sender.send(progress_value).await;
+                }
+            });
+        }
+
         let self_clone = self.clone();
         let update_clone = update.clone();
-        async_std::task::spawn_blocking(move || self_clone.download_updates(&update_clone, progress))
+        async_std::task::spawn_blocking(move || self_clone.download_updates(&update_clone, sync_progress))
     }
 
     /// This will exit your app immediately, apply updates, and then relaunch the app.
@@ -335,7 +349,7 @@ impl UpdateManager {
     where
         A: AsRef<VelopackAsset>,
         S: AsRef<str>,
-        C: IntoIterator<Item = S>,
+        C: IntoIterator<Item=S>,
     {
         self.wait_exit_then_apply_updates(to_apply, false, true, restart_args)?;
         exit(0);
@@ -360,7 +374,7 @@ impl UpdateManager {
     where
         A: AsRef<VelopackAsset>,
         S: AsRef<str>,
-        C: IntoIterator<Item = S>,
+        C: IntoIterator<Item=S>,
     {
         let to_apply = to_apply.as_ref();
         let pkg_path = self.locator.PackagesDir.join(&to_apply.FileName);
@@ -403,13 +417,4 @@ impl UpdateManager {
         p.spawn()?;
         Ok(())
     }
-}
-
-fn get_default_channel() -> String {
-    #[cfg(target_os = "windows")]
-    return "win".to_owned();
-    #[cfg(target_os = "linux")]
-    return "linux".to_owned();
-    #[cfg(target_os = "macos")]
-    return "osx".to_owned();
 }
