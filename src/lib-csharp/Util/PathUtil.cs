@@ -100,7 +100,7 @@ namespace Velopack.Util
             if (!Path.IsPathRooted(basePath))
                 throw new Exception("BasePathNotAbsolute");
 
-            try { basePath = Path.GetFullPath(basePath + "\\"); } catch { throw new Exception("InvalidBasePath"); }
+            try { basePath = Path.GetFullPath(basePath + Path.DirectorySeparatorChar); } catch { throw new Exception("InvalidBasePath"); }
 
             if (!Path.IsPathRooted(toggledPath)) {
                 try {
@@ -111,7 +111,7 @@ namespace Velopack.Util
             }
 
             // Both basePath and toggledPath are absolute. Need to relativize toggledPath.
-            try { toggledPath = Path.GetFullPath(toggledPath + "\\"); } catch { throw new Exception("InvalidToggledPath"); }
+            try { toggledPath = Path.GetFullPath(toggledPath + Path.DirectorySeparatorChar); } catch { throw new Exception("InvalidToggledPath"); }
 
             int prevPos = -1;
             int pos = toggledPath.IndexOf(Path.DirectorySeparatorChar);
