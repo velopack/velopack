@@ -169,15 +169,17 @@ jobs:
       VELOPACK_B2_TEST_TOKEN: ${{ secrets.VELOPACK_B2_TEST_TOKEN }}
       VELOPACK_AZ_TEST_TOKEN: ${{ secrets.VELOPACK_AZ_TEST_TOKEN }}
     steps:
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x
+      - name: Print dotnet version
+        run: dotnet --info
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # - uses: actions/cache@v4
-      #   with:
-      #     path: ${{ github.workspace }}/.nuget/packages
-      #     key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-nuget-
       - name: Install FUSE
         run: |
           sudo add-apt-repository universe
@@ -241,6 +243,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-rust-windows, build-rust-linux, build-mac-universal]
     steps:
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x
       - name: Print dotnet version
         run: dotnet --info
       - uses: actions/checkout@v4
