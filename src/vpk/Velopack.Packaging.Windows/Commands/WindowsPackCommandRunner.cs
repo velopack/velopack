@@ -256,14 +256,14 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
 
         if (!string.IsNullOrEmpty(signTemplate)) {
-            helper.Sign(rootDir, filePaths, signTemplate, signParallel, progress, true);
+            helper.Sign(filePaths, signTemplate, signParallel, progress, true);
         }
 
         // signtool.exe does not work if we're not on windows.
         if (!VelopackRuntimeInfo.IsWindows) return;
 
         if (!string.IsNullOrEmpty(signParams)) {
-            helper.Sign(rootDir, filePaths, signParams, signParallel, progress, false);
+            helper.Sign(filePaths, signParams, signParallel, progress, false);
         }
     }
 
