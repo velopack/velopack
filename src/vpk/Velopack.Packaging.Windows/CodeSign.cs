@@ -36,19 +36,13 @@ public class CodeSign
         return true;
     }
 
-    public void Sign(string rootDir, string[] filePaths, string signArguments, int parallelism, Action<int> progress, bool signAsTemplate)
+    public void Sign(string[] filePaths, string signArguments, int parallelism, Action<int> progress, bool signAsTemplate)
     {
         Queue<string> pendingSign = new Queue<string>();
 
         foreach (var f in filePaths) {
             if (ShouldSign(f)) {
-                // try to find the path relative to rootDir
-                if (String.IsNullOrEmpty(rootDir)) {
-                    pendingSign.Enqueue(f);
-                } else {
-                    var partialPath = PathUtil.NormalizePath(f).Substring(PathUtil.NormalizePath(rootDir).Length).Trim('/', '\\');
-                    pendingSign.Enqueue(partialPath);
-                }
+                pendingSign.Enqueue(Path.GetFullPath(f));
             }
         }
 
@@ -94,7 +88,7 @@ public class CodeSign
                 }
             }
 
-            RunSigningCommand(command, rootDir, signLogFile);
+            RunSigningCommand(command, signLogFile);
 
             int processed = totalToSign - pendingSign.Count;
             Log.Info($"Code-signed {processed}/{totalToSign} files");
@@ -104,7 +98,7 @@ public class CodeSign
         Log.Debug("SignTool Output: " + Environment.NewLine + File.ReadAllText(signLogFile).Trim());
     }
 
-    private void RunSigningCommand(string command, string workDir, string signLogFile)
+    private void RunSigningCommand(string command, string signLogFile)
     {
         // here we invoke signtool.exe with 'cmd.exe /C' and redirect output to a file, because something
         // about how the dotnet tool host works prevents signtool from being able to open a token password
@@ -123,7 +117,6 @@ public class CodeSign
             FileName = fileName,
             Arguments = args,
             UseShellExecute = false,
-            WorkingDirectory = workDir,
             CreateNoWindow = true,
         };
 
