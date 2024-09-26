@@ -3,9 +3,10 @@ use std::env;
 use std::process::exit;
 
 use crate::{
-    locator::{auto_locate, VelopackLocator},
+    locator::{auto_locate_app_manifest, VelopackLocatorConfig},
     Error,
 };
+use crate::locator::{LocationContext, VelopackLocator};
 
 /// VelopackApp helps you to handle app activation events correctly.
 /// This should be used as early as possible in your application startup code.
@@ -19,7 +20,7 @@ pub struct VelopackApp<'a> {
     restarted_hook: Option<Box<dyn FnOnce(Version) + 'a>>,
     // auto_apply: bool,
     args: Vec<String>,
-    locator: Option<VelopackLocator>,
+    locator: Option<VelopackLocatorConfig>,
 }
 
 impl<'a> VelopackApp<'a> {
@@ -51,7 +52,7 @@ impl<'a> VelopackApp<'a> {
     // }
 
     /// Override the default file locator with a custom one (eg. for testing)
-    pub fn set_locator(mut self, locator: VelopackLocator) -> Self {
+    pub fn set_locator(mut self, locator: VelopackLocatorConfig) -> Self {
         self.locator = Some(locator);
         self
     }
@@ -110,7 +111,7 @@ impl<'a> VelopackApp<'a> {
 
     /// Runs the Velopack startup logic. This should be the first thing to run in your app.
     /// In some circumstances it may terminate/restart the process to perform tasks.
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Result<(), Error> {
         let args: Vec<String> = self.args.clone();
 
         info!("VelopackApp: Running with args: {:?}", args);
@@ -124,14 +125,15 @@ impl<'a> VelopackApp<'a> {
                 _ => {} // Handle other cases or do nothing
             }
         }
-
-        let my_version = match self.get_current_version() {
-            Ok(ver) => ver,
-            Err(e) => {
-                warn!("VelopackApp: Error getting current version: {}", e);
-                semver::Version::new(0, 0, 0)
-            }
+        
+        let locator = if let Some(config) = &self.locator {
+            let manifest = config.load_manifest()?;
+            VelopackLocator::new(config.clone(), manifest)
+        } else {
+            auto_locate_app_manifest(LocationContext::FromCurrentExe)?
         };
+            
+        let my_version = locator.get_manifest_version();
 
         let firstrun = env::var("VELOPACK_FIRSTRUN").is_ok();
         let restarted = env::var("VELOPACK_RESTART").is_ok();
@@ -145,6 +147,8 @@ impl<'a> VelopackApp<'a> {
         if restarted {
             Self::call_hook(&mut self.restarted_hook, &my_version);
         }
+        
+        Ok(())
     }
 
     fn call_hook(hook_option: &mut Option<Box<dyn FnOnce(Version) + 'a>>, version: &Version) {
@@ -163,18 +167,5 @@ impl<'a> VelopackApp<'a> {
                 }
             }
         }
-    }
-
-    fn get_locator(&self) -> Result<VelopackLocator, Error> {
-        if let Some(locator) = &self.locator {
-            return Ok(locator.clone());
-        }
-
-        let exe_path = env::current_exe()?;
-        auto_locate(exe_path)
-    }
-
-    fn get_current_version(&self) -> Result<Version, Error> {
-        self.get_locator().map(|l| l.load_manifest()).map(|m| m.map(|m| m.version))?
     }
 }

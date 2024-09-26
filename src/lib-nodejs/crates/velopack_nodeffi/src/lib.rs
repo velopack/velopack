@@ -16,14 +16,14 @@ struct UpdateManagerWrapper {
 impl Finalize for UpdateManagerWrapper {}
 type BoxedUpdateManager = JsBox<RefCell<UpdateManagerWrapper>>;
 
-fn args_get_locator(cx: &mut FunctionContext, i: usize) -> NeonResult<Option<VelopackLocator>> {
+fn args_get_locator(cx: &mut FunctionContext, i: usize) -> NeonResult<Option<VelopackLocatorConfig>> {
     let arg_locator = cx.argument_opt(i);
     if let Some(js_value) = arg_locator {
         if js_value.is_a::<JsString, _>(cx) {
             if let Ok(js_string) = js_value.downcast::<JsString, _>(cx) {
                 let arg_locator = js_string.value(cx);
                 if !arg_locator.is_empty() {
-                    let locator = serde_json::from_str::<VelopackLocator>(&arg_locator).or_else(|e| cx.throw_error(e.to_string()))?;
+                    let locator = serde_json::from_str::<VelopackLocatorConfig>(&arg_locator).or_else(|e| cx.throw_error(e.to_string()))?;
                     return Ok(Some(locator));
                 }
             }
@@ -205,6 +205,7 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
 
     let undefined = cx.undefined();
     let cx_ref = Rc::new(RefCell::new(cx));
+    let cx_ref2 = cx_ref.clone();
 
     let hook_handler = move |hook_name: &str, current_version: Version| {
         let mut cx = cx_ref.borrow_mut();
@@ -231,7 +232,10 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
         builder = builder.set_args(argarray);
     }
 
-    builder.run();
+    builder.run().or_else(|e| {
+        let mut cx = cx_ref2.borrow_mut();
+        cx.throw_error(e.to_string())
+    })?;
 
     Ok(undefined)
 }

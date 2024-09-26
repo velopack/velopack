@@ -1,10 +1,13 @@
+use crate::dialogs::{self, DialogResult};
 use std::{ffi::OsStr, path::Path};
+use velopack::locator::VelopackLocator;
 
-use crate::{bundle::Manifest, dialogs, dialogs::DialogResult};
-
-pub fn close_processes_locking_dir(manifest: &Manifest, path: &str) -> bool {
+pub fn close_processes_locking_dir(locator: &VelopackLocator) -> bool {
+    let app_title = locator.get_manifest_title();
+    let app_version = locator.get_manifest_version_full_string();
     loop {
-        let pids = filelocksmith::find_processes_locking_path(path);
+        let bin_dir = locator.get_current_bin_dir();
+        let pids = filelocksmith::find_processes_locking_path(&bin_dir);
         if pids.is_empty() {
             return true;
         }
@@ -24,7 +27,7 @@ pub fn close_processes_locking_dir(manifest: &Manifest, path: &str) -> bool {
             .collect::<Vec<String>>()
             .join(", ");
 
-        let result = dialogs::show_processes_locking_folder_dialog(manifest, &pids_str);
+        let result = dialogs::show_processes_locking_folder_dialog(&app_title, &app_version, &pids_str);
 
         match result {
             DialogResult::Retry => continue,
@@ -41,8 +44,13 @@ pub fn close_processes_locking_dir(manifest: &Manifest, path: &str) -> bool {
 #[test]
 #[ignore]
 fn test_close_processes_locking_dir() {
-    let mut mani = Manifest::default();
+    let mut paths = velopack::locator::VelopackLocatorConfig::default();
+    paths.CurrentBinaryDir = std::path::PathBuf::from(r"C:\Users\Caelan\AppData\Local\Clowd");
+
+    let mut mani = velopack::bundle::Manifest::default();
     mani.title = "Test".to_owned();
     mani.version = semver::Version::parse("1.0.0").unwrap();
-    close_processes_locking_dir(&mani, r"C:\Users\Caelan\AppData\Local\Clowd");
+
+    let locator = VelopackLocator::new(paths.clone(), mani.clone());
+    close_processes_locking_dir(&locator);
 }

@@ -1,7 +1,7 @@
 use crate::{
-    bundle,
-    shared::{self, bundle::Manifest, OperationWait},
+    shared::{self, OperationWait},
 };
+use velopack::{bundle::load_bundle_from_file, bundle::Manifest, locator::VelopackLocator};
 use anyhow::{bail, Result};
 use std::path::PathBuf;
 
@@ -13,26 +13,29 @@ use super::apply_osx_impl::apply_package_impl;
 use super::apply_windows_impl::apply_package_impl;
 
 pub fn apply<'a>(
-    root_path: &PathBuf,
-    app: &Manifest,
+    locator: &VelopackLocator,
     restart: bool,
     wait: OperationWait,
     package: Option<&PathBuf>,
     exe_args: Option<Vec<&str>>,
-    runhooks: bool,
+    run_hooks: bool,
 ) -> Result<()> {
     shared::operation_wait(wait);
 
-    let package = package.cloned().map_or_else(|| auto_locate_package(&app, &root_path), Ok);
+    let package = package.cloned().map_or_else(|| auto_locate_package(&locator), Ok);
+    
     match package {
         Ok(package) => {
-            info!("Getting ready to apply package to {} ver {}: {}", app.id, app.version, package.to_string_lossy());
-            match apply_package_impl(&root_path, &app, &package, runhooks) {
-                Ok(applied_app) => {
-                    info!("Package version {} applied successfully.", applied_app.version);
+            info!("Getting ready to apply package to {} ver {}: {}", 
+                locator.get_manifest_id(), 
+                locator.get_manifest_version_full_string(), 
+                package.to_string_lossy());
+            match apply_package_impl(&locator, &package, run_hooks) {
+                Ok(applied_locator) => {
+                    info!("Package version {} applied successfully.", applied_locator.get_manifest_version_full_string());
                     // if successful, we want to restart the new version of the app, which could have different metadata
                     if restart {
-                        shared::start_package(&applied_app, &root_path, exe_args, Some("VELOPACK_RESTART"))?;
+                        shared::start_package(&applied_locator, exe_args, Some("VELOPACK_RESTART"))?;
                     }
                     return Ok(());
                 }
@@ -48,20 +51,14 @@ pub fn apply<'a>(
 
     // an error occurred if we're here, but we still want to restart the old version of the app if it was requested
     if restart {
-        shared::start_package(&app, &root_path, exe_args, Some("VELOPACK_RESTART"))?;
+        shared::start_package(&locator, exe_args, Some("VELOPACK_RESTART"))?;
     }
 
     bail!("Apply failed, see logs for details.");
 }
 
-fn auto_locate_package(app: &Manifest, _root_path: &PathBuf) -> Result<PathBuf> {
-    #[cfg(target_os = "windows")]
-    let packages_dir = app.get_packages_path(_root_path);
-    #[cfg(target_os = "linux")]
-    let packages_dir = format!("/var/tmp/velopack/{}/packages", &app.id);
-    #[cfg(target_os = "macos")]
-    let packages_dir = format!("/tmp/velopack/{}/packages", &app.id);
-
+fn auto_locate_package(locator: &VelopackLocator) -> Result<PathBuf> {
+    let packages_dir = locator.get_packages_dir_as_string();
     info!("Attempting to auto-detect package in: {}", packages_dir);
     let mut package_path: Option<PathBuf> = None;
     let mut package_manifest: Option<Manifest> = None;
@@ -70,7 +67,7 @@ fn auto_locate_package(app: &Manifest, _root_path: &PathBuf) -> Result<PathBuf> 
         for path in paths {
             if let Ok(path) = path {
                 trace!("Checking package: '{}'", path.to_string_lossy());
-                if let Ok(bun) = bundle::load_bundle_from_file(&path) {
+                if let Ok(mut bun) = load_bundle_from_file(&path) {
                     if let Ok(mani) = bun.read_manifest() {
                         if package_manifest.is_none() || mani.version > package_manifest.clone().unwrap().version {
                             info!("Found {}: '{}'", mani.version, path.to_string_lossy());
@@ -84,7 +81,7 @@ fn auto_locate_package(app: &Manifest, _root_path: &PathBuf) -> Result<PathBuf> 
     }
 
     if let Some(p) = package_path {
-        return Ok(p);
+        Ok(p)
     } else {
         bail!("Unable to find/load suitable package. Provide via the --package argument.");
     }

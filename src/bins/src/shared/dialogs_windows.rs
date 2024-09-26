@@ -1,7 +1,9 @@
-use super::{bundle::Manifest, dialogs_common::*, dialogs_const::*};
+use super::{dialogs_common::*, dialogs_const::*};
+use velopack::bundle::Manifest;
 use anyhow::Result;
 use std::path::PathBuf;
 use winsafe::{self as w, co, prelude::*, WString};
+use velopack::locator::{auto_locate_app_manifest, LocationContext};
 
 pub fn show_restart_required(app: &Manifest) {
     show_warn(
@@ -32,7 +34,7 @@ pub fn show_update_missing_dependencies_dialog(
             "{} {to} has missing dependencies which need to be installed: {}, would you like to continue?",
             app.title, depedency_string
         )
-        .as_str(),
+            .as_str(),
         Some("Install & Update"),
     )
 }
@@ -51,13 +53,13 @@ pub fn show_setup_missing_dependencies_dialog(app: &Manifest, depedency_string: 
     )
 }
 
-pub fn show_uninstall_complete_with_errors_dialog(app: &Manifest, log_path: Option<&PathBuf>) {
+pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Option<&PathBuf>) {
     if get_silent() {
         return;
     }
 
-    let mut setup_name = WString::from_str(format!("{} Uninstall", app.title));
-    let mut instruction = WString::from_str(format!("{} uninstall has completed with errors.", app.title));
+    let mut setup_name = WString::from_str(format!("{} Uninstall", app_title));
+    let mut instruction = WString::from_str(format!("{} uninstall has completed with errors.", app_title));
     let mut content = WString::from_str(
         "There may be left-over files or directories on your system. You can attempt to remove these manually or re-install the application and try again.",
     );
@@ -84,7 +86,7 @@ pub fn show_uninstall_complete_with_errors_dialog(app: &Manifest, log_path: Opti
     let _ = w::TaskDialogIndirect(&config, None);
 }
 
-pub fn show_processes_locking_folder_dialog(app: &Manifest, process_names: &str) -> DialogResult {
+pub fn show_processes_locking_folder_dialog(app_title: &str, app_version: &str, process_names: &str) -> DialogResult {
     if get_silent() {
         return DialogResult::Cancel;
     }
@@ -92,13 +94,13 @@ pub fn show_processes_locking_folder_dialog(app: &Manifest, process_names: &str)
     let mut config: w::TASKDIALOGCONFIG = Default::default();
     config.set_pszMainIcon(w::IconIdTdicon::Tdicon(co::TD_ICON::INFORMATION));
 
-    let mut update_name = WString::from_str(format!("{} Update {}", app.title, app.version));
-    let mut instruction = WString::from_str(format!("{} Update", app.title));
+    let mut update_name = WString::from_str(format!("{} Update {}", app_title, app_version));
+    let mut instruction = WString::from_str(format!("{} Update", app_title));
 
     let mut content = WString::from_str(format!(
         "There are programs ({}) preventing the {} update from proceeding. \n\n\
         You can press Continue to have this updater attempt to close them automatically, or if you've closed them yourself press Retry for the updater to check again.",
-    process_names, app.title));
+        process_names, app_title));
 
     let mut btn_retry_txt = WString::from_str("Retry\nTry again if you've closed the program(s)");
     let mut btn_continue_txt = WString::from_str("Continue\nAttempt to close the program(s) automatically");
@@ -145,19 +147,19 @@ pub fn show_overwrite_repair_dialog(app: &Manifest, root_path: &PathBuf, root_is
     let mut btn_cancel_txt = WString::from_str("Cancel\nBackup or save your work first");
 
     // if we can detect the current app version, we call it "Update" or "Downgrade"
-    let possible_update = root_path.join("Update.exe");
-    let old_app = super::detect_manifest_from_update_path(&possible_update).map(|v| v.1).ok();
-    if let Some(old) = old_app {
-        if old.version < app.version {
+    let old_app = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(root_path.to_owned()));
+    if let Ok(old) = old_app {
+        let old_version = old.get_manifest_version();
+        if old_version < app.version {
             instruction = WString::from_str(format!("An older version of {} is installed.", app.title));
-            content = WString::from_str(format!("Would you like to update from {} to {}?", old.version, app.version));
+            content = WString::from_str(format!("Would you like to update from {} to {}?", old_version, app.version));
             btn_yes_txt = WString::from_str(format!("Update\nTo version {}", app.version));
             config.set_pszMainIcon(w::IconIdTdicon::Tdicon(co::TD_ICON::INFORMATION));
-        } else if old.version > app.version {
+        } else if old_version > app.version {
             instruction = WString::from_str(format!("A newer version of {} is installed.", app.title));
             content = WString::from_str(format!(
                 "You already have {} installed. Would you like to downgrade this application to an older version?",
-                old.version
+                old_version
             ));
             btn_yes_txt = WString::from_str(format!("Downgrade\nTo version {}", app.version));
         }

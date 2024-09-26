@@ -1,5 +1,6 @@
 use super::{runtimes, splash};
-use crate::shared::{bundle, dialogs, download};
+use crate::shared::dialogs;
+use velopack::{bundle, download};
 
 use anyhow::Result;
 use std::path::Path;

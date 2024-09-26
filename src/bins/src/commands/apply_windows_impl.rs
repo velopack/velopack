@@ -1,6 +1,6 @@
 use crate::{
     dialogs,
-    shared::{self, bundle, bundle::Manifest},
+    shared::{self},
     windows::locksmith,
     windows::splash,
 };
@@ -10,6 +10,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
+use velopack::{bundle::load_bundle_from_file, locator::VelopackLocator};
 
 fn ropycopy<P1: AsRef<Path>, P2: AsRef<Path>>(source: &P1, dest: &P2) -> Result<()> {
     let source = source.as_ref();
@@ -41,28 +42,31 @@ fn ropycopy<P1: AsRef<Path>, P2: AsRef<Path>>(source: &P1, dest: &P2) -> Result<
     Ok(())
 }
 
-pub fn apply_package_impl(root_path: &PathBuf, old_app: &Manifest, package: &PathBuf, run_hooks: bool) -> Result<Manifest> {
-    let bundle = bundle::load_bundle_from_file(package)?;
-    let new_app = bundle.read_manifest()?;
+pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_hooks: bool) -> Result<VelopackLocator> {
+    let mut bundle = load_bundle_from_file(package)?;
+    let new_app_manifest = bundle.read_manifest()?;
+    let new_locator = old_locator.clone_self_with_new_manifest(&new_app_manifest);
 
-    let found_version = (new_app.version).to_owned();
-    info!("Applying package to current: {} (old version {})", found_version, old_app.version);
+    let root_path = old_locator.get_root_dir();
+    let old_version = old_locator.get_manifest_version();
+    let new_version = new_locator.get_manifest_version();
 
-    if !crate::windows::prerequisite::prompt_and_install_all_missing(&new_app, Some(&old_app.version))? {
+    info!("Applying package {} to current: {}", new_version, old_version);
+
+    if !crate::windows::prerequisite::prompt_and_install_all_missing(&new_app_manifest, Some(&old_version))? {
         bail!("Stopping apply. Pre-requisites are missing and user cancelled.");
     }
 
-    let packages_dir = old_app.get_packages_path(root_path);
-    let packages_dir = Path::new(&packages_dir);
-    let current_dir = old_app.get_current_path(root_path);
+    let packages_dir = old_locator.get_packages_dir();
+    let current_dir = old_locator.get_current_bin_dir();
     let temp_path_new = packages_dir.join(format!("tmp_{}", shared::random_string(16)));
     let temp_path_old = packages_dir.join(format!("tmp_{}", shared::random_string(16)));
 
     // open a dialog showing progress...
     let (mut tx, _) = mpsc::channel::<i16>();
     if !dialogs::get_silent() {
-        let title = format!("{} Update", &new_app.title);
-        let message = format!("Installing update {}...", &new_app.version);
+        let title = format!("{} Update", new_locator.get_manifest_title());
+        let message = format!("Installing update {}...", new_locator.get_manifest_version_full_string());
         tx = splash::show_progress_dialog(title, message);
     }
 
@@ -77,14 +81,14 @@ pub fn apply_package_impl(root_path: &PathBuf, old_app: &Manifest, package: &Pat
 
         // second, run application hooks (but don't care if it fails)
         if run_hooks {
-            crate::windows::run_hook(old_app, root_path, "--veloapp-obsolete", 15);
+            crate::windows::run_hook(old_locator, "--veloapp-obsolete", 15);
         } else {
             info!("Skipping --veloapp-obsolete hook.");
         }
 
         // third, we try _REALLY HARD_ to stop the package
         let _ = shared::force_stop_package(root_path);
-        if winsafe::IsWindows10OrGreater() == Ok(true) && !locksmith::close_processes_locking_dir(&new_app, &current_dir) {
+        if winsafe::IsWindows10OrGreater() == Ok(true) && !locksmith::close_processes_locking_dir(&old_locator) {
             bail!("Failed to close processes locking directory / user cancelled.");
         }
 
@@ -116,10 +120,12 @@ pub fn apply_package_impl(root_path: &PathBuf, old_app: &Manifest, package: &Pat
                 let _ = tx.send(splash::MSG_CLOSE);
 
                 info!("Showing error dialog...");
-                let title = format!("{} Update", &new_app.title);
+                let title = format!("{} Update", &new_locator.get_manifest_title());
                 let header = "Failed to update";
                 let body =
-                    format!("Failed to update {} to version {}. Please check the logs for more details.", &new_app.title, &new_app.version);
+                    format!("Failed to update {} to version {}. Please check the logs for more details.",
+                            &new_locator.get_manifest_title(),
+                            &new_locator.get_manifest_version_full_string());
                 dialogs::show_error(&title, Some(header), &body);
 
                 bail!("Fatal error performing update.");
@@ -128,13 +134,23 @@ pub fn apply_package_impl(root_path: &PathBuf, old_app: &Manifest, package: &Pat
 
         // from this point on, we're past the point of no return and should not bail
         // sixth, we write the uninstall entry
-        if let Err(e) = new_app.write_uninstall_entry(root_path) {
-            warn!("Failed to write uninstall entry ({}).", e);
+        if !old_locator.get_is_portable() {
+            if old_locator.get_manifest_id() != new_locator.get_manifest_id() {
+                info!("The app ID has changed, removing old uninstall registry entry.");
+                if let Err(e) = crate::windows::registry::remove_uninstall_entry(&old_locator) {
+                    warn!("Failed to remove old uninstall entry ({}).", e);
+                }
+            }
+            if let Err(e) = crate::windows::registry::write_uninstall_entry(&new_locator) {
+                warn!("Failed to write new uninstall entry ({}).", e);
+            }
+        } else {
+            info!("Skipping uninstall entry for portable app.");
         }
-
+      
         // seventh, we run the post-install hooks
         if run_hooks {
-            crate::windows::run_hook(&new_app, &root_path, "--veloapp-updated", 15);
+            crate::windows::run_hook(&new_locator, "--veloapp-updated", 15);
         } else {
             info!("Skipping --veloapp-updated hook.");
         }
@@ -145,7 +161,8 @@ pub fn apply_package_impl(root_path: &PathBuf, old_app: &Manifest, package: &Pat
         // to update the shortcut to point at the temp/renamed location
         let _ = remove_dir_all::remove_dir_all(&temp_path_new);
         let _ = remove_dir_all::remove_dir_all(&temp_path_old);
-        crate::windows::create_or_update_manifest_lnks(root_path, &new_app, Some(old_app));
+        
+        crate::windows::create_or_update_manifest_lnks(&new_locator, Some(old_locator));
 
         // done!
         info!("Package applied successfully.");
@@ -156,5 +173,5 @@ pub fn apply_package_impl(root_path: &PathBuf, old_app: &Manifest, package: &Pat
     let _ = remove_dir_all::remove_dir_all(&temp_path_new);
     let _ = remove_dir_all::remove_dir_all(&temp_path_old);
     action?;
-    Ok(new_app)
+    Ok(new_locator)
 }

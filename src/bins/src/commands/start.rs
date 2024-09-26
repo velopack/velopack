@@ -1,14 +1,10 @@
-use std::path::PathBuf;
-
-use anyhow::Result;
-
-use crate::bundle::Manifest;
 use crate::shared::{self, OperationWait};
+use anyhow::Result;
+use velopack::locator::VelopackLocator;
 
 #[allow(unused_variables, unused_imports)]
 pub fn start(
-    root_dir: &PathBuf,
-    app: &Manifest,
+    locator: &VelopackLocator,
     wait: OperationWait,
     exe_name: Option<&String>,
     exe_args: Option<Vec<&str>>,
@@ -24,7 +20,7 @@ pub fn start(
     shared::operation_wait(wait);
 
     #[cfg(target_os = "windows")]
-    super::start_windows_impl::start_impl(&root_dir, &app, exe_name, exe_args, legacy_args)?;
+    super::start_windows_impl::start_impl(&locator, exe_name, exe_args, legacy_args)?;
 
     #[cfg(not(target_os = "windows"))]
     shared::start_package(&app, &root_dir, exe_args, None)?;

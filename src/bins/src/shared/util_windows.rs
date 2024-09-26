@@ -13,7 +13,8 @@ use windows::Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasicInf
 use windows::Win32::System::Threading::{GetCurrentProcess, PROCESS_BASIC_INFORMATION};
 use winsafe::{self as w, co, prelude::*};
 
-use super::bundle::{self, EntryNameInfo, Manifest};
+use velopack::bundle::{self, EntryNameInfo};
+use velopack::locator::VelopackLocator;
 
 pub fn wait_for_pid_to_exit(pid: u32, ms_to_wait: u32) -> Result<()> {
     info!("Waiting {}ms for process ({}) to exit.", ms_to_wait, pid);
@@ -169,12 +170,10 @@ fn _force_stop_package<P: AsRef<Path>>(root_dir: P) -> Result<()> {
     Ok(())
 }
 
-pub fn start_package<P: AsRef<Path>>(app: &Manifest, root_dir: P, exe_args: Option<Vec<&str>>, set_env: Option<&str>) -> Result<()> {
-    let root_dir = root_dir.as_ref().to_path_buf();
-    let current = app.get_current_path(&root_dir);
-    let exe = app.get_main_exe_path(&root_dir);
+pub fn start_package(locator: &VelopackLocator, exe_args: Option<Vec<&str>>, set_env: Option<&str>) -> Result<()> {
+    let current = locator.get_current_bin_dir();
+    let exe_to_execute = locator.get_main_exe_path();
 
-    let exe_to_execute = std::path::Path::new(&exe);
     if !exe_to_execute.exists() {
         bail!("Unable to find executable to start: '{}'", exe_to_execute.to_string_lossy());
     }
@@ -189,26 +188,12 @@ pub fn start_package<P: AsRef<Path>>(app: &Manifest, root_dir: P, exe_args: Opti
         psi.env(env, "true");
     }
 
-    info!("About to launch: '{}' in dir '{}'", exe_to_execute.to_string_lossy(), current);
+    info!("About to launch: '{:?}' in dir '{:?}'", exe_to_execute, current);
     info!("Args: {:?}", psi.get_args());
     let child = psi.spawn().map_err(|z| anyhow!("Failed to start application ({}).", z))?;
     let _ = unsafe { AllowSetForegroundWindow(child.id()) };
 
     Ok(())
-}
-
-pub fn detect_manifest_from_update_path(update_exe: &PathBuf) -> Result<(PathBuf, Manifest)> {
-    let root_path = update_exe.parent().unwrap().to_path_buf();
-    let app = find_manifest_from_root_dir(&root_path)
-        .map_err(|m| anyhow!("Unable to read application manifest ({}). Is this a properly installed application?", m))?;
-    info!("Loaded manifest for application: {}", app.id);
-    info!("Root Directory: {}", root_path.to_string_lossy());
-    Ok((root_path, app))
-}
-
-pub fn detect_current_manifest() -> Result<(PathBuf, Manifest)> {
-    let me = std::env::current_exe()?;
-    detect_manifest_from_update_path(&me)
 }
 
 pub fn get_app_prefixed_folders<P: AsRef<Path>>(parent_path: P) -> Result<Vec<PathBuf>> {
@@ -277,37 +262,37 @@ fn parse_version_from_folder_name(folder_name: &str) -> Option<Version> {
     folder_name.strip_prefix("app-").and_then(|v| Version::parse(v).ok())
 }
 
-fn find_manifest_from_root_dir(root_path: &PathBuf) -> Result<Manifest> {
-    // default to checking current/sq.version
-    let cm = find_current_manifest(root_path);
-    if cm.is_ok() {
-        return cm;
-    }
+// fn find_manifest_from_root_dir(root_path: &PathBuf) -> Result<Manifest> {
+//     // default to checking current/sq.version
+//     let cm = find_current_manifest(root_path);
+//     if cm.is_ok() {
+//         return cm;
+//     }
+// 
+//     // if that fails, check for latest full package
+//     warn!("Unable to find current manifest, checking for latest full package. (LEGACY MODE)");
+//     let latest = find_latest_full_package(root_path);
+//     if let Some(latest) = latest {
+//         let mani = latest.load_manifest()?;
+//         return Ok(mani);
+//     }
+// 
+//     bail!("Unable to locate manifest or package.");
+// }
+// 
+// fn find_current_manifest(root_path: &PathBuf) -> Result<Manifest> {
+//     let m = Manifest::default();
+//     let nuspec_path = m.get_nuspec_path(root_path);
+//     if Path::new(&nuspec_path).exists() {
+//         if let Ok(nuspec) = super::retry_io(|| std::fs::read_to_string(&nuspec_path)) {
+//             return Ok(bundle::read_manifest_from_string(&nuspec)?);
+//         }
+//     }
+//     bail!("Unable to read nuspec file in current directory.")
+// }
 
-    // if that fails, check for latest full package
-    warn!("Unable to find current manifest, checking for latest full package. (LEGACY MODE)");
-    let latest = find_latest_full_package(root_path);
-    if let Some(latest) = latest {
-        let mani = latest.load_manifest()?;
-        return Ok(mani);
-    }
-
-    bail!("Unable to locate manifest or package.");
-}
-
-fn find_current_manifest(root_path: &PathBuf) -> Result<Manifest> {
-    let m = Manifest::default();
-    let nuspec_path = m.get_nuspec_path(root_path);
-    if Path::new(&nuspec_path).exists() {
-        if let Ok(nuspec) = super::retry_io(|| std::fs::read_to_string(&nuspec_path)) {
-            return Ok(bundle::read_manifest_from_string(&nuspec)?);
-        }
-    }
-    bail!("Unable to read nuspec file in current directory.")
-}
-
-pub fn find_latest_full_package(root_path: &PathBuf) -> Option<EntryNameInfo> {
-    let packages = get_all_packages(root_path);
+pub fn find_latest_full_package(locator: &VelopackLocator) -> Option<EntryNameInfo> {
+    let packages = get_all_packages(locator);
     let mut latest: Option<EntryNameInfo> = None;
     for pkg in packages {
         if pkg.is_delta {
@@ -325,15 +310,14 @@ pub fn find_latest_full_package(root_path: &PathBuf) -> Option<EntryNameInfo> {
     latest
 }
 
-fn get_all_packages(root_path: &PathBuf) -> Vec<EntryNameInfo> {
-    let m = Manifest::default();
-    let packages = m.get_packages_path(root_path);
+fn get_all_packages(locator: &VelopackLocator) -> Vec<EntryNameInfo> {
+    let packages = locator.get_packages_dir();
     let mut vec = Vec::new();
     debug!("Scanning for packages in {:?}", packages);
-    if let Ok(entries) = std::fs::read_dir(packages) {
+    if let Ok(entries) = fs::read_dir(packages) {
         for entry in entries {
             if let Ok(entry) = entry {
-                if let Some(pkg) = super::bundle::parse_package_file_path(entry.path()) {
+                if let Some(pkg) = bundle::parse_package_file_path(entry.path()) {
                     debug!("Found package: {}", entry.path().to_string_lossy());
                     vec.push(pkg);
                 }

@@ -3,6 +3,7 @@ use std::io::{Read, Write};
 
 use crate::{Error, util};
 
+/// Downloads a file from a URL and writes it to a file while reporting progress from 0-100.
 pub fn download_url_to_file<A>(url: &str, file_path: &str, mut progress: A) -> Result<(), Error>
     where A: FnMut(i16),
 {
@@ -39,6 +40,7 @@ pub fn download_url_to_file<A>(url: &str, file_path: &str, mut progress: A) -> R
     Ok(())
 }
 
+/// Downloads a file from a URL and returns it as a string.
 pub fn download_url_as_string(url: &str) -> Result<String, Error> {
     let agent = get_download_agent()?;
     let r = agent.get(url).call()?.into_string()?;

@@ -43,16 +43,14 @@
 //!
 //! fn update_my_app() {
 //!     let source = sources::HttpSource::new("https://the.place/you-host/updates");
-//!     let um = UpdateManager::new(source, None).unwrap();
+//!     let um = UpdateManager::new(source, None, None).unwrap();
 //!
 //!     if let UpdateCheck::UpdateAvailable(updates) = um.check_for_updates().unwrap() {
 //!         // there was an update available. Download it.
-//!         um.download_updates(&updates, |progress| {
-//!             println!("Download progress: {}%", progress);
-//!         }).unwrap();
+//!         um.download_updates(&updates, None).unwrap();
 //!
 //!         // download completed, let's restart and update
-//!         um.apply_updates_and_restart(&updates, RestartArgs::None).unwrap();
+//!         um.apply_updates_and_restart(&updates).unwrap();
 //!     }
 //! }
 //! ```
@@ -66,7 +64,7 @@
 //! ```sh
 //! dotnet tool update -g vpk
 //! ```
-//! ***Note: you must have the .NET Core SDK 6 installed to use and update `vpk`***
+//! ***Note: you must have the .NET Core SDK 8 installed to use and update `vpk`***
 //!
 //! 6. Package your Velopack release / installers:
 //! ```sh
@@ -81,11 +79,14 @@
 #![warn(missing_docs)]
 
 mod app;
-mod bundle;
-mod download;
 mod manager;
-mod manifest;
 mod util;
+
+/// Utility functions for loading and working with Velopack bundles and manifests.
+pub mod bundle;
+
+/// Utility function for downloading files with progress reporting.
+pub mod download;
 
 /// Locator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
 pub mod locator;
@@ -138,6 +139,8 @@ pub enum Error
     MissingUpdateExe,
     #[error("This application is not properly installed: {0}")]
     NotInstalled(String),
+    #[error("Generic error: {0}")]
+    Generic(String),
 }
 
 impl From<url::ParseError> for Error {

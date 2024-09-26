@@ -32,9 +32,13 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 zip = { version = "2.1", default-features = false, features = ["deflate"] }
 thiserror = "1.0"
+lazy_static = "1.5"
+regex = "1.10"
+normpath = "1.2"
+bitflags = "2.6"
 
 # typescript
-ts-rs = { version = "9", optional = true }
+ts-rs = { version = "10.0", optional = true }
 
 # delta packages
 zstd = { version = "0.13", optional = true }

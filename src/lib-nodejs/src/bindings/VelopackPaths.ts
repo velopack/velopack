@@ -3,7 +3,7 @@
 /**
  * VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
  */
-export type VelopackLocator = { 
+export type VelopackPaths = { 
 /**
  * The root directory of the current app.
  */
@@ -21,6 +21,6 @@ PackagesDir: string,
  */
 ManifestPath: string, 
 /**
- * The temporary directory for the current app.
+ * The directory containing the application's user binaries
  */
-TempDir: string, };
+CurrentBinaryDir: string, };

@@ -31,15 +31,14 @@ name = "testapp"
 path = "src/testapp.rs"
 
 [dependencies]
+velopack = { path = "../lib-rust" }
 anyhow = "1.0"
 pretty-bytes-rust = "0.3"
 zip = { version = "2.1", default-features = false, features = ["deflate"] }
-regex = "1.10"
 rand = "0.8"
 log = "0.4"
 simplelog = "0.12"
 clap = "4.5"
-xml = "0.8"
 semver = "1.0"
 chrono = "0.4"
 wait-timeout = "0.2"
@@ -58,7 +57,6 @@ enum-flags = "0.3"
 remove_dir_all = { git = "https://github.com/caesay/remove_dir_all.git", features = [
     "log",
 ] }
-zstd = "0.13"
 sha1_smol = "1.0"
 url = "2.5"
 serde = { version = "1.0", features = ["derive"] }
@@ -66,6 +64,7 @@ serde_json = "1.0"
 time = "0.3"
 os_info = "3.8"
 bitflags = "2.6"
+regex = "1.10"
 
 [target.'cfg(unix)'.dependencies]
 native-dialog = "0.7"
