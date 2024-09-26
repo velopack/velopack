@@ -1,4 +1,6 @@
-﻿namespace Velopack.Vpk.Commands;
+﻿using Velopack.Packaging.Unix;
+
+namespace Velopack.Vpk.Commands;
 
 public class LinuxPackCommand : PackCommand
 {
@@ -18,7 +20,7 @@ public class LinuxPackCommand : PackCommand
 
         AddOption<string>((v) => Compression = v, "--compression")
             .SetDescription("Set the compression algorithm to use for the AppImage")
-            .SetDefault("xz")
+            .SetDefault(AppImageTool.DefaultCompressionAlgorithm)
             .SetArgumentHelpName("ALGO")
             .MustBeOneOfStringValues(["gzip", "lzo", "lzma", "xz", "lz4", "zstd"]);
     }
