@@ -22,7 +22,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             .Select(x => x.FullName)
             .ToArray();
 
-        SignFilesImpl(Options, packDir, progress, filesToSign);
+        SignFilesImpl(Options, progress, filesToSign);
         return Task.CompletedTask;
     }
 
@@ -189,8 +189,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         SetupBundle.CreatePackageBundle(targetSetupExe, releasePkg);
         progress(50);
         Log.Debug("Signing Setup bundle");
-        var targetDir = Path.GetDirectoryName(targetSetupExe);
-        SignFilesImpl(Options, targetDir, CoreUtil.CreateProgressDelegate(progress, 50, 100), targetSetupExe);
+        SignFilesImpl(Options, CoreUtil.CreateProgressDelegate(progress, 50, 100), targetSetupExe);
         Log.Debug($"Setup bundle created '{Path.GetFileName(targetSetupExe)}'.");
         progress(100);
         return Task.CompletedTask;
@@ -243,7 +242,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
     }
 
-    private void SignFilesImpl(WindowsSigningOptions options, string rootDir, Action<int> progress, params string[] filePaths)
+    private void SignFilesImpl(WindowsSigningOptions options, Action<int> progress, params string[] filePaths)
     {
         var signParams = options.SignParameters;
         var signTemplate = options.SignTemplate;
