@@ -11,7 +11,7 @@ use crate::*;
 pub trait UpdateSource: Send + Sync {
     /// Retrieve the list of available remote releases from the package source. These releases
     /// can subsequently be downloaded with download_release_entry.
-    fn get_release_feed(&self, channel: &str, app: &manifest::Manifest) -> Result<VelopackAssetFeed, Error>;
+    fn get_release_feed(&self, channel: &str, app: &bundle::Manifest) -> Result<VelopackAssetFeed, Error>;
     /// Download the specified VelopackAsset to the provided local file path.
     fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress_sender: Option<Sender<i16>>) -> Result<(), Error>;
     /// Clone the source to create a new lifetime.
@@ -51,7 +51,7 @@ impl AutoSource {
 }
 
 impl UpdateSource for AutoSource {
-    fn get_release_feed(&self, channel: &str, app: &manifest::Manifest) -> Result<VelopackAssetFeed, Error> {
+    fn get_release_feed(&self, channel: &str, app: &bundle::Manifest) -> Result<VelopackAssetFeed, Error> {
         self.source.get_release_feed(channel, app)
     }
 
@@ -80,7 +80,7 @@ impl HttpSource {
 }
 
 impl UpdateSource for HttpSource {
-    fn get_release_feed(&self, channel: &str, app: &manifest::Manifest) -> Result<VelopackAssetFeed, Error> {
+    fn get_release_feed(&self, channel: &str, app: &bundle::Manifest) -> Result<VelopackAssetFeed, Error> {
         let releases_name = format!("releases.{}.json", channel);
 
         let path = self.url.trim_end_matches('/').to_owned() + "/";
@@ -129,7 +129,7 @@ impl FileSource {
 }
 
 impl UpdateSource for FileSource {
-    fn get_release_feed(&self, channel: &str, _: &manifest::Manifest) -> Result<VelopackAssetFeed, Error> {
+    fn get_release_feed(&self, channel: &str, _: &bundle::Manifest) -> Result<VelopackAssetFeed, Error> {
         let releases_name = format!("releases.{}.json", channel);
         let releases_path = self.path.join(&releases_name);
 

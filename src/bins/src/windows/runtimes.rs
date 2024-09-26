@@ -1,12 +1,14 @@
 use crate::shared as util;
-use crate::shared::download;
 use crate::shared::runtime_arch::RuntimeArch;
 use anyhow::{anyhow, bail, Result};
 use regex::Regex;
 use std::process::Command as Process;
 use std::{collections::HashMap, fs, path::Path};
+use velopack::download;
+
 #[cfg(target_os = "windows")]
 use winsafe::{self as w, co, prelude::*};
+
 const REDIST_2015_2022_X86: &str = "https://aka.ms/vs/17/release/vc_redist.x86.exe";
 const REDIST_2015_2022_X64: &str = "https://aka.ms/vs/17/release/vc_redist.x64.exe";
 const REDIST_2015_2022_ARM64: &str = "https://aka.ms/vs/17/release/vc_redist.arm64.exe";

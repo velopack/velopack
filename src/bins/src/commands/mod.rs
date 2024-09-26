@@ -1,9 +1,6 @@
 mod apply;
 pub use apply::*;
 
-mod patch;
-pub use patch::*;
-
 mod start;
 pub use start::*;
 

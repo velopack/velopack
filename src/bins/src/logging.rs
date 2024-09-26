@@ -7,31 +7,9 @@ pub fn trace_logger() {
     TermLogger::init(LevelFilter::Trace, get_config(None), TerminalMode::Mixed, ColorChoice::Never).unwrap();
 }
 
-pub fn default_log_location() -> PathBuf {
-    #[cfg(target_os = "windows")]
-    {
-        let mut my_dir = std::env::current_exe().unwrap();
-        my_dir.pop();
-        return my_dir.join("Velopack.log");
-    }
-    #[cfg(target_os = "linux")]
-    {
-        return std::path::Path::new("/tmp/velopack.log").to_path_buf();
-    }
-    #[cfg(target_os = "macos")]
-    {
-        #[allow(deprecated)]
-        let mut user_home = std::env::home_dir().expect("Could not locate user home directory via $HOME or /etc/passwd");
-        user_home.push("Library");
-        user_home.push("Logs");
-        user_home.push("velopack.log");
-        return user_home;
-    }
-}
-
-pub fn setup_logging(process_name: &str, file: Option<&PathBuf>, console: bool, verbose: bool, nocolor: bool) -> Result<()> {
+pub fn setup_logging(process_name: &str, file: Option<&PathBuf>, console: bool, verbose: bool) -> Result<()> {
     let mut loggers: Vec<Box<dyn SharedLogger>> = Vec::new();
-    let color_choice = if nocolor { ColorChoice::Never } else { ColorChoice::Auto };
+    let color_choice = ColorChoice::Never;
     if console {
         let console_level = if verbose { LevelFilter::Debug } else { LevelFilter::Info };
         loggers.push(TermLogger::new(console_level, get_config(None), TerminalMode::Mixed, color_choice));

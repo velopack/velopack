@@ -5,6 +5,8 @@ use std::{
     time::Duration,
 };
 
+use velopack::locator::VelopackLocator;
+
 use anyhow::{anyhow, Result};
 use normpath::PathExt;
 use wait_timeout::ChildExt;
@@ -20,11 +22,12 @@ use windows::Win32::{
 use crate::shared::{self, runtime_arch::RuntimeArch};
 use crate::windows::strings::{string_to_u16, u16_to_string};
 
-pub fn run_hook(app: &shared::bundle::Manifest, root_path: &PathBuf, hook_name: &str, timeout_secs: u64) -> bool {
+pub fn run_hook(locator: &VelopackLocator, hook_name: &str, timeout_secs: u64) -> bool {
     let sw = simple_stopwatch::Stopwatch::start_new();
-    let current_path = app.get_current_path(&root_path);
-    let main_exe_path = app.get_main_exe_path(&root_path);
-    let ver_string = app.version.to_string();
+    let root_dir = locator.get_root_dir();
+    let current_path = locator.get_current_bin_dir();
+    let main_exe_path = locator.get_main_exe_path();
+    let ver_string = locator.get_manifest_version_full_string();
     let args = vec![hook_name, &ver_string];
     let mut success = false;
 
@@ -59,7 +62,7 @@ pub fn run_hook(app: &shared::bundle::Manifest, root_path: &PathBuf, hook_name: 
     }
 
     // in case the hook left running processes
-    let _ = shared::force_stop_package(&root_path);
+    let _ = shared::force_stop_package(&root_dir);
     success
 }
 
@@ -75,8 +78,8 @@ impl Drop for MutexDropGuard {
     }
 }
 
-pub fn create_global_mutex(app: &shared::bundle::Manifest) -> Result<MutexDropGuard> {
-    let mutex_name = format!("velopack-{}", &app.id);
+pub fn create_global_mutex(app_id: &str) -> Result<MutexDropGuard> {
+    let mutex_name = format!("velopack-{}", app_id);
     info!("Attempting to open global system mutex: '{}'", &mutex_name);
     let encodedu16 = super::strings::string_to_u16(mutex_name);
     let encoded = PCWSTR(encodedu16.as_ptr());

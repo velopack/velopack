@@ -1,33 +1,21 @@
 use crate::{
     dialogs,
-    shared::{self, bundle, runtime_arch::RuntimeArch},
+    shared::{self},
     windows,
+};
+use velopack::bundle::BundleZip;
+use velopack::locator::*;
+
+use anyhow::{anyhow, bail, Result};
+use pretty_bytes_rust::pretty_bytes;
+use std::{
+    fs::{self},
+    path::{Path, PathBuf},
 };
 use ::windows::core::PCWSTR;
 use ::windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
-use anyhow::{anyhow, bail, Result};
-use memmap2::Mmap;
-use pretty_bytes_rust::pretty_bytes;
-use std::{
-    env,
-    fs::{self, File},
-    path::{Path, PathBuf},
-};
 
-pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Result<()> {
-    let osinfo = os_info::get();
-    let osarch = RuntimeArch::from_current_system();
-    info!("OS: {osinfo}, Arch={osarch:#?}");
-
-    if !windows::is_windows_7_sp1_or_greater() {
-        bail!("This installer requires Windows 7 SPA1 or later and cannot run.");
-    }
-
-    let file = File::open(env::current_exe()?)?;
-    let mmap = unsafe { Mmap::map(&file)? };
-    let pkg = bundle::load_bundle_from_mmap(&mmap, debug_pkg)?;
-    info!("Bundle loaded successfully.");
-
+pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Option<Vec<&str>>) -> Result<()> {
     // find and parse nuspec
     info!("Reading package manifest...");
     let app = pkg.read_manifest()?;
@@ -41,7 +29,7 @@ pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Res
     info!("    Package Machine Architecture: {}", &app.machine_architecture);
     info!("    Package Runtime Dependencies: {}", &app.runtime_dependencies);
 
-    let _mutex = shared::retry_io(|| windows::create_global_mutex(&app))?;
+    let _mutex = shared::retry_io(|| windows::create_global_mutex(&app.id))?;
 
     if !windows::prerequisite::prompt_and_install_all_missing(&app, None)? {
         info!("Cancelling setup. Pre-requisites not installed.");
@@ -136,7 +124,7 @@ pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Res
         windows::splash::show_splash_dialog(app.title.to_owned(), splash_bytes)
     };
 
-    let install_result = install_impl(&pkg, &root_path, &tx);
+    let install_result = install_impl(pkg, &root_path, &tx, start_args);
     let _ = tx.send(windows::splash::MSG_CLOSE);
 
     if install_result.is_ok() {
@@ -159,17 +147,19 @@ pub fn install(debug_pkg: Option<&PathBuf>, install_to: Option<&PathBuf>) -> Res
     Ok(())
 }
 
-fn install_impl(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::mpsc::Sender<i16>) -> Result<()> {
+fn install_impl(pkg: &mut BundleZip, root_path: &PathBuf, tx: &std::sync::mpsc::Sender<i16>, start_args: Option<Vec<&str>>) -> Result<()> {
     info!("Starting installation!");
 
-    let app = pkg.read_manifest()?;
+    let app_manifest = pkg.read_manifest()?;
+    let paths = create_config_from_root_dir(root_path);
+    let locator = VelopackLocator::new(paths, app_manifest);
 
     // all application paths
-    let updater_path = app.get_update_path(root_path);
-    let packages_path = app.get_packages_path(root_path);
-    let current_path = app.get_current_path(root_path);
-    let nupkg_path = app.get_target_nupkg_path(root_path);
-    let main_exe_path = app.get_main_exe_path(root_path);
+    let updater_path = locator.get_update_path();
+    let packages_path = locator.get_packages_dir();
+    let current_path = locator.get_current_bin_dir();
+    let nupkg_path = locator.get_ideal_local_nupkg_path(None, None);
+    let main_exe_path = locator.get_main_exe_path();
 
     info!("Extracting Update.exe...");
     let _ = pkg
@@ -186,18 +176,18 @@ fn install_impl(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::m
         let _ = tx.send(((p as f32) / 100.0 * 80.0 + 10.0) as i16);
     })?;
 
-    if !Path::new(&main_exe_path).exists() {
+    if !main_exe_path.exists() {
         bail!("The main executable could not be found in the package. Please contact the application author.");
     }
 
-    info!("Creating shortcuts...");
-    if !app.shortcut_locations.is_empty() {
-        windows::create_or_update_manifest_lnks(&root_path, &app, None);
+    if locator.get_manifest_shortcut_locations() != ShortcutLocationFlags::NONE {
+        info!("Creating shortcuts...");
+        windows::create_or_update_manifest_lnks(&locator, None);
     }
 
     info!("Starting process install hook");
-    if !windows::run_hook(&app, &root_path, "--veloapp-install", 30) {
-        let setup_name = format!("{} Setup {}", app.title, app.version);
+    if !windows::run_hook(&locator, "--veloapp-install", 30) {
+        let setup_name = format!("{} Setup {}", locator.get_manifest_title(), locator.get_manifest_id());
         dialogs::show_warn(
             &setup_name,
             None,
@@ -206,11 +196,11 @@ fn install_impl(pkg: &bundle::BundleInfo, root_path: &PathBuf, tx: &std::sync::m
     }
 
     let _ = tx.send(100);
-    app.write_uninstall_entry(root_path)?;
+    windows::registry::write_uninstall_entry(&locator)?;
 
     if !dialogs::get_silent() {
         info!("Starting app...");
-        shared::start_package(&app, &root_path, None, Some("VELOPACK_FIRSTRUN"))?;
+        shared::start_package(&locator, start_args, Some("VELOPACK_FIRSTRUN"))?;
     }
 
     Ok(())

@@ -8,6 +8,8 @@ use velopack_bins::*;
 
 #[cfg(target_os = "windows")]
 use winsafe::{self as w, co};
+use velopack::bundle::load_bundle_from_file;
+use velopack::locator::{auto_locate_app_manifest, LocationContext};
 
 #[cfg(target_os = "windows")]
 #[test]
@@ -37,7 +39,8 @@ pub fn test_install_apply_uninstall() {
 
     let tmp_dir = tempdir().unwrap();
     let tmp_buf = tmp_dir.path().to_path_buf();
-    commands::install(Some(&nupkg), Some(&tmp_buf)).unwrap();
+    let mut tmp_zip = load_bundle_from_file(nupkg).unwrap();
+    commands::install(&mut tmp_zip, Some(&tmp_buf), None).unwrap();
 
     assert!(!lnk_desktop_1.exists()); // desktop is created during update
     assert!(lnk_start_1.exists());
@@ -46,13 +49,13 @@ pub fn test_install_apply_uninstall() {
     assert!(tmp_buf.join("current").join("AvaloniaCrossPlat.exe").exists());
     assert!(tmp_buf.join("current").join("sq.version").exists());
 
-    let (root_dir, app) = shared::detect_manifest_from_update_path(&tmp_buf.join("Update.exe")).unwrap();
-    assert_eq!(app_id, app.id);
-    assert_eq!(semver::Version::parse("1.0.11").unwrap(), app.version);
+    let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(tmp_buf.clone())).unwrap();
+    assert_eq!(app_id, locator.get_manifest_id());
+    assert_eq!(semver::Version::parse("1.0.11").unwrap(), locator.get_manifest_version());
 
     let pkg_name_apply = "AvaloniaCrossPlat-1.0.15-win-full.nupkg";
     let nupkg_apply = fixtures.join(pkg_name_apply);
-    commands::apply(&root_dir, &app, false, shared::OperationWait::NoWait, Some(&nupkg_apply), None, false).unwrap();
+    commands::apply(&locator, false, shared::OperationWait::NoWait, Some(&nupkg_apply), None, false).unwrap();
 
     // shortcuts are renamed, and desktop is created
     assert!(!lnk_desktop_1.exists());
@@ -60,10 +63,10 @@ pub fn test_install_apply_uninstall() {
     assert!(lnk_desktop_2.exists());
     assert!(lnk_start_2.exists());
 
-    let (root_dir, app) = shared::detect_manifest_from_update_path(&tmp_buf.join("Update.exe")).unwrap();
-    assert_eq!(semver::Version::parse("1.0.15").unwrap(), app.version);
+    let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(tmp_buf.clone())).unwrap();
+    assert_eq!(semver::Version::parse("1.0.15").unwrap(), locator.get_manifest_version());
 
-    commands::uninstall(&root_dir, &app, false).unwrap();
+    commands::uninstall(&locator, false).unwrap();
     assert!(!tmp_buf.join("current").exists());
     assert!(tmp_buf.join(".dead").exists());
 
@@ -83,7 +86,9 @@ pub fn test_install_preserve_symlinks() {
 
     let tmp_dir = tempdir().unwrap();
     let tmp_buf = tmp_dir.path().to_path_buf();
-    commands::install(Some(&nupkg), Some(&tmp_buf)).unwrap();
+    let mut tmp_zip = load_bundle_from_file(nupkg).unwrap();
+    
+    commands::install(&mut tmp_zip, Some(&tmp_buf), None).unwrap();
 
     assert!(tmp_buf.join("current").join("actual").join("file.txt").exists());
     assert!(tmp_buf.join("current").join("other").join("syml").exists());
@@ -112,14 +117,14 @@ pub fn test_patch_apply() {
     }
 
     let expected_sha1 = get_sha1(&new_file);
-    let tmp_file = std::path::Path::new("temp.patch").to_path_buf();
+    let tmp_file = Path::new("temp.patch").to_path_buf();
 
-    commands::patch(&old_file, &p1, &tmp_file).unwrap();
+    velopack::delta::zstd_patch_single(&old_file, &p1, &tmp_file).unwrap();
     let tmp_sha1 = get_sha1(&tmp_file);
     fs::remove_file(&tmp_file).unwrap();
     assert_eq!(expected_sha1, tmp_sha1);
 
-    commands::patch(&old_file, &p2, &tmp_file).unwrap();
+    velopack::delta::zstd_patch_single(&old_file, &p2, &tmp_file).unwrap();
     let tmp_sha1 = get_sha1(&tmp_file);
     fs::remove_file(&tmp_file).unwrap();
     assert_eq!(expected_sha1, tmp_sha1);

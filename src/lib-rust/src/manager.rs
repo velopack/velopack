@@ -14,11 +14,11 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    locator::{self, VelopackLocator},
-    manifest::Manifest,
+    locator::{self, VelopackLocatorConfig},
     sources::UpdateSource,
     Error,
 };
+use crate::locator::{auto_locate_app_manifest, LocationContext, VelopackLocator};
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -106,11 +106,9 @@ pub struct UpdateOptions {
 /// Provides functionality for checking for updates, downloading updates, and applying updates to the current application.
 #[derive(Clone)]
 pub struct UpdateManager {
-    allow_version_downgrade: bool,
-    explicit_channel: Option<String>,
+    options: UpdateOptions,
     source: Box<dyn UpdateSource>,
     locator: VelopackLocator,
-    manifest: Manifest,
 }
 
 /// Represents the result of a call to check for updates.
@@ -136,40 +134,40 @@ impl UpdateManager {
     pub fn new<T: UpdateSource>(
         source: T,
         options: Option<UpdateOptions>,
-        locator: Option<VelopackLocator>,
+        locator: Option<VelopackLocatorConfig>,
     ) -> Result<UpdateManager, Error> {
-        let locator = if let Some(loc) = locator { loc } else {
-            let my_exe = std::env::current_exe()?;
-            locator::auto_locate(my_exe)? 
+        let locator = if let Some(config) = locator {
+            let manifest = config.load_manifest()?;
+            VelopackLocator::new(config.clone(), manifest)
+        } else {
+            auto_locate_app_manifest(LocationContext::FromCurrentExe)?
         };
-        let manifest = locator.load_manifest()?;
         Ok(UpdateManager {
-            allow_version_downgrade: options.as_ref().map(|f| f.AllowVersionDowngrade).unwrap_or(false),
-            explicit_channel: options.as_ref().map(|f| f.ExplicitChannel.clone()).unwrap_or(None),
+            options: options.unwrap_or_default(),
             source: source.clone_boxed(),
             locator,
-            manifest,
         })
     }
 
     fn get_practical_channel(&self) -> String {
-        let channel = self.explicit_channel.as_deref();
-        let mut channel = channel.unwrap_or(&self.manifest.channel).to_string();
+        let options_channel = self.options.ExplicitChannel.as_deref();
+        let app_channel = self.locator.get_manifest_channel();
+        let mut channel = options_channel.unwrap_or(&app_channel).to_string();
         if channel.is_empty() {
             channel = locator::default_channel_name();
         }
         channel
     }
 
-    /// The currently installed app version when you created your release.
+    /// The currently installed app version.
     pub fn current_version(&self) -> Result<String, Error> {
-        Ok(self.manifest.version.to_string())
+        Ok(self.locator.get_manifest_version_full_string())
     }
 
     /// Get a list of available remote releases from the package source.
     pub fn get_release_feed(&self) -> Result<VelopackAssetFeed, Error> {
         let channel = self.get_practical_channel();
-        self.source.get_release_feed(&channel, &self.manifest)
+        self.source.get_release_feed(&channel, &self.locator.get_manifest())
     }
 
     #[cfg(feature = "async")]
@@ -183,13 +181,14 @@ impl UpdateManager {
     /// Checks for updates, returning None if there are none available. If there are updates available, this method will return an
     /// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
     pub fn check_for_updates(&self) -> Result<UpdateCheck, Error> {
-        let allow_downgrade = self.allow_version_downgrade;
-        let app = &self.manifest;
+        let allow_downgrade = self.options.AllowVersionDowngrade;
+        let app_channel = self.locator.get_manifest_channel();
+        let app_version = self.locator.get_manifest_version();
         let feed = self.get_release_feed()?;
         let assets = feed.Assets;
 
         let practical_channel = self.get_practical_channel();
-        let is_non_default_channel = practical_channel != app.channel;
+        let is_non_default_channel = practical_channel != app_channel;
 
         if assets.is_empty() {
             return Ok(UpdateCheck::RemoteIsEmpty);
@@ -218,16 +217,16 @@ impl UpdateManager {
 
         debug!("Latest remote release: {} ({}).", remote_asset.FileName, remote_version.to_string());
 
-        if remote_version > app.version {
-            info!("Found newer remote release available ({} -> {}).", app.version, remote_version);
+        if remote_version > app_version {
+            info!("Found newer remote release available ({} -> {}).", app_version, remote_version);
             Ok(UpdateCheck::UpdateAvailable(UpdateInfo { TargetFullRelease: remote_asset, IsDowngrade: false }))
-        } else if remote_version < app.version && allow_downgrade {
-            info!("Found older remote release available and downgrade is enabled ({} -> {}).", app.version, remote_version);
+        } else if remote_version < app_version && allow_downgrade {
+            info!("Found older remote release available and downgrade is enabled ({} -> {}).", app_version, remote_version);
             Ok(UpdateCheck::UpdateAvailable(UpdateInfo { TargetFullRelease: remote_asset, IsDowngrade: true }))
-        } else if remote_version == app.version && allow_downgrade && is_non_default_channel {
+        } else if remote_version == app_version && allow_downgrade && is_non_default_channel {
             info!(
                 "Latest remote release is the same version of a different channel, and downgrade is enabled ({} -> {}).",
-                app.version, remote_version
+                app_version, remote_version
             );
             Ok(UpdateCheck::UpdateAvailable(UpdateInfo { TargetFullRelease: remote_asset, IsDowngrade: true }))
         } else {
@@ -252,7 +251,8 @@ impl UpdateManager {
     ///   packages, this method will fall back to downloading the full version of the update.
     pub fn download_updates(&self, update: &UpdateInfo, progress: Option<Sender<i16>>) -> Result<(), Error> {
         let name = &update.TargetFullRelease.FileName;
-        let packages_dir = &self.locator.PackagesDir;
+        let packages_dir = &self.locator.get_packages_dir();
+        
         fs::create_dir_all(packages_dir)?;
         let target_file = packages_dir.join(name);
 
@@ -286,7 +286,8 @@ impl UpdateManager {
         match crate::bundle::load_bundle_from_file(&target_file) {
             Ok(bundle) => {
                 info!("Bundle loaded successfully.");
-                if let Err(e) = bundle.extract_zip_predicate_to_path(|f| f.ends_with("Squirrel.exe"), &self.locator.UpdateExePath) {
+                let update_exe_path = self.locator.get_update_path();
+                if let Err(e) = bundle.extract_zip_predicate_to_path(|f| f.ends_with("Squirrel.exe"), update_exe_path) {
                     error!("Error extracting Update.exe from bundle: {}", e);
                 }
             }
@@ -377,7 +378,7 @@ impl UpdateManager {
         C: IntoIterator<Item=S>,
     {
         let to_apply = to_apply.as_ref();
-        let pkg_path = self.locator.PackagesDir.join(&to_apply.FileName);
+        let pkg_path = self.locator.get_packages_dir().join(&to_apply.FileName);
         let pkg_path_str = pkg_path.to_string_lossy();
 
         let mut args = Vec::new();
@@ -403,9 +404,9 @@ impl UpdateManager {
             }
         }
 
-        let mut p = Process::new(&self.locator.UpdateExePath);
+        let mut p = Process::new(&self.locator.get_update_path());
         p.args(&args);
-        p.current_dir(&self.locator.RootAppDir);
+        p.current_dir(&self.locator.get_root_dir());
 
         #[cfg(target_os = "windows")]
         {
@@ -413,7 +414,7 @@ impl UpdateManager {
             p.creation_flags(CREATE_NO_WINDOW);
         }
 
-        info!("About to run Update.exe: {} {:?}", self.locator.UpdateExePath.to_string_lossy(), args);
+        info!("About to run Update.exe: {} {:?}", self.locator.get_update_path_as_string(), args);
         p.spawn()?;
         Ok(())
     }

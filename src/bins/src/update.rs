@@ -7,6 +7,8 @@ extern crate log;
 use anyhow::{anyhow, bail, Result};
 use clap::{arg, value_parser, ArgMatches, Command};
 use std::{env, path::PathBuf};
+use velopack::locator;
+use velopack::locator::{auto_locate_app_manifest, LocationContext};
 use velopack_bins::*;
 
 #[rustfmt::skip]
@@ -20,7 +22,7 @@ fn root_command() -> Command {
         .arg(arg!(-w --wait "Wait for the parent process to terminate before applying the update").hide(true))
         .arg(arg!(--waitPid <PID> "Wait for the specified process to terminate before applying the update").value_parser(value_parser!(u32)))
         .arg(arg!(-p --package <FILE> "Update package to apply").value_parser(value_parser!(PathBuf)))
-        .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceeded by '--'.").required(false).last(true).num_args(0..))
+        .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceded by '--'.").required(false).last(true).num_args(0..))
     )
     .subcommand(Command::new("start")
         .about("Starts the currently installed version of the application")
@@ -28,7 +30,7 @@ fn root_command() -> Command {
         .arg(arg!(-w --wait "Wait for the parent process to terminate before starting the application").hide(true))
         .arg(arg!(--waitPid <PID> "Wait for the specified process to terminate before applying the update").value_parser(value_parser!(u32)))
         .arg(arg!([EXE_NAME] "The optional name of the binary to execute"))
-        .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceeded by '--'.").required(false).last(true).num_args(0..))
+        .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceded by '--'.").required(false).last(true).num_args(0..))
         .long_flag_aliases(vec!["processStart", "processStartAndWait"])
     )
     .subcommand(Command::new("patch")
@@ -41,11 +43,13 @@ fn root_command() -> Command {
         .about("Prints the current version of the application")
     )
     .arg(arg!(--verbose "Print debug messages to console / log").global(true))
-    .arg(arg!(--nocolor "Disable colored output").hide(true).global(true))
     .arg(arg!(-s --silent "Don't show any prompts / dialogs").global(true))
     .arg(arg!(-l --log <PATH> "Override the default log file location").global(true).value_parser(value_parser!(PathBuf)))
+        // Legacy arguments should not be fully removed if it's possible to keep them
+        // Reason being is clap.ignore_errors(true) is not 100%, and sometimes old args can trip things up.
     .arg(arg!(--forceLatest "Legacy argument").hide(true).global(true))
     .arg(arg!(-r --restart "Legacy argument").hide(true).global(true))
+    .arg(arg!(--nocolor "Legacy argument").hide(true).global(true))
     .ignore_errors(true)
     .disable_help_subcommand(true)
     .flatten_help(true);
@@ -122,17 +126,12 @@ fn main() -> Result<()> {
 
     let verbose = get_flag_or_false(&matches, "verbose");
     let silent = get_flag_or_false(&matches, "silent");
-    let nocolor = get_flag_or_false(&matches, "nocolor");
     let log_file = matches.get_one("log");
 
     dialogs::set_silent(silent);
-    if let Some(log_file) = log_file {
-        logging::setup_logging("update", Some(&log_file), true, verbose, nocolor)?;
-    } else {
-        let default_log_file = logging::default_log_location();
-        logging::setup_logging("update", Some(&default_log_file), true, verbose, nocolor)?;
-    }
-
+    let desired_log_file = log_file.cloned().unwrap_or(locator::default_log_location(LocationContext::IAmUpdateExe));
+    logging::setup_logging("update", Some(&desired_log_file), true, verbose)?;
+    
     // change working directory to the parent directory of the exe
     let mut containing_dir = env::current_exe()?;
     containing_dir.pop();
@@ -173,7 +172,8 @@ fn patch(matches: &ArgMatches) -> Result<()> {
     info!("    Patch File: {:?}", patch_file);
     info!("    Output File: {:?}", output_file);
 
-    commands::patch(old_file, patch_file, output_file)
+    velopack::delta::zstd_patch_single(old_file, patch_file, output_file)?;
+    Ok(())
 }
 
 fn apply(matches: &ArgMatches) -> Result<()> {
@@ -188,10 +188,10 @@ fn apply(matches: &ArgMatches) -> Result<()> {
     info!("    Package: {:?}", package);
     info!("    Exe Args: {:?}", exe_args);
 
-    let (root_path, app) = shared::detect_current_manifest()?;
+    let locator = auto_locate_app_manifest(LocationContext::IAmUpdateExe)?;
     #[cfg(target_os = "windows")]
-    let _mutex = shared::retry_io(|| windows::create_global_mutex(&app))?;
-    commands::apply(&root_path, &app, restart, wait, package, exe_args, true)
+    let _mutex = shared::retry_io(|| windows::create_global_mutex(&locator.get_manifest_id()))?;
+    commands::apply(&locator, restart, wait, package, exe_args, true)
 }
 
 fn start(matches: &ArgMatches) -> Result<()> {
@@ -209,17 +209,17 @@ fn start(matches: &ArgMatches) -> Result<()> {
         warn!("Legacy args format is deprecated and will be removed in a future release. Please update your application to use the new format.");
     }
 
-    let (root_path, app) = shared::detect_current_manifest()?;
+    let locator = auto_locate_app_manifest(LocationContext::IAmUpdateExe)?;
     #[cfg(target_os = "windows")]
-    let _mutex = shared::retry_io(|| windows::create_global_mutex(&app))?;
-    commands::start(&root_path, &app, wait, exe_name, exe_args, legacy_args)
+    let _mutex = shared::retry_io(|| windows::create_global_mutex(&locator.get_manifest_id()))?;
+    commands::start(&locator, wait, exe_name, exe_args, legacy_args)
 }
 
 #[cfg(target_os = "windows")]
 fn uninstall(_matches: &ArgMatches) -> Result<()> {
     info!("Command: Uninstall");
-    let (root_path, app) = shared::detect_current_manifest()?;
-    commands::uninstall(&root_path, &app, true)
+    let locator = auto_locate_app_manifest(LocationContext::IAmUpdateExe)?;
+    commands::uninstall(&locator, true)
 }
 
 #[cfg(target_os = "windows")]
