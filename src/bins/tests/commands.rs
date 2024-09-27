@@ -128,4 +128,4 @@ pub fn test_patch_apply() {
     let tmp_sha1 = get_sha1(&tmp_file);
     fs::remove_file(&tmp_file).unwrap();
     assert_eq!(expected_sha1, tmp_sha1);
-}
+} 
