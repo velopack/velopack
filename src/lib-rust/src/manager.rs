@@ -335,7 +335,7 @@ impl UpdateManager {
     /// This will exit your app immediately, apply updates, and then relaunch the app.
     /// If you need to save state or clean up, you should do that before calling this method.
     /// The user may be prompted during the update, if the update requires additional frameworks to be installed etc.
-    pub fn apply_updates_and_restart<A, C, S>(&self, to_apply: A) -> Result<(), Error>
+    pub fn apply_updates_and_restart<A>(&self, to_apply: A) -> Result<(), Error>
     where
         A: AsRef<VelopackAsset>,
     {
