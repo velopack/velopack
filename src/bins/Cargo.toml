@@ -34,7 +34,6 @@ path = "src/testapp.rs"
 velopack = { path = "../lib-rust" }
 anyhow = "1.0"
 pretty-bytes-rust = "0.3"
-zip = { version = "2.1", default-features = false, features = ["deflate"] }
 rand = "0.8"
 log = "0.4"
 simplelog = "0.12"
@@ -44,11 +43,6 @@ chrono = "0.4"
 wait-timeout = "0.2"
 lazy_static = "1.5"
 strum = { version = "0.26", features = ["derive"] }
-ureq = { version = "2.10", default-features = false, features = [
-    "native-tls",
-    "gzip",
-] }
-native-tls = "0.2"
 file-rotate = "0.7"
 derivative = "2.2"
 simple-stopwatch = "0.1"
@@ -58,13 +52,11 @@ remove_dir_all = { git = "https://github.com/caesay/remove_dir_all.git", feature
     "log",
 ] }
 sha1_smol = "1.0"
-url = "2.5"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 time = "0.3"
 os_info = "3.8"
 bitflags = "2.6"
 regex = "1.10"
+normpath = "1.3"
 
 [target.'cfg(unix)'.dependencies]
 native-dialog = "0.7"
@@ -81,7 +73,7 @@ image = { version = "0.25", default-features = false, features = [
     "jpeg",
     "png",
 ] }
-windows = { version = "0.57", default-features = false, features = [
+windows = { version = "0.58", default-features = false, features = [
     "Win32_Foundation",
     "Win32_Security",
     "Win32_System_Com",
@@ -107,8 +99,7 @@ windows = { version = "0.57", default-features = false, features = [
     "Wdk_System",
     "Wdk_System_Threading",
 ] }
-normpath = "1.2"
-webview2-com = "0.31"
+webview2-com = "0.33"
 libloading = "0.8"
 strsim = "0.11"
 same-file = "1.0"
