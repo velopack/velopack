@@ -111,7 +111,7 @@ impl<'a> VelopackApp<'a> {
 
     /// Runs the Velopack startup logic. This should be the first thing to run in your app.
     /// In some circumstances it may terminate/restart the process to perform tasks.
-    pub fn run(&mut self) -> Result<(), Error> {
+    pub fn run(&mut self) {
         let args: Vec<String> = self.args.clone();
 
         info!("VelopackApp: Running with args: {:?}", args);
@@ -125,15 +125,15 @@ impl<'a> VelopackApp<'a> {
                 _ => {} // Handle other cases or do nothing
             }
         }
-        
-        let locator = if let Some(config) = &self.locator {
-            let manifest = config.load_manifest()?;
-            VelopackLocator::new(config.clone(), manifest)
-        } else {
-            auto_locate_app_manifest(LocationContext::FromCurrentExe)?
-        };
-            
-        let my_version = locator.get_manifest_version();
+
+        let locator = self.load_locator();
+
+        if let Err(e) = locator {
+            error!("VelopackApp: Error loading locator: {:?}", e);
+            return;
+        }
+
+        let my_version = locator.unwrap().get_manifest_version();
 
         let firstrun = env::var("VELOPACK_FIRSTRUN").is_ok();
         let restarted = env::var("VELOPACK_RESTART").is_ok();
@@ -147,8 +147,6 @@ impl<'a> VelopackApp<'a> {
         if restarted {
             Self::call_hook(&mut self.restarted_hook, &my_version);
         }
-        
-        Ok(())
     }
 
     fn call_hook(hook_option: &mut Option<Box<dyn FnOnce(Version) + 'a>>, version: &Version) {
@@ -167,5 +165,15 @@ impl<'a> VelopackApp<'a> {
                 }
             }
         }
+    }
+
+    fn load_locator(&self) -> Result<VelopackLocator, Error> {
+        let locator = if let Some(config) = &self.locator {
+            let manifest = config.load_manifest()?;
+            VelopackLocator::new(config.clone(), manifest)
+        } else {
+            auto_locate_app_manifest(LocationContext::FromCurrentExe)?
+        };
+        Ok(locator)
     }
 }
