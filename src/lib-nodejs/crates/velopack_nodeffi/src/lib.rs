@@ -205,7 +205,6 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
 
     let undefined = cx.undefined();
     let cx_ref = Rc::new(RefCell::new(cx));
-    let cx_ref2 = cx_ref.clone();
 
     let hook_handler = move |hook_name: &str, current_version: Version| {
         let mut cx = cx_ref.borrow_mut();
@@ -228,14 +227,11 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
         builder = builder.set_locator(locator);
     }
 
-    if let Some(argarray) = argarray {
-        builder = builder.set_args(argarray);
+    if let Some(arg_array) = argarray {
+        builder = builder.set_args(arg_array);
     }
 
-    builder.run().or_else(|e| {
-        let mut cx = cx_ref2.borrow_mut();
-        cx.throw_error(e.to_string())
-    })?;
+    builder.run();
 
     Ok(undefined)
 }
