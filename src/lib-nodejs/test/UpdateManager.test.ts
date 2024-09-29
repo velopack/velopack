@@ -3,24 +3,25 @@ import {
   UpdateManager,
   UpdateOptions,
   VelopackApp,
-  VelopackLocator,
+  VelopackLocatorConfig,
 } from "../src";
 import path from "path";
-import { tempd4, fixture, updateExe, shortDelay } from "./helper";
+import { tempd3, fixture, updateExe, shortDelay } from "./helper";
 
 test("UpdateManager detects local update", () => {
-  return tempd4(async (tmpDir, packagesDir, rootDir, appTemp) => {
+  return tempd3(async (tmpDir, packagesDir, rootDir) => {
     VelopackApp.build()
       .setLogger((level, msg) => {
         console.log(level, msg);
       })
       .run();
-    const locator: VelopackLocator = {
+    const locator: VelopackLocatorConfig = {
       ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
       PackagesDir: packagesDir,
       RootAppDir: rootDir,
       UpdateExePath: updateExe(),
-      TempDir: appTemp,
+      CurrentBinaryDir: path.join(rootDir, "current"),
+      IsPortable: true,
     };
 
     const options: UpdateOptions = {
@@ -46,18 +47,19 @@ test("UpdateManager detects local update", () => {
 });
 
 test("UpdateManager downloads full update", () => {
-  return tempd4(async (feedDir, packagesDir, rootDir, appTemp) => {
+  return tempd3(async (feedDir, packagesDir, rootDir) => {
     VelopackApp.build()
       .setLogger((level, msg) => {
         console.log(level, msg);
       })
       .run();
-    const locator: VelopackLocator = {
+    const locator: VelopackLocatorConfig = {
       ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
       PackagesDir: packagesDir,
       RootAppDir: rootDir,
       UpdateExePath: updateExe(),
-      TempDir: appTemp,
+      CurrentBinaryDir: path.join(rootDir, "current"),
+      IsPortable: true,
     };
 
     const options: UpdateOptions = {

@@ -1,4 +1,4 @@
-import { VelopackApp, VelopackLocator } from "../src/index";
+import { VelopackApp, VelopackLocatorConfig } from "../src/index";
 import { shortDelay } from "./helper";
 
 class HookTester {
@@ -46,12 +46,13 @@ class HookTester {
 
 test("VelopackApp should handle restarted event", async () => {
   let [builder, tester] = HookTester.build();
-  let locator: VelopackLocator = {
+  let locator: VelopackLocatorConfig = {
     ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
     PackagesDir: "",
     RootAppDir: "",
     UpdateExePath: "",
-    TempDir: "",
+    CurrentBinaryDir: "",
+    IsPortable: true,
   };
   builder.setLocator(locator).run();
 
