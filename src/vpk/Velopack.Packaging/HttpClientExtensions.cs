@@ -29,6 +29,16 @@ public static class HttpClientExtensions
         return await client.PostAsync(requestUri, content, cancellationToken);
     }
 
+    public static async Task<HttpResponseMessage> PutAsJsonAsync<TValue>(
+        this HttpClient client,
+        Uri? requestUri,
+        TValue value,
+        CancellationToken cancellationToken = default)
+    {
+        var content = new StringContent(Newtonsoft.Json.JsonConvert.SerializeObject(value), Encoding.UTF8, "application/json");
+        return await client.PutAsync(requestUri, content, cancellationToken);
+    }
+
     public static async Task<TValue?> ReadFromJsonAsync<TValue>(
         this HttpContent content,
         CancellationToken cancellationToken = default)

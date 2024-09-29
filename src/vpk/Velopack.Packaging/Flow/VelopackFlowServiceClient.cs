@@ -3,10 +3,6 @@ using Microsoft.Identity.Client.Extensions.Msal;
 using NuGet.Versioning;
 using Microsoft.Extensions.Logging;
 using System.Text;
-using System.IO;
-using Markdig.Helpers;
-
-
 
 #if NET6_0_OR_GREATER
 using System.Net.Http.Json;
@@ -190,6 +186,8 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
 
             Logger.LogInformation("Uploaded {FileName} installer to Velopack Flow", installerFile);
         }
+
+        await PublishReleaseGroupAsync(releaseGroup, serviceUrl, cancellationToken);
     }
 
     private async Task<ReleaseGroup> CreateReleaseGroupAsync(
@@ -234,6 +232,25 @@ public class VelopackFlowServiceClient(HttpClient HttpClient, ILogger Logger) : 
 
         var response = await HttpClient.PostAsync(endpoint, formData, cancellationToken);
         response.EnsureSuccessStatusCode();
+    }
+
+    private async Task<ReleaseGroup> PublishReleaseGroupAsync(
+        ReleaseGroup releaseGroup, string? velopackBaseUrl, CancellationToken cancellationToken)
+    {
+        UpdateReleaseGroupRequest request = new() {
+            State = ReleaseGroupState.Published
+        };
+
+        var endpoint = GetEndpoint($"v1/releaseGroups/{releaseGroup.Id}", velopackBaseUrl);
+        var response = await HttpClient.PutAsJsonAsync(endpoint, request, cancellationToken);
+
+        if (!response.IsSuccessStatusCode) {
+            string content = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new InvalidOperationException($"Failed to publish release group with id {releaseGroup.Id}.{Environment.NewLine}Response status code: {response.StatusCode}{Environment.NewLine}{content}");
+        }
+
+        return await response.Content.ReadFromJsonAsync<ReleaseGroup>(cancellationToken: cancellationToken)
+            ?? throw new InvalidOperationException($"Failed to publish release group with id {releaseGroup.Id}");
     }
 
     private async Task<AuthConfiguration> GetAuthConfigurationAsync(VelopackServiceOptions? options, CancellationToken cancellationToken)
