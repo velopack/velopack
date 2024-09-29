@@ -4,7 +4,7 @@ use std::process::exit;
 
 use crate::{
     locator::{auto_locate_app_manifest, VelopackLocatorConfig},
-    Error,
+    Error, constants::*,
 };
 use crate::locator::{LocationContext, VelopackLocator};
 
@@ -117,12 +117,12 @@ impl<'a> VelopackApp<'a> {
         info!("VelopackApp: Running with args: {:?}", args);
 
         if args.len() >= 2 {
-            match args[0].as_str() {
-                "--veloapp-install" => Self::call_fast_hook(&mut self.install_hook, &args[1]),
-                "--veloapp-updated" => Self::call_fast_hook(&mut self.update_hook, &args[1]),
-                "--veloapp-obsolete" => Self::call_fast_hook(&mut self.obsolete_hook, &args[1]),
-                "--veloapp-uninstall" => Self::call_fast_hook(&mut self.uninstall_hook, &args[1]),
-                _ => {} // Handle other cases or do nothing
+            match args[0].to_ascii_lowercase().as_str() {
+                HOOK_CLI_INSTALL => Self::call_fast_hook(&mut self.install_hook, &args[1]),
+                HOOK_CLI_UPDATED => Self::call_fast_hook(&mut self.update_hook, &args[1]),
+                HOOK_CLI_OBSOLETE => Self::call_fast_hook(&mut self.obsolete_hook, &args[1]),
+                HOOK_CLI_UNINSTALL => Self::call_fast_hook(&mut self.uninstall_hook, &args[1]),
+                _ => {} // do nothing
             }
         }
 
@@ -135,10 +135,11 @@ impl<'a> VelopackApp<'a> {
 
         let my_version = locator.unwrap().get_manifest_version();
 
-        let firstrun = env::var("VELOPACK_FIRSTRUN").is_ok();
-        let restarted = env::var("VELOPACK_RESTART").is_ok();
-        env::remove_var("VELOPACK_FIRSTRUN");
-        env::remove_var("VELOPACK_RESTART");
+        let firstrun = env::var(HOOK_ENV_FIRSTRUN).is_ok();
+        env::remove_var(HOOK_ENV_FIRSTRUN);
+        
+        let restarted = env::var(HOOK_ENV_RESTART).is_ok();
+        env::remove_var(HOOK_ENV_RESTART);
 
         if firstrun {
             Self::call_hook(&mut self.firstrun_hook, &my_version);
@@ -163,7 +164,7 @@ impl<'a> VelopackApp<'a> {
             }
         }
 
-        let debug_mode = env::var("VELOPACK_DEBUG").is_ok();
+        let debug_mode = env::var(HOOK_ENV_DEBUG).is_ok();
         if debug_mode {
             warn!("VelopackApp: Debug mode enabled, not quitting for fast callback hook.");
         } else {

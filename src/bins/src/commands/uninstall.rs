@@ -1,5 +1,5 @@
 use crate::shared::{self};
-use velopack::{locator::VelopackLocator};
+use velopack::{constants, locator::VelopackLocator};
 
 use crate::windows;
 use anyhow::Result;
@@ -19,7 +19,7 @@ pub fn uninstall(locator: &VelopackLocator, delete_self: bool) -> Result<()> {
         let mut finished_with_errors = false;
 
         // run uninstall hook
-        windows::run_hook(&locator, "--veloapp-uninstall", 60);
+        windows::run_hook(&locator, constants::HOOK_CLI_UNINSTALL, 60);
 
         // remove all shortcuts pointing to the app
         windows::remove_all_shortcuts_for_root_dir(&root_path);

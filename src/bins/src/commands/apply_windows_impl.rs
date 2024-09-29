@@ -10,7 +10,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use velopack::{bundle::load_bundle_from_file, locator::VelopackLocator};
+use velopack::{bundle::load_bundle_from_file, locator::VelopackLocator, constants};
 
 fn ropycopy<P1: AsRef<Path>, P2: AsRef<Path>>(source: &P1, dest: &P2) -> Result<()> {
     let source = source.as_ref();
@@ -81,7 +81,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
 
         // second, run application hooks (but don't care if it fails)
         if run_hooks {
-            crate::windows::run_hook(old_locator, "--veloapp-obsolete", 15);
+            crate::windows::run_hook(old_locator, constants::HOOK_CLI_OBSOLETE, 15);
         } else {
             info!("Skipping --veloapp-obsolete hook.");
         }
@@ -150,7 +150,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
       
         // seventh, we run the post-install hooks
         if run_hooks {
-            crate::windows::run_hook(&new_locator, "--veloapp-updated", 15);
+            crate::windows::run_hook(&new_locator, constants::HOOK_CLI_UPDATED, 15);
         } else {
             info!("Skipping --veloapp-updated hook.");
         }
