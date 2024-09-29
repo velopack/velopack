@@ -1,9 +1,4 @@
-﻿#if NET6_0_OR_GREATER
-#else
-using System.Net.Http;
-#endif
-
-#nullable enable
+﻿#nullable enable
 namespace Velopack.Packaging.Flow;
 
 internal sealed class CreateReleaseGroupRequest
