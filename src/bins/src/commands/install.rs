@@ -5,6 +5,7 @@ use crate::{
 };
 use velopack::bundle::BundleZip;
 use velopack::locator::*;
+use velopack::constants;
 
 use anyhow::{anyhow, bail, Result};
 use pretty_bytes_rust::pretty_bytes;
@@ -186,7 +187,7 @@ fn install_impl(pkg: &mut BundleZip, root_path: &PathBuf, tx: &std::sync::mpsc::
     }
 
     info!("Starting process install hook");
-    if !windows::run_hook(&locator, "--veloapp-install", 30) {
+    if !windows::run_hook(&locator, constants::HOOK_CLI_INSTALL, 30) {
         let setup_name = format!("{} Setup {}", locator.get_manifest_title(), locator.get_manifest_id());
         dialogs::show_warn(
             &setup_name,
@@ -200,7 +201,7 @@ fn install_impl(pkg: &mut BundleZip, root_path: &PathBuf, tx: &std::sync::mpsc::
 
     if !dialogs::get_silent() {
         info!("Starting app...");
-        shared::start_package(&locator, start_args, Some("VELOPACK_FIRSTRUN"))?;
+        shared::start_package(&locator, start_args, Some(constants::HOOK_ENV_FIRSTRUN))?;
     }
 
     Ok(())

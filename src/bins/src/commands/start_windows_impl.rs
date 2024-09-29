@@ -10,7 +10,7 @@ use std::{
     path::Path,
     process::Command as Process,
 };
-use velopack::bundle;
+use velopack::{bundle, constants};
 use velopack::locator::VelopackLocator;
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 
@@ -33,7 +33,7 @@ pub fn start_impl(
 
                 return match try_legacy_migration(&locator) {
                     Ok(new_locator) => {
-                        shared::start_package(&new_locator, exe_args, Some("VELOPACK_RESTART"))?;
+                        shared::start_package(&new_locator, exe_args, Some(constants::HOOK_ENV_RESTART))?;
                         Ok(())
                     }
                     Err(e) => {

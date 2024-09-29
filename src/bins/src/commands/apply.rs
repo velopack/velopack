@@ -1,7 +1,7 @@
 use crate::{
     shared::{self, OperationWait},
 };
-use velopack::{bundle::load_bundle_from_file, bundle::Manifest, locator::VelopackLocator};
+use velopack::{bundle::load_bundle_from_file, bundle::Manifest, locator::VelopackLocator, constants};
 use anyhow::{bail, Result};
 use std::path::PathBuf;
 
@@ -35,7 +35,7 @@ pub fn apply<'a>(
                     info!("Package version {} applied successfully.", applied_locator.get_manifest_version_full_string());
                     // if successful, we want to restart the new version of the app, which could have different metadata
                     if restart {
-                        shared::start_package(&applied_locator, exe_args, Some("VELOPACK_RESTART"))?;
+                        shared::start_package(&applied_locator, exe_args, Some(constants::HOOK_ENV_RESTART))?;
                     }
                     return Ok(());
                 }
@@ -51,7 +51,7 @@ pub fn apply<'a>(
 
     // an error occurred if we're here, but we still want to restart the old version of the app if it was requested
     if restart {
-        shared::start_package(&locator, exe_args, Some("VELOPACK_RESTART"))?;
+        shared::start_package(&locator, exe_args, Some(constants::HOOK_ENV_RESTART))?;
     }
 
     bail!("Apply failed, see logs for details.");
