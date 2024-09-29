@@ -81,6 +81,7 @@
 mod app;
 mod manager;
 mod util;
+mod bindetect;
 
 /// Utility functions for loading and working with Velopack bundles and manifests.
 pub mod bundle;

@@ -1,12 +1,12 @@
 use crate::shared::{
     self,
-    bundle::{self, Manifest},
     dialogs,
 };
 use anyhow::{bail, Result};
 use std::{fs, path::PathBuf, process::Command};
+use velopack::locator::VelopackLocator;
 
-pub fn apply_package_impl<'a>(root_path: &PathBuf, app: &Manifest, pkg: &PathBuf, _runhooks: bool) -> Result<Manifest> {
+pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _runhooks: bool) -> Result<VelopackLocator> {
     #[allow(deprecated)]
     let mut cache_dir = std::env::home_dir().expect("Could not locate user home directory via $HOME or /etc/passwd");
     cache_dir.push("Library");
