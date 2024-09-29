@@ -7,6 +7,9 @@ use iced::widget::{button, column, container, scrollable, text, vertical_space};
 use iced::Task;
 use velopack::*;
 
+#[macro_use]
+extern crate log;
+
 #[derive(Debug, Clone)]
 pub enum Message {
     CheckForUpdates,
@@ -65,6 +68,8 @@ pub enum AppStatus {
 fn main() -> Result<()> {
     logger::IcedLogger::init();
     VelopackApp::build().run();
+    
+    info!("Finished hooks, starting Iced application...");
 
     iced::application("Velopack Rust Sample", update, view)
         .window_size(iced::Size::new(600.0, 400.0))

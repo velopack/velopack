@@ -156,14 +156,18 @@ impl<'a> VelopackApp<'a> {
     }
 
     fn call_fast_hook(hook_option: &mut Option<Box<dyn FnOnce(Version) + 'a>>, arg: &str) {
+        info!("VelopackApp: Fast callback hook triggered.");
         if let Some(hook) = hook_option.take() {
             if let Ok(version) = Version::parse(arg) {
                 hook(version);
-                let debug_mode = env::var("VELOPACK_DEBUG").is_ok();
-                if !debug_mode {
-                    exit(0);
-                }
             }
+        }
+
+        let debug_mode = env::var("VELOPACK_DEBUG").is_ok();
+        if debug_mode {
+            warn!("VelopackApp: Debug mode enabled, not quitting for fast callback hook.");
+        } else {
+            exit(0);
         }
     }
 
