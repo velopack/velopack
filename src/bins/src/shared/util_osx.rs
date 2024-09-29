@@ -1,8 +1,6 @@
-use crate::shared::bundle;
-
-use super::bundle::Manifest;
 use anyhow::{anyhow, bail, Result};
-use std::{path::Path, path::PathBuf, process::Command as Process, time::Duration};
+use std::{path::Path, process::Command as Process, time::Duration};
+use velopack::locator::VelopackLocator;
 
 pub fn wait_for_pid_to_exit(pid: u32, ms_to_wait: u32) -> Result<()> {
     info!("Waiting {}ms for process ({}) to exit.", ms_to_wait, pid);
@@ -32,8 +30,8 @@ pub fn force_stop_package<P: AsRef<Path>>(root_dir: P) -> Result<()> {
     Ok(())
 }
 
-pub fn start_package<P: AsRef<Path>>(_app: &Manifest, root_dir: P, exe_args: Option<Vec<&str>>, set_env: Option<&str>) -> Result<()> {
-    let root_dir = root_dir.as_ref().to_string_lossy().to_string();
+pub fn start_package(locator: &VelopackLocator, exe_args: Option<Vec<&str>>, set_env: Option<&str>) -> Result<()> {
+    let root_dir = locator.get_root_dir_as_string();
     let mut args = vec!["-n", &root_dir];
     if let Some(a) = exe_args {
         args.push("--args");
@@ -49,47 +47,15 @@ pub fn start_package<P: AsRef<Path>>(_app: &Manifest, root_dir: P, exe_args: Opt
     Ok(())
 }
 
-pub fn detect_manifest_from_update_path(update_exe: &PathBuf) -> Result<(PathBuf, Manifest)> {
-    let mut manifest_path = update_exe.clone();
-    manifest_path.pop();
-    manifest_path.push("sq.version");
-    let manifest = load_manifest(&manifest_path)?;
-
-    let my_path = std::env::current_exe()?;
-    let my_path = my_path.to_string_lossy();
-    let app_idx = my_path.find(".app/");
-    if app_idx.is_none() {
-        bail!("Unable to find .app/ directory in path: {}", my_path);
-    }
-
-    let root_dir = &my_path[..app_idx.unwrap()];
-    let root_dir = root_dir.to_owned() + ".app";
-
-    debug!("Detected Root: {}", root_dir);
-    debug!("Detected AppId: {}", manifest.id);
-    Ok((Path::new(&root_dir).to_path_buf(), manifest))
-}
-
-pub fn detect_current_manifest() -> Result<(PathBuf, Manifest)> {
-    let me = std::env::current_exe()?;
-    detect_manifest_from_update_path(&me)
-}
-
-fn load_manifest(nuspec_path: &PathBuf) -> Result<Manifest> {
-    if Path::new(&nuspec_path).exists() {
-        if let Ok(nuspec) = super::retry_io(|| std::fs::read_to_string(&nuspec_path)) {
-            return Ok(bundle::read_manifest_from_string(&nuspec)?);
-        }
-    }
-    bail!("Unable to read nuspec file in current directory.")
-}
-
 #[test]
 #[ignore]
 fn test_start_and_stop_package() {
-    let mani = Manifest::default();
-    let root_dir = "/Applications/Calcbot.app";
-    let _ = force_stop_package(root_dir);
+    let mani = velopack::bundle::Manifest::default();
+    let mut paths = velopack::locator::VelopackLocatorConfig::default();
+    paths.RootAppDir = std::path::PathBuf::from("/Applications/Calcbot.app");
+    let locator = VelopackLocator::new(paths, mani);
+    
+    let _ = force_stop_package(locator.get_root_dir());
 
     fn is_running() -> bool {
         let output = Process::new("pgrep").arg("-f").arg("Calcbot.app").output().unwrap();
@@ -99,11 +65,11 @@ fn test_start_and_stop_package() {
     std::thread::sleep(Duration::from_secs(1));
     assert!(!is_running());
     std::thread::sleep(Duration::from_secs(1));
-    start_package(&mani, root_dir, None, None).unwrap();
+    start_package(&locator, None, None).unwrap();
     std::thread::sleep(Duration::from_secs(1));
     assert!(is_running());
     std::thread::sleep(Duration::from_secs(1));
-    force_stop_package(root_dir).unwrap();
+    force_stop_package(locator.get_root_dir()).unwrap();
     std::thread::sleep(Duration::from_secs(1));
     assert!(!is_running());
 }

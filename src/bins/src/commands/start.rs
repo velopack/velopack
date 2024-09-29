@@ -23,7 +23,7 @@ pub fn start(
     super::start_windows_impl::start_impl(&locator, exe_name, exe_args, legacy_args)?;
 
     #[cfg(not(target_os = "windows"))]
-    shared::start_package(&app, &root_dir, exe_args, None)?;
+    shared::start_package(&locator, exe_args, None)?;
 
     Ok(())
 }

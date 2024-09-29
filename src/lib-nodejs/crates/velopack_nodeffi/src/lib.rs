@@ -216,12 +216,16 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     };
 
     let mut builder = VelopackApp::build()
-        .on_after_install_fast_callback(|semver| hook_handler("after-install", semver))
-        .on_before_uninstall_fast_callback(|semver| hook_handler("before-uninstall", semver))
-        .on_before_update_fast_callback(|semver| hook_handler("before-update", semver))
-        .on_after_update_fast_callback(|semver| hook_handler("after-update", semver))
         .on_restarted(|semver| hook_handler("restarted", semver))
         .on_first_run(|semver| hook_handler("first-run", semver));
+
+    #[cfg(target_os = "windows")]
+    {
+        builder.on_after_install_fast_callback(|semver| hook_handler("after-install", semver));
+        builder.on_before_uninstall_fast_callback(|semver| hook_handler("before-uninstall", semver));
+        builder.on_before_update_fast_callback(|semver| hook_handler("before-update", semver));
+        builder.on_after_update_fast_callback(|semver| hook_handler("after-update", semver));
+    }
 
     if let Some(locator) = locator {
         builder = builder.set_locator(locator);
