@@ -3678,6 +3678,7 @@ dependencies = [
  "log",
  "native-tls",
  "normpath",
+ "rand",
  "regex",
  "semver",
  "serde",

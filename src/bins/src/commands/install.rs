@@ -101,7 +101,7 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
             anyhow!("Failed to stop application ({}), please close the application and try running the installer again.", z)
         })?;
 
-        root_path_renamed = format!("{}_{}", root_path_str, shared::random_string(8));
+        root_path_renamed = format!("{}_{}", root_path_str, shared::random_string(16));
         info!("Renaming existing directory to '{}' to allow rollback...", root_path_renamed);
 
         shared::retry_io(|| fs::rename(&root_path, &root_path_renamed)).map_err(|_| {
