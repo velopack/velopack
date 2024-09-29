@@ -221,10 +221,11 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
 
     #[cfg(target_os = "windows")]
     {
-        builder.on_after_install_fast_callback(|semver| hook_handler("after-install", semver));
-        builder.on_before_uninstall_fast_callback(|semver| hook_handler("before-uninstall", semver));
-        builder.on_before_update_fast_callback(|semver| hook_handler("before-update", semver));
-        builder.on_after_update_fast_callback(|semver| hook_handler("after-update", semver));
+        builder = builder
+            .on_after_install_fast_callback(|semver| hook_handler("after-install", semver))
+            .on_before_uninstall_fast_callback(|semver| hook_handler("before-uninstall", semver))
+            .on_before_update_fast_callback(|semver| hook_handler("before-update", semver))
+            .on_after_update_fast_callback(|semver| hook_handler("after-update", semver));
     }
 
     if let Some(locator) = locator {

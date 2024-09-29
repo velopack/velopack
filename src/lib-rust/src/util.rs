@@ -1,5 +1,6 @@
 use std::thread;
 use std::time::Duration;
+use rand::distributions::{Alphanumeric, DistString};
 
 pub fn retry_io<F, T, E>(op: F) -> Result<T, E>
 where
@@ -31,4 +32,8 @@ where
     thread::sleep(Duration::from_millis(1000));
 
     op()
+}
+
+pub fn random_string(len: usize) -> String {
+    Alphanumeric.sample_string(&mut rand::thread_rng(), len)
 }

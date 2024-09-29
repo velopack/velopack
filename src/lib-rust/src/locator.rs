@@ -145,13 +145,20 @@ impl VelopackLocator {
     }
 
     /// Returns the path to the current app temporary directory.
-    pub fn get_temp_dir(&self) -> PathBuf {
+    pub fn get_temp_dir_root(&self) -> PathBuf {
         self.paths.PackagesDir.join("VelopackTemp")
+    }
+    
+    /// Creates a new temporary directory inside get_temp_dir_root() with a random 16-character suffix.
+    pub fn get_temp_dir_rand16(&self) -> Result<PathBuf, Error> {
+        let p = self.get_temp_dir_root().join("tmp_".to_string() + &util::random_string(16));
+        std::fs::create_dir_all(&p)?;
+        Ok(p)
     }
 
     /// Returns the path to the current app temporary directory as a string.
     pub fn get_temp_dir_as_string(&self) -> String {
-        Self::path_as_string(&self.get_temp_dir())
+        Self::path_as_string(&self.get_temp_dir_root())
     }
 
     /// Returns the root directory of the current app.
@@ -289,7 +296,7 @@ impl VelopackLocator {
 /// Create a paths object containing default / ideal paths for a given root directory
 /// Generally, this should not be used except for installing the app for the first time.
 #[cfg(target_os = "windows")]
-pub fn create_config_from_root_dir<P: AsRef<Path>>(root_dir: P) -> VelopackLocatorConfig
+pub fn create_config_from_root_dir<P: AsRef<std::path::Path>>(root_dir: P) -> VelopackLocatorConfig
 {
     let root_dir = root_dir.as_ref();
     VelopackLocatorConfig {
