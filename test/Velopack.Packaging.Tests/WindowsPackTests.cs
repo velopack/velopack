@@ -531,7 +531,8 @@ public class WindowsPackTests
 
         Thread.Sleep(5000); // update.exe runs in a separate process here
 
-        logger.Info("Velopack.log:" + Environment.NewLine + File.ReadAllText(Path.Combine(rootDir, "Velopack.log")));
+        string logContents = ReadFileWithRetry(Path.Combine(rootDir, "Velopack.log"), logger);
+        logger.Info("Velopack.log:" + Environment.NewLine + logContents);
         logger.Info("TEST: " + DateTime.Now.ToLongTimeString());
 
         if (origDirName != "current") {
@@ -551,6 +552,13 @@ public class WindowsPackTests
 
         var chk3version = RunNoCoverage(appExe, new string[] { "version" }, currentDir, logger);
         Assert.EndsWith(Environment.NewLine + "2.0.0", chk3version);
+    }
+
+    private static string ReadFileWithRetry(string path, ILogger logger)
+    {
+        return IoUtil.Retry(() => {
+            return File.ReadAllText(path);
+        }, logger: logger);
     }
 
     //private string RunCoveredRust(string binName, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
