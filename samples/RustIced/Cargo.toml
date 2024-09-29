@@ -15,3 +15,4 @@ uuid = { version = "1.0", features = ["v4", "fast-rng", "serde"] }
 directories-next = "2.0"
 tracing-subscriber = "0.3"
 velopack = { path = "../../src/lib-rust", features = ["async"] }
+log = "0.4"
