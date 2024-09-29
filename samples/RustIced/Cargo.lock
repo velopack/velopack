@@ -3698,6 +3698,7 @@ dependencies = [
  "async-std",
  "directories-next",
  "iced",
+ "log",
  "once_cell",
  "serde",
  "serde_json",
