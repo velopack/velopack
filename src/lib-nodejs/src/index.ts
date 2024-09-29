@@ -1,9 +1,9 @@
 import * as addon from "./load";
 import type { UpdateInfo } from "./bindings/UpdateInfo";
 import type { UpdateOptions } from "./bindings/UpdateOptions";
-import type { VelopackLocator } from "./bindings/VelopackLocator";
+import type { VelopackLocatorConfig } from "./bindings/VelopackLocatorConfig";
 
-export { UpdateInfo, UpdateOptions, VelopackLocator };
+export { UpdateInfo, UpdateOptions, VelopackLocatorConfig };
 
 type UpdateManagerOpaque = {};
 declare module "./load" {
@@ -64,7 +64,7 @@ type LogLevel = "info" | "warn" | "error" | "debug" | "trace";
 export class VelopackApp {
   private _hooks = new Map<VelopackHookType, VelopackHook>();
   private _customArgs: string[] | null = null;
-  private _customLocator: VelopackLocator | null = null;
+  private _customLocator: VelopackLocatorConfig | null = null;
 
   static build(): VelopackApp {
     return new VelopackApp();
@@ -141,7 +141,7 @@ export class VelopackApp {
   /**
    * VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
    */
-  setLocator(locator: VelopackLocator): VelopackApp {
+  setLocator(locator: VelopackLocatorConfig): VelopackApp {
     this._customLocator = locator;
     return this;
   }
@@ -173,12 +173,12 @@ export class VelopackApp {
 }
 
 export class UpdateManager {
-  private opaque: UpdateManagerOpaque;
+  private readonly opaque: UpdateManagerOpaque;
 
   constructor(
     urlOrPath: string,
     options?: UpdateOptions,
-    locator?: VelopackLocator,
+    locator?: VelopackLocatorConfig,
   ) {
     this.opaque = addon.js_new_update_manager(
       urlOrPath,
