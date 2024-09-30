@@ -58,8 +58,8 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
     }
 
     let current_dir = old_locator.get_current_bin_dir();
-    let temp_path_new = old_locator.get_temp_dir_rand16()?;
-    let temp_path_old = old_locator.get_temp_dir_rand16()?;
+    let temp_path_new = old_locator.get_temp_dir_rand16();
+    let temp_path_old = old_locator.get_temp_dir_rand16();
 
     // open a dialog showing progress...
     let (mut tx, _) = mpsc::channel::<i16>();
