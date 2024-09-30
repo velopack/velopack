@@ -1,26 +1,28 @@
 use crate::shared::{
     self,
-    bundle::{self, Manifest},
     dialogs,
 };
 use anyhow::{bail, Result};
 use std::{fs, path::PathBuf, process::Command};
+use velopack::{bundle, locator::VelopackLocator};
+use std::os::unix::fs::PermissionsExt;
 
-pub fn apply_package_impl<'a>(root_path: &PathBuf, _app: &Manifest, pkg: &PathBuf, _runhooks: bool) -> Result<Manifest> {
+pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _runhooks: bool) -> Result<VelopackLocator> {
     // on linux, the current "dir" is actually an AppImage file which we need to replace.
     info!("Loading bundle from {}", pkg.to_string_lossy());
-    let bundle = bundle::load_bundle_from_file(pkg)?;
+    let mut bundle = bundle::load_bundle_from_file(pkg)?;
     let manifest = bundle.read_manifest()?;
-    let temp_path = format!("/var/tmp/velopack_{}", shared::random_string(8));
+    let temp_path = locator.get_temp_dir_rand16().to_string_lossy().to_string();
+    let root_path_string = locator.get_root_dir_as_string();
     let script_path = format!("/var/tmp/velopack_update_{}.sh", manifest.id);
-    let root_path_string = root_path.to_string_lossy().to_string();
+    let new_locator = locator.clone_self_with_new_manifest(&manifest);
 
     let action: Result<()> = (|| {
         info!("Extracting bundle to temp file: {}", temp_path);
         bundle.extract_zip_predicate_to_path(|z| z.ends_with(".AppImage"), &temp_path)?;
 
         info!("Chmod as executable");
-        std::fs::set_permissions(&temp_path, <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o755))?;
+        std::fs::set_permissions(&temp_path, fs::Permissions::from_mode(0o755))?;
 
         info!("Moving temp file to target: {}", &root_path_string);
         // we use mv instead of fs::rename / fs::copy because rename fails cross-device
@@ -36,7 +38,7 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, _app: &Manifest, pkg: &PathBu
 
         // if the operation failed, let's try again elevated with pkexec
         error!("An error occurred ({:?}), will attempt to elevate permissions and try again...", mv_output);
-        dialogs::ask_user_to_elevate(&manifest)?;
+        dialogs::ask_user_to_elevate(&manifest.title, &manifest.version.to_string())?;
         let script = format!("#!/bin/sh\nmv -f '{}' '{}'", temp_path, &root_path_string);
         info!("Writing script for elevation: \n{}", script);
         fs::write(&script_path, script)?;
@@ -54,5 +56,5 @@ pub fn apply_package_impl<'a>(root_path: &PathBuf, _app: &Manifest, pkg: &PathBu
     let _ = fs::remove_file(&script_path);
     let _ = fs::remove_file(&temp_path);
     action?;
-    Ok(manifest)
+    Ok(new_locator)
 }
