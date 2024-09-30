@@ -149,11 +149,9 @@ impl VelopackLocator {
         self.paths.PackagesDir.join("VelopackTemp")
     }
     
-    /// Creates a new temporary directory inside get_temp_dir_root() with a random 16-character suffix.
-    pub fn get_temp_dir_rand16(&self) -> Result<PathBuf, Error> {
-        let p = self.get_temp_dir_root().join("tmp_".to_string() + &util::random_string(16));
-        std::fs::create_dir_all(&p)?;
-        Ok(p)
+    /// Get the name of a new temporary directory inside get_temp_dir_root() with a random 16-character suffix.
+    pub fn get_temp_dir_rand16(&self) -> PathBuf {
+        self.get_temp_dir_root().join("tmp_".to_string() + &util::random_string(16))
     }
 
     /// Returns the path to the current app temporary directory as a string.
