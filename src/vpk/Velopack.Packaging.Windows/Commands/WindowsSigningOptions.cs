@@ -9,4 +9,6 @@ public class WindowsSigningOptions
     public int SignParallel { get; set; }
 
     public string SignTemplate { get; set; }
+
+    public string AzTrustedSign { get; set; }
 }

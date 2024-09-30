@@ -247,9 +247,10 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         var signParams = options.SignParameters;
         var signTemplate = options.SignTemplate;
         var signParallel = options.SignParallel;
+        var trustedSignMetadataPath = options.AzTrustedSign;
         var helper = new CodeSign(Log);
 
-        if (string.IsNullOrEmpty(signParams) && string.IsNullOrEmpty(signTemplate)) {
+        if (string.IsNullOrEmpty(signParams) && string.IsNullOrEmpty(signTemplate) && string.IsNullOrEmpty(trustedSignMetadataPath)) {
             Log.Warn($"No signing parameters provided, {filePaths.Length} file(s) will not be signed.");
             return;
         }
@@ -261,7 +262,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         // signtool.exe does not work if we're not on windows.
         if (!VelopackRuntimeInfo.IsWindows) return;
 
-        if (!string.IsNullOrEmpty(signParams)) {
+        if(!string.IsNullOrEmpty(trustedSignMetadataPath)) {
+            Log.Info($"Use Azure Trusted Signing service for code signing. Metadata file path: {trustedSignMetadataPath}");
+            signParams = $"/fd SHA256 /tr \"http://timestamp.acs.microsoft.com\" /v /debug /td SHA256 /dlib \"{HelperFile.AzTrustedSigningDlibPath}\" /dmdf \"{trustedSignMetadataPath}\"";
+            helper.Sign(filePaths, signParams, signParallel, progress, false);
+        }
+        else if (!string.IsNullOrEmpty(signParams)) {
             helper.Sign(filePaths, signParams, signParallel, progress, false);
         }
     }
