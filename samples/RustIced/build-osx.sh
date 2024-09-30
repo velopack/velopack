@@ -13,7 +13,6 @@ fi
 BUILD_VERSION="$1"
 RELEASE_DIR="$SCRIPT_DIR/releases"
 PUBLISH_DIR="$SCRIPT_DIR/publish"
-ICON_PATH="$SCRIPT_DIR/Velopack.icns"
 
 echo ""
 echo "Compiling Rust/Iced with cargo..."
@@ -23,4 +22,4 @@ cp target/release/velorusticedsample publish/VeloRustIcedSample
 
 echo ""
 echo "Building Velopack Release v$BUILD_VERSION"
-vpk pack -u VeloRustIcedSample -v $BUILD_VERSION -o "$RELEASE_DIR" -p "$PUBLISH_DIR" -i "$ICON_PATH"
+vpk pack -u VeloRustIcedSample -v $BUILD_VERSION -o "$RELEASE_DIR" -p "$PUBLISH_DIR"
