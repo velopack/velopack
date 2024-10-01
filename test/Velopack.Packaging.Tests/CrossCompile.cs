@@ -89,7 +89,7 @@ public class CrossCompile
 
         Assert.False(File.Exists(appExe));
 
-        var installOutput = Exe.InvokeAndThrowIfNonZero(artifactPath, new[] { "--silent", "--nocolor" }, null);
+        var installOutput = Exe.InvokeAndThrowIfNonZero(artifactPath, new[] { "--silent" }, null);
         logger.LogInformation(installOutput);
 
         Assert.True(File.Exists(appExe));
@@ -98,7 +98,7 @@ public class CrossCompile
         logger.LogInformation(output);
         Assert.EndsWith(artifactId, output.Trim());
 
-        var uninstallOutput = Exe.RunHostedCommand($"\"{appUpdate}\" --uninstall --silent --nocolor");
+        var uninstallOutput = Exe.RunHostedCommand($"\"{appUpdate}\" --uninstall --silent");
         logger.LogInformation(uninstallOutput);
 
         Assert.False(File.Exists(appExe));

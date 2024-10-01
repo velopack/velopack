@@ -17,7 +17,7 @@ namespace Velopack.Compression
         protected override void ApplyZstdPatch(string baseFile, string patchFile, string outputFile)
         {
             var psi = new ProcessStartInfo(_updateExePath);
-            psi.AppendArgumentListSafe(new string[] { "patch", "--nocolor", "--old", baseFile, "--patch", patchFile, "--output", outputFile }, out var _);
+            psi.AppendArgumentListSafe(new string[] { "patch", "--old", baseFile, "--patch", patchFile, "--output", outputFile }, out var _);
             psi.CreateNoWindow = true;
             var p = psi.StartRedirectOutputToILogger(Log, LogLevel.Debug);
             if (!p.WaitForExit(30_000)) {
