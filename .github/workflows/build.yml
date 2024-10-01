@@ -52,11 +52,17 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-build-windows"
+      - name: Prepare Cargo
+        run: |
+          cargo install cargo-edit -f
+          cargo set-version $NBGV_NuGetPackageVersion
       - name: Install Windows7 Rust Toolchain
         run: |
           rustup toolchain install 1.75.0-x86_64-pc-windows-msvc 
           rustup target add i686-pc-windows-msvc --toolchain 1.75.0-x86_64-pc-windows-msvc 
       - name: Build Rust
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
         run: cargo +1.75.0-x86_64-pc-windows-msvc build --target i686-pc-windows-msvc --features windows --release
       - name: Upload Rust Build Artifacts
         uses: actions/upload-artifact@v4
@@ -82,16 +88,18 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-build-linux"
-      - name: Build Rust (x64)
-        run: |
-          cargo build --release --target x86_64-unknown-linux-gnu
-          cp ./target/x86_64-unknown-linux-gnu/release/update ./target/release/UpdateNix_x64
-      - name: Build Rust (arm64)
-        env:
-          CROSS_NuGetPackageVersion: ${{ steps.nbgv.outputs.NuGetPackageVersion }}
+      - name: Prepare Cargo
         run: |
           curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
           cargo binstall cross --no-confirm --force
+          cargo binstall cargo-edit --no-confirm --force
+          cargo set-version $NBGV_NuGetPackageVersion
+      - name: Build Rust (x64)
+        run: |
+          cross build --release --target x86_64-unknown-linux-gnu
+          cp ./target/x86_64-unknown-linux-gnu/release/update ./target/release/UpdateNix_x64
+      - name: Build Rust (arm64)
+        run: |
           cross build --release --target aarch64-unknown-linux-gnu
           cp ./target/aarch64-unknown-linux-gnu/release/update ./target/release/UpdateNix_arm64
       - name: Upload Rust Build Artifacts
@@ -118,6 +126,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-build-${{ matrix.os }}"
+      - name: Prepare Cargo
+        run: |
+          cargo install cargo-edit -f
+          cargo set-version $NBGV_NuGetPackageVersion
       - name: Build Rust
         run: |
           cargo build --release
