@@ -110,6 +110,7 @@ jobs:
           cross build --release --target x86_64-unknown-linux-gnu
           ldd ./target/x86_64-unknown-linux-gnu/release/update || true
           cp ./target/x86_64-unknown-linux-gnu/release/update ./target/UpdateNix_x64
+          ls -lh ./target/x86_64-unknown-linux-gnu/release
           cp ./target/x86_64-unknown-linux-gnu/release/velopack_nodeffi.so ./target/velopack_nodeffi_linux_x64_gnu.node
       - name: Build Rust (arm64)
         run: |
