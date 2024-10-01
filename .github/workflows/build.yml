@@ -95,12 +95,12 @@ jobs:
       - name: Build Rust (x64)
         run: |
           cross build --release --target x86_64-unknown-linux-gnu
-          ldd ./target/x86_64-unknown-linux-gnu/release/update
+          ldd ./target/x86_64-unknown-linux-gnu/release/update || true
           cp ./target/x86_64-unknown-linux-gnu/release/update ./target/release/UpdateNix_x64
       - name: Build Rust (arm64)
         run: |
           cross build --release --target aarch64-unknown-linux-gnu
-          ldd ./target/aarch64-unknown-linux-gnu/release/update
+          ldd ./target/aarch64-unknown-linux-gnu/release/update || true
           cp ./target/aarch64-unknown-linux-gnu/release/update ./target/release/UpdateNix_arm64
       - name: Upload Rust Build Artifacts
         uses: actions/upload-artifact@v4
