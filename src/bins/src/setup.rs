@@ -7,10 +7,7 @@ extern crate log;
 use anyhow::{bail, Result};
 use clap::{arg, value_parser, Command};
 use memmap2::Mmap;
-use std::cell::RefCell;
 use std::fs::File;
-use std::io::Cursor;
-use std::rc::Rc;
 use std::{env, path::PathBuf};
 use velopack_bins::*;
 
@@ -25,7 +22,6 @@ static BUNDLE_PLACEHOLDER: [u8; 48] = [
     0x78, 0x54, 0x98, 0x3e, 0x5e, 0x94, 0xed, 0x7d, //
 ];
 
-#[used]
 #[inline(never)]
 pub fn header_offset_and_length() -> (i64, i64) {
     use core::ptr;
