@@ -28,12 +28,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-test-${{ matrix.os }}"
+      - name: Check lib-rust
+        run: cargo check -p velopack -F async,delta
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Test Rust
         run: cargo llvm-cov ${{ matrix.rust_flags }} --cobertura --output-path ./test/coverage.rust.${{ matrix.os }}.xml
-      - name: Check Crate
-        run: cargo check -p velopack -F async,delta
       - name: Upload Coverage
         uses: codecov/codecov-action@v4
         with:
@@ -41,6 +41,8 @@ jobs:
 
   build-rust-windows:
     runs-on: windows-latest
+    env:
+      RUSTFLAGS: -C target-feature=+crt-static
     steps:
       - uses: actions/checkout@v4
         with:
@@ -53,23 +55,30 @@ jobs:
         run: |
           rustup toolchain install 1.75.0-x86_64-pc-windows-msvc 
           rustup target add i686-pc-windows-msvc --toolchain 1.75.0-x86_64-pc-windows-msvc 
+          rustup target add aarch64-pc-windows-msvc	--toolchain 1.75.0-x86_64-pc-windows-msvc
           Set-ExecutionPolicy Unrestricted -Scope Process; 
           iex (iwr "https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.ps1").Content
           cargo binstall cargo-edit --no-confirm --force
           $version = (nbgv get-version -v NuGetPackageVersion).Trim()
           cargo set-version $version
       - name: Build Rust
-        env:
-          RUSTFLAGS: -C target-feature=+crt-static
         run: |
-          cargo +1.75.0-x86_64-pc-windows-msvc build --target i686-pc-windows-msvc --features windows --release
-      - name: Install Dumpbin
-        uses: lorenalexm/install-dumpbin-action@main
-      - name: Print Dependencies
+          cargo +1.75.0-x86_64-pc-windows-msvc build --target i686-pc-windows-msvc --features windows --release --exclude velopack_nodeffi
+#      - name: Install Dumpbin
+#        uses: lorenalexm/install-dumpbin-action@main
+#      - name: Print Dependencies
+#        run: |
+#          dumpbin /dependents target/i686-pc-windows-msvc/release/update.exe
+#          dumpbin /dependents target/i686-pc-windows-msvc/release/setup.exe
+#          dumpbin /dependents target/i686-pc-windows-msvc/release/stub.exe
+      - name: Build velopack_nodeffi (x64)
         run: |
-          dumpbin /dependents target/i686-pc-windows-msvc/release/update.exe
-          dumpbin /dependents target/i686-pc-windows-msvc/release/setup.exe
-          dumpbin /dependents target/i686-pc-windows-msvc/release/stub.exe
+          cargo +1.75.0-x86_64-pc-windows-msvc build --target x86_64-pc-windows-msvc --release --package velopack_nodeffi
+          rename target\x86_64-pc-windows-msvc\release\velopack_nodeffi.dll velopack_nodeffi_win_x64.dll
+      - name: Build velopack_nodeffi (arm64)
+        run: | 
+          cargo +1.75.0-x86_64-pc-windows-msvc build --target aarch64-pc-windows-msvc --release --package velopack_nodeffi
+          rename target\aarch64-pc-windows-msvc\release\velopack_nodeffi.dll velopack_nodeffi_win_arm64.dll
       - name: Upload Rust Build Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -77,6 +86,8 @@ jobs:
           path: |
             target/i686-pc-windows-msvc/release/*.exe
             target/i686-pc-windows-msvc/release/*.pdb
+            target/x86_64-pc-windows-msvc/release/*.dll
+            target/aarch64-pc-windows-msvc/release/*.dll
       - name: Cancel workflow if failed
         uses: andymckay/cancel-action@0.4
         if: ${{ failure() }}
