@@ -206,7 +206,7 @@ public class WindowsPackTests
         var setupPath1 = Path.Combine(tmpReleaseDir, $"{id}-win-Setup.exe");
         Assert.True(File.Exists(setupPath1));
 
-        RunNoCoverage(setupPath1, new[] { "--nocolor", "--silent", "--installto", tmpInstallDir }, Environment.CurrentDirectory, logger);
+        RunNoCoverage(setupPath1, new[] { "--silent", "--installto", tmpInstallDir }, Environment.CurrentDirectory, logger);
 
         var updatePath = Path.Combine(tmpInstallDir, "Update.exe");
         Assert.True(File.Exists(updatePath));
@@ -243,7 +243,7 @@ public class WindowsPackTests
         var date = DateTime.Now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         Assert.Equal(date, installDate.Trim('\0'));
 
-        var uninstOutput = RunNoCoverage(updatePath, new string[] { "--nocolor", "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
+        var uninstOutput = RunNoCoverage(updatePath, new string[] { "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
         Assert.EndsWith(Environment.NewLine + "Y", uninstOutput); // this checks that the self-delete succeeded
 
         Assert.False(File.Exists(startLnk));
@@ -271,7 +271,7 @@ public class WindowsPackTests
 
         // install app
         var setupPath1 = Path.Combine(releaseDir, $"{id}-win-Setup.exe");
-        RunNoCoverage(setupPath1, new string[] { "--nocolor", "--silent", "--installto", installDir },
+        RunNoCoverage(setupPath1, new string[] { "--silent", "--installto", installDir },
             Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
 
         // pack v2
@@ -377,7 +377,7 @@ public class WindowsPackTests
 
         // install app
         var setupPath1 = Path.Combine(releaseDir, $"{id}-win-Setup.exe");
-        RunNoCoverage(setupPath1, ["--nocolor", "--installto", installDir],
+        RunNoCoverage(setupPath1, ["--installto", installDir],
             Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
 
         var argsPath = Path.Combine(installDir, "args.txt");
@@ -408,7 +408,7 @@ public class WindowsPackTests
         Assert.Equal("2.0.0,test,args !!", File.ReadAllText(restartedPath).Trim());
 
         var updatePath = Path.Combine(installDir, "Update.exe");
-        RunNoCoverage(updatePath, ["--nocolor", "--silent", "--uninstall"], Environment.CurrentDirectory, logger);
+        RunNoCoverage(updatePath, ["--silent", "--uninstall"], Environment.CurrentDirectory, logger);
     }
 
     [SkippableFact]
@@ -426,7 +426,7 @@ public class WindowsPackTests
 
         // install app
         var setupPath1 = Path.Combine(releaseDir, $"{id}-win-Setup.exe");
-        RunNoCoverage(setupPath1, new string[] { "--nocolor", "--silent", "--installto", installDir },
+        RunNoCoverage(setupPath1, new string[] { "--silent", "--installto", installDir },
             Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
 
         // check app installed correctly
@@ -492,7 +492,7 @@ public class WindowsPackTests
 
         // uninstall
         var updatePath = Path.Combine(installDir, "Update.exe");
-        RunNoCoverage(updatePath, new string[] { "--nocolor", "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
+        RunNoCoverage(updatePath, new string[] { "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
         logger.Info("TEST: uninstalled / complete");
     }
 
