@@ -84,6 +84,7 @@ jobs:
           path: |
             target/*.exe
             target/*.dll
+            target/*.node
       - name: Cancel workflow if failed
         uses: andymckay/cancel-action@0.4
         if: ${{ failure() }}
@@ -124,6 +125,7 @@ jobs:
           path: |
             target/UpdateNix*
             target/*.so
+            target/*.node
       - name: Cancel workflow if failed
         uses: andymckay/cancel-action@0.4
         if: ${{ failure() }}
@@ -165,6 +167,7 @@ jobs:
           path: |
             target/UpdateMac
             target/*.dylib
+            target/*.node
       - name: Cancel workflow if failed
         uses: andymckay/cancel-action@0.4
         if: ${{ failure() }}
