@@ -7,5 +7,5 @@ tw86 = "test --target i686-pc-windows-msvc --features windows"
 bw = "build --features windows"
 bw86 = "build --target i686-pc-windows-msvc --features windows"
 
-[build]
-rustflags = ["-C", "target-feature=+crt-static"]
+#[build]
+#rustflags = ["-C", "target-feature=+crt-static"]

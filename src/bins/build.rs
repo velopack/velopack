@@ -6,7 +6,7 @@ fn main() {
     #[cfg(target_os = "windows")]
     delay_load();
 
-    let version = get_package_version();
+    let version = env!("CARGO_PKG_VERSION");
     let ver = semver::Version::parse(&version).expect("Unable to parse ngbv output as semver version");
     let ver: u64 = ver.major << 48 | ver.minor << 32 | ver.patch << 16;
     let desc = format!("Velopack {}", version);
@@ -27,34 +27,18 @@ fn main() {
         .unwrap();
 }
 
-fn get_package_version() -> String {
-    if let Ok(version) = env::var("NuGetPackageVersion") {
-        // NuGetPackageVersion is set, return it trimmed
-        return version.trim().to_string();
-    } else if let Ok(version) = env::var("NBGV_NuGetPackageVersion") {
-        // NBGV_NuGetPackageVersion is set, return it trimmed
-        return version.trim().to_string();
-    } else if let Ok(version) = env::var("CROSS_NuGetPackageVersion") {
-        // NBGV_NuGetPackageVersion is set, return it trimmed
-        return version.trim().to_string();
-    } else if env::var("CI").is_ok() {
-        // CI is set, NuGetPackageVersion should be set always in CI
-        panic!("Error: NuGetPackageVersion must be set in CI");
-    } else {
-        // CI is not set, return "v0.0.0-local"
-        return "0.0.0-local".to_string();
-    }
-}
-
 #[cfg(target_os = "windows")]
 fn delay_load() {
-    delay_load_exe("update");
-    delay_load_exe("setup");
-    delay_load_exe("stub");
-    println!("cargo:rustc-link-arg=/DEPENDENTLOADFLAG:0x800");
-    println!("cargo:rustc-link-arg=/WX");
-    println!("cargo:rustc-link-arg=/IGNORE:4099"); // PDB was not found
-    println!("cargo:rustc-link-arg=/IGNORE:4199"); // delayload ignored, no imports found
+    let features = env::var("CARGO_CFG_TARGET_FEATURE").unwrap_or_default();
+    if features.contains("crt-static") {
+        delay_load_exe("update");
+        delay_load_exe("setup");
+        delay_load_exe("stub");
+        println!("cargo:rustc-link-arg=/DEPENDENTLOADFLAG:0x800");
+        println!("cargo:rustc-link-arg=/WX");
+        println!("cargo:rustc-link-arg=/IGNORE:4099"); // PDB was not found
+        println!("cargo:rustc-link-arg=/IGNORE:4199"); // delayload ignored, no imports found
+    }
 }
 
 // https://github.com/rust-lang/rustup/blob/master/build.rs#L45
