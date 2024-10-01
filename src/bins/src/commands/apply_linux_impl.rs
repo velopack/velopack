@@ -1,11 +1,8 @@
-use crate::shared::{
-    self,
-    dialogs,
-};
+use crate::shared::dialogs;
 use anyhow::{bail, Result};
+use std::os::unix::fs::PermissionsExt;
 use std::{fs, path::PathBuf, process::Command};
 use velopack::{bundle, locator::VelopackLocator};
-use std::os::unix::fs::PermissionsExt;
 
 pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _runhooks: bool) -> Result<VelopackLocator> {
     // on linux, the current "dir" is actually an AppImage file which we need to replace.

@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Result};
-use std::{path::Path, path::PathBuf, process::Command as Process, time::Duration};
+use std::{process::Command as Process, time::Duration};
 use velopack::locator::VelopackLocator;
 
 pub fn wait_for_pid_to_exit(pid: u32, ms_to_wait: u32) -> Result<()> {

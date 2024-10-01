@@ -121,8 +121,7 @@ jobs:
           key: "rust-build-${{ matrix.os }}"
       - name: Prepare Cargo
         run: |
-          brew install cargo-binstall
-          cargo binstall cargo-edit --no-confirm --force
+          cargo install cargo-edit -f
           dotnet tool update -g nbgv
           version=$(nbgv get-version -v NuGetPackageVersion | tr -d '[:space:]')
           cargo set-version "$version"
