@@ -24,6 +24,9 @@
       }
     }
   },
+  "engines": {
+    "node": ">=18.0.0 <=21.0.0"
+  },
   "types": "./lib/index.d.cts",
   "files": [
     "lib/**/*.?({c,m}){t,j}s"
