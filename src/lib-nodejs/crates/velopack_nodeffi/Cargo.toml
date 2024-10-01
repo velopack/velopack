@@ -1,22 +1,29 @@
 [package]
 name = "velopack_nodeffi"
-version = "0.1.0"
-license = "MIT"
-edition = "2021"
 exclude = ["index.node"]
 publish = false
+version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-neon = "1"
-serde_json = "1"
-velopack = { path = "../../../lib-rust" }
-semver = "1.0"
-log = "0.4"
-lazy_static = "1.5"
+velopack.workspace = true
+serde_json.workspace = true
+semver.workspace = true
+log.workspace = true
+lazy_static.workspace = true
+neon.workspace = true
 
 [build-dependencies]
-ts-rs = "10.0"
-velopack = { path = "../../../lib-rust", features = ["typescript"] }
+velopack = { workspace = true, features = ["typescript"] }
+ts-rs.workspace = true
