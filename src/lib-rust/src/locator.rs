@@ -397,15 +397,21 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
 
 #[cfg(target_os = "linux")]
 /// Automatically locates the current app's important paths. If the app is not installed, it will return an error.
-pub fn auto_locate<P: AsRef<Path>>(exe_path: P) -> Result<VelopackLocatorConfig, Error> {
-    let path = exe_path.as_ref().to_path_buf();
-    let path = path.to_string_lossy();
-    let idx = path.rfind("/usr/bin/");
+pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLocator, Error> {
+    let mut search_path = std::env::current_exe()?;
+    match context {
+        LocationContext::FromSpecifiedRootDir(dir) => search_path = dir.join("dummy"),
+        LocationContext::FromSpecifiedAppExecutable(exe) => search_path = exe,
+        _ => {},
+    }
+
+    let search_string = search_path.to_string_lossy();
+    let idx = search_string.rfind("/usr/bin/");
     if idx.is_none() {
-        return Err(Error::NotInstalled(format!("Could not locate '/usr/bin/' in executable path {}", path)));
+        return Err(Error::NotInstalled(format!("Could not locate '/usr/bin/' in executable path {}", search_string)));
     }
     let idx = idx.unwrap();
-    let root_app_dir = PathBuf::from(path[..idx].to_string());
+    let root_app_dir = PathBuf::from(search_string[..idx].to_string());
     let contents_dir = root_app_dir.join("usr").join("bin");
     let update_exe_path = contents_dir.join("UpdateNix");
     let metadata_path = contents_dir.join("sq.version");
@@ -415,13 +421,18 @@ pub fn auto_locate<P: AsRef<Path>>(exe_path: P) -> Result<VelopackLocatorConfig,
     }
 
     let app = read_current_manifest(&metadata_path)?;
-    Ok(VelopackLocatorConfig {
+    let packages_dir = PathBuf::from("/var/tmp/velopack").join(&app.id).join("packages");
+
+    let config = VelopackLocatorConfig {
         RootAppDir: root_app_dir,
         UpdateExePath: update_exe_path,
-        PackagesDir: PathBuf::from("/var/tmp/velopack").join(&app.id).join("packages"),
+        PackagesDir: packages_dir,
         ManifestPath: metadata_path,
-        TempDir: PathBuf::from("/tmp/velopack").join(&app.id),
-    })
+        CurrentBinaryDir: contents_dir,
+        IsPortable: true,
+    };
+
+    config_to_locator(&config)
 }
 
 #[cfg(target_os = "macos")]

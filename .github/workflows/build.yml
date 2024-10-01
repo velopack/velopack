@@ -121,7 +121,7 @@ jobs:
           key: "rust-build-${{ matrix.os }}"
       - name: Prepare Cargo
         run: |
-          curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+          brew install cargo-binstall
           cargo binstall cargo-edit --no-confirm --force
           dotnet tool update -g nbgv
           version=$(nbgv get-version -v NuGetPackageVersion | tr -d '[:space:]')
