@@ -17,7 +17,7 @@ use zip::ZipArchive;
 
 use crate::{Error, util};
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "macos")]
 use std::os::unix::fs::PermissionsExt;
 
 #[cfg(target_os = "windows")]
