@@ -63,7 +63,7 @@ jobs:
           cargo set-version $version
       - name: Build Rust
         run: |
-          cargo +1.75.0-x86_64-pc-windows-msvc build --target i686-pc-windows-msvc --features windows --release --exclude velopack_nodeffi
+          cargo +1.75.0-x86_64-pc-windows-msvc build --target i686-pc-windows-msvc --features windows --release --workspace --exclude velopack_nodeffi
 #      - name: Install Dumpbin
 #        uses: lorenalexm/install-dumpbin-action@main
 #      - name: Print Dependencies
