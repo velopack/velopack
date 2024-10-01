@@ -32,6 +32,8 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Test Rust
         run: cargo llvm-cov ${{ matrix.rust_flags }} --cobertura --output-path ./test/coverage.rust.${{ matrix.os }}.xml
+      - name: Check Crate
+        run: cargo check -p velopack -F async,delta
       - name: Upload Coverage
         uses: codecov/codecov-action@v4
         with:
@@ -61,6 +63,10 @@ jobs:
           RUSTFLAGS: -C target-feature=+crt-static
         run: |
           cargo +1.75.0-x86_64-pc-windows-msvc build --target i686-pc-windows-msvc --features windows --release
+      - name: Install Dumpbin
+        uses: lorenalexm/install-dumpbin-action@main
+      - name: Print Dependencies
+        run: |
           dumpbin /dependents target/i686-pc-windows-msvc/release/update.exe
           dumpbin /dependents target/i686-pc-windows-msvc/release/setup.exe
           dumpbin /dependents target/i686-pc-windows-msvc/release/stub.exe
