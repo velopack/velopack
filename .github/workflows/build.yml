@@ -14,7 +14,7 @@ jobs:
   test-rust:
     strategy:
       matrix:
-        os: [macos-13, macos-14, windows-latest, ubuntu-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
         include: 
           - os: windows-latest
             rust_flags: "--target i686-pc-windows-msvc --features windows"
@@ -108,10 +108,7 @@ jobs:
         if: ${{ failure() }}
 
   build-rust-macos:
-    strategy:
-      matrix:
-        os: [macos-13, macos-14]
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -121,51 +118,29 @@ jobs:
           key: "rust-build-${{ matrix.os }}"
       - name: Prepare Cargo
         run: |
+          rustup target add x86_64-apple-darwin 
           cargo install cargo-edit -f
           dotnet tool update -g nbgv
           version=$(nbgv get-version -v NuGetPackageVersion | tr -d '[:space:]')
           cargo set-version "$version"
-      - name: Build Rust
+      - name: Build Rust (x64)
         run: |
-          cargo build --release
-          cp ./target/release/update ./target/release/UpdateMac
+          cargo build --release --target x86_64-apple-darwin
+          otool -L ./target/x86_64-apple-darwin/release/update
+      - name: Build Rust (arm64)
+        run: |
+          cargo build --release --target aarch64-apple-darwin
+          otool -L ./target/aarch64-apple-darwin/release/update
+      - name: Create Universal Binary
+        run: |
+          lipo -create -output ./target/release/UpdateMac ./target/x86_64-apple-darwin/release/update ./target/aarch64-apple-darwin/release/update
+          file ./target/release/UpdateMac
+          lipo -archs ./target/release/UpdateMac
       - name: Upload Rust Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rust-${{ matrix.os }}
-          path: target/release/UpdateMac
-      - name: Cancel workflow if failed
-        uses: andymckay/cancel-action@0.4
-        if: ${{ failure() }}
-
-  build-mac-universal:
-    runs-on: macos-latest
-    needs: [build-rust-macos]
-    steps:
-      - name: Download x64
-        uses: actions/download-artifact@v4
-        with:
-          name: rust-macos-13
-          path: macos-x64
-      - name: Download arm64
-        uses: actions/download-artifact@v4
-        with:
-          name: rust-macos-14
-          path: macos-arm64
-      - name: Create Universal Binary
-        run: |
-          mkdir -p macos-universal
-          lipo -create -output macos-universal/UpdateMac macos-x64/UpdateMac macos-arm64/UpdateMac
-          file macos-universal/UpdateMac
-          lipo -archs macos-universal/UpdateMac
-      - uses: geekyeggo/delete-artifact@v5
-        with:
-          name: rust-macos-*
-      - name: Upload Universal Binary
-        uses: actions/upload-artifact@v4
-        with:
           name: rust-macos-latest
-          path: macos-universal/UpdateMac
+          path: target/release/UpdateMac
       - name: Cancel workflow if failed
         uses: andymckay/cancel-action@0.4
         if: ${{ failure() }}
@@ -253,7 +228,7 @@ jobs:
 
   package:
     runs-on: ubuntu-latest
-    needs: [build-rust-windows, build-rust-linux, build-mac-universal]
+    needs: [build-rust-windows, build-rust-linux, build-rust-macos]
     steps:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v4
