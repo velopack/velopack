@@ -110,14 +110,13 @@ jobs:
           cross build --release --target x86_64-unknown-linux-gnu
           ldd ./target/x86_64-unknown-linux-gnu/release/update || true
           cp ./target/x86_64-unknown-linux-gnu/release/update ./target/UpdateNix_x64
-          ls -lh ./target/x86_64-unknown-linux-gnu/release
-          cp ./target/x86_64-unknown-linux-gnu/release/velopack_nodeffi.so ./target/velopack_nodeffi_linux_x64_gnu.node
+          cp ./target/x86_64-unknown-linux-gnu/release/libvelopack_nodeffi.so ./target/velopack_nodeffi_linux_x64_gnu.node
       - name: Build Rust (arm64)
         run: |
           cross build --release --target aarch64-unknown-linux-gnu
           ldd ./target/aarch64-unknown-linux-gnu/release/update || true
           cp ./target/aarch64-unknown-linux-gnu/release/update ./target/UpdateNix_arm64
-          cp ./target/aarch64-unknown-linux-gnu/release/velopack_nodeffi.so ./target/velopack_nodeffi_linux_arm64_gnu.node
+          cp ./target/aarch64-unknown-linux-gnu/release/libvelopack_nodeffi.so ./target/velopack_nodeffi_linux_arm64_gnu.node
       - name: Upload Rust Build Artifacts
         uses: actions/upload-artifact@v4
         with:
