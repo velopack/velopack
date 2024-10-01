@@ -25,9 +25,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: dotnet/nbgv@master
-        with:
-          setAllVars: true
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-test-${{ matrix.os }}"
@@ -46,16 +43,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: dotnet/nbgv@master
-        with:
-          setAllVars: true
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-build-windows"
       - name: Prepare Cargo
+        shell: pwsh
         run: |
-          cargo install cargo-edit -f
-          cargo set-version $NBGV_NuGetPackageVersion
+          Set-ExecutionPolicy Unrestricted -Scope Process; 
+          iex (iwr "https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.ps1").Content
+          cargo binstall cargo-edit --no-confirm --force
+          $version = (nbgv get-version -v NuGetPackageVersion).Trim()
+          cargo set-version $version
       - name: Install Windows7 Rust Toolchain
         run: |
           rustup toolchain install 1.75.0-x86_64-pc-windows-msvc 
@@ -81,10 +79,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: dotnet/nbgv@master
-        id: nbgv
-        with:
-          setAllVars: true
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-build-linux"
@@ -93,7 +87,9 @@ jobs:
           curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
           cargo binstall cross --no-confirm --force
           cargo binstall cargo-edit --no-confirm --force
-          cargo set-version $NBGV_NuGetPackageVersion
+          dotnet tool update -g nbgv
+          version=$(nbgv get-version -v NuGetPackageVersion | tr -d '[:space:]')
+          cargo set-version "$version"
       - name: Build Rust (x64)
         run: |
           cross build --release --target x86_64-unknown-linux-gnu
@@ -120,16 +116,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: dotnet/nbgv@master
-        with:
-          setAllVars: true
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-build-${{ matrix.os }}"
       - name: Prepare Cargo
         run: |
-          cargo install cargo-edit -f
-          cargo set-version $NBGV_NuGetPackageVersion
+          curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+          cargo binstall cargo-edit --no-confirm --force
+          dotnet tool update -g nbgv
+          version=$(nbgv get-version -v NuGetPackageVersion | tr -d '[:space:]')
+          cargo set-version "$version"
       - name: Build Rust
         run: |
           cargo build --release
