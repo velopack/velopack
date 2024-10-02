@@ -82,6 +82,7 @@ jobs:
           move target\i686-pc-windows-msvc\release\update.exe target\update.exe
           move target\i686-pc-windows-msvc\release\setup.exe target\setup.exe
           move target\i686-pc-windows-msvc\release\stub.exe target\stub.exe
+          move target\i686-pc-windows-msvc\release\testapp.exe target\testapp.exe
           move target\i686-pc-windows-msvc\release\velopack_nodeffi.dll target\velopack_nodeffi_win_x86_msvc.node
           move target\x86_64-pc-windows-msvc\release\velopack_nodeffi.dll target\velopack_nodeffi_win_x64_msvc.node
           move target\aarch64-pc-windows-msvc\release\velopack_nodeffi.dll target\velopack_nodeffi_win_arm64_msvc.node
