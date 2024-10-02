@@ -72,7 +72,7 @@ fn legacy_locator() -> Result<LocatorResult> {
             let packages_dir = parent_dir.join("packages");
             if let Some((path, manifest)) = shared::find_latest_full_package(&packages_dir) {
                 info!("Found full package to read: {}", path.to_string_lossy());
-                Ok(LocatorResult::Legacy(path, manifest))
+                Ok(LocatorResult::Legacy(parent_dir.to_path_buf(), manifest))
             } else {
                 bail!("Unable to locate app manifest or full package in {}.", packages_dir.to_string_lossy());
             }
