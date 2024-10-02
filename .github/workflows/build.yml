@@ -28,12 +28,20 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-test-${{ matrix.os }}"
-      - name: Check lib-rust
-        run: cargo check -p velopack -F async,delta
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Check lib-rust
+        run: cargo check -p velopack -F async,delta
+      - name: Check RustIced Sample
+        working-directory: samples/RustIced
+        run: cargo check
       - name: Test Rust
         run: cargo llvm-cov ${{ matrix.rust_flags }} --cobertura --output-path ./test/coverage.rust.${{ matrix.os }}.xml
+      - name: Test lib-nodejs
+        working-directory: src/lib-nodejs
+        run: |
+          npm install
+          npm run test
       - name: Upload Coverage
         uses: codecov/codecov-action@v4
         with:
