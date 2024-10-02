@@ -63,7 +63,7 @@ fn root_command() -> Command {
 }
 
 #[cfg(target_os = "windows")]
-fn parse_command_line_matches(input_args: Vec<String>) -> ArgMatches {
+fn try_parse_command_line_matches(input_args: Vec<String>) -> Result<ArgMatches> {
     // Split the arguments manually to handle the legacy `--flag=value` syntax
     // Also, replace `--processStartAndWait` with `--processStart --wait`
     let mut args = Vec::new();
@@ -93,7 +93,7 @@ fn parse_command_line_matches(input_args: Vec<String>) -> ArgMatches {
             args.push(arg);
         }
     }
-    root_command().get_matches_from(&args)
+    Ok(root_command().try_get_matches_from(&args)?)
 }
 
 fn get_flag_or_false(matches: &ArgMatches, id: &str) -> bool {
@@ -118,9 +118,9 @@ fn main() -> Result<()> {
     windows::mitigate::pre_main_sideload_mitigation();
 
     #[cfg(windows)]
-    let matches = parse_command_line_matches(env::args().collect());
+    let matches = try_parse_command_line_matches(env::args().collect())?;
     #[cfg(unix)]
-    let matches = root_command().get_matches();
+    let matches = root_command().try_get_matches()?;
 
     let (subcommand, subcommand_matches) = matches.subcommand().ok_or_else(|| anyhow!("No subcommand was used. Try `--help` for more information."))?;
 
@@ -131,7 +131,7 @@ fn main() -> Result<()> {
     dialogs::set_silent(silent);
     let desired_log_file = log_file.cloned().unwrap_or(locator::default_log_location(LocationContext::IAmUpdateExe));
     logging::setup_logging("update", Some(&desired_log_file), true, verbose)?;
-    
+
     // change working directory to the parent directory of the exe
     let mut containing_dir = env::current_exe()?;
     containing_dir.pop();
@@ -191,7 +191,8 @@ fn apply(matches: &ArgMatches) -> Result<()> {
     let locator = auto_locate_app_manifest(LocationContext::IAmUpdateExe)?;
     #[cfg(target_os = "windows")]
     let _mutex = shared::retry_io(|| windows::create_global_mutex(&locator.get_manifest_id()))?;
-    commands::apply(&locator, restart, wait, package, exe_args, true)
+    let _ = commands::apply(&locator, restart, wait, package, exe_args, true)?;
+    Ok(())
 }
 
 fn start(matches: &ArgMatches) -> Result<()> {
@@ -208,11 +209,8 @@ fn start(matches: &ArgMatches) -> Result<()> {
         info!("    Legacy Args: {:?}", legacy_args);
         warn!("Legacy args format is deprecated and will be removed in a future release. Please update your application to use the new format.");
     }
-
-    let locator = auto_locate_app_manifest(LocationContext::IAmUpdateExe)?;
-    #[cfg(target_os = "windows")]
-    let _mutex = shared::retry_io(|| windows::create_global_mutex(&locator.get_manifest_id()))?;
-    commands::start(&locator, wait, exe_name, exe_args, legacy_args)
+    
+    commands::start(wait, exe_name, exe_args, legacy_args)
 }
 
 #[cfg(target_os = "windows")]
@@ -230,40 +228,7 @@ fn test_start_command_supports_legacy_commands() {
         let wait_for_parent = get_flag_or_false(&matches, "wait");
         let exe_name = matches.get_one::<String>("EXE_NAME");
         let exe_args: Option<Vec<&String>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.collect());
-        return (wait_for_parent, exe_name, legacy_args, exe_args);
-    }
-
-    fn try_parse_command_line_matches(input_args: Vec<String>) -> Result<ArgMatches> {
-        // Split the arguments manually to handle the legacy `--flag=value` syntax
-        // Also, replace `--processStartAndWait` with `--processStart --wait`
-        let mut args = Vec::new();
-        let mut preserve = false;
-        for arg in input_args {
-            if preserve {
-                args.push(arg);
-            } else if arg == "--" {
-                args.push("--".to_string());
-                preserve = true;
-            } else if arg.eq_ignore_ascii_case("--processStartAndWait") {
-                args.push("--processStart".to_string());
-                args.push("--wait".to_string());
-            } else if arg.starts_with("--processStartAndWait=") {
-                let mut split_arg = arg.splitn(2, '=');
-                split_arg.next(); // Skip the `--processStartAndWait` part
-                args.push("--processStart".to_string());
-                args.push("--wait".to_string());
-                if let Some(rest) = split_arg.next() {
-                    args.push(rest.to_string());
-                }
-            } else if arg.contains('=') {
-                let mut split_arg = arg.splitn(2, '=');
-                args.push(split_arg.next().unwrap().to_string());
-                args.push(split_arg.next().unwrap().to_string());
-            } else {
-                args.push(arg);
-            }
-        }
-        root_command().try_get_matches_from(&args).map_err(|e| anyhow!("{}", e))
+        (wait_for_parent, exe_name, legacy_args, exe_args)
     }
 
     let command = vec!["Update.exe", "--processStart=hello.exe"];
