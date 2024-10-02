@@ -138,6 +138,8 @@ jobs:
 
   build-rust-macos:
     runs-on: macos-latest
+    env:
+      RUSTFLAGS: -C target-feature=+crt-static
     steps:
       - uses: actions/checkout@v4
         with:
