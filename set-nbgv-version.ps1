@@ -12,7 +12,6 @@ Write-Host "Setting version to $version"
     }
 } | Set-Content $path
 
-cargo generate-lockfile --offline
 cargo pkgid -p velopack
 
 Set-Location "$scriptDir/src/lib-nodejs"
