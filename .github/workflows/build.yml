@@ -58,17 +58,14 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-build-windows"
-      - name: Prepare Cargo
-        shell: pwsh
+      - name: Install Dependencies
         run: |
           rustup toolchain install 1.75.0-x86_64-pc-windows-msvc 
           rustup target add i686-pc-windows-msvc --toolchain 1.75.0-x86_64-pc-windows-msvc 
           rustup target add aarch64-pc-windows-msvc	--toolchain 1.75.0-x86_64-pc-windows-msvc
-          Set-ExecutionPolicy Unrestricted -Scope Process; 
-          iex (iwr "https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.ps1").Content
-          cargo binstall cargo-edit --no-confirm --force
-          $version = (nbgv get-version -v NuGetPackageVersion).Trim()
-          cargo set-version $version
+      - name: Update Version
+        shell: pwsh
+        run: .\set-nbgv-version.ps1
       - name: Build Rust Bins (x86)
         run: cargo +1.75.0-x86_64-pc-windows-msvc build --target i686-pc-windows-msvc --features windows --release --workspace --exclude velopack_nodeffi
       - name: Upload Rust Build Artifacts
@@ -108,14 +105,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-build-linux"
-      - name: Prepare Cargo
+      - name: Install Dependencies
         run: |
           curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
           cargo binstall cross --no-confirm --force
-          cargo binstall cargo-edit --no-confirm --force
-          dotnet tool update -g nbgv
-          version=$(nbgv get-version -v NuGetPackageVersion | tr -d '[:space:]')
-          cargo set-version "$version"
+      - name: Update Version
+        shell: pwsh
+        run: ./set-nbgv-version.ps1
       - name: Build Rust (x64)
         run: |
           cross build --release --target x86_64-unknown-linux-gnu
@@ -149,13 +145,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: "rust-build-${{ matrix.os }}"
-      - name: Prepare Cargo
+      - name: Install Dependencies
         run: |
           rustup target add x86_64-apple-darwin 
-          cargo install cargo-edit -f
           dotnet tool update -g nbgv
-          version=$(nbgv get-version -v NuGetPackageVersion | tr -d '[:space:]')
-          cargo set-version "$version"
+      - name: Update Version
+        shell: pwsh
+        run: ./set-nbgv-version.ps1
       - name: Build Rust (x64)
         run: |
           cargo build --release --target x86_64-apple-darwin
