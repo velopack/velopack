@@ -152,10 +152,10 @@ jobs:
       - name: Prepare Cargo
         run: |
           rustup target add x86_64-apple-darwin 
-          cargo install set-cargo-version -f
+          cargo install cargo-edit -f
           dotnet tool update -g nbgv
           version=$(nbgv get-version -v NuGetPackageVersion | tr -d '[:space:]')
-          set-cargo-version ./Cargo.toml "$version"
+          cargo set-version "$version"
       - name: Build Rust (x64)
         run: |
           cargo build --release --target x86_64-apple-darwin
