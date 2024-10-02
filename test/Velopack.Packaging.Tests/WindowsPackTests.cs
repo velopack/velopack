@@ -558,7 +558,7 @@ public class WindowsPackTests
     {
         return IoUtil.Retry(() => {
             return File.ReadAllText(path);
-        }, logger: logger);
+        }, logger: logger, retries: 10, retryDelay: 1000);
     }
 
     //private string RunCoveredRust(string binName, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
