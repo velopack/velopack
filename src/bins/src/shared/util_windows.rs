@@ -13,7 +13,6 @@ use windows::Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasicInf
 use windows::Win32::System::Threading::{GetCurrentProcess, PROCESS_BASIC_INFORMATION};
 use winsafe::{self as w, co, prelude::*};
 
-use velopack::bundle::{self, EntryNameInfo};
 use velopack::locator::VelopackLocator;
 
 pub fn wait_for_pid_to_exit(pid: u32, ms_to_wait: u32) -> Result<()> {
@@ -246,8 +245,14 @@ pub fn get_latest_app_version_folder<P: AsRef<Path>>(parent_path: P) -> Result<O
     Ok(latest_folder.zip(latest_version))
 }
 
-pub fn has_app_prefixed_folder<P: AsRef<Path>>(parent_path: P) -> Result<bool> {
-    Ok(!get_app_prefixed_folders(parent_path)?.is_empty())
+pub fn has_app_prefixed_folder<P: AsRef<Path>>(parent_path: P) -> bool {
+    match get_app_prefixed_folders(parent_path) {
+        Ok(folders) => !folders.is_empty(),
+        Err(e) => { 
+            warn!("Failed to check for app-prefixed folders: {}", e);
+            false
+        },
+    }
 }
 
 pub fn delete_app_prefixed_folders<P: AsRef<Path>>(parent_path: P) -> Result<()> {
@@ -260,71 +265,6 @@ pub fn delete_app_prefixed_folders<P: AsRef<Path>>(parent_path: P) -> Result<()>
 
 fn parse_version_from_folder_name(folder_name: &str) -> Option<Version> {
     folder_name.strip_prefix("app-").and_then(|v| Version::parse(v).ok())
-}
-
-// fn find_manifest_from_root_dir(root_path: &PathBuf) -> Result<Manifest> {
-//     // default to checking current/sq.version
-//     let cm = find_current_manifest(root_path);
-//     if cm.is_ok() {
-//         return cm;
-//     }
-// 
-//     // if that fails, check for latest full package
-//     warn!("Unable to find current manifest, checking for latest full package. (LEGACY MODE)");
-//     let latest = find_latest_full_package(root_path);
-//     if let Some(latest) = latest {
-//         let mani = latest.load_manifest()?;
-//         return Ok(mani);
-//     }
-// 
-//     bail!("Unable to locate manifest or package.");
-// }
-// 
-// fn find_current_manifest(root_path: &PathBuf) -> Result<Manifest> {
-//     let m = Manifest::default();
-//     let nuspec_path = m.get_nuspec_path(root_path);
-//     if Path::new(&nuspec_path).exists() {
-//         if let Ok(nuspec) = super::retry_io(|| std::fs::read_to_string(&nuspec_path)) {
-//             return Ok(bundle::read_manifest_from_string(&nuspec)?);
-//         }
-//     }
-//     bail!("Unable to read nuspec file in current directory.")
-// }
-
-pub fn find_latest_full_package(locator: &VelopackLocator) -> Option<EntryNameInfo> {
-    let packages = get_all_packages(locator);
-    let mut latest: Option<EntryNameInfo> = None;
-    for pkg in packages {
-        if pkg.is_delta {
-            continue;
-        }
-        if latest.is_none() {
-            latest = Some(pkg);
-        } else {
-            let latest_ver = latest.clone().unwrap().version;
-            if pkg.version > latest_ver {
-                latest = Some(pkg);
-            }
-        }
-    }
-    latest
-}
-
-fn get_all_packages(locator: &VelopackLocator) -> Vec<EntryNameInfo> {
-    let packages = locator.get_packages_dir();
-    let mut vec = Vec::new();
-    debug!("Scanning for packages in {:?}", packages);
-    if let Ok(entries) = fs::read_dir(packages) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                if let Some(pkg) = bundle::parse_package_file_path(entry.path()) {
-                    debug!("Found package: {}", entry.path().to_string_lossy());
-                    vec.push(pkg);
-                }
-            }
-        }
-    }
-    vec
 }
 
 #[test]

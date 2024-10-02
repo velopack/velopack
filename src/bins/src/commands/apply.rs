@@ -1,7 +1,5 @@
-use crate::{
-    shared::{self, OperationWait},
-};
-use velopack::{bundle::load_bundle_from_file, bundle::Manifest, locator::VelopackLocator, constants};
+use crate::shared::{self, OperationWait};
+use velopack::{locator::VelopackLocator, constants};
 use anyhow::{bail, Result};
 use std::path::PathBuf;
 
@@ -19,13 +17,14 @@ pub fn apply<'a>(
     package: Option<&PathBuf>,
     exe_args: Option<Vec<&str>>,
     run_hooks: bool,
-) -> Result<()> {
+) -> Result<VelopackLocator> {
     shared::operation_wait(wait);
 
-    let package = package.cloned().map_or_else(|| auto_locate_package(&locator), Ok);
-    
+    let packages_dir = locator.get_packages_dir();
+    let package = package.cloned().or_else(|| shared::find_latest_full_package(&packages_dir).map(|x| x.0));
+
     match package {
-        Ok(package) => {
+        Some(package) => {
             info!("Getting ready to apply package to {} ver {}: {}", 
                 locator.get_manifest_id(), 
                 locator.get_manifest_version_full_string(), 
@@ -37,15 +36,15 @@ pub fn apply<'a>(
                     if restart {
                         shared::start_package(&applied_locator, exe_args, Some(constants::HOOK_ENV_RESTART))?;
                     }
-                    return Ok(());
+                    return Ok(applied_locator);
                 }
                 Err(e) => {
                     error!("Error applying package: {}", e);
                 }
             }
         }
-        Err(e) => {
-            error!("Failed to locate package ({}).", e);
+        None => {
+            error!("Failed to locate full package to apply. Please provide with the --package {{path}} argument");
         }
     }
 
@@ -55,34 +54,4 @@ pub fn apply<'a>(
     }
 
     bail!("Apply failed, see logs for details.");
-}
-
-fn auto_locate_package(locator: &VelopackLocator) -> Result<PathBuf> {
-    let packages_dir = locator.get_packages_dir_as_string();
-    info!("Attempting to auto-detect package in: {}", packages_dir);
-    let mut package_path: Option<PathBuf> = None;
-    let mut package_manifest: Option<Manifest> = None;
-
-    if let Ok(paths) = glob::glob(format!("{}/*.nupkg", packages_dir).as_str()) {
-        for path in paths {
-            if let Ok(path) = path {
-                trace!("Checking package: '{}'", path.to_string_lossy());
-                if let Ok(mut bun) = load_bundle_from_file(&path) {
-                    if let Ok(mani) = bun.read_manifest() {
-                        if package_manifest.is_none() || mani.version > package_manifest.clone().unwrap().version {
-                            info!("Found {}: '{}'", mani.version, path.to_string_lossy());
-                            package_manifest = Some(mani);
-                            package_path = Some(path);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if let Some(p) = package_path {
-        Ok(p)
-    } else {
-        bail!("Unable to find/load suitable package. Provide via the --package argument.");
-    }
 }
