@@ -2,6 +2,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+export function isWindows(): boolean {
+  return os.platform() == "win32";
+}
+
 export function getTempDir(): string {
   return fs.realpathSync(os.tmpdir());
 }
@@ -108,7 +112,7 @@ export function updateExe(): string {
 }
 
 export function shortDelay(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 100));
+  return new Promise((resolve) => setTimeout(resolve, 300));
 }
 
 // export function copyUpdateExeTo(dir: string, filename?: string): string {
