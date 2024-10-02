@@ -7,7 +7,9 @@
   <ItemGroup>
   </ItemGroup>
   <ItemGroup>
-    <PackageVersion Include="Velopack" Version="0.0.528-g2980846" />
-    <PackageVersion Include="Velopack.Build" Version="0.0.528-g2980846" />
+    <PackageVersion Include="System.Private.Uri" Version="4.3.2" />
+    <PackageVersion Include="System.Text.Json" Version="8.0.4" />
+    <PackageVersion Include="Velopack" Version="0.0.626" />
+    <PackageVersion Include="Velopack.Build" Version="0.0.626" />
   </ItemGroup>
 </Project>

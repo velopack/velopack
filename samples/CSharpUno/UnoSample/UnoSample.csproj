@@ -59,6 +59,8 @@
   </PropertyGroup>-->
 
   <ItemGroup>
+    <PackageReference Include="System.Private.Uri" />
+    <PackageReference Include="System.Text.Json" />
     <PackageReference Include="Velopack" />
     <PackageReference Include="Velopack.Build">
       <PrivateAssets>all</PrivateAssets>
