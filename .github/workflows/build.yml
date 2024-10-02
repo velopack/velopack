@@ -304,8 +304,8 @@ jobs:
         run: |
           mkdir bin-core
           mkdir bin-nodejs
-          mv bin-target/release/*.node bin-nodejs/
-          mv bin-target/release/* bin-core/
+          mv target/release/*.node bin-nodejs/
+          mv target/release/* bin-core/
       - name: Upload Core
         uses: actions/upload-artifact@v4
         with:
