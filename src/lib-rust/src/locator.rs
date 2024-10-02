@@ -23,10 +23,11 @@ pub fn default_log_location(context: LocationContext) -> PathBuf {
         if let Ok(locator) = auto_locate_app_manifest(context) {
             return locator.get_root_dir().join("Velopack.log");
         }
+        
+        warn!("Could not auto-locate app manifest, writing log to current directory.");
 
-        // If we can't locate the current app, we write to the parent directory.
+        // If we can't locate the current app, we write to the current directory.
         let mut my_exe = std::env::current_exe().expect("Could not locate current executable");
-        my_exe.pop();
         my_exe.pop();
         return my_exe.join("Velopack.log");
     }
@@ -258,18 +259,6 @@ impl VelopackLocator {
             return None;
         }
         Some(self.manifest.shortcut_amuid.clone())
-    }
-
-    /// Returns a copy of the current VelopackLocator with the shortcut_locations
-    /// field set to an empty string. 
-    pub fn clone_self_with_blank_shortcuts(&self) -> VelopackLocator
-    {
-        let mut new_manifest = self.manifest.clone();
-        new_manifest.shortcut_locations = "".to_string();
-        VelopackLocator {
-            paths: self.paths.clone(),
-            manifest: new_manifest,
-        }
     }
 
     /// Returns a copy of the current VelopackLocator with the manifest field set to the given manifest.
