@@ -1,18 +1,14 @@
-// This module loads the platform-specific build of the addon on
-// the current system. The supported platforms are registered in
-// the `platforms` object below, whose entries can be managed by
-// by the Neon CLI:
-//
-//   https://www.npmjs.com/package/@neon-rs/cli
-
 import { proxy } from "@neon-rs/load";
 
 module.exports = proxy({
   platforms: {
-    "win32-x64-msvc": () => require("@velopack/win32-x64-msvc"),
-    "darwin-x64": () => require("@velopack/darwin-x64"),
-    "darwin-arm64": () => require("@velopack/darwin-arm64"),
-    "linux-x64-gnu": () => require("@velopack/linux-x64-gnu"),
+    "win32-x86-msvc": () => require("./native/velopack_nodeffi_win_x86_msvc.node"),
+    "win32-x64-msvc": () => require("./native/velopack_nodeffi_win_x64_msvc.node"),
+    "win32-arm64-msvc": () => require("./native/velopack_nodeffi_win_arm64_msvc.node"),
+    "darwin-x64": () => require("./native/velopack_nodeffi_osx.node"),
+    "darwin-arm64": () => require("./native/velopack_nodeffi_osx.node"),
+    "linux-x64-gnu": () => require("./native/velopack_nodeffi_linux_x64_gnu.node"),
+    "linux-arm64-gnu": () => require("./native/velopack_nodeffi_linux_arm64_gnu.node"),
   },
   debug: () => require("../index.node"),
 });
