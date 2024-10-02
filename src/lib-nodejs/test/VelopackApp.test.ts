@@ -1,5 +1,5 @@
 import { VelopackApp, VelopackLocatorConfig } from "../src/index";
-import { shortDelay } from "./helper";
+import { shortDelay, isWindows } from "./helper";
 
 class HookTester {
   public afterInstall = false;
@@ -67,6 +67,8 @@ test("VelopackApp should handle restarted event", async () => {
 });
 
 test("VelopackApp should handle after-install hook", async () => {
+  if (!isWindows()) return;
+
   let [builder, tester] = HookTester.build();
   builder.setArgs(["--veloapp-install", "1.2.3-test.4"]).run();
 
@@ -81,6 +83,8 @@ test("VelopackApp should handle after-install hook", async () => {
 });
 
 test("VelopackApp should handle before-uninstall hook", async () => {
+  if (!isWindows()) return;
+
   let [builder, tester] = HookTester.build();
   builder.setArgs(["--veloapp-uninstall", "1.2.3-test"]).run();
 
@@ -95,6 +99,8 @@ test("VelopackApp should handle before-uninstall hook", async () => {
 });
 
 test("VelopackApp should handle after-update hook", async () => {
+  if (!isWindows()) return;
+
   let [builder, tester] = HookTester.build();
   builder.setArgs(["--veloapp-updated", "1.2.3"]).run();
 
@@ -109,6 +115,8 @@ test("VelopackApp should handle after-update hook", async () => {
 });
 
 test("VelopackApp should handle before-update hook", async () => {
+  if (!isWindows()) return;
+
   let [builder, tester] = HookTester.build();
   builder.setArgs(["--veloapp-obsolete", "1.2.3-test.4"]).run();
 
