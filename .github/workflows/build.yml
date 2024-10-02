@@ -280,6 +280,9 @@ jobs:
       - uses: dotnet/nbgv@master
         with:
           setAllVars: true
+      - name: Update Version
+        shell: pwsh
+        run: ./set-nbgv-version.ps1
       - name: Download Rust Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -288,6 +291,11 @@ jobs:
           merge-multiple: true
       - name: Build .NET
         run: dotnet build -c Release /p:PackRustAssets=true /p:ContinuousIntegrationBuild=true
+      - name: Build lib-nodejs
+        working-directory: src/lib-nodejs
+        run: |
+          npm install
+          npm run build
       - name: Write Version File
         run: echo $NBGV_NuGetPackageVersion > version.txt
       - name: Upload version file as artifact
@@ -304,18 +312,35 @@ jobs:
         run: |
           mkdir bin-core
           mkdir bin-nodejs
+          mkdir src/lib-nodejs/lib/native
           mv target/release/*.node bin-nodejs/
           mv target/release/* bin-core/
-      - name: Upload Core
+          cp bin-nodejs/*.node src/lib-nodejs/lib/native/
+      - name: Upload Core Bins
         uses: actions/upload-artifact@v4
         with:
           name: bin-core
           path: bin-core/*
-      - name: Upload Node
+      - name: Upload Node Bins
         uses: actions/upload-artifact@v4
         with:
           name: bin-nodejs
           path: bin-nodejs/*
+      - name: Pack lib-nodejs
+        working-directory: src/lib-nodejs
+        run: npm pack
+      - name: Pack lib-rust
+        run: cargo package -p velopack
+      - name: Upload lib-nodejs package
+        uses: actions/upload-artifact@v4
+        with:
+          name: lib-nodejs
+          path: src/lib-nodejs/velopack-*.tgz
+      - name: Upload lib-rust package
+        uses: actions/upload-artifact@v4
+        with:
+          name: lib-rust
+          path: target/package/velopack-*.crate
 
   release:
     runs-on: ubuntu-latest
