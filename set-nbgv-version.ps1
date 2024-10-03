@@ -17,3 +17,6 @@ Write-Host "Setting version to $version"
 
 Set-Location "$scriptDir/src/lib-nodejs"
 npm version $version --no-git-tag-version
+
+Copy-Item -Path "$scriptDir/README_NUGET.md" -Destination "$scriptDir/src/lib-nodejs/README.md" -Force
+Copy-Item -Path "$scriptDir/README_NUGET.md" -Destination "$scriptDir/src/lib-rust/README.md" -Force

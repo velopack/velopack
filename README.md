@@ -29,10 +29,11 @@ https://github.com/velopack/velopack/assets/1287295/0ff1bea7-15ed-42ae-8bdd-9519
 - 📖 [Read the docs](https://docs.velopack.io/)
 - ⚡ [Quick start guides](https://docs.velopack.io/category/quick-start)
 - 🕶️ [View example apps](https://docs.velopack.io/category/sample-apps)
+- 📺 [See website & demo](https://velopack.io/)
 
 ## Community
-- ❓ Ask questions, get support, or discuss ideas on [our Discord server](https://discord.gg/CjrCrNzd3F)
-- 🗣️ Report bugs on [GitHub Issues](https://github.com/velopack/velopack/issues)
+- ❓ Ask questions, get support, or discuss ideas on [Discord](https://discord.gg/CjrCrNzd3F)
+- 🗣️ Report bugs or request features on [GitHub Issues](https://github.com/velopack/velopack/issues)
 
 ## Contributing
 - 💬 Join us on [Discord](https://discord.gg/CjrCrNzd3F) to get involved in dev discussions
@@ -47,3 +48,6 @@ Just wanted to say a huge thank you. I've been using Clowd.Squirrel for a couple
 
 I've used a lot of installer frameworks and Velopack is by far the best. Everything is like magic: you run the installer, and then the app is just open, ready to use. Updates apply and relaunch in ~2 seconds with no UAC prompts. The installer creation process is painless and integrates easily with code signing, and the command-line tool makes it simple to upload your updater files. You don't need to futz with separate installer scripts in some weird language; you can build all those hooks into your main app! The support is also phenominal; every concern I've had has been addressed. This is the future of desktop installers.
 [- RandomEngy (Discord)](https://discord.com/channels/767856501477343282/947444323765583913/1200897478036299861)
+
+I'm extremely impressed with Velopack's performance in creating releases, as well as checking for and applying updates. It is significantly faster than other tools. The vpk CLI is intuitive and easy to implement, even with my complex build pipeline. Thanks to Velopack, I've been able to streamline my workflow and save valuable time. It's a fantastic tool that I highly recommend!
+[- khdc (Discord)](https://discord.com/channels/767856501477343282/947444323765583913/1216460920696344576)

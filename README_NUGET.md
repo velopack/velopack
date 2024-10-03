@@ -13,7 +13,8 @@ Velopack is an installation and auto-update framework for cross-platform applica
 - 📖 [Read the docs](https://docs.velopack.io/)
 - ⚡ [Quick start guides](https://docs.velopack.io/category/quick-start)
 - 🕶️ [View example apps](https://docs.velopack.io/category/sample-apps)
+- 📺 [See website & demo](https://velopack.io/)
 
 ## Community
-- ❓ Ask questions, get support, or discuss ideas on [our Discord server](https://discord.gg/CjrCrNzd3F)
-- 🗣️ Report bugs on [GitHub Issues](https://github.com/velopack/velopack/issues)
+- ❓ Ask questions, get support, or discuss ideas on [Discord](https://discord.gg/CjrCrNzd3F)
+- 🗣️ Report bugs or request features on [GitHub Issues](https://github.com/velopack/velopack/issues)
