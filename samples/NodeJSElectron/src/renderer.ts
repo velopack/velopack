@@ -29,3 +29,32 @@
 import './index.css';
 
 console.log('👋 This message is being logged by "renderer.js", included via webpack');
+
+// "get-version"
+// "check-for-update"
+// "check-for-update-response"
+// "download-update"
+// "download-update-response"
+// "apply-update"
+// "apply-update-response"
+
+const updateLabel = document.getElementById("app-info");
+let currentVersion = velopackApi.getVersion();
+updateLabel.innerHTML = "Current Version: " + currentVersion;
+
+// const updateBtn = document.getElementById("update-btn") as HTMLButtonElement;
+// const downloadBtn = document.getElementById("download-btn") as HTMLButtonElement;
+// const applyBtn = document.getElementById("apply-btn") as HTMLButtonElement;
+
+// async function updateBtnClicked() {
+// }
+
+// async function downloadBtnClicked() {
+// }
+
+// async function applyBtnClicked() {
+// }
+
+// updateBtn.addEventListener("click", updateBtnClicked);
+// downloadBtn.addEventListener("click", downloadBtnClicked);
+// applyBtn.addEventListener("click", applyBtnClicked);
