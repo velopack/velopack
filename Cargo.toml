@@ -3,7 +3,7 @@ resolver = "2"
 members = [
     "src/bins",
     "src/lib-rust",
-    "src/lib-nodejs/crates/velopack_nodeffi",
+    "src/lib-nodejs/velopack_nodeffi",
     # "src/lib-cpp/generator,"
 ]
 exclude = [
