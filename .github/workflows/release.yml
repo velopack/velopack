@@ -105,3 +105,13 @@ jobs:
           for f in packages/*.nupkg; do
             dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
           done
+          
+      - name: Publish velopack rust crate
+        run: |
+          cargo login ${{ secrets.CARGO_TOKEN }}
+          cargo publish --allow-dirty -p velopack
+          
+      - name: Publish velopack npm package
+        run: |
+          npm login --registry=https://registry.npmjs.org/ --scope=@velopack
+          npm publish ./packages/velopack-npm-*.tgz --access public

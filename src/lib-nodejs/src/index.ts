@@ -187,6 +187,9 @@ export class UpdateManager {
     );
   }
 
+  /**
+   * Returns the currently installed version of the app.
+   */
   getCurrentVersion(): string {
     return addon.js_get_current_version(this.opaque);
   }
