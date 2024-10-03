@@ -10,6 +10,7 @@ npm-debug.log*
 lib
 cargo.log
 cross.log
+*.tgz
 
 
 #################

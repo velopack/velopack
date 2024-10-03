@@ -15,5 +15,5 @@ module.exports = proxy({
     "linux-arm64-gnu": () =>
       require("./native/velopack_nodeffi_linux_arm64_gnu.node"),
   },
-  debug: () => require("../index.node"),
+  debug: () => require("./debug.node"),
 });
