@@ -330,7 +330,7 @@ jobs:
         working-directory: src/lib-nodejs
         run: npm pack
       - name: Pack lib-rust
-        run: cargo package -p velopack
+        run: cargo package -p velopack --allow-dirty
       - name: Upload lib-nodejs package
         uses: actions/upload-artifact@v4
         with:
