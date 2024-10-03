@@ -51,8 +51,8 @@ public class CompatUtil
             if (result.Contains("Program") && result.Contains("Main")) {
                 _log.Info($"[green underline]Verified VelopackApp.Run()[/] in '{result}'.");
             } else {
-                _log.Warn($"VelopackApp.Run() was found in method '{result}', which does not look like your application's entry point." +
-                    $"It is [underline yellow]strongly recommended[/] that you move this to the very beginning of your Main() method. ");
+                _log.Warn($"VelopackApp.Run() was found in method '{result}', which does not look like your application's entry point. " +
+                    "It is [underline yellow]strongly recommended[/] that you move this to the very beginning of your Main() method. ");
             }
 
         } catch (Exception ex) when (ex is not UserInfoException) {
