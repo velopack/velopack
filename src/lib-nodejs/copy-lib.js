@@ -4,12 +4,25 @@ const path = require("node:path");
 
 const platform = os.platform();
 
+function makeCopies(input) {
+  // this is obviously not correct for a "production" bundle, but it is used for testing
+  // creating a "node" module at all of the expected production locations allows us to test
+  // webpack require resolution and native module bundling etc.
+  fs.mkdirSync("./lib/native");
+  fs.copyFileSync(input, "./lib/native/velopack_nodeffi_win_x86_msvc.node");
+  fs.copyFileSync(input, "./lib/native/velopack_nodeffi_win_x64_msvc.node");
+  fs.copyFileSync(input, "./lib/native/velopack_nodeffi_win_arm64_msvc.node");
+  fs.copyFileSync(input, "./lib/native/velopack_nodeffi_osx.node");
+  fs.copyFileSync(input, "./lib/native/velopack_nodeffi_linux_x64_gnu.node");
+  fs.copyFileSync(input, "./lib/native/velopack_nodeffi_linux_arm64_gnu.node");
+}
+
 if (platform == "win32") {
-  fs.copyFileSync("../../target/debug/velopack_nodeffi.dll", "lib/debug.node");
+  makeCopies("../../target/debug/velopack_nodeffi.dll");
 } else if (platform == "darwin") {
-  fs.copyFileSync("../../target/debug/libvelopack_nodeffi.dylib", "lib/debug.node");
+  makeCopies("../../target/debug/libvelopack_nodeffi.dylib");
 } else if (platform == "linux") {
-  fs.copyFileSync("../../target/debug/libvelopack_nodeffi.so", "lib/debug.node");
+  makeCopies("../../target/debug/libvelopack_nodeffi.so");
 } else {
   throw new Error("Unsupported platform: " + platform);
 }
