@@ -70,7 +70,7 @@ jobs:
         shell: pwsh
         run: .\set-nbgv-version.ps1
       - name: Build Rust Bins (x86)
-        run: cargo +1.75.0-x86_64-pc-windows-msvc build --target i686-pc-windows-msvc --features windows --release --workspace --exclude velopack_nodeffi
+        run: cargo +1.75.0-x86_64-pc-windows-msvc build --target i686-pc-windows-msvc --features windows --release
       - name: Upload Rust Build Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -78,8 +78,6 @@ jobs:
           path: |
             target\i686-pc-windows-msvc\release\*.exe
             target\i686-pc-windows-msvc\release\*.pdb
-      - name: Build velopack_nodeffi (x86)
-        run: cargo +1.75.0-x86_64-pc-windows-msvc build --target i686-pc-windows-msvc --release --package velopack_nodeffi
       - name: Build velopack_nodeffi (x64)
         run: cargo +1.75.0-x86_64-pc-windows-msvc build --target x86_64-pc-windows-msvc --release --package velopack_nodeffi
       - name: Build velopack_nodeffi (arm64)
