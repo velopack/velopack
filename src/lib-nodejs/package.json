@@ -1,12 +1,12 @@
 {
   "name": "velopack",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "scripts": {
     "test": "npm run dev && cross-env VELOPACK_RESTART=true VELOPACK_DEBUG=true jest",
-    "dev": "cargo build && tsc -p tsconfig.build.json && node copy-lib.js && npm run lint",
+    "dev": "cargo build -p velopack_nodeffi && tsc -p tsconfig.build.json && node copy-lib.js",
     "build": "tsc -p tsconfig.build.json",
     "clean": "del-cli **/*.node lib",
     "lint": "prettier . --write"
