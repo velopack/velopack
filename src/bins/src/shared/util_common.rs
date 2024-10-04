@@ -2,8 +2,6 @@ use anyhow::{anyhow, Result};
 use rand::distributions::{Alphanumeric, DistString};
 use regex::Regex;
 use std::{path::Path, thread, time::Duration};
-use std::path::PathBuf;
-use velopack::bundle::{load_bundle_from_file, Manifest};
 
 #[derive(Debug, Clone, Copy)]
 pub enum OperationWait {
@@ -24,30 +22,6 @@ pub fn operation_wait(wait: OperationWait) {
     } else {
         debug!("NoWait was specified, will not wait for any process before continuing.");
     }
-}
-
-pub fn find_latest_full_package(packages_dir: &PathBuf) -> Option<(PathBuf, Manifest)> {
-    let packages_dir = packages_dir.to_string_lossy();
-    
-    info!("Attempting to auto-detect package in: {}", packages_dir);
-    let mut package: Option<(PathBuf, Manifest)> = None;
-
-    if let Ok(paths) = glob::glob(format!("{}/*.nupkg", packages_dir).as_str()) {
-        for path in paths {
-            if let Ok(path) = path {
-                trace!("Checking package: '{}'", path.to_string_lossy());
-                if let Ok(mut bun) = load_bundle_from_file(&path) {
-                    if let Ok(mani) = bun.read_manifest() {
-                        if package.is_none() || mani.version > package.clone().unwrap().1.version {
-                            info!("Found {}: '{}'", mani.version, path.to_string_lossy());
-                            package = Some((path, mani));
-                        }
-                    }
-                }
-            }
-        }
-    }
-    package
 }
 
 pub fn retry_io<F, T, E>(op: F) -> Result<T, E>

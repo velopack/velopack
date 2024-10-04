@@ -15,10 +15,11 @@ declare module "./load" {
 
   function js_get_current_version(um: UpdateManagerOpaque): string;
 
-  // function js_get_app_id(um: UpdateManagerOpaque): string;
-  // function js_is_portable(um: UpdateManagerOpaque): boolean;
-  // function js_is_installed(um: UpdateManagerOpaque): boolean;
-  // function js_is_update_pending_restart(um: UpdateManagerOpaque): boolean;
+  function js_get_app_id(um: UpdateManagerOpaque): string;
+  
+  function js_is_portable(um: UpdateManagerOpaque): boolean;
+  
+  function js_update_pending_restart(um: UpdateManagerOpaque): UpdateInfo | null;
 
   function js_check_for_updates_async(
     um: UpdateManagerOpaque,
@@ -147,14 +148,6 @@ export class VelopackApp {
   }
 
   /**
-   * Set a custom logger callback to receive log messages from Velopack. The default behavior is to log to console.log.
-   */
-  setLogger(callback: (loglevel: LogLevel, msg: string) => void): VelopackApp {
-    addon.js_set_logger_callback(callback);
-    return this;
-  }
-
-  /**
    * Runs the Velopack startup logic. This should be the first thing to run in your app.
    * In some circumstances it may terminate/restart the process to perform tasks.
    */
@@ -194,21 +187,28 @@ export class UpdateManager {
     return addon.js_get_current_version(this.opaque);
   }
 
-  // getAppId(): string {
-  //   return addon.js_get_app_id.call(this.opaque);
-  // }
+  /**
+   * Returns the currently installed app id.
+   */
+  getAppId(): string {
+    return addon.js_get_app_id.call(this.opaque);
+  }
 
-  // isInstalled(): boolean {
-  //   return addon.js_is_installed.call(this.opaque);
-  // }
+  /**
+   * Returns whether the app is in portable mode. On Windows this can be true or false. 
+   * On MacOS and Linux this will always be true.
+   */
+  isPortable(): boolean {
+    return addon.js_is_portable.call(this.opaque);
+  }
 
-  // isPortable(): boolean {
-  //   return addon.js_is_portable.call(this.opaque);
-  // }
-
-  // isUpdatePendingRestart(): boolean {
-  //   return addon.js_is_update_pending_restart.call(this.opaque);
-  // }
+  /**
+   * Returns an UpdateInfo object if there is an update downloaded which still needs to be applied.
+   * You can pass the UpdateInfo object to waitExitThenApplyUpdate to apply the update.
+   */
+  getUpdatePendingRestart(): UpdateInfo | null {
+    return addon.js_update_pending_restart.call(this.opaque);
+  }
 
   /**
    * Checks for updates, returning None if there are none available. If there are updates available, this method will return an
@@ -270,4 +270,11 @@ export class UpdateManager {
       restartArgs,
     );
   }
+}
+
+/**
+ * Set a custom logger callback to receive log messages from Velopack. The default behavior is to log to console.log.
+ */
+export function setVelopackLogger(callback: (loglevel: LogLevel, msg: string) => void) {
+  addon.js_set_logger_callback(callback);
 }

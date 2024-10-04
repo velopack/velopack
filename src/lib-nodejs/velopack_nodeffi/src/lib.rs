@@ -68,8 +68,39 @@ fn js_new_update_manager(mut cx: FunctionContext) -> JsResult<BoxedUpdateManager
 fn js_get_current_version(mut cx: FunctionContext) -> JsResult<JsString> {
     let mgr_boxed = cx.argument::<BoxedUpdateManager>(0)?;
     let mgr_ref = &mgr_boxed.borrow().manager;
-    let version = mgr_ref.current_version().or_else(|e| cx.throw_error(e.to_string()))?;
+    let version = mgr_ref.get_current_version();
     Ok(cx.string(version))
+}
+
+fn js_get_app_id(mut cx: FunctionContext) -> JsResult<JsString> {
+    let mgr_boxed = cx.argument::<BoxedUpdateManager>(0)?;
+    let mgr_ref = &mgr_boxed.borrow().manager;
+    let id = mgr_ref.get_app_id();
+    Ok(cx.string(id))
+}
+
+fn js_is_portable(mut cx: FunctionContext) -> JsResult<JsBoolean> {
+    let mgr_boxed = cx.argument::<BoxedUpdateManager>(0)?;
+    let mgr_ref = &mgr_boxed.borrow().manager;
+    let is_portable = mgr_ref.get_is_portable();
+    Ok(cx.boolean(is_portable))
+}
+
+fn js_update_pending_restart(mut cx: FunctionContext) -> JsResult<JsValue> {
+    let mgr_boxed = cx.argument::<BoxedUpdateManager>(0)?;
+    let mgr_ref = &mgr_boxed.borrow().manager;
+    let pending_restart = mgr_ref.get_update_pending_restart();
+
+    if let Some(asset) = pending_restart {
+        let json = serde_json::to_string(&asset);
+        match json {
+            Ok(json) => Ok(cx.string(json).upcast()),
+            Err(e) => cx.throw_error(e.to_string()),
+        }
+    } else {
+        let nil = cx.null().upcast();
+        Ok(nil)
+    }
 }
 
 fn js_check_for_updates_async(mut cx: FunctionContext) -> JsResult<JsPromise> {
@@ -254,10 +285,9 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
 
     cx.export_function("js_new_update_manager", js_new_update_manager)?;
     cx.export_function("js_get_current_version", js_get_current_version)?;
-    // cx.export_function("js_get_app_id", js_get_app_id)?;
-    // cx.export_function("js_is_portable", js_is_portable)?;
-    // cx.export_function("js_is_installed", js_is_installed)?;
-    // cx.export_function("js_is_update_pending_restart", js_is_update_pending_restart)?;
+    cx.export_function("js_get_app_id", js_get_app_id)?;
+    cx.export_function("js_is_portable", js_is_portable)?;
+    cx.export_function("js_update_pending_restart", js_update_pending_restart)?;
     cx.export_function("js_check_for_updates_async", js_check_for_updates_async)?;
     cx.export_function("js_download_update_async", js_download_update_async)?;
     cx.export_function("js_wait_exit_then_apply_update", js_wait_exit_then_apply_update)?;

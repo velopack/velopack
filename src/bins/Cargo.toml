@@ -52,7 +52,6 @@ strum.workspace = true
 derivative.workspace = true
 glob.workspace = true
 remove_dir_all.workspace = true
-sha1_smol.workspace = true
 time.workspace = true
 os_info.workspace = true
 bitflags.workspace = true
@@ -111,6 +110,7 @@ filelocksmith.workspace = true
 tempfile.workspace = true
 ntest.workspace = true
 pretty_assertions.workspace = true
+sha1_smol.workspace = true
 
 [build-dependencies]
 semver.workspace = true

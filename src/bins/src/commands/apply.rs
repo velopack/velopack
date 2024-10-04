@@ -1,5 +1,5 @@
 use crate::shared::{self, OperationWait};
-use velopack::{locator::VelopackLocator, constants};
+use velopack::{locator, locator::VelopackLocator, constants};
 use anyhow::{bail, Result};
 use std::path::PathBuf;
 
@@ -21,7 +21,7 @@ pub fn apply<'a>(
     shared::operation_wait(wait);
 
     let packages_dir = locator.get_packages_dir();
-    let package = package.cloned().or_else(|| shared::find_latest_full_package(&packages_dir).map(|x| x.0));
+    let package = package.cloned().or_else(|| locator::find_latest_full_package(&packages_dir).map(|x| x.0));
 
     match package {
         Some(package) => {
