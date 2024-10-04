@@ -68,7 +68,7 @@ fn js_new_update_manager(mut cx: FunctionContext) -> JsResult<BoxedUpdateManager
 fn js_get_current_version(mut cx: FunctionContext) -> JsResult<JsString> {
     let mgr_boxed = cx.argument::<BoxedUpdateManager>(0)?;
     let mgr_ref = &mgr_boxed.borrow().manager;
-    let version = mgr_ref.get_current_version();
+    let version = mgr_ref.get_current_version_as_string();
     Ok(cx.string(version))
 }
 
@@ -233,6 +233,8 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     }
 
     let locator = args_get_locator(&mut cx, 2)?;
+    
+    let auto_apply = cx.argument::<JsBoolean>(3)?.value(&mut cx);
 
     let undefined = cx.undefined();
     let cx_ref = Rc::new(RefCell::new(cx));
@@ -248,7 +250,8 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
 
     let mut builder = VelopackApp::build()
         .on_restarted(|semver| hook_handler("restarted", semver))
-        .on_first_run(|semver| hook_handler("first-run", semver));
+        .on_first_run(|semver| hook_handler("first-run", semver))
+        .set_auto_apply_on_startup(auto_apply);
 
     #[cfg(target_os = "windows")]
     {

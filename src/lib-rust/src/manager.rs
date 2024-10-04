@@ -82,6 +82,12 @@ impl AsRef<VelopackAsset> for UpdateInfo {
     }
 }
 
+impl AsRef<VelopackAsset> for VelopackAsset {
+    fn as_ref(&self) -> &VelopackAsset {
+        &self
+    }
+}
+
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[cfg_attr(feature = "typescript", derive(ts_rs::TS))]
@@ -159,9 +165,14 @@ impl UpdateManager {
         channel
     }
 
-    /// The currently installed app version.
-    pub fn get_current_version(&self) -> String {
+    /// The currently installed app version as a string.
+    pub fn get_current_version_as_string(&self) -> String {
         self.locator.get_manifest_version_full_string()
+    }
+    
+    /// The currently installed app version as a semver Version.
+    pub fn get_current_version(&self) -> Version {
+        self.locator.get_manifest_version()
     }
 
     /// The currently installed app id.
@@ -393,7 +404,7 @@ impl UpdateManager {
     /// This will exit your app immediately and apply specified updates. It will not restart your app afterwards.
     /// If you need to save state or clean up, you should do that before calling this method.
     /// The user may be prompted during the update, if the update requires additional frameworks to be installed etc.
-    pub fn apply_updates_and_exit<A, C, S>(&self, to_apply: A) -> Result<(), Error>
+    pub fn apply_updates_and_exit<A>(&self, to_apply: A) -> Result<(), Error>
     where
         A: AsRef<VelopackAsset>,
     {

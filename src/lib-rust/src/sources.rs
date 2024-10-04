@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::*;
+use crate::bundle::Manifest;
 
 /// Abstraction for finding and downloading updates from a package source / repository.
 /// An implementation may copy a file from a local repository, download from a web address,
@@ -21,6 +22,22 @@ pub trait UpdateSource: Send + Sync {
 impl Clone for Box<dyn UpdateSource> {
     fn clone(&self) -> Self {
         self.clone_boxed()
+    }
+}
+
+/// A source that does not provide any update capability. 
+#[derive(Clone)]
+pub struct NoneSource {}
+
+impl UpdateSource for NoneSource {
+    fn get_release_feed(&self, _channel: &str, _app: &Manifest) -> Result<VelopackAssetFeed, Error> {
+        Err(Error::Generic("None source does not checking release feed".to_owned()))
+    }
+    fn download_release_entry(&self, _asset: &VelopackAsset, _local_file: &str, _progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
+        Err(Error::Generic("None source does not support downloads".to_owned()))
+    }
+    fn clone_boxed(&self) -> Box<dyn UpdateSource> {
+        Box::new(self.clone())
     }
 }
 
