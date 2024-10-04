@@ -43,6 +43,7 @@ declare module "./load" {
     cb: (hook_name: string, current_version: string) => void,
     customArgs: string[] | null,
     locator: string | null,
+    autoApply: boolean,
   ): void;
 
   function js_set_logger_callback(
@@ -66,6 +67,7 @@ export class VelopackApp {
   private _hooks = new Map<VelopackHookType, VelopackHook>();
   private _customArgs: string[] | null = null;
   private _customLocator: VelopackLocatorConfig | null = null;
+  private _autoApply = true;
 
   static build(): VelopackApp {
     return new VelopackApp();
@@ -148,6 +150,15 @@ export class VelopackApp {
   }
 
   /**
+   * Set whether to automatically apply downloaded updates on startup. This is ON by default.
+   */
+  setAutoApplyOnStartup(autoApply: boolean): VelopackApp {
+    this._autoApply = autoApply;
+    return this;
+  }
+  
+
+  /**
    * Runs the Velopack startup logic. This should be the first thing to run in your app.
    * In some circumstances it may terminate/restart the process to perform tasks.
    */
@@ -161,6 +172,7 @@ export class VelopackApp {
       },
       this._customArgs,
       this._customLocator ? JSON.stringify(this._customLocator) : null,
+        this._autoApply
     );
   }
 }
@@ -191,7 +203,7 @@ export class UpdateManager {
    * Returns the currently installed app id.
    */
   getAppId(): string {
-    return addon.js_get_app_id.call(this.opaque);
+    return addon.js_get_app_id(this.opaque);
   }
 
   /**
@@ -199,7 +211,7 @@ export class UpdateManager {
    * On MacOS and Linux this will always be true.
    */
   isPortable(): boolean {
-    return addon.js_is_portable.call(this.opaque);
+    return addon.js_is_portable(this.opaque);
   }
 
   /**
@@ -207,7 +219,7 @@ export class UpdateManager {
    * You can pass the UpdateInfo object to waitExitThenApplyUpdate to apply the update.
    */
   getUpdatePendingRestart(): UpdateInfo | null {
-    return addon.js_update_pending_restart.call(this.opaque);
+    return addon.js_update_pending_restart(this.opaque);
   }
 
   /**

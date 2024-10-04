@@ -3,10 +3,11 @@ use std::env;
 use std::process::exit;
 
 use crate::{
-    locator::{auto_locate_app_manifest, VelopackLocatorConfig},
-    Error, constants::*,
+    locator::{VelopackLocatorConfig}, 
+    constants::*,
+    manager,
+    sources,
 };
-use crate::locator::{LocationContext, VelopackLocator};
 
 /// VelopackApp helps you to handle app activation events correctly.
 /// This should be used as early as possible in your application startup code.
@@ -18,7 +19,7 @@ pub struct VelopackApp<'a> {
     uninstall_hook: Option<Box<dyn FnOnce(Version) + 'a>>,
     firstrun_hook: Option<Box<dyn FnOnce(Version) + 'a>>,
     restarted_hook: Option<Box<dyn FnOnce(Version) + 'a>>,
-    // auto_apply: bool,
+    auto_apply: bool,
     args: Vec<String>,
     locator: Option<VelopackLocatorConfig>,
 }
@@ -33,7 +34,7 @@ impl<'a> VelopackApp<'a> {
             uninstall_hook: None,
             firstrun_hook: None,
             restarted_hook: None,
-            // auto_apply: true, // Default to true
+            auto_apply: true, // Default to true
             args: env::args().skip(1).collect(),
             locator: None,
         }
@@ -46,10 +47,10 @@ impl<'a> VelopackApp<'a> {
     }
 
     /// Set whether to automatically apply downloaded updates on startup. This is ON by default.
-    // pub fn set_auto_apply_on_startup(mut self, apply: bool) -> Self {
-    //     self.auto_apply = apply;
-    //     self
-    // }
+    pub fn set_auto_apply_on_startup(mut self, apply: bool) -> Self {
+        self.auto_apply = apply;
+        self
+    }
 
     /// Override the default file locator with a custom one (eg. for testing)
     pub fn set_locator(mut self, locator: VelopackLocatorConfig) -> Self {
@@ -126,20 +127,39 @@ impl<'a> VelopackApp<'a> {
             }
         }
 
-        let locator = self.load_locator();
-
-        if let Err(e) = locator {
-            error!("VelopackApp: Error loading locator: {:?}", e);
+        let manager = manager::UpdateManager::new(sources::NoneSource{}, None, self.locator.clone());
+        if let Err(e) = manager {
+            error!("VelopackApp: Error loading manager/locator: {:?}", e);
             return;
         }
+        let manager = manager.unwrap();
 
-        let my_version = locator.unwrap().get_manifest_version();
+        let my_version = manager.get_current_version();
 
         let firstrun = env::var(HOOK_ENV_FIRSTRUN).is_ok();
         env::remove_var(HOOK_ENV_FIRSTRUN);
         
         let restarted = env::var(HOOK_ENV_RESTART).is_ok();
         env::remove_var(HOOK_ENV_RESTART);
+        
+        // if auto apply is true, we should check for a local package downloaded with a version
+        // greater than ours. If it exists, we should quit and apply it now.
+        if self.auto_apply {
+            if let Some(asset) = manager.get_update_pending_restart() {
+                match Version::parse(&asset.Version) {
+                    Ok(asset_version) => {
+                        if asset_version > my_version {
+                            if let Err(e) = manager.apply_updates_and_restart_with_args(&asset, &args) {
+                                error!("VelopackApp: Error applying pending updates on startup: {:?}", e);
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        error!("VelopackApp: Error parsing asset version: {:?}", e);
+                    }
+                }
+            }
+        }
 
         if firstrun {
             Self::call_hook(&mut self.firstrun_hook, &my_version);
@@ -170,15 +190,5 @@ impl<'a> VelopackApp<'a> {
         } else {
             exit(0);
         }
-    }
-
-    fn load_locator(&self) -> Result<VelopackLocator, Error> {
-        let locator = if let Some(config) = &self.locator {
-            let manifest = config.load_manifest()?;
-            VelopackLocator::new(config.clone(), manifest)
-        } else {
-            auto_locate_app_manifest(LocationContext::FromCurrentExe)?
-        };
-        Ok(locator)
     }
 }
