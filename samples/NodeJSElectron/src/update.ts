@@ -2,46 +2,34 @@
 import { ipcMain, app } from "electron";
 import { UpdateManager } from "velopack";
 
+// replace me
 const updateUrl = "C:\\Source\\velopack\\samples\\NodeJSElectron\\releases";
 
 export async function initializeUpdates() {
-    ipcMain.on("get-version", (event) => {
+    ipcMain.handle("velopack:get-version", () => {
         try {
-            var updateManager = new UpdateManager(updateUrl);
-            event.returnValue = updateManager.getCurrentVersion();
+            const updateManager = new UpdateManager(updateUrl);
+            return updateManager.getCurrentVersion();
         } catch (e) {
-            event.returnValue = "Not Installed";
+            return `Not Installed (${e})`;
         }
     });
 
-    ipcMain.on("check-for-update", async (event) => {
-        try {
-            var updateManager = new UpdateManager(updateUrl);
-            const updateInfo = await updateManager.checkForUpdatesAsync();
-            event.sender.send("check-for-update-response", [updateInfo, null]);
-        } catch (e) {
-            event.sender.send("check-for-update-response", [null, e]);
-        }
+    ipcMain.handle("velopack:check-for-update", async () => {
+        const updateManager = new UpdateManager(updateUrl);
+        return await updateManager.checkForUpdatesAsync();
     });
 
-    ipcMain.on("download-update", async (event, updateInfo) => {
-        try {
-            var updateManager = new UpdateManager(updateUrl);
-            await updateManager.downloadUpdateAsync(updateInfo);
-            event.sender.send("download-update-response", [true, null]);
-        } catch (e) {
-            event.sender.send("download-update-response", [null, e]);
-        }
+    ipcMain.handle("velopack:download-update", async (_, updateInfo) => {
+        const updateManager = new UpdateManager(updateUrl);
+        await updateManager.downloadUpdateAsync(updateInfo);
+        return true;
     });
 
-    ipcMain.on("apply-update", async (event, updateInfo) => {
-        try {
-            var updateManager = new UpdateManager(updateUrl);
-            await updateManager.waitExitThenApplyUpdate(updateInfo);
-            event.sender.send("apply-update-response", [true, null]);
-            app.quit();
-        } catch (e) {
-            event.sender.send("apply-update-response", [null, e]);
-        }
+    ipcMain.handle("velopack:apply-update", async (_, updateInfo) => {
+        const updateManager = new UpdateManager(updateUrl);
+        await updateManager.waitExitThenApplyUpdate(updateInfo);
+        app.quit();
+        return true;
     });
 }

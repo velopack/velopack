@@ -26,7 +26,16 @@ call npm pack
 echo.
 echo Installing lib-nodejs package
 cd %~dp0
-npm install ..\..\src\lib-nodejs\velopack-0.0.0.tgz
+call npm install ..\..\src\lib-nodejs\velopack-0.0.0.tgz
+
+echo.
+echo Packing with electron-forge
+call npm run package
+
+echo.
+echo Creating Velopack Release
+call vpk pack -u VelopackElectronSample -v %version% -o %~dp0releases -p %~dp0out\VelopackElectronSample-win32-x64
+
 
 
 @REM echo.

@@ -2,36 +2,26 @@
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 
 import { contextBridge, ipcRenderer } from "electron";
+import type { UpdateInfo } from "velopack";
 
-contextBridge.exposeInMainWorld('velopackApi', {
-    getVersion: () => ipcRenderer.sendSync("get-version")
-});
+interface VelopackBridgeApi {
+    getVersion: () => Promise<string>,
+    checkForUpdates: () => Promise<UpdateInfo>,
+    downloadUpdates: (updateInfo: UpdateInfo) => Promise<boolean>,
+    applyUpdates: (updateInfo: UpdateInfo) => Promise<boolean>,
+}
 
-// "get-version"
-// "check-for-update"
-// "check-for-update-response"
-// "download-update"
-// "download-update-response"
-// "apply-update"
-// "apply-update-response"
+declare global {
+    interface Window {
+        velopackApi: VelopackBridgeApi;
+    }
+}
 
-// const updateLabel = document.getElementById("app-info");
-// let currentVersion = ipcRenderer.sendSync("get-version");
-// updateLabel.innerHTML = "Current Version: " + currentVersion;
+const velopackApi: VelopackBridgeApi = {
+    getVersion: () => ipcRenderer.invoke("velopack:get-version"),
+    checkForUpdates: () => ipcRenderer.invoke("velopack:check-for-update"),
+    downloadUpdates: (updateInfo: UpdateInfo) => ipcRenderer.invoke("velopack:download-update", updateInfo),
+    applyUpdates: (updateInfo: UpdateInfo) => ipcRenderer.invoke("velopack:apply-update", updateInfo)
+};
 
-// const updateBtn = document.getElementById("update-btn") as HTMLButtonElement;
-// const downloadBtn = document.getElementById("download-btn") as HTMLButtonElement;
-// const applyBtn = document.getElementById("apply-btn") as HTMLButtonElement;
-
-// async function updateBtnClicked() {
-// }
-
-// async function downloadBtnClicked() {
-// }
-
-// async function applyBtnClicked() {
-// }
-
-// updateBtn.addEventListener("click", updateBtnClicked);
-// downloadBtn.addEventListener("click", downloadBtnClicked);
-// applyBtn.addEventListener("click", applyBtnClicked);
+contextBridge.exposeInMainWorld("velopackApi", velopackApi);
