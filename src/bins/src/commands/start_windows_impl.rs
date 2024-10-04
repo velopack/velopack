@@ -12,7 +12,7 @@ use std::{
     process::Command as Process,
 };
 use velopack::{bundle::Manifest, constants};
-use velopack::locator::{auto_locate_app_manifest, create_config_from_root_dir, LocationContext, VelopackLocator};
+use velopack::locator::{self, LocationContext, VelopackLocator};
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 
 enum LocatorResult
@@ -62,7 +62,7 @@ impl LocatorResult {
 }
 
 fn legacy_locator() -> Result<LocatorResult> {
-    let locator = auto_locate_app_manifest(LocationContext::IAmUpdateExe);
+    let locator = locator::auto_locate_app_manifest(LocationContext::IAmUpdateExe);
     match locator {
         Ok(locator) => Ok(LocatorResult::Normal(locator)),
         Err(e) => {
@@ -70,7 +70,7 @@ fn legacy_locator() -> Result<LocatorResult> {
             let my_exe = std::env::current_exe()?;
             let parent_dir = my_exe.parent().expect("Unable to determine parent directory");
             let packages_dir = parent_dir.join("packages");
-            if let Some((path, manifest)) = shared::find_latest_full_package(&packages_dir) {
+            if let Some((path, manifest)) = locator::find_latest_full_package(&packages_dir) {
                 info!("Found full package to read: {}", path.to_string_lossy());
                 Ok(LocatorResult::Legacy(parent_dir.to_path_buf(), manifest))
             } else {
@@ -148,9 +148,9 @@ fn try_legacy_migration(root_dir: &PathBuf, manifest: &Manifest) -> Result<Velop
     std::env::set_current_dir(&root_dir)?;
 
     let _mutex = shared::retry_io(|| crate::windows::create_global_mutex(&manifest.id))?;
-    let path_config = create_config_from_root_dir(root_dir);
+    let path_config = locator::create_config_from_root_dir(root_dir);
     
-    let package = shared::find_latest_full_package(&path_config.PackagesDir).ok_or_else(|| anyhow!("Unable to find latest full package."))?;
+    let package = locator::find_latest_full_package(&path_config.PackagesDir).ok_or_else(|| anyhow!("Unable to find latest full package."))?;
     
     warn!("This application is installed in a folder prefixed with 'app-'. Attempting to migrate...");
     let _ = shared::force_stop_package(&root_dir);

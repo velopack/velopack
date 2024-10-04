@@ -482,3 +482,27 @@ fn read_current_manifest(nuspec_path: &PathBuf) -> Result<Manifest, Error> {
     Err(Error::MissingNuspec)
 }
 
+/// Returns the path and manifest of the latest full package in the given directory.
+pub fn find_latest_full_package(packages_dir: &PathBuf) -> Option<(PathBuf, Manifest)> {
+    let packages_dir = packages_dir.to_string_lossy();
+
+    info!("Attempting to auto-detect package in: {}", packages_dir);
+    let mut package: Option<(PathBuf, Manifest)> = None;
+
+    if let Ok(paths) = glob::glob(format!("{}/*.nupkg", packages_dir).as_str()) {
+        for path in paths {
+            if let Ok(path) = path {
+                trace!("Checking package: '{}'", path.to_string_lossy());
+                if let Ok(mut bun) = bundle::load_bundle_from_file(&path) {
+                    if let Ok(mani) = bun.read_manifest() {
+                        if package.is_none() || mani.version > package.clone().unwrap().1.version {
+                            info!("Found {}: '{}'", mani.version, path.to_string_lossy());
+                            package = Some((path, mani));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    package
+}

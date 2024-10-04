@@ -355,6 +355,8 @@ pub struct Manifest {
     pub channel: String,
     pub shortcut_locations: String,
     pub shortcut_amuid: String,
+    pub release_notes: String,
+    pub release_notes_html: String,
 }
 
 /// Parse manifest object from an XML string.
@@ -399,6 +401,10 @@ pub fn read_manifest_from_string(xml: &str) -> Result<Manifest, Error> {
                     obj.shortcut_locations = text;
                 } else if el_name == "shortcutAmuid" {
                     obj.shortcut_amuid = text;
+                } else if el_name == "releaseNotes" {
+                    obj.release_notes = text;
+                } else if el_name == "releaseNotesHtml" {
+                    obj.release_notes_html = text;
                 }
             }
             Ok(XmlEvent::EndElement { .. }) => {

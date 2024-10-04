@@ -55,6 +55,8 @@ file-rotate = "0.7"
 simple-stopwatch = "0.1"
 enum-flags = "0.3"
 remove_dir_all = { git = "https://github.com/caesay/remove_dir_all.git", features = ["log"] }
+sha1 = "0.10"
+sha2 = "0.10"
 sha1_smol = "1.0"
 time = "0.3"
 os_info = "3.8"

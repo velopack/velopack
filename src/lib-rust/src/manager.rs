@@ -14,11 +14,11 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    locator::{self, VelopackLocatorConfig},
+    locator::{self, VelopackLocatorConfig, LocationContext, VelopackLocator},
     sources::UpdateSource,
     Error,
+    util,
 };
-use crate::locator::{auto_locate_app_manifest, LocationContext, VelopackLocator};
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -140,7 +140,7 @@ impl UpdateManager {
             let manifest = config.load_manifest()?;
             VelopackLocator::new(config.clone(), manifest)
         } else {
-            auto_locate_app_manifest(LocationContext::FromCurrentExe)?
+            locator::auto_locate_app_manifest(LocationContext::FromCurrentExe)?
         };
         Ok(UpdateManager {
             options: options.unwrap_or_default(),
@@ -160,8 +160,42 @@ impl UpdateManager {
     }
 
     /// The currently installed app version.
-    pub fn current_version(&self) -> Result<String, Error> {
-        Ok(self.locator.get_manifest_version_full_string())
+    pub fn get_current_version(&self) -> String {
+        self.locator.get_manifest_version_full_string()
+    }
+
+    /// The currently installed app id.
+    pub fn get_app_id(&self) -> String {
+        self.locator.get_manifest_id()
+    }
+
+    /// Check if the app is in portable mode. This can be true or false on Windows.
+    /// On Linux and MacOS, this will always return true.
+    pub fn get_is_portable(&self) -> bool {
+        self.locator.get_is_portable()
+    }
+
+    /// Returns None if there is no local package waiting to be applied. Returns a VelopackAsset 
+    /// if there is an update downloaded which has not yet been applied. In that case, the
+    /// VelopackAsset can be applied by calling apply_updates_and_restart or wait_exit_then_apply_updates.
+    pub fn get_update_pending_restart(&self) -> Option<VelopackAsset> {
+        let packages_dir = self.locator.get_packages_dir();
+        if let Some((path, manifest)) = locator::find_latest_full_package(&packages_dir) {
+            if manifest.version > self.locator.get_manifest_version() {
+                return Some(VelopackAsset {
+                    PackageId: manifest.id,
+                    Version: manifest.version.to_string(),
+                    Type: "Full".to_string(),
+                    FileName: path.file_name().unwrap().to_string_lossy().to_string(),
+                    SHA1: util::calculate_file_sha1(&path).unwrap_or_default(),
+                    SHA256: util::calculate_file_sha256(&path).unwrap_or_default(),
+                    Size: path.metadata().map(|m| m.len()).unwrap_or(0),
+                    NotesMarkdown: manifest.release_notes,
+                    NotesHtml: manifest.release_notes_html,
+                });
+            }
+        }
+        None
     }
 
     /// Get a list of available remote releases from the package source.
@@ -252,7 +286,7 @@ impl UpdateManager {
     pub fn download_updates(&self, update: &UpdateInfo, progress: Option<Sender<i16>>) -> Result<(), Error> {
         let name = &update.TargetFullRelease.FileName;
         let packages_dir = &self.locator.get_packages_dir();
-        
+
         fs::create_dir_all(packages_dir)?;
         let target_file = packages_dir.join(name);
 
