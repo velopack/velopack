@@ -26,35 +26,67 @@
  * ```
  */
 
+import type { UpdateInfo } from 'velopack';
 import './index.css';
 
 console.log('👋 This message is being logged by "renderer.js", included via webpack');
 
-// "get-version"
-// "check-for-update"
-// "check-for-update-response"
-// "download-update"
-// "download-update-response"
-// "apply-update"
-// "apply-update-response"
+const labelElement = document.getElementById("app-info");
+function setLabel(text: string) {
+    labelElement.innerHTML = text;
+}
 
-const updateLabel = document.getElementById("app-info");
-let currentVersion = velopackApi.getVersion();
-updateLabel.innerHTML = "Current Version: " + currentVersion;
+// get and display the current program version
+(async () => {
+    const currentVersion = await window.velopackApi.getVersion();
+    setLabel("Current Version: " + currentVersion);
+})();
 
-// const updateBtn = document.getElementById("update-btn") as HTMLButtonElement;
-// const downloadBtn = document.getElementById("download-btn") as HTMLButtonElement;
-// const applyBtn = document.getElementById("apply-btn") as HTMLButtonElement;
+// wire up button clicks to velopack functions
+let updateInfo: UpdateInfo;
+let downloaded: boolean;
+async function updateBtnClicked() {
+    try {
+        updateInfo = await window.velopackApi.checkForUpdates();
+        if (updateInfo) {
+            setLabel(`Update available: ${updateInfo.TargetFullRelease.Version}`);
+        } else {
+            setLabel("No update is available.");
+        }
+    } catch (e) {
+        setLabel(e);
+    }
+}
 
-// async function updateBtnClicked() {
-// }
+async function downloadBtnClicked() {
+    if (!updateInfo) {
+        setLabel("No update is available to download.");
+    }
 
-// async function downloadBtnClicked() {
-// }
+    try {
+        downloaded = await window.velopackApi.downloadUpdates(updateInfo);
+        setLabel("Update is downloaded");
+    } catch (e) {
+        setLabel(e);
+    }
+}
 
-// async function applyBtnClicked() {
-// }
+async function applyBtnClicked() {
+    if (!updateInfo || !downloaded) {
+        setLabel("No update is downloaded.");
+    }
 
-// updateBtn.addEventListener("click", updateBtnClicked);
-// downloadBtn.addEventListener("click", downloadBtnClicked);
-// applyBtn.addEventListener("click", applyBtnClicked);
+    try {
+        await window.velopackApi.applyUpdates(updateInfo);
+        setLabel("Update is applying...");
+    } catch (e) {
+        setLabel(e);
+    }
+}
+
+const updateBtn = document.getElementById("update-btn") as HTMLButtonElement;
+const downloadBtn = document.getElementById("download-btn") as HTMLButtonElement;
+const applyBtn = document.getElementById("apply-btn") as HTMLButtonElement;
+updateBtn.addEventListener("click", updateBtnClicked);
+downloadBtn.addEventListener("click", downloadBtnClicked);
+applyBtn.addEventListener("click", applyBtnClicked);
