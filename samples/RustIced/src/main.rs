@@ -38,7 +38,7 @@ impl AppState {
         let mut state = AppStatus::NotInstalled;
         if um.is_ok() {
             state = AppStatus::Idle;
-            version = Some(um.as_ref().unwrap().current_version().unwrap());
+            version = Some(um.as_ref().unwrap().get_current_version_as_string());
         }
 
         (
