@@ -261,15 +261,30 @@ unsafe fn unsafe_find_best_rename_candidates<P: AsRef<Path>>(
 unsafe fn unsafe_get_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<Vec<(ShortcutLocationFlags, Lnk)>> {
     let root_dir = root_dir.as_ref();
     info!("Searching for shortcuts containing root: '{}'", root_dir.to_string_lossy());
-
-    let search_paths = vec![
-        (ShortcutLocationFlags::DESKTOP, format!("{}/*.lnk", known::get_user_desktop()?)),
-        (ShortcutLocationFlags::STARTUP, format!("{}/*.lnk", known::get_startup()?)),
-        // (ShortcutLocationFlags::START_MENU_ROOT, format!("{}/*.lnk", known::get_start_menu()?)),
-        (ShortcutLocationFlags::START_MENU, format!("{}/**/*.lnk", known::get_start_menu()?)),
-        (ShortcutLocationFlags::USER_PINNED, format!("{}/**/*.lnk", known::get_user_pinned()?)),
-    ];
-
+    
+    let mut search_paths = Vec::new();
+    
+    match known::get_user_desktop() {
+        Ok(user_desktop) => search_paths.push((ShortcutLocationFlags::DESKTOP, format!("{}/*.lnk", user_desktop))),
+        Err(e) => warn!("Failed to get user desktop directory, it will not be searched: {}", e),
+    } 
+    
+    match known::get_startup() {
+        Ok(startup) => search_paths.push((ShortcutLocationFlags::STARTUP, format!("{}/*.lnk", startup))),
+        Err(e) => warn!("Failed to get startup directory, it will not be searched: {}", e),
+    }
+    
+    match known::get_start_menu() {
+        // this handles START_MENU and START_MENU_ROOT
+        Ok(start_menu) => search_paths.push((ShortcutLocationFlags::START_MENU, format!("{}/**/*.lnk", start_menu))),
+        Err(e) => warn!("Failed to get start menu directory, it will not be searched: {}", e),
+    }
+    
+    match known::get_user_pinned() {
+        Ok(user_pinned) => search_paths.push((ShortcutLocationFlags::USER_PINNED, format!("{}/**/*.lnk", user_pinned))),
+        Err(e) => warn!("Failed to get user pinned directory, it will not be searched: {}", e),
+    }
+    
     let mut paths: Vec<(ShortcutLocationFlags, Lnk)> = Vec::new();
     for (flag, search_glob) in search_paths {
         info!("Searching for shortcuts in: {:?} ({})", flag, search_glob);
