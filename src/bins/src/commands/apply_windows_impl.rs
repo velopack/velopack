@@ -160,8 +160,10 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
         // to update the shortcut to point at the temp/renamed location
         let _ = remove_dir_all::remove_dir_all(&temp_path_new);
         let _ = remove_dir_all::remove_dir_all(&temp_path_old);
-        
-        crate::windows::create_or_update_manifest_lnks(&new_locator, Some(old_locator));
+
+        if !old_locator.get_is_portable() {
+            crate::windows::create_or_update_manifest_lnks(&new_locator, Some(old_locator));
+        }
 
         // done!
         info!("Package applied successfully.");
