@@ -189,7 +189,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           max_wait_seconds: 900
-          artifacts: rust-macos-latest,rust-windows-latest,rust-ubuntu-latest
+          artifacts: rust-${{ matrix.os }}
           verbose: true
       - name: Download Rust Artifacts
         uses: actions/download-artifact@v4
