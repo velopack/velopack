@@ -11,7 +11,7 @@ env:
   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
 jobs:
-  test-rust:
+  test-bins:
     strategy:
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
@@ -30,6 +30,25 @@ jobs:
           key: "rust-test-${{ matrix.os }}"
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Test Rust
+        run: cargo llvm-cov ${{ matrix.rust_flags }} --cobertura --output-path ./test/coverage.rust.${{ matrix.os }}.xml
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./test/coverage.rust.${{ matrix.os }}.xml
+          
+  test-libs:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: "lib-test-${{ matrix.os }}"
       - name: Check lib-nodejs
         working-directory: src/lib-nodejs
         run: |
@@ -40,15 +59,11 @@ jobs:
       - name: Check RustIced Sample
         working-directory: samples/RustIced
         run: cargo check
-      - name: Test Rust
-        run: cargo llvm-cov ${{ matrix.rust_flags }} --cobertura --output-path ./test/coverage.rust.${{ matrix.os }}.xml
+      - name: Build Rust Bins
+        run: cargo build
       - name: Test lib-nodejs
         working-directory: src/lib-nodejs
         run: npm run test
-      - name: Upload Coverage
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./test/coverage.rust.${{ matrix.os }}.xml
 
   build-rust-windows:
     runs-on: windows-latest
@@ -179,7 +194,7 @@ jobs:
         uses: andymckay/cancel-action@0.4
         if: ${{ failure() }}
 
-  test-dotnet:
+  test-vpk:
     strategy:
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
@@ -342,7 +357,7 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    needs: [package, test-dotnet, test-rust]
+    needs: [package, test-vpk, test-bins, test-libs]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     steps:
       - name: Invoke Release Workflow
