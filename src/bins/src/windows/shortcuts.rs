@@ -26,7 +26,7 @@ pub fn create_or_update_manifest_lnks(next_app: &VelopackLocator, previous_app: 
     let previous_app = previous_app.cloned();
     unsafe {
         if let Err(e) = unsafe_run_delegate_in_com_context(move || {
-            unsafe_update_app_manifest_lnks(&next_app, previous_app.as_ref())?;
+            unsafe_update_app_manifest_lnks(&next_app, previous_app.as_ref());
             Ok(())
         }) {
             warn!("Failed to update shortcuts: {}", e);
@@ -38,7 +38,7 @@ pub fn remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) {
     let root_dir = root_dir.as_ref().to_owned().to_path_buf();
     unsafe {
         if let Err(e) = unsafe_run_delegate_in_com_context(move || {
-            unsafe_remove_all_shortcuts_for_root_dir(&root_dir)?;
+            unsafe_remove_all_shortcuts_for_root_dir(&root_dir);
             Ok(())
         }) {
             warn!("Failed to remove shortcuts: {}", e);
@@ -75,10 +75,10 @@ fn get_path_for_shortcut_location(app_id: &str, app_title: &str, app_author: &st
     }
 }
 
-unsafe fn unsafe_update_app_manifest_lnks(next_app: &VelopackLocator, previous_app: Option<&VelopackLocator>) -> Result<()> {
+unsafe fn unsafe_update_app_manifest_lnks(next_app: &VelopackLocator, previous_app: Option<&VelopackLocator>) {
     let next_locations = next_app.get_manifest_shortcut_locations();
     let prev_locations = previous_app.map(|a| a.get_manifest_shortcut_locations()).unwrap_or(ShortcutLocationFlags::NONE);
-    
+
     info!("Shortcut Previous Locations: {:?} ({:?})", prev_locations, previous_app.map(|a| a.get_manifest_version_full_string()));
     info!("Shortcut Next Locations: {:?} ({:?})", next_locations, next_app.get_manifest_version_full_string());
 
@@ -100,7 +100,7 @@ unsafe fn unsafe_update_app_manifest_lnks(next_app: &VelopackLocator, previous_a
     let app_work_dir = next_app.get_current_bin_dir_as_string();
 
     info!("App Model ID: {:?}", app_model_id);
-    let mut current_shortcuts = unsafe_get_shortcuts_for_root_dir(root_path)?;
+    let mut current_shortcuts = unsafe_get_shortcuts_for_root_dir(root_path);
 
     // update all existing shortcuts, verify target/workdir/amuid and icon is correct.
     info!("Will update all current shortcuts: {:?}", current_shortcuts);
@@ -153,20 +153,33 @@ unsafe fn unsafe_update_app_manifest_lnks(next_app: &VelopackLocator, previous_a
         let target_path = if let Some(parent) = path.parent() {
             parent.join(shortcut_file_name)
         } else {
-            get_path_for_shortcut_location(&app_id, &app_title, &app_authors, flag)?
+            match get_path_for_shortcut_location(&app_id, &app_title, &app_authors, flag)
+            {
+                Ok(p) => p,
+                Err(e) => {
+                    error!("Failed to get desired path for shortcut location: {:?} ({})", flag, e);
+                    continue;
+                }
+            }
         };
 
         if path != target_path {
             info!("Renaming shortcut from '{:?}' to '{:?}'.", path, target_path);
             if let Err(e) = std::fs::rename(&path, &target_path) {
-                warn!("Failed to rename shortcut: {}", e);
+                error!("Failed to rename shortcut: {}", e);
             }
         }
     }
 
     // add new (missing) shortcut locations
     for flag in new_locations.iter() {
-        let path = get_path_for_shortcut_location(&app_id, &app_title, &app_authors, flag)?;
+        let path = match get_path_for_shortcut_location(&app_id, &app_title, &app_authors, flag) {
+            Ok(p) => p,
+            Err(e) => {
+                error!("Failed to get desired path for shortcut location: {:?} ({})", flag, e);
+                continue;
+            }
+        };
         info!("Creating new shortcut for flag '{:?}' ({:?}).", path, flag);
 
         match Lnk::create_new() {
@@ -201,8 +214,6 @@ unsafe fn unsafe_update_app_manifest_lnks(next_app: &VelopackLocator, previous_a
             }
         }
     }
-
-    Ok(())
 }
 
 unsafe fn unsafe_find_best_rename_candidates<P: AsRef<Path>>(
@@ -258,33 +269,33 @@ unsafe fn unsafe_find_best_rename_candidates<P: AsRef<Path>>(
     best_matches
 }
 
-unsafe fn unsafe_get_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<Vec<(ShortcutLocationFlags, Lnk)>> {
+unsafe fn unsafe_get_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Vec<(ShortcutLocationFlags, Lnk)> {
     let root_dir = root_dir.as_ref();
     info!("Searching for shortcuts containing root: '{}'", root_dir.to_string_lossy());
-    
+
     let mut search_paths = Vec::new();
-    
+
     match known::get_user_desktop() {
         Ok(user_desktop) => search_paths.push((ShortcutLocationFlags::DESKTOP, format!("{}/*.lnk", user_desktop))),
-        Err(e) => warn!("Failed to get user desktop directory, it will not be searched: {}", e),
-    } 
-    
+        Err(e) => error!("Failed to get user desktop directory, it will not be searched: {}", e),
+    }
+
     match known::get_startup() {
         Ok(startup) => search_paths.push((ShortcutLocationFlags::STARTUP, format!("{}/*.lnk", startup))),
-        Err(e) => warn!("Failed to get startup directory, it will not be searched: {}", e),
+        Err(e) => error!("Failed to get startup directory, it will not be searched: {}", e),
     }
-    
+
     match known::get_start_menu() {
         // this handles START_MENU and START_MENU_ROOT
         Ok(start_menu) => search_paths.push((ShortcutLocationFlags::START_MENU, format!("{}/**/*.lnk", start_menu))),
-        Err(e) => warn!("Failed to get start menu directory, it will not be searched: {}", e),
+        Err(e) => error!("Failed to get start menu directory, it will not be searched: {}", e),
     }
-    
+
     match known::get_user_pinned() {
         Ok(user_pinned) => search_paths.push((ShortcutLocationFlags::USER_PINNED, format!("{}/**/*.lnk", user_pinned))),
-        Err(e) => warn!("Failed to get user pinned directory, it will not be searched: {}", e),
+        Err(e) => error!("Failed to get user pinned directory, it will not be searched: {}", e),
     }
-    
+
     let mut paths: Vec<(ShortcutLocationFlags, Lnk)> = Vec::new();
     for (flag, search_glob) in search_paths {
         info!("Searching for shortcuts in: {:?} ({})", flag, search_glob);
@@ -314,12 +325,11 @@ unsafe fn unsafe_get_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Resu
             }
         }
     }
-
-    Ok(paths)
+    paths
 }
 
-unsafe fn unsafe_remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Result<()> {
-    let shortcuts = unsafe_get_shortcuts_for_root_dir(root_dir)?;
+unsafe fn unsafe_remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) {
+    let shortcuts = unsafe_get_shortcuts_for_root_dir(root_dir);
     for (flag, properties) in shortcuts {
         let path = properties.get_link_path();
         info!("Removing shortcut '{}' ({:?}).", path, flag);
@@ -328,7 +338,6 @@ unsafe fn unsafe_remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) 
             warn!("Failed to remove shortcut: {}", e);
         }
     }
-    Ok(())
 }
 
 unsafe fn unsafe_delete_lnk_file<P: AsRef<Path>>(path: P, remove_parent_if_empty: bool) -> Result<()> {
@@ -670,7 +679,7 @@ fn test_shortcut_full_integration() {
             // let ps_result = Command::new("powershell").raw_arg("Get-StartApps | Sort-Object -Property Name").output()?;
             // let ps_output = String::from_utf8_lossy(&ps_result.stdout).to_string();
 
-            let shortcuts = unsafe_get_shortcuts_for_root_dir(&root).unwrap();
+            let shortcuts = unsafe_get_shortcuts_for_root_dir(&root);
             assert_eq!(shortcuts.len(), 3);
             assert_eq!(shortcuts[0].0, ShortcutLocationFlags::DESKTOP);
             assert_eq!(PathBuf::from(&shortcuts[0].1.my_path), link1);
@@ -682,7 +691,7 @@ fn test_shortcut_full_integration() {
             assert_eq!(shortcuts[0].1.get_target_path().unwrap(), target);
             assert_eq!(shortcuts[0].1.get_working_directory().unwrap(), work);
 
-            unsafe_remove_all_shortcuts_for_root_dir(root).unwrap();
+            unsafe_remove_all_shortcuts_for_root_dir(root);
             assert!(!link1.exists());
             assert!(!link2.exists());
             assert!(!link3.exists());
