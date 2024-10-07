@@ -16,10 +16,12 @@ declare module "./load" {
   function js_get_current_version(um: UpdateManagerOpaque): string;
 
   function js_get_app_id(um: UpdateManagerOpaque): string;
-  
+
   function js_is_portable(um: UpdateManagerOpaque): boolean;
-  
-  function js_update_pending_restart(um: UpdateManagerOpaque): UpdateInfo | null;
+
+  function js_update_pending_restart(
+    um: UpdateManagerOpaque,
+  ): UpdateInfo | null;
 
   function js_check_for_updates_async(
     um: UpdateManagerOpaque,
@@ -156,7 +158,6 @@ export class VelopackApp {
     this._autoApply = autoApply;
     return this;
   }
-  
 
   /**
    * Runs the Velopack startup logic. This should be the first thing to run in your app.
@@ -172,7 +173,7 @@ export class VelopackApp {
       },
       this._customArgs,
       this._customLocator ? JSON.stringify(this._customLocator) : null,
-        this._autoApply
+      this._autoApply,
     );
   }
 }
@@ -207,7 +208,7 @@ export class UpdateManager {
   }
 
   /**
-   * Returns whether the app is in portable mode. On Windows this can be true or false. 
+   * Returns whether the app is in portable mode. On Windows this can be true or false.
    * On MacOS and Linux this will always be true.
    */
   isPortable(): boolean {
@@ -287,6 +288,8 @@ export class UpdateManager {
 /**
  * Set a custom logger callback to receive log messages from Velopack. The default behavior is to log to console.log.
  */
-export function setVelopackLogger(callback: (loglevel: LogLevel, msg: string) => void) {
+export function setVelopackLogger(
+  callback: (loglevel: LogLevel, msg: string) => void,
+) {
   addon.js_set_logger_callback(callback);
 }
