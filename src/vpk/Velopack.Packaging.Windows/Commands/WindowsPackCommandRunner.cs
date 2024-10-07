@@ -247,7 +247,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         var signParams = options.SignParameters;
         var signTemplate = options.SignTemplate;
         var signParallel = options.SignParallel;
-        var trustedSignMetadataPath = options.AzTrustedSign;
+        var trustedSignMetadataPath = options.AzureTrustedSignFile;
         var helper = new CodeSign(Log);
 
         if (string.IsNullOrEmpty(signParams) && string.IsNullOrEmpty(signTemplate) && string.IsNullOrEmpty(trustedSignMetadataPath)) {

@@ -23,7 +23,7 @@ public class AzureDeploymentTests
     public void CanDeployToAzure()
     {
         Skip.If(String.IsNullOrWhiteSpace(AZ_KEY), "VELOPACK_AZ_TEST_TOKEN is not set.");
-        using var logger = _output.BuildLoggerFor<S3DeploymentTests>();
+        using var logger = _output.BuildLoggerFor<AzureDeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
 
         string channel = String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CI"))

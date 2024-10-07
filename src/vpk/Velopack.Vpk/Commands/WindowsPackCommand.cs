@@ -15,7 +15,7 @@ public class WindowsPackCommand : PackCommand
     public int SignParallel { get; private set; }
 
     public string SignTemplate { get; private set; }
-    public string AzTrustedSign { get; private set; }
+    public string AzureTrustedSignFile { get; private set; }
 
     public string Shortcuts { get; private set; }
 
@@ -63,7 +63,7 @@ public class WindowsPackCommand : PackCommand
                 .SetDescription("Sign files via signtool.exe using these parameters.")
                 .SetArgumentHelpName("PARAMS");
 
-            var azTrustedSign = AddOption<FileInfo>((v) => AzTrustedSign = v.ToFullNameOrNull(), "--azTrustedSign")
+            var azTrustedSign = AddOption<FileInfo>((v) => AzureTrustedSignFile = v.ToFullNameOrNull(), "--azureTrustedSignFile")
                 .SetDescription("Path to Azure Trusted Signing metadata.json.")
                 .SetArgumentHelpName("PATH");
 

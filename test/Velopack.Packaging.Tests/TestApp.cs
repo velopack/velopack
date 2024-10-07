@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿#nullable enable
+using System.Diagnostics;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Util;
@@ -10,7 +11,7 @@ namespace Velopack.Packaging.Tests;
 public static class TestApp
 {
     public static void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
-        string releaseNotes = null, string channel = null, RID targetRid = null, string packTitle = null)
+        string? releaseNotes = null, string? channel = null, RID? targetRid = null, string? packTitle = null, string? azureTrustedSignFile = null)
     {
         targetRid ??= RID.Parse(VelopackRuntimeInfo.SystemRid);
 
@@ -48,6 +49,7 @@ public static class TestApp
                     PackDirectory = Path.Combine(projDir, "publish"),
                     ReleaseNotes = releaseNotes,
                     Channel = channel,
+                    AzureTrustedSignFile = azureTrustedSignFile
                 };
                 var runner = new WindowsPackCommandRunner(logger, console);
                 runner.Run(options).GetAwaiterResult();
@@ -79,7 +81,7 @@ public static class TestApp
                     PackVersion = version,
                     PackDirectory = Path.Combine(projDir, "publish"),
                     ReleaseNotes = releaseNotes,
-                    Channel = channel,
+                    Channel = channel
                 };
                 var runner = new LinuxPackCommandRunner(logger, console);
                 runner.Run(options).GetAwaiterResult();
