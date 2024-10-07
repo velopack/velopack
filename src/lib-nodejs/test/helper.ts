@@ -102,13 +102,15 @@ export function updateExe(): string {
     const paths = [];
     
     if (isMacos()) {
-        paths.push(path.join("..", "..", "target", "debug", "UpdateMac"));
         paths.push(path.join("..", "..", "target", "release", "UpdateMac"));
     }
 
     if (isLinux()) {
-        paths.push(path.join("..", "..", "target", "debug", "UpdateNix"));
-        paths.push(path.join("..", "..", "target", "release", "UpdateNix"));
+        if (os.machine() == "x64") {
+            paths.push(path.join("..", "..", "target", "release", "UpdateNix_x64"));
+        } else if (os.machine() == "aarch64" || os.machine() == "arm64") {
+            paths.push(path.join("..", "..", "target", "release", "UpdateNix_arm64"));
+        }
     }
 
     if (isMacos() || isLinux()) {
