@@ -170,15 +170,11 @@ jobs:
     strategy:
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
-    needs: [build-rust-macos, build-rust-windows, build-rust-linux]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: "lib-test-${{ matrix.os }}"
       - name: Check lib-nodejs
         working-directory: src/lib-nodejs
         run: |
@@ -189,6 +185,12 @@ jobs:
       - name: Check RustIced Sample
         working-directory: samples/RustIced
         run: cargo check
+      - uses: caesay/wait-artifact-action@494939e840383463b1686ce3624a8aab059c2c8b
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max_wait_seconds: 900
+          artifacts: rust-macos-latest,rust-windows-latest,rust-ubuntu-latest
+          verbose: true
       - name: Download Rust Artifacts
         uses: actions/download-artifact@v4
         with:
