@@ -151,10 +151,12 @@ export function updateExe(): string {
     paths.join(", ") +
     ". And found these binaries: ";
 
-  for (const p of paths) {
-    for (const file of fs.readdirSync(p)) {
-      message += file + ", ";
-    }
+  for (const file of fs.readdirSync(path.join("..", "..", "target", "debug"))) {
+    message += file + ", ";
+  }
+
+  for (const file of fs.readdirSync(path.join("..", "..", "target", "release"))) {
+    message += file + ", ";
   }
 
   throw new Error(message);
