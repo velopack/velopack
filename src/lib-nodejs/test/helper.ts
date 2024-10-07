@@ -122,7 +122,7 @@ export function updateExe(): string {
   }
 
   if (isLinux()) {
-    if (os.machine() == "x64") {
+    if (os.machine() == "x86_64") {
       paths.push(path.join("..", "..", "target", "release", "UpdateNix_x64"));
     } else if (os.machine() == "aarch64" || os.machine() == "arm64") {
       paths.push(path.join("..", "..", "target", "release", "UpdateNix_arm64"));
