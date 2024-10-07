@@ -195,8 +195,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: target/release
-          pattern: rust-*
-          merge-multiple: true
+          pattern: rust-${{ matrix.os }}
       - name: Test lib-nodejs
         working-directory: src/lib-nodejs
         run: npm run test
