@@ -3,7 +3,6 @@ target/
 _docyml/
 
 target
-index.node
 **/node_modules
 **/.DS_Store
 npm-debug.log*
@@ -11,7 +10,7 @@ lib
 cargo.log
 cross.log
 *.tgz
-
+*.node
 
 #################
 ## Eclipse

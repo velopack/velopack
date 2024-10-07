@@ -1,4 +1,4 @@
-import { VelopackApp, VelopackLocatorConfig } from "../src/index";
+import { VelopackApp, VelopackLocatorConfig, setVelopackLogger } from "../src";
 import { shortDelay, isWindows } from "./helper";
 
 class HookTester {
@@ -37,7 +37,7 @@ class HookTester {
       tester.firstRun = true;
       tester.version = ver;
     });
-    builder.setLogger((level, msg) => {
+    setVelopackLogger((level, msg) => {
       console.log(level, msg);
     });
     return [builder, tester];
