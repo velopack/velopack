@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import {setVelopackLogger} from "../lib";
 
 export function isWindows(): boolean {
     return os.platform() == "win32";
@@ -35,6 +36,21 @@ export function makeId(length: number): string {
     return result;
 }
 
+export async function captureLogs<T>(cb: () => Promise<T>): Promise<T> {
+    setVelopackLogger((level, msg) => {
+        console.log(level, msg);
+    });
+
+    try {
+        return await cb();
+    } finally {
+        await shortDelay();
+        setVelopackLogger(() => {
+            // unhook logger from jest
+        });
+    }
+}
+
 // export function tempd1<T>(cb: (dir: string) => T): T {
 //   const id = makeId(10);
 //   const dir = path.join(os.tmpdir(), id);
@@ -60,7 +76,7 @@ export function makeId(length: number): string {
 // }
 
 export async function tempd3<T>(
-    cb: (dir1: string, dir2: string, dir3: string) => T,
+    cb: (dir1: string, dir2: string, dir3: string) => Promise<T>,
 ): Promise<T> {
     const dir1 = path.join(os.tmpdir(), makeId(16));
     const dir2 = path.join(os.tmpdir(), makeId(16));
@@ -77,30 +93,30 @@ export async function tempd3<T>(
     }
 }
 
-export async function tempd4<T>(
-    cb: (dir1: string, dir2: string, dir3: string, dir4: string) => T,
-): Promise<T> {
-    const dir1 = path.join(os.tmpdir(), makeId(16));
-    const dir2 = path.join(os.tmpdir(), makeId(16));
-    const dir3 = path.join(os.tmpdir(), makeId(16));
-    const dir4 = path.join(os.tmpdir(), makeId(16));
-    fs.mkdirSync(dir1);
-    fs.mkdirSync(dir2);
-    fs.mkdirSync(dir3);
-    fs.mkdirSync(dir4);
-    try {
-        return await cb(dir1, dir2, dir3, dir4);
-    } finally {
-        fs.rmSync(dir1, {recursive: true});
-        fs.rmSync(dir2, {recursive: true});
-        fs.rmSync(dir3, {recursive: true});
-        fs.rmSync(dir4, {recursive: true});
-    }
-}
+// export async function tempd4<T>(
+//     cb: (dir1: string, dir2: string, dir3: string, dir4: string) => T,
+// ): Promise<T> {
+//     const dir1 = path.join(os.tmpdir(), makeId(16));
+//     const dir2 = path.join(os.tmpdir(), makeId(16));
+//     const dir3 = path.join(os.tmpdir(), makeId(16));
+//     const dir4 = path.join(os.tmpdir(), makeId(16));
+//     fs.mkdirSync(dir1);
+//     fs.mkdirSync(dir2);
+//     fs.mkdirSync(dir3);
+//     fs.mkdirSync(dir4);
+//     try {
+//         return await cb(dir1, dir2, dir3, dir4);
+//     } finally {
+//         fs.rmSync(dir1, {recursive: true});
+//         fs.rmSync(dir2, {recursive: true});
+//         fs.rmSync(dir3, {recursive: true});
+//         fs.rmSync(dir4, {recursive: true});
+//     }
+// }
 
 export function updateExe(): string {
     const paths = [];
-    
+
     if (isMacos()) {
         paths.push(path.join("..", "..", "target", "release", "UpdateMac"));
     }
@@ -117,7 +133,7 @@ export function updateExe(): string {
         paths.push(path.join("..", "..", "target", "debug", "update"));
         paths.push(path.join("..", "..", "target", "release", "update"));
     }
-    
+
     if (isWindows()) {
         paths.push(path.join("..", "..", "target", "debug", "Update.exe"));
         paths.push(path.join("..", "..", "target", "release", "Update.exe"));
@@ -128,12 +144,22 @@ export function updateExe(): string {
             return p;
         }
     }
-
-    throw new Error("Update.exe not found");
+    
+    // could not find update.exe
+    let message = "Could not find update binary. Searched these paths: " 
+        + paths.join(", ") + ". And found these binaries: ";
+    
+    for (const p of paths) {
+        for (const file of fs.readdirSync(p)) {
+            message += file + ", ";
+        }
+    }
+    
+    throw new Error(message);
 }
 
-export function shortDelay(): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, 300));
+function shortDelay(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 150));
 }
 
 // export function copyUpdateExeTo(dir: string, filename?: string): string {
