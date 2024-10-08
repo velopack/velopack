@@ -18,15 +18,6 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Checkout original build commit
-        run: |
-          COMMIT_HASH=$(gh run view ${{ github.event.inputs.workflow_run_id }} --json headSha -q ".headSha")
-          git checkout $COMMIT_HASH
-
       - name: Download build version
         uses: actions/download-artifact@v4
         with:
@@ -62,18 +53,27 @@ jobs:
       - name: Show version
         run: cat version.txt
 
-      - name: Tag the commit with version
+      - uses: actions/checkout@v4
+        with:
+          path: ./repo
+          fetch-depth: 0
+          
+      - name: Tag the commit with version and push
+        working-directory: ./repo
         run: |
+          COMMIT_HASH=$(gh run view ${{ github.event.inputs.workflow_run_id }} --json headSha -q ".headSha")
+          git checkout $COMMIT_HASH
           TAG_NAME=$(cat version.txt)
           git tag $TAG_NAME
           git push origin $TAG_NAME
 
       - name: Generate Release
+        working-directory: ./repo
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
 
-          $currentTag = Get-Content -Path "./version.txt" -Raw
+          $currentTag = Get-Content -Path "../version.txt" -Raw
           $currentTag = $currentTag.Trim()
 
           # Get the previous release tag
