@@ -11,6 +11,28 @@
     "clean": "del-cli **/*.node lib velopack-*.tgz",
     "lint": "prettier . --write"
   },
+  "bugs": {
+    "url": "https://github.com/velopack/velopack/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/velopack/velopack.git"
+  },
+  "keywords": [
+    "updater",
+    "autoupdate",
+    "installer",
+    "desktop",
+    "squirrel",
+    "velopack",
+    "electron",
+    "macos",
+    "windows",
+    "linux",
+    "cross-platform",
+    "automatic-updates"
+  ],
+  "homepage": "https://velopack.io",
   "author": "Velopack Ltd, Caelan Sayler",
   "license": "MIT",
   "engines": {
