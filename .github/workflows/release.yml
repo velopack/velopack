@@ -133,14 +133,14 @@ jobs:
         run: |
           PKG_VERSION=$(cat ../version.txt)
           npm set "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}"
-          npm publish velopack-$(PKG_VERSION).tgz --access public
+          npm publish velopack-$PKG_VERSION.tgz --access public
           
       - name: Publish Rust Crate
         working-directory: ./lib-rust
         run: |
           PKG_VERSION=$(cat ../version.txt)
-          tar -xzf velopack-$(PKG_VERSION).crate
-          cd velopack-$(PKG_VERSION)
+          tar -xzf velopack-$PKG_VERSION.crate
+          cd velopack-$PKG_VERSION
           rm Cargo.toml.orig
           rm .cargo_vcs_info.json
           cargo login ${{ secrets.CARGO_TOKEN }}
