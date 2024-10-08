@@ -35,13 +35,29 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./
 
-      - name: Download build artifact
+      - name: Download vpk
         uses: actions/download-artifact@v4
         with:
           name: packages
           run-id: ${{ github.event.inputs.workflow_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./packages
+          
+      - name: Download lib-nodejs
+        uses: actions/download-artifact@v4
+        with:
+          name: lib-nodejs
+          run-id: ${{ github.event.inputs.workflow_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./lib-nodejs
+          
+      - name: Download lib-rust
+        uses: actions/download-artifact@v4
+        with:
+          name: lib-rust
+          run-id: ${{ github.event.inputs.workflow_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./lib-rust
 
       - name: Show version
         run: cat version.txt
@@ -100,18 +116,30 @@ jobs:
           $releaseBody | Out-File -FilePath $notesFilePath -Encoding utf8
           gh release create $currentTag --title $releaseName --notes-file $notesFilePath $releaseArg --verify-tag
           
-      - name: Publish .nupkg and .snupkg files
+      - name: Publish NuGet Packages
         run: |
           for f in packages/*.nupkg; do
             dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
           done
           
-      - name: Publish velopack rust crate
+      - name: Publish Rust Crate
+        working-directory: ./lib-rust
         run: |
+          PKG_VERSION=$(cat version.txt)
+          tar -xzf velopack-$(PKG_VERSION).crate
+          cd velopack-$(PKG_VERSION)
           cargo login ${{ secrets.CARGO_TOKEN }}
-          cargo publish --allow-dirty -p velopack
+          cargo publish --allow-dirty --no-verify
           
-      - name: Publish velopack npm package
+#      - name: Publish Rust Crate
+#        working-directory: ./lib-rust
+#        run: |
+#          PKG_VERSION=$(cat version.txt)
+#          curl -X PUT --user caesay:${{ secrets.CARGO_TOKEN }} --upload-file velopack-$(PKG_VERSION).crate https://crates.io/api/v1/crates/new
+          
+      - name: Publish NPM Package
+        working-directory: ./lib-nodejs
         run: |
-          npm login --registry=https://registry.npmjs.org/ --scope=@velopack
-          npm publish ./packages/velopack-npm-*.tgz --access public
+          PKG_VERSION=$(cat version.txt)
+          npm set "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}"
+          npm publish velopack-$(PKG_VERSION).tgz --access public
