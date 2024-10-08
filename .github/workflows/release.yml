@@ -50,8 +50,10 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./lib-rust
 
-      - name: Show version
-        run: cat version.txt
+      - name: Load version from file
+        run: |
+          version=$(cat version.txt | xargs)
+          echo "PKG_VERSION=$version" >> $GITHUB_ENV
 
       - uses: actions/checkout@v4
         with:
@@ -61,11 +63,11 @@ jobs:
       - name: Tag the commit with version and push
         working-directory: ./repo
         run: |
+          echo $PKG_VERSION
           COMMIT_HASH=$(gh run view ${{ github.event.inputs.workflow_run_id }} --json headSha -q ".headSha")
           git checkout $COMMIT_HASH
-          TAG_NAME=$(cat version.txt)
-          git tag $TAG_NAME
-          git push origin $TAG_NAME
+          git tag $PKG_VERSION
+          git push origin $PKG_VERSION
 
       - name: Generate Release
         working-directory: ./repo
@@ -131,14 +133,12 @@ jobs:
       - name: Publish NPM Package
         working-directory: ./lib-nodejs
         run: |
-          PKG_VERSION=$(cat ../version.txt)
           npm set "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}"
           npm publish velopack-$PKG_VERSION.tgz --access public
           
       - name: Publish Rust Crate
         working-directory: ./lib-rust
         run: |
-          PKG_VERSION=$(cat ../version.txt)
           tar -xzf velopack-$PKG_VERSION.crate
           cd velopack-$PKG_VERSION
           rm Cargo.toml.orig
