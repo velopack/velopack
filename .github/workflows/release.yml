@@ -122,15 +122,6 @@ jobs:
             dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
           done
           
-      - name: Publish Rust Crate
-        working-directory: ./lib-rust
-        run: |
-          PKG_VERSION=$(cat ../version.txt)
-          tar -xzf velopack-$(PKG_VERSION).crate
-          cd velopack-$(PKG_VERSION)
-          cargo login ${{ secrets.CARGO_TOKEN }}
-          cargo publish --allow-dirty --no-verify
-          
 #      - name: Publish Rust Crate
 #        working-directory: ./lib-rust
 #        run: |
@@ -143,3 +134,14 @@ jobs:
           PKG_VERSION=$(cat ../version.txt)
           npm set "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}"
           npm publish velopack-$(PKG_VERSION).tgz --access public
+          
+      - name: Publish Rust Crate
+        working-directory: ./lib-rust
+        run: |
+          PKG_VERSION=$(cat ../version.txt)
+          tar -xzf velopack-$(PKG_VERSION).crate
+          cd velopack-$(PKG_VERSION)
+          rm Cargo.toml.orig
+          rm .cargo_vcs_info.json
+          cargo login ${{ secrets.CARGO_TOKEN }}
+          cargo publish --allow-dirty --no-verify
