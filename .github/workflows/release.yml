@@ -125,7 +125,7 @@ jobs:
       - name: Publish Rust Crate
         working-directory: ./lib-rust
         run: |
-          PKG_VERSION=$(cat version.txt)
+          PKG_VERSION=$(cat ../version.txt)
           tar -xzf velopack-$(PKG_VERSION).crate
           cd velopack-$(PKG_VERSION)
           cargo login ${{ secrets.CARGO_TOKEN }}
@@ -140,6 +140,6 @@ jobs:
       - name: Publish NPM Package
         working-directory: ./lib-nodejs
         run: |
-          PKG_VERSION=$(cat version.txt)
+          PKG_VERSION=$(cat ../version.txt)
           npm set "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}"
           npm publish velopack-$(PKG_VERSION).tgz --access public
