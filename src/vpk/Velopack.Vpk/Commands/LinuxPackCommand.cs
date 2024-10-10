@@ -22,6 +22,6 @@ public class LinuxPackCommand : PackCommand
             .SetDescription("Set the compression algorithm to use for the AppImage")
             .SetDefault(AppImageTool.DefaultCompressionAlgorithm)
             .SetArgumentHelpName("ALGO")
-            .MustBeOneOfStringValues(["gzip", "lzo", "lzma", "xz", "lz4", "zstd"]);
+            .MustBeOneOfStringValues(["gzip", "xz"]);
     }
 }
