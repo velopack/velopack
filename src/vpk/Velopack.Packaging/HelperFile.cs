@@ -57,9 +57,11 @@ public static class HelperFile
     [SupportedOSPlatform("macos")]
     public static string VelopackEntitlements => FindHelperFile("Velopack.entitlements");
 
-    public static string AppImageRuntimeArm64 => FindHelperFile("appimage-runtime-aarch64");
+    public static string AppImageRuntimeArm64 => FindHelperFile("appimagekit-runtime-aarch64");
 
-    public static string AppImageRuntimeX64 => FindHelperFile("appimage-runtime-x86_64");
+    public static string AppImageRuntimeX64 => FindHelperFile("appimagekit-runtime-x86_64");
+
+    public static string AppImageRuntimeX86 => FindHelperFile("appimagekit-runtime-i686");
 
     public static string SetupPath => FindHelperFile("setup.exe");
 
