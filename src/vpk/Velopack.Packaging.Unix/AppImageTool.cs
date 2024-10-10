@@ -14,6 +14,7 @@ public class AppImageTool
         compression ??= DefaultCompressionAlgorithm;
         
         string runtime = machine switch {
+            RuntimeCpu.x86 => HelperFile.AppImageRuntimeX86,
             RuntimeCpu.x64 => HelperFile.AppImageRuntimeX64,
             RuntimeCpu.arm64 => HelperFile.AppImageRuntimeArm64,
             _ => throw new ArgumentOutOfRangeException(nameof(machine), machine, null)
@@ -53,7 +54,7 @@ public class AppImageTool
 
                 logger.Info("Converting tar into squashfs filesystem");
                 var tool = HelperFile.FindHelperFile("squashfs-tools\\tar2sqfs.exe");
-                logger.Debug(Exe.RunHostedCommand($"\"{tool}\" -c {compression} -b 128K \"{tmpSquashFile}\" < \"{tmpTarFile}\""));
+                logger.Debug(Exe.RunHostedCommand($"\"{tool}\" -c {compression} \"{tmpSquashFile}\" < \"{tmpTarFile}\""));
             } else {
                 Exe.AssertSystemBinaryExists("mksquashfs", "sudo apt install squashfs-tools", "brew install squashfs");
                 var tool = "mksquashfs";
@@ -66,7 +67,7 @@ public class AppImageTool
                     "-root-owned",
                     "-noappend",
                     "-b",
-                    "128K",
+                    "16384",
                     "-mkfs-time",
                     "0",
                 ];

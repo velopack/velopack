@@ -11,10 +11,10 @@ This folder contains pre-compiled binaries from a variety of sources. These shou
 - Can be found at https://github.com/facebook/zstd
 - License is GPL-2.0 & BSD 3: https://github.com/facebook/zstd/blob/dev/LICENSE, https://github.com/facebook/zstd/blob/dev/COPYING
 
-### appimage/type2-runtime (continuous Aug 17, 2024)
-- The "runtime" binaries needed to create a .AppImage for Linux
-- Can be found at https://github.com/AppImage/type2-runtime
-- License is MIT https://github.com/AppImage/type2-runtime/blob/main/LICENSE
+### appimagekit (continuous Mar 8, 2023)
+- Only include the "runtime" binaries needed to create a .AppImage for Linux
+- Can be found at https://github.com/AppImage/AppImageKit
+- License is MIT https://github.com/AppImage/AppImageKit/blob/master/LICENSE
 
 ### squashfs-tools-ng v1.3.0
 - Squashfs utilities for Windows
