@@ -7,7 +7,7 @@ namespace Velopack.Packaging.Unix;
 
 public class AppImageTool
 {
-    public const string DefaultCompressionAlgorithm = "zstd";
+    public const string DefaultCompressionAlgorithm = "xz";
     
     public static void CreateLinuxAppImage(string appDir, string outputFile, RuntimeCpu machine, ILogger logger, string compression)
     {
