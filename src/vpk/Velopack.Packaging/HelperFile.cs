@@ -70,6 +70,9 @@ public static class HelperFile
     [SupportedOSPlatform("windows")]
     public static string SignToolPath => FindHelperFile("signtool.exe");
 
+    [SupportedOSPlatform("windows")]
+    public static string AzTrustedSigningDlibPath => FindHelperFile("Azure.CodeSigning.Dlib.dll");
+
     public static string GetDefaultAppIcon(RuntimeOs os)
     {
         switch (os) {
