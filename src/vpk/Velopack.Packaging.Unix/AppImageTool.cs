@@ -66,11 +66,20 @@ public class AppImageTool
                     compression,
                     "-root-owned",
                     "-noappend",
-                    "-b",
-                    "16384",
                     "-mkfs-time",
                     "0",
                 ];
+
+                // see: https://github.com/AppImage/AppImageKit/blob/e8dadbb09fed3ae3c3d5a5a9ba2c47a072f71c40/src/appimagetool.c#L188-L195
+                if (compression == "xz") {
+                    args.AddRange([
+                        "-Xdict-size",
+                        "100%",
+                        "-b",
+                        "16384"
+                    ]);
+                }
+
                 logger.Info("Compressing AppDir into squashfs filesystem");
                 logger.Debug(Exe.InvokeAndThrowIfNonZero(tool, args, null));
             }
