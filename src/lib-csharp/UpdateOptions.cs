@@ -22,5 +22,9 @@
         /// without having to reinstall the application.
         /// </summary>
         public string? ExplicitChannel { get; set; }
+        /// <summary>
+        /// Optionally validate if the update package files are signed with a trusted cert
+        /// </summary>
+        public bool ValidatePackageIsSigned { get; set; }
     }
 }
