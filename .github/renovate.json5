@@ -31,20 +31,9 @@
       "matchFileNames": ["src/**"]
     },
     {
-      "groupName": "dotnet test deps",
-      "matchFileNames": ["test/**"],
-      "separateMajorMinor": false,
-      "automerge": true
-    },
-    {
-      "groupName": "dotnet core deps",
+      "groupName": "dotnet deps",
       "matchDatasources": "nuget",
-      "matchFileNames": ["src/**"]
-    },
-    {
-      "groupName": "dotnet library deps",
-      "matchFileNames": ["src/**/Velopack.csproj"],
-      "dependencyDashboardApproval": true
+      "matchFileNames": ["src/**", "test/**"]
     },
     // samples
     {
@@ -68,7 +57,7 @@
       "separateMajorMinor": false,
       "automerge": true
     },
-    // troublesome packages
+    // troublesome/frozen packages
     {
       "groupName": "winsafe",
       "matchPackageNames": "winsafe",
@@ -77,6 +66,11 @@
     {
       "groupName": "system commandline",
       "matchPackageNames": "System.CommandLine",
+      "dependencyDashboardApproval": true
+    },
+    {
+      "groupName": "msft logging",
+      "matchPackageNames": "Microsoft.Extensions.Logging.Abstractions",
       "dependencyDashboardApproval": true
     }
   ]
