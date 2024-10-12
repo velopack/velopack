@@ -1,0 +1,71 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommitsDisabled"
+  ],
+  "labels": ["renovate"],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**"
+  ],
+  "dependencyDashboard": true,
+  "automergeType": "pr",
+  "automergeStrategy": "rebase",
+  // automatically upgrade lockfiles and automerge
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": true
+  },
+  // https://docs.renovatebot.com/key-concepts/automerge
+  "packageRules": [
+    {
+      "groupName": "rust deps",
+      "matchDatasources": "crate",
+      "matchFileNames": ["Cargo.toml", "src/**"]
+    },
+    {
+      "groupName": "npm deps",
+      "matchDatasources": "npm",
+      "matchFileNames": ["src/**"]
+    },
+    {
+      "groupName": "dotnet test deps",
+      "matchFileNames": ["test/**"],
+      "separateMajorMinor": false,
+      "automerge": true
+    },
+    {
+      "groupName": "dotnet core deps",
+      "matchDatasources": "nuget",
+      "matchFileNames": ["src/**"]
+    },
+    {
+      "groupName": "dotnet library deps",
+      "matchFileNames": ["src/**/Velopack.csproj"],
+      "dependencyDashboardApproval": true
+    },
+    // samples
+    {
+      "groupName": "sample rust deps",
+      "matchDatasources": "crate",
+      "matchFileNames": ["samples/**"],
+      "separateMajorMinor": false,
+      "automerge": true
+    },
+    {
+      "groupName": "sample dotnet deps",
+      "matchDatasources": "nuget",
+      "matchFileNames": ["samples/**"],
+      "separateMajorMinor": false,
+      "automerge": true
+    },
+    {
+      "groupName": "sample js deps",
+      "matchDatasources": "npm",
+      "matchFileNames": ["samples/**"],
+      "separateMajorMinor": false,
+      "automerge": true
+    }
+  ]
+}
