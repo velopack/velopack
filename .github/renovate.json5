@@ -1,0 +1,38 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "src/lib-csharp/Velopack.csproj"
+  ],
+  "dependencyDashboard": true,
+  // automatically upgrade lockfiles and automerge
+  "lockFileMaintenance": {
+    "enabled": false,
+    "automerge": true
+  },
+  // https://docs.renovatebot.com/key-concepts/automerge
+  "packageRules": [
+    // {
+    //   "description": "Automerge non-major package updates",
+    //   "matchUpdateTypes": ["minor", "patch"],
+    //   "matchCurrentVersion": "!/^0/",
+    //   "automerge": true
+    // },
+    {
+      "description": "Upgrade Rust dependencies",
+      "matchFileNames": ["**/Cargo.toml"]
+    },
+    {
+      "description": "Upgrade dotnet dependencies",
+      "matchFileNames": ["**/*.csproj", "**/Directory.Build.props"]
+    },
+    {
+      "description": "Upgrade npm dependencies",
+      "matchFileNames": ["**/package.json"]
+    }
+  ]
+}
