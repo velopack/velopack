@@ -20,27 +20,43 @@
   },
   // https://docs.renovatebot.com/key-concepts/automerge
   "packageRules": [
-    // {
-    //   "description": "Automerge non-major package updates",
-    //   "matchUpdateTypes": ["minor", "patch"],
-    //   "matchCurrentVersion": "!/^0/",
-    //   "automerge": true
-    // },
     {
       "groupName": "rust dependencies",
-      "matchFileNames": ["**/Cargo.toml"]
+      "matchDatasources": "crate",
+      "matchFileNames": ["Cargo.toml", "src/**"]
     },
     {
-      "groupName": "dotnet dependencies",
-      "matchFileNames": ["**/*.csproj", "**/Directory.Build.props"]
+      "groupName": "npm deps",
+      "matchDatasources": "npm",
+      "matchFileNames": ["src/**"]
     },
     {
-      "groupName": "npm dependencies",
-      "matchFileNames": ["**/package.json"]
-    },
-    {
-      "groupName": "dotnet test dependencies",
+      "groupName": "dotnet test deps",
       "matchFileNames": ["test/**"],
+      "automerge": true
+    },
+    {
+      "groupName": "dotnet core deps",
+      "matchDatasources": "nuget",
+      "matchFileNames": ["src/**"]
+    },
+    // samples
+    {
+      "groupName": "sample rust deps",
+      "matchDatasources": "crate",
+      "matchFileNames": ["samples/**"],
+      "automerge": true
+    },
+    {
+      "groupName": "sample dotnet deps",
+      "matchDatasources": "nuget",
+      "matchFileNames": ["samples/**"],
+      "automerge": true
+    },
+    {
+      "groupName": "sample js deps",
+      "matchDatasources": "npm",
+      "matchFileNames": ["samples/**"],
       "automerge": true
     }
   ]
