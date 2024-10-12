@@ -21,7 +21,7 @@
   // https://docs.renovatebot.com/key-concepts/automerge
   "packageRules": [
     {
-      "groupName": "rust dependencies",
+      "groupName": "rust deps",
       "matchDatasources": "crate",
       "matchFileNames": ["Cargo.toml", "src/**"]
     },
