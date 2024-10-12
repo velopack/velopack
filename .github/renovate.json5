@@ -7,8 +7,7 @@
   "labels": ["renovate"],
   "ignorePaths": [
     "**/node_modules/**",
-    "**/bower_components/**",
-    "src/lib-csharp/Velopack.csproj"
+    "**/bower_components/**"
   ],
   "dependencyDashboard": true,
   "automergeType": "pr",
@@ -33,6 +32,7 @@
     {
       "groupName": "dotnet test deps",
       "matchFileNames": ["test/**"],
+      "separateMajorMinor": false,
       "automerge": true
     },
     {
@@ -40,23 +40,31 @@
       "matchDatasources": "nuget",
       "matchFileNames": ["src/**"]
     },
+    {
+      "groupName": "dotnet library deps",
+      "matchFileNames": ["src/**/Velopack.csproj"],
+      "dependencyDashboardApproval": true
+    },
     // samples
     {
       "groupName": "sample rust deps",
       "matchDatasources": "crate",
       "matchFileNames": ["samples/**"],
+      "separateMajorMinor": false,
       "automerge": true
     },
     {
       "groupName": "sample dotnet deps",
       "matchDatasources": "nuget",
       "matchFileNames": ["samples/**"],
+      "separateMajorMinor": false,
       "automerge": true
     },
     {
       "groupName": "sample js deps",
       "matchDatasources": "npm",
       "matchFileNames": ["samples/**"],
+      "separateMajorMinor": false,
       "automerge": true
     }
   ]
