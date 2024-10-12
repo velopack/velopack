@@ -27,15 +27,15 @@
     //   "automerge": true
     // },
     {
-      "description": "Upgrade Rust dependencies",
+      "groupName": "rust dependencies",
       "matchFileNames": ["**/Cargo.toml"]
     },
     {
-      "description": "Upgrade dotnet dependencies",
+      "groupName": "dotnet dependencies",
       "matchFileNames": ["**/*.csproj", "**/Directory.Build.props"]
     },
     {
-      "description": "Upgrade npm dependencies",
+      "groupName": "npm dependencies",
       "matchFileNames": ["**/package.json"]
     }
   ]
