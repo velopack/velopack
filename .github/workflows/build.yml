@@ -55,7 +55,7 @@ jobs:
           path: |
             target\*.node
       - name: Cancel workflow if failed
-        uses: andymckay/cancel-action@0.4
+        uses: andymckay/cancel-action@0.5
         if: ${{ failure() }}
 
   build-rust-linux:
@@ -95,7 +95,7 @@ jobs:
             target/*.so
             target/*.node
       - name: Cancel workflow if failed
-        uses: andymckay/cancel-action@0.4
+        uses: andymckay/cancel-action@0.5
         if: ${{ failure() }}
 
   build-rust-macos:
@@ -137,7 +137,7 @@ jobs:
             target/*.dylib
             target/*.node
       - name: Cancel workflow if failed
-        uses: andymckay/cancel-action@0.4
+        uses: andymckay/cancel-action@0.5
         if: ${{ failure() }}
         
   test-bins:
