@@ -12,6 +12,7 @@
   "dependencyDashboard": true,
   "automergeType": "pr",
   "automergeStrategy": "rebase",
+  "platformAutomerge": false,
   // automatically upgrade lockfiles and automerge
   "lockFileMaintenance": {
     "enabled": true,
@@ -66,6 +67,17 @@
       "matchFileNames": ["samples/**"],
       "separateMajorMinor": false,
       "automerge": true
+    },
+    // troublesome packages
+    {
+      "groupName": "winsafe",
+      "matchPackageNames": "winsafe",
+      "dependencyDashboardApproval": true
+    },
+    {
+      "groupName": "system commandline",
+      "matchPackageNames": "System.CommandLine",
+      "dependencyDashboardApproval": true
     }
   ]
 }
