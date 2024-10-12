@@ -15,7 +15,7 @@
   "automergeStrategy": "rebase",
   // automatically upgrade lockfiles and automerge
   "lockFileMaintenance": {
-    "enabled": false,
+    "enabled": true,
     "automerge": true
   },
   // https://docs.renovatebot.com/key-concepts/automerge
@@ -37,6 +37,11 @@
     {
       "groupName": "npm dependencies",
       "matchFileNames": ["**/package.json"]
+    },
+    {
+      "groupName": "dotnet test dependencies",
+      "matchFileNames": ["test/**"],
+      "automerge": true
     }
   ]
 }
