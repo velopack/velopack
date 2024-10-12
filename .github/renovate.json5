@@ -1,14 +1,18 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    ":semanticCommitsDisabled"
   ],
+  "labels": ["renovate"],
   "ignorePaths": [
     "**/node_modules/**",
     "**/bower_components/**",
     "src/lib-csharp/Velopack.csproj"
   ],
   "dependencyDashboard": true,
+  "automergeType": "pr",
+  "automergeStrategy": "rebase",
   // automatically upgrade lockfiles and automerge
   "lockFileMaintenance": {
     "enabled": false,
