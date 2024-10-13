@@ -72,6 +72,10 @@
       "groupName": "msft logging",
       "matchPackageNames": "Microsoft.Extensions.Logging.Abstractions",
       "dependencyDashboardApproval": true
+    },
+    {
+      "matchPackageNames": "SixLabors.ImageSharp",
+      "allowedVersions": "< 3.0.0"
     }
   ]
 }
