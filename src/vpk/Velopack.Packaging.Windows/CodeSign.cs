@@ -70,8 +70,8 @@ public class CodeSign
         }
 
         do {
-            List<string> filesToSign = new List<string>();
-            for (int i = Math.Min(pendingSign.Count, parallelism); i > 0; i--) {
+            List<string> filesToSign = [];
+            for (int i = Math.Max(1, Math.Min(pendingSign.Count, parallelism)); i > 0; i--) {
                 filesToSign.Add(pendingSign.Dequeue());
             }
 
@@ -119,6 +119,8 @@ public class CodeSign
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+
+        psi.EnvironmentVariables["AZURE_TENANT_ID"] = "a6ef451d-e08a-4c6c-82ed-a392fab5cf0b";
 
         using var process = Process.Start(psi);
         process.WaitForExit();
