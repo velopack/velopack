@@ -61,7 +61,7 @@ public class BaseCommand : CliCommand
         Options.Remove(option);
     }
 
-    public string GetEnvVariableName(CliOption option) => _envHelp.ContainsKey(option) ? _envHelp[option] : null;
+    public string GetEnvVariableName(CliOption option) => _envHelp.TryGetValue(option, out string value) ? value : null;
 
     public void SetProperties(ParseResult context, IConfiguration config, RuntimeOs targetOs)
     {
