@@ -120,8 +120,6 @@ public class CodeSign
             CreateNoWindow = true,
         };
 
-        psi.EnvironmentVariables["AZURE_TENANT_ID"] = "a6ef451d-e08a-4c6c-82ed-a392fab5cf0b";
-
         using var process = Process.Start(psi);
         process.WaitForExit();
 

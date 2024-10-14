@@ -31,7 +31,7 @@ public static class TestApp
             logger.Info($"TEST: Running {psi.FileName} {debug}");
 
             using var p = Process.Start(psi);
-            p.WaitForExit();
+            p!.WaitForExit();
 
             if (p.ExitCode != 0)
                 throw new Exception($"dotnet publish failed with exit code {p.ExitCode}");
