@@ -22,7 +22,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.11.4" />
-    <PackageReference Include="Microsoft.IO.Redist" Version="6.0.1" />
+    <PackageReference Include="Microsoft.IO.Redist" Version="6.0.1" Condition="'$(TargetFramework)' == 'net472'" />
     <PackageReference Include="Riok.Mapperly" Version="4.0.0" />
   </ItemGroup>
 
