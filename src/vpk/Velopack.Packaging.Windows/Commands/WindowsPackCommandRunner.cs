@@ -264,7 +264,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         if (!VelopackRuntimeInfo.IsWindows) return;
 
         if (!string.IsNullOrEmpty(trustedSignMetadataPath)) {
-            Log.Info($"Use Azure Trusted Signing service for code signing. Metadata file path: {trustedSignMetadataPath}");
+            Log.Info($"Using Azure Trusted Signing service for code signing. Metadata file path: {trustedSignMetadataPath}");
 
             string dlibPath = await GetDlibPath(CancellationToken.None);
             signParams = $"/fd SHA256 /tr \"http://timestamp.acs.microsoft.com\" /v /debug /td SHA256 /dlib \"{dlibPath}\" /dmdf \"{trustedSignMetadataPath}\"";
