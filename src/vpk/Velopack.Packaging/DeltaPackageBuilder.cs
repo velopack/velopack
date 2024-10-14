@@ -184,8 +184,8 @@ public class DeltaPackageBuilder
             progress(100);
             fRemoved = baseLibFiles.Count;
 
-            _logger.Info($"Delta processed {fProcessed.ToString("D4")} files. "
-                + $"{fChanged.ToString("D4")} patched, {fSame.ToString("D4")} unchanged, {fNew.ToString("D4")} new, {fRemoved.ToString("D4")} removed");
+            _logger.Info($"Delta processed {fProcessed:D4} files. "
+                + $"{fChanged:D4} patched, {fSame:D4} unchanged, {fNew:D4} new, {fRemoved:D4} removed");
 
             _logger.Debug(
                 $"Successfully created delta package for {basePackage.Version} -> {newPackage.Version}" +
