@@ -71,7 +71,7 @@ public static class HelperFile
     public static string SignToolPath => FindHelperFile("signtool.exe");
 
     [SupportedOSPlatform("windows")]
-    public static string AzTrustedSigningDlibPath => FindHelperFile("Azure.CodeSigning.Dlib.dll");
+    public const string AzureDlibFileName = "Azure.CodeSigning.Dlib.dll";
 
     public static string GetDefaultAppIcon(RuntimeOs os)
     {
@@ -87,7 +87,7 @@ public static class HelperFile
         }
     }
 
-    private static readonly List<string> _searchPaths = new List<string>();
+    private static readonly List<string> _searchPaths = [];
 
     static HelperFile()
     {

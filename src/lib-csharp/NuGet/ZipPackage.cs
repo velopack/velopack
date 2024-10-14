@@ -9,7 +9,7 @@ namespace Velopack.NuGet
 {
     public class ZipPackage : PackageManifest
     {
-        public IEnumerable<ZipPackageFile> Files { get; private set; } = Enumerable.Empty<ZipPackageFile>();
+        public IEnumerable<ZipPackageFile> Files { get; }
 
         public byte[]? UpdateExeBytes { get; private set; }
 
