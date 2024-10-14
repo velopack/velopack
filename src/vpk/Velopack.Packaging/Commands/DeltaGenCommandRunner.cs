@@ -22,6 +22,9 @@ public class DeltaGenCommandRunner : ICommand<DeltaGenOptions>
             await ctx.RunTask($"Building delta {pold.Version} -> {pnew.Version}", (progress) => {
                 var delta = new DeltaPackageBuilder(_logger);
                 delta.CreateDeltaPackage(pold, pnew, options.OutputFile, options.DeltaMode, progress);
+                progress(95);
+                if (options.UpdateReleasesFile)
+                    ReleaseEntryHelper.UpdateReleaseFiles(new FileInfo(options.OutputFile).Directory.FullName, _logger);
                 progress(100);
                 return Task.CompletedTask;
             });

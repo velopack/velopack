@@ -13,6 +13,8 @@ public class RepositoryOptions : IOutputOptions
 
     public RuntimeOs TargetOs { get; set; }
 
+    public bool UpdateReleasesFile { get; set; } = true;
+
     public string Channel {
         get => _channel ?? ReleaseEntryHelper.GetDefaultChannel(TargetOs);
         set => _channel = value;
@@ -111,6 +113,10 @@ public abstract class DownRepository<TDown> : IRepositoryCanDownload<TDown>
         }
 
         File.Move(incomplete, path, true);
+
+        if (options.UpdateReleasesFile)
+            ReleaseEntryHelper.UpdateReleaseFiles(options.ReleaseDir.FullName, Log);
+
         Log.Info("Finished.");
     }
 
