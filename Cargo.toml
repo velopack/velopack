@@ -4,10 +4,10 @@ members = [
     "src/bins",
     "src/lib-rust",
     "src/lib-nodejs/velopack_nodeffi",
-    # "src/lib-cpp/generator,"
 ]
 exclude = [
     "samples/RustIced",
+    "src/lib-cpp/generator"
 ]
 
 [workspace.package]
