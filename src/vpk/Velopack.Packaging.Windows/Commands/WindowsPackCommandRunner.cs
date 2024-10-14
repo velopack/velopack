@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.IO.Compression;
+using System.Text;
+using Microsoft.Extensions.Logging;
 using Velopack.Compression;
 using Velopack.NuGet;
 using Velopack.Packaging.Abstractions;
@@ -22,7 +24,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             .Select(x => x.FullName)
             .ToArray();
 
-        SignFilesImpl(Options, progress, filesToSign);
+        SignFilesImpl(Options, Log, progress, filesToSign);
         return Task.CompletedTask;
     }
 
@@ -173,26 +175,31 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
     protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe)
     {
+        CreateSetupPackageImpl(progress, Options, Log, releasePkg, targetSetupExe);
+        return Task.CompletedTask;
+    }
+
+    internal static void CreateSetupPackageImpl(Action<int> progress, WindowsPackOptions options, ILogger log, string releasePkg, string targetSetupExe)
+    {
         var bundledZip = new ZipPackage(releasePkg);
         IoUtil.Retry(() => File.Copy(HelperFile.SetupPath, targetSetupExe, true));
         progress(10);
 
-        var editor = new ResourceEdit(targetSetupExe, Log);
+        var editor = new ResourceEdit(targetSetupExe, log);
         editor.SetVersionInfo(bundledZip);
-        if (Options.Icon != null) {
-            editor.SetExeIcon(Options.Icon);
+        if (options.Icon != null) {
+            editor.SetExeIcon(options.Icon);
         }
         editor.Commit();
 
         progress(25);
-        Log.Debug($"Creating Setup bundle");
+        log.Debug($"Creating Setup bundle");
         SetupBundle.CreatePackageBundle(targetSetupExe, releasePkg);
         progress(50);
-        Log.Debug("Signing Setup bundle");
-        SignFilesImpl(Options, CoreUtil.CreateProgressDelegate(progress, 50, 100), targetSetupExe);
-        Log.Debug($"Setup bundle created '{Path.GetFileName(targetSetupExe)}'.");
+        log.Debug("Signing Setup bundle");
+        SignFilesImpl(options, log, CoreUtil.CreateProgressDelegate(progress, 50, 100), targetSetupExe);
+        log.Debug($"Setup bundle created '{Path.GetFileName(targetSetupExe)}'.");
         progress(100);
-        return Task.CompletedTask;
     }
 
     protected override async Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath)
@@ -242,15 +249,15 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
     }
 
-    private void SignFilesImpl(WindowsSigningOptions options, Action<int> progress, params string[] filePaths)
+    private static void SignFilesImpl(WindowsSigningOptions options, ILogger log, Action<int> progress, params string[] filePaths)
     {
         var signParams = options.SignParameters;
         var signTemplate = options.SignTemplate;
         var signParallel = options.SignParallel;
-        var helper = new CodeSign(Log);
+        var helper = new CodeSign(log);
 
         if (string.IsNullOrEmpty(signParams) && string.IsNullOrEmpty(signTemplate)) {
-            Log.Warn($"No signing parameters provided, {filePaths.Length} file(s) will not be signed.");
+            log.Warn($"No signing parameters provided, {filePaths.Length} file(s) will not be signed.");
             return;
         }
 

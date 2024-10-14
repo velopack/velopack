@@ -12,6 +12,8 @@ public class BaseCommand : CliCommand
 
     private readonly Dictionary<CliOption, string> _envHelp = new();
 
+    public IServiceProvider ServiceProvider { get; private set; }
+
     protected BaseCommand(string name, string description)
         : base(name, description)
     {
@@ -70,6 +72,14 @@ public class BaseCommand : CliCommand
             kvp.Value(context, config);
         }
     }
+
+    public void SetServiceProvider(IServiceProvider provider)
+    {
+        this.ServiceProvider = provider;
+    }
+
+    public virtual void InitSubCommands()
+    { }
 
     public virtual void Initialize(LoggingLevelSwitch logLevelSwitch)
     { }
