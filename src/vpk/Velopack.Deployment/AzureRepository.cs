@@ -23,6 +23,7 @@ public class AzureDownloadOptions : RepositoryOptions, IObjectDownloadOptions
 public class AzureUploadOptions : AzureDownloadOptions, IObjectUploadOptions
 {
     public int KeepMaxReleases { get; set; }
+    public int KeepMaxDeltaReleases { get; set; }
 }
 
 public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploadOptions, BlobContainerClient>

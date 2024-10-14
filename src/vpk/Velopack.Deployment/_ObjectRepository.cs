@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.Extensions.Logging;
 using Velopack.Packaging;
 using Velopack.Util;
@@ -8,6 +8,7 @@ namespace Velopack.Deployment;
 public interface IObjectUploadOptions
 {
     public int KeepMaxReleases { get; set; }
+    public int KeepMaxDeltaReleases { get; set; }
 }
 
 public interface IObjectDownloadOptions
@@ -63,7 +64,7 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
 
         Log.Info($"{releaseEntries.Length} merged local/remote release(s).");
 
-        var toDelete = new VelopackAsset[0];
+        var toDelete = Array.Empty<VelopackAsset>();
 
         if (options.KeepMaxReleases > 0) {
             var fullReleases = releaseEntries
@@ -79,6 +80,23 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
                 Log.Info($"Retention policy (keepMaxReleases={options.KeepMaxReleases}) will delete {toDelete.Length} release(s).");
             } else {
                 Log.Info($"Retention policy (keepMaxReleases={options.KeepMaxReleases}) will not be applied, because there will only be {fullReleases.Length} full release(s) when this upload has completed.");
+            }
+        }
+        if (options.KeepMaxDeltaReleases > 0) {
+            var fullReleases = releaseEntries
+                .OrderByDescending(x => x.Version)
+                .Where(x => x.Type == VelopackAssetType.Delta)
+                .ToArray();
+            if (fullReleases.Length > options.KeepMaxDeltaReleases) {
+                var minVersion = fullReleases[options.KeepMaxDeltaReleases - 1].Version;
+                toDelete = releaseEntries
+                    .Where(x => x.Version < minVersion)
+                    .Union(toDelete) //include the full releases from above
+                    .ToArray();
+                releaseEntries = releaseEntries.Except(toDelete).ToArray();
+                Log.Info($"Retention policy (keepMaxDeltaReleases={options.KeepMaxDeltaReleases}) will delete {toDelete.Length} release(s).");
+            } else {
+                Log.Info($"Retention policy (keepMaxDeltaReleases={options.KeepMaxDeltaReleases}) will not be applied, because there will only be {fullReleases.Length} full release(s) when this upload has completed.");
             }
         }
 

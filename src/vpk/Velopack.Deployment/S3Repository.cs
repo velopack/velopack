@@ -26,6 +26,7 @@ public class S3DownloadOptions : RepositoryOptions, IObjectDownloadOptions
 public class S3UploadOptions : S3DownloadOptions, IObjectUploadOptions
 {
     public int KeepMaxReleases { get; set; }
+    public int KeepMaxDeltaReleases { get; set; }
 }
 
 public class S3BucketClient(AmazonS3Client client, string bucket, string prefix, bool disableSigning)
