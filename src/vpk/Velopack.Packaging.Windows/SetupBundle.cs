@@ -5,16 +5,16 @@ namespace Velopack.Packaging.Windows;
 
 public static class SetupBundle
 {
-    public static bool IsBundle(string setupPath, out long bundleOffset, out long bundleLength)
-    {
-        byte[] bundleSignature = {
+    private readonly static byte[] SquirrelBundleSignature = [
             // 64 bytes represent the bundle signature: SHA-256 for "squirrel bundle"
             0x94, 0xf0, 0xb1, 0x7b, 0x68, 0x93, 0xe0, 0x29,
             0x37, 0xeb, 0x34, 0xef, 0x53, 0xaa, 0xe7, 0xd4,
             0x2b, 0x54, 0xf5, 0x70, 0x7e, 0xf5, 0xd6, 0xf5,
             0x78, 0x54, 0x98, 0x3e, 0x5e, 0x94, 0xed, 0x7d
-        };
+        ];
 
+    public static bool IsBundle(string setupPath, out long bundleOffset, out long bundleLength)
+    {
         long offset = 0;
         long length = 0;
 
@@ -23,7 +23,7 @@ public static class SetupBundle
             using var memoryMappedFile = MemoryMappedFile.CreateFromFile(setupPath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
             using MemoryMappedViewAccessor accessor = memoryMappedFile.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
 
-            int position = SearchInFile(accessor, bundleSignature);
+            int position = SearchInFile(accessor, SquirrelBundleSignature);
             if (position == -1) {
                 throw new Exception("PlaceHolderNotFoundInAppHostException");
             }
@@ -56,17 +56,14 @@ public static class SetupBundle
             setupStream?.Dispose();
         }
 
-        byte[] placeholder = {
-            // 8 bytes represent the package offset 
+        byte[] placeholder = [
+            // 8 bytes represent the package offset
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            // 8 bytes represent the package length 
+            // 8 bytes represent the package length
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            // 64 bytes represent the bundle signature: SHA-256 for "squirrel bundle"
-            0x94, 0xf0, 0xb1, 0x7b, 0x68, 0x93, 0xe0, 0x29,
-            0x37, 0xeb, 0x34, 0xef, 0x53, 0xaa, 0xe7, 0xd4,
-            0x2b, 0x54, 0xf5, 0x70, 0x7e, 0xf5, 0xd6, 0xf5,
-            0x78, 0x54, 0x98, 0x3e, 0x5e, 0x94, 0xed, 0x7d
-        };
+
+            .. SquirrelBundleSignature
+        ];
 
         var data = new byte[16];
         Array.Copy(BitConverter.GetBytes(bundleOffset), data, 8);
