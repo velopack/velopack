@@ -2,9 +2,8 @@ fn main() {
     cxx_build::bridge("src/lib.rs")
         .file("src/bridge.cc")
         .flag_if_supported("/std:c++17")
-        .flag_if_supported("/DEF:src/lib.def")
-        .flag_if_supported("/FORCE:UNRESOLVED")
         // .warnings_into_errors(true)
+        .define("VELOPACK_LIBC_EXPORTS", Some("1"))
         .std("c++17")
         .compile("velopack_libc");
 
