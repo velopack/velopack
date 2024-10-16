@@ -15,6 +15,6 @@ struct DownloadCallbackManager {
 };
 
 struct LoggerCallbackManager {
-    void log(::LogLevel level, ::rust::String message) const {};
+    void log(::rust::String level, ::rust::String message) const {};
 };
-        
+

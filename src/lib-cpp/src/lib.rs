@@ -1,10 +1,8 @@
 #![allow(non_snake_case)]
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use lazy_static::lazy_static;
 use log::{Level, Log, Metadata, Record};
 use velopack::{
     locator::VelopackLocatorConfig,
@@ -74,14 +72,6 @@ mod ffi {
         pub has_data: bool,
     }
     
-    pub enum LogLevel {
-        Trace = 0,
-        Debug = 1,
-        Info = 2,
-        Warn = 3,
-        Error = 4,
-    }
-
     // C++ types and signatures exposed to Rust.
     unsafe extern "C++" {
         include!("velopack_libc/include/bridge.hpp");
@@ -95,7 +85,7 @@ mod ffi {
         type DownloadCallbackManager;
         fn download_progress(self: &DownloadCallbackManager, progress: i16);
         type LoggerCallbackManager;
-        fn log(self: &LoggerCallbackManager, level: LogLevel, message: String);
+        fn log(self: &LoggerCallbackManager, level: String, message: String);
     }
 
     // Rust types and signatures exposed to C++.
@@ -228,18 +218,6 @@ fn bridge_check_for_updates(manager: &UpdateManagerOpaque) -> Result<ffi::Update
 }
 
 fn bridge_download_update(manager: &UpdateManagerOpaque, to_download: ffi::UpdateInfo, cb: cxx::UniquePtr<ffi::DownloadCallbackManager>) -> Result<()> {
-    // let info = to_update_info(&to_download);
-    // 
-    // let (sender, receiver) = std::sync::mpsc::channel::<i16>();
-    // std::thread::spawn(move || {
-    //     while let Ok(progress) = receiver.recv() {
-    //         cb.download_progress(progress);
-    //     }
-    // });
-    // 
-    // manager.obj.download_updates(&info, Some(sender))?;
-    // Ok(())
-
     let info = to_update_info(&to_download);
 
     let (progress_sender, progress_receiver) = std::sync::mpsc::channel::<i16>();
@@ -309,8 +287,9 @@ fn bridge_appbuilder_run(cb: cxx::UniquePtr<ffi::HookCallbackManager>, custom_ar
     if custom_args.has_data {
         app = app.set_args(custom_args.data);
     }
-    
-    
+
+    let _ = log::set_logger(&LOGGER);
+    log::set_max_level(log::LevelFilter::Trace);
 
     app.run();
 }
@@ -331,15 +310,17 @@ impl Log for LoggerImpl {
         let text = format!("{}", record.args());
 
         let level = match record.level() {
-            Level::Error => ffi::LogLevel::Error,
-            Level::Warn => ffi::LogLevel::Warn,
-            Level::Info => ffi::LogLevel::Info,
-            Level::Debug => ffi::LogLevel::Debug,
-            Level::Trace => ffi::LogLevel::Trace,
-        };
+            Level::Error => "error",
+            Level::Warn => "warn",
+            Level::Info => "info",
+            Level::Debug => "debug",
+            Level::Trace => "trace",
+        }.to_string();
         
         if let Some(cb) = get_logger() {
-            cb.log(level, text);
+            if let Some(cb) = unsafe { cb.as_mut() } {
+                cb.log(level, text);
+            }
         }
     }
 
