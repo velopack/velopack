@@ -4,10 +4,10 @@ members = [
     "src/bins",
     "src/lib-rust",
     "src/lib-nodejs/velopack_nodeffi",
+    "src/lib-cpp",
 ]
 exclude = [
     "samples/RustIced",
-    "src/lib-cpp/generator"
 ]
 
 [workspace.package]
@@ -23,6 +23,8 @@ edition = "2021"
 rust-version = "1.75"
 
 [workspace.dependencies]
+cxx = "1.0"
+cxx-build = "1.0"
 velopack = { path = "src/lib-rust" }
 log = "0.4"
 native-tls = "0.2"
