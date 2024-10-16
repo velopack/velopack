@@ -48,30 +48,30 @@ mod ffi {
         pub has_data: bool,
     }
 
-    pub struct LocatorConfigDto<'a> {
-        pub RootAppDir: &'a CxxString,
-        pub UpdateExePath: &'a CxxString,
-        pub PackagesDir: &'a CxxString,
-        pub ManifestPath: &'a CxxString,
-        pub CurrentBinaryDir: &'a CxxString,
+    pub struct LocatorConfigDto {
+        pub RootAppDir: String,
+        pub UpdateExePath: String,
+        pub PackagesDir: String,
+        pub ManifestPath: String,
+        pub CurrentBinaryDir: String,
         pub IsPortable: bool,
     }
 
-    pub struct LocatorConfigOption<'a> {
-        pub data: LocatorConfigDto<'a>,
+    pub struct LocatorConfigOption {
+        pub data: LocatorConfigDto,
         pub has_data: bool,
     }
 
-    pub struct UpdateOptionsDto<'a> {
+    pub struct UpdateOptionsDto {
         pub AllowVersionDowngrade: bool,
-        pub ExplicitChannel: &'a CxxString,
+        pub ExplicitChannel: String,
     }
 
     pub struct StringArrayOption {
         pub data: Vec<String>,
         pub has_data: bool,
     }
-    
+
     // C++ types and signatures exposed to Rust.
     unsafe extern "C++" {
         include!("velopack_libc/include/Velopack.h");
@@ -100,7 +100,7 @@ mod ffi {
         fn bridge_check_for_updates(manager: &UpdateManagerOpaque) -> Result<UpdateInfoOption>;
         fn bridge_download_update(manager: &UpdateManagerOpaque, to_download: UpdateInfoDto, progress: UniquePtr<DownloadCallbackManager>) -> Result<()>;
         fn bridge_wait_exit_then_apply_update(manager: &UpdateManagerOpaque, to_download: AssetDto, silent: bool, restart: bool, restart_args: Vec<String>) -> Result<()>;
-        fn bridge_appbuilder_run(cb: UniquePtr<HookCallbackManager>, custom_args: StringArrayOption, locator: LocatorConfigOption, auto_apply: bool);
+        unsafe fn bridge_appbuilder_run(cb: &HookCallbackManager, custom_args: &StringArrayOption, locator: &LocatorConfigOption, auto_apply: bool);
         fn bridge_set_logger_callback(cb: UniquePtr<LoggerCallbackManager>);
     }
 }
@@ -112,17 +112,17 @@ struct UpdateManagerOpaque {
 
 fn to_locator_config(locator: &ffi::LocatorConfigDto) -> VelopackLocatorConfig {
     VelopackLocatorConfig {
-        RootAppDir: PathBuf::from(locator.RootAppDir.to_string_lossy().to_string()),
-        UpdateExePath: PathBuf::from(locator.UpdateExePath.to_string_lossy().to_string()),
-        PackagesDir: PathBuf::from(locator.PackagesDir.to_string_lossy().to_string()),
-        ManifestPath: PathBuf::from(locator.ManifestPath.to_string_lossy().to_string()),
-        CurrentBinaryDir: PathBuf::from(locator.CurrentBinaryDir.to_string_lossy().to_string()),
+        RootAppDir: PathBuf::from(locator.RootAppDir.clone()),
+        UpdateExePath: PathBuf::from(locator.UpdateExePath.clone()),
+        PackagesDir: PathBuf::from(locator.PackagesDir.clone()),
+        ManifestPath: PathBuf::from(locator.ManifestPath.clone()),
+        CurrentBinaryDir: PathBuf::from(locator.CurrentBinaryDir.clone()),
         IsPortable: locator.IsPortable,
     }
 }
 
 fn to_update_options(options: &ffi::UpdateOptionsDto) -> VelopackUpdateOptions {
-    let channel = options.ExplicitChannel.to_string_lossy().to_string();
+    let channel = options.ExplicitChannel.clone();
     VelopackUpdateOptions {
         AllowVersionDowngrade: options.AllowVersionDowngrade,
         ExplicitChannel: if channel.is_empty() { None } else { Some(channel) },
@@ -267,15 +267,16 @@ fn bridge_wait_exit_then_apply_update(manager: &UpdateManagerOpaque, to_download
     Ok(())
 }
 
-fn bridge_appbuilder_run(cb: cxx::UniquePtr<ffi::HookCallbackManager>, custom_args: ffi::StringArrayOption, locator: ffi::LocatorConfigOption, auto_apply: bool) {
+fn bridge_appbuilder_run(cb: &ffi::HookCallbackManager, custom_args: &ffi::StringArrayOption, locator: &ffi::LocatorConfigOption, auto_apply: bool) {
     let mut app = VelopackApp::build()
+        .set_auto_apply_on_startup(auto_apply)
         .on_first_run(|v| cb.firstrun_hook(v.to_string()))
-        .on_restarted(|v| cb.restarted_hook(v.to_string()))
-        .set_auto_apply_on_startup(auto_apply);
+        .on_restarted(|v| cb.restarted_hook(v.to_string()));
 
     #[cfg(windows)]
     {
-        app = app.on_after_install_fast_callback(|v| cb.install_hook(v.to_string()))
+        app = app
+            .on_after_install_fast_callback(|v| cb.install_hook(v.to_string()))
             .on_after_update_fast_callback(|v| cb.update_hook(v.to_string()))
             .on_before_update_fast_callback(|v| cb.obsolete_hook(v.to_string()))
             .on_before_uninstall_fast_callback(|v| cb.uninstall_hook(v.to_string()));
@@ -286,13 +287,14 @@ fn bridge_appbuilder_run(cb: cxx::UniquePtr<ffi::HookCallbackManager>, custom_ar
     }
 
     if custom_args.has_data {
-        app = app.set_args(custom_args.data);
+        app = app.set_args(custom_args.data.clone());
     }
 
     app.run();
 }
 
 struct LoggerImpl {}
+
 static LOGGER: LoggerImpl = LoggerImpl {};
 
 impl Log for LoggerImpl {
@@ -314,7 +316,7 @@ impl Log for LoggerImpl {
             Level::Debug => "debug",
             Level::Trace => "trace",
         }.to_string();
-        
+
         if let Some(cb) = get_logger() {
             if let Some(cb) = unsafe { cb.as_mut() } {
                 cb.log(level, text);
@@ -345,7 +347,7 @@ fn get_logger() -> Option<*mut ffi::LoggerCallbackManager> {
 fn bridge_set_logger_callback(cb: cxx::UniquePtr<ffi::LoggerCallbackManager>) {
     let _ = log::set_logger(&LOGGER);
     log::set_max_level(log::LevelFilter::Trace);
-    
+
     let cb = cb.into_raw();
     store_logger(cb);
 }

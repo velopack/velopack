@@ -3,6 +3,13 @@
 #include "velopack_libc/include/Velopack.h"
 
 struct HookCallbackManager {
+    vpkc_hook_callback_t after_install = nullptr;
+    vpkc_hook_callback_t before_uninstall = nullptr;
+    vpkc_hook_callback_t before_update = nullptr;
+    vpkc_hook_callback_t after_update = nullptr;
+    vpkc_hook_callback_t first_run = nullptr;
+    vpkc_hook_callback_t restarted = nullptr;
+
     void install_hook(::rust::String app_version) const {};
     void update_hook(::rust::String app_version) const {};
     void obsolete_hook(::rust::String app_version) const {};
