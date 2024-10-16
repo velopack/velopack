@@ -92,16 +92,16 @@ mod ffi {
     // Rust types and signatures exposed to C++.
     extern "Rust" {
         type UpdateManagerOpaque;
-        fn bridge_new_update_manager(url_or_path: &CxxString, options: UpdateOptionsDto, locator: LocatorConfigOption) -> Result<Box<UpdateManagerOpaque>>;
+        fn bridge_new_update_manager(url_or_path: &String, options: &UpdateOptionsDto, locator: &LocatorConfigOption) -> Result<Box<UpdateManagerOpaque>>;
         fn bridge_get_current_version(manager: &UpdateManagerOpaque) -> String;
         fn bridge_get_app_id(manager: &UpdateManagerOpaque) -> String;
         fn bridge_is_portable(manager: &UpdateManagerOpaque) -> bool;
         fn bridge_update_pending_restart(manager: &UpdateManagerOpaque) -> AssetOption;
         fn bridge_check_for_updates(manager: &UpdateManagerOpaque) -> Result<UpdateInfoOption>;
-        fn bridge_download_update(manager: &UpdateManagerOpaque, to_download: UpdateInfoDto, progress: UniquePtr<DownloadCallbackManager>) -> Result<()>;
-        fn bridge_wait_exit_then_apply_update(manager: &UpdateManagerOpaque, to_download: AssetDto, silent: bool, restart: bool, restart_args: Vec<String>) -> Result<()>;
-        unsafe fn bridge_appbuilder_run(cb: &HookCallbackManager, custom_args: &StringArrayOption, locator: &LocatorConfigOption, auto_apply: bool);
-        fn bridge_set_logger_callback(cb: UniquePtr<LoggerCallbackManager>);
+        fn bridge_download_updates(manager: &UpdateManagerOpaque, to_download: &UpdateInfoDto, progress: &DownloadCallbackManager) -> Result<()>;
+        fn bridge_wait_exit_then_apply_update(manager: &UpdateManagerOpaque, to_apply: &AssetDto, silent: bool, restart: bool, restart_args: &Vec<String>) -> Result<()>;
+        fn bridge_appbuilder_run(cb: &HookCallbackManager, custom_args: &StringArrayOption, locator: &LocatorConfigOption, auto_apply: bool);
+        unsafe fn bridge_set_logger_callback(cb: *mut LoggerCallbackManager);
     }
 }
 
@@ -171,9 +171,8 @@ fn to_update_info(info: &ffi::UpdateInfoDto) -> VelopackUpdateInfo {
     }
 }
 
-fn bridge_new_update_manager(url_or_path: &cxx::CxxString, options: ffi::UpdateOptionsDto, locator: ffi::LocatorConfigOption) -> Result<Box<UpdateManagerOpaque>> {
-    let url = url_or_path.to_string_lossy();
-    let source = sources::AutoSource::new(&url);
+fn bridge_new_update_manager(url_or_path: &String, options: &ffi::UpdateOptionsDto, locator: &ffi::LocatorConfigOption) -> Result<Box<UpdateManagerOpaque>> {
+    let source = sources::AutoSource::new(url_or_path);
     let update_options = to_update_options(&options);
 
     if locator.has_data {
@@ -218,7 +217,7 @@ fn bridge_check_for_updates(manager: &UpdateManagerOpaque) -> Result<ffi::Update
     }
 }
 
-fn bridge_download_update(manager: &UpdateManagerOpaque, to_download: ffi::UpdateInfoDto, cb: cxx::UniquePtr<ffi::DownloadCallbackManager>) -> Result<()> {
+fn bridge_download_updates(manager: &UpdateManagerOpaque, to_download: &ffi::UpdateInfoDto, cb: &ffi::DownloadCallbackManager) -> Result<()> {
     let info = to_update_info(&to_download);
 
     let (progress_sender, progress_receiver) = std::sync::mpsc::channel::<i16>();
@@ -261,8 +260,8 @@ fn bridge_download_update(manager: &UpdateManagerOpaque, to_download: ffi::Updat
     }
 }
 
-fn bridge_wait_exit_then_apply_update(manager: &UpdateManagerOpaque, to_download: ffi::AssetDto, silent: bool, restart: bool, restart_args: Vec<String>) -> Result<()> {
-    let asset = to_asset(&to_download);
+fn bridge_wait_exit_then_apply_update(manager: &UpdateManagerOpaque, to_apply: &ffi::AssetDto, silent: bool, restart: bool, restart_args: &Vec<String>) -> Result<()> {
+    let asset = to_asset(&to_apply);
     manager.obj.wait_exit_then_apply_updates(&asset, silent, restart, restart_args)?;
     Ok(())
 }
@@ -344,10 +343,8 @@ fn get_logger() -> Option<*mut ffi::LoggerCallbackManager> {
     }
 }
 
-fn bridge_set_logger_callback(cb: cxx::UniquePtr<ffi::LoggerCallbackManager>) {
+unsafe fn bridge_set_logger_callback(cb: *mut ffi::LoggerCallbackManager) {
     let _ = log::set_logger(&LOGGER);
     log::set_max_level(log::LevelFilter::Trace);
-
-    let cb = cb.into_raw();
     store_logger(cb);
 }

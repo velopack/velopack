@@ -91,13 +91,13 @@ typedef struct {
 } vpkc_update_info_t;
 
 // Update Manager
-VPKC_EXPORT bool VPKC_CALL vpkc_new_update_manager(const char* pszUrlOrString, const vpkc_options_t* pOptions, const vpkc_locator_t* locator, vpkc_update_manager_t* pManager);
+VPKC_EXPORT bool VPKC_CALL vpkc_new_update_manager(const char* pszUrlOrString, const vpkc_options_t* pOptions, vpkc_locator_t* pLocator, vpkc_update_manager_t* pManager);
 VPKC_EXPORT size_t VPKC_CALL vpkc_get_current_version(vpkc_update_manager_t* pManager, char* pszVersion, size_t cVersion);
 VPKC_EXPORT size_t VPKC_CALL vpkc_get_app_id(vpkc_update_manager_t* pManager, char* pszId, size_t cId);
 VPKC_EXPORT bool VPKC_CALL vpkc_is_portable(vpkc_update_manager_t* pManager);
 VPKC_EXPORT bool VPKC_CALL vpkc_update_pending_restart(vpkc_update_manager_t* pManager, vpkc_asset_t* pAsset);
 VPKC_EXPORT vpkc_update_check_t VPKC_CALL vpkc_check_for_updates(vpkc_update_manager_t* pManager, vpkc_update_info_t* pUpdate);
-VPKC_EXPORT bool VPKC_CALL vpkc_download_updates(vpkc_update_manager_t* pManager, const vpkc_update_info_t* pUpdate, vpkc_progress_callback_t cbProgress);
+VPKC_EXPORT bool VPKC_CALL vpkc_download_updates(vpkc_update_manager_t* pManager, vpkc_update_info_t* pUpdate, vpkc_progress_callback_t cbProgress);
 VPKC_EXPORT bool VPKC_CALL vpkc_wait_exit_then_apply_update(vpkc_update_manager_t* pManager, vpkc_asset_t* pAsset, bool bSilent, bool bRestart, char** pRestartArgs, size_t cRestartArgs);
 
 // VelopackApp
@@ -116,8 +116,8 @@ VPKC_EXPORT void VPKC_CALL vpkc_app_run();
 VPKC_EXPORT size_t VPKC_CALL vpkc_get_last_error(char* pszError, size_t cError);
 VPKC_EXPORT void VPKC_CALL vpkc_set_log(vpkc_log_callback_t cbLog);
 VPKC_EXPORT void VPKC_CALL vpkc_free_update_manager(vpkc_update_manager_t* pManager);
-VPKC_EXPORT void VPKC_CALL vpkc_free_update_info(vpkc_update_info_t* pManager);
-VPKC_EXPORT void VPKC_CALL vpkc_free_asset(vpkc_asset_t* pManager);
+VPKC_EXPORT void VPKC_CALL vpkc_free_update_info(vpkc_update_info_t* pUpdateInfo);
+VPKC_EXPORT void VPKC_CALL vpkc_free_asset(vpkc_asset_t* pAsset);
 
 #ifdef __cplusplus
 }
