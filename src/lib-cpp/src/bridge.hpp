@@ -9,7 +9,6 @@ struct HookCallbackManager {
     vpkc_hook_callback_t after_update = nullptr;
     vpkc_hook_callback_t first_run = nullptr;
     vpkc_hook_callback_t restarted = nullptr;
-
     void install_hook(::rust::String app_version) const {};
     void update_hook(::rust::String app_version) const {};
     void obsolete_hook(::rust::String app_version) const {};
@@ -19,9 +18,11 @@ struct HookCallbackManager {
 };
 
 struct DownloadCallbackManager {
+    vpkc_progress_callback_t progress_cb = nullptr;
     void download_progress(int16_t progress) const {};
 };
 
 struct LoggerCallbackManager {
+    vpkc_log_callback_t lob_cb = nullptr;
     void log(::rust::String level, ::rust::String message) const {};
 };
