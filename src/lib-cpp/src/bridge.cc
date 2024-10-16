@@ -1,7 +1,7 @@
 #include "velopack_libc/include/Velopack.h"
 #include "velopack_libc/src/bridge.hpp"
 
-DLL_EXPORT update_manager_t velopack_new_update_manager(const char* url_or_path, const update_options_t* options, const locator_config_t* locator)
+VPKC_EXPORT bool VPKC_CALL vpkc_new_update_manager(const char* pszUrlOrString, const vpkc_options_t* pOptions, const vpkc_locator_t* locator, vpkc_update_manager_t* pManager)
 {
     return 0;
 }
