@@ -15,7 +15,7 @@ rust-version.workspace = true
 
 [lib]
 path = "src/lib.rs"
-crate-type = ["cdylib", "staticlib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 cxx.workspace = true

@@ -15,6 +15,27 @@
 #if defined(VELOPACK_LIBC_EXPORTS) && defined(_WIN32)
 #define VPKC_EXPORT __declspec(dllexport)
 #pragma comment(linker, "/EXPORT:vpkc_new_update_manager")
+#pragma comment(linker, "/EXPORT:vpkc_get_current_version")
+#pragma comment(linker, "/EXPORT:vpkc_get_app_id")
+#pragma comment(linker, "/EXPORT:vpkc_is_portable")
+#pragma comment(linker, "/EXPORT:vpkc_update_pending_restart")
+#pragma comment(linker, "/EXPORT:vpkc_download_updates")
+#pragma comment(linker, "/EXPORT:vpkc_wait_exit_then_apply_update")
+#pragma comment(linker, "/EXPORT:vpkc_app_set_auto_apply_on_startup")
+#pragma comment(linker, "/EXPORT:vpkc_app_set_args")
+#pragma comment(linker, "/EXPORT:vpkc_app_set_locator")
+#pragma comment(linker, "/EXPORT:vpkc_app_set_hook_after_install")
+#pragma comment(linker, "/EXPORT:vpkc_app_set_hook_before_uninstall")
+#pragma comment(linker, "/EXPORT:vpkc_app_set_hook_before_update")
+#pragma comment(linker, "/EXPORT:vpkc_app_set_hook_after_update")
+#pragma comment(linker, "/EXPORT:vpkc_app_set_hook_first_run")
+#pragma comment(linker, "/EXPORT:vpkc_app_set_hook_restarted")
+#pragma comment(linker, "/EXPORT:vpkc_app_run")
+#pragma comment(linker, "/EXPORT:vpkc_get_last_error")
+#pragma comment(linker, "/EXPORT:vpkc_set_log")
+#pragma comment(linker, "/EXPORT:vpkc_free_update_manager")
+#pragma comment(linker, "/EXPORT:vpkc_free_update_info")
+#pragma comment(linker, "/EXPORT:vpkc_free_asset")
 #elif defined(VELOPACK_LIBC_EXPORTS) && !defined(_WIN32)
 #define VPKC_EXPORT __attribute__((visibility("default"))) __attribute__((used))
 #else
@@ -69,6 +90,7 @@ typedef struct {
     bool IsDowngrade;
 } vpkc_update_info_t;
 
+// Update Manager
 VPKC_EXPORT bool VPKC_CALL vpkc_new_update_manager(const char* pszUrlOrString, const vpkc_options_t* pOptions, const vpkc_locator_t* locator, vpkc_update_manager_t* pManager);
 VPKC_EXPORT size_t VPKC_CALL vpkc_get_current_version(vpkc_update_manager_t* pManager, char* pszVersion, size_t cVersion);
 VPKC_EXPORT size_t VPKC_CALL vpkc_get_app_id(vpkc_update_manager_t* pManager, char* pszId, size_t cId);
@@ -78,6 +100,7 @@ VPKC_EXPORT vpkc_update_check_t VPKC_CALL vpkc_check_for_updates(vpkc_update_man
 VPKC_EXPORT bool VPKC_CALL vpkc_download_updates(vpkc_update_manager_t* pManager, const vpkc_update_info_t* pUpdate, vpkc_progress_callback_t cbProgress);
 VPKC_EXPORT bool VPKC_CALL vpkc_wait_exit_then_apply_update(vpkc_update_manager_t* pManager, vpkc_asset_t* pAsset, bool bSilent, bool bRestart, char** pRestartArgs, size_t cRestartArgs);
 
+// VelopackApp
 VPKC_EXPORT void VPKC_CALL vpkc_app_set_auto_apply_on_startup(bool bAutoApply);
 VPKC_EXPORT void VPKC_CALL vpkc_app_set_args(char** pArgs, size_t cArgs);
 VPKC_EXPORT void VPKC_CALL vpkc_app_set_locator(vpkc_locator_t* pLocator);
@@ -89,6 +112,7 @@ VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_first_run(vpkc_hook_callback_t cbFi
 VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_restarted(vpkc_hook_callback_t cbRestarted);
 VPKC_EXPORT void VPKC_CALL vpkc_app_run();
 
+// Misc functions
 VPKC_EXPORT size_t VPKC_CALL vpkc_get_last_error(char* pszError, size_t cError);
 VPKC_EXPORT void VPKC_CALL vpkc_set_log(vpkc_log_callback_t cbLog);
 VPKC_EXPORT void VPKC_CALL vpkc_free_update_manager(vpkc_update_manager_t* pManager);
@@ -336,7 +360,8 @@ namespace Velopack {
                 strcpy_s(pRestartArgs[i], restartArgs[i].size() + 1, restartArgs[i].c_str());
             }
             
-            bool result = vpkc_wait_exit_then_apply_update(&m_pManager, &to_vpkc(asset), silent, restart, pRestartArgs, restartArgs.size());
+            vpkc_asset_t vpkc_asset = to_vpkc(asset);
+            bool result = vpkc_wait_exit_then_apply_update(&m_pManager, &vpkc_asset, silent, restart, pRestartArgs, restartArgs.size());
             
             // Free all the memory
             for (size_t i = 0; i < restartArgs.size(); i++) {
