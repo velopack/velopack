@@ -1,5 +1,6 @@
 #pragma once
 #include "rust/cxx.h"
+#include "velopack_libc/include/Velopack.h"
 
 struct HookCallbackManager {
     void install_hook(::rust::String app_version) const {};
@@ -17,4 +18,3 @@ struct DownloadCallbackManager {
 struct LoggerCallbackManager {
     void log(::rust::String level, ::rust::String message) const {};
 };
-
