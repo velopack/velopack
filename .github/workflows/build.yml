@@ -175,16 +175,21 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Check lib-nodejs
-        working-directory: src/lib-nodejs
-        run: |
-          npm install
-          npm run build
       - name: Check lib-rust
         run: cargo check -p velopack -F async,delta
       - name: Check RustIced Sample
         working-directory: samples/RustIced
         run: cargo check
+      - name: Check lib-nodejs
+        working-directory: src/lib-nodejs
+        run: |
+          npm install
+          npm run build
+      - name: Check NodeJSElectron Sample
+        working-directory: samples/NodeJSElectron
+        run: |
+          npm install
+          npm run typecheck
       - uses: caesay/wait-artifact-action@494939e840383463b1686ce3624a8aab059c2c8b
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
