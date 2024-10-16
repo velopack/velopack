@@ -289,9 +289,6 @@ fn bridge_appbuilder_run(cb: cxx::UniquePtr<ffi::HookCallbackManager>, custom_ar
         app = app.set_args(custom_args.data);
     }
 
-    let _ = log::set_logger(&LOGGER);
-    log::set_max_level(log::LevelFilter::Trace);
-
     app.run();
 }
 
@@ -346,6 +343,9 @@ fn get_logger() -> Option<*mut ffi::LoggerCallbackManager> {
 }
 
 fn bridge_set_logger_callback(cb: cxx::UniquePtr<ffi::LoggerCallbackManager>) {
+    let _ = log::set_logger(&LOGGER);
+    log::set_max_level(log::LevelFilter::Trace);
+    
     let cb = cb.into_raw();
     store_logger(cb);
 }

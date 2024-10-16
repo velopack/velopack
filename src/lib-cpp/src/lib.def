@@ -1,0 +1,3 @@
+LIBRARY velopack_libc
+EXPORTS
+    velopack_new_update_manager
