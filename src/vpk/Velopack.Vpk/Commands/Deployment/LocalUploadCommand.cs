@@ -11,11 +11,14 @@ public class LocalUploadCommand : LocalBaseCommand
         : base("local", "Upload releases to a local path or network share.")
     {
         AddOption<int>((x) => KeepMaxReleases = x, "--keepMaxReleases")
-         .SetDescription("The maximum number of full releases to keep in the target directory, anything older will be deleted.")
-         .SetArgumentHelpName("COUNT");
+            .SetDescription("The maximum number of full releases to keep in the target directory, anything older will be deleted.")
+            .SetArgumentHelpName("COUNT");
 
-        AddOption<int>((x) => KeepMaxDeltaReleases = x, "--keepMaxDeltaReleases")
-         .SetDescription("The maximum number of delta releases to keep in the target directory, anything older will be deleted.");
+        var keepMaxDeltaReleases = AddOption<int>((x) => KeepMaxDeltaReleases = x, "--keepMaxDeltaReleases")
+            .SetDescription("The maximum number of delta releases to keep in the target directory, anything older will be deleted.")
+            .SetArgumentHelpName("COUNT");
+
+        keepMaxDeltaReleases.DefaultValueFactory = (x) => KeepMaxReleases;
 
         AddOption<bool>((x) => ForceRegenerate = x, "--regenerate")
             .SetDescription("Force regenerate the releases.{channel}.json file in the target directory.");
