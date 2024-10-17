@@ -12,8 +12,11 @@ public class S3UploadCommand : S3BaseCommand
             .SetDescription("The maximum number of releases to keep in the bucket, anything older will be deleted.")
             .SetArgumentHelpName("COUNT");
 
-        AddOption<int>((x) => KeepMaxDeltaReleases = x, "--keepMaxDeltaReleases")
-         .SetDescription("The maximum number of delta releases to keep in the target directory, anything older will be deleted.");
+        var keepMaxDeltaReleases = AddOption<int>((x) => KeepMaxDeltaReleases = x, "--keepMaxDeltaReleases")
+            .SetDescription("The maximum number of delta releases to keep in the target directory, anything older will be deleted.")
+            .SetArgumentHelpName("COUNT");
+
+        keepMaxDeltaReleases.DefaultValueFactory = (x) => KeepMaxReleases;
 
         ReleaseDirectoryOption.SetRequired();
         ReleaseDirectoryOption.MustNotBeEmpty();
