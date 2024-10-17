@@ -50,8 +50,8 @@ extern "C" {
 
 typedef void* vpkc_update_manager_t;
 typedef void (*vpkc_progress_callback_t)(size_t progress);
-typedef void (*vpkc_log_callback_t)(char* pszLevel, char* pszMessage);
-typedef void (*vpkc_hook_callback_t)(char* pszAppVersion);
+typedef void (*vpkc_log_callback_t)(const char* pszLevel, const char* pszMessage);
+typedef void (*vpkc_hook_callback_t)(const char* pszAppVersion);
 
 typedef struct {
     bool AllowVersionDowngrade;
