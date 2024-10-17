@@ -179,7 +179,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         return Task.CompletedTask;
     }
 
-    internal static void CreateSetupPackageImpl(Action<int> progress, WindowsPackOptions options, ILogger log, string releasePkg, string targetSetupExe)
+    internal static void CreateSetupPackageImpl(Action<int> progress, IWindowsSetupPackageOptions options, ILogger log, string releasePkg, string targetSetupExe)
     {
         var bundledZip = new ZipPackage(releasePkg);
         IoUtil.Retry(() => File.Copy(HelperFile.SetupPath, targetSetupExe, true));
@@ -249,7 +249,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
     }
 
-    private static void SignFilesImpl(WindowsSigningOptions options, ILogger log, Action<int> progress, params string[] filePaths)
+    private static void SignFilesImpl(IWindowsCodeSigningOptions options, ILogger log, Action<int> progress, params string[] filePaths)
     {
         var signParams = options.SignParameters;
         var signTemplate = options.SignTemplate;

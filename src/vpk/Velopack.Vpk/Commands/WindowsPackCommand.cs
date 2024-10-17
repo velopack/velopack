@@ -70,7 +70,7 @@ public class WindowsPackCommand : PackCommand
 
     public override void InitSubCommands()
     {
-        this.AddCommand<WindowsPackCommand, ExtractPortableCommand, ExtractPortableCommandRunner, ExtractPortableOptions>();
+        this.AddCommand<WindowsPackCommand, ExtractNugetCommand, ExtractNugetCommandRunner, ExtractNugetOptions>();
         this.AddCommand<WindowsPackCommand, SetupPackageCommand, SetupPackageCommandRunner, SetupPackageOptions>();
     }
 }

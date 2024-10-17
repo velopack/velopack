@@ -1,6 +1,6 @@
 ﻿namespace Velopack.Packaging.Windows.Commands;
 
-public class WindowsSigningOptions
+public class WindowsSigningOptions : IWindowsCodeSigningOptions
 {
     public string SignParameters { get; set; }
 

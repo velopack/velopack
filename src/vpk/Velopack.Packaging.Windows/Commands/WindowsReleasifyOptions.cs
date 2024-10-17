@@ -1,6 +1,6 @@
 ﻿namespace Velopack.Packaging.Windows.Commands;
 
-public class WindowsReleasifyOptions : WindowsSigningOptions
+public class WindowsReleasifyOptions : WindowsSigningOptions, IWindowsSetupPackageOptions
 {
     public DirectoryInfo ReleaseDir { get; set; }
 

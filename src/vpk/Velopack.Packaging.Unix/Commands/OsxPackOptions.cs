@@ -2,7 +2,7 @@
 
 namespace Velopack.Packaging.Unix.Commands;
 
-public class OsxPackOptions : OsxBundleOptions, IPackOptions
+public class OsxPackOptions : OsxBundleOptions, IPackOptions, IOsxSetupPackageOptions
 {
     public RID TargetRuntime { get; set; }
 

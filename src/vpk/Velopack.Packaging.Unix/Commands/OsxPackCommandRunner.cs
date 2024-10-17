@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
 using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
 using Velopack.Packaging.Abstractions;
@@ -124,33 +124,38 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
     {
         // create installer package, sign and notarize
         if (!Options.NoInst) {
-            var helper = new OsxBuildTools(Log);
-            Dictionary<string, string> pkgContent = new() {
-                {"welcome", Options.InstWelcome },
-                {"license", Options.InstLicense },
-                {"readme", Options.InstReadme },
-                {"conclusion", Options.InstConclusion },
-            };
-
-            var packTitle = Options.PackTitle ?? Options.PackId;
-            var packId = Options.PackId;
-
-            if (!string.IsNullOrEmpty(Options.SignInstallIdentity) && !string.IsNullOrEmpty(Options.NotaryProfile)) {
-                helper.CreateInstallerPkg(packDir, packTitle, packId, pkgContent, pkgPath, Options.SignInstallIdentity, CoreUtil.CreateProgressDelegate(progress, 0, 60));
-                progress(-1); // indeterminate
-                helper.Notarize(pkgPath, Options.NotaryProfile, Options.Keychain);
-                progress(80);
-                helper.Staple(pkgPath);
-                progress(90);
-                helper.SpctlAssessInstaller(pkgPath);
-            } else {
-                Log.Warn("Package installer (.pkg) will not be Notarized. " +
-                         "This is supported with the --signInstallIdentity and --notaryProfile arguments.");
-                helper.CreateInstallerPkg(packDir, packTitle, packId, pkgContent, pkgPath, Options.SignInstallIdentity, progress);
-            }
+            CreateSetupPackageImpl(progress, Options, Log, packDir, pkgPath);
         }
         progress(100);
         return Task.CompletedTask;
+    }
+
+    internal static void CreateSetupPackageImpl(Action<int> progress, IOsxSetupPackageOptions options, ILogger log, string packDir, string pkgPath)
+    {
+        var helper = new OsxBuildTools(log);
+        Dictionary<string, string> pkgContent = new() {
+                {"welcome", options.InstWelcome },
+                {"license", options.InstLicense },
+                {"readme", options.InstReadme },
+                {"conclusion", options.InstConclusion },
+            };
+
+        var packTitle = options.PackTitle ?? options.PackId;
+        var packId = options.PackId;
+
+        if (!string.IsNullOrEmpty(options.SignInstallIdentity) && !string.IsNullOrEmpty(options.NotaryProfile)) {
+            helper.CreateInstallerPkg(packDir, packTitle, packId, pkgContent, pkgPath, options.SignInstallIdentity, CoreUtil.CreateProgressDelegate(progress, 0, 60));
+            progress(-1); // indeterminate
+            helper.Notarize(pkgPath, options.NotaryProfile, options.Keychain);
+            progress(80);
+            helper.Staple(pkgPath);
+            progress(90);
+            helper.SpctlAssessInstaller(pkgPath);
+        } else {
+            log.Warn("Package installer (.pkg) will not be Notarized. " +
+                     "This is supported with the --signInstallIdentity and --notaryProfile arguments.");
+            helper.CreateInstallerPkg(packDir, packTitle, packId, pkgContent, pkgPath, options.SignInstallIdentity, progress);
+        }
     }
 
     protected override Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath)

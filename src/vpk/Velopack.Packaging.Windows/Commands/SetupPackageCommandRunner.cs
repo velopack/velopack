@@ -32,9 +32,7 @@ public class SetupPackageCommandRunner : ICommand<SetupPackageOptions>
 
                 var outExePath = Path.Combine(options.OutputPath, $"{zipPackage.Id}-win-Setup.exe");
 
-                WindowsPackCommandRunner.CreateSetupPackageImpl(progress, new WindowsPackOptions() {
-                    Icon = options.Icon, SignParameters = options.SignParameters, SignTemplate = options.SignTemplate, SignParallel = options.SignParallel
-                } , _logger, options.NugetPackagePath, outExePath);
+                WindowsPackCommandRunner.CreateSetupPackageImpl(progress, options , _logger, options.NugetPackagePath, outExePath);
                 return Task.CompletedTask;
             });
         });

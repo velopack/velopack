@@ -3,14 +3,16 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Velopack.Packaging.Windows.Commands;
 
 namespace Velopack.Vpk.Commands;
-public class SetupPackageCommand : BaseCommand
+public class SetupPackageCommand : BaseCommand, IWindowsCodeSigningOptions
 {
     public string NugetPackagePath { get; set; }
     public string OutputPath { get; set; }
     public string Icon { get; set; }
     public string SignParameters { get; set; }
+    public bool SignSkipDll { get; set; }
     public int SignParallel { get; set; }
     public string SignTemplate { get; set; }
 
@@ -19,13 +21,16 @@ public class SetupPackageCommand : BaseCommand
     {
         AddOption<FileInfo>((v) => NugetPackagePath = v.ToFullNameOrNull(), "--input", "-i")
             .SetDescription("The input file path for the nuget package.")
-//            .SetArgumentHelpName("PATH")
+            .SetArgumentHelpName("PATH")
             .SetRequired();
 
         AddOption<DirectoryInfo>((v) => OutputPath = v.ToFullNameOrNull(), "--output", "-o")
-            .SetDescription("The output file path for the created setup package.")
-//            .SetArgumentHelpName("PATH")
+            .SetDescription("The output folder path for the created setup package. It will be named {{PackageId}}-win-Setup.exe")
+            .SetArgumentHelpName("DIR")
             .SetRequired();
+
+        //SkipSignDll is not implemented here because we're creating a setup package, there are no Dlls involved.
+        //They would have to already be signed when the nuget package was already made.
 
         var signTemplate = AddOption<string>((v) => SignTemplate = v, "--signTemplate")
           .SetDescription("Use a custom signing command. {{file}} will be substituted.")

@@ -37,7 +37,7 @@ public static partial class OptionMapper
     public static partial LogoutOptions ToOptions(this LogoutCommand cmd);
     public static partial PublishOptions ToOptions(this PublishCommand cmd);
     public static partial ApiOptions ToOptions(this ApiCommand cmd);
-    public static partial ExtractPortableOptions ToOptions(this ExtractPortableCommand cmd);
+    public static partial ExtractNugetOptions ToOptions(this ExtractNugetCommand cmd);
     public static partial SetupPackageOptions ToOptions(this SetupPackageCommand cmd);
 
     private static DirectoryInfo StringToDirectoryInfo(string t)

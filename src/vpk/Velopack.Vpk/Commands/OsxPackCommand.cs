@@ -1,6 +1,8 @@
-﻿namespace Velopack.Vpk.Commands;
+﻿using Velopack.Packaging.Unix.Commands;
 
-public class OsxPackCommand : OsxBundleCommand
+namespace Velopack.Vpk.Commands;
+
+public class OsxPackCommand : OsxBundleCommand, IOsxSetupPackageOptions
 {
     public string InstWelcome { get; private set; }
 
