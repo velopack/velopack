@@ -1,5 +1,6 @@
 ﻿using System.Threading;
 using NuGet.Protocol.Core.Types;
+using Velopack.Packaging.NuGet;
 using Velopack.Util;
 
 namespace Velopack.Vpk.Updates;
@@ -26,7 +27,7 @@ public class UpdateChecker
 
             if (_cache == null) {
                 var cancel = new CancellationTokenSource(3000);
-                var dl = new NugetDownloader(new NullNugetLogger());
+                var dl = new NuGetDownloader();
                 _cache = await dl.GetPackageMetadata("vpk", isPre ? "pre" : "latest", cancel.Token).ConfigureAwait(false);
             }
 
