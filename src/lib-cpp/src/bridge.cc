@@ -235,15 +235,20 @@ static inline void clear_last_error() {
 }
 
 // Update Manager
-VPKC_EXPORT bool VPKC_CALL vpkc_new_update_manager(const char* pszUrlOrString, vpkc_update_options_t* pOptions, vpkc_locator_config_t* pLocator, vpkc_update_manager_t* pManager) {
+VPKC_EXPORT bool VPKC_CALL vpkc_new_update_manager(const char* pszUrlOrString, vpkc_update_options_t* pOptions, vpkc_locator_config_t* pLocator, vpkc_update_manager_t** pManager) {
     clear_last_error();
     try {
+        if (pManager == nullptr) {
+            set_last_error("pManager cannot be null");
+            return false;
+        }
+
         VelopackLocatorConfigDtoOption locator = to_bridge_opt(pLocator);
         UpdateOptionsDtoOption options = to_bridge_opt(pOptions);
 
         ::rust::Box<::UpdateManagerOpaque> manager = bridge_new_update_manager(pszUrlOrString, options, locator);
         UpdateManagerOpaque* pOpaque = manager.into_raw();
-        *pManager = pOpaque;
+        *pManager = reinterpret_cast<vpkc_update_manager_t*>(pOpaque);
         return true;
     } catch (const std::exception& e) {
         set_last_error(e.what());
@@ -251,22 +256,22 @@ VPKC_EXPORT bool VPKC_CALL vpkc_new_update_manager(const char* pszUrlOrString, v
     }
 }
 VPKC_EXPORT size_t VPKC_CALL vpkc_get_current_version(vpkc_update_manager_t* pManager, char* pszVersion, size_t cVersion) {
-    UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
+    UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(pManager);
     std::string version = (std::string)bridge_get_current_version(*pOpaque);
     return return_c_string(version, pszVersion, cVersion);
 }
 VPKC_EXPORT size_t VPKC_CALL vpkc_get_app_id(vpkc_update_manager_t* pManager, char* pszId, size_t cId) {
-    UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
+    UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(pManager);
     std::string id = (std::string)bridge_get_app_id(*pOpaque);
     return return_c_string(id, pszId, cId);
 
 }
 VPKC_EXPORT bool VPKC_CALL vpkc_is_portable(vpkc_update_manager_t* pManager) {
-    UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
+    UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(pManager);
     return bridge_is_portable(*pOpaque);
 }
 VPKC_EXPORT bool VPKC_CALL vpkc_update_pending_restart(vpkc_update_manager_t* pManager, vpkc_asset_t* pAsset) {
-    UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
+    UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(pManager);
     VelopackAssetDtoOption asset = bridge_update_pending_restart(*pOpaque);
     if (asset.has_data) {
         allocate_velopackasset(asset.data, pAsset);
@@ -277,7 +282,7 @@ VPKC_EXPORT bool VPKC_CALL vpkc_update_pending_restart(vpkc_update_manager_t* pM
 VPKC_EXPORT vpkc_update_check_t VPKC_CALL vpkc_check_for_updates(vpkc_update_manager_t* pManager, vpkc_update_info_t* pUpdate) {
     clear_last_error();
     try {
-        UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
+        UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(pManager);
         UpdateInfoDtoOption update = bridge_check_for_updates(*pOpaque);
         if (update.has_data) {
             allocate_updateinfo(update.data, pUpdate);
@@ -298,7 +303,7 @@ VPKC_EXPORT bool VPKC_CALL vpkc_download_updates(vpkc_update_manager_t* pManager
             return false;
         }
 
-        UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
+        UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(pManager);
         UpdateInfoDto update = to_bridge(pUpdate);
 
         DownloadCallbackManager download{};
@@ -319,7 +324,7 @@ VPKC_EXPORT bool VPKC_CALL vpkc_wait_exit_then_apply_update(vpkc_update_manager_
             return false;
         }
 
-        UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
+        UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(pManager);
         VelopackAssetDto asset = to_bridge(pAsset);
 
         ::rust::Vec<::rust::String> restartArgs{};
@@ -384,7 +389,7 @@ VPKC_EXPORT void VPKC_CALL vpkc_set_log(vpkc_log_callback_t cbLog) {
     bridge_set_logger_callback(&logMgr);
 }
 VPKC_EXPORT void VPKC_CALL vpkc_free_update_manager(vpkc_update_manager_t* pManager) {
-    UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
+    UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(pManager);
     auto box = ::rust::Box<::UpdateManagerOpaque>::from_raw(pOpaque);
     // this will free when the box goes out of scope
 }

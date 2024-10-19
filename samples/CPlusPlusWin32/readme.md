@@ -1,5 +1,5 @@
-# VeloCppWinSample
-_Prerequisites: Rust/Cargo, Dotnet, Msbuild_
+# VelopackCppWin32Sample
+_Prerequisites: Rust/Cargo, Msbuild_
 
 This app is purely a proof of concept at this time, `velopack.hpp` currently only works on windows and needs testing / fixes for other operating systems, and probably also needs fixing for unicode/strings. This sample is made up of a simple Win32 desktop app, generated via a Visual Studio template, and it includes `velopack.hpp` and [`subprocess.h`](https://github.com/sheredom/subprocess.h). 
 
