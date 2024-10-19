@@ -200,37 +200,38 @@ static inline void free_updateoptions(vpkc_update_options_t* pDto) {
 }
 // !! AUTO-GENERATED-END BRIDGE_MAPPING
 
-// Error handling
-char* lastError;
-LoggerCallbackManager logMgr{};
-VPKC_EXPORT size_t VPKC_CALL vpkc_get_last_error(char* pszError, size_t cError) {
-    if (lastError == nullptr) {
+static inline size_t return_c_string(std::string& value, char* psz, size_t csz) {
+    if (value.empty()) {
         return 0;
     }
-    
-    if (pszError == nullptr || cError == 0) {
-        return strlen(lastError);
+
+    const char* c_str = value.c_str();
+    size_t len = strlen(c_str);
+    if (psz == nullptr || csz == 0 || len == 0) {
+        // no buffer has been provided, return the length
+        return len;
     }
     
-    size_t len = strlen(lastError);
-    if (len > cError) {
-        len = cError;
+    // shorten the length if it's longer than the buffer
+    if (len > csz) {
+        len = csz;
     }
     
-    memcpy(pszError, lastError, len);
+    // copy the string to the buffer
+    memcpy(psz, c_str, len);
     return len;
 }
+
+// Error handling
+std::string lastError;
+VPKC_EXPORT size_t VPKC_CALL vpkc_get_last_error(char* pszError, size_t cError) {
+    return return_c_string(lastError, pszError, cError);
+}
 static inline void set_last_error(const char* pszError) {
-    if (lastError != nullptr) {
-        free(lastError);
-    }
-    lastError = _strdup(pszError);
+    lastError = pszError;
 }
 static inline void clear_last_error() {
-    if (lastError != nullptr) {
-        free(lastError);
-        lastError = nullptr;
-    }
+    lastError.clear();
 }
 
 // Update Manager
@@ -251,41 +252,14 @@ VPKC_EXPORT bool VPKC_CALL vpkc_new_update_manager(const char* pszUrlOrString, v
 }
 VPKC_EXPORT size_t VPKC_CALL vpkc_get_current_version(vpkc_update_manager_t* pManager, char* pszVersion, size_t cVersion) {
     UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
-    ::rust::String version = bridge_get_current_version(*pOpaque);
-    if (version.empty()) {
-        return 0;
-    }
-    
-    size_t len = version.size();
-    if (pszVersion == nullptr || cVersion == 0) {
-        return len;
-    }
-    
-    if (len > cVersion) {
-        len = cVersion;
-    }
-    
-    memcpy(pszVersion, version.data(), len);
-    return len;
+    std::string version = (std::string)bridge_get_current_version(*pOpaque);
+    return return_c_string(version, pszVersion, cVersion);
 }
 VPKC_EXPORT size_t VPKC_CALL vpkc_get_app_id(vpkc_update_manager_t* pManager, char* pszId, size_t cId) {
     UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
-    ::rust::String id = bridge_get_app_id(*pOpaque);
-    if (id.empty()) {
-        return 0;
-    }
-    
-    size_t len = id.size();
-    if (pszId == nullptr || cId == 0) {
-        return len;
-    }
-    
-    if (len > cId) {
-        len = cId;
-    }
-    
-    memcpy(pszId, id.data(), len);
-    return len;
+    std::string id = (std::string)bridge_get_app_id(*pOpaque);
+    return return_c_string(id, pszId, cId);
+
 }
 VPKC_EXPORT bool VPKC_CALL vpkc_is_portable(vpkc_update_manager_t* pManager) {
     UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
@@ -403,6 +377,7 @@ VPKC_EXPORT void VPKC_CALL vpkc_app_run() {
 }
 
 // Misc functions
+LoggerCallbackManager logMgr{};
 VPKC_EXPORT void VPKC_CALL vpkc_set_log(vpkc_log_callback_t cbLog) {
     logMgr.lob_cb = cbLog;
     bridge_set_logger_callback(&logMgr);
