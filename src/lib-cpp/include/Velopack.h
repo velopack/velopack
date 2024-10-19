@@ -48,7 +48,7 @@
 extern "C" {
 #endif
 
-typedef void* vpkc_update_manager_t;
+typedef void vpkc_update_manager_t;
 typedef void (*vpkc_progress_callback_t)(size_t progress);
 typedef void (*vpkc_log_callback_t)(const char* pszLevel, const char* pszMessage);
 typedef void (*vpkc_hook_callback_t)(const char* pszAppVersion);
@@ -93,7 +93,7 @@ typedef struct {
 // !! AUTO-GENERATED-END C_TYPES
 
 // Update Manager
-VPKC_EXPORT bool VPKC_CALL vpkc_new_update_manager(const char* pszUrlOrString, vpkc_update_options_t* pOptions, vpkc_locator_config_t* pLocator, vpkc_update_manager_t* pManager);
+VPKC_EXPORT bool VPKC_CALL vpkc_new_update_manager(const char* pszUrlOrString, vpkc_update_options_t* pOptions, vpkc_locator_config_t* pLocator, vpkc_update_manager_t** pManager);
 VPKC_EXPORT size_t VPKC_CALL vpkc_get_current_version(vpkc_update_manager_t* pManager, char* pszVersion, size_t cVersion);
 VPKC_EXPORT size_t VPKC_CALL vpkc_get_app_id(vpkc_update_manager_t* pManager, char* pszId, size_t cId);
 VPKC_EXPORT bool VPKC_CALL vpkc_is_portable(vpkc_update_manager_t* pManager);
@@ -330,7 +330,7 @@ public:
 
 class UpdateManager {
 private:
-    vpkc_update_manager_t m_pManager;
+    vpkc_update_manager_t* m_pManager = 0;
 public:
     UpdateManager(const std::string& urlOrPath, const UpdateOptions* options = nullptr, const VelopackLocatorConfig* locator = nullptr) {
         vpkc_update_options_t* pOptions = nullptr;
@@ -345,31 +345,31 @@ public:
             pLocator = &vpkc_locator;
         }
         
-        if (0 != vpkc_new_update_manager(urlOrPath.c_str(), pOptions, pLocator, &m_pManager)) {
+        if (!vpkc_new_update_manager(urlOrPath.c_str(), pOptions, pLocator, &m_pManager)) {
             throw_last_error();
         }
     };
     ~UpdateManager() {
-        vpkc_free_update_manager(&m_pManager);
+        vpkc_free_update_manager(m_pManager);
     };
     bool IsPortable() noexcept {
-        return vpkc_is_portable(&m_pManager);
+        return vpkc_is_portable(m_pManager);
     };
     std::string GetCurrentVersion() noexcept {
-        size_t neededSize = vpkc_get_current_version(&m_pManager, nullptr, 0);
+        size_t neededSize = vpkc_get_current_version(m_pManager, nullptr, 0);
         std::string strVersion(neededSize, '\0');
-        vpkc_get_current_version(&m_pManager, &strVersion[0], neededSize);
+        vpkc_get_current_version(m_pManager, &strVersion[0], neededSize);
         return strVersion;
     };
     std::string GetAppId() noexcept {
-        size_t neededSize = vpkc_get_app_id(&m_pManager, nullptr, 0);
+        size_t neededSize = vpkc_get_app_id(m_pManager, nullptr, 0);
         std::string strId(neededSize, '\0');
-        vpkc_get_app_id(&m_pManager, &strId[0], neededSize);
+        vpkc_get_app_id(m_pManager, &strId[0], neededSize);
         return strId;
     };
     std::optional<VelopackAsset> UpdatePendingRestart() noexcept {
         vpkc_asset_t asset;
-        if (vpkc_update_pending_restart(&m_pManager, &asset)) {
+        if (vpkc_update_pending_restart(m_pManager, &asset)) {
             VelopackAsset cpp_asset = to_cpp(asset);
             vpkc_free_asset(&asset);
             return cpp_asset;
@@ -378,7 +378,7 @@ public:
     };
     std::optional<UpdateInfo> CheckForUpdates() {
         vpkc_update_info_t update;
-        vpkc_update_check_t result = vpkc_check_for_updates(&m_pManager, &update);
+        vpkc_update_check_t result = vpkc_check_for_updates(m_pManager, &update);
         switch (result) {
             case vpkc_update_check_t::UPDATE_ERROR:
                 throw_last_error();
@@ -394,7 +394,7 @@ public:
     };
     void DownloadUpdates(const UpdateInfo& update, vpkc_progress_callback_t progress = nullptr) {
         vpkc_update_info_t vpkc_update = to_c(update);
-        if (!vpkc_download_updates(&m_pManager, &vpkc_update, progress)) {
+        if (!vpkc_download_updates(m_pManager, &vpkc_update, progress)) {
             throw_last_error();
         }
     };
@@ -406,7 +406,7 @@ public:
         }
         
         vpkc_asset_t vpkc_asset = to_c(asset);
-        bool result = vpkc_wait_exit_then_apply_update(&m_pManager, &vpkc_asset, silent, restart, pRestartArgs, restartArgs.size());
+        bool result = vpkc_wait_exit_then_apply_update(m_pManager, &vpkc_asset, silent, restart, pRestartArgs, restartArgs.size());
         
         // Free all the memory
         for (size_t i = 0; i < restartArgs.size(); i++) {

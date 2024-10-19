@@ -144,6 +144,19 @@ struct UpdateManagerOpaque {
     obj: UpdateManager,
 }
 
+impl UpdateManagerOpaque {
+    fn new(obj: UpdateManager) -> Self {
+        log::debug!("UpdateManagerOpaque allocated");
+        UpdateManagerOpaque { obj }
+    }
+}
+
+impl Drop for UpdateManagerOpaque {
+    fn drop(&mut self) {
+        log::debug!("UpdateManagerOpaque dropped");
+    }
+}
+
 fn bridge_new_update_manager(
     url_or_path: &String,
     options: &ffi::UpdateOptionsDtoOption,
@@ -153,7 +166,7 @@ fn bridge_new_update_manager(
     let options = updateoptions_to_core_option(options);
     let locator = velopacklocatorconfig_to_core_option(locator);
     let update_manager = UpdateManager::new(source, options, locator)?;
-    Ok(Box::new(UpdateManagerOpaque { obj: update_manager }))
+    Ok(Box::new(UpdateManagerOpaque::new(update_manager)))
 }
 
 fn bridge_get_current_version(manager: &UpdateManagerOpaque) -> String {

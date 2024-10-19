@@ -13,9 +13,8 @@ if "%~1"=="" (
 )
 
 echo.
-echo Building Velopack Rust
-cd %~dp0..\..\..\for-rust
-cargo build --features cli -r
+echo Building Velopack C Lib with Cargo
+cargo build -p velopack_libc
 
 cd %~dp0
 
@@ -43,8 +42,6 @@ cd %~dp0
 
 echo #define UPDATE_URL "REPLACE_ME" > constants.h
 
-copy %~dp0..\..\..\for-rust\target\release\vfusion.exe x64\Debug
-
 echo.
 echo Building Velopack Release v%~1
-vpk pack -u VeloCppWinSample -o releases -p x64\Debug -v %*
+vpk pack -u VelopackCppWin32Sample -o releases -p x64\Debug -v %* -e VeloCppWinSample.exe

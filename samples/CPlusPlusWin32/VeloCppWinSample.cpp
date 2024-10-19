@@ -25,7 +25,7 @@ HINSTANCE hInst;
 const WCHAR szTitle[] = L"Velopack C++ Sample App";
 const WCHAR szWindowClass[] = L"VeloCppWinSample";
 
-std::optional<UpdateManager> managerOpt = std::nullopt;
+std::unique_ptr<UpdateManager> manager;
 std::optional<UpdateInfo> updInfo = std::nullopt;
 bool downloaded = false;
 
@@ -38,22 +38,36 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 std::wstring        Utf8ToWString(std::string const& str);
 std::string         WStringToUtf8(std::wstring const& wstr);
 
+void handle_vpkc_log(const char* pszLevel, const char* pszMessage)
+{
+    std::cout << pszLevel << ": " << pszMessage << std::endl;
+}
+
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
     _In_ LPWSTR    lpCmdLine,
     _In_ int       nCmdShow)
 {
+    // Redirect StdOut to console window
+    AllocConsole();
+    FILE* fp;
+    _wfreopen_s(&fp, L"CONOUT$", L"w", stdout);
+    _wfreopen_s(&fp, L"CONOUT$", L"w", stderr);
+    _wfreopen_s(&fp, L"CONIN$", L"r", stdin);
+
+    // Initialize Velopack log capture
     std::cout << "Velopack C++ Sample App" << std::endl;
-    UNREFERENCED_PARAMETER(hPrevInstance);
+    vpkc_set_log(handle_vpkc_log);
 
     // This should run as early as possible in the main method.
     // Velopack may exit / restart the app at this point. 
     // See VelopackApp class for more options/configuration.
-     VelopackApp::Build().Run();
+    VelopackApp::Build()
+        .Run();
 
     try {
         // If the app is not installed, creating an UpdateManager will throw an exception.
-        managerOpt = UpdateManager(UPDATE_URL);
+        manager = std::make_unique<UpdateManager>(UPDATE_URL);
     }
     catch (std::exception& e) {
         std::wstring what = Utf8ToWString(e.what());
@@ -136,14 +150,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_COMMAND:
     {
         if (LOWORD(wParam) == BN_CLICKED) {
-            if (!managerOpt.has_value()) {
-                break; // this should not happen because we construct UpdateManager in wWinMain
-            }
-            auto manager = managerOpt.value();
-
             if ((HWND)lParam == hCheckButton) {
                 try {
-                    updInfo = manager.CheckForUpdates();
+                    updInfo = manager->CheckForUpdates();
                     if (updInfo.has_value()) {
                         std::string version = updInfo.value().TargetFullRelease.Version;
                         std::wstring message = L"Update available: " + Utf8ToWString(version);
@@ -161,7 +170,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             else if ((HWND)lParam == hDownloadButton) {
                 if (updInfo.has_value()) {
                     try {
-                        manager.DownloadUpdates(updInfo.value());
+                        manager->DownloadUpdates(updInfo.value());
                         downloaded = true;
                         MessageBoxCentered(hWnd, L"Download completed successfully.", szTitle, MB_OK);
                     }
@@ -179,7 +188,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     MessageBoxCentered(hWnd, L"Download an update first.", szTitle, MB_OK);
                 }
                 else {
-                    manager.WaitExitThenApplyUpdate(updInfo.value());
+                    manager->WaitExitThenApplyUpdate(updInfo.value());
                     exit(0);
                 }
             }
@@ -192,10 +201,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         HDC hdc = BeginPaint(hWnd, &ps);
         RECT r{ 0, 5, ps.rcPaint.right, ps.rcPaint.bottom };
 
-        std::string currentVersion = "Not Installed";
-        if (managerOpt.has_value()) {
-            currentVersion = managerOpt.value().GetCurrentVersion();
-        }
+        std::string currentVersion = manager->GetCurrentVersion();
         auto ver = Utf8ToWString(currentVersion);
         std::wstring text = L"Welcome to v" + ver + L" of the\nVelopack C++ Sample App.";
         DrawText(hdc, text.c_str(), -1, &r, DT_BOTTOM | DT_CENTER);

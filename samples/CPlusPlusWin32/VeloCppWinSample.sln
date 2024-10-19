@@ -5,6 +5,12 @@ VisualStudioVersion = 17.8.34525.116
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VeloCppWinSample", "VeloCppWinSample.vcxproj", "{F9BB1F11-3827-4745-B11B-77FA5DBE1195}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{25F8ED9F-9255-4CEC-AE44-7F2EAA392C18}"
+	ProjectSection(SolutionItems) = preProject
+		build.bat = build.bat
+		readme.md = readme.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
