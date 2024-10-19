@@ -1,26 +1,47 @@
 #![allow(non_snake_case)]
 
+mod map;
+use map::*;
+
 use anyhow::{bail, Result};
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use log::{Level, Log, Metadata, Record};
-use velopack::{
-    locator::VelopackLocatorConfig,
-    UpdateManager,
-    UpdateCheck,
-    UpdateOptions as VelopackUpdateOptions,
-    UpdateInfo as VelopackUpdateInfo,
-    VelopackAsset,
-    VelopackApp,
-    Error as VelopackError,
-    sources,
-};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use velopack::{sources, Error as VelopackError, UpdateCheck, UpdateManager, VelopackApp};
 
 #[cxx::bridge]
 mod ffi {
     // Shared structs with fields visible to both languages.
     #[derive(Default)]
-    pub struct AssetDto {
+    pub struct StringOption {
+        pub data: String,
+        pub has_data: bool,
+    }
+
+    #[derive(Default)]
+    pub struct StringArrayOption {
+        pub data: Vec<String>,
+        pub has_data: bool,
+    }
+
+    // !! AUTO-GENERATED-START BRIDGE_DTOS
+    #[derive(Default)]
+    pub struct VelopackLocatorConfigDto {
+        pub RootAppDir: String,
+        pub UpdateExePath: String,
+        pub PackagesDir: String,
+        pub ManifestPath: String,
+        pub CurrentBinaryDir: String,
+        pub IsPortable: bool,
+    }
+
+    #[derive(Default)]
+    pub struct VelopackLocatorConfigDtoOption {
+        pub data: VelopackLocatorConfigDto,
+        pub has_data: bool,
+    }
+
+    #[derive(Default)]
+    pub struct VelopackAssetDto {
         pub PackageId: String,
         pub Version: String,
         pub Type: String,
@@ -32,50 +53,42 @@ mod ffi {
         pub NotesHtml: String,
     }
 
-    pub struct AssetOption {
-        pub data: AssetDto,
+    #[derive(Default)]
+    pub struct VelopackAssetDtoOption {
+        pub data: VelopackAssetDto,
         pub has_data: bool,
     }
 
     #[derive(Default)]
     pub struct UpdateInfoDto {
-        pub TargetFullRelease: AssetDto,
+        pub TargetFullRelease: VelopackAssetDto,
         pub IsDowngrade: bool,
     }
 
-    pub struct UpdateInfoOption {
+    #[derive(Default)]
+    pub struct UpdateInfoDtoOption {
         pub data: UpdateInfoDto,
         pub has_data: bool,
     }
 
-    pub struct LocatorConfigDto {
-        pub RootAppDir: String,
-        pub UpdateExePath: String,
-        pub PackagesDir: String,
-        pub ManifestPath: String,
-        pub CurrentBinaryDir: String,
-        pub IsPortable: bool,
-    }
-
-    pub struct LocatorConfigOption {
-        pub data: LocatorConfigDto,
-        pub has_data: bool,
-    }
-
+    #[derive(Default)]
     pub struct UpdateOptionsDto {
         pub AllowVersionDowngrade: bool,
-        pub ExplicitChannel: String,
+        pub ExplicitChannel: StringOption,
     }
 
-    pub struct StringArrayOption {
-        pub data: Vec<String>,
+    #[derive(Default)]
+    pub struct UpdateOptionsDtoOption {
+        pub data: UpdateOptionsDto,
         pub has_data: bool,
     }
+    // !! AUTO-GENERATED-END BRIDGE_DTOS
 
     // C++ types and signatures exposed to Rust.
     unsafe extern "C++" {
         include!("velopack_libc/include/Velopack.h");
         include!("velopack_libc/src/bridge.hpp");
+        
         type HookCallbackManager;
         fn install_hook(self: &HookCallbackManager, app_version: String);
         fn update_hook(self: &HookCallbackManager, app_version: String);
@@ -83,8 +96,10 @@ mod ffi {
         fn uninstall_hook(self: &HookCallbackManager, app_version: String);
         fn firstrun_hook(self: &HookCallbackManager, app_version: String);
         fn restarted_hook(self: &HookCallbackManager, app_version: String);
+
         type DownloadCallbackManager;
         fn download_progress(self: &DownloadCallbackManager, progress: i16);
+
         type LoggerCallbackManager;
         fn log(self: &LoggerCallbackManager, level: String, message: String);
     }
@@ -92,15 +107,34 @@ mod ffi {
     // Rust types and signatures exposed to C++.
     extern "Rust" {
         type UpdateManagerOpaque;
-        fn bridge_new_update_manager(url_or_path: &String, options: &UpdateOptionsDto, locator: &LocatorConfigOption) -> Result<Box<UpdateManagerOpaque>>;
+        fn bridge_new_update_manager(
+            url_or_path: &String,
+            options: &UpdateOptionsDtoOption,
+            locator: &VelopackLocatorConfigDtoOption,
+        ) -> Result<Box<UpdateManagerOpaque>>;
         fn bridge_get_current_version(manager: &UpdateManagerOpaque) -> String;
         fn bridge_get_app_id(manager: &UpdateManagerOpaque) -> String;
         fn bridge_is_portable(manager: &UpdateManagerOpaque) -> bool;
-        fn bridge_update_pending_restart(manager: &UpdateManagerOpaque) -> AssetOption;
-        fn bridge_check_for_updates(manager: &UpdateManagerOpaque) -> Result<UpdateInfoOption>;
-        fn bridge_download_updates(manager: &UpdateManagerOpaque, to_download: &UpdateInfoDto, progress: &DownloadCallbackManager) -> Result<()>;
-        fn bridge_wait_exit_then_apply_update(manager: &UpdateManagerOpaque, to_apply: &AssetDto, silent: bool, restart: bool, restart_args: &Vec<String>) -> Result<()>;
-        fn bridge_appbuilder_run(cb: &HookCallbackManager, custom_args: &StringArrayOption, locator: &LocatorConfigOption, auto_apply: bool);
+        fn bridge_update_pending_restart(manager: &UpdateManagerOpaque) -> VelopackAssetDtoOption;
+        fn bridge_check_for_updates(manager: &UpdateManagerOpaque) -> Result<UpdateInfoDtoOption>;
+        fn bridge_download_updates(
+            manager: &UpdateManagerOpaque,
+            to_download: &UpdateInfoDto,
+            progress: &DownloadCallbackManager,
+        ) -> Result<()>;
+        fn bridge_wait_exit_then_apply_update(
+            manager: &UpdateManagerOpaque,
+            to_apply: &VelopackAssetDto,
+            silent: bool,
+            restart: bool,
+            restart_args: &Vec<String>,
+        ) -> Result<()>;
+        fn bridge_appbuilder_run(
+            cb: &HookCallbackManager,
+            custom_args: &StringArrayOption,
+            locator: &VelopackLocatorConfigDtoOption,
+            auto_apply: bool,
+        );
         unsafe fn bridge_set_logger_callback(cb: *mut LoggerCallbackManager);
     }
 }
@@ -110,79 +144,16 @@ struct UpdateManagerOpaque {
     obj: UpdateManager,
 }
 
-fn to_locator_config(locator: &ffi::LocatorConfigDto) -> VelopackLocatorConfig {
-    VelopackLocatorConfig {
-        RootAppDir: PathBuf::from(locator.RootAppDir.clone()),
-        UpdateExePath: PathBuf::from(locator.UpdateExePath.clone()),
-        PackagesDir: PathBuf::from(locator.PackagesDir.clone()),
-        ManifestPath: PathBuf::from(locator.ManifestPath.clone()),
-        CurrentBinaryDir: PathBuf::from(locator.CurrentBinaryDir.clone()),
-        IsPortable: locator.IsPortable,
-    }
-}
-
-fn to_update_options(options: &ffi::UpdateOptionsDto) -> VelopackUpdateOptions {
-    let channel = options.ExplicitChannel.clone();
-    VelopackUpdateOptions {
-        AllowVersionDowngrade: options.AllowVersionDowngrade,
-        ExplicitChannel: if channel.is_empty() { None } else { Some(channel) },
-    }
-}
-
-fn from_asset(asset: &VelopackAsset) -> ffi::AssetDto {
-    ffi::AssetDto {
-        PackageId: asset.PackageId.clone(),
-        Version: asset.Version.clone(),
-        Type: asset.Type.clone(),
-        FileName: asset.FileName.clone(),
-        SHA1: asset.SHA1.clone(),
-        SHA256: asset.SHA256.clone(),
-        Size: asset.Size,
-        NotesMarkdown: asset.NotesMarkdown.clone(),
-        NotesHtml: asset.NotesHtml.clone(),
-    }
-}
-
-fn to_asset(asset: &ffi::AssetDto) -> VelopackAsset {
-    VelopackAsset {
-        PackageId: asset.PackageId.clone(),
-        Version: asset.Version.clone(),
-        Type: asset.Type.clone(),
-        FileName: asset.FileName.clone(),
-        SHA1: asset.SHA1.clone(),
-        SHA256: asset.SHA256.clone(),
-        Size: asset.Size,
-        NotesMarkdown: asset.NotesMarkdown.clone(),
-        NotesHtml: asset.NotesHtml.clone(),
-    }
-}
-
-fn from_update_info(info: &VelopackUpdateInfo) -> ffi::UpdateInfoDto {
-    ffi::UpdateInfoDto {
-        TargetFullRelease: from_asset(&info.TargetFullRelease),
-        IsDowngrade: info.IsDowngrade,
-    }
-}
-
-fn to_update_info(info: &ffi::UpdateInfoDto) -> VelopackUpdateInfo {
-    VelopackUpdateInfo {
-        TargetFullRelease: to_asset(&info.TargetFullRelease),
-        IsDowngrade: info.IsDowngrade,
-    }
-}
-
-fn bridge_new_update_manager(url_or_path: &String, options: &ffi::UpdateOptionsDto, locator: &ffi::LocatorConfigOption) -> Result<Box<UpdateManagerOpaque>> {
+fn bridge_new_update_manager(
+    url_or_path: &String,
+    options: &ffi::UpdateOptionsDtoOption,
+    locator: &ffi::VelopackLocatorConfigDtoOption,
+) -> Result<Box<UpdateManagerOpaque>> {
     let source = sources::AutoSource::new(url_or_path);
-    let update_options = to_update_options(&options);
-
-    if locator.has_data {
-        let locator_config = to_locator_config(&locator.data);
-        let update_manager = UpdateManager::new(source, Some(update_options), Some(locator_config))?;
-        Ok(Box::new(UpdateManagerOpaque { obj: update_manager }))
-    } else {
-        let update_manager = UpdateManager::new(source, Some(update_options), None)?;
-        Ok(Box::new(UpdateManagerOpaque { obj: update_manager }))
-    }
+    let options = updateoptions_to_core_option(options);
+    let locator = velopacklocatorconfig_to_core_option(locator);
+    let update_manager = UpdateManager::new(source, options, locator)?;
+    Ok(Box::new(UpdateManagerOpaque { obj: update_manager }))
 }
 
 fn bridge_get_current_version(manager: &UpdateManagerOpaque) -> String {
@@ -197,29 +168,22 @@ fn bridge_is_portable(manager: &UpdateManagerOpaque) -> bool {
     manager.obj.get_is_portable()
 }
 
-fn bridge_update_pending_restart(manager: &UpdateManagerOpaque) -> ffi::AssetOption {
-    if let Some(info) = manager.obj.get_update_pending_restart() {
-        let update = from_asset(&info);
-        ffi::AssetOption { data: update, has_data: true }
-    } else {
-        let default = ffi::AssetDto::default();
-        ffi::AssetOption { data: default, has_data: false }
-    }
+fn bridge_update_pending_restart(manager: &UpdateManagerOpaque) -> ffi::VelopackAssetDtoOption {
+    let asset_opt = manager.obj.get_update_pending_restart();
+    velopackasset_to_bridge_option(&asset_opt)
 }
 
-fn bridge_check_for_updates(manager: &UpdateManagerOpaque) -> Result<ffi::UpdateInfoOption> {
-    if let UpdateCheck::UpdateAvailable(info) = manager.obj.check_for_updates()? {
-        let update = from_update_info(&info);
-        Ok(ffi::UpdateInfoOption { data: update, has_data: true })
-    } else {
-        let default = ffi::UpdateInfoDto::default();
-        Ok(ffi::UpdateInfoOption { data: default, has_data: false })
-    }
+fn bridge_check_for_updates(manager: &UpdateManagerOpaque) -> Result<ffi::UpdateInfoDtoOption> {
+    let info_opt = if let UpdateCheck::UpdateAvailable(info) = manager.obj.check_for_updates()? { Some(info) } else { None };
+    Ok(updateinfo_to_bridge_option(&info_opt))
 }
 
-fn bridge_download_updates(manager: &UpdateManagerOpaque, to_download: &ffi::UpdateInfoDto, cb: &ffi::DownloadCallbackManager) -> Result<()> {
-    let info = to_update_info(&to_download);
-
+fn bridge_download_updates(
+    manager: &UpdateManagerOpaque,
+    to_download: &ffi::UpdateInfoDto,
+    cb: &ffi::DownloadCallbackManager,
+) -> Result<()> {
+    let info = updateinfo_to_core(&to_download);
     let (progress_sender, progress_receiver) = std::sync::mpsc::channel::<i16>();
     let (completion_sender, completion_receiver) = std::sync::mpsc::channel::<std::result::Result<(), VelopackError>>();
 
@@ -260,13 +224,24 @@ fn bridge_download_updates(manager: &UpdateManagerOpaque, to_download: &ffi::Upd
     }
 }
 
-fn bridge_wait_exit_then_apply_update(manager: &UpdateManagerOpaque, to_apply: &ffi::AssetDto, silent: bool, restart: bool, restart_args: &Vec<String>) -> Result<()> {
-    let asset = to_asset(&to_apply);
+fn bridge_wait_exit_then_apply_update(
+    manager: &UpdateManagerOpaque,
+    to_apply: &ffi::VelopackAssetDto,
+    silent: bool,
+    restart: bool,
+    restart_args: &Vec<String>,
+) -> Result<()> {
+    let asset = velopackasset_to_core(&to_apply);
     manager.obj.wait_exit_then_apply_updates(&asset, silent, restart, restart_args)?;
     Ok(())
 }
 
-fn bridge_appbuilder_run(cb: &ffi::HookCallbackManager, custom_args: &ffi::StringArrayOption, locator: &ffi::LocatorConfigOption, auto_apply: bool) {
+fn bridge_appbuilder_run(
+    cb: &ffi::HookCallbackManager,
+    custom_args: &ffi::StringArrayOption,
+    locator: &ffi::VelopackLocatorConfigDtoOption,
+    auto_apply: bool,
+) {
     let mut app = VelopackApp::build()
         .set_auto_apply_on_startup(auto_apply)
         .on_first_run(|v| cb.firstrun_hook(v.to_string()))
@@ -282,7 +257,8 @@ fn bridge_appbuilder_run(cb: &ffi::HookCallbackManager, custom_args: &ffi::Strin
     }
 
     if locator.has_data {
-        app = app.set_locator(to_locator_config(&locator.data));
+        let locator = velopacklocatorconfig_to_core(&locator.data);
+        app = app.set_locator(locator);
     }
 
     if custom_args.has_data {
@@ -314,7 +290,8 @@ impl Log for LoggerImpl {
             Level::Info => "info",
             Level::Debug => "debug",
             Level::Trace => "trace",
-        }.to_string();
+        }
+        .to_string();
 
         if let Some(cb) = get_logger() {
             if let Some(cb) = unsafe { cb.as_mut() } {
