@@ -36,12 +36,12 @@ if not defined MSBUILD_PATH (
 echo #define UPDATE_URL R"(%~dp0releases)" > constants.h
 
 echo.
-echo Building VeloCppWinSample
+echo Building CppWin32Sample
 cd %~dp0
-"%MSBUILD_PATH%" VeloCppWinSample.sln
+"%MSBUILD_PATH%" CppWin32Sample.sln
 
 echo #define UPDATE_URL "REPLACE_ME" > constants.h
 
 echo.
 echo Building Velopack Release v%~1
-vpk pack -u VelopackCppWin32Sample -o releases -p x64\Debug -v %* -e VeloCppWinSample.exe
+vpk pack -u VelopackCppWin32Sample -o releases -p x64\Debug -v %* -e CppWin32Sample.exe

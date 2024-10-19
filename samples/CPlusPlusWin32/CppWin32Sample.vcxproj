@@ -14,8 +14,9 @@
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{f9bb1f11-3827-4745-b11b-77fa5dbe1195}</ProjectGuid>
-    <RootNamespace>VeloCppWinSample</RootNamespace>
+    <RootNamespace>CppWin32Sample</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>CppWin32Sample</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -90,7 +91,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="VeloCppWinSample.cpp" />
+    <ClCompile Include="CppWin32Sample.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="constants.h" />
