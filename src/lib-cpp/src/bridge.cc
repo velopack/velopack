@@ -294,7 +294,8 @@ VPKC_EXPORT bool VPKC_CALL vpkc_download_updates(vpkc_update_manager_t* pManager
     clear_last_error();
     try {
         if (!pUpdate) {
-            throw new std::runtime_error("pUpdate is a required parameter");
+            set_last_error("pUpdate is a required parameter");
+            return false;
         }
 
         UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
@@ -309,13 +310,13 @@ VPKC_EXPORT bool VPKC_CALL vpkc_download_updates(vpkc_update_manager_t* pManager
         set_last_error(e.what());
         return false;
     }
-
 }
 VPKC_EXPORT bool VPKC_CALL vpkc_wait_exit_then_apply_update(vpkc_update_manager_t* pManager, vpkc_asset_t* pAsset, bool bSilent, bool bRestart, char** pRestartArgs, size_t cRestartArgs) {
     clear_last_error();
     try {
         if (!pAsset) {
-            throw new std::runtime_error("pAsset is a required parameter");
+            set_last_error("pAsset is a required parameter");
+            return false;
         }
 
         UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);

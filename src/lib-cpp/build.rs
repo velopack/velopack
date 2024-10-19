@@ -2,7 +2,8 @@ fn main() {
     cxx_build::bridge("src/lib.rs")
         .file("src/bridge.cc")
         .flag_if_supported("/std:c++17")
-        // .warnings_into_errors(true)
+        .flag_if_supported("/EHsc")
+        .warnings_into_errors(true)
         .define("VELOPACK_LIBC_EXPORTS", Some("1"))
         .std("c++17")
         .compile("velopack_libc");
