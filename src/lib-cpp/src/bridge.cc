@@ -1,4 +1,204 @@
+// Uncomment to enable debug type checking
+// #pragma include_alias( "velopack_libc/src/lib.rs.h", "../../../target/cxxbridge/velopack_libc/src/lib.rs.h" )
+// #pragma include_alias( "velopack_libc/include/Velopack.h", "../include/Velopack.h" )
+// #pragma include_alias( "velopack_libc/src/bridge.hpp", "bridge.hpp" )
+// #pragma include_alias( "rust/cxx.h", "../../../target/cxxbridge/rust/cxx.h" )
+
 #include "velopack_libc/src/lib.rs.h"
+
+static inline std::string to_bridgestring(const char* psz) {
+    return psz == nullptr ? "" : psz;
+}
+
+static inline char* to_cstring(const std::string& str) {
+    return const_cast<char*>(str.c_str());
+}
+
+static inline char* to_cstring_opt(const std::optional<std::string>& str) {
+    return str.has_value() ? to_cstring(str.value()) : nullptr;
+}
+
+static inline StringOption to_bridgestring_opt(const char* psz) {
+    StringOption opt;
+    if (psz == nullptr) {
+        opt.has_data = false;
+        return opt;
+    }
+    opt.has_data = true;
+    opt.data = psz;
+    return opt;
+}
+
+static inline void allocate_string(::rust::String& str, char** ppsz) {
+    *ppsz = _strdup(str.c_str());
+}
+
+static inline void allocate_string_opt(StringOption str, char** ppsz) {
+    if (str.has_data) {
+        *ppsz = _strdup(str.data.c_str());
+    } else {
+        *ppsz = nullptr;
+    }
+}
+
+// !! AUTO-GENERATED-START BRIDGE_MAPPING
+static inline VelopackLocatorConfigDto to_bridge(vpkc_locator_config_t* pDto) {
+    if (pDto == nullptr) { return {}; }
+    return {
+        to_bridgestring(pDto->RootAppDir),
+        to_bridgestring(pDto->UpdateExePath),
+        to_bridgestring(pDto->PackagesDir),
+        to_bridgestring(pDto->ManifestPath),
+        to_bridgestring(pDto->CurrentBinaryDir),
+        pDto->IsPortable,
+    };
+}
+
+static inline VelopackLocatorConfigDtoOption to_bridge_opt(vpkc_locator_config_t* pDto) {
+    VelopackLocatorConfigDtoOption opt;
+    if (pDto == nullptr) {
+        opt.has_data = false;
+        return opt;
+    }
+
+    opt.has_data = true;
+    opt.data = to_bridge(pDto);
+    return opt;
+}
+
+static inline void allocate_velopacklocatorconfig(VelopackLocatorConfigDto bridgeDto, vpkc_locator_config_t* pDto) {
+    if (pDto == nullptr) { return; }
+    allocate_string(bridgeDto.RootAppDir, &pDto->RootAppDir);
+    allocate_string(bridgeDto.UpdateExePath, &pDto->UpdateExePath);
+    allocate_string(bridgeDto.PackagesDir, &pDto->PackagesDir);
+    allocate_string(bridgeDto.ManifestPath, &pDto->ManifestPath);
+    allocate_string(bridgeDto.CurrentBinaryDir, &pDto->CurrentBinaryDir);
+    pDto->IsPortable = bridgeDto.IsPortable;
+}
+
+static inline void free_velopacklocatorconfig(vpkc_locator_config_t* pDto) {
+    if (pDto == nullptr) { return; }
+    free(pDto->RootAppDir);
+    free(pDto->UpdateExePath);
+    free(pDto->PackagesDir);
+    free(pDto->ManifestPath);
+    free(pDto->CurrentBinaryDir);
+}
+
+static inline VelopackAssetDto to_bridge(vpkc_asset_t* pDto) {
+    if (pDto == nullptr) { return {}; }
+    return {
+        to_bridgestring(pDto->PackageId),
+        to_bridgestring(pDto->Version),
+        to_bridgestring(pDto->Type),
+        to_bridgestring(pDto->FileName),
+        to_bridgestring(pDto->SHA1),
+        to_bridgestring(pDto->SHA256),
+        pDto->Size,
+        to_bridgestring(pDto->NotesMarkdown),
+        to_bridgestring(pDto->NotesHtml),
+    };
+}
+
+static inline VelopackAssetDtoOption to_bridge_opt(vpkc_asset_t* pDto) {
+    VelopackAssetDtoOption opt;
+    if (pDto == nullptr) {
+        opt.has_data = false;
+        return opt;
+    }
+
+    opt.has_data = true;
+    opt.data = to_bridge(pDto);
+    return opt;
+}
+
+static inline void allocate_velopackasset(VelopackAssetDto bridgeDto, vpkc_asset_t* pDto) {
+    if (pDto == nullptr) { return; }
+    allocate_string(bridgeDto.PackageId, &pDto->PackageId);
+    allocate_string(bridgeDto.Version, &pDto->Version);
+    allocate_string(bridgeDto.Type, &pDto->Type);
+    allocate_string(bridgeDto.FileName, &pDto->FileName);
+    allocate_string(bridgeDto.SHA1, &pDto->SHA1);
+    allocate_string(bridgeDto.SHA256, &pDto->SHA256);
+    pDto->Size = bridgeDto.Size;
+    allocate_string(bridgeDto.NotesMarkdown, &pDto->NotesMarkdown);
+    allocate_string(bridgeDto.NotesHtml, &pDto->NotesHtml);
+}
+
+static inline void free_velopackasset(vpkc_asset_t* pDto) {
+    if (pDto == nullptr) { return; }
+    free(pDto->PackageId);
+    free(pDto->Version);
+    free(pDto->Type);
+    free(pDto->FileName);
+    free(pDto->SHA1);
+    free(pDto->SHA256);
+    free(pDto->NotesMarkdown);
+    free(pDto->NotesHtml);
+}
+
+static inline UpdateInfoDto to_bridge(vpkc_update_info_t* pDto) {
+    if (pDto == nullptr) { return {}; }
+    return {
+        to_bridge(&pDto->TargetFullRelease),
+        pDto->IsDowngrade,
+    };
+}
+
+static inline UpdateInfoDtoOption to_bridge_opt(vpkc_update_info_t* pDto) {
+    UpdateInfoDtoOption opt;
+    if (pDto == nullptr) {
+        opt.has_data = false;
+        return opt;
+    }
+
+    opt.has_data = true;
+    opt.data = to_bridge(pDto);
+    return opt;
+}
+
+static inline void allocate_updateinfo(UpdateInfoDto bridgeDto, vpkc_update_info_t* pDto) {
+    if (pDto == nullptr) { return; }
+    allocate_velopackasset(bridgeDto.TargetFullRelease, &pDto->TargetFullRelease);
+    pDto->IsDowngrade = bridgeDto.IsDowngrade;
+}
+
+static inline void free_updateinfo(vpkc_update_info_t* pDto) {
+    if (pDto == nullptr) { return; }
+    free_velopackasset(&pDto->TargetFullRelease);
+}
+
+static inline UpdateOptionsDto to_bridge(vpkc_update_options_t* pDto) {
+    if (pDto == nullptr) { return {}; }
+    return {
+        pDto->AllowVersionDowngrade,
+        to_bridgestring_opt(pDto->ExplicitChannel),
+    };
+}
+
+static inline UpdateOptionsDtoOption to_bridge_opt(vpkc_update_options_t* pDto) {
+    UpdateOptionsDtoOption opt;
+    if (pDto == nullptr) {
+        opt.has_data = false;
+        return opt;
+    }
+
+    opt.has_data = true;
+    opt.data = to_bridge(pDto);
+    return opt;
+}
+
+static inline void allocate_updateoptions(UpdateOptionsDto bridgeDto, vpkc_update_options_t* pDto) {
+    if (pDto == nullptr) { return; }
+    pDto->AllowVersionDowngrade = bridgeDto.AllowVersionDowngrade;
+    allocate_string_opt(bridgeDto.ExplicitChannel, &pDto->ExplicitChannel);
+}
+
+static inline void free_updateoptions(vpkc_update_options_t* pDto) {
+    if (pDto == nullptr) { return; }
+    free(pDto->ExplicitChannel);
+}
+// !! AUTO-GENERATED-END BRIDGE_MAPPING
 
 // Error handling
 char* lastError;
@@ -33,82 +233,13 @@ static inline void clear_last_error() {
     }
 }
 
-static inline void copy_to_locator_option(vpkc_locator_t* pLocator, LocatorConfigOption& locator) {
-    if (pLocator) {
-        locator.has_data = true;
-        locator.data.RootAppDir = pLocator->RootAppDir;
-        locator.data.UpdateExePath = pLocator->UpdateExePath;
-        locator.data.PackagesDir = pLocator->PackagesDir;
-        locator.data.ManifestPath = pLocator->ManifestPath;
-        locator.data.CurrentBinaryDir = pLocator->CurrentBinaryDir;
-        locator.data.IsPortable = pLocator->IsPortable;
-    } else {
-        locator.has_data = false;
-    }
-}
-
-static inline void copy_to_asset_dto(vpkc_asset_t* pAsset, AssetDto& asset) {
-    if (pAsset != nullptr) {
-        asset.PackageId = pAsset->PackageId;
-        asset.Version = pAsset->Version;
-        asset.Type = pAsset->Type;
-        asset.FileName = pAsset->FileName;
-        asset.SHA1 = pAsset->SHA1;
-        asset.SHA256 = pAsset->SHA256;
-        asset.NotesMarkdown = pAsset->NotesMarkdown;
-        asset.NotesHtml = pAsset->NotesHtml;
-        asset.Size = pAsset->Size;
-    }
-}
-
-static inline void copy_to_update_info_dto(vpkc_update_info_t* pUpdate, UpdateInfoDto& update) {
-    if (pUpdate != nullptr) {
-        copy_to_asset_dto(&pUpdate->TargetFullRelease, update.TargetFullRelease);
-        update.IsDowngrade = pUpdate->IsDowngrade;
-    }
-}
-
-static inline void copy_to_asset_pointer(AssetDto& asset, vpkc_asset_t* pAsset) {
-    if (pAsset != nullptr) {
-        pAsset->PackageId = _strdup(asset.PackageId.c_str());
-        pAsset->Version = _strdup(asset.Version.c_str());
-        pAsset->Type = _strdup(asset.Type.c_str());
-        pAsset->FileName = _strdup(asset.FileName.c_str());
-        pAsset->SHA1 = _strdup(asset.SHA1.c_str());
-        pAsset->SHA256 = _strdup(asset.SHA256.c_str());
-        pAsset->NotesMarkdown = _strdup(asset.NotesMarkdown.c_str());
-        pAsset->NotesHtml = _strdup(asset.NotesHtml.c_str());
-        pAsset->Size = asset.Size;
-    }
-}
-
-static inline void copy_to_asset_pointer(AssetOption& asset, vpkc_asset_t* pAsset) {
-    if (asset.has_data && pAsset != nullptr) {
-        copy_to_asset_pointer(asset.data, pAsset);
-    }
-}
-
-static inline void copy_to_update_info_pointer(UpdateInfoOption& update, vpkc_update_info_t* pUpdate) {
-    if (update.has_data && pUpdate != nullptr) {
-        copy_to_asset_pointer(update.data.TargetFullRelease, &pUpdate->TargetFullRelease);
-        pUpdate->IsDowngrade = update.data.IsDowngrade;
-    }
-}
-
 // Update Manager
-VPKC_EXPORT bool VPKC_CALL vpkc_new_update_manager(const char* pszUrlOrString, const vpkc_options_t* pOptions, vpkc_locator_t* pLocator, vpkc_update_manager_t* pManager) {
+VPKC_EXPORT bool VPKC_CALL vpkc_new_update_manager(const char* pszUrlOrString, vpkc_update_options_t* pOptions, vpkc_locator_config_t* pLocator, vpkc_update_manager_t* pManager) {
     clear_last_error();
     try {
-        LocatorConfigOption locator{};
-        UpdateOptionsDto options{};
-        if (pOptions) {
-            options.AllowVersionDowngrade = pOptions->AllowVersionDowngrade;
-            if (pOptions->ExplicitChannel) {
-                options.ExplicitChannel = pOptions->ExplicitChannel;
-            }
-        }
-        copy_to_locator_option(pLocator, locator);
-    
+        VelopackLocatorConfigDtoOption locator = to_bridge_opt(pLocator);
+        UpdateOptionsDtoOption options = to_bridge_opt(pOptions);
+
         ::rust::Box<::UpdateManagerOpaque> manager = bridge_new_update_manager(pszUrlOrString, options, locator);
         UpdateManagerOpaque* pOpaque = manager.into_raw();
         *pManager = pOpaque;
@@ -162,21 +293,20 @@ VPKC_EXPORT bool VPKC_CALL vpkc_is_portable(vpkc_update_manager_t* pManager) {
 }
 VPKC_EXPORT bool VPKC_CALL vpkc_update_pending_restart(vpkc_update_manager_t* pManager, vpkc_asset_t* pAsset) {
     UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
-    AssetOption asset = bridge_update_pending_restart(*pOpaque);
+    VelopackAssetDtoOption asset = bridge_update_pending_restart(*pOpaque);
     if (asset.has_data) {
-        copy_to_asset_pointer(asset, pAsset);
+        allocate_velopackasset(asset.data, pAsset);
         return true;
     }
     return false;
 }
-
 VPKC_EXPORT vpkc_update_check_t VPKC_CALL vpkc_check_for_updates(vpkc_update_manager_t* pManager, vpkc_update_info_t* pUpdate) {
     clear_last_error();
     try {
         UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
-        UpdateInfoOption update = bridge_check_for_updates(*pOpaque);
+        UpdateInfoDtoOption update = bridge_check_for_updates(*pOpaque);
         if (update.has_data) {
-            copy_to_update_info_pointer(update, pUpdate);
+            allocate_updateinfo(update.data, pUpdate);
             return vpkc_update_check_t::UPDATE_AVAILABLE;
         }
         return vpkc_update_check_t::NO_UPDATE_AVAILABLE;
@@ -189,15 +319,13 @@ VPKC_EXPORT vpkc_update_check_t VPKC_CALL vpkc_check_for_updates(vpkc_update_man
 VPKC_EXPORT bool VPKC_CALL vpkc_download_updates(vpkc_update_manager_t* pManager, vpkc_update_info_t* pUpdate, vpkc_progress_callback_t cbProgress) {
     clear_last_error();
     try {
-        UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
-        UpdateInfoDto update{};
-        
         if (!pUpdate) {
             throw new std::runtime_error("pUpdate is a required parameter");
         }
-        
-        copy_to_update_info_dto(pUpdate, update);
-        
+
+        UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
+        UpdateInfoDto update = to_bridge(pUpdate);
+
         DownloadCallbackManager download{};
         download.progress_cb = cbProgress;
         bridge_download_updates(*pOpaque, update, download);
@@ -212,15 +340,13 @@ VPKC_EXPORT bool VPKC_CALL vpkc_download_updates(vpkc_update_manager_t* pManager
 VPKC_EXPORT bool VPKC_CALL vpkc_wait_exit_then_apply_update(vpkc_update_manager_t* pManager, vpkc_asset_t* pAsset, bool bSilent, bool bRestart, char** pRestartArgs, size_t cRestartArgs) {
     clear_last_error();
     try {
-        UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
-        AssetDto asset{};
-        
         if (!pAsset) {
             throw new std::runtime_error("pAsset is a required parameter");
         }
-        
-        copy_to_asset_dto(pAsset, asset);
-        
+
+        UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
+        VelopackAssetDto asset = to_bridge(pAsset);
+
         ::rust::Vec<::rust::String> restartArgs{};
         for (size_t i = 0; i < cRestartArgs; i++) {
             restartArgs.push_back(pRestartArgs[i]);
@@ -238,7 +364,7 @@ VPKC_EXPORT bool VPKC_CALL vpkc_wait_exit_then_apply_update(vpkc_update_manager_
 // VelopackApp
 bool autoApply = true;
 StringArrayOption args{};
-LocatorConfigOption locator{};
+VelopackLocatorConfigDtoOption locator{};
 HookCallbackManager hooks{};
 
 VPKC_EXPORT void VPKC_CALL vpkc_app_set_auto_apply_on_startup(bool bAutoApply) {
@@ -251,8 +377,8 @@ VPKC_EXPORT void VPKC_CALL vpkc_app_set_args(char** pArgs, size_t cArgs) {
         args.data.push_back(pArgs[i]);
     }
 }
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_locator(vpkc_locator_t* pLocator) {
-    copy_to_locator_option(pLocator, locator);
+VPKC_EXPORT void VPKC_CALL vpkc_app_set_locator(vpkc_locator_config_t* pLocator) {
+    locator = to_bridge_opt(pLocator);
 }
 VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_after_install(vpkc_hook_callback_t cbAfterInstall) {
     hooks.after_install = cbAfterInstall;
@@ -284,45 +410,11 @@ VPKC_EXPORT void VPKC_CALL vpkc_set_log(vpkc_log_callback_t cbLog) {
 VPKC_EXPORT void VPKC_CALL vpkc_free_update_manager(vpkc_update_manager_t* pManager) {
     UpdateManagerOpaque* pOpaque = reinterpret_cast<UpdateManagerOpaque*>(*pManager);
     auto box = ::rust::Box<::UpdateManagerOpaque>::from_raw(pOpaque);
+    // this will free when the box goes out of scope
 }
 VPKC_EXPORT void VPKC_CALL vpkc_free_update_info(vpkc_update_info_t* pUpdateInfo) {
-    if (pUpdateInfo != nullptr) {
-        vpkc_free_asset(&pUpdateInfo->TargetFullRelease);
-    }
+    free_updateinfo(pUpdateInfo);
 }
 VPKC_EXPORT void VPKC_CALL vpkc_free_asset(vpkc_asset_t* pAsset) {
-    if (pAsset != nullptr) {
-        if (pAsset->PackageId) {
-            free(pAsset->PackageId);
-            pAsset->PackageId = nullptr;
-        }
-        if (pAsset->Version) {
-            free(pAsset->Version);
-            pAsset->Version = nullptr;
-        }
-        if (pAsset->Type) {
-            free(pAsset->Type);
-            pAsset->Type = nullptr;
-        }
-        if (pAsset->FileName) {
-            free(pAsset->FileName);
-            pAsset->FileName = nullptr;
-        }
-        if (pAsset->SHA1) {
-            free(pAsset->SHA1);
-            pAsset->SHA1 = nullptr;
-        }
-        if (pAsset->SHA256) {
-            free(pAsset->SHA256);
-            pAsset->SHA256 = nullptr;
-        }
-        if (pAsset->NotesMarkdown) {
-            free(pAsset->NotesMarkdown);
-            pAsset->NotesMarkdown = nullptr;
-        }
-        if (pAsset->NotesHtml) {
-            free(pAsset->NotesHtml);
-            pAsset->NotesHtml = nullptr;
-        }
-    }
+    free_velopackasset(pAsset);
 }
