@@ -56,7 +56,7 @@ typedef void (*vpkc_hook_callback_t)(const char* pszAppVersion);
 typedef enum {
     UPDATE_AVAILABLE = 0,
     NO_UPDATE_AVAILABLE = 1,
-    ERROR = 2,
+    UPDATE_ERROR = 2,
 } vpkc_update_check_t;
 
 // !! AUTO-GENERATED-START C_TYPES
@@ -270,7 +270,7 @@ static inline UpdateOptions to_cpp(const vpkc_update_options_t& dto) {
 
 class VelopackApp {
 private:
-    VelopackApp();
+    VelopackApp() {};
 public:
     static VelopackApp Build() { 
         return VelopackApp(); 
@@ -380,7 +380,7 @@ public:
         vpkc_update_info_t update;
         vpkc_update_check_t result = vpkc_check_for_updates(&m_pManager, &update);
         switch (result) {
-            case vpkc_update_check_t::ERROR:
+            case vpkc_update_check_t::UPDATE_ERROR:
                 throw_last_error();
                 return std::nullopt;
             case vpkc_update_check_t::NO_UPDATE_AVAILABLE:
@@ -390,14 +390,15 @@ public:
                 vpkc_free_update_info(&update);
                 return cpp_info;
         }
+        return std::nullopt;
     };
-    void DownloadUpdates(const UpdateInfo& update, vpkc_progress_callback_t progress) {
+    void DownloadUpdates(const UpdateInfo& update, vpkc_progress_callback_t progress = nullptr) {
         vpkc_update_info_t vpkc_update = to_c(update);
         if (!vpkc_download_updates(&m_pManager, &vpkc_update, progress)) {
             throw_last_error();
         }
     };
-    void WaitExitThenApplyUpdate(const VelopackAsset& asset, bool silent, bool restart, std::vector<std::string> restartArgs) {
+    void WaitExitThenApplyUpdate(const VelopackAsset& asset, bool silent = false, bool restart = true, std::vector<std::string> restartArgs = {}) {
         char** pRestartArgs = new char*[restartArgs.size()];
         for (size_t i = 0; i < restartArgs.size(); i++) {
             pRestartArgs[i] = new char[restartArgs[i].size() + 1];
@@ -417,7 +418,7 @@ public:
             throw_last_error();
         }
     };
-    void WaitExitThenApplyUpdate(const UpdateInfo& asset, bool silent, bool restart, std::vector<std::string> restartArgs) {
+    void WaitExitThenApplyUpdate(const UpdateInfo& asset, bool silent = false, bool restart = true, std::vector<std::string> restartArgs = {}) {
         this->WaitExitThenApplyUpdate(asset.TargetFullRelease, silent, restart, restartArgs);
     };
 };

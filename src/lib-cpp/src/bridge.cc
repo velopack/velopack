@@ -287,7 +287,7 @@ VPKC_EXPORT vpkc_update_check_t VPKC_CALL vpkc_check_for_updates(vpkc_update_man
     }
     catch (const std::exception& e) {
         set_last_error(e.what());
-        return vpkc_update_check_t::ERROR;
+        return vpkc_update_check_t::UPDATE_ERROR;
     }
 }
 VPKC_EXPORT bool VPKC_CALL vpkc_download_updates(vpkc_update_manager_t* pManager, vpkc_update_info_t* pUpdate, vpkc_progress_callback_t cbProgress) {

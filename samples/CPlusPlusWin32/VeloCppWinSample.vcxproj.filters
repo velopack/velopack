@@ -14,15 +14,9 @@
     <ClCompile Include="VeloCppWinSample.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Velopack.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="constants.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Velopack.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
