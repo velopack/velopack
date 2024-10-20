@@ -268,6 +268,27 @@ static inline UpdateOptions to_cpp(const vpkc_update_options_t& dto) {
 }
 // !! AUTO-GENERATED-END CPP_TYPES
 
+static inline char** to_cstring_array(const std::vector<std::string>& vec) {
+    char** result = new char*[vec.size()];
+    for (size_t i = 0; i < vec.size(); ++i) {
+        result[i] = new char[vec[i].size() + 1]; // +1 for null-terminator
+#ifdef _WIN32
+        strcpy_s(result[i], vec[i].size() + 1, vec[i].c_str());  // Copy string content
+#else
+        strcpy(result[i], vec[i].c_str());  // Copy string content
+#endif
+    }
+    return result;
+}
+
+static inline void free_cstring_array(char** arr, size_t size) {
+    for (size_t i = 0; i < size; ++i) {
+        delete[] arr[i];
+    }
+    delete[] arr;
+}
+
+
 class VelopackApp {
 private:
     VelopackApp() {};
@@ -280,18 +301,9 @@ public:
         return *this;
     };
     VelopackApp& SetArgs(const std::vector<std::string>& args) {
-        char** pArgs = new char*[args.size()];
-        for (size_t i = 0; i < args.size(); i++) {
-            pArgs[i] = new char[args[i].size() + 1];
-            strcpy_s(pArgs[i], args[i].size() + 1, args[i].c_str());
-        }
+        char** pArgs = to_cstring_array(args);
         vpkc_app_set_args(pArgs, args.size());
-        
-        // Free all the memory
-        for (size_t i = 0; i < args.size(); i++) {
-            delete[] pArgs[i];
-        }
-        delete[] pArgs;
+        free_cstring_array(pArgs, args.size());
         return *this;
     };
     VelopackApp& SetLocator(const VelopackLocatorConfig& locator) {
@@ -399,20 +411,10 @@ public:
         }
     };
     void WaitExitThenApplyUpdate(const VelopackAsset& asset, bool silent = false, bool restart = true, std::vector<std::string> restartArgs = {}) {
-        char** pRestartArgs = new char*[restartArgs.size()];
-        for (size_t i = 0; i < restartArgs.size(); i++) {
-            pRestartArgs[i] = new char[restartArgs[i].size() + 1];
-            strcpy_s(pRestartArgs[i], restartArgs[i].size() + 1, restartArgs[i].c_str());
-        }
-        
+        char** pRestartArgs = to_cstring_array(restartArgs);
         vpkc_asset_t vpkc_asset = to_c(asset);
         bool result = vpkc_wait_exit_then_apply_update(m_pManager, &vpkc_asset, silent, restart, pRestartArgs, restartArgs.size());
-        
-        // Free all the memory
-        for (size_t i = 0; i < restartArgs.size(); i++) {
-            delete[] pRestartArgs[i];
-        }
-        delete[] pRestartArgs;
+        free_cstring_array(pRestartArgs, restartArgs.size());
         
         if (!result) {
             throw_last_error();
