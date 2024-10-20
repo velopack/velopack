@@ -58,15 +58,15 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./lib-c-files
 
-      - name: Create lib-c zip package
-        run: |
-          mkdir lib-c
-          zip -r ./lib-c/velopack_libc_$PKG_VERSION.zip ./lib-c-files
-
       - name: Load version from file
         run: |
           version=$(cat version.txt | xargs)
           echo "PKG_VERSION=$version" >> $GITHUB_ENV
+
+      - name: Create lib-c zip package
+        run: |
+          mkdir lib-c
+          zip -r ./lib-c/velopack_libc_$PKG_VERSION.zip ./lib-c-files
 
       - uses: actions/checkout@v4
         with:
