@@ -155,9 +155,7 @@ jobs:
         os: [macos-latest, windows-latest, ubuntu-latest]
         include:
           - os: windows-latest
-            rust_flags: "--target i686-pc-windows-msvc --features windows"
-          - os: ubuntu-latest
-            rust_flags: "--target x86_64-unknown-linux-gnu"
+            rust_flags: "--features windows"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
