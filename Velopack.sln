@@ -16,7 +16,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionLevel", "SolutionLe
 		nuget.config = nuget.config
 		README.md = README.md
 		src\SelfContained.targets = src\SelfContained.targets
-		Velopack.entitlements = Velopack.entitlements
 		version.json = version.json
 	EndProjectSection
 EndProject
