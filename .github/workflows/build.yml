@@ -201,7 +201,7 @@ jobs:
       - name: Check CPlusPlusWin32 Sample
         working-directory: samples/CPlusPlusWin32
         run: |
-          dotnet install tool -g vpk
+          dotnet tool install -g vpk
           .\build.bat 1.0.0
         if: ${{ matrix.os == 'windows-latest' }}
 
