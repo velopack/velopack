@@ -34,7 +34,6 @@
   <Target Name="AddNugetVendorLibs" BeforeTargets="Build" Condition=" '$(VelopackPackageVendorLibs)' == 'true' ">
     <ItemGroup>
       <None Include="$(MSBuildThisFileDirectory)..\vendor\**" Pack="true" PackagePath="vendor" />
-      <None Include="$(MSBuildThisFileDirectory)..\Velopack.entitlements" Pack="true" PackagePath="vendor" />
       <None Include="$(MSBuildThisFileDirectory)..\artwork\DefaultApp.icns" Pack="true" PackagePath="vendor" />
       <None Include="$(MSBuildThisFileDirectory)..\artwork\DefaultApp.png" Pack="true" PackagePath="vendor" />
     </ItemGroup>
