@@ -6,7 +6,7 @@
   "types": "./lib/index.d.ts",
   "scripts": {
     "test": "npm run dev && cross-env VELOPACK_RESTART=true VELOPACK_DEBUG=true jest",
-    "dev": "cargo build -p velopack_nodeffi && tsc -p tsconfig.build.json && node copy-lib.js",
+    "dev": "cargo build -p velopack_nodeffi -p velopack_bins && tsc -p tsconfig.build.json && node copy-lib.js",
     "build": "tsc -p tsconfig.build.json",
     "clean": "del-cli **/*.node lib velopack-*.tgz",
     "lint": "prettier . --write"
