@@ -12,8 +12,13 @@
 #include <stdexcept>
 #endif
 
+#if !defined(_WIN32)
+#include <string.h>
+#endif
+
 #if defined(VELOPACK_LIBC_EXPORTS) && defined(_WIN32)
 #define VPKC_EXPORT __declspec(dllexport)
+#define VPKC_CALL __cdecl
 #pragma comment(linker, "/EXPORT:vpkc_new_update_manager")
 #pragma comment(linker, "/EXPORT:vpkc_get_current_version")
 #pragma comment(linker, "/EXPORT:vpkc_get_app_id")
@@ -38,11 +43,11 @@
 #pragma comment(linker, "/EXPORT:vpkc_free_asset")
 #elif defined(VELOPACK_LIBC_EXPORTS) && !defined(_WIN32)
 #define VPKC_EXPORT __attribute__((visibility("default"))) __attribute__((used))
+#define VPKC_CALL
 #else
 #define VPKC_EXPORT
+#define VPKC_CALL
 #endif
-
-#define VPKC_CALL __cdecl
 
 #ifdef __cplusplus
 extern "C" {
