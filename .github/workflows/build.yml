@@ -173,7 +173,7 @@ jobs:
         with:
           file: ./test/coverage.rust.${{ matrix.os }}.xml
   
-  test-libs:
+  check-libs:
     strategy:
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
@@ -192,6 +192,7 @@ jobs:
         run: |
           npm install
           npm run build
+          npm run test
       - name: Check NodeJSElectron Sample
         working-directory: samples/NodeJSElectron
         run: |
@@ -199,11 +200,10 @@ jobs:
           npm run typecheck
       - name: Check CPlusPlusWin32 Sample
         working-directory: samples/CPlusPlusWin32
-        run: .\build.bat 1.0.0
+        run: |
+          dotnet install tool -g vpk
+          .\build.bat 1.0.0
         if: ${{ matrix.os == 'windows-latest' }}
-      - name: Test lib-nodejs
-        working-directory: src/lib-nodejs
-        run: npm run test
 
   test-vpk:
     strategy:
