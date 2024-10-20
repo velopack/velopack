@@ -262,4 +262,33 @@ exit 0
         Log.Debug($"Creating ditto bundle '{outputZip}'");
         Log.Debug(Exe.InvokeAndThrowIfNonZero("ditto", args, null));
     }
+    
+    public string ExtractPkgToAppBundle(string pkgFile, string extractionTmpPath)
+    {
+        if (!File.Exists(pkgFile)) {
+            throw new ArgumentException("Package file does not exist: " + pkgFile);
+        }
+        
+        Log.Debug($"Extracting '{pkgFile}' to '{extractionTmpPath}'");
+        
+        var args = new List<string> {
+            "--expand-full",
+            pkgFile,
+            extractionTmpPath,
+        };
+
+        Log.Debug(Exe.InvokeAndThrowIfNonZero("pkgutil", args, null));
+        
+        IEnumerable<string> appPaths = Directory.EnumerateDirectories(extractionTmpPath, "*.app", SearchOption.AllDirectories).ToArray();
+
+        if (appPaths.Count() > 1) {
+            throw new Exception("The package contains more than one .app bundle. This is not supported.");
+        }
+        
+        if (!appPaths.Any()) {
+            throw new Exception("The package does not contain an .app bundle.");
+        }
+        
+        return appPaths.First();
+    }
 }

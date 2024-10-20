@@ -64,10 +64,16 @@ public abstract class PackageBuilder<T> : ICommand<T>
                 throw new UserInfoException($"There is a release in channel {channel} which is equal or greater to the current version {options.PackVersion}. Please increase the current package version or remove that release.");
             }
         }
+        
+        using var _1 = TempUtil.GetTempDirectory(out var pkgTempDir);
+        TempDir = new DirectoryInfo(pkgTempDir);
 
         var packId = options.PackId;
         var packDirectory = options.PackDirectory;
         var packVersion = options.PackVersion;
+
+        // extract pre-bundled apps as required (eg. .AppImage or .pkg)
+        packDirectory = ExtractPackDir(packDirectory);
 
         // check that entry exe exists
         var mainExeName = options.EntryExecutableName ?? options.PackId;
@@ -90,9 +96,6 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
         MainExePath = mainExePath;
         options.EntryExecutableName = Path.GetFileName(mainExePath);
-
-        using var _1 = TempUtil.GetTempDirectory(out var pkgTempDir);
-        TempDir = new DirectoryInfo(pkgTempDir);
         Options = options;
 
         ConcurrentBag<(string from, string to)> filesToCopy = new();
@@ -169,6 +172,8 @@ public abstract class PackageBuilder<T> : ICommand<T>
             });
         });
     }
+
+    protected virtual string ExtractPackDir(string packDirectory) => packDirectory;
 
     protected abstract string[] GetMainExeSearchPaths(string packDirectory, string mainExeName);
 

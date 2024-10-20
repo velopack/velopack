@@ -13,13 +13,25 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
     {
     }
 
+    protected override string ExtractPackDir(string packDirectory)
+    {
+        if (packDirectory.EndsWith(".pkg", StringComparison.OrdinalIgnoreCase)) {
+            Log.Warn("Extracting application bundle from .pkg installer. This is not recommended for production use.");
+            var dir = Path.Combine(TempDir.FullName, "pkg_extract");
+            var helper = new OsxBuildTools(Log);
+            return helper.ExtractPkgToAppBundle(packDirectory, dir);
+        }
+        
+        return packDirectory;
+    }
+
     protected override Task<string> PreprocessPackDir(Action<int> progress, string packDir)
     {
         var packTitle = Options.PackTitle ?? Options.PackId;
         var dir = TempDir.CreateSubdirectory(packTitle + ".app");
         bool deleteAppBundle = false;
-        string appBundlePath = Options.PackDirectory;
-        if (!Options.PackDirectory.EndsWith(".app", StringComparison.OrdinalIgnoreCase)) {
+        string appBundlePath = packDir;
+        if (!packDir.EndsWith(".app", StringComparison.OrdinalIgnoreCase)) {
             appBundlePath = new OsxBundleCommandRunner(Log).Bundle(Options);
             deleteAppBundle = true;
         }
