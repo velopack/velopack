@@ -2,7 +2,8 @@ fn main() {
     cxx_build::bridge("src/lib.rs")
         .file("src/bridge.cc")
         .flag_if_supported("/std:c++17")
-        .flag_if_supported("/EHsc")
+        .flag_if_supported("/EHsc") // exception unwind handling
+        .flag_if_supported("-Wno-unused-function") // allow unused functions
         .warnings_into_errors(true)
         .define("VELOPACK_LIBC_EXPORTS", Some("1"))
         .std("c++17")
