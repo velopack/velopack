@@ -30,12 +30,16 @@ static inline StringOption to_bridgestring_opt(const char* psz) {
 }
 
 static inline void allocate_string(::rust::String& str, char** ppsz) {
+#ifdef _WIN32
     *ppsz = _strdup(str.c_str());
+#else
+    *ppsz = strdup(str.c_str());
+#endif
 }
 
 static inline void allocate_string_opt(StringOption str, char** ppsz) {
     if (str.has_data) {
-        *ppsz = _strdup(str.data.c_str());
+        allocate_string(str.data, ppsz);
     } else {
         *ppsz = nullptr;
     }
