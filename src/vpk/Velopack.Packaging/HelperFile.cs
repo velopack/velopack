@@ -92,6 +92,7 @@ public static class HelperFile
         AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "target", "debug");
         AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "vendor");
         AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "artwork");
+        AddSearchPath(AppContext.BaseDirectory, "..", "..", "..");
 #else
         AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "vendor");
 #endif

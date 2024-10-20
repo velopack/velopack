@@ -1,4 +1,5 @@
-﻿using System.Runtime.Versioning;
+﻿using System.Collections.Concurrent;
+using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
 using Velopack.Packaging.Abstractions;
 using Velopack.Util;
@@ -73,25 +74,49 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
     {
         var helper = new OsxBuildTools(Log);
         var keychainPath = Options.Keychain;
+        var monoBundlePath = Path.Combine(packDir, "Contents", "MonoBundle");
+
+        string entitlements = Options.SignEntitlements;
+        if (String.IsNullOrEmpty(entitlements)) {
+            Log.Info("No entitlements specified, using default: " +
+                     "https://docs.microsoft.com/dotnet/core/install/macos-notarization-issues");
+            entitlements = HelperFile.VelopackEntitlements;
+        }
+
+        void InnerSign()
+        {
+            if (Directory.Exists(monoBundlePath)) {
+                Log.Warn("Detected invalid Xamarin MonoBundle, fixing code signing...");
+                var files = Directory.EnumerateFiles(monoBundlePath).ToArray();
+                int processed = 0;
+                Parallel.ForEach(files, new ParallelOptions() { MaxDegreeOfParallelism = 4}, (file) => {
+                    helper.CodeSign(Options.SignAppIdentity, entitlements, file, false, keychainPath);
+                    Interlocked.Increment(ref processed);
+                    progress(Math.Min((int)(processed * 100d / files.Length), 95));
+                });
+                Thread.Sleep(100);
+            }
+            Log.Info("Code signing application bundle...");
+            progress(-1); // indeterminate
+            helper.CodeSign(Options.SignAppIdentity, entitlements, packDir, true, keychainPath);
+        }
+        
         // code signing all mach-o binaries
         if (!string.IsNullOrEmpty(Options.SignAppIdentity) && !string.IsNullOrEmpty(Options.NotaryProfile)) {
-            progress(-1); // indeterminate
             var zipPath = Path.Combine(TempDir.FullName, "notarize.zip");
-            helper.CodeSign(Options.SignAppIdentity, Options.SignEntitlements, packDir, keychainPath);
+            InnerSign();
             helper.CreateDittoZip(packDir, zipPath);
             helper.Notarize(zipPath, Options.NotaryProfile, keychainPath);
             helper.Staple(packDir);
             helper.SpctlAssessCode(packDir);
             File.Delete(zipPath);
-            progress(100);
         } else if (!string.IsNullOrEmpty(Options.SignAppIdentity)) {
-            progress(-1); // indeterminate
-            Log.Warn("Package will be signed, but [underline]not notarized[/]. Missing the --notaryProfile option.");
-            helper.CodeSign(Options.SignAppIdentity, Options.SignEntitlements, packDir, keychainPath);
-            progress(100);
+            Log.Warn("Package will be signed but not notarized. Missing the --notaryProfile option.");
+            InnerSign();
         } else {
             Log.Warn("Package will not be signed or notarized. Missing the --signAppIdentity and --notaryProfile options.");
         }
+        progress(100);
         return Task.CompletedTask;
     }
 
