@@ -209,18 +209,7 @@ jobs:
       - name: Check CPlusPlusWin32 Sample
         working-directory: samples/CPlusPlusWin32
         run: .\build.bat 1.0.0
-      # - uses: caesay/wait-artifact-action@494939e840383463b1686ce3624a8aab059c2c8b
-      #   with:
-      #     token: ${{ secrets.GITHUB_TOKEN }}
-      #     max_wait_seconds: 900
-      #     artifacts: rust-${{ matrix.os }}
-      #     verbose: true
-      # - name: Download Rust Artifacts
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     path: target/release
-      #     pattern: rust-${{ matrix.os }}
-      #     merge-multiple: true
+        if: ${{ matrix.os == 'windows-latest' }}
       - name: Test lib-nodejs
         working-directory: src/lib-nodejs
         run: npm run test
