@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::path::PathBuf;
 use velopack::locator::VelopackLocatorConfig;
 use velopack::{UpdateInfo, UpdateOptions, VelopackAsset};
