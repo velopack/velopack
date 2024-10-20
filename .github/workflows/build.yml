@@ -334,12 +334,22 @@ jobs:
           path: build/Release/*nupkg
       - name: Rearrange Artifacts
         run: |
-          mkdir bin-core
           mkdir bin-nodejs
           mkdir src/lib-nodejs/lib/native
           mv target/release/*.node bin-nodejs/
-          mv target/release/* bin-core/
           cp bin-nodejs/*.node src/lib-nodejs/lib/native/
+
+          mkdir bin-libc
+          mkdir bin-libc/lib
+          mkdir bin-libc/include
+          mv target/release/*.so bin-libc/lib/
+          mv target/release/*.dylib bin-libc/lib/
+          mv target/release/*.dll bin-libc/lib/
+          mv target/release/*.lib bin-libc/lib/
+          cp src/lib-cpp/include/* bin-libc/include/
+
+          mkdir bin-core
+          mv target/release/* bin-core/
       - name: Upload Core Bins
         uses: actions/upload-artifact@v4
         with:
@@ -350,6 +360,11 @@ jobs:
         with:
           name: bin-nodejs
           path: bin-nodejs/*
+      - name: Upload LibC Bins
+        uses: actions/upload-artifact@v4
+        with:
+          name: bin-libc
+          path: bin-libc/*
       - name: Pack lib-nodejs
         working-directory: src/lib-nodejs
         run: npm pack
