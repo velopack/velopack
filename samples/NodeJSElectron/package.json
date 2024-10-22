@@ -10,7 +10,7 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx ."
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.5.0",
@@ -21,21 +21,15 @@
     "@electron-forge/plugin-fuses": "^7.5.0",
     "@electron-forge/plugin-webpack": "^7.5.0",
     "@electron/fuses": "^1.8.0",
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
     "@vercel/webpack-asset-relocator-loader": "^1.7.3",
     "css-loader": "^7.0.0",
-    "electron": "33.0.0",
-    "eslint": "^9.0.0",
-    "eslint-plugin-import": "^2.31.0",
+    "electron": "33.0.2",
     "fork-ts-checker-webpack-plugin": "^9.0.0",
     "node-loader": "^2.0.0",
     "style-loader": "^4.0.0",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
-    "typescript": "~5.6.0"
-  },
-  "dependencies": {
+    "typescript": "~5.6.0",
     "velopack": "^0.0.755-g7719c71"
   }
 }

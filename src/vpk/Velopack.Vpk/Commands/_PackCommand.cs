@@ -15,7 +15,7 @@ public abstract class PackCommand : PlatformCommand
 
     public string PackDirectory { get; private set; }
 
-    protected CliOption<DirectoryInfo> PackDirectoryOption { get; private set; }
+    protected CliOption<FileSystemInfo> PackDirectoryOption { get; private set; }
 
     public string PackAuthors { get; private set; }
 
@@ -69,11 +69,10 @@ public abstract class PackCommand : PlatformCommand
             .SetRequired()
             .RequiresSemverCompliant();
 
-        PackDirectoryOption = AddOption<DirectoryInfo>((v) => PackDirectory = v.ToFullNameOrNull(), "--packDir", "-p")
+        PackDirectoryOption = AddOption<FileSystemInfo>((v) => PackDirectory = v.ToFullNameOrNull(), "--packDir", "-p")
             .SetDescription("Directory containing application files for release.")
             .SetArgumentHelpName("DIR")
-            .SetRequired()
-            .MustNotBeEmpty();
+            .SetRequired();
 
         PackAuthorsOption = AddOption<string>((v) => PackAuthors = v, "--packAuthors")
             .SetDescription("Company name or comma-delimited list of authors.")

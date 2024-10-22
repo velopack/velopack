@@ -1,0 +1,28 @@
+
+[package]
+name = "velopack_libc"
+publish = false
+version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+cxx.workspace = true
+velopack.workspace = true
+anyhow.workspace = true
+lazy_static.workspace = true
+log.workspace = true
+
+[build-dependencies]
+cxx-build.workspace = true

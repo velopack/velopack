@@ -50,10 +50,23 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./lib-rust
 
+      - name: Download lib-c
+        uses: actions/download-artifact@v4
+        with:
+          name: lib-c
+          run-id: ${{ github.event.inputs.workflow_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./lib-c-files
+
       - name: Load version from file
         run: |
           version=$(cat version.txt | xargs)
           echo "PKG_VERSION=$version" >> $GITHUB_ENV
+
+      - name: Create lib-c zip package
+        run: |
+          mkdir lib-c
+          zip -r ./lib-c/velopack_libc_$PKG_VERSION.zip ./lib-c-files/*
 
       - uses: actions/checkout@v4
         with:
@@ -117,18 +130,19 @@ jobs:
           $notesFilePath = "./RELEASE_NOTES.md"
           $releaseBody | Out-File -FilePath $notesFilePath -Encoding utf8
           gh release create $currentTag --title $releaseName --notes-file $notesFilePath $releaseArg --verify-tag
-          
+
+          # Upload artifacts
+          Write-Host "Uploading artifacts..."
+          gh release upload $currentTag (get-item ../packages/*.nupkg)
+          gh release upload $currentTag (get-item ../lib-nodejs/*.tgz)
+          gh release upload $currentTag (get-item ../lib-rust/*.crate)
+          gh release upload $currentTag (get-item ../lib-c/*.zip)
+
       - name: Publish NuGet Packages
         run: |
           for f in packages/*.nupkg; do
             dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
           done
-          
-#      - name: Publish Rust Crate
-#        working-directory: ./lib-rust
-#        run: |
-#          PKG_VERSION=$(cat version.txt)
-#          curl -X PUT --user caesay:${{ secrets.CARGO_TOKEN }} --upload-file velopack-$(PKG_VERSION).crate https://crates.io/api/v1/crates/new
           
       - name: Publish NPM Package
         working-directory: ./lib-nodejs

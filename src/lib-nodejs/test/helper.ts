@@ -116,27 +116,29 @@ export async function tempd3<T>(
 
 export function updateExe(): string {
   const paths = [];
+  const debugDir = path.join("..", "..", "target", "debug");
+  const releaseDir = path.join("..", "..", "target", "release");
 
   if (isMacos()) {
-    paths.push(path.join("..", "..", "target", "release", "UpdateMac"));
+    paths.push(path.join(releaseDir, "UpdateMac"));
   }
 
   if (isLinux()) {
     if (os.machine() == "x86_64") {
-      paths.push(path.join("..", "..", "target", "release", "UpdateNix_x64"));
+      paths.push(path.join(releaseDir, "UpdateNix_x64"));
     } else if (os.machine() == "aarch64" || os.machine() == "arm64") {
-      paths.push(path.join("..", "..", "target", "release", "UpdateNix_arm64"));
+      paths.push(path.join(releaseDir, "UpdateNix_arm64"));
     }
   }
 
   if (isMacos() || isLinux()) {
-    paths.push(path.join("..", "..", "target", "debug", "update"));
-    paths.push(path.join("..", "..", "target", "release", "update"));
+    paths.push(path.join(debugDir, "update"));
+    paths.push(path.join(releaseDir, "update"));
   }
 
   if (isWindows()) {
-    paths.push(path.join("..", "..", "target", "debug", "Update.exe"));
-    paths.push(path.join("..", "..", "target", "release", "Update.exe"));
+    paths.push(path.join(debugDir, "Update.exe"));
+    paths.push(path.join(releaseDir, "Update.exe"));
   }
 
   for (const p of paths) {
@@ -151,12 +153,16 @@ export function updateExe(): string {
     paths.join(", ") +
     ". And found these binaries: ";
 
-  for (const file of fs.readdirSync(path.join("..", "..", "target", "debug"))) {
-    message += file + ", ";
+  if (fs.existsSync(debugDir)) {
+    for (const file of fs.readdirSync(debugDir)) {
+      message += file + ", ";
+    }
   }
 
-  for (const file of fs.readdirSync(path.join("..", "..", "target", "release"))) {
-    message += file + ", ";
+  if (fs.existsSync(releaseDir)) {
+    for (const file of fs.readdirSync(releaseDir)) {
+      message += file + ", ";
+    }
   }
 
   throw new Error(message);

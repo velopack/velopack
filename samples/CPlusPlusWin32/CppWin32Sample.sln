@@ -1,0 +1,30 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34525.116
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CppWin32Sample", "CppWin32Sample.vcxproj", "{F9BB1F11-3827-4745-B11B-77FA5DBE1195}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{25F8ED9F-9255-4CEC-AE44-7F2EAA392C18}"
+	ProjectSection(SolutionItems) = preProject
+		build.bat = build.bat
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F9BB1F11-3827-4745-B11B-77FA5DBE1195}.Debug|x64.ActiveCfg = Debug|x64
+		{F9BB1F11-3827-4745-B11B-77FA5DBE1195}.Debug|x64.Build.0 = Debug|x64
+		{F9BB1F11-3827-4745-B11B-77FA5DBE1195}.Release|x64.ActiveCfg = Release|x64
+		{F9BB1F11-3827-4745-B11B-77FA5DBE1195}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BE15ADBD-1862-47E7-8704-0721D758269F}
+	EndGlobalSection
+EndGlobal

@@ -15,14 +15,8 @@ public class OsxBuildTools
         Log = logger;
     }
 
-    public void CodeSign(string identity, string entitlements, string filePath, string keychainPath)
+    public void CodeSign(string identity, string entitlements, string filePath, bool deep, string keychainPath)
     {
-        if (String.IsNullOrEmpty(entitlements)) {
-            Log.Info("No entitlements specified, using default: " +
-                     "https://docs.microsoft.com/dotnet/core/install/macos-notarization-issues");
-            entitlements = HelperFile.VelopackEntitlements;
-        }
-
         if (!File.Exists(entitlements)) {
             throw new Exception("Could not find entitlements file at: " + entitlements);
         }
@@ -31,11 +25,14 @@ public class OsxBuildTools
             "-s", identity,
             "-f",
             "-v",
-            "--deep",
             "--timestamp",
             "--options", "runtime",
             "--entitlements", entitlements,
         };
+        
+        if (deep) {
+            args.Add("--deep");
+        }
 
         if (!String.IsNullOrEmpty(keychainPath)) {
             Log.Info($"Using non-default keychain at '{keychainPath}'");
@@ -45,9 +42,12 @@ public class OsxBuildTools
 
         args.Add(filePath);
 
-        Log.Info($"Beginning codesign for package...");
-        Log.Info(Exe.InvokeAndThrowIfNonZero("codesign", args, null));
-        Log.Info("codesign completed successfully");
+        Log.Debug($"Beginning codesign for package...");
+        string output = Exe.InvokeAndThrowIfNonZero("codesign", args, null);
+        if (!String.IsNullOrWhiteSpace(output)) {
+            Log.Info(output);
+        }
+        Log.Debug("codesign completed successfully");
     }
 
     public void SpctlAssessCode(string filePath)
@@ -261,5 +261,34 @@ exit 0
 
         Log.Debug($"Creating ditto bundle '{outputZip}'");
         Log.Debug(Exe.InvokeAndThrowIfNonZero("ditto", args, null));
+    }
+    
+    public string ExtractPkgToAppBundle(string pkgFile, string extractionTmpPath)
+    {
+        if (!File.Exists(pkgFile)) {
+            throw new ArgumentException("Package file does not exist: " + pkgFile);
+        }
+        
+        Log.Debug($"Extracting '{pkgFile}' to '{extractionTmpPath}'");
+        
+        var args = new List<string> {
+            "--expand-full",
+            pkgFile,
+            extractionTmpPath,
+        };
+
+        Log.Debug(Exe.InvokeAndThrowIfNonZero("pkgutil", args, null));
+        
+        IEnumerable<string> appPaths = Directory.EnumerateDirectories(extractionTmpPath, "*.app", SearchOption.AllDirectories).ToArray();
+
+        if (appPaths.Count() > 1) {
+            throw new Exception("The package contains more than one .app bundle. This is not supported.");
+        }
+        
+        if (!appPaths.Any()) {
+            throw new Exception("The package does not contain an .app bundle.");
+        }
+        
+        return appPaths.First();
     }
 }
