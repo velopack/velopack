@@ -1,6 +1,4 @@
-﻿using System.Text;
-
-public static class Templates
+﻿public static class Templates
 {
     private static string GetBasicCType(Dictionary<string, string> nameMap, string rustType)
     {
@@ -104,7 +102,7 @@ public static class Templates
         }
         sb.AppendLine($"}}");
         sb.AppendLine();
-        
+
         sb.AppendLine($"static inline void free_{rs.Name.ToLower()}({cName}* pDto) {{");
         using (sb.Indent()) {
             sb.AppendLine($"if (pDto == nullptr) {{ return; }}");
@@ -123,9 +121,13 @@ public static class Templates
 
     public static void WriteBasicC(Dictionary<string, string> nameMap, IndentStringBuilder sb, RustStruct rs)
     {
+        sb.AppendDocComment(rs.DocComment);
         sb.AppendLine($"typedef struct {{");
         foreach (var field in rs.Fields) {
-            sb.AppendLine($"    {GetBasicCType(nameMap, field.Type)} {field.Name};");
+            using (sb.Indent()) {
+                sb.AppendDocComment(field.DocComment);
+                sb.AppendLine($"{GetBasicCType(nameMap, field.Type)} {field.Name};");
+            }
         }
 
         sb.AppendLine($"}} {nameMap[rs.Name]};");
@@ -135,9 +137,13 @@ public static class Templates
     public static void WriteCPlusPlus(Dictionary<string, string> nameMap, IndentStringBuilder sb, RustStruct rs)
     {
         var coreTypes = nameMap.Keys.ToArray();
+        sb.AppendDocComment(rs.DocComment);
         sb.AppendLine($"struct {rs.Name} {{");
         foreach (var field in rs.Fields) {
-            sb.AppendLine($"    {GetCPlusPlusType(coreTypes, field.Type, field.Optional)} {field.Name};");
+            using (sb.Indent()) {
+                sb.AppendDocComment(field.DocComment);
+                sb.AppendLine($"{GetCPlusPlusType(coreTypes, field.Type, field.Optional)} {field.Name};");
+            }
         }
 
         sb.AppendLine($"}};");

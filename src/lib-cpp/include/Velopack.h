@@ -65,34 +65,114 @@ typedef enum {
 } vpkc_update_check_t;
 
 // !! AUTO-GENERATED-START C_TYPES
+/**
+ * VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
+ */
 typedef struct {
+    /**
+     * The root directory of the current app.
+     */
     char* RootAppDir;
+    /**
+     * The path to the Update.exe binary.
+     */
     char* UpdateExePath;
+    /**
+     * The path to the packages' directory.
+     */
     char* PackagesDir;
+    /**
+     * The current app manifest.
+     */
     char* ManifestPath;
+    /**
+     * The directory containing the application's user binaries.
+     */
     char* CurrentBinaryDir;
+    /**
+     * Whether the current application is portable or installed.
+     */
     bool IsPortable;
 } vpkc_locator_config_t;
 
+/**
+ * An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
+ */
 typedef struct {
+    /**
+     * The name or Id of the package containing this release.
+     */
     char* PackageId;
+    /**
+     * The version of this release.
+     */
     char* Version;
+    /**
+     * The type of asset (eg. "Full" or "Delta").
+     */
     char* Type;
+    /**
+     * The filename of the update package containing this release.
+     */
     char* FileName;
+    /**
+     * The SHA1 checksum of the update package containing this release.
+     */
     char* SHA1;
+    /**
+     * The SHA256 checksum of the update package containing this release.
+     */
     char* SHA256;
+    /**
+     * The size in bytes of the update package containing this release.
+     */
     uint64_t Size;
+    /**
+     * The release notes in markdown format, as passed to Velopack when packaging the release. This may be an empty string.
+     */
     char* NotesMarkdown;
+    /**
+     * The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
+     */
     char* NotesHtml;
 } vpkc_asset_t;
 
+/**
+ * Holds information about the current version and pending updates, such as how many there are, and access to release notes.
+ */
 typedef struct {
+    /**
+     * The available version that we are updating to.
+     */
     vpkc_asset_t TargetFullRelease;
+    /**
+     * True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
+     * In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
+     * deleted.
+     */
     bool IsDowngrade;
 } vpkc_update_info_t;
 
+/**
+ * Options to customise the behaviour of UpdateManager.
+ */
 typedef struct {
+    /**
+     * Allows UpdateManager to update to a version that's lower than the current version (i.e. downgrading).
+     * This could happen if a release has bugs and was retracted from the release feed, or if you're using
+     * ExplicitChannel to switch channels to another channel where the latest version on that
+     * channel is lower than the current version.
+     */
     bool AllowVersionDowngrade;
+    /**
+     * **This option should usually be left None**. <br/>
+     * Overrides the default channel used to fetch updates.
+     * The default channel will be whatever channel was specified on the command line when building this release.
+     * For example, if the current release was packaged with '--channel beta', then the default channel will be 'beta'.
+     * This allows users to automatically receive updates from the same channel they installed from. This options
+     * allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
+     * without having to reinstall the application.
+     */
     char* ExplicitChannel;
 } vpkc_update_options_t;
 // !! AUTO-GENERATED-END C_TYPES
@@ -163,12 +243,33 @@ static inline uint64_t to_cu64(uint64_t i) { return i; }
 static inline uint64_t to_cppu64(uint64_t i) { return i; }
 
 // !! AUTO-GENERATED-START CPP_TYPES
+/**
+ * VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
+ */
 struct VelopackLocatorConfig {
+    /**
+     * The root directory of the current app.
+     */
     std::string RootAppDir;
+    /**
+     * The path to the Update.exe binary.
+     */
     std::string UpdateExePath;
+    /**
+     * The path to the packages' directory.
+     */
     std::string PackagesDir;
+    /**
+     * The current app manifest.
+     */
     std::string ManifestPath;
+    /**
+     * The directory containing the application's user binaries.
+     */
     std::string CurrentBinaryDir;
+    /**
+     * Whether the current application is portable or installed.
+     */
     bool IsPortable;
 };
 
@@ -194,15 +295,45 @@ static inline VelopackLocatorConfig to_cpp(const vpkc_locator_config_t& dto) {
     };
 }
 
+/**
+ * An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
+ */
 struct VelopackAsset {
+    /**
+     * The name or Id of the package containing this release.
+     */
     std::string PackageId;
+    /**
+     * The version of this release.
+     */
     std::string Version;
+    /**
+     * The type of asset (eg. "Full" or "Delta").
+     */
     std::string Type;
+    /**
+     * The filename of the update package containing this release.
+     */
     std::string FileName;
+    /**
+     * The SHA1 checksum of the update package containing this release.
+     */
     std::string SHA1;
+    /**
+     * The SHA256 checksum of the update package containing this release.
+     */
     std::string SHA256;
+    /**
+     * The size in bytes of the update package containing this release.
+     */
     uint64_t Size;
+    /**
+     * The release notes in markdown format, as passed to Velopack when packaging the release. This may be an empty string.
+     */
     std::string NotesMarkdown;
+    /**
+     * The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
+     */
     std::string NotesHtml;
 };
 
@@ -234,8 +365,19 @@ static inline VelopackAsset to_cpp(const vpkc_asset_t& dto) {
     };
 }
 
+/**
+ * Holds information about the current version and pending updates, such as how many there are, and access to release notes.
+ */
 struct UpdateInfo {
+    /**
+     * The available version that we are updating to.
+     */
     VelopackAsset TargetFullRelease;
+    /**
+     * True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
+     * In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
+     * deleted.
+     */
     bool IsDowngrade;
 };
 
@@ -253,8 +395,26 @@ static inline UpdateInfo to_cpp(const vpkc_update_info_t& dto) {
     };
 }
 
+/**
+ * Options to customise the behaviour of UpdateManager.
+ */
 struct UpdateOptions {
+    /**
+     * Allows UpdateManager to update to a version that's lower than the current version (i.e. downgrading).
+     * This could happen if a release has bugs and was retracted from the release feed, or if you're using
+     * ExplicitChannel to switch channels to another channel where the latest version on that
+     * channel is lower than the current version.
+     */
     bool AllowVersionDowngrade;
+    /**
+     * **This option should usually be left None**. <br/>
+     * Overrides the default channel used to fetch updates.
+     * The default channel will be whatever channel was specified on the command line when building this release.
+     * For example, if the current release was packaged with '--channel beta', then the default channel will be 'beta'.
+     * This allows users to automatically receive updates from the same channel they installed from. This options
+     * allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
+     * without having to reinstall the application.
+     */
     std::optional<std::string> ExplicitChannel;
 };
 
