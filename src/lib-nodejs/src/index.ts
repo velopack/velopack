@@ -65,12 +65,20 @@ type VelopackHook = (version: string) => void;
 
 type LogLevel = "info" | "warn" | "error" | "debug" | "trace";
 
+/** 
+ * VelopackApp helps you to handle app activation events correctly.
+ * This should be used as early as possible in your application startup code.
+ * (eg. the beginning of main() or wherever your entry point is)
+ */
 export class VelopackApp {
   private _hooks = new Map<VelopackHookType, VelopackHook>();
   private _customArgs: string[] | null = null;
   private _customLocator: VelopackLocatorConfig | null = null;
   private _autoApply = true;
 
+  /**
+   * Build a new VelopackApp instance.
+   */
   static build(): VelopackApp {
     return new VelopackApp();
   }
@@ -178,9 +186,18 @@ export class VelopackApp {
   }
 }
 
+/**
+ * Provides functionality for checking for updates, downloading updates, and applying updates to the current application.
+ */
 export class UpdateManager {
   private readonly opaque: UpdateManagerOpaque;
 
+  /**
+   * Create a new UpdateManager instance.
+   * @param urlOrPath Location of the update server or path to the local update directory.
+   * @param options Optional extra configuration for update manager.
+   * @param locator Override the default locator configuration (usually used for testing / mocks).
+   */
   constructor(
     urlOrPath: string,
     options?: UpdateOptions,
