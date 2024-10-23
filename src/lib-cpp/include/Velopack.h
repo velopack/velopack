@@ -58,7 +58,7 @@ typedef void (*vpkc_progress_callback_t)(size_t progress);
 typedef void (*vpkc_log_callback_t)(const char* pszLevel, const char* pszMessage);
 typedef void (*vpkc_hook_callback_t)(const char* pszAppVersion);
 
-typedef enum {
+typedef enum vpkc_update_check_t {
     UPDATE_AVAILABLE = 0,
     NO_UPDATE_AVAILABLE = 1,
     UPDATE_ERROR = 2,
@@ -68,7 +68,7 @@ typedef enum {
 /**
  * VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
  */
-typedef struct {
+typedef struct vpkc_locator_config_t {
     /**
      * The root directory of the current app.
      */
@@ -98,7 +98,7 @@ typedef struct {
 /**
  * An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
  */
-typedef struct {
+typedef struct vpkc_asset_t {
     /**
      * The name or Id of the package containing this release.
      */
@@ -140,7 +140,7 @@ typedef struct {
 /**
  * Holds information about the current version and pending updates, such as how many there are, and access to release notes.
  */
-typedef struct {
+typedef struct vpkc_update_info_t {
     /**
      * The available version that we are updating to.
      */
@@ -156,7 +156,7 @@ typedef struct {
 /**
  * Options to customise the behaviour of UpdateManager.
  */
-typedef struct {
+typedef struct vpkc_update_options_t {
     /**
      * Allows UpdateManager to update to a version that's lower than the current version (i.e. downgrading).
      * This could happen if a release has bugs and was retracted from the release feed, or if you're using

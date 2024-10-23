@@ -122,7 +122,7 @@
     public static void WriteBasicC(Dictionary<string, string> nameMap, IndentStringBuilder sb, RustStruct rs)
     {
         sb.AppendDocComment(rs.DocComment);
-        sb.AppendLine($"typedef struct {{");
+        sb.AppendLine($"typedef struct {nameMap[rs.Name]} {{");
         foreach (var field in rs.Fields) {
             using (sb.Indent()) {
                 sb.AppendDocComment(field.DocComment);
