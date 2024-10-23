@@ -134,21 +134,8 @@
         sb.AppendLine();
     }
 
-    public static void WriteCPlusPlus(Dictionary<string, string> nameMap, IndentStringBuilder sb, RustStruct rs)
+    public static void WriteC2CPPMapping(Dictionary<string, string> nameMap, IndentStringBuilder sb, RustStruct rs)
     {
-        var coreTypes = nameMap.Keys.ToArray();
-        sb.AppendDocComment(rs.DocComment);
-        sb.AppendLine($"struct {rs.Name} {{");
-        foreach (var field in rs.Fields) {
-            using (sb.Indent()) {
-                sb.AppendDocComment(field.DocComment);
-                sb.AppendLine($"{GetCPlusPlusType(coreTypes, field.Type, field.Optional)} {field.Name};");
-            }
-        }
-
-        sb.AppendLine($"}};");
-        sb.AppendLine();
-
         sb.AppendLine($"static inline {nameMap[rs.Name]} to_c(const {rs.Name}& dto) {{");
         using (sb.Indent()) {
             sb.AppendLine("return {");
@@ -187,6 +174,22 @@
         }
 
         sb.AppendLine($"}}");
+        sb.AppendLine();
+    }
+
+    public static void WriteCPlusPlus(Dictionary<string, string> nameMap, IndentStringBuilder sb, RustStruct rs)
+    {
+        var coreTypes = nameMap.Keys.ToArray();
+        sb.AppendDocComment(rs.DocComment);
+        sb.AppendLine($"struct {rs.Name} {{");
+        foreach (var field in rs.Fields) {
+            using (sb.Indent()) {
+                sb.AppendDocComment(field.DocComment);
+                sb.AppendLine($"{GetCPlusPlusType(coreTypes, field.Type, field.Optional)} {field.Name};");
+            }
+        }
+
+        sb.AppendLine($"}};");
         sb.AppendLine();
     }
 

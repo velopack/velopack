@@ -15,15 +15,13 @@ public class IndentStringBuilder
         AppendIndent();
         _sb.AppendLine(text);
     }
-
+    
     public void AppendDocComment(string comment)
     {
         if (comment != null) {
-            AppendLine($"/**");
             foreach (var line in comment.ReplaceLineEndings("\n").Split('\n')) {
-                AppendLine($" * {line}");
+                AppendLine($"/// {line}");
             }
-            AppendLine(" */");
         }
     }
 

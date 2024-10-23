@@ -66,14 +66,19 @@ foreach(var rs in availableStructs) {
 
 Console.WriteLine("Generating C types");
 var cTypes = new IndentStringBuilder();
+cTypes.AppendLine();
 foreach(var rs in availableStructs) {
     Templates.WriteBasicC(basic_libc_names, cTypes, rs);
 }
 
 Console.WriteLine("Generating C++ types");
 var cppTypes = new IndentStringBuilder();
+cppTypes.AppendLine();
 foreach(var rs in availableStructs) {
     Templates.WriteCPlusPlus(basic_libc_names, cppTypes, rs);
+}
+foreach (var rs in availableStructs) {
+    Templates.WriteC2CPPMapping(basic_libc_names, cppTypes, rs);
 }
 
 Console.WriteLine("Generating C to bridge mappings");

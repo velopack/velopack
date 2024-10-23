@@ -1,3 +1,7 @@
+//! This header provides the C and C++ API for the Velopack library.
+//! All the C constructs are prefixed by `vpkc_` and all the C++ constructs are in the `Velopack` namespace.
+//! The C++ API is a thin wrapper around the C API, providing a more idiomatic C++ interface.
+//! You should not mix and match the C and C++ APIs in the same program.
 #ifndef VELOPACK_H
 #define VELOPACK_H
 
@@ -65,148 +69,126 @@ typedef enum vpkc_update_check_t {
 } vpkc_update_check_t;
 
 // !! AUTO-GENERATED-START C_TYPES
-/**
- * VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
- */
+
+/// VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
 typedef struct vpkc_locator_config_t {
-    /**
-     * The root directory of the current app.
-     */
+    /// The root directory of the current app.
     char* RootAppDir;
-    /**
-     * The path to the Update.exe binary.
-     */
+    /// The path to the Update.exe binary.
     char* UpdateExePath;
-    /**
-     * The path to the packages' directory.
-     */
+    /// The path to the packages' directory.
     char* PackagesDir;
-    /**
-     * The current app manifest.
-     */
+    /// The current app manifest.
     char* ManifestPath;
-    /**
-     * The directory containing the application's user binaries.
-     */
+    /// The directory containing the application's user binaries.
     char* CurrentBinaryDir;
-    /**
-     * Whether the current application is portable or installed.
-     */
+    /// Whether the current application is portable or installed.
     bool IsPortable;
 } vpkc_locator_config_t;
 
-/**
- * An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
- */
+/// An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
 typedef struct vpkc_asset_t {
-    /**
-     * The name or Id of the package containing this release.
-     */
+    /// The name or Id of the package containing this release.
     char* PackageId;
-    /**
-     * The version of this release.
-     */
+    /// The version of this release.
     char* Version;
-    /**
-     * The type of asset (eg. "Full" or "Delta").
-     */
+    /// The type of asset (eg. "Full" or "Delta").
     char* Type;
-    /**
-     * The filename of the update package containing this release.
-     */
+    /// The filename of the update package containing this release.
     char* FileName;
-    /**
-     * The SHA1 checksum of the update package containing this release.
-     */
+    /// The SHA1 checksum of the update package containing this release.
     char* SHA1;
-    /**
-     * The SHA256 checksum of the update package containing this release.
-     */
+    /// The SHA256 checksum of the update package containing this release.
     char* SHA256;
-    /**
-     * The size in bytes of the update package containing this release.
-     */
+    /// The size in bytes of the update package containing this release.
     uint64_t Size;
-    /**
-     * The release notes in markdown format, as passed to Velopack when packaging the release. This may be an empty string.
-     */
+    /// The release notes in markdown format, as passed to Velopack when packaging the release. This may be an empty string.
     char* NotesMarkdown;
-    /**
-     * The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
-     */
+    /// The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
     char* NotesHtml;
 } vpkc_asset_t;
 
-/**
- * Holds information about the current version and pending updates, such as how many there are, and access to release notes.
- */
+/// Holds information about the current version and pending updates, such as how many there are, and access to release notes.
 typedef struct vpkc_update_info_t {
-    /**
-     * The available version that we are updating to.
-     */
+    /// The available version that we are updating to.
     vpkc_asset_t TargetFullRelease;
-    /**
-     * True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
-     * In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
-     * deleted.
-     */
+    /// True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
+    /// In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
+    /// deleted.
     bool IsDowngrade;
 } vpkc_update_info_t;
 
-/**
- * Options to customise the behaviour of UpdateManager.
- */
+/// Options to customise the behaviour of UpdateManager.
 typedef struct vpkc_update_options_t {
-    /**
-     * Allows UpdateManager to update to a version that's lower than the current version (i.e. downgrading).
-     * This could happen if a release has bugs and was retracted from the release feed, or if you're using
-     * ExplicitChannel to switch channels to another channel where the latest version on that
-     * channel is lower than the current version.
-     */
+    /// Allows UpdateManager to update to a version that's lower than the current version (i.e. downgrading).
+    /// This could happen if a release has bugs and was retracted from the release feed, or if you're using
+    /// ExplicitChannel to switch channels to another channel where the latest version on that
+    /// channel is lower than the current version.
     bool AllowVersionDowngrade;
-    /**
-     * **This option should usually be left None**. <br/>
-     * Overrides the default channel used to fetch updates.
-     * The default channel will be whatever channel was specified on the command line when building this release.
-     * For example, if the current release was packaged with '--channel beta', then the default channel will be 'beta'.
-     * This allows users to automatically receive updates from the same channel they installed from. This options
-     * allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
-     * without having to reinstall the application.
-     */
+    /// **This option should usually be left None**. <br/>
+    /// Overrides the default channel used to fetch updates.
+    /// The default channel will be whatever channel was specified on the command line when building this release.
+    /// For example, if the current release was packaged with '--channel beta', then the default channel will be 'beta'.
+    /// This allows users to automatically receive updates from the same channel they installed from. This options
+    /// allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
+    /// without having to reinstall the application.
     char* ExplicitChannel;
 } vpkc_update_options_t;
 // !! AUTO-GENERATED-END C_TYPES
 
-// Update Manager
+/// Creates a new vpkc_update_manager_t. Free with vpkc_free_update_manager.
+/// \group UpdateManager
 VPKC_EXPORT bool VPKC_CALL vpkc_new_update_manager(const char* pszUrlOrString, vpkc_update_options_t* pOptions, vpkc_locator_config_t* pLocator, vpkc_update_manager_t** pManager);
+/// \group UpdateManager
 VPKC_EXPORT size_t VPKC_CALL vpkc_get_current_version(vpkc_update_manager_t* pManager, char* pszVersion, size_t cVersion);
+/// \group UpdateManager
 VPKC_EXPORT size_t VPKC_CALL vpkc_get_app_id(vpkc_update_manager_t* pManager, char* pszId, size_t cId);
+/// \group UpdateManager
 VPKC_EXPORT bool VPKC_CALL vpkc_is_portable(vpkc_update_manager_t* pManager);
+/// \group UpdateManager
 VPKC_EXPORT bool VPKC_CALL vpkc_update_pending_restart(vpkc_update_manager_t* pManager, vpkc_asset_t* pAsset);
+/// \group UpdateManager
 VPKC_EXPORT vpkc_update_check_t VPKC_CALL vpkc_check_for_updates(vpkc_update_manager_t* pManager, vpkc_update_info_t* pUpdate);
+/// \group UpdateManager
 VPKC_EXPORT bool VPKC_CALL vpkc_download_updates(vpkc_update_manager_t* pManager, vpkc_update_info_t* pUpdate, vpkc_progress_callback_t cbProgress);
+/// \group UpdateManager
 VPKC_EXPORT bool VPKC_CALL vpkc_wait_exit_then_apply_update(vpkc_update_manager_t* pManager, vpkc_asset_t* pAsset, bool bSilent, bool bRestart, char** pRestartArgs, size_t cRestartArgs);
-
-// VelopackApp
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_auto_apply_on_startup(bool bAutoApply);
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_args(char** pArgs, size_t cArgs);
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_locator(vpkc_locator_config_t* pLocator);
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_after_install(vpkc_hook_callback_t cbAfterInstall);
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_before_uninstall(vpkc_hook_callback_t cbBeforeUninstall);
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_before_update(vpkc_hook_callback_t cbBeforeUpdate);
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_after_update(vpkc_hook_callback_t cbAfterUpdate);
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_first_run(vpkc_hook_callback_t cbFirstRun);
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_restarted(vpkc_hook_callback_t cbRestarted);
-VPKC_EXPORT void VPKC_CALL vpkc_app_run();
-
-// Misc functions
-VPKC_EXPORT size_t VPKC_CALL vpkc_get_last_error(char* pszError, size_t cError);
-VPKC_EXPORT void VPKC_CALL vpkc_set_log(vpkc_log_callback_t cbLog);
+/// \group UpdateManager
 VPKC_EXPORT void VPKC_CALL vpkc_free_update_manager(vpkc_update_manager_t* pManager);
+/// \group UpdateManager
 VPKC_EXPORT void VPKC_CALL vpkc_free_update_info(vpkc_update_info_t* pUpdateInfo);
+/// \group UpdateManager
 VPKC_EXPORT void VPKC_CALL vpkc_free_asset(vpkc_asset_t* pAsset);
 
-#ifdef __cplusplus
+/// Should be run at the beginning of your application to handle Velopack events.
+/// \group VelopackApp
+VPKC_EXPORT void VPKC_CALL vpkc_app_run();
+/// \group VelopackApp
+VPKC_EXPORT void VPKC_CALL vpkc_app_set_auto_apply_on_startup(bool bAutoApply);
+/// \group VelopackApp
+VPKC_EXPORT void VPKC_CALL vpkc_app_set_args(char** pArgs, size_t cArgs);
+/// \group VelopackApp
+VPKC_EXPORT void VPKC_CALL vpkc_app_set_locator(vpkc_locator_config_t* pLocator);
+/// \group VelopackApp
+VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_after_install(vpkc_hook_callback_t cbAfterInstall);
+/// \group VelopackApp
+VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_before_uninstall(vpkc_hook_callback_t cbBeforeUninstall);
+/// \group VelopackApp
+VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_before_update(vpkc_hook_callback_t cbBeforeUpdate);
+/// \group VelopackApp
+VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_after_update(vpkc_hook_callback_t cbAfterUpdate);
+/// \group VelopackApp
+VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_first_run(vpkc_hook_callback_t cbFirstRun);
+/// \group VelopackApp
+VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_restarted(vpkc_hook_callback_t cbRestarted);
+
+/// Given a function has returned a failure, this function will return the last error message as a string.
+VPKC_EXPORT size_t VPKC_CALL vpkc_get_last_error(char* pszError, size_t cError);
+
+/// Sets the callback to be used/called with log messages from Velopack.
+VPKC_EXPORT void VPKC_CALL vpkc_set_log(vpkc_log_callback_t cbLog);
+
+#ifdef __cplusplus // end of extern "C"
 }
 #endif
 
@@ -243,34 +225,70 @@ static inline uint64_t to_cu64(uint64_t i) { return i; }
 static inline uint64_t to_cppu64(uint64_t i) { return i; }
 
 // !! AUTO-GENERATED-START CPP_TYPES
-/**
- * VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
- */
+
+/// VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
 struct VelopackLocatorConfig {
-    /**
-     * The root directory of the current app.
-     */
+    /// The root directory of the current app.
     std::string RootAppDir;
-    /**
-     * The path to the Update.exe binary.
-     */
+    /// The path to the Update.exe binary.
     std::string UpdateExePath;
-    /**
-     * The path to the packages' directory.
-     */
+    /// The path to the packages' directory.
     std::string PackagesDir;
-    /**
-     * The current app manifest.
-     */
+    /// The current app manifest.
     std::string ManifestPath;
-    /**
-     * The directory containing the application's user binaries.
-     */
+    /// The directory containing the application's user binaries.
     std::string CurrentBinaryDir;
-    /**
-     * Whether the current application is portable or installed.
-     */
+    /// Whether the current application is portable or installed.
     bool IsPortable;
+};
+
+/// An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
+struct VelopackAsset {
+    /// The name or Id of the package containing this release.
+    std::string PackageId;
+    /// The version of this release.
+    std::string Version;
+    /// The type of asset (eg. "Full" or "Delta").
+    std::string Type;
+    /// The filename of the update package containing this release.
+    std::string FileName;
+    /// The SHA1 checksum of the update package containing this release.
+    std::string SHA1;
+    /// The SHA256 checksum of the update package containing this release.
+    std::string SHA256;
+    /// The size in bytes of the update package containing this release.
+    uint64_t Size;
+    /// The release notes in markdown format, as passed to Velopack when packaging the release. This may be an empty string.
+    std::string NotesMarkdown;
+    /// The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
+    std::string NotesHtml;
+};
+
+/// Holds information about the current version and pending updates, such as how many there are, and access to release notes.
+struct UpdateInfo {
+    /// The available version that we are updating to.
+    VelopackAsset TargetFullRelease;
+    /// True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
+    /// In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
+    /// deleted.
+    bool IsDowngrade;
+};
+
+/// Options to customise the behaviour of UpdateManager.
+struct UpdateOptions {
+    /// Allows UpdateManager to update to a version that's lower than the current version (i.e. downgrading).
+    /// This could happen if a release has bugs and was retracted from the release feed, or if you're using
+    /// ExplicitChannel to switch channels to another channel where the latest version on that
+    /// channel is lower than the current version.
+    bool AllowVersionDowngrade;
+    /// **This option should usually be left None**. <br/>
+    /// Overrides the default channel used to fetch updates.
+    /// The default channel will be whatever channel was specified on the command line when building this release.
+    /// For example, if the current release was packaged with '--channel beta', then the default channel will be 'beta'.
+    /// This allows users to automatically receive updates from the same channel they installed from. This options
+    /// allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
+    /// without having to reinstall the application.
+    std::optional<std::string> ExplicitChannel;
 };
 
 static inline vpkc_locator_config_t to_c(const VelopackLocatorConfig& dto) {
@@ -294,48 +312,6 @@ static inline VelopackLocatorConfig to_cpp(const vpkc_locator_config_t& dto) {
         to_cppbool(dto.IsPortable),
     };
 }
-
-/**
- * An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
- */
-struct VelopackAsset {
-    /**
-     * The name or Id of the package containing this release.
-     */
-    std::string PackageId;
-    /**
-     * The version of this release.
-     */
-    std::string Version;
-    /**
-     * The type of asset (eg. "Full" or "Delta").
-     */
-    std::string Type;
-    /**
-     * The filename of the update package containing this release.
-     */
-    std::string FileName;
-    /**
-     * The SHA1 checksum of the update package containing this release.
-     */
-    std::string SHA1;
-    /**
-     * The SHA256 checksum of the update package containing this release.
-     */
-    std::string SHA256;
-    /**
-     * The size in bytes of the update package containing this release.
-     */
-    uint64_t Size;
-    /**
-     * The release notes in markdown format, as passed to Velopack when packaging the release. This may be an empty string.
-     */
-    std::string NotesMarkdown;
-    /**
-     * The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
-     */
-    std::string NotesHtml;
-};
 
 static inline vpkc_asset_t to_c(const VelopackAsset& dto) {
     return {
@@ -365,22 +341,6 @@ static inline VelopackAsset to_cpp(const vpkc_asset_t& dto) {
     };
 }
 
-/**
- * Holds information about the current version and pending updates, such as how many there are, and access to release notes.
- */
-struct UpdateInfo {
-    /**
-     * The available version that we are updating to.
-     */
-    VelopackAsset TargetFullRelease;
-    /**
-     * True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
-     * In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
-     * deleted.
-     */
-    bool IsDowngrade;
-};
-
 static inline vpkc_update_info_t to_c(const UpdateInfo& dto) {
     return {
         to_c(dto.TargetFullRelease),
@@ -394,29 +354,6 @@ static inline UpdateInfo to_cpp(const vpkc_update_info_t& dto) {
         to_cppbool(dto.IsDowngrade),
     };
 }
-
-/**
- * Options to customise the behaviour of UpdateManager.
- */
-struct UpdateOptions {
-    /**
-     * Allows UpdateManager to update to a version that's lower than the current version (i.e. downgrading).
-     * This could happen if a release has bugs and was retracted from the release feed, or if you're using
-     * ExplicitChannel to switch channels to another channel where the latest version on that
-     * channel is lower than the current version.
-     */
-    bool AllowVersionDowngrade;
-    /**
-     * **This option should usually be left None**. <br/>
-     * Overrides the default channel used to fetch updates.
-     * The default channel will be whatever channel was specified on the command line when building this release.
-     * For example, if the current release was packaged with '--channel beta', then the default channel will be 'beta'.
-     * This allows users to automatically receive updates from the same channel they installed from. This options
-     * allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
-     * without having to reinstall the application.
-     */
-    std::optional<std::string> ExplicitChannel;
-};
 
 static inline vpkc_update_options_t to_c(const UpdateOptions& dto) {
     return {
