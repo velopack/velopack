@@ -11,6 +11,7 @@ public class DeltaGenCommand : BaseCommand
     public string NewPackage { get; set; }
 
     public string OutputFile { get; set; }
+    public bool UpdateReleasesFile { get; set; }
 
     public DeltaGenCommand()
         : base("generate", "Generate a delta patch from two full releases.")
@@ -38,5 +39,9 @@ public class DeltaGenCommand : BaseCommand
             .SetDescription("The output file path for the created patch.")
             .SetArgumentHelpName("PATH")
             .SetRequired();
+
+        AddOption<bool>((v) => UpdateReleasesFile = v, "--update-releases-file", "-u")
+            .SetDescription("Create or update the local releases files.")
+            .SetDefault(false);
     }
 }
