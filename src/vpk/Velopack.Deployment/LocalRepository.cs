@@ -14,6 +14,7 @@ public class LocalUploadOptions : LocalDownloadOptions, IObjectUploadOptions
 {
     public bool ForceRegenerate { get; set; }
     public int KeepMaxReleases { get; set; }
+    public int KeepMaxDeltaReleases { get; set; }
 }
 
 public class LocalRepository(ILogger logger) : ObjectRepository<LocalDownloadOptions, LocalUploadOptions, DirectoryInfo>(logger)
