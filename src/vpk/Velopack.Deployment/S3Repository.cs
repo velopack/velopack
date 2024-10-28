@@ -2,11 +2,12 @@
 using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
+using Riok.Mapperly.Abstractions;
 using Velopack.Util;
 
 namespace Velopack.Deployment;
 
-public class S3DownloadOptions : RepositoryOptions, IObjectDownloadOptions
+public class S3BaseOptions : RepositoryOptions
 {
     public string KeyId { get; set; }
 
@@ -23,7 +24,12 @@ public class S3DownloadOptions : RepositoryOptions, IObjectDownloadOptions
     public string Prefix { get; set; }
 }
 
-public class S3UploadOptions : S3DownloadOptions, IObjectUploadOptions
+public class S3DownloadOptions : S3BaseOptions, IObjectDownloadOptions
+{
+    public bool UpdateReleasesFile { get; set; }
+}
+
+public class S3UploadOptions : S3BaseOptions, IObjectUploadOptions
 {
     public int KeepMaxReleases { get; set; }
 }
@@ -85,23 +91,23 @@ public class S3BucketClient(AmazonS3Client client, string bucket, string prefix,
     }
 }
 
-public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions, S3BucketClient>
+public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions, S3BucketClient, S3BaseOptions>
 {
     public S3Repository(ILogger logger) : base(logger)
     {
     }
 
-    protected override S3BucketClient CreateClient(S3DownloadOptions options)
+    protected override S3BucketClient CreateClient(S3BaseOptions options)
     {
         bool disableSigning = false;
         var config = new AmazonS3Config() {
             ServiceURL = options.Endpoint,
             ForcePathStyle = true, // support for MINIO
         };
-        
+
         if (options.Endpoint != null) {
             config.ServiceURL = options.Endpoint;
-            // if the endpoint is using https, and is _not_ an AWS endpoint, we can disable signing 
+            // if the endpoint is using https, and is _not_ an AWS endpoint, we can disable signing
             // not all providers support the AWS signing mechanism. the AWS SDK will refuse to upload
             // something which is not signed to an http endpoint which is why this is only done for https.
             var uri = new Uri(options.Endpoint);

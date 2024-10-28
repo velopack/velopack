@@ -12,7 +12,7 @@ using Velopack.Util;
 
 namespace Velopack.Deployment;
 
-public class GiteaDownloadOptions : RepositoryOptions
+public class GiteaBaseOptions : RepositoryOptions
 {
     public bool Prerelease { get; set; }
 
@@ -28,7 +28,12 @@ public class GiteaDownloadOptions : RepositoryOptions
     //public int ServerPort { get; set; }
 }
 
-public class GiteaUploadOptions : GiteaDownloadOptions
+public class GiteaDownloadOptions : GiteaBaseOptions, IObjectDownloadOptions
+{
+    public bool UpdateReleasesFile { get; set; }
+}
+
+public class GiteaUploadOptions : GiteaBaseOptions
 {
     public bool Publish { get; set; }
 
@@ -40,12 +45,12 @@ public class GiteaUploadOptions : GiteaDownloadOptions
 
     public bool Merge { get; set; }
 }
-public class GiteaRepository : SourceRepository<GiteaDownloadOptions, GiteaSource>, IRepositoryCanUpload<GiteaUploadOptions>
+public class GiteaRepository : SourceRepository<GiteaDownloadOptions, GiteaBaseOptions, GiteaSource>, IRepositoryCanUpload<GiteaUploadOptions>
 {
     public GiteaRepository(ILogger logger) : base(logger)
     {
     }
-    public override GiteaSource CreateSource(GiteaDownloadOptions options)
+    public override GiteaSource CreateSource(GiteaBaseOptions options)
     {
         return new GiteaSource(options.RepoUrl, options.Token, options.Prerelease);
     }

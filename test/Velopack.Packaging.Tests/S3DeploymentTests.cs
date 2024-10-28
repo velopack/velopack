@@ -57,7 +57,7 @@ public class S3DeploymentTests
         };
 
         // download latest version and create delta
-        repo.DownloadLatestFullPackageAsync(options).GetAwaiterResult();
+        repo.DownloadLatestFullPackageAsync(options.ToDownloadOptions()).GetAwaiterResult();
         var id = "B2TestApp";
         TestApp.PackTestApp(id, newVer.ToFullString(), $"b2-{DateTime.UtcNow.ToLongDateString()}", releaseDir, logger, channel: channel);
         if (latest != null) {

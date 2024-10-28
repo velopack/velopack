@@ -2,6 +2,8 @@
 
 public class HttpDownloadCommand : OutputCommand
 {
+    public bool UpdateReleasesFile { get; set; }
+
     public string Url { get; private set; }
 
     public HttpDownloadCommand()
@@ -11,5 +13,9 @@ public class HttpDownloadCommand : OutputCommand
             .SetDescription("Url to download remote releases from.")
             .MustBeValidHttpUri()
             .SetRequired();
+
+        AddOption<bool>((v) => UpdateReleasesFile = v, "--update-releases-file")
+            .SetDescription("Create or update the local releases files.")
+            .SetDefault(false);
     }
 }

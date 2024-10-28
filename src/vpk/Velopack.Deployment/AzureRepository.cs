@@ -7,7 +7,7 @@ using Velopack.Util;
 
 namespace Velopack.Deployment;
 
-public class AzureDownloadOptions : RepositoryOptions, IObjectDownloadOptions
+public class AzureBaseOptions : RepositoryOptions
 {
     public string Account { get; set; }
 
@@ -19,19 +19,23 @@ public class AzureDownloadOptions : RepositoryOptions, IObjectDownloadOptions
 
     public string SasToken { get; set; }
 }
+public class AzureDownloadOptions : AzureBaseOptions, IObjectDownloadOptions
+{
+    public bool UpdateReleasesFile { get; set; }
+}
 
-public class AzureUploadOptions : AzureDownloadOptions, IObjectUploadOptions
+public class AzureUploadOptions : AzureBaseOptions, IObjectUploadOptions
 {
     public int KeepMaxReleases { get; set; }
 }
 
-public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploadOptions, BlobContainerClient>
+public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploadOptions, BlobContainerClient, AzureBaseOptions>
 {
     public AzureRepository(ILogger logger) : base(logger)
     {
     }
 
-    protected override BlobContainerClient CreateClient(AzureDownloadOptions options)
+    protected override BlobContainerClient CreateClient(AzureBaseOptions options)
     {
         var serviceUrl = options.Endpoint ?? "https://" + options.Account + ".blob.core.windows.net";
         if (options.Endpoint == null) {

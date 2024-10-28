@@ -13,8 +13,6 @@ public class RepositoryOptions : IOutputOptions
 
     public RuntimeOs TargetOs { get; set; }
 
-    public bool UpdateReleasesFile { get; set; } = true;
-
     public string Channel {
         get => _channel ?? ReleaseEntryHelper.GetDefaultChannel(TargetOs);
         set => _channel = value;
@@ -33,15 +31,16 @@ public interface IRepositoryCanDownload<TDown> where TDown : RepositoryOptions
     Task DownloadLatestFullPackageAsync(TDown options);
 }
 
-public abstract class SourceRepository<TDown, TSource> : DownRepository<TDown>
-    where TDown : RepositoryOptions
+public abstract class SourceRepository<TDown, TOption, TSource> : DownRepository<TDown, TOption>
+    where TDown : TOption, IObjectDownloadOptions
+    where TOption : RepositoryOptions
     where TSource : IUpdateSource
 {
     public SourceRepository(ILogger logger)
         : base(logger)
     { }
 
-    protected override Task<VelopackAssetFeed> GetReleasesAsync(TDown options)
+    protected override Task<VelopackAssetFeed> GetReleasesAsync(TOption options)
     {
         var source = CreateSource(options);
         return source.GetReleaseFeed(channel: options.Channel, logger: Log);
@@ -53,11 +52,12 @@ public abstract class SourceRepository<TDown, TSource> : DownRepository<TDown>
         return source.DownloadReleaseEntry(Log, entry, filePath, (i) => { });
     }
 
-    public abstract TSource CreateSource(TDown options);
+    public abstract TSource CreateSource(TOption options);
 }
 
-public abstract class DownRepository<TDown> : IRepositoryCanDownload<TDown>
-    where TDown : RepositoryOptions
+public abstract class DownRepository<TDown, TOption> : IRepositoryCanDownload<TDown>
+    where TDown : TOption, IObjectDownloadOptions
+    where TOption : RepositoryOptions
 {
     protected ILogger Log { get; }
 
@@ -120,7 +120,7 @@ public abstract class DownRepository<TDown> : IRepositoryCanDownload<TDown>
         Log.Info("Finished.");
     }
 
-    protected abstract Task<VelopackAssetFeed> GetReleasesAsync(TDown options);
+    protected abstract Task<VelopackAssetFeed> GetReleasesAsync(TOption options);
 
     protected abstract Task SaveEntryToFileAsync(TDown options, VelopackAsset entry, string filePath);
 

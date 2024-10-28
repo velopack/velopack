@@ -8,8 +8,6 @@ public abstract class OutputCommand : BaseCommand
 
     public string Channel { get; private set; }
 
-    public bool UpdateReleasesFile { get; set; }
-
     protected CliOption<DirectoryInfo> ReleaseDirectoryOption { get; private set; }
 
     protected CliOption<string> ChannelOption { get; private set; }
@@ -27,10 +25,6 @@ public abstract class OutputCommand : BaseCommand
             .RequiresValidNuGetId()
             .SetArgumentHelpName("NAME")
             .SetDefault(ReleaseEntryHelper.GetDefaultChannel(targetOs == RuntimeOs.Unknown ? VelopackRuntimeInfo.SystemOs : targetOs));
-
-        AddOption<bool>((v) => UpdateReleasesFile = v, "--update-releases-file", "-u")
-            .SetDescription("Create or update the local releases files.")
-            .SetDefault(false);
     }
 
     public DirectoryInfo GetReleaseDirectory()
