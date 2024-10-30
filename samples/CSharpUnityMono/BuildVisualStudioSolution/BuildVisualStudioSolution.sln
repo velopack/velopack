@@ -1,0 +1,67 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityPlayerStub", "UnityPlayerStub\UnityPlayerStub.vcxproj", "{9B743A06-56DC-42C2-99B1-B11DE6C02BBD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityMonoSample", "UnityMonoSample\UnityMonoSample.vcxproj", "{57571793-BF11-47DB-A9BA-049C9AA938C7}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|Win32 = Debug|Win32
+		Release|x64 = Release|x64
+		Release|Win32 = Release|Win32
+		Master|x64 = Master|x64
+		Master|Win32 = Master|Win32
+		MasterWithLTCG|x64 = MasterWithLTCG|x64
+		MasterWithLTCG|Win32 = MasterWithLTCG|Win32
+		DebugServer|x64 = DebugServer|x64
+		DebugServer|Win32 = DebugServer|Win32
+		ReleaseServer|x64 = ReleaseServer|x64
+		ReleaseServer|Win32 = ReleaseServer|Win32
+		MasterServer|x64 = MasterServer|x64
+		MasterServer|Win32 = MasterServer|Win32
+		MasterServerWithLTCG|x64 = MasterServerWithLTCG|x64
+		MasterServerWithLTCG|Win32 = MasterServerWithLTCG|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9B743A06-56DC-42C2-99B1-B11DE6C02BBD}.Debug|x64.ActiveCfg = Debug|x64
+		{9B743A06-56DC-42C2-99B1-B11DE6C02BBD}.Debug|x64.Build.0 = Debug|x64
+		{9B743A06-56DC-42C2-99B1-B11DE6C02BBD}.Debug|Win32.ActiveCfg = Debug|Win32
+		{9B743A06-56DC-42C2-99B1-B11DE6C02BBD}.Debug|Win32.Build.0 = Debug|Win32
+		{9B743A06-56DC-42C2-99B1-B11DE6C02BBD}.Release|x64.ActiveCfg = Release|x64
+		{9B743A06-56DC-42C2-99B1-B11DE6C02BBD}.Release|x64.Build.0 = Release|x64
+		{9B743A06-56DC-42C2-99B1-B11DE6C02BBD}.Release|Win32.ActiveCfg = Release|Win32
+		{9B743A06-56DC-42C2-99B1-B11DE6C02BBD}.Release|Win32.Build.0 = Release|Win32
+		{9B743A06-56DC-42C2-99B1-B11DE6C02BBD}.Master|x64.ActiveCfg = Master|x64
+		{9B743A06-56DC-42C2-99B1-B11DE6C02BBD}.Master|x64.Build.0 = Master|x64
+		{9B743A06-56DC-42C2-99B1-B11DE6C02BBD}.Master|Win32.ActiveCfg = Master|Win32
+		{9B743A06-56DC-42C2-99B1-B11DE6C02BBD}.Master|Win32.Build.0 = Master|Win32
+		{9B743A06-56DC-42C2-99B1-B11DE6C02BBD}.MasterWithLTCG|x64.ActiveCfg = MasterWithLTCG|x64
+		{9B743A06-56DC-42C2-99B1-B11DE6C02BBD}.MasterWithLTCG|x64.Build.0 = MasterWithLTCG|x64
+		{9B743A06-56DC-42C2-99B1-B11DE6C02BBD}.MasterWithLTCG|Win32.ActiveCfg = MasterWithLTCG|Win32
+		{9B743A06-56DC-42C2-99B1-B11DE6C02BBD}.MasterWithLTCG|Win32.Build.0 = MasterWithLTCG|Win32
+		{57571793-BF11-47DB-A9BA-049C9AA938C7}.Debug|x64.ActiveCfg = Debug|x64
+		{57571793-BF11-47DB-A9BA-049C9AA938C7}.Debug|x64.Build.0 = Debug|x64
+		{57571793-BF11-47DB-A9BA-049C9AA938C7}.Debug|Win32.ActiveCfg = Debug|Win32
+		{57571793-BF11-47DB-A9BA-049C9AA938C7}.Debug|Win32.Build.0 = Debug|Win32
+		{57571793-BF11-47DB-A9BA-049C9AA938C7}.Release|x64.ActiveCfg = Release|x64
+		{57571793-BF11-47DB-A9BA-049C9AA938C7}.Release|x64.Build.0 = Release|x64
+		{57571793-BF11-47DB-A9BA-049C9AA938C7}.Release|Win32.ActiveCfg = Release|Win32
+		{57571793-BF11-47DB-A9BA-049C9AA938C7}.Release|Win32.Build.0 = Release|Win32
+		{57571793-BF11-47DB-A9BA-049C9AA938C7}.Master|x64.ActiveCfg = Master|x64
+		{57571793-BF11-47DB-A9BA-049C9AA938C7}.Master|x64.Build.0 = Master|x64
+		{57571793-BF11-47DB-A9BA-049C9AA938C7}.Master|Win32.ActiveCfg = Master|Win32
+		{57571793-BF11-47DB-A9BA-049C9AA938C7}.Master|Win32.Build.0 = Master|Win32
+		{57571793-BF11-47DB-A9BA-049C9AA938C7}.MasterWithLTCG|x64.ActiveCfg = MasterWithLTCG|x64
+		{57571793-BF11-47DB-A9BA-049C9AA938C7}.MasterWithLTCG|x64.Build.0 = MasterWithLTCG|x64
+		{57571793-BF11-47DB-A9BA-049C9AA938C7}.MasterWithLTCG|Win32.ActiveCfg = MasterWithLTCG|Win32
+		{57571793-BF11-47DB-A9BA-049C9AA938C7}.MasterWithLTCG|Win32.Build.0 = MasterWithLTCG|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+	EndGlobalSection
+EndGlobal
