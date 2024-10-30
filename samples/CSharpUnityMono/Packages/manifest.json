@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "com.github-glitchenzo.nugetforunity": "https://github.com/GlitchEnzo/NuGetForUnity.git?path=/src/NuGetForUnity",
+    "com.unity.textmeshpro": "3.0.9"
+  }
+}
