@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>NuGet.Versioning</id>
+    <version>6.10.1</version>
+    <authors>Microsoft</authors>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <license type="expression">Apache-2.0</license>
+    <licenseUrl>https://licenses.nuget.org/Apache-2.0</licenseUrl>
+    <icon>icon.png</icon>
+    <readme>README.md</readme>
+    <projectUrl>https://aka.ms/nugetprj</projectUrl>
+    <description>NuGet's implementation of Semantic Versioning.</description>
+    <copyright>© Microsoft Corporation. All rights reserved.</copyright>
+    <tags>semver semantic versioning</tags>
+    <serviceable>true</serviceable>
+    <repository type="git" url="https://github.com/NuGet/NuGet.Client" commit="69ce91e5ccb402d7520e2a65b05dd5a1f501b15a" />
+    <dependencies>
+      <group targetFramework=".NETFramework4.7.2" />
+      <group targetFramework=".NETStandard2.0" />
+    </dependencies>
+  </metadata>
+</package>

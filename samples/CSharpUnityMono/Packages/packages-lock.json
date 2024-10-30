@@ -25,6 +25,12 @@
         "com.unity.modules.imgui": "1.0.0"
       }
     },
+    "nuget-packages": {
+      "version": "file:nuget-packages",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.unity.modules.imgui": {
       "version": "1.0.0",
       "depth": 2,
