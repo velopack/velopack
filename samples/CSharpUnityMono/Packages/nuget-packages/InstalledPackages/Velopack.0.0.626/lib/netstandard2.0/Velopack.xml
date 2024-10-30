@@ -1,0 +1,3405 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Velopack</name>
+    </assembly>
+    <members>
+        <member name="M:Velopack.Compression.BinaryPatchUtility.Create(System.Byte[],System.Byte[],System.IO.Stream)">
+            <summary>
+            Creates a binary patch (in <a href="http://www.daemonology.net/bsdiff/">bsdiff</a> format) that can be used
+            (by <see cref="M:Velopack.Compression.BinaryPatchUtility.Apply(System.IO.Stream,System.Func{System.IO.Stream},System.IO.Stream)"/>) to transform <paramref name="oldData"/> into <paramref name="newData"/>.
+            </summary>
+            <param name="oldData">The original binary data.</param>
+            <param name="newData">The new binary data.</param>
+            <param name="output">A <see cref="T:System.IO.Stream"/> to which the patch will be written.</param>
+        </member>
+        <member name="M:Velopack.Compression.BinaryPatchUtility.Apply(System.IO.Stream,System.Func{System.IO.Stream},System.IO.Stream)">
+            <summary>
+            Applies a binary patch (in <a href="http://www.daemonology.net/bsdiff/">bsdiff</a> format) to the data in
+            <paramref name="input"/> and writes the results of patching to <paramref name="output"/>.
+            </summary>
+            <param name="input">A <see cref="T:System.IO.Stream"/> containing the input data.</param>
+            <param name="openPatchStream">A func that can open a <see cref="T:System.IO.Stream"/> positioned at the start of the patch data.
+            This stream must support reading and seeking, and <paramref name="openPatchStream"/> must allow multiple streams on
+            the patch to be opened concurrently.</param>
+            <param name="output">A <see cref="T:System.IO.Stream"/> to which the patched data is written.</param>
+        </member>
+        <member name="T:Velopack.Compression.WrappingStream">
+            <summary>
+            A <see cref="T:System.IO.Stream"/> that wraps another stream. One major feature of <see cref="T:Velopack.Compression.WrappingStream"/> is that it does not dispose the
+            underlying stream when it is disposed if Ownership.None is used; this is useful when using classes such as <see cref="T:System.IO.BinaryReader"/> and
+            <see cref="T:System.Security.Cryptography.CryptoStream"/> that take ownership of the stream passed to their constructors.
+            </summary>
+            <remarks>See <a href="http://code.logos.com/blog/2009/05/wrappingstream_implementation.html">WrappingStream Implementation</a>.</remarks>
+        </member>
+        <member name="M:Velopack.Compression.WrappingStream.#ctor(System.IO.Stream,Velopack.Compression.Ownership)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Velopack.Compression.WrappingStream"/> class.
+            </summary>
+            <param name="streamBase">The wrapped stream.</param>
+            <param name="ownership">Use Owns if the wrapped stream should be disposed when this stream is disposed.</param>
+        </member>
+        <member name="P:Velopack.Compression.WrappingStream.CanRead">
+            <summary>
+            Gets a value indicating whether the current stream supports reading.
+            </summary>
+            <returns><c>true</c> if the stream supports reading; otherwise, <c>false</c>.</returns>
+        </member>
+        <member name="P:Velopack.Compression.WrappingStream.CanSeek">
+            <summary>
+            Gets a value indicating whether the current stream supports seeking.
+            </summary>
+            <returns><c>true</c> if the stream supports seeking; otherwise, <c>false</c>.</returns>
+        </member>
+        <member name="P:Velopack.Compression.WrappingStream.CanWrite">
+            <summary>
+            Gets a value indicating whether the current stream supports writing.
+            </summary>
+            <returns><c>true</c> if the stream supports writing; otherwise, <c>false</c>.</returns>
+        </member>
+        <member name="P:Velopack.Compression.WrappingStream.Length">
+            <summary>
+            Gets the length in bytes of the stream.
+            </summary>
+        </member>
+        <member name="P:Velopack.Compression.WrappingStream.Position">
+            <summary>
+            Gets or sets the position within the current stream.
+            </summary>
+        </member>
+        <member name="M:Velopack.Compression.WrappingStream.BeginRead(System.Byte[],System.Int32,System.Int32,System.AsyncCallback,System.Object)">
+            <summary>
+            Begins an asynchronous read operation.
+            </summary>
+        </member>
+        <member name="M:Velopack.Compression.WrappingStream.BeginWrite(System.Byte[],System.Int32,System.Int32,System.AsyncCallback,System.Object)">
+            <summary>
+            Begins an asynchronous write operation.
+            </summary>
+        </member>
+        <member name="M:Velopack.Compression.WrappingStream.EndRead(System.IAsyncResult)">
+            <summary>
+            Waits for the pending asynchronous read to complete.
+            </summary>
+        </member>
+        <member name="M:Velopack.Compression.WrappingStream.EndWrite(System.IAsyncResult)">
+            <summary>
+            Ends an asynchronous write operation.
+            </summary>
+        </member>
+        <member name="M:Velopack.Compression.WrappingStream.Flush">
+            <summary>
+            Clears all buffers for this stream and causes any buffered data to be written to the underlying device.
+            </summary>
+        </member>
+        <member name="M:Velopack.Compression.WrappingStream.Read(System.Byte[],System.Int32,System.Int32)">
+            <summary>
+            Reads a sequence of bytes from the current stream and advances the position
+            within the stream by the number of bytes read.
+            </summary>
+        </member>
+        <member name="M:Velopack.Compression.WrappingStream.ReadByte">
+            <summary>
+            Reads a byte from the stream and advances the position within the stream by one byte, or returns -1 if at the end of the stream.
+            </summary>
+        </member>
+        <member name="M:Velopack.Compression.WrappingStream.Seek(System.Int64,System.IO.SeekOrigin)">
+            <summary>
+            Sets the position within the current stream.
+            </summary>
+            <param name="offset">A byte offset relative to the <paramref name="origin"/> parameter.</param>
+            <param name="origin">A value of type <see cref="T:System.IO.SeekOrigin"/> indicating the reference point used to obtain the new position.</param>
+            <returns>The new position within the current stream.</returns>
+        </member>
+        <member name="M:Velopack.Compression.WrappingStream.SetLength(System.Int64)">
+            <summary>
+            Sets the length of the current stream.
+            </summary>
+            <param name="value">The desired length of the current stream in bytes.</param>
+        </member>
+        <member name="M:Velopack.Compression.WrappingStream.Write(System.Byte[],System.Int32,System.Int32)">
+            <summary>
+            Writes a sequence of bytes to the current stream and advances the current position
+            within this stream by the number of bytes written.
+            </summary>
+        </member>
+        <member name="M:Velopack.Compression.WrappingStream.WriteByte(System.Byte)">
+            <summary>
+            Writes a byte to the current position in the stream and advances the position within the stream by one byte.
+            </summary>
+        </member>
+        <member name="P:Velopack.Compression.WrappingStream.WrappedStream">
+            <summary>
+            Gets the wrapped stream.
+            </summary>
+            <value>The wrapped stream.</value>
+        </member>
+        <member name="M:Velopack.Compression.WrappingStream.Dispose(System.Boolean)">
+            <summary>
+            Releases the unmanaged resources used by the <see cref="T:Velopack.Compression.WrappingStream"/> and optionally releases the managed resources.
+            </summary>
+            <param name="disposing">true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
+        </member>
+        <member name="T:Velopack.Compression.Ownership">
+            <summary>
+            Indicates whether an object takes ownership of an item.
+            </summary>
+        </member>
+        <member name="F:Velopack.Compression.Ownership.None">
+            <summary>
+            The object does not own this item.
+            </summary>
+        </member>
+        <member name="F:Velopack.Compression.Ownership.Owns">
+            <summary>
+            The object owns this item, and is responsible for releasing it.
+            </summary>
+        </member>
+        <member name="T:Velopack.Compression.StreamUtility">
+            <summary>
+            Provides helper methods for working with <see cref="T:System.IO.Stream"/>.
+            </summary>
+        </member>
+        <member name="M:Velopack.Compression.StreamUtility.ReadExactly(System.IO.Stream,System.Int32)">
+            <summary>
+            Reads exactly <paramref name="count"/> bytes from <paramref name="stream"/>.
+            </summary>
+            <param name="stream">The stream to read from.</param>
+            <param name="count">The count of bytes to read.</param>
+            <returns>A new byte array containing the data read from the stream.</returns>
+        </member>
+        <member name="M:Velopack.Compression.StreamUtility.ReadExactly(System.IO.Stream,System.Byte[],System.Int32,System.Int32)">
+            <summary>
+            Reads exactly <paramref name="count"/> bytes from <paramref name="stream"/> into
+            <paramref name="buffer"/>, starting at the byte given by <paramref name="offset"/>.
+            </summary>
+            <param name="stream">The stream to read from.</param>
+            <param name="buffer">The buffer to read data into.</param>
+            <param name="offset">The offset within the buffer at which data is first written.</param>
+            <param name="count">The count of bytes to read.</param>
+        </member>
+        <member name="M:Velopack.Compression.BZip2Stream.#ctor(System.IO.Stream,System.IO.Compression.CompressionMode,System.Boolean)">
+            <summary>
+            Create a BZip2Stream
+            </summary>
+            <param name="stream">The stream to read from</param>
+            <param name="compressionMode">Compression Mode</param>
+            <param name="decompressConcatenated">Decompress Concatenated</param>
+        </member>
+        <member name="M:Velopack.Compression.BZip2Stream.IsBZip2(System.IO.Stream)">
+            <summary>
+            Consumes two bytes to test if there is a BZip2 header
+            </summary>
+            <param name="stream"></param>
+            <returns></returns>
+        </member>
+        <member name="T:Velopack.Compression.CBZip2InputStream">
+             An input stream that decompresses from the BZip2 format (with the file
+             header chars) to be read as any other stream.
+            
+             @author <a href="mailto:keiron@aftexsw.com">Keiron Liddle</a>
+            
+             <b>NB:</b> note this class has been modified to read the leading BZ from the
+             start of the BZIP2 stream to make it compatible with other PGP programs.
+        </member>
+        <member name="T:Velopack.Compression.CBZip2OutputStream">
+             An output stream that compresses into the BZip2 format (with the file
+             header chars) into another stream.
+            
+             @author <a href="mailto:keiron@aftexsw.com">Keiron Liddle</a>
+            
+             TODO:    Update to BZip2 1.0.1
+             <b>NB:</b> note this class has been modified to add a leading BZ to the
+             start of the BZIP2 stream to make it compatible with other PGP programs.
+        </member>
+        <member name="M:Velopack.Compression.CBZip2OutputStream.WriteByte(System.Byte)">
+            
+             modified by Oliver Merkel, 010128
+            
+        </member>
+        <member name="T:Velopack.Compression.BZip2Constants">
+             Base class for both the compress and decompress classes.
+             Holds common arrays, and static data.
+            
+             @author <a href="mailto:keiron@aftexsw.com">Keiron Liddle</a>
+        </member>
+        <member name="T:Velopack.Compression.CRC">
+             A simple class the hold and calculate the CRC for sanity checking
+             of the data.
+            
+             @author <a href="mailto:keiron@aftexsw.com">Keiron Liddle</a>
+        </member>
+        <member name="T:Velopack.Compression.ChecksumFailedException">
+            <summary>
+            Represents an error that occurs when a package does not match it's expected SHA checksum
+            </summary>
+        </member>
+        <member name="P:Velopack.Compression.ChecksumFailedException.FilePath">
+            <summary>
+            The filename of the package which failed validation
+            </summary>
+        </member>
+        <member name="M:Velopack.Compression.ChecksumFailedException.#ctor(System.String)">
+            <inheritdoc cref="T:Velopack.Compression.ChecksumFailedException"/>
+        </member>
+        <member name="M:Velopack.Compression.ChecksumFailedException.#ctor(System.String,System.String)">
+            <inheritdoc cref="T:Velopack.Compression.ChecksumFailedException"/>
+        </member>
+        <member name="M:Velopack.Compression.MsDeltaCompression.ApplyDelta(Velopack.Compression.MsDeltaCompression.ApplyFlags,System.String,System.String,System.String)">
+            <summary>
+                The ApplyDelta function use the specified delta and source files to create a new copy of the target file.
+            </summary>
+            <param name="applyFlags">Either DELTA_FLAG_NONE or DELTA_APPLY_FLAG_ALLOW_PA19.</param>
+            <param name="sourceName">The name of the source file to which the delta is to be applied.</param>
+            <param name="deltaName">The name of the delta to be applied to the source file.</param>
+            <param name="targetName">The name of the target file that is to be created.</param>
+            <returns>
+                Returns TRUE on success or FALSE otherwise.
+            </returns>
+            <remarks>
+                http://msdn.microsoft.com/library/bb417345.aspx#applydeltaaw
+            </remarks>
+        </member>
+        <member name="M:Velopack.Compression.MsDeltaCompression.CreateDelta(Velopack.Compression.MsDeltaCompression.FileTypeSet,Velopack.Compression.MsDeltaCompression.CreateFlags,Velopack.Compression.MsDeltaCompression.CreateFlags,System.String,System.String,System.String,System.String,Velopack.Compression.MsDeltaCompression.DeltaInput,System.IntPtr,Velopack.Compression.MsDeltaCompression.HashAlgId,System.String)">
+            <summary>
+                The CreateDelta function creates a delta from the specified source and target files and write the output delta to the designated file name.
+            </summary>
+            <param name="fileTypeSet">The file type set used for Create.</param>
+            <param name="setFlags">The file type set used for Create.</param>
+            <param name="resetFlags">The file type set used for Create.</param>
+            <param name="sourceName">The file type set used for Create.</param>
+            <param name="targetName">The name of the target against which the source is compared.</param>
+            <param name="sourceOptionsName">Reserved. Pass NULL.</param>
+            <param name="targetOptionsName">Reserved. Pass NULL.</param>
+            <param name="globalOptions">Reserved. Pass a DELTA_INPUT structure with lpStart set to NULL and uSize set to 0.</param>
+            <param name="targetFileTime">The time stamp set on the target file after delta Apply. If NULL, the timestamp of the target file during delta Create will be used.</param>
+            <param name="hashAlgId">ALG_ID of the algorithm to be used to generate the target signature.</param>
+            <param name="deltaName">The name of the delta file to be created.</param>
+            <returns>
+                Returns TRUE on success or FALSE otherwise.
+            </returns>
+            <remarks>
+                http://msdn.microsoft.com/library/bb417345.aspx#createdeltaaw
+            </remarks>
+        </member>
+        <member name="F:Velopack.Compression.MsDeltaCompression.HashAlgId.None">
+            <summary>No signature.</summary>
+        </member>
+        <member name="F:Velopack.Compression.MsDeltaCompression.HashAlgId.Crc32">
+            <summary>32-bit CRC defined in msdelta.dll.</summary>
+        </member>
+        <member name="T:Velopack.Compression.MsDeltaCompression.ApplyFlags">
+            <remarks>
+                http://msdn.microsoft.com/library/bb417345.aspx#deltaflagtypeflags
+            </remarks>
+        </member>
+        <member name="F:Velopack.Compression.MsDeltaCompression.ApplyFlags.None">
+            <summary>Indicates no special handling.</summary>
+        </member>
+        <member name="F:Velopack.Compression.MsDeltaCompression.ApplyFlags.AllowLegacy">
+            <summary>Allow MSDelta to apply deltas created using PatchAPI.</summary>
+        </member>
+        <member name="T:Velopack.Compression.MsDeltaCompression.FileTypeSet">
+            <remarks>
+                http://msdn.microsoft.com/library/bb417345.aspx#filetypesets
+            </remarks>
+        </member>
+        <member name="F:Velopack.Compression.MsDeltaCompression.FileTypeSet.Executables">
+            <summary>
+                File type set that includes I386, IA64 and AMD64 Portable Executable (PE) files. Others are treated as raw.
+            </summary>
+        </member>
+        <member name="T:Velopack.Compression.MsDeltaCompression.CreateFlags">
+            <remarks>
+                http://msdn.microsoft.com/library/bb417345.aspx#deltaflagtypeflags
+            </remarks>
+        </member>
+        <member name="F:Velopack.Compression.MsDeltaCompression.CreateFlags.None">
+            <summary>Indicates no special handling.</summary>
+        </member>
+        <member name="F:Velopack.Compression.MsDeltaCompression.CreateFlags.IgnoreFileSizeLimit">
+            <summary>Allow the source, target and delta files to exceed the default size limit.</summary>
+        </member>
+        <member name="T:Velopack.Compression.MsDeltaCompression.DeltaInput">
+            <remarks>
+                http://msdn.microsoft.com/library/bb417345.aspx#deltainputstructure
+            </remarks>
+        </member>
+        <member name="F:Velopack.Compression.MsDeltaCompression.DeltaInput.Start">
+            <summary>Memory address non-editable input buffer.</summary>
+        </member>
+        <member name="F:Velopack.Compression.MsDeltaCompression.DeltaInput.Size">
+            <summary>Size of the memory buffer in bytes.</summary>
+        </member>
+        <member name="F:Velopack.Compression.MsDeltaCompression.DeltaInput.Editable">
+            <summary>
+                Defines whether MSDelta is allowed to edit the input buffer. If you make the input editable, the buffer will
+                be zeroed at function return. However this will cause most MSDelta functions to use less memory.
+            </summary>
+        </member>
+        <member name="T:Velopack.Locators.IVelopackLocator">
+            <summary>
+            An interface describing where Velopack can find key folders and files.
+            </summary>
+        </member>
+        <member name="P:Velopack.Locators.IVelopackLocator.AppId">
+            <summary> The unique application Id. This is used in various app paths. </summary>
+        </member>
+        <member name="P:Velopack.Locators.IVelopackLocator.RootAppDir">
+            <summary> 
+            The root directory of the application. On Windows, this folder contains all 
+            the application files, but that may not be the case on other operating systems. 
+            </summary>
+        </member>
+        <member name="P:Velopack.Locators.IVelopackLocator.PackagesDir">
+            <summary> The directory in which nupkg files are stored for this application. </summary>
+        </member>
+        <member name="P:Velopack.Locators.IVelopackLocator.AppContentDir">
+            <summary> The directory in which versioned application files are stored. </summary>
+        </member>
+        <member name="P:Velopack.Locators.IVelopackLocator.AppTempDir">
+            <summary> The temporary directory for this application. </summary>
+        </member>
+        <member name="P:Velopack.Locators.IVelopackLocator.UpdateExePath">
+            <summary> The path to the current Update.exe or similar on other operating systems. </summary>
+        </member>
+        <member name="P:Velopack.Locators.IVelopackLocator.CurrentlyInstalledVersion">
+            <summary> The currently installed version of the application, or null if the app is not installed. </summary>
+        </member>
+        <member name="P:Velopack.Locators.IVelopackLocator.ThisExeRelativePath">
+            <summary> The path from <see cref="P:Velopack.Locators.IVelopackLocator.AppContentDir"/> to this executable. </summary>
+        </member>
+        <member name="P:Velopack.Locators.IVelopackLocator.Channel">
+            <summary> The release channel this package was built for. </summary>
+        </member>
+        <member name="P:Velopack.Locators.IVelopackLocator.IsPortable">
+            <summary>
+            A flag indicating if this is a portable build, and that the settings should be self-contained in the package.
+            On Windows, this is true for portable builds, and false for non-portable builds which were installed by Setup.exe
+            On OSX and Linux, this is always false, because settings and application files should be stored in the user's 
+            home directory.
+            </summary>
+        </member>
+        <member name="M:Velopack.Locators.IVelopackLocator.GetLocalPackages">
+            <summary>
+            Finds .nupkg files in the PackagesDir and returns a list of ReleaseEntryName objects.
+            </summary>
+        </member>
+        <member name="M:Velopack.Locators.IVelopackLocator.GetLatestLocalFullPackage">
+            <summary>
+            Finds latest .nupkg file in the PackagesDir or null if not found.
+            </summary>
+        </member>
+        <member name="M:Velopack.Locators.IVelopackLocator.GetOrCreateStagedUserId">
+            <summary>
+            Unique identifier for this user which is used to calculate whether this user is eligible for 
+            staged roll outs.
+            </summary>
+        </member>
+        <member name="T:Velopack.Locators.LinuxVelopackLocator">
+            <summary>
+            The default for OSX. All application files will remain in the '.app'.
+            All additional files (log, etc) will be placed in a temporary directory.
+            </summary>
+        </member>
+        <member name="P:Velopack.Locators.LinuxVelopackLocator.AppId">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.LinuxVelopackLocator.RootAppDir">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.LinuxVelopackLocator.UpdateExePath">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.LinuxVelopackLocator.CurrentlyInstalledVersion">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.LinuxVelopackLocator.AppContentDir">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.LinuxVelopackLocator.Channel">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.LinuxVelopackLocator.AppTempDir">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.LinuxVelopackLocator.PackagesDir">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.LinuxVelopackLocator.PersistentTempDir">
+            <summary> /var/tmp/{velopack}/{appid}, for storing app specific files which need to be preserved. </summary>
+        </member>
+        <member name="P:Velopack.Locators.LinuxVelopackLocator.PersistentVelopackDir">
+            <summary> A pointer to /var/tmp/{velopack}, a location on linux which is semi-persistent. </summary>
+        </member>
+        <member name="P:Velopack.Locators.LinuxVelopackLocator.AppImagePath">
+            <summary> File path of the .AppImage which mounted and ran this application. </summary>
+        </member>
+        <member name="M:Velopack.Locators.LinuxVelopackLocator.#ctor(Microsoft.Extensions.Logging.ILogger)">
+            <summary>
+            Creates a new <see cref="T:Velopack.Locators.OsxVelopackLocator"/> and auto-detects the
+            app information from metadata embedded in the .app.
+            </summary>
+        </member>
+        <member name="T:Velopack.Locators.OsxVelopackLocator">
+            <summary>
+            The default for OSX. All application files will remain in the '.app'.
+            All additional files (log, etc) will be placed in a temporary directory.
+            </summary>
+        </member>
+        <member name="P:Velopack.Locators.OsxVelopackLocator.AppId">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.OsxVelopackLocator.RootAppDir">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.OsxVelopackLocator.UpdateExePath">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.OsxVelopackLocator.CurrentlyInstalledVersion">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.OsxVelopackLocator.AppContentDir">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.OsxVelopackLocator.AppTempDir">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.OsxVelopackLocator.PackagesDir">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.OsxVelopackLocator.Channel">
+            <inheritdoc />
+        </member>
+        <member name="M:Velopack.Locators.OsxVelopackLocator.#ctor(Microsoft.Extensions.Logging.ILogger)">
+            <summary>
+            Creates a new <see cref="T:Velopack.Locators.OsxVelopackLocator"/> and auto-detects the
+            app information from metadata embedded in the .app.
+            </summary>
+        </member>
+        <member name="T:Velopack.Locators.TestVelopackLocator">
+            <summary>
+            Provides a mock / test implementation of <see cref="T:Velopack.Locators.VelopackLocator" />. This can be used to verify that
+            your application is able to find and prepare updates from your chosen update source without actually
+            having an installed application. This could be used in a CI/CD pipeline, or unit tests etc.
+            </summary>
+        </member>
+        <member name="P:Velopack.Locators.TestVelopackLocator.AppId">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.TestVelopackLocator.RootAppDir">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.TestVelopackLocator.PackagesDir">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.TestVelopackLocator.UpdateExePath">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.TestVelopackLocator.CurrentlyInstalledVersion">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.TestVelopackLocator.AppContentDir">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.TestVelopackLocator.Channel">
+            <inheritdoc />
+        </member>
+        <member name="M:Velopack.Locators.TestVelopackLocator.GetLatestLocalFullPackage">
+            <inheritdoc />
+        </member>
+        <member name="M:Velopack.Locators.TestVelopackLocator.#ctor(System.String,System.String,System.String,Microsoft.Extensions.Logging.ILogger)">
+            <inheritdoc cref="T:Velopack.Locators.TestVelopackLocator" />
+        </member>
+        <member name="M:Velopack.Locators.TestVelopackLocator.#ctor(System.String,System.String,System.String,System.String,System.String,System.String,System.String,Microsoft.Extensions.Logging.ILogger,Velopack.VelopackAsset)">
+            <inheritdoc cref="T:Velopack.Locators.TestVelopackLocator" />
+        </member>
+        <member name="T:Velopack.Locators.VelopackLocator">
+            <summary>
+            A base class describing where Velopack can find key folders and files.
+            </summary>
+        </member>
+        <member name="M:Velopack.Locators.VelopackLocator.GetDefault(Microsoft.Extensions.Logging.ILogger)">
+            <summary>
+            Auto-detect the platform from the current operating system.
+            </summary>
+        </member>
+        <member name="P:Velopack.Locators.VelopackLocator.AppId">
+            <inheritdoc/>
+        </member>
+        <member name="P:Velopack.Locators.VelopackLocator.RootAppDir">
+            <inheritdoc/>
+        </member>
+        <member name="P:Velopack.Locators.VelopackLocator.PackagesDir">
+            <inheritdoc/>
+        </member>
+        <member name="P:Velopack.Locators.VelopackLocator.AppTempDir">
+            <inheritdoc/>
+        </member>
+        <member name="P:Velopack.Locators.VelopackLocator.UpdateExePath">
+            <inheritdoc/>
+        </member>
+        <member name="P:Velopack.Locators.VelopackLocator.AppContentDir">
+            <inheritdoc/>
+        </member>
+        <member name="P:Velopack.Locators.VelopackLocator.Channel">
+            <inheritdoc/>
+        </member>
+        <member name="P:Velopack.Locators.VelopackLocator.IsPortable">
+            <inheritdoc/>
+        </member>
+        <member name="P:Velopack.Locators.VelopackLocator.ThisExeRelativePath">
+            <inheritdoc/>
+        </member>
+        <member name="P:Velopack.Locators.VelopackLocator.CurrentlyInstalledVersion">
+            <inheritdoc/>
+        </member>
+        <member name="P:Velopack.Locators.VelopackLocator.Log">
+            <summary> The log interface to use for diagnostic messages. </summary>
+        </member>
+        <member name="M:Velopack.Locators.VelopackLocator.#ctor(Microsoft.Extensions.Logging.ILogger)">
+            <inheritdoc cref="T:Velopack.Locators.VelopackLocator"/>
+        </member>
+        <member name="M:Velopack.Locators.VelopackLocator.GetLocalPackages">
+            <inheritdoc/>
+        </member>
+        <member name="M:Velopack.Locators.VelopackLocator.GetLatestLocalFullPackage">
+            <inheritdoc/>
+        </member>
+        <member name="M:Velopack.Locators.VelopackLocator.CreateSubDirIfDoesNotExist(System.String,System.String)">
+            <summary>
+            Given a base dir and a directory name, will create a new sub directory of that name.
+            Will return null if baseDir is null, or if baseDir does not exist. 
+            </summary>
+        </member>
+        <member name="M:Velopack.Locators.VelopackLocator.GetOrCreateStagedUserId">
+            <inheritdoc/>
+        </member>
+        <member name="T:Velopack.Locators.VelopackLocatorExtensions">
+            <summary>
+            An interface describing where Velopack can find key folders and files.
+            </summary>
+        </member>
+        <member name="M:Velopack.Locators.VelopackLocatorExtensions.GetLocalPackagePath(Velopack.Locators.IVelopackLocator,Velopack.VelopackAsset)">
+            <summary>
+            Get the file path that should be used for storing <paramref name="velopackAsset"/> in the local 
+            <see cref="P:Velopack.Locators.IVelopackLocator.PackagesDir"/>
+            </summary>
+        </member>
+        <member name="T:Velopack.Locators.WindowsVelopackLocator">
+            <summary>
+            An implementation for Windows which uses the default paths.
+            </summary>
+        </member>
+        <member name="P:Velopack.Locators.WindowsVelopackLocator.AppId">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.WindowsVelopackLocator.RootAppDir">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.WindowsVelopackLocator.UpdateExePath">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.WindowsVelopackLocator.AppContentDir">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.WindowsVelopackLocator.CurrentlyInstalledVersion">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.WindowsVelopackLocator.PackagesDir">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.WindowsVelopackLocator.IsPortable">
+            <inheritdoc />
+        </member>
+        <member name="P:Velopack.Locators.WindowsVelopackLocator.Channel">
+            <inheritdoc />
+        </member>
+        <member name="M:Velopack.Locators.WindowsVelopackLocator.#ctor(Microsoft.Extensions.Logging.ILogger)">
+            <inheritdoc cref="T:Velopack.Locators.WindowsVelopackLocator" />
+        </member>
+        <member name="M:Velopack.Locators.WindowsVelopackLocator.#ctor(System.String,Microsoft.Extensions.Logging.ILogger)">
+            <summary>
+            Internal use only. Auto detect app details from the specified EXE path.
+            </summary>
+        </member>
+        <member name="M:Velopack.NuGet.NugetUtil.GetPath(System.Uri)">
+            <summary>
+            Converts a uri to a path. Only used for local paths.
+            </summary>
+        </member>
+        <member name="T:Velopack.ReleaseNotesFormat">
+            <summary>
+            Describes the requested release notes text format.
+            </summary>
+        </member>
+        <member name="F:Velopack.ReleaseNotesFormat.Markdown">
+            <summary> The original markdown release notes. </summary>
+        </member>
+        <member name="F:Velopack.ReleaseNotesFormat.Html">
+            <summary> Release notes translated into HTML. </summary>
+        </member>
+        <member name="T:Velopack.ReleaseEntryName">
+            <summary>
+            Represents the information that can be parsed from a release entry filename.
+            </summary>
+        </member>
+        <member name="P:Velopack.ReleaseEntryName.PackageId">
+            <summary> The package Id. </summary>
+        </member>
+        <member name="P:Velopack.ReleaseEntryName.Version">
+            <summary> The package version. </summary>
+        </member>
+        <member name="P:Velopack.ReleaseEntryName.IsDelta">
+            <summary> Whether this is a delta (patch) package, or a full update package. </summary>
+        </member>
+        <member name="M:Velopack.ReleaseEntryName.#ctor(System.String,NuGet.Versioning.SemanticVersion,System.Boolean)">
+            <summary>
+            Create a new ReleaseEntryName from the given package name, version, delta status, and runtime identifier.
+            </summary>
+        </member>
+        <member name="M:Velopack.ReleaseEntryName.FromEntryFileName(System.String)">
+            <summary>
+            Takes a filename such as 'My-Cool3-App-1.0.1-build.23-full.nupkg' and separates it into 
+            it's name and version (eg. 'My-Cool3-App', and '1.0.1-build.23'). Returns null values if 
+            the filename can not be parsed.
+            </summary>
+        </member>
+        <member name="M:Velopack.ReleaseEntryName.ToFileName">
+            <summary>
+            Generate the file name which would represent this ReleaseEntryName.
+            </summary>
+        </member>
+        <member name="T:Velopack.ReleaseEntry">
+            <summary>
+            Represents a Velopack release, as described in a RELEASES file - usually also with an 
+            accompanying package containing the files needed to apply the release.
+            </summary>
+        </member>
+        <member name="P:Velopack.ReleaseEntry.Identity">
+            <summary> The release identity - including id, version and so forth. </summary>*
+        </member>
+        <member name="P:Velopack.ReleaseEntry.PackageId">
+            <summary> The name or Id of the package containing this release. </summary>
+        </member>
+        <member name="P:Velopack.ReleaseEntry.Version">
+            <summary> The version of this release. </summary>
+        </member>
+        <member name="P:Velopack.ReleaseEntry.IsDelta">
+            <summary> Whether this package represents a full update, or a delta update. </summary>
+        </member>
+        <member name="P:Velopack.ReleaseEntry.SHA1">
+            <summary> The SHA1 checksum of the update package containing this release. </summary>
+        </member>
+        <member name="P:Velopack.ReleaseEntry.BaseUrl">
+            <summary> If the release corresponds to a remote http location, this will be the base url. </summary>
+        </member>
+        <member name="P:Velopack.ReleaseEntry.Query">
+            <summary> The http url query (if applicable). </summary>
+        </member>
+        <member name="P:Velopack.ReleaseEntry.Filesize">
+            <summary> The size in bytes of the update package containing this release. </summary>
+        </member>
+        <member name="P:Velopack.ReleaseEntry.StagingPercentage">
+            <summary> 
+            The percentage of users this package has been released to. This release
+            may or may not be applied if the current user is not in the staging group.
+            </summary>
+        </member>
+        <member name="P:Velopack.ReleaseEntry.OriginalFilename">
+            <summary> The filename of the update package containing this release. </summary>
+        </member>
+        <member name="P:Velopack.ReleaseEntry.EntryAsString">
+            <summary> The unparsed text used to construct this release. </summary>
+        </member>
+        <member name="M:Velopack.ReleaseEntry.#ctor(System.String,System.String,System.Int64,System.String,System.String,System.Nullable{System.Single})">
+            <summary>
+            Create a new instance of <see cref="T:Velopack.ReleaseEntry"/>.
+            </summary>
+        </member>
+        <member name="M:Velopack.ReleaseEntry.ParseReleaseEntry(System.String)">
+            <summary>
+            Parses an string entry from a RELEASES file and returns a <see cref="T:Velopack.ReleaseEntry"/>.
+            </summary>
+        </member>
+        <member name="M:Velopack.ReleaseEntry.IsStagingMatch(System.Nullable{System.Guid})">
+            <summary>
+            Checks if the current user is eligible for the current staging percentage.
+            </summary>
+        </member>
+        <member name="M:Velopack.ReleaseEntry.ParseReleaseFile(System.String)">
+            <summary>
+            Parse the contents of a RELEASES file into a list of <see cref="T:Velopack.ReleaseEntry"/>'s.
+            </summary>
+        </member>
+        <member name="M:Velopack.ReleaseEntry.ParseReleaseFileAndApplyStaging(System.String,System.Nullable{System.Guid})">
+            <summary>
+            Parse the contents of a RELEASES file into a list of <see cref="T:Velopack.ReleaseEntry"/>'s,
+            with any staging-ineligible releases removed.
+            </summary>
+        </member>
+        <member name="M:Velopack.ReleaseEntry.WriteReleaseFile(System.Collections.Generic.IEnumerable{Velopack.ReleaseEntry},System.IO.Stream)">
+            <summary>
+            Write a list of <see cref="T:Velopack.ReleaseEntry"/>'s to a stream
+            </summary>
+        </member>
+        <member name="M:Velopack.ReleaseEntry.WriteReleaseFile(System.Collections.Generic.IEnumerable{Velopack.ReleaseEntry},System.String)">
+            <summary>
+            Write a list of <see cref="T:Velopack.ReleaseEntry"/>'s to a local file
+            </summary>
+        </member>
+        <member name="M:Velopack.ReleaseEntry.GenerateFromFile(System.IO.Stream,System.String,System.String)">
+            <summary>
+            Generates a <see cref="T:Velopack.ReleaseEntry"/> from a local update package file (such as a nupkg).
+            </summary>
+        </member>
+        <member name="M:Velopack.ReleaseEntry.GenerateFromFile(System.String,System.String)">
+            <summary>
+            Generates a <see cref="T:Velopack.ReleaseEntry"/> from a local update package file (such as a nupkg).
+            </summary>
+        </member>
+        <member name="M:Velopack.ReleaseEntry.BuildReleasesFile(System.String,System.Boolean)">
+            <summary>
+            Generates a list of <see cref="T:Velopack.ReleaseEntry"/>'s from a local directory containing
+            package files. Also writes/updates a RELEASES file in the specified directory
+            to match the packages the are currently present.
+            </summary>
+            <returns>The list of packages in the directory</returns>
+        </member>
+        <member name="M:Velopack.ReleaseEntry.ToString">
+            <inheritdoc />
+        </member>
+        <member name="M:Velopack.ReleaseEntry.GetHashCode">
+            <inheritdoc />
+        </member>
+        <member name="T:Velopack.RuntimeVersion">
+            <summary>
+            A Version class that also supports a single integer (major only)
+            </summary>
+        </member>
+        <member name="T:Velopack.Sources.GitBase`1">
+            <summary>
+            Base class to provide some shared implementation between sources which download releases from a Git repository.
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GitBase`1.RepoUri">
+            <summary> 
+            The URL of the repository to download releases from.
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GitBase`1.Prerelease">
+            <summary>  
+            If true, the latest upcoming/prerelease release will be downloaded. If false, the latest 
+            stable release will be downloaded.
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GitBase`1.Downloader">
+            <summary> 
+            The file downloader used to perform HTTP requests. 
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GitBase`1.AccessToken">
+            <summary>
+            The GitLab access token to use with the request to download releases.
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GitBase`1.Authorization">
+            <summary>
+            The Bearer token used in the request.
+            </summary>
+        </member>
+        <member name="M:Velopack.Sources.GitBase`1.#ctor(System.String,System.String,System.Boolean,Velopack.Sources.IFileDownloader)">
+            <inheritdoc />
+        </member>
+        <member name="M:Velopack.Sources.GitBase`1.DownloadReleaseEntry(Microsoft.Extensions.Logging.ILogger,Velopack.VelopackAsset,System.String,System.Action{System.Int32},System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:Velopack.Sources.GitBase`1.GetReleaseFeed(Microsoft.Extensions.Logging.ILogger,System.String,System.Nullable{System.Guid},Velopack.VelopackAsset)">
+            <inheritdoc />
+        </member>
+        <member name="M:Velopack.Sources.GitBase`1.GetReleases(System.Boolean)">
+            <summary>
+            Retrieves a list of <see cref="T:Velopack.Sources.GithubRelease"/> from the current repository.
+            </summary>
+        </member>
+        <member name="M:Velopack.Sources.GitBase`1.GetAssetUrlFromName(`0,System.String)">
+            <summary>
+            Given a <see cref="T:Velopack.Sources.GithubRelease"/> and an asset filename (eg. 'RELEASES') this 
+            function will return either <see cref="P:Velopack.Sources.GithubReleaseAsset.BrowserDownloadUrl"/> or
+            <see cref="P:Velopack.Sources.GithubReleaseAsset.Url"/>, depending whether an access token is available
+            or not. Throws if the specified release has no matching assets.
+            </summary>
+        </member>
+        <member name="T:Velopack.Sources.GitBase`1.GitBaseAsset">
+            <summary>
+            Provides a wrapper around <see cref="T:Velopack.ReleaseEntry"/> which also contains a Git Release.
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GitBase`1.GitBaseAsset.Release">
+            <summary> The Github release which contains this release package. </summary>
+        </member>
+        <member name="M:Velopack.Sources.GitBase`1.GitBaseAsset.#ctor(Velopack.VelopackAsset,`0)">
+            <inheritdoc cref="T:Velopack.Sources.GitBase`1.GitBaseAsset"/>
+        </member>
+        <member name="T:Velopack.Sources.GiteaRelease">
+            <summary> Describes a Gitea release, including attached assets. </summary>
+        </member>
+        <member name="P:Velopack.Sources.GiteaRelease.Name">
+            <summary> The name of this release. </summary>
+        </member>
+        <member name="P:Velopack.Sources.GiteaRelease.Prerelease">
+            <summary> True if this release is a prerelease. </summary>
+        </member>
+        <member name="P:Velopack.Sources.GiteaRelease.PublishedAt">
+            <summary> The date which this release was published publicly. </summary>
+        </member>
+        <member name="P:Velopack.Sources.GiteaRelease.Assets">
+            <summary> A list of assets (files) uploaded to this release. </summary>
+        </member>
+        <member name="T:Velopack.Sources.GiteaReleaseAsset">
+            <summary> Describes a asset (file) uploaded to a Gitea release. </summary>
+        </member>
+        <member name="P:Velopack.Sources.GiteaReleaseAsset.Url">
+            <summary> 
+            The asset URL for this release asset. Requests to this URL will use API
+            quota and return JSON unless the 'Accept' header is "application/octet-stream". 
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GiteaReleaseAsset.BrowserDownloadUrl">
+            <summary>  
+            The browser URL for this release asset. This does not use API quota,
+            however this URL only works for public repositories. If downloading
+            assets from a private repository, the <see cref="P:Velopack.Sources.GiteaReleaseAsset.Url"/> property must
+            be used with an appropriate access token.
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GiteaReleaseAsset.Name">
+            <summary> The name of this release asset. </summary>
+        </member>
+        <member name="T:Velopack.Sources.GiteaSource">
+            <summary>
+            Retrieves available releases from a Gitea repository.
+            </summary>
+        </member>
+        <member name="M:Velopack.Sources.GiteaSource.#ctor(System.String,System.String,System.Boolean,Velopack.Sources.IFileDownloader)">
+            <inheritdoc cref="T:Velopack.Sources.GiteaSource" />
+            <param name="repoUrl">
+            The URL of the Gitea repository to download releases from 
+            (e.g. https://Gitea.com/myuser/myrepo)
+            </param>
+            <param name="accessToken">
+            The Gitea access token to use with the request to download releases. 
+            If left empty, the Gitea rate limit for unauthenticated requests allows 
+            for up to 60 requests per hour, limited by IP address.
+            </param>
+            <param name="prerelease">
+            If true, pre-releases will be also be searched / downloaded. If false, only
+            stable releases will be considered.
+            </param>
+            <param name="downloader">
+            The file downloader used to perform HTTP requests. 
+            </param>
+        </member>
+        <member name="P:Velopack.Sources.GiteaSource.Authorization">
+            <summary>
+            The authorization token used in the request.
+            Overwrite it to token
+            </summary>
+        </member>
+        <member name="M:Velopack.Sources.GiteaSource.GetReleases(System.Boolean)">
+            <inheritdoc />
+        </member>
+        <member name="M:Velopack.Sources.GiteaSource.GetAssetUrlFromName(Velopack.Sources.GiteaRelease,System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:Velopack.Sources.GiteaSource.GetApiBaseUrl(System.Uri)">
+            <summary>
+            Given a repository URL (e.g. https://Gitea.com/myuser/myrepo) this function
+            returns the API base for performing requests. (eg. "https://api.Gitea.com/" 
+            or http://internal.Gitea.server.local/api/v1)
+            </summary>
+            <param name="repoUrl"></param>
+            <returns></returns>
+        </member>
+        <member name="T:Velopack.Sources.GithubRelease">
+            <summary> Describes a GitHub release, including attached assets. </summary>
+        </member>
+        <member name="P:Velopack.Sources.GithubRelease.Name">
+            <summary> The name of this release. </summary>
+        </member>
+        <member name="P:Velopack.Sources.GithubRelease.Prerelease">
+            <summary> True if this release is a prerelease. </summary>
+        </member>
+        <member name="P:Velopack.Sources.GithubRelease.PublishedAt">
+            <summary> The date which this release was published publicly. </summary>
+        </member>
+        <member name="P:Velopack.Sources.GithubRelease.Assets">
+            <summary> A list of assets (files) uploaded to this release. </summary>
+        </member>
+        <member name="T:Velopack.Sources.GithubReleaseAsset">
+            <summary> Describes a asset (file) uploaded to a GitHub release. </summary>
+        </member>
+        <member name="P:Velopack.Sources.GithubReleaseAsset.Url">
+            <summary> 
+            The asset URL for this release asset. Requests to this URL will use API
+            quota and return JSON unless the 'Accept' header is "application/octet-stream". 
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GithubReleaseAsset.BrowserDownloadUrl">
+            <summary>  
+            The browser URL for this release asset. This does not use API quota,
+            however this URL only works for public repositories. If downloading
+            assets from a private repository, the <see cref="P:Velopack.Sources.GithubReleaseAsset.Url"/> property must
+            be used with an appropriate access token.
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GithubReleaseAsset.Name">
+            <summary> The name of this release asset. </summary>
+        </member>
+        <member name="P:Velopack.Sources.GithubReleaseAsset.ContentType">
+            <summary> The mime type of this release asset (as detected by GitHub). </summary>
+        </member>
+        <member name="T:Velopack.Sources.GithubSource">
+            <summary>
+            Retrieves available releases from a GitHub repository.
+            </summary>
+        </member>
+        <member name="M:Velopack.Sources.GithubSource.#ctor(System.String,System.String,System.Boolean,Velopack.Sources.IFileDownloader)">
+            <inheritdoc cref="T:Velopack.Sources.GithubSource" />
+            <param name="repoUrl">
+            The URL of the GitHub repository to download releases from 
+            (e.g. https://github.com/myuser/myrepo)
+            </param>
+            <param name="accessToken">
+            The GitHub access token to use with the request to download releases. 
+            If left empty, the GitHub rate limit for unauthenticated requests allows 
+            for up to 60 requests per hour, limited by IP address.
+            </param>
+            <param name="prerelease">
+            If true, pre-releases will be also be searched / downloaded. If false, only
+            stable releases will be considered.
+            </param>
+            <param name="downloader">
+            The file downloader used to perform HTTP requests. 
+            </param>
+        </member>
+        <member name="M:Velopack.Sources.GithubSource.GetReleases(System.Boolean)">
+            <inheritdoc />
+        </member>
+        <member name="M:Velopack.Sources.GithubSource.GetAssetUrlFromName(Velopack.Sources.GithubRelease,System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:Velopack.Sources.GithubSource.GetApiBaseUrl(System.Uri)">
+            <summary>
+            Given a repository URL (e.g. https://github.com/myuser/myrepo) this function
+            returns the API base for performing requests. (eg. "https://api.github.com/" 
+            or http://internal.github.server.local/api/v3)
+            </summary>
+            <param name="repoUrl"></param>
+            <returns></returns>
+        </member>
+        <member name="T:Velopack.Sources.GitlabRelease">
+            <summary>
+            Describes a Gitlab release, plus any assets that are attached.
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GitlabRelease.Name">
+            <summary>
+            The name of the release.
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GitlabRelease.UpcomingRelease">
+            <summary>
+            True if this is intended for an upcoming release.
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GitlabRelease.ReleasedAt">
+            <summary>
+            The date which this release was published publicly.
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GitlabRelease.Assets">
+            <summary>
+            A container for the assets (files) uploaded to this release.
+            </summary>
+        </member>
+        <member name="T:Velopack.Sources.GitlabReleaseAsset">
+            <summary>
+            Describes a container for the assets attached to a release.
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GitlabReleaseAsset.Count">
+            <summary>
+            The amount of assets linked to the release.
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GitlabReleaseAsset.Links">
+            <summary>
+            A list of asset (file) links.
+            </summary>
+        </member>
+        <member name="T:Velopack.Sources.GitlabReleaseLink">
+            <summary>
+            Describes a container for the links of assets attached to a release.
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GitlabReleaseLink.Name">
+            <summary>
+            Name of the asset (file) linked.
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GitlabReleaseLink.Url">
+            <summary>
+            The url for the asset. This make use of the Gitlab API.
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GitlabReleaseLink.DirectAssetUrl">
+            <summary>
+            A direct url to the asset, via a traditional URl. 
+            As a posed to using the API.
+            This links directly to the raw asset (file).
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.GitlabReleaseLink.Type">
+            <summary>
+            The category type that the asset is listed under.
+            Options: 'Package', 'Image', 'Runbook', 'Other'
+            </summary>
+        </member>
+        <member name="T:Velopack.Sources.GitlabSource">
+            <summary>
+            Retrieves available releases from a GitLab repository. This class only
+            downloads assets from the very latest GitLab release.
+            </summary>
+        </member>
+        <member name="M:Velopack.Sources.GitlabSource.#ctor(System.String,System.String,System.Boolean,Velopack.Sources.IFileDownloader)">
+            <inheritdoc cref="T:Velopack.Sources.GitlabSource" />
+            <param name="repoUrl">
+            The URL of the GitLab repository to download releases from 
+            (e.g. https://gitlab.com/api/v4/projects/ProjectId)
+            </param>
+            <param name="accessToken">
+            The GitLab access token to use with the request to download releases.
+            </param>
+            <param name="upcomingRelease">
+            If true, the latest upcoming release will be downloaded. If false, the latest 
+            stable release will be downloaded.
+            </param>
+            <param name="downloader">
+            The file downloader used to perform HTTP requests. 
+            </param>
+        </member>
+        <member name="M:Velopack.Sources.GitlabSource.GetAssetUrlFromName(Velopack.Sources.GitlabRelease,System.String)">
+            <summary>
+            Given a <see cref="T:Velopack.Sources.GitlabRelease"/> and an asset filename (eg. 'RELEASES') this 
+            function will return either <see cref="P:Velopack.Sources.GitlabReleaseLink.DirectAssetUrl"/> or
+            <see cref="P:Velopack.Sources.GitlabReleaseLink.Url"/>, depending whether an access token is available
+            or not. Throws if the specified release has no matching assets.
+            </summary>
+        </member>
+        <member name="M:Velopack.Sources.GitlabSource.GetReleases(System.Boolean)">
+            <summary>
+            Retrieves a list of <see cref="T:Velopack.Sources.GitlabRelease"/> from the current repository.
+            </summary>
+        </member>
+        <member name="T:Velopack.Sources.HttpClientFileDownloader">
+            <inheritdoc cref="T:Velopack.Sources.IFileDownloader"/>
+        </member>
+        <member name="P:Velopack.Sources.HttpClientFileDownloader.UserAgent">
+            <summary>
+            The User-Agent sent with requests
+            </summary>
+        </member>
+        <member name="M:Velopack.Sources.HttpClientFileDownloader.DownloadFile(System.String,System.String,System.Action{System.Int32},System.String,System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:Velopack.Sources.HttpClientFileDownloader.DownloadBytes(System.String,System.String,System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:Velopack.Sources.HttpClientFileDownloader.DownloadString(System.String,System.String,System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:Velopack.Sources.HttpClientFileDownloader.DownloadToStreamInternal(System.Net.Http.HttpClient,System.String,System.IO.Stream,System.Action{System.Int32},System.Threading.CancellationToken)">
+            <summary>
+            Asynchronously downloads a remote url to the specified destination stream while 
+            providing progress updates.
+            </summary>
+        </member>
+        <member name="M:Velopack.Sources.HttpClientFileDownloader.CreateHttpClientHandler">
+            <summary>
+            Creates a new <see cref="T:System.Net.Http.HttpClientHandler"/> with default settings, used for
+            new <see cref="T:System.Net.Http.HttpClient"/>'s. Override this function to add client certificates,
+            proxy configurations, cookies, or change other http behaviors.
+            </summary>
+        </member>
+        <member name="M:Velopack.Sources.HttpClientFileDownloader.CreateHttpClient(System.String,System.String)">
+            <summary>
+            Creates a new <see cref="T:System.Net.Http.HttpClient"/> for every request.
+            </summary>
+        </member>
+        <member name="T:Velopack.Sources.IFileDownloader">
+            <summary>
+            A simple abstractable file downloader
+            </summary>
+        </member>
+        <member name="M:Velopack.Sources.IFileDownloader.DownloadFile(System.String,System.String,System.Action{System.Int32},System.String,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Downloads a remote file to the specified local path
+            </summary>
+            <param name="url">The url which will be downloaded.</param>
+            <param name="targetFile">
+            The local path where the file will be stored
+            If a file exists at this path, it will be overwritten.</param>
+            <param name="progress">
+            A delegate for reporting download progress, with expected values from 0-100.
+            </param>
+            <param name="authorization">
+            Text to be sent in the 'Authorization' header of the request.
+            </param>
+            <param name="accept">
+            Text to be sent in the 'Accept' header of the request.
+            </param>
+            <param name="cancelToken">Optional token to cancel the request.</param>
+        </member>
+        <member name="M:Velopack.Sources.IFileDownloader.DownloadBytes(System.String,System.String,System.String)">
+            <summary>
+            Returns a byte array containing the contents of the file at the specified url
+            </summary>
+        </member>
+        <member name="M:Velopack.Sources.IFileDownloader.DownloadString(System.String,System.String,System.String)">
+            <summary>
+            Returns a string containing the contents of the specified url
+            </summary>
+        </member>
+        <member name="T:Velopack.Sources.IUpdateSource">
+            <summary>
+            Abstraction for finding and downloading updates from a package source / repository.
+            An implementation may copy a file from a local repository, download from a web address, 
+            or even use third party services and parse proprietary data to produce a package feed.
+            </summary>
+        </member>
+        <member name="M:Velopack.Sources.IUpdateSource.GetReleaseFeed(Microsoft.Extensions.Logging.ILogger,System.String,System.Nullable{System.Guid},Velopack.VelopackAsset)">
+            <summary>
+            Retrieve the list of available remote releases from the package source. These releases
+            can subsequently be downloaded with <see cref="M:Velopack.Sources.IUpdateSource.DownloadReleaseEntry(Microsoft.Extensions.Logging.ILogger,Velopack.VelopackAsset,System.String,System.Action{System.Int32},System.Threading.CancellationToken)"/>.
+            </summary>
+            <param name="channel">Release channel to filter packages by. Can be null, which is the 
+            default channel for this operating system.</param>
+            <param name="stagingId">A persistent user-id, used for calculating whether a specific
+            release should be available to this user or not. (eg, for the purposes of rolling out
+            an update to only a small portion of users at a time).</param>
+            <param name="latestLocalRelease">The latest / current local release. If specified,
+            metadata from this package may be provided to the remote server (such as package id,
+            or cpu architecture) to ensure that the correct package is downloaded for this user.
+            </param>
+            <param name="logger">The logger to use for any diagnostic messages.</param>
+            <returns>An array of <see cref="T:Velopack.ReleaseEntry"/> objects that are available for download
+            and are applicable to this user.</returns>
+        </member>
+        <member name="M:Velopack.Sources.IUpdateSource.DownloadReleaseEntry(Microsoft.Extensions.Logging.ILogger,Velopack.VelopackAsset,System.String,System.Action{System.Int32},System.Threading.CancellationToken)">
+            <summary>
+            Download the specified <see cref="T:Velopack.VelopackAsset"/> to the provided local file path.
+            </summary>
+            <param name="releaseEntry">The release to download.</param>
+            <param name="localFile">The path on the local disk to store the file. If this file exists,
+            it will be overwritten.</param>
+            <param name="progress">This delegate will be executed with values from 0-100 as the
+            download is being processed.</param>
+            <param name="logger">The logger to use for any diagnostic messages.</param>
+            <param name="cancelToken">A token to use to cancel the request.</param>
+        </member>
+        <member name="T:Velopack.Sources.SimpleFileSource">
+            <summary>
+            Retrieves available updates from a local or network-attached disk. The directory
+            must contain one or more valid packages, as well as a 'releases.{channel}.json' index file.
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.SimpleFileSource.BaseDirectory">
+            <summary> The local directory containing packages to update to. </summary>
+        </member>
+        <member name="M:Velopack.Sources.SimpleFileSource.#ctor(System.IO.DirectoryInfo)">
+            <inheritdoc cref="T:Velopack.Sources.SimpleFileSource" />
+        </member>
+        <member name="M:Velopack.Sources.SimpleFileSource.GetReleaseFeed(Microsoft.Extensions.Logging.ILogger,System.String,System.Nullable{System.Guid},Velopack.VelopackAsset)">
+            <inheritdoc />
+        </member>
+        <member name="M:Velopack.Sources.SimpleFileSource.DownloadReleaseEntry(Microsoft.Extensions.Logging.ILogger,Velopack.VelopackAsset,System.String,System.Action{System.Int32},System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="T:Velopack.Sources.SimpleWebSource">
+            <summary>
+            Retrieves updates from a static file host or other web server. 
+            Will perform a request for '{baseUri}/RELEASES' to locate the available packages,
+            and provides query parameters to specify the name of the requested package.
+            </summary>
+        </member>
+        <member name="P:Velopack.Sources.SimpleWebSource.BaseUri">
+            <summary> The URL of the server hosting packages to update to. </summary>
+        </member>
+        <member name="P:Velopack.Sources.SimpleWebSource.Downloader">
+            <summary> The <see cref="T:Velopack.Sources.IFileDownloader"/> to be used for performing http requests. </summary>
+        </member>
+        <member name="M:Velopack.Sources.SimpleWebSource.#ctor(System.String,Velopack.Sources.IFileDownloader)">
+            <inheritdoc cref="T:Velopack.Sources.SimpleWebSource" />
+        </member>
+        <member name="M:Velopack.Sources.SimpleWebSource.#ctor(System.Uri,Velopack.Sources.IFileDownloader)">
+            <inheritdoc cref="T:Velopack.Sources.SimpleWebSource" />
+        </member>
+        <member name="M:Velopack.Sources.SimpleWebSource.GetReleaseFeed(Microsoft.Extensions.Logging.ILogger,System.String,System.Nullable{System.Guid},Velopack.VelopackAsset)">
+            <inheritdoc />
+        </member>
+        <member name="M:Velopack.Sources.SimpleWebSource.DownloadReleaseEntry(Microsoft.Extensions.Logging.ILogger,Velopack.VelopackAsset,System.String,System.Action{System.Int32},System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="T:Velopack.Sources.VelopackFlowUpdateSource">
+            <summary>
+            Retrieves updates from the hosted Velopack service.
+            </summary>
+        </member>
+        <member name="M:Velopack.Sources.VelopackFlowUpdateSource.#ctor(System.String,Velopack.Sources.IFileDownloader)">
+            <inheritdoc cref="T:Velopack.Sources.SimpleWebSource" />
+        </member>
+        <member name="P:Velopack.Sources.VelopackFlowUpdateSource.BaseUri">
+            <summary> The URL of the server hosting packages to update to. </summary>
+        </member>
+        <member name="P:Velopack.Sources.VelopackFlowUpdateSource.Downloader">
+            <summary> The <see cref="T:Velopack.Sources.IFileDownloader"/> to be used for performing http requests. </summary>
+        </member>
+        <member name="M:Velopack.Sources.VelopackFlowUpdateSource.GetReleaseFeed(Microsoft.Extensions.Logging.ILogger,System.String,System.Nullable{System.Guid},Velopack.VelopackAsset)">
+            <inheritdoc />
+        </member>
+        <member name="M:Velopack.Sources.VelopackFlowUpdateSource.DownloadReleaseEntry(Microsoft.Extensions.Logging.ILogger,Velopack.VelopackAsset,System.String,System.Action{System.Int32},System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="T:Velopack.UpdateExe">
+            <summary>
+            A static helper class to assist in running Update.exe CLI commands. You probably should not invoke this directly, 
+            instead you should use the relevant methods on <see cref="T:Velopack.UpdateManager"/>. For example: 
+            <see cref="M:Velopack.UpdateManager.ApplyUpdatesAndExit(Velopack.VelopackAsset)"/>, or <see cref="M:Velopack.UpdateManager.ApplyUpdatesAndRestart(Velopack.VelopackAsset,System.String[])"/>.
+            </summary>
+        </member>
+        <member name="M:Velopack.UpdateExe.Start(Velopack.Locators.IVelopackLocator,System.Boolean,System.String[],Microsoft.Extensions.Logging.ILogger)">
+            <summary>
+            Runs Update.exe in the current working directory with the 'start' command which will simply start the application.
+            Combined with the `waitForExit` parameter, this can be used to gracefully restart the application.
+            </summary>
+            <param name="waitForExit">If true, Update.exe will wait for the current process to exit before re-starting the application.</param>
+            <param name="locator">The locator to use to find the path to Update.exe and the packages directory.</param>
+            <param name="startArgs">The arguments to pass to the application when it is restarted.</param>
+            <param name="logger">The logger to use for diagnostic messages</param>
+        </member>
+        <member name="M:Velopack.UpdateExe.Apply(Velopack.Locators.IVelopackLocator,Velopack.VelopackAsset,System.Boolean,System.Boolean,System.String[],Microsoft.Extensions.Logging.ILogger)">
+            <summary>
+            Runs Update.exe in the current working directory to apply updates, optionally restarting the application.
+            </summary>
+            <param name="silent">If true, no dialogs will be shown during the update process. This could result 
+            in an update failing to install, such as when we need to ask the user for permission to install 
+            a new framework dependency.</param>
+            <param name="restart">If true, restarts the application after updates are applied (or if they failed)</param>
+            <param name="locator">The locator to use to find the path to Update.exe and the packages directory.</param>
+            <param name="toApply">The update package you wish to apply, can be left null.</param>
+            <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
+            <param name="logger">The logger to use for diagnostic messages</param>
+            <exception cref="T:System.Exception">Thrown if Update.exe does not initialize properly.</exception>
+        </member>
+        <member name="M:Velopack.UpdateExe.ApplyAsync(Velopack.Locators.IVelopackLocator,Velopack.VelopackAsset,System.Boolean,System.Boolean,System.String[],Microsoft.Extensions.Logging.ILogger)">
+            <inheritdoc cref="M:Velopack.UpdateExe.Apply(Velopack.Locators.IVelopackLocator,Velopack.VelopackAsset,System.Boolean,System.Boolean,System.String[],Microsoft.Extensions.Logging.ILogger)"/>
+        </member>
+        <member name="T:Velopack.UpdateInfo">
+            <summary>
+            Holds information about the current version and pending updates, such as how many there are, and access to release notes.
+            </summary>
+        </member>
+        <member name="P:Velopack.UpdateInfo.TargetFullRelease">
+            <summary>
+            The available version that we are updating to.
+            </summary>
+        </member>
+        <member name="P:Velopack.UpdateInfo.IsDowngrade">
+            <summary>
+            True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
+            In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
+            deleted.
+            </summary>
+        </member>
+        <member name="P:Velopack.UpdateInfo.BaseRelease">
+            <summary>
+            The base release that we are to apply delta updates from. If null, we can try doing a delta update from
+            the currently installed version.
+            </summary>
+        </member>
+        <member name="P:Velopack.UpdateInfo.DeltasToTarget">
+            <summary>
+            The list of delta versions between the current version and <see cref="P:Velopack.UpdateInfo.TargetFullRelease"/>.
+            These will be applied in order.
+            </summary>
+        </member>
+        <member name="M:Velopack.UpdateInfo.#ctor(Velopack.VelopackAsset,System.Boolean,Velopack.VelopackAsset,Velopack.VelopackAsset[])">
+            <summary>
+            Create a new instance of <see cref="T:Velopack.UpdateInfo"/>
+            </summary>
+        </member>
+        <member name="M:Velopack.UpdateInfo.op_Implicit(Velopack.UpdateInfo)~Velopack.VelopackAsset">
+            <summary>
+            Implicitly convert an <see cref="T:Velopack.UpdateInfo"/> to a <see cref="T:Velopack.VelopackAsset"/>.
+            </summary>
+        </member>
+        <member name="T:Velopack.UpdateManager">
+            <summary>
+            Provides functionality for checking for updates, downloading updates, and applying updates to the current application.
+            </summary>
+        </member>
+        <member name="P:Velopack.UpdateManager.AppId">
+            <summary> The currently installed application Id. This would be what you set when you create your release.</summary>
+        </member>
+        <member name="P:Velopack.UpdateManager.IsInstalled">
+            <summary> True if this application is currently installed, and is able to download/check for updates. </summary>
+        </member>
+        <member name="P:Velopack.UpdateManager.IsPortable">
+            <inheritdoc cref="P:Velopack.Locators.IVelopackLocator.IsPortable" />
+        </member>
+        <member name="P:Velopack.UpdateManager.IsUpdatePendingRestart">
+            <summary> OBSOLETE: Use <see cref="P:Velopack.UpdateManager.UpdatePendingRestart"/> instead. </summary>
+        </member>
+        <member name="P:Velopack.UpdateManager.UpdatePendingRestart">
+            <summary> Returns a VelopackAsset if there is a local update prepared that requires a call to <see cref="M:Velopack.UpdateManager.ApplyUpdatesAndRestart(Velopack.VelopackAsset,System.String[])"/> to be applied. </summary>
+        </member>
+        <member name="P:Velopack.UpdateManager.CurrentVersion">
+            <summary> The currently installed app version when you created your release. Null if this is not a currently installed app. </summary>
+        </member>
+        <member name="P:Velopack.UpdateManager.Source">
+            <summary> The update source to use when checking for/downloading updates. </summary>
+        </member>
+        <member name="P:Velopack.UpdateManager.Log">
+            <summary> The logger to use for diagnostic messages. </summary>
+        </member>
+        <member name="P:Velopack.UpdateManager.Locator">
+            <summary> The locator to use when searching for local file paths. </summary>
+        </member>
+        <member name="P:Velopack.UpdateManager.Channel">
+            <summary> The channel to use when searching for packages. </summary>
+        </member>
+        <member name="P:Velopack.UpdateManager.DefaultChannel">
+            <summary> The default channel to search for packages in, if one was not provided by the user. </summary>
+        </member>
+        <member name="P:Velopack.UpdateManager.IsNonDefaultChannel">
+            <summary> If true, an explicit channel was provided by the user, and it's different than the default channel. </summary>
+        </member>
+        <member name="P:Velopack.UpdateManager.ShouldAllowVersionDowngrade">
+            <summary> If true, UpdateManager should return the latest asset in the feed, even if that version is lower than the current version. </summary>
+        </member>
+        <member name="M:Velopack.UpdateManager.#ctor(System.String,Velopack.UpdateOptions,Microsoft.Extensions.Logging.ILogger,Velopack.Locators.IVelopackLocator)">
+            <summary>
+            Creates a new UpdateManager instance using the specified URL or file path to the releases feed, and the specified channel name.
+            </summary>
+            <param name="urlOrPath">A basic URL or file path to use when checking for updates.</param>
+            <param name="options">Override / configure default update behaviors.</param>
+            <param name="logger">The logger to use for diagnostic messages. If one was provided to <see cref="M:Velopack.VelopackApp.Run(Microsoft.Extensions.Logging.ILogger)"/> but is null here, 
+            it will be cached and used again.</param>
+            <param name="locator">This should usually be left null. Providing an <see cref="T:Velopack.Locators.IVelopackLocator" /> allows you to mock up certain application paths. 
+            For example, if you wanted to test that updates are working in a unit test, you could provide an instance of <see cref="T:Velopack.Locators.TestVelopackLocator"/>. </param>
+        </member>
+        <member name="M:Velopack.UpdateManager.#ctor(Velopack.Sources.IUpdateSource,Velopack.UpdateOptions,Microsoft.Extensions.Logging.ILogger,Velopack.Locators.IVelopackLocator)">
+            <summary>
+            Creates a new UpdateManager instance using the specified URL or file path to the releases feed, and the specified channel name.
+            </summary>
+            <param name="source">The source describing where to search for updates. This can be a custom source, if you are integrating with some private resource,
+            or it could be one of the predefined sources. (eg. <see cref="T:Velopack.Sources.SimpleWebSource"/> or <see cref="T:Velopack.Sources.GithubSource"/>, etc).</param>
+            <param name="options">Override / configure default update behaviors.</param>
+            <param name="logger">The logger to use for diagnostic messages. If one was provided to <see cref="M:Velopack.VelopackApp.Run(Microsoft.Extensions.Logging.ILogger)"/> but is null here, 
+            it will be cached and used again.</param>
+            <param name="locator">This should usually be left null. Providing an <see cref="T:Velopack.Locators.IVelopackLocator" /> allows you to mock up certain application paths. 
+            For example, if you wanted to test that updates are working in a unit test, you could provide an instance of <see cref="T:Velopack.Locators.TestVelopackLocator"/>. </param>
+        </member>
+        <member name="M:Velopack.UpdateManager.CheckForUpdates">
+            <inheritdoc cref="M:Velopack.UpdateManager.CheckForUpdatesAsync"/>
+        </member>
+        <member name="M:Velopack.UpdateManager.CheckForUpdatesAsync">
+            <summary>
+            Checks for updates, returning null if there are none available. If there are updates available, this method will return an 
+            UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
+            </summary>
+            <returns>Null if no updates, otherwise <see cref="T:Velopack.UpdateInfo"/> containing the version of the latest update available.</returns>
+        </member>
+        <member name="M:Velopack.UpdateManager.CreateDeltaUpdateStrategy(Velopack.VelopackAsset[],Velopack.VelopackAsset,Velopack.VelopackAsset)">
+            <summary>
+            Given a feed of releases, and the latest local full release, and the latest remote full release, this method will return a delta
+            update strategy to be used by <see cref="M:Velopack.UpdateManager.DownloadUpdatesAsync(Velopack.UpdateInfo,System.Action{System.Int32},System.Boolean,System.Threading.CancellationToken)"/>.
+            </summary>
+        </member>
+        <member name="M:Velopack.UpdateManager.DownloadUpdates(Velopack.UpdateInfo,System.Action{System.Int32},System.Boolean)">
+            <inheritdoc cref="M:Velopack.UpdateManager.DownloadUpdatesAsync(Velopack.UpdateInfo,System.Action{System.Int32},System.Boolean,System.Threading.CancellationToken)"/>
+        </member>
+        <member name="M:Velopack.UpdateManager.DownloadUpdatesAsync(Velopack.UpdateInfo,System.Action{System.Int32},System.Boolean,System.Threading.CancellationToken)">
+            <summary>
+            Downloads the specified updates to the local app packages directory. If the update contains delta packages and ignoreDeltas=false, 
+            this method will attempt to unpack and prepare them. If there is no delta update available, or there is an error preparing delta 
+            packages, this method will fall back to downloading the full version of the update. This function will acquire a global update lock
+            so may fail if there is already another update operation in progress.
+            </summary>
+            <param name="updates">The updates to download. Should be retrieved from <see cref="M:Velopack.UpdateManager.CheckForUpdates"/>.</param>
+            <param name="progress">The progress callback. Will be called with values from 0-100.</param>
+            <param name="ignoreDeltas">Whether to attempt downloading delta's or skip to full package download.</param>
+            <param name="cancelToken">An optional cancellation token if you wish to stop this operation.</param>
+        </member>
+        <member name="M:Velopack.UpdateManager.DownloadAndApplyDeltaUpdates(System.String,Velopack.UpdateInfo,System.Action{System.Int32},System.Threading.CancellationToken)">
+            <summary>
+            Given a folder containing the extracted base package, and a list of delta updates, downloads and applies the 
+            delta updates to the base package.
+            </summary>
+            <param name="extractedBasePackage">A folder containing the application files to apply the delta's to.</param>
+            <param name="updates">An update object containing one or more delta's</param>
+            <param name="progress">A callback reporting process of delta application progress (from 0-100).</param>
+            <param name="cancelToken">A token to use to cancel the request.</param>
+        </member>
+        <member name="M:Velopack.UpdateManager.CleanPackagesExcept(System.String)">
+            <summary>
+            Removes any incomplete files (.partial) and packages (.nupkg) from the packages directory that does not match
+            the provided asset. If assetToKeep is null, all packages will be deleted.
+            </summary>
+        </member>
+        <member name="M:Velopack.UpdateManager.VerifyPackageChecksum(Velopack.VelopackAsset,System.String)">
+            <summary>
+            Check a package checksum against the one in the release entry, and throws if the checksum does not match.
+            </summary>
+            <param name="release">The entry to check</param>
+            <param name="filePathOverride">Optional file path, if not specified the package will be loaded from %pkgdir%/release.OriginalFilename.</param>
+        </member>
+        <member name="M:Velopack.UpdateManager.EnsureInstalled">
+            <summary>
+            Throws an exception if the current application is not installed.
+            </summary>
+        </member>
+        <member name="M:Velopack.UpdateManager.AcquireUpdateLock">
+            <summary>
+            Acquires a globally unique mutex/lock for the current application, to avoid concurrent install/uninstall/update operations.
+            </summary>
+        </member>
+        <member name="M:Velopack.UpdateManager.ApplyUpdatesAndRestart(Velopack.VelopackAsset,System.String[])">
+            <summary>
+            This will exit your app immediately, apply updates, and then optionally relaunch the app using the specified 
+            restart arguments. If you need to save state or clean up, you should do that before calling this method. 
+            The user may be prompted during the update, if the update requires additional frameworks to be installed etc.
+            You can check if there are pending updates by checking <see cref="P:Velopack.UpdateManager.UpdatePendingRestart"/>.
+            </summary>
+            <param name="toApply">The target release to apply. Can be left null to auto-apply the newest downloaded release.</param>
+            <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
+        </member>
+        <member name="M:Velopack.UpdateManager.ApplyUpdatesAndExit(Velopack.VelopackAsset)">
+            <summary>
+            This will exit your app immediately, apply updates, and then optionally relaunch the app using the specified 
+            restart arguments. If you need to save state or clean up, you should do that before calling this method. 
+            The user may be prompted during the update, if the update requires additional frameworks to be installed etc.
+            You can check if there are pending updates by checking <see cref="P:Velopack.UpdateManager.UpdatePendingRestart"/>.
+            </summary>
+            <param name="toApply">The target release to apply. Can be left null to auto-apply the newest downloaded release.</param>
+        </member>
+        <member name="M:Velopack.UpdateManager.WaitExitThenApplyUpdates(Velopack.VelopackAsset,System.Boolean,System.Boolean,System.String[])">
+            <summary>
+            This will launch the Velopack updater and tell it to wait for this program to exit gracefully.
+            You should then clean up any state and exit your app. The updater will apply updates and then
+            optionally restart your app. The updater will only wait for 60 seconds before giving up.
+            You can check if there are pending updates by checking <see cref="P:Velopack.UpdateManager.UpdatePendingRestart"/>.
+            </summary>
+            <param name="toApply">The target release to apply. Can be left null to auto-apply the newest downloaded release.</param>
+            <param name="silent">Configure whether Velopack should show a progress window / dialogs during the updates or not.</param>
+            <param name="restart">Configure whether Velopack should restart the app after the updates have been applied.</param>
+            <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
+        </member>
+        <member name="M:Velopack.UpdateManager.WaitExitThenApplyUpdatesAsync(Velopack.VelopackAsset,System.Boolean,System.Boolean,System.String[])">
+            <inheritdoc cref="M:Velopack.UpdateManager.WaitExitThenApplyUpdates(Velopack.VelopackAsset,System.Boolean,System.Boolean,System.String[])"/>
+        </member>
+        <member name="T:Velopack.UpdateOptions">
+            <summary>
+            Options to customise the behaviour of <see cref="T:Velopack.UpdateManager"/>.
+            </summary>
+        </member>
+        <member name="P:Velopack.UpdateOptions.AllowVersionDowngrade">
+            <summary>
+            Allows UpdateManager to update to a version that's lower than the current version (i.e. downgrading).
+            This could happen if a release has bugs and was retracted from the release feed, or if you're using 
+            <see cref="P:Velopack.UpdateOptions.ExplicitChannel"/> to switch channels to another channel where the latest version on that 
+            channel is lower than the current version.
+            </summary>
+        </member>
+        <member name="P:Velopack.UpdateOptions.ExplicitChannel">
+            <summary>
+            <b>This option should usually be left null</b>. Overrides the default channel used to fetch updates. 
+            The default channel will be whatever channel was specified on the command line when building this release. 
+            For example, if the current release was packaged with '--channel beta', then the default channel will be 'beta'.
+            This allows users to automatically receive updates from the same channel they installed from. This options
+            allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
+            without having to reinstall the application.
+            </summary>
+        </member>
+        <member name="M:Velopack.Util.CoreUtil.CalculateProgress(System.Int32,System.Int32,System.Int32)">
+            <summary>
+            Calculates the total percentage of a specific step that should report within a specific range.
+            <para />
+            If a step needs to report between 50 -> 75 %, this method should be used as CalculateProgress(percentage, 50, 75). 
+            </summary>
+            <param name="percentageOfCurrentStep">The percentage of the current step, a value between 0 and 100.</param>
+            <param name="stepStartPercentage">The start percentage of the range the current step represents.</param>
+            <param name="stepEndPercentage">The end percentage of the range the current step represents.</param>
+            <returns>The calculated percentage that can be reported about the total progress.</returns>
+        </member>
+        <member name="M:Velopack.Util.EnumerableExtensions.Return``1(``0)">
+            <summary>
+            Turn a single value into an IEnumerable of that value.
+            </summary>
+        </member>
+        <member name="M:Velopack.Util.EnumerableExtensions.ContextualSingle``1(System.Collections.Generic.IEnumerable{``0},System.String,System.String,System.String)">
+            <summary>
+            Essentially just .Single() but with context aware error messages which are more helpful to a user.
+            Eg. "Invalid {is}. One {what} expected in {in}. None was found."
+            Eg. "Invalid {is}. Only a single {what} expected in {in}. There were 2 or more."
+            </summary>
+        </member>
+        <member name="M:Velopack.Util.EnumerableExtensions.ForEach``1(System.Collections.Generic.IEnumerable{``0},System.Action{``0})">
+            <summary>
+            Enumerates the sequence and invokes the given action for each value in the sequence.
+            </summary>
+            <typeparam name="TSource">Source sequence element type.</typeparam>
+            <param name="source">Source sequence.</param>
+            <param name="onNext">Action to invoke for each element.</param>
+        </member>
+        <member name="M:Velopack.Util.EnumerableExtensions.MaxByPolyfill``2(System.Collections.Generic.IEnumerable{``0},System.Func{``0,``1})">
+            <summary>
+            Returns the elements with the maximum key value by using the default comparer to compare key values.
+            </summary>
+            <typeparam name="TSource">Source sequence element type.</typeparam>
+            <typeparam name="TKey">Key type.</typeparam>
+            <param name="source">Source sequence.</param>
+            <param name="keySelector">Key selector used to extract the key for each element in the sequence.</param>
+            <returns>List with the elements that share the same maximum key value.</returns>
+        </member>
+        <member name="M:Velopack.Util.EnumerableExtensions.MaxByPolyfill``2(System.Collections.Generic.IEnumerable{``0},System.Func{``0,``1},System.Collections.Generic.IComparer{``1})">
+            <summary>
+            Returns the elements with the minimum key value by using the specified comparer to compare key values.
+            </summary>
+            <typeparam name="TSource">Source sequence element type.</typeparam>
+            <typeparam name="TKey">Key type.</typeparam>
+            <param name="source">Source sequence.</param>
+            <param name="keySelector">Key selector used to extract the key for each element in the sequence.</param>
+            <param name="comparer">Comparer used to determine the maximum key value.</param>
+            <returns>List with the elements that share the same maximum key value.</returns>
+        </member>
+        <member name="F:Velopack.Util.GuidUtil.DnsNamespace">
+            <summary>
+            The namespace for fully-qualified domain names (from RFC 4122, Appendix C).
+            </summary>
+        </member>
+        <member name="F:Velopack.Util.GuidUtil.UrlNamespace">
+            <summary>
+            The namespace for URLs (from RFC 4122, Appendix C).
+            </summary>
+        </member>
+        <member name="F:Velopack.Util.GuidUtil.IsoOidNamespace">
+            <summary>
+            The namespace for ISO OIDs (from RFC 4122, Appendix C).
+            </summary>
+        </member>
+        <member name="M:Velopack.Util.IoUtil.CalculateFileSHA256(System.String)">
+            <inheritdoc cref="M:Velopack.Util.IoUtil.CalculateStreamSHA256(System.IO.Stream)"/>
+        </member>
+        <member name="M:Velopack.Util.IoUtil.CalculateStreamSHA256(System.IO.Stream)">
+            <summary>
+            Get SHA256 hash of the specified file and returns the result as a base64 encoded string (with length 44)
+            </summary>
+        </member>
+        <member name="M:Velopack.Util.IoUtil.DeleteFileOrDirectoryHard(System.String,System.Boolean,System.Boolean,Microsoft.Extensions.Logging.ILogger)">
+            <summary>
+            Repeatedly tries various methods to delete a file system object. Optionally renames the directory first.
+            Optionally ignores errors.
+            </summary>
+            <param name="path">The path of the file system entity to delete.</param>
+            <param name="throwOnFailure">Whether this function should throw if the delete fails.</param>
+            <param name="renameFirst">Try to rename this object first before deleting. Can help prevent partial delete of folders.</param>
+            <param name="logger">Logger for diagnostic messages.</param>
+            <returns>True if the file system object was deleted, false otherwise.</returns>
+        </member>
+        <member name="M:Velopack.Util.PathUtil.GetSafeFilename(System.String)">
+            <summary>
+            Escapes file name such that the file name is safe for writing to disk in the packages folder
+            </summary>
+        </member>
+        <member name="M:Velopack.Util.SymbolicLink.Create(System.String,System.String,System.Boolean,System.Boolean)">
+            <summary>
+            Creates a symlink from the specified directory to the specified target directory.
+            </summary>
+            <param name="linkPath">The symlink path</param>
+            <param name="targetPath">The target directory or file</param>
+            <param name="overwrite">If true overwrites an existing reparse point or empty directory</param>
+            <param name="relative">If true, stores a relative path from the link to the target, rather than an absolute path.</param>
+        </member>
+        <member name="M:Velopack.Util.SymbolicLink.Exists(System.String)">
+            <summary>
+            Returns true if the specified path exists and is a junction point or symlink.
+            If the path exists but is not a junction point or symlink, returns false.
+            </summary>
+        </member>
+        <member name="M:Velopack.Util.SymbolicLink.Delete(System.String)">
+            <summary>
+            Does nothing if the path does not exist. If the path exists but is not 
+            a junction / symlink, throws an IOException.
+            </summary>
+        </member>
+        <member name="M:Velopack.Util.SymbolicLink.GetTarget(System.String,System.Boolean)">
+            <summary>
+            Get the target of a junction point or symlink.
+            </summary>
+            <param name="linkPath">The location of the symlink or junction point</param>
+            <param name="relative">If true, the returned target path will be relative to the linkPath. Otherwise, it will be an absolute path.</param>
+        </member>
+        <member name="T:Velopack.VelopackHook">
+            <summary>
+            A delegate type for handling Velopack startup events
+            </summary>
+            <param name="version">The currently executing version of this application</param>
+        </member>
+        <member name="T:Velopack.VelopackApp">
+            <summary>
+            VelopackApp helps you to handle app activation events correctly.
+            This should be used as early as possible in your application startup code.
+            (eg. the beginning of Main() in Program.cs)
+            </summary>
+        </member>
+        <member name="M:Velopack.VelopackApp.Build">
+            <summary>
+            Creates and returns a new Velopack application builder.
+            </summary>
+        </member>
+        <member name="M:Velopack.VelopackApp.SetArgs(System.String[])">
+            <summary>
+            Override the command line arguments used to determine the Velopack hook to run.
+            If this is not set, the command line arguments passed to the application will be used.
+            </summary>
+        </member>
+        <member name="M:Velopack.VelopackApp.SetAutoApplyOnStartup(System.Boolean)">
+            <summary>
+            Set whether to automatically apply downloaded updates on startup. This is ON by default.
+            </summary>
+        </member>
+        <member name="M:Velopack.VelopackApp.SetLocator(Velopack.Locators.IVelopackLocator)">
+            <summary>
+            Override the default <see cref="T:Velopack.Locators.IVelopackLocator"/> used to search for application paths.
+            This will be cached and potentially re-used throughout the lifetime of the application.
+            </summary>
+        </member>
+        <member name="M:Velopack.VelopackApp.WithFirstRun(Velopack.VelopackHook)">
+            <summary>
+            This hook is triggered when the application is started for the first time after installation.
+            </summary>
+        </member>
+        <member name="M:Velopack.VelopackApp.WithRestarted(Velopack.VelopackHook)">
+            <summary>
+            This hook is triggered when the application is restarted by Velopack after installing updates.
+            </summary>
+        </member>
+        <member name="M:Velopack.VelopackApp.WithAfterInstallFastCallback(Velopack.VelopackHook)">
+            <summary>
+            WARNING: FastCallback hooks are run during critical stages of Velopack operations.
+            Your code will be run and then <see cref="M:System.Environment.Exit(System.Int32)"/> will be called.
+            If your code has not completed within 30 seconds, it will be terminated.
+            Only supported on windows; On other operating systems, this will never be called.
+            </summary>
+        </member>
+        <member name="M:Velopack.VelopackApp.WithAfterUpdateFastCallback(Velopack.VelopackHook)">
+            <summary>
+            WARNING: FastCallback hooks are run during critical stages of Velopack operations.
+            Your code will be run and then <see cref="M:System.Environment.Exit(System.Int32)"/> will be called.
+            If your code has not completed within 15 seconds, it will be terminated.
+            Only supported on windows; On other operating systems, this will never be called.
+            </summary>
+        </member>
+        <member name="M:Velopack.VelopackApp.WithBeforeUpdateFastCallback(Velopack.VelopackHook)">
+            <summary>
+            WARNING: FastCallback hooks are run during critical stages of Velopack operations.
+            Your code will be run and then <see cref="M:System.Environment.Exit(System.Int32)"/> will be called.
+            If your code has not completed within 15 seconds, it will be terminated.
+            Only supported on windows; On other operating systems, this will never be called.
+            </summary>
+        </member>
+        <member name="M:Velopack.VelopackApp.WithBeforeUninstallFastCallback(Velopack.VelopackHook)">
+            <summary>
+            WARNING: FastCallback hooks are run during critical stages of Velopack operations.
+            Your code will be run and then <see cref="M:System.Environment.Exit(System.Int32)"/> will be called.
+            If your code has not completed within 30 seconds, it will be terminated.
+            Only supported on windows; On other operating systems, this will never be called.
+            </summary>
+        </member>
+        <member name="M:Velopack.VelopackApp.Run(Microsoft.Extensions.Logging.ILogger)">
+            <summary>
+            Runs the Velopack application startup code and triggers any configured hooks.
+            </summary>
+            <param name="logger">A logging interface for diagnostic messages. This will be
+            cached and potentially re-used throughout the lifetime of the application.</param>
+        </member>
+        <member name="T:Velopack.VelopackAssetType">
+            <summary>
+            Represents a Velopack Asset Type.
+            </summary>
+        </member>
+        <member name="F:Velopack.VelopackAssetType.Full">
+            <summary> A full update package. </summary>
+        </member>
+        <member name="F:Velopack.VelopackAssetType.Delta">
+            <summary> A delta update package. </summary>
+        </member>
+        <member name="T:Velopack.VelopackAssetFeed">
+            <summary>
+            A feed of Velopack assets, usually returned from an <see cref="T:Velopack.Sources.IUpdateSource"/>.
+            </summary>
+        </member>
+        <member name="P:Velopack.VelopackAssetFeed.Assets">
+            <summary>
+            A list of assets available in this feed.
+            </summary>
+        </member>
+        <member name="M:Velopack.VelopackAssetFeed.FromJson(System.String)">
+            <summary>
+            Parse a json string into a <see cref="T:Velopack.VelopackAssetFeed"/>.
+            </summary>
+        </member>
+        <member name="T:Velopack.VelopackAsset">
+            <summary>
+            An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
+            </summary>
+        </member>
+        <member name="P:Velopack.VelopackAsset.PackageId">
+            <summary> The name or Id of the package containing this release. </summary>
+        </member>
+        <member name="P:Velopack.VelopackAsset.Version">
+            <summary> The version of this release. </summary>
+        </member>
+        <member name="P:Velopack.VelopackAsset.Type">
+            <summary> The type of asset (eg. full or delta). </summary>
+        </member>
+        <member name="P:Velopack.VelopackAsset.FileName">
+            <summary> The filename of the update package containing this release. </summary>
+        </member>
+        <member name="P:Velopack.VelopackAsset.SHA1">
+            <summary> The SHA1 checksum of the update package containing this release. </summary>
+        </member>
+        <member name="P:Velopack.VelopackAsset.SHA256">
+            <summary> The SHA256 checksum (if availible) of the update package containing this release. </summary>
+        </member>
+        <member name="P:Velopack.VelopackAsset.Size">
+            <summary> The size in bytes of the update package containing this release. </summary>
+        </member>
+        <member name="P:Velopack.VelopackAsset.NotesMarkdown">
+            <summary> The release notes in markdown format, as passed to Velopack when packaging the release. </summary>
+        </member>
+        <member name="P:Velopack.VelopackAsset.NotesHTML">
+            <summary> The release notes in HTML format, transformed from Markdown when packaging the release. </summary>
+        </member>
+        <member name="M:Velopack.VelopackAsset.FromZipPackage(Velopack.NuGet.ZipPackage)">
+            <summary>
+            Convert a <see cref="T:Velopack.NuGet.ZipPackage"/> to a <see cref="T:Velopack.VelopackAsset"/>.
+            </summary>
+        </member>
+        <member name="M:Velopack.VelopackAsset.FromNupkg(System.String)">
+            <summary>
+            Load a <see cref="T:Velopack.VelopackAsset"/> from a .nupkg file on disk.
+            </summary>
+        </member>
+        <member name="T:Velopack.RuntimeCpu">
+            <summary> The Runtime CPU Architecture </summary>
+        </member>
+        <member name="F:Velopack.RuntimeCpu.Unknown">
+            <summary> Unknown or unsupported </summary>
+        </member>
+        <member name="F:Velopack.RuntimeCpu.x86">
+            <summary> Intel x86 </summary>
+        </member>
+        <member name="F:Velopack.RuntimeCpu.x64">
+            <summary> x64 / Amd64 </summary>
+        </member>
+        <member name="F:Velopack.RuntimeCpu.arm64">
+            <summary> Arm64 </summary>
+        </member>
+        <member name="T:Velopack.RuntimeOs">
+            <summary> The Runtime OS </summary>
+        </member>
+        <member name="F:Velopack.RuntimeOs.Unknown">
+            <summary> Unknown or unsupported </summary>
+        </member>
+        <member name="F:Velopack.RuntimeOs.Windows">
+            <summary> Windows </summary>
+        </member>
+        <member name="F:Velopack.RuntimeOs.Linux">
+            <summary> Linux </summary>
+        </member>
+        <member name="F:Velopack.RuntimeOs.OSX">
+            <summary> OSX </summary>
+        </member>
+        <member name="T:Velopack.VelopackRuntimeInfo">
+            <summary>
+            Convenience class which provides runtime information about the current executing process, 
+            in a way that is safe in older and newer versions of the framework.
+            </summary>
+        </member>
+        <member name="P:Velopack.VelopackRuntimeInfo.VelopackDisplayVersion">
+            <summary> The current compiled Velopack display version. </summary>
+        </member>
+        <member name="P:Velopack.VelopackRuntimeInfo.VelopackNugetVersion">
+            <summary> The current compiled Velopack NuGetVersion. </summary>
+        </member>
+        <member name="P:Velopack.VelopackRuntimeInfo.VelopackProductVersion">
+            <summary> The current compiled Velopack ProductVersion. </summary>
+        </member>
+        <member name="P:Velopack.VelopackRuntimeInfo.EntryExePath">
+            <summary> The path on disk of the entry assembly. </summary>
+        </member>
+        <member name="P:Velopack.VelopackRuntimeInfo.SystemArch">
+            <summary> The current machine architecture, ignoring the current process / pe architecture. </summary>
+        </member>
+        <member name="P:Velopack.VelopackRuntimeInfo.SystemOs">
+            <summary> The name of the current OS - eg. 'windows', 'linux', or 'osx'. </summary>
+        </member>
+        <member name="P:Velopack.VelopackRuntimeInfo.SystemRid">
+            <summary> The current system RID. </summary>
+        </member>
+        <member name="P:Velopack.VelopackRuntimeInfo.IsWindows">
+            <summary> True if executing on a Windows platform. </summary>
+        </member>
+        <member name="P:Velopack.VelopackRuntimeInfo.IsLinux">
+            <summary> True if executing on a Linux platform. </summary>
+        </member>
+        <member name="P:Velopack.VelopackRuntimeInfo.IsOSX">
+            <summary> True if executing on a MacOS / OSX platform. </summary>
+        </member>
+        <member name="M:Velopack.VelopackRuntimeInfo.GetOsShortName(Velopack.RuntimeOs)">
+            <summary>
+            Returns the shortened OS name as a string, suitable for creating an RID.
+            </summary>
+        </member>
+        <member name="M:Velopack.VelopackRuntimeInfo.GetOsLongName(Velopack.RuntimeOs)">
+            <summary>
+            Returns the long OS name, suitable for showing to a human.
+            </summary>
+        </member>
+        <member name="T:Velopack.Windows.Runtimes">
+            <summary>
+            Contains static properties to access common supported runtimes, and a function to search for a runtime by name
+            </summary>
+        </member>
+        <member name="T:Velopack.Windows.Runtimes.DotnetRuntimeType">
+            <summary> Dotnet Runtime SKU </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.DotnetRuntimeType.Runtime">
+            <summary> The .NET Runtime contains just the components needed to run a console app </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.DotnetRuntimeType.AspNetCore">
+            <summary> The The ASP.NET Core Runtime enables you to run existing web/server applications </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.DotnetRuntimeType.WindowsDesktop">
+            <summary> The .NET Desktop Runtime enables you to run existing Windows desktop applications </summary>
+        </member>
+        <member name="T:Velopack.Windows.Runtimes.RuntimeInstallResult">
+            <summary> Runtime installation result code </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.RuntimeInstallResult.InstallSuccess">
+            <summary> The install was successful </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.RuntimeInstallResult.UserCancelled">
+            <summary> The install failed because it was cancelled by the user </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.RuntimeInstallResult.AnotherInstallInProgress">
+            <summary> The install failed because another install is in progress, try again later </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.RuntimeInstallResult.RestartRequired">
+            <summary> The install failed because a system restart is required before continuing </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.RuntimeInstallResult.SystemDoesNotMeetRequirements">
+            <summary> The install failed because the current system does not support this runtime (outdated/unsupported) </summary>
+        </member>
+        <member name="T:Velopack.Windows.Runtimes.RuntimeInfo">
+            <summary> Base type containing information about a runtime in relation to the current operating system </summary>
+        </member>
+        <member name="P:Velopack.Windows.Runtimes.RuntimeInfo.Id">
+            <summary> The unique Id of this runtime. Can be used to retrieve a runtime instance with <see cref="M:Velopack.Windows.Runtimes.GetRuntimeByName(System.String)"/> </summary>
+        </member>
+        <member name="P:Velopack.Windows.Runtimes.RuntimeInfo.DisplayName">
+            <summary> The human-friendly name of this runtime - for displaying to users </summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.RuntimeInfo.#ctor">
+            <summary> Creates a new instance with the specified properties </summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.RuntimeInfo.#ctor(System.String,System.String)">
+            <summary> Creates a new instance with the specified properties </summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.RuntimeInfo.GetDownloadUrl">
+            <summary> Retrieves the web url to the latest compatible runtime installer exe </summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.RuntimeInfo.CheckIsInstalled">
+            <summary> Check if a runtime compatible with the current instance is installed on this system </summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.RuntimeInfo.CheckIsSupported">
+            <summary> Check if this runtime is supported on the current system </summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.RuntimeInfo.DownloadToFile(System.String,System.Action{System.Int32},Velopack.Sources.IFileDownloader,Microsoft.Extensions.Logging.ILogger)">
+            <summary> Download the latest installer for this runtime to the specified file </summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.RuntimeInfo.InvokeInstaller(System.String,System.Boolean,Microsoft.Extensions.Logging.ILogger)">
+            <summary> Execute a runtime installer at a local file path. Typically used after <see cref="M:Velopack.Windows.Runtimes.RuntimeInfo.DownloadToFile(System.String,System.Action{System.Int32},Velopack.Sources.IFileDownloader,Microsoft.Extensions.Logging.ILogger)"/> </summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.RuntimeInfo.ToString">
+            <summary> The unique string representation of this runtime </summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.RuntimeInfo.GetHashCode">
+            <summary> The unique hash code of this runtime </summary>
+        </member>
+        <member name="T:Velopack.Windows.Runtimes.FrameworkInfo">
+            <summary> Represents a full .NET Framework runtime, usually included in Windows automatically through Windows Update </summary>
+        </member>
+        <member name="P:Velopack.Windows.Runtimes.FrameworkInfo.DownloadUrl">
+            <summary> Permalink to the installer for this runtime </summary>
+        </member>
+        <member name="P:Velopack.Windows.Runtimes.FrameworkInfo.ReleaseVersion">
+            <summary> The minimum compatible release version for this runtime </summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.FrameworkInfo.#ctor(System.String,System.String,System.String,System.Int32)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.FrameworkInfo.GetDownloadUrl">
+            <inheritdoc/>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.FrameworkInfo.CheckIsSupported">
+            <inheritdoc/>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.FrameworkInfo.CheckIsInstalled">
+            <inheritdoc/>
+        </member>
+        <member name="T:Velopack.Windows.Runtimes.DotnetInfo">
+            <summary> Represents a modern DOTNET runtime where versions are deployed independenly of the operating system </summary>
+        </member>
+        <member name="P:Velopack.Windows.Runtimes.DotnetInfo.Id">
+            <inheritdoc/>
+        </member>
+        <member name="P:Velopack.Windows.Runtimes.DotnetInfo.DisplayName">
+            <inheritdoc/>
+        </member>
+        <member name="P:Velopack.Windows.Runtimes.DotnetInfo.MinVersion">
+            <summary> The minimum compatible version that must be installed. </summary>
+        </member>
+        <member name="P:Velopack.Windows.Runtimes.DotnetInfo.CpuArchitecture">
+            <summary> The CPU architecture of the runtime. This must match the RID of the app being deployed.
+            For example, if the app was deployed with 'win-x64', this must be X64 also. </summary>
+        </member>
+        <member name="P:Velopack.Windows.Runtimes.DotnetInfo.RuntimeType">
+            <summary> The type of runtime required, eg. Windows Desktop, AspNetCore, Sdk.</summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.DotnetInfo.#ctor(System.Version,Velopack.RuntimeCpu,Velopack.Windows.Runtimes.DotnetRuntimeType)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.DotnetInfo.CheckIsInstalled">
+            <inheritdoc/>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.DotnetInfo.CheckIsSupported">
+            <inheritdoc/>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.DotnetInfo.GetDownloadUrl">
+            <inheritdoc/>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.DotnetInfo.Parse(System.String)">
+            <summary>
+            Parses a string such as 'net6' or net5.0.14-x86 into a DotnetInfo class capable of checking
+            the current system for installed status, or downloading / installing.
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.DotnetInfo.TryParse(System.String,Velopack.Windows.Runtimes.DotnetInfo@)">
+            <inheritdoc cref="M:Velopack.Windows.Runtimes.DotnetInfo.Parse(System.String)"/>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.DotnetInfo.ParseVersion(System.String)">
+            <summary>
+            Safely converts a version string into a version structure, and provides some validation for invalid/unsupported versions.
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.DotnetInfo.TrimVersion(NuGet.Versioning.NuGetVersion)">
+            <summary>
+            Converts a version structure into the shortest string possible, by trimming trailing zeros.
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.DotnetInfo.GetLatestDotNetVersion(Velopack.Windows.Runtimes.DotnetRuntimeType,System.String,Velopack.Sources.IFileDownloader)">
+            <summary>
+            Get latest available version of dotnet. Channel can be 'LTS', 'current', or a two part version 
+            (eg. '6.0') to get the latest minor release.
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.DotnetInfo.GetDotNetDownloadUrl(Velopack.Windows.Runtimes.DotnetRuntimeType,System.String,System.String)">
+            <summary>
+            Get download url for a specific version of dotnet. Version must be an absolute version, such as one
+            returned by <see cref="M:Velopack.Windows.Runtimes.DotnetInfo.GetLatestDotNetVersion(Velopack.Windows.Runtimes.DotnetRuntimeType,System.String,Velopack.Sources.IFileDownloader)"/>. cpuarch should be either
+            'x86', 'x64', or 'arm64'.
+            </summary>
+        </member>
+        <member name="T:Velopack.Windows.Runtimes.VCRedistInfo">
+            <summary> The base class for a VC++ redistributable package. </summary>
+        </member>
+        <member name="P:Velopack.Windows.Runtimes.VCRedistInfo.MinVersion">
+            <summary> The minimum compatible version that must be installed. </summary>
+        </member>
+        <member name="P:Velopack.Windows.Runtimes.VCRedistInfo.CpuArchitecture">
+            <summary> The CPU architecture of the runtime. </summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.VCRedistInfo.#ctor(System.String,System.String,NuGet.Versioning.NuGetVersion,Velopack.RuntimeCpu)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.VCRedistInfo.CheckIsInstalled">
+            <inheritdoc/>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.VCRedistInfo.CheckIsSupported">
+            <inheritdoc/>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.VCRedistInfo.GetInstalledVCVersions">
+            <summary>
+            Returns the list of currently installed VC++ redistributables, as reported by the
+            Windows Programs &amp; Features dialog.
+            </summary>
+        </member>
+        <member name="T:Velopack.Windows.Runtimes.VCRedist14">
+            <summary> Represents a VC++ 2015-2022 redistributable package. </summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.VCRedist14.#ctor(System.String,System.String,NuGet.Versioning.NuGetVersion,Velopack.RuntimeCpu)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.VCRedist14.GetDownloadUrl">
+            <inheritdoc/>
+        </member>
+        <member name="T:Velopack.Windows.Runtimes.VCRedist00">
+            <summary> Represents a VC++ redistributable package which is referenced by a permalink </summary>
+        </member>
+        <member name="P:Velopack.Windows.Runtimes.VCRedist00.DownloadUrl">
+            <summary> Permalink to the installer for this runtime </summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.VCRedist00.#ctor(System.String,System.String,NuGet.Versioning.NuGetVersion,Velopack.RuntimeCpu,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.VCRedist00.GetDownloadUrl">
+            <inheritdoc/>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.NETFRAMEWORK45">
+            <summary> Runtime for .NET Framework 4.5 </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.NETFRAMEWORK451">
+            <summary> Runtime for .NET Framework 4.5.1 </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.NETFRAMEWORK452">
+            <summary> Runtime for .NET Framework 4.5.2 </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.NETFRAMEWORK46">
+            <summary> Runtime for .NET Framework 4.6 </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.NETFRAMEWORK461">
+            <summary> Runtime for .NET Framework 4.6.1 </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.NETFRAMEWORK462">
+            <summary> Runtime for .NET Framework 4.6.2 </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.NETFRAMEWORK47">
+            <summary> Runtime for .NET Framework 4.7 </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.NETFRAMEWORK471">
+            <summary> Runtime for .NET Framework 4.7.1 </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.NETFRAMEWORK472">
+            <summary> Runtime for .NET Framework 4.7.2 </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.NETFRAMEWORK48">
+            <summary> Runtime for .NET Framework 4.8 </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.NETFRAMEWORK481">
+            <summary> Runtime for .NET Framework 4.8.1 </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.DOTNETCORE31_X86">
+            <summary> Runtime for .NET Core 3.1 Desktop Runtime (x86) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.DOTNETCORE31_X64">
+            <summary> Runtime for .NET Core 3.1 Desktop Runtime (x64) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.DOTNET5_X86">
+            <summary> Runtime for .NET 5.0 Desktop Runtime (x86) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.DOTNET5_X64">
+            <summary> Runtime for .NET 5.0 Desktop Runtime (x64) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.DOTNET6_X86">
+            <summary> Runtime for .NET 6.0 Desktop Runtime (x86) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.DOTNET6_X64">
+            <summary> Runtime for .NET 6.0 Desktop Runtime (x64) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.DOTNET6_ARM64">
+            <summary> Runtime for .NET 6.0 Desktop Runtime (arm64) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.DOTNET7_X86">
+            <summary> Runtime for .NET 7.0 Desktop Runtime (x86) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.DOTNET7_X64">
+            <summary> Runtime for .NET 7.0 Desktop Runtime (x64) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.DOTNET7_ARM64">
+            <summary> Runtime for .NET 7.0 Desktop Runtime (arm64) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.DOTNET8_X86">
+            <summary> Runtime for .NET 8.0 Desktop Runtime (x86) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.DOTNET8_X64">
+            <summary> Runtime for .NET 8.0 Desktop Runtime (x64) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.DOTNET8_ARM64">
+            <summary> Runtime for .NET 8.0 Desktop Runtime (arm64) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.VCREDIST100_X86">
+            <summary> Runtime for Visual C++ 2010 Redistributable (x86) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.VCREDIST100_X64">
+            <summary> Runtime for Visual C++ 2010 Redistributable (x64) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.VCREDIST110_X86">
+            <summary> Runtime for Visual C++ 2012 Redistributable (x86) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.VCREDIST110_X64">
+            <summary> Runtime for Visual C++ 2012 Redistributable (x64) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.VCREDIST120_X86">
+            <summary> Runtime for Visual C++ 2013 Redistributable (x86) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.VCREDIST120_X64">
+            <summary> Runtime for Visual C++ 2013 Redistributable (x64) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.VCREDIST140_X86">
+            <summary> Runtime for Visual C++ 2015 Redistributable (x86) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.VCREDIST140_X64">
+            <summary> Runtime for Visual C++ 2015 Redistributable (x64) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.VCREDIST141_X86">
+            <summary> Runtime for Visual C++ 2017 Redistributable (x86) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.VCREDIST141_X64">
+            <summary> Runtime for Visual C++ 2017 Redistributable (x64) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.VCREDIST142_X86">
+            <summary> Runtime for Visual C++ 2019 Redistributable (x86) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.VCREDIST142_X64">
+            <summary> Runtime for Visual C++ 2019 Redistributable (x64) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.VCREDIST143_X86">
+            <summary> Runtime for Visual C++ 2022 Redistributable (x86) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.VCREDIST143_X64">
+            <summary> Runtime for Visual C++ 2022 Redistributable (x64) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.VCREDIST143_ARM64">
+            <summary> Runtime for Visual C++ 2022 Redistributable (arm64) </summary>
+        </member>
+        <member name="F:Velopack.Windows.Runtimes.All">
+            <summary> An array of all the currently supported runtimes </summary>
+        </member>
+        <member name="M:Velopack.Windows.Runtimes.GetRuntimeByName(System.String)">
+            <summary> 
+            Search for a runtime by name. If a platform architecture is not specified, the default is x64.
+            Returns null if no match is found. 
+            </summary>
+        </member>
+        <member name="T:Velopack.Windows.ShellLink">
+            <summary>
+            Summary description for ShellLink.
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.ShellLink.PropVariant.PropVariantClear(Velopack.Windows.ShellLink.PropVariant@)">
+            <summary>
+            Called to properly clean up the memory referenced by a PropVariant instance.
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.ShellLink.PropVariant.Clear">
+            <summary>
+            Called to clear the PropVariant's referenced and local memory.
+            </summary>
+            <remarks>
+            You must call Clear to avoid memory leaks.
+            </remarks>
+        </member>
+        <member name="T:Velopack.Windows.ShellLink.EShellLinkResolveFlags">
+            <summary>
+            Flags determining how the links with missing
+            targets are resolved.
+            </summary>
+        </member>
+        <member name="F:Velopack.Windows.ShellLink.EShellLinkResolveFlags.SLR_ANY_MATCH">
+            <summary>
+            Allow any match during resolution.  Has no effect
+            on ME/2000 or above, use the other flags instead.
+            </summary>
+        </member>
+        <member name="F:Velopack.Windows.ShellLink.EShellLinkResolveFlags.SLR_INVOKE_MSI">
+            <summary>
+            Call the Microsoft Windows Installer. 
+            </summary>
+        </member>
+        <member name="F:Velopack.Windows.ShellLink.EShellLinkResolveFlags.SLR_NOLINKINFO">
+            <summary>
+            Disable distributed link tracking. By default, 
+            distributed link tracking tracks removable media 
+            across multiple devices based on the volume name. 
+            It also uses the UNC path to track remote file 
+            systems whose drive letter has changed. Setting 
+            SLR_NOLINKINFO disables both types of tracking.
+            </summary>
+        </member>
+        <member name="F:Velopack.Windows.ShellLink.EShellLinkResolveFlags.SLR_NO_UI">
+            <summary>
+            Do not display a dialog box if the link cannot be resolved. 
+            When SLR_NO_UI is set, a time-out value that specifies the 
+            maximum amount of time to be spent resolving the link can 
+            be specified in milliseconds. The function returns if the 
+            link cannot be resolved within the time-out duration. 
+            If the timeout is not set, the time-out duration will be 
+            set to the default value of 3,000 milliseconds (3 seconds). 
+            </summary>                                  
+        </member>
+        <member name="F:Velopack.Windows.ShellLink.EShellLinkResolveFlags.SLR_NO_UI_WITH_MSG_PUMP">
+            <summary>
+            Not documented in SDK.  Assume same as SLR_NO_UI but 
+            intended for applications without a hWnd.
+            </summary>
+        </member>
+        <member name="F:Velopack.Windows.ShellLink.EShellLinkResolveFlags.SLR_NOUPDATE">
+            <summary>
+            Do not update the link information. 
+            </summary>
+        </member>
+        <member name="F:Velopack.Windows.ShellLink.EShellLinkResolveFlags.SLR_NOSEARCH">
+            <summary>
+            Do not execute the search heuristics. 
+            </summary>                                                        
+        </member>
+        <member name="F:Velopack.Windows.ShellLink.EShellLinkResolveFlags.SLR_NOTRACK">
+            <summary>
+            Do not use distributed link tracking. 
+            </summary>
+        </member>
+        <member name="F:Velopack.Windows.ShellLink.EShellLinkResolveFlags.SLR_UPDATE">
+            <summary>
+            If the link object has changed, update its path and list 
+            of identifiers. If SLR_UPDATE is set, you do not need to 
+            call IPersistFile::IsDirty to determine whether or not 
+            the link object has changed. 
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.ShellLink.#ctor">
+            <summary>
+            Creates an instance of the Shell Link object.
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.ShellLink.#ctor(System.String)">
+            <summary>
+            Creates an instance of a Shell Link object
+            from the specified link file
+            </summary>
+            <param name="linkFile">The Shortcut file to open</param>
+        </member>
+        <member name="M:Velopack.Windows.ShellLink.Finalize">
+            <summary>
+            Call dispose just in case it hasn't happened yet
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.ShellLink.Dispose">
+            <summary>
+            Dispose the object, releasing the COM ShellLink object
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.ShellLink.GetIcon(System.Boolean)">
+            <summary>
+            This pointer must be destroyed with DistroyIcon when you are done with it.
+            </summary>
+            <param name="large">Whether to return the small or large icon</param>
+        </member>
+        <member name="P:Velopack.Windows.ShellLink.IconPath">
+            <summary>
+            Gets the path to the file containing the icon for this shortcut.
+            </summary>
+        </member>
+        <member name="P:Velopack.Windows.ShellLink.IconIndex">
+            <summary>
+            Gets the index of this icon within the icon path's resources
+            </summary>
+        </member>
+        <member name="P:Velopack.Windows.ShellLink.Target">
+            <summary>
+            Gets/sets the fully qualified path to the link's target
+            </summary>
+        </member>
+        <member name="P:Velopack.Windows.ShellLink.WorkingDirectory">
+            <summary>
+            Gets/sets the Working Directory for the Link
+            </summary>
+        </member>
+        <member name="P:Velopack.Windows.ShellLink.Description">
+            <summary>
+            Gets/sets the description of the link
+            </summary>
+        </member>
+        <member name="P:Velopack.Windows.ShellLink.Arguments">
+            <summary>
+            Gets/sets any command line arguments associated with the link
+            </summary>
+        </member>
+        <member name="P:Velopack.Windows.ShellLink.DisplayMode">
+            <summary>
+            Gets/sets the initial display mode when the shortcut is
+            run
+            </summary>
+        </member>
+        <member name="P:Velopack.Windows.ShellLink.HotKey">
+            <summary>
+            Gets/sets the HotKey to start the shortcut (if any)
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.ShellLink.SetAppUserModelId(System.String)">
+            <summary>
+            Sets the appUserModelId
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.ShellLink.SetToastActivatorCLSID(System.String)">
+            <summary>
+            Sets the ToastActivatorCLSID
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.ShellLink.SetToastActivatorCLSID(System.Guid)">
+            <summary>
+            Sets the ToastActivatorCLSID
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.ShellLink.Save">
+            <summary>
+            Saves the shortcut to ShortCutFile.
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.ShellLink.Save(System.String)">
+            <summary>
+            Saves the shortcut to the specified file
+            </summary>
+            <param name="linkFile">The shortcut file (.lnk)</param>
+        </member>
+        <member name="M:Velopack.Windows.ShellLink.Open(System.String)">
+            <summary>
+            Loads a shortcut from the specified file
+            </summary>
+            <param name="linkFile">The shortcut file (.lnk) to load</param>
+        </member>
+        <member name="M:Velopack.Windows.ShellLink.Open(System.String,System.IntPtr,Velopack.Windows.ShellLink.EShellLinkResolveFlags)">
+            <summary>
+            Loads a shortcut from the specified file, and allows flags controlling
+            the UI behaviour if the shortcut's target isn't found to be set.
+            </summary>
+            <param name="linkFile">The shortcut file (.lnk) to load</param>
+            <param name="hWnd">The window handle of the application's UI, if any</param>
+            <param name="resolveFlags">Flags controlling resolution behaviour</param>
+        </member>
+        <member name="M:Velopack.Windows.ShellLink.Open(System.String,System.IntPtr,Velopack.Windows.ShellLink.EShellLinkResolveFlags,System.UInt16)">
+            <summary>
+            Loads a shortcut from the specified file, and allows flags controlling
+            the UI behaviour if the shortcut's target isn't found to be set.  If
+            no SLR_NO_UI is specified, you can also specify a timeout.
+            </summary>
+            <param name="linkFile">The shortcut file (.lnk) to load</param>
+            <param name="hWnd">The window handle of the application's UI, if any</param>
+            <param name="resolveFlags">Flags controlling resolution behaviour</param>
+            <param name="timeOut">Timeout if SLR_NO_UI is specified, in ms.</param>
+        </member>
+        <member name="T:Velopack.Windows.FileIcon">
+            <summary>
+            Enables extraction of icons for any file type from
+            the Shell.
+            </summary>
+        </member>
+        <member name="P:Velopack.Windows.FileIcon.Flags">
+            <summary>
+            Gets/sets the flags used to extract the icon
+            </summary>
+        </member>
+        <member name="P:Velopack.Windows.FileIcon.FileName">
+            <summary>
+            Gets/sets the filename to get the icon for
+            </summary>
+        </member>
+        <member name="P:Velopack.Windows.FileIcon.ShellIcon">
+            <summary>
+            Gets the icon for the chosen file
+            </summary>
+        </member>
+        <member name="P:Velopack.Windows.FileIcon.DisplayName">
+            <summary>
+            Gets the display name for the selected file
+            if the SHGFI_DISPLAYNAME flag was set.
+            </summary>
+        </member>
+        <member name="P:Velopack.Windows.FileIcon.TypeName">
+            <summary>
+            Gets the type name for the selected file
+            if the SHGFI_TYPENAME flag was set.
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.FileIcon.GetInfo">
+            <summary>
+             Gets the information for the specified 
+             file name and flags.
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.FileIcon.#ctor">
+            <summary>
+            Constructs a new, default instance of the FileIcon
+            class.  Specify the filename and call GetInfo()
+            to retrieve an icon.
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.FileIcon.#ctor(System.String)">
+            <summary>
+            Constructs a new instance of the FileIcon class
+            and retrieves the icon, display name and type name
+            for the specified file.      
+            </summary>
+            <param name="fileName">The filename to get the icon, 
+            display name and type name for</param>
+        </member>
+        <member name="M:Velopack.Windows.FileIcon.#ctor(System.String,Velopack.Windows.FileIcon.SHGetFileInfoConstants)">
+            <summary>
+            Constructs a new instance of the FileIcon class
+            and retrieves the information specified in the 
+            flags.
+            </summary>
+            <param name="fileName">The filename to get information
+            for</param>
+            <param name="flags">The flags to use when extracting the
+            icon and other shell information.</param>
+        </member>
+        <member name="T:Velopack.Windows.ShortcutLocation">
+            <summary>
+            Specifies several common places where shortcuts can be installed on a user's system
+            </summary>
+        </member>
+        <member name="F:Velopack.Windows.ShortcutLocation.None">
+            <summary>
+            Represents no shortcut location
+            </summary>
+        </member>
+        <member name="F:Velopack.Windows.ShortcutLocation.StartMenu">
+            <summary>
+            A shortcut in ProgramFiles within a publisher sub-directory
+            </summary>
+        </member>
+        <member name="F:Velopack.Windows.ShortcutLocation.Desktop">
+            <summary>
+            A shortcut on the current user desktop
+            </summary>
+        </member>
+        <member name="F:Velopack.Windows.ShortcutLocation.Startup">
+            <summary>
+            A shortcut in Startup/Run folder will cause the app to be automatially started on user login.
+            </summary>
+        </member>
+        <member name="F:Velopack.Windows.ShortcutLocation.AppRoot">
+            <summary>
+            A shortcut in the application folder, useful for portable applications.
+            </summary>
+        </member>
+        <member name="F:Velopack.Windows.ShortcutLocation.StartMenuRoot">
+            <summary>
+            A shortcut in ProgramFiles root folder (not in a company/publisher sub-directory). This is commonplace as of more recent versions of windows.
+            </summary>
+        </member>
+        <member name="T:Velopack.Windows.Shortcuts">
+            <summary>
+            A helper class to create or delete windows shortcuts.
+            </summary>
+        </member>
+        <member name="P:Velopack.Windows.Shortcuts.Log">
+            <summary> Log for diagnostic messages. </summary>
+        </member>
+        <member name="P:Velopack.Windows.Shortcuts.Locator">
+            <summary> Locator to use for finding important application paths. </summary>
+        </member>
+        <member name="M:Velopack.Windows.Shortcuts.#ctor(Microsoft.Extensions.Logging.ILogger,Velopack.Locators.IVelopackLocator)">
+            <inheritdoc cref="T:Velopack.Windows.Shortcuts"/>
+        </member>
+        <member name="M:Velopack.Windows.Shortcuts.CreateShortcutForThisExe(Velopack.Windows.ShortcutLocation)">
+            <summary>
+            Create a shortcut to the currently running executable at the specified locations. 
+            See <see cref="M:Velopack.Windows.Shortcuts.CreateShortcut(System.String,Velopack.Windows.ShortcutLocation,System.Boolean,System.String,System.String)"/> to create a shortcut to a different program
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.Shortcuts.RemoveShortcutForThisExe(Velopack.Windows.ShortcutLocation)">
+            <summary>
+            Removes a shortcut for the currently running executable at the specified locations
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.Shortcuts.FindShortcuts(System.String,Velopack.Windows.ShortcutLocation)">
+            <summary>
+            Searches for existing shortcuts to an executable inside the current package.
+            </summary>
+            <param name="relativeExeName">The relative path or filename of the executable (from the current app dir).</param>
+            <param name="locations">The locations to search.</param>
+        </member>
+        <member name="M:Velopack.Windows.Shortcuts.CreateShortcut(System.String,Velopack.Windows.ShortcutLocation,System.Boolean,System.String,System.String)">
+            <summary>
+            Creates new shortcuts to the specified executable at the specified locations.
+            </summary>
+            <param name="relativeExeName">The relative path or filename of the executable (from the current app dir).</param>
+            <param name="locations">The locations to create shortcuts.</param>
+            <param name="updateOnly">If true, shortcuts will be updated instead of created.</param>
+            <param name="programArguments">The arguments the application should be launched with</param>
+            <param name="icon">Path to a specific icon to use instead of the exe icon.</param>
+        </member>
+        <member name="M:Velopack.Windows.Shortcuts.DeleteShortcuts(System.String,Velopack.Windows.ShortcutLocation)">
+            <summary>
+            Delete all the shortcuts for the specified executable in the specified locations.
+            </summary>
+            <param name="relativeExeName">The relative path or filename of the executable (from the current app dir).</param>
+            <param name="locations">The locations to create shortcuts.</param>
+        </member>
+        <member name="M:Velopack.Windows.Shortcuts.LinkPathForVersionInfo(Velopack.Windows.ShortcutLocation,Velopack.NuGet.ZipPackage,System.Diagnostics.FileVersionInfo,System.String)">
+            <summary>
+            Given an <see cref="T:Velopack.NuGet.ZipPackage"/> and <see cref="T:System.Diagnostics.FileVersionInfo"/> return the target shortcut path.
+            </summary>
+        </member>
+        <member name="M:Velopack.Windows.Shortcuts.GetLinkPath(Velopack.Windows.ShortcutLocation,System.String,System.String,System.String,System.Boolean)">
+            <summary>
+            Given the application info, return the shortcut target path.
+            </summary>
+        </member>
+        <member name="T:NCode.ReparsePoints.LinkType">
+            <summary>
+            Represents the type of reparse point such as a hard link, junction (aka
+            soft link), or symbolic link.
+            </summary>
+        </member>
+        <member name="F:NCode.ReparsePoints.LinkType.Unknown">
+            <summary>
+            Represents an unknown reparse point type.
+            </summary>
+        </member>
+        <member name="F:NCode.ReparsePoints.LinkType.HardLink">
+            <summary>
+            Represents a file <c>hard link</c>.
+            </summary>
+            <remarks>
+            Technically not a reparse point.
+            </remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.LinkType.Junction">
+            <summary>
+            Represents a directory <c>junction</c> (aka soft link).
+            </summary>
+        </member>
+        <member name="F:NCode.ReparsePoints.LinkType.Symbolic">
+            <summary>
+            Represents a <c>symbolic link</c> to either a file or folder.
+            </summary>
+            <remarks>
+            In order to create symbolic links, the current user must either be an
+            administrator running with elevated privileges or a non-admin user that
+            has the SeCreateSymbolicLinkPrivilege right in local security policy.
+            </remarks>
+        </member>
+        <member name="T:NCode.ReparsePoints.Win32.AccessRights">
+            <remarks>
+            http://msdn.microsoft.com/en-us/library/windows/desktop/aa374896(v=vs.85).aspx
+            http://msdn.microsoft.com/en-us/library/windows/desktop/aa374892(v=vs.85).aspx
+            </remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.MaximumAllowed">
+            <summary>
+            The MAXIMUM_ALLOWED access type is generally used with the AccessCheck(…)
+            function to determine whether a security descriptor grants a specified
+            set of access rights to the client identified by an access token.
+            Typically, server applications use this function to check access to a
+            private object. Note that MAXIMUM_ALLOWED cannot be used in an ACE (see
+            access control entries).
+            </summary>
+            <remarks>MAXIMUM_ALLOWED</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.Delete">
+            <summary>
+            The right to delete the object.
+            </summary>
+            <remarks>DELETE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ReadControl">
+            <summary>
+            The right to read the information in the object's security descriptor,
+            not including the information in the system access control list (SACL).
+            </summary>
+            <remarks>READ_CONTROL</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.WriteDac">
+            <summary>
+            The right to modify the discretionary access control list (DACL) in the
+            object's security descriptor.
+            </summary>
+            <remarks>WRITE_DAC</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.WriteOwner">
+            <summary>
+            The right to change the owner in the object's security descriptor.
+            </summary>
+            <remarks>WRITE_OWNER</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.Synchronize">
+            <summary>
+            The right to use the object for synchronization. This enables a thread
+            to wait until the object is in the signaled state. Some object types do not support this access right.
+            </summary>
+            <remarks>SYNCHRONIZE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.StandardRightsRead">
+            <summary>
+            Currently defined to equal READ_CONTROL.
+            </summary>
+            <remarks>STANDARD_RIGHTS_READ</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.StandardRightsWrite">
+            <summary>
+            Currently defined to equal READ_CONTROL.
+            </summary>
+            <remarks>STANDARD_RIGHTS_WRITE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.StandardRightsExecute">
+            <summary>
+            Currently defined to equal READ_CONTROL.
+            </summary>
+            <remarks>STANDARD_RIGHTS_EXECUTE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.StandardRightsRequired">
+            <summary>
+            Combines DELETE, READ_CONTROL, WRITE_DAC, and WRITE_OWNER access.
+            </summary>
+            <remarks>STANDARD_RIGHTS_REQUIRED</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.StandardRightsAll">
+            <summary>
+            Combines DELETE, READ_CONTROL, WRITE_DAC, WRITE_OWNER, and SYNCHRONIZE access.
+            </summary>
+            <remarks>STANDARD_RIGHTS_ALL</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.GenericExecute">
+            <summary>
+            Execute access.
+            </summary>
+            <remarks>GENERIC_EXECUTE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.GenericWrite">
+            <summary>
+            Write access.
+            </summary>
+            <remarks>GENERIC_WRITE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.GenericRead">
+            <summary>
+            Read access.
+            </summary>
+            <remarks>GENERIC_READ</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.GenericAll">
+            <summary>
+            All possible access rights.
+            </summary>
+            <remarks>GENERIC_ALL</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.FileReadData">
+            <summary>
+            For a file object, the right to read the corresponding file data. For
+            a directory object, the right to read the corresponding directory data.
+            </summary>
+            <remarks>FILE_READ_DATA</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.FileListDirectory">
+            <summary>
+            For a directory, the right to list the contents of the directory.
+            </summary>
+            <remarks>FILE_LIST_DIRECTORY</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.FileWriteData">
+            <summary>
+            For a file object, the right to write data to the file. For a directory
+            object, the right to create a file in the directory (FILE_ADD_FILE).
+            </summary>
+            <remarks>FILE_WRITE_DATA</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.FileAddFile">
+            <summary>
+            For a directory, the right to create a file in the directory.
+            </summary>
+            <remarks>FILE_ADD_FILE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.FileAppendData">
+            <summary>
+            For a file object, the right to append data to the file. (For local
+            files, write operations will not overwrite existing data if this flag
+            is specified without FILE_WRITE_DATA.) For a directory object, the
+            right to create a subdirectory (FILE_ADD_SUBDIRECTORY).
+            </summary>
+            <remarks>FILE_APPEND_DATA</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.FileAddSubdirectory">
+            <summary>
+            For a directory, the right to create a subdirectory.
+            </summary>
+            <remarks>FILE_ADD_SUBDIRECTORY</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.FileCreatePipeInstance">
+            <summary>
+            For a named pipe, the right to create a pipe.
+            </summary>
+            <remarks>FILE_CREATE_PIPE_INSTANCE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.FileReadExtendedAttributes">
+            <summary>
+            The right to read extended file attributes.
+            </summary>
+            <remarks>FILE_READ_EA</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.FileWriteExtendedAttributes">
+            <summary>
+            The right to write extended file attributes.
+            </summary>
+            <remarks>FILE_WRITE_EA</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.FileExecute">
+            <summary>
+            For a native code file, the right to execute the file. This access
+            right given to scripts may cause the script to be executable,
+            depending on the script interpreter.
+            </summary>
+            <remarks>FILE_EXECUTE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.FileTraverse">
+            <summary>
+            For a directory, the right to traverse the directory. By default, users
+            are assigned the BYPASS_TRAVERSE_CHECKING privilege, which ignores the
+            FILE_TRAVERSE access right. See the remarks in File Security and Access
+            Rights for more information.
+            </summary>
+            <remarks>FILE_TRAVERSE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.FileDeleteChild">
+            <summary>
+            For a directory, the right to delete a directory and all the files it
+            contains, including read-only files.
+            </summary>
+            <remarks>FILE_DELETE_CHILD</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.FileReadAttributes">
+            <summary>
+            The right to read file attributes.
+            </summary>
+            <remarks>FILE_READ_ATTRIBUTES</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.FileWriteAttributes">
+            <summary>
+            The right to write file attributes.
+            </summary>
+            <remarks>FILE_WRITE_ATTRIBUTES</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ThreadTerminate">
+            <summary>
+            Required to terminate a thread using TerminateThread.
+            </summary>
+            <remarks>THREAD_TERMINATE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ThreadSuspendResume">
+            <summary>
+            Required to suspend or resume a thread (see SuspendThread and ResumeThread).
+            </summary>
+            <remarks>THREAD_SUSPEND_RESUME</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ThreadGetContext">
+            <summary>
+            Required to read the context of a thread using GetThreadContext.
+            </summary>
+            <remarks>THREAD_GET_CONTEXT</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ThreadSetContext">
+            <summary>
+            Required to write the context of a thread using SetThreadContext.
+            </summary>
+            <remarks>THREAD_SET_CONTEXT</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ThreadSetInformation">
+            <summary>
+            Required to set certain information in the thread object.
+            </summary>
+            <remarks>THREAD_SET_INFORMATION</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ThreadQueryInformation">
+            <summary>
+            Required to read certain information from the thread object, such as the exit code (see GetExitCodeThread).
+            </summary>
+            <remarks>THREAD_QUERY_INFORMATION</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ThreadSetThreadToken">
+            <summary>
+            Required to set the impersonation token for a thread using SetThreadToken.
+            </summary>
+            <remarks>THREAD_SET_THREAD_TOKEN</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ThreadImpersonate">
+            <summary>
+            Required to use a thread's security information directly without calling it by using a communication mechanism that provides impersonation services.
+            </summary>
+            <remarks>THREAD_IMPERSONATE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ThreadDirectImpersonation">
+            <summary>
+            Required for a server thread that impersonates a client.
+            </summary>
+            <remarks>THREAD_DIRECT_IMPERSONATION</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ThreadAllAccess">
+            <summary>
+            All possible access rights for a thread object.
+            </summary>
+            <remarks>THREAD_ALL_ACCESS</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ProcessTerminate">
+            <summary>
+            Required to terminate a process using TerminateProcess.
+            </summary>
+            <remarks>PROCESS_TERMINATE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ProcessCreateThread">
+            <summary>
+            Required to create a thread.
+            </summary>
+            <remarks>PROCESS_CREATE_THREAD</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ProcessVmOperation">
+            <summary>
+            Required to perform an operation on the address space of a process (see VirtualProtectEx and WriteProcessMemory).
+            </summary>
+            <remarks>PROCESS_VM_OPERATION</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ProcessVmRead">
+            <summary>
+            Required to read memory in a process using ReadProcessMemory.
+            </summary>
+            <remarks>PROCESS_VM_READ</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ProcessVmWrite">
+            <summary>
+            Required to write to memory in a process using WriteProcessMemory.
+            </summary>
+            <remarks>PROCESS_VM_WRITE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ProcessDupHandle">
+            <summary>
+            Required to duplicate a handle using DuplicateHandle.
+            </summary>
+            <remarks>PROCESS_DUP_HANDLE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ProcessCreateProcess">
+            <summary>
+            Required to create a process.
+            </summary>
+            <remarks>PROCESS_CREATE_PROCESS</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ProcessSetQuota">
+            <summary>
+            Required to set memory limits using SetProcessWorkingSetSize.
+            </summary>
+            <remarks>PROCESS_SET_QUOTA</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ProcessSetInformation">
+            <summary>
+            Required to set certain information about a process, such as its priority class (see SetPriorityClass).
+            </summary>
+            <remarks>PROCESS_SET_INFORMATION</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ProcessQueryInformation">
+            <summary>
+            Required to retrieve certain information about a process, such as its token, exit code, and priority class (see OpenProcessToken).
+            </summary>
+            <remarks>PROCESS_QUERY_INFORMATION</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.ProcessAllAccess">
+            <summary>
+            All possible access rights for a process object.
+            </summary>
+            <remarks>PROCESS_ALL_ACCESS</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.TokenAssignPrimary">
+            <summary>
+            Required to attach a primary token to a process. The SE_ASSIGNPRIMARYTOKEN_NAME privilege is also required to accomplish this task.
+            </summary>
+            <remarks>TOKEN_ASSIGN_PRIMARY</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.TokenDuplicate">
+            <summary>
+            Required to duplicate an access token.
+            </summary>
+            <remarks>TOKEN_DUPLICATE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.TokenImpersonate">
+            <summary>
+            Required to attach an impersonation access token to a process.
+            </summary>
+            <remarks>TOKEN_IMPERSONATE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.TokenQuery">
+            <summary>
+            Required to query an access token.
+            </summary>
+            <remarks>TOKEN_QUERY</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.TokenQuerySource">
+            <summary>
+            Required to query the source of an access token.
+            </summary>
+            <remarks>TOKEN_QUERY_SOURCE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.TokenAdjustPrivileges">
+            <summary>
+            Required to enable or disable the privileges in an access token.
+            </summary>
+            <remarks>TOKEN_ADJUST_PRIVILEGES</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.TokenAdjustGroups">
+            <summary>
+            Required to adjust the attributes of the groups in an access token.
+            </summary>
+            <remarks>TOKEN_ADJUST_GROUPS</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.TokenAdjustDefault">
+            <summary>
+            Required to change the default owner, primary group, or DACL of an access token.
+            </summary>
+            <remarks>TOKEN_ADJUST_DEFAULT</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.TokenAdjustSessionid">
+            <summary>
+            Required to adjust the session ID of an access token. The SE_TCB_NAME privilege is required.
+            </summary>
+            <remarks>TOKEN_ADJUST_SESSIONID</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.TokenRead">
+            <summary>
+            Combines STANDARD_RIGHTS_READ and TOKEN_QUERY.
+            </summary>
+            <remarks>TOKEN_READ</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.TokenWrite">
+            <summary>
+            Combines STANDARD_RIGHTS_WRITE, TOKEN_ADJUST_PRIVILEGES, TOKEN_ADJUST_GROUPS, and TOKEN_ADJUST_DEFAULT.
+            </summary>
+            <remarks>TOKEN_WRITE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.TokenExecute">
+            <summary>
+            Combines STANDARD_RIGHTS_EXECUTE and TOKEN_IMPERSONATE.
+            </summary>
+            <remarks>TOKEN_EXECUTE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.AccessRights.TokenAllAccess">
+            <summary>
+            Combines all possible access rights for a token.
+            </summary>
+            <remarks>TOKEN_ALL_ACCESS</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileShareMode.None">
+            <summary>
+            Prevents other processes from opening a file or device if they request
+            delete, read, or write access.
+            </summary>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileShareMode.FileShareRead">
+            <summary>
+            Enables subsequent open operations on a file or device to request read
+            access. Otherwise, other processes cannot open the file or device if
+            they request read access. If this flag is not specified, but the file
+            or device has been opened for read access, the function fails.
+            </summary>
+            <remarks>FILE_SHARE_READ</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileShareMode.FileShareWrite">
+            <summary>
+            Enables subsequent open operations on a file or device to request write
+            access. Otherwise, other processes cannot open the file or device if
+            they request write access. If this flag is not specified, but the file
+            or device has been opened for write access or has a file mapping with
+            write access, the function fails.
+            </summary>
+            <remarks>FILE_SHARE_WRITE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileShareMode.FileShareDelete">
+            <summary>
+            Enables subsequent open operations on a file or device to request delete
+            access. Otherwise, other processes cannot open the file or device if
+            they request delete access. If this flag is not specified, but the file
+            or device has been opened for delete access, the function fails. Note
+            Delete access allows both delete and rename operations.
+            </summary>
+            <remarks>FILE_SHARE_DELETE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileCreationDisposition.CreateNew">
+            <summary>
+            Creates a new file, only if it does not already exist. If the specified
+            file exists, the function fails and the last-error code is set to
+            ERROR_FILE_EXISTS (80). If the specified file does not exist and is a
+            valid path to a writable location, a new file is created.
+            </summary>
+            <remarks>CREATE_NEW</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileCreationDisposition.CreateAlways">
+            <summary>
+            Creates a new file, always. If the specified file exists and is writable,
+            the function overwrites the file, the function succeeds, and last-error
+            code is set to ERROR_ALREADY_EXISTS (183). If the specified file does
+            not exist and is a valid path, a new file is created, the function
+            succeeds, and the last-error code is set to zero. For more information,
+            see the Remarks section of this topic.
+            </summary>
+            <remarks>CREATE_ALWAYS</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileCreationDisposition.OpenExisting">
+            <summary>
+            Opens a file or device, only if it exists. If the specified file or
+            device does not exist, the function fails and the last-error code is
+            set to ERROR_FILE_NOT_FOUND (2). For more information about devices,
+            see the Remarks section.
+            </summary>
+            <remarks>OPEN_EXISTING</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileCreationDisposition.OpenAlways">
+            <summary>
+            Opens a file, always. If the specified file exists, the function
+            succeeds and the last-error code is set to ERROR_ALREADY_EXISTS (183).
+            If the specified file does not exist and is a valid path to a writable
+            location, the function creates a file and the last-error code is set to
+            zero.
+            </summary>
+            <remarks>OPEN_ALWAYS</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileCreationDisposition.TruncateExisting">
+            <summary>
+            Opens a file and truncates it so that its size is zero bytes, only if
+            it exists. If the specified file does not exist, the function fails and
+            the last-error code is set to ERROR_FILE_NOT_FOUND (2). The calling
+            process must open the file with the GENERIC_WRITE bit set as part of
+            the dwDesiredAccess parameter.
+            </summary>
+            <remarks>TRUNCATE_EXISTING</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileAttributeReadonly">
+            <summary>
+            A file that is read-only. Applications can read the file, but cannot
+            write to it or delete it. This attribute is not honored on directories.
+            For more information, see You cannot view or change the Read-only or
+            the System attributes of folders in Windows Server 2003, in Windows XP,
+            in Windows Vista or in Windows 7.
+            </summary>
+            <remarks>FILE_ATTRIBUTE_READONLY</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileAttributeHidden">
+            <summary>
+            The file or directory is hidden. It is not included in an ordinary
+            directory listing.
+            </summary>
+            <remarks>FILE_ATTRIBUTE_HIDDEN</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileAttributeSystem">
+            <summary>
+            A file or directory that the operating system uses a part of, or uses
+            exclusively.
+            </summary>
+            <remarks>FILE_ATTRIBUTE_SYSTEM</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileAttributeDirectory">
+            <summary>
+            The handle that identifies a directory.
+            </summary>
+            <remarks>FILE_ATTRIBUTE_DIRECTORY</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileAttributeArchive">
+            <summary>
+            A file or directory that is an archive file or directory. Applications
+            typically use this attribute to mark files for backup or removal.
+            </summary>
+            <remarks>FILE_ATTRIBUTE_ARCHIVE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileAttributeDevice">
+            <summary>
+            This value is reserved for system use.
+            </summary>
+            <remarks>FILE_ATTRIBUTE_DEVICE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileAttributeNormal">
+            <summary>
+            A file that does not have other attributes set. This attribute is valid
+            only when used alone.
+            </summary>
+            <remarks>FILE_ATTRIBUTE_NORMAL</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileAttributeTemporary">
+            <summary>
+            A file that is being used for temporary storage. File systems avoid
+            writing data back to mass storage if sufficient cache memory is
+            available, because typically, an application deletes a temporary file
+            after the handle is closed. In that scenario, the system can entirely
+            avoid writing the data. Otherwise, the data is written after the handle
+            is closed.
+            </summary>
+            <remarks>FILE_ATTRIBUTE_TEMPORARY</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileAttributeSparseFile">
+            <summary>
+            A file that is a sparse file.
+            </summary>
+            <remarks>FILE_ATTRIBUTE_SPARSE_FILE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileAttributeReparsePoint">
+            <summary>
+            A file or directory that has an associated reparse point, or a file
+            that is a symbolic link.
+            </summary>
+            <remarks>FILE_ATTRIBUTE_REPARSE_POINT</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileAttributeCompressed">
+            <summary>
+            A file or directory that is compressed. For a file, all of the data in
+            the file is compressed. For a directory, compression is the default for
+            newly created files and subdirectories.
+            </summary>
+            <remarks>FILE_ATTRIBUTE_COMPRESSED</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileAttributeOffline">
+            <summary>
+            The data of a file is not immediately available. This attribute
+            indicates that file data is physically moved to offline storage.
+            This attribute is used by Remote Storage, the hierarchical storage
+            management software. Applications should not arbitrarily change this
+            attribute.
+            </summary>
+            <remarks>FILE_ATTRIBUTE_OFFLINE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileAttributeNotContentIndexed">
+            <summary>
+            The file or directory is not to be indexed by the content indexing
+            service.
+            </summary>
+            <remarks>FILE_ATTRIBUTE_NOT_CONTENT_INDEXED</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileAttributeEncrypted">
+            <summary>
+            A file or directory that is encrypted. For a file, all data streams in
+            the file are encrypted. For a directory, encryption is the default for
+            newly created files and subdirectories.
+            </summary>
+            <remarks>FILE_ATTRIBUTE_ENCRYPTED</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileAttributeIntegrityStream">
+            <summary>
+            The directory or user data stream is configured with integrity (only
+            supported on ReFS volumes). It is not included in an ordinary directory
+            listing. The integrity setting persists with the file if it's renamed.
+            If a file is copied the destination file will have integrity set if
+            either the source file or destination directory have integrity set.
+            Windows Server 2008 R2, Windows 7, Windows Server 2008, Windows Vista,
+            Windows Server 2003, and Windows XP: This flag is not supported until
+            Windows Server 2012.
+            </summary>
+            <remarks>FILE_ATTRIBUTE_INTEGRITY_STREAM</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileAttributeVirtual">
+            <summary>
+            This value is reserved for system use.
+            </summary>
+            <remarks>FILE_ATTRIBUTE_VIRTUAL</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileAttributeNoScrubData">
+            <summary>
+            The user data stream not to be read by the background data integrity
+            scanner (AKA scrubber). When set on a directory it only provides
+            inheritance. This flag is only supported on Storage Spaces and ReFS
+            volumes. It is not included in an ordinary directory listing. Windows
+            Server 2008 R2, Windows 7, Windows Server 2008, Windows Vista, Windows
+            Server 2003, and Windows XP: This flag is not supported until Windows
+            8 and Windows Server 2012.
+            </summary>
+            <remarks>FILE_ATTRIBUTE_NO_SCRUB_DATA</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileFlagFirstPipeInstance">
+            <summary>
+            If you attempt to create multiple instances of a pipe with this flag,
+            creation of the first instance succeeds, but creation of the next
+            instance fails with ERROR_ACCESS_DENIED. Windows 2000: This flag is
+            not supported until Windows 2000 SP2 and Windows XP.
+            </summary>
+            <remarks>FILE_FLAG_FIRST_PIPE_INSTANCE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileFlagOpenNoRecall">
+            <summary>
+            The file data is requested, but it should continue to be located in
+            remote storage. It should not be transported back to local storage.
+            This flag is for use by remote storage systems.
+            </summary>
+            <remarks>FILE_FLAG_OPEN_NO_RECALL</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileFlagPosixSemantics">
+            <summary>
+            Access will occur according to POSIX rules. This includes allowing
+            multiple files with names, differing only in case, for file systems
+            that support that naming. Use care when using this option, because
+            files created with this flag may not be accessible by applications
+            that are written for MS-DOS or 16-bit Windows.
+            </summary>
+            <remarks>FILE_FLAG_POSIX_SEMANTICS</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileFlagOpenReparsePoint">
+            <summary>
+            Normal reparse point processing will not occur; CreateFile will attempt
+            to open the reparse point. When a file is opened, a file handle is
+            returned, whether or not the filter that controls the reparse point is
+            operational. This flag cannot be used with the CREATE_ALWAYS flag. If
+            the file is not a reparse point, then this flag is ignored. For more
+            information, see the Remarks section.
+            </summary>
+            <remarks>FILE_FLAG_OPEN_REPARSE_POINT</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileFlagSessionAware">
+            <summary>
+            The file or device is being opened with session awareness. If this flag
+            is not specified, then per-session devices (such as a redirected USB
+            device) cannot be opened by processes running in session 0. This flag
+            has no effect for callers not in session 0. This flag is supported only
+            on server editions of Windows. Windows Server 2008 R2, Windows Server
+            2008, and Windows Server 2003: This flag is not supported before Windows
+            Server 2012.
+            </summary>
+            <remarks>FILE_FLAG_SESSION_AWARE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileFlagBackupSemantics">
+            <summary>
+            The file is being opened or created for a backup or restore operation.
+            The system ensures that the calling process overrides file security
+            checks when the process has SE_BACKUP_NAME and SE_RESTORE_NAME
+            privileges. For more information, see Changing Privileges in a Token.
+            You must set this flag to obtain a handle to a directory. A directory
+            handle can be passed to some functions instead of a file handle. For
+            more information, see the Remarks section.
+            </summary>
+            <remarks>FILE_FLAG_BACKUP_SEMANTICS</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileFlagDeleteOnClose">
+            <summary>
+            The file is to be deleted immediately after all of its handles are
+            closed, which includes the specified handle and any other open or
+            duplicated handles. If there are existing open handles to a file, the
+            call fails unless they were all opened with the FILE_SHARE_DELETE share
+            mode. Subsequent open requests for the file fail, unless the
+            FILE_SHARE_DELETE share mode is specified.
+            </summary>
+            <remarks>FILE_FLAG_DELETE_ON_CLOSE</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileFlagSequentialScan">
+            <summary>
+            Access is intended to be sequential from beginning to end. The system
+            can use this as a hint to optimize file caching. This flag should not
+            be used if read-behind (that is, reverse scans) will be used. This flag
+            has no effect if the file system does not support cached I/O and
+            FILE_FLAG_NO_BUFFERING. For more information, see the Caching Behavior
+            section of this topic.
+            </summary>
+            <remarks>FILE_FLAG_SEQUENTIAL_SCAN</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileFlagRandomAccess">
+            <summary>
+            Access is intended to be random. The system can use this as a hint to
+            optimize file caching. This flag has no effect if the file system does
+            not support cached I/O and FILE_FLAG_NO_BUFFERING. For more information,
+            see the Caching Behavior section of this topic.
+            </summary>
+            <remarks>FILE_FLAG_RANDOM_ACCESS</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileFlagNoBuffering">
+            <summary>
+            The file or device is being opened with no system caching for data
+            reads and writes. This flag does not affect hard disk caching or memory
+            mapped files. There are strict requirements for successfully working
+            with files opened with CreateFile using the FILE_FLAG_NO_BUFFERING
+            flag, for details see File Buffering.
+            </summary>
+            <remarks>FILE_FLAG_NO_BUFFERING</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileFlagOverlapped">
+            <summary>
+            The file or device is being opened or created for asynchronous I/O.
+            When subsequent I/O operations are completed on this handle, the event
+            specified in the OVERLAPPED structure will be set to the signaled state.
+            If this flag is specified, the file can be used for simultaneous read
+            and write operations. If this flag is not specified, then I/O operations
+            are serialized, even if the calls to the read and write functions
+            specify an OVERLAPPED structure. For information about considerations
+            when using a file handle created with this flag, see the Synchronous
+            and Asynchronous I/O Handles section of this topic.
+            </summary>
+            <remarks>FILE_FLAG_OVERLAPPED</remarks>
+        </member>
+        <member name="F:NCode.ReparsePoints.Win32.FileAttributeFlags.FileFlagWriteThrough">
+            <summary>
+            Write operations will not go through any intermediate cache, they will
+            go directly to disk. For additional information, see the Caching
+            Behavior section of this topic.
+            </summary>
+            <remarks>FILE_FLAG_WRITE_THROUGH</remarks>
+        </member>
+        <member name="T:NCode.ReparsePoints.ReparseLink">
+            <summary>
+            Contains the information about a reparse point.
+            </summary>
+        </member>
+        <member name="P:NCode.ReparsePoints.ReparseLink.Attributes">
+            <summary>
+            Contains the <see cref="T:System.IO.FileAttributes"/> of a reparse point.
+            </summary>
+        </member>
+        <member name="P:NCode.ReparsePoints.ReparseLink.Type">
+            <summary>
+            Contains the <see cref="T:NCode.ReparsePoints.LinkType"/> of a reparse point.
+            </summary>
+        </member>
+        <member name="P:NCode.ReparsePoints.ReparseLink.Target">
+            <summary>
+            Contains the target of a reparse point.
+            </summary>
+            <remarks>
+            The target for a hard link cannot be determined so this member will
+            always be <c>null</c> for hard links.
+            </remarks>
+        </member>
+        <member name="M:NCode.ReparsePoints.ReparsePointProvider.GetLinkType(System.String)">
+            <summary>
+            Given a path, determines the type of reparse point.
+            </summary>
+            <param name="path">The path to inspect.</param>
+            <returns>A <see cref="T:NCode.ReparsePoints.LinkType"/> enumeration.</returns>
+        </member>
+        <member name="M:NCode.ReparsePoints.ReparsePointProvider.GetLink(System.String)">
+            <summary>
+            Given a path, returns the information about a reparse point.
+            </summary>
+            <param name="path">The path to inspect.</param>
+            <returns>A <see cref="T:NCode.ReparsePoints.ReparseLink"/> that contains the information
+            about a reparse point.</returns>
+        </member>
+        <member name="M:NCode.ReparsePoints.ReparsePointProvider.CreateJunction(System.String,System.String)">
+            <summary>
+            Helper method to create a junction.
+            </summary>
+            <param name="path">The path of the junction to create.</param>
+            <param name="target">The target for the junction.</param>
+        </member>
+    </members>
+</doc>
