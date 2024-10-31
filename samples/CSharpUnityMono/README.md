@@ -6,7 +6,7 @@ This project integrates Velopack into unity by way of a [nuget for Unity](https:
 2. Open the project in Unity (2022.3.51f1)
 3. Build the Unity project to \Build folder
 4. (With Visual Studio) Open BuildVisualStudioSolution\UnityMonoSample.sln and build solution
-4. (With msbuild) `msbuild .\BuildVisualStudioSolution.sln /p:Configuration=Master /p:Platform=x64`
+4. (With msbuild) `msbuild .\BuildVisualStudioSolution\BuildVisualStudioSolution.sln /p:Configuration=Master /p:Platform=x64`
 5. Copy BuildVisualStudioSolution\build\bin\x64\Master\UnityMonoSample.exe to \Build folder
 6. Use vpk cli tool to pack your project `vpk pack -u UnityMonoSample -v 0.0.1 -p .\Build -e UnityMonoSample.exe`
 
