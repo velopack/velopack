@@ -3,20 +3,14 @@ This project integrates Velopack into unity by way of a [nuget for Unity](https:
 
 ## How to use
 1. Clone this repository
-2. Open the project in Unity
-3. Build the project to \Build folder
-4. Open BuildVisualStudioSolution\UnityMonoSample.sln
-5. Build the solution
-6. copy BuildVisualStudioSolution\build\bin\x64\Master\UnityMonoSample.exe to \Build folder
-7. use vpk cli tool to pack your project `vpk pack -u UnityMonoSample -v 0.0.1 -p .\Build -e UnityMonoSample.exe`
+2. Open the project in Unity (2022.3.51f1)
+3. Build the Unity project to \Build folder
+4. (With Visual Studio) Open BuildVisualStudioSolution\UnityMonoSample.sln and build solution
+4. (With msbuild) `msbuild .\BuildVisualStudioSolution.sln /p:Configuration=Master /p:Platform=x64`
+5. Copy BuildVisualStudioSolution\build\bin\x64\Master\UnityMonoSample.exe to \Build folder
+6. Use vpk cli tool to pack your project `vpk pack -u UnityMonoSample -v 0.0.1 -p .\Build -e UnityMonoSample.exe`
 
 ## Requirements for your project
-install the nuget package `Velopack` in your project
-you can use tool like [NuGetForUnity](https://github.com/GlitchEnzo/NuGetForUnity)
-```
-openupm add com.github-glitchenzo.nugetforunity
-```
-
 Currently, Velopack is only support for Unity mono runtime, it does not support for IL2CPP, due to the following reasons:
 
 https://docs.unity3d.com/2022.3/Documentation/Manual/ScriptingRestrictions.html
@@ -30,8 +24,8 @@ If you still want to use Velopack in IL2CPP, you can use the following workaroun
 
 (remember that this is not recommended and may change in the future):
 
-1. clone the Velopack repository
-2. edit the VelopackRuntimeInfo.cs file like this:
+1. Clone the Velopack repository
+2. Edit the VelopackRuntimeInfo.cs file like this:
 ```csharp
 static VelopackRuntimeInfo()
 {
@@ -44,8 +38,8 @@ static VelopackRuntimeInfo()
     }
 }
 ```
-3. build the Velopack project
-4. replace the Velopack.dll in your project with the new Velopack.dll
+3. Build the Velopack project
+4. Replace the Velopack.dll in your project with the new Velopack.dll
 
 ## FAQ
 
