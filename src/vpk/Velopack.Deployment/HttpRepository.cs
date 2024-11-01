@@ -3,12 +3,14 @@ using Velopack.Sources;
 
 namespace Velopack.Deployment;
 
-public class HttpDownloadOptions : RepositoryOptions
+public class HttpDownloadOptions : RepositoryOptions, IObjectDownloadOptions
 {
     public string Url { get; set; }
+
+    public bool UpdateReleasesFile { get; set; }
 }
 
-public class HttpRepository : SourceRepository<HttpDownloadOptions, SimpleWebSource>
+public class HttpRepository : SourceRepository<HttpDownloadOptions, HttpDownloadOptions, SimpleWebSource>
 {
     public HttpRepository(ILogger logger)
         : base(logger)

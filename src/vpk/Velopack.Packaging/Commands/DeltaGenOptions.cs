@@ -9,4 +9,6 @@ public class DeltaGenOptions
     public string NewPackage { get; set; }
 
     public string OutputFile { get; set; }
+
+    public bool UpdateReleasesFile { get; set; }
 }

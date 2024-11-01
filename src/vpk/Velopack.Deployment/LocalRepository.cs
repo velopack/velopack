@@ -5,20 +5,24 @@ using Velopack.Util;
 
 namespace Velopack.Deployment;
 
-public class LocalDownloadOptions : RepositoryOptions, IObjectDownloadOptions
+public class LocalBaseOptions : RepositoryOptions
 {
     public DirectoryInfo TargetPath { get; set; }
 }
+public class LocalDownloadOptions : LocalBaseOptions, IObjectDownloadOptions
+{
+    public bool UpdateReleasesFile { get; set; }
+}
 
-public class LocalUploadOptions : LocalDownloadOptions, IObjectUploadOptions
+public class LocalUploadOptions : LocalBaseOptions, IObjectUploadOptions
 {
     public bool ForceRegenerate { get; set; }
     public int KeepMaxReleases { get; set; }
 }
 
-public class LocalRepository(ILogger logger) : ObjectRepository<LocalDownloadOptions, LocalUploadOptions, DirectoryInfo>(logger)
+public class LocalRepository(ILogger logger) : ObjectRepository<LocalDownloadOptions, LocalUploadOptions, DirectoryInfo, LocalBaseOptions>(logger)
 {
-    protected override DirectoryInfo CreateClient(LocalDownloadOptions options)
+    protected override DirectoryInfo CreateClient(LocalBaseOptions options)
     {
         return options.TargetPath;
     }
@@ -70,7 +74,7 @@ public class LocalRepository(ILogger logger) : ObjectRepository<LocalDownloadOpt
         return source.DownloadReleaseEntry(Log, entry, filePath, (i) => { }, default);
     }
 
-    protected override Task<VelopackAssetFeed> GetReleasesAsync(LocalDownloadOptions options)
+    protected override Task<VelopackAssetFeed> GetReleasesAsync(LocalBaseOptions options)
     {
         var source = new SimpleFileSource(options.TargetPath);
         return source.GetReleaseFeed(channel: options.Channel, logger: Log);

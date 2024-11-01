@@ -9,7 +9,7 @@ using Velopack.Util;
 
 namespace Velopack.Deployment;
 
-public class GitHubDownloadOptions : RepositoryOptions
+public class GitHubBaseOptions : RepositoryOptions
 {
     public bool Prerelease { get; set; }
 
@@ -18,7 +18,12 @@ public class GitHubDownloadOptions : RepositoryOptions
     public string Token { get; set; }
 }
 
-public class GitHubUploadOptions : GitHubDownloadOptions
+public class GitHubDownloadOptions : GitHubBaseOptions, IObjectDownloadOptions
+{
+    public bool UpdateReleasesFile { get; set; }
+}
+
+public class GitHubUploadOptions : GitHubBaseOptions
 {
     public bool Publish { get; set; }
 
@@ -31,9 +36,9 @@ public class GitHubUploadOptions : GitHubDownloadOptions
     public bool Merge { get; set; }
 }
 
-public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadOptions, GithubSource>(logger), IRepositoryCanUpload<GitHubUploadOptions>
+public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadOptions, GitHubBaseOptions, GithubSource>(logger), IRepositoryCanUpload<GitHubUploadOptions>
 {
-    public override GithubSource CreateSource(GitHubDownloadOptions options)
+    public override GithubSource CreateSource(GitHubBaseOptions options)
     {
         return new GithubSource(options.RepoUrl, options.Token, options.Prerelease);
     }

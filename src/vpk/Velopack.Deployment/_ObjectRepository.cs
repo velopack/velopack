@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.Extensions.Logging;
 using Velopack.Packaging;
 using Velopack.Util;
@@ -12,11 +12,13 @@ public interface IObjectUploadOptions
 
 public interface IObjectDownloadOptions
 {
+    public bool UpdateReleasesFile { get; set; }
 }
 
-public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDown>, IRepositoryCanUpload<TUp>
-    where TDown : RepositoryOptions, IObjectDownloadOptions
-    where TUp : IObjectUploadOptions, TDown
+public abstract class ObjectRepository<TDown, TUp, TClient, TOption> : DownRepository<TDown, TOption>, IRepositoryCanUpload<TUp>
+    where TDown : TOption, IObjectDownloadOptions
+    where TUp : TOption, IObjectUploadOptions
+    where TOption : RepositoryOptions
 {
     protected ObjectRepository(ILogger logger) : base(logger)
     {
@@ -25,7 +27,7 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
     protected abstract Task UploadObject(TClient client, string key, FileInfo f, bool overwriteRemote, bool noCache);
     protected abstract Task DeleteObject(TClient client, string key);
     protected abstract Task<byte[]> GetObjectBytes(TClient client, string key);
-    protected abstract TClient CreateClient(TDown options);
+    protected abstract TClient CreateClient(TOption options);
 
     protected byte[] GetFileMD5Checksum(string filePath)
     {
@@ -36,7 +38,7 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
         return checksum;
     }
 
-    protected override async Task<VelopackAssetFeed> GetReleasesAsync(TDown options)
+    protected override async Task<VelopackAssetFeed> GetReleasesAsync(TOption options)
     {
         var releasesName = CoreUtil.GetVeloReleaseIndexName(options.Channel);
         var client = CreateClient(options);
