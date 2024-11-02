@@ -74,14 +74,12 @@ jobs:
           path: ./repo
           fetch-depth: 0
           
-      - name: Tag the commit with version and push
+      - name: Checkout release commit
         working-directory: ./repo
         run: |
           echo $PKG_VERSION
           COMMIT_HASH=$(gh run view ${{ github.event.inputs.workflow_run_id }} --json headSha -q ".headSha")
           git checkout $COMMIT_HASH
-          git tag $PKG_VERSION
-          git push origin $PKG_VERSION
 
       - name: Generate Release
         working-directory: ./repo
@@ -197,6 +195,12 @@ jobs:
           gh release upload $currentTag (get-item ../lib-nodejs/*.tgz)
           gh release upload $currentTag (get-item ../lib-rust/*.crate)
           gh release upload $currentTag (get-item ../lib-c/*.zip)
+
+      - name: Tag release commit
+        working-directory: ./repo
+        run: |
+          git tag $PKG_VERSION
+          git push origin $PKG_VERSION
 
       - name: Publish NuGet Packages
         run: |
