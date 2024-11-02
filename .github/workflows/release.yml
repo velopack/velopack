@@ -126,37 +126,60 @@ jobs:
           $releaseName = $response.name
           $releaseBody = $response.body
 
-          # Create release
-          Write-Host "Creating release..."
-          $notesFilePath = "./RELEASE_NOTES.md"
-          $releaseBody | Out-File -FilePath $notesFilePath -Encoding utf8
-          gh release create $currentTag --title $releaseName --notes-file $notesFilePath $releaseArg --verify-tag
+          # Move dependencies to dedicated section
+          $lines = $releaseBody -split "`n"
+          $dependenciesLines = @()
+          $otherLines = @()
 
-          # Upload artifacts
-          Write-Host "Uploading artifacts..."
-          gh release upload $currentTag (get-item ../packages/*.nupkg)
-          gh release upload $currentTag (get-item ../lib-nodejs/*.tgz)
-          gh release upload $currentTag (get-item ../lib-rust/*.crate)
-          gh release upload $currentTag (get-item ../lib-c/*.zip)
+          foreach ($line in $lines) {
+              if ($line -match '@renovate') {
+                  $dependenciesLines += $line
+              } else {
+                  $otherLines += $line
+              }
+          }
 
-      - name: Publish NuGet Packages
-        run: |
-          for f in packages/*.nupkg; do
-            dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
-          done
+          $releaseBody = $otherLines -join "`n"
+          if ($dependenciesLines.Count -gt 0) {
+              $releaseBody += "`n## Dependencies:`n"
+              $releaseBody += $dependenciesLines -join "`n"
+          }
+
+          Write-Host "Release name: $releaseName"
+          Write-Host "Release body:"
+          Write-Host $releaseBody
+
+# # Create release
+# Write-Host "Creating release..."
+# $notesFilePath = "./RELEASE_NOTES.md"
+# $releaseBody | Out-File -FilePath $notesFilePath -Encoding utf8
+# gh release create $currentTag --title $releaseName --notes-file $notesFilePath $releaseArg --verify-tag
+
+# # Upload artifacts
+# Write-Host "Uploading artifacts..."
+# gh release upload $currentTag (get-item ../packages/*.nupkg)
+# gh release upload $currentTag (get-item ../lib-nodejs/*.tgz)
+# gh release upload $currentTag (get-item ../lib-rust/*.crate)
+# gh release upload $currentTag (get-item ../lib-c/*.zip)
+
+      # - name: Publish NuGet Packages
+      #   run: |
+      #     for f in packages/*.nupkg; do
+      #       dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
+      #     done
           
-      - name: Publish NPM Package
-        working-directory: ./lib-nodejs
-        run: |
-          npm set "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}"
-          npm publish velopack-$PKG_VERSION.tgz --access public
+      # - name: Publish NPM Package
+      #   working-directory: ./lib-nodejs
+      #   run: |
+      #     npm set "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}"
+      #     npm publish velopack-$PKG_VERSION.tgz --access public
           
-      - name: Publish Rust Crate
-        working-directory: ./lib-rust
-        run: |
-          tar -xzf velopack-$PKG_VERSION.crate
-          cd velopack-$PKG_VERSION
-          rm Cargo.toml.orig
-          rm .cargo_vcs_info.json
-          cargo login ${{ secrets.CARGO_TOKEN }}
-          cargo publish --allow-dirty --no-verify
+      # - name: Publish Rust Crate
+      #   working-directory: ./lib-rust
+      #   run: |
+      #     tar -xzf velopack-$PKG_VERSION.crate
+      #     cd velopack-$PKG_VERSION
+      #     rm Cargo.toml.orig
+      #     rm .cargo_vcs_info.json
+      #     cargo login ${{ secrets.CARGO_TOKEN }}
+      #     cargo publish --allow-dirty --no-verify
