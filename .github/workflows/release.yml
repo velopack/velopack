@@ -174,21 +174,21 @@ jobs:
           $releaseBody = $otherLines -join "`n"
           if ($dependenciesLines.Count -gt 0) {
               $releaseBody += "`## Dependency Updates`n"
-              $releaseBody += "`n`n<details>`n`n"
-              $releaseBody += "<summary>Expand to see all changed dependencies</summary>`n`n"
+              $releaseBody += "`n<details>`n"
+              $releaseBody += "`n<summary>Expand to see all changed dependencies</summary>`n`n"
               $releaseBody += $dependenciesLines -join "`n"
               $releaseBody += "`n`n</details>`n"
           }
-          $releaseBody += "`n`n" + $changelog + "`n"
+          $releaseBody += "`n" + $changelog
 
           Write-Host "Release name: $releaseName"
           Write-Host "Release body:"
           Write-Host $releaseBody
 
-# # Create release
-# Write-Host "Creating release..."
-# $notesFilePath = "./RELEASE_NOTES.md"
-# $releaseBody | Out-File -FilePath $notesFilePath -Encoding utf8
+          # Create release
+          Write-Host "Creating release..."
+          $notesFilePath = "./RELEASE_NOTES.md"
+          $releaseBody | Out-File -FilePath $notesFilePath -Encoding utf8
 # gh release create $currentTag --title $releaseName --notes-file $notesFilePath $releaseArg --verify-tag
 
 # # Upload artifacts
@@ -219,3 +219,9 @@ jobs:
       #     rm .cargo_vcs_info.json
       #     cargo login ${{ secrets.CARGO_TOKEN }}
       #     cargo publish --allow-dirty --no-verify
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: ./repo/RELEASE_NOTES.md
