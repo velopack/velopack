@@ -64,9 +64,10 @@ jobs:
           echo "PKG_VERSION=$version" >> $GITHUB_ENV
 
       - name: Create lib-c zip package
+        working-directory: ./lib-c-files
         run: |
-          mkdir lib-c
-          zip -r ./lib-c/velopack_libc_$PKG_VERSION.zip ./lib-c-files/*
+          mkdir -p ../lib-c
+          zip -r ../lib-c/velopack_libc_$PKG_VERSION.zip .
 
       - uses: actions/checkout@v4
         with:
