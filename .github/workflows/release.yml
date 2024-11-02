@@ -124,8 +124,10 @@ jobs:
           $latestOverall = ($tags | Sort-Object Version -Descending | Select-Object -First 1).FullTag
 
           if ($isCurrentPrerelease) {
+              $releaseArg = "--prerelease"
               $previousTag = $latestOverall
           } else {
+              $releaseArg = "--latest"
               $previousTag = $latestStable
           }
 
