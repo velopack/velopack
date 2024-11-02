@@ -1,8 +1,11 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.IO.Compression;
+using System.Runtime.Versioning;
+using Microsoft.Extensions.Logging;
 using Velopack.Compression;
 using Velopack.NuGet;
 using Velopack.Packaging.Abstractions;
 using Velopack.Packaging.Exceptions;
+using Velopack.Packaging.NuGet;
 using Velopack.Util;
 using Velopack.Windows;
 
@@ -15,15 +18,14 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
     {
     }
 
-    protected override Task CodeSign(Action<int> progress, string packDir)
+    protected override async Task CodeSign(Action<int> progress, string packDir)
     {
         var filesToSign = new DirectoryInfo(packDir).GetAllFilesRecursively()
             .Where(x => Options.SignSkipDll ? PathUtil.PathPartEndsWith(x.Name, ".exe") : PathUtil.FileIsLikelyPEImage(x.Name))
             .Select(x => x.FullName)
             .ToArray();
 
-        SignFilesImpl(Options, progress, filesToSign);
-        return Task.CompletedTask;
+        await SignFilesImpl(Options, progress, filesToSign);
     }
 
     protected override Task<string> PreprocessPackDir(Action<int> progress, string packDir)
@@ -144,7 +146,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             "net481",
         };
 
-        List<string> validated = new();
+        List<string> validated = [];
 
         foreach (var str in providedRuntimes) {
             if (valid.Contains(str)) {
@@ -171,7 +173,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         return String.Join(",", validated);
     }
 
-    protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe)
+    protected override async Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe)
     {
         var bundledZip = new ZipPackage(releasePkg);
         IoUtil.Retry(() => File.Copy(HelperFile.SetupPath, targetSetupExe, true));
@@ -189,10 +191,9 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         SetupBundle.CreatePackageBundle(targetSetupExe, releasePkg);
         progress(50);
         Log.Debug("Signing Setup bundle");
-        SignFilesImpl(Options, CoreUtil.CreateProgressDelegate(progress, 50, 100), targetSetupExe);
+        await SignFilesImpl(Options, CoreUtil.CreateProgressDelegate(progress, 50, 100), targetSetupExe);
         Log.Debug($"Setup bundle created '{Path.GetFileName(targetSetupExe)}'.");
         progress(100);
-        return Task.CompletedTask;
     }
 
     protected override async Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath)
@@ -242,12 +243,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
     }
 
-    private void SignFilesImpl(WindowsSigningOptions options, Action<int> progress, params string[] filePaths)
+    private async Task SignFilesImpl(WindowsSigningOptions options, Action<int> progress, params string[] filePaths)
     {
         var signParams = options.SignParameters;
         var signTemplate = options.SignTemplate;
         var signParallel = options.SignParallel;
-        var trustedSignMetadataPath = options.AzTrustedSign;
+        var trustedSignMetadataPath = options.AzureTrustedSignFile;
         var helper = new CodeSign(Log);
 
         if (string.IsNullOrEmpty(signParams) && string.IsNullOrEmpty(signTemplate) && string.IsNullOrEmpty(trustedSignMetadataPath)) {
@@ -262,21 +263,60 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         // signtool.exe does not work if we're not on windows.
         if (!VelopackRuntimeInfo.IsWindows) return;
 
-        if(!string.IsNullOrEmpty(trustedSignMetadataPath)) {
+        if (!string.IsNullOrEmpty(trustedSignMetadataPath)) {
             Log.Info($"Use Azure Trusted Signing service for code signing. Metadata file path: {trustedSignMetadataPath}");
-            signParams = $"/fd SHA256 /tr \"http://timestamp.acs.microsoft.com\" /v /debug /td SHA256 /dlib \"{HelperFile.AzTrustedSigningDlibPath}\" /dmdf \"{trustedSignMetadataPath}\"";
+
+            string dlibPath = await GetDlibPath(CancellationToken.None);
+            signParams = $"/fd SHA256 /tr \"http://timestamp.acs.microsoft.com\" /v /debug /td SHA256 /dlib \"{dlibPath}\" /dmdf \"{trustedSignMetadataPath}\"";
             helper.Sign(filePaths, signParams, signParallel, progress, false);
-        }
-        else if (!string.IsNullOrEmpty(signParams)) {
+        } else if (!string.IsNullOrEmpty(signParams)) {
             helper.Sign(filePaths, signParams, signParallel, progress, false);
         }
     }
 
+    [SupportedOSPlatform("windows")]
+    private async Task<string> GetDlibPath(CancellationToken cancellationToken)
+    {
+        // DLib library is required for Azure Trusted Signing. It must be in the same directory as SignTool.exe.
+        // https://learn.microsoft.com/azure/trusted-signing/how-to-signing-integrations#download-and-install-the-trusted-signing-dlib-package
+        var signToolPath = HelperFile.SignToolPath;
+        var signToolDirectory = Path.GetDirectoryName(signToolPath);
+        var dlibPath = Path.Combine(signToolDirectory, HelperFile.AzureDlibFileName);
+        if (File.Exists(dlibPath)) {
+            return dlibPath;
+        }
+        Log.Info($"Downloading Azure Trusted Signing dlib to '{dlibPath}'");
+        var dl = new NuGetDownloader();
+
+        using MemoryStream nupkgStream = new();
+        await dl.DownloadPackageToStream("Microsoft.Trusted.Signing.Client", "1.*", nupkgStream, cancellationToken);
+
+        nupkgStream.Position = 0;
+
+        string parentDir = NugetUtil.BinDirectory + Path.AltDirectorySeparatorChar;
+        if (Environment.Is64BitOperatingSystem) {
+            parentDir += "x64";
+        } else {
+            parentDir += "x86";
+        }
+        parentDir += Path.AltDirectorySeparatorChar;
+
+
+        ZipArchive zipPackage = new(nupkgStream);
+        var entries = zipPackage.Entries.Where(x => x.FullName.StartsWith(parentDir, StringComparison.OrdinalIgnoreCase));
+        foreach (var entry in entries) {
+            var relativePath = entry.FullName.Substring(parentDir.Length);
+            entry.ExtractToFile(Path.Combine(signToolDirectory, relativePath), true);
+        }
+
+        return dlibPath;
+    }
+
     protected override string[] GetMainExeSearchPaths(string packDirectory, string mainExeName)
     {
-        return new[] {
+        return [
             Path.Combine(packDirectory, mainExeName),
             Path.Combine(packDirectory, mainExeName) + ".exe",
-        };
+        ];
     }
 }
