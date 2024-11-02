@@ -139,6 +139,11 @@ jobs:
           Write-Host "Current tag: $currentTag"
           Write-Host "Previous tag: $previousTag"
 
+          # Push the tag to the repository
+          Write-Host "Tagging release commit..."
+          git tag $currentTag
+          git push origin $currentTag
+
           # Generate release notes
           Write-Host "Generating release notes..."
           $headers = @{
@@ -197,12 +202,6 @@ jobs:
           gh release upload $currentTag (get-item ../lib-nodejs/*.tgz)
           gh release upload $currentTag (get-item ../lib-rust/*.crate)
           gh release upload $currentTag (get-item ../lib-c/*.zip)
-
-      - name: Tag release commit
-        working-directory: ./repo
-        run: |
-          git tag $PKG_VERSION
-          git push origin $PKG_VERSION
 
       - name: Publish NuGet Packages
         run: |
