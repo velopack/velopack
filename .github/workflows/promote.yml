@@ -3,6 +3,9 @@ name: Promote Release (stable)
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -15,8 +18,4 @@ jobs:
         run: |
           git checkout master
           git merge develop --ff-only
-      - name: Push
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.MASTER_TOKEN }}
-          branch: master
+          git push
