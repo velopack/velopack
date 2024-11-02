@@ -295,6 +295,7 @@ impl UpdateManager {
     /// - If there is no delta update available, or there is an error preparing delta
     ///   packages, this method will fall back to downloading the full version of the update.
     pub fn download_updates(&self, update: &UpdateInfo, progress: Option<Sender<i16>>) -> Result<(), Error> {
+        let _mutex = &self.locator.try_get_exclusive_lock()?;
         let name = &update.TargetFullRelease.FileName;
         let packages_dir = &self.locator.get_packages_dir();
 

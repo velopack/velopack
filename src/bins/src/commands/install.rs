@@ -21,6 +21,7 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     info!("Reading package manifest...");
     let app = pkg.read_manifest()?;
 
+
     info!("Package manifest loaded successfully.");
     info!("    Package ID: {}", &app.id);
     info!("    Package Version: {}", &app.version);
@@ -29,8 +30,6 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     info!("    Package Description: {}", &app.description);
     info!("    Package Machine Architecture: {}", &app.machine_architecture);
     info!("    Package Runtime Dependencies: {}", &app.runtime_dependencies);
-
-    let _mutex = shared::retry_io(|| windows::create_global_mutex(&app.id))?;
 
     if !windows::prerequisite::prompt_and_install_all_missing(&app, None)? {
         info!("Cancelling setup. Pre-requisites not installed.");
@@ -114,6 +113,11 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
 
     info!("Preparing and cleaning installation directory...");
     remove_dir_all::ensure_empty_dir(&root_path)?;
+    
+    info!("Acquiring lock...");
+    let paths = create_config_from_root_dir(&root_path);
+    let locator = VelopackLocator::new(paths, app);
+    let _mutex = locator.try_get_exclusive_lock()?;
 
     let tx = if dialogs::get_silent() {
         info!("Will not show splash because silent mode is on.");
@@ -122,10 +126,10 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     } else {
         info!("Reading splash image...");
         let splash_bytes = pkg.get_splash_bytes();
-        windows::splash::show_splash_dialog(app.title.to_owned(), splash_bytes)
+        windows::splash::show_splash_dialog(locator.get_manifest_title(), splash_bytes)
     };
 
-    let install_result = install_impl(pkg, &root_path, &tx, start_args);
+    let install_result = install_impl(pkg, &locator, &tx, start_args);
     let _ = tx.send(windows::splash::MSG_CLOSE);
 
     if install_result.is_ok() {
@@ -148,12 +152,8 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     Ok(())
 }
 
-fn install_impl(pkg: &mut BundleZip, root_path: &PathBuf, tx: &std::sync::mpsc::Sender<i16>, start_args: Option<Vec<&str>>) -> Result<()> {
+fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &std::sync::mpsc::Sender<i16>, start_args: Option<Vec<&str>>) -> Result<()> {
     info!("Starting installation!");
-
-    let app_manifest = pkg.read_manifest()?;
-    let paths = create_config_from_root_dir(root_path);
-    let locator = VelopackLocator::new(paths, app_manifest);
 
     // all application paths
     let updater_path = locator.get_update_path();

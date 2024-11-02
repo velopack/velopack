@@ -146,34 +146,31 @@ fn try_legacy_migration(root_dir: &PathBuf, manifest: &Manifest) -> Result<Velop
     // if started by legacy Squirrel, the working dir of Update.exe may be inside the app-* folder,
     // meaning we can not clean up properly.
     std::env::set_current_dir(&root_dir)?;
-
-    let _mutex = shared::retry_io(|| crate::windows::create_global_mutex(&manifest.id))?;
     let path_config = locator::create_config_from_root_dir(root_dir);
-    
     let package = locator::find_latest_full_package(&path_config.PackagesDir).ok_or_else(|| anyhow!("Unable to find latest full package."))?;
     
     warn!("This application is installed in a folder prefixed with 'app-'. Attempting to migrate...");
     let _ = shared::force_stop_package(&root_dir);
 
-    let current_dir = &path_config.CurrentBinaryDir;
-    if !Path::new(&current_dir).exists() {
+    // reset current manifest shortcuts, so when the new manifest is being read
+    // new shortcuts will be force-created
+    let mut modified_manifest = manifest.clone();
+    modified_manifest.shortcut_locations = String::new();
+    let locator = VelopackLocator::new(path_config, modified_manifest);
+    let _mutex = locator.try_get_exclusive_lock()?;
+
+    if !locator.get_current_bin_dir().exists() {
         info!("Renaming latest app-* folder to current.");
         if let Some((latest_app_dir, _latest_ver)) = shared::get_latest_app_version_folder(&root_dir)? {
-            fs::rename(latest_app_dir, &current_dir)?;
+            fs::rename(latest_app_dir, locator.get_current_bin_dir())?;
         }
     }
 
     info!("Removing old shortcuts...");
     win::remove_all_shortcuts_for_root_dir(&root_dir);
 
-    // reset current manifest shortcuts, so when the new manifest is being read
-    // new shortcuts will be force-created
-    let mut modified_manifest = manifest.clone();
-    modified_manifest.shortcut_locations = String::new();
-
     info!("Applying latest full package...");
     let buf = Path::new(&package.0).to_path_buf();
-    let locator = VelopackLocator::new(path_config, modified_manifest);
     let new_locator = super::apply(&locator, false, OperationWait::NoWait, Some(&buf), None, false)?;
 
     info!("Removing old app-* folders...");

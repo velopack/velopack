@@ -78,21 +78,6 @@ impl Drop for MutexDropGuard {
     }
 }
 
-pub fn create_global_mutex(app_id: &str) -> Result<MutexDropGuard> {
-    let mutex_name = format!("velopack-{}", app_id);
-    info!("Attempting to open global system mutex: '{}'", &mutex_name);
-    let encodedu16 = super::strings::string_to_u16(mutex_name);
-    let encoded = PCWSTR(encodedu16.as_ptr());
-    let mutex = unsafe { CreateMutexW(None, true, encoded) }?;
-    match unsafe { GetLastError() } {
-        Foundation::ERROR_SUCCESS => Ok(MutexDropGuard { mutex }),
-        Foundation::ERROR_ALREADY_EXISTS => {
-            Err(anyhow!("Another installer or updater for this application is running, quit that process and try again."))
-        }
-        err => Err(anyhow!("Unable to create global mutex. Error code {:?}", err)),
-    }
-}
-
 pub fn expand_environment_strings<P: AsRef<str>>(input: P) -> Result<String> {
     use windows::Win32::System::Environment::ExpandEnvironmentStringsW;
     let encoded_u16 = super::strings::string_to_u16(input);

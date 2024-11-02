@@ -189,8 +189,7 @@ fn apply(matches: &ArgMatches) -> Result<()> {
     info!("    Exe Args: {:?}", exe_args);
 
     let locator = auto_locate_app_manifest(LocationContext::IAmUpdateExe)?;
-    #[cfg(target_os = "windows")]
-    let _mutex = shared::retry_io(|| windows::create_global_mutex(&locator.get_manifest_id()))?;
+    let _mutex = locator.get_exclusive_lock_blocking()?;
     let _ = commands::apply(&locator, restart, wait, package, exe_args, true)?;
     Ok(())
 }
