@@ -274,6 +274,33 @@ impl VelopackLocator {
     pub fn get_is_portable(&self) -> bool {
         self.paths.IsPortable
     }
+    
+    /// Attemps to open / lock a file in the app's package directory for exclusive write access.
+    /// Fails immediately if the lock cannot be acquired.
+    pub fn try_get_exclusive_lock(&self) -> Result<fslock::LockFile, Error> {
+        info!("Attempting to acquire exclusive lock on packages directory (non-blocking)...");
+        let packages_dir = self.get_packages_dir();
+        std::fs::create_dir_all(&packages_dir)?;
+        let lock_file_path = packages_dir.join(".velopack_lock");
+        let mut file = fslock::LockFile::open(&lock_file_path)?;
+        let result = file.try_lock_with_pid()?;
+        if !result {
+            return Err(Error::Generic("Could not acquire exclusive lock on packages directory".to_owned()));
+        }
+        Ok(file)
+    }
+
+    /// Attemps to open / lock a file in the app's package directory for exclusive write access.
+    /// Blocks until the lock can be acquired.
+    pub fn get_exclusive_lock_blocking(&self) -> Result<fslock::LockFile, Error> {
+        info!("Attempting to acquire exclusive lock on packages directory (blocking)...");
+        let packages_dir = self.get_packages_dir();
+        std::fs::create_dir_all(&packages_dir)?;
+        let lock_file_path = packages_dir.join(".velopack_lock");
+        let mut file = fslock::LockFile::open(&lock_file_path)?;
+        file.lock_with_pid()?;
+        Ok(file)
+    }
 
     fn path_as_string(path: &PathBuf) -> String {
         path.to_string_lossy().to_string()
