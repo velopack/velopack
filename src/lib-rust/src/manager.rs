@@ -299,36 +299,44 @@ impl UpdateManager {
         let packages_dir = &self.locator.get_packages_dir();
 
         fs::create_dir_all(packages_dir)?;
-        let target_file = packages_dir.join(name);
+        let final_target_file = packages_dir.join(name);
+        let partial_file = packages_dir.join(format!("{}.partial", name));
 
-        if target_file.exists() {
-            info!("Package already exists on disk, skipping download: '{}'", target_file.to_string_lossy());
+        if final_target_file.exists() {
+            info!("Package already exists on disk, skipping download: '{}'", final_target_file.to_string_lossy());
             return Ok(());
         }
 
-        let g = format!("{}/*.nupkg", packages_dir.to_string_lossy());
-        info!("Searching for packages to clean in: '{}'", g);
+        let old_nupkg_pattern = format!("{}/*.nupkg", packages_dir.to_string_lossy());
+        let old_partial_pattern = format!("{}/*.partial", packages_dir.to_string_lossy());
         let mut to_delete = Vec::new();
-        match glob::glob(&g) {
-            Ok(paths) => {
-                for path in paths {
-                    if let Ok(path) = path {
-                        to_delete.push(path.clone());
-                        debug!("Will delete: '{}'", path.to_string_lossy());
+        
+        fn find_files_to_delete(pattern: &str, to_delete: &mut Vec<String>) {
+            info!("Searching for packages to clean: '{}'", pattern);
+            match glob::glob(pattern) {
+                Ok(paths) => {
+                    for path in paths.into_iter().flatten() {
+                        to_delete.push(path.to_string_lossy().to_string());
                     }
                 }
-            }
-            Err(e) => {
-                error!("Error while searching for packages to clean: {}", e);
+                Err(e) => {
+                    error!("Error while searching for packages to clean: {}", e);
+                }
             }
         }
+        
+        find_files_to_delete(&old_nupkg_pattern, &mut to_delete);
+        find_files_to_delete(&old_partial_pattern, &mut to_delete);
 
-        self.source.download_release_entry(&update.TargetFullRelease, &target_file.to_string_lossy(), progress)?;
-        info!("Successfully placed file: '{}'", target_file.to_string_lossy());
+        self.source.download_release_entry(&update.TargetFullRelease, &partial_file.to_string_lossy(), progress)?;
+        info!("Successfully placed file: '{}'", partial_file.to_string_lossy());
+        
+        info!("Renaming partial file to final target: '{}'", final_target_file.to_string_lossy());
+        fs::rename(&partial_file, &final_target_file)?;
 
         // extract new Update.exe on Windows only
         #[cfg(target_os = "windows")]
-        match crate::bundle::load_bundle_from_file(&target_file) {
+        match crate::bundle::load_bundle_from_file(&final_target_file) {
             Ok(bundle) => {
                 info!("Bundle loaded successfully.");
                 let update_exe_path = self.locator.get_update_path();
@@ -342,7 +350,7 @@ impl UpdateManager {
         }
 
         for path in to_delete {
-            info!("Cleaning up old package: '{}'", path.to_string_lossy());
+            info!("Deleting up old package: '{}'", path);
             let _ = fs::remove_file(&path);
         }
 
