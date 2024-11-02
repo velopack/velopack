@@ -19,6 +19,10 @@
     <PackageReference Include="Microsoft.Identity.Client" Version="4.66.1" />
     <PackageReference Include="Microsoft.Identity.Client.Broker" Version="4.66.1" />
     <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.66.1" />
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.65.0" />
+    <PackageReference Include="Microsoft.Identity.Client.Broker" Version="4.65.0" />
+    <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.65.0" />
+    <PackageReference Include="NuGet.Protocol" Version="6.11.1" />
   </ItemGroup>
 
 </Project>

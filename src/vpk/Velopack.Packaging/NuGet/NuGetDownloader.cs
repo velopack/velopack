@@ -1,20 +1,24 @@
-﻿using System.Threading;
+﻿#nullable enable
 using NuGet.Configuration;
 using NuGet.Packaging.Core;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 using NugetLogger = NuGet.Common.ILogger;
 
-namespace Velopack.Vpk.Updates;
+namespace Velopack.Packaging.NuGet;
 
-public class NugetDownloader
+public class NuGetDownloader
 {
     private readonly NugetLogger _logger;
     private readonly PackageSource _packageSource;
     private readonly SourceRepository _sourceRepository;
     private readonly SourceCacheContext _sourceCacheContext;
 
-    public NugetDownloader(NugetLogger logger)
+    public NuGetDownloader()
+        : this(global::NuGet.Common.NullLogger.Instance)
+    { }
+
+    public NuGetDownloader(NugetLogger logger)
     {
         _logger = logger;
         _packageSource = new PackageSource("https://api.nuget.org/v3/index.json", "NuGet.org");
@@ -22,11 +26,11 @@ public class NugetDownloader
         _sourceCacheContext = new SourceCacheContext();
     }
 
-    public async Task<IPackageSearchMetadata> GetPackageMetadata(string packageName, string version, CancellationToken cancellationToken)
+    public async Task<IPackageSearchMetadata> GetPackageMetadata(string packageName, string? version, CancellationToken cancellationToken)
     {
         PackageMetadataResource packageMetadataResource = _sourceRepository.GetResource<PackageMetadataResource>();
         FindPackageByIdResource packageByIdResource = _sourceRepository.GetResource<FindPackageByIdResource>();
-        IPackageSearchMetadata package = null;
+        IPackageSearchMetadata? package = null;
 
         var prerelease = version?.Equals("pre", StringComparison.InvariantCultureIgnoreCase) == true;
         if (version is null || version.Equals("latest", StringComparison.InvariantCultureIgnoreCase) || prerelease) {
@@ -65,5 +69,12 @@ public class NugetDownloader
         await packageByIdResource
             .CopyNupkgToStreamAsync(package.Identity.Id, package.Identity.Version, targetStream, _sourceCacheContext, _logger, cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    public async Task DownloadPackageToStream(string packageName, string? version, Stream targetStream, CancellationToken cancellationToken)
+    {
+        IPackageSearchMetadata packageMetadata = await GetPackageMetadata(packageName, version, cancellationToken);
+
+        await DownloadPackageToStream(packageMetadata, targetStream, cancellationToken);
     }
 }
