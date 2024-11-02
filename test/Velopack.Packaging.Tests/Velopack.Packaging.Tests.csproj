@@ -9,6 +9,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.Identity" Version="1.12.1" />
     <PackageReference Include="Octokit" Version="13.0.1" />
     <PackageReference Include="NuGet.Packaging" Version="6.12.1" />
     <PackageReference Include="System.Formats.Asn1" Version="8.0.1" />

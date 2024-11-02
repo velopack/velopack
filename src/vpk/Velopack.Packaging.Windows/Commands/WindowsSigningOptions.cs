@@ -10,5 +10,5 @@ public class WindowsSigningOptions
 
     public string SignTemplate { get; set; }
 
-    public string AzTrustedSign { get; set; }
+    public string AzureTrustedSignFile { get; set; }
 }
