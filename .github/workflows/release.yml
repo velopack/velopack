@@ -74,14 +74,14 @@ jobs:
           path: ./repo
           fetch-depth: 0
           
-      - name: Tag the commit with version and push
-        working-directory: ./repo
-        run: |
-          echo $PKG_VERSION
-          COMMIT_HASH=$(gh run view ${{ github.event.inputs.workflow_run_id }} --json headSha -q ".headSha")
-          git checkout $COMMIT_HASH
-          git tag $PKG_VERSION
-          git push origin $PKG_VERSION
+      # - name: Tag the commit with version and push
+      #   working-directory: ./repo
+      #   run: |
+      #     echo $PKG_VERSION
+      #     COMMIT_HASH=$(gh run view ${{ github.event.inputs.workflow_run_id }} --json headSha -q ".headSha")
+      #     git checkout $COMMIT_HASH
+      #     git tag $PKG_VERSION
+      #     git push origin $PKG_VERSION
 
       - name: Generate Release
         working-directory: ./repo
@@ -130,9 +130,12 @@ jobs:
           $lines = $releaseBody -split "`n"
           $dependenciesLines = @()
           $otherLines = @()
+          $changelog = ""
 
           foreach ($line in $lines) {
-              if ($line -match '@renovate') {
+              if ($line -match 'Full Changelog') {
+                  $changelog = $line
+              } elseif ($line -match '@renovate') {
                   $dependenciesLines += $line
               } else {
                   $otherLines += $line
@@ -141,9 +144,13 @@ jobs:
 
           $releaseBody = $otherLines -join "`n"
           if ($dependenciesLines.Count -gt 0) {
-              $releaseBody += "`n## Dependencies:`n"
+              $releaseBody += "`## Dependency Updates`n"
+              $releaseBody += "`n`n<details>`n`n"
+              $releaseBody += "<summary>Expand to see all changed dependencies</summary>`n`n"
               $releaseBody += $dependenciesLines -join "`n"
+              $releaseBody += "`n`n</details>`n"
           }
+          $releaseBody += "`n`n" + $changelog + "`n"
 
           Write-Host "Release name: $releaseName"
           Write-Host "Release body:"
