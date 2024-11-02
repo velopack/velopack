@@ -1,4 +1,4 @@
-name: Promote Stable Release
+name: Promote Release (stable)
 
 on:
   workflow_dispatch:
