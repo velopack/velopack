@@ -1,4 +1,4 @@
-name: Publish to NuGet.org
+name: Publish Release
 
 on:
   workflow_dispatch:
@@ -74,14 +74,14 @@ jobs:
           path: ./repo
           fetch-depth: 0
           
-      # - name: Tag the commit with version and push
-      #   working-directory: ./repo
-      #   run: |
-      #     echo $PKG_VERSION
-      #     COMMIT_HASH=$(gh run view ${{ github.event.inputs.workflow_run_id }} --json headSha -q ".headSha")
-      #     git checkout $COMMIT_HASH
-      #     git tag $PKG_VERSION
-      #     git push origin $PKG_VERSION
+      - name: Tag the commit with version and push
+        working-directory: ./repo
+        run: |
+          echo $PKG_VERSION
+          COMMIT_HASH=$(gh run view ${{ github.event.inputs.workflow_run_id }} --json headSha -q ".headSha")
+          git checkout $COMMIT_HASH
+          git tag $PKG_VERSION
+          git push origin $PKG_VERSION
 
       - name: Generate Release
         working-directory: ./repo
@@ -189,39 +189,33 @@ jobs:
           Write-Host "Creating release..."
           $notesFilePath = "./RELEASE_NOTES.md"
           $releaseBody | Out-File -FilePath $notesFilePath -Encoding utf8
-# gh release create $currentTag --title $releaseName --notes-file $notesFilePath $releaseArg --verify-tag
+          gh release create $currentTag --title $releaseName --notes-file $notesFilePath $releaseArg --verify-tag
 
-# # Upload artifacts
-# Write-Host "Uploading artifacts..."
-# gh release upload $currentTag (get-item ../packages/*.nupkg)
-# gh release upload $currentTag (get-item ../lib-nodejs/*.tgz)
-# gh release upload $currentTag (get-item ../lib-rust/*.crate)
-# gh release upload $currentTag (get-item ../lib-c/*.zip)
+          # Upload artifacts
+          Write-Host "Uploading artifacts..."
+          gh release upload $currentTag (get-item ../packages/*.nupkg)
+          gh release upload $currentTag (get-item ../lib-nodejs/*.tgz)
+          gh release upload $currentTag (get-item ../lib-rust/*.crate)
+          gh release upload $currentTag (get-item ../lib-c/*.zip)
 
-      # - name: Publish NuGet Packages
-      #   run: |
-      #     for f in packages/*.nupkg; do
-      #       dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
-      #     done
+      - name: Publish NuGet Packages
+        run: |
+          for f in packages/*.nupkg; do
+            dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
+          done
           
-      # - name: Publish NPM Package
-      #   working-directory: ./lib-nodejs
-      #   run: |
-      #     npm set "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}"
-      #     npm publish velopack-$PKG_VERSION.tgz --access public
+      - name: Publish NPM Package
+        working-directory: ./lib-nodejs
+        run: |
+          npm set "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}"
+          npm publish velopack-$PKG_VERSION.tgz --access public
           
-      # - name: Publish Rust Crate
-      #   working-directory: ./lib-rust
-      #   run: |
-      #     tar -xzf velopack-$PKG_VERSION.crate
-      #     cd velopack-$PKG_VERSION
-      #     rm Cargo.toml.orig
-      #     rm .cargo_vcs_info.json
-      #     cargo login ${{ secrets.CARGO_TOKEN }}
-      #     cargo publish --allow-dirty --no-verify
-
-      - name: upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-notes
-          path: ./repo/RELEASE_NOTES.md
+      - name: Publish Rust Crate
+        working-directory: ./lib-rust
+        run: |
+          tar -xzf velopack-$PKG_VERSION.crate
+          cd velopack-$PKG_VERSION
+          rm Cargo.toml.orig
+          rm .cargo_vcs_info.json
+          cargo login ${{ secrets.CARGO_TOKEN }}
+          cargo publish --allow-dirty --no-verify
