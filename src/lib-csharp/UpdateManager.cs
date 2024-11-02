@@ -458,21 +458,13 @@ namespace Velopack
         /// <summary>
         /// Acquires a globally unique mutex/lock for the current application, to avoid concurrent install/uninstall/update operations.
         /// </summary>
-        protected virtual Mutex AcquireUpdateLock()
+        protected virtual async Task<IDisposable> AcquireUpdateLock()
         {
-            var mutexId = $"velopack-{AppId}";
-            bool created = false;
-            Mutex? mutex = null;
-            try {
-                mutex = new Mutex(false, mutexId, out created);
-            } catch (Exception ex) {
-                Log.Warn(ex, "Unable to acquire global mutex/lock.");
-                created = false;
-            }
-            if (mutex == null || !created) {
-                throw new Exception("Cannot perform this operation while another install/unistall operation is in progress.");
-            }
-            return mutex;
+            var dir = Directory.CreateDirectory(Locator.PackagesDir!);
+            var lockPath = Path.Combine(dir.FullName, ".velopack_lock");
+            var fsLock = new FileLock(lockPath);
+            await fsLock.LockAsync().ConfigureAwait(false);
+            return fsLock;
         }
 
         private static IUpdateSource CreateSimpleSource(string urlOrPath)
