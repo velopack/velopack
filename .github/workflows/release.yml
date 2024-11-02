@@ -94,19 +94,48 @@ jobs:
 
           # Get the previous release tag
           Write-Host "Detecting previous release tag..."
-          if ($currentTag -like "*-*") {
-          # For prerelease versions, retain the full tag for output
-              $previousTag = git tag --list | Where-Object { $_ -like "*-*" } | 
-                  ForEach-Object { 
-                      $versionPart = $_.Split('-')[0]
-                      [PSCustomObject]@{ FullTag = $_; Version = [System.Version]$versionPart }
-                  } | Sort-Object Version -Descending | Select-Object -Skip 1 -First 1 | ForEach-Object { $_.FullTag }
-              $releaseArg = "--prerelease"
+          $gitTags = git tag --list
+
+          $tags = $gitTags | ForEach-Object {
+              $fullTag = $_
+              $isPrerelease = $fullTag -like "*-*"
+
+              if ($isPrerelease) {
+                  # For prerelease versions, extract the version part before the hyphen
+                  $versionPart = $fullTag.Split('-')[0]
+              } else {
+                  $versionPart = $fullTag
+              }
+
+              try {
+                  $version = [System.Version]$versionPart
+                  [PSCustomObject]@{
+                      FullTag = $fullTag
+                      Version = $version
+                      IsPrerelease = $isPrerelease
+                  }
+              } catch {
+                  # Skip tags that cannot be parsed into a System.Version
+                  $null
+              }
+          } | Where-Object { $_ -ne $null }
+
+          $isCurrentPrerelease = $currentTag -like "*-*"
+          $latestPrerelease = ($tags | Where-Object { $_.IsPrerelease } | Sort-Object Version -Descending | Select-Object -First 1).FullTag
+          $latestStable = ($tags | Where-Object { -not $_.IsPrerelease } |  Sort-Object Version -Descending | Select-Object -First 1).FullTag
+          $latestOverall = ($tags | Sort-Object Version -Descending | Select-Object -First 1).FullTag
+
+          if ($isCurrentPrerelease) {
+              $previousTag = $latestOverall
           } else {
-              $previousTag = git tag --list | Where-Object { $_ -notlike "*-*" } | %{ [System.Version]$_ } | Sort-Object -Descending | Select-Object -Skip 1 -First 1
-              $releaseArg = "--latest"
+              $previousTag = $latestStable
           }
 
+          Write-Host "Current version is prerelease: $isCurrentPrerelease"
+          Write-Host "Latest prerelease: $latestPrerelease"
+          Write-Host "Latest stable: $latestStable"
+          Write-Host "Latest overall: $latestOverall"
+          Write-Host "---"
           Write-Host "Current tag: $currentTag"
           Write-Host "Previous tag: $previousTag"
 
