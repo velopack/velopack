@@ -14,10 +14,7 @@ use windows::core::PCWSTR;
 use windows::Win32::Storage::FileSystem::GetLongPathNameW;
 use windows::Win32::System::SystemInformation::{VerSetConditionMask, VerifyVersionInfoW, OSVERSIONINFOEXW, VER_FLAGS};
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
-use windows::Win32::{
-    Foundation::{self, GetLastError},
-    System::Threading::CreateMutexW,
-};
+use windows::Win32::Foundation;
 
 use crate::shared::{self, runtime_arch::RuntimeArch};
 use crate::windows::strings::{string_to_u16, u16_to_string};

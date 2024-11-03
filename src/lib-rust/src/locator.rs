@@ -3,6 +3,7 @@ use semver::Version;
 use crate::{
     bundle::{self, Manifest},
     util, Error,
+    lockfile::LockFile
 };
 
 /// Returns the default channel name for the current OS.
@@ -277,29 +278,13 @@ impl VelopackLocator {
     
     /// Attemps to open / lock a file in the app's package directory for exclusive write access.
     /// Fails immediately if the lock cannot be acquired.
-    pub fn try_get_exclusive_lock(&self) -> Result<fslock::LockFile, Error> {
+    pub fn try_get_exclusive_lock(&self) -> Result<LockFile, Error> {
         info!("Attempting to acquire exclusive lock on packages directory (non-blocking)...");
         let packages_dir = self.get_packages_dir();
         std::fs::create_dir_all(&packages_dir)?;
         let lock_file_path = packages_dir.join(".velopack_lock");
-        let mut file = fslock::LockFile::open(&lock_file_path)?;
-        let result = file.try_lock_with_pid()?;
-        if !result {
-            return Err(Error::Generic("Could not acquire exclusive lock on packages directory".to_owned()));
-        }
-        Ok(file)
-    }
-
-    /// Attemps to open / lock a file in the app's package directory for exclusive write access.
-    /// Blocks until the lock can be acquired.
-    pub fn get_exclusive_lock_blocking(&self) -> Result<fslock::LockFile, Error> {
-        info!("Attempting to acquire exclusive lock on packages directory (blocking)...");
-        let packages_dir = self.get_packages_dir();
-        std::fs::create_dir_all(&packages_dir)?;
-        let lock_file_path = packages_dir.join(".velopack_lock");
-        let mut file = fslock::LockFile::open(&lock_file_path)?;
-        file.lock_with_pid()?;
-        Ok(file)
+        let lock_file = LockFile::try_acquire_lock(&lock_file_path)?;
+        Ok(lock_file)
     }
 
     fn path_as_string(path: &PathBuf) -> String {

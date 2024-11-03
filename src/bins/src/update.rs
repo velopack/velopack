@@ -189,7 +189,7 @@ fn apply(matches: &ArgMatches) -> Result<()> {
     info!("    Exe Args: {:?}", exe_args);
 
     let locator = auto_locate_app_manifest(LocationContext::IAmUpdateExe)?;
-    let _mutex = locator.get_exclusive_lock_blocking()?;
+    let _mutex = locator.try_get_exclusive_lock()?;
     let _ = commands::apply(&locator, restart, wait, package, exe_args, true)?;
     Ok(())
 }

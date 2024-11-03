@@ -78,7 +78,8 @@ filelocksmith = "0.1"
 image = { version = "0.25", default-features = false, features = ["gif", "jpeg", "png"] }
 fs_extra = "1.3"
 memmap2 = "0.9"
-fslock = "0.2"
+webview2-com = "0.33"
+windows = "0.58"
 
 # default to small, optimized workspace release binaries
 [profile.release]
