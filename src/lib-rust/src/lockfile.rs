@@ -35,7 +35,7 @@ impl LockFile {
             {
                 use std::os::unix::io::AsRawFd;
                 let fd = file.as_raw_fd();
-                self.unix_exclusive_lock(fd)?;
+                lock_file.unix_exclusive_lock(fd)?;
             }
 
             #[cfg(target_os = "windows")]
@@ -60,10 +60,19 @@ impl LockFile {
     /// Acquires an exclusive, non-blocking lock on Unix-like systems.
     #[cfg(unix)]
     fn unix_exclusive_lock(&self, fd: std::os::unix::io::RawFd) -> Result<()> {
-        use libc::{flock, LOCK_EX, LOCK_NB};
+        use libc::{fcntl, F_SETLK, F_WRLCK, SEEK_SET};
 
-        let ret = unsafe { flock(fd, LOCK_EX | LOCK_NB) };
-        if ret != 0 {
+        let lock = libc::flock {
+            l_type: F_WRLCK as libc::c_short,
+            l_whence: SEEK_SET as libc::c_short,
+            l_start: 0,
+            l_len: 0, // 0 means to lock the entire file
+            l_pid: 0,
+        };
+
+        let ret = unsafe { fcntl(fd, F_SETLK, &lock) };
+
+        if ret == -1 {
             let err = Error::last_os_error();
             Err(Error::new(
                 ErrorKind::Other,
