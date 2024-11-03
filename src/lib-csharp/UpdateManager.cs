@@ -462,7 +462,7 @@ namespace Velopack
         {
             var dir = Directory.CreateDirectory(Locator.PackagesDir!);
             var lockPath = Path.Combine(dir.FullName, ".velopack_lock");
-            var fsLock = new FileLock(lockPath);
+            var fsLock = new LockFile(lockPath);
             await fsLock.LockAsync().ConfigureAwait(false);
             return fsLock;
         }

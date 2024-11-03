@@ -101,6 +101,9 @@ pub mod sources;
 /// Functions to patch files and reconstruct Velopack delta packages.
 pub mod delta;
 
+/// Acquire and manage file-system based lock files.
+pub mod lockfile;
+
 pub use app::*;
 pub use manager::*;
 
