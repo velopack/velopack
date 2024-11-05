@@ -116,7 +116,7 @@ public class OsxBuildTools
 #!/bin/sh
 rm -rf /tmp/velopack/{appId}
 sudo -u "$USER" rm -rf ~/Library/Caches/velopack/{appId}
-sudo -u "$USER" open "$2/{bundleName}/"
+export VELOPACK_FIRSTRUN=1 sudo -u "$USER" open "$2/{bundleName}/"
 exit 0
 """);
         Chmod.ChmodFileAsExecutable(postinstall);
