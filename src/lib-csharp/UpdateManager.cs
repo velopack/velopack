@@ -233,7 +233,7 @@ namespace Velopack
             }
 
             EnsureInstalled();
-            using var _mut = await AcquireUpdateLock();
+            using var _mut = await AcquireUpdateLock().ConfigureAwait(false);
 
             var appTempDir = Locator.AppTempDir!;
 

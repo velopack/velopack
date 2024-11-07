@@ -298,14 +298,12 @@ impl BundleZip<'_> {
             self.extract_zip_idx_to_path(i, &file_path_on_disk)?;
 
             // on macos, we need to chmod +x the executable files
+            // for now, we just chmod 755 every file we extract. this is not great, ideally we 
+            // will preserve the mode as it was when packaging. This will come in a future release.
             #[cfg(target_os = "macos")]
             {
-                if let Ok(true) = super::bindetect::is_macho_image(&file_path_on_disk) {
-                    if let Err(e) = std::fs::set_permissions(&file_path_on_disk, std::fs::Permissions::from_mode(0o755)) {
-                        warn!("Failed to set executable permissions on '{}': {}", file_path_on_disk.to_string_lossy(), e);
-                    } else {
-                        info!("    {} Set executable permissions on '{}'", i, file_path_on_disk.to_string_lossy());
-                    }
+                if let Err(e) = std::fs::set_permissions(&file_path_on_disk, std::fs::Permissions::from_mode(0o755)) {
+                    warn!("Failed to set mode 755 on '{}': {}", file_path_on_disk.to_string_lossy(), e);
                 }
             }
 
