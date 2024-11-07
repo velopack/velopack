@@ -180,6 +180,16 @@ unsafe fn unsafe_update_app_manifest_lnks(next_app: &VelopackLocator, previous_a
                 continue;
             }
         };
+
+        if flag == ShortcutLocationFlags::START_MENU {
+            if let Some(parent) = path.parent() {
+                if let Err(e) = std::fs::create_dir_all(&parent) {
+                    error!("Failed to create parent directory for shortcut: {}", e);
+                    continue;
+                }
+            }
+        }
+
         info!("Creating new shortcut for flag '{:?}' ({:?}).", path, flag);
 
         match Lnk::create_new() {
