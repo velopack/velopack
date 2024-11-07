@@ -69,19 +69,28 @@ fn main() -> Result<()> {
             .arg(arg!(-d --debug <FILE> "Debug mode, install from a nupkg file").required(false).value_parser(value_parser!(PathBuf)));
     }
 
-    let res = run_inner(arg_config);
-    if let Err(e) = &res {
-        error!("An error has occurred: {}", e);
-        dialogs::show_error("Setup Error", None, format!("An error has occurred: {}", e).as_str());
+    if let Err(e) = run_inner(arg_config) {
+        let error_string = format!("An error has occurred: {:?}", e);
+        if let Ok(downcast) = e.downcast::<clap::Error>() {
+            let output_string = downcast.to_string();
+            match downcast.kind() {
+                clap::error::ErrorKind::DisplayHelp => { println!("{output_string}"); return Ok(()); }
+                clap::error::ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand => { println!("{output_string}"); return Ok(()); }
+                clap::error::ErrorKind::DisplayVersion => { println!("{output_string}"); return Ok(()); }
+                _ => {}
+            }
+        }
+        error!("{}", error_string);
+        dialogs::show_error("Setup Error", None, &error_string);
     }
-    
+
     Ok(())
 }
 
 fn run_inner(arg_config: Command) -> Result<()>
 {
     let matches = arg_config.try_get_matches()?;
-    
+
     let silent = matches.get_flag("silent");
     let verbose = matches.get_flag("verbose");
     let debug = matches.get_one::<PathBuf>("debug");
@@ -122,7 +131,7 @@ fn run_inner(arg_config: Command) -> Result<()>
             info!("Loading bundle from DEBUG nupkg file {:?}...", pkg);
             let mut bundle = velopack::bundle::load_bundle_from_file(pkg)?;
             commands::install(&mut bundle, install_to, exe_args)?;
-            return Ok(())
+            return Ok(());
         }
     }
 
@@ -138,7 +147,7 @@ fn run_inner(arg_config: Command) -> Result<()>
         let zip_range: &[u8] = &mmap[offset as usize..(offset + length) as usize];
         let mut bundle = velopack::bundle::load_bundle_from_memory(&zip_range)?;
         commands::install(&mut bundle, install_to, exe_args)?;
-        return Ok(())
+        return Ok(());
     }
 
     bail!("Could not find embedded zip file. Please contact the application author.");
