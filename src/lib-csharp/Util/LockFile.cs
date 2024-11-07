@@ -1,19 +1,23 @@
 ﻿using System;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Win32.SafeHandles;
 
 namespace Velopack.Util
 {
     internal class LockFile : IDisposable
     {
+        public bool IsLocked { get; private set; }
+
+        private readonly SemaphoreSlim _semaphore = new(1, 1);
         private readonly string _filePath;
         private FileStream? _fileStream;
-        private bool _locked;
+        private int _fileDescriptor = -1;
 
         public LockFile(string path)
         {
@@ -22,131 +26,128 @@ namespace Velopack.Util
 
         public async Task LockAsync()
         {
-            if (_locked) {
+            if (IsLocked) {
                 return;
             }
 
             try {
+                await _semaphore.WaitAsync().ConfigureAwait(false);
                 await IoUtil.RetryAsync(
-                    () => {
-                        Dispose();
-                        _fileStream = new FileStream(
-                            _filePath,
-                            FileMode.Create,
-                            FileAccess.ReadWrite,
-                            FileShare.None,
-                            bufferSize: 1,
-                            FileOptions.DeleteOnClose);
-
-                        SafeFileHandle safeFileHandle = _fileStream.SafeFileHandle!;
-                        if (VelopackRuntimeInfo.IsLinux || VelopackRuntimeInfo.IsOSX) {
-                            int fd = safeFileHandle.DangerousGetHandle().ToInt32();
-                            UnixExclusiveLock(fd);
-                        } else if (VelopackRuntimeInfo.IsWindows) {
-                            WindowsExclusiveLock(safeFileHandle);
+                    async () => {
+                        await Task.Delay(1).ConfigureAwait(false);
+                        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+                            WindowsExclusiveLock();
+                        } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+                            UnixExclusiveLock();
                         }
-
-                        _locked = true;
-                        return Task.CompletedTask;
                     }).ConfigureAwait(false);
+
+                IsLocked = true;
             } catch (Exception ex) {
-                Dispose();
+                DisposeInternal();
                 throw new IOException("Failed to acquire exclusive lock file. Is another operation currently running?", ex);
+            } finally {
+                _semaphore.Release();
             }
         }
 
         [SupportedOSPlatform("linux")]
         [SupportedOSPlatform("macos")]
-        private void UnixExclusiveLock(int fd)
+        [DllImport("libc", SetLastError = true)]
+        private static extern int open(byte[] pathname, int flags);
+
+        [SupportedOSPlatform("linux")]
+        [SupportedOSPlatform("macos")]
+        [DllImport("libc", SetLastError = true)]
+        private static extern int creat(byte[] pathname, uint mode);
+
+        [SupportedOSPlatform("linux")]
+        [SupportedOSPlatform("macos")]
+        [DllImport("libc", SetLastError = true)]
+        private static extern int lockf(int fd, int cmd, long len);
+
+        [SupportedOSPlatform("linux")]
+        [SupportedOSPlatform("macos")]
+        [DllImport("libc", SetLastError = true)]
+        private static extern int close(int fd);
+
+        [SupportedOSPlatform("linux")]
+        [SupportedOSPlatform("macos")]
+        private void UnixExclusiveLock()
         {
-            int ret;
-            if (VelopackRuntimeInfo.IsLinux) {
-                var lockOpt = new linux_flock {
-                    l_type = F_WRLCK,
-                    l_whence = SEEK_SET,
-                    l_start = 0,
-                    l_len = 0, // 0 means to lock the entire file
-                    l_pid = 0,
-                };
-                ret = fcntl(fd, F_SETLK, ref lockOpt);
-            } else if (VelopackRuntimeInfo.IsOSX) {
-                var lockOpt = new osx_flock {
-                    l_start = 0,
-                    l_len = 0, // 0 means to lock the entire file
-                    l_pid = 0,
-                    l_type = F_WRLCK,
-                    l_whence = SEEK_SET,
-                };
-                Console.WriteLine("hello");
-                ret = fcntl(fd, F_SETLK, ref lockOpt);
-            } else {
-                throw new PlatformNotSupportedException();
+            if (_fileDescriptor > 0) {
+                close(_fileDescriptor);
             }
-          
-            Console.WriteLine(ret);
-            if (ret == -1) {
+            var fileBytes = Encoding.UTF8.GetBytes(_filePath).ToArray();
+
+            const int O_RDWR = 0x2;
+            const int O_CLOEXEC = 0x01000000;
+            const int EINTR = 4;
+
+            var filePermissionOctal = Convert.ToUInt16("666", 8);
+
+            int fd;
+            do { fd = open(fileBytes, O_RDWR | O_CLOEXEC); } while (fd == -1 && Marshal.GetLastWin32Error() == EINTR);
+
+            // if we cant open the file, try to create it...
+            if (fd == -1) {
+                do { fd = creat(fileBytes, filePermissionOctal); } while (fd == -1 && Marshal.GetLastWin32Error() == EINTR);
+            }
+
+            if (fd == -1) {
                 int errno = Marshal.GetLastWin32Error();
-                throw new IOException($"fcntl F_SETLK failed, errno: {errno}", new Win32Exception(errno));
+                close(fd);
+                throw new IOException($"creat failed, errno: {errno}", new Win32Exception(errno));
             }
-        }
 
-        [SupportedOSPlatform("linux")]
-        [DllImport("libc", SetLastError = true)]
-        private static extern int fcntl(int fd, int cmd, ref linux_flock linux_flock);
-        
-        [SupportedOSPlatform("macos")]
-        [DllImport("libc", SetLastError = true)]
-        private static extern int fcntl(int fd, int cmd, ref osx_flock linux_flock);
+            int ret;
+            do { ret = lockf(fd, 2 /* F_TLOCK */, 0); } while (ret == -1 && Marshal.GetLastWin32Error() == EINTR);
 
-        [SupportedOSPlatform("linux")]
-        [StructLayout(LayoutKind.Sequential)]
-        private struct linux_flock
-        {
-            public short l_type; /* Type of lock: F_RDLCK, F_WRLCK, F_UNLCK */
-            public short l_whence; /* How to interpret l_start: SEEK_SET, SEEK_CUR, SEEK_END */
-            public long l_start; /* Starting offset for lock */
-            public long l_len; /* Number of bytes to lock */
-            public int l_pid; /* PID of the process blocking our lock (F_GETLK only) */
+            if (ret != 0) {
+                int errno = Marshal.GetLastWin32Error();
+                close(fd);
+                throw new IOException($"lockf failed, errno: {errno}", new Win32Exception(errno));
+            }
+            
+            _fileDescriptor = fd;
         }
-        
-        [SupportedOSPlatform("macos")]
-        [StructLayout(LayoutKind.Sequential)]
-        private struct osx_flock
-        {
-            public long l_start; /* Starting offset for lock */
-            public long l_len; /* Number of bytes to lock */
-            public int l_pid; /* PID of the process blocking our lock (F_GETLK only) */
-            public short l_type; /* Type of lock: F_RDLCK, F_WRLCK, F_UNLCK */
-            public short l_whence; /* How to interpret l_start: SEEK_SET, SEEK_CUR, SEEK_END */
-        }
-
-        private const int F_SETLK = 6; /* Non-blocking lock */
-        private const short F_RDLCK = 0; /* Read lock */
-        private const short F_WRLCK = 1; /* Write lock */
-        private const short F_UNLCK = 2; /* Remove lock */
-        private const short SEEK_SET = 0;
 
         [SupportedOSPlatform("windows")]
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool LockFileEx(SafeFileHandle hFile, uint dwFlags, uint dwReserved, uint nNumberOfBytesToLockLow, uint nNumberOfBytesToLockHigh,
-            [In] ref NativeOverlapped lpOverlapped);
-
-        private const uint LOCKFILE_EXCLUSIVE_LOCK = 0x00000002;
-        private const uint LOCKFILE_FAIL_IMMEDIATELY = 0x00000001;
-
-        [SupportedOSPlatform("windows")]
-        private void WindowsExclusiveLock(SafeFileHandle safeFileHandle)
+        private void WindowsExclusiveLock()
         {
-            NativeOverlapped overlapped = default;
-            bool ret = LockFileEx(safeFileHandle, LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY, 0, 1, 0, ref overlapped);
-            if (!ret) {
-                throw new Win32Exception();
+            _fileStream?.Dispose();
+            _fileStream = new FileStream(
+                _filePath,
+                FileMode.OpenOrCreate,
+                FileAccess.ReadWrite,
+                FileShare.None,
+                bufferSize: 1,
+                FileOptions.None);
+            _fileStream.Lock(0, 0);
+        }
+
+        private void DisposeInternal()
+        {
+            Interlocked.Exchange(ref this._fileStream, null)?.Dispose();
+            
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+                if (_fileDescriptor > 0) {
+                    close(_fileDescriptor);
+                }
             }
+
+            IsLocked = false;
+            _fileDescriptor = -1;
         }
 
         public void Dispose()
         {
-            Interlocked.Exchange(ref this._fileStream, null)?.Dispose();
+            try {
+                _semaphore.Wait();
+                DisposeInternal();
+            } finally {
+                _semaphore.Release();
+            }
         }
     }
 }
