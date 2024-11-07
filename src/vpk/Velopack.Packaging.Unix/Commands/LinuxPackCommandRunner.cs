@@ -67,6 +67,7 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
                     [Desktop Entry]
                     Type=Application
                     Name={Options.PackTitle ?? Options.PackId}
+                    X-AppImage-Version={Options.PackVersion}
                     Comment={Options.PackTitle ?? Options.PackId} {Options.PackVersion}
                     Icon={Options.PackId}
                     Exec={mainExeName}
