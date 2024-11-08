@@ -16,4 +16,7 @@ fn main() {
 
     #[cfg(target_os = "windows")]
     println!("cargo:rustc-link-arg=/WHOLEARCHIVE:velopack_libc.lib");
+
+    #[cfg(target_family = "unix")]
+    println!("cargo:rustc-link-arg=-Wl,-whole-archive");
 }
