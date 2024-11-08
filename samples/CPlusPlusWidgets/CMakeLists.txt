@@ -20,15 +20,8 @@ FetchContent_MakeAvailable(wxWidgets)
 
 # include the Velopack library (headers + precompiled lib)
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../../src/lib-cpp/include")
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    message(STATUS "Building in Release mode")
-    set(VELOPACK_LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../target/release/velopack_libc.dll.lib")
-    set(VELOPACK_DLL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../target/release/velopack_libc.dll")
-else()
-    message(STATUS "Building in Debug mode")
-    set(VELOPACK_LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../target/debug/velopack_libc.dll.lib")
-    set(VELOPACK_DLL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../target/debug/velopack_libc.dll")
-endif()
+set(VELOPACK_LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../target/debug/velopack_libc.dll.lib")
+set(VELOPACK_DLL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../target/debug/velopack_libc.dll")
 
 # add sources and executable
 set(SRCS main.cpp)

@@ -1,5 +1,6 @@
 build
 build-dbg
+build-rel
 .DS_Store
 cmake-build-debug
 cmake-build-release

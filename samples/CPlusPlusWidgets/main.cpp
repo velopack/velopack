@@ -1,38 +1,18 @@
 #include <wx/wx.h>
 #include <optional>
 #include <string>
+#include <thread>
 #include "Velopack.h"
 
 using namespace Velopack;
-
-std::optional<UpdateManager> updateManager;
-std::optional<UpdateInfo> updateInfo;
-std::string logBuffer;
-
-std::optional<UpdateManager> get_or_create_update_manager()
-{
-    try
-    {
-        updateManager = UpdateManager(RELEASES_DIR);
-    }
-    catch (std::exception& ex)
-    {
-        std::string message = std::string("\n") + ex.what();
-        logBuffer.append(message);
-    }
-    return updateManager;
-}
-
-std::string get_status()
-{
-    return "";
-}
 
 class MyFrame : public wxFrame
 {
 public:
     MyFrame() : wxFrame(nullptr, wxID_ANY, "VelopackCppWidgetsSample", wxDefaultPosition, wxSize(600, 600))
     {
+        vpkc_set_logger(&MyFrame::HandleVpkcLogStatic, this);
+
         // Set background color to white
         SetBackgroundColour(*wxWHITE);
 
@@ -41,16 +21,20 @@ public:
 
         // Auto-wrapping text
         topText = new wxStaticText(this, wxID_ANY,
-            "This is a sample text that will automatically wrap based on the width of the window. "
-            "Resize the window to see the text wrap around.");
-        topText->Wrap(380);  // Set wrap width close to the window width
+                                   "This is a sample text that will automatically wrap based on the width of the window. "
+                                   "Resize the window to see the text wrap around.");
+        topText->Wrap(380); // Set wrap width close to the window width
         mainSizer->Add(topText, 0, wxALL | wxEXPAND, 10);
 
         // Create a horizontal sizer for the buttons
         wxBoxSizer* buttonSizer = new wxBoxSizer(wxHORIZONTAL);
         wxButton* button1 = new wxButton(this, wxID_ANY, "Check for Updates");
-        wxButton* button2 = new wxButton(this, wxID_ANY, "Button 2");
-        wxButton* button3 = new wxButton(this, wxID_ANY, "Button 3");
+        wxButton* button2 = new wxButton(this, wxID_ANY, "Download Update");
+        wxButton* button3 = new wxButton(this, wxID_ANY, "Restart & Apply");
+
+        button1->Bind(wxEVT_BUTTON, &MyFrame::OnCheckForUpdates, this);
+        button2->Bind(wxEVT_BUTTON, &MyFrame::OnDownloadUpdates, this);
+        button3->Bind(wxEVT_BUTTON, &MyFrame::OnApplyUpdates, this);
 
         // Add buttons to the button sizer
         buttonSizer->Add(button1, 0, wxALL, 5);
@@ -69,34 +53,105 @@ public:
         SetSizer(mainSizer);
         mainSizer->Fit(this);
 
-        // Set up a timer for periodic updates
-        timer = new wxTimer(this);
-        Bind(wxEVT_TIMER, &MyFrame::OnTimer, this);
-        timer->Start(1000);  // Trigger updates every second
-    }
-
-    ~MyFrame()
-    {
-        timer->Stop();
-        delete timer;
+        // initialise velopack
+        try
+        {
+            updateManager = std::make_unique<UpdateManager>(RELEASES_DIR);
+            topText->SetLabel("Current Version: " + updateManager->GetCurrentVersion());
+        }
+        catch (std::exception& ex)
+        {
+            std::string message = ex.what() + std::string("\n");
+            textArea->AppendText(message);
+            topText->SetLabel(message);
+        }
     }
 
 private:
     wxStaticText* topText;
     wxTextCtrl* textArea;
-    wxTimer* timer;
-    int updateCount = 0;
+    std::unique_ptr<UpdateManager> updateManager;
+    std::optional<UpdateInfo> updateInfo;
+    bool downloaded = false;
 
-    void OnTimer(wxTimerEvent&)
+    void OnCheckForUpdates(wxCommandEvent& event)
     {
-        // Update the static text
-        topText->SetLabel(wxString::Format("Updated Text - %d", updateCount));
-        topText->Wrap(380);  // Re-wrap after changing text
+        if (!updateManager)
+        {
+            textArea->AppendText("Cannot check for updates. Install the app first.\n");
+            return;
+        }
 
-        // Update the scrollable text area
-        textArea->AppendText(wxString::Format("Log Entry %d\n", updateCount));
+        downloaded = false;
+        updateInfo = updateManager->CheckForUpdates();
 
-        updateCount++;
+        if (updateInfo.has_value())
+        {
+            topText->SetLabel("Update Found: " + updateInfo.value().TargetFullRelease.Version);
+        }
+        else
+        {
+            topText->SetLabel("No Update Found.");
+        }
+    }
+
+    void OnDownloadUpdates(wxCommandEvent& event)
+    {
+        if (!updateManager || !updateInfo.has_value())
+        {
+            textArea->AppendText("Cannot download updates. Check for updates first.\n");
+            return;
+        }
+
+        // start download on new thread
+        std::thread([this]()
+        {
+            updateManager->DownloadUpdates(updateInfo.value(), &MyFrame::HandleProgressCallbackStatic, this);
+            downloaded = true;
+            wxTheApp->CallAfter([this]()
+            {
+                topText->SetLabel("Download Complete.");
+            });
+        }).detach();
+    }
+
+    void OnApplyUpdates(wxCommandEvent& event)
+    {
+        if (!updateManager || !downloaded)
+        {
+            textArea->AppendText("Cannot apply updates. Download updates first.\n");
+            return;
+        }
+
+        updateManager->WaitExitThenApplyUpdate(updateInfo.value());
+        exit(0);
+    }
+
+    void HandleVpkcLog(const char* pszLevel, const char* pszMessage)
+    {
+        std::string level(pszLevel);
+        std::string message(pszMessage);
+        textArea->AppendText(level + ": " + message + "\n");
+    }
+
+    static void HandleVpkcLogStatic(void* context, const char* pszLevel, const char* pszMessage)
+    {
+        MyFrame* instance = static_cast<MyFrame*>(context);
+        instance->HandleVpkcLog(pszLevel, pszMessage);
+    }
+
+    void HandleProgressCallback(size_t progress)
+    {
+        wxTheApp->CallAfter([this, progress]()
+        {
+            topText->SetLabel("Download Progress: " + std::to_string(progress));
+        });
+    }
+
+    static void HandleProgressCallbackStatic(void* pUserData, size_t progress)
+    {
+        MyFrame* instance = static_cast<MyFrame*>(pUserData);
+        instance->HandleProgressCallback(progress);
     }
 };
 
@@ -105,7 +160,10 @@ class MyApp : public wxApp
 public:
     virtual bool OnInit()
     {
-        get_or_create_update_manager();
+        // Velopack should be the first thing to run in app startup, before any UI
+        // has been shown. Velopack may need to quit/restart the application at this point.
+        VelopackApp::Build().Run();
+
         MyFrame* frame = new MyFrame();
         frame->Show(true);
         return true;
