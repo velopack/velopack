@@ -18,19 +18,35 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(wxWidgets)
 
-set(SRCS main.cpp)
-
-if(APPLE)
-    # create bundle on apple compiles
-    add_executable(main MACOSX_BUNDLE ${SRCS})
-
-    # Set a custom plist file for the app bundle - needed for Mac OS Retina display
-    set_target_properties(main PROPERTIES MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/Info.plist)
+# include the Velopack library (headers + precompiled lib)
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../../src/lib-cpp/include")
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    message(STATUS "Building in Release mode")
+    set(VELOPACK_LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../target/release/velopack_libc.dll.lib")
+    set(VELOPACK_DLL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../target/release/velopack_libc.dll")
 else()
+    message(STATUS "Building in Debug mode")
+    set(VELOPACK_LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../target/debug/velopack_libc.dll.lib")
+    set(VELOPACK_DLL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../target/debug/velopack_libc.dll")
+endif()
+
+# add sources and executable
+set(SRCS main.cpp)
+if(WIN32)
     # the WIN32 is needed for Windows in order for it to look for WinMain
     # instead of the main function. This is ignored on other systems,
     # so it works on all platforms
     add_executable(main WIN32 ${SRCS} main.exe.manifest)
+else()
+    add_executable(main ${SRCS})
 endif()
 
-target_link_libraries(main PRIVATE wxcore wxnet)
+target_compile_definitions(main PRIVATE RELEASES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/releases")
+target_link_libraries(main PRIVATE wxcore wxnet "${VELOPACK_LIB_PATH}")
+
+# copy velopack dll to output directory
+add_custom_command(TARGET main POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${VELOPACK_DLL_PATH}"
+    "$<TARGET_FILE_DIR:main>"
+)
