@@ -299,7 +299,7 @@ VPKC_EXPORT vpkc_update_check_t VPKC_CALL vpkc_check_for_updates(vpkc_update_man
         return vpkc_update_check_t::UPDATE_ERROR;
     }
 }
-VPKC_EXPORT bool VPKC_CALL vpkc_download_updates(vpkc_update_manager_t* pManager, vpkc_update_info_t* pUpdate, vpkc_progress_callback_t cbProgress) {
+VPKC_EXPORT bool VPKC_CALL vpkc_download_updates(vpkc_update_manager_t* pManager, vpkc_update_info_t* pUpdate, vpkc_progress_callback_t cbProgress, void* pUserData) {
     clear_last_error();
     try {
         if (!pUpdate) {
@@ -312,6 +312,7 @@ VPKC_EXPORT bool VPKC_CALL vpkc_download_updates(vpkc_update_manager_t* pManager
 
         DownloadCallbackManager download{};
         download.progress_cb = cbProgress;
+        download.user_data = pUserData;
         bridge_download_updates(*pOpaque, update, download);
         return true;
     }
@@ -382,14 +383,16 @@ VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_first_run(vpkc_hook_callback_t cbFi
 VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_restarted(vpkc_hook_callback_t cbRestarted) {
     hooks.restarted = cbRestarted;
 }
-VPKC_EXPORT void VPKC_CALL vpkc_app_run() {
+VPKC_EXPORT void VPKC_CALL vpkc_app_run(void* pUserData) {
+    hooks.user_data = pUserData;
     bridge_appbuilder_run(hooks, args, locator, autoApply);
 }
 
 // Misc functions
 LoggerCallbackManager logMgr{};
-VPKC_EXPORT void VPKC_CALL vpkc_set_log(vpkc_log_callback_t cbLog) {
+VPKC_EXPORT void VPKC_CALL vpkc_set_logger(vpkc_log_callback_t cbLog, void* pUserData) {
     logMgr.lob_cb = cbLog;
+    logMgr.user_data = pUserData;
     bridge_set_logger_callback(&logMgr);
 }
 VPKC_EXPORT void VPKC_CALL vpkc_free_update_manager(vpkc_update_manager_t* pManager) {

@@ -41,7 +41,7 @@
 #pragma comment(linker, "/EXPORT:vpkc_app_set_hook_restarted")
 #pragma comment(linker, "/EXPORT:vpkc_app_run")
 #pragma comment(linker, "/EXPORT:vpkc_get_last_error")
-#pragma comment(linker, "/EXPORT:vpkc_set_log")
+#pragma comment(linker, "/EXPORT:vpkc_set_logger")
 #pragma comment(linker, "/EXPORT:vpkc_free_update_manager")
 #pragma comment(linker, "/EXPORT:vpkc_free_update_info")
 #pragma comment(linker, "/EXPORT:vpkc_free_asset")
@@ -58,9 +58,9 @@ extern "C" {
 #endif
 
 typedef void vpkc_update_manager_t;
-typedef void (*vpkc_progress_callback_t)(size_t progress);
-typedef void (*vpkc_log_callback_t)(const char* pszLevel, const char* pszMessage);
-typedef void (*vpkc_hook_callback_t)(const char* pszAppVersion);
+typedef void (*vpkc_progress_callback_t)(void* pUserData, size_t progress);
+typedef void (*vpkc_log_callback_t)(void* pUserData, const char* pszLevel, const char* pszMessage);
+typedef void (*vpkc_hook_callback_t)(void* pUserData, const char* pszAppVersion);
 
 typedef enum vpkc_update_check_t {
     UPDATE_AVAILABLE = 0,
@@ -150,7 +150,7 @@ VPKC_EXPORT bool VPKC_CALL vpkc_update_pending_restart(vpkc_update_manager_t* pM
 /// \group UpdateManager
 VPKC_EXPORT vpkc_update_check_t VPKC_CALL vpkc_check_for_updates(vpkc_update_manager_t* pManager, vpkc_update_info_t* pUpdate);
 /// \group UpdateManager
-VPKC_EXPORT bool VPKC_CALL vpkc_download_updates(vpkc_update_manager_t* pManager, vpkc_update_info_t* pUpdate, vpkc_progress_callback_t cbProgress);
+VPKC_EXPORT bool VPKC_CALL vpkc_download_updates(vpkc_update_manager_t* pManager, vpkc_update_info_t* pUpdate, vpkc_progress_callback_t cbProgress, void* pUserData = 0);
 /// \group UpdateManager
 VPKC_EXPORT bool VPKC_CALL vpkc_wait_exit_then_apply_update(vpkc_update_manager_t* pManager, vpkc_asset_t* pAsset, bool bSilent, bool bRestart, char** pRestartArgs, size_t cRestartArgs);
 /// \group UpdateManager
@@ -162,7 +162,7 @@ VPKC_EXPORT void VPKC_CALL vpkc_free_asset(vpkc_asset_t* pAsset);
 
 /// Should be run at the beginning of your application to handle Velopack events.
 /// \group VelopackApp
-VPKC_EXPORT void VPKC_CALL vpkc_app_run();
+VPKC_EXPORT void VPKC_CALL vpkc_app_run(void* pUserData = 0);
 /// \group VelopackApp
 VPKC_EXPORT void VPKC_CALL vpkc_app_set_auto_apply_on_startup(bool bAutoApply);
 /// \group VelopackApp
@@ -186,7 +186,7 @@ VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_restarted(vpkc_hook_callback_t cbRe
 VPKC_EXPORT size_t VPKC_CALL vpkc_get_last_error(char* pszError, size_t cError);
 
 /// Sets the callback to be used/called with log messages from Velopack.
-VPKC_EXPORT void VPKC_CALL vpkc_set_log(vpkc_log_callback_t cbLog);
+VPKC_EXPORT void VPKC_CALL vpkc_set_logger(vpkc_log_callback_t cbLog, void* pUserData = 0);
 
 #ifdef __cplusplus // end of extern "C"
 }
@@ -497,8 +497,8 @@ public:
      * Runs the Velopack startup logic. This should be the first thing to run in your app.
      * In some circumstances it may terminate/restart the process to perform tasks.
      */
-    void Run() {
-        vpkc_app_run();
+    void Run(void* pUserData = 0) {
+        vpkc_app_run(pUserData);
     };
 };
 
@@ -611,9 +611,9 @@ public:
      * - If there is no delta update available, or there is an error preparing delta
      *   packages, this method will fall back to downloading the full version of the update.
      */
-    void DownloadUpdates(const UpdateInfo& update, vpkc_progress_callback_t progress = nullptr) {
+    void DownloadUpdates(const UpdateInfo& update, vpkc_progress_callback_t progress = nullptr, void* pUserData = 0) {
         vpkc_update_info_t vpkc_update = to_c(update);
-        if (!vpkc_download_updates(m_pManager, &vpkc_update, progress)) {
+        if (!vpkc_download_updates(m_pManager, &vpkc_update, progress, pUserData)) {
             throw_last_error();
         }
     };
