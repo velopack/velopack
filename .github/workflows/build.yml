@@ -204,6 +204,12 @@ jobs:
           dotnet tool install -g vpk
           .\build.bat 1.0.0
         if: ${{ matrix.os == 'windows-latest' }}
+      - name: Check CPlusPlusWidgets Sample
+        working-directory: samples/CPlusPlusWidgets
+        run: |
+          cargo build -p velopack_libc
+          cmake -S. -Bbuild-rel -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-rel -j --config Release
 
   test-vpk:
     strategy:
