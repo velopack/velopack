@@ -44,34 +44,34 @@ cd $NODEJSLIB_DIR
 
 echo ""
 echo "Running npm install"
-call npm install
+npm install
 
 echo ""
 echo "Cleaning lib-nodejs"
-call npm run clean
+npm run clean
 
 echo ""
 echo "Compiling lib-nodejs"
-call npm run dev
+npm run dev
 
 echo ""
 echo "Packing lib-nodejs"
-call npm pack
+npm pack
 
-cd %~dp0
+cd $SCRIPT_DIR
 
 echo ""
 echo "Running npm install"
-call npm install
+npm install
 
 echo ""
 echo "Installing lib-nodejs package"
-call npm install ..\..\src\lib-nodejs\velopack-0.0.0.tgz
+npm install ..\..\src\lib-nodejs\velopack-0.0.0.tgz
 
 echo ""
 echo "Packing with electron-forge"
-call npm run package
+npm run package
 
 echo ""
 echo "Creating Velopack Release"
-call vpk pack -u VelopackElectronSample -v $BUILD_VERSION -o "$RELEASE_DIR" -p "$PUBLISH_DIR"
+vpk pack -u VelopackElectronSample -v $BUILD_VERSION -o "$RELEASE_DIR" -p "$PUBLISH_DIR"
