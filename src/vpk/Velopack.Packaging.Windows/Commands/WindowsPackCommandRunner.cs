@@ -293,14 +293,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
         nupkgStream.Position = 0;
 
-        string parentDir = NugetUtil.BinDirectory + Path.AltDirectorySeparatorChar;
-        if (Environment.Is64BitOperatingSystem) {
-            parentDir += "x64";
-        } else {
-            parentDir += "x86";
-        }
-        parentDir += Path.AltDirectorySeparatorChar;
-
+        string parentDir = NugetUtil.BinDirectory + Path.AltDirectorySeparatorChar + "x64" + Path.AltDirectorySeparatorChar;
 
         ZipArchive zipPackage = new(nupkgStream);
         var entries = zipPackage.Entries.Where(x => x.FullName.StartsWith(parentDir, StringComparison.OrdinalIgnoreCase));
