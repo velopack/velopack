@@ -16,9 +16,9 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS
     ARCH=$(uname -m)
     if [[ "$ARCH" == "x86_64" ]]; then
-        RID="darwin-x64"
+        RID="darwin-x64/VelopackElectronSample.app"
     elif [[ "$ARCH" == "arm64" ]]; then
-        RID="darwin-arm64"
+        RID="darwin-arm64/VelopackElectronSample.app"
     fi
 elif [[ "$OSTYPE" == "linux"* ]]; then
     # Linux
@@ -66,7 +66,7 @@ npm install
 
 echo ""
 echo "Installing lib-nodejs package"
-npm install ..\..\src\lib-nodejs\velopack-0.0.0.tgz
+npm install ../../src/lib-nodejs/velopack-0.0.0.tgz
 
 echo ""
 echo "Packing with electron-forge"
