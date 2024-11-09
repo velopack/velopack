@@ -61,18 +61,12 @@
     },
     // troublesome/frozen packages
     {
-      "groupName": "winsafe",
-      "matchPackageNames": "winsafe",
-      "dependencyDashboardApproval": true
-    },
-    {
-      "groupName": "system commandline",
-      "matchPackageNames": "System.CommandLine",
-      "dependencyDashboardApproval": true
-    },
-    {
-      "groupName": "msft logging",
-      "matchPackageNames": "Microsoft.Extensions.Logging.Abstractions",
+      "matchPackageNames": [
+        "winsafe",
+        "System.CommandLine",
+        "Microsoft.Extensions.Logging.Abstractions",
+        "@vercel/webpack-asset-relocator-loader"
+      ],
       "dependencyDashboardApproval": true
     },
     {
