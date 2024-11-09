@@ -41,7 +41,7 @@ public class TrustedSigningTests
     public async void CanSignWithTrustedSigning()
     {
         Skip.If(!VelopackRuntimeInfo.IsWindows);
-        Skip.If(await IsAuthenticatedForCodeSigningAsync());
+        Skip.If(!await IsAuthenticatedForCodeSigningAsync());
 
         using var logger = _output.BuildLoggerFor<TrustedSigningTests>();
         using var _ = TempUtil.GetTempDirectory(out var releaseDir);
