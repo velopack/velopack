@@ -204,6 +204,11 @@ jobs:
           dotnet tool install -g vpk
           .\build.bat 1.0.0
         if: ${{ matrix.os == 'windows-latest' }}
+      - name: Install CPlusPlusWidgets Dependencies
+        run: |
+          sudo apt-cache search libwxgt*
+          sudo apt install -y libwxgtk3.0-dev
+        if: ${{ matrix.os == 'ubuntu-latest' }}
       - name: Check CPlusPlusWidgets Sample
         working-directory: samples/CPlusPlusWidgets
         run: |
