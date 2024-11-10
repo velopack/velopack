@@ -230,6 +230,7 @@ pub extern "C" fn vpkc_app_run(p_user_data: *mut c_void) {
         app = app.set_locator(locator.clone());
     }
 
+    #[cfg(windows)]
     if let Some(hook) = &app_options.install_hook {
         app = app.on_after_install_fast_callback(|version| {
             let c_string = CString::new(version.to_string()).unwrap();
@@ -237,6 +238,7 @@ pub extern "C" fn vpkc_app_run(p_user_data: *mut c_void) {
         });
     }
 
+    #[cfg(windows)]
     if let Some(hook) = &app_options.uninstall_hook {
         app = app.on_before_uninstall_fast_callback(|version| {
             let c_string = CString::new(version.to_string()).unwrap();
@@ -244,6 +246,7 @@ pub extern "C" fn vpkc_app_run(p_user_data: *mut c_void) {
         });
     }
 
+    #[cfg(windows)]
     if let Some(hook) = &app_options.obsolete_hook {
         app = app.on_before_update_fast_callback(|version| {
             let c_string = CString::new(version.to_string()).unwrap();
@@ -251,6 +254,7 @@ pub extern "C" fn vpkc_app_run(p_user_data: *mut c_void) {
         });
     }
 
+    #[cfg(windows)]
     if let Some(hook) = &app_options.update_hook {
         app = app.on_after_update_fast_callback(|version| {
             let c_string = CString::new(version.to_string()).unwrap();
