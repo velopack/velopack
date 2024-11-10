@@ -153,7 +153,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-latest, macos-latest]
         include:
           - os: windows-latest
             rust_flags: "--features windows"
@@ -181,117 +181,11 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: ./test/coverage.rust.${{ matrix.os }}.xml
-  
-  # check-libs:
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       os: [macos-latest, windows-latest, ubuntu-latest]
-  #   runs-on: ${{ matrix.os }}
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0
-  #     - name: Check lib-rust
-  #       run: cargo check -p velopack -F async,delta
-  #     # - name: Check RustIced Sample
-  #     #   working-directory: samples/RustIced
-  #     #   run: cargo check
-  #     - name: Check lib-nodejs
-  #       working-directory: src/lib-nodejs
-  #       run: |
-  #         npm install
-  #         npm run build
-  #         npm run test
-  #     # - name: Check NodeJSElectron Sample
-  #     #   working-directory: samples/NodeJSElectron
-  #     #   run: |
-  #     #     npm install
-  #     #     npm run typecheck
-  #     # - name: Check CPlusPlusWin32 Sample
-  #     #   working-directory: samples/CPlusPlusWin32
-  #     #   run: |
-  #     #     dotnet tool install -g vpk
-  #     #     .\build.bat 1.0.0
-  #     #   if: ${{ matrix.os == 'windows-latest' }}
-  #     # - name: Install CPlusPlusWidgets Dependencies
-  #     #   run: |
-  #     #     sudo apt-cache search libwxgt*
-  #     #     sudo apt install -y libwxgtk3.0-dev
-  #     #   if: ${{ matrix.os == 'ubuntu-latest' }}
-  #     # - name: Check CPlusPlusWidgets Sample
-  #     #   working-directory: samples/CPlusPlusWidgets
-  #     #   run: |
-  #     #     cargo build -p velopack_libc
-  #     #     cmake -S . -B build-rel -D CMAKE_BUILD_TYPE=Release
-  #     #     cmake --build build-rel -j --config Release
-  
-  check-samples:
-    strategy:
-      fail-fast: false
-      matrix:
-        sample: [CPlusPlusWidgets, CPlusPlusWin32, CSharpAvalonia, CSharpWpf, NodeJSElectron, RustIced]
-        os: [macos-latest, windows-latest, ubuntu-latest]
-        exclude:
-          - os: ubuntu-latest
-            sample: CPlusPlusWin32
-          - os: macos-latest
-            sample: CPlusPlusWin32
-          - os: ubuntu-latest
-            sample: CSharpWpf
-          - os: macos-latest
-            sample: CSharpWpf
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      # - name: Install GTK
-      #   run: |
-      #     sudo apt-cache search libwxgt*
-      #     sudo apt-cache search libgtk*
-      #     sudo apt install -y libwxgtk3.0-gtk3-dev libgtk-3-dev
-      #   if: ${{ matrix.os == 'ubuntu-latest' }}
-      - name: Install wxWidgets (Windows)
-        working-directory: samples/${{ matrix.sample }}
-        run: |
-          vcpkg install wxwidgets
-          vcpkg integrate install
-        if: ${{ matrix.sample == 'CPlusPlusWidgets' && matrix.os == 'windows-latest' }}
-
-      - name: Install wxWidgets (MacOS)
-        run: brew install wxwidgets
-        if: ${{ matrix.sample == 'CPlusPlusWidgets' && matrix.os == 'macos-latest' }}
-
-      - name: Install wxWidgets (Linux)
-        run: |
-          sudo apt-cache search libwxgt*
-          sudo apt-cache search libgtk*
-          sudo apt install -y libwxgtk3.0-gtk3-dev libgtk-3-dev
-        if: ${{ matrix.sample == 'CPlusPlusWidgets' && matrix.os == 'ubuntu-latest' }}
-
-      # - name: Install wxWidgets
-      #   run: |
-      #     vcpkg install wxwidgets
-      #     vcpkg integrate install
-        
-      - name: Install VPK
-        run: dotnet tool install -g vpk
-      - name: Pack Sample (Windows)
-        working-directory: samples/${{ matrix.sample }}
-        run: .\build.bat 1.0.0
-        if: ${{ matrix.os == 'windows-latest' }}
-      - name: Pack Sample (Unix)
-        working-directory: samples/${{ matrix.sample }}
-        run: |
-          chmod 755 ./build.sh
-          ./build.sh 1.0.0
-        if: ${{ matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest' }}
           
   test-vpk:
     strategy:
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
@@ -457,9 +351,62 @@ jobs:
           name: lib-rust
           path: target/package/velopack-*.crate
 
+  samples:
+    strategy:
+      fail-fast: false
+      matrix:
+        sample: [CPlusPlusWidgets, CPlusPlusWin32, CSharpAvalonia, CSharpWpf, NodeJSElectron, RustIced]
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        exclude:
+          - os: ubuntu-latest
+            sample: CPlusPlusWin32
+          - os: macos-latest
+            sample: CPlusPlusWin32
+          - os: ubuntu-latest
+            sample: CSharpWpf
+          - os: macos-latest
+            sample: CSharpWpf
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install wxWidgets (Windows)
+        working-directory: samples/${{ matrix.sample }}
+        run: |
+          curl -L -o wxWidgets-3.2.6-headers.7z https://github.com/wxWidgets/wxWidgets/releases/download/v3.2.6/wxWidgets-3.2.6-headers.7z
+          curl -L -o wxMSW-3.2.6_vc14x_x64_Dev.7z https://github.com/wxWidgets/wxWidgets/releases/download/v3.2.6/wxMSW-3.2.6_vc14x_x64_Dev.7z
+          curl -L -o wxMSW-3.2.6_vc14x_x64_ReleaseDLL.7z https://github.com/wxWidgets/wxWidgets/releases/download/v3.2.6/wxMSW-3.2.6_vc14x_x64_ReleaseDLL.7z
+          7z x wxWidgets-3.2.6-headers.7z -o".\wxWidgets" -y
+          7z x wxMSW-3.2.6_vc14x_x64_Dev.7z -o".\wxWidgets" -y
+          7z x wxMSW-3.2.6_vc14x_x64_ReleaseDLL.7z -o".\wxWidgets" -y
+          dir wxWidgets
+        if: ${{ matrix.sample == 'CPlusPlusWidgets' && matrix.os == 'windows-latest' }}
+      - name: Install wxWidgets (MacOS)
+        run: brew install wxwidgets
+        if: ${{ matrix.sample == 'CPlusPlusWidgets' && matrix.os == 'macos-latest' }}
+      - name: Install wxWidgets (Linux)
+        run: |
+          sudo apt-cache search libwxgt*
+          sudo apt-cache search libgtk*
+          sudo apt install -y libwxgtk3.0-gtk3-dev libgtk-3-dev
+        if: ${{ matrix.sample == 'CPlusPlusWidgets' && matrix.os == 'ubuntu-latest' }}
+      - name: Install VPK
+        run: dotnet tool install -g vpk
+      - name: Pack Sample (Windows)
+        working-directory: samples/${{ matrix.sample }}
+        run: .\build.bat 1.0.0
+        if: ${{ matrix.os == 'windows-latest' }}
+      - name: Pack Sample (Unix)
+        working-directory: samples/${{ matrix.sample }}
+        run: |
+          chmod 755 ./build.sh
+          ./build.sh 1.0.0
+        if: ${{ matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest' }}
+
   release:
     runs-on: ubuntu-latest
-    needs: [package, test-vpk, test-bins, check-samples]
+    needs: [package, test-vpk, test-bins, samples]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     steps:
       - name: Invoke Release Workflow
