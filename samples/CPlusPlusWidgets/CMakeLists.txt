@@ -31,11 +31,19 @@ if(NOT wxWidgets_FOUND)
     set(wxWidgets_LIBRARIES wxcore wxnet)
 endif()
 
-
 # include the Velopack library (headers + precompiled lib)
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../../src/lib-cpp/include")
-set(VELOPACK_LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../target/debug/velopack_libc.dll.lib")
-set(VELOPACK_DLL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../target/debug/velopack_libc.dll")
+
+if(WIN32)
+    set(VELOPACK_LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../target/debug/velopack_libc.dll.lib")
+    set(VELOPACK_DLL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../target/debug/velopack_libc.dll")
+elseif(APPLE)
+    set(VELOPACK_LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../target/debug/libvelopack_libc.dylib")
+    set(VELOPACK_DLL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../target/debug/libvelopack_libc.dylib")
+else()
+    set(VELOPACK_LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../target/debug/libvelopack_libc.so")
+    set(VELOPACK_DLL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../target/debug/libvelopack_libc.so")
+endif()
 
 if(WIN32)
     # the WIN32 is needed for Windows in order for it to look for WinMain
