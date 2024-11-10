@@ -51,6 +51,7 @@ if(WIN32)
     # so it works on all platforms
     add_executable(main WIN32 main.cpp main.exe.manifest)
 else()
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release")
     add_executable(main main.cpp)
 endif()
 
