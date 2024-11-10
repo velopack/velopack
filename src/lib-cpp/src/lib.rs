@@ -201,16 +201,12 @@ pub extern "C" fn vpkc_free_update_manager(p_manager: *mut c_void) {
 
 #[no_mangle]
 pub extern "C" fn vpkc_free_update_info(p_update_info: *mut vpkc_update_info_t) {
-    if !p_update_info.is_null() {
-        unsafe { free_updateinfo(p_update_info) };
-    }
+    unsafe { free_updateinfo(p_update_info) };
 }
 
 #[no_mangle]
 pub extern "C" fn vpkc_free_asset(p_asset: *mut vpkc_asset_t) {
-    if !p_asset.is_null() {
-        unsafe { free_velopackasset(p_asset) };
-    }
+    unsafe { free_velopackasset(p_asset) };
 }
 
 #[no_mangle]
