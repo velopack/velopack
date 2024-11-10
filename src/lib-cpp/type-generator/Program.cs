@@ -47,51 +47,59 @@ if (desiredStructs.Length != availableStructs.Count) {
 }
 
 // rust bridge code
-string rustCppLib = Path.Combine(libcppDir, "src", "lib.rs");
-string rustCppMap = Path.Combine(libcppDir, "src", "map.rs");
+// string rustCppLib = Path.Combine(libcppDir, "src", "lib.rs");
+string rustTypes = Path.Combine(libcppDir, "src", "types.rs");
+//string rustCppMap = Path.Combine(libcppDir, "src", "map.rs");
 string rustCppInclude = Path.Combine(libcppDir, "include", "Velopack.h");
-string rustBridgeC = Path.Combine(libcppDir, "src", "bridge.cc");
+//string rustBridgeC = Path.Combine(libcppDir, "src", "bridge.cc");
 
-Console.WriteLine("Generating bridge dtos");
-var sbBridgeDto = new IndentStringBuilder();
-foreach(var rs in availableStructs) {
-    Templates.WriteBridgeDto(desiredStructs, sbBridgeDto, rs);
-}
+//Console.WriteLine("Generating bridge dtos");
+//var sbBridgeDto = new IndentStringBuilder();
+//foreach(var rs in availableStructs) {
+//    Templates.WriteBridgeDto(desiredStructs, sbBridgeDto, rs);
+//}
 
-Console.WriteLine("Generating bridge to core mappings");
-var sbBridgeMapping = new IndentStringBuilder();
-foreach(var rs in availableStructs) {
-    Templates.WriteBridgeToCoreMapping(desiredStructs, sbBridgeMapping, rs);
-}
+//Console.WriteLine("Generating bridge to core mappings");
+//var sbBridgeMapping = new IndentStringBuilder();
+//foreach(var rs in availableStructs) {
+//    Templates.WriteBridgeToCoreMapping(desiredStructs, sbBridgeMapping, rs);
+//}
 
 Console.WriteLine("Generating C types");
 var cTypes = new IndentStringBuilder();
 cTypes.AppendLine();
-foreach(var rs in availableStructs) {
+foreach (var rs in availableStructs) {
     Templates.WriteBasicC(basic_libc_names, cTypes, rs);
 }
 
 Console.WriteLine("Generating C++ types");
 var cppTypes = new IndentStringBuilder();
 cppTypes.AppendLine();
-foreach(var rs in availableStructs) {
+foreach (var rs in availableStructs) {
     Templates.WriteCPlusPlus(basic_libc_names, cppTypes, rs);
 }
 foreach (var rs in availableStructs) {
     Templates.WriteC2CPPMapping(basic_libc_names, cppTypes, rs);
 }
 
-Console.WriteLine("Generating C to bridge mappings");
-var cToBridgeMapping = new IndentStringBuilder();
-foreach(var rs in availableStructs) {
-    Templates.WriteCBridgeMapping(basic_libc_names, cToBridgeMapping, rs);
+Console.WriteLine("Generating Rust-C types");
+var rustCTypes = new IndentStringBuilder();
+foreach (var rs in availableStructs) {
+    Templates.WriteRustCRepr(basic_libc_names, rustCTypes, rs);
 }
 
+//Console.WriteLine("Generating C to bridge mappings");
+//var cToBridgeMapping = new IndentStringBuilder();
+//foreach (var rs in availableStructs) {
+//    Templates.WriteCBridgeMapping(basic_libc_names, cToBridgeMapping, rs);
+//}
+
 Console.WriteLine("Writing all to file");
-Util.ReplaceTextInFile(rustCppLib, "BRIDGE_DTOS", sbBridgeDto.ToString());
-Util.ReplaceTextInFile(rustCppMap, "CORE_MAPPING", sbBridgeMapping.ToString());
+//Util.ReplaceTextInFile(rustCppLib, "BRIDGE_DTOS", sbBridgeDto.ToString());
+//Util.ReplaceTextInFile(rustCppMap, "CORE_MAPPING", sbBridgeMapping.ToString());
+Util.ReplaceTextInFile(rustTypes, "RUST_TYPES", rustCTypes.ToString());
 Util.ReplaceTextInFile(rustCppInclude, "C_TYPES", cTypes.ToString());
 Util.ReplaceTextInFile(rustCppInclude, "CPP_TYPES", cppTypes.ToString());
-Util.ReplaceTextInFile(rustBridgeC, "BRIDGE_MAPPING", cToBridgeMapping.ToString());
+//Util.ReplaceTextInFile(rustBridgeC, "BRIDGE_MAPPING", cToBridgeMapping.ToString());
 
 return 0;

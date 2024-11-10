@@ -20,39 +20,6 @@
 #include <string.h>
 #endif
 
-#if defined(VELOPACK_LIBC_EXPORTS) && defined(_WIN32)
-#define VPKC_EXPORT __declspec(dllexport)
-#define VPKC_CALL __cdecl
-#pragma comment(linker, "/EXPORT:vpkc_new_update_manager")
-#pragma comment(linker, "/EXPORT:vpkc_get_current_version")
-#pragma comment(linker, "/EXPORT:vpkc_get_app_id")
-#pragma comment(linker, "/EXPORT:vpkc_is_portable")
-#pragma comment(linker, "/EXPORT:vpkc_update_pending_restart")
-#pragma comment(linker, "/EXPORT:vpkc_download_updates")
-#pragma comment(linker, "/EXPORT:vpkc_wait_exit_then_apply_update")
-#pragma comment(linker, "/EXPORT:vpkc_app_set_auto_apply_on_startup")
-#pragma comment(linker, "/EXPORT:vpkc_app_set_args")
-#pragma comment(linker, "/EXPORT:vpkc_app_set_locator")
-#pragma comment(linker, "/EXPORT:vpkc_app_set_hook_after_install")
-#pragma comment(linker, "/EXPORT:vpkc_app_set_hook_before_uninstall")
-#pragma comment(linker, "/EXPORT:vpkc_app_set_hook_before_update")
-#pragma comment(linker, "/EXPORT:vpkc_app_set_hook_after_update")
-#pragma comment(linker, "/EXPORT:vpkc_app_set_hook_first_run")
-#pragma comment(linker, "/EXPORT:vpkc_app_set_hook_restarted")
-#pragma comment(linker, "/EXPORT:vpkc_app_run")
-#pragma comment(linker, "/EXPORT:vpkc_get_last_error")
-#pragma comment(linker, "/EXPORT:vpkc_set_logger")
-#pragma comment(linker, "/EXPORT:vpkc_free_update_manager")
-#pragma comment(linker, "/EXPORT:vpkc_free_update_info")
-#pragma comment(linker, "/EXPORT:vpkc_free_asset")
-#elif defined(VELOPACK_LIBC_EXPORTS) && !defined(_WIN32)
-#define VPKC_EXPORT __attribute__((visibility("default"))) __attribute__((used))
-#define VPKC_CALL
-#else
-#define VPKC_EXPORT
-#define VPKC_CALL
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -63,9 +30,10 @@ typedef void (*vpkc_log_callback_t)(void* pUserData, const char* pszLevel, const
 typedef void (*vpkc_hook_callback_t)(void* pUserData, const char* pszAppVersion);
 
 typedef enum vpkc_update_check_t {
+    UPDATE_ERROR = -1,
     UPDATE_AVAILABLE = 0,
     NO_UPDATE_AVAILABLE = 1,
-    UPDATE_ERROR = 2,
+    REMOTE_IS_EMPTY = 2,
 } vpkc_update_check_t;
 
 // !! AUTO-GENERATED-START C_TYPES
@@ -138,55 +106,55 @@ typedef struct vpkc_update_options_t {
 
 /// Creates a new vpkc_update_manager_t. Free with vpkc_free_update_manager.
 /// \group UpdateManager
-VPKC_EXPORT bool VPKC_CALL vpkc_new_update_manager(const char* pszUrlOrString, vpkc_update_options_t* pOptions, vpkc_locator_config_t* pLocator, vpkc_update_manager_t** pManager);
+bool vpkc_new_update_manager(const char* pszUrlOrString, vpkc_update_options_t* pOptions, vpkc_locator_config_t* pLocator, vpkc_update_manager_t** pManager);
 /// \group UpdateManager
-VPKC_EXPORT size_t VPKC_CALL vpkc_get_current_version(vpkc_update_manager_t* pManager, char* pszVersion, size_t cVersion);
+size_t vpkc_get_current_version(vpkc_update_manager_t* pManager, char* pszVersion, size_t cVersion);
 /// \group UpdateManager
-VPKC_EXPORT size_t VPKC_CALL vpkc_get_app_id(vpkc_update_manager_t* pManager, char* pszId, size_t cId);
+size_t vpkc_get_app_id(vpkc_update_manager_t* pManager, char* pszId, size_t cId);
 /// \group UpdateManager
-VPKC_EXPORT bool VPKC_CALL vpkc_is_portable(vpkc_update_manager_t* pManager);
+bool vpkc_is_portable(vpkc_update_manager_t* pManager);
 /// \group UpdateManager
-VPKC_EXPORT bool VPKC_CALL vpkc_update_pending_restart(vpkc_update_manager_t* pManager, vpkc_asset_t* pAsset);
+bool vpkc_update_pending_restart(vpkc_update_manager_t* pManager, vpkc_asset_t* pAsset);
 /// \group UpdateManager
-VPKC_EXPORT vpkc_update_check_t VPKC_CALL vpkc_check_for_updates(vpkc_update_manager_t* pManager, vpkc_update_info_t* pUpdate);
+vpkc_update_check_t vpkc_check_for_updates(vpkc_update_manager_t* pManager, vpkc_update_info_t* pUpdate);
 /// \group UpdateManager
-VPKC_EXPORT bool VPKC_CALL vpkc_download_updates(vpkc_update_manager_t* pManager, vpkc_update_info_t* pUpdate, vpkc_progress_callback_t cbProgress, void* pUserData = 0);
+bool vpkc_download_updates(vpkc_update_manager_t* pManager, vpkc_update_info_t* pUpdate, vpkc_progress_callback_t cbProgress, void* pUserData = 0);
 /// \group UpdateManager
-VPKC_EXPORT bool VPKC_CALL vpkc_wait_exit_then_apply_update(vpkc_update_manager_t* pManager, vpkc_asset_t* pAsset, bool bSilent, bool bRestart, char** pRestartArgs, size_t cRestartArgs);
+bool vpkc_wait_exit_then_apply_update(vpkc_update_manager_t* pManager, vpkc_asset_t* pAsset, bool bSilent, bool bRestart, char** pRestartArgs, size_t cRestartArgs);
 /// \group UpdateManager
-VPKC_EXPORT void VPKC_CALL vpkc_free_update_manager(vpkc_update_manager_t* pManager);
+void vpkc_free_update_manager(vpkc_update_manager_t* pManager);
 /// \group UpdateManager
-VPKC_EXPORT void VPKC_CALL vpkc_free_update_info(vpkc_update_info_t* pUpdateInfo);
+void vpkc_free_update_info(vpkc_update_info_t* pUpdateInfo);
 /// \group UpdateManager
-VPKC_EXPORT void VPKC_CALL vpkc_free_asset(vpkc_asset_t* pAsset);
+void vpkc_free_asset(vpkc_asset_t* pAsset);
 
 /// Should be run at the beginning of your application to handle Velopack events.
 /// \group VelopackApp
-VPKC_EXPORT void VPKC_CALL vpkc_app_run(void* pUserData = 0);
+void vpkc_app_run(void* pUserData = 0);
 /// \group VelopackApp
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_auto_apply_on_startup(bool bAutoApply);
+void vpkc_app_set_auto_apply_on_startup(bool bAutoApply);
 /// \group VelopackApp
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_args(char** pArgs, size_t cArgs);
+void vpkc_app_set_args(char** pArgs, size_t cArgs);
 /// \group VelopackApp
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_locator(vpkc_locator_config_t* pLocator);
+void vpkc_app_set_locator(vpkc_locator_config_t* pLocator);
 /// \group VelopackApp
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_after_install(vpkc_hook_callback_t cbAfterInstall);
+void vpkc_app_set_hook_after_install(vpkc_hook_callback_t cbAfterInstall);
 /// \group VelopackApp
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_before_uninstall(vpkc_hook_callback_t cbBeforeUninstall);
+void vpkc_app_set_hook_before_uninstall(vpkc_hook_callback_t cbBeforeUninstall);
 /// \group VelopackApp
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_before_update(vpkc_hook_callback_t cbBeforeUpdate);
+void vpkc_app_set_hook_before_update(vpkc_hook_callback_t cbBeforeUpdate);
 /// \group VelopackApp
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_after_update(vpkc_hook_callback_t cbAfterUpdate);
+void vpkc_app_set_hook_after_update(vpkc_hook_callback_t cbAfterUpdate);
 /// \group VelopackApp
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_first_run(vpkc_hook_callback_t cbFirstRun);
+void vpkc_app_set_hook_first_run(vpkc_hook_callback_t cbFirstRun);
 /// \group VelopackApp
-VPKC_EXPORT void VPKC_CALL vpkc_app_set_hook_restarted(vpkc_hook_callback_t cbRestarted);
+void vpkc_app_set_hook_restarted(vpkc_hook_callback_t cbRestarted);
 
 /// Given a function has returned a failure, this function will return the last error message as a string.
-VPKC_EXPORT size_t VPKC_CALL vpkc_get_last_error(char* pszError, size_t cError);
+size_t vpkc_get_last_error(char* pszError, size_t cError);
 
 /// Sets the callback to be used/called with log messages from Velopack.
-VPKC_EXPORT void VPKC_CALL vpkc_set_logger(vpkc_log_callback_t cbLog, void* pUserData = 0);
+void vpkc_set_logger(vpkc_log_callback_t cbLog, void* pUserData = 0);
 
 #ifdef __cplusplus // end of extern "C"
 }
@@ -594,6 +562,7 @@ public:
                 throw_last_error();
                 return std::nullopt;
             case vpkc_update_check_t::NO_UPDATE_AVAILABLE:
+            case vpkc_update_check_t::REMOTE_IS_EMPTY:
                 return std::nullopt;
             case vpkc_update_check_t::UPDATE_AVAILABLE:
                 UpdateInfo cpp_info = to_cpp(update);

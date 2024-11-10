@@ -23,8 +23,6 @@ edition = "2021"
 rust-version = "1.75"
 
 [workspace.dependencies]
-cxx = "1.0"
-cxx-build = "1.0"
 velopack = { path = "src/lib-rust" }
 log = "0.4"
 ureq = "2.10"
