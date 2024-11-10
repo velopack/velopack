@@ -14,7 +14,7 @@ public:
         vpkc_set_logger(&MyFrame::HandleVpkcLogStatic, this);
 
         // Set background color to white
-        SetBackgroundColour(*wxWHITE);
+        // SetBackgroundColour(*wxWHITE);
 
         // Main vertical sizer
         wxBoxSizer* mainSizer = new wxBoxSizer(wxVERTICAL);
