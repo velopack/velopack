@@ -3,7 +3,7 @@ use std::env;
 use std::process::exit;
 
 use crate::{
-    locator::{VelopackLocatorConfig}, 
+    locator::VelopackLocatorConfig, 
     constants::*,
     manager,
     sources,
