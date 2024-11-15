@@ -114,6 +114,7 @@ jobs:
             target/UpdateNix*
             target/*.so
             target/*.node
+            target/*.a
       - name: Cancel workflow if failed
         uses: andymckay/cancel-action@0.5
         if: ${{ failure() }}
@@ -160,6 +161,7 @@ jobs:
             target/UpdateMac
             target/*.dylib
             target/*.node
+            target/*.a
       - name: Cancel workflow if failed
         uses: andymckay/cancel-action@0.5
         if: ${{ failure() }}
