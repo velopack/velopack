@@ -55,9 +55,11 @@
         var cName = nameMap[rs.Name];
         sb.AppendLine("#[rustfmt::skip]");
         sb.AppendLine($"#[repr(C)]");
+        sb.AppendDocComment(rs.DocComment);
         sb.AppendLine($"pub struct {cName} {{");
         using (sb.Indent()) {
             foreach (var field in rs.Fields) {
+                sb.AppendDocComment(field.DocComment);
                 sb.AppendLine($"pub {field.Name}: {GetBasicCTypeInRust(nameMap, field.Type)},");
             }
         }

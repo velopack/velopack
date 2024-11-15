@@ -1,4 +1,5 @@
-use std::ffi::{c_char, c_void, CStr, CString};
+use std::ffi::{CStr, CString};
+use libc::{c_char, c_void, size_t};
 use std::path::PathBuf;
 use velopack::{locator::VelopackLocatorConfig, UpdateInfo, UpdateOptions, VelopackAsset};
 
@@ -56,7 +57,7 @@ pub unsafe fn free_pathbuf(psz: *mut *mut c_char) {
     free_string(psz);
 }
 
-pub fn c_to_string_array_opt(p_args: *mut *mut c_char, c_args: usize) -> Option<Vec<String>> {
+pub fn c_to_string_array_opt(p_args: *mut *mut c_char, c_args: size_t) -> Option<Vec<String>> {
     if p_args.is_null() || c_args == 0 {
         return None;
     }
@@ -71,7 +72,7 @@ pub fn c_to_string_array_opt(p_args: *mut *mut c_char, c_args: usize) -> Option<
     Some(args)
 }
 
-pub fn return_cstr(psz: *mut c_char, c: usize, s: &str) -> usize {
+pub fn return_cstr(psz: *mut c_char, c: size_t, s: &str) -> size_t {
     if !psz.is_null() && c > 0 {
         let cstr = CString::new(s).unwrap();
         let bytes = cstr.as_bytes_with_nul();
@@ -85,7 +86,17 @@ pub fn return_cstr(psz: *mut c_char, c: usize, s: &str) -> usize {
     return s.len();
 }
 
-pub type vpkc_progress_callback_t = extern "C" fn(p_user_data: *mut c_void, progress: usize);
+#[repr(i16)]
+pub enum vpkc_update_check_t {
+    UPDATE_ERROR = -1,
+    UPDATE_AVAILABLE = 0,
+    NO_UPDATE_AVAILABLE = 1,
+    REMOTE_IS_EMPTY = 2,
+}
+
+pub type vpkc_update_manager_t = c_void;
+
+pub type vpkc_progress_callback_t = extern "C" fn(p_user_data: *mut c_void, progress: size_t);
 
 pub type vpkc_log_callback_t = extern "C" fn(p_user_data: *mut c_void, psz_level: *const c_char, psz_message: *const c_char);
 
@@ -94,12 +105,19 @@ pub type vpkc_hook_callback_t = extern "C" fn(p_user_data: *mut c_void, psz_app_
 // !! AUTO-GENERATED-START RUST_TYPES
 #[rustfmt::skip]
 #[repr(C)]
+/// VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
 pub struct vpkc_locator_config_t {
+    /// The root directory of the current app.
     pub RootAppDir: *mut c_char,
+    /// The path to the Update.exe binary.
     pub UpdateExePath: *mut c_char,
+    /// The path to the packages' directory.
     pub PackagesDir: *mut c_char,
+    /// The current app manifest.
     pub ManifestPath: *mut c_char,
+    /// The directory containing the application's user binaries.
     pub CurrentBinaryDir: *mut c_char,
+    /// Whether the current application is portable or installed.
     pub IsPortable: bool,
 }
 
@@ -144,15 +162,25 @@ pub unsafe fn free_velopacklocatorconfig(obj: *mut vpkc_locator_config_t) {
 
 #[rustfmt::skip]
 #[repr(C)]
+/// An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
 pub struct vpkc_asset_t {
+    /// The name or Id of the package containing this release.
     pub PackageId: *mut c_char,
+    /// The version of this release.
     pub Version: *mut c_char,
+    /// The type of asset (eg. "Full" or "Delta").
     pub Type: *mut c_char,
+    /// The filename of the update package containing this release.
     pub FileName: *mut c_char,
+    /// The SHA1 checksum of the update package containing this release.
     pub SHA1: *mut c_char,
+    /// The SHA256 checksum of the update package containing this release.
     pub SHA256: *mut c_char,
+    /// The size in bytes of the update package containing this release.
     pub Size: u64,
+    /// The release notes in markdown format, as passed to Velopack when packaging the release. This may be an empty string.
     pub NotesMarkdown: *mut c_char,
+    /// The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
     pub NotesHtml: *mut c_char,
 }
 
@@ -206,8 +234,13 @@ pub unsafe fn free_velopackasset(obj: *mut vpkc_asset_t) {
 
 #[rustfmt::skip]
 #[repr(C)]
+/// Holds information about the current version and pending updates, such as how many there are, and access to release notes.
 pub struct vpkc_update_info_t {
+    /// The available version that we are updating to.
     pub TargetFullRelease: vpkc_asset_t,
+    /// True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
+    /// In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
+    /// deleted.
     pub IsDowngrade: bool,
 }
 
@@ -240,8 +273,20 @@ pub unsafe fn free_updateinfo(obj: *mut vpkc_update_info_t) {
 
 #[rustfmt::skip]
 #[repr(C)]
+/// Options to customise the behaviour of UpdateManager.
 pub struct vpkc_update_options_t {
+    /// Allows UpdateManager to update to a version that's lower than the current version (i.e. downgrading).
+    /// This could happen if a release has bugs and was retracted from the release feed, or if you're using
+    /// ExplicitChannel to switch channels to another channel where the latest version on that
+    /// channel is lower than the current version.
     pub AllowVersionDowngrade: bool,
+    /// **This option should usually be left None**. <br/>
+    /// Overrides the default channel used to fetch updates.
+    /// The default channel will be whatever channel was specified on the command line when building this release.
+    /// For example, if the current release was packaged with '--channel beta', then the default channel will be 'beta'.
+    /// This allows users to automatically receive updates from the same channel they installed from. This options
+    /// allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
+    /// without having to reinstall the application.
     pub ExplicitChannel: *mut c_char,
 }
 
