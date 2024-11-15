@@ -356,6 +356,6 @@ impl UpdateManagerOpaque {
 
 impl Drop for UpdateManagerOpaque {
     fn drop(&mut self) {
-        log::debug!("UpdateManagerOpaque dropped");
+        log::debug!("UpdateManagerOpaque freed");
     }
 }

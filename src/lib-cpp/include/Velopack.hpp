@@ -200,6 +200,7 @@ static inline char** to_cstring_array(const std::vector<std::string>& vec) {
 #else
         strcpy(result[i], vec[i].c_str());  // Copy string content
 #endif
+        result[i][vec[i].size()] = '\0'; // Null-terminate the string
     }
     return result;
 }
@@ -207,6 +208,7 @@ static inline char** to_cstring_array(const std::vector<std::string>& vec) {
 static inline void free_cstring_array(char** arr, size_t size) {
     for (size_t i = 0; i < size; ++i) {
         delete[] arr[i];
+        arr[i] = nullptr;
     }
     delete[] arr;
 }

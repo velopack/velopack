@@ -2,7 +2,7 @@
 #include <optional>
 #include <string>
 #include <thread>
-#include "Velopack.h"
+#include "Velopack.hpp"
 
 using namespace Velopack;
 

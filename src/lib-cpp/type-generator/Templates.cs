@@ -99,6 +99,7 @@
         sb.AppendLine($"pub unsafe fn allocate_{rs.Name.ToLower()}(dto: {rs.Name}, obj: *mut {cName}) {{");
         using (sb.Indent()) {
             sb.AppendLine("if obj.is_null() { return; }");
+            sb.AppendLine($"log::debug!(\"{cName} allocated\");");
             foreach (var field in rs.Fields) {
                 if (field.Optional || field.Type == "PathBuf" || field.Type == "String" || nameMap.ContainsKey(field.Type)) {
                     sb.AppendLine($"allocate_{field.Type.ToLower()}{(field.Optional ? "_opt": "")}(dto.{field.Name}, &mut (*obj).{field.Name});");
@@ -114,6 +115,7 @@
         sb.AppendLine($"pub unsafe fn free_{rs.Name.ToLower()}(obj: *mut {cName}) {{");
         using (sb.Indent()) {
             sb.AppendLine("if obj.is_null() { return; }");
+            sb.AppendLine($"log::debug!(\"{cName} freed\");");
             foreach (var field in rs.Fields) {
                 if (field.Optional || field.Type == "PathBuf" || field.Type == "String" || nameMap.ContainsKey(field.Type)) {
                     sb.AppendLine($"free_{field.Type.ToLower()}(&mut (*obj).{field.Name});");
