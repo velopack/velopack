@@ -8,7 +8,7 @@ fn main() {
       .with_crate(crate_dir)
       .with_documentation(true)
       .with_language(cbindgen::Language::C)
-      .with_autogen_warning("// === THIS FILE IS AUTO-GENERATED - DO NOT EDIT ===")
+      .with_autogen_warning("/* THIS FILE IS AUTO-GENERATED - DO NOT EDIT */")
       .with_include_guard("VELOPACK_H")
       .with_cpp_compat(true)
       .with_include_version(true)

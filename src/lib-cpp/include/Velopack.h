@@ -3,7 +3,7 @@
 
 /* Generated with cbindgen:0.27.0 */
 
-// === THIS FILE IS AUTO-GENERATED - DO NOT EDIT ===
+/* THIS FILE IS AUTO-GENERATED - DO NOT EDIT */
 
 #include <stdarg.h>
 #include <stdbool.h>

@@ -142,6 +142,7 @@ pub fn c_to_velopacklocatorconfig_opt(obj: *mut vpkc_locator_config_t) -> Option
 #[rustfmt::skip]
 pub unsafe fn allocate_velopacklocatorconfig(dto: VelopackLocatorConfig, obj: *mut vpkc_locator_config_t) {
     if obj.is_null() { return; }
+    log::debug!("vpkc_locator_config_t allocated");
     allocate_pathbuf(dto.RootAppDir, &mut (*obj).RootAppDir);
     allocate_pathbuf(dto.UpdateExePath, &mut (*obj).UpdateExePath);
     allocate_pathbuf(dto.PackagesDir, &mut (*obj).PackagesDir);
@@ -153,6 +154,7 @@ pub unsafe fn allocate_velopacklocatorconfig(dto: VelopackLocatorConfig, obj: *m
 #[rustfmt::skip]
 pub unsafe fn free_velopacklocatorconfig(obj: *mut vpkc_locator_config_t) {
     if obj.is_null() { return; }
+    log::debug!("vpkc_locator_config_t freed");
     free_pathbuf(&mut (*obj).RootAppDir);
     free_pathbuf(&mut (*obj).UpdateExePath);
     free_pathbuf(&mut (*obj).PackagesDir);
@@ -208,6 +210,7 @@ pub fn c_to_velopackasset_opt(obj: *mut vpkc_asset_t) -> Option<VelopackAsset> {
 #[rustfmt::skip]
 pub unsafe fn allocate_velopackasset(dto: VelopackAsset, obj: *mut vpkc_asset_t) {
     if obj.is_null() { return; }
+    log::debug!("vpkc_asset_t allocated");
     allocate_string(dto.PackageId, &mut (*obj).PackageId);
     allocate_string(dto.Version, &mut (*obj).Version);
     allocate_string(dto.Type, &mut (*obj).Type);
@@ -222,6 +225,7 @@ pub unsafe fn allocate_velopackasset(dto: VelopackAsset, obj: *mut vpkc_asset_t)
 #[rustfmt::skip]
 pub unsafe fn free_velopackasset(obj: *mut vpkc_asset_t) {
     if obj.is_null() { return; }
+    log::debug!("vpkc_asset_t freed");
     free_string(&mut (*obj).PackageId);
     free_string(&mut (*obj).Version);
     free_string(&mut (*obj).Type);
@@ -261,6 +265,7 @@ pub fn c_to_updateinfo_opt(obj: *mut vpkc_update_info_t) -> Option<UpdateInfo> {
 #[rustfmt::skip]
 pub unsafe fn allocate_updateinfo(dto: UpdateInfo, obj: *mut vpkc_update_info_t) {
     if obj.is_null() { return; }
+    log::debug!("vpkc_update_info_t allocated");
     allocate_velopackasset(dto.TargetFullRelease, &mut (*obj).TargetFullRelease);
     (*obj).IsDowngrade = dto.IsDowngrade;
 }
@@ -268,6 +273,7 @@ pub unsafe fn allocate_updateinfo(dto: UpdateInfo, obj: *mut vpkc_update_info_t)
 #[rustfmt::skip]
 pub unsafe fn free_updateinfo(obj: *mut vpkc_update_info_t) {
     if obj.is_null() { return; }
+    log::debug!("vpkc_update_info_t freed");
     free_velopackasset(&mut (*obj).TargetFullRelease);
 }
 
@@ -307,6 +313,7 @@ pub fn c_to_updateoptions_opt(obj: *mut vpkc_update_options_t) -> Option<UpdateO
 #[rustfmt::skip]
 pub unsafe fn allocate_updateoptions(dto: UpdateOptions, obj: *mut vpkc_update_options_t) {
     if obj.is_null() { return; }
+    log::debug!("vpkc_update_options_t allocated");
     (*obj).AllowVersionDowngrade = dto.AllowVersionDowngrade;
     allocate_string_opt(dto.ExplicitChannel, &mut (*obj).ExplicitChannel);
 }
@@ -314,6 +321,7 @@ pub unsafe fn allocate_updateoptions(dto: UpdateOptions, obj: *mut vpkc_update_o
 #[rustfmt::skip]
 pub unsafe fn free_updateoptions(obj: *mut vpkc_update_options_t) {
     if obj.is_null() { return; }
+    log::debug!("vpkc_update_options_t freed");
     free_string(&mut (*obj).ExplicitChannel);
 }
 // !! AUTO-GENERATED-END RUST_TYPES
