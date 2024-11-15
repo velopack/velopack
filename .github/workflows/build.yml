@@ -171,7 +171,7 @@ jobs:
       - name: Upload Coverage
         uses: codecov/codecov-action@v5
         with:
-          file: ./test/coverage.rust.${{ matrix.os }}.xml
+          files: ./test/coverage.rust.${{ matrix.os }}.xml
   
   check-libs:
     strategy:
