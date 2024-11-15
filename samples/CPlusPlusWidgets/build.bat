@@ -14,10 +14,10 @@ echo Compiling velopack_libc...
 cargo build -p velopack_libc
 
 echo.
-echo Compiling VelopackCppWidgetsSample with cmake...
+echo Compiling VelopackCppWidgets with cmake...
 cmake -S . -B build-rel
 cmake --build build-rel -j --config Release
 
 echo.
 echo Building Velopack Release v%version%
-vpk pack -u VelopackCppWidgetsSample -o %~dp0releases -p %~dp0build-rel\Release -e main.exe -v %*
+vpk pack -u VelopackCppWidgets -o %~dp0releases -p %~dp0build-rel\Release -e main.exe -v %*

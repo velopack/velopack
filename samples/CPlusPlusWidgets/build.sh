@@ -19,10 +19,10 @@ echo "Compiling velopack_libc..."
 cargo build -p velopack_libc
 
 echo ""
-echo "Compiling VelopackCppWidgetsSample with cmake..."
+echo "Compiling VelopackCppWidgets with cmake..."
 cmake -S. -Bbuild-rel -DCMAKE_BUILD_TYPE=Release
 cmake --build build-rel -j
 
 echo ""
 echo "Building Velopack Release v$BUILD_VERSION"
-vpk pack -u VelopackCSharpAvalonia -v $BUILD_VERSION -o "$RELEASE_DIR" -p "$PUBLISH_DIR" -e main
+vpk pack -u VelopackCppWidgets -v $BUILD_VERSION -o "$RELEASE_DIR" -p "$PUBLISH_DIR" -e main
