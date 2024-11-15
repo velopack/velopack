@@ -50,7 +50,7 @@ if (desiredStructs.Length != availableStructs.Count) {
 // string rustCppLib = Path.Combine(libcppDir, "src", "lib.rs");
 string rustTypes = Path.Combine(libcppDir, "src", "types.rs");
 //string rustCppMap = Path.Combine(libcppDir, "src", "map.rs");
-string rustCppInclude = Path.Combine(libcppDir, "include", "Velopack.h");
+string rustCppInclude = Path.Combine(libcppDir, "include", "Velopack.hpp");
 //string rustBridgeC = Path.Combine(libcppDir, "src", "bridge.cc");
 
 //Console.WriteLine("Generating bridge dtos");
@@ -65,12 +65,12 @@ string rustCppInclude = Path.Combine(libcppDir, "include", "Velopack.h");
 //    Templates.WriteBridgeToCoreMapping(desiredStructs, sbBridgeMapping, rs);
 //}
 
-Console.WriteLine("Generating C types");
-var cTypes = new IndentStringBuilder();
-cTypes.AppendLine();
-foreach (var rs in availableStructs) {
-    Templates.WriteBasicC(basic_libc_names, cTypes, rs);
-}
+// Console.WriteLine("Generating C types");
+// var cTypes = new IndentStringBuilder();
+// cTypes.AppendLine();
+// foreach (var rs in availableStructs) {
+//     Templates.WriteBasicC(basic_libc_names, cTypes, rs);
+// }
 
 Console.WriteLine("Generating C++ types");
 var cppTypes = new IndentStringBuilder();
@@ -98,7 +98,7 @@ Console.WriteLine("Writing all to file");
 //Util.ReplaceTextInFile(rustCppLib, "BRIDGE_DTOS", sbBridgeDto.ToString());
 //Util.ReplaceTextInFile(rustCppMap, "CORE_MAPPING", sbBridgeMapping.ToString());
 Util.ReplaceTextInFile(rustTypes, "RUST_TYPES", rustCTypes.ToString());
-Util.ReplaceTextInFile(rustCppInclude, "C_TYPES", cTypes.ToString());
+// Util.ReplaceTextInFile(rustCppInclude, "C_TYPES", cTypes.ToString());
 Util.ReplaceTextInFile(rustCppInclude, "CPP_TYPES", cppTypes.ToString());
 //Util.ReplaceTextInFile(rustBridgeC, "BRIDGE_MAPPING", cToBridgeMapping.ToString());
 

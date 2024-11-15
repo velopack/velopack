@@ -9,23 +9,16 @@ mod types;
 use types::*;
 
 use anyhow::{anyhow, bail};
-use std::ffi::{c_char, c_void, CString};
+use std::ffi::CString;
+use libc::{size_t, c_char, c_void};
 use velopack::{sources, Error as VelopackError, UpdateCheck, UpdateManager, VelopackApp};
-
-#[repr(C)]
-pub enum vpkc_update_check_t {
-    UPDATE_ERROR = -1,
-    UPDATE_AVAILABLE = 0,
-    NO_UPDATE_AVAILABLE = 1,
-    REMOTE_IS_EMPTY = 2,
-}
 
 #[no_mangle]
 pub extern "C" fn vpkc_new_update_manager(
     psz_url_or_string: *const c_char,
     p_options: *mut vpkc_update_options_t,
     p_locator: *mut vpkc_locator_config_t,
-    p_manager: *mut *mut c_void,
+    p_manager: *mut *mut vpkc_update_manager_t,
 ) -> bool {
     wrap_error(|| {
         let update_url = c_to_string_opt(psz_url_or_string).ok_or(anyhow!("URL or path is null"))?;
@@ -34,13 +27,13 @@ pub extern "C" fn vpkc_new_update_manager(
         let locator = c_to_velopacklocatorconfig_opt(p_locator);
         let manager = UpdateManager::new(source, options, locator)?;
         let opaque = Box::new(UpdateManagerOpaque::new(manager));
-        unsafe { *p_manager = Box::into_raw(opaque) as *mut c_void };
+        unsafe { *p_manager = Box::into_raw(opaque) as *mut vpkc_update_manager_t };
         Ok(())
     })
 }
 
 #[no_mangle]
-pub extern "C" fn vpkc_get_current_version(p_manager: *mut c_void, psz_version: *mut c_char, c_version: usize) -> usize {
+pub extern "C" fn vpkc_get_current_version(p_manager: *mut vpkc_update_manager_t, psz_version: *mut c_char, c_version: size_t) -> size_t {
     if p_manager.is_null() {
         return 0;
     }
@@ -51,7 +44,7 @@ pub extern "C" fn vpkc_get_current_version(p_manager: *mut c_void, psz_version: 
 }
 
 #[no_mangle]
-pub extern "C" fn vpkc_get_app_id(p_manager: *mut c_void, psz_id: *mut c_char, c_id: usize) -> usize {
+pub extern "C" fn vpkc_get_app_id(p_manager: *mut vpkc_update_manager_t, psz_id: *mut c_char, c_id: size_t) -> size_t {
     if p_manager.is_null() {
         return 0;
     }
@@ -62,7 +55,7 @@ pub extern "C" fn vpkc_get_app_id(p_manager: *mut c_void, psz_id: *mut c_char, c
 }
 
 #[no_mangle]
-pub extern "C" fn vpkc_is_portable(p_manager: *mut c_void) -> bool {
+pub extern "C" fn vpkc_is_portable(p_manager: *mut vpkc_update_manager_t) -> bool {
     if p_manager.is_null() {
         return false;
     }
@@ -72,7 +65,7 @@ pub extern "C" fn vpkc_is_portable(p_manager: *mut c_void) -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn vpkc_update_pending_restart(p_manager: *mut c_void, p_asset: *mut vpkc_asset_t) -> bool {
+pub extern "C" fn vpkc_update_pending_restart(p_manager: *mut vpkc_update_manager_t, p_asset: *mut vpkc_asset_t) -> bool {
     if p_manager.is_null() {
         return false;
     }
@@ -89,7 +82,7 @@ pub extern "C" fn vpkc_update_pending_restart(p_manager: *mut c_void, p_asset: *
 }
 
 #[no_mangle]
-pub extern "C" fn vpkc_check_for_updates(p_manager: *mut c_void, p_update: *mut vpkc_update_info_t) -> vpkc_update_check_t {
+pub extern "C" fn vpkc_check_for_updates(p_manager: *mut vpkc_update_manager_t, p_update: *mut vpkc_update_info_t) -> vpkc_update_check_t {
     if p_manager.is_null() {
         set_last_error("pManager must not be null");
         return vpkc_update_check_t::UPDATE_ERROR;
@@ -115,7 +108,7 @@ pub extern "C" fn vpkc_check_for_updates(p_manager: *mut c_void, p_update: *mut 
 
 #[no_mangle]
 pub extern "C" fn vpkc_download_updates(
-    p_manager: *mut c_void,
+    p_manager: *mut vpkc_update_manager_t,
     p_update: *mut vpkc_update_info_t,
     cb_progress: vpkc_progress_callback_t,
     p_user_data: *mut c_void,
@@ -143,7 +136,7 @@ pub extern "C" fn vpkc_download_updates(
             // Try to receive progress updates without blocking
             match progress_receiver.try_recv() {
                 Ok(progress) => {
-                    cb_progress(p_user_data, progress as usize);
+                    cb_progress(p_user_data, progress as size_t);
                 }
                 _ => {
                     // No progress updates available, sleep for a short time to avoid busy-waiting
@@ -171,12 +164,12 @@ pub extern "C" fn vpkc_download_updates(
 
 #[no_mangle]
 pub extern "C" fn vpkc_wait_exit_then_apply_update(
-    p_manager: *mut c_void,
+    p_manager: *mut vpkc_update_manager_t,
     p_asset: *mut vpkc_asset_t,
     b_silent: bool,
     b_restart: bool,
     p_restart_args: *mut *mut c_char,
-    c_restart_args: usize,
+    c_restart_args: size_t,
 ) -> bool {
     wrap_error(|| {
         if p_manager.is_null() {
@@ -192,7 +185,7 @@ pub extern "C" fn vpkc_wait_exit_then_apply_update(
 }
 
 #[no_mangle]
-pub extern "C" fn vpkc_free_update_manager(p_manager: *mut c_void) {
+pub extern "C" fn vpkc_free_update_manager(p_manager: *mut vpkc_update_manager_t) {
     if !p_manager.is_null() {
         // Convert the raw pointer back into a Box to deallocate it properly
         let _ = unsafe { Box::from_raw(p_manager as *mut UpdateManagerOpaque) };
@@ -283,7 +276,7 @@ pub extern "C" fn vpkc_app_set_auto_apply_on_startup(b_auto_apply: bool) {
 }
 
 #[no_mangle]
-pub extern "C" fn vpkc_app_set_args(p_args: *mut *mut c_char, c_args: usize) {
+pub extern "C" fn vpkc_app_set_args(p_args: *mut *mut c_char, c_args: size_t) {
     update_app_options(|opt| {
         opt.args = c_to_string_array_opt(p_args, c_args);
     });
@@ -339,7 +332,7 @@ pub extern "C" fn vpkc_app_set_hook_restarted(cb_restarted: vpkc_hook_callback_t
 }
 
 #[no_mangle]
-pub extern "C" fn vpkc_get_last_error(psz_error: *mut c_char, c_error: usize) -> usize {
+pub extern "C" fn vpkc_get_last_error(psz_error: *mut c_char, c_error: size_t) -> size_t {
     let error = get_last_error();
     return_cstr(psz_error, c_error, &error)
 }
