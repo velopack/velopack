@@ -8,7 +8,7 @@
 #include <iostream>
 
 #include "constants.h"
-#include "Velopack.h"
+#include "Velopack.hpp"
 
 #pragma comment(linker, \
   "\"/manifestdependency:type='Win32' "\
@@ -57,7 +57,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Initialize Velopack log capture
     std::cout << "Velopack C++ Sample App" << std::endl;
-    vpkc_set_logger(handle_vpkc_log);
+    vpkc_set_logger(handle_vpkc_log, 0);
 
     // This should run as early as possible in the main method.
     // Velopack may exit / restart the app at this point. 
