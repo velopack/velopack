@@ -332,16 +332,16 @@ jobs:
           mv target/release/*.node src/lib-nodejs/lib/native/
 
           mkdir lib-c
-          mkdir lib-c/dylib
-          mkdir lib-c/staticlib
+          mkdir lib-c/lib
+          mkdir lib-c/lib-static
           mkdir lib-c/include
 
-          mv target/release/*.so lib-c/dylib/
-          mv target/release/*.dylib lib-c/dylib/
-          mv target/release/*.dll lib-c/dylib/
-          mv target/release/*.dll.lib lib-c/dylib/
-          mv target/release/*.a lib-c/staticlib/
-          mv target/release/*.lib lib-c/staticlib/
+          mv target/release/*.so lib-c/lib/
+          mv target/release/*.dylib lib-c/lib/
+          mv target/release/*.dll lib-c/lib/
+          mv target/release/*.dll.lib lib-c/lib/
+          mv target/release/*.a lib-c/lib-static/
+          mv target/release/*.lib lib-c/lib-static/
 
           cp src/lib-cpp/include/* lib-c/include/
 
