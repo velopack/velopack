@@ -83,16 +83,20 @@ private:
         }
 
         downloaded = false;
-        updateInfo = updateManager->CheckForUpdates();
 
-        if (updateInfo.has_value())
+        try 
         {
-            topText->SetLabel("Update Found: " + updateInfo.value().TargetFullRelease.Version);
+            updateInfo = updateManager->CheckForUpdates();
+            if (updateInfo.has_value())
+            {
+                topText->SetLabel("Update Found: " + updateInfo.value().TargetFullRelease.Version);
+            }
+            else
+            {
+                topText->SetLabel("No Update Found.");
+            }
         }
-        else
-        {
-            topText->SetLabel("No Update Found.");
-        }
+        catch (...) { /* exception will print in log */ }
     }
 
     void OnDownloadUpdates(wxCommandEvent& event)
@@ -106,12 +110,16 @@ private:
         // start download on new thread
         std::thread([this]()
         {
-            updateManager->DownloadUpdates(updateInfo.value(), &MyFrame::HandleProgressCallbackStatic, this);
-            downloaded = true;
-            wxTheApp->CallAfter([this]()
+            try
             {
-                topText->SetLabel("Download Complete.");
-            });
+                updateManager->DownloadUpdates(updateInfo.value(), &MyFrame::HandleProgressCallbackStatic, this);
+                downloaded = true;
+                wxTheApp->CallAfter([this]()
+                {
+                    topText->SetLabel("Download Complete.");
+                });
+            }
+            catch (...) { /* exception will print in log */ }
         }).detach();
     }
 
@@ -123,15 +131,24 @@ private:
             return;
         }
 
-        updateManager->WaitExitThenApplyUpdate(updateInfo.value());
-        exit(0);
+        try
+        {
+            updateManager->WaitExitThenApplyUpdate(updateInfo.value());
+            wxTheApp->ExitMainLoop();
+        }
+        catch (...) { /* exception will print in log */ }
+
     }
 
     void HandleVpkcLog(const char* pszLevel, const char* pszMessage)
     {
         std::string level(pszLevel);
         std::string message(pszMessage);
-        textArea->AppendText(level + ": " + message + "\n");
+        wxTheApp->CallAfter([this, level, message]() {
+            if (textArea) { // Ensure textArea is valid.
+                textArea->AppendText(level + ": " + message + "\n");
+            }
+        });
     }
 
     static void HandleVpkcLogStatic(void* context, const char* pszLevel, const char* pszMessage)
