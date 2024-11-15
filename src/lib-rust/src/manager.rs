@@ -460,7 +460,10 @@ impl UpdateManager {
 
         let mut p = Process::new(&self.locator.get_update_path());
         p.args(&args);
-        p.current_dir(&self.locator.get_root_dir());
+
+        if let Some(update_exe_parent) = self.locator.get_update_path().parent() {
+            p.current_dir(update_exe_parent);
+        }
 
         #[cfg(target_os = "windows")]
         {

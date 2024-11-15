@@ -59,6 +59,7 @@ where
         Ok(_) => true,
         Err(e) => {
             *last_error = format!("{:?}", e);
+            log::error!("{:?}", e);
             false
         }
     }
