@@ -15,7 +15,7 @@ rust-version.workspace = true
 
 [lib]
 path = "src/lib.rs"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 velopack.workspace = true
