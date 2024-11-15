@@ -27,8 +27,7 @@ cxx = "1.0"
 cxx-build = "1.0"
 velopack = { path = "src/lib-rust" }
 log = "0.4"
-native-tls = { version = "0.2", features = ["vendored"] }
-ureq = { version = "2.10", default-features = false, features = ["native-tls", "gzip"] }
+ureq = "2.10"
 url = "2.5"
 semver = "1.0"
 xml = "0.8"
