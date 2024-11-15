@@ -169,7 +169,7 @@ jobs:
       - name: Test Rust
         run: cargo llvm-cov ${{ matrix.rust_flags }} --cobertura --output-path ./test/coverage.rust.${{ matrix.os }}.xml
       - name: Upload Coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           file: ./test/coverage.rust.${{ matrix.os }}.xml
   
@@ -263,7 +263,7 @@ jobs:
           name: cross-${{ matrix.os }}
           path: test/artifacts/*
       - name: Upload Coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           directory: ./test
       - uses: caesay/wait-artifact-action@494939e840383463b1686ce3624a8aab059c2c8b
