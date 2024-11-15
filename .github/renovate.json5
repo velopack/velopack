@@ -78,6 +78,17 @@
     {
       "matchPackageNames": "SixLabors.ImageSharp",
       "allowedVersions": "< 3.0.0"
+    },
+    {
+      "matchPackageNames": "thiserror",
+      "allowedVersions": "< 2.0.0"
+    },
+    {
+      "matchPackageNames": [
+        "Microsoft.Extensions.*",
+        "System.*"
+      ],
+      "allowedVersions": "< 9.0.0"
     }
   ]
 }
