@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Octokit" Version="13.0.1" />
-    <PackageReference Include="NuGet.Packaging" Version="6.11.1" />
+    <PackageReference Include="NuGet.Packaging" Version="6.12.1" />
     <PackageReference Include="System.Formats.Asn1" Version="9.0.0" />
   </ItemGroup>
 
