@@ -421,11 +421,24 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
         return Err(Error::MissingUpdateExe);
     }
 
+    let appimage_path = match std::env::var("APPIMAGE") {
+        Ok(v) => {
+            if v.is_empty() || !PathBuf::from(&v).exists() {
+                return Err(Error::NotInstalled("The 'APPIMAGE' environment variable should point to the current AppImage path.".to_string()));
+            } else {
+                v
+            }
+        },
+        Err(_) => {
+            return Err(Error::NotInstalled("The 'APPIMAGE' environment variable should point to the current AppImage path.".to_string()));
+        }
+    };
+    
     let app = read_current_manifest(&metadata_path)?;
     let packages_dir = PathBuf::from("/var/tmp/velopack").join(&app.id).join("packages");
 
     let config = VelopackLocatorConfig {
-        RootAppDir: root_app_dir,
+        RootAppDir: PathBuf::from(appimage_path),
         UpdateExePath: update_exe_path,
         PackagesDir: packages_dir,
         ManifestPath: metadata_path,
