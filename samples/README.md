@@ -1,5 +1,6 @@
 # Velopack Samples
 
+- [**C++ / wxWidgets**](CPlusPlusWidgets) - Velopack in a cross-platform C++ app, using wxWidgets.
 - [**C++ / Win32**](CPlusPlusWin32) - Velopack in a C++ app, using the Win32 UI starter template.
 - [**C# / Avalonia**](CSharpAvalonia) - Velopack in a cross-platform app with [Avalonia](https://avaloniaui.net/).
 - [**C# / UnityMono**](CSharpUnityMono) - Velopack with [Unity Game Engine](https://unity.com/) and Mono.
