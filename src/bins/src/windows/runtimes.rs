@@ -473,7 +473,7 @@ fn test_dotnet_detects_installed_versions() {
     assert!(parse_dotnet_version("net6-runtime").unwrap().is_installed());
     assert!(parse_dotnet_version("net6-desktop").unwrap().is_installed());
     assert!(parse_dotnet_version("net6-asp").unwrap().is_installed());
-    assert!(!parse_dotnet_version("net9").unwrap().is_installed());
+    assert!(!parse_dotnet_version("net11").unwrap().is_installed());
 }
 
 lazy_static! {
