@@ -1,4 +1,5 @@
 use std::{
+    ffi::c_void,
     os::windows::process::CommandExt,
     path::{Path, PathBuf},
     process::Command as Process,
@@ -10,11 +11,13 @@ use velopack::locator::VelopackLocator;
 use anyhow::{anyhow, Result};
 use normpath::PathExt;
 use wait_timeout::ChildExt;
-use windows::core::PCWSTR;
 use windows::Win32::Storage::FileSystem::GetLongPathNameW;
 use windows::Win32::System::SystemInformation::{VerSetConditionMask, VerifyVersionInfoW, OSVERSIONINFOEXW, VER_FLAGS};
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
-use windows::Win32::Foundation;
+use windows::{
+    core::PCWSTR,
+    Win32::{Foundation::HWND, UI::Shell::ShellExecuteW},
+};
 
 use crate::shared::{self, runtime_arch::RuntimeArch};
 use crate::windows::strings::{string_to_u16, u16_to_string};
@@ -63,16 +66,50 @@ pub fn run_hook(locator: &VelopackLocator, hook_name: &str, timeout_secs: u64) -
     success
 }
 
-pub struct MutexDropGuard {
-    mutex: Foundation::HANDLE,
-}
+pub fn relaunch_self_as_admin(args: Vec<String>) -> Result<()> {
+    let exe = std::env::current_exe()?;
 
-impl Drop for MutexDropGuard {
-    fn drop(&mut self) {
-        unsafe {
-            Foundation::CloseHandle(self.mutex).ok();
+    let verb = string_to_u16("runas");
+    let verb = PCWSTR(verb.as_ptr());
+
+    let exe = string_to_u16(exe.to_string_lossy());
+    let exe = PCWSTR(exe.as_ptr());
+
+    let mut params = String::new();
+    for arg in args.iter() {
+        let arg = arg.to_string();
+        params.push(' ');
+        if arg.len() == 0 {
+            params.push_str("\"\"");
+        } else if arg.find(&[' ', '\t', '"'][..]).is_none() {
+            params.push_str(&arg);
+        } else {
+            params.push('"');
+            for c in arg.chars() {
+                match c {
+                    // '\\' => params.push_str("\\\\"),
+                    '"' => params.push_str("\\\""),
+                    c => params.push(c),
+                }
+            }
+            params.push('"');
         }
     }
+
+    let args = string_to_u16(params);
+    let args = PCWSTR(args.as_ptr());
+
+    unsafe {
+        let h_instance =
+            ShellExecuteW(HWND(std::ptr::null_mut()), verb, exe, args, PCWSTR::null(), windows::Win32::UI::WindowsAndMessaging::SW_NORMAL);
+        let min_result = 32;
+        let min_ptr = min_result as *mut c_void;
+        if h_instance.0 <= min_ptr {
+            return Err(anyhow!(windows::core::Error::from_win32()));
+        }
+    }
+
+    Ok(())
 }
 
 pub fn expand_environment_strings<P: AsRef<str>>(input: P) -> Result<String> {
@@ -118,6 +155,24 @@ pub fn get_long_path<P: AsRef<str>>(str: P) -> Result<String> {
 
     let result = u16_to_string(vec)?;
     Ok(result)
+}
+
+pub fn is_directory_writable<P1: AsRef<Path>>(path: P1) -> bool {
+    use std::os::windows::fs::OpenOptionsExt;
+    let path = path.as_ref();
+    let path = path.join(".velopack_dir_test");
+    let result = std::fs::File::options()
+        .create(true)
+        .write(true)
+        .custom_flags(0x04000000) // FILE_FLAG_DELETE_ON_CLOSE
+        .open(&path);
+
+    if let Err(e) = result {
+        warn!("Failed to open directory for writing {:?}: {}", path, e);
+        return false;
+    }
+
+    result.is_ok()
 }
 
 pub fn is_sub_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, parent: P2) -> Result<bool> {
