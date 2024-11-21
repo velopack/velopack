@@ -9,11 +9,21 @@ use std::{
     path::{Path, PathBuf},
     process::Command as Process,
 };
-use windows::Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasicInformation};
+use windows::{Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasicInformation}, Win32::Foundation::HANDLE};
 use windows::Win32::System::Threading::{GetCurrentProcess, PROCESS_BASIC_INFORMATION};
 use winsafe::{self as w, co, prelude::*};
 
 use velopack::locator::VelopackLocator;
+
+pub fn wait_for_handle_to_exit(handle: HANDLE, ms_to_wait: Option<u32>) -> Result<()> {
+    let handle = unsafe { w::HPROCESS::from_ptr(handle.0) };
+    info!("Waiting {:?}ms for handle to exit.", ms_to_wait);
+    match handle.WaitForSingleObject(ms_to_wait) {
+        Ok(co::WAIT::OBJECT_0) => Ok(()),
+        // Ok(co::WAIT::TIMEOUT) => Ok(()),
+        _ => Err(anyhow!("WaitForSingleObject Failed.")),
+    }
+}
 
 pub fn wait_for_pid_to_exit(pid: u32, ms_to_wait: u32) -> Result<()> {
     info!("Waiting {}ms for process ({}) to exit.", ms_to_wait, pid);
