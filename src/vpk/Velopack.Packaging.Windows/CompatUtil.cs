@@ -38,21 +38,17 @@ public class CompatUtil
             }
 
             ModuleDefinition mainModule = mainAssy.Modules.Single();
-            var result = SearchAssemblyForVelopackApp(mainModule);
-            if (result == null) {
-                // if we've iterated the whole main assembly and not found the call, then the velopack builder is missing
-                throw new UserInfoException($"Unable to verify VelopackApp is called. " +
-                    "Please ensure that 'VelopackApp.Build().Run()' is present in your Program.Main().");
-            }
-
-            result = _console.EscapeMarkup(result);
-
-            // could be regular Program.Main or async Main which has a slightly different signature.
-            if (result.Contains("Program") && result.Contains("Main")) {
-                _log.Info($"[green underline]Verified VelopackApp.Run()[/] in '{result}'.");
-            } else {
+            if (!TrySearchAssemblyForVelopackApp(mainModule, out string result)) {
+                if (result == null) {
+                    // if we've iterated the whole main assembly and not found the call, then the velopack builder is missing
+                    throw new UserInfoException($"Unable to verify VelopackApp is called. " +
+                        "Please ensure that 'VelopackApp.Build().Run()' is present in your Program.Main().");
+                }
+                result = _console.EscapeMarkup(result);
                 _log.Warn($"VelopackApp.Run() was found in method '{result}', which does not look like your application's entry point. " +
-                    "It is [underline yellow]strongly recommended[/] that you move this to the very beginning of your Main() method. ");
+                   "It is [underline yellow]strongly recommended[/] that you move this to the very beginning of your Main() method. ");
+            } else {
+                _log.Info($"[green underline]Verified VelopackApp.Run()[/] in '{result}'.");
             }
 
         } catch (Exception ex) when (ex is not UserInfoException) {
@@ -83,7 +79,7 @@ public class CompatUtil
         return new NuGetVersion(dllVersion);
     }
 
-    private string SearchAssemblyForVelopackApp(ModuleDefinition mainModule)
+    private static bool TrySearchAssemblyForVelopackApp(ModuleDefinition mainModule, out string velopackAppLocation)
     {
         MethodDefinition entryPoint = mainModule.ManagedEntryPointMethod;
 
@@ -127,19 +123,21 @@ public class CompatUtil
         }
 
         // search entry point first
-        string result;
-        if ((result = SearchMethod(entryPoint)) != null) {
-            return result;
+        if (SearchMethod(entryPoint) is { } entryPointResult) {
+            velopackAppLocation = entryPointResult;
+            return true;
         }
 
         // then, iterate all methods in the main module
         foreach (var topType in mainModule.TopLevelTypes) {
-            if ((result = SearchType(topType)) != null) {
-                return result;
+            if (SearchType(topType) is { } topLevelTypeResult) {
+                velopackAppLocation = topLevelTypeResult;
+                return false;
             }
         }
 
-        return null;
+        velopackAppLocation = null;
+        return false;
     }
 
     public NuGetVersion GetVelopackVersion(string exeFile)
