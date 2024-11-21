@@ -15,10 +15,10 @@ namespace CSharpWpf
             InitializeComponent();
 
             string updateUrl = SampleHelper.GetReleasesDir(); // replace with your update url
-            _um = new UpdateManager(updateUrl, logger: Program.Log);
+            _um = new UpdateManager(updateUrl, logger: App.Log);
 
-            TextLog.Text = Program.Log.ToString();
-            Program.Log.LogUpdated += LogUpdated;
+            TextLog.Text = App.Log.ToString();
+            App.Log.LogUpdated += LogUpdated;
             UpdateStatus();
         }
 
@@ -29,7 +29,7 @@ namespace CSharpWpf
                 // ConfigureAwait(true) so that UpdateStatus() is called on the UI thread
                 _update = await _um.CheckForUpdatesAsync().ConfigureAwait(true);
             } catch (Exception ex) {
-                Program.Log.LogError(ex, "Error checking for updates");
+                App.Log.LogError(ex, "Error checking for updates");
             }
             UpdateStatus();
         }
@@ -41,7 +41,7 @@ namespace CSharpWpf
                 // ConfigureAwait(true) so that UpdateStatus() is called on the UI thread
                 await _um.DownloadUpdatesAsync(_update, Progress).ConfigureAwait(true);
             } catch (Exception ex) {
-                Program.Log.LogError(ex, "Error downloading updates");
+                App.Log.LogError(ex, "Error downloading updates");
             }
             UpdateStatus();
         }
@@ -70,7 +70,7 @@ namespace CSharpWpf
 
         private void Working()
         {
-            Program.Log.LogInformation("");
+            App.Log.LogInformation("");
             BtnCheckUpdate.IsEnabled = false;
             BtnDownloadUpdate.IsEnabled = false;
             BtnRestartApply.IsEnabled = false;

@@ -10,8 +10,13 @@
 
   <PropertyGroup>
     <!-- This overrides the default Program.Main that WPF creates for you, and allows you to add VelopackApp -->
-    <StartupObject>CSharpWpf.Program</StartupObject>
+    <StartupObject>CSharpWpf.App</StartupObject>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ApplicationDefinition Remove="App.xaml" />
+    <Page Include="App.xaml" />
+  </ItemGroup>
 
   <ItemGroup>
     <!--Condition below is only needed to test this sample project against the local projects instead of the NuGet package. Remove it in your app.-->
