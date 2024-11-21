@@ -148,6 +148,8 @@ pub enum Error
     NotInstalled(String),
     #[error("Generic error: {0}")]
     Generic(String),
+    #[error("Win32 error: {0}")]
+    Win32(#[from] windows::core::Error),
 }
 
 impl From<url::ParseError> for Error {
