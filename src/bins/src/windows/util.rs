@@ -11,7 +11,7 @@ use velopack::locator::VelopackLocator;
 use anyhow::{anyhow, Result};
 use normpath::PathExt;
 use wait_timeout::ChildExt;
-use windows::Win32::Storage::FileSystem::GetLongPathNameW;
+use windows::Win32::{Foundation::HANDLE, Storage::FileSystem::GetLongPathNameW, UI::Shell::{ShellExecuteExA, ShellExecuteExW, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW}};
 use windows::Win32::System::SystemInformation::{VerSetConditionMask, VerifyVersionInfoW, OSVERSIONINFOEXW, VER_FLAGS};
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use windows::{
@@ -66,7 +66,7 @@ pub fn run_hook(locator: &VelopackLocator, hook_name: &str, timeout_secs: u64) -
     success
 }
 
-pub fn relaunch_self_as_admin(args: Vec<String>) -> Result<()> {
+pub fn relaunch_self_as_admin(args: Vec<String>) -> Result<HANDLE> {
     let exe = std::env::current_exe()?;
 
     let verb = string_to_u16("runas");
@@ -99,17 +99,28 @@ pub fn relaunch_self_as_admin(args: Vec<String>) -> Result<()> {
     let args = string_to_u16(params);
     let args = PCWSTR(args.as_ptr());
 
-    unsafe {
-        let h_instance =
-            ShellExecuteW(HWND(std::ptr::null_mut()), verb, exe, args, PCWSTR::null(), windows::Win32::UI::WindowsAndMessaging::SW_NORMAL);
-        let min_result = 32;
-        let min_ptr = min_result as *mut c_void;
-        if h_instance.0 <= min_ptr {
-            return Err(anyhow!(windows::core::Error::from_win32()));
-        }
-    }
+    let mut exe_info: SHELLEXECUTEINFOW = SHELLEXECUTEINFOW {
+        cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
+        fMask: SEE_MASK_NOCLOSEPROCESS,
+        lpVerb: verb,
+        lpFile: exe,
+        lpParameters: args,
+        lpDirectory: PCWSTR::null(),
+        nShow: windows::Win32::UI::WindowsAndMessaging::SW_NORMAL.0,
+        ..Default::default()
+    };
 
-    Ok(())
+    unsafe {
+        ShellExecuteExW( &mut exe_info as *mut SHELLEXECUTEINFOW)?;
+        // let h_instance =
+        //     ShellExecuteW(HWND(std::ptr::null_mut()), verb, exe, args, PCWSTR::null(), windows::Win32::UI::WindowsAndMessaging::SW_NORMAL);
+        // let min_result = 32;
+        // let min_ptr = min_result as *mut c_void;
+        // if h_instance.0 <= min_ptr {
+        //     return Err(anyhow!(windows::core::Error::from_win32()));
+        // }
+    }
+    Ok(exe_info.hProcess)
 }
 
 pub fn expand_environment_strings<P: AsRef<str>>(input: P) -> Result<String> {
