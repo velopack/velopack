@@ -3,9 +3,7 @@ use semver::Version;
 use uuid::Uuid;
 
 use crate::{
-    bundle::{self, Manifest},
-    util, Error,
-    lockfile::LockFile
+    bundle::{self, Manifest}, lockfile::LockFile, util::{self}, Error
 };
 
 /// Returns the default channel name for the current OS.
@@ -132,7 +130,12 @@ impl VelopackLocator {
 
     /// Returns the path to the current app's packages directory.
     pub fn get_packages_dir(&self) -> PathBuf {
-        self.paths.PackagesDir.clone()
+        let path = self.paths.PackagesDir.clone();
+        if self.is_local_machine_install() || !util::is_directory_writable(path) {
+            //TODO Need to add in the app name here.
+            //util::get_local_app_data()
+        }
+        path
     }
 
     /// Returns the path to the current app's packages directory as a string.
@@ -296,6 +299,15 @@ impl VelopackLocator {
         let lock_file_path = packages_dir.join(".velopack_lock");
         let lock_file = LockFile::try_acquire_lock(&lock_file_path)?;
         Ok(lock_file)
+    }
+
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    /// Returns whether the current app is installed in one of the Program Files directory.
+    pub fn is_local_machine_install(&self) -> bool {
+        #[cfg(target_os = "windows")]
+        return self.paths.RootAppDir.starts_with("C:\\Program Files");
+        #[cfg(target_os = "macos")]
+        return self.paths.RootAppDir.starts_with("/Applications");
     }
 
     fn path_as_string(path: &PathBuf) -> String {
