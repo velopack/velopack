@@ -1,6 +1,5 @@
 ﻿using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
-using Velopack.Util;
 
 namespace Velopack.Packaging;
 
@@ -92,10 +91,9 @@ public static class HelperFile
     static HelperFile()
     {
 #if DEBUG
-        AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "target", "debug");
-        AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "target", "release");
-        AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "vendor");
-        AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "artwork");
+        AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "target", "debug");
+        AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "vendor");
+        AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "artwork");
 #else
         AddSearchPath(AppContext.BaseDirectory, "..", "..", "..", "vendor");
 #endif
