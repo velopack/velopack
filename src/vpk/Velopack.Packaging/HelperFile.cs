@@ -1,6 +1,10 @@
 ﻿using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
 
+#if !DEBUG
+using Velopack.Util;
+#endif
+
 namespace Velopack.Packaging;
 
 public static class HelperFile
