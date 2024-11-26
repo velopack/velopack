@@ -39,10 +39,13 @@ public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploa
         }
 
         BlobServiceClient client;
+        BlobClientOptions clientOptions = new BlobClientOptions();
+        clientOptions.Retry.NetworkTimeout = TimeSpan.FromMinutes(30);
+
         if (!String.IsNullOrEmpty(options.SasToken)) {
-            client = new BlobServiceClient(new Uri(serviceUrl), new Azure.AzureSasCredential(options.SasToken));
+            client = new BlobServiceClient(new Uri(serviceUrl), new AzureSasCredential(options.SasToken), clientOptions);
         } else {
-            client = new BlobServiceClient(new Uri(serviceUrl), new StorageSharedKeyCredential(options.Account, options.Key));
+            client = new BlobServiceClient(new Uri(serviceUrl), new StorageSharedKeyCredential(options.Account, options.Key), clientOptions);
         }
         return client.GetBlobContainerClient(options.Container);
     }
