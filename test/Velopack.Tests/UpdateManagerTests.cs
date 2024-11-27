@@ -511,5 +511,6 @@ public class UpdateManagerTests
         await um.DownloadUpdatesAsync(info);
         var target = Path.Combine(packagesDir, $"{id}-{toVersion}-full.nupkg");
         Assert.True(File.Exists(target));
+        Assert.Contains($"id={id}", repo.LastUrl);
     }
 }

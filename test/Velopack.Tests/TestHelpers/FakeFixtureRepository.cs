@@ -9,6 +9,8 @@ namespace Velopack.Tests.TestHelpers;
 
 internal class FakeFixtureRepository : Sources.IFileDownloader
 {
+    public string LastUrl { get; private set; }
+
     private readonly string _pkgId;
     private readonly IEnumerable<ReleaseEntry> _releases;
     private readonly VelopackAssetFeed _releasesNew;
@@ -57,6 +59,7 @@ internal class FakeFixtureRepository : Sources.IFileDownloader
 
     public Task<byte[]> DownloadBytes(string url, string authorization = null, string accept = null)
     {
+        LastUrl = url;
         if (url.Contains($"/{_releasesName}?")) {
             MemoryStream ms = new MemoryStream();
             ReleaseEntry.WriteReleaseFile(_releases, ms);
@@ -82,6 +85,7 @@ internal class FakeFixtureRepository : Sources.IFileDownloader
 
     public Task DownloadFile(string url, string targetFile, Action<int> progress, string authorization = null, string accept = null, CancellationToken token = default)
     {
+        LastUrl = url;
         var rel = _releases.FirstOrDefault(r => url.EndsWith(r.OriginalFilename));
         var filePath = PathHelper.GetFixture(rel.OriginalFilename);
         if (!File.Exists(filePath)) {
@@ -98,6 +102,7 @@ internal class FakeFixtureRepository : Sources.IFileDownloader
 
     public Task<string> DownloadString(string url, string authorization = null, string accept = null)
     {
+        LastUrl = url;
         if (url.Contains($"/{_releasesName}?")) {
             MemoryStream ms = new MemoryStream();
             ReleaseEntry.WriteReleaseFile(_releases, ms);
