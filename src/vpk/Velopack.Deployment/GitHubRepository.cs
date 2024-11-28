@@ -16,6 +16,8 @@ public class GitHubDownloadOptions : RepositoryOptions
     public string RepoUrl { get; set; }
 
     public string Token { get; set; }
+
+    public double Timeout { get; set; }
 }
 
 public class GitHubUploadOptions : GitHubDownloadOptions
@@ -67,7 +69,7 @@ public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadO
             Credentials = new Credentials(options.Token)
         };
 
-        client.SetRequestTimeout(TimeSpan.FromHours(1));
+        client.SetRequestTimeout(TimeSpan.FromMinutes(options.Timeout));
 
         var existingReleases = await client.Repository.Release.GetAll(repoOwner, repoName);
         if (!options.Merge) {

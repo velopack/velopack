@@ -20,6 +20,8 @@ public class GiteaDownloadOptions : RepositoryOptions
 
     public string Token { get; set; }
 
+    public double Timeout { get; set; }
+
     ///// <summary>
     ///// Example https://gitea.com
     ///// </summary>
@@ -40,6 +42,7 @@ public class GiteaUploadOptions : GiteaDownloadOptions
 
     public bool Merge { get; set; }
 }
+
 public class GiteaRepository : SourceRepository<GiteaDownloadOptions, GiteaSource>, IRepositoryCanUpload<GiteaUploadOptions>
 {
     public GiteaRepository(ILogger logger) : base(logger)
@@ -79,6 +82,7 @@ public class GiteaRepository : SourceRepository<GiteaDownloadOptions, GiteaSourc
         var uri = new Uri(options.RepoUrl);
         var baseUri = uri.GetLeftPart(System.UriPartial.Authority);
         config.BasePath = baseUri + "/api/v1";
+        config.Timeout = (int)TimeSpan.FromMinutes(options.Timeout).TotalMilliseconds;
 
         Log.Info($"Preparing to upload {build.Files.Count} asset(s) to Gitea");
 

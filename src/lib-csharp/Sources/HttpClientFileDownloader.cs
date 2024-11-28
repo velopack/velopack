@@ -18,9 +18,10 @@ namespace Velopack.Sources
         public static ProductInfoHeaderValue UserAgent => new("Velopack", VelopackRuntimeInfo.VelopackNugetVersion.ToFullString());
 
         /// <inheritdoc />
-        public virtual async Task DownloadFile(string url, string targetFile, Action<int> progress, string? authorization, string? accept, CancellationToken cancelToken = default)
+        public virtual async Task DownloadFile(string url, string targetFile, Action<int> progress, string? authorization, string? accept, double timeout, CancellationToken cancelToken = default)
         {
-            using var client = CreateHttpClient(authorization, accept);
+            using var client = CreateHttpClient(authorization, accept, timeout);
+
             try {
                 using (var fs = File.Open(targetFile, FileMode.Create)) {
                     await DownloadToStreamInternal(client, url, fs, progress, cancelToken).ConfigureAwait(false);
@@ -35,9 +36,10 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public virtual async Task<byte[]> DownloadBytes(string url, string? authorization, string? accept)
+        public virtual async Task<byte[]> DownloadBytes(string url, string? authorization, string? accept, double timeout)
         {
-            using var client = CreateHttpClient(authorization, accept);
+            using var client = CreateHttpClient(authorization, accept, timeout);
+
             try {
                 return await client.GetByteArrayAsync(url).ConfigureAwait(false);
             } catch {
@@ -48,9 +50,10 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public virtual async Task<string> DownloadString(string url, string? authorization, string? accept)
+        public virtual async Task<string> DownloadString(string url, string? authorization, string? accept, double timeout)
         {
-            using var client = CreateHttpClient(authorization, accept);
+            using var client = CreateHttpClient(authorization, accept, timeout);
+
             try {
                 return await client.GetStringAsync(url).ConfigureAwait(false);
             } catch {
@@ -120,9 +123,9 @@ namespace Velopack.Sources
         /// <summary>
         /// Creates a new <see cref="HttpClient"/> for every request.
         /// </summary>
-        protected virtual HttpClient CreateHttpClient(string? authorization, string? accept)
+        protected virtual HttpClient CreateHttpClient(string? authorization, string? accept, double timeout = 30)
         {
-            var client = new HttpClient(CreateHttpClientHandler(), true);
+            var client = new HttpClient(CreateHttpClientHandler());
             client.DefaultRequestHeaders.UserAgent.Add(UserAgent);
 
             if (authorization != null)
@@ -131,6 +134,7 @@ namespace Velopack.Sources
             if (accept != null)
                 client.DefaultRequestHeaders.Add("Accept", accept);
 
+            client.Timeout = TimeSpan.FromMinutes(timeout);
             return client;
         }
     }
