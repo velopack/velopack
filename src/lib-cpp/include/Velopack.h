@@ -10,9 +10,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+/**
+ * The result of a call to check for updates. This can indicate that an update is available, or that an error occurred.
+ */
 enum vpkc_update_check_t
 #ifdef __cplusplus
-  : int16_t
+  : int8_t
 #endif // __cplusplus
  {
   UPDATE_ERROR = -1,
@@ -21,7 +24,7 @@ enum vpkc_update_check_t
   REMOTE_IS_EMPTY = 2,
 };
 #ifndef __cplusplus
-typedef int16_t vpkc_update_check_t;
+typedef int8_t vpkc_update_check_t;
 #endif // __cplusplus
 
 /**
@@ -77,6 +80,9 @@ typedef struct vpkc_locator_config_t {
   bool IsPortable;
 } vpkc_locator_config_t;
 
+/**
+ * Opaque type for the Velopack UpdateManager. Must be freed with `vpkc_free_update_manager`.
+ */
 typedef void vpkc_update_manager_t;
 
 /**
@@ -137,10 +143,19 @@ typedef struct vpkc_update_info_t {
   bool IsDowngrade;
 } vpkc_update_info_t;
 
+/**
+ * Progress callback function.
+ */
 typedef void (*vpkc_progress_callback_t)(void *p_user_data, size_t progress);
 
+/**
+ * VelopackApp startup hook callback function.
+ */
 typedef void (*vpkc_hook_callback_t)(void *p_user_data, const char *psz_app_version);
 
+/**
+ * Log callback function.
+ */
 typedef void (*vpkc_log_callback_t)(void *p_user_data,
                                     const char *psz_level,
                                     const char *psz_message);
@@ -149,29 +164,66 @@ typedef void (*vpkc_log_callback_t)(void *p_user_data,
 extern "C" {
 #endif // __cplusplus
 
-bool vpkc_new_update_manager(const char *psz_url_or_string,
+/**
+ * Create a new UpdateManager instance.
+ * @param urlOrPath Location of the update server or path to the local update directory.
+ * @param options Optional extra configuration for update manager.
+ * @param locator Override the default locator configuration (usually used for testing / mocks).
+ */
+bool vpkc_new_update_manager(const char *psz_url_or_path,
                              struct vpkc_update_options_t *p_options,
                              struct vpkc_locator_config_t *p_locator,
                              vpkc_update_manager_t **p_manager);
 
+/**
+ * Returns the currently installed version of the app.
+ */
 size_t vpkc_get_current_version(vpkc_update_manager_t *p_manager,
                                 char *psz_version,
                                 size_t c_version);
 
+/**
+ * Returns the currently installed app id.
+ */
 size_t vpkc_get_app_id(vpkc_update_manager_t *p_manager, char *psz_id, size_t c_id);
 
+/**
+ * Returns whether the app is in portable mode. On Windows this can be true or false.
+ * On MacOS and Linux this will always be true.
+ */
 bool vpkc_is_portable(vpkc_update_manager_t *p_manager);
 
+/**
+ * Returns an UpdateInfo object if there is an update downloaded which still needs to be applied.
+ * You can pass the UpdateInfo object to waitExitThenApplyUpdate to apply the update.
+ */
 bool vpkc_update_pending_restart(vpkc_update_manager_t *p_manager, struct vpkc_asset_t *p_asset);
 
+/**
+ * Checks for updates, returning None if there are none available. If there are updates available, this method will return an
+ * UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
+ */
 vpkc_update_check_t vpkc_check_for_updates(vpkc_update_manager_t *p_manager,
                                            struct vpkc_update_info_t *p_update);
 
+/**
+ * Downloads the specified updates to the local app packages directory. Progress is reported back to the caller via an optional callback.
+ * This function will acquire a global update lock so may fail if there is already another update operation in progress.
+ * - If the update contains delta packages and the delta feature is enabled
+ *   this method will attempt to unpack and prepare them.
+ * - If there is no delta update available, or there is an error preparing delta
+ *   packages, this method will fall back to downloading the full version of the update.
+ */
 bool vpkc_download_updates(vpkc_update_manager_t *p_manager,
                            struct vpkc_update_info_t *p_update,
                            vpkc_progress_callback_t cb_progress,
                            void *p_user_data);
 
+/**
+ * This will launch the Velopack updater and tell it to wait for this program to exit gracefully.
+ * You should then clean up any state and exit your app. The updater will apply updates and then
+ * optionally restart your app. The updater will only wait for 60 seconds before giving up.
+ */
 bool vpkc_wait_exit_then_apply_update(vpkc_update_manager_t *p_manager,
                                       struct vpkc_asset_t *p_asset,
                                       bool b_silent,
@@ -179,35 +231,95 @@ bool vpkc_wait_exit_then_apply_update(vpkc_update_manager_t *p_manager,
                                       char **p_restart_args,
                                       size_t c_restart_args);
 
+/**
+ * Frees a vpkc_update_manager_t instance.
+ */
 void vpkc_free_update_manager(vpkc_update_manager_t *p_manager);
 
+/**
+ * Frees a vpkc_update_info_t instance.
+ */
 void vpkc_free_update_info(struct vpkc_update_info_t *p_update_info);
 
+/**
+ * Frees a vpkc_asset_t instance.
+ */
 void vpkc_free_asset(struct vpkc_asset_t *p_asset);
 
+/**
+ * VelopackApp helps you to handle app activation events correctly.
+ * This should be used as early as possible in your application startup code.
+ * (eg. the beginning of main() or wherever your entry point is)
+ */
 void vpkc_app_run(void *p_user_data);
 
+/**
+ * Set whether to automatically apply downloaded updates on startup. This is ON by default.
+ */
 void vpkc_app_set_auto_apply_on_startup(bool b_auto_apply);
 
+/**
+ * Override the command line arguments used by VelopackApp. (by default this is env::args().skip(1))
+ */
 void vpkc_app_set_args(char **p_args, size_t c_args);
 
+/**
+ * VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
+ */
 void vpkc_app_set_locator(struct vpkc_locator_config_t *p_locator);
 
+/**
+ * WARNING: FastCallback hooks are run during critical stages of Velopack operations.
+ * Your code will be run and then the process will exit.
+ * If your code has not completed within 30 seconds, it will be terminated.
+ * Only supported on windows; On other operating systems, this will never be called.
+ */
 void vpkc_app_set_hook_after_install(vpkc_hook_callback_t cb_after_install);
 
+/**
+ * WARNING: FastCallback hooks are run during critical stages of Velopack operations.
+ * Your code will be run and then the process will exit.
+ * If your code has not completed within 30 seconds, it will be terminated.
+ * Only supported on windows; On other operating systems, this will never be called.
+ */
 void vpkc_app_set_hook_before_uninstall(vpkc_hook_callback_t cb_before_uninstall);
 
+/**
+ * WARNING: FastCallback hooks are run during critical stages of Velopack operations.
+ * Your code will be run and then the process will exit.
+ * If your code has not completed within 30 seconds, it will be terminated.
+ * Only supported on windows; On other operating systems, this will never be called.
+ */
 void vpkc_app_set_hook_before_update(vpkc_hook_callback_t cb_before_update);
 
+/**
+ * WARNING: FastCallback hooks are run during critical stages of Velopack operations.
+ * Your code will be run and then the process will exit.
+ * If your code has not completed within 30 seconds, it will be terminated.
+ * Only supported on windows; On other operating systems, this will never be called.
+ */
 void vpkc_app_set_hook_after_update(vpkc_hook_callback_t cb_after_update);
 
+/**
+ * This hook is triggered when the application is started for the first time after installation.
+ */
 void vpkc_app_set_hook_first_run(vpkc_hook_callback_t cb_first_run);
 
+/**
+ * This hook is triggered when the application is restarted by Velopack after installing updates.
+ */
 void vpkc_app_set_hook_restarted(vpkc_hook_callback_t cb_restarted);
 
+/**
+ * Get the last error message that occurred in the Velopack library.
+ */
 size_t vpkc_get_last_error(char *psz_error, size_t c_error);
 
-void vpkc_set_logger(vpkc_log_callback_t cb_log, void *p_user_data);
+/**
+ * Set a custom log callback. This will be called for all log messages generated by the Velopack library.
+ */
+void vpkc_set_logger(vpkc_log_callback_t cb_log,
+                     void *p_user_data);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -1,7 +1,7 @@
-use std::ffi::{CStr, CString};
 use libc::{c_char, c_void, size_t};
+use std::ffi::{CStr, CString};
 use std::path::PathBuf;
-use velopack::{locator::VelopackLocatorConfig, UpdateInfo, UpdateOptions, VelopackAsset};
+use velopack::{locator::VelopackLocatorConfig, UpdateInfo, UpdateManager, UpdateOptions, VelopackAsset};
 
 pub fn c_to_string_opt(psz: *const c_char) -> Option<String> {
     if psz.is_null() {
@@ -86,7 +86,8 @@ pub fn return_cstr(psz: *mut c_char, c: size_t, s: &str) -> size_t {
     return s.len();
 }
 
-#[repr(i16)]
+/// The result of a call to check for updates. This can indicate that an update is available, or that an error occurred.
+#[repr(i8)]
 pub enum vpkc_update_check_t {
     UPDATE_ERROR = -1,
     UPDATE_AVAILABLE = 0,
@@ -94,13 +95,74 @@ pub enum vpkc_update_check_t {
     REMOTE_IS_EMPTY = 2,
 }
 
+/// Opaque type for the Velopack UpdateManager. Must be freed with `vpkc_free_update_manager`.
 pub type vpkc_update_manager_t = c_void;
 
+/// Progress callback function.
 pub type vpkc_progress_callback_t = extern "C" fn(p_user_data: *mut c_void, progress: size_t);
 
+/// Log callback function.
 pub type vpkc_log_callback_t = extern "C" fn(p_user_data: *mut c_void, psz_level: *const c_char, psz_message: *const c_char);
 
+/// VelopackApp startup hook callback function.
 pub type vpkc_hook_callback_t = extern "C" fn(p_user_data: *mut c_void, psz_app_version: *const c_char);
+
+pub trait CallbackExt: Sized {
+    fn to_option(self) -> Option<Self>;
+}
+
+impl CallbackExt for vpkc_progress_callback_t {
+    fn to_option(self) -> Option<Self> {
+        unsafe { std::mem::transmute::<Self, Option<Self>>(self) }
+    }
+}
+
+impl CallbackExt for vpkc_log_callback_t {
+    fn to_option(self) -> Option<Self> {
+        unsafe { std::mem::transmute::<Self, Option<Self>>(self) }
+    }
+}
+
+impl CallbackExt for vpkc_hook_callback_t {
+    fn to_option(self) -> Option<Self> {
+        unsafe { std::mem::transmute::<Self, Option<Self>>(self) }
+    }
+}
+
+pub trait UpdateManagerExt<'a>: Sized {
+    fn to_opaque_ref(self) -> Option<&'a UpdateManager>;
+}
+
+impl<'a> UpdateManagerExt<'a> for *mut vpkc_update_manager_t {
+    fn to_opaque_ref(self) -> Option<&'a UpdateManager> {
+        if self.is_null() {
+            return None;
+        }
+
+        let opaque = unsafe { &*(self as *mut UpdateManager) };
+        Some(opaque)
+    }
+}
+
+pub struct UpdateManagerRawPtr;
+
+impl UpdateManagerRawPtr {
+    pub fn new(obj: UpdateManager) -> *mut vpkc_update_manager_t {
+        log::debug!("vpkc_update_manager_t allocated");
+        let boxed = Box::new(obj);
+        Box::into_raw(boxed) as *mut vpkc_update_manager_t
+    }
+
+    pub fn free(p_manager: *mut vpkc_update_manager_t) {
+        if p_manager.is_null() {
+            return;
+        }
+
+        // Convert the raw pointer back into a Box to deallocate it properly
+        log::debug!("vpkc_update_manager_t freed");
+        let _ = unsafe { Box::from_raw(p_manager as *mut UpdateManager) };
+    }
+}
 
 // !! AUTO-GENERATED-START RUST_TYPES
 #[rustfmt::skip]
