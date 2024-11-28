@@ -9,98 +9,91 @@ mod types;
 use types::*;
 
 use anyhow::{anyhow, bail};
+use libc::{c_char, c_void, size_t};
 use std::ffi::CString;
-use libc::{size_t, c_char, c_void};
 use velopack::{sources, Error as VelopackError, UpdateCheck, UpdateManager, VelopackApp};
 
 #[no_mangle]
 pub extern "C" fn vpkc_new_update_manager(
-    psz_url_or_string: *const c_char,
+    psz_url_or_path: *const c_char,
     p_options: *mut vpkc_update_options_t,
     p_locator: *mut vpkc_locator_config_t,
     p_manager: *mut *mut vpkc_update_manager_t,
 ) -> bool {
     wrap_error(|| {
-        let update_url = c_to_string_opt(psz_url_or_string).ok_or(anyhow!("URL or path is null"))?;
+        let update_url = c_to_string_opt(psz_url_or_path).ok_or(anyhow!("URL or path is null"))?;
         let source = sources::AutoSource::new(&update_url);
         let options = c_to_updateoptions_opt(p_options);
         let locator = c_to_velopacklocatorconfig_opt(p_locator);
         let manager = UpdateManager::new(source, options, locator)?;
-        let opaque = Box::new(UpdateManagerOpaque::new(manager));
-        unsafe { *p_manager = Box::into_raw(opaque) as *mut vpkc_update_manager_t };
+        unsafe { *p_manager = UpdateManagerRawPtr::new(manager) };
         Ok(())
     })
 }
 
 #[no_mangle]
 pub extern "C" fn vpkc_get_current_version(p_manager: *mut vpkc_update_manager_t, psz_version: *mut c_char, c_version: size_t) -> size_t {
-    if p_manager.is_null() {
-        return 0;
+    match p_manager.to_opaque_ref() {
+        Some(manager) => {
+            let version = manager.get_current_version_as_string();
+            return_cstr(psz_version, c_version, &version)
+        }
+        None => 0,
     }
-
-    let manager = unsafe { &*(p_manager as *mut UpdateManagerOpaque) };
-    let version = manager.obj.get_current_version_as_string();
-    return_cstr(psz_version, c_version, &version)
 }
 
 #[no_mangle]
 pub extern "C" fn vpkc_get_app_id(p_manager: *mut vpkc_update_manager_t, psz_id: *mut c_char, c_id: size_t) -> size_t {
-    if p_manager.is_null() {
-        return 0;
+    match p_manager.to_opaque_ref() {
+        Some(manager) => {
+            let app_id = manager.get_app_id();
+            return_cstr(psz_id, c_id, &app_id)
+        }
+        None => 0,
     }
-
-    let manager = unsafe { &*(p_manager as *mut UpdateManagerOpaque) };
-    let app_id = manager.obj.get_app_id();
-    return_cstr(psz_id, c_id, &app_id)
 }
 
 #[no_mangle]
 pub extern "C" fn vpkc_is_portable(p_manager: *mut vpkc_update_manager_t) -> bool {
-    if p_manager.is_null() {
-        return false;
+    match p_manager.to_opaque_ref() {
+        Some(manager) => manager.get_is_portable(),
+        None => false,
     }
-
-    let manager = unsafe { &*(p_manager as *mut UpdateManagerOpaque) };
-    manager.obj.get_is_portable()
 }
 
 #[no_mangle]
 pub extern "C" fn vpkc_update_pending_restart(p_manager: *mut vpkc_update_manager_t, p_asset: *mut vpkc_asset_t) -> bool {
-    if p_manager.is_null() {
-        return false;
-    }
-
-    let manager = unsafe { &*(p_manager as *mut UpdateManagerOpaque) };
-    let asset_opt = manager.obj.get_update_pending_restart();
-
-    if let Some(asset) = asset_opt {
-        unsafe { allocate_velopackasset(asset, p_asset) };
-        true
-    } else {
-        false
+    match p_manager.to_opaque_ref() {
+        Some(manager) => match manager.get_update_pending_restart() {
+            Some(asset) => {
+                unsafe { allocate_velopackasset(asset, p_asset) };
+                true
+            }
+            None => false,
+        },
+        None => false,
     }
 }
 
 #[no_mangle]
 pub extern "C" fn vpkc_check_for_updates(p_manager: *mut vpkc_update_manager_t, p_update: *mut vpkc_update_info_t) -> vpkc_update_check_t {
-    if p_manager.is_null() {
-        set_last_error("pManager must not be null");
-        return vpkc_update_check_t::UPDATE_ERROR;
-    }
-
-    let manager = unsafe { &*(p_manager as *mut UpdateManagerOpaque) };
-
-    match manager.obj.check_for_updates() {
-        Ok(UpdateCheck::UpdateAvailable(info)) => {
-            unsafe {
-                allocate_updateinfo(info, p_update);
+    match p_manager.to_opaque_ref() {
+        Some(manager) => match manager.check_for_updates() {
+            Ok(UpdateCheck::UpdateAvailable(info)) => {
+                unsafe {
+                    allocate_updateinfo(info, p_update);
+                }
+                vpkc_update_check_t::UPDATE_AVAILABLE
             }
-            vpkc_update_check_t::UPDATE_AVAILABLE
-        }
-        Ok(UpdateCheck::RemoteIsEmpty) => vpkc_update_check_t::REMOTE_IS_EMPTY,
-        Ok(UpdateCheck::NoUpdateAvailable) => vpkc_update_check_t::NO_UPDATE_AVAILABLE,
-        Err(e) => {
-            set_last_error(&format!("{:?}", e));
+            Ok(UpdateCheck::RemoteIsEmpty) => vpkc_update_check_t::REMOTE_IS_EMPTY,
+            Ok(UpdateCheck::NoUpdateAvailable) => vpkc_update_check_t::NO_UPDATE_AVAILABLE,
+            Err(e) => {
+                set_last_error(&format!("{:?}", e));
+                vpkc_update_check_t::UPDATE_ERROR
+            }
+        },
+        None => {
+            set_last_error("pManager must not be null");
             vpkc_update_check_t::UPDATE_ERROR
         }
     }
@@ -114,50 +107,56 @@ pub extern "C" fn vpkc_download_updates(
     p_user_data: *mut c_void,
 ) -> bool {
     wrap_error(|| {
-        if p_manager.is_null() {
-            bail!("pManager must not be null");
-        }
+        let manager = match p_manager.to_opaque_ref() {
+            Some(manager) => manager,
+            None => bail!("pManager must not be null"),
+        };
 
-        let manager = unsafe { &*(p_manager as *mut UpdateManagerOpaque) };
+        let cb_progress = cb_progress.to_option();
         let update = c_to_updateinfo_opt(p_update).ok_or(anyhow!("pUpdate must not be null"))?;
 
-        let (progress_sender, progress_receiver) = std::sync::mpsc::channel::<i16>();
-        let (completion_sender, completion_receiver) = std::sync::mpsc::channel::<std::result::Result<(), VelopackError>>();
+        if let Some(cb_progress) = cb_progress {
+            let (progress_sender, progress_receiver) = std::sync::mpsc::channel::<i16>();
+            let (completion_sender, completion_receiver) = std::sync::mpsc::channel::<std::result::Result<(), VelopackError>>();
 
-        // Move the download_updates call into a new thread
-        let manager = manager.clone();
-        std::thread::spawn(move || {
-            let result = manager.obj.download_updates(&update, Some(progress_sender));
-            let _ = completion_sender.send(result);
-        });
+            // Move the download_updates call into a new thread
+            let manager = manager.clone();
+            std::thread::spawn(move || {
+                let result = manager.download_updates(&update, Some(progress_sender));
+                let _ = completion_sender.send(result);
+            });
 
-        // Process progress updates on the caller's thread
-        loop {
-            // Try to receive progress updates without blocking
-            match progress_receiver.try_recv() {
-                Ok(progress) => {
-                    cb_progress(p_user_data, progress as size_t);
+            // Process progress updates on the caller's thread
+            loop {
+                // Try to receive progress updates without blocking
+                match progress_receiver.try_recv() {
+                    Ok(progress) => {
+                        cb_progress(p_user_data, progress as size_t);
+                    }
+                    _ => {
+                        // No progress updates available, sleep for a short time to avoid busy-waiting
+                        std::thread::sleep(std::time::Duration::from_millis(50));
+                    }
                 }
-                _ => {
-                    // No progress updates available, sleep for a short time to avoid busy-waiting
-                    std::thread::sleep(std::time::Duration::from_millis(50));
+
+                // Check if download is complete
+                match completion_receiver.try_recv() {
+                    Ok(result) => {
+                        // Download is complete, return the result (propagating any errors)
+                        result?;
+                        return Ok(());
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Empty) => {
+                        // Download is still in progress, continue processing progress updates
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                        bail!("Download thread disconnected unexpectedly without returning a result");
+                    }
                 }
             }
-
-            // Check if download is complete
-            match completion_receiver.try_recv() {
-                Ok(result) => {
-                    // Download is complete, return the result (propagating any errors)
-                    result?;
-                    return Ok(());
-                }
-                Err(std::sync::mpsc::TryRecvError::Empty) => {
-                    // Download is still in progress, continue processing progress updates
-                }
-                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                    bail!("Download thread disconnected unexpectedly without returning a result");
-                }
-            }
+        } else {
+            manager.download_updates(&update, None)?;
+            Ok(())
         }
     })
 }
@@ -172,24 +171,21 @@ pub extern "C" fn vpkc_wait_exit_then_apply_update(
     c_restart_args: size_t,
 ) -> bool {
     wrap_error(|| {
-        if p_manager.is_null() {
-            bail!("pManager must not be null");
-        }
+        let manager = match p_manager.to_opaque_ref() {
+            Some(manager) => manager,
+            None => bail!("pManager must not be null"),
+        };
 
-        let manager = unsafe { &*(p_manager as *mut UpdateManagerOpaque) };
         let asset = c_to_velopackasset_opt(p_asset).ok_or(anyhow!("pAsset must not be null"))?;
         let restart_args = c_to_string_array_opt(p_restart_args, c_restart_args).unwrap_or_default();
-        manager.obj.wait_exit_then_apply_updates(&asset, b_silent, b_restart, &restart_args)?;
+        manager.wait_exit_then_apply_updates(&asset, b_silent, b_restart, &restart_args)?;
         Ok(())
     })
 }
 
 #[no_mangle]
 pub extern "C" fn vpkc_free_update_manager(p_manager: *mut vpkc_update_manager_t) {
-    if !p_manager.is_null() {
-        // Convert the raw pointer back into a Box to deallocate it properly
-        let _ = unsafe { Box::from_raw(p_manager as *mut UpdateManagerOpaque) };
-    }
+    UpdateManagerRawPtr::free(p_manager);
 }
 
 #[no_mangle]
@@ -291,43 +287,49 @@ pub extern "C" fn vpkc_app_set_locator(p_locator: *mut vpkc_locator_config_t) {
 
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_hook_after_install(cb_after_install: vpkc_hook_callback_t) {
+    let cb_after_install = cb_after_install.to_option();
     update_app_options(|opt| {
-        opt.install_hook = Some(cb_after_install);
+        opt.install_hook = cb_after_install;
     });
 }
 
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_hook_before_uninstall(cb_before_uninstall: vpkc_hook_callback_t) {
+    let cb_before_uninstall = cb_before_uninstall.to_option();
     update_app_options(|opt| {
-        opt.uninstall_hook = Some(cb_before_uninstall);
+        opt.uninstall_hook = cb_before_uninstall;
     });
 }
 
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_hook_before_update(cb_before_update: vpkc_hook_callback_t) {
+    let cb_before_update = cb_before_update.to_option();
     update_app_options(|opt| {
-        opt.obsolete_hook = Some(cb_before_update);
+        opt.obsolete_hook = cb_before_update;
     });
 }
 
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_hook_after_update(cb_after_update: vpkc_hook_callback_t) {
+    let cb_after_update = cb_after_update.to_option();
     update_app_options(|opt| {
-        opt.update_hook = Some(cb_after_update);
+        opt.update_hook = cb_after_update;
     });
 }
 
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_hook_first_run(cb_first_run: vpkc_hook_callback_t) {
+    let cb_first_run = cb_first_run.to_option();
     update_app_options(|opt| {
-        opt.firstrun_hook = Some(cb_first_run);
+        opt.firstrun_hook = cb_first_run;
     });
 }
 
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_hook_restarted(cb_restarted: vpkc_hook_callback_t) {
+    let cb_restarted = cb_restarted.to_option();
     update_app_options(|opt| {
-        opt.restarted_hook = Some(cb_restarted);
+        opt.restarted_hook = cb_restarted;
     });
 }
 
@@ -339,23 +341,10 @@ pub extern "C" fn vpkc_get_last_error(psz_error: *mut c_char, c_error: size_t) -
 
 #[no_mangle]
 pub extern "C" fn vpkc_set_logger(cb_log: vpkc_log_callback_t, p_user_data: *mut c_void) {
-    set_log_callback(cb_log, p_user_data);
-}
-
-#[derive(Clone)]
-struct UpdateManagerOpaque {
-    obj: UpdateManager,
-}
-
-impl UpdateManagerOpaque {
-    fn new(obj: UpdateManager) -> Self {
-        log::debug!("UpdateManagerOpaque allocated");
-        UpdateManagerOpaque { obj }
-    }
-}
-
-impl Drop for UpdateManagerOpaque {
-    fn drop(&mut self) {
-        log::debug!("UpdateManagerOpaque freed");
+    let cb_log = cb_log.to_option();
+    if let Some(cb_log) = cb_log {
+        set_log_callback(cb_log, p_user_data);
+    } else {
+        clear_log_callback();
     }
 }
