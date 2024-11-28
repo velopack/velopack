@@ -55,7 +55,7 @@ internal class FakeFixtureRepository : Sources.IFileDownloader
         _releases = releases;
     }
 
-    public Task<byte[]> DownloadBytes(string url, string authorization = null, string accept = null)
+    public Task<byte[]> DownloadBytes(string url, string authorization = null, string accept = null, double timeout = 30)
     {
         if (url.Contains($"/{_releasesName}?")) {
             MemoryStream ms = new MemoryStream();
@@ -80,7 +80,7 @@ internal class FakeFixtureRepository : Sources.IFileDownloader
         return Task.FromResult(File.ReadAllBytes(filePath));
     }
 
-    public Task DownloadFile(string url, string targetFile, Action<int> progress, string authorization = null, string accept = null, CancellationToken token = default)
+    public Task DownloadFile(string url, string targetFile, Action<int> progress, string authorization = null, string accept = null, double timeout = 30, CancellationToken token = default)
     {
         var rel = _releases.FirstOrDefault(r => url.EndsWith(r.OriginalFilename));
         var filePath = PathHelper.GetFixture(rel.OriginalFilename);
@@ -96,7 +96,7 @@ internal class FakeFixtureRepository : Sources.IFileDownloader
         return Task.CompletedTask;
     }
 
-    public Task<string> DownloadString(string url, string authorization = null, string accept = null)
+    public Task<string> DownloadString(string url, string authorization = null, string accept = null, double timeout = 30)
     {
         if (url.Contains($"/{_releasesName}?")) {
             MemoryStream ms = new MemoryStream();

@@ -18,6 +18,8 @@ public class AzureDownloadOptions : RepositoryOptions, IObjectDownloadOptions
     public string Container { get; set; }
 
     public string SasToken { get; set; }
+
+    public double Timeout { get; set; }
 }
 
 public class AzureUploadOptions : AzureDownloadOptions, IObjectUploadOptions
@@ -39,8 +41,10 @@ public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploa
         }
 
         BlobServiceClient client;
+
+        // Override default timeout with user-specified value
         BlobClientOptions clientOptions = new BlobClientOptions();
-        clientOptions.Retry.NetworkTimeout = TimeSpan.FromMinutes(30);
+        clientOptions.Retry.NetworkTimeout = TimeSpan.FromMinutes(options.Timeout);
 
         if (!String.IsNullOrEmpty(options.SasToken)) {
             client = new BlobServiceClient(new Uri(serviceUrl), new AzureSasCredential(options.SasToken), clientOptions);

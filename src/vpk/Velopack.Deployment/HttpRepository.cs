@@ -6,6 +6,8 @@ namespace Velopack.Deployment;
 public class HttpDownloadOptions : RepositoryOptions
 {
     public string Url { get; set; }
+
+    public double Timeout { get; set; }
 }
 
 public class HttpRepository : SourceRepository<HttpDownloadOptions, SimpleWebSource>
@@ -16,6 +18,6 @@ public class HttpRepository : SourceRepository<HttpDownloadOptions, SimpleWebSou
 
     public override SimpleWebSource CreateSource(HttpDownloadOptions options)
     {
-        return new SimpleWebSource(options.Url);
+        return new SimpleWebSource(options.Url, timeout: options.Timeout);
     }
 }

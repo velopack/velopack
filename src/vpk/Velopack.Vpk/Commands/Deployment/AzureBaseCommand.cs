@@ -12,6 +12,8 @@ public class AzureBaseCommand : OutputCommand
 
     public string SasToken { get; private set; }
 
+    public double Timeout { get; private set; }
+
     protected AzureBaseCommand(string name, string description)
         : base(name, description)
     {
@@ -37,6 +39,11 @@ public class AzureBaseCommand : OutputCommand
             .SetDescription("Service url (eg. https://<account-name>.blob.core.windows.net)")
             .SetArgumentHelpName("URL")
             .MustBeValidHttpUri();
+
+        AddOption<double>((v) => Timeout = v, "--timeout")
+            .SetDescription("Network timeout in minutes.")
+            .SetArgumentHelpName("MINUTES")
+            .SetDefault(30);
 
         this.AtLeastOneRequired(sas, key);
         this.AreMutuallyExclusive(sas, key);
