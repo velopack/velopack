@@ -7,8 +7,7 @@ extern crate log;
 use anyhow::{anyhow, bail, Result};
 use clap::{arg, value_parser, ArgMatches, Command};
 use std::{env, path::PathBuf};
-use velopack::locator;
-use velopack::locator::{auto_locate_app_manifest, LocationContext};
+use velopack::locator::{self, auto_locate_app_manifest, LocationContext};
 use velopack_bins::*;
 
 #[rustfmt::skip]
@@ -39,9 +38,6 @@ fn root_command() -> Command {
         .arg(arg!(--patch <FILE> "The Zstd patch to apply to the old file").required(true).value_parser(value_parser!(PathBuf)))
         .arg(arg!(--output <FILE> "The file to create with the patch applied").required(true).value_parser(value_parser!(PathBuf)))
     )
-    .subcommand(Command::new("get-version")
-        .about("Prints the current version of the application")
-    )
     .arg(arg!(--verbose "Print debug messages to console / log").global(true))
     .arg(arg!(-s --silent "Don't show any prompts / dialogs").global(true))
     .arg(arg!(-l --log <PATH> "Override the default log file location").global(true).value_parser(value_parser!(PathBuf)))
@@ -68,16 +64,18 @@ fn try_parse_command_line_matches(input_args: Vec<String>) -> Result<ArgMatches>
     // Also, replace `--processStartAndWait` with `--processStart --wait`
     let mut args = Vec::new();
     let mut preserve = false;
+    let mut first = true;
     for arg in input_args {
-        if preserve {
+        if preserve || first {
             args.push(arg);
+            first = false;
         } else if arg == "--" {
             args.push("--".to_string());
             preserve = true;
         } else if arg.eq_ignore_ascii_case("--processStartAndWait") {
             args.push("--processStart".to_string());
             args.push("--wait".to_string());
-        } else if arg.starts_with("--processStartAndWait=") {
+        } else if arg.to_ascii_lowercase().starts_with("--processstartandwait=") {
             let mut split_arg = arg.splitn(2, '=');
             split_arg.next(); // Skip the `--processStartAndWait` part
             args.push("--processStart".to_string());
@@ -85,10 +83,13 @@ fn try_parse_command_line_matches(input_args: Vec<String>) -> Result<ArgMatches>
             if let Some(rest) = split_arg.next() {
                 args.push(rest.to_string());
             }
-        } else if arg.contains('=') {
+        } else if arg.to_ascii_lowercase().starts_with("--processtart=") {
             let mut split_arg = arg.splitn(2, '=');
-            args.push(split_arg.next().unwrap().to_string());
-            args.push(split_arg.next().unwrap().to_string());
+            split_arg.next(); // Skip the `--processStart` part
+            args.push("--processStart".to_string());
+            if let Some(rest) = split_arg.next() {
+                args.push(rest.to_string());
+            }
         } else {
             args.push(arg);
         }
@@ -114,6 +115,10 @@ fn get_op_wait(matches: &ArgMatches) -> shared::OperationWait {
 }
 
 fn main() -> Result<()> {
+    shared::cli_host::clap_run_main("Update", main_inner)
+}
+
+fn main_inner() -> Result<()> {
     #[cfg(windows)]
     windows::mitigate::pre_main_sideload_mitigation();
 
@@ -122,13 +127,11 @@ fn main() -> Result<()> {
     #[cfg(unix)]
     let matches = root_command().try_get_matches()?;
 
-    let (subcommand, subcommand_matches) = matches.subcommand().ok_or_else(|| anyhow!("No subcommand was used. Try `--help` for more information."))?;
+    let silent = get_flag_or_false(&matches, "silent");
+    dialogs::set_silent(silent);
 
     let verbose = get_flag_or_false(&matches, "verbose");
-    let silent = get_flag_or_false(&matches, "silent");
     let log_file = matches.get_one("log");
-
-    dialogs::set_silent(silent);
     let desired_log_file = log_file.cloned().unwrap_or(locator::default_log_location(LocationContext::IAmUpdateExe));
     logging::setup_logging("update", Some(&desired_log_file), true, verbose)?;
 
@@ -144,6 +147,9 @@ fn main() -> Result<()> {
     info!("    Verbose: {}", verbose);
     info!("    Silent: {}", silent);
     info!("    Log File: {:?}", log_file);
+
+    let (subcommand, subcommand_matches) =
+        matches.subcommand().ok_or_else(|| anyhow!("No known subcommand was used. Try `--help` for more information."))?;
 
     let result = match subcommand {
         #[cfg(target_os = "windows")]
@@ -163,16 +169,20 @@ fn main() -> Result<()> {
 }
 
 fn patch(matches: &ArgMatches) -> Result<()> {
-    let old_file = matches.get_one::<PathBuf>("old").unwrap();
-    let patch_file = matches.get_one::<PathBuf>("patch").unwrap();
-    let output_file = matches.get_one::<PathBuf>("output").unwrap();
+    let old_file = matches.get_one::<PathBuf>("old");
+    let patch_file = matches.get_one::<PathBuf>("patch");
+    let output_file = matches.get_one::<PathBuf>("output");
 
     info!("Command: Patch");
     info!("    Old File: {:?}", old_file);
     info!("    Patch File: {:?}", patch_file);
     info!("    Output File: {:?}", output_file);
 
-    velopack::delta::zstd_patch_single(old_file, patch_file, output_file)?;
+    if old_file.is_none() || patch_file.is_none() || output_file.is_none() {
+        bail!("Missing required arguments. Please provide --old, --patch, and --output.");
+    }
+
+    velopack::delta::zstd_patch_single(old_file.unwrap(), patch_file.unwrap(), output_file.unwrap())?;
     Ok(())
 }
 
@@ -208,7 +218,7 @@ fn start(matches: &ArgMatches) -> Result<()> {
         info!("    Legacy Args: {:?}", legacy_args);
         warn!("Legacy args format is deprecated and will be removed in a future release. Please update your application to use the new format.");
     }
-    
+
     commands::start(wait, exe_name, exe_args, legacy_args)
 }
 
