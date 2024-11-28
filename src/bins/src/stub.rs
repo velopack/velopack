@@ -45,8 +45,10 @@ fn main() -> ExitCode {
     match Process::new(update_exe).args(args).creation_flags(CREATE_NO_WINDOW).spawn() {
         Ok(res) => {
             let _ = unsafe { AllowSetForegroundWindow(res.id()) };
+            info!("Successfully started Update.exe");
             ExitCode::SUCCESS
-        }, Err(e) => {
+        }
+        Err(e) => {
             error!("Stub failed to start Update.exe: {}", e);
             ExitCode::FAILURE
         }

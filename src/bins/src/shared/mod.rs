@@ -1,4 +1,5 @@
 pub mod runtime_arch;
+pub mod cli_host;
 
 mod dialogs_const;
 mod dialogs_common;
