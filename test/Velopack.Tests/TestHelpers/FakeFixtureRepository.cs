@@ -71,7 +71,7 @@ internal class FakeFixtureRepository : Sources.IFileDownloader
             return Task.FromResult(Encoding.UTF8.GetBytes(json));
         }
 
-        var rel = _releases.FirstOrDefault(r => url.EndsWith(r.OriginalFilename));
+        var rel = _releases.FirstOrDefault(r => url.Split('?')[0].EndsWith(r.OriginalFilename));
         if (rel == null)
             throw new Exception("Fake release not found: " + url);
 
@@ -86,7 +86,7 @@ internal class FakeFixtureRepository : Sources.IFileDownloader
     public Task DownloadFile(string url, string targetFile, Action<int> progress, string authorization = null, string accept = null, CancellationToken token = default)
     {
         LastUrl = url;
-        var rel = _releases.FirstOrDefault(r => url.EndsWith(r.OriginalFilename));
+        var rel = _releases.FirstOrDefault(r => url.Split('?')[0].EndsWith(r.OriginalFilename));
         var filePath = PathHelper.GetFixture(rel.OriginalFilename);
         if (!File.Exists(filePath)) {
             throw new NotSupportedException("FakeFixtureRepository doesn't have: " + rel.OriginalFilename);
