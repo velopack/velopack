@@ -55,7 +55,7 @@ namespace Velopack.Sources
                 // this might be a browser url or an api url (depending on whether we have a AccessToken or not)
                 // https://docs.github.com/en/rest/reference/releases#get-a-release-asset
                 var assetUrl = GetAssetUrlFromName(githubEntry.Release, releaseEntry.FileName);
-                return Downloader.DownloadFile(assetUrl, localFile, progress, Authorization, "application/octet-stream", cancelToken);
+                return Downloader.DownloadFile(assetUrl, localFile, progress, Authorization, "application/octet-stream", cancelToken: cancelToken);
             }
 
             throw new ArgumentException($"Expected releaseEntry to be {nameof(GitBaseAsset)} but got {releaseEntry.GetType().Name}.");

@@ -14,6 +14,9 @@ namespace Velopack.Sources
     /// </summary>
     public class SimpleWebSource : IUpdateSource
     {
+        /// <summary> The timeout for http requests, in minutes. </summary>
+        public double Timeout { get; set; }
+
         /// <summary> The URL of the server hosting packages to update to. </summary>
         public virtual Uri BaseUri { get; }
 
@@ -21,15 +24,16 @@ namespace Velopack.Sources
         public virtual IFileDownloader Downloader { get; }
 
         /// <inheritdoc cref="SimpleWebSource" />
-        public SimpleWebSource(string baseUrl, IFileDownloader? downloader = null)
-            : this(new Uri(baseUrl), downloader)
+        public SimpleWebSource(string baseUrl, IFileDownloader? downloader = null, double timeout = 30)
+            : this(new Uri(baseUrl), downloader, timeout)
         { }
 
         /// <inheritdoc cref="SimpleWebSource" />
-        public SimpleWebSource(Uri baseUri, IFileDownloader? downloader = null)
+        public SimpleWebSource(Uri baseUri, IFileDownloader? downloader = null, double timeout = 30)
         {
             BaseUri = baseUri;
             Downloader = downloader ?? HttpUtil.CreateDefaultDownloader();
+            Timeout = timeout;
         }
 
         /// <inheritdoc />
@@ -57,7 +61,7 @@ namespace Velopack.Sources
 
             logger.Info($"Downloading release file '{releaseFilename}' from '{uriAndQuery}'.");
 
-            var json = await Downloader.DownloadString(uriAndQuery.ToString()).ConfigureAwait(false);
+            var json = await Downloader.DownloadString(uriAndQuery.ToString(), timeout: Timeout).ConfigureAwait(false);
             return VelopackAssetFeed.FromJson(json);
         }
 
@@ -76,7 +80,7 @@ namespace Velopack.Sources
                 : HttpUtil.AppendPathToUri(sourceBaseUri, releaseEntry.FileName).ToString();
 
             logger.Info($"Downloading '{releaseEntry.FileName}' from '{source}'.");
-            await Downloader.DownloadFile(source, localFile, progress, cancelToken: cancelToken).ConfigureAwait(false);
+            await Downloader.DownloadFile(source, localFile, progress, timeout: Timeout, cancelToken: cancelToken).ConfigureAwait(false);
         }
     }
 }

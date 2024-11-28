@@ -17,7 +17,7 @@ public class OptionMapperTests
     public void MapCommand()
     {
         AzureUploadCommand command = new();
-        string cli = $"--account \"account-name\" --key \"shhhh\" --endpoint \"https://endpoint\" --container \"mycontainer\"";
+        string cli = $"--account \"account-name\" --key \"shhhh\" --endpoint \"https://endpoint\" --container \"mycontainer\" --timeout 45";
         ParseResult parseResult = command.ParseAndApply(cli);
         var options = OptionMapper.Map<AzureUploadOptions>(command);
 
@@ -26,5 +26,6 @@ public class OptionMapperTests
         Assert.Equal("shhhh", options.Key);
         Assert.Equal("https://endpoint/", options.Endpoint);
         Assert.Equal("mycontainer", options.Container);
+        Assert.Equal(45, options.Timeout);
     }
 }

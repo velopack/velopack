@@ -16,6 +16,8 @@ public class S3BaseCommand : OutputCommand
 
     public string Prefix { get; private set; }
 
+    public double Timeout { get; private set; }
+
     protected S3BaseCommand(string name, string description)
         : base(name, description)
     {
@@ -53,6 +55,11 @@ public class S3BaseCommand : OutputCommand
         AddOption<string>((v) => Prefix = v, "--prefix")
             .SetDescription("Prefix to the S3 url.")
             .SetArgumentHelpName("PREFIX");
+
+        AddOption<double>((v) => Timeout = v, "--timeout")
+            .SetDescription("Network timeout in minutes.")
+            .SetArgumentHelpName("MINUTES")
+            .SetDefault(30);
     }
 
     private static void MustBeValidAwsRegion(OptionResult result)

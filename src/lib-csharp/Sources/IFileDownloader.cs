@@ -25,17 +25,20 @@ namespace Velopack.Sources
         /// <param name="accept">
         /// Text to be sent in the 'Accept' header of the request.
         /// </param>
+        /// <param name="timeout">
+        /// The maximum time in minutes to wait for the download to complete.
+        /// </param>
         /// <param name="cancelToken">Optional token to cancel the request.</param>
-        Task DownloadFile(string url, string targetFile, Action<int> progress, string? authorization = null, string? accept = null, CancellationToken cancelToken = default);
+        Task DownloadFile(string url, string targetFile, Action<int> progress, string? authorization = null, string? accept = null, double timeout = 30, CancellationToken cancelToken = default);
 
         /// <summary>
         /// Returns a byte array containing the contents of the file at the specified url
         /// </summary>
-        Task<byte[]> DownloadBytes(string url, string? authorization = null, string? accept = null);
+        Task<byte[]> DownloadBytes(string url, string? authorization = null, string? accept = null, double timeout = 30);
 
         /// <summary>
         /// Returns a string containing the contents of the specified url
         /// </summary>
-        Task<string> DownloadString(string url, string? authorization = null, string? accept = null);
+        Task<string> DownloadString(string url, string? authorization = null, string? accept = null, double timeout = 30);
     }
 }
