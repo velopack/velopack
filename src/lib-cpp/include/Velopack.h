@@ -149,7 +149,7 @@ typedef void (*vpkc_log_callback_t)(void *p_user_data,
 extern "C" {
 #endif // __cplusplus
 
-bool vpkc_new_update_manager(const char *psz_url_or_string,
+bool vpkc_new_update_manager(const char *psz_url_or_path,
                              struct vpkc_update_options_t *p_options,
                              struct vpkc_locator_config_t *p_locator,
                              vpkc_update_manager_t **p_manager);
