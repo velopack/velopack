@@ -479,15 +479,16 @@ public class UpdateManagerTests
     }
 
     [SkippableTheory]
-    [InlineData("Clowd", "3.4.287", "3.4.292")]
-    //[InlineData("slack", "1.1.8", "1.2.2")]
-    public async Task DownloadsDeltasAndCreatesFullVersion(string id, string fromVersion, string toVersion)
+    [InlineData("Clowd", "3.4.287", "3.4.292", QueryMode.ReleaseFeedOnly, false)]
+    [InlineData("Clowd", "3.4.287", "3.4.292", QueryMode.AllRequests, true)]
+    //[InlineData("slack", "1.1.8", "1.2.2", QueryMode.ReleaseFeedOnly, false)]
+    public async Task DownloadsDeltasAndCreatesFullVersion(string id, string fromVersion, string toVersion, QueryMode queryMode, bool expectAppIdQueryStringParam)
     {
         Skip.If(VelopackRuntimeInfo.IsLinux);
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
         using var _1 = TempUtil.GetTempDirectory(out var packagesDir);
         var repo = new FakeFixtureRepository(id, true);
-        var source = new SimpleWebSource("http://any.com", repo);
+        var source = new SimpleWebSource("http://any.com", repo, queryMode);
 
         var feed = await source.GetReleaseFeed(logger, VelopackRuntimeInfo.SystemOs.GetOsShortName());
         var basePkg = feed.Assets
@@ -511,6 +512,10 @@ public class UpdateManagerTests
         await um.DownloadUpdatesAsync(info);
         var target = Path.Combine(packagesDir, $"{id}-{toVersion}-full.nupkg");
         Assert.True(File.Exists(target));
-        Assert.Contains($"id={id}", repo.LastUrl);
+        if (expectAppIdQueryStringParam) {
+            Assert.Contains($"id={id}", repo.LastUrl);
+        } else {
+            Assert.DoesNotContain($"id={id}", repo.LastUrl);
+        }
     }
 }

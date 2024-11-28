@@ -19,17 +19,21 @@ namespace Velopack.Sources
 
         /// <summary> The <see cref="IFileDownloader"/> to be used for performing http requests. </summary>
         public virtual IFileDownloader Downloader { get; }
+        
+        /// <summary> The mode determining how to deal with query string parameters. </summary>
+        public QueryMode QueryMode { get; }
 
         /// <inheritdoc cref="SimpleWebSource" />
-        public SimpleWebSource(string baseUrl, IFileDownloader? downloader = null)
-            : this(new Uri(baseUrl), downloader)
+        public SimpleWebSource(string baseUrl, IFileDownloader? downloader = null, QueryMode queryMode = QueryMode.ReleaseFeedOnly)
+            : this(new Uri(baseUrl), downloader, queryMode)
         { }
 
         /// <inheritdoc cref="SimpleWebSource" />
-        public SimpleWebSource(Uri baseUri, IFileDownloader? downloader = null)
+        public SimpleWebSource(Uri baseUri, IFileDownloader? downloader = null, QueryMode queryMode = QueryMode.ReleaseFeedOnly)
         {
             BaseUri = baseUri;
             Downloader = downloader ?? HttpUtil.CreateDefaultDownloader();
+            QueryMode = queryMode;
         }
 
         /// <inheritdoc />
@@ -37,27 +41,29 @@ namespace Velopack.Sources
         {
             var releaseFilename = CoreUtil.GetVeloReleaseIndexName(channel);
             var uri = HttpUtil.AppendPathToUri(BaseUri, releaseFilename);
-            var args = new Dictionary<string, string>();
 
-            if (VelopackRuntimeInfo.SystemArch != RuntimeCpu.Unknown) {
-                args.Add("arch", VelopackRuntimeInfo.SystemArch.ToString());
+            if (QueryMode == QueryMode.ReleaseFeedOnly || QueryMode == QueryMode.AllRequests) {
+                var args = new Dictionary<string, string>();
+
+                if (VelopackRuntimeInfo.SystemArch != RuntimeCpu.Unknown) {
+                    args.Add("arch", VelopackRuntimeInfo.SystemArch.ToString());
+                }
+
+                if (VelopackRuntimeInfo.SystemOs != RuntimeOs.Unknown) {
+                    args.Add("os", VelopackRuntimeInfo.SystemOs.GetOsShortName());
+                    args.Add("rid", VelopackRuntimeInfo.SystemRid);
+                }
+
+                if (latestLocalRelease != null) {
+                    args.Add("id", latestLocalRelease.PackageId);
+                    args.Add("localVersion", latestLocalRelease.Version.ToString());
+                }
+                uri = HttpUtil.AddQueryParamsToUri(uri, args);
             }
 
-            if (VelopackRuntimeInfo.SystemOs != RuntimeOs.Unknown) {
-                args.Add("os", VelopackRuntimeInfo.SystemOs.GetOsShortName());
-                args.Add("rid", VelopackRuntimeInfo.SystemRid);
-            }
+            logger.Info($"Downloading release file '{releaseFilename}' from '{uri}'.");
 
-            if (latestLocalRelease != null) {
-                args.Add("id", latestLocalRelease.PackageId);
-                args.Add("localVersion", latestLocalRelease.Version.ToString());
-            }
-
-            var uriAndQuery = HttpUtil.AddQueryParamsToUri(uri, args);
-
-            logger.Info($"Downloading release file '{releaseFilename}' from '{uriAndQuery}'.");
-
-            var json = await Downloader.DownloadString(uriAndQuery.ToString()).ConfigureAwait(false);
+            var json = await Downloader.DownloadString(uri.ToString()).ConfigureAwait(false);
             return VelopackAssetFeed.FromJson(json);
         }
 
@@ -72,11 +78,18 @@ namespace Velopack.Sources
             var sourceBaseUri = HttpUtil.EnsureTrailingSlash(BaseUri);
 
             var source = HttpUtil.IsHttpUrl(releaseEntry.FileName)
-                ? releaseEntry.FileName
-                : HttpUtil.AppendPathToUri(sourceBaseUri, releaseEntry.FileName).ToString();
+                ? new Uri(releaseEntry.FileName)
+                : HttpUtil.AppendPathToUri(sourceBaseUri, releaseEntry.FileName);
+
+            if (QueryMode == QueryMode.AllRequests) {
+                var args = new Dictionary<string, string>() {
+                    { "id", releaseEntry.PackageId }
+                };
+                source = HttpUtil.AddQueryParamsToUri(source, args);
+            }
 
             logger.Info($"Downloading '{releaseEntry.FileName}' from '{source}'.");
-            await Downloader.DownloadFile(source, localFile, progress, cancelToken: cancelToken).ConfigureAwait(false);
+            await Downloader.DownloadFile(source.ToString(), localFile, progress, cancelToken: cancelToken).ConfigureAwait(false);
         }
     }
 }
