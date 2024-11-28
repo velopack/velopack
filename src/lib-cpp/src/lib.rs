@@ -13,6 +13,10 @@ use libc::{c_char, c_void, size_t};
 use std::ffi::CString;
 use velopack::{sources, Error as VelopackError, UpdateCheck, UpdateManager, VelopackApp};
 
+/// Create a new UpdateManager instance.
+/// @param urlOrPath Location of the update server or path to the local update directory.
+/// @param options Optional extra configuration for update manager.
+/// @param locator Override the default locator configuration (usually used for testing / mocks).
 #[no_mangle]
 pub extern "C" fn vpkc_new_update_manager(
     psz_url_or_path: *const c_char,
@@ -31,6 +35,7 @@ pub extern "C" fn vpkc_new_update_manager(
     })
 }
 
+/// Returns the currently installed version of the app.
 #[no_mangle]
 pub extern "C" fn vpkc_get_current_version(p_manager: *mut vpkc_update_manager_t, psz_version: *mut c_char, c_version: size_t) -> size_t {
     match p_manager.to_opaque_ref() {
@@ -42,6 +47,7 @@ pub extern "C" fn vpkc_get_current_version(p_manager: *mut vpkc_update_manager_t
     }
 }
 
+/// Returns the currently installed app id.
 #[no_mangle]
 pub extern "C" fn vpkc_get_app_id(p_manager: *mut vpkc_update_manager_t, psz_id: *mut c_char, c_id: size_t) -> size_t {
     match p_manager.to_opaque_ref() {
@@ -53,6 +59,8 @@ pub extern "C" fn vpkc_get_app_id(p_manager: *mut vpkc_update_manager_t, psz_id:
     }
 }
 
+/// Returns whether the app is in portable mode. On Windows this can be true or false.
+/// On MacOS and Linux this will always be true.
 #[no_mangle]
 pub extern "C" fn vpkc_is_portable(p_manager: *mut vpkc_update_manager_t) -> bool {
     match p_manager.to_opaque_ref() {
@@ -61,6 +69,8 @@ pub extern "C" fn vpkc_is_portable(p_manager: *mut vpkc_update_manager_t) -> boo
     }
 }
 
+/// Returns an UpdateInfo object if there is an update downloaded which still needs to be applied.
+/// You can pass the UpdateInfo object to waitExitThenApplyUpdate to apply the update.
 #[no_mangle]
 pub extern "C" fn vpkc_update_pending_restart(p_manager: *mut vpkc_update_manager_t, p_asset: *mut vpkc_asset_t) -> bool {
     match p_manager.to_opaque_ref() {
@@ -75,6 +85,8 @@ pub extern "C" fn vpkc_update_pending_restart(p_manager: *mut vpkc_update_manage
     }
 }
 
+/// Checks for updates, returning None if there are none available. If there are updates available, this method will return an
+/// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
 #[no_mangle]
 pub extern "C" fn vpkc_check_for_updates(p_manager: *mut vpkc_update_manager_t, p_update: *mut vpkc_update_info_t) -> vpkc_update_check_t {
     match p_manager.to_opaque_ref() {
@@ -99,6 +111,12 @@ pub extern "C" fn vpkc_check_for_updates(p_manager: *mut vpkc_update_manager_t, 
     }
 }
 
+/// Downloads the specified updates to the local app packages directory. Progress is reported back to the caller via an optional callback.
+/// This function will acquire a global update lock so may fail if there is already another update operation in progress.
+/// - If the update contains delta packages and the delta feature is enabled
+///   this method will attempt to unpack and prepare them.
+/// - If there is no delta update available, or there is an error preparing delta
+///   packages, this method will fall back to downloading the full version of the update.
 #[no_mangle]
 pub extern "C" fn vpkc_download_updates(
     p_manager: *mut vpkc_update_manager_t,
@@ -161,6 +179,9 @@ pub extern "C" fn vpkc_download_updates(
     })
 }
 
+/// This will launch the Velopack updater and tell it to wait for this program to exit gracefully.
+/// You should then clean up any state and exit your app. The updater will apply updates and then
+/// optionally restart your app. The updater will only wait for 60 seconds before giving up.
 #[no_mangle]
 pub extern "C" fn vpkc_wait_exit_then_apply_update(
     p_manager: *mut vpkc_update_manager_t,
@@ -183,21 +204,27 @@ pub extern "C" fn vpkc_wait_exit_then_apply_update(
     })
 }
 
+/// Frees a vpkc_update_manager_t instance.
 #[no_mangle]
 pub extern "C" fn vpkc_free_update_manager(p_manager: *mut vpkc_update_manager_t) {
     UpdateManagerRawPtr::free(p_manager);
 }
 
+/// Frees a vpkc_update_info_t instance.
 #[no_mangle]
 pub extern "C" fn vpkc_free_update_info(p_update_info: *mut vpkc_update_info_t) {
     unsafe { free_updateinfo(p_update_info) };
 }
 
+/// Frees a vpkc_asset_t instance.
 #[no_mangle]
 pub extern "C" fn vpkc_free_asset(p_asset: *mut vpkc_asset_t) {
     unsafe { free_velopackasset(p_asset) };
 }
 
+/// VelopackApp helps you to handle app activation events correctly.
+/// This should be used as early as possible in your application startup code.
+/// (eg. the beginning of main() or wherever your entry point is)
 #[no_mangle]
 pub extern "C" fn vpkc_app_run(p_user_data: *mut c_void) {
     let app_options = VELOPACK_APP.read().unwrap();
@@ -264,6 +291,7 @@ pub extern "C" fn vpkc_app_run(p_user_data: *mut c_void) {
     app.run();
 }
 
+/// Set whether to automatically apply downloaded updates on startup. This is ON by default.
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_auto_apply_on_startup(b_auto_apply: bool) {
     update_app_options(|opt| {
@@ -271,6 +299,7 @@ pub extern "C" fn vpkc_app_set_auto_apply_on_startup(b_auto_apply: bool) {
     });
 }
 
+/// Override the command line arguments used by VelopackApp. (by default this is env::args().skip(1))
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_args(p_args: *mut *mut c_char, c_args: size_t) {
     update_app_options(|opt| {
@@ -278,6 +307,7 @@ pub extern "C" fn vpkc_app_set_args(p_args: *mut *mut c_char, c_args: size_t) {
     });
 }
 
+/// VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_locator(p_locator: *mut vpkc_locator_config_t) {
     update_app_options(|opt| {
@@ -285,6 +315,10 @@ pub extern "C" fn vpkc_app_set_locator(p_locator: *mut vpkc_locator_config_t) {
     });
 }
 
+/// WARNING: FastCallback hooks are run during critical stages of Velopack operations.
+/// Your code will be run and then the process will exit.
+/// If your code has not completed within 30 seconds, it will be terminated.
+/// Only supported on windows; On other operating systems, this will never be called.
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_hook_after_install(cb_after_install: vpkc_hook_callback_t) {
     let cb_after_install = cb_after_install.to_option();
@@ -293,6 +327,10 @@ pub extern "C" fn vpkc_app_set_hook_after_install(cb_after_install: vpkc_hook_ca
     });
 }
 
+/// WARNING: FastCallback hooks are run during critical stages of Velopack operations.
+/// Your code will be run and then the process will exit.
+/// If your code has not completed within 30 seconds, it will be terminated.
+/// Only supported on windows; On other operating systems, this will never be called.
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_hook_before_uninstall(cb_before_uninstall: vpkc_hook_callback_t) {
     let cb_before_uninstall = cb_before_uninstall.to_option();
@@ -301,6 +339,10 @@ pub extern "C" fn vpkc_app_set_hook_before_uninstall(cb_before_uninstall: vpkc_h
     });
 }
 
+/// WARNING: FastCallback hooks are run during critical stages of Velopack operations.
+/// Your code will be run and then the process will exit.
+/// If your code has not completed within 30 seconds, it will be terminated.
+/// Only supported on windows; On other operating systems, this will never be called.
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_hook_before_update(cb_before_update: vpkc_hook_callback_t) {
     let cb_before_update = cb_before_update.to_option();
@@ -309,6 +351,10 @@ pub extern "C" fn vpkc_app_set_hook_before_update(cb_before_update: vpkc_hook_ca
     });
 }
 
+/// WARNING: FastCallback hooks are run during critical stages of Velopack operations.
+/// Your code will be run and then the process will exit.
+/// If your code has not completed within 30 seconds, it will be terminated.
+/// Only supported on windows; On other operating systems, this will never be called.
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_hook_after_update(cb_after_update: vpkc_hook_callback_t) {
     let cb_after_update = cb_after_update.to_option();
@@ -317,6 +363,7 @@ pub extern "C" fn vpkc_app_set_hook_after_update(cb_after_update: vpkc_hook_call
     });
 }
 
+/// This hook is triggered when the application is started for the first time after installation.
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_hook_first_run(cb_first_run: vpkc_hook_callback_t) {
     let cb_first_run = cb_first_run.to_option();
@@ -325,6 +372,7 @@ pub extern "C" fn vpkc_app_set_hook_first_run(cb_first_run: vpkc_hook_callback_t
     });
 }
 
+/// This hook is triggered when the application is restarted by Velopack after installing updates.
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_hook_restarted(cb_restarted: vpkc_hook_callback_t) {
     let cb_restarted = cb_restarted.to_option();
@@ -333,12 +381,14 @@ pub extern "C" fn vpkc_app_set_hook_restarted(cb_restarted: vpkc_hook_callback_t
     });
 }
 
+/// Get the last error message that occurred in the Velopack library.
 #[no_mangle]
 pub extern "C" fn vpkc_get_last_error(psz_error: *mut c_char, c_error: size_t) -> size_t {
     let error = get_last_error();
     return_cstr(psz_error, c_error, &error)
 }
 
+/// Set a custom log callback. This will be called for all log messages generated by the Velopack library.
 #[no_mangle]
 pub extern "C" fn vpkc_set_logger(cb_log: vpkc_log_callback_t, p_user_data: *mut c_void) {
     let cb_log = cb_log.to_option();

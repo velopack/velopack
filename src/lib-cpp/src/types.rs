@@ -86,7 +86,8 @@ pub fn return_cstr(psz: *mut c_char, c: size_t, s: &str) -> size_t {
     return s.len();
 }
 
-#[repr(i16)]
+/// The result of a call to check for updates. This can indicate that an update is available, or that an error occurred.
+#[repr(i8)]
 pub enum vpkc_update_check_t {
     UPDATE_ERROR = -1,
     UPDATE_AVAILABLE = 0,
@@ -94,12 +95,16 @@ pub enum vpkc_update_check_t {
     REMOTE_IS_EMPTY = 2,
 }
 
+/// Opaque type for the Velopack UpdateManager. Must be freed with `vpkc_free_update_manager`.
 pub type vpkc_update_manager_t = c_void;
 
+/// Progress callback function.
 pub type vpkc_progress_callback_t = extern "C" fn(p_user_data: *mut c_void, progress: size_t);
 
+/// Log callback function.
 pub type vpkc_log_callback_t = extern "C" fn(p_user_data: *mut c_void, psz_level: *const c_char, psz_message: *const c_char);
 
+/// VelopackApp startup hook callback function.
 pub type vpkc_hook_callback_t = extern "C" fn(p_user_data: *mut c_void, psz_app_version: *const c_char);
 
 pub trait CallbackExt: Sized {
