@@ -428,7 +428,7 @@ public:
     };
 
     /**
-     * Downloads the specified updates to the local app packages directory. Progress is reported back to the caller via an optional Sender.
+     * Downloads the specified updates to the local app packages directory. Progress is reported back to the caller via an optional callback.
      * This function will acquire a global update lock so may fail if there is already another update operation in progress.
      * - If the update contains delta packages and the delta feature is enabled
      *   this method will attempt to unpack and prepare them.
