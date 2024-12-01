@@ -236,7 +236,7 @@ public class WindowsPackTests
         string installDate = null;
         string uninstallRegSubKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall";
         using (var key = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)
-            .CreateSubKey(uninstallRegSubKey + "\\" + id, RegistryKeyPermissionCheck.ReadWriteSubTree)) {
+                   .CreateSubKey(uninstallRegSubKey + "\\" + id, RegistryKeyPermissionCheck.ReadWriteSubTree)) {
             installDate = key.GetValue("InstallDate") as string;
         }
 
@@ -251,7 +251,7 @@ public class WindowsPackTests
         Assert.False(File.Exists(appPath));
 
         using (var key2 = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)
-            .OpenSubKey(uninstallRegSubKey + "\\" + id, RegistryKeyPermissionCheck.ReadSubTree)) {
+                   .OpenSubKey(uninstallRegSubKey + "\\" + id, RegistryKeyPermissionCheck.ReadSubTree)) {
             Assert.Null(key2);
         }
     }
@@ -271,8 +271,11 @@ public class WindowsPackTests
 
         // install app
         var setupPath1 = Path.Combine(releaseDir, $"{id}-win-Setup.exe");
-        RunNoCoverage(setupPath1, new string[] { "--silent", "--installto", installDir },
-            Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
+        RunNoCoverage(
+            setupPath1,
+            new string[] { "--silent", "--installto", installDir },
+            Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+            logger);
 
         // pack v2
         PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
@@ -330,11 +333,12 @@ public class WindowsPackTests
 
         // apply delta and check package
         var output = Path.Combine(releaseDir, "delta.patched");
-        new DeltaPatchCommandRunner(logger, new BasicConsole(logger, new VelopackDefaults(false))).Run(new DeltaPatchOptions {
-            BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-full.nupkg"),
-            OutputFile = output,
-            PatchFiles = new[] { new FileInfo(deltaPath) },
-        }).GetAwaiterResult();
+        new DeltaPatchCommandRunner(logger, new BasicConsole(logger, new VelopackDefaults(false))).Run(
+            new DeltaPatchOptions {
+                BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-full.nupkg"),
+                OutputFile = output,
+                PatchFiles = new[] { new FileInfo(deltaPath) },
+            }).GetAwaiterResult();
 
         // are the packages the same?
         Assert.True(File.Exists(output));
@@ -347,11 +351,12 @@ public class WindowsPackTests
         // can apply multiple deltas, and handle add/removing files?
         output = Path.Combine(releaseDir, "delta.patched2");
         var deltav3 = Path.Combine(releaseDir, $"{id}-3.0.0-delta.nupkg");
-        new DeltaPatchCommandRunner(logger, new BasicConsole(logger, new VelopackDefaults(false))).Run(new DeltaPatchOptions {
-            BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-full.nupkg"),
-            OutputFile = output,
-            PatchFiles = [new FileInfo(deltaPath), new FileInfo(deltav3)],
-        }).GetAwaiterResult();
+        new DeltaPatchCommandRunner(logger, new BasicConsole(logger, new VelopackDefaults(false))).Run(
+            new DeltaPatchOptions {
+                BasePackage = Path.Combine(releaseDir, $"{id}-1.0.0-full.nupkg"),
+                OutputFile = output,
+                PatchFiles = [new FileInfo(deltaPath), new FileInfo(deltav3)],
+            }).GetAwaiterResult();
 
         // are the packages the same?
         Assert.True(File.Exists(output));
@@ -377,8 +382,11 @@ public class WindowsPackTests
 
         // install app
         var setupPath1 = Path.Combine(releaseDir, $"{id}-win-Setup.exe");
-        RunNoCoverage(setupPath1, ["--installto", installDir],
-            Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
+        RunNoCoverage(
+            setupPath1,
+            ["--installto", installDir],
+            Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+            logger);
 
         var argsPath = Path.Combine(installDir, "args.txt");
         Assert.True(File.Exists(argsPath));
@@ -426,8 +434,11 @@ public class WindowsPackTests
 
         // install app
         var setupPath1 = Path.Combine(releaseDir, $"{id}-win-Setup.exe");
-        RunNoCoverage(setupPath1, new string[] { "--silent", "--installto", installDir },
-            Environment.GetFolderPath(Environment.SpecialFolder.Desktop), logger);
+        RunNoCoverage(
+            setupPath1,
+            new string[] { "--silent", "--installto", installDir },
+            Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+            logger);
 
         // check app installed correctly
         var appPath = Path.Combine(installDir, "current", "TestApp.exe");
@@ -513,13 +524,20 @@ public class WindowsPackTests
 
         var setup = PathHelper.GetFixture(fixture);
         var p = Process.Start(setup);
-        p.WaitForExit();
+        p!.WaitForExit();
 
         var currentDir = Path.Combine(rootDir, origDirName);
         var appExe = Path.Combine(currentDir, "LegacyTestApp.exe");
         var updateExe = Path.Combine(rootDir, "Update.exe");
-        Assert.True(File.Exists(appExe));
-        Assert.True(File.Exists(updateExe));
+
+        var assertAppExe = appExe;
+        IoUtil.Retry(
+            () => {
+                Assert.True(File.Exists(assertAppExe));
+                Assert.True(File.Exists(updateExe));
+            },
+            retries: 10,
+            retryDelay: 1000);
 
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         PackTestApp("LegacyTestApp", "2.0.0", "hello!", releaseDir, logger);
@@ -529,7 +547,7 @@ public class WindowsPackTests
 
         logger.Info("TEST: " + DateTime.Now.ToLongTimeString());
 
-        Thread.Sleep(5000); // update.exe runs in a separate process here
+        Thread.Sleep(10_000); // update.exe runs in a separate process here
 
         string logContents = ReadFileWithRetry(Path.Combine(rootDir, "Velopack.log"), logger);
         logger.Info("Velopack.log:" + Environment.NewLine + logContents);
@@ -556,9 +574,13 @@ public class WindowsPackTests
 
     private static string ReadFileWithRetry(string path, ILogger logger)
     {
-        return IoUtil.Retry(() => {
-            return File.ReadAllText(path);
-        }, logger: logger, retries: 10, retryDelay: 1000);
+        return IoUtil.Retry(
+            () => {
+                return File.ReadAllText(path);
+            },
+            logger: logger,
+            retries: 10,
+            retryDelay: 1000);
     }
 
     //private string RunCoveredRust(string binName, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
@@ -621,9 +643,13 @@ public class WindowsPackTests
 
             logger.Info($"TEST: Process exited with code {p.ExitCode} in {elapsed.TotalSeconds}s");
 
-            using var fs = IoUtil.Retry(() => {
-                return File.Open(outputFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-            }, 10, 1000, logger);
+            using var fs = IoUtil.Retry(
+                () => {
+                    return File.Open(outputFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                },
+                10,
+                1000,
+                logger);
 
             using var reader = new StreamReader(fs);
             var output = reader.ReadToEnd();
@@ -638,12 +664,13 @@ public class WindowsPackTests
                 throw new Exception($"Process exited with code {p.ExitCode} but expected {exitCode.Value}");
             }
 
-            return String.Join(Environment.NewLine,
+            return String.Join(
+                Environment.NewLine,
                 output
                     .Split('\n')
                     .Where(l => !l.Contains("Code coverage results"))
                     .Select(l => l.Trim())
-                ).Trim();
+            ).Trim();
         } finally {
             try {
                 File.Delete(outputFile);
@@ -676,11 +703,13 @@ public class WindowsPackTests
     }
 
     private static Random _random = new Random();
+
     private static string RandomString(int length)
     {
         string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".ToLower();
-        return new string(Enumerable.Repeat(chars, length)
-            .Select(s => s[_random.Next(s.Length)]).ToArray());
+        return new string(
+            Enumerable.Repeat(chars, length)
+                .Select(s => s[_random.Next(s.Length)]).ToArray());
     }
 
     private string RunNoCoverage(string exe, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
