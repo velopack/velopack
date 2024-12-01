@@ -19,6 +19,8 @@ public class RepositoryOptions : IOutputOptions
     }
 
     public DirectoryInfo ReleaseDir { get; set; }
+
+    public double Timeout { get; set; } = 30d;
 }
 
 public interface IRepositoryCanUpload<TUp> where TUp : RepositoryOptions
@@ -37,7 +39,8 @@ public abstract class SourceRepository<TDown, TSource> : DownRepository<TDown>
 {
     public SourceRepository(ILogger logger)
         : base(logger)
-    { }
+    {
+    }
 
     protected override Task<VelopackAssetFeed> GetReleasesAsync(TDown options)
     {
@@ -104,8 +107,7 @@ public abstract class DownRepository<TDown> : IRepositoryCanDownload<TDown>
                 Log.Error($"Checksum mismatch, expected {latest.SHA256}, got {newHash}");
                 return;
             }
-        }
-        else if (latest.SHA1 != (newHash = IoUtil.CalculateFileSHA1(incomplete))) {
+        } else if (latest.SHA1 != (newHash = IoUtil.CalculateFileSHA1(incomplete))) {
             Log.Error($"Checksum mismatch, expected {latest.SHA1}, got {newHash}");
             return;
         }

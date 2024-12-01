@@ -13,6 +13,7 @@ public class LocalDownloadOptions : RepositoryOptions, IObjectDownloadOptions
 public class LocalUploadOptions : LocalDownloadOptions, IObjectUploadOptions
 {
     public bool ForceRegenerate { get; set; }
+
     public int KeepMaxReleases { get; set; }
 }
 

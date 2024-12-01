@@ -20,8 +20,6 @@ public class GiteaDownloadOptions : RepositoryOptions
 
     public string Token { get; set; }
 
-    public double Timeout { get; set; }
-
     ///// <summary>
     ///// Example https://gitea.com
     ///// </summary>

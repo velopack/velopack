@@ -16,8 +16,6 @@ public class GitHubDownloadOptions : RepositoryOptions
     public string RepoUrl { get; set; }
 
     public string Token { get; set; }
-
-    public double Timeout { get; set; }
 }
 
 public class GitHubUploadOptions : GitHubDownloadOptions

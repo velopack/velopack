@@ -21,8 +21,6 @@ public class S3DownloadOptions : RepositoryOptions, IObjectDownloadOptions
     public string Bucket { get; set; }
 
     public string Prefix { get; set; }
-
-    public double Timeout { get; set; }
 }
 
 public class S3UploadOptions : S3DownloadOptions, IObjectUploadOptions
@@ -101,7 +99,7 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
             ForcePathStyle = true, // support for MINIO
             Timeout = TimeSpan.FromMinutes(options.Timeout)
         };
-        
+
         if (options.Endpoint != null) {
             config.ServiceURL = options.Endpoint;
             // if the endpoint is using https, and is _not_ an AWS endpoint, we can disable signing 
