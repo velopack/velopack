@@ -44,7 +44,7 @@ public class CrossCompile
     [InlineData("from-win-targets-linux")]
     [InlineData("from-linux-targets-linux")]
     [InlineData("from-osx-targets-linux")]
-    public void RunCrossAppLinux(string artifactId)
+    public async Task RunCrossAppLinux(string artifactId)
     {
         using var logger = _output.BuildLoggerFor<CrossCompile>();
         Skip.If(
@@ -61,6 +61,19 @@ public class CrossCompile
         var output = Exe.InvokeAndThrowIfNonZero(artifactPath, new[] { "test" }, null);
         logger.LogInformation(output);
         Assert.EndsWith(artifactId, output.Trim());
+
+        var appImageLintPath = PathHelper.GetTestRootPath("appimagelint.AppImage");
+        if (!File.Exists(appImageLintPath)) {
+            var downloader = HttpUtil.CreateDefaultDownloader();
+            await downloader.DownloadFile(
+                "https://github.com/TheAssassin/appimagelint/releases/download/continuous/appimagelint-x86_64.AppImage",
+                appImageLintPath,
+                _ => { });
+            Chmod.ChmodFileAsExecutable(appImageLintPath);
+        }
+        
+        var lintOutput = Exe.InvokeAndThrowIfNonZero(appImageLintPath, new[] { artifactPath }, null);
+        logger.LogInformation(lintOutput);
     }
 
     [SkippableTheory]
