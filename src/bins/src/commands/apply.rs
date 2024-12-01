@@ -39,19 +39,18 @@ pub fn apply<'a>(
                     return Ok(applied_locator);
                 }
                 Err(e) => {
-                    error!("Error applying package: {}", e);
+                    if restart {
+                        shared::start_package(&locator, exe_args, Some(constants::HOOK_ENV_RESTART))?;
+                    }
+                    bail!("Error applying package: {}", e);
                 }
             }
         }
         None => {
-            error!("Failed to locate full package to apply. Please provide with the --package {{path}} argument");
+            if restart {
+                shared::start_package(&locator, exe_args, Some(constants::HOOK_ENV_RESTART))?;
+            }
+            bail!("Failed to locate full package to apply. Please provide with the --package {{path}} argument");
         }
     }
-
-    // an error occurred if we're here, but we still want to restart the old version of the app if it was requested
-    if restart {
-        shared::start_package(&locator, exe_args, Some(constants::HOOK_ENV_RESTART))?;
-    }
-
-    bail!("Apply failed, see logs for details.");
 }

@@ -6,10 +6,7 @@ use crate::{
 };
 use anyhow::{bail, Context, Result};
 use std::sync::mpsc;
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{fs, path::PathBuf};
 use velopack::{bundle::load_bundle_from_file, constants, locator::VelopackLocator};
 
 // fn ropycopy<P1: AsRef<Path>, P2: AsRef<Path>>(source: &P1, dest: &P2) -> Result<()> {
@@ -94,7 +91,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
         // fourth, we make as backup of the current dir to temp_path_old
         info!("Backing up current dir to {}", &temp_path_old.to_string_lossy());
         shared::retry_io_ex(|| fs::rename(&current_dir, &temp_path_old), 1000, 10)
-            .context("Unable to start the update, because one or more running processes prevented it.")?;
+            .context("Unable to start the update, because one or more running processes prevented it. Try again later, or if the issue persists, restart your computer.")?;
 
         // let mut requires_robocopy = false;
         // if let Err(e) = fs::rename(&current_dir, &temp_path_old) {
@@ -107,7 +104,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
         // if this fails we will yolo a rollback...
         info!("Replacing current dir with {}", &temp_path_new.to_string_lossy());
         shared::retry_io_ex(|| fs::rename(&temp_path_new, &current_dir), 1000, 30)
-            .context("Unable to complete the update, and the app was left in a broken state. You may need to re-install")?;
+            .context("Unable to complete the update, and the app was left in a broken state. You may need to re-install or repair this application manually.")?;
 
         // if !requires_robocopy {
         //     // if we didn't need robocopy for the backup, we don't need it for the deploy hopefully
