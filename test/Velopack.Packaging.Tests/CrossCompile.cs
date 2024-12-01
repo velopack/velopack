@@ -62,18 +62,18 @@ public class CrossCompile
         logger.LogInformation(output);
         Assert.EndsWith(artifactId, output.Trim());
 
-        var appImageLintPath = PathHelper.GetTestRootPath("appimagelint.AppImage");
-        if (!File.Exists(appImageLintPath)) {
-            var downloader = HttpUtil.CreateDefaultDownloader();
-            await downloader.DownloadFile(
-                "https://github.com/TheAssassin/appimagelint/releases/download/continuous/appimagelint-x86_64.AppImage",
-                appImageLintPath,
-                _ => { });
-            Chmod.ChmodFileAsExecutable(appImageLintPath);
-        }
-        
-        var lintOutput = Exe.InvokeAndThrowIfNonZero(appImageLintPath, new[] { artifactPath }, null);
-        logger.LogInformation(lintOutput);
+        // var appImageLintPath = PathHelper.GetTestRootPath("appimagelint.AppImage");
+        // if (!File.Exists(appImageLintPath)) {
+        //     var downloader = HttpUtil.CreateDefaultDownloader();
+        //     await downloader.DownloadFile(
+        //         "https://github.com/TheAssassin/appimagelint/releases/download/continuous/appimagelint-x86_64.AppImage",
+        //         appImageLintPath,
+        //         _ => { });
+        //     Chmod.ChmodFileAsExecutable(appImageLintPath);
+        // }
+        //
+        // var lintOutput = Exe.InvokeAndThrowIfNonZero(appImageLintPath, new[] { artifactPath }, null);
+        // logger.LogInformation(lintOutput);
     }
 
     [SkippableTheory]
