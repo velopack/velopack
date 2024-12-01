@@ -27,7 +27,9 @@ public class GithubDeploymentTests
         using var _2 = TempUtil.GetTempDirectory(out var releaseDir2);
         using var ghvar = GitHubReleaseTest.Create("nomerge", logger);
         var id = "GithubUpdateTest";
-        TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger);
+        var uniqueSuffix = ghvar.UniqueSuffix;
+
+        TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger, channel: uniqueSuffix);
 
         var gh = new GitHubRepository(logger);
         var options = new GitHubUploadOptions {
@@ -37,6 +39,7 @@ public class GithubDeploymentTests
             Token = GITHUB_TOKEN,
             Prerelease = false,
             Publish = true,
+            Channel = uniqueSuffix,
         };
 
         gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
@@ -56,10 +59,13 @@ public class GithubDeploymentTests
         using var _2 = TempUtil.GetTempDirectory(out var releaseDir2);
         using var ghvar = GitHubReleaseTest.Create("mixmatched", logger);
         var id = "GithubUpdateTest";
-        TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger);
+        var uniqueSuffix = ghvar.UniqueSuffix;
+        
+        TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger, channel: uniqueSuffix);
 
         var gh = new GitHubRepository(logger);
         var options = new GitHubUploadOptions {
+            Channel = uniqueSuffix,
             ReleaseName = ghvar.ReleaseName,
             ReleaseDir = new DirectoryInfo(releaseDir),
             RepoUrl = GITHUB_REPOURL,
@@ -86,10 +92,13 @@ public class GithubDeploymentTests
         using var _2 = TempUtil.GetTempDirectory(out var releaseDir2);
         using var ghvar = GitHubReleaseTest.Create("yesmerge", logger);
         var id = "GithubUpdateTest";
-        TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger);
+        var uniqueSuffix = ghvar.UniqueSuffix;
+
+        TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger, channel: uniqueSuffix);
 
         var gh = new GitHubRepository(logger);
         var options = new GitHubUploadOptions {
+            Channel = uniqueSuffix,
             ReleaseName = ghvar.ReleaseName,
             ReleaseDir = new DirectoryInfo(releaseDir),
             RepoUrl = GITHUB_REPOURL,
@@ -125,9 +134,9 @@ public class GithubDeploymentTests
         // create releases
         var notesPath = Path.Combine(releaseDir, "NOTES");
         var notesContent = $"""
-# Release {releaseName}
-This is just a _test_!
-""";
+            # Release {releaseName}
+            This is just a _test_!
+            """;
         File.WriteAllText(notesPath, notesContent);
 
         if (String.IsNullOrEmpty(GITHUB_TOKEN))
@@ -174,12 +183,13 @@ This is just a _test_!
         }
 
         using var _2 = TempUtil.GetTempDirectory(out var releaseDirNew);
-        gh.DownloadLatestFullPackageAsync(new GitHubDownloadOptions {
-            Token = GITHUB_TOKEN,
-            RepoUrl = GITHUB_REPOURL,
-            ReleaseDir = new DirectoryInfo(releaseDirNew),
-            Channel = uniqueSuffix,
-        }).GetAwaiterResult();
+        gh.DownloadLatestFullPackageAsync(
+            new GitHubDownloadOptions {
+                Token = GITHUB_TOKEN,
+                RepoUrl = GITHUB_REPOURL,
+                ReleaseDir = new DirectoryInfo(releaseDirNew),
+                Channel = uniqueSuffix,
+            }).GetAwaiterResult();
 
         var filename = $"{id}-{newVer}-{uniqueSuffix}-full.nupkg";
         Assert.True(File.Exists(Path.Combine(releaseDirNew, filename)));
@@ -290,8 +300,10 @@ This is just a _test_!
                 if (deleteTagOnDispose) {
                     client.Git.Reference.Delete(repoOwner, repoName, $"tags/{existingRelease.TagName}").GetAwaiterResult();
                 }
+
                 logger.Info("Deleted existing release: " + releaseName);
             }
+
             return new GitHubReleaseTest(releaseName, uniqueSuffix, client, logger, deleteTagOnDispose);
         }
 
@@ -304,10 +316,9 @@ This is just a _test_!
                 if (deleteTagOnDispose) {
                     Client.Git.Reference.Delete(repoOwner, repoName, $"tags/{finalRelease.TagName}").GetAwaiterResult();
                 }
+
                 Logger.Info($"Deleted final release '{ReleaseName}'");
             }
         }
     }
-
-
 }
