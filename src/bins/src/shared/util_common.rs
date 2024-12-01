@@ -29,39 +29,25 @@ where
     F: Fn() -> Result<T, E>,
     E: std::fmt::Debug,
 {
-    let res = op();
-    if res.is_ok() {
-        return Ok(res.unwrap());
+    retry_io_ex(op, 1000, 4)
+}
+
+pub fn retry_io_ex<F, T, E>(op: F, delay_ms: i32, count: i32) -> Result<T, E>
+where
+    F: Fn() -> Result<T, E>,
+    E: std::fmt::Debug,
+{
+    let mut res = op();
+    for _ in 0..count {
+        if res.is_ok() {
+            return Ok(res.unwrap());
+        }
+
+        warn!("Retrying operation in {}ms... (error was: {:?})", delay_ms, res.err());
+        thread::sleep(Duration::from_millis(delay_ms as u64));
+        res = op();
     }
-
-    warn!("Retrying operation in 1000ms... (error was: {:?})", res.err());
-    thread::sleep(Duration::from_millis(1000));
-
-    let res = op();
-    if res.is_ok() {
-        return Ok(res.unwrap());
-    }
-
-    warn!("Retrying operation in 1000ms... (error was: {:?})", res.err());
-    thread::sleep(Duration::from_millis(1000));
-
-    let res = op();
-    if res.is_ok() {
-        return Ok(res.unwrap());
-    }
-
-    warn!("Retrying operation in 1000ms... (error was: {:?})", res.err());
-    thread::sleep(Duration::from_millis(1000));
-
-    let res = op();
-    if res.is_ok() {
-        return Ok(res.unwrap());
-    }
-
-    warn!("Last retry in 1000ms... (error was: {:?})", res.err());
-    thread::sleep(Duration::from_millis(1000));
-
-    op()
+    res
 }
 
 pub fn random_string(len: usize) -> String {
