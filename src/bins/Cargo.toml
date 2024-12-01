@@ -62,6 +62,7 @@ file-rotate.workspace = true
 wait-timeout.workspace = true
 pretty-bytes-rust.workspace = true
 enum-flags.workspace = true
+log-panics.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 native-dialog.workspace = true

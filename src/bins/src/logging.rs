@@ -29,6 +29,7 @@ pub fn setup_logging(process_name: &str, file: Option<&PathBuf>, console: bool, 
     }
 
     CombinedLogger::init(loggers)?;
+    log_panics::init();
     Ok(())
 }
 
