@@ -23,7 +23,7 @@ public static partial class TaskOptionsMapper
         return di;
     }
 
-    private static RID StringToRID(string t) => RID.Parse(t);
+    private static RID StringToRid(string t) => RID.Parse(t);
 
     private static DeltaMode StringToDeltaMode(string t) => (DeltaMode) Enum.Parse(typeof(DeltaMode), t, true);
 }

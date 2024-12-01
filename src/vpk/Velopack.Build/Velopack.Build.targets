@@ -67,7 +67,6 @@
       ReleaseNotes="$(VelopackReleaseNotes)"
       DeltaMode="$(VelopackDeltaMode)"
       Channel="$(VelopackChannel)"
-      PackIsAppDir="$(VelopackPackIsAppDir)"
       Exclude="$(VelopackExclude)"
       NoPortable="$(VelopackNoPortable)"
       NoInst="$(VelopackNoInst)"

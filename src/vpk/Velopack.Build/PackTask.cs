@@ -47,8 +47,6 @@ public class PackTask : MSBuildAsyncTask
 
     public string? Channel { get; set; }
 
-    public bool PackIsAppDir { get; set; }
-
     public string? Exclude { get; set; }
 
     public bool NoPortable { get; private set; }
