@@ -30,6 +30,7 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
             var icon = Options.Icon ?? HelperFile.GetDefaultAppIcon(RuntimeOs.Linux);
             var iconFilename = Options.PackId + Path.GetExtension(icon);
             File.Copy(icon, Path.Combine(dir.FullName, iconFilename), true);
+            File.Copy(icon, Path.Combine(dir.FullName, ".DirIcon"), true);
 
             var categories = String.IsNullOrWhiteSpace(Options.Categories)
                 ? "Utility"
