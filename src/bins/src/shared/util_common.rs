@@ -3,7 +3,7 @@ use rand::distributions::{Alphanumeric, DistString};
 use regex::Regex;
 use std::{path::Path, thread, time::Duration};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum OperationWait {
     NoWait,
     WaitParent,
