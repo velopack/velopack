@@ -57,7 +57,7 @@ public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadO
         var build = BuildAssets.Read(options.ReleaseDir.FullName, options.Channel);
         var latest = helper.GetLatestFullRelease();
         var latestPath = Path.Combine(options.ReleaseDir.FullName, latest.FileName);
-        var releaseNotes = new ZipPackage(latestPath).ReleaseNotes;
+        var releaseNotes = (await ZipPackage.ReadManifestAsync(latestPath)).ReleaseNotes;
         var semVer = options.TagName ?? latest.Version.ToString();
         var releaseName = string.IsNullOrWhiteSpace(options.ReleaseName) ? semVer.ToString() : options.ReleaseName;
 

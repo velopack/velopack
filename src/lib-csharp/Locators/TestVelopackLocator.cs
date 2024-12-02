@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 
@@ -81,12 +82,12 @@ namespace Velopack.Locators
         }
 
         /// <inheritdoc />
-        public override VelopackAsset? GetLatestLocalFullPackage()
+        public override Task<VelopackAsset?> GetLatestLocalFullPackage(bool checksum)
         {
             if (_asset != null) {
-                return _asset;
+                return Task.FromResult(_asset)!;
             }
-            return base.GetLatestLocalFullPackage();
+            return base.GetLatestLocalFullPackage(checksum);
         }
 
         private readonly string? _updatePath;

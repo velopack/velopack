@@ -212,8 +212,9 @@ namespace Velopack
 
             var firstrun = !String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VELOPACK_FIRSTRUN"));
             var restarted = !String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VELOPACK_RESTART"));
-            var localPackages = locator.GetLocalPackages();
-            var latestLocal = locator.GetLatestLocalFullPackage();
+            var localPackages = locator.GetLocalPackages(false).GetAwaiterResult();
+            var latestLocal = localPackages.OrderByDescending(x => x.Version)
+                .FirstOrDefault(a => a.Type == VelopackAssetType.Full);
 
             Environment.SetEnvironmentVariable("VELOPACK_FIRSTRUN", null);
             Environment.SetEnvironmentVariable("VELOPACK_RESTART", null);

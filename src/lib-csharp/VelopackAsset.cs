@@ -1,6 +1,7 @@
 ﻿#nullable disable
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using NuGet.Versioning;
 using Velopack.Util;
 using Velopack.NuGet;
@@ -14,6 +15,7 @@ namespace Velopack
     {
         /// <summary> A full update package. </summary>
         Full = 1,
+
         /// <summary> A delta update package. </summary>
         Delta,
     }
@@ -69,33 +71,84 @@ namespace Velopack
         /// <summary> The release notes in HTML format, transformed from Markdown when packaging the release. </summary>
         public string NotesHTML { get; set; }
 
+        // /// <summary>
+        // /// Convert a <see cref="ZipPackage"/> to a <see cref="VelopackAsset"/>.
+        // /// </summary>
+        // public static async Task<VelopackAsset> FromZipPackage(ZipPackage zip)
+        // {
+        //     var filePath = zip.LoadedFromPath;
+        //     return new VelopackAsset {
+        //         PackageId = zip.Id,
+        //         Version = zip.Version,
+        //         NotesMarkdown = zip.ReleaseNotes,
+        //         NotesHTML = zip.ReleaseNotesHtml,
+        //         Size = new FileInfo(filePath).Length,
+        //         SHA1 = await IoUtil.CalculateFileSHA1(filePath).ConfigureAwait(false),
+        //         SHA256 = await IoUtil.CalculateFileSHA256(filePath).ConfigureAwait(false),
+        //         FileName = Path.GetFileName(filePath),
+        //         Type = IsDeltaFile(filePath) ? VelopackAssetType.Delta : VelopackAssetType.Full,
+        //     };
+        // }
+
+        // /// <summary>
+        // /// Load a <see cref="VelopackAsset"/> from a .nupkg file on disk.
+        // /// </summary>
+        // public static async Task<VelopackAsset> FromNupkg(string filePath)
+        // {
+        //     if (!File.Exists(filePath)) throw new FileNotFoundException(filePath);
+        //     if (!filePath.EndsWith(NugetUtil.PackageExtension)) throw new ArgumentException("Must be a .nupkg file", nameof(filePath));
+        //
+        //     var zip = await ZipPackage.ReadManifestAsync(filePath).ConfigureAwait(false);
+        //
+        //     return new VelopackAsset {
+        //         PackageId = zip.Id,
+        //         Version = zip.Version,
+        //         NotesMarkdown = zip.ReleaseNotes,
+        //         NotesHTML = zip.ReleaseNotesHtml,
+        //         Size = new FileInfo(filePath).Length,
+        //         SHA1 = await IoUtil.CalculateFileSHA1(filePath).ConfigureAwait(false),
+        //         SHA256 = await IoUtil.CalculateFileSHA256(filePath).ConfigureAwait(false),
+        //         FileName = Path.GetFileName(filePath),
+        //         Type = IsDeltaFile(filePath) ? VelopackAssetType.Delta : VelopackAssetType.Full,
+        //     };
+        // }
+        
         /// <summary>
-        /// Convert a <see cref="ZipPackage"/> to a <see cref="VelopackAsset"/>.
+        /// Load a <see cref="VelopackAsset"/> from a file on disk plus an already loaded manifest.
         /// </summary>
-        public static VelopackAsset FromZipPackage(ZipPackage zip)
+        public static async Task<VelopackAsset> FromManifest(string filePath, PackageManifest manifest, bool computeChecksums)
         {
-            var filePath = zip.LoadedFromPath;
-            return new VelopackAsset {
-                PackageId = zip.Id,
-                Version = zip.Version,
-                NotesMarkdown = zip.ReleaseNotes,
-                NotesHTML = zip.ReleaseNotesHtml,
+            if (!File.Exists(filePath)) throw new FileNotFoundException(filePath);
+            if (!filePath.EndsWith(NugetUtil.PackageExtension)) throw new ArgumentException("Must be a .nupkg file", nameof(filePath));
+
+            var asset = new VelopackAsset {
+                PackageId = manifest.Id,
+                Version = manifest.Version,
+                NotesMarkdown = manifest.ReleaseNotes,
+                NotesHTML = manifest.ReleaseNotesHtml,
                 Size = new FileInfo(filePath).Length,
-                SHA1 = IoUtil.CalculateFileSHA1(filePath),
-                SHA256 = IoUtil.CalculateFileSHA256(filePath),
                 FileName = Path.GetFileName(filePath),
                 Type = IsDeltaFile(filePath) ? VelopackAssetType.Delta : VelopackAssetType.Full,
             };
+
+            if (computeChecksums) {
+                asset.SHA1 = await IoUtil.CalculateFileSHA1(filePath).ConfigureAwait(false);
+                asset.SHA256 = await IoUtil.CalculateFileSHA256(filePath).ConfigureAwait(false);
+            }
+
+            return asset;
         }
 
         /// <summary>
         /// Load a <see cref="VelopackAsset"/> from a .nupkg file on disk.
         /// </summary>
-        public static VelopackAsset FromNupkg(string filePath)
+        public static async Task<VelopackAsset> FromZip(string filePath, bool computeChecksums)
         {
             if (!File.Exists(filePath)) throw new FileNotFoundException(filePath);
             if (!filePath.EndsWith(NugetUtil.PackageExtension)) throw new ArgumentException("Must be a .nupkg file", nameof(filePath));
-            return FromZipPackage(new ZipPackage(filePath));
+
+            var zip = await ZipPackage.ReadManifestAsync(filePath).ConfigureAwait(false);
+            return await FromManifest(filePath, zip, computeChecksums).ConfigureAwait(false);
         }
 
         internal static bool IsDeltaFile(string filePath)

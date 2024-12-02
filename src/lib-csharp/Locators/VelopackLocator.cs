@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.Versioning;
@@ -89,7 +90,7 @@ namespace Velopack.Locators
         }
 
         /// <inheritdoc/>
-        public virtual List<VelopackAsset> GetLocalPackages()
+        public virtual async Task<List<VelopackAsset>> GetLocalPackages(bool computeChecksums)
         {
             try {
                 if (CurrentlyInstalledVersion == null)
@@ -99,7 +100,7 @@ namespace Velopack.Locators
                 if (PackagesDir != null) {
                     foreach (var pkg in Directory.EnumerateFiles(PackagesDir, "*.nupkg")) {
                         try {
-                            var asset = VelopackAsset.FromNupkg(pkg);
+                            var asset = await VelopackAsset.FromZip(pkg, computeChecksums).ConfigureAwait(false);
                             if (asset?.Version != null) {
                                 list.Add(asset);
                             }
@@ -108,6 +109,7 @@ namespace Velopack.Locators
                         }
                     }
                 }
+
                 return list;
             } catch (Exception ex) {
                 Log.Error(ex, "Error while reading local packages.");
@@ -116,12 +118,11 @@ namespace Velopack.Locators
         }
 
         /// <inheritdoc/>
-        public virtual VelopackAsset? GetLatestLocalFullPackage()
+        public virtual async Task<VelopackAsset?> GetLatestLocalFullPackage(bool computeChecksum)
         {
-            return GetLocalPackages()
+            return (await GetLocalPackages(computeChecksum).ConfigureAwait(false))
                 .OrderByDescending(x => x.Version)
-                .Where(a => a.Type == VelopackAssetType.Full)
-                .FirstOrDefault();
+                .FirstOrDefault(a => a.Type == VelopackAssetType.Full);
         }
 
         /// <summary>
@@ -150,6 +151,7 @@ namespace Velopack.Locators
                     if (!Guid.TryParse(File.ReadAllText(stagedUserIdFile, Encoding.UTF8), out ret)) {
                         throw new Exception("File was read but contents were invalid");
                     }
+
                     Log.Info($"Loaded existing staging userId: {ret}");
                     return ret;
                 } catch (Exception ex) {

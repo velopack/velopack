@@ -1,4 +1,5 @@
 ﻿using Velopack.Packaging.Exceptions;
+using Velopack.Util;
 
 namespace Velopack.Packaging;
 
@@ -9,7 +10,7 @@ public class BuildAssets
     public List<VelopackAsset> GetReleaseEntries()
     {
         return Files.Where(x => x.EndsWith(".nupkg"))
-            .Select(f => VelopackAsset.FromNupkg(f))
+            .Select(f => VelopackAsset.FromZip(f, true).GetAwaiterResult())
             .ToList();
     }
 

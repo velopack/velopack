@@ -9,17 +9,30 @@ namespace Velopack.Packaging;
 
 public static class HelperFile
 {
-    private static string GetUpdateExeName(RID target, ILogger log)
+    public static string GetUpdatePath(RID target, ILogger log)
     {
         switch (target.BaseRID) {
+#if DEBUG
         case RuntimeOs.Windows:
             return FindHelperFile("update.exe");
-#if DEBUG
         case RuntimeOs.Linux:
             return FindHelperFile("update");
         case RuntimeOs.OSX:
             return FindHelperFile("update");
 #else
+        case RuntimeOs.Windows:
+            if (!target.HasArchitecture) {
+                log.Warn(
+                    "No architecture specified with --runtime, Update defaulting to x86. If this was not intended please specify via the --runtime parameter");
+                return FindHelperFile("Update_x86.exe");
+            }
+
+            return target.Architecture switch {
+                RuntimeCpu.arm64 => FindHelperFile("Update_arm64.exe"),
+                RuntimeCpu.x64 => FindHelperFile("Update_x64.exe"),
+                RuntimeCpu.x86 => FindHelperFile("Update_x86.exe"),
+                _ => throw new PlatformNotSupportedException($"Update binary is not available for this platform ({target}).")
+            };
         case RuntimeOs.Linux:
             if (!target.HasArchitecture) {
                 log.Warn("No architecture specified with --runtime, defaulting to x64. If this was not intended please specify via the --runtime parameter");
@@ -39,7 +52,27 @@ public static class HelperFile
         throw new PlatformNotSupportedException($"Update binary is not available for this platform ({target}).");
     }
 
-    public static string GetUpdatePath(RID target, ILogger log) => FindHelperFile(GetUpdateExeName(target, log));
+    public static string GetSetupPath(RID target, ILogger log)
+    {
+        if (target.BaseRID != RuntimeOs.Windows)
+            throw new PlatformNotSupportedException("Setup binary is not available for this platform.");
+
+#if DEBUG
+        return FindHelperFile("setup.exe");
+#else
+        if (!target.HasArchitecture) {
+            log.Warn("No architecture specified with --runtime, Setup defaulting to x86. If this was not intended please specify via the --runtime parameter");
+            return FindHelperFile("Setup_x86.exe");
+        }
+
+        return target.Architecture switch {
+            RuntimeCpu.arm64 => FindHelperFile("Setup_arm64.exe"),
+            RuntimeCpu.x64 => FindHelperFile("Setup_x64.exe"),
+            RuntimeCpu.x86 => FindHelperFile("Setup_x86.exe"),
+            _ => throw new PlatformNotSupportedException($"Update binary is not available for this platform ({target}).")
+        };
+#endif
+    }
 
     public static string GetZstdPath()
     {
@@ -65,8 +98,6 @@ public static class HelperFile
     public static string AppImageRuntimeX64 => FindHelperFile("appimagekit-runtime-x86_64");
 
     public static string AppImageRuntimeX86 => FindHelperFile("appimagekit-runtime-i686");
-
-    public static string SetupPath => FindHelperFile("setup.exe");
 
     public static string StubExecutablePath => FindHelperFile("stub.exe");
 

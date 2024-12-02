@@ -95,9 +95,8 @@ namespace Velopack
             if (silent) args.Add("--silent");
             args.Add("apply");
 
-            var entry = toApply ?? locator.GetLatestLocalFullPackage();
-            if (entry != null && locator.PackagesDir != null) {
-                var pkg = Path.Combine(locator.PackagesDir, entry.FileName);
+            if (toApply != null && locator.PackagesDir != null) {
+                var pkg = Path.Combine(locator.PackagesDir, toApply.FileName);
                 if (File.Exists(pkg)) {
                     args.Add("--package");
                     args.Add(pkg);
@@ -134,7 +133,9 @@ namespace Velopack
         public static void Apply(IVelopackLocator? locator, VelopackAsset? toApply, bool silent, bool restart, string[]? restartArgs = null,
             ILogger? logger = null)
         {
-            var process = ApplyImpl(locator, toApply, silent, restart, restartArgs, logger);
+            locator ??= VelopackLocator.GetDefault(logger);
+            var entry = toApply ?? locator.GetLatestLocalFullPackage(false).GetAwaiterResult();
+            var process = ApplyImpl(locator, entry, silent, restart, restartArgs, logger);
             Thread.Sleep(500);
 
             if (process.HasExited) {
@@ -146,7 +147,9 @@ namespace Velopack
         public static async Task ApplyAsync(IVelopackLocator? locator, VelopackAsset? toApply, bool silent, bool restart, string[]? restartArgs = null,
             ILogger? logger = null)
         {
-            var process = ApplyImpl(locator, toApply, silent, restart, restartArgs, logger);
+            locator ??= VelopackLocator.GetDefault(logger);
+            var entry = toApply ?? await locator.GetLatestLocalFullPackage(false).ConfigureAwait(false);
+            var process = ApplyImpl(locator, entry, silent, restart, restartArgs, logger);
             await Task.Delay(500).ConfigureAwait(false);
 
             if (process.HasExited) {

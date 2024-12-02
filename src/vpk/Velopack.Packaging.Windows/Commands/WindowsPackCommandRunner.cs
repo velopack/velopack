@@ -178,8 +178,9 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
     protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe)
     {
-        var bundledZip = new ZipPackage(releasePkg);
-        IoUtil.Retry(() => File.Copy(HelperFile.SetupPath, targetSetupExe, true));
+        var bundledZip = ZipPackage.ReadManifest(releasePkg);
+        var setupPath = HelperFile.GetSetupPath(Options.TargetRuntime, Log);
+        IoUtil.Retry(() => File.Copy(setupPath, targetSetupExe, true));
         progress(10);
 
         var editor = new ResourceEdit(targetSetupExe, Log);

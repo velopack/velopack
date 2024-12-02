@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using NuGet.Versioning;
 
 namespace Velopack.Locators
@@ -50,12 +51,12 @@ namespace Velopack.Locators
         /// <summary>
         /// Finds .nupkg files in the PackagesDir and returns a list of ReleaseEntryName objects.
         /// </summary>
-        public List<VelopackAsset> GetLocalPackages();
+        public Task<List<VelopackAsset>> GetLocalPackages(bool computeChecksums);
 
         /// <summary>
         /// Finds latest .nupkg file in the PackagesDir or null if not found.
         /// </summary>
-        public VelopackAsset? GetLatestLocalFullPackage();
+        public Task<VelopackAsset?> GetLatestLocalFullPackage(bool computeChecksums);
 
         /// <summary>
         /// Unique identifier for this user which is used to calculate whether this user is eligible for 
