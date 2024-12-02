@@ -161,8 +161,10 @@ public abstract class PackageBuilder<T> : ICommand<T>
             if (setupTask != null) await setupTask;
 
             await ctx.RunTask("Post-process steps", (progress) => {
-                foreach (var f in filesToCopy) {
+                for (int i = 0; i < filesToCopy.Count; i++) {
+                    var f = filesToCopy.ElementAt(i);                    
                     IoUtil.MoveFile(f.from, f.to, true);
+                    progress((int) ((double) i / filesToCopy.Count * 90));
                 }
 
                 ReleaseEntryHelper.UpdateReleaseFiles(releaseDir.FullName, Log);

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Xml.Linq;
 using NuGet.Versioning;
 
@@ -34,15 +35,12 @@ namespace Velopack.NuGet
 
         private static readonly string[] ExcludePaths = new[] { "_rels", "package" };
 
-        protected PackageManifest() { }
+        private PackageManifest() { }
 
         public static PackageManifest ParseFromFile(string filePath)
         {
             using var fs = File.OpenRead(filePath);
-            var nu = new PackageManifest();
-            nu.ReadManifest(fs);
-            //nu.FilePath = filePath;
-            return nu;
+            return ParseFromStream(fs);
         }
 
         public static bool TryParseFromFile(string filePath, out PackageManifest manifest)
@@ -56,22 +54,27 @@ namespace Velopack.NuGet
             }
         }
 
-        protected void ReadManifest(Stream manifestStream)
+        public static PackageManifest ParseFromStream(Stream manifestStream)
         {
             var document = NugetUtil.LoadSafe(manifestStream, ignoreWhiteSpace: true);
 
             var metadataElement = document.Root.ElementsNoNamespace("metadata").FirstOrDefault()
-                ?? throw new InvalidDataException("Invalid nuspec xml. Required element 'metadata' missing.");
+                                  ?? throw new InvalidDataException("Invalid nuspec xml. Required element 'metadata' missing.");
             var allElements = new HashSet<string>();
+
+            var instance = new PackageManifest();
 
             XNode? node = metadataElement.FirstNode;
             while (node != null) {
                 var element = node as XElement;
                 if (element != null) {
-                    ReadMetadataValue(element, allElements);
+                    instance.ReadMetadataValue(element, allElements);
                 }
+
                 node = node.NextNode;
             }
+            
+            return instance;
         }
 
         private void ReadMetadataValue(XElement element, HashSet<string> allElements)

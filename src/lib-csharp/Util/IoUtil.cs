@@ -18,38 +18,56 @@ namespace Velopack.Util
             return rootPath.EnumerateFiles("*", SearchOption.AllDirectories);
         }
 
-        public static string CalculateFileSHA1(string filePath)
+        public static async Task<string> CalculateFileSHA1(string filePath)
         {
             var bufferSize = 1000000; // 1mb
             using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize)) {
-                return CalculateStreamSHA1(stream);
+                return await CalculateStreamSHA1(stream).ConfigureAwait(false);
             }
         }
 
-        public static string CalculateStreamSHA1(Stream file)
+        public static async Task<string> CalculateStreamSHA1(Stream file)
         {
             using (var sha1 = SHA1.Create()) {
-                return BitConverter.ToString(sha1.ComputeHash(file)).Replace("-", String.Empty);
+                return BitConverter.ToString(await ComputeHashAsync(sha1, file).ConfigureAwait(false)).Replace("-", String.Empty);
             }
         }
 
         /// <inheritdoc cref="CalculateStreamSHA256"/>
-        public static string CalculateFileSHA256(string filePath)
+        public static async Task<string> CalculateFileSHA256(string filePath)
         {
             var bufferSize = 1000000; // 1mb
             using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize)) {
-                return CalculateStreamSHA256(stream);
+                return await CalculateStreamSHA256(stream).ConfigureAwait(false);
             }
         }
 
         /// <summary>
         /// Get SHA256 hash of the specified file and returns the result as a base64 encoded string (with length 44)
         /// </summary>
-        public static string CalculateStreamSHA256(Stream file)
+        public static async Task<string> CalculateStreamSHA256(Stream file)
         {
             using (var sha256 = SHA256.Create()) {
-                return BitConverter.ToString(sha256.ComputeHash(file)).Replace("-", String.Empty);
+                return BitConverter.ToString(await ComputeHashAsync(sha256, file).ConfigureAwait(false)).Replace("-", String.Empty);
             }
+        }
+
+        private static Task<byte[]> ComputeHashAsync(HashAlgorithm algo, Stream stream)
+        {
+#if NET6_0_OR_GREATER
+            return algo.ComputeHashAsync(stream);
+#else
+            return Task.Run(() => algo.ComputeHash(stream));
+#endif
+        }
+
+        public static Task<string> ReadAllTextAsync(string path)
+        {
+#if NET6_0_OR_GREATER
+            return File.ReadAllTextAsync(path);
+#else
+            return Task.Run(() => File.ReadAllText(path));
+#endif
         }
 
         public static void MoveFile(string source, string dest, bool overwrite)

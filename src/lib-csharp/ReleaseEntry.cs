@@ -351,7 +351,7 @@ namespace Velopack
             Contract.Requires(file != null && file.CanRead);
             Contract.Requires(!String.IsNullOrEmpty(filename));
 
-            var hash = IoUtil.CalculateStreamSHA1(file);
+            var hash = IoUtil.CalculateStreamSHA1(file).GetAwaiterResult();
             return new ReleaseEntry(hash, filename, file.Length, baseUrl);
         }
 

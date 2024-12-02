@@ -111,7 +111,7 @@ public class UtilityTests
         var sha1FromExternalTool = "75255cfd229a1ed1447abe1104f5635e69975d30";
         var inputPackage = PathHelper.GetFixture("Squirrel.Core.1.0.0.0.nupkg");
         var stream = File.OpenRead(inputPackage);
-        var sha1 = IoUtil.CalculateStreamSHA1(stream);
+        var sha1 = IoUtil.CalculateStreamSHA1(stream).GetAwaiterResult();
 
         Assert.NotEqual(sha1FromExternalTool, sha1);
         Assert.Equal(sha1FromExternalTool, sha1, StringComparer.OrdinalIgnoreCase);

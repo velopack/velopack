@@ -25,11 +25,11 @@ public class ReleaseEntryHelper
     {
         var rel = new Dictionary<string, List<VelopackAsset>>(StringComparer.OrdinalIgnoreCase);
         foreach (var releaseFile in Directory.EnumerateFiles(dir, "*.nupkg")) {
-            var zip = new ZipPackage(releaseFile);
+            var zip = ZipPackage.ReadManifest(releaseFile);
             var ch = zip.Channel ?? GetDefaultChannel(VelopackRuntimeInfo.SystemOs);
             if (!rel.ContainsKey(ch))
                 rel[ch] = new List<VelopackAsset>();
-            rel[ch].Add(VelopackAsset.FromZipPackage(zip));
+            rel[ch].Add(VelopackAsset.FromManifest(releaseFile, zip, true).GetAwaiterResult());
         }
         return rel;
     }

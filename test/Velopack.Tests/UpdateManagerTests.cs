@@ -118,7 +118,7 @@ public class UpdateManagerTests
                     Version = new SemanticVersion(1, 0, 11),
                     Type = VelopackAssetType.Full,
                     FileName = $"https://mysite.com/releases/AvaloniaCrossPlat$-1.1.0.nupkg",
-                    SHA1 = IoUtil.CalculateFileSHA1(fixture),
+                    SHA1 = IoUtil.CalculateFileSHA1(fixture).GetAwaiterResult(),
                     Size = new FileInfo(fixture).Length,
                 } }
             }))
@@ -457,7 +457,7 @@ public class UpdateManagerTests
     [Theory]
     [InlineData("Clowd", "3.4.287")]
     [InlineData("slack", "1.1.8")]
-    public void DownloadsLatestFullVersion(string id, string version)
+    public async Task DownloadsLatestFullVersion(string id, string version)
     {
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
         using var _1 = TempUtil.GetTempDirectory(out var packagesDir);
@@ -475,7 +475,7 @@ public class UpdateManagerTests
 
         var target = Path.Combine(packagesDir, $"{id}-{version}-full.nupkg");
         Assert.True(File.Exists(target));
-        um.VerifyPackageChecksum(info.TargetFullRelease);
+        await um.VerifyPackageChecksum(info.TargetFullRelease);
     }
 
     [SkippableTheory]

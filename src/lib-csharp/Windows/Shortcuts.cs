@@ -101,14 +101,14 @@ namespace Velopack.Windows
         /// <param name="locations">The locations to search.</param>
         public Dictionary<ShortcutLocation, ShellLink> FindShortcuts(string relativeExeName, ShortcutLocation locations)
         {
-            var release = Locator.GetLatestLocalFullPackage();
+            var release = Locator.GetLatestLocalFullPackage(false).GetAwaiterResult();
             var pkgDir = Locator.PackagesDir;
             var currentDir = Locator.AppContentDir;
             var rootAppDirectory = Locator.RootAppDir;
 
             var ret = new Dictionary<ShortcutLocation, ShellLink>();
             var pkgPath = Path.Combine(pkgDir, release.FileName);
-            var zf = new ZipPackage(pkgPath);
+            var zf = ZipPackage.ReadManifest(pkgPath);
             var exePath = Path.Combine(currentDir, relativeExeName);
             if (!File.Exists(exePath))
                 return ret;
@@ -136,14 +136,14 @@ namespace Velopack.Windows
         /// <param name="icon">Path to a specific icon to use instead of the exe icon.</param>
         public void CreateShortcut(string relativeExeName, ShortcutLocation locations, bool updateOnly, string programArguments, string icon = null)
         {
-            var release = Locator.GetLatestLocalFullPackage();
+            var release = Locator.GetLatestLocalFullPackage(false).GetAwaiterResult();
             var pkgDir = Locator.PackagesDir;
             var currentDir = Locator.AppContentDir;
             var rootAppDirectory = Locator.RootAppDir;
             Log.Info($"About to create shortcuts for {relativeExeName}, rootAppDir {rootAppDirectory}");
 
             var pkgPath = Path.Combine(pkgDir, release.FileName);
-            var zf = new ZipPackage(pkgPath);
+            var zf = ZipPackage.ReadManifest(pkgPath);
             var exePath = Path.Combine(currentDir, relativeExeName);
             if (!File.Exists(exePath))
                 throw new FileNotFoundException($"Could not find: {exePath}");
@@ -200,14 +200,14 @@ namespace Velopack.Windows
         /// <param name="locations">The locations to create shortcuts.</param>
         public void DeleteShortcuts(string relativeExeName, ShortcutLocation locations)
         {
-            var release = Locator.GetLatestLocalFullPackage();
+            var release = Locator.GetLatestLocalFullPackage(false).GetAwaiterResult();
             var pkgDir = Locator.PackagesDir;
             var currentDir = Locator.AppContentDir;
             var rootAppDirectory = Locator.RootAppDir;
             Log.Info($"About to delete shortcuts for {relativeExeName}, rootAppDir {rootAppDirectory}");
 
             var pkgPath = Path.Combine(pkgDir, release.FileName);
-            var zf = new ZipPackage(pkgPath);
+            var zf = ZipPackage.ReadManifest(pkgPath);
             var exePath = Path.Combine(currentDir, relativeExeName);
             if (!File.Exists(exePath)) return;
 
@@ -227,7 +227,7 @@ namespace Velopack.Windows
         /// <summary>
         /// Given an <see cref="ZipPackage"/> and <see cref="FileVersionInfo"/> return the target shortcut path.
         /// </summary>
-        protected virtual string LinkPathForVersionInfo(ShortcutLocation location, ZipPackage package, FileVersionInfo versionInfo, string rootdir)
+        protected virtual string LinkPathForVersionInfo(ShortcutLocation location, PackageManifest package, FileVersionInfo versionInfo, string rootdir)
         {
             var possibleProductNames = new[] {
                     versionInfo.ProductName,

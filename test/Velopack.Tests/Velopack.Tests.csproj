@@ -22,10 +22,6 @@
     <Compile Include="..\..\src\vpk\Velopack.Packaging\SimpleJson.cs" Link="SimpleJson.cs" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="System.IO.Packaging" Version="8.0.1" />
-  </ItemGroup>
-
   <ItemGroup Condition=" $(TargetFramework.StartsWith('net4')) ">
     <Reference Include="System.Web" />
     <Reference Include="System.Net.Http" />
