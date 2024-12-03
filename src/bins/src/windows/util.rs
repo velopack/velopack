@@ -1,8 +1,5 @@
 use std::{
-    ffi::{c_void, OsStr},
-    os::windows::{ffi::OsStrExt, process::CommandExt},
     path::{Path, PathBuf},
-    process::Command as Process,
     time::Duration,
 };
 
@@ -10,56 +7,52 @@ use velopack::locator::VelopackLocator;
 
 use anyhow::{anyhow, Result};
 use normpath::PathExt;
-use wait_timeout::ChildExt;
+use windows::core::PCWSTR;
+use windows::Win32::Storage::FileSystem::GetLongPathNameW;
 use windows::Win32::System::SystemInformation::{VerSetConditionMask, VerifyVersionInfoW, OSVERSIONINFOEXW, VER_FLAGS};
-use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
-use windows::Win32::{
-    Foundation::{CloseHandle, HANDLE},
-    Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION},
-    Storage::FileSystem::GetLongPathNameW,
-    System::Threading::{GetCurrentProcess, OpenProcessToken},
-    UI::Shell::{ShellExecuteExA, ShellExecuteExW, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW},
-};
-use windows::{
-    core::PCWSTR,
-    Win32::{Foundation::HWND, UI::Shell::ShellExecuteW},
-};
 
-use crate::shared::{self, runtime_arch::RuntimeArch};
 use crate::windows::strings::{string_to_u16, u16_to_string};
+use crate::{
+    shared::{self, runtime_arch::RuntimeArch},
+    windows::process,
+};
 
 pub fn run_hook(locator: &VelopackLocator, hook_name: &str, timeout_secs: u64) -> bool {
     let sw = simple_stopwatch::Stopwatch::start_new();
     let root_dir = locator.get_root_dir();
     let current_path = locator.get_current_bin_dir();
-    let main_exe_path = locator.get_main_exe_path();
+    let main_exe_path = locator.get_main_exe_path_as_string();
     let ver_string = locator.get_manifest_version_full_string();
     let args = vec![hook_name, &ver_string];
     let mut success = false;
 
     info!("Running {} hook...", hook_name);
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-    let cmd = Process::new(&main_exe_path).args(args).current_dir(&current_path).creation_flags(CREATE_NO_WINDOW).spawn();
+    let cmd = process::run_process(
+        main_exe_path,
+        args.iter().map(|f| f.to_string()).collect(),
+        Some(current_path.to_string_lossy().to_string()),
+        None,
+        false,
+    );
 
     if let Err(e) = cmd {
         warn!("Failed to start hook {}: {}", hook_name, e);
         return false;
     }
 
-    let mut cmd = cmd.unwrap();
-    let _ = unsafe { AllowSetForegroundWindow(cmd.id()) };
+    let cmd = cmd.unwrap();
 
-    match cmd.wait_timeout(Duration::from_secs(timeout_secs)) {
+    match process::wait_process_timeout(cmd.handle(), Duration::from_secs(timeout_secs)) {
         Ok(Some(status)) => {
-            if status.success() {
+            if status == 0 {
                 info!("Hook executed successfully (took {}ms)", sw.ms());
                 success = true;
             } else {
-                warn!("Hook exited with non-zero exit code: {}", status.code().unwrap_or(0));
+                warn!("Hook exited with non-zero exit code: {}", status);
             }
         }
         Ok(None) => {
-            let _ = cmd.kill();
+            let _ = process::kill_process(cmd.handle());
             error!("Process timed out after {}s", timeout_secs);
         }
         Err(e) => {
@@ -71,44 +64,6 @@ pub fn run_hook(locator: &VelopackLocator, hook_name: &str, timeout_secs: u64) -
     let _ = shared::force_stop_package(&root_dir);
     success
 }
-
-pub fn is_process_elevated() -> bool {
-    // Get the current process handle
-    let process = unsafe { GetCurrentProcess() };
-
-    // Variable to hold the process token
-    let mut token: HANDLE = HANDLE::default();
-
-    // Open the process token with the TOKEN_QUERY access rights
-    unsafe {
-        if OpenProcessToken(process, windows::Win32::Security::TOKEN_QUERY, &mut token).is_ok() {
-            // Allocate a buffer for the TOKEN_ELEVATION structure
-            let mut elevation = TOKEN_ELEVATION::default();
-            let mut size: u32 = 0;
-
-            let elevation_ptr: *mut core::ffi::c_void = &mut elevation as *mut _ as *mut _;
-
-            // Query the token information to check if it is elevated
-            if GetTokenInformation(token, TokenElevation, Some(elevation_ptr), std::mem::size_of::<TOKEN_ELEVATION>() as u32, &mut size)
-                .is_ok()
-            {
-                // Return whether the token is elevated
-                CloseHandle(token);
-                return elevation.TokenIsElevated != 0;
-            }
-        }
-    }
-
-    // Clean up the token handle
-    if !token.is_invalid() {
-        unsafe { CloseHandle(token) };
-    }
-
-    false
-}
-
-
-
 
 pub fn expand_environment_strings<P: AsRef<str>>(input: P) -> Result<String> {
     use windows::Win32::System::Environment::ExpandEnvironmentStringsW;

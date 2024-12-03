@@ -59,7 +59,6 @@ regex.workspace = true
 normpath.workspace = true
 simple-stopwatch.workspace = true
 file-rotate.workspace = true
-wait-timeout.workspace = true
 pretty-bytes-rust.workspace = true
 enum-flags.workspace = true
 log-panics.workspace = true
