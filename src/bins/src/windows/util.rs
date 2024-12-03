@@ -11,9 +11,15 @@ use velopack::locator::VelopackLocator;
 use anyhow::{anyhow, Result};
 use normpath::PathExt;
 use wait_timeout::ChildExt;
-use windows::Win32::{Foundation::HANDLE, Storage::FileSystem::GetLongPathNameW, UI::Shell::{ShellExecuteExA, ShellExecuteExW, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW}};
 use windows::Win32::System::SystemInformation::{VerSetConditionMask, VerifyVersionInfoW, OSVERSIONINFOEXW, VER_FLAGS};
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
+use windows::Win32::{
+    Foundation::{CloseHandle, HANDLE},
+    Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION},
+    Storage::FileSystem::GetLongPathNameW,
+    System::Threading::{GetCurrentProcess, OpenProcessToken},
+    UI::Shell::{ShellExecuteExA, ShellExecuteExW, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW},
+};
 use windows::{
     core::PCWSTR,
     Win32::{Foundation::HWND, UI::Shell::ShellExecuteW},
@@ -66,6 +72,41 @@ pub fn run_hook(locator: &VelopackLocator, hook_name: &str, timeout_secs: u64) -
     success
 }
 
+pub fn is_process_elevated() -> bool {
+    // Get the current process handle
+    let process = unsafe { GetCurrentProcess() };
+
+    // Variable to hold the process token
+    let mut token: HANDLE = HANDLE::default();
+
+    // Open the process token with the TOKEN_QUERY access rights
+    unsafe {
+        if OpenProcessToken(process, windows::Win32::Security::TOKEN_QUERY, &mut token).is_ok() {
+            // Allocate a buffer for the TOKEN_ELEVATION structure
+            let mut elevation = TOKEN_ELEVATION::default();
+            let mut size: u32 = 0;
+
+            let elevation_ptr: *mut core::ffi::c_void = &mut elevation as *mut _ as *mut _;
+
+            // Query the token information to check if it is elevated
+            if GetTokenInformation(token, TokenElevation, Some(elevation_ptr), std::mem::size_of::<TOKEN_ELEVATION>() as u32, &mut size)
+                .is_ok()
+            {
+                // Return whether the token is elevated
+                CloseHandle(token);
+                return elevation.TokenIsElevated != 0;
+            }
+        }
+    }
+
+    // Clean up the token handle
+    if !token.is_invalid() {
+        unsafe { CloseHandle(token) };
+    }
+
+    false
+}
+
 pub fn relaunch_self_as_admin(args: Vec<String>) -> Result<HANDLE> {
     let exe = std::env::current_exe()?;
 
@@ -111,7 +152,7 @@ pub fn relaunch_self_as_admin(args: Vec<String>) -> Result<HANDLE> {
     };
 
     unsafe {
-        ShellExecuteExW( &mut exe_info as *mut SHELLEXECUTEINFOW)?;
+        ShellExecuteExW(&mut exe_info as *mut SHELLEXECUTEINFOW)?;
         // let h_instance =
         //     ShellExecuteW(HWND(std::ptr::null_mut()), verb, exe, args, PCWSTR::null(), windows::Win32::UI::WindowsAndMessaging::SW_NORMAL);
         // let min_result = 32;
