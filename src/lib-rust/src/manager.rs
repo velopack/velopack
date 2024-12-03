@@ -14,10 +14,9 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    locator::{self, VelopackLocatorConfig, LocationContext, VelopackLocator},
+    locator::{self, LocationContext, VelopackLocator, VelopackLocatorConfig},
     sources::UpdateSource,
-    Error,
-    util,
+    util, Error,
 };
 
 #[allow(non_snake_case)]
@@ -33,6 +32,11 @@ impl VelopackAssetFeed {
     /// Finds a release by name and returns a reference to the VelopackAsset in the feed, or None if not found.
     pub fn find(&self, release_name: &str) -> Option<&VelopackAsset> {
         self.Assets.iter().find(|x| x.FileName.eq_ignore_ascii_case(release_name))
+    }
+
+    /// Get the latest release in the feed, or None if the feed is empty.
+    pub fn get_latest(&self) -> Option<&VelopackAsset> {
+        self.Assets.iter().max_by(|a, b| a.Version.cmp(&b.Version))
     }
 }
 
@@ -189,7 +193,7 @@ impl UpdateManager {
     pub fn get_current_version_as_string(&self) -> String {
         self.locator.get_manifest_version_full_string()
     }
-    
+
     /// The currently installed app version as a semver Version.
     pub fn get_current_version(&self) -> Version {
         self.locator.get_manifest_version()
@@ -206,7 +210,7 @@ impl UpdateManager {
         self.locator.get_is_portable()
     }
 
-    /// Returns None if there is no local package waiting to be applied. Returns a VelopackAsset 
+    /// Returns None if there is no local package waiting to be applied. Returns a VelopackAsset
     /// if there is an update downloaded which has not yet been applied. In that case, the
     /// VelopackAsset can be applied by calling apply_updates_and_restart or wait_exit_then_apply_updates.
     pub fn get_update_pending_restart(&self) -> Option<VelopackAsset> {
@@ -232,13 +236,13 @@ impl UpdateManager {
     /// Get a list of available remote releases from the package source.
     pub fn get_release_feed(&self) -> Result<VelopackAssetFeed, Error> {
         let channel = self.get_practical_channel();
-        self.source.get_release_feed(&channel, &self.locator.get_manifest())
+        let manifest = self.locator.get_manifest();
+        self.source.get_release_feed(&channel, Some(&manifest.id), Some(&manifest.version.to_string()))
     }
 
     #[cfg(feature = "async")]
     /// Get a list of available remote releases from the package source.
-    pub fn get_release_feed_async(&self) -> JoinHandle<Result<VelopackAssetFeed, Error>>
-    {
+    pub fn get_release_feed_async(&self) -> JoinHandle<Result<VelopackAssetFeed, Error>> {
         let self_clone = self.clone();
         async_std::task::spawn_blocking(move || self_clone.get_release_feed())
     }
@@ -302,8 +306,7 @@ impl UpdateManager {
     #[cfg(feature = "async")]
     /// Checks for updates, returning None if there are none available. If there are updates available, this method will return an
     /// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
-    pub fn check_for_updates_async(&self) -> JoinHandle<Result<UpdateCheck, Error>>
-    {
+    pub fn check_for_updates_async(&self) -> JoinHandle<Result<UpdateCheck, Error>> {
         let self_clone = self.clone();
         async_std::task::spawn_blocking(move || self_clone.check_for_updates())
     }
@@ -331,7 +334,7 @@ impl UpdateManager {
         let old_nupkg_pattern = format!("{}/*.nupkg", packages_dir.to_string_lossy());
         let old_partial_pattern = format!("{}/*.partial", packages_dir.to_string_lossy());
         let mut to_delete = Vec::new();
-        
+
         fn find_files_to_delete(pattern: &str, to_delete: &mut Vec<String>) {
             info!("Searching for packages to clean: '{}'", pattern);
             match glob::glob(pattern) {
@@ -345,13 +348,13 @@ impl UpdateManager {
                 }
             }
         }
-        
+
         find_files_to_delete(&old_nupkg_pattern, &mut to_delete);
         find_files_to_delete(&old_partial_pattern, &mut to_delete);
 
         self.source.download_release_entry(&update.TargetFullRelease, &partial_file.to_string_lossy(), progress)?;
         info!("Successfully placed file: '{}'", partial_file.to_string_lossy());
-        
+
         info!("Renaming partial file to final target: '{}'", final_target_file.to_string_lossy());
         fs::rename(&partial_file, &final_target_file)?;
 
@@ -424,7 +427,7 @@ impl UpdateManager {
     where
         A: AsRef<VelopackAsset>,
         S: AsRef<str>,
-        C: IntoIterator<Item=S>,
+        C: IntoIterator<Item = S>,
     {
         self.wait_exit_then_apply_updates(to_apply, false, true, restart_args)?;
         exit(0);
@@ -449,7 +452,7 @@ impl UpdateManager {
     where
         A: AsRef<VelopackAsset>,
         S: AsRef<str>,
-        C: IntoIterator<Item=S>,
+        C: IntoIterator<Item = S>,
     {
         let to_apply = to_apply.as_ref();
         let pkg_path = self.locator.get_packages_dir().join(&to_apply.FileName);
