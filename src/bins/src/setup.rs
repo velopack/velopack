@@ -181,7 +181,7 @@ fn run_inner(arg_config: Command) -> Result<()> {
     if let Some(parent_dir) = root_path.parent() {
         info!("Checking if directory is writable: {:?}", parent_dir);
         if !windows::is_directory_writable(parent_dir) {
-            if filelocksmith::is_process_elevated() {
+            if windows::is_process_elevated() {
                 bail!("The installation directory is not writable & process is already admin. Please select a different directory.");
             }
 

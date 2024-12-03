@@ -131,7 +131,7 @@ impl VelopackLocator {
     /// Returns the path to the current app's packages directory.
     pub fn get_packages_dir(&self) -> PathBuf {
         let path = self.paths.PackagesDir.clone();
-        if self.is_local_machine_install() || !util::is_directory_writable(path) {
+        if self.is_local_machine_install() || !util::is_directory_writable(&path) {
             //TODO Need to add in the app name here.
             //util::get_local_app_data()
         }
