@@ -7,6 +7,10 @@ on:
     branches: [master, develop]
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
