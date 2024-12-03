@@ -1,15 +1,24 @@
 use std::{
+    collections::HashMap,
     ffi::{OsStr, OsString},
-    os::windows::ffi::OsStrExt,
+    os::{raw::c_void, windows::ffi::OsStrExt},
+    time::Duration,
 };
 
 use anyhow::{bail, Result};
 use windows::{
-    core::PCWSTR,
+    core::{PCWSTR, PWSTR},
     Win32::{
-        Foundation::HANDLE,
-        System::Threading::CreateProcessW,
-        UI::Shell::{ShellExecuteExW, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW},
+        Foundation::{CloseHandle, HANDLE, WAIT_OBJECT_0, WAIT_TIMEOUT},
+        Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION},
+        System::Threading::{
+            CreateProcessW, GetCurrentProcess, GetExitCodeProcess, GetProcessId, OpenProcessToken, WaitForSingleObject, CREATE_NO_WINDOW,
+            PROCESS_CREATION_FLAGS, STARTUPINFOW, STARTUPINFOW_FLAGS,
+        },
+        UI::{
+            Shell::{ShellExecuteExW, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW},
+            WindowsAndMessaging::AllowSetForegroundWindow,
+        },
     },
 };
 
@@ -104,10 +113,108 @@ fn make_command_line(argv0: Option<&OsStr>, args: &[Arg], force_quotes: bool) ->
         cmd.push(' ' as u16);
     }
 
+    cmd.push(0);
     Ok(cmd)
 }
 
-pub fn run_process_as_admin(exe_path: String, args: Vec<String>, work_dir: Option<String>) -> Result<HANDLE> {
+fn make_envp(maybe_env: Option<HashMap<String, String>>) -> Result<(Option<*const c_void>, Vec<u16>)> {
+    // On Windows we pass an "environment block" which is not a char**, but
+    // rather a concatenation of null-terminated k=v\0 sequences, with a final
+    // \0 to terminate.
+    if let Some(env) = maybe_env {
+        let mut blk = Vec::new();
+
+        // If there are no environment variables to set then signal this by
+        // pushing a null.
+        if env.is_empty() {
+            blk.push(0);
+        }
+
+        for (k, v) in env {
+            let os_key = OsString::from(k);
+            let os_value = OsString::from(v);
+            blk.extend(ensure_no_nuls(os_key)?.encode_wide());
+            blk.push('=' as u16);
+            blk.extend(ensure_no_nuls(os_value)?.encode_wide());
+            blk.push(0);
+        }
+        blk.push(0);
+        Ok((Some(blk.as_ptr() as *mut c_void), blk))
+    } else {
+        Ok((None, Vec::new()))
+    }
+}
+
+fn make_dirp(d: Option<String>) -> Result<(PCWSTR, Vec<u16>)> {
+    match d {
+        Some(dir) => {
+            let dir = OsString::from(dir);
+            let mut dir_str: Vec<u16> = ensure_no_nuls(dir)?.encode_wide().collect();
+            dir_str.push(0);
+            Ok((PCWSTR(dir_str.as_ptr()), dir_str))
+        }
+        None => Ok((PCWSTR::null(), Vec::new())),
+    }
+}
+
+pub fn is_process_elevated() -> bool {
+    // Get the current process handle
+    let process = unsafe { GetCurrentProcess() };
+
+    // Variable to hold the process token
+    let mut token: HANDLE = HANDLE::default();
+
+    // Open the process token with the TOKEN_QUERY access rights
+    unsafe {
+        if OpenProcessToken(process, windows::Win32::Security::TOKEN_QUERY, &mut token).is_ok() {
+            // Allocate a buffer for the TOKEN_ELEVATION structure
+            let mut elevation = TOKEN_ELEVATION::default();
+            let mut size: u32 = 0;
+
+            let elevation_ptr: *mut core::ffi::c_void = &mut elevation as *mut _ as *mut _;
+
+            // Query the token information to check if it is elevated
+            if GetTokenInformation(token, TokenElevation, Some(elevation_ptr), std::mem::size_of::<TOKEN_ELEVATION>() as u32, &mut size)
+                .is_ok()
+            {
+                // Return whether the token is elevated
+                CloseHandle(token);
+                return elevation.TokenIsElevated != 0;
+            }
+        }
+    }
+
+    // Clean up the token handle
+    if !token.is_invalid() {
+        unsafe { CloseHandle(token) };
+    }
+
+    false
+}
+
+struct SafeProcessHandle(HANDLE);
+
+impl Drop for SafeProcessHandle {
+    fn drop(&mut self) {
+        if !self.0.is_invalid() {
+            let _ = unsafe { CloseHandle(self.0) };
+        }
+    }
+}
+
+impl SafeProcessHandle {
+    pub fn handle(&self) -> HANDLE {
+        self.0
+    }
+}
+
+// impl Into<u32> for SafeProcessHandle {
+//     fn into(self) -> u32 {
+//         self.1
+//     }
+// }
+
+pub fn run_process_as_admin(exe_path: String, args: Vec<String>, work_dir: Option<String>) -> Result<SafeProcessHandle> {
     let verb = string_to_u16("runas");
     let verb = PCWSTR(verb.as_ptr());
 
@@ -134,21 +241,87 @@ pub fn run_process_as_admin(exe_path: String, args: Vec<String>, work_dir: Optio
 
     unsafe {
         ShellExecuteExW(&mut exe_info as *mut SHELLEXECUTEINFOW)?;
+        let process_id = GetProcessId(exe_info.hProcess);
+        let _ = AllowSetForegroundWindow(process_id);
+        Ok(SafeProcessHandle(exe_info.hProcess))
     }
-    Ok(exe_info.hProcess)
 }
 
-// pub fn run_process_no_window(exe_path: String, args: Vec<String>, work_dir: Option<String>) -> Result<HANDLE> {
-//     CreateProcessW(
-//         lpapplicationname,
-//         lpcommandline,
-//         lpprocessattributes,
-//         lpthreadattributes,
-//         binherithandles,
-//         dwcreationflags,
-//         lpenvironment,
-//         lpcurrentdirectory,
-//         lpstartupinfo,
-//         lpprocessinformation,
-//     )
-// }
+pub fn run_process(
+    exe_path: String,
+    args: Vec<String>,
+    work_dir: Option<String>,
+    set_env: Option<HashMap<String, String>>,
+    show_window: bool,
+) -> Result<SafeProcessHandle> {
+    let exe_path = OsString::from(exe_path);
+    let exe_name = PCWSTR(exe_path.encode_wide().chain(Some(0)).collect::<Vec<_>>().as_mut_ptr());
+
+    let args: Vec<Arg> = args.iter().map(|a| Arg::Regular(a.into())).collect();
+    let mut params = make_command_line(Some(&exe_path), &args, false)?;
+    let params = PWSTR(params.as_mut_ptr());
+
+    let mut pi = windows::Win32::System::Threading::PROCESS_INFORMATION::default();
+
+    let si = STARTUPINFOW {
+        cb: std::mem::size_of::<STARTUPINFOW>() as u32,
+        lpReserved: PWSTR::null(),
+        lpDesktop: PWSTR::null(),
+        lpTitle: PWSTR::null(),
+        dwX: 0,
+        dwY: 0,
+        dwXSize: 0,
+        dwYSize: 0,
+        dwXCountChars: 0,
+        dwYCountChars: 0,
+        dwFillAttribute: 0,
+        dwFlags: STARTUPINFOW_FLAGS(0),
+        wShowWindow: 0,
+        cbReserved2: 0,
+        lpReserved2: std::ptr::null_mut(),
+        hStdInput: HANDLE(std::ptr::null_mut()),
+        hStdOutput: HANDLE(std::ptr::null_mut()),
+        hStdError: HANDLE(std::ptr::null_mut()),
+    };
+
+    let envp = make_envp(set_env)?;
+    let dirp = make_dirp(work_dir)?;
+
+    let flags = if show_window { PROCESS_CREATION_FLAGS(0) } else { CREATE_NO_WINDOW };
+
+    unsafe {
+        CreateProcessW(exe_name, params, None, None, false, flags, envp.0, dirp.0, &si, &mut pi)?;
+        let _ = AllowSetForegroundWindow(pi.dwProcessId);
+        let _ = CloseHandle(pi.hThread);
+    }
+
+    Ok(SafeProcessHandle(pi.hProcess))
+}
+
+pub fn wait_process_timeout(process: HANDLE, dur: Duration) -> std::io::Result<Option<u32>> {
+    let ms = dur
+        .as_secs()
+        .checked_mul(1000)
+        .and_then(|amt| amt.checked_add((dur.subsec_nanos() / 1_000_000) as u64))
+        .expect("failed to convert duration to milliseconds");
+    let ms: u32 = if ms > (u32::max_value() as u64) { u32::max_value() } else { ms as u32 };
+    unsafe {
+        match WaitForSingleObject(process, ms) {
+            WAIT_OBJECT_0 => {}
+            WAIT_TIMEOUT => return Ok(None),
+            _ => return Err(std::io::Error::last_os_error()),
+        }
+
+        let mut exit_code = 0;
+        GetExitCodeProcess(process, &mut exit_code)?;
+
+        Ok(Some(exit_code))
+    }
+}
+
+pub fn kill_process(process: HANDLE) -> std::io::Result<()> {
+    unsafe {
+        let _ = CloseHandle(process);
+    }
+    Ok(())
+}
