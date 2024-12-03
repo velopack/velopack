@@ -230,6 +230,14 @@ public:
     };
 
     /**
+     * Attach a custom callback to receive log messages from Velopack.
+     */
+    VelopackApp& SetLogger(vpkc_log_callback_t cbInstall, void* p_user_data) {
+        vpkc_set_logger(cbInstall, p_user_data);
+        return *this;
+    };
+
+    /**
      * Set whether to automatically apply downloaded updates on startup. This is ON by default.
      */
     VelopackApp& SetAutoApplyOnStartup(bool bAutoApply) {
