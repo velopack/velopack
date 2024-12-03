@@ -1,4 +1,3 @@
-﻿using System.Security.Cryptography.X509Certificates;
 using Azure.Core;
 using Azure.Identity;
 using Velopack.Packaging.Windows;
@@ -28,20 +27,20 @@ public class TrustedSigningTests
         var creds = new ChainedTokenCredential(
             new AzureCliCredential(),
             new EnvironmentCredential());
+        // var creds = new DefaultAzureCredential();
         try {
-            var token = await creds.GetTokenAsync(new TokenRequestContext([$"{CodeSigningEndpoint}/.default"]));
+            var token = await creds.GetTokenAsync(new TokenRequestContext([$"https://codesigning.azure.net/.default"]));
             return token.Token != null;
         } catch (Exception) {
             return false;
         }
-
     }
 
     [SkippableFact]
     public async void CanSignWithTrustedSigning()
     {
-        Skip.If(!VelopackRuntimeInfo.IsWindows);
-        Skip.If(!await IsAuthenticatedForCodeSigningAsync());
+        Skip.IfNot(VelopackRuntimeInfo.IsWindows, "Only supported on Windows");
+        Skip.IfNot(await IsAuthenticatedForCodeSigningAsync(), "Sign in with az login first");
 
         using var logger = _output.BuildLoggerFor<TrustedSigningTests>();
         using var _ = TempUtil.GetTempDirectory(out var releaseDir);
@@ -51,7 +50,9 @@ public class TrustedSigningTests
             : "ci-" + VelopackRuntimeInfo.SystemOs.GetOsShortName();
 
         string metadataFile = Path.Combine(releaseDir, "metadata.json");
-        File.WriteAllText(metadataFile, $$"""
+        File.WriteAllText(
+            metadataFile,
+            $$"""
             {
               "Endpoint": "{{CodeSigningEndpoint}}",
               "CodeSigningAccountName": "velopack-signing-account",
@@ -60,7 +61,14 @@ public class TrustedSigningTests
             """);
 
         var id = "AZTrustedSigningApp";
-        TestApp.PackTestApp(id, "1.0.0", $"aztrusted-{DateTime.UtcNow.ToLongDateString()}", releaseDir, logger, channel: channel, azureTrustedSignFile: metadataFile);
+        TestApp.PackTestApp(
+            id,
+            "1.0.0",
+            $"aztrusted-{DateTime.UtcNow.ToLongDateString()}",
+            releaseDir,
+            logger,
+            channel: channel,
+            azureTrustedSignFile: metadataFile);
 
         var files = Directory.EnumerateFiles(releaseDir)
             .Where(x => PathUtil.FileIsLikelyPEImage(x))

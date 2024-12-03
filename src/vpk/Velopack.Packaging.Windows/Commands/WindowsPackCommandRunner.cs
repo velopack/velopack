@@ -114,7 +114,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             return "";
 
         var providedRuntimes = Options.Runtimes.ToLower()
-                .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
 
         var valid = new string[] {
             "webview2",
@@ -163,7 +163,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             }
 #pragma warning restore CS0618 // Type or member is obsolete
 
-            throw new UserInfoException($"The framework/runtime dependency '{str}' is not valid. See https://github.com/velopack/velopack/blob/master/docs/bootstrapping.md");
+            throw new UserInfoException(
+                $"The framework/runtime dependency '{str}' is not valid. See https://github.com/velopack/velopack/blob/master/docs/bootstrapping.md");
         }
 
         foreach (var str in validated) {
@@ -184,6 +185,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         if (Options.Icon != null) {
             editor.SetExeIcon(Options.Icon);
         }
+
         editor.Commit();
 
         progress(25);
@@ -207,7 +209,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         File.Delete(Path.Combine(current.FullName, "Squirrel.exe"));
 
         // move the stub to the root of the portable package
-        var stubPath = Path.Combine(current.FullName,
+        var stubPath = Path.Combine(
+            current.FullName,
             Path.GetFileNameWithoutExtension(Options.EntryExecutableName) + "_ExecutionStub.exe");
         var stubName = (Options.PackTitle ?? Options.PackId) + ".exe";
         File.Move(stubPath, Path.Combine(dir.FullName, stubName));
@@ -285,24 +288,26 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         if (File.Exists(dlibPath)) {
             return dlibPath;
         }
-        Log.Info($"Downloading Azure Trusted Signing dlib to '{dlibPath}'");
-        var dl = new NuGetDownloader();
 
-        using MemoryStream nupkgStream = new();
-        await dl.DownloadPackageToStream("Microsoft.Trusted.Signing.Client", "1.*", nupkgStream, cancellationToken);
+        throw new NotSupportedException("Azure Trusted Signing is not supported in this version of Velopack.");
 
-        nupkgStream.Position = 0;
-
-        string parentDir = NugetUtil.BinDirectory + Path.AltDirectorySeparatorChar + "x64" + Path.AltDirectorySeparatorChar;
-
-        ZipArchive zipPackage = new(nupkgStream);
-        var entries = zipPackage.Entries.Where(x => x.FullName.StartsWith(parentDir, StringComparison.OrdinalIgnoreCase));
-        foreach (var entry in entries) {
-            var relativePath = entry.FullName.Substring(parentDir.Length);
-            entry.ExtractToFile(Path.Combine(signToolDirectory, relativePath), true);
-        }
-
-        return dlibPath;
+        // Log.Info($"Downloading Azure Trusted Signing dlib to '{dlibPath}'");
+        // var dl = new NuGetDownloader();
+        //
+        // using MemoryStream nupkgStream = new();
+        // await dl.DownloadPackageToStream("Microsoft.Trusted.Signing.Client", "1.*", nupkgStream, cancellationToken);
+        //
+        // nupkgStream.Position = 0;
+        //
+        // string parentDir = NugetUtil.BinDirectory + Path.AltDirectorySeparatorChar + "x64" + Path.AltDirectorySeparatorChar;
+        //
+        // ZipArchive zipPackage = new(nupkgStream);
+        // var entries = zipPackage.Entries.Where(x => x.FullName.StartsWith(parentDir, StringComparison.OrdinalIgnoreCase));
+        // foreach (var entry in entries) {
+        //     var relativePath = entry.FullName.Substring(parentDir.Length);
+        //     entry.ExtractToFile(Path.Combine(signToolDirectory, relativePath), true);
+        // }
+        // return dlibPath;
     }
 
     protected override string[] GetMainExeSearchPaths(string packDirectory, string mainExeName)

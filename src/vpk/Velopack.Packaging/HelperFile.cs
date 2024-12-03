@@ -71,7 +71,7 @@ public static class HelperFile
     public static string StubExecutablePath => FindHelperFile("stub.exe");
 
     [SupportedOSPlatform("windows")]
-    public static string SignToolPath => FindHelperFile("signtool.exe");
+    public static string SignToolPath => FindHelperFile("signing\\signtool.exe");
 
     [SupportedOSPlatform("windows")]
     public const string AzureDlibFileName = "Azure.CodeSigning.Dlib.dll";
