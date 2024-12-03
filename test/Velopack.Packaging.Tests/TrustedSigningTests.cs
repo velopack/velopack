@@ -40,14 +40,13 @@ public class TrustedSigningTests
     public async void CanSignWithTrustedSigning()
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows, "Only supported on Windows");
-        Skip.IfNot(await IsAuthenticatedForCodeSigningAsync(), "Sign in with az login first");
+
+        if (!PathHelper.IsCI) {
+            Skip.IfNot(await IsAuthenticatedForCodeSigningAsync(), "Sign in with az login first");
+        }
 
         using var logger = _output.BuildLoggerFor<TrustedSigningTests>();
         using var _ = TempUtil.GetTempDirectory(out var releaseDir);
-
-        string channel = string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CI"))
-            ? VelopackRuntimeInfo.SystemOs.GetOsShortName()
-            : "ci-" + VelopackRuntimeInfo.SystemOs.GetOsShortName();
 
         string metadataFile = Path.Combine(releaseDir, "metadata.json");
         File.WriteAllText(
@@ -67,7 +66,6 @@ public class TrustedSigningTests
             $"aztrusted-{DateTime.UtcNow.ToLongDateString()}",
             releaseDir,
             logger,
-            channel: channel,
             azureTrustedSignFile: metadataFile);
 
         var files = Directory.EnumerateFiles(releaseDir)
