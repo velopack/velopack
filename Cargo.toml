@@ -49,7 +49,6 @@ pretty-bytes-rust = "0.3"
 simplelog = "0.12"
 clap = "4.5"
 chrono = "0.4"
-wait-timeout = "0.2"
 strum = { version = "0.26", features = ["derive"] }
 file-rotate = "0.7"
 simple-stopwatch = "0.1"
