@@ -1,5 +1,4 @@
 use ::windows::Win32::System::ProcessStatus::EnumProcesses;
-use ::windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use anyhow::{anyhow, bail, Result};
 use regex::Regex;
 use semver::Version;
@@ -7,23 +6,14 @@ use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
-    process::Command as Process,
 };
-use windows::{Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasicInformation}, Win32::Foundation::HANDLE};
+use windows::Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasicInformation};
 use windows::Win32::System::Threading::{GetCurrentProcess, PROCESS_BASIC_INFORMATION};
 use winsafe::{self as w, co, prelude::*};
 
 use velopack::locator::VelopackLocator;
 
-pub fn wait_for_handle_to_exit(handle: HANDLE, ms_to_wait: Option<u32>) -> Result<()> {
-    let handle = unsafe { w::HPROCESS::from_ptr(handle.0) };
-    info!("Waiting {:?}ms for handle to exit.", ms_to_wait);
-    match handle.WaitForSingleObject(ms_to_wait) {
-        Ok(co::WAIT::OBJECT_0) => Ok(()),
-        // Ok(co::WAIT::TIMEOUT) => Ok(()),
-        _ => Err(anyhow!("WaitForSingleObject Failed.")),
-    }
-}
+use crate::windows::process;
 
 pub fn wait_for_pid_to_exit(pid: u32, ms_to_wait: u32) -> Result<()> {
     info!("Waiting {}ms for process ({}) to exit.", ms_to_wait, pid);
@@ -180,28 +170,18 @@ fn _force_stop_package<P: AsRef<Path>>(root_dir: P) -> Result<()> {
 }
 
 pub fn start_package(locator: &VelopackLocator, exe_args: Option<Vec<&str>>, set_env: Option<&str>) -> Result<()> {
-    let current = locator.get_current_bin_dir();
+    let current = locator.get_current_bin_dir_as_string();
     let exe_to_execute = locator.get_main_exe_path();
 
     if !exe_to_execute.exists() {
         bail!("Unable to find executable to start: '{}'", exe_to_execute.to_string_lossy());
     }
 
-    let mut psi = Process::new(&exe_to_execute);
-    psi.current_dir(&current);
-    if let Some(args) = exe_args {
-        psi.args(args);
-    }
-    if let Some(env) = set_env {
-        debug!("Setting environment variable: {}={}", env, "true");
-        psi.env(env, "true");
-    }
+    let envp = set_env.map(|f| HashMap::from([(f.to_string(), "true".to_string())]));
+    let args = exe_args.map(|opt| opt.iter().map(|f| f.to_string()).collect()).unwrap_or(Vec::new());
 
-    info!("About to launch: '{:?}' in dir '{:?}'", exe_to_execute, current);
-    info!("Args: {:?}", psi.get_args());
-    let child = psi.spawn().map_err(|z| anyhow!("Failed to start application ({}).", z))?;
-    let _ = unsafe { AllowSetForegroundWindow(child.id()) };
-
+    info!("About to launch: '{:?}' in dir '{:?}' with args: {:?}", exe_to_execute, current, args);
+    process::run_process(exe_to_execute.to_string_lossy().to_string(), args, Some(current), envp, true)?;
     Ok(())
 }
 
@@ -258,10 +238,10 @@ pub fn get_latest_app_version_folder<P: AsRef<Path>>(parent_path: P) -> Result<O
 pub fn has_app_prefixed_folder<P: AsRef<Path>>(parent_path: P) -> bool {
     match get_app_prefixed_folders(parent_path) {
         Ok(folders) => !folders.is_empty(),
-        Err(e) => { 
+        Err(e) => {
             warn!("Failed to check for app-prefixed folders: {}", e);
             false
-        },
+        }
     }
 }
 
