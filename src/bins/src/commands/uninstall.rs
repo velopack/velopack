@@ -11,7 +11,7 @@ pub fn uninstall(locator: &VelopackLocator, delete_self: bool) -> Result<()> {
     let root_path = locator.get_root_dir();
 
     if !windows::is_directory_writable(&root_path) {
-        if filelocksmith::is_process_elevated() { 
+        if windows::is_process_elevated() { 
             bail!("The root directory is not writable & process is already admin.");
         } else {
             info!("Re-launching as administrator to uninstall from {:?}", root_path);
