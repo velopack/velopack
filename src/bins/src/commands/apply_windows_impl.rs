@@ -1,10 +1,9 @@
 use crate::{
     dialogs,
     shared::{self},
-    windows::{self, locksmith, splash},
+    windows::{self, splash},
 };
-use anyhow::{bail, Result};
-use ::windows::Win32::Foundation::HANDLE;
+use anyhow::{bail, Context, Result};
 use std::sync::mpsc;
 use std::{fs, path::PathBuf};
 use velopack::{bundle::load_bundle_from_file, constants, locator::VelopackLocator};
@@ -47,7 +46,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
     let new_locator = old_locator.clone_self_with_new_manifest(&new_app_manifest);
 
     if !windows::is_directory_writable(&root_path) {
-        if filelocksmith::is_process_elevated() { 
+        if windows::is_process_elevated() { 
             bail!("The root directory is not writable & process is already admin.");
         } else {
             info!("Re-launching as administrator to update in {:?}", root_path);
