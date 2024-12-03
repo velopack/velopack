@@ -3,6 +3,8 @@ using Velopack;
 
 public static class PathHelper
 {
+    public static bool IsCI => Environment.GetEnvironmentVariable("CI") != null;
+    
     public static string GetFixturesDir()
         => Path.Combine(GetTestRoot(), "fixtures");
 
