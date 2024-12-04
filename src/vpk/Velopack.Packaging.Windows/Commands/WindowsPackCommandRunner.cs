@@ -18,14 +18,16 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
     {
     }
 
-    protected override async Task CodeSign(Action<int> progress, string packDir)
+    protected override Task CodeSign(Action<int> progress, string packDir)
     {
         var filesToSign = new DirectoryInfo(packDir).GetAllFilesRecursively()
             .Where(x => Options.SignSkipDll ? PathUtil.PathPartEndsWith(x.Name, ".exe") : PathUtil.FileIsLikelyPEImage(x.Name))
             .Select(x => x.FullName)
             .ToArray();
 
-        await SignFilesImpl(Options, progress, filesToSign);
+        SignFilesImpl(Options, progress, filesToSign);
+
+        return Task.CompletedTask;
     }
 
     protected override Task<string> PreprocessPackDir(Action<int> progress, string packDir)
@@ -193,7 +195,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         SetupBundle.CreatePackageBundle(targetSetupExe, releasePkg);
         progress(50);
         Log.Debug("Signing Setup bundle");
-        await SignFilesImpl(Options, CoreUtil.CreateProgressDelegate(progress, 50, 100), targetSetupExe);
+        SignFilesImpl(Options, CoreUtil.CreateProgressDelegate(progress, 50, 100), targetSetupExe);
         Log.Debug($"Setup bundle created '{Path.GetFileName(targetSetupExe)}'.");
         progress(100);
     }
@@ -246,7 +248,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
     }
 
-    private async Task SignFilesImpl(WindowsSigningOptions options, Action<int> progress, params string[] filePaths)
+    private void SignFilesImpl(WindowsSigningOptions options, Action<int> progress, params string[] filePaths)
     {
         var signParams = options.SignParameters;
         var signTemplate = options.SignTemplate;
@@ -269,7 +271,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         if (!string.IsNullOrEmpty(trustedSignMetadataPath)) {
             Log.Info($"Use Azure Trusted Signing service for code signing. Metadata file path: {trustedSignMetadataPath}");
 
-            string dlibPath = await GetDlibPath(CancellationToken.None);
+            string dlibPath = GetDlibPath(CancellationToken.None);
             signParams = $"/fd SHA256 /tr \"http://timestamp.acs.microsoft.com\" /v /debug /td SHA256 /dlib \"{dlibPath}\" /dmdf \"{trustedSignMetadataPath}\"";
             helper.Sign(filePaths, signParams, signParallel, progress, false);
         } else if (!string.IsNullOrEmpty(signParams)) {
@@ -278,7 +280,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
     }
 
     [SupportedOSPlatform("windows")]
-    private async Task<string> GetDlibPath(CancellationToken cancellationToken)
+    private string GetDlibPath(CancellationToken cancellationToken)
     {
         // DLib library is required for Azure Trusted Signing. It must be in the same directory as SignTool.exe.
         // https://learn.microsoft.com/azure/trusted-signing/how-to-signing-integrations#download-and-install-the-trusted-signing-dlib-package

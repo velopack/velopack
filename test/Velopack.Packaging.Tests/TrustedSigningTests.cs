@@ -1,4 +1,4 @@
-using Azure.Core;
+﻿using Azure.Core;
 using Azure.Identity;
 using Velopack.Packaging.Windows;
 using Velopack.Util;
@@ -45,7 +45,7 @@ public class TrustedSigningTests
             Skip.IfNot(await IsAuthenticatedForCodeSigningAsync(), "Sign in with az login first");
         }
 
-        using var logger = _output.BuildLoggerFor<TrustedSigningTests>();
+        using var logger = _output.BuildLoggerFor<TrustedSigningTests>(LogLevel.Debug);
         using var _ = TempUtil.GetTempDirectory(out var releaseDir);
 
         string metadataFile = Path.Combine(releaseDir, "metadata.json");
