@@ -13,16 +13,24 @@ namespace Velopack.NuGet
 
         public byte[]? UpdateExeBytes { get; private set; }
 
-        public string LoadedFromPath { get; private set; }
+        public string? LoadedFromPath { get; private set; }
 
         public ZipPackage(string filePath, bool loadUpdateExe = false)
         {
+            LoadedFromPath = filePath;
             using var zipStream = File.OpenRead(filePath);
-            using var zip = new ZipArchive(zipStream, ZipArchiveMode.Read, false);
+            Init(zipStream, loadUpdateExe, false);
+        }
+        public ZipPackage(Stream zipStream, bool loadUpdateExe = false)
+        {
+            Init(zipStream, loadUpdateExe, true);
+        }
+        private void Init(Stream zipStream, bool loadUpdateExe = false, bool leaveOpen = false)
+        {
+            using var zip = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen);
             using var manifest = GetManifestEntry(zip).Open();
             ReadManifest(manifest);
 
-            LoadedFromPath = filePath;
             Files = GetPackageFiles(zip).ToArray();
 
             if (loadUpdateExe) {
