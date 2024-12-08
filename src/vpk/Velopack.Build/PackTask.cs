@@ -80,6 +80,7 @@ public class PackTask : MSBuildAsyncTask
     public bool SkipVelopackAppCheck { get; set; }
 
     public string? SignParameters { get; set; }
+    public string? AzureTrustedSignFile { get; set; }
 
     public bool SignSkipDll { get; set; }
 

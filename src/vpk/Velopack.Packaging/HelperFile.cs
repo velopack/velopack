@@ -1,6 +1,9 @@
 ﻿using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
+
+#if !DEBUG
 using Velopack.Util;
+#endif
 
 namespace Velopack.Packaging;
 
@@ -68,7 +71,10 @@ public static class HelperFile
     public static string StubExecutablePath => FindHelperFile("stub.exe");
 
     [SupportedOSPlatform("windows")]
-    public static string SignToolPath => FindHelperFile("signtool.exe");
+    public static string SignToolPath => FindHelperFile("signing\\signtool.exe");
+
+    [SupportedOSPlatform("windows")]
+    public const string AzureDlibFileName = "Azure.CodeSigning.Dlib.dll";
 
     public static string GetDefaultAppIcon(RuntimeOs os)
     {
@@ -84,7 +90,7 @@ public static class HelperFile
         }
     }
 
-    private static readonly List<string> _searchPaths = new List<string>();
+    private static readonly List<string> _searchPaths = [];
 
     static HelperFile()
     {

@@ -70,8 +70,8 @@ public class CodeSign
         }
 
         do {
-            List<string> filesToSign = new List<string>();
-            for (int i = Math.Min(pendingSign.Count, parallelism); i > 0; i--) {
+            List<string> filesToSign = [];
+            for (int i = Math.Max(1, Math.Min(pendingSign.Count, parallelism)); i > 0; i--) {
                 filesToSign.Add(pendingSign.Dequeue());
             }
 
