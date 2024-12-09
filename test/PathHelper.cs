@@ -3,6 +3,8 @@ using Velopack;
 
 public static class PathHelper
 {
+    public static bool IsCI => Environment.GetEnvironmentVariable("CI") != null;
+    
     public static string GetFixturesDir()
         => Path.Combine(GetTestRoot(), "fixtures");
 
@@ -22,10 +24,10 @@ public static class PathHelper
         => Path.Combine(GetProjectDir(), "artwork");
 
     public static string GetFixture(params string[] names)
-        => Path.Combine(new string[] { GetTestRoot(), "fixtures" }.Concat(names).ToArray());
+        => Path.Combine([GetTestRoot(), "fixtures", .. names]);
 
     public static string GetTestRootPath(params string[] names)
-        => Path.Combine(new string[] { GetTestRoot() }.Concat(names).ToArray());
+        => Path.Combine([GetTestRoot(), .. names]);
 
 #if DEBUG
     public static string GetRustBuildOutputDir()
@@ -36,7 +38,7 @@ public static class PathHelper
 #endif
 
     public static string GetRustAsset(params string[] names)
-        => Path.Combine(new string[] { GetRustBuildOutputDir() }.Concat(names).ToArray());
+        => Path.Combine([GetRustBuildOutputDir(), .. names]);
 
     public static string CopyRustAssetTo(string assetName, string dir)
     {
@@ -60,7 +62,7 @@ public static class PathHelper
 
     public static string CopyUpdateTo(string dir)
     {
-        string GetUpdatePath()
+        static string GetUpdatePath()
         {
             if (VelopackRuntimeInfo.IsWindows && File.Exists(GetRustAsset("update.exe"))) {
                 return GetRustAsset("update.exe");
