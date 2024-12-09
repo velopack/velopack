@@ -176,7 +176,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         return String.Join(",", validated);
     }
 
-    protected override async Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe)
+    protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe)
     {
         var bundledZip = new ZipPackage(releasePkg);
         IoUtil.Retry(() => File.Copy(HelperFile.SetupPath, targetSetupExe, true));
@@ -198,6 +198,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         SignFilesImpl(Options, CoreUtil.CreateProgressDelegate(progress, 50, 100), targetSetupExe);
         Log.Debug($"Setup bundle created '{Path.GetFileName(targetSetupExe)}'.");
         progress(100);
+
+        return Task.CompletedTask;
     }
 
     protected override async Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath)
@@ -272,7 +274,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             Log.Info($"Use Azure Trusted Signing service for code signing. Metadata file path: {trustedSignMetadataPath}");
 
             string dlibPath = GetDlibPath(CancellationToken.None);
-            signParams = $"/fd SHA256 /tr \"http://timestamp.acs.microsoft.com\" /v /debug /td SHA256 /dlib \"{dlibPath}\" /dmdf \"{trustedSignMetadataPath}\"";
+            signParams = $"/fd SHA256 /tr http://timestamp.acs.microsoft.com /v /debug /td SHA256 /dlib {HelperFile.AzureDlibFileName} /dmdf \"{trustedSignMetadataPath}\"";
             helper.Sign(filePaths, signParams, signParallel, progress, false);
         } else if (!string.IsNullOrEmpty(signParams)) {
             helper.Sign(filePaths, signParams, signParallel, progress, false);
