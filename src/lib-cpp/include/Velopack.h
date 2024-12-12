@@ -176,6 +176,30 @@ bool vpkc_new_update_manager(const char *psz_url_or_path,
                              vpkc_update_manager_t **p_manager);
 
 /**
+ * Create a new UpdateManager instance.
+ * @param options Optional extra configuration for update manager.
+ * @param locator Override the default locator configuration (usually used for testing / mocks).
+ * @param callback to override the default update source
+ * (AutoSource). Retrieve the list of available remote releases from
+ * the package source. These releases can subsequently be downloaded
+ * with cb_download_release_entry.
+ * @param callback to override the default update source
+ * (AutoSource). Download the specified VelopackAsset to the provided
+ * local file path.
+ * @param parameter to the callbacks to override the default update
+ * source (AutoSource). It's the user's responsibilty to ensure that
+ * it's safe to send and share it across threads
+ */
+bool vpkc_new_custom_update_manager(const char *(*cb_get_release_feed)(const char*, void*),
+                                    bool (*cb_download_release_entry)(const char*,
+                                                                      const char*,
+                                                                      void*),
+                                    void *p_user_data,
+                                    struct vpkc_update_options_t *p_options,
+                                    struct vpkc_locator_config_t *p_locator,
+                                    vpkc_update_manager_t **p_manager);
+
+/**
  * Returns the currently installed version of the app.
  */
 size_t vpkc_get_current_version(vpkc_update_manager_t *p_manager,
