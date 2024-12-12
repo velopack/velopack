@@ -10,8 +10,8 @@ use types::*;
 
 use anyhow::{anyhow, bail};
 use libc::{c_char, c_void, size_t};
-use std::ffi::CString;
-use velopack::{sources, Error as VelopackError, UpdateCheck, UpdateManager, VelopackApp};
+use std::{sync::mpsc::Sender, ffi::{CStr, CString}};
+use velopack::{bundle, sources, Error as VelopackError, UpdateCheck, UpdateManager, VelopackApp, VelopackAsset, VelopackAssetFeed};
 
 /// Create a new UpdateManager instance.
 /// @param urlOrPath Location of the update server or path to the local update directory.
@@ -27,6 +27,95 @@ pub extern "C" fn vpkc_new_update_manager(
     wrap_error(|| {
         let update_url = c_to_string_opt(psz_url_or_path).ok_or(anyhow!("URL or path is null"))?;
         let source = sources::AutoSource::new(&update_url);
+        let options = c_to_updateoptions_opt(p_options);
+        let locator = c_to_velopacklocatorconfig_opt(p_locator);
+        let manager = UpdateManager::new(source, options, locator)?;
+        unsafe { *p_manager = UpdateManagerRawPtr::new(manager) };
+        Ok(())
+    })
+}
+
+#[derive(Clone)]
+/// Retrieves available updates using a custom method.  This is
+/// intended to be used from C and C++ code when `AutoSource` is
+/// inadequate.
+struct CCallbackUpdateSource {
+    /// Opaque data that's passed to the callbacks
+    p_user_data: *mut c_void,
+    /// Callback function that returns the requrested asset feed JSON as a string
+    cb_get_release_feed: extern "C" fn(psz_releases_name: *const c_char, p_user_data: *mut c_void) -> *const c_char,
+    /// Callback function that downloads the requested asset file to a local path
+    cb_download_release_entry: extern "C" fn(psz_asset_file_name: *const c_char, psz_local_file: *const c_char, p_user_data: *mut c_void) -> bool,
+}
+
+unsafe impl Send for CCallbackUpdateSource {}
+unsafe impl Sync for CCallbackUpdateSource {}
+
+impl sources::UpdateSource for CCallbackUpdateSource {
+    fn get_release_feed(&self, channel: &str, _: &bundle::Manifest) -> Result<VelopackAssetFeed, VelopackError> {
+        let releases_name = format!("releases.{}.json", channel);
+	let releases_name_cstr = CString::new(releases_name).unwrap();
+	let json_cstr_ptr = (self.cb_get_release_feed)(releases_name_cstr.as_ptr(), self.p_user_data);
+	if json_cstr_ptr.is_null() {
+	    Err(VelopackError::Generic("Failed to fetch releases JSON".to_owned()))
+	} else {
+	    let json_cstr = unsafe { CStr::from_ptr(json_cstr_ptr) };
+            let feed: VelopackAssetFeed = serde_json::from_str(json_cstr.to_str().unwrap())?;
+            Ok(feed)
+	}
+    }
+
+    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress_sender: Option<Sender<i16>>) -> Result<(), VelopackError> {
+        if let Some(progress_sender) = &progress_sender {
+            let _ = progress_sender.send(50);
+        }
+	let asset_file_name_cstr = CString::new(asset.FileName.as_str()).unwrap();
+	let local_file_cstr = CString::new(local_file).unwrap();
+	let success = (self.cb_download_release_entry)(asset_file_name_cstr.as_ptr(), local_file_cstr.as_ptr(), self.p_user_data);
+	if success {
+            if let Some(progress_sender) = &progress_sender {
+		let _ = progress_sender.send(100);
+            }
+            Ok(())
+	} else {
+	    Err(VelopackError::Generic("Failed to download asset file".to_owned()))
+	}
+    }
+
+    fn clone_boxed(&self) -> Box<dyn sources::UpdateSource> {
+        Box::new(self.clone())
+    }
+}
+
+
+/// Create a new UpdateManager instance.
+/// @param options Optional extra configuration for update manager.
+/// @param locator Override the default locator configuration (usually used for testing / mocks).
+/// @param callback to override the default update source
+/// (AutoSource). Retrieve the list of available remote releases from
+/// the package source. These releases can subsequently be downloaded
+/// with cb_download_release_entry.
+/// @param callback to override the default update source
+/// (AutoSource). Download the specified VelopackAsset to the provided
+/// local file path.
+/// @param parameter to the callbacks to override the default update
+/// source (AutoSource). It's the user's responsibilty to ensure that
+/// it's safe to send and share it across threads
+#[no_mangle]
+pub extern "C" fn vpkc_new_custom_update_manager(
+    cb_get_release_feed: extern "C" fn(*const c_char, *mut c_void) -> *const c_char,
+    cb_download_release_entry: extern "C" fn(*const c_char, *const c_char, *mut c_void) -> bool,
+    p_user_data: *mut c_void,
+    p_options: *mut vpkc_update_options_t,
+    p_locator: *mut vpkc_locator_config_t,
+    p_manager: *mut *mut vpkc_update_manager_t,
+) -> bool {
+    wrap_error(|| {
+        let source = CCallbackUpdateSource {
+	    p_user_data,
+	    cb_get_release_feed,
+	    cb_download_release_entry,
+	};
         let options = c_to_updateoptions_opt(p_options);
         let locator = c_to_velopacklocatorconfig_opt(p_locator);
         let manager = UpdateManager::new(source, options, locator)?;

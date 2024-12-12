@@ -2364,6 +2364,7 @@ dependencies = [
  "lazy_static",
  "libc",
  "log",
+ "serde_json",
  "velopack",
 ]
 
