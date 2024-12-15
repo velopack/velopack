@@ -1,10 +1,10 @@
 # Vendor Binaries
 This folder contains pre-compiled binaries from a variety of sources. These should be updated periodically.
 
-### signtool.exe v10.0.22621
+### signtool.exe v10.0.22621.3233
 - Signs application binaries while building packages.
-- Can be found in the Windows SDK at "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x86\signtool.exe" or similar, depending on the version of the SDK you have installed.
-- License? https://github.com/dotnet/docs/issues/10478
+- Can be found at https://www.nuget.org/packages/Microsoft.Windows.SDK.BuildTools/10.0.22621.3233 under bin\10.0.22621.0\x64
+- License: https://aka.ms/WinSDKLicenseURL
 
 ### zstd.exe v1.5.5
 - Fast compression and diff/patch
