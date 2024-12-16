@@ -167,10 +167,10 @@ public class Program
 
         var flowCommand = new CliCommand("flow", "Commands for interacting with Velopack Flow.") { Hidden = true };
         HideCommand(flowCommand.AddCommand<ApiCommand, ApiCommandRunner, ApiOptions>(provider));
-        rootCommand.Add(flowCommand); 
+        rootCommand.Add(flowCommand);
 
         var cli = new CliConfiguration(rootCommand);
-        return await cli.InvokeAsync(args); 
+        return await cli.InvokeAsync(args);
 
         static void HideCommand(CliCommand command) => command.Hidden = true;
     }
@@ -193,7 +193,7 @@ public class Program
             .MinimumLevel.ControlledBy(levelSwitch)
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
             .MinimumLevel.Override("System", LogEventLevel.Warning);
-        
+
         if (legacyConsole) {
             // spectre can have issues with redirected output, so we disable it.
             builder.Services.AddSingleton<IFancyConsole, BasicConsole>();
@@ -213,7 +213,7 @@ public class Program
     {
         services.AddSingleton<IVelopackFlowServiceClient, VelopackFlowServiceClient>();
         services.AddSingleton<HmacAuthHttpClientHandler>();
-        services.AddHttpClient().ConfigureHttpClientDefaults(x => 
+        services.AddHttpClient().ConfigureHttpClientDefaults(x =>
             x.AddHttpMessageHandler<HmacAuthHttpClientHandler>()
                 .ConfigureHttpClient(httpClient => httpClient.Timeout = TimeSpan.FromMinutes(60)));
     }
@@ -221,6 +221,14 @@ public class Program
 
 public static class ProgramCommandExtensions
 {
+    public static CliCommand AddCommand<TPar, TCli, TCmd, TOpt>(this TPar parent)
+        where TPar : BaseCommand
+        where TCli : BaseCommand, new()
+        where TCmd : ICommand<TOpt>
+        where TOpt : class, new()
+    {
+        return parent.AddCommand<TCli, TCmd, TOpt>(parent.ServiceProvider);
+    }
     public static CliCommand AddCommand<TCli, TCmd, TOpt>(this CliCommand parent, IServiceProvider provider)
         where TCli : BaseCommand, new()
         where TCmd : ICommand<TOpt>
@@ -259,6 +267,8 @@ public static class ProgramCommandExtensions
         where TOpt : class, new()
     {
         var command = new TCli();
+        command.SetServiceProvider(provider);
+        command.InitSubCommands();
         command.SetAction(async (ctx, token) => {
             var logger = provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger>();
             var console = provider.GetRequiredService<IFancyConsole>();

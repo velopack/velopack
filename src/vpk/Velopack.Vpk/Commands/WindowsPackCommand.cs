@@ -1,4 +1,6 @@
-﻿namespace Velopack.Vpk.Commands;
+﻿using Velopack.Packaging.Commands;
+
+namespace Velopack.Vpk.Commands;
 
 public class WindowsPackCommand : PackCommand
 {
@@ -64,5 +66,11 @@ public class WindowsPackCommand : PackCommand
 
             this.AreMutuallyExclusive(signTemplate, signParams);
         }
+    }
+
+    public override void InitSubCommands()
+    {
+        this.AddCommand<WindowsPackCommand, ExtractNugetCommand, ExtractNugetCommandRunner, ExtractNugetOptions>();
+        this.AddCommand<WindowsPackCommand, SetupPackageCommand, SetupPackageCommandRunner, SetupPackageOptions>();
     }
 }
