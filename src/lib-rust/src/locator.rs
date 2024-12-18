@@ -339,6 +339,7 @@ pub enum LocationContext
 #[cfg(target_os = "windows")]
 /// Automatically locates the current app's important paths. If the app is not installed, it will return an error.
 pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLocator, Error> {
+    info!("Auto-locating app manifest...");
     match context {
         LocationContext::Unknown => {
             warn!("Unknown location context, trying to auto-locate from current exe location...");

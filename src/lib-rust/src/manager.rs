@@ -143,6 +143,7 @@ impl UpdateManager {
         locator: Option<VelopackLocatorConfig>,
     ) -> Result<UpdateManager, Error> {
         let locator = if let Some(config) = locator {
+            warn!("Using explicit locator configuration, ignoring auto-locate.");
             let manifest = config.load_manifest()?;
             VelopackLocator::new(config.clone(), manifest)
         } else {
@@ -160,8 +161,10 @@ impl UpdateManager {
         let app_channel = self.locator.get_manifest_channel();
         let mut channel = options_channel.unwrap_or(&app_channel).to_string();
         if channel.is_empty() {
+            warn!("Channel is empty, picking default.");
             channel = locator::default_channel_name();
         }
+        info!("Chosen channel for updates: {:?} (explicit={:?}, memorized={:?})", channel, options_channel, app_channel);
         channel
     }
 
@@ -270,8 +273,8 @@ impl UpdateManager {
             Ok(UpdateCheck::UpdateAvailable(UpdateInfo { TargetFullRelease: remote_asset, IsDowngrade: true }))
         } else if remote_version == app_version && allow_downgrade && is_non_default_channel {
             info!(
-                "Latest remote release is the same version of a different channel, and downgrade is enabled ({} -> {}).",
-                app_version, remote_version
+                "Latest remote release is the same version of a different channel, and downgrade is enabled ({} -> {}, {} -> {}).",
+                app_version, remote_version, app_channel, practical_channel
             );
             Ok(UpdateCheck::UpdateAvailable(UpdateInfo { TargetFullRelease: remote_asset, IsDowngrade: true }))
         } else {
