@@ -4,14 +4,76 @@
 
 mod statics;
 use statics::*;
-
 mod types;
 use types::*;
+mod csource;
+use csource::*;
+mod raw;
+use raw::*;
 
 use anyhow::{anyhow, bail};
 use libc::{c_char, c_void, size_t};
-use std::{sync::mpsc::Sender, ffi::{CStr, CString}};
-use velopack::{bundle, sources, Error as VelopackError, UpdateCheck, UpdateManager, VelopackApp, VelopackAsset, VelopackAssetFeed};
+use std::{ffi::CString, ptr};
+use velopack::{sources, Error as VelopackError, UpdateCheck, UpdateManager, VelopackApp};
+
+/// Create a new FileSource update source for a given file path.
+#[no_mangle]
+pub extern "C" fn vpkc_new_source_file(psz_file_path: *const c_char) -> *mut vpkc_update_source_t {
+    if let Some(update_path) = c_to_string_opt(psz_file_path) {
+        UpdateSourceRawPtr::new(Box::new(sources::FileSource::new(update_path)))
+    } else {
+        ptr::null_mut()
+    }
+}
+
+/// Create a new HttpSource update source for a given HTTP URL.
+#[no_mangle]
+pub extern "C" fn vpkc_new_source_http_url(psz_http_url: *const c_char) -> *mut vpkc_update_source_t {
+    if let Some(update_url) = c_to_string_opt(psz_http_url) {
+        UpdateSourceRawPtr::new(Box::new(sources::FileSource::new(update_url)))
+    } else {
+        ptr::null_mut()
+    }
+}
+
+/// Create a new _CUSTOM_ update source with user-provided callbacks to fetch release feeds and download assets.
+/// You can report download progress using `vpkc_source_report_progress`. Note that the callbacks must be valid
+/// for the lifetime of any UpdateManager's that use this source. You should call `vpkc_free_source` to free the source,
+/// but note that if the source is still in use by an UpdateManager, it will not be freed until the UpdateManager is freed.
+/// Therefore to avoid possible issues, it is recommended to create this type of source once for the lifetime of your application.
+#[no_mangle]
+pub extern "C" fn vpkc_new_source_custom_callback(
+    cb_release_feed: vpkc_release_feed_delegate_t,
+    cb_download_entry: vpkc_download_asset_delegate_t,
+    p_user_data: *mut c_void,
+) -> *mut vpkc_update_source_t {
+    let cb_release_feed = cb_release_feed.to_option();
+    let cb_download_entry = cb_download_entry.to_option();
+    if cb_release_feed.is_none() || cb_download_entry.is_none() {
+        return ptr::null_mut();
+    }
+
+    let source = CCallbackUpdateSource {
+        p_user_data,
+        cb_get_release_feed: cb_release_feed.unwrap(),
+        cb_download_release_entry: cb_download_entry.unwrap(),
+    };
+
+    UpdateSourceRawPtr::new(Box::new(source))
+}
+
+/// Sends a progress update to the callback with the specified ID. This is used by custom
+/// update sources created with `vpkc_new_source_custom_callback` to report download progress.
+#[no_mangle]
+pub extern "C" fn vpkc_source_report_progress(progress_callback_id: size_t, progress: i16) {
+    report_csource_progress(progress_callback_id, progress);
+}
+
+/// Frees a vpkc_update_source_t instance.
+#[no_mangle]
+pub extern "C" fn vpkc_free_source(p_source: *mut vpkc_update_source_t) {
+    UpdateSourceRawPtr::free(p_source);
+}
 
 /// Create a new UpdateManager instance.
 /// @param urlOrPath Location of the update server or path to the local update directory.
@@ -35,90 +97,22 @@ pub extern "C" fn vpkc_new_update_manager(
     })
 }
 
-#[derive(Clone)]
-/// Retrieves available updates using a custom method.  This is
-/// intended to be used from C and C++ code when `AutoSource` is
-/// inadequate.
-struct CCallbackUpdateSource {
-    /// Opaque data that's passed to the callbacks
-    p_user_data: *mut c_void,
-    /// Callback function that returns the requrested asset feed JSON as a string
-    cb_get_release_feed: extern "C" fn(psz_releases_name: *const c_char, p_user_data: *mut c_void) -> *const c_char,
-    /// Callback function that downloads the requested asset file to a local path
-    cb_download_release_entry: extern "C" fn(psz_asset_file_name: *const c_char, psz_local_file: *const c_char, p_user_data: *mut c_void) -> bool,
-}
-
-unsafe impl Send for CCallbackUpdateSource {}
-unsafe impl Sync for CCallbackUpdateSource {}
-
-impl sources::UpdateSource for CCallbackUpdateSource {
-    fn get_release_feed(&self, channel: &str, _: &bundle::Manifest) -> Result<VelopackAssetFeed, VelopackError> {
-        let releases_name = format!("releases.{}.json", channel);
-	let releases_name_cstr = CString::new(releases_name).unwrap();
-	let json_cstr_ptr = (self.cb_get_release_feed)(releases_name_cstr.as_ptr(), self.p_user_data);
-	if json_cstr_ptr.is_null() {
-	    Err(VelopackError::Generic("Failed to fetch releases JSON".to_owned()))
-	} else {
-	    let json_cstr = unsafe { CStr::from_ptr(json_cstr_ptr) };
-            let feed: VelopackAssetFeed = serde_json::from_str(json_cstr.to_str().unwrap())?;
-            Ok(feed)
-	}
-    }
-
-    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress_sender: Option<Sender<i16>>) -> Result<(), VelopackError> {
-        if let Some(progress_sender) = &progress_sender {
-            let _ = progress_sender.send(50);
-        }
-	let asset_file_name_cstr = CString::new(asset.FileName.as_str()).unwrap();
-	let local_file_cstr = CString::new(local_file).unwrap();
-	let success = (self.cb_download_release_entry)(asset_file_name_cstr.as_ptr(), local_file_cstr.as_ptr(), self.p_user_data);
-	if success {
-            if let Some(progress_sender) = &progress_sender {
-		let _ = progress_sender.send(100);
-            }
-            Ok(())
-	} else {
-	    Err(VelopackError::Generic("Failed to download asset file".to_owned()))
-	}
-    }
-
-    fn clone_boxed(&self) -> Box<dyn sources::UpdateSource> {
-        Box::new(self.clone())
-    }
-}
-
-
-/// Create a new UpdateManager instance.
+/// Create a new UpdateManager instance with a custom UpdateSource.
+/// @param urlOrPath Location of the update server or path to the local update directory.
 /// @param options Optional extra configuration for update manager.
 /// @param locator Override the default locator configuration (usually used for testing / mocks).
-/// @param callback to override the default update source
-/// (AutoSource). Retrieve the list of available remote releases from
-/// the package source. These releases can subsequently be downloaded
-/// with cb_download_release_entry.
-/// @param callback to override the default update source
-/// (AutoSource). Download the specified VelopackAsset to the provided
-/// local file path.
-/// @param parameter to the callbacks to override the default update
-/// source (AutoSource). It's the user's responsibilty to ensure that
-/// it's safe to send and share it across threads
 #[no_mangle]
-pub extern "C" fn vpkc_new_custom_update_manager(
-    cb_get_release_feed: extern "C" fn(*const c_char, *mut c_void) -> *const c_char,
-    cb_download_release_entry: extern "C" fn(*const c_char, *const c_char, *mut c_void) -> bool,
-    p_user_data: *mut c_void,
+pub extern "C" fn vpkc_new_update_manager_with_source(
+    p_source: *mut vpkc_update_source_t,
     p_options: *mut vpkc_update_options_t,
     p_locator: *mut vpkc_locator_config_t,
     p_manager: *mut *mut vpkc_update_manager_t,
 ) -> bool {
     wrap_error(|| {
-        let source = CCallbackUpdateSource {
-	    p_user_data,
-	    cb_get_release_feed,
-	    cb_download_release_entry,
-	};
+        let source = UpdateSourceRawPtr::get_source_clone(p_source).ok_or(anyhow!("pSource must not be null"))?;
         let options = c_to_updateoptions_opt(p_options);
         let locator = c_to_velopacklocatorconfig_opt(p_locator);
-        let manager = UpdateManager::new(source, options, locator)?;
+        let manager = UpdateManager::new_boxed(source, options, locator)?;
         unsafe { *p_manager = UpdateManagerRawPtr::new(manager) };
         Ok(())
     })
