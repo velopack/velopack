@@ -28,6 +28,69 @@ typedef int8_t vpkc_update_check_t;
 #endif // __cplusplus
 
 /**
+ * Opaque type for a Velopack UpdateSource. Must be freed with `vpkc_free_update_source`.
+ */
+typedef void vpkc_update_source_t;
+
+/**
+ * User delegate for to fetch a release feed. This function should return the raw JSON string of the release.json feed.
+ */
+typedef const char *(*vpkc_release_feed_delegate_t)(void *p_user_data, const char *psz_releases_name);
+
+/**
+ * An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
+ */
+typedef struct vpkc_asset_t {
+  /**
+   * The name or Id of the package containing this release.
+   */
+  char *PackageId;
+  /**
+   * The version of this release.
+   */
+  char *Version;
+  /**
+   * The type of asset (eg. "Full" or "Delta").
+   */
+  char *Type;
+  /**
+   * The filename of the update package containing this release.
+   */
+  char *FileName;
+  /**
+   * The SHA1 checksum of the update package containing this release.
+   */
+  char *SHA1;
+  /**
+   * The SHA256 checksum of the update package containing this release.
+   */
+  char *SHA256;
+  /**
+   * The size in bytes of the update package containing this release.
+   */
+  uint64_t Size;
+  /**
+   * The release notes in markdown format, as passed to Velopack when packaging the release. This may be an empty string.
+   */
+  char *NotesMarkdown;
+  /**
+   * The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
+   */
+  char *NotesHtml;
+} vpkc_asset_t;
+
+/**
+ * User delegate for downloading an asset file. This function is expected to download the provided asset
+ * to the provided local file path. Througout, you can use the progress callback to write progress reports.
+ * The function should return true if the download was successful, false otherwise.
+ * Progress
+ */
+typedef bool (*vpkc_download_asset_delegate_t)(void *p_user_data,
+                                               const struct vpkc_asset_t *p_asset,
+                                               const char *psz_local_path,
+                                               size_t progress_callback_id);
+
+/**
  * Options to customise the behaviour of UpdateManager.
  */
 typedef struct vpkc_update_options_t {
@@ -86,48 +149,6 @@ typedef struct vpkc_locator_config_t {
 typedef void vpkc_update_manager_t;
 
 /**
- * An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
- */
-typedef struct vpkc_asset_t {
-  /**
-   * The name or Id of the package containing this release.
-   */
-  char *PackageId;
-  /**
-   * The version of this release.
-   */
-  char *Version;
-  /**
-   * The type of asset (eg. "Full" or "Delta").
-   */
-  char *Type;
-  /**
-   * The filename of the update package containing this release.
-   */
-  char *FileName;
-  /**
-   * The SHA1 checksum of the update package containing this release.
-   */
-  char *SHA1;
-  /**
-   * The SHA256 checksum of the update package containing this release.
-   */
-  char *SHA256;
-  /**
-   * The size in bytes of the update package containing this release.
-   */
-  uint64_t Size;
-  /**
-   * The release notes in markdown format, as passed to Velopack when packaging the release. This may be an empty string.
-   */
-  char *NotesMarkdown;
-  /**
-   * The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
-   */
-  char *NotesHtml;
-} vpkc_asset_t;
-
-/**
  * Holds information about the current version and pending updates, such as how many there are, and access to release notes.
  */
 typedef struct vpkc_update_info_t {
@@ -165,6 +186,38 @@ extern "C" {
 #endif // __cplusplus
 
 /**
+ * Create a new FileSource update source for a given file path.
+ */
+vpkc_update_source_t *vpkc_new_source_file(const char *psz_file_path);
+
+/**
+ * Create a new HttpSource update source for a given HTTP URL.
+ */
+vpkc_update_source_t *vpkc_new_source_http_url(const char *psz_http_url);
+
+/**
+ * Create a new _CUSTOM_ update source with user-provided callbacks to fetch release feeds and download assets.
+ * You can report download progress using `vpkc_source_report_progress`. Note that the callbacks must be valid
+ * for the lifetime of any UpdateManager's that use this source. You should call `vpkc_free_source` to free the source,
+ * but note that if the source is still in use by an UpdateManager, it will not be freed until the UpdateManager is freed.
+ * Therefore to avoid possible issues, it is recommended to create this type of source once for the lifetime of your application.
+ */
+vpkc_update_source_t *vpkc_new_source_custom_callback(vpkc_release_feed_delegate_t cb_release_feed,
+                                                      vpkc_download_asset_delegate_t cb_download_entry,
+                                                      void *p_user_data);
+
+/**
+ * Sends a progress update to the callback with the specified ID. This is used by custom
+ * update sources created with `vpkc_new_source_custom_callback` to report download progress.
+ */
+void vpkc_source_report_progress(size_t progress_callback_id, int16_t progress);
+
+/**
+ * Frees a vpkc_update_source_t instance.
+ */
+void vpkc_free_source(vpkc_update_source_t *p_source);
+
+/**
  * Create a new UpdateManager instance.
  * @param urlOrPath Location of the update server or path to the local update directory.
  * @param options Optional extra configuration for update manager.
@@ -176,28 +229,15 @@ bool vpkc_new_update_manager(const char *psz_url_or_path,
                              vpkc_update_manager_t **p_manager);
 
 /**
- * Create a new UpdateManager instance.
+ * Create a new UpdateManager instance with a custom UpdateSource.
+ * @param urlOrPath Location of the update server or path to the local update directory.
  * @param options Optional extra configuration for update manager.
  * @param locator Override the default locator configuration (usually used for testing / mocks).
- * @param callback to override the default update source
- * (AutoSource). Retrieve the list of available remote releases from
- * the package source. These releases can subsequently be downloaded
- * with cb_download_release_entry.
- * @param callback to override the default update source
- * (AutoSource). Download the specified VelopackAsset to the provided
- * local file path.
- * @param parameter to the callbacks to override the default update
- * source (AutoSource). It's the user's responsibilty to ensure that
- * it's safe to send and share it across threads
  */
-bool vpkc_new_custom_update_manager(const char *(*cb_get_release_feed)(const char*, void*),
-                                    bool (*cb_download_release_entry)(const char*,
-                                                                      const char*,
-                                                                      void*),
-                                    void *p_user_data,
-                                    struct vpkc_update_options_t *p_options,
-                                    struct vpkc_locator_config_t *p_locator,
-                                    vpkc_update_manager_t **p_manager);
+bool vpkc_new_update_manager_with_source(vpkc_update_source_t *p_source,
+                                         struct vpkc_update_options_t *p_options,
+                                         struct vpkc_locator_config_t *p_locator,
+                                         vpkc_update_manager_t **p_manager);
 
 /**
  * Returns the currently installed version of the app.

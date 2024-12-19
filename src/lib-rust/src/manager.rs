@@ -142,6 +142,23 @@ impl UpdateManager {
         options: Option<UpdateOptions>,
         locator: Option<VelopackLocatorConfig>,
     ) -> Result<UpdateManager, Error> {
+        UpdateManager::new_boxed(source.clone_boxed(), options, locator)
+    }
+
+    /// Create a new UpdateManager instance using the specified UpdateSource.
+    /// This will return an error if the application is not yet installed.
+    /// ## Example:
+    /// ```rust
+    /// use velopack::*;
+    ///
+    /// let source = sources::HttpSource::new("https://the.place/you-host/updates");
+    /// let um = UpdateManager::new_boxed(Box::new(source), None, None);
+    /// ```
+    pub fn new_boxed(
+        source: Box<dyn UpdateSource>,
+        options: Option<UpdateOptions>,
+        locator: Option<VelopackLocatorConfig>,
+    ) -> Result<UpdateManager, Error> {
         let locator = if let Some(config) = locator {
             warn!("Using explicit locator configuration, ignoring auto-locate.");
             let manifest = config.load_manifest()?;
@@ -151,7 +168,7 @@ impl UpdateManager {
         };
         Ok(UpdateManager {
             options: options.unwrap_or_default(),
-            source: source.clone_boxed(),
+            source,
             locator,
         })
     }
