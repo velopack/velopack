@@ -64,12 +64,15 @@ pretty-bytes-rust.workspace = true
 enum-flags.workspace = true
 log-panics.workspace = true
 
-[target.'cfg(unix)'.dependencies]
-native-dialog.workspace = true
+[target.'cfg(target_os="linux")'.dependencies]
 waitpid-any.workspace = true
 dialog.workspace = true
 libc.workspace = true
-tikv-jemallocator.workspace = true
+
+[target.'cfg(target_os="macos")'.dependencies]
+core-foundation.workspace = true
+core-foundation-sys.workspace = true
+waitpid-any.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 fs_extra.workspace = true
