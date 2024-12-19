@@ -64,7 +64,6 @@ winres = "0.1"
 tempfile = "3.9"
 ntest = "0.9"
 pretty_assertions = "1.4"
-native-dialog = "0.7"
 waitpid-any = "0.2"
 dialog = "0.3"
 libc = "0.2"
@@ -79,7 +78,8 @@ webview2-com = "0.33"
 windows = "0.58"
 cbindgen = "0.27"
 log-panics = "2.1.0"
-tikv-jemallocator = "0.6"
+core-foundation = "0.10"
+core-foundation-sys = "0.8"
 
 # default to small, optimized workspace release binaries
 [profile.release]

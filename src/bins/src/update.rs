@@ -1,13 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(dead_code)]
 
-// https://github.com/rust-lang/rust/issues/92173
-#[cfg(target_os = "macos")]
-use tikv_jemallocator::Jemalloc;
-#[cfg(target_os = "macos")]
-#[global_allocator]
-static GLOBAL: Jemalloc = Jemalloc;
-
 #[macro_use]
 extern crate log;
 
