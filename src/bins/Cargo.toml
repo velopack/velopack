@@ -105,6 +105,7 @@ webview2-com = "0.33"
 libloading.workspace = true
 strsim.workspace = true
 same-file.workspace = true
+mimalloc.workspace = true
 # filelocksmith.workspace = true
 
 [dev-dependencies]

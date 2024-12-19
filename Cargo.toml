@@ -79,6 +79,7 @@ webview2-com = "0.33"
 windows = "0.58"
 cbindgen = "0.27"
 log-panics = "2.1.0"
+mimalloc = { version = "0.1", features = ["secure"] }
 
 # default to small, optimized workspace release binaries
 [profile.release]
