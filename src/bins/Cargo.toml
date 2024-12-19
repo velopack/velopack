@@ -69,6 +69,7 @@ native-dialog.workspace = true
 waitpid-any.workspace = true
 dialog.workspace = true
 libc.workspace = true
+tikv-jemallocator.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 fs_extra.workspace = true
@@ -105,7 +106,6 @@ webview2-com = "0.33"
 libloading.workspace = true
 strsim.workspace = true
 same-file.workspace = true
-tikv-jemallocator.workspace = true
 # filelocksmith.workspace = true
 
 [dev-dependencies]
