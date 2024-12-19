@@ -4,14 +4,76 @@
 
 mod statics;
 use statics::*;
-
 mod types;
 use types::*;
+mod csource;
+use csource::*;
+mod raw;
+use raw::*;
 
 use anyhow::{anyhow, bail};
 use libc::{c_char, c_void, size_t};
-use std::ffi::CString;
+use std::{ffi::CString, ptr};
 use velopack::{sources, Error as VelopackError, UpdateCheck, UpdateManager, VelopackApp};
+
+/// Create a new FileSource update source for a given file path.
+#[no_mangle]
+pub extern "C" fn vpkc_new_source_file(psz_file_path: *const c_char) -> *mut vpkc_update_source_t {
+    if let Some(update_path) = c_to_string_opt(psz_file_path) {
+        UpdateSourceRawPtr::new(Box::new(sources::FileSource::new(update_path)))
+    } else {
+        ptr::null_mut()
+    }
+}
+
+/// Create a new HttpSource update source for a given HTTP URL.
+#[no_mangle]
+pub extern "C" fn vpkc_new_source_http_url(psz_http_url: *const c_char) -> *mut vpkc_update_source_t {
+    if let Some(update_url) = c_to_string_opt(psz_http_url) {
+        UpdateSourceRawPtr::new(Box::new(sources::FileSource::new(update_url)))
+    } else {
+        ptr::null_mut()
+    }
+}
+
+/// Create a new _CUSTOM_ update source with user-provided callbacks to fetch release feeds and download assets.
+/// You can report download progress using `vpkc_source_report_progress`. Note that the callbacks must be valid
+/// for the lifetime of any UpdateManager's that use this source. You should call `vpkc_free_source` to free the source,
+/// but note that if the source is still in use by an UpdateManager, it will not be freed until the UpdateManager is freed.
+/// Therefore to avoid possible issues, it is recommended to create this type of source once for the lifetime of your application.
+#[no_mangle]
+pub extern "C" fn vpkc_new_source_custom_callback(
+    cb_release_feed: vpkc_release_feed_delegate_t,
+    cb_download_entry: vpkc_download_asset_delegate_t,
+    p_user_data: *mut c_void,
+) -> *mut vpkc_update_source_t {
+    let cb_release_feed = cb_release_feed.to_option();
+    let cb_download_entry = cb_download_entry.to_option();
+    if cb_release_feed.is_none() || cb_download_entry.is_none() {
+        return ptr::null_mut();
+    }
+
+    let source = CCallbackUpdateSource {
+        p_user_data,
+        cb_get_release_feed: cb_release_feed.unwrap(),
+        cb_download_release_entry: cb_download_entry.unwrap(),
+    };
+
+    UpdateSourceRawPtr::new(Box::new(source))
+}
+
+/// Sends a progress update to the callback with the specified ID. This is used by custom
+/// update sources created with `vpkc_new_source_custom_callback` to report download progress.
+#[no_mangle]
+pub extern "C" fn vpkc_source_report_progress(progress_callback_id: size_t, progress: i16) {
+    report_csource_progress(progress_callback_id, progress);
+}
+
+/// Frees a vpkc_update_source_t instance.
+#[no_mangle]
+pub extern "C" fn vpkc_free_source(p_source: *mut vpkc_update_source_t) {
+    UpdateSourceRawPtr::free(p_source);
+}
 
 /// Create a new UpdateManager instance.
 /// @param urlOrPath Location of the update server or path to the local update directory.
@@ -30,6 +92,27 @@ pub extern "C" fn vpkc_new_update_manager(
         let options = c_to_updateoptions_opt(p_options);
         let locator = c_to_velopacklocatorconfig_opt(p_locator);
         let manager = UpdateManager::new(source, options, locator)?;
+        unsafe { *p_manager = UpdateManagerRawPtr::new(manager) };
+        Ok(())
+    })
+}
+
+/// Create a new UpdateManager instance with a custom UpdateSource.
+/// @param urlOrPath Location of the update server or path to the local update directory.
+/// @param options Optional extra configuration for update manager.
+/// @param locator Override the default locator configuration (usually used for testing / mocks).
+#[no_mangle]
+pub extern "C" fn vpkc_new_update_manager_with_source(
+    p_source: *mut vpkc_update_source_t,
+    p_options: *mut vpkc_update_options_t,
+    p_locator: *mut vpkc_locator_config_t,
+    p_manager: *mut *mut vpkc_update_manager_t,
+) -> bool {
+    wrap_error(|| {
+        let source = UpdateSourceRawPtr::get_source_clone(p_source).ok_or(anyhow!("pSource must not be null"))?;
+        let options = c_to_updateoptions_opt(p_options);
+        let locator = c_to_velopacklocatorconfig_opt(p_locator);
+        let manager = UpdateManager::new_boxed(source, options, locator)?;
         unsafe { *p_manager = UpdateManagerRawPtr::new(manager) };
         Ok(())
     })

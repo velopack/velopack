@@ -8,6 +8,7 @@
 #include <optional>
 #include <vector>
 #include <stdexcept>
+#include <memory>
 
 #include "Velopack.h"
 
@@ -334,11 +335,30 @@ public:
 };
 
 /**
+ * Implement this interface override the default update source
+ * (AutoSource)
+ */
+class IUpdateSource {
+public:
+    /** @param Retrieve the list of available remote releases from
+     * the package source. These releases can subsequently be downloaded
+     * with DownloadReleaseEntry().
+     */
+    virtual const char* GetReleaseFeed(const char* releasesName) = 0;
+
+    /** @param Download the specified VelopackAsset to the provided local file path.
+     */
+    virtual bool DownloadReleaseEntry(const char* assetFileName, const char* localFilePath) = 0;
+};
+
+/**
  * Provides functionality for checking for updates, downloading updates, and applying updates to the current application.
  */
 class UpdateManager {
 private:
     vpkc_update_manager_t* m_pManager = 0;
+    std::unique_ptr<IUpdateSource> m_pUpdateSource;
+
 public:
     /**
      * Create a new UpdateManager instance.
@@ -362,6 +382,42 @@ public:
         }
         
         if (!vpkc_new_update_manager(urlOrPath.c_str(), pOptions, pLocator, &m_pManager)) {
+            throw_last_error();
+        }
+    };
+
+    /**
+     * Create a new UpdateManager instance.
+     * @param pUpdateSource Custom update source implementation.
+     * @param options Optional extra configuration for update manager.
+     * @param locator Override the default locator configuration (usually used for testing / mocks).
+     */
+    UpdateManager(std::unique_ptr<IUpdateSource> pUpdateSource, const UpdateOptions* options = nullptr, const VelopackLocatorConfig* locator = nullptr) {
+        vpkc_update_options_t* pOptions = nullptr;
+        if (options != nullptr) {
+            vpkc_update_options_t vpkc_options = to_c(*options);
+            pOptions = &vpkc_options;
+        }
+
+        vpkc_locator_config_t* pLocator = nullptr;
+        if (locator != nullptr) {
+            vpkc_locator_config_t vpkc_locator = to_c(*locator);
+            pLocator = &vpkc_locator;
+        }
+
+        auto cbGetReleaseFeed = [](const char* releasesName, void* userData) {
+            IUpdateSource* source = reinterpret_cast<IUpdateSource*>(userData);
+            return source->GetReleaseFeed(releasesName);
+            };
+
+        auto cbDownloadReleaseEntry = [](const char* assetFileName, const char* localFilePath, void* userData) {
+            IUpdateSource* source = reinterpret_cast<IUpdateSource*>(userData);
+            return source->DownloadReleaseEntry(assetFileName, localFilePath);
+            };
+
+        m_pUpdateSource.swap(pUpdateSource);
+
+        if (!vpkc_new_custom_update_manager(cbGetReleaseFeed, cbDownloadReleaseEntry, m_pUpdateSource.get(), pOptions, pLocator, &m_pManager)) {
             throw_last_error();
         }
     };
