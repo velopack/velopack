@@ -347,15 +347,17 @@ public:
      * @param locator Override the default locator configuration (usually used for testing / mocks).
      */
     UpdateManager(const std::string& urlOrPath, const UpdateOptions* options = nullptr, const VelopackLocatorConfig* locator = nullptr) {
+        vpkc_update_options_t vpkc_options;
         vpkc_update_options_t* pOptions = nullptr;
         if (options != nullptr) {
-            vpkc_update_options_t vpkc_options = to_c(*options);
+            vpkc_options = to_c(*options);
             pOptions = &vpkc_options;
         }
         
+        vpkc_locator_config_t vpkc_locator;
         vpkc_locator_config_t* pLocator = nullptr;
         if (locator != nullptr) {
-            vpkc_locator_config_t vpkc_locator = to_c(*locator);
+            vpkc_locator = to_c(*locator);
             pLocator = &vpkc_locator;
         }
         
