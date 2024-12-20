@@ -35,6 +35,12 @@ impl CallbackExt for vpkc_download_asset_delegate_t {
     }
 }
 
+impl CallbackExt for vpkc_free_release_feed_t {
+    fn to_option(self) -> Option<Self> {
+        unsafe { std::mem::transmute::<Self, Option<Self>>(self) }
+    }
+}
+
 pub trait RawPtrExt<'a, T>: Sized {
     fn to_opaque_ref(self) -> Option<&'a T>;
 }

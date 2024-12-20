@@ -9,6 +9,7 @@
 #include <vector>
 #include <stdexcept>
 #include <memory>
+#include <functional>
 
 #include "Velopack.h"
 
@@ -192,23 +193,32 @@ static inline UpdateOptions to_cpp(const vpkc_update_options_t& dto) {
 }
 // !! AUTO-GENERATED-END CPP_TYPES
 
-static inline char** to_cstring_array(const std::vector<std::string>& vec) {
+static inline char* allocate_cstring(const std::string& str) {
+    char* result = new char[str.size() + 1]; // +1 for null-terminator
+#ifdef _WIN32
+    strcpy_s(result, str.size() + 1, str.c_str());  // Copy string content
+#else
+    strcpy(result, str.c_str());  // Copy string content
+#endif
+    result[str.size()] = '\0'; // Null-terminate the string
+    return result;
+}
+
+static inline void free_cstring(char* str) {
+    delete[] str;
+}
+
+static inline char** allocate_cstring_array(const std::vector<std::string>& vec) {
     char** result = new char*[vec.size()];
     for (size_t i = 0; i < vec.size(); ++i) {
-        result[i] = new char[vec[i].size() + 1]; // +1 for null-terminator
-#ifdef _WIN32
-        strcpy_s(result[i], vec[i].size() + 1, vec[i].c_str());  // Copy string content
-#else
-        strcpy(result[i], vec[i].c_str());  // Copy string content
-#endif
-        result[i][vec[i].size()] = '\0'; // Null-terminate the string
+        result[i] = allocate_cstring(vec[i]);
     }
     return result;
 }
 
 static inline void free_cstring_array(char** arr, size_t size) {
     for (size_t i = 0; i < size; ++i) {
-        delete[] arr[i];
+        free_cstring(arr[i]);
         arr[i] = nullptr;
     }
     delete[] arr;
@@ -250,7 +260,7 @@ public:
      * Override the command line arguments used by VelopackApp. (by default this is env::args().skip(1))
      */
     VelopackApp& SetArgs(const std::vector<std::string>& args) {
-        char** pArgs = to_cstring_array(args);
+        char** pArgs = allocate_cstring_array(args);
         vpkc_app_set_args(pArgs, args.size());
         free_cstring_array(pArgs, args.size());
         return *this;
@@ -335,20 +345,65 @@ public:
 };
 
 /**
- * Implement this interface override the default update source
- * (AutoSource)
+ * Progress callback function. Call with values between 0 and 100 inclusive.
+ */
+typedef std::function<void(size_t)> vpkc_progress_send_t;
+
+/**
+ * Abstract class for retrieving release feeds and downloading assets. You should subclass this and 
+ * implement/override the GetReleaseFeed and DownloadReleaseEntry methods.
+ * This class is used by the UpdateManager to fetch release feeds and download assets in a custom way.
  */
 class IUpdateSource {
+    friend class UpdateManager;
+    friend class FileSource;
+    friend class HttpSource;
+private: 
+    IUpdateSource(vpkc_update_source_t* pSource) : m_pSource(pSource) {}
+    vpkc_update_source_t* m_pSource = 0;
 public:
-    /** @param Retrieve the list of available remote releases from
-     * the package source. These releases can subsequently be downloaded
-     * with DownloadReleaseEntry().
-     */
-    virtual const char* GetReleaseFeed(const char* releasesName) = 0;
+    ~IUpdateSource() {
+        vpkc_free_source(m_pSource);
+    }
+    IUpdateSource() {
+        m_pSource = vpkc_new_source_custom_callback(
+            [](void* userData, const char* releasesName) {
+                IUpdateSource* source = reinterpret_cast<IUpdateSource*>(userData);
+                std::string json = source->GetReleaseFeed(releasesName);
+                return allocate_cstring(json);
+            }, 
+            [](void* userData, char* pszFeed) {
+                free_cstring(pszFeed);
+            },
+            [](void* userData, const struct vpkc_asset_t *pAsset, const char* pszLocalPath, size_t progressCallbackId) {
+                IUpdateSource* source = reinterpret_cast<IUpdateSource*>(userData);
+                VelopackAsset asset = to_cpp(*pAsset);
+                std::string localPath = to_cppstring(pszLocalPath);
+                std::function<void(size_t)> progress_callback = [progressCallbackId](size_t progress) {
+                    vpkc_source_report_progress(progressCallbackId, progress);
+                };
+                return source->DownloadReleaseEntry(asset, localPath, progress_callback);
+            },
+            this);
+    }
+    virtual const std::string GetReleaseFeed(const std::string releasesName) = 0;
+    virtual bool DownloadReleaseEntry(const VelopackAsset& asset, const std::string localFilePath, vpkc_progress_send_t progress) = 0;
+};
 
-    /** @param Download the specified VelopackAsset to the provided local file path.
-     */
-    virtual bool DownloadReleaseEntry(const char* assetFileName, const char* localFilePath) = 0;
+/**
+ * A simple update source that reads release feeds and downloads assets from a local file path.
+ */
+class FileSource : public IUpdateSource {
+public:
+    FileSource(const std::string& filePath) : IUpdateSource(vpkc_new_source_file(filePath.c_str())) { }
+};
+
+/**
+ * A simple update source that reads release feeds and downloads assets from an remote http url.
+ */
+class HttpSource : public IUpdateSource {
+public:
+    HttpSource(const std::string& httpUrl) : IUpdateSource(vpkc_new_source_http_url(httpUrl.c_str())) { }
 };
 
 /**
@@ -362,7 +417,7 @@ private:
 public:
     /**
      * Create a new UpdateManager instance.
-     * @param urlOrPath Location of the update server or path to the local update directory.
+     * @param urlOrPath Location of the http update server or the local update directory path containing releases.
      * @param options Optional extra configuration for update manager.
      * @param locator Override the default locator configuration (usually used for testing / mocks).
      */
@@ -388,36 +443,28 @@ public:
 
     /**
      * Create a new UpdateManager instance.
-     * @param pUpdateSource Custom update source implementation.
+     * @param updateSource The source to use for retrieving feed and downloading assets.
      * @param options Optional extra configuration for update manager.
      * @param locator Override the default locator configuration (usually used for testing / mocks).
      */
     UpdateManager(std::unique_ptr<IUpdateSource> pUpdateSource, const UpdateOptions* options = nullptr, const VelopackLocatorConfig* locator = nullptr) {
+        vpkc_update_options_t vpkc_options;
         vpkc_update_options_t* pOptions = nullptr;
         if (options != nullptr) {
-            vpkc_update_options_t vpkc_options = to_c(*options);
+            vpkc_options = to_c(*options);
             pOptions = &vpkc_options;
         }
-
+        
+        vpkc_locator_config_t vpkc_locator;
         vpkc_locator_config_t* pLocator = nullptr;
         if (locator != nullptr) {
-            vpkc_locator_config_t vpkc_locator = to_c(*locator);
+            vpkc_locator = to_c(*locator);
             pLocator = &vpkc_locator;
         }
 
-        auto cbGetReleaseFeed = [](const char* releasesName, void* userData) {
-            IUpdateSource* source = reinterpret_cast<IUpdateSource*>(userData);
-            return source->GetReleaseFeed(releasesName);
-            };
-
-        auto cbDownloadReleaseEntry = [](const char* assetFileName, const char* localFilePath, void* userData) {
-            IUpdateSource* source = reinterpret_cast<IUpdateSource*>(userData);
-            return source->DownloadReleaseEntry(assetFileName, localFilePath);
-            };
-
         m_pUpdateSource.swap(pUpdateSource);
-
-        if (!vpkc_new_custom_update_manager(cbGetReleaseFeed, cbDownloadReleaseEntry, m_pUpdateSource.get(), pOptions, pLocator, &m_pManager)) {
+        vpkc_update_source_t* pSource = m_pUpdateSource->m_pSource;
+        if (!vpkc_new_update_manager_with_source(pSource, pOptions, pLocator, &m_pManager)) {
             throw_last_error();
         }
     };
@@ -514,7 +561,7 @@ public:
      * optionally restart your app. The updater will only wait for 60 seconds before giving up.
      */
     void WaitExitThenApplyUpdate(const VelopackAsset& asset, bool silent = false, bool restart = true, std::vector<std::string> restartArgs = {}) {
-        char** pRestartArgs = to_cstring_array(restartArgs);
+        char** pRestartArgs = allocate_cstring_array(restartArgs);
         vpkc_asset_t vpkc_asset = to_c(asset);
         bool result = vpkc_wait_exit_then_apply_update(m_pManager, &vpkc_asset, silent, restart, pRestartArgs, restartArgs.size());
         free_cstring_array(pRestartArgs, restartArgs.size());

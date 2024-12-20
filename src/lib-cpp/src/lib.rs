@@ -44,12 +44,14 @@ pub extern "C" fn vpkc_new_source_http_url(psz_http_url: *const c_char) -> *mut 
 #[no_mangle]
 pub extern "C" fn vpkc_new_source_custom_callback(
     cb_release_feed: vpkc_release_feed_delegate_t,
+    cb_free_release_feed: vpkc_free_release_feed_t,
     cb_download_entry: vpkc_download_asset_delegate_t,
     p_user_data: *mut c_void,
 ) -> *mut vpkc_update_source_t {
     let cb_release_feed = cb_release_feed.to_option();
     let cb_download_entry = cb_download_entry.to_option();
-    if cb_release_feed.is_none() || cb_download_entry.is_none() {
+    let cb_free_release_feed = cb_free_release_feed.to_option();
+    if cb_release_feed.is_none() || cb_download_entry.is_none() || cb_free_release_feed.is_none() {
         return ptr::null_mut();
     }
 
@@ -57,6 +59,7 @@ pub extern "C" fn vpkc_new_source_custom_callback(
         p_user_data,
         cb_get_release_feed: cb_release_feed.unwrap(),
         cb_download_release_entry: cb_download_entry.unwrap(),
+        cb_free_release_feed: cb_free_release_feed.unwrap(),
     };
 
     UpdateSourceRawPtr::new(Box::new(source))

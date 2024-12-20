@@ -35,7 +35,12 @@ typedef void vpkc_update_source_t;
 /**
  * User delegate for to fetch a release feed. This function should return the raw JSON string of the release.json feed.
  */
-typedef const char *(*vpkc_release_feed_delegate_t)(void *p_user_data, const char *psz_releases_name);
+typedef char *(*vpkc_release_feed_delegate_t)(void *p_user_data, const char *psz_releases_name);
+
+/**
+ * User delegate for freeing a release feed. This function should free the feed string returned by `vpkc_release_feed_delegate_t`.
+ */
+typedef void (*vpkc_free_release_feed_t)(void *p_user_data, char *psz_feed);
 
 /**
  * An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
@@ -203,6 +208,7 @@ vpkc_update_source_t *vpkc_new_source_http_url(const char *psz_http_url);
  * Therefore to avoid possible issues, it is recommended to create this type of source once for the lifetime of your application.
  */
 vpkc_update_source_t *vpkc_new_source_custom_callback(vpkc_release_feed_delegate_t cb_release_feed,
+                                                      vpkc_free_release_feed_t cb_free_release_feed,
                                                       vpkc_download_asset_delegate_t cb_download_entry,
                                                       void *p_user_data);
 
