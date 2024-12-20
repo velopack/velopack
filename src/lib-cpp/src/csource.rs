@@ -14,7 +14,7 @@ use velopack::{bundle::Manifest, sources::UpdateSource, Error, VelopackAsset, Ve
 
 lazy_static! {
     static ref PROGRESS_CALLBACKS: RwLock<HashMap<size_t, Sender<i16>>> = RwLock::new(HashMap::new());
-    static ref PROGRESS_ID: AtomicUsize = AtomicUsize::new(0);
+    static ref PROGRESS_ID: AtomicUsize = AtomicUsize::new(1);
 }
 
 pub fn report_csource_progress(callback_id: size_t, progress: i16) {
@@ -39,38 +39,53 @@ impl UpdateSource for CCallbackUpdateSource {
     fn get_release_feed(&self, channel: &str, _: &Manifest) -> Result<VelopackAssetFeed, Error> {
         let releases_name = format!("releases.{}.json", channel);
         let releases_name_cstr = CString::new(releases_name).unwrap();
-        let json_cstr_ptr = (self.cb_get_release_feed)(self.p_user_data, releases_name_cstr.as_ptr());
-        let json = c_to_string_opt(json_cstr_ptr)
-            .ok_or(Error::Generic("User vpkc_release_feed_delegate_t returned a null pointer instead of an asset feed".to_string()))?;
-        (self.cb_free_release_feed)(self.p_user_data, json_cstr_ptr); // Free the C string returned by the callback
-        let feed: VelopackAssetFeed = serde_json::from_str(&json)?;
-        Ok(feed)
+
+        if let Some(cb_get_release_feed) = self.cb_get_release_feed {
+            let json_cstr_ptr = (cb_get_release_feed)(self.p_user_data, releases_name_cstr.as_ptr());
+            let json = c_to_string_opt(json_cstr_ptr)
+                .ok_or(Error::Generic("User vpkc_release_feed_delegate_t returned a null pointer instead of an asset feed".to_string()))?;
+
+            if let Some(cb_free_release_feed) = self.cb_free_release_feed {
+                (cb_free_release_feed)(self.p_user_data, json_cstr_ptr); // Free the C string returned by the callback
+            } else {
+                log::error!("User vpkc_release_feed_delegate_t is null, this may be a memory leak");
+            }
+            let feed: VelopackAssetFeed = serde_json::from_str(&json)?;
+            Ok(feed)
+        } else {
+            Err(Error::Generic("User vpkc_release_feed_delegate_t is null".to_string()))
+        }
     }
 
     fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
-        let local_file_cstr = CString::new(local_file).unwrap();
-        let asset_ptr: *mut vpkc_asset_t = std::ptr::null_mut();
-        unsafe { allocate_velopackasset(asset.clone(), asset_ptr) };
+        if let Some(cb_download_release_entry) = self.cb_download_release_entry {
+            let local_file_cstr = CString::new(local_file).unwrap();
+            let mut asset_c: vpkc_asset_t = unsafe { std::mem::zeroed() };
+            let asset_ptr: *mut vpkc_asset_t = &mut asset_c as *mut vpkc_asset_t;
+            unsafe { allocate_velopackasset(asset.clone(), asset_ptr) };
 
-        let progress_callback_id = PROGRESS_ID.fetch_add(1, Ordering::SeqCst);
-        if let Some(progress_sender) = &progress_sender {
-            let _ = progress_sender.send(0);
-            PROGRESS_CALLBACKS.write().unwrap().insert(progress_callback_id, progress_sender.clone());
+            let progress_callback_id = PROGRESS_ID.fetch_add(1, Ordering::SeqCst);
+            if let Some(progress_sender) = &progress_sender {
+                let _ = progress_sender.send(0);
+                PROGRESS_CALLBACKS.write().unwrap().insert(progress_callback_id, progress_sender.clone());
+            }
+
+            let success = (cb_download_release_entry)(self.p_user_data, asset_ptr, local_file_cstr.as_ptr(), progress_callback_id);
+
+            unsafe { free_velopackasset(asset_ptr) };
+
+            if let Some(sender) = PROGRESS_CALLBACKS.write().unwrap().remove(&progress_callback_id) {
+                let _ = sender.send(100);
+            }
+
+            if !success {
+                return Err(Error::Generic("User vpkc_download_asset_delegate_t returned false to indicate download failed".to_owned()));
+            }
+
+            Ok(())
+        } else {
+            Err(Error::Generic("User vpkc_download_asset_delegate_t is null".to_string()))
         }
-
-        let success = (self.cb_download_release_entry)(self.p_user_data, asset_ptr, local_file_cstr.as_ptr(), progress_callback_id);
-
-        unsafe { free_velopackasset(asset_ptr) };
-
-        if let Some(sender) = PROGRESS_CALLBACKS.write().unwrap().remove(&progress_callback_id) {
-            let _ = sender.send(100);
-        }
-
-        if !success {
-            return Err(Error::Generic("User vpkc_download_asset_delegate_t returned false to indicate download failed".to_owned()));
-        }
-
-        Ok(())
     }
 
     fn clone_boxed(&self) -> Box<dyn UpdateSource> {

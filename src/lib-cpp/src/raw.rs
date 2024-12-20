@@ -1,46 +1,6 @@
 use crate::types::*;
 use velopack::{sources::UpdateSource, UpdateManager};
 
-pub trait CallbackExt: Sized {
-    fn to_option(self) -> Option<Self>;
-}
-
-impl CallbackExt for vpkc_progress_callback_t {
-    fn to_option(self) -> Option<Self> {
-        unsafe { std::mem::transmute::<Self, Option<Self>>(self) }
-    }
-}
-
-impl CallbackExt for vpkc_log_callback_t {
-    fn to_option(self) -> Option<Self> {
-        unsafe { std::mem::transmute::<Self, Option<Self>>(self) }
-    }
-}
-
-impl CallbackExt for vpkc_hook_callback_t {
-    fn to_option(self) -> Option<Self> {
-        unsafe { std::mem::transmute::<Self, Option<Self>>(self) }
-    }
-}
-
-impl CallbackExt for vpkc_release_feed_delegate_t {
-    fn to_option(self) -> Option<Self> {
-        unsafe { std::mem::transmute::<Self, Option<Self>>(self) }
-    }
-}
-
-impl CallbackExt for vpkc_download_asset_delegate_t {
-    fn to_option(self) -> Option<Self> {
-        unsafe { std::mem::transmute::<Self, Option<Self>>(self) }
-    }
-}
-
-impl CallbackExt for vpkc_free_release_feed_t {
-    fn to_option(self) -> Option<Self> {
-        unsafe { std::mem::transmute::<Self, Option<Self>>(self) }
-    }
-}
-
 pub trait RawPtrExt<'a, T>: Sized {
     fn to_opaque_ref(self) -> Option<&'a T>;
 }

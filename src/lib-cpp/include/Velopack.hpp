@@ -362,7 +362,7 @@ private:
     IUpdateSource(vpkc_update_source_t* pSource) : m_pSource(pSource) {}
     vpkc_update_source_t* m_pSource = 0;
 public:
-    ~IUpdateSource() {
+    virtual ~IUpdateSource() {
         vpkc_free_source(m_pSource);
     }
     IUpdateSource() {
@@ -447,7 +447,8 @@ public:
      * @param options Optional extra configuration for update manager.
      * @param locator Override the default locator configuration (usually used for testing / mocks).
      */
-    UpdateManager(std::unique_ptr<IUpdateSource> pUpdateSource, const UpdateOptions* options = nullptr, const VelopackLocatorConfig* locator = nullptr) {
+    template <typename T, typename = std::enable_if_t<std::is_base_of_v<IUpdateSource, T>>>
+    UpdateManager(std::unique_ptr<T> pUpdateSource, const UpdateOptions* options = nullptr, const VelopackLocatorConfig* locator = nullptr) {
         vpkc_update_options_t vpkc_options;
         vpkc_update_options_t* pOptions = nullptr;
         if (options != nullptr) {
@@ -462,7 +463,7 @@ public:
             pLocator = &vpkc_locator;
         }
 
-        m_pUpdateSource.swap(pUpdateSource);
+        m_pUpdateSource = std::unique_ptr<IUpdateSource>(static_cast<IUpdateSource*>(pUpdateSource.release()));
         vpkc_update_source_t* pSource = m_pUpdateSource->m_pSource;
         if (!vpkc_new_update_manager_with_source(pSource, pOptions, pLocator, &m_pManager)) {
             throw_last_error();
