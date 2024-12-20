@@ -34,7 +34,7 @@ glob = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 zip = { version = "2.2", default-features = false, features = ["deflate"] }
-thiserror = "1.0"
+thiserror = "2.0"
 lazy_static = "1.5"
 regex = "1.10"
 normpath = "1.3"

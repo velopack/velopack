@@ -2055,7 +2055,7 @@ dependencies = [
  "serde_json",
  "sha1",
  "sha2",
- "thiserror 1.0.69",
+ "thiserror 2.0.7",
  "ts-rs",
  "ureq",
  "url",

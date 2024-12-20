@@ -5,7 +5,7 @@
     ":semanticCommitsDisabled"
   ],
   "labels": ["renovate"],
-  "schedule": ["on friday before 11am"],
+  "schedule": ["on friday"],
   "timezone": "Europe/London",
   "ignorePaths": [
     "**/node_modules/**",
@@ -61,6 +61,7 @@
     },
     // troublesome/frozen packages
     {
+      "groupName": "frozen",
       "matchPackageNames": [
         "winsafe",
         "System.CommandLine",
@@ -72,10 +73,6 @@
     {
       "matchPackageNames": "SixLabors.ImageSharp",
       "allowedVersions": "< 3.0.0"
-    },
-    {
-      "matchPackageNames": "thiserror",
-      "allowedVersions": "< 2.0.0"
     },
     {
       "matchPackageNames": [
