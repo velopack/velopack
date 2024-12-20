@@ -63,10 +63,11 @@
     {
       "groupName": "frozen",
       "matchPackageNames": [
-        "winsafe",
-        "System.CommandLine",
-        "Microsoft.Extensions.Logging.Abstractions",
-        "@vercel/webpack-asset-relocator-loader"
+        "winsafe",                                    // newer versions causes runtime errors in release builds
+        "System.CommandLine",                         // too many breaking changes too frequently
+        "Microsoft.Extensions.Logging.Abstractions",  // we have multiple versions of this
+        "@vercel/webpack-asset-relocator-loader",     // an update was incompatible with electron
+        "xunit.runner.visualstudio"                   // 20-12-2024: broke tests (something about sn signing maybe?)
       ],
       "dependencyDashboardApproval": true
     },
