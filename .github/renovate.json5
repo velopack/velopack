@@ -23,37 +23,37 @@
   // https://docs.renovatebot.com/key-concepts/automerge
   "packageRules": [
     {
-      "groupName": "rust deps",
+      "groupName": "rust crates",
       "matchDatasources": "crate",
       "matchFileNames": ["Cargo.toml", "src/**"]
     },
     {
-      "groupName": "npm deps",
+      "groupName": "npm packages",
       "matchDatasources": "npm",
       "matchFileNames": ["src/**"]
     },
     {
-      "groupName": "dotnet deps",
+      "groupName": "dotnet packages",
       "matchDatasources": "nuget",
       "matchFileNames": ["src/**", "test/**"]
     },
     // samples
     {
-      "groupName": "sample rust deps",
+      "groupName": "sample rust crates",
       "matchDatasources": "crate",
       "matchFileNames": ["samples/**"],
       "separateMajorMinor": false,
       "automerge": true
     },
     {
-      "groupName": "sample dotnet deps",
+      "groupName": "sample dotnet packages",
       "matchDatasources": "nuget",
       "matchFileNames": ["samples/**"],
       "separateMajorMinor": false,
       "automerge": true
     },
     {
-      "groupName": "sample js deps",
+      "groupName": "sample js packages",
       "matchDatasources": "npm",
       "matchFileNames": ["samples/**"],
       "separateMajorMinor": false,
@@ -73,13 +73,6 @@
     {
       "matchPackageNames": "SixLabors.ImageSharp",
       "allowedVersions": "< 3.0.0"
-    },
-    {
-      "matchPackageNames": [
-        "Microsoft.Extensions.*",
-        "System.*"
-      ],
-      "allowedVersions": "< 9.0.0"
     }
   ]
 }
