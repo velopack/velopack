@@ -28,7 +28,10 @@ pub type vpkc_log_callback_t = extern "C" fn(p_user_data: *mut c_void, psz_level
 pub type vpkc_hook_callback_t = extern "C" fn(p_user_data: *mut c_void, psz_app_version: *const c_char);
 
 /// User delegate for to fetch a release feed. This function should return the raw JSON string of the release.json feed.
-pub type vpkc_release_feed_delegate_t = extern "C" fn(p_user_data: *mut c_void, psz_releases_name: *const c_char) -> *const c_char;
+pub type vpkc_release_feed_delegate_t = extern "C" fn(p_user_data: *mut c_void, psz_releases_name: *const c_char) -> *mut c_char;
+
+/// User delegate for freeing a release feed. This function should free the feed string returned by `vpkc_release_feed_delegate_t`.
+pub type vpkc_free_release_feed_t = extern "C" fn(p_user_data: *mut c_void, psz_feed: *mut c_char);
 
 /// User delegate for downloading an asset file. This function is expected to download the provided asset
 /// to the provided local file path. Througout, you can use the progress callback to write progress reports.

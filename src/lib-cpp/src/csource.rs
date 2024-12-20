@@ -28,6 +28,7 @@ pub fn report_csource_progress(callback_id: size_t, progress: i16) {
 pub struct CCallbackUpdateSource {
     pub p_user_data: *mut c_void,
     pub cb_get_release_feed: vpkc_release_feed_delegate_t,
+    pub cb_free_release_feed: vpkc_free_release_feed_t,
     pub cb_download_release_entry: vpkc_download_asset_delegate_t,
 }
 
@@ -41,6 +42,7 @@ impl UpdateSource for CCallbackUpdateSource {
         let json_cstr_ptr = (self.cb_get_release_feed)(self.p_user_data, releases_name_cstr.as_ptr());
         let json = c_to_string_opt(json_cstr_ptr)
             .ok_or(Error::Generic("User vpkc_release_feed_delegate_t returned a null pointer instead of an asset feed".to_string()))?;
+        (self.cb_free_release_feed)(self.p_user_data, json_cstr_ptr); // Free the C string returned by the callback
         let feed: VelopackAssetFeed = serde_json::from_str(&json)?;
         Ok(feed)
     }
