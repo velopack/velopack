@@ -19,30 +19,32 @@ pub type vpkc_update_manager_t = c_void;
 pub type vpkc_update_source_t = c_void;
 
 /// Progress callback function.
-pub type vpkc_progress_callback_t = extern "C" fn(p_user_data: *mut c_void, progress: size_t);
+pub type vpkc_progress_callback_t = Option<extern "C" fn(p_user_data: *mut c_void, progress: size_t)>;
 
 /// Log callback function.
-pub type vpkc_log_callback_t = extern "C" fn(p_user_data: *mut c_void, psz_level: *const c_char, psz_message: *const c_char);
+pub type vpkc_log_callback_t = Option<extern "C" fn(p_user_data: *mut c_void, psz_level: *const c_char, psz_message: *const c_char)>;
 
 /// VelopackApp startup hook callback function.
-pub type vpkc_hook_callback_t = extern "C" fn(p_user_data: *mut c_void, psz_app_version: *const c_char);
+pub type vpkc_hook_callback_t = Option<extern "C" fn(p_user_data: *mut c_void, psz_app_version: *const c_char)>;
 
 /// User delegate for to fetch a release feed. This function should return the raw JSON string of the release.json feed.
-pub type vpkc_release_feed_delegate_t = extern "C" fn(p_user_data: *mut c_void, psz_releases_name: *const c_char) -> *mut c_char;
+pub type vpkc_release_feed_delegate_t = Option<extern "C" fn(p_user_data: *mut c_void, psz_releases_name: *const c_char) -> *mut c_char>;
 
 /// User delegate for freeing a release feed. This function should free the feed string returned by `vpkc_release_feed_delegate_t`.
-pub type vpkc_free_release_feed_t = extern "C" fn(p_user_data: *mut c_void, psz_feed: *mut c_char);
+pub type vpkc_free_release_feed_t = Option<extern "C" fn(p_user_data: *mut c_void, psz_feed: *mut c_char)>;
 
 /// User delegate for downloading an asset file. This function is expected to download the provided asset
 /// to the provided local file path. Througout, you can use the progress callback to write progress reports.
 /// The function should return true if the download was successful, false otherwise.
 /// Progress
-pub type vpkc_download_asset_delegate_t = extern "C" fn(
-    p_user_data: *mut c_void,
-    p_asset: *const vpkc_asset_t,
-    psz_local_path: *const c_char,
-    progress_callback_id: size_t,
-) -> bool;
+pub type vpkc_download_asset_delegate_t = Option<
+    extern "C" fn(
+        p_user_data: *mut c_void,
+        p_asset: *const vpkc_asset_t,
+        psz_local_path: *const c_char,
+        progress_callback_id: size_t,
+    ) -> bool,
+>;
 
 pub fn c_to_string_opt(psz: *const c_char) -> Option<String> {
     if psz.is_null() {
