@@ -74,7 +74,7 @@ filelocksmith = "0.1"
 image = { version = "0.25", default-features = false, features = ["gif", "jpeg", "png"] }
 fs_extra = "1.3"
 memmap2 = "0.9"
-webview2-com = "0.33"
+webview2-com = "0.34"
 windows = "0.58"
 cbindgen = "0.27"
 log-panics = "2.1.0"
