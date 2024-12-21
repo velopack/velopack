@@ -40,10 +40,7 @@ public class TrustedSigningTests
     public async void CanSignWithTrustedSigning()
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows, "Only supported on Windows");
-
-        if (!PathHelper.IsCI) {
-            Skip.IfNot(await IsAuthenticatedForCodeSigningAsync(), "Sign in with az login first");
-        }
+        Skip.IfNot(await IsAuthenticatedForCodeSigningAsync(), "Sign in with az login first");
 
         using var logger = _output.BuildLoggerFor<TrustedSigningTests>(LogLevel.Debug);
         using var _ = TempUtil.GetTempDirectory(out var releaseDir);
