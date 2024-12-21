@@ -2,13 +2,59 @@
 #include <optional>
 #include <string>
 #include <thread>
+
+// Includes for MyExampleUpdateSource
+#include <fstream>
+#include <sstream>
+#include <filesystem>
+#include <thread>
+
 #include "Velopack.hpp"
 
 using namespace Velopack;
 
+/**
+ * This is just an example of how to create a fully custom update source
+ * Normally, you should use one of the built-ins instead, like FileSource or HttpSource.
+ */
+class MyExampleUpdateSource : public IUpdateSource
+{
+public:
+    const std::string GetReleaseFeed(const std::string releasesName) override
+    {
+        std::string releasesFile = std::string(RELEASES_DIR) + "\\" + releasesName;
+        std::ifstream t(releasesFile);
+        std::stringstream buffer;
+        buffer << t.rdbuf();
+        return buffer.str();
+    }
+    bool DownloadReleaseEntry(const VelopackAsset& asset, const std::string localFilePath, vpkc_progress_send_t progress) override
+    {
+        using namespace std::chrono_literals;
+        std::string path = std::string(RELEASES_DIR) + "\\" + asset.FileName;
+        std::filesystem::copy_file(path, localFilePath);
+
+        // simulate the download taking some time...
+        std::this_thread::sleep_for(1s);
+        progress(25);
+        std::this_thread::sleep_for(1s);
+        progress(50);
+        std::this_thread::sleep_for(1s);
+        progress(75);
+        std::this_thread::sleep_for(1s);
+        progress(100);
+
+        return true;
+    }
+};
+
 class MyFrame : public wxFrame
 {
 public:
+    ~MyFrame()
+    {
+        vpkc_set_logger(nullptr, nullptr);
+    }
     MyFrame() : wxFrame(nullptr, wxID_ANY, "VelopackCppWidgetsSample", wxDefaultPosition, wxSize(600, 600))
     {
         vpkc_set_logger(&MyFrame::HandleVpkcLogStatic, this);
@@ -56,7 +102,7 @@ public:
         // initialise velopack
         try
         {
-            updateManager = std::make_unique<UpdateManager>(RELEASES_DIR);
+            updateManager = std::make_unique<UpdateManager>(std::make_unique<MyExampleUpdateSource>());
             topText->SetLabel("Current Version: " + updateManager->GetCurrentVersion());
         }
         catch (std::exception& ex)
