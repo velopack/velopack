@@ -5,6 +5,7 @@ use velopack::{locator::VelopackLocatorConfig, UpdateInfo, UpdateOptions, Velopa
 
 /// The result of a call to check for updates. This can indicate that an update is available, or that an error occurred.
 #[repr(i8)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum vpkc_update_check_t {
     UPDATE_ERROR = -1,
     UPDATE_AVAILABLE = 0,

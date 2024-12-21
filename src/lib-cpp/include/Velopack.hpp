@@ -353,6 +353,8 @@ typedef std::function<void(size_t)> vpkc_progress_send_t;
  * Abstract class for retrieving release feeds and downloading assets. You should subclass this and 
  * implement/override the GetReleaseFeed and DownloadReleaseEntry methods.
  * This class is used by the UpdateManager to fetch release feeds and download assets in a custom way.
+ * SAFETY: It is your responsibility to ensure that a derived class instance is thread-safe,
+ * as Velopack may call methods on this class from multiple threads.
  */
 class IUpdateSource {
     friend class UpdateManager;
@@ -386,7 +388,15 @@ public:
             },
             this);
     }
+
+    /**
+     * Fetches the release feed json for the specified releases name, and returns it as a string.
+     */
     virtual const std::string GetReleaseFeed(const std::string releasesName) = 0;
+
+    /**
+     * Downloads an asset to the specified local file path. Progress is reported back to Velopack via a callback.
+     */
     virtual bool DownloadReleaseEntry(const VelopackAsset& asset, const std::string localFilePath, vpkc_progress_send_t progress) = 0;
 };
 
@@ -396,6 +406,12 @@ public:
 class FileSource : public IUpdateSource {
 public:
     FileSource(const std::string& filePath) : IUpdateSource(vpkc_new_source_file(filePath.c_str())) { }
+    const std::string GetReleaseFeed(const std::string releasesName) override { 
+        throw std::runtime_error("Not implemented"); 
+    }
+    bool DownloadReleaseEntry(const VelopackAsset& asset, const std::string localFilePath, vpkc_progress_send_t progress) override { 
+        throw std::runtime_error("Not implemented"); 
+    }
 };
 
 /**
@@ -404,6 +420,12 @@ public:
 class HttpSource : public IUpdateSource {
 public:
     HttpSource(const std::string& httpUrl) : IUpdateSource(vpkc_new_source_http_url(httpUrl.c_str())) { }
+    const std::string GetReleaseFeed(const std::string releasesName) override { 
+        throw std::runtime_error("Not implemented"); 
+    }
+    bool DownloadReleaseEntry(const VelopackAsset& asset, const std::string localFilePath, vpkc_progress_send_t progress) override { 
+        throw std::runtime_error("Not implemented"); 
+    }
 };
 
 /**
