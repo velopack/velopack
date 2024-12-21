@@ -25,6 +25,7 @@ rust-version = "1.75"
 [workspace.dependencies]
 velopack = { path = "src/lib-rust" }
 log = "0.4"
+log-derive = "0.4.1"
 ureq = "2.10"
 url = "2.5"
 semver = "1.0"

@@ -13,11 +13,14 @@ use raw::*;
 
 use anyhow::{anyhow, bail};
 use libc::{c_char, c_void, size_t};
+use log_derive::{logfn, logfn_inputs};
 use std::{ffi::CString, ptr};
 use velopack::{sources, Error as VelopackError, UpdateCheck, UpdateManager, VelopackApp};
 
 /// Create a new FileSource update source for a given file path.
 #[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_new_source_file(psz_file_path: *const c_char) -> *mut vpkc_update_source_t {
     if let Some(update_path) = c_to_string_opt(psz_file_path) {
         UpdateSourceRawPtr::new(Box::new(sources::FileSource::new(update_path)))
@@ -28,6 +31,8 @@ pub extern "C" fn vpkc_new_source_file(psz_file_path: *const c_char) -> *mut vpk
 
 /// Create a new HttpSource update source for a given HTTP URL.
 #[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_new_source_http_url(psz_http_url: *const c_char) -> *mut vpkc_update_source_t {
     if let Some(update_url) = c_to_string_opt(psz_http_url) {
         UpdateSourceRawPtr::new(Box::new(sources::FileSource::new(update_url)))
@@ -42,6 +47,8 @@ pub extern "C" fn vpkc_new_source_http_url(psz_http_url: *const c_char) -> *mut 
 /// but note that if the source is still in use by an UpdateManager, it will not be freed until the UpdateManager is freed.
 /// Therefore to avoid possible issues, it is recommended to create this type of source once for the lifetime of your application.
 #[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_new_source_custom_callback(
     cb_release_feed: vpkc_release_feed_delegate_t,
     cb_free_release_feed: vpkc_free_release_feed_t,
@@ -71,6 +78,8 @@ pub extern "C" fn vpkc_source_report_progress(progress_callback_id: size_t, prog
 
 /// Frees a vpkc_update_source_t instance.
 #[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_free_source(p_source: *mut vpkc_update_source_t) {
     UpdateSourceRawPtr::free(p_source);
 }
@@ -80,6 +89,8 @@ pub extern "C" fn vpkc_free_source(p_source: *mut vpkc_update_source_t) {
 /// @param options Optional extra configuration for update manager.
 /// @param locator Override the default locator configuration (usually used for testing / mocks).
 #[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_new_update_manager(
     psz_url_or_path: *const c_char,
     p_options: *mut vpkc_update_options_t,
@@ -102,6 +113,8 @@ pub extern "C" fn vpkc_new_update_manager(
 /// @param options Optional extra configuration for update manager.
 /// @param locator Override the default locator configuration (usually used for testing / mocks).
 #[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_new_update_manager_with_source(
     p_source: *mut vpkc_update_source_t,
     p_options: *mut vpkc_update_options_t,
@@ -120,6 +133,8 @@ pub extern "C" fn vpkc_new_update_manager_with_source(
 
 /// Returns the currently installed version of the app.
 #[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_get_current_version(p_manager: *mut vpkc_update_manager_t, psz_version: *mut c_char, c_version: size_t) -> size_t {
     match p_manager.to_opaque_ref() {
         Some(manager) => {
@@ -132,6 +147,8 @@ pub extern "C" fn vpkc_get_current_version(p_manager: *mut vpkc_update_manager_t
 
 /// Returns the currently installed app id.
 #[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_get_app_id(p_manager: *mut vpkc_update_manager_t, psz_id: *mut c_char, c_id: size_t) -> size_t {
     match p_manager.to_opaque_ref() {
         Some(manager) => {
@@ -145,6 +162,8 @@ pub extern "C" fn vpkc_get_app_id(p_manager: *mut vpkc_update_manager_t, psz_id:
 /// Returns whether the app is in portable mode. On Windows this can be true or false.
 /// On MacOS and Linux this will always be true.
 #[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_is_portable(p_manager: *mut vpkc_update_manager_t) -> bool {
     match p_manager.to_opaque_ref() {
         Some(manager) => manager.get_is_portable(),
@@ -155,6 +174,8 @@ pub extern "C" fn vpkc_is_portable(p_manager: *mut vpkc_update_manager_t) -> boo
 /// Returns an UpdateInfo object if there is an update downloaded which still needs to be applied.
 /// You can pass the UpdateInfo object to waitExitThenApplyUpdate to apply the update.
 #[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_update_pending_restart(p_manager: *mut vpkc_update_manager_t, p_asset: *mut vpkc_asset_t) -> bool {
     match p_manager.to_opaque_ref() {
         Some(manager) => match manager.get_update_pending_restart() {
@@ -171,6 +192,8 @@ pub extern "C" fn vpkc_update_pending_restart(p_manager: *mut vpkc_update_manage
 /// Checks for updates, returning None if there are none available. If there are updates available, this method will return an
 /// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
 #[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_check_for_updates(p_manager: *mut vpkc_update_manager_t, p_update: *mut vpkc_update_info_t) -> vpkc_update_check_t {
     match p_manager.to_opaque_ref() {
         Some(manager) => match manager.check_for_updates() {
@@ -201,6 +224,8 @@ pub extern "C" fn vpkc_check_for_updates(p_manager: *mut vpkc_update_manager_t, 
 /// - If there is no delta update available, or there is an error preparing delta
 ///   packages, this method will fall back to downloading the full version of the update.
 #[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_download_updates(
     p_manager: *mut vpkc_update_manager_t,
     p_update: *mut vpkc_update_info_t,
@@ -265,6 +290,8 @@ pub extern "C" fn vpkc_download_updates(
 /// You should then clean up any state and exit your app. The updater will apply updates and then
 /// optionally restart your app. The updater will only wait for 60 seconds before giving up.
 #[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_wait_exit_then_apply_update(
     p_manager: *mut vpkc_update_manager_t,
     p_asset: *mut vpkc_asset_t,
@@ -288,18 +315,24 @@ pub extern "C" fn vpkc_wait_exit_then_apply_update(
 
 /// Frees a vpkc_update_manager_t instance.
 #[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_free_update_manager(p_manager: *mut vpkc_update_manager_t) {
     UpdateManagerRawPtr::free(p_manager);
 }
 
 /// Frees a vpkc_update_info_t instance.
 #[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_free_update_info(p_update_info: *mut vpkc_update_info_t) {
     unsafe { free_updateinfo(p_update_info) };
 }
 
 /// Frees a vpkc_asset_t instance.
 #[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_free_asset(p_asset: *mut vpkc_asset_t) {
     unsafe { free_velopackasset(p_asset) };
 }
@@ -308,6 +341,8 @@ pub extern "C" fn vpkc_free_asset(p_asset: *mut vpkc_asset_t) {
 /// This should be used as early as possible in your application startup code.
 /// (eg. the beginning of main() or wherever your entry point is)
 #[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_app_run(p_user_data: *mut c_void) {
     let app_options = VELOPACK_APP.read().unwrap();
     let mut app = VelopackApp::build();
