@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using Microsoft.Extensions.Logging;
@@ -29,6 +30,17 @@ public class MSBuildLogger(TaskLoggingHelper loggingHelper) : ILogger, IFancyCon
             await fn(x => { }).ConfigureAwait(false);
         } catch (Exception ex) {
             this.LogError(ex, "Error running task {0}", name);
+            throw;
+        }
+    }
+
+    public async Task<T> RunTask<T>(string name, Func<Action<int>, Task<T>> fn)
+    {
+        try {
+            return await fn(x => { }).ConfigureAwait(false);
+        } catch (Exception ex) {
+            this.LogError(ex, "Error running task {0}", name);
+            throw;
         }
     }
 

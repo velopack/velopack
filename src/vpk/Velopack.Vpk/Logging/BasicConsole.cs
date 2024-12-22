@@ -59,5 +59,13 @@ public class BasicConsole : IFancyConsole
             await Task.Run(() => fn(_ => { }));
             _logger.Info("Complete: " + name);
         }
+
+        public async Task<T> RunTask<T>(string name, Func<Action<int>, Task<T>> fn)
+        {
+            _logger.Info("Starting: " + name);
+            var result = await Task.Run(() => fn(_ => { }));
+            _logger.Info("Complete: " + name);
+            return result;
+        }
     }
 }
