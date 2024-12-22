@@ -28,13 +28,14 @@ public class SpectreConsole : IFancyConsole
             .AutoRefresh(true)
             .AutoClear(false)
             .HideCompleted(false)
-            .Columns(new ProgressColumn[] {
+            .Columns(
+                new ProgressColumn[] {
                     new SpinnerColumn(),
                     new TaskDescriptionColumn(),
                     new ProgressBarColumn(),
                     new PercentageColumn(),
                     new ElapsedTimeColumn(),
-            })
+                })
             .StartAsync(async ctx => await action(new Progress(logger, ctx)));
         logger.Info($"[bold]Finished in {DateTime.UtcNow - start}.[/]");
     }
@@ -86,6 +87,7 @@ public class SpectreConsole : IFancyConsole
             for (int i = 0; i < numColumns; i++) {
                 table.AddColumn($"Column {i}");
             }
+
             table.HideHeaders();
         }
 
@@ -111,6 +113,16 @@ public class SpectreConsole : IFancyConsole
 
         public async Task RunTask(string name, Func<Action<int>, Task> fn)
         {
+            await RunTask(
+                name,
+                async (progress) => {
+                    await fn(progress);
+                    return true;
+                });
+        }
+
+        public async Task<T> RunTask<T>(string name, Func<Action<int>, Task<T>> fn)
+        {
             _logger.Log(LogLevel.Debug, "Starting: " + name);
 
             var task = _context.AddTask($"[italic]{name}[/]");
@@ -126,11 +138,12 @@ public class SpectreConsole : IFancyConsole
                 }
             }
 
-            await Task.Run(() => fn(progress)).ConfigureAwait(false);
+            var result = await Task.Run(() => fn(progress)).ConfigureAwait(false);
             task.IsIndeterminate = false;
             task.StopTask();
 
             _logger.Log(LogLevel.Debug, $"[bold]Complete: {name}[/]");
+            return result;
         }
     }
 }

@@ -24,27 +24,30 @@ public class PublishTask : MSBuildAsyncTask
     public string? Channel { get; set; }
 
     public string? ApiKey { get; set; }
+    
+    public bool NoWaitForLive { get; set; }
 
     protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
     {
-        //System.Diagnostics.Debugger.Launch();
-        IVelopackFlowServiceClient client = new VelopackFlowServiceClient(HttpClient, Logger);
-        if (!await client.LoginAsync(new() {
-            AllowDeviceCodeFlow = false,
-            AllowInteractiveLogin = false,
-            VelopackBaseUrl = ServiceUrl,
-            ApiKey = ApiKey
-        }, false, cancellationToken).ConfigureAwait(false)) {
-            Logger.LogWarning("Not logged into Velopack Flow service, skipping publish. Please run vpk login.");
-            return true;
-        }
-
-        // todo: currently it's not possible to cross-compile for different OSes using Velopack.Build
-        var targetOs = VelopackRuntimeInfo.SystemOs;
-
-        await client.UploadLatestReleaseAssetsAsync(Channel, ReleaseDirectory, ServiceUrl, targetOs, cancellationToken)
-            .ConfigureAwait(false);
-
-        return true;
+        throw new NotImplementedException();
+        // //System.Diagnostics.Debugger.Launch();
+        // IVelopackFlowServiceClient client = new VelopackFlowServiceClient(HttpClient, Logger, Logger);
+        // if (!await client.LoginAsync(new() {
+        //     AllowDeviceCodeFlow = false,
+        //     AllowInteractiveLogin = false,
+        //     VelopackBaseUrl = ServiceUrl,
+        //     ApiKey = ApiKey
+        // }, false, cancellationToken).ConfigureAwait(false)) {
+        //     Logger.LogWarning("Not logged into Velopack Flow service, skipping publish. Please run vpk login.");
+        //     return true;
+        // }
+        //
+        // // todo: currently it's not possible to cross-compile for different OSes using Velopack.Build
+        // var targetOs = VelopackRuntimeInfo.SystemOs;
+        //
+        // await client.UploadLatestReleaseAssetsAsync(Channel, ReleaseDirectory, ServiceUrl, targetOs, NoWaitForLive, cancellationToken)
+        //     .ConfigureAwait(false);
+        //
+        // return true;
     }
 }
