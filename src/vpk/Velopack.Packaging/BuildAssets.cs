@@ -1,22 +1,40 @@
-﻿using Velopack.Packaging.Exceptions;
+﻿using Newtonsoft.Json;
+using Velopack.Packaging.Exceptions;
+using Velopack.Util;
 
 namespace Velopack.Packaging;
 
 public class BuildAssets
 {
-    public List<string> Files { get; set; } = new List<string>();
+    [JsonIgnore]
+    private string _outputDir;
+
+    public List<string> RelativeFileNames { get; set; } = new List<string>();
 
     public List<VelopackAsset> GetReleaseEntries()
     {
-        return Files.Where(x => x.EndsWith(".nupkg"))
+        return GetFilePaths().Where(x => x.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase))
             .Select(f => VelopackAsset.FromNupkg(f))
             .ToList();
+    }
+
+    public List<string> GetNonReleaseAssetPaths()
+    {
+        return GetFilePaths().Where(x => !x.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    public List<string> GetFilePaths()
+    {
+        return RelativeFileNames.Select(f => Path.GetFullPath(Path.Combine(_outputDir, f))).ToList();
     }
 
     public static void Write(string outputDir, string channel, IEnumerable<string> files)
     {
         var assets = new BuildAssets {
-            Files = files.OrderBy(f => f).ToList(),
+            RelativeFileNames = files.OrderBy(f => f)
+                .Select(f => PathUtil.MakePathRelativeTo(outputDir, f))
+                .ToList(),
         };
         var path = Path.Combine(outputDir, $"assets.{channel}.json");
         var json = SimpleJson.SerializeObject(assets);
@@ -27,9 +45,13 @@ public class BuildAssets
     {
         var path = Path.Combine(outputDir, $"assets.{channel}.json");
         if (!File.Exists(path)) {
-            throw new UserInfoException($"Could not find assets file for channel '{channel}' (looking for '{Path.GetFileName(path)}' in directory '{outputDir}'). " +
+            throw new UserInfoException(
+                $"Could not find assets file for channel '{channel}' (looking for '{Path.GetFileName(path)}' in directory '{outputDir}'). " +
                 $"If you've just created a Velopack release, verify you're calling this command with the same '--channel' as you did with 'pack'.");
         }
-        return SimpleJson.DeserializeObject<BuildAssets>(File.ReadAllText(path));
+
+        var assets = SimpleJson.DeserializeObject<BuildAssets>(File.ReadAllText(path));
+        assets._outputDir = outputDir;
+        return assets;
     }
 }

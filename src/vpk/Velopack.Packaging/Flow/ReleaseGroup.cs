@@ -6,8 +6,15 @@ using System.Net.Http;
 #nullable enable
 namespace Velopack.Packaging.Flow;
 
+internal sealed class FileUpload
+{
+    public string? Status { get; set; }
+    public string? Md5Hash { get; set; }
+}
+
 internal sealed class ReleaseGroup
 {
     public Guid Id { get; set; }
     public string? Version { get; set; }
+    public List<FileUpload>? FileUploads { get; set; }
 }

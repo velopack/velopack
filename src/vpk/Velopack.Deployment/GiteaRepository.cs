@@ -82,7 +82,7 @@ public class GiteaRepository : SourceRepository<GiteaDownloadOptions, GiteaSourc
         config.BasePath = baseUri + "/api/v1";
         config.Timeout = (int)TimeSpan.FromMinutes(options.Timeout).TotalMilliseconds;
 
-        Log.Info($"Preparing to upload {build.Files.Count} asset(s) to Gitea");
+        Log.Info($"Preparing to upload {build.RelativeFileNames.Count} asset(s) to Gitea");
 
         // Set token if provided
         if (!string.IsNullOrWhiteSpace(options.Token)) {
@@ -142,7 +142,7 @@ public class GiteaRepository : SourceRepository<GiteaDownloadOptions, GiteaSourc
         }
 
         // upload all assets (incl packages)
-        foreach (var a in build.Files) {
+        foreach (var a in build.GetFilePaths()) {
             await RetryAsync(() => UploadFileAsAsset(apiInstance, release, repoOwner, repoName, a), $"Uploading asset '{Path.GetFileName(a)}'..");
         }
 
