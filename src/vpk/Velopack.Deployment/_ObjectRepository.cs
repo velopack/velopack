@@ -51,12 +51,11 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
     {
         var build = BuildAssets.Read(options.ReleaseDir.FullName, options.Channel);
         var client = CreateClient(options);
-        var releasesFilename = Path.GetFileName(options.ReleaseDir.FullName);
 
-        Log.Info($"Preparing to upload {build.Files.Count} local asset(s).");
+        Log.Info($"Preparing to upload {build.RelativeFileNames.Count} local asset(s).");
 
         var remoteReleases = await GetReleasesAsync(options);
-        Log.Info($"There are {remoteReleases.Assets.Length} asset(s) in remote releases file '{releasesFilename}'.");
+        Log.Info($"There are {remoteReleases.Assets.Length} asset(s) in remote releases file.");
 
         var localEntries = build.GetReleaseEntries();
         var releaseEntries = ReleaseEntryHelper.MergeAssets(localEntries, remoteReleases.Assets).ToArray();
@@ -82,7 +81,7 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
             }
         }
 
-        foreach (var asset in build.Files) {
+        foreach (var asset in build.GetFilePaths()) {
             await UploadObject(client, Path.GetFileName(asset), new FileInfo(asset), true, noCache: false);
         }
 

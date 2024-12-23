@@ -61,7 +61,7 @@ public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadO
         var semVer = options.TagName ?? latest.Version.ToString();
         var releaseName = string.IsNullOrWhiteSpace(options.ReleaseName) ? semVer.ToString() : options.ReleaseName;
 
-        Log.Info($"Preparing to upload {build.Files.Count} asset(s) to GitHub");
+        Log.Info($"Preparing to upload {build.RelativeFileNames.Count} asset(s) to GitHub");
 
         var client = new GitHubClient(new ProductHeaderValue("Velopack")) {
             Credentials = new Credentials(options.Token)
@@ -111,7 +111,7 @@ public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadO
         }
 
         // upload all assets (incl packages)
-        foreach (var a in build.Files) {
+        foreach (var a in build.GetFilePaths()) {
             await RetryAsync(() => UploadFileAsAsset(client, release, a), $"Uploading asset '{Path.GetFileName(a)}'..");
         }
 
