@@ -3,7 +3,7 @@ using System.Net.Http.Headers;
 
 namespace Velopack.Flow;
 
-public class HmacAuthHttpClientHandler : DelegatingHandler
+public class HmacAuthHttpClientHandler(HttpMessageHandler innerHandler) : DelegatingHandler(innerHandler)
 {
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
