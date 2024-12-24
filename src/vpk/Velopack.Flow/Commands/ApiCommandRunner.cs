@@ -19,7 +19,7 @@ public class ApiCommandRunner(ILogger logger, IFancyConsole console) : ICommand<
             return;
         }
 
-        string response = await client.InvokeEndpointAsync(options, options.Endpoint, options.Method, options.Body, token);
+        string response = await client.InvokeEndpointAsync(options.Endpoint, options.Method, options.Body, token);
         Console.WriteLine(response);
     }
 }

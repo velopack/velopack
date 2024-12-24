@@ -33,10 +33,11 @@ public class VelopackFlowServiceClient(
 
     private HttpClient GetHttpClient(Action<int>? progress = null)
     {
-        HttpMessageHandler primaryHandler = new HmacAuthHttpClientHandler();
+        HttpMessageHandler handler;
 
         if (progress != null) {
-            var ph = new HttpFormatting::System.Net.Http.Handlers.ProgressMessageHandler(primaryHandler);
+            var ph = new HttpFormatting::System.Net.Http.Handlers.ProgressMessageHandler(
+                new HmacAuthHttpClientHandler(new HttpClientHandler() { AllowAutoRedirect = true }));
             ph.HttpSendProgress += (_, args) => {
                 progress(args.ProgressPercentage);
                 // Console.WriteLine($"upload progress: {((double)args.BytesTransferred / args.TotalBytes) * 100.0}");
@@ -44,11 +45,12 @@ public class VelopackFlowServiceClient(
             ph.HttpReceiveProgress += (_, args) => {
                 progress(args.ProgressPercentage);
             };
-
-            primaryHandler = ph;
+            handler = ph;
+        } else {
+            handler = new HmacAuthHttpClientHandler(new HttpClientHandler() { AllowAutoRedirect = true });
         }
 
-        var client = new HttpClient(primaryHandler);
+        var client = new HttpClient(handler);
         client.DefaultRequestHeaders.Authorization = Authorization;
         client.Timeout = TimeSpan.FromMinutes(Options.Timeout);
         return client;
@@ -132,7 +134,6 @@ public class VelopackFlowServiceClient(
     }
 
     public async Task<string> InvokeEndpointAsync(
-        VelopackFlowServiceOptions? options,
         string endpointUri,
         string method,
         string? body,
@@ -184,6 +185,7 @@ public class VelopackFlowServiceClient(
 
         var filesToUpload = assets.GetNonReleaseAssetPaths().Select(p => (p, FileType.Installer))
             .Concat([(fullAssetPath, FileType.Release)])
+            .Where(kvp => !kvp.Item1.Contains("-Portable.zip"))
             .ToArray();
 
         Logger.LogInformation("Beginning upload to Velopack Flow");
