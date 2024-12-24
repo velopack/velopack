@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Velopack.Core;
 using Velopack.Packaging;
 using Velopack.Util;
 

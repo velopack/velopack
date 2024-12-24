@@ -1,4 +1,4 @@
-﻿using Velopack.Packaging.Abstractions;
+﻿using Velopack.Core.Abstractions;
 using Velopack.Util;
 
 namespace Velopack.Vpk.Logging;

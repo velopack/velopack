@@ -2,8 +2,8 @@
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
-using Velopack.Packaging.Abstractions;
-using Velopack.Packaging.Exceptions;
+using Velopack.Core;
+using Velopack.Core.Abstractions;
 using Velopack.Util;
 
 namespace Velopack.Packaging.Unix.Commands;

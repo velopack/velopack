@@ -1,6 +1,6 @@
 ﻿using System.Threading;
 using Spectre.Console;
-using Velopack.Packaging.Abstractions;
+using Velopack.Core.Abstractions;
 using Velopack.Util;
 
 namespace Velopack.Vpk.Logging;

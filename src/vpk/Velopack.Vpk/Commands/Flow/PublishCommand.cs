@@ -7,7 +7,7 @@ public class PublishCommand : VelopackServiceCommand
 
     public string? Channel { get; set; }
 
-    public bool NoWaitForLive { get; set; }
+    public bool WaitForLive { get; set; }
 
     public PublishCommand()
         : base("publish", "Uploads a release to Velopack's hosted service")
@@ -21,7 +21,7 @@ public class PublishCommand : VelopackServiceCommand
             .SetArgumentHelpName("NAME")
             .SetDescription("The channel used for the release.");
 
-        AddOption<bool>(v => NoWaitForLive = v, "--noWaitForLive")
-            .SetDescription("Skip waiting for the release to finish processing and go live.");
+        AddOption<bool>(v => WaitForLive = v, "--waitForLive")
+            .SetDescription("Wait for the release to finish processing and go live.");
     }
 }

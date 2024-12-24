@@ -1,4 +1,6 @@
-﻿namespace Velopack.Packaging.Commands;
+﻿using Velopack.Core;
+
+namespace Velopack.Packaging.Commands;
 
 public class DeltaGenOptions
 {

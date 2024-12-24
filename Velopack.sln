@@ -55,6 +55,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Velopack.Build", "src\vpk\V
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Velopack.IcoLib", "src\vpk\Velopack.IcoLib\Velopack.IcoLib.csproj", "{8A0A980A-D51C-458E-8942-00BC900FD2D0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Velopack.Flow", "src\vpk\Velopack.Flow\Velopack.Flow.csproj", "{DC836A20-E770-451A-B26E-4CC74633F741}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Velopack.Core", "src\vpk\Velopack.Core\Velopack.Core.csproj", "{2A60F8BE-EAD4-4229-A04E-52A37C8F1D0E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -121,6 +125,14 @@ Global
 		{8A0A980A-D51C-458E-8942-00BC900FD2D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8A0A980A-D51C-458E-8942-00BC900FD2D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8A0A980A-D51C-458E-8942-00BC900FD2D0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DC836A20-E770-451A-B26E-4CC74633F741}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DC836A20-E770-451A-B26E-4CC74633F741}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DC836A20-E770-451A-B26E-4CC74633F741}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DC836A20-E770-451A-B26E-4CC74633F741}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2A60F8BE-EAD4-4229-A04E-52A37C8F1D0E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2A60F8BE-EAD4-4229-A04E-52A37C8F1D0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2A60F8BE-EAD4-4229-A04E-52A37C8F1D0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2A60F8BE-EAD4-4229-A04E-52A37C8F1D0E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

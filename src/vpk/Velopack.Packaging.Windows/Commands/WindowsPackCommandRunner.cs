@@ -1,11 +1,9 @@
-﻿using System.IO.Compression;
-using System.Runtime.Versioning;
+﻿using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
 using Velopack.Compression;
+using Velopack.Core;
+using Velopack.Core.Abstractions;
 using Velopack.NuGet;
-using Velopack.Packaging.Abstractions;
-using Velopack.Packaging.Exceptions;
-using Velopack.Packaging.NuGet;
 using Velopack.Util;
 using Velopack.Windows;
 

@@ -1,9 +1,7 @@
 ﻿using System.Security.Cryptography;
-
 using System.Text;
 
-#nullable enable
-namespace Velopack.Packaging.Flow;
+namespace Velopack.Flow;
 
 public static class HmacHelper
 {
@@ -11,7 +9,7 @@ public static class HmacHelper
     public static DateTime EpochStart { get; } = new(1970, 01, 01, 0, 0, 0, 0, DateTimeKind.Utc);
 
     public static uint GetSecondsSinceEpoch()
-        => (uint)(DateTime.UtcNow - EpochStart).TotalSeconds;
+        => (uint) (DateTime.UtcNow - EpochStart).TotalSeconds;
 
     public static string BuildSignature(string hashedId, string httpMethod, string requestUri, uint secondsSinceEpoch, string nonce)
         => $"{hashedId}{httpMethod.ToUpperInvariant()}{requestUri.ToLowerInvariant()}{secondsSinceEpoch}{nonce}";
@@ -45,6 +43,7 @@ public static class HmacHelper
         if (signatureData is null) {
             throw new ArgumentNullException(nameof(signatureData));
         }
+
         using HMAC hmac = new HMACSHA256();
         hmac.Key = secret ?? throw new ArgumentNullException(nameof(secret));
         return Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(signatureData)));

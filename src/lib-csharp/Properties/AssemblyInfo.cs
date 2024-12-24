@@ -6,6 +6,8 @@ using System.Runtime.InteropServices;
 [assembly: InternalsVisibleTo("Velopack.Packaging.Tests, PublicKey=" + SNK.SHA1)]
 [assembly: InternalsVisibleTo("Velopack.CommandLine.Tests, PublicKey=" + SNK.SHA1)]
 [assembly: InternalsVisibleTo("Velopack, PublicKey=" + SNK.SHA1)]
+[assembly: InternalsVisibleTo("Velopack.Core, PublicKey=" + SNK.SHA1)]
+[assembly: InternalsVisibleTo("Velopack.Flow, PublicKey=" + SNK.SHA1)]
 [assembly: InternalsVisibleTo("Velopack.Deployment, PublicKey=" + SNK.SHA1)]
 [assembly: InternalsVisibleTo("Velopack.Packaging, PublicKey=" + SNK.SHA1)]
 [assembly: InternalsVisibleTo("Velopack.Packaging.Windows, PublicKey=" + SNK.SHA1)]

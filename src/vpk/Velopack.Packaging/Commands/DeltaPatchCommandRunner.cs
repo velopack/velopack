@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Velopack.Compression;
-using Velopack.Packaging.Exceptions;
-using Velopack.Packaging.Abstractions;
+using Velopack.Core;
+using Velopack.Core.Abstractions;
 using Velopack.Util;
 
 namespace Velopack.Packaging.Commands;
@@ -35,18 +35,24 @@ public class DeltaPatchCommandRunner : ICommand<DeltaPatchOptions>
         var delta = new DeltaEmbedded(HelperFile.GetZstdPath(), _logger, tmp);
         EasyZip.ExtractZipToDirectory(_logger, options.BasePackage, workDir);
 
-        await _console.ExecuteProgressAsync(async (ctx) => {
-            foreach (var f in options.PatchFiles) {
-                await ctx.RunTask($"Applying {f.Name}", (progress) => {
-                    delta.ApplyDeltaPackageFast(workDir, f.FullName, progress);
-                    progress(100);
-                    return Task.CompletedTask;
-                });
-            }
-            await ctx.RunTask($"Building {Path.GetFileName(options.OutputFile)}", async (progress) => {
-                await EasyZip.CreateZipFromDirectoryAsync(_logger, options.OutputFile, workDir, progress);
-                progress(100);
+        await _console.ExecuteProgressAsync(
+            async (ctx) => {
+                foreach (var f in options.PatchFiles) {
+                    await ctx.RunTask(
+                        $"Applying {f.Name}",
+                        (progress) => {
+                            delta.ApplyDeltaPackageFast(workDir, f.FullName, progress);
+                            progress(100);
+                            return Task.CompletedTask;
+                        });
+                }
+
+                await ctx.RunTask(
+                    $"Building {Path.GetFileName(options.OutputFile)}",
+                    async (progress) => {
+                        await EasyZip.CreateZipFromDirectoryAsync(_logger, options.OutputFile, workDir, progress);
+                        progress(100);
+                    });
             });
-        });
     }
 }

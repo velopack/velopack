@@ -5,8 +5,10 @@ using NuGet.Versioning;
 using Microsoft.Extensions.Logging;
 using System.Text;
 using System.Net.Http.Headers;
+using Velopack.Core;
+using Velopack.Core.Abstractions;
 using Velopack.NuGet;
-using Velopack.Packaging.Abstractions;
+using Velopack.Packaging;
 using Velopack.Util;
 
 #if NET6_0_OR_GREATER
@@ -16,29 +18,12 @@ using System.Net.Http;
 #endif
 
 #nullable enable
-namespace Velopack.Packaging.Flow;
-
-public interface IVelopackFlowServiceClient
-{
-    Task<bool> LoginAsync(VelopackLoginOptions? options, bool suppressOutput, CancellationToken cancellationToken);
-
-    Task LogoutAsync(VelopackServiceOptions? options, CancellationToken cancellationToken);
-
-    Task<Profile?> GetProfileAsync(VelopackServiceOptions? options, CancellationToken cancellationToken);
-
-    Task<string> InvokeEndpointAsync(VelopackServiceOptions? options, string endpointUri,
-        string method,
-        string? body,
-        CancellationToken cancellationToken);
-
-    Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory, string? serviceUrl, RuntimeOs os,
-        bool noWaitForLive, CancellationToken cancellationToken);
-}
+namespace Velopack.Flow;
 
 public class VelopackFlowServiceClient(
-    IHttpMessageHandlerFactory HttpMessageHandlerFactory,
+    VelopackFlowServiceOptions Options,
     ILogger Logger,
-    IFancyConsole Console) : IVelopackFlowServiceClient
+    IFancyConsole Console)
 {
     private static readonly string[] Scopes = ["openid", "offline_access"];
 
@@ -48,7 +33,7 @@ public class VelopackFlowServiceClient(
 
     private HttpClient GetHttpClient(Action<int>? progress = null)
     {
-        HttpMessageHandler primaryHandler = HttpMessageHandlerFactory.CreateHandler("flow");
+        HttpMessageHandler primaryHandler = new HmacAuthHttpClientHandler();
 
         if (progress != null) {
             var ph = new HttpFormatting::System.Net.Http.Handlers.ProgressMessageHandler(primaryHandler);
@@ -59,37 +44,51 @@ public class VelopackFlowServiceClient(
             ph.HttpReceiveProgress += (_, args) => {
                 progress(args.ProgressPercentage);
             };
+
             primaryHandler = ph;
         }
 
         var client = new HttpClient(primaryHandler);
         client.DefaultRequestHeaders.Authorization = Authorization;
+        client.Timeout = TimeSpan.FromMinutes(Options.Timeout);
         return client;
     }
 
-    public async Task<bool> LoginAsync(VelopackLoginOptions? options, bool suppressOutput, CancellationToken cancellationToken)
+    private FlowApi GetFlowApi(Action<int>? progress = null)
     {
-        options ??= new VelopackLoginOptions();
-        if (!suppressOutput) {
-            Logger.LogInformation("Preparing to login to Velopack ({ServiceUrl})", options.VelopackBaseUrl);
+        var client = GetHttpClient(progress);
+        var api = new FlowApi(client);
+        if (!String.IsNullOrWhiteSpace(Options.VelopackBaseUrl)) {
+            api.BaseUrl = Options.VelopackBaseUrl;
         }
 
-        var authConfiguration = await GetAuthConfigurationAsync(options, cancellationToken);
+        return api;
+    }
+
+    public async Task<bool> LoginAsync(VelopackFlowLoginOptions? loginOptions, bool suppressOutput, CancellationToken cancellationToken)
+    {
+        loginOptions ??= new VelopackFlowLoginOptions();
+        var serviceUrl = Options.VelopackBaseUrl ?? GetFlowApi().BaseUrl;
+        if (!suppressOutput) {
+            Logger.LogInformation("Preparing to login to Velopack ({serviceUrl})", serviceUrl);
+        }
+
+        var authConfiguration = await GetAuthConfigurationAsync(cancellationToken);
         var pca = await BuildPublicApplicationAsync(authConfiguration);
 
-        if (!string.IsNullOrWhiteSpace(options.ApiKey)) {
-            Authorization = new(HmacHelper.HmacScheme, options.ApiKey);
+        if (!string.IsNullOrWhiteSpace(Options.ApiKey)) {
+            Authorization = new(HmacHelper.HmacScheme, Options.ApiKey);
         } else {
             AuthenticationResult? rv = null;
-            if (options.AllowCacheCredentials) {
+            if (loginOptions.AllowCacheCredentials) {
                 rv = await AcquireSilentlyAsync(pca, cancellationToken);
             }
 
-            if (rv is null && options.AllowInteractiveLogin) {
+            if (rv is null && loginOptions.AllowInteractiveLogin) {
                 rv = await AcquireInteractiveAsync(pca, authConfiguration, cancellationToken);
             }
 
-            if (rv is null && options.AllowDeviceCodeFlow) {
+            if (rv is null && loginOptions.AllowDeviceCodeFlow) {
                 rv = await AcquireByDeviceCodeAsync(pca, cancellationToken);
             }
 
@@ -101,7 +100,7 @@ public class VelopackFlowServiceClient(
             Authorization = new("Bearer", rv.IdToken ?? rv.AccessToken);
         }
 
-        var profile = await GetProfileAsync(options, cancellationToken);
+        var profile = await GetProfileAsync(cancellationToken);
 
         if (!suppressOutput) {
             Logger.LogInformation("{UserName} logged into Velopack", profile?.GetDisplayName());
@@ -110,9 +109,9 @@ public class VelopackFlowServiceClient(
         return true;
     }
 
-    public async Task LogoutAsync(VelopackServiceOptions? options, CancellationToken cancellationToken)
+    public async Task LogoutAsync(CancellationToken cancellationToken)
     {
-        var authConfiguration = await GetAuthConfigurationAsync(options, cancellationToken);
+        var authConfiguration = await GetAuthConfigurationAsync(cancellationToken);
 
         var pca = await BuildPublicApplicationAsync(authConfiguration);
 
@@ -125,31 +124,30 @@ public class VelopackFlowServiceClient(
         Logger.LogInformation("Cleared saved login(s) for Velopack");
     }
 
-    public async Task<Profile?> GetProfileAsync(VelopackServiceOptions? options, CancellationToken cancellationToken)
+    public async Task<Profile?> GetProfileAsync(CancellationToken cancellationToken)
     {
         AssertAuthenticated();
-        var endpoint = GetEndpoint("v1/user/profile", options?.VelopackBaseUrl);
-
-        var client = GetHttpClient();
-        return await client.GetFromJsonAsync<Profile>(endpoint, cancellationToken);
+        var client = GetFlowApi();
+        return await client.GetUserProfileAsync(cancellationToken);
     }
 
     public async Task<string> InvokeEndpointAsync(
-        VelopackServiceOptions? options,
+        VelopackFlowServiceOptions? options,
         string endpointUri,
         string method,
         string? body,
         CancellationToken cancellationToken)
     {
         AssertAuthenticated();
-        var endpoint = GetEndpoint(endpointUri, options?.VelopackBaseUrl);
+
+        var client = GetHttpClient();
+        var endpoint = new FlowApi(client).BaseUrl;
 
         HttpRequestMessage request = new(new HttpMethod(method), endpoint);
         if (body is not null) {
             request.Content = new StringContent(body, Encoding.UTF8, "application/json");
         }
 
-        var client = GetHttpClient();
         HttpResponseMessage response = await client.SendAsync(request, cancellationToken);
 
 #if NET6_0_OR_GREATER
@@ -166,14 +164,14 @@ public class VelopackFlowServiceClient(
         }
     }
 
-    public async Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory, string? serviceUrl,
-        RuntimeOs os, bool noWaitForLive, CancellationToken cancellationToken)
+    public async Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory,
+        RuntimeOs os, bool waitForLive, CancellationToken cancellationToken)
     {
         AssertAuthenticated();
 
-        channel ??= ReleaseEntryHelper.GetDefaultChannel(os);
+        channel ??= DefaultName.GetDefaultChannel(os);
         BuildAssets assets = BuildAssets.Read(releaseDirectory, channel);
-        var fullAsset = assets.GetReleaseEntries().SingleOrDefault(a => a.Type == VelopackAssetType.Full);
+        var fullAsset = assets.GetReleaseEntries().SingleOrDefault(a => a.Type == Velopack.VelopackAssetType.Full);
 
         if (fullAsset is null) {
             Logger.LogError("No full asset found in release directory {ReleaseDirectory} (or it's missing from assets file)", releaseDirectory);
@@ -188,7 +186,7 @@ public class VelopackFlowServiceClient(
             .Concat([(fullAssetPath, FileType.Release)])
             .ToArray();
 
-        Logger.LogInformation("Beginning upload to Velopack Flow (serviceUrl={ServiceUrl})", serviceUrl);
+        Logger.LogInformation("Beginning upload to Velopack Flow");
 
         await Console.ExecuteProgressAsync(
             async (progress) => {
@@ -196,7 +194,7 @@ public class VelopackFlowServiceClient(
                     $"Creating release {version}",
                     async (report) => {
                         report(-1);
-                        var result = await CreateReleaseGroupAsync(packageId, version, channel, serviceUrl, cancellationToken);
+                        var result = await CreateReleaseGroupAsync(packageId, version, channel, cancellationToken);
                         report(100);
                         return result;
                     });
@@ -209,7 +207,6 @@ public class VelopackFlowServiceClient(
                             async (report) => {
                                 await UploadReleaseAssetAsync(
                                     assetTuple.Item1,
-                                    serviceUrl,
                                     releaseGroup.Id,
                                     assetTuple.Item2,
                                     report,
@@ -225,7 +222,7 @@ public class VelopackFlowServiceClient(
                 var prevZip = await progress.RunTask(
                     $"Downloading delta base for {version}",
                     async (report) => {
-                        await DownloadLatestRelease(packageId, channel, serviceUrl, prevVersion, report, cancellationToken);
+                        await DownloadLatestRelease(packageId, channel, prevVersion, report, cancellationToken);
                         return new ZipPackage(prevVersion);
                     });
 
@@ -234,7 +231,7 @@ public class VelopackFlowServiceClient(
                         $"Latest version in channel {channel} is greater than or equal to local (remote={prevZip.Version}, local={version})");
                 }
 
-                var suggestedDeltaName = ReleaseEntryHelper.GetSuggestedReleaseName(packageId, version.ToFullString(), channel, true, RuntimeOs.Unknown);
+                var suggestedDeltaName = DefaultName.GetSuggestedReleaseName(packageId, version.ToFullString(), channel, true, RuntimeOs.Unknown);
                 var deltaPath = Path.Combine(releaseDirectory, suggestedDeltaName);
 
                 await progress.RunTask(
@@ -254,7 +251,6 @@ public class VelopackFlowServiceClient(
                         async (report) => {
                             await UploadReleaseAssetAsync(
                                 deltaPath,
-                                serviceUrl,
                                 releaseGroup.Id,
                                 FileType.Release,
                                 report,
@@ -269,50 +265,35 @@ public class VelopackFlowServiceClient(
                     $"Publishing release {version}",
                     async (report) => {
                         report(-1);
-                        var result = await PublishReleaseGroupAsync(releaseGroup, serviceUrl, cancellationToken);
+                        var result = await PublishReleaseGroupAsync(releaseGroup.Id, cancellationToken);
                         report(100);
                         return result;
                     });
 
-                if (!noWaitForLive) {
+                if (waitForLive) {
                     await progress.RunTask(
                         "Waiting for release to go live",
                         async (report) => {
                             report(-1);
-                            await WaitUntilReleaseGroupLive(publishedGroup.Id, serviceUrl, cancellationToken);
+                            await WaitUntilReleaseGroupLive(publishedGroup.Id, cancellationToken);
                             report(100);
                         });
                 }
             });
     }
 
-    private async Task DownloadLatestRelease(string packageId, string channel, string? velopackBaseUrl, string localPath,
-        Action<int> progress, CancellationToken cancellationToken)
+    private async Task DownloadLatestRelease(string packageId, string channel, string localPath, Action<int> progress, CancellationToken cancellationToken)
     {
-        var client = GetHttpClient(progress);
-        var endpoint = GetEndpoint($"v1/download/{packageId}/{channel}", velopackBaseUrl) + $"?assetType=Full";
-
-        using var fs = File.Create(localPath);
-
-        var response = await client.GetAsync(endpoint, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-#if NET6_0_OR_GREATER
-        await response.Content.CopyToAsync(fs, cancellationToken);
-#else
-        await response.Content.CopyToAsync(fs);
-#endif
+        var client = GetFlowApi(progress);
+        await client.DownloadInstallerLatestToFileAsync(packageId, channel, DownloadAssetType.Full, localPath, cancellationToken);
     }
 
-    private async Task WaitUntilReleaseGroupLive(Guid releaseGroupId, string? velopackBaseUrl, CancellationToken cancellationToken)
+    private async Task WaitUntilReleaseGroupLive(Guid releaseGroupId, CancellationToken cancellationToken)
     {
-        var client = GetHttpClient();
-        var endpoint = GetEndpoint($"v1/releaseGroups/{releaseGroupId}", velopackBaseUrl);
+        var client = GetFlowApi();
 
         for (int i = 0; i < 300; i++) {
-            var response = await client.GetAsync(endpoint, cancellationToken);
-            response.EnsureSuccessStatusCode();
-            var releaseGroup = await response.Content.ReadFromJsonAsync<ReleaseGroup>(cancellationToken: cancellationToken);
+            var releaseGroup = await client.GetReleaseGroupAsync(releaseGroupId, cancellationToken);
             if (releaseGroup?.FileUploads == null) {
                 Logger.LogWarning("Failed to get release group status, it may not be live yet.");
                 return;
@@ -329,9 +310,7 @@ public class VelopackFlowServiceClient(
         Logger.LogWarning("Release did not go live within 5 minutes (timeout).");
     }
 
-    private async Task<ReleaseGroup> CreateReleaseGroupAsync(
-        string packageId, SemanticVersion version, string channel,
-        string? velopackBaseUrl, CancellationToken cancellationToken)
+    private async Task<ReleaseGroup> CreateReleaseGroupAsync(string packageId, SemanticVersion version, string channel, CancellationToken cancellationToken)
     {
         CreateReleaseGroupRequest request = new() {
             ChannelIdentifier = channel,
@@ -339,70 +318,37 @@ public class VelopackFlowServiceClient(
             Version = version.ToNormalizedString()
         };
 
-        var client = GetHttpClient();
-        var endpoint = GetEndpoint("v1/releaseGroups/create", velopackBaseUrl);
-        var response = await client.PostAsJsonAsync(endpoint, request, cancellationToken);
-
-        if (!response.IsSuccessStatusCode) {
-            string content = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new InvalidOperationException(
-                $"Failed to create release group with version {version.ToNormalizedString()}" +
-                $"{Environment.NewLine}Response status code: {response.StatusCode}{Environment.NewLine}{content}");
-        }
-
-        return await response.Content.ReadFromJsonAsync<ReleaseGroup>(cancellationToken: cancellationToken)
-               ?? throw new InvalidOperationException($"Failed to create release group with version {version.ToNormalizedString()}");
+        var client = GetFlowApi();
+        return await client.CreateReleaseGroupAsync(request, cancellationToken);
     }
 
-    private async Task UploadReleaseAssetAsync(string filePath, string? velopackBaseUrl, Guid releaseGroupId,
-        FileType fileType, Action<int> progress, CancellationToken cancellationToken)
+    private async Task UploadReleaseAssetAsync(string filePath, Guid releaseGroupId, FileType fileType, Action<int> progress,
+        CancellationToken cancellationToken)
     {
-        using var formData = new MultipartFormDataContent();
-        formData.Add(new StringContent(releaseGroupId.ToString()), "ReleaseGroupId");
-        formData.Add(new StringContent(fileType.ToString()), "FileType");
-
-        using var fileStream = File.OpenRead(filePath);
-
-        using var fileContent = new StreamContent(fileStream);
-        formData.Add(fileContent, "File", Path.GetFileName(filePath));
-
-        var endpoint = GetEndpoint("v1/releases/upload", velopackBaseUrl);
-
-        var client = GetHttpClient(progress);
-        var response = await client.PostAsync(endpoint, formData, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        using var stream = File.OpenRead(filePath);
+        var file = new FileParameter(stream);
+        var client = GetFlowApi(progress);
+        await client.UploadReleaseAsync(releaseGroupId, fileType, file, cancellationToken);
     }
 
-    private async Task<ReleaseGroup> PublishReleaseGroupAsync(
-        ReleaseGroup releaseGroup, string? velopackBaseUrl, CancellationToken cancellationToken)
+    private async Task<ReleaseGroup> PublishReleaseGroupAsync(Guid releaseGroupId, CancellationToken cancellationToken)
     {
         UpdateReleaseGroupRequest request = new() {
             State = ReleaseGroupState.Published
         };
 
-        var client = GetHttpClient();
-        var endpoint = GetEndpoint($"v1/releaseGroups/{releaseGroup.Id}", velopackBaseUrl);
-        var response = await client.PutAsJsonAsync(endpoint, request, cancellationToken);
-
-        if (!response.IsSuccessStatusCode) {
-            string content = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new InvalidOperationException(
-                $"Failed to publish release group with id {releaseGroup.Id}.{Environment.NewLine}Response status code: {response.StatusCode}{Environment.NewLine}{content}");
-        }
-
-        return await response.Content.ReadFromJsonAsync<ReleaseGroup>(cancellationToken: cancellationToken)
-               ?? throw new InvalidOperationException($"Failed to publish release group with id {releaseGroup.Id}");
+        var client = GetFlowApi();
+        return await client.UpdateReleaseGroupAsync(releaseGroupId, request, cancellationToken);
     }
 
-    private async Task<AuthConfiguration> GetAuthConfigurationAsync(VelopackServiceOptions? options, CancellationToken cancellationToken)
+    private async Task<AuthConfiguration> GetAuthConfigurationAsync(CancellationToken cancellationToken)
     {
         if (AuthConfiguration is not null)
             return AuthConfiguration;
 
-        var endpoint = GetEndpoint("v1/auth/config", options);
+        var client = GetFlowApi();
+        var authConfig = await client.GetV1AuthConfigAsync(cancellationToken);
 
-        var client = GetHttpClient();
-        var authConfig = await client.GetFromJsonAsync<AuthConfiguration>(endpoint, cancellationToken);
         if (authConfig is null)
             throw new Exception("Failed to get auth configuration.");
         if (authConfig.B2CAuthority is null)
@@ -413,16 +359,6 @@ public class VelopackFlowServiceClient(
             throw new Exception("Client ID not provided.");
 
         return authConfig;
-    }
-
-    private static Uri GetEndpoint(string relativePath, VelopackServiceOptions? options)
-        => GetEndpoint(relativePath, options?.VelopackBaseUrl);
-
-    private static Uri GetEndpoint(string relativePath, string? velopackBaseUrl)
-    {
-        var baseUrl = velopackBaseUrl ?? VelopackServiceOptions.DefaultBaseUrl;
-        var endpoint = new Uri(relativePath, UriKind.Relative);
-        return new(new Uri(baseUrl), endpoint);
     }
 
     private void AssertAuthenticated()
@@ -516,19 +452,12 @@ public class VelopackFlowServiceClient(
             .WithB2CAuthority(authConfiguration.B2CAuthority)
             .WithRedirectUri(authConfiguration.RedirectUri)
 #if DEBUG
-                .WithLogging((Microsoft.Identity.Client.LogLevel level, string message, bool containsPii) => System.Console.WriteLine($"[{level}]: {message}"), enablePiiLogging: true, enableDefaultPlatformLogging: true)
+            .WithLogging((Microsoft.Identity.Client.LogLevel level, string message, bool containsPii) => System.Console.WriteLine($"[{level}]: {message}"), enablePiiLogging: true, enableDefaultPlatformLogging: true)
 #endif
             .WithClientName("velopack")
             .Build();
 
         cacheHelper.RegisterCache(pca.UserTokenCache);
         return pca;
-    }
-
-    private enum FileType
-    {
-        Unknown,
-        Release,
-        Installer,
     }
 }

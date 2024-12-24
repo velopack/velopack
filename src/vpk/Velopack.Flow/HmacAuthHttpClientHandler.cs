@@ -1,7 +1,7 @@
 ﻿using System.Net.Http;
 using System.Net.Http.Headers;
 
-namespace Velopack.Packaging.Flow;
+namespace Velopack.Flow;
 
 public class HmacAuthHttpClientHandler : DelegatingHandler
 {

@@ -1,6 +1,7 @@
 ﻿using Velopack.Deployment;
 using Velopack.Sources;
 using Octokit;
+using Velopack.Core;
 using Velopack.Packaging.Exceptions;
 using Velopack.Util;
 

@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Velopack.Core\Velopack.Core.csproj" />
     <ProjectReference Include="..\Velopack.Packaging\Velopack.Packaging.csproj" />
   </ItemGroup>
 
