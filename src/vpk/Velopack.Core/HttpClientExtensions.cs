@@ -4,7 +4,7 @@
 using System.Net.Http;
 using System.Text;
 
-namespace Velopack.Packaging;
+namespace Velopack.Core;
 
 public static class HttpClientExtensions
 {
@@ -16,7 +16,7 @@ public static class HttpClientExtensions
         var response = await client.GetAsync(requestUri, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        return Newtonsoft.Json.JsonConvert.DeserializeObject<TValue>(await response.Content.ReadAsStringAsync());
+        return SimpleJson.DeserializeObject<TValue>(await response.Content.ReadAsStringAsync());
     }
 
     public static async Task<HttpResponseMessage> PostAsJsonAsync<TValue>(
@@ -25,7 +25,7 @@ public static class HttpClientExtensions
         TValue value,
         CancellationToken cancellationToken = default)
     {
-        var content = new StringContent(Newtonsoft.Json.JsonConvert.SerializeObject(value), Encoding.UTF8, "application/json");
+        var content = new StringContent(SimpleJson.SerializeObject(value), Encoding.UTF8, "application/json");
         return await client.PostAsync(requestUri, content, cancellationToken);
     }
 
@@ -35,7 +35,7 @@ public static class HttpClientExtensions
         TValue value,
         CancellationToken cancellationToken = default)
     {
-        var content = new StringContent(Newtonsoft.Json.JsonConvert.SerializeObject(value), Encoding.UTF8, "application/json");
+        var content = new StringContent(SimpleJson.SerializeObject(value), Encoding.UTF8, "application/json");
         return await client.PutAsync(requestUri, content, cancellationToken);
     }
 
@@ -44,7 +44,7 @@ public static class HttpClientExtensions
         CancellationToken cancellationToken = default)
     {
         var json = await content.ReadAsStringAsync();
-        return Newtonsoft.Json.JsonConvert.DeserializeObject<TValue>(json);
+        return SimpleJson.DeserializeObject<TValue>(json);
     }
 
     public static async Task<string> ReadAsStringAsync(this HttpContent content, CancellationToken _)

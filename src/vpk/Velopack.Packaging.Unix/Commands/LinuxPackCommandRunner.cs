@@ -1,6 +1,7 @@
 ﻿using ELFSharp.ELF;
 using Microsoft.Extensions.Logging;
-using Velopack.Packaging.Abstractions;
+using Velopack.Core;
+using Velopack.Core.Abstractions;
 using Velopack.Util;
 
 namespace Velopack.Packaging.Unix.Commands;

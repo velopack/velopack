@@ -9,7 +9,8 @@ public class ProcessFailedException : Exception
     public string StdOutput { get; }
 
     public ProcessFailedException(string command, string stdOutput, string stdErr)
-        : base($"Process failed: '{command}'{Environment.NewLine}Output was -{Environment.NewLine}{stdOutput}{Environment.NewLine}StdErr was -{Environment.NewLine}{stdErr}")
+        : base(
+            $"Process failed: '{command}'{Environment.NewLine}Output was -{Environment.NewLine}{stdOutput}{Environment.NewLine}StdErr was -{Environment.NewLine}{stdErr}")
     {
         Command = command;
         StdOutput = stdOutput;

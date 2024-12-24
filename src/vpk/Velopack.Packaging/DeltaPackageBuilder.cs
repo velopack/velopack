@@ -2,6 +2,7 @@
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Velopack.Compression;
+using Velopack.Core;
 using Velopack.Packaging.Exceptions;
 using Velopack.Util;
 
@@ -26,11 +27,13 @@ public class DeltaPackageBuilder
         public int Removed { get; set; }
     }
 
-    public (ReleasePackage package, DeltaStats stats) CreateDeltaPackage(ReleasePackage basePackage, ReleasePackage newPackage, string outputFile, DeltaMode mode, Action<int> progress)
+    public (ReleasePackage package, DeltaStats stats) CreateDeltaPackage(ReleasePackage basePackage, ReleasePackage newPackage, string outputFile,
+        DeltaMode mode, Action<int> progress)
     {
         if (basePackage == null) throw new ArgumentNullException(nameof(basePackage));
         if (newPackage == null) throw new ArgumentNullException(nameof(newPackage));
-        if (String.IsNullOrEmpty(outputFile) || File.Exists(outputFile)) throw new ArgumentException("The output file is null or already exists", nameof(outputFile));
+        if (String.IsNullOrEmpty(outputFile) || File.Exists(outputFile))
+            throw new ArgumentException("The output file is null or already exists", nameof(outputFile));
 
         Zstd zstd = null;
         try {
@@ -137,6 +140,7 @@ public class DeltaPackageBuilder
                         File.WriteAllText(targetFile.FullName + ".shasum", rl.EntryAsString, Encoding.UTF8);
                         Interlocked.Increment(ref fChanged);
                     }
+
                     targetFile.Delete();
                     baseLibFiles.Remove(relativePath);
                     var p = Interlocked.Increment(ref fProcessed);
@@ -152,39 +156,47 @@ public class DeltaPackageBuilder
             }
 
             try {
-                Parallel.ForEach(newLibFiles, new ParallelOptions() { MaxDegreeOfParallelism = numParallel }, (f) => {
-                    // we try to use zstd first, if it fails we'll try bsdiff
-                    if (zstd != null) {
+                Parallel.ForEach(
+                    newLibFiles,
+                    new ParallelOptions() { MaxDegreeOfParallelism = numParallel },
+                    (f) => {
+                        // we try to use zstd first, if it fails we'll try bsdiff
+                        if (zstd != null) {
+                            try {
+                                createDeltaForSingleFile(f, tempInfo, true);
+                                return; // success, so return from this function
+                            } catch (ProcessFailedException ex) {
+                                _logger.Error(
+                                    $"Failed to create zstd diff for file '{f.FullName}' (will try to fallback to legacy bsdiff format - this will be much slower). " +
+                                    Environment.NewLine + ex.Message);
+                            } catch (Exception ex) {
+                                _logger.Error($"Failed to create zstd diff for file '{f.FullName}'. " + Environment.NewLine + ex.Message);
+                                throw;
+                            }
+                        }
+
+                        // if we're here, either zstd is not available or it failed
                         try {
-                            createDeltaForSingleFile(f, tempInfo, true);
-                            return; // success, so return from this function
-                        } catch (ProcessFailedException ex) {
-                            _logger.Error($"Failed to create zstd diff for file '{f.FullName}' (will try to fallback to legacy bsdiff format - this will be much slower). " + Environment.NewLine + ex.Message);
+                            createDeltaForSingleFile(f, tempInfo, false);
+                            if (zstd != null) {
+                                _logger.Info($"Successfully created fallback bsdiff for file '{f.FullName}'.");
+                            }
                         } catch (Exception ex) {
-                            _logger.Error($"Failed to create zstd diff for file '{f.FullName}'. " + Environment.NewLine + ex.Message);
+                            _logger.Error($"Failed to create bsdiff for file '{f.FullName}'. " + Environment.NewLine + ex.Message);
                             throw;
                         }
-                    }
-                    // if we're here, either zstd is not available or it failed
-                    try {
-                        createDeltaForSingleFile(f, tempInfo, false);
-                        if (zstd != null) {
-                            _logger.Info($"Successfully created fallback bsdiff for file '{f.FullName}'.");
-                        }
-                    } catch (Exception ex) {
-                        _logger.Error($"Failed to create bsdiff for file '{f.FullName}'. " + Environment.NewLine + ex.Message);
-                        throw;
-                    }
-                });
+                    });
             } catch {
-                throw new UserInfoException("Delta creation failed for one or more files. See log for details. To skip delta generation, use the '--delta none' argument.");
+                throw new UserInfoException(
+                    "Delta creation failed for one or more files. See log for details. To skip delta generation, use the '--delta none' argument.");
             }
 
             EasyZip.CreateZipFromDirectoryAsync(_logger, outputFile, tempInfo.FullName, CoreUtil.CreateProgressDelegate(progress, 70, 100)).GetAwaiterResult();
             progress(100);
             fRemoved = baseLibFiles.Count;
 
-            _logger.Info($"Delta processed {fProcessed:D4} files. "
+            _logger.Info(
+                $"Delta processed {fProcessed:D4} files. "
                 + $"{fChanged:D4} patched, {fSame:D4} unchanged, {fNew:D4} new, {fRemoved:D4} removed");
 
             _logger.Debug(

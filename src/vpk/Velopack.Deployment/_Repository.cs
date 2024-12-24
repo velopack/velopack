@@ -1,6 +1,5 @@
-﻿using System.Security.Cryptography;
-using Microsoft.Extensions.Logging;
-using Velopack.Packaging;
+﻿using Microsoft.Extensions.Logging;
+using Velopack.Core;
 using Velopack.Packaging.Abstractions;
 using Velopack.Sources;
 using Velopack.Util;
@@ -14,7 +13,7 @@ public class RepositoryOptions : IOutputOptions
     public RuntimeOs TargetOs { get; set; }
 
     public string Channel {
-        get => _channel ?? ReleaseEntryHelper.GetDefaultChannel(TargetOs);
+        get => _channel ?? DefaultName.GetDefaultChannel(TargetOs);
         set => _channel = value;
     }
 

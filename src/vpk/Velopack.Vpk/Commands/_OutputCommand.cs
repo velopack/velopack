@@ -1,4 +1,5 @@
-﻿using Velopack.Packaging;
+﻿using Velopack.Core;
+using Velopack.Packaging;
 
 namespace Velopack.Vpk.Commands;
 
@@ -24,7 +25,7 @@ public abstract class OutputCommand : BaseCommand
             .SetDescription("The channel to use for this release.")
             .RequiresValidNuGetId()
             .SetArgumentHelpName("NAME")
-            .SetDefault(ReleaseEntryHelper.GetDefaultChannel(targetOs == RuntimeOs.Unknown ? VelopackRuntimeInfo.SystemOs : targetOs));
+            .SetDefault(DefaultName.GetDefaultChannel(targetOs == RuntimeOs.Unknown ? VelopackRuntimeInfo.SystemOs : targetOs));
     }
 
     public DirectoryInfo GetReleaseDirectory()

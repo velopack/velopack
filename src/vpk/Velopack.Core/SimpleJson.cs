@@ -2,7 +2,7 @@
 using Newtonsoft.Json.Converters;
 using NuGet.Versioning;
 
-namespace Velopack.Packaging;
+namespace Velopack.Core;
 
 public class SimpleJson
 {
@@ -11,7 +11,7 @@ public class SimpleJson
         NullValueHandling = NullValueHandling.Ignore,
     };
 
-    public static T DeserializeObject<T>(string json)
+    public static T? DeserializeObject<T>(string json)
     {
         return JsonConvert.DeserializeObject<T>(json, Options);
     }
@@ -23,15 +23,15 @@ public class SimpleJson
 
     private class SemanticVersionConverter : JsonConverter<SemanticVersion>
     {
-        public override SemanticVersion ReadJson(JsonReader reader, Type objectType, SemanticVersion existingValue, bool hasExistingValue,
+        public override SemanticVersion? ReadJson(JsonReader reader, Type objectType, SemanticVersion? existingValue, bool hasExistingValue,
             JsonSerializer serializer)
         {
-            string s = reader.Value as string;
+            string? s = reader.Value as string;
             if (s == null) return null;
             return SemanticVersion.Parse(s);
         }
 
-        public override void WriteJson(JsonWriter writer, SemanticVersion value, JsonSerializer serializer)
+        public override void WriteJson(JsonWriter writer, SemanticVersion? value, JsonSerializer serializer)
         {
             if (value != null) {
                 writer.WriteValue(value.ToFullString());

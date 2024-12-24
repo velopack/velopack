@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using Velopack.Packaging.Exceptions;
+using Velopack.Core;
 using Velopack.Util;
 
 namespace Velopack.Packaging.Windows;

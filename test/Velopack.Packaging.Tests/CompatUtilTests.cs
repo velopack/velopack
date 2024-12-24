@@ -1,4 +1,5 @@
 ﻿using Neovolve.Logging.Xunit;
+using Velopack.Core;
 using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Windows;
 using Velopack.Util;

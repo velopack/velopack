@@ -1,4 +1,4 @@
-﻿using Velopack.Packaging.Abstractions;
+﻿using Velopack.Core.Abstractions;
 using Velopack.Util;
 
 namespace Velopack.Vpk.Logging;
@@ -58,6 +58,14 @@ public class BasicConsole : IFancyConsole
             _logger.Info("Starting: " + name);
             await Task.Run(() => fn(_ => { }));
             _logger.Info("Complete: " + name);
+        }
+
+        public async Task<T> RunTask<T>(string name, Func<Action<int>, Task<T>> fn)
+        {
+            _logger.Info("Starting: " + name);
+            var result = await Task.Run(() => fn(_ => { }));
+            _logger.Info("Complete: " + name);
+            return result;
         }
     }
 }

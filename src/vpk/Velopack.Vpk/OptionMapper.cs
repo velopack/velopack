@@ -1,5 +1,6 @@
 ﻿using Riok.Mapperly.Abstractions;
 using Velopack.Deployment;
+using Velopack.Flow.Commands;
 using Velopack.Packaging.Commands;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;

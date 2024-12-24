@@ -1,4 +1,4 @@
-﻿namespace Velopack.Packaging.Abstractions;
+﻿namespace Velopack.Core.Abstractions;
 
 public interface IFancyConsole : IConsole
 {

@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using Microsoft.Extensions.Logging;
 using Octokit;
+using Velopack.Core;
 using Velopack.NuGet;
 using Velopack.Packaging;
 using Velopack.Packaging.Exceptions;
@@ -61,7 +62,7 @@ public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadO
         var semVer = options.TagName ?? latest.Version.ToString();
         var releaseName = string.IsNullOrWhiteSpace(options.ReleaseName) ? semVer.ToString() : options.ReleaseName;
 
-        Log.Info($"Preparing to upload {build.Files.Count} asset(s) to GitHub");
+        Log.Info($"Preparing to upload {build.RelativeFileNames.Count} asset(s) to GitHub");
 
         var client = new GitHubClient(new ProductHeaderValue("Velopack")) {
             Credentials = new Credentials(options.Token)
@@ -111,7 +112,7 @@ public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadO
         }
 
         // upload all assets (incl packages)
-        foreach (var a in build.Files) {
+        foreach (var a in build.GetFilePaths()) {
             await RetryAsync(() => UploadFileAsAsset(client, release, a), $"Uploading asset '{Path.GetFileName(a)}'..");
         }
 
@@ -131,7 +132,7 @@ public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadO
             },
             "Uploading " + releasesFileName);
 
-        if (options.Channel == ReleaseEntryHelper.GetDefaultChannel(RuntimeOs.Windows)) {
+        if (options.Channel == DefaultName.GetDefaultChannel(RuntimeOs.Windows)) {
             var legacyReleasesContent = ReleaseEntryHelper.GetLegacyMigrationReleaseFeedString(feed);
             var legacyReleasesBytes = Encoding.UTF8.GetBytes(legacyReleasesContent);
             await RetryAsync(

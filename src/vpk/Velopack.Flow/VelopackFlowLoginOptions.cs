@@ -1,7 +1,6 @@
-﻿#nullable enable
-namespace Velopack.Packaging.Flow;
+﻿namespace Velopack.Flow;
 
-public class VelopackLoginOptions : VelopackServiceOptions
+public class VelopackFlowLoginOptions
 {
     public bool AllowCacheCredentials { get; set; } = true;
     public bool AllowInteractiveLogin { get; set; } = true;

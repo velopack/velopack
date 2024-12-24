@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
+  <PropertyGroup>
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+  </PropertyGroup>
+  
   <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
     <CurrentOsName>Windows</CurrentOsName>
   </PropertyGroup>

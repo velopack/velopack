@@ -1,4 +1,5 @@
-﻿using Velopack.Packaging.Exceptions;
+﻿using Velopack.Core;
+using Velopack.Packaging.Exceptions;
 
 namespace Velopack.Packaging;
 
@@ -30,7 +31,8 @@ public class Zstd
         }
 
         if (windowLog > 30) {
-            throw new UserInfoException($"The file '{Path.GetFileName(oldFile)}' is too large for delta compression. You can disable delta generation using '--delta none'.");
+            throw new UserInfoException(
+                $"The file '{Path.GetFileName(oldFile)}' is too large for delta compression. You can disable delta generation using '--delta none'.");
         }
 
         if (mode == DeltaMode.BestSize) {
@@ -64,7 +66,11 @@ public class Zstd
     {
         int count = 0;
         v >>= 1;
-        while (v > 0) { v >>= 1; count++; }
+        while (v > 0) {
+            v >>= 1;
+            count++;
+        }
+
         return count;
     }
 }

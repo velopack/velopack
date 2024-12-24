@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Text;
+using Velopack.Core;
 using Velopack.Packaging.Exceptions;
 using Velopack.Util;
 
@@ -134,14 +135,15 @@ public static class Exe
             process.Kill();
             ct.ThrowIfCancellationRequested();
         }
-        
+
         // need to call this once more to wait for the streams to finish. if WaitForExit is called with a timeout, the streams will not be fully read.
-        process.WaitForExit(); 
+        process.WaitForExit();
 
         return (process.ExitCode, sOut.ToString().Trim(), sErr.ToString().Trim());
     }
 
-    public static (int ExitCode, string StdOutput, string StdErr, string Command) InvokeProcess(string fileName, IEnumerable<string> args, string workingDirectory, CancellationToken ct = default,
+    public static (int ExitCode, string StdOutput, string StdErr, string Command) InvokeProcess(string fileName, IEnumerable<string> args,
+        string workingDirectory, CancellationToken ct = default,
         IDictionary<string, string> envVar = null)
     {
         var psi = CreateProcessStartInfo(fileName, workingDirectory);
