@@ -196,6 +196,8 @@ public class VelopackFlowServiceClient(
                     $"Creating release {version}",
                     async (report) => {
                         report(-1);
+                        await CreateChannelIfNotExists(packageId, channel, cancellationToken);
+                        report(50);
                         var result = await CreateReleaseGroupAsync(packageId, version, channel, cancellationToken);
                         report(100);
                         return result;
@@ -310,6 +312,16 @@ public class VelopackFlowServiceClient(
         }
 
         Logger.LogWarning("Release did not go live within 5 minutes (timeout).");
+    }
+
+    private async Task CreateChannelIfNotExists(string packageId, string channel, CancellationToken cancellationToken)
+    {
+        var request = new CreateChannelRequest() {
+            PackageId = packageId,
+            Name = channel,
+        };
+        var client = GetFlowApi();
+        await client.CreateChannelAsync(request, cancellationToken);
     }
 
     private async Task<ReleaseGroup> CreateReleaseGroupAsync(string packageId, SemanticVersion version, string channel, CancellationToken cancellationToken)
