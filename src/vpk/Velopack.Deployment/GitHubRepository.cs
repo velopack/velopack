@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using Microsoft.Extensions.Logging;
 using Octokit;
+using Velopack.Core;
 using Velopack.NuGet;
 using Velopack.Packaging;
 using Velopack.Packaging.Exceptions;
@@ -131,7 +132,7 @@ public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadO
             },
             "Uploading " + releasesFileName);
 
-        if (options.Channel == ReleaseEntryHelper.GetDefaultChannel(RuntimeOs.Windows)) {
+        if (options.Channel == DefaultName.GetDefaultChannel(RuntimeOs.Windows)) {
             var legacyReleasesContent = ReleaseEntryHelper.GetLegacyMigrationReleaseFeedString(feed);
             var legacyReleasesBytes = Encoding.UTF8.GetBytes(legacyReleasesContent);
             await RetryAsync(

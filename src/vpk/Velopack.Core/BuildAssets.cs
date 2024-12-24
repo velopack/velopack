@@ -1,8 +1,9 @@
 ﻿using Newtonsoft.Json;
-using Velopack.Packaging.Exceptions;
 using Velopack.Util;
 
-namespace Velopack.Packaging;
+#nullable disable
+
+namespace Velopack.Core;
 
 public class BuildAssets
 {
@@ -14,7 +15,7 @@ public class BuildAssets
     public List<VelopackAsset> GetReleaseEntries()
     {
         return GetFilePaths().Where(x => x.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase))
-            .Select(f => VelopackAsset.FromNupkg(f))
+            .Select(VelopackAsset.FromNupkg)
             .ToList();
     }
 

@@ -6,8 +6,8 @@ using AsmResolver.PE.DotNet.Cil;
 using AsmResolver.PE.Win32Resources.Version;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
-using Velopack.Packaging.Abstractions;
-using Velopack.Packaging.Exceptions;
+using Velopack.Core;
+using Velopack.Core.Abstractions;
 using Velopack.Util;
 
 namespace Velopack.Packaging.Windows;

@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
+using Velopack.Core;
 using Velopack.NuGet;
 using Velopack.Util;
 
@@ -17,7 +18,7 @@ public class ReleaseEntryHelper
     {
         _outputDir = outputDir;
         _logger = logger;
-        _channel = channel ?? GetDefaultChannel(os);
+        _channel = channel ?? DefaultName.GetDefaultChannel(os);
         _releases = GetReleasesFromDir(outputDir);
     }
 
@@ -26,11 +27,12 @@ public class ReleaseEntryHelper
         var rel = new Dictionary<string, List<VelopackAsset>>(StringComparer.OrdinalIgnoreCase);
         foreach (var releaseFile in Directory.EnumerateFiles(dir, "*.nupkg")) {
             var zip = new ZipPackage(releaseFile);
-            var ch = zip.Channel ?? GetDefaultChannel(VelopackRuntimeInfo.SystemOs);
+            var ch = zip.Channel ?? DefaultName.GetDefaultChannel(VelopackRuntimeInfo.SystemOs);
             if (!rel.ContainsKey(ch))
                 rel[ch] = new List<VelopackAsset>();
             rel[ch].Add(VelopackAsset.FromZipPackage(zip));
         }
+
         return rel;
     }
 
@@ -43,6 +45,7 @@ public class ReleaseEntryHelper
                 return true;
             }
         }
+
         return false;
     }
 
@@ -94,10 +97,12 @@ public class ReleaseEntryHelper
         foreach (var releaseFile in Directory.EnumerateFiles(outputDir, "RELEASES*")) {
             File.Delete(releaseFile);
         }
+
         foreach (var kvp in releases) {
             var exclude = kvp.Value.Where(x => x.Version.ReleaseLabels.Any(r => r.Contains('.')) || x.Version.HasMetadata).ToArray();
             if (exclude.Any()) {
-                log.Warn($"Excluding {exclude.Length} asset(s) from legacy RELEASES file, because they " +
+                log.Warn(
+                    $"Excluding {exclude.Length} asset(s) from legacy RELEASES file, because they " +
                     $"contain an invalid character in the version: {string.Join(", ", exclude.Select(x => x.FileName))}");
             }
 
@@ -149,54 +154,6 @@ public class ReleaseEntryHelper
 #pragma warning restore CS0618 // Type or member is obsolete
 
         return Encoding.UTF8.GetString(ms.ToArray());
-    }
-
-    public static string GetSuggestedReleaseName(string id, string version, string channel, bool delta, RuntimeOs os)
-    {
-        var suffix = GetUniqueAssetSuffix(channel);
-        version = SemanticVersion.Parse(version).ToNormalizedString();
-        if (os == RuntimeOs.Windows && channel == GetDefaultChannel(RuntimeOs.Windows)) {
-            return $"{id}-{version}{(delta ? "-delta" : "-full")}.nupkg";
-        }
-        return $"{id}-{version}{suffix}{(delta ? "-delta" : "-full")}.nupkg";
-    }
-
-    public static string GetSuggestedPortableName(string id, string channel, RuntimeOs os)
-    {
-        var suffix = GetUniqueAssetSuffix(channel);
-        if (os == RuntimeOs.Linux) {
-            if (channel == GetDefaultChannel(RuntimeOs.Linux)) {
-                return $"{id}.AppImage";
-            } else {
-                return $"{id}{suffix}.AppImage";
-            }
-        } else {
-            return $"{id}{suffix}-Portable.zip";
-        }
-    }
-
-    public static string GetSuggestedSetupName(string id, string channel, RuntimeOs os)
-    {
-        var suffix = GetUniqueAssetSuffix(channel);
-        if (os == RuntimeOs.Windows)
-            return $"{id}{suffix}-Setup.exe";
-        else if (os == RuntimeOs.OSX)
-            return $"{id}{suffix}-Setup.pkg";
-        else
-            throw new PlatformNotSupportedException("Platform not supported.");
-    }
-
-    private static string GetUniqueAssetSuffix(string channel)
-    {
-        return "-" + channel;
-    }
-
-    public static string GetDefaultChannel(RuntimeOs os)
-    {
-        if (os == RuntimeOs.Windows) return "win";
-        if (os == RuntimeOs.OSX) return "osx";
-        if (os == RuntimeOs.Linux) return "linux";
-        throw new NotSupportedException("Unsupported OS: " + os);
     }
 
     public enum AssetsMode
@@ -267,6 +224,4 @@ public class ReleaseEntryHelper
 
     //    return ret;
     //}
-
-
 }

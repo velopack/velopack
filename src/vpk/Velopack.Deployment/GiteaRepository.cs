@@ -4,9 +4,9 @@ using Gitea.Net.Api;
 using Gitea.Net.Client;
 using Gitea.Net.Model;
 using Microsoft.Extensions.Logging;
+using Velopack.Core;
 using Velopack.NuGet;
 using Velopack.Packaging;
-using Velopack.Packaging.Exceptions;
 using Velopack.Sources;
 using Velopack.Util;
 
@@ -155,7 +155,7 @@ public class GiteaRepository : SourceRepository<GiteaDownloadOptions, GiteaSourc
             await apiInstance.RepoCreateReleaseAttachmentAsync(repoOwner, repoName, release.Id, releasesFileName, new MemoryStream(Encoding.UTF8.GetBytes(json)));
         }, "Uploading " + releasesFileName);
 
-        if (options.Channel == ReleaseEntryHelper.GetDefaultChannel(RuntimeOs.Windows)) {
+        if (options.Channel == DefaultName.GetDefaultChannel(RuntimeOs.Windows)) {
             var legacyReleasesContent = ReleaseEntryHelper.GetLegacyMigrationReleaseFeedString(feed);
             var legacyReleasesBytes = Encoding.UTF8.GetBytes(legacyReleasesContent);
             await RetryAsync(async () => {

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using Microsoft.Extensions.Logging;
-using Velopack.Packaging.Abstractions;
+using Velopack.Core.Abstractions;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 using Task = System.Threading.Tasks.Task;
 

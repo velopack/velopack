@@ -33,6 +33,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Velopack.Deployment\Velopack.Deployment.csproj" />
+    <ProjectReference Include="..\Velopack.Flow\Velopack.Flow.csproj" />
     <ProjectReference Include="..\Velopack.Packaging.Unix\Velopack.Packaging.Unix.csproj" />
     <ProjectReference Include="..\Velopack.Packaging.Windows\Velopack.Packaging.Windows.csproj" />
   </ItemGroup>
