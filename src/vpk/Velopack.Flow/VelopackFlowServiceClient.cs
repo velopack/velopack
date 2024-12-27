@@ -72,12 +72,8 @@ public class VelopackFlowServiceClient(
     public async Task<bool> LoginAsync(VelopackFlowLoginOptions? loginOptions, bool suppressOutput, CancellationToken cancellationToken)
     {
         loginOptions ??= new VelopackFlowLoginOptions();
-        FlowApi client = GetFlowApi();
-        if (!suppressOutput) {
-            Logger.LogInformation("Preparing to login to Velopack ({serviceUrl})", client.BaseUrl);
-        }
 
-        var authConfiguration = await GetAuthConfigurationAsync(client, cancellationToken);
+        var authConfiguration = await GetAuthConfigurationAsync(suppressOutput, cancellationToken);
         var pca = await BuildPublicApplicationAsync(authConfiguration);
 
         if (!string.IsNullOrWhiteSpace(Options.ApiKey)) {
@@ -109,7 +105,7 @@ public class VelopackFlowServiceClient(
             Authorization = new("Bearer", rv.IdToken ?? rv.AccessToken);
         }
 
-        var profile = await GetProfileAsync(client, cancellationToken);
+        var profile = await GetProfileAsync(GetFlowApi(), cancellationToken);
 
         if (!suppressOutput) {
             Logger.LogInformation("{UserName} logged into Velopack", profile?.GetDisplayName());
@@ -120,8 +116,7 @@ public class VelopackFlowServiceClient(
 
     public async Task LogoutAsync(CancellationToken cancellationToken)
     {
-        FlowApi client = GetFlowApi();
-        var authConfiguration = await GetAuthConfigurationAsync(client, cancellationToken);
+        var authConfiguration = await GetAuthConfigurationAsync(false, cancellationToken);
 
         var pca = await BuildPublicApplicationAsync(authConfiguration);
 
@@ -304,9 +299,11 @@ public class VelopackFlowServiceClient(
     {
         try {
             var client = GetFlowApi(progress);
-            using var localFile = File.Create(localPath);
-            using var file = await client.DownloadInstallerLatestAsync(packageId, channel, DownloadAssetType.Full, cancellationToken);
-            await file.Stream.CopyToAsync(localFile, 81920, cancellationToken).ConfigureAwait(false);
+            using (var localFile = File.Create(localPath)) {
+                using var file = await client.DownloadInstallerLatestAsync(packageId, channel, DownloadAssetType.Full, cancellationToken);
+                await file.Stream.CopyToAsync(localFile, 81920, cancellationToken).ConfigureAwait(false);
+            }
+
             return new ZipPackage(localPath);
         } catch (ApiException e) when (e.StatusCode == (int) HttpStatusCode.NotFound) {
             return null;
@@ -372,8 +369,14 @@ public class VelopackFlowServiceClient(
         return await client.UpdateReleaseGroupAsync(releaseGroupId, request, cancellationToken);
     }
 
-    private async Task<AuthConfiguration> GetAuthConfigurationAsync(FlowApi client, CancellationToken cancellationToken)
+    private async Task<AuthConfiguration> GetAuthConfigurationAsync(bool suppressOutput, CancellationToken cancellationToken)
     {
+        FlowApi client = GetFlowApi();
+
+        if (!suppressOutput) {
+            Logger.LogInformation("Preparing to login to Velopack ({serviceUrl})", client.BaseUrl);
+        }
+
         if (AuthConfiguration is { } authConfiguration)
             return authConfiguration;
 
