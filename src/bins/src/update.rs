@@ -114,11 +114,11 @@ fn get_op_wait(matches: &ArgMatches) -> shared::OperationWait {
     }
 }
 
-fn main() -> Result<()> {
-    shared::cli_host::clap_run_main("Update", main_inner)
-}
+// fn main() -> Result<()> {
+//     shared::cli_host::clap_run_main("Update", main_inner)
+// }
 
-fn main_inner() -> Result<()> {
+fn main() -> Result<()> {
     #[cfg(windows)]
     windows::mitigate::pre_main_sideload_mitigation();
 
