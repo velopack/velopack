@@ -29,7 +29,7 @@ public class MSBuildLogger(TaskLoggingHelper loggingHelper) : ILogger, IFancyCon
         try {
             await fn(x => { }).ConfigureAwait(false);
         } catch (Exception ex) {
-            this.LogError(ex, "Error running task {0}", name);
+            this.LogError(ex, "Error running task {taskName}", name);
             throw;
         }
     }
@@ -39,7 +39,7 @@ public class MSBuildLogger(TaskLoggingHelper loggingHelper) : ILogger, IFancyCon
         try {
             return await fn(x => { }).ConfigureAwait(false);
         } catch (Exception ex) {
-            this.LogError(ex, "Error running task {0}", name);
+            this.LogError(ex, "Error running task {taskName}", name);
             throw;
         }
     }

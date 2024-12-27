@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Build.Framework;
 using Microsoft.Extensions.Logging;
@@ -17,17 +18,19 @@ public class PublishTask : MSBuildAsyncTask
 
     public string? ApiKey { get; set; }
 
-    public double Timeout { get; set; } = 30d;
+    public string? Timeout { get; set; }
 
     public bool WaitForLive { get; set; }
 
     protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
     {
+        TimeSpan timeout = Timeout == null ? TimeSpan.FromMinutes(30) : TimeSpan.Parse(Timeout);
+
         //System.Diagnostics.Debugger.Launch();
         var options = new VelopackFlowServiceOptions {
             VelopackBaseUrl = ServiceUrl,
             ApiKey = ApiKey,
-            Timeout = Timeout,
+            Timeout = timeout,
         };
 
         var loginOptions = new VelopackFlowLoginOptions() {
@@ -37,8 +40,7 @@ public class PublishTask : MSBuildAsyncTask
         };
 
         var client = new VelopackFlowServiceClient(options, Logger, Logger);
-        CancellationToken token = CancellationToken.None;
-        if (!await client.LoginAsync(loginOptions, false, token)) {
+        if (!await client.LoginAsync(loginOptions, false, cancellationToken).ConfigureAwait(false)) {
             Logger.LogWarning("Not logged into Velopack Flow service, skipping publish. Please run vpk login.");
             return true;
         }
