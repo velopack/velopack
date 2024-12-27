@@ -1,33 +1,36 @@
 ﻿using Newtonsoft.Json;
 using Velopack.Util;
 
-#nullable disable
-
 namespace Velopack.Core;
 
 public class BuildAssets
 {
     [JsonIgnore]
-    private string _outputDir;
+    private string? _outputDir;
 
-    public List<string> RelativeFileNames { get; set; } = new List<string>();
+    public List<string>? RelativeFileNames { get; set; } = [];
 
     public List<VelopackAsset> GetReleaseEntries()
     {
-        return GetFilePaths().Where(x => x.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase))
+        return GetFilePaths()
+            .Where(x => x.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase))
             .Select(VelopackAsset.FromNupkg)
             .ToList();
     }
 
     public List<string> GetNonReleaseAssetPaths()
     {
-        return GetFilePaths().Where(x => !x.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase))
+        return GetFilePaths()
+            .Where(x => !x.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase))
             .ToList();
     }
 
-    public List<string> GetFilePaths()
+    public IEnumerable<string> GetFilePaths()
     {
-        return RelativeFileNames.Select(f => Path.GetFullPath(Path.Combine(_outputDir, f))).ToList();
+        if (RelativeFileNames is { } relativeFileNames && _outputDir is { } outputDir) {
+            return relativeFileNames.Select(f => Path.GetFullPath(Path.Combine(outputDir, f))).ToList();
+        }
+        return [];
     }
 
     public static void Write(string outputDir, string channel, IEnumerable<string> files)
@@ -51,7 +54,7 @@ public class BuildAssets
                 $"If you've just created a Velopack release, verify you're calling this command with the same '--channel' as you did with 'pack'.");
         }
 
-        var assets = SimpleJson.DeserializeObject<BuildAssets>(File.ReadAllText(path));
+        var assets = SimpleJson.DeserializeObject<BuildAssets>(File.ReadAllText(path)) ?? new();
         assets._outputDir = outputDir;
         return assets;
     }
