@@ -97,7 +97,12 @@ public class VelopackFlowServiceClient(
             }
 
             if (rv is null) {
-                Logger.LogError("Failed to login to Velopack");
+                if (!loginOptions.AllowInteractiveLogin && !loginOptions.AllowDeviceCodeFlow) {
+                    Logger.LogError("Failed to login to Velopack, no credentials found or they have expired. Please run 'vpk login' to authenticate.");
+                } else {
+                    Logger.LogError("Failed to login to Velopack");
+                }
+
                 return false;
             }
 
@@ -477,7 +482,10 @@ public class VelopackFlowServiceClient(
             .WithB2CAuthority(authConfiguration.B2CAuthority)
             .WithRedirectUri(authConfiguration.RedirectUri)
 #if DEBUG
-            .WithLogging((Microsoft.Identity.Client.LogLevel level, string message, bool containsPii) => System.Console.WriteLine($"[{level}]: {message}"), enablePiiLogging: true, enableDefaultPlatformLogging: true)
+            .WithLogging(
+                (Microsoft.Identity.Client.LogLevel level, string message, bool containsPii) => System.Console.WriteLine($"[{level}]: {message}"),
+                enablePiiLogging: true,
+                enableDefaultPlatformLogging: true)
 #endif
             .WithClientName("velopack")
             .Build();
