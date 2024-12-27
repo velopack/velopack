@@ -38,7 +38,7 @@
 
   <ItemGroup Condition=" $(MSBuildProjectName.EndsWith('Tests')) ">
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
-    <PackageReference Include="Neovolve.Logging.Xunit.Signed" Version="6.2.0" />
+    <PackageReference Include="Neovolve.Logging.Xunit.Signed" Version="6.3.0" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
