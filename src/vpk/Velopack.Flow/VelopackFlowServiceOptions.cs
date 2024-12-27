@@ -6,5 +6,5 @@ public class VelopackFlowServiceOptions
 
     public string? ApiKey { get; set; } = string.Empty;
     
-    public TimeSpan Timeout { get; set; } = TimeSpan.FromMinutes(30);
+    public double Timeout { get; set; } = 30d;
 }

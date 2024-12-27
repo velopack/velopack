@@ -24,7 +24,12 @@ public class PublishTask : MSBuildAsyncTask
 
     protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
     {
-        TimeSpan timeout = Timeout == null ? TimeSpan.FromMinutes(30) : TimeSpan.Parse(Timeout);
+        double timeout;
+        if (double.TryParse(Timeout, out var parsedTimeout)) {
+            timeout = parsedTimeout;
+        } else {
+            timeout = 30d;
+        }
 
         //System.Diagnostics.Debugger.Launch();
         var options = new VelopackFlowServiceOptions {

@@ -23,7 +23,7 @@
       <VelopackPackAuthors Condition="'$(VelopackPackAuthors)' == ''">$(Authors)</VelopackPackAuthors>
       <VelopackTargetRuntime Condition="'$(VelopackTargetRuntime)' == ''">$(RuntimeIdentifier)</VelopackTargetRuntime>
       <VelopackShortcuts Condition="'$(VelopackShortcuts)' == ''">Desktop,StartMenuRoot</VelopackShortcuts>
-      <VelopackHttpTimeout Condition="'$(VelopackHttpTimeout)' == ''">00:30:00</VelopackHttpTimeout>
+      <VelopackHttpTimeout Condition="'$(VelopackHttpTimeout)' == ''">30</VelopackHttpTimeout>
       <VelopackWaitForLive Condition="'$(VelopackWaitForLive)' == ''">false</VelopackWaitForLive>
 
       <!-- Allows a cross platform app (eg. Avalonia) to specify all three via csproj and have them applied correctly -->

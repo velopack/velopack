@@ -53,7 +53,6 @@ public static partial class OptionMapper
 
     public static partial DeltaPatchOptions ToOptions(this DeltaPatchCommand cmd);
 
-    [MapperIgnoreTarget(nameof(LocalDownloadOptions.Timeout))]
     public static partial LoginOptions ToOptions(this LoginCommand cmd);
 
     public static partial LogoutOptions ToOptions(this LogoutCommand cmd);
