@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.S3" Version="3.7.410.9" />
+    <PackageReference Include="AWSSDK.S3" Version="3.7.410.12" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.23.0" />
     <PackageReference Include="Gitea.Net.API" Version="1.0.2" />
     <PackageReference Include="Octokit" Version="13.0.1" />
