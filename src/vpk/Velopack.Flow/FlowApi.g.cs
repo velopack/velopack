@@ -1306,14 +1306,14 @@ namespace Velopack.Flow
         }
 
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task DownloadReleaseAsync(System.Guid releaseAssetId)
+        public virtual System.Threading.Tasks.Task<FileResponse> DownloadReleaseAsync(System.Guid releaseAssetId)
         {
             return DownloadReleaseAsync(releaseAssetId, System.Threading.CancellationToken.None);
         }
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task DownloadReleaseAsync(System.Guid releaseAssetId, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<FileResponse> DownloadReleaseAsync(System.Guid releaseAssetId, System.Threading.CancellationToken cancellationToken)
         {
             if (releaseAssetId == null)
                 throw new System.ArgumentNullException("releaseAssetId");
@@ -1325,6 +1325,7 @@ namespace Velopack.Flow
                 using (var request_ = new System.Net.Http.HttpRequestMessage())
                 {
                     request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/octet-stream"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
                     if (!string.IsNullOrEmpty(_baseUrl)) urlBuilder_.Append(_baseUrl);
@@ -1361,11 +1362,12 @@ namespace Velopack.Flow
                             throw new ApiException("A server side error occurred.", status_, responseText_, headers_, null);
                         }
                         else
-
-                        if (status_ == 200 || status_ == 204)
+                        if (status_ == 200 || status_ == 206)
                         {
-
-                            return;
+                            var responseStream_ = response_.Content == null ? System.IO.Stream.Null : await response_.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                            var fileResponse_ = new FileResponse(status_, headers_, responseStream_, null, response_);
+                            disposeClient_ = false; disposeResponse_ = false; // response and client are disposed by FileResponse
+                            return fileResponse_;
                         }
                         else
                         {
@@ -1388,14 +1390,14 @@ namespace Velopack.Flow
         }
 
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task DownloadInstallerLatestAsync(string packageId, string channel, DownloadAssetType? assetType)
+        public virtual System.Threading.Tasks.Task<FileResponse> DownloadInstallerLatestAsync(string packageId, string channel, DownloadAssetType? assetType)
         {
             return DownloadInstallerLatestAsync(packageId, channel, assetType, System.Threading.CancellationToken.None);
         }
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task DownloadInstallerLatestAsync(string packageId, string channel, DownloadAssetType? assetType, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<FileResponse> DownloadInstallerLatestAsync(string packageId, string channel, DownloadAssetType? assetType, System.Threading.CancellationToken cancellationToken)
         {
             if (packageId == null)
                 throw new System.ArgumentNullException("packageId");
@@ -1410,6 +1412,7 @@ namespace Velopack.Flow
                 using (var request_ = new System.Net.Http.HttpRequestMessage())
                 {
                     request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/octet-stream"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
                     if (!string.IsNullOrEmpty(_baseUrl)) urlBuilder_.Append(_baseUrl);
@@ -1454,11 +1457,12 @@ namespace Velopack.Flow
                             throw new ApiException("A server side error occurred.", status_, responseText_, headers_, null);
                         }
                         else
-
-                        if (status_ == 200 || status_ == 204)
+                        if (status_ == 200 || status_ == 206)
                         {
-
-                            return;
+                            var responseStream_ = response_.Content == null ? System.IO.Stream.Null : await response_.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                            var fileResponse_ = new FileResponse(status_, headers_, responseStream_, null, response_);
+                            disposeClient_ = false; disposeResponse_ = false; // response and client are disposed by FileResponse
+                            return fileResponse_;
                         }
                         else
                         {
@@ -1481,14 +1485,14 @@ namespace Velopack.Flow
         }
 
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task DownloadInstallerVersionAsync(string packageId, string channel, string releaseVersion, DownloadAssetType? assetType)
+        public virtual System.Threading.Tasks.Task<FileResponse> DownloadInstallerVersionAsync(string packageId, string channel, string releaseVersion, DownloadAssetType? assetType)
         {
             return DownloadInstallerVersionAsync(packageId, channel, releaseVersion, assetType, System.Threading.CancellationToken.None);
         }
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task DownloadInstallerVersionAsync(string packageId, string channel, string releaseVersion, DownloadAssetType? assetType, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<FileResponse> DownloadInstallerVersionAsync(string packageId, string channel, string releaseVersion, DownloadAssetType? assetType, System.Threading.CancellationToken cancellationToken)
         {
             if (packageId == null)
                 throw new System.ArgumentNullException("packageId");
@@ -1506,6 +1510,7 @@ namespace Velopack.Flow
                 using (var request_ = new System.Net.Http.HttpRequestMessage())
                 {
                     request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/octet-stream"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
                     if (!string.IsNullOrEmpty(_baseUrl)) urlBuilder_.Append(_baseUrl);
@@ -1556,11 +1561,12 @@ namespace Velopack.Flow
                             throw new ApiException<string>("A server side error occurred.", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
-
-                        if (status_ == 200 || status_ == 204)
+                        if (status_ == 200 || status_ == 206)
                         {
-
-                            return;
+                            var responseStream_ = response_.Content == null ? System.IO.Stream.Null : await response_.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                            var fileResponse_ = new FileResponse(status_, headers_, responseStream_, null, response_);
+                            disposeClient_ = false; disposeResponse_ = false; // response and client are disposed by FileResponse
+                            return fileResponse_;
                         }
                         else
                         {
@@ -5434,6 +5440,41 @@ namespace Velopack.Flow
         public string ContentType { get; private set; }
     }
 
+    [System.CodeDom.Compiler.GeneratedCode("NSwag", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class FileResponse : System.IDisposable
+    {
+        private System.IDisposable _client;
+        private System.IDisposable _response;
+
+        public int StatusCode { get; private set; }
+
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Collections.Generic.IEnumerable<string>> Headers { get; private set; }
+
+        public System.IO.Stream Stream { get; private set; }
+
+        public bool IsPartial
+        {
+            get { return StatusCode == 206; }
+        }
+
+        public FileResponse(int statusCode, System.Collections.Generic.IReadOnlyDictionary<string, System.Collections.Generic.IEnumerable<string>> headers, System.IO.Stream stream, System.IDisposable client, System.IDisposable response)
+        {
+            StatusCode = statusCode;
+            Headers = headers;
+            Stream = stream;
+            _client = client;
+            _response = response;
+        }
+
+        public void Dispose()
+        {
+            Stream.Dispose();
+            if (_response != null)
+                _response.Dispose();
+            if (_client != null)
+                _client.Dispose();
+        }
+    }
 
 
     [System.CodeDom.Compiler.GeneratedCode("NSwag", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
