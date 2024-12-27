@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 
@@ -63,16 +64,16 @@ public partial class FlowApi
         ProcessResponse(client, response);
 
         var status = (int) response.StatusCode;
-        if (status == 404) {
-            string responseText_ = (response.Content == null) ? string.Empty :
+        if (status == (int) HttpStatusCode.NotFound) {
+            string responseText = (response.Content == null) ? string.Empty :
 #if NET6_0_OR_GREATER
-                await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 #else
-                await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 #endif
 
-            throw new ApiException("A server side error occurred.", status, responseText_, headers, null);
-        } else if (status == 200 || status == 204) {
+            throw new ApiException("A server side error occurred.", status, responseText, headers, null);
+        } else if (status is (int) HttpStatusCode.OK or (int) HttpStatusCode.NoContent) {
             using var fs = File.Create(localFilePath);
             if (response.Content != null) {
 #if NET6_0_OR_GREATER
