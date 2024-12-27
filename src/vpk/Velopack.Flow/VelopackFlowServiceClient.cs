@@ -54,7 +54,7 @@ public class VelopackFlowServiceClient(
 
         var client = new HttpClient(handler);
         client.DefaultRequestHeaders.Authorization = Authorization;
-        client.Timeout = Options.Timeout;
+        client.Timeout = TimeSpan.FromMinutes(Options.Timeout);
         return client;
     }
 
