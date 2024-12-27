@@ -1,6 +1,5 @@
 ﻿#if NETFRAMEWORK || NETSTANDARD2_0
 
-#nullable enable
 using System.Net.Http;
 using System.Text;
 

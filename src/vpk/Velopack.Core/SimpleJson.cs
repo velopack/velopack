@@ -2,11 +2,14 @@
 using Newtonsoft.Json.Converters;
 using NuGet.Versioning;
 
+//NB: This is explicitly enabled because this file is linked into multiple projects
+#nullable enable 
+
 namespace Velopack.Core;
 
 public class SimpleJson
 {
-    private static readonly JsonSerializerSettings Options = new JsonSerializerSettings {
+    private static readonly JsonSerializerSettings Options = new() {
         Converters = { new StringEnumConverter(), new SemanticVersionConverter() },
         NullValueHandling = NullValueHandling.Ignore,
     };
