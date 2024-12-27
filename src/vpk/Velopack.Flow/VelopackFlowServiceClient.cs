@@ -25,49 +25,11 @@ public class VelopackFlowServiceClient(
     ILogger Logger,
     IFancyConsole Console)
 {
-    private static readonly SemanticVersion ZeroVersion = new(0, 0, 0);
-
     private static readonly string[] Scopes = ["openid", "offline_access"];
 
     private AuthenticationHeaderValue? Authorization = null;
 
     private AuthConfiguration? AuthConfiguration { get; set; }
-
-    private HttpClient GetHttpClient(Action<int>? progress = null)
-    {
-        HttpMessageHandler handler;
-
-        if (progress != null) {
-            var ph = new HttpFormatting::System.Net.Http.Handlers.ProgressMessageHandler(
-                new HmacAuthHttpClientHandler(new HttpClientHandler() { AllowAutoRedirect = true }));
-            ph.HttpSendProgress += (_, args) => {
-                progress(args.ProgressPercentage);
-                // Console.WriteLine($"upload progress: {((double)args.BytesTransferred / args.TotalBytes) * 100.0}");
-            };
-            ph.HttpReceiveProgress += (_, args) => {
-                progress(args.ProgressPercentage);
-            };
-            handler = ph;
-        } else {
-            handler = new HmacAuthHttpClientHandler(new HttpClientHandler() { AllowAutoRedirect = true });
-        }
-
-        var client = new HttpClient(handler);
-        client.DefaultRequestHeaders.Authorization = Authorization;
-        client.Timeout = TimeSpan.FromMinutes(Options.Timeout);
-        return client;
-    }
-
-    private FlowApi GetFlowApi(Action<int>? progress = null)
-    {
-        var client = GetHttpClient(progress);
-        var api = new FlowApi(client);
-        if (!String.IsNullOrWhiteSpace(Options.VelopackBaseUrl)) {
-            api.BaseUrl = Options.VelopackBaseUrl;
-        }
-
-        return api;
-    }
 
     public async Task<bool> LoginAsync(VelopackFlowLoginOptions? loginOptions, bool suppressOutput, CancellationToken cancellationToken)
     {
@@ -189,110 +151,117 @@ public class VelopackFlowServiceClient(
 
         FlowApi client = GetFlowApi();
 
-        await Console.ExecuteProgressAsync(
-            async (progress) => {
-                ReleaseGroup releaseGroup = await progress.RunTask(
-                    $"Creating release {version}",
-                    async (report) => {
-                        report(-1);
-                        await CreateChannelIfNotExists(client, packageId, channel, cancellationToken);
-                        report(50);
-                        var result = await CreateReleaseGroupAsync(client, packageId, version, channel, cancellationToken);
-                        report(100);
-                        return result;
-                    });
-
-                var backgroundTasks = new List<Task>();
-                foreach (var (filePath, fileType) in filesToUpload) {
-                    backgroundTasks.Add(
-                        progress.RunTask(
-                            $"Uploading {Path.GetFileName(filePath)}",
-                            async (report) => {
-                                await UploadReleaseAssetAsync(
-                                    filePath,
-                                    releaseGroup.Id,
-                                    fileType,
-                                    report,
-                                    cancellationToken);
-                                report(100);
-                            })
-                    );
-                }
-
-                using var _1 = TempUtil.GetTempDirectory(out var deltaGenTempDir);
-                var prevVersion = Path.Combine(deltaGenTempDir, "prev.nupkg");
-
-                ZipPackage? prevZip = await progress.RunTask(
-                    $"Downloading delta base for {version}",
-                    async (report) => {
-                        return await DownloadLatestRelease(packageId, channel, prevVersion, report, cancellationToken);
-                    });
-
-                if (prevZip is not null) {
-                    if (prevZip.Version! >= version) {
-                        throw new InvalidOperationException(
-                            $"Latest version in channel {channel} is greater than or equal to local (remote={prevZip.Version}, local={version})");
-                    }
-
-                    var suggestedDeltaName = DefaultName.GetSuggestedReleaseName(packageId, version.ToFullString(), channel, true, RuntimeOs.Unknown);
-                    var deltaPath = Path.Combine(releaseDirectory, suggestedDeltaName);
-
-                    await progress.RunTask(
-                        $"Building delta {prevZip.Version} -> {version}",
-                        (report) => {
-                            var delta = new DeltaPackageBuilder(Logger);
-                            var pOld = new ReleasePackage(prevVersion);
-                            var pNew = new ReleasePackage(fullAssetPath);
-                            delta.CreateDeltaPackage(pOld, pNew, deltaPath, DeltaMode.BestSpeed, report);
-                            report(100);
-                            return Task.CompletedTask;
-                        });
-
-                    backgroundTasks.Add(
-                        progress.RunTask(
-                            $"Uploading {Path.GetFileName(deltaPath)}",
-                            async (report) => {
-                                await UploadReleaseAssetAsync(
-                                    deltaPath,
-                                    releaseGroup.Id,
-                                    FileType.Release,
-                                    report,
-                                    cancellationToken);
-                                report(100);
-                            })
-                    );
-                }
-
-                await Task.WhenAll(backgroundTasks);
-
-                var publishedGroup = await progress.RunTask(
-                    $"Publishing release {version}",
-                    async (report) => {
-                        report(-1);
-                        var result = await PublishReleaseGroupAsync(client, releaseGroup.Id, cancellationToken);
-                        report(100);
-                        return result;
-                    });
-
-                if (waitForLive) {
-                    await progress.RunTask(
-                        "Waiting for release to go live",
+        try {
+            await Console.ExecuteProgressAsync(
+                async (progress) => {
+                    ReleaseGroup releaseGroup = await progress.RunTask(
+                        $"Creating release {version}",
                         async (report) => {
                             report(-1);
-                            await WaitUntilReleaseGroupLive(client, publishedGroup.Id, cancellationToken);
+                            await CreateChannelIfNotExists(client, packageId, channel, cancellationToken);
+                            report(50);
+                            var result = await CreateReleaseGroupAsync(client, packageId, version, channel, cancellationToken);
                             report(100);
+                            return result;
                         });
-                }
-            });
-    }
 
+                    var backgroundTasks = new List<Task>();
+                    foreach (var (filePath, fileType) in filesToUpload) {
+                        backgroundTasks.Add(
+                            progress.RunTask(
+                                $"Uploading {Path.GetFileName(filePath)}",
+                                async (report) => {
+                                    await UploadReleaseAssetAsync(
+                                        filePath,
+                                        releaseGroup.Id,
+                                        fileType,
+                                        report,
+                                        cancellationToken);
+                                    report(100);
+                                })
+                        );
+                    }
+
+                    using var _1 = TempUtil.GetTempDirectory(out var deltaGenTempDir);
+                    var prevVersion = Path.Combine(deltaGenTempDir, "prev.nupkg");
+
+                    ZipPackage? prevZip = await progress.RunTask(
+                        $"Downloading delta base for {version}",
+                        async (report) => {
+                            return await DownloadLatestRelease(packageId, channel, prevVersion, report, cancellationToken);
+                        });
+
+                    if (prevZip is not null) {
+                        if (prevZip.Version! >= version) {
+                            throw new InvalidOperationException(
+                                $"Latest version in channel {channel} is greater than or equal to local (remote={prevZip.Version}, local={version})");
+                        }
+
+                        var suggestedDeltaName = DefaultName.GetSuggestedReleaseName(packageId, version.ToFullString(), channel, true, RuntimeOs.Unknown);
+                        var deltaPath = Path.Combine(releaseDirectory, suggestedDeltaName);
+
+                        await progress.RunTask(
+                            $"Building delta {prevZip.Version} -> {version}",
+                            (report) => {
+                                var delta = new DeltaPackageBuilder(Logger);
+                                var pOld = new ReleasePackage(prevVersion);
+                                var pNew = new ReleasePackage(fullAssetPath);
+                                delta.CreateDeltaPackage(pOld, pNew, deltaPath, DeltaMode.BestSpeed, report);
+                                report(100);
+                                return Task.CompletedTask;
+                            });
+
+                        backgroundTasks.Add(
+                            progress.RunTask(
+                                $"Uploading {Path.GetFileName(deltaPath)}",
+                                async (report) => {
+                                    await UploadReleaseAssetAsync(
+                                        deltaPath,
+                                        releaseGroup.Id,
+                                        FileType.Release,
+                                        report,
+                                        cancellationToken);
+                                    report(100);
+                                })
+                        );
+                    }
+
+                    await Task.WhenAll(backgroundTasks);
+
+                    var publishedGroup = await progress.RunTask(
+                        $"Publishing release {version}",
+                        async (report) => {
+                            report(-1);
+                            var result = await PublishReleaseGroupAsync(client, releaseGroup.Id, cancellationToken);
+                            report(100);
+                            return result;
+                        });
+
+                    if (waitForLive) {
+                        await progress.RunTask(
+                            "Waiting for release to go live",
+                            async (report) => {
+                                report(-1);
+                                await WaitUntilReleaseGroupLive(client, publishedGroup.Id, cancellationToken);
+                                report(100);
+                            });
+                    }
+                });
+        } catch (ApiException e) {
+            var userInfo = e.ToErrorResult()?.ToUserInfoException();
+            if (userInfo is not null) {
+                throw userInfo;
+            } else {
+                throw;
+            }
+        }
+    }
 
     private async Task<Profile?> GetProfileAsync(FlowApi client, CancellationToken cancellationToken)
     {
         AssertAuthenticated();
         return await client.GetUserProfileAsync(cancellationToken);
     }
-
 
     private async Task<ZipPackage?> DownloadLatestRelease(string packageId, string channel, string localPath, Action<int> progress,
         CancellationToken cancellationToken)
@@ -397,8 +366,44 @@ public class VelopackFlowServiceClient(
     private void AssertAuthenticated()
     {
         if (Authorization is null) {
-            throw new InvalidOperationException($"{nameof(VelopackFlowServiceClient)} has not been authenticated, call {nameof(LoginAsync)} first.");
+            throw new UserInfoException($"{nameof(VelopackFlowServiceClient)} has not been authenticated, call {nameof(LoginAsync)} first.");
         }
+    }
+
+    private HttpClient GetHttpClient(Action<int>? progress = null)
+    {
+        HttpMessageHandler handler;
+
+        if (progress != null) {
+            var ph = new HttpFormatting::System.Net.Http.Handlers.ProgressMessageHandler(
+                new HmacAuthHttpClientHandler(new HttpClientHandler() { AllowAutoRedirect = true }));
+            ph.HttpSendProgress += (_, args) => {
+                progress(args.ProgressPercentage);
+                // Console.WriteLine($"upload progress: {((double)args.BytesTransferred / args.TotalBytes) * 100.0}");
+            };
+            ph.HttpReceiveProgress += (_, args) => {
+                progress(args.ProgressPercentage);
+            };
+            handler = ph;
+        } else {
+            handler = new HmacAuthHttpClientHandler(new HttpClientHandler() { AllowAutoRedirect = true });
+        }
+
+        var client = new HttpClient(handler);
+        client.DefaultRequestHeaders.Authorization = Authorization;
+        client.Timeout = TimeSpan.FromMinutes(Options.Timeout);
+        return client;
+    }
+
+    private FlowApi GetFlowApi(Action<int>? progress = null)
+    {
+        var client = GetHttpClient(progress);
+        var api = new FlowApi(client);
+        if (!String.IsNullOrWhiteSpace(Options.VelopackBaseUrl)) {
+            api.BaseUrl = Options.VelopackBaseUrl;
+        }
+
+        return api;
     }
 
     private static async Task<AuthenticationResult?> AcquireSilentlyAsync(IPublicClientApplication pca, CancellationToken cancellationToken)
