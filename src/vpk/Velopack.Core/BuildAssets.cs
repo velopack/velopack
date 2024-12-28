@@ -1,47 +1,60 @@
-﻿using Newtonsoft.Json;
+﻿using System.Collections.Concurrent;
 using Velopack.Util;
 
 namespace Velopack.Core;
 
-public class BuildAssets
+public class BuildAssets(string outputDir, string channel)
 {
-    [JsonIgnore]
-    private string? _outputDir;
+    public int Count => Assets.Count;
 
-    public List<string>? RelativeFileNames { get; set; } = [];
+    class Asset
+    {
+        public string RelativeFileName { get; set; } = string.Empty;
+        public VelopackAssetType Type { get; set; }
+    }
+
+    private ConcurrentBag<Asset> Assets { get; set; } = [];
 
     public List<VelopackAsset> GetReleaseEntries()
     {
-        return GetFilePaths()
-            .Where(x => x.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase))
-            .Select(VelopackAsset.FromNupkg)
+        return GetAssets()
+            .Where(x => x.Type is VelopackAssetType.Delta or VelopackAssetType.Full)
+            .Select(x => VelopackAsset.FromNupkg(x.Path))
             .ToList();
     }
 
-    public List<string> GetNonReleaseAssetPaths()
+    public IEnumerable<(string Path, VelopackAssetType Type)> GetAssets()
     {
-        return GetFilePaths()
-            .Where(x => !x.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        return Assets.Select(asset => (Path.Combine(outputDir, asset.RelativeFileName), asset.Type));
     }
 
     public IEnumerable<string> GetFilePaths()
     {
-        if (RelativeFileNames is { } relativeFileNames && _outputDir is { } outputDir) {
-            return relativeFileNames.Select(f => Path.GetFullPath(Path.Combine(outputDir, f))).ToList();
-        }
-        return [];
+        return Assets.Select(x => Path.Combine(outputDir, x.RelativeFileName));
     }
 
-    public static void Write(string outputDir, string channel, IEnumerable<string> files)
+    public string MakeAssetPath(string relativePath, VelopackAssetType type)
     {
-        var assets = new BuildAssets {
-            RelativeFileNames = files.OrderBy(f => f)
-                .Select(f => PathUtil.MakePathRelativeTo(outputDir, f))
-                .ToList(),
-        };
+        // var relativeFileName = PathUtil.MakePathRelativeTo(outputDir, fullPath);
+        Assets.Add(new Asset { RelativeFileName = relativePath, Type = type });
+        return Path.Combine(outputDir, relativePath);
+    }
+
+    public void MoveBagTo(string newOutputDir)
+    {
+        foreach (var asset in Assets) {
+            var from = Path.Combine(outputDir, asset.RelativeFileName);
+            var to = Path.Combine(newOutputDir, asset.RelativeFileName);
+            IoUtil.MoveFile(from, to, true);
+        }
+
+        outputDir = newOutputDir;
+    }
+
+    public void Write()
+    {
         var path = Path.Combine(outputDir, $"assets.{channel}.json");
-        var json = SimpleJson.SerializeObject(assets);
+        var json = SimpleJson.SerializeObject(Assets);
         File.WriteAllText(path, json);
     }
 
@@ -54,8 +67,9 @@ public class BuildAssets
                 $"If you've just created a Velopack release, verify you're calling this command with the same '--channel' as you did with 'pack'.");
         }
 
-        var assets = SimpleJson.DeserializeObject<BuildAssets>(File.ReadAllText(path)) ?? new();
-        assets._outputDir = outputDir;
-        return assets;
+        var me = new BuildAssets(outputDir, channel) {
+            Assets = SimpleJson.DeserializeObject<ConcurrentBag<Asset>>(File.ReadAllText(path)) ?? []
+        };
+        return me;
     }
 }

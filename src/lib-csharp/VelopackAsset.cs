@@ -15,7 +15,11 @@ namespace Velopack
         /// <summary> A full update package. </summary>
         Full = 1,
         /// <summary> A delta update package. </summary>
-        Delta,
+        Delta = 2,
+        /// <summary> A portable application zip archive. </summary>
+        Portable = 3,
+        /// <summary> An application installer archive. </summary>
+        Installer = 4,
     }
 
     /// <summary>
