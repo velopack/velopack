@@ -1,4 +1,4 @@
-﻿namespace Velopack.Vpk.Commands;
+﻿namespace Velopack.Vpk.Commands.Packaging;
 
 public class DeltaPatchCommand : BaseCommand
 {
