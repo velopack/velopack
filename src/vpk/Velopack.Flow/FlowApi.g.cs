@@ -4891,9 +4891,6 @@ namespace Velopack.Flow
         [Newtonsoft.Json.JsonProperty("version", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
         public string Version { get; set; }
 
-        [Newtonsoft.Json.JsonProperty("type", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
-        public VelopackAssetType Type { get; set; }
-
         [Newtonsoft.Json.JsonProperty("size", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
         public long Size { get; set; }
 
@@ -4911,22 +4908,6 @@ namespace Velopack.Flow
 
         [Newtonsoft.Json.JsonProperty("isComplete", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
         public bool IsComplete { get; set; }
-
-    }
-
-    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
-    public enum VelopackAssetType
-    {
-
-        Unknown = 0,
-
-        Full = 1,
-
-        Delta = 2,
-
-        Portable = 3,
-
-        Setup = 4,
 
     }
 
@@ -5014,9 +4995,13 @@ namespace Velopack.Flow
 
         Unknown = 0,
 
-        Release = 1,
+        Full = 1,
 
-        Installer = 2,
+        Delta = 2,
+
+        Setup = 3,
+
+        Portable = 4,
 
     }
 
@@ -5269,9 +5254,13 @@ namespace Velopack.Flow
         [Newtonsoft.Json.JsonProperty("size", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
         public long Size { get; set; }
 
-        [Newtonsoft.Json.JsonProperty("state", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
+        [Newtonsoft.Json.JsonProperty("publishState", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
         [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
-        public ReleaseGroupState State { get; set; }
+        public ReleaseGroupPublishState PublishState { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("processingState", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
+        [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
+        public ReleaseGroupProcessingState ProcessingState { get; set; }
 
         [Newtonsoft.Json.JsonProperty("channelName", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
         public string ChannelName { get; set; }
@@ -5291,7 +5280,7 @@ namespace Velopack.Flow
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
-    public enum ReleaseGroupState
+    public enum ReleaseGroupPublishState
     {
 
         [System.Runtime.Serialization.EnumMember(Value = @"Draft")]
@@ -5302,6 +5291,24 @@ namespace Velopack.Flow
 
         [System.Runtime.Serialization.EnumMember(Value = @"Unlisted")]
         Unlisted = 2,
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public enum ReleaseGroupProcessingState
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"AwaitingUploads")]
+        AwaitingUploads = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Processing")]
+        Processing = 1,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Failed")]
+        Failed = 2,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Completed")]
+        Completed = 3,
 
     }
 
@@ -5323,8 +5330,36 @@ namespace Velopack.Flow
         [Newtonsoft.Json.JsonProperty("md5Hash", Required = Newtonsoft.Json.Required.Default, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
         public string Md5Hash { get; set; }
 
-        [Newtonsoft.Json.JsonProperty("status", Required = Newtonsoft.Json.Required.Default, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
-        public string Status { get; set; }
+        [Newtonsoft.Json.JsonProperty("state", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
+        [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
+        public FileUploadState State { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("stateMessage", Required = Newtonsoft.Json.Required.Default, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
+        public string StateMessage { get; set; }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public enum FileUploadState
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Unknown")]
+        Unknown = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Uploading")]
+        Uploading = 1,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"PendingProcessing")]
+        PendingProcessing = 2,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Processing")]
+        Processing = 3,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Completed")]
+        Completed = 4,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Failed")]
+        Failed = 5,
 
     }
 
@@ -5384,7 +5419,7 @@ namespace Velopack.Flow
 
         [Newtonsoft.Json.JsonProperty("state", Required = Newtonsoft.Json.Required.Default, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
         [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
-        public ReleaseGroupState? State { get; set; }
+        public ReleaseGroupPublishState? State { get; set; }
 
     }
 
