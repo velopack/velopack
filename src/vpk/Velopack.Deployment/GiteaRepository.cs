@@ -82,7 +82,7 @@ public class GiteaRepository : SourceRepository<GiteaDownloadOptions, GiteaSourc
         config.BasePath = baseUri + "/api/v1";
         config.Timeout = (int)TimeSpan.FromMinutes(options.Timeout).TotalMilliseconds;
 
-        Log.Info($"Preparing to upload {build.RelativeFileNames.Count} asset(s) to Gitea");
+        Log.Info($"Preparing to upload {build.Count} asset(s) to Gitea");
 
         // Set token if provided
         if (!string.IsNullOrWhiteSpace(options.Token)) {

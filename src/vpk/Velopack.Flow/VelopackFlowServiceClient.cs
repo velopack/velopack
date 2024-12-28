@@ -130,7 +130,7 @@ public class VelopackFlowServiceClient(
 
         channel ??= DefaultName.GetDefaultChannel(os);
         BuildAssets assets = BuildAssets.Read(releaseDirectory, channel);
-        var fullAsset = assets.GetReleaseEntries().SingleOrDefault(a => a.Type == Velopack.VelopackAssetType.Full);
+        var fullAsset = assets.GetReleaseEntries().SingleOrDefault(a => a.Type == VelopackAssetType.Full);
 
         if (fullAsset is null) {
             Logger.LogError("No full asset found in release directory {ReleaseDirectory} (or it's missing from assets file)", releaseDirectory);
@@ -141,10 +141,9 @@ public class VelopackFlowServiceClient(
         var packageId = fullAsset.PackageId;
         var version = fullAsset.Version;
 
-        var filesToUpload = assets.GetNonReleaseAssetPaths()
-            .Select(p => (p, FileType.Installer))
-            .Concat([(fullAssetPath, FileType.Release)])
-            .Where(kvp => !kvp.Item1.Contains("-Portable.zip"))
+        var filesToUpload = assets.GetAssets()
+            .Where(p => p.Type is not VelopackAssetType.Delta)
+            .Select(p => (p.Path, p.Type.ToFileType()))
             .ToArray();
 
         Logger.LogInformation("Beginning upload to Velopack Flow");
@@ -161,6 +160,7 @@ public class VelopackFlowServiceClient(
                             await CreateChannelIfNotExists(client, packageId, channel, cancellationToken);
                             report(50);
                             var result = await CreateReleaseGroupAsync(client, packageId, version, channel, cancellationToken);
+                            Logger.LogInformation("Created release {Version} ({ReleaseGroupId})", version, result.Id);
                             report(100);
                             return result;
                         });
@@ -218,7 +218,7 @@ public class VelopackFlowServiceClient(
                                     await UploadReleaseAssetAsync(
                                         deltaPath,
                                         releaseGroup.Id,
-                                        FileType.Release,
+                                        FileType.Delta,
                                         report,
                                         cancellationToken);
                                     report(100);
@@ -283,14 +283,20 @@ public class VelopackFlowServiceClient(
     {
         for (int i = 0; i < 300; i++) {
             var releaseGroup = await client.GetReleaseGroupAsync(releaseGroupId, cancellationToken);
-            if (releaseGroup?.FileUploads == null) {
-                Logger.LogWarning("Failed to get release group status, it may not be live yet.");
+
+            if (releaseGroup.ProcessingState is ReleaseGroupProcessingState.Completed) {
+                Logger.LogInformation("Release is now live.");
                 return;
             }
 
-            if (releaseGroup.FileUploads.All(f => f.Status?.ToLowerInvariant().Equals("processed") == true)) {
-                Logger.LogInformation("Release is now live.");
-                return;
+            if (releaseGroup.ProcessingState is ReleaseGroupProcessingState.Failed) {
+                foreach (var file in releaseGroup.FileUploads) {
+                    if (file.State == FileUploadState.Failed) {
+                        Logger.LogError("File {FileName} failed to upload: {Error}", file.FileName, file.StateMessage);
+                    }
+                }
+
+                throw new UserInfoException("There were one or more errors publishing this release.");
             }
 
             await Task.Delay(1000, cancellationToken);
@@ -325,14 +331,14 @@ public class VelopackFlowServiceClient(
     {
         var client = GetFlowApi(progress);
         using var stream = File.OpenRead(filePath);
-        var file = new FileParameter(stream);
+        var file = new FileParameter(stream, Path.GetFileName(filePath));
         await client.UploadReleaseAsync(releaseGroupId, fileType, file, cancellationToken);
     }
 
     private static async Task<ReleaseGroup> PublishReleaseGroupAsync(FlowApi client, Guid releaseGroupId, CancellationToken cancellationToken)
     {
         UpdateReleaseGroupRequest request = new() {
-            State = ReleaseGroupState.Published
+            State = ReleaseGroupPublishState.Published,
         };
 
         return await client.UpdateReleaseGroupAsync(releaseGroupId, request, cancellationToken);

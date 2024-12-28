@@ -105,17 +105,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
         options.EntryExecutableName = Path.GetFileName(mainExePath);
         Options = options;
 
-        ConcurrentBag<(string from, string to)> filesToCopy = new();
-
-        string getIncompletePath(string fileName)
-        {
-            var incomplete = Path.Combine(pkgTempDir, fileName);
-            var final = Path.Combine(releaseDir.FullName, fileName);
-            try { File.Delete(incomplete); } catch { }
-
-            filesToCopy.Add((incomplete, final));
-            return incomplete;
-        }
+        var assetCache = new BuildAssets(pkgTempDir, channel);
 
         await Console.ExecuteProgressAsync(
             async (ctx) => {
@@ -141,7 +131,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
                         "Building portable package",
                         async (progress) => {
                             var suggestedName = DefaultName.GetSuggestedPortableName(packId, channel, TargetOs);
-                            var path = getIncompletePath(suggestedName);
+                            var path = assetCache.MakeAssetPath(suggestedName, VelopackAssetType.Portable);
                             await CreatePortablePackage(progress, packDirectory, path);
                         });
                 }
@@ -154,7 +144,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
                     $"Building release {packVersion}",
                     async (progress) => {
                         var suggestedName = DefaultName.GetSuggestedReleaseName(packId, packVersion, channel, false, TargetOs);
-                        releasePath = getIncompletePath(suggestedName);
+                        releasePath = assetCache.MakeAssetPath(suggestedName, VelopackAssetType.Full);
                         await CreateReleasePackage(progress, packDirectory, releasePath);
                     });
 
@@ -164,7 +154,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
                         "Building setup package",
                         async (progress) => {
                             var suggestedName = DefaultName.GetSuggestedSetupName(packId, channel, TargetOs);
-                            var path = getIncompletePath(suggestedName);
+                            var path = assetCache.MakeAssetPath(suggestedName, VelopackAssetType.Installer);
                             await CreateSetupPackage(progress, releasePath, packDirectory, path);
                         });
                 }
@@ -174,11 +164,12 @@ public abstract class PackageBuilder<T> : ICommand<T>
                         $"Building delta {prev.Version} -> {packVersion}",
                         async (progress) => {
                             var suggestedName = DefaultName.GetSuggestedReleaseName(packId, packVersion, channel, true, TargetOs);
+                            var path = assetCache.MakeAssetPath(suggestedName, VelopackAssetType.Delta);
                             var deltaPkg = await CreateDeltaPackage(
                                 progress,
                                 releasePath,
                                 prev.PackageFile,
-                                getIncompletePath(suggestedName),
+                                path,
                                 options.DeltaMode);
                         });
                 }
@@ -189,12 +180,9 @@ public abstract class PackageBuilder<T> : ICommand<T>
                 await ctx.RunTask(
                     "Post-process steps",
                     (progress) => {
-                        foreach (var f in filesToCopy) {
-                            IoUtil.MoveFile(f.from, f.to, true);
-                        }
-
+                        assetCache.MoveBagTo(releaseDir.FullName);
+                        assetCache.Write();
                         ReleaseEntryHelper.UpdateReleaseFiles(releaseDir.FullName, Log);
-                        BuildAssets.Write(releaseDir.FullName, channel, filesToCopy.Select(x => x.to));
                         progress(100);
                         return Task.CompletedTask;
                     });

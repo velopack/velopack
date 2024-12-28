@@ -53,7 +53,7 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
         var build = BuildAssets.Read(options.ReleaseDir.FullName, options.Channel);
         var client = CreateClient(options);
 
-        Log.Info($"Preparing to upload {build.RelativeFileNames.Count} local asset(s).");
+        Log.Info($"Preparing to upload {build.Count} local asset(s).");
 
         var remoteReleases = await GetReleasesAsync(options);
         Log.Info($"There are {remoteReleases.Assets.Length} asset(s) in remote releases file.");
