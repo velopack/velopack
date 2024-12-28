@@ -1,6 +1,7 @@
 ﻿
 using System.CommandLine;
 using Velopack.Vpk.Commands;
+using Velopack.Vpk.Commands.Packaging;
 
 namespace Velopack.CommandLine.Tests.Commands;
 

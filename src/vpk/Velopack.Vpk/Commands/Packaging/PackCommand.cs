@@ -1,7 +1,7 @@
 ﻿
 using Velopack.Packaging;
 
-namespace Velopack.Vpk.Commands;
+namespace Velopack.Vpk.Commands.Packaging;
 
 public abstract class PackCommand : PlatformCommand
 {

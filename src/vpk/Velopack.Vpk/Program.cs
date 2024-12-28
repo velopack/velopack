@@ -18,6 +18,7 @@ using Velopack.Util;
 using Velopack.Vpk.Commands;
 using Velopack.Vpk.Commands.Deployment;
 using Velopack.Vpk.Commands.Flow;
+using Velopack.Vpk.Commands.Packaging;
 using Velopack.Vpk.Converters;
 using Velopack.Vpk.Logging;
 using Velopack.Vpk.Updates;
