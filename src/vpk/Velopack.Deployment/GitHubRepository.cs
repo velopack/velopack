@@ -159,7 +159,7 @@ public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadO
     private async Task UploadFileAsAsset(GitHubClient client, Release release, string filePath)
     {
         using var stream = File.OpenRead(filePath);
-        var data = new ReleaseAssetUpload(Path.GetFileName(filePath), "application/octet-stream", stream, timeout: null);
+        var data = new ReleaseAssetUpload(Path.GetFileName(filePath), "application/octet-stream", stream, timeout: TimeSpan.Zero);
         await client.Repository.Release.UploadAsset(release, data, CancellationToken.None);
     }
 }
