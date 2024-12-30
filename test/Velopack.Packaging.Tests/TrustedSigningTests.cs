@@ -71,9 +71,7 @@ public class TrustedSigningTests
             .ToList();
 
         Assert.NotEmpty(files);
-#pragma warning disable CA1416 // Validate platform compatibility, this test only executes on Windows
         Assert.All(files, x => Assert.True(IsTrusted(x)));
-#pragma warning restore CA1416 // Validate platform compatibility
     }
     
     private bool IsTrusted(string filePath)

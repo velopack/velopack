@@ -2,5 +2,5 @@
 
 public interface IPlatformOptions : IOutputOptions
 {
-    RID? TargetRuntime { get; set; }
+    RID TargetRuntime { get; set; }
 }
