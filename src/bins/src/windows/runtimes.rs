@@ -1,12 +1,9 @@
-use crate::shared as util;
-use crate::shared::runtime_arch::RuntimeArch;
+use crate::{shared as util, shared::runtime_arch::RuntimeArch};
 use anyhow::{anyhow, bail, Result};
 use regex::Regex;
 use std::process::Command as Process;
 use std::{collections::HashMap, fs, path::Path};
 use velopack::download;
-
-#[cfg(target_os = "windows")]
 use winsafe::{self as w, co, prelude::*};
 
 const REDIST_2015_2022_X86: &str = "https://aka.ms/vs/17/release/vc_redist.x86.exe";
@@ -15,46 +12,51 @@ const REDIST_2015_2022_ARM64: &str = "https://aka.ms/vs/17/release/vc_redist.arm
 const NDP_REG_KEY: &str = "SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full";
 const UNINSTALL_REG_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
 const WEBVIEW2_EVERGREEN: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
+const DOTNET_UNCACHED_FEED: &str = "https://dotnetcli.blob.core.windows.net/dotnet";
+const DOTNET_CDN_FEED: &str = "https://builds.dotnet.microsoft.com/dotnet";
 
 #[rustfmt::skip]
 lazy_static! {
-    static ref HM_NET_FX: HashMap<String, FullFrameworkInfo> = {
-        let mut net_fx: HashMap<String, FullFrameworkInfo> = HashMap::new();
+    static ref HM_NET_FX: HashMap<&'static str, FullFrameworkInfo> = {
+        let mut net_fx: HashMap<&'static str, FullFrameworkInfo> = HashMap::new();
         // https://learn.microsoft.com/dotnet/framework/migration-guide/how-to-determine-which-versions-are-installed#detect-net-framework-45-and-later-versions
-        net_fx.insert("net45".to_owned(), FullFrameworkInfo::new(".NET Framework 4.5", "http://go.microsoft.com/fwlink/?LinkId=397707", 378389));
-        net_fx.insert("net451".to_owned(), FullFrameworkInfo::new(".NET Framework 4.5.1", "http://go.microsoft.com/fwlink/?LinkId=397707", 378675));
-        net_fx.insert("net452".to_owned(), FullFrameworkInfo::new(".NET Framework 4.5.2", "http://go.microsoft.com/fwlink/?LinkId=397707", 379893));
-        net_fx.insert("net46".to_owned(), FullFrameworkInfo::new(".NET Framework 4.6", "http://go.microsoft.com/fwlink/?LinkId=780596", 393295));
-        net_fx.insert("net461".to_owned(), FullFrameworkInfo::new(".NET Framework 4.6.1", "http://go.microsoft.com/fwlink/?LinkId=780596", 394254));
-        net_fx.insert("net462".to_owned(), FullFrameworkInfo::new(".NET Framework 4.6.2", "http://go.microsoft.com/fwlink/?LinkId=780596", 394802));
-        net_fx.insert("net47".to_owned(), FullFrameworkInfo::new(".NET Framework 4.7", "http://go.microsoft.com/fwlink/?LinkId=863262", 460798));
-        net_fx.insert("net471".to_owned(), FullFrameworkInfo::new(".NET Framework 4.7.1", "http://go.microsoft.com/fwlink/?LinkId=863262", 461308));
-        net_fx.insert("net472".to_owned(), FullFrameworkInfo::new(".NET Framework 4.7.2", "http://go.microsoft.com/fwlink/?LinkId=863262", 461808));
-        net_fx.insert("net48".to_owned(), FullFrameworkInfo::new(".NET Framework 4.8", "http://go.microsoft.com/fwlink/?LinkId=2085155", 528040));
-        net_fx.insert("net481".to_owned(), FullFrameworkInfo::new(".NET Framework 4.8.1", "http://go.microsoft.com/fwlink/?LinkId=2203304", 533320));
+        net_fx.insert("net45", FullFrameworkInfo::new(".NET Framework 4.5", "http://go.microsoft.com/fwlink/?LinkId=397707", 378389));
+        net_fx.insert("net451", FullFrameworkInfo::new(".NET Framework 4.5.1", "http://go.microsoft.com/fwlink/?LinkId=397707", 378675));
+        net_fx.insert("net452", FullFrameworkInfo::new(".NET Framework 4.5.2", "http://go.microsoft.com/fwlink/?LinkId=397707", 379893));
+        net_fx.insert("net46", FullFrameworkInfo::new(".NET Framework 4.6", "http://go.microsoft.com/fwlink/?LinkId=780596", 393295));
+        net_fx.insert("net461", FullFrameworkInfo::new(".NET Framework 4.6.1", "http://go.microsoft.com/fwlink/?LinkId=780596", 394254));
+        net_fx.insert("net462", FullFrameworkInfo::new(".NET Framework 4.6.2", "http://go.microsoft.com/fwlink/?LinkId=780596", 394802));
+        net_fx.insert("net47", FullFrameworkInfo::new(".NET Framework 4.7", "http://go.microsoft.com/fwlink/?LinkId=863262", 460798));
+        net_fx.insert("net471", FullFrameworkInfo::new(".NET Framework 4.7.1", "http://go.microsoft.com/fwlink/?LinkId=863262", 461308));
+        net_fx.insert("net472", FullFrameworkInfo::new(".NET Framework 4.7.2", "http://go.microsoft.com/fwlink/?LinkId=863262", 461808));
+        net_fx.insert("net48", FullFrameworkInfo::new(".NET Framework 4.8", "http://go.microsoft.com/fwlink/?LinkId=2085155", 528040));
+        net_fx.insert("net481", FullFrameworkInfo::new(".NET Framework 4.8.1", "http://go.microsoft.com/fwlink/?LinkId=2203304", 533320));
         net_fx
     };
 
-    static ref HM_VCREDIST: HashMap<String, VCRedistInfo> = {
-        let mut vcredist: HashMap<String, VCRedistInfo> = HashMap::new();
-        vcredist.insert("vcredist100-x86".to_owned(), VCRedistInfo::new("Visual C++ 2010 Redist (x86)", "10.00.40219", RuntimeArch::X86, "https://download.microsoft.com/download/C/6/D/C6D0FD4E-9E53-4897-9B91-836EBA2AACD3/vcredist_x86.exe"));
-        vcredist.insert("vcredist100-x64".to_owned(), VCRedistInfo::new("Visual C++ 2010 Redist (x64)", "10.00.40219", RuntimeArch::X64, "https://download.microsoft.com/download/A/8/0/A80747C3-41BD-45DF-B505-E9710D2744E0/vcredist_x64.exe"));
-        vcredist.insert("vcredist110-x86".to_owned(), VCRedistInfo::new("Visual C++ 2012 Redist (x86)", "11.00.61030", RuntimeArch::X86, "https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x86.exe"));
-        vcredist.insert("vcredist110-x64".to_owned(), VCRedistInfo::new("Visual C++ 2012 Redist (x64)", "11.00.61030", RuntimeArch::X64, "https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x64.exe"));
-        vcredist.insert("vcredist120-x86".to_owned(), VCRedistInfo::new("Visual C++ 2013 Redist (x86)", "12.00.40664", RuntimeArch::X86, "https://aka.ms/highdpimfc2013x86enu"));
-        vcredist.insert("vcredist120-x64".to_owned(), VCRedistInfo::new("Visual C++ 2013 Redist (x64)", "12.00.40664", RuntimeArch::X64, "https://aka.ms/highdpimfc2013x64enu"));
+    static ref HM_VCREDIST: HashMap<&'static str, VCRedistInfo> = {
+        let mut vcredist: HashMap<&'static str, VCRedistInfo> = HashMap::new();
+        vcredist.insert("vcredist100-x86", VCRedistInfo::new("Visual C++ 2010 Redist (x86)", "10.00.40219", RuntimeArch::X86, "https://download.microsoft.com/download/C/6/D/C6D0FD4E-9E53-4897-9B91-836EBA2AACD3/vcredist_x86.exe"));
+        vcredist.insert("vcredist100-x64", VCRedistInfo::new("Visual C++ 2010 Redist (x64)", "10.00.40219", RuntimeArch::X64, "https://download.microsoft.com/download/A/8/0/A80747C3-41BD-45DF-B505-E9710D2744E0/vcredist_x64.exe"));
+        vcredist.insert("vcredist110-x86", VCRedistInfo::new("Visual C++ 2012 Redist (x86)", "11.00.61030", RuntimeArch::X86, "https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x86.exe"));
+        vcredist.insert("vcredist110-x64", VCRedistInfo::new("Visual C++ 2012 Redist (x64)", "11.00.61030", RuntimeArch::X64, "https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x64.exe"));
+        vcredist.insert("vcredist120-x86", VCRedistInfo::new("Visual C++ 2013 Redist (x86)", "12.00.40664", RuntimeArch::X86, "https://aka.ms/highdpimfc2013x86enu"));
+        vcredist.insert("vcredist120-x64", VCRedistInfo::new("Visual C++ 2013 Redist (x64)", "12.00.40664", RuntimeArch::X64, "https://aka.ms/highdpimfc2013x64enu"));
         // from 2015-2022, the binaries are all compatible, so we can always just install the latest version
         // https://docs.microsoft.com/cpp/windows/latest-supported-vc-redist?view=msvc-170#visual-studio-2015-2017-2019-and-2022
         // https://docs.microsoft.com/cpp/porting/binary-compat-2015-2017?view=msvc-170
-        vcredist.insert("vcredist140-x86".to_owned(), VCRedistInfo::new("Visual C++ 2015 Redist (x86)", "14.00.23506", RuntimeArch::X86, REDIST_2015_2022_X86));
-        vcredist.insert("vcredist140-x64".to_owned(), VCRedistInfo::new("Visual C++ 2015 Redist (x64)", "14.00.23506", RuntimeArch::X64, REDIST_2015_2022_X64));
-        vcredist.insert("vcredist141-x86".to_owned(), VCRedistInfo::new("Visual C++ 2017 Redist (x86)", "14.15.26706", RuntimeArch::X86, REDIST_2015_2022_X86));
-        vcredist.insert("vcredist141-x64".to_owned(), VCRedistInfo::new("Visual C++ 2017 Redist (x64)", "14.15.26706", RuntimeArch::X64, REDIST_2015_2022_X64));
-        vcredist.insert("vcredist142-x86".to_owned(), VCRedistInfo::new("Visual C++ 2019 Redist (x86)", "14.20.27508", RuntimeArch::X86, REDIST_2015_2022_X86));
-        vcredist.insert("vcredist142-x64".to_owned(), VCRedistInfo::new("Visual C++ 2019 Redist (x64)", "14.20.27508", RuntimeArch::X64, REDIST_2015_2022_X64));
-        vcredist.insert("vcredist143-x86".to_owned(), VCRedistInfo::new("Visual C++ 2022 Redist (x86)", "14.30.30704", RuntimeArch::X86, REDIST_2015_2022_X86));
-        vcredist.insert("vcredist143-x64".to_owned(), VCRedistInfo::new("Visual C++ 2022 Redist (x64)", "14.30.30704", RuntimeArch::X64, REDIST_2015_2022_X64));
-        vcredist.insert("vcredist143-arm64".to_owned(), VCRedistInfo::new("Visual C++ 2022 Redist (arm64)", "14.30.30704", RuntimeArch::Arm64, REDIST_2015_2022_ARM64));
+        vcredist.insert("vcredist140-x86", VCRedistInfo::new("Visual C++ 2015 Redist (x86)", "14.00.23506", RuntimeArch::X86, REDIST_2015_2022_X86));
+        vcredist.insert("vcredist140-x64", VCRedistInfo::new("Visual C++ 2015 Redist (x64)", "14.00.23506", RuntimeArch::X64, REDIST_2015_2022_X64));
+        vcredist.insert("vcredist141-x86", VCRedistInfo::new("Visual C++ 2017 Redist (x86)", "14.15.26706", RuntimeArch::X86, REDIST_2015_2022_X86));
+        vcredist.insert("vcredist141-x64", VCRedistInfo::new("Visual C++ 2017 Redist (x64)", "14.15.26706", RuntimeArch::X64, REDIST_2015_2022_X64));
+        vcredist.insert("vcredist142-x86", VCRedistInfo::new("Visual C++ 2019 Redist (x86)", "14.20.27508", RuntimeArch::X86, REDIST_2015_2022_X86));
+        vcredist.insert("vcredist142-x64", VCRedistInfo::new("Visual C++ 2019 Redist (x64)", "14.20.27508", RuntimeArch::X64, REDIST_2015_2022_X64));
+        vcredist.insert("vcredist143-x86", VCRedistInfo::new("Visual C++ 2022 Redist (x86)", "14.30.30704", RuntimeArch::X86, REDIST_2015_2022_X86));
+        vcredist.insert("vcredist143-x64", VCRedistInfo::new("Visual C++ 2022 Redist (x64)", "14.30.30704", RuntimeArch::X64, REDIST_2015_2022_X64));
+        vcredist.insert("vcredist143-arm64", VCRedistInfo::new("Visual C++ 2022 Redist (arm64)", "14.30.30704", RuntimeArch::Arm64, REDIST_2015_2022_ARM64));
+        vcredist.insert("vcredist144-x86", VCRedistInfo::new("Visual C++ 2022 Redist (x86)", "14.40.33810", RuntimeArch::X86, REDIST_2015_2022_X86));
+        vcredist.insert("vcredist144-x64", VCRedistInfo::new("Visual C++ 2022 Redist (x64)", "14.40.33810", RuntimeArch::X64, REDIST_2015_2022_X64));
+        vcredist.insert("vcredist144-arm64", VCRedistInfo::new("Visual C++ 2022 Redist (arm64)", "14.40.33810", RuntimeArch::Arm64, REDIST_2015_2022_ARM64));
         vcredist
     };
 }
@@ -86,7 +88,7 @@ fn def_installer_routine(installer_path: &str, quiet: bool) -> Result<RuntimeIns
         1618 => Err(anyhow!("Another installation is already in progress.")),
         3010 => Ok(RuntimeInstallResult::RestartRequired), // success, restart required
         5100 => Err(anyhow!("System does not meet runtime requirements.")),
-        1638 => Ok(RuntimeInstallResult::InstallSuccess),  // a newer compatible version is already installed
+        1638 => Ok(RuntimeInstallResult::InstallSuccess), // a newer compatible version is already installed
         1641 => Ok(RuntimeInstallResult::RestartRequired), // installer initiated a restart
         _ => Err(anyhow!("Installer failed with exit code: {}", result)),
     }
@@ -159,7 +161,12 @@ pub struct VCRedistInfo {
 
 impl VCRedistInfo {
     pub fn new(display_name: &str, min_version: &str, architecture: RuntimeArch, download_url: &str) -> Self {
-        VCRedistInfo { display_name: display_name.to_string(), min_version: min_version.to_string(), architecture, download_url: download_url.to_string() }
+        VCRedistInfo {
+            display_name: display_name.to_string(),
+            min_version: min_version.to_string(),
+            architecture,
+            download_url: download_url.to_string(),
+        }
     }
 }
 
@@ -252,6 +259,7 @@ pub enum DotnetRuntimeType {
     Runtime,
     AspNetCore,
     WindowsDesktop,
+    Sdk,
 }
 
 impl DotnetRuntimeType {
@@ -263,6 +271,7 @@ impl DotnetRuntimeType {
             "aspcore" => Some(DotnetRuntimeType::AspNetCore),
             "windowsdesktop" => Some(DotnetRuntimeType::WindowsDesktop),
             "desktop" => Some(DotnetRuntimeType::WindowsDesktop),
+            "sdk" => Some(DotnetRuntimeType::Sdk),
             _ => None,
         }
     }
@@ -283,6 +292,8 @@ fn test_dotnet_runtime_type_from_str() {
     assert_eq!(DotnetRuntimeType::from_str("ASPCORE"), Some(DotnetRuntimeType::AspNetCore));
     assert_eq!(DotnetRuntimeType::from_str("WINDOWSDESKTOP"), Some(DotnetRuntimeType::WindowsDesktop));
     assert_eq!(DotnetRuntimeType::from_str("DESKTOP"), Some(DotnetRuntimeType::WindowsDesktop));
+    assert_eq!(DotnetRuntimeType::from_str("sdk"), Some(DotnetRuntimeType::Sdk));
+    assert_eq!(DotnetRuntimeType::from_str("SDk"), Some(DotnetRuntimeType::Sdk));
 }
 
 #[derive(Clone, Debug)]
@@ -305,6 +316,7 @@ fn get_dotnet_base_path(runtime_arch: RuntimeArch, runtime_type: DotnetRuntimeTy
         DotnetRuntimeType::Runtime => "shared\\Microsoft.NETCore.App",
         DotnetRuntimeType::AspNetCore => "shared\\Microsoft.AspNetCore.App",
         DotnetRuntimeType::WindowsDesktop => "shared\\Microsoft.WindowsDesktop.App",
+        DotnetRuntimeType::Sdk => "sdk",
     };
 
     // it's easy to check if we're looking for x86 dotnet because it's always in the same place.
@@ -380,6 +392,9 @@ fn test_get_dotnet_base_path() {
 
     let path = get_dotnet_base_path(RuntimeArch::X64, DotnetRuntimeType::WindowsDesktop).unwrap();
     assert_eq!(path, "C:\\Program Files\\dotnet\\shared\\Microsoft.WindowsDesktop.App");
+
+    let path = get_dotnet_base_path(RuntimeArch::X64, DotnetRuntimeType::Sdk).unwrap();
+    assert_eq!(path, "C:\\Program Files\\dotnet\\sdk");
 }
 
 impl RuntimeInfo for DotnetInfo {
@@ -394,16 +409,15 @@ impl RuntimeInfo for DotnetInfo {
     }
 
     fn get_download_url(&self) -> Result<String> {
-        let uncached_feed = "https://dotnetcli.blob.core.windows.net/dotnet";
-        let dotnet_feed = "https://dotnetcli.azureedge.net/dotnet";
         let (major, minor, _, _) = util::parse_version(&self.version)?;
         let latest_runtime_str = match self.runtime_type {
             DotnetRuntimeType::Runtime => "Runtime",
             DotnetRuntimeType::AspNetCore => "aspnetcore/Runtime",
             DotnetRuntimeType::WindowsDesktop => "WindowsDesktop",
+            DotnetRuntimeType::Sdk => "Sdk",
         };
 
-        let get_latest_url = format!("{uncached_feed}/{latest_runtime_str}/{major}.{minor}/latest.version");
+        let get_latest_url = format!("{DOTNET_UNCACHED_FEED}/{latest_runtime_str}/{major}.{minor}/latest.version");
         let version = download::download_url_as_string(&get_latest_url)?;
         let version = version.trim();
         let cpu_arch_str = match self.architecture {
@@ -413,10 +427,17 @@ impl RuntimeInfo for DotnetInfo {
         };
 
         let download_url = match self.runtime_type {
-            DotnetRuntimeType::Runtime => format!("{}/Runtime/{}/dotnet-runtime-{}-win-{}.exe", dotnet_feed, version, version, cpu_arch_str),
-            DotnetRuntimeType::AspNetCore => format!("{}/aspnetcore/Runtime/{}/aspnetcore-runtime-{}-win-{}.exe", dotnet_feed, version, version, cpu_arch_str),
+            DotnetRuntimeType::Runtime => {
+                format!("{}/Runtime/{}/dotnet-runtime-{}-win-{}.exe", DOTNET_CDN_FEED, version, version, cpu_arch_str)
+            }
+            DotnetRuntimeType::AspNetCore => {
+                format!("{}/aspnetcore/Runtime/{}/aspnetcore-runtime-{}-win-{}.exe", DOTNET_CDN_FEED, version, version, cpu_arch_str)
+            }
             DotnetRuntimeType::WindowsDesktop => {
-                format!("{}/WindowsDesktop/{}/windowsdesktop-runtime-{}-win-{}.exe", dotnet_feed, version, version, cpu_arch_str)
+                format!("{}/WindowsDesktop/{}/windowsdesktop-runtime-{}-win-{}.exe", DOTNET_CDN_FEED, version, version, cpu_arch_str)
+            }
+            DotnetRuntimeType::Sdk => {
+                format!("{}/Sdk/{}/dotnet-sdk-{}-win-{}.exe", DOTNET_CDN_FEED, version, version, cpu_arch_str)
             }
         };
         Ok(download_url)
@@ -456,23 +477,28 @@ fn test_dotnet_resolves_latest_version() {
     // dotnet 5.0 is EOL so 5.0.17 should always be the latest.
     assert_eq!(
         parse_dotnet_version("net5.0").unwrap().get_download_url().unwrap(),
-        "https://dotnetcli.azureedge.net/dotnet/WindowsDesktop/5.0.17/windowsdesktop-runtime-5.0.17-win-x64.exe"
+        "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/5.0.17/windowsdesktop-runtime-5.0.17-win-x64.exe"
     );
     assert_eq!(
         parse_dotnet_version("net5.0-x64-aspnetcore").unwrap().get_download_url().unwrap(),
-        "https://dotnetcli.azureedge.net/dotnet/aspnetcore/Runtime/5.0.17/aspnetcore-runtime-5.0.17-win-x64.exe"
+        "https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/5.0.17/aspnetcore-runtime-5.0.17-win-x64.exe"
     );
     assert_eq!(
         parse_dotnet_version("net5.0-x64-runtime").unwrap().get_download_url().unwrap(),
-        "https://dotnetcli.azureedge.net/dotnet/Runtime/5.0.17/dotnet-runtime-5.0.17-win-x64.exe"
+        "https://builds.dotnet.microsoft.com/dotnet/Runtime/5.0.17/dotnet-runtime-5.0.17-win-x64.exe"
+    );
+    assert_eq!(
+        parse_dotnet_version("net6.0-arm64-sdk").unwrap().get_download_url().unwrap(),
+        "https://builds.dotnet.microsoft.com/dotnet/Sdk/6.0.428/dotnet-sdk-6.0.428-win-arm64.exe"
     );
 }
 
 #[test]
 fn test_dotnet_detects_installed_versions() {
-    assert!(parse_dotnet_version("net6-runtime").unwrap().is_installed());
-    assert!(parse_dotnet_version("net6-desktop").unwrap().is_installed());
-    assert!(parse_dotnet_version("net6-asp").unwrap().is_installed());
+    assert!(parse_dotnet_version("net8-runtime").unwrap().is_installed());
+    assert!(parse_dotnet_version("net8-desktop").unwrap().is_installed());
+    assert!(parse_dotnet_version("net8-asp").unwrap().is_installed());
+    assert!(parse_dotnet_version("net8-sdk").unwrap().is_installed());
     assert!(!parse_dotnet_version("net11").unwrap().is_installed());
 }
 
@@ -497,7 +523,8 @@ fn parse_dotnet_version(version: &str) -> Result<DotnetInfo> {
     }
 
     let architecture = RuntimeArch::from_str(architecture_str).ok_or_else(|| anyhow!("Invalid dotnet version string: '{}'", version))?;
-    let runtime_type = DotnetRuntimeType::from_str(runtime_type_str).ok_or_else(|| anyhow!("Invalid dotnet version string: '{}'", version))?;
+    let runtime_type =
+        DotnetRuntimeType::from_str(runtime_type_str).ok_or_else(|| anyhow!("Invalid dotnet version string: '{}'", version))?;
     let version_str = format!("{}.{}.{}", major, minor, build);
     let display_name = format!(".NET {} {:?} {:?}", version_str, architecture, runtime_type);
     Ok(DotnetInfo { display_name, version: version_str, architecture, runtime_type })
@@ -682,6 +709,11 @@ fn test_parse_dotnet_version() {
     assert_eq!(info.version, "8.0.0");
     assert_eq!(info.architecture, RuntimeArch::X64);
     assert_eq!(info.runtime_type, DotnetRuntimeType::WindowsDesktop);
+
+    let info  = parse_dotnet_version("net8-sdk").unwrap();
+    assert_eq!(info.version, "8.0.0");
+    assert_eq!(info.architecture, RuntimeArch::X64);
+    assert_eq!(info.runtime_type, DotnetRuntimeType::Sdk);
 
     let info = parse_dotnet_version("net321.321.321").unwrap();
     assert_eq!(info.version, "321.321.321");
