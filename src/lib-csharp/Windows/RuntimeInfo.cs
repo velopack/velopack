@@ -26,6 +26,8 @@ namespace Velopack.Windows
             AspNetCore,
             /// <summary> The .NET Desktop Runtime enables you to run existing Windows desktop applications </summary>
             WindowsDesktop,
+            /// <summary> The .NET SDK contains all other runtimes and tools necessary for developing dotnet applications </summary>
+            Sdk,
         }
 
         /// <summary> Runtime installation result code </summary>
@@ -185,6 +187,7 @@ namespace Velopack.Windows
                 { DotnetRuntimeType.Runtime, "runtime" },
                 { DotnetRuntimeType.WindowsDesktop, "desktop" },
                 { DotnetRuntimeType.AspNetCore, "asp" },
+                { DotnetRuntimeType.Sdk, "sdk" },
             };
 
             /// <inheritdoc/>
@@ -201,7 +204,7 @@ namespace Velopack.Windows
             }
 
             private const string UncachedDotNetFeed = "https://dotnetcli.blob.core.windows.net/dotnet";
-            private const string DotNetFeed = "https://dotnetcli.azureedge.net/dotnet";
+            private const string DotNetFeed = "https://builds.dotnet.microsoft.com/dotnet";
 
             /// <inheritdoc/>
             [SupportedOSPlatform("windows")]
@@ -252,6 +255,7 @@ namespace Velopack.Windows
                     DotnetRuntimeType.Runtime => Path.Combine(baseDir, "shared", "Microsoft.NETCore.App"),
                     DotnetRuntimeType.AspNetCore => Path.Combine(baseDir, "shared", "Microsoft.AspNetCore.App"),
                     DotnetRuntimeType.WindowsDesktop => Path.Combine(baseDir, "shared", "Microsoft.WindowsDesktop.App"),
+                    DotnetRuntimeType.Sdk => Path.Combine(baseDir, "sdk"),
                     _ => throw new ArgumentOutOfRangeException(nameof(DotnetRuntimeType)),
                 };
             }
@@ -400,9 +404,10 @@ namespace Velopack.Windows
                 // these are case sensitive
                 string runtime = runtimeType switch {
                     DotnetRuntimeType.Runtime => "dotnet",
-                    DotnetRuntimeType.AspNetCore => "aspnetcore",
+                    DotnetRuntimeType.AspNetCore => "aspnetcore/Runtime",
                     DotnetRuntimeType.WindowsDesktop => "WindowsDesktop",
-                    _ => throw new NotImplementedException(),
+                    DotnetRuntimeType.Sdk => "Sdk",
+                    _ => throw new ArgumentOutOfRangeException(nameof(runtimeType)),
                 };
 
                 downloader = downloader ?? HttpUtil.CreateDefaultDownloader();
@@ -429,6 +434,7 @@ namespace Velopack.Windows
                         new Version(version).Major >= 5
                             ? $"{DotNetFeed}/WindowsDesktop/{version}/windowsdesktop-runtime-{version}-win-{cpuarch}.exe"
                             : $"{DotNetFeed}/Runtime/{version}/windowsdesktop-runtime-{version}-win-{cpuarch}.exe",
+                    DotnetRuntimeType.Sdk => $"{DotNetFeed}/Sdk/{version}/dotnet-sdk-{version}-win-{cpuarch}.exe",
                     _ => throw new NotImplementedException(),
                 };
             }
