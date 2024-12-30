@@ -1,5 +1,6 @@
 ﻿using Azure.Core;
 using Azure.Identity;
+using Microsoft.Security.Extensions;
 using Velopack.Packaging.Windows;
 using Velopack.Util;
 
@@ -71,7 +72,14 @@ public class TrustedSigningTests
 
         Assert.NotEmpty(files);
 #pragma warning disable CA1416 // Validate platform compatibility, this test only executes on Windows
-        Assert.All(files, x => Assert.True(AuthenticodeTools.IsTrusted(x)));
+        Assert.All(files, x => Assert.True(IsTrusted(x)));
 #pragma warning restore CA1416 // Validate platform compatibility
+    }
+    
+    private bool IsTrusted(string filePath)
+    {
+        using var fileStream = File.OpenRead(filePath);
+        var targetPackageSignatureInfo = FileSignatureInfo.GetFromFileStream(fileStream);
+        return targetPackageSignatureInfo.State == SignatureState.SignedAndTrusted;
     }
 }

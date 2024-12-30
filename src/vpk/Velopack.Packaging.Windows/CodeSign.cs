@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Security.Extensions;
 using Velopack.Core;
 using Velopack.Util;
 
@@ -15,6 +16,13 @@ public class CodeSign
         Log = logger;
     }
 
+    private bool IsTrusted(string filePath)
+    {
+        using var fileStream = File.OpenRead(filePath);
+        var targetPackageSignatureInfo = FileSignatureInfo.GetFromFileStream(fileStream);
+        return targetPackageSignatureInfo.State == SignatureState.SignedAndTrusted;
+    }
+
     private bool ShouldSign(string filePath)
     {
         if (String.IsNullOrWhiteSpace(filePath)) return true;
@@ -25,7 +33,7 @@ public class CodeSign
         }
 
         try {
-            if (VelopackRuntimeInfo.IsWindows && AuthenticodeTools.IsTrusted(filePath)) {
+            if (VelopackRuntimeInfo.IsWindows && IsTrusted(filePath)) {
                 Log.Debug($"'{filePath}' is already signed, skipping...");
                 return false;
             }
@@ -57,7 +65,8 @@ public class CodeSign
                 Log.Info($"Preparing to codesign using a single file signing template, with a parallelism of {parallelism}.");
                 signArguments = signArguments.Replace("{{file...}}", "{{file}}");
             } else {
-                throw new UserInfoException("The sign template must contain '{{{file}}}' or '{{{file...}}}', " +
+                throw new UserInfoException(
+                    "The sign template must contain '{{{file}}}' or '{{{file...}}}', " +
                     "which will be substituted by one, or many files, respectively.");
             }
         } else {
