@@ -63,12 +63,10 @@ public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadO
         var releaseName = string.IsNullOrWhiteSpace(options.ReleaseName) ? semVer.ToString() : options.ReleaseName;
 
         Log.Info($"Preparing to upload {build.Count} asset(s) to GitHub");
-
-        var client = new GitHubClient(new ProductHeaderValue("Velopack")) {
+        var connection = new Connection(new ProductHeaderValue("Velopack"), new GitHubHttpClient(TimeSpan.FromMinutes(options.Timeout)));
+        var client = new GitHubClient(connection) {
             Credentials = new Credentials(options.Token)
         };
-
-        client.SetRequestTimeout(TimeSpan.FromMinutes(options.Timeout));
 
         var existingReleases = await client.Repository.Release.GetAll(repoOwner, repoName);
         if (!options.Merge) {
@@ -127,7 +125,7 @@ public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadO
                     releasesFileName,
                     "application/json",
                     new MemoryStream(Encoding.UTF8.GetBytes(json)),
-                    TimeSpan.FromMinutes(5));
+                    timeout: null);
                 await client.Repository.Release.UploadAsset(release, data, CancellationToken.None);
             },
             "Uploading " + releasesFileName);
@@ -159,7 +157,7 @@ public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadO
     private async Task UploadFileAsAsset(GitHubClient client, Release release, string filePath)
     {
         using var stream = File.OpenRead(filePath);
-        var data = new ReleaseAssetUpload(Path.GetFileName(filePath), "application/octet-stream", stream, timeout: TimeSpan.Zero);
+        var data = new ReleaseAssetUpload(Path.GetFileName(filePath), "application/octet-stream", stream, timeout: null);
         await client.Repository.Release.UploadAsset(release, data, CancellationToken.None);
     }
 }
