@@ -1,0 +1,4 @@
+[bindings.csharp]
+cdylib_name = "velopack"
+namespace = "Velopack"
+access_modifier = "public"

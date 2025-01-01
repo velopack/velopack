@@ -5,6 +5,8 @@ members = [
     "src/lib-rust",
     "src/lib-nodejs/velopack_nodeffi",
     "src/lib-cpp",
+    "src/uniffi", 
+    "src/uniffi-bindgen",
 ]
 exclude = [
     "samples/RustIced",
@@ -81,6 +83,7 @@ cbindgen = "0.27"
 log-panics = "2.1.0"
 core-foundation = "0.10"
 core-foundation-sys = "0.8"
+uniffi = "0.28"
 
 # default to small, optimized workspace release binaries
 [profile.release]

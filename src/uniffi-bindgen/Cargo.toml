@@ -1,0 +1,16 @@
+[package]
+name = "uniffi-bindgen"
+publish = false
+version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+uniffi = { workspace = true, features = ["cli"] }

@@ -1,0 +1,85 @@
+namespace Velopack {
+  string GetVelopackVersion();
+};
+
+[Error]
+enum VelopackError {
+  "Generic",
+};
+
+/// An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
+dictionary VelopackAsset {
+  /// The name or Id of the package containing this release.
+  string PackageId;
+  /// The version of this release.
+  string Version;
+  /// The type of asset (eg. "Full" or "Delta").
+  string Type;
+  /// The filename of the update package containing this release.
+  string FileName;
+  /// The SHA1 checksum of the update package containing this release.
+  string SHA1;
+  /// The SHA256 checksum of the update package containing this release.
+  string SHA256;
+  /// The size in bytes of the update package containing this release.
+  u64 Size;
+  /// The release notes in markdown format, as passed to Velopack when packaging the release. This may be an empty string.
+  string NotesMarkdown;
+  /// The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
+  string NotesHtml;
+};
+
+/// A feed of Velopack assets, usually retrieved from a remote location.
+dictionary VelopackAssetFeed {
+  /// The list of assets in the (probably remote) update feed.
+  sequence<VelopackAsset> Assets;
+};
+
+/// Holds information about the current version and pending updates, such as how many there are, and access to release notes.
+dictionary UpdateInfo {
+  /// The available version that we are updating to.
+  VelopackAsset TargetFullRelease;
+  /// True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
+  /// In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
+  /// deleted.
+  boolean IsDowngrade;
+};
+
+/// Options to customise the behaviour of UpdateManager.
+dictionary UpdateOptions {
+  /// **This option should usually be left None**. <br/>
+  /// Overrides the default channel used to fetch updates.
+  /// The default channel will be whatever channel was specified on the command line when building this release.
+  /// For example, if the current release was packaged with '--channel beta', then the default channel will be 'beta'.
+  /// This allows users to automatically receive updates from the same channel they installed from. This options
+  /// allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
+  /// without having to reinstall the application.
+  string? ExplicitChannel = null;
+  /// Allows UpdateManager to update to a version that's lower than the current version (i.e. downgrading).
+  /// This could happen if a release has bugs and was retracted from the release feed, or if you're using
+  /// ExplicitChannel to switch channels to another channel where the latest version on that
+  /// channel is lower than the current version.
+  boolean AllowVersionDowngrade = false;
+};
+
+/// Progress handler which must be thread safe. Methods in this trait may be called by any thread.
+[Trait, WithForeign]
+interface IProgressHandler {
+  /// Called with values from 0-100 to indicate the current operation progress.
+  void send(i16 progress);
+};
+
+/// Abstraction for finding and downloading updates from a package source / repository.
+/// An implementation may copy a file from a local repository, download from a web address,
+/// or even use third party services and parse proprietary data to produce a package feed.
+[Trait, WithForeign]
+interface IUpdateSource {
+  /// Retrieve the list of available remote releases from the package source. These releases
+  /// can subsequently be downloaded with DownloadReleaseEntry.
+  [Throws=VelopackError]
+  VelopackAssetFeed GetReleaseFeed(string channel);
+  /// Download the specified VelopackAsset to the provided local file path.
+  [Throws=VelopackError]
+  void DownloadReleaseEntry(VelopackAsset asset, string localFile, [ByRef] IProgressHandler progress);
+};
+
