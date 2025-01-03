@@ -9,7 +9,7 @@
   <ItemGroup>
     <PackageVersion Include="System.Private.Uri" Version="4.3.2" />
     <PackageVersion Include="System.Text.Json" Version="9.0.0" />
-    <PackageVersion Include="Velopack" Version="0.0.1015" />
-    <PackageVersion Include="Velopack.Build" Version="0.0.1015" />
+    <PackageVersion Include="Velopack" Version="0.0.1053" />
+    <PackageVersion Include="Velopack.Build" Version="0.0.1053" />
   </ItemGroup>
 </Project>
