@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using Velopack.Exceptions;
 using Velopack.Util;
 
 namespace Velopack.Compression
@@ -62,31 +63,34 @@ namespace Velopack.Compression
             new DirectoryInfo(workingPath).GetAllFilesRecursively()
                 .Select(x => x.FullName.Replace(workingPath + Path.DirectorySeparatorChar, "").ToLowerInvariant())
                 .Where(x => x.StartsWith("lib", StringComparison.InvariantCultureIgnoreCase) && !pathsVisited.Contains(x))
-                .ForEach(x => {
-                    Log.Trace($"{x} was in old package but not in new one, deleting");
-                    File.Delete(Path.Combine(workingPath, x));
-                });
+                .ForEach(
+                    x => {
+                        Log.Trace($"{x} was in old package but not in new one, deleting");
+                        File.Delete(Path.Combine(workingPath, x));
+                    });
 
             progress(85);
 
             // Add all of the files that are in the new package but
             // not in the old one.
             deltaPathRelativePaths
-                .Where(x => x.StartsWith("lib", StringComparison.InvariantCultureIgnoreCase)
-                            && !x.EndsWith(".shasum", StringComparison.InvariantCultureIgnoreCase)
-                            && !pathsVisited.Contains(DIFF_SUFFIX.Replace(x, ""), StringComparer.InvariantCultureIgnoreCase))
-                .ForEach(x => {
-                    Log.Trace($"{x} was in new package but not in old one, adding");
+                .Where(
+                    x => x.StartsWith("lib", StringComparison.InvariantCultureIgnoreCase)
+                         && !x.EndsWith(".shasum", StringComparison.InvariantCultureIgnoreCase)
+                         && !pathsVisited.Contains(DIFF_SUFFIX.Replace(x, ""), StringComparer.InvariantCultureIgnoreCase))
+                .ForEach(
+                    x => {
+                        Log.Trace($"{x} was in new package but not in old one, adding");
 
-                    string outputFile = Path.Combine(workingPath, x);
-                    string outputDirectory = Path.GetDirectoryName(outputFile)!;
+                        string outputFile = Path.Combine(workingPath, x);
+                        string outputDirectory = Path.GetDirectoryName(outputFile)!;
 
-                    if (!Directory.Exists(outputDirectory)) {
-                        Directory.CreateDirectory(outputDirectory);
-                    }
+                        if (!Directory.Exists(outputDirectory)) {
+                            Directory.CreateDirectory(outputDirectory);
+                        }
 
-                    File.Copy(Path.Combine(deltaPath, x), outputFile);
-                });
+                        File.Copy(Path.Combine(deltaPath, x), outputFile);
+                    });
 
             progress(95);
 
@@ -94,20 +98,23 @@ namespace Velopack.Compression
             // package's versions (i.e. the nuspec file, etc etc).
             deltaPathRelativePaths
                 .Where(x => !x.StartsWith("lib", StringComparison.InvariantCultureIgnoreCase))
-                .ForEach(x => {
-                    Log.Trace($"Writing metadata file: {x}");
-                    File.Copy(Path.Combine(deltaPath, x), Path.Combine(workingPath, x), true);
-                });
+                .ForEach(
+                    x => {
+                        Log.Trace($"Writing metadata file: {x}");
+                        File.Copy(Path.Combine(deltaPath, x), Path.Combine(workingPath, x), true);
+                    });
 
             // delete all metadata files that are not in the new package
             new DirectoryInfo(workingPath).GetAllFilesRecursively()
                 .Select(x => x.FullName.Replace(workingPath + Path.DirectorySeparatorChar, "").ToLowerInvariant())
-                .Where(x => !x.StartsWith("lib", StringComparison.InvariantCultureIgnoreCase)
-                    && !deltaPathRelativePaths.Contains(x, StringComparer.InvariantCultureIgnoreCase))
-                .ForEach(x => {
-                    Log.Trace($"Deleting removed metadata file: {x}");
-                    File.Delete(Path.Combine(workingPath, x));
-                });
+                .Where(
+                    x => !x.StartsWith("lib", StringComparison.InvariantCultureIgnoreCase)
+                         && !deltaPathRelativePaths.Contains(x, StringComparer.InvariantCultureIgnoreCase))
+                .ForEach(
+                    x => {
+                        Log.Trace($"Deleting removed metadata file: {x}");
+                        File.Delete(Path.Combine(workingPath, x));
+                    });
 
             progress(100);
         }

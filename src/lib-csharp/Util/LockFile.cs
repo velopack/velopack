@@ -7,6 +7,7 @@ using System.Runtime.Versioning;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Velopack.Exceptions;
 
 namespace Velopack.Util
 {
@@ -45,7 +46,7 @@ namespace Velopack.Util
                 IsLocked = true;
             } catch (Exception ex) {
                 DisposeInternal();
-                throw new IOException("Failed to acquire exclusive lock file. Is another operation currently running?", ex);
+                throw new AcquireLockFailedException(ex);
             } finally {
                 _semaphore.Release();
             }
@@ -78,6 +79,7 @@ namespace Velopack.Util
             if (_fileDescriptor > 0) {
                 close(_fileDescriptor);
             }
+
             var fileBytes = Encoding.UTF8.GetBytes(_filePath).ToArray();
 
             const int O_RDWR = 0x2;
@@ -108,7 +110,7 @@ namespace Velopack.Util
                 close(fd);
                 throw new IOException($"lockf failed, errno: {errno}", new Win32Exception(errno));
             }
-            
+
             _fileDescriptor = fd;
         }
 
@@ -129,7 +131,7 @@ namespace Velopack.Util
         private void DisposeInternal()
         {
             Interlocked.Exchange(ref this._fileStream, null)?.Dispose();
-            
+
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
                 if (_fileDescriptor > 0) {
                     close(_fileDescriptor);

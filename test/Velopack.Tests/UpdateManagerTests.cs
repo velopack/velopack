@@ -2,6 +2,7 @@
 using NuGet.Versioning;
 using Velopack.Compression;
 using Velopack.Core;
+using Velopack.Exceptions;
 using Velopack.Locators;
 using Velopack.Sources;
 using Velopack.Tests.TestHelpers;
