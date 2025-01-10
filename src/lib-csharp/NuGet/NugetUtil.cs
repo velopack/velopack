@@ -42,10 +42,10 @@ namespace Velopack.NuGet
         {
             if (SemanticVersion.TryParse(version, out var parsed)) {
                 if (parsed < new SemanticVersion(0, 0, 1, parsed.Release)) {
-                    throw new Exception($"Invalid package version '{version}', it must be >= 0.0.1.");
+                    throw new ArgumentException($"Invalid package version '{version}', it must be >= 0.0.1.");
                 }
             } else {
-                throw new Exception($"Invalid package version '{version}', it must be a 3-part SemVer2 compliant version string.");
+                throw new ArgumentException($"Invalid package version '{version}', it must be a 3-part SemVer2 compliant version string.");
             }
         }
 

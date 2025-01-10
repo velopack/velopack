@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Velopack.Compression
+namespace Velopack.Exceptions
 {
     /// <summary>
     /// Represents an error that occurs when a package does not match it's expected SHA checksum
