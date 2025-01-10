@@ -1,8 +1,13 @@
 ﻿using System;
 using System.Linq;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Velopack.Util;
+
+#if NET8_0_OR_GREATER
+using JsonName = System.Text.Json.Serialization.JsonPropertyNameAttribute;
+#else
+using JsonName = Newtonsoft.Json.JsonPropertyAttribute;
+#endif
 
 namespace Velopack.Sources
 {
@@ -14,25 +19,25 @@ namespace Velopack.Sources
         /// <summary>
         /// The name of the release.
         /// </summary>
-        [JsonPropertyName("name")]
+        [JsonName("name")]
         public string? Name { get; set; }
 
         /// <summary>
         /// True if this is intended for an upcoming release.
         /// </summary>
-        [JsonPropertyName("upcoming_release")]
+        [JsonName("upcoming_release")]
         public bool UpcomingRelease { get; set; }
 
         /// <summary>
         /// The date which this release was published publicly.
         /// </summary>
-        [JsonPropertyName("released_at")]
+        [JsonName("released_at")]
         public DateTime? ReleasedAt { get; set; }
 
         /// <summary>
         /// A container for the assets (files) uploaded to this release.
         /// </summary>
-        [JsonPropertyName("assets")]
+        [JsonName("assets")]
         public GitlabReleaseAsset? Assets { get; set; }
     }
 
@@ -44,13 +49,13 @@ namespace Velopack.Sources
         /// <summary>
         /// The amount of assets linked to the release.
         /// </summary>
-        [JsonPropertyName("count")]
+        [JsonName("count")]
         public int Count { get; set; }
 
         /// <summary>
         /// A list of asset (file) links.
         /// </summary>
-        [JsonPropertyName("links")]
+        [JsonName("links")]
         public GitlabReleaseLink[] Links { get; set; } = new GitlabReleaseLink[0];
     }
 
@@ -62,13 +67,13 @@ namespace Velopack.Sources
         /// <summary>
         /// Name of the asset (file) linked.
         /// </summary>
-        [JsonPropertyName("name")]
+        [JsonName("name")]
         public string? Name { get; set; }
 
         /// <summary>
         /// The url for the asset. This make use of the Gitlab API.
         /// </summary>
-        [JsonPropertyName("url")]
+        [JsonName("url")]
         public string? Url { get; set; }
 
         /// <summary>
@@ -76,14 +81,14 @@ namespace Velopack.Sources
         /// As a posed to using the API.
         /// This links directly to the raw asset (file).
         /// </summary>
-        [JsonPropertyName("direct_asset_url")]
+        [JsonName("direct_asset_url")]
         public string? DirectAssetUrl { get; set; }
 
         /// <summary>
         /// The category type that the asset is listed under.
         /// Options: 'Package', 'Image', 'Runbook', 'Other'
         /// </summary>
-        [JsonPropertyName("link_type")]
+        [JsonName("link_type")]
         public string? Type { get; set; }
     }
 
