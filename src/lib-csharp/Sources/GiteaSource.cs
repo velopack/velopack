@@ -1,28 +1,34 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Velopack.Util;
+
+#if NET8_0_OR_GREATER
+using JsonName = System.Text.Json.Serialization.JsonPropertyNameAttribute;
+#else
+using JsonName = Newtonsoft.Json.JsonPropertyAttribute;
+#endif
+
 namespace Velopack.Sources
 {
     /// <summary> Describes a Gitea release, including attached assets. </summary>
     public class GiteaRelease
     {
         /// <summary> The name of this release. </summary>
-        [JsonPropertyName("name")]
+        [JsonName("name")]
         public string? Name { get; set; }
 
         /// <summary> True if this release is a prerelease. </summary>
-        [JsonPropertyName("prerelease")]
+        [JsonName("prerelease")]
         public bool Prerelease { get; set; }
 
         /// <summary> The date which this release was published publicly. </summary>
-        [JsonPropertyName("published_at")]
+        [JsonName("published_at")]
         public DateTime? PublishedAt { get; set; }
 
         /// <summary> A list of assets (files) uploaded to this release. </summary>
-        [JsonPropertyName("assets")]
+        [JsonName("assets")]
         public GiteaReleaseAsset[] Assets { get; set; } = new GiteaReleaseAsset[0];
     }
     /// <summary> Describes a asset (file) uploaded to a Gitea release. </summary>
@@ -32,7 +38,7 @@ namespace Velopack.Sources
         /// The asset URL for this release asset. Requests to this URL will use API
         /// quota and return JSON unless the 'Accept' header is "application/octet-stream". 
         /// </summary>
-        [JsonPropertyName("url")]
+        [JsonName("url")]
         public string? Url { get; set; }
 
         /// <summary>  
@@ -41,11 +47,11 @@ namespace Velopack.Sources
         /// assets from a private repository, the <see cref="Url"/> property must
         /// be used with an appropriate access token.
         /// </summary>
-        [JsonPropertyName("browser_download_url")]
+        [JsonName("browser_download_url")]
         public string? BrowserDownloadUrl { get; set; }
 
         /// <summary> The name of this release asset. </summary>
-        [JsonPropertyName("name")]
+        [JsonName("name")]
         public string? Name { get; set; }
     }
 
