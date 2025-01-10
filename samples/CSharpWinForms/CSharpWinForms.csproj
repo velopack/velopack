@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <AssemblyName>VelopackCSharpWinForms</AssemblyName>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--Condition below is only needed to test this sample project against the local projects instead of the NuGet package. Remove it in your app.-->
+    <PackageReference Include="Velopack" Version="0.*" Condition="$(UseLocalVelopack) == ''" />
+  </ItemGroup>
+
+</Project>
