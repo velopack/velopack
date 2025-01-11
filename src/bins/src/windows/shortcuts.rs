@@ -6,11 +6,11 @@ use anyhow::{anyhow, bail, Result};
 use glob::glob;
 use same_file::is_same_file;
 use velopack::{locator::ShortcutLocationFlags, locator::VelopackLocator};
-use windows::core::{Interface, GUID, PCWSTR, PROPVARIANT};
+use windows::core::{Interface, GUID, PCWSTR};
 use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
 use windows::Win32::System::Com::{
     CoCreateInstance, CoInitializeEx, CoUninitialize, IPersistFile, StructuredStorage::InitPropVariantFromStringVector,
-    CLSCTX_ALL, COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE, STGM_READWRITE,
+    StructuredStorage::PROPVARIANT, CLSCTX_ALL, COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE, STGM_READWRITE,
 };
 use windows::Win32::UI::Shell::{
     IShellItem, IShellLinkW, IStartMenuPinnedList, PropertiesSystem::IPropertyStore, SHCreateItemFromParsingName, ShellLink, StartMenuPin,
@@ -153,8 +153,7 @@ unsafe fn unsafe_update_app_manifest_lnks(next_app: &VelopackLocator, previous_a
         let target_path = if let Some(parent) = path.parent() {
             parent.join(shortcut_file_name)
         } else {
-            match get_path_for_shortcut_location(&app_id, &app_title, &app_authors, flag)
-            {
+            match get_path_for_shortcut_location(&app_id, &app_title, &app_authors, flag) {
                 Ok(p) => p,
                 Err(e) => {
                     error!("Failed to get desired path for shortcut location: {:?} ({})", flag, e);
@@ -526,7 +525,6 @@ impl Lnk {
         Ok(self.pf.Save(output, true)?)
     }
 
-
     pub unsafe fn open_write<P: AsRef<Path>>(link_path: P) -> Result<Lnk> {
         let link_path = link_path.as_ref().to_string_lossy().to_string();
         let link: IShellLinkW = create_instance(&ShellLink)?;
@@ -575,7 +573,7 @@ fn test_unpin_shortcut() {
             unsafe_unpin_lnk_from_start(path)?;
             Ok(())
         })
-            .unwrap();
+        .unwrap();
     }
 }
 #[test]
@@ -597,7 +595,7 @@ fn test_shortcut_intense_intermittent() {
                 l.save_as(&p1).unwrap();
                 Ok(())
             })
-                .unwrap();
+            .unwrap();
         }
         assert!(lnk_path.exists());
         util::retry_io(|| std::fs::remove_file(&lnk_path)).unwrap();
@@ -632,7 +630,7 @@ fn test_can_resolve_existing_shortcut() {
             assert_eq!(target, "C:\\Users\\Caelan\\AppData\\Local\\Discord\\Update.exe");
             Ok(())
         })
-            .unwrap();
+        .unwrap();
     }
 }
 
@@ -708,6 +706,6 @@ fn test_shortcut_full_integration() {
             assert!(!start_menu_subfolder.exists());
             Ok(())
         })
-            .unwrap();
+        .unwrap();
     }
 }
