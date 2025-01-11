@@ -91,8 +91,8 @@ pub struct HttpSource {
 
 impl HttpSource {
     /// Create a new HttpSource with the specified base URL.
-    pub fn new(url: &str) -> HttpSource {
-        HttpSource { url: url.to_owned() }
+    pub fn new<S: AsRef<str>>(url: S) -> HttpSource {
+        HttpSource { url: url.as_ref().to_owned() }
     }
 }
 
