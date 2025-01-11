@@ -78,11 +78,12 @@ waitpid-any.workspace = true
 fs_extra.workspace = true
 memmap2.workspace = true
 image.workspace = true
-winsafe = { version = "0.0.20", features = ["gui"] }
-windows = { version = "0.58", default-features = false, features = [
+winsafe.workspace = true
+windows = { workspace = true, features = [
     "Win32_Foundation",
     "Win32_Security",
     "Win32_System_Com",
+    "Win32_Globalization",
     "Win32_UI",
     "Win32_UI_Shell",
     "Win32_System_Threading",
@@ -105,7 +106,7 @@ windows = { version = "0.58", default-features = false, features = [
     "Wdk_System",
     "Wdk_System_Threading",
 ] }
-webview2-com = "0.34"
+webview2-com-sys.workspace = true
 libloading.workspace = true
 strsim.workspace = true
 same-file.workspace = true

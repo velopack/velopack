@@ -6,6 +6,7 @@ pub mod splash;
 pub mod known_path;
 pub mod strings;
 pub mod registry;
+pub mod webview2;
 
 mod self_delete;
 mod shortcuts;

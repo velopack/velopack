@@ -547,18 +547,8 @@ impl RuntimeInfo for WebView2Info {
     }
 
     fn is_installed(&self) -> bool {
-        // https://github.com/myhrmans/figma-content-length-bug/blob/980b5ce03171218904782f9ab590857d6c7de700/src/webview/webview2/mod.rs#L752
-        use webview2_com::{Microsoft::Web::WebView2::Win32::*, *};
-        use windows::core::{PCWSTR, PWSTR};
-        let mut versioninfo = PWSTR::null();
-        let result = unsafe { GetAvailableCoreWebView2BrowserVersionString(PCWSTR::null(), &mut versioninfo) };
-
-        if result.is_err() || versioninfo == PWSTR::null() {
-            return false;
-        }
-
-        let version = take_pwstr(versioninfo);
-        if version.len() > 0 {
+        let result = super::webview2::get_webview_version();
+        if let Some(version) = result {
             info!("WebView2 version: {}", version);
             true
         } else {
@@ -710,7 +700,7 @@ fn test_parse_dotnet_version() {
     assert_eq!(info.architecture, RuntimeArch::X64);
     assert_eq!(info.runtime_type, DotnetRuntimeType::WindowsDesktop);
 
-    let info  = parse_dotnet_version("net8-sdk").unwrap();
+    let info = parse_dotnet_version("net8-sdk").unwrap();
     assert_eq!(info.version, "8.0.0");
     assert_eq!(info.architecture, RuntimeArch::X64);
     assert_eq!(info.runtime_type, DotnetRuntimeType::Sdk);
