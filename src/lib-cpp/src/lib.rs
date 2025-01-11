@@ -25,6 +25,7 @@ pub extern "C" fn vpkc_new_source_file(psz_file_path: *const c_char) -> *mut vpk
     if let Some(update_path) = c_to_string_opt(psz_file_path) {
         UpdateSourceRawPtr::new(Box::new(sources::FileSource::new(update_path)))
     } else {
+        log::error!("psz_file_path is null");
         ptr::null_mut()
     }
 }
@@ -35,8 +36,9 @@ pub extern "C" fn vpkc_new_source_file(psz_file_path: *const c_char) -> *mut vpk
 #[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_new_source_http_url(psz_http_url: *const c_char) -> *mut vpkc_update_source_t {
     if let Some(update_url) = c_to_string_opt(psz_http_url) {
-        UpdateSourceRawPtr::new(Box::new(sources::FileSource::new(update_url)))
+        UpdateSourceRawPtr::new(Box::new(sources::HttpSource::new(update_url)))
     } else {
+        log::error!("psz_http_url is null");
         ptr::null_mut()
     }
 }
@@ -56,6 +58,7 @@ pub extern "C" fn vpkc_new_source_custom_callback(
     p_user_data: *mut c_void,
 ) -> *mut vpkc_update_source_t {
     if cb_release_feed.is_none() || cb_download_entry.is_none() || cb_free_release_feed.is_none() {
+        log::error!("cb_release_feed, cb_download_entry, or cb_free_release_feed is null");
         return ptr::null_mut();
     }
 
