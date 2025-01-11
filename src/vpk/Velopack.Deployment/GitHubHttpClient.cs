@@ -1,3 +1,5 @@
+#pragma warning disable CS0618 // Type or member is obsolete
+
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Net;
