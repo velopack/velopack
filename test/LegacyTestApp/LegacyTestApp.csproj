@@ -4,6 +4,11 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net48</TargetFramework>
     <LangVersion>latest</LangVersion>
+
+    <!--
+    NU1902: Vulnerable, obsolete packages ar eintentionally used as this is a demonstration of an old app
+    -->
+    <NoWarn>$(NoWarn);NU1902</NoWarn>
     <!--<UseClowd>2.11.1</UseClowd>-->
     <!--<UseClowd>3.0.210-*</UseClowd>-->
     <!--<UseVelopack>0.0.84</UseVelopack>-->
