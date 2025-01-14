@@ -4,7 +4,7 @@ public class WindowsSigningOptions
 {
     public string SignParameters { get; set; }
 
-    public bool SignSkipDll { get; set; }
+    public string SignExclude { get; set; }
 
     public int SignParallel { get; set; }
 
