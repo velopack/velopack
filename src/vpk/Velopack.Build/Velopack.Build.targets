@@ -86,7 +86,7 @@
       SplashImage="$(VelopackSplashImage)"
       SkipVelopackAppCheck="$(VelopackSkipVelopackAppCheck)"
       SignParameters="$(VelopackSignParameters)"
-      SignSkipDll="$(VelopackSignSkipDll)"
+      SignExclude="$(VelopackSignExclude)"
       SignParallel="$(VelopackSignParallel)"
       SignTemplate="$(VelopackSignTemplate)"
       Categories="$(VelopackCategories)"

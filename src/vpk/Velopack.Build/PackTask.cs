@@ -82,7 +82,7 @@ public class PackTask : MSBuildAsyncTask
     public string? SignParameters { get; set; }
     public string? AzureTrustedSignFile { get; set; }
 
-    public bool SignSkipDll { get; set; }
+    public string? SignExclude { get; set; }
 
     public int SignParallel { get; set; } = 10;
 

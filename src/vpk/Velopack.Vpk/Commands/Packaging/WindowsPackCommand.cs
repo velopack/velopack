@@ -10,11 +10,12 @@ public class WindowsPackCommand : PackCommand
 
     public string SignParameters { get; private set; }
 
-    public bool SignSkipDll { get; private set; }
+    public string SignExclude { get; private set; }
 
     public int SignParallel { get; private set; }
 
     public string SignTemplate { get; private set; }
+
     public string AzureTrustedSignFile { get; private set; }
 
     public string Shortcuts { get; private set; }
@@ -42,8 +43,8 @@ public class WindowsPackCommand : PackCommand
           .SetDescription("Use a custom signing command. {{file}} will be substituted.")
           .SetArgumentHelpName("COMMAND");
 
-        AddOption<bool>((v) => SignSkipDll = v, "--signSkipDll")
-            .SetDescription("Only signs EXE files, and skips signing DLL files.")
+        AddOption<string>((v) => SignExclude = v, "--signExclude")
+            .SetDescription("A regex which excludes matched files from signing.")
             .SetHidden();
 
         AddOption<int>((v) => SignParallel = v, "--signParallel")

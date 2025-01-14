@@ -1,4 +1,5 @@
 ﻿using System.Runtime.Versioning;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Velopack.Compression;
 using Velopack.Core;
@@ -18,8 +19,9 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
     protected override Task CodeSign(Action<int> progress, string packDir)
     {
+        Regex fileExcludeRegex = Options.SignExclude != null ? new Regex(Options.SignExclude) : null;
         var filesToSign = new DirectoryInfo(packDir).GetAllFilesRecursively()
-            .Where(x => Options.SignSkipDll ? PathUtil.PathPartEndsWith(x.Name, ".exe") : PathUtil.FileIsLikelyPEImage(x.Name))
+            .Where(x => !fileExcludeRegex?.IsMatch(x.FullName) ?? PathUtil.FileIsLikelyPEImage(x.Name))
             .Select(x => x.FullName)
             .ToArray();
 
