@@ -35,7 +35,7 @@ namespace Velopack.Windows
         Desktop = 1 << 1,
 
         /// <summary>
-        /// A shortcut in Startup/Run folder will cause the app to be automatially started on user login.
+        /// A shortcut in Startup/Run folder will cause the app to be automatically started on user login.
         /// </summary>
         Startup = 1 << 2,
 
