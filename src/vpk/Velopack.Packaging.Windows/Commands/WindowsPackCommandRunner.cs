@@ -60,9 +60,9 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         if (clickonceManifests.Any()) {
             foreach (var manifest in clickonceManifests) {
                 Log.Warn(
-                    $"Clickonce manifest found in pack directory: '{Path.GetFileName(manifest)}'. " +
-                    $"Velopack does not support building clickonce applications, and so will delete this file automatically. " +
-                    $"It is recommended that you remove clickonce from your .csproj to avoid this warning.");
+                    $"ClickOnce manifest found in pack directory: '{Path.GetFileName(manifest)}'. " +
+                    $"Velopack does not support building ClickOnce applications, and so will delete this file automatically. " +
+                    $"It is recommended that you remove ClickOnce from your .csproj to avoid this warning.");
                 File.Delete(manifest);
             }
         }
@@ -91,7 +91,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             return null;
 
         try {
-            var shortcuts = Options.Shortcuts.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+            var shortcuts = Options.Shortcuts.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries)
                 .Select(x => x.Trim())
                 .Select(x => (ShortcutLocation) Enum.Parse(typeof(ShortcutLocation), x, true))
                 .ToList();
@@ -116,7 +116,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             return "";
 
         var providedRuntimes = Options.Runtimes.ToLower()
-            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+            .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries);
 
         var valid = new string[] {
             "webview2",

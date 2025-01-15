@@ -18,7 +18,7 @@ namespace Velopack
     /// <summary>
     /// Describes the requested release notes text format.
     /// </summary>
-    [Obsolete("This release format has been replaced by VelopackRelease")]
+    [Obsolete("This release format has been replaced by VelopackAsset")]
     public enum ReleaseNotesFormat
     {
         /// <summary> The original markdown release notes. </summary>
@@ -30,7 +30,7 @@ namespace Velopack
     /// <summary>
     /// Represents the information that can be parsed from a release entry filename.
     /// </summary>
-    [Obsolete("This release format has been replaced by VelopackRelease")]
+    [Obsolete("This release format has been replaced by VelopackAsset")]
     public sealed record ReleaseEntryName
     {
         /// <summary> The package Id. </summary>
@@ -95,7 +95,7 @@ namespace Velopack
     /// accompanying package containing the files needed to apply the release.
     /// </summary>
     [DataContract]
-    [Obsolete("This release format has been replaced by VelopackRelease")]
+    [Obsolete("This release format has been replaced by VelopackAsset")]
     public class ReleaseEntry
     {
         /// <summary> The release identity - including id, version and so forth. </summary>*
