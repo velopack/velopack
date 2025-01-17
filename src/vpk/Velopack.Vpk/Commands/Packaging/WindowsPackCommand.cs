@@ -27,7 +27,7 @@ public class WindowsPackCommand : PackCommand
         IconOption.RequiresExtension(".ico");
 
         AddOption<string>((v) => Runtimes = v, "-f", "--framework")
-            .SetDescription("List of required runtimes to install during setup. Example: 'net6-x64-desktop,vcredist143'.")
+            .SetDescription("List of required runtimes to install during setup. Example: 'net6-x64-desktop,vcredist143-x64'.")
             .SetArgumentHelpName("RUNTIMES");
 
         AddOption<FileInfo>((v) => SplashImage = v.ToFullNameOrNull(), "-s", "--splashImage")
