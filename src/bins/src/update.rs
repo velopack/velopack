@@ -14,7 +14,7 @@ use velopack_bins::{*, shared::OperationWait};
 fn root_command() -> Command {
     let cmd = Command::new("Update")
     .version(env!("NGBV_VERSION"))
-    .about(format!("Velopack Updater ({}) manages packages and installs updates.\nhttps://github.com/velopack/velopack", env!("NGBV_VERSION")))
+    .about(format!("Velopack Updater ({}) manages packages and installs updates.\nhttps:/velopack.io", env!("NGBV_VERSION")))
     .subcommand(Command::new("apply")
         .about("Applies a staged / prepared update, installing prerequisite runtimes if necessary")
         .arg(arg!(--norestart "Do not restart the application after the update"))
