@@ -119,7 +119,7 @@ public class CodeSign
         if (!VelopackRuntimeInfo.IsWindows) {
             fileName = "/bin/bash";
             string escapedCommand = command.Replace("'", "'\\''");
-            args = $"-c '{escapedCommand} >> \"{signLogFile}\" 2>&1'";
+            args = $"-c \"{escapedCommand} >> \\\"{signLogFile}\\\" 2>&1\"";
         }
 
         var psi = new ProcessStartInfo {
