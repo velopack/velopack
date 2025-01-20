@@ -186,6 +186,11 @@ fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &std::sync::
         windows::create_or_update_manifest_lnks(&locator, None);
     }
 
+    if !locator.get_custom_url_protocols().is_empty() {
+        info!("Registering custom URL protocols...");
+        windows::registry::write_custom_url_protocols(&locator)?;
+    }
+
     info!("Starting process install hook");
     if !windows::run_hook(&locator, constants::HOOK_CLI_INSTALL, 30) {
         let setup_name = format!("{} Setup {}", locator.get_manifest_title(), locator.get_manifest_id());

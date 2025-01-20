@@ -262,6 +262,13 @@ impl VelopackLocator {
         Some(self.manifest.shortcut_amuid.clone())
     }
 
+    /// Returns the list of custom URL protocols to register for the application
+    pub fn get_custom_url_protocols(&self) -> Vec<String> {
+        self.manifest.custom_url_protocols.split(',')
+            .map(|s| s.trim().to_string())
+            .collect()
+    }
+
     /// Returns a copy of the current VelopackLocator with the manifest field set to the given manifest.
     pub fn clone_self_with_new_manifest(&self, manifest: &Manifest) -> VelopackLocator
     {

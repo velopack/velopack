@@ -4,6 +4,31 @@ use velopack::locator::VelopackLocator;
 use winsafe::{self as w, co, prelude::*};
 
 const UNINSTALL_REGISTRY_KEY: &'static str = "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
+const SOFTWARE_CLASSES_REGISTRY_KEY: &'static str = "Software\\Classes";
+// Sub key for setting the command line that the shell invokes
+// https://learn.microsoft.com/en-us/windows/win32/com/shell
+const SHELL_OPEN_COMMAND_KEY: &'static str = "Shell\\Open\\Command";
+
+pub fn write_custom_url_protocols(locator: &VelopackLocator) -> Result<()> {
+    let custom_url_protocols = locator.get_custom_urlProtocols();
+    if !custom_url_protocols.is_empty() {
+        let app_id = locator.get_manifest_id();
+        let main_exe_path = locator.get_main_exe_path_as_string();
+        // Software/Classes seems like standard place to put the shell open command, uncertain if it *must* be there
+        let app_protocols_key = format!("{}\\{}", SOFTWARE_CLASSES_REGISTRY_KEY, app_id);
+        let reg_app_protocols
+            = w::HKEY::CURRENT_USER.RegCreateKeyEx(app_protocols_key, None, co::REG_OPTION::NoValue, co::KEY::CREATE_SUB_KEY, None)?.0;
+
+        for protocol_name in custom_url_protocols {
+            let protocol_shell_open_cmd = format!("\"{}\" \"%1\"", main_exe_path);
+            let reg_protocol = reg_app_protocols.CREATE_SUB_KEY(protocol_name, None, co::REG_OPTION::NoValue, co::KEY::CREATE_SUB_KEY, None)?.0;
+            let reg_shell_open_command
+                = reg_protocol.CREATE_SUB_KEY(SHELL_OPEN_COMMAND_KEY, None, co::REG_OPTION::NoValue, co::KEY::ALL_ACCESS, None)?.0;
+            reg_shell_open_command.RegSetKeyValue(None, Some("CustomURLProtocol"), w::RegistryValue::Sz(protocol_shell_open_cmd));
+        }
+    }
+    Ok(())
+}
 
 pub fn write_uninstall_entry(locator: &VelopackLocator) -> Result<()> {
     info!("Writing uninstall registry key...");
@@ -49,5 +74,8 @@ pub fn remove_uninstall_entry(locator: &VelopackLocator) -> Result<()> {
     let reg_uninstall =
         w::HKEY::CURRENT_USER.RegCreateKeyEx(UNINSTALL_REGISTRY_KEY, None, co::REG_OPTION::NoValue, co::KEY::CREATE_SUB_KEY, None)?.0;
     reg_uninstall.RegDeleteKey(&app_id)?;
+    let reg_app_protocols =
+        w::HKEY::CURRENT_USER.RegCreateKeyEx(SOFTWARE_CLASSES_REGISTRY_KEY, None, co::REG_OPTION::NoValue, co::KEY::CREATE_SUB_KEY, None)?.0;
+    reg_app_protocols.RegDeleteKey(&app_id)
     Ok(())
 }
