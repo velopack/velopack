@@ -1,4 +1,4 @@
-#pragma warning disable CS0618 // Type or member is obsolete
+﻿#pragma warning disable CS0618 // Type or member is obsolete
 
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -12,7 +12,7 @@ namespace Velopack.Deployment;
 
 public class GitHubHttpClient : IHttpClient
 {
-    private HttpClient _client;
+    private HttpClient? _client;
 
     public const string RedirectCountKey = "RedirectCount";
 
@@ -34,11 +34,11 @@ public class GitHubHttpClient : IHttpClient
 
     public void Dispose()
     {
-        _client.Dispose();
+        _client?.Dispose();
         _client = null;
     }
 
-    public async Task<IResponse> Send(IRequest request, CancellationToken cancellationToken, Func<object, object> preprocessResponseBody = null)
+    public async Task<IResponse> Send(IRequest request, CancellationToken cancellationToken, Func<object, object>? preprocessResponseBody = null)
     {
         if (_client == null) {
             throw new ObjectDisposedException(nameof(GitHubHttpClient));
@@ -49,25 +49,27 @@ public class GitHubHttpClient : IHttpClient
         }
 
 
-        using (var requestMessage = BuildRequestMessage(request)) {
-            var responseMessage = await SendAsync(requestMessage).ConfigureAwait(false);
+        using var requestMessage = BuildRequestMessage(request);
+        var responseMessage = await SendAsync(requestMessage).ConfigureAwait(false);
 
-            return await BuildResponse(responseMessage, preprocessResponseBody).ConfigureAwait(false);
-        }
+        return await BuildResponse(responseMessage, preprocessResponseBody).ConfigureAwait(false);
     }
 
-    public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
+    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
     {
         // Clone the request/content in case we get a redirect
         var clonedRequest = await CloneHttpRequestMessageAsync(request).ConfigureAwait(false);
 
         // Send initial response
-        var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, CancellationToken.None).ConfigureAwait(false);
+        var response = await _client!.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, CancellationToken.None).ConfigureAwait(false);
         // Need to determine time on client computer as soon as possible.
         var receivedTime = DateTimeOffset.Now;
+
+        IDictionary<string, object?> properties = request.Options;
+
         // Since Properties are stored as objects, serialize to HTTP round-tripping string (Format: r)
         // Resolution is limited to one-second, matching the resolution of the HTTP Date header
-        request.Properties[ReceivedTimeHeaderName] =
+        properties[ReceivedTimeHeaderName] =
             receivedTime.ToString("r", CultureInfo.InvariantCulture);
 
         // Can't redirect without somewhere to redirect to.
@@ -77,8 +79,8 @@ public class GitHubHttpClient : IHttpClient
 
         // Don't redirect if we exceed max number of redirects
         var redirectCount = 0;
-        if (request.Properties.Keys.Contains(RedirectCountKey)) {
-            redirectCount = (int) request.Properties[RedirectCountKey];
+        if (properties.TryGetValue(RedirectCountKey, out var redirectCountValue) && redirectCountValue is int value) {
+            redirectCount = value;
         }
 
         if (redirectCount > 3) {
@@ -97,13 +99,13 @@ public class GitHubHttpClient : IHttpClient
             }
 
             // Increment the redirect count
-            clonedRequest.Properties[RedirectCountKey] = ++redirectCount;
+            ((IDictionary<string, object?>)clonedRequest.Options)[RedirectCountKey] = ++redirectCount;
 
             // Set the new Uri based on location header
             clonedRequest.RequestUri = response.Headers.Location;
 
             // Clear authentication if redirected to a different host
-            if (string.Compare(clonedRequest.RequestUri.Host, request.RequestUri.Host, StringComparison.OrdinalIgnoreCase) != 0) {
+            if (string.Compare(clonedRequest.RequestUri.Host, request.RequestUri!.Host, StringComparison.OrdinalIgnoreCase) != 0) {
                 clonedRequest.Headers.Authorization = null;
             }
 
@@ -116,11 +118,9 @@ public class GitHubHttpClient : IHttpClient
 
     protected virtual HttpRequestMessage BuildRequestMessage(IRequest request)
     {
-        if (request == null) {
-            throw new ArgumentNullException(nameof(request));
-        }
-
-        HttpRequestMessage requestMessage = null;
+        ArgumentNullException.ThrowIfNull(request);
+        
+        HttpRequestMessage? requestMessage = null;
         try {
             var fullUri = new Uri(request.BaseAddress, request.Endpoint);
             requestMessage = new HttpRequestMessage(request.Method, fullUri);
@@ -145,9 +145,7 @@ public class GitHubHttpClient : IHttpClient
                 requestMessage.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(request.ContentType);
             }
         } catch (Exception) {
-            if (requestMessage != null) {
-                requestMessage.Dispose();
-            }
+            requestMessage?.Dispose();
 
             throw;
         }
@@ -155,7 +153,7 @@ public class GitHubHttpClient : IHttpClient
         return requestMessage;
     }
 
-    static string GetContentMediaType(HttpContent httpContent)
+    private static string? GetContentMediaType(HttpContent httpContent)
     {
         if (httpContent.Headers?.ContentType != null) {
             return httpContent.Headers.ContentType.MediaType;
@@ -170,14 +168,12 @@ public class GitHubHttpClient : IHttpClient
         return null;
     }
 
-    protected virtual async Task<IResponse> BuildResponse(HttpResponseMessage responseMessage, Func<object, object> preprocessResponseBody)
+    protected virtual async Task<IResponse> BuildResponse(HttpResponseMessage responseMessage, Func<object, object>? preprocessResponseBody)
     {
-        if (responseMessage == null) {
-            throw new ArgumentNullException(nameof(responseMessage));
-        }
+        ArgumentNullException.ThrowIfNull(responseMessage);
 
-        object responseBody = null;
-        string contentType = null;
+        object? responseBody = null;
+        string? contentType = null;
 
         // We added support for downloading images,zip-files and application/octet-stream.
         // Let's constrain this appropriately.
@@ -209,7 +205,7 @@ public class GitHubHttpClient : IHttpClient
         // Add Client response received time as a synthetic header
         const string receivedTimeHeaderName = ReceivedTimeHeaderName;
         if (responseMessage.RequestMessage?.Properties is IDictionary<string, object> reqProperties
-            && reqProperties.TryGetValue(receivedTimeHeaderName, out object receivedTimeObj)
+            && reqProperties.TryGetValue(receivedTimeHeaderName, out object? receivedTimeObj)
             && receivedTimeObj is string receivedTimeString
             && !responseHeaders.ContainsKey(receivedTimeHeaderName)) {
             responseHeaders[receivedTimeHeaderName] = receivedTimeString;
@@ -261,12 +257,10 @@ public class GitHubHttpClient : IHttpClient
 
     private class GitHubResponse : IResponse
     {
-        public GitHubResponse(HttpStatusCode statusCode, object body, IDictionary<string, string> headers, string contentType)
+        public GitHubResponse(HttpStatusCode statusCode, object? body, IDictionary<string, string> headers, string? contentType)
         {
-            if (headers == null) {
-                throw new ArgumentNullException(nameof(headers));
-            }
-
+            ArgumentNullException.ThrowIfNull(headers);
+            
             StatusCode = statusCode;
             Body = body;
             Headers = new ReadOnlyDictionary<string, string>(headers);
@@ -275,7 +269,7 @@ public class GitHubHttpClient : IHttpClient
         }
 
         /// <inheritdoc />
-        public object Body { get; private set; }
+        public object? Body { get; private set; }
 
         /// <summary>
         /// Information about the API.
@@ -295,7 +289,7 @@ public class GitHubHttpClient : IHttpClient
         /// <summary>
         /// The content type of the response.
         /// </summary>
-        public string ContentType { get; private set; }
+        public string? ContentType { get; private set; }
     }
 
     private static class ApiInfoParser
@@ -321,14 +315,12 @@ public class GitHubHttpClient : IHttpClient
 
         public static ApiInfo ParseResponseHeaders(IDictionary<string, string> responseHeaders)
         {
-            if (responseHeaders == null) {
-                throw new ArgumentNullException(nameof(responseHeaders));
-            }
+            ArgumentNullException.ThrowIfNull(responseHeaders);
 
             var httpLinks = new Dictionary<string, Uri>();
             var oauthScopes = new List<string>();
             var acceptedOauthScopes = new List<string>();
-            string etag = null;
+            string? etag = null;
 
             var acceptedOauthScopesKey = LookupHeader(responseHeaders, "X-Accepted-OAuth-Scopes");
             if (Exists(acceptedOauthScopesKey)) {
