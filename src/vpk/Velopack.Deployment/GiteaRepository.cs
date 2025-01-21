@@ -16,9 +16,9 @@ public class GiteaDownloadOptions : RepositoryOptions
 {
     public bool Prerelease { get; set; }
 
-    public string RepoUrl { get; set; }
+    public string? RepoUrl { get; set; }
 
-    public string Token { get; set; }
+    public string? Token { get; set; }
 
     ///// <summary>
     ///// Example https://gitea.com
@@ -32,11 +32,11 @@ public class GiteaUploadOptions : GiteaDownloadOptions
 {
     public bool Publish { get; set; }
 
-    public string ReleaseName { get; set; }
+    public string? ReleaseName { get; set; }
 
-    public string TagName { get; set; }
+    public string? TagName { get; set; }
 
-    public string TargetCommitish { get; set; }
+    public string? TargetCommitish { get; set; }
 
     public bool Merge { get; set; }
 }
@@ -91,7 +91,7 @@ public class GiteaRepository : SourceRepository<GiteaDownloadOptions, GiteaSourc
         var apiInstance = new RepositoryApi(config);
         // Get all releases
         // Get repository info for total releases
-        List<Release> existingReleases = null;
+        List<Release>? existingReleases = null;
         ApiResponse<Repository> repositoryInfo = await apiInstance.RepoGetWithHttpInfoAsync(repoOwner, repoName);
         if (repositoryInfo != null && repositoryInfo.StatusCode == HttpStatusCode.OK) {
             // Get all releases
@@ -182,7 +182,7 @@ public class GiteaRepository : SourceRepository<GiteaDownloadOptions, GiteaSourc
         }
     }
 
-    private async Task UploadFileAsAsset(RepositoryApi client, Release release, string repoOwner, string repoName, string filePath)
+    private static async Task UploadFileAsAsset(RepositoryApi client, Release release, string repoOwner, string repoName, string filePath)
     {
         using var stream = File.OpenRead(filePath);
         // Create a release attachment

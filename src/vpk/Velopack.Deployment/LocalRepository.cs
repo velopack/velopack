@@ -7,7 +7,7 @@ namespace Velopack.Deployment;
 
 public class LocalDownloadOptions : RepositoryOptions, IObjectDownloadOptions
 {
-    public DirectoryInfo TargetPath { get; set; }
+    public DirectoryInfo? TargetPath { get; set; }
 }
 
 public class LocalUploadOptions : LocalDownloadOptions, IObjectUploadOptions
@@ -32,11 +32,11 @@ public class LocalRepository(ILogger logger) : ObjectRepository<LocalDownloadOpt
         return Task.CompletedTask;
     }
 
-    protected override Task<byte[]> GetObjectBytes(DirectoryInfo client, string key)
+    protected override async Task<byte[]?> GetObjectBytes(DirectoryInfo client, string key)
     {
         var target = Path.Combine(client.FullName, key);
         Log.Info("Reading: " + target);
-        return File.ReadAllBytesAsync(target);
+        return await File.ReadAllBytesAsync(target);
     }
 
     protected override Task UploadObject(DirectoryInfo client, string key, FileInfo f, bool overwriteRemote, bool noCache)

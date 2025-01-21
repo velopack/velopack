@@ -8,7 +8,7 @@ namespace Velopack.Deployment;
 
 public class RepositoryOptions : IOutputOptions
 {
-    private string _channel;
+    private string? _channel;
 
     public RuntimeOs TargetOs { get; set; }
 
@@ -17,7 +17,7 @@ public class RepositoryOptions : IOutputOptions
         set => _channel = value;
     }
 
-    public DirectoryInfo ReleaseDir { get; set; }
+    public DirectoryInfo? ReleaseDir { get; set; }
 
     public double Timeout { get; set; } = 30d;
 }

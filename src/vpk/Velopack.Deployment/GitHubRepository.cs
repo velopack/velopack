@@ -4,7 +4,6 @@ using Octokit;
 using Velopack.Core;
 using Velopack.NuGet;
 using Velopack.Packaging;
-using Velopack.Packaging.Exceptions;
 using Velopack.Sources;
 using Velopack.Util;
 
@@ -14,20 +13,20 @@ public class GitHubDownloadOptions : RepositoryOptions
 {
     public bool Prerelease { get; set; }
 
-    public string RepoUrl { get; set; }
+    public string? RepoUrl { get; set; }
 
-    public string Token { get; set; }
+    public string? Token { get; set; }
 }
 
 public class GitHubUploadOptions : GitHubDownloadOptions
 {
     public bool Publish { get; set; }
 
-    public string ReleaseName { get; set; }
+    public string? ReleaseName { get; set; }
 
-    public string TagName { get; set; }
+    public string? TagName { get; set; }
 
-    public string TargetCommitish { get; set; }
+    public string? TargetCommitish { get; set; }
 
     public bool Merge { get; set; }
 }

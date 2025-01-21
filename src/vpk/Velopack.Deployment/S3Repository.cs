@@ -8,19 +8,19 @@ namespace Velopack.Deployment;
 
 public class S3DownloadOptions : RepositoryOptions, IObjectDownloadOptions
 {
-    public string KeyId { get; set; }
+    public string? KeyId { get; set; }
 
-    public string Secret { get; set; }
+    public string? Secret { get; set; }
 
-    public string Session { get; set; }
+    public string? Session { get; set; }
 
-    public string Region { get; set; }
+    public string? Region { get; set; }
 
-    public string Endpoint { get; set; }
+    public string? Endpoint { get; set; }
 
-    public string Bucket { get; set; }
+    public string? Bucket { get; set; }
 
-    public string Prefix { get; set; }
+    public string? Prefix { get; set; }
 }
 
 public class S3UploadOptions : S3DownloadOptions, IObjectUploadOptions
@@ -129,7 +129,7 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
             prefix = "";
         }
 
-        if (!string.IsNullOrEmpty(prefix) && !prefix.EndsWith("/")) {
+        if (!string.IsNullOrEmpty(prefix) && !prefix.EndsWith('/')) {
             prefix += "/";
         }
 
@@ -141,7 +141,7 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
         await RetryAsync(() => client.DeleteObjectAsync(key), "Deleting " + key);
     }
 
-    protected override async Task<byte[]> GetObjectBytes(S3BucketClient client, string key)
+    protected override async Task<byte[]?> GetObjectBytes(S3BucketClient client, string key)
     {
         return await RetryAsyncRet(
             async () => {
@@ -165,16 +165,15 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
         var client = CreateClient(options);
         await RetryAsync(
             async () => {
-                using (var obj = await client.GetObjectAsync(entry.FileName)) {
-                    await obj.WriteResponseStreamToFileAsync(filePath, false, CancellationToken.None);
-                }
+                using var obj = await client.GetObjectAsync(entry.FileName);
+                await obj.WriteResponseStreamToFileAsync(filePath, false, CancellationToken.None);
             },
             $"Downloading {entry.FileName}...");
     }
 
     protected override async Task UploadObject(S3BucketClient client, string key, FileInfo f, bool overwriteRemote, bool noCache)
     {
-        string deleteOldVersionId = null;
+        string? deleteOldVersionId = null;
 
         // try to detect an existing remote file of the same name
         try {

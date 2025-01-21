@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
 using Velopack.Packaging;
@@ -25,7 +25,7 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
 
     protected abstract Task UploadObject(TClient client, string key, FileInfo f, bool overwriteRemote, bool noCache);
     protected abstract Task DeleteObject(TClient client, string key);
-    protected abstract Task<byte[]> GetObjectBytes(TClient client, string key);
+    protected abstract Task<byte[]?> GetObjectBytes(TClient client, string key);
     protected abstract TClient CreateClient(TDown options);
 
     protected byte[] GetFileMD5Checksum(string filePath)
@@ -63,7 +63,7 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
 
         Log.Info($"{releaseEntries.Length} merged local/remote release(s).");
 
-        var toDelete = new VelopackAsset[0];
+        var toDelete = Array.Empty<VelopackAsset>();
 
         if (options.KeepMaxReleases > 0) {
             var fullReleases = releaseEntries

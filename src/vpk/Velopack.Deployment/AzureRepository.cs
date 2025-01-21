@@ -9,15 +9,15 @@ namespace Velopack.Deployment;
 
 public class AzureDownloadOptions : RepositoryOptions, IObjectDownloadOptions
 {
-    public string Account { get; set; }
+    public string? Account { get; set; }
 
-    public string Key { get; set; }
+    public string? Key { get; set; }
 
-    public string Endpoint { get; set; }
+    public string? Endpoint { get; set; }
 
-    public string Container { get; set; }
+    public string? Container { get; set; }
 
-    public string SasToken { get; set; }
+    public string? SasToken { get; set; }
 }
 
 public class AzureUploadOptions : AzureDownloadOptions, IObjectUploadOptions
@@ -62,7 +62,7 @@ public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploa
             "Deleting " + key);
     }
 
-    protected override async Task<byte[]> GetObjectBytes(BlobContainerClient client, string key)
+    protected override async Task<byte[]?> GetObjectBytes(BlobContainerClient client, string key)
     {
         return await RetryAsyncRet(
             async () => {
