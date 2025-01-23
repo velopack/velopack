@@ -162,7 +162,7 @@ namespace Velopack.Windows
             }
         }
 
-        /// <summary> Represents a modern DOTNET runtime where versions are deployed independenly of the operating system </summary>
+        /// <summary> Represents a modern DOTNET runtime where versions are deployed independently of the operating system </summary>
         public class DotnetInfo : RuntimeInfo
         {
             /// <inheritdoc/>

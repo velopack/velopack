@@ -35,4 +35,6 @@ public class OsxPackOptions : OsxBundleOptions, IPackOptions
     public string Channel { get; set; }
 
     public string Exclude { get; set; }
+
+    public string CustomUrlProtocols { get; set; }
 }

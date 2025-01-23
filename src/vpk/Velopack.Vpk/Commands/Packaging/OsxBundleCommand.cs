@@ -13,6 +13,7 @@ public class OsxBundleCommand : PackCommand
         RemoveOption(NoInstOption);
         RemoveOption(ReleaseNotesOption);
         RemoveOption(DeltaModeOption);
+        RemoveOption(CustomUrlProtocolsOption);
     }
 
     public OsxBundleCommand(string name, string description)

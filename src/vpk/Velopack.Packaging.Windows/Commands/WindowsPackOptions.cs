@@ -23,4 +23,6 @@ public class WindowsPackOptions : WindowsReleasifyOptions, INugetPackCommand, IP
     public bool NoInst { get; set; }
 
     public string Shortcuts { get; set; }
+
+    public string CustomUrlProtocols { get; set; }
 }

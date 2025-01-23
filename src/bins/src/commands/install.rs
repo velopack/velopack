@@ -188,7 +188,7 @@ fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &std::sync::
 
     if !locator.get_custom_url_protocols().is_empty() {
         info!("Registering custom URL protocols...");
-        windows::registry::write_custom_url_protocols(&locator)?;
+        windows::registry::create_or_update_custom_protocols(&locator, None)?;
     }
 
     info!("Starting process install hook");

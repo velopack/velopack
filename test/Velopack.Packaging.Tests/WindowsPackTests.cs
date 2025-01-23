@@ -191,6 +191,9 @@ public class WindowsPackTests
         PathHelper.CopyRustAssetTo(exe, tmpOutput);
         PathHelper.CopyRustAssetTo(pdb, tmpOutput);
 
+        var customProtocol1 = "testsquirrelapp";
+        var customProtocol2 = "testapp";
+
         var options = new WindowsPackOptions {
             EntryExecutableName = exe,
             ReleaseDir = new DirectoryInfo(tmpReleaseDir),
@@ -199,6 +202,7 @@ public class WindowsPackTests
             TargetRuntime = RID.Parse("win-x64"),
             PackDirectory = tmpOutput,
             Shortcuts = "Desktop,StartMenuRoot",
+            CustomUrlProtocols = customProtocol1 + "," + customProtocol2,
         };
 
         var runner = GetPackRunner(logger);
@@ -244,6 +248,20 @@ public class WindowsPackTests
         var date = DateTime.Now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         Assert.Equal(date, installDate.Trim('\0'));
 
+        // Check custom url protocols exist
+        string softwareClassesRegSubKey = @"Software\Classes";
+        string expectedProtocolValue = "\"" + appPath + "\" \"%1\"";
+        string protocolValue1 = null; 
+        string protocolValue2 = null; 
+        using (var protocolKey1 = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)
+            .OpenSubKey(softwareClassesRegSubKey + "\\" + customProtocol1 + "\\shell\\open\\command", RegistryKeyPermissionCheck.ReadWriteSubTree)) {
+            protocolValue1 = protocolKey1.GetValue("") as string;
+        }
+        using (var protocolKey2 = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)
+            .OpenSubKey(softwareClassesRegSubKey + "\\" + customProtocol2 + "\\shell\\open\\command", RegistryKeyPermissionCheck.ReadWriteSubTree)) {
+            protocolValue2 = protocolKey2.GetValue("") as string;
+        }
+
         var uninstOutput = RunNoCoverage(updatePath, new string[] { "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
         Assert.EndsWith(Environment.NewLine + "Y", uninstOutput); // this checks that the self-delete succeeded
 
@@ -251,9 +269,82 @@ public class WindowsPackTests
         Assert.False(File.Exists(desktopLnk));
         Assert.False(File.Exists(appPath));
 
+        Assert.Equal(expectedProtocolValue, protocolValue1);
+        Assert.Equal(expectedProtocolValue, protocolValue2);
+
         using (var key2 = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)
                    .OpenSubKey(uninstallRegSubKey + "\\" + id, RegistryKeyPermissionCheck.ReadSubTree)) {
             Assert.Null(key2);
+        }
+
+        // Check that protocols have been removed:
+        using (var protocolKey1 = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)
+            .OpenSubKey(softwareClassesRegSubKey + "\\" + customProtocol1, RegistryKeyPermissionCheck.ReadSubTree)) {
+            Assert.Null(protocolKey1);
+        }
+        using (var protocolKey2 = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)
+            .OpenSubKey(softwareClassesRegSubKey + "\\" + customProtocol2, RegistryKeyPermissionCheck.ReadSubTree)) {
+            Assert.Null(protocolKey2);
+        }
+    }
+
+    [SkippableFact]
+    public void TestAppCustomProtocolUpdatesWhenLocalIsAvailable()
+    {
+        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+        using var _2 = TempUtil.GetTempDirectory(out var installDir);
+        string id = "SquirrelCustomProtocolTest";
+        var appPath = Path.Combine(installDir, "current", "TestApp.exe");
+        string customProtocolVersion1 = "testsquirrelapp1";
+        string customProtocolVersion2 = "testsquirrelapp2";
+
+        // pack v1
+        PackTestApp(id, "1.0.0", "version 1 test", releaseDir, customProtocolVersion1, logger);
+
+        // install app
+        var setupPath1 = Path.Combine(releaseDir, $"{id}-win-Setup.exe");
+        RunNoCoverage(
+            setupPath1,
+            new string[] { "--silent", "--installto", installDir },
+            Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+            logger);
+
+        // Check custom url protocol with v1 exist
+        string softwareClassesRegSubKey = @"Software\Classes";
+        string expectedProtocolValue = "\"" + appPath + "\" \"%1\"";
+        using (var protocolKey = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)
+            .OpenSubKey(softwareClassesRegSubKey + "\\" + customProtocolVersion1 + "\\shell\\open\\command", RegistryKeyPermissionCheck.ReadWriteSubTree)) {
+            string protocolValue = protocolKey.GetValue("") as string;
+            Assert.Equal(expectedProtocolValue, protocolValue);
+        }
+
+        // pack v2
+        PackTestApp(id, "2.0.0", "version 2 test", releaseDir, customProtocolVersion2, logger);
+
+        // move package into local packages dir
+        var fileName = $"{id}-2.0.0-full.nupkg";
+        var mvFrom = Path.Combine(releaseDir, fileName);
+        var mvTo = Path.Combine(installDir, "packages", fileName);
+        File.Copy(mvFrom, mvTo);
+
+        RunCoveredDotnet(appPath, new string[] { "--autoupdate" }, installDir, logger, exitCode: null);
+
+        Thread.Sleep(3000); // update.exe runs in separate process
+
+        var chk1version = RunCoveredDotnet(appPath, new string[] { "version" }, installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "2.0.0", chk1version);
+
+        // Check custom url for v1 is gone and v2 is there
+        using (var protocolKey = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)
+            .OpenSubKey(softwareClassesRegSubKey + "\\" + customProtocolVersion1 + "\\shell\\open\\command", RegistryKeyPermissionCheck.ReadWriteSubTree)) {
+            Assert.Null(protocolKey);
+        }
+        using (var protocolKey = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)
+            .OpenSubKey(softwareClassesRegSubKey + "\\" + customProtocolVersion2 + "\\shell\\open\\command", RegistryKeyPermissionCheck.ReadWriteSubTree)) {
+            string protocolValue = protocolKey.GetValue("") as string;
+            Assert.Equal(expectedProtocolValue, protocolValue);
         }
     }
 
@@ -268,7 +359,7 @@ public class WindowsPackTests
         var appPath = Path.Combine(installDir, "current", "TestApp.exe");
 
         // pack v1
-        PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
+        PackTestApp(id, "1.0.0", "version 1 test", releaseDir, "", logger);
 
         // install app
         var setupPath1 = Path.Combine(releaseDir, $"{id}-win-Setup.exe");
@@ -279,7 +370,7 @@ public class WindowsPackTests
             logger);
 
         // pack v2
-        PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
+        PackTestApp(id, "2.0.0", "version 2 test", releaseDir, "", logger);
 
         // move package into local packages dir
         var fileName = $"{id}-2.0.0-full.nupkg";
@@ -302,9 +393,9 @@ public class WindowsPackTests
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         string id = "SquirrelDeltaTest";
-        PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
-        PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger, true);
-        PackTestApp(id, "3.0.0", "version 3 test", releaseDir, logger);
+        PackTestApp(id, "1.0.0", "version 1 test", releaseDir, "", logger);
+        PackTestApp(id, "2.0.0", "version 2 test", releaseDir, "", logger, true);
+        PackTestApp(id, "3.0.0", "version 3 test", releaseDir, "", logger);
 
         // did a zsdiff get created for our v2 update?
         var deltaPath = Path.Combine(releaseDir, $"{id}-2.0.0-delta.nupkg");
@@ -379,7 +470,7 @@ public class WindowsPackTests
         var appPath = Path.Combine(installDir, "current", "TestApp.exe");
 
         // pack v1
-        PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
+        PackTestApp(id, "1.0.0", "version 1 test", releaseDir, "", logger);
 
         // install app
         var setupPath1 = Path.Combine(releaseDir, $"{id}-win-Setup.exe");
@@ -398,7 +489,7 @@ public class WindowsPackTests
         Assert.Equal("1.0.0", File.ReadAllText(firstRun).Trim());
 
         // pack v2
-        PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
+        PackTestApp(id, "2.0.0", "version 2 test", releaseDir, "", logger);
 
         // install v2
         RunCoveredDotnet(appPath, ["download", releaseDir], installDir, logger);
@@ -431,7 +522,7 @@ public class WindowsPackTests
         string id = "SquirrelIntegrationTest";
 
         // pack v1
-        PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
+        PackTestApp(id, "1.0.0", "version 1 test", releaseDir, "", logger);
 
         // install app
         var setupPath1 = Path.Combine(releaseDir, $"{id}-win-Setup.exe");
@@ -460,7 +551,7 @@ public class WindowsPackTests
         logger.Info("TEST: v1 output verified");
 
         // pack v2
-        PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
+        PackTestApp(id, "2.0.0", "version 2 test", releaseDir, "", logger);
 
         // check can find v2 update
         var chk2check = RunCoveredDotnet(appPath, new string[] { "check", releaseDir }, installDir, logger);
@@ -468,7 +559,7 @@ public class WindowsPackTests
         logger.Info("TEST: found v2 update");
 
         // pack v3
-        PackTestApp(id, "3.0.0", "version 3 test", releaseDir, logger);
+        PackTestApp(id, "3.0.0", "version 3 test", releaseDir, "", logger);
 
         // corrupt v2/v3 full packages as we want to test delta's
         File.WriteAllText(Path.Combine(releaseDir, $"{id}-2.0.0-win-full.nupkg"), "nope");
@@ -541,7 +632,7 @@ public class WindowsPackTests
             retryDelay: 1000);
 
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
-        PackTestApp("LegacyTestApp", "2.0.0", "hello!", releaseDir, logger);
+        PackTestApp("LegacyTestApp", "2.0.0", "hello!", releaseDir, "", logger);
 
         RunNoCoverage(appExe, new string[] { "download", releaseDir }, currentDir, logger, exitCode: 0);
         RunNoCoverage(appExe, new string[] { "apply", releaseDir }, currentDir, logger, exitCode: null);
@@ -727,7 +818,7 @@ public class WindowsPackTests
         return RunImpl(psi, logger, exitCode);
     }
 
-    private void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger, bool addNewFile = false)
+    private void PackTestApp(string id, string version, string testString, string releaseDir , string customProtocols, ILogger logger, bool addNewFile = false)
     {
         var projDir = PathHelper.GetTestRootPath("TestApp");
         var testStringFile = Path.Combine(projDir, "Const.cs");
@@ -768,6 +859,7 @@ public class WindowsPackTests
                 PackVersion = version,
                 TargetRuntime = RID.Parse("win-x64"),
                 PackDirectory = Path.Combine(projDir, "publish"),
+                CustomUrlProtocols = customProtocols,
             };
 
             var runner = GetPackRunner(logger);

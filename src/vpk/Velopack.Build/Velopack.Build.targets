@@ -92,6 +92,7 @@
       Categories="$(VelopackCategories)"
       Shortcuts="$(VelopackShortcuts)"
       Compression="$(VelopackAppImageCompression)"
+      CustomUrlProtocols="$(VelopackCustomUrlProtocols)"
     />
   </Target>
 

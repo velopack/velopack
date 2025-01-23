@@ -13,6 +13,7 @@ public class LinuxPackCommand : PackCommand
     {
         this.RemoveOption(NoPortableOption);
         this.RemoveOption(NoInstOption);
+        this.RemoveOption(CustomUrlProtocolsOption);
 
         AddOption<string>((v) => Categories = v, "--categories")
             .SetDescription("Categories from the freedesktop.org Desktop Menu spec")
