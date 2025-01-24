@@ -250,16 +250,17 @@ public class WindowsPackTests
 
         // Check custom url protocols exist
         string softwareClassesRegSubKey = @"Software\Classes";
+        string shellOpenCommandRegSubKey = @"shell\\open\\command";
         string expectedProtocolValue = "\"" + appPath + "\" \"%1\"";
-        string protocolValue1 = null; 
-        string protocolValue2 = null; 
         using (var protocolKey1 = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)
-            .OpenSubKey(softwareClassesRegSubKey + "\\" + customProtocol1 + "\\shell\\open\\command", RegistryKeyPermissionCheck.ReadWriteSubTree)) {
-            protocolValue1 = protocolKey1.GetValue("") as string;
+            .OpenSubKey(softwareClassesRegSubKey + "\\" + customProtocol1 + "\\" + shellOpenCommandRegSubKey, RegistryKeyPermissionCheck.ReadWriteSubTree)) {
+            string protocolValue = protocolKey1.GetValue("") as string;
+            Assert.Equal(expectedProtocolValue, protocolValue);
         }
         using (var protocolKey2 = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)
-            .OpenSubKey(softwareClassesRegSubKey + "\\" + customProtocol2 + "\\shell\\open\\command", RegistryKeyPermissionCheck.ReadWriteSubTree)) {
-            protocolValue2 = protocolKey2.GetValue("") as string;
+            .OpenSubKey(softwareClassesRegSubKey + "\\" + customProtocol2 + "\\" + shellOpenCommandRegSubKey, RegistryKeyPermissionCheck.ReadWriteSubTree)) {
+            string protocolValue = protocolKey2.GetValue("") as string;
+            Assert.Equal(expectedProtocolValue, protocolValue);
         }
 
         var uninstOutput = RunNoCoverage(updatePath, new string[] { "--silent", "--uninstall" }, Environment.CurrentDirectory, logger);
@@ -268,9 +269,6 @@ public class WindowsPackTests
         Assert.False(File.Exists(startLnk));
         Assert.False(File.Exists(desktopLnk));
         Assert.False(File.Exists(appPath));
-
-        Assert.Equal(expectedProtocolValue, protocolValue1);
-        Assert.Equal(expectedProtocolValue, protocolValue2);
 
         using (var key2 = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)
                    .OpenSubKey(uninstallRegSubKey + "\\" + id, RegistryKeyPermissionCheck.ReadSubTree)) {
