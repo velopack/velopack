@@ -23,7 +23,7 @@
     "@electron/fuses": "^1.8.0",
     "@vercel/webpack-asset-relocator-loader": "=1.7.3",
     "css-loader": "^7.0.0",
-    "electron": "34.0.0",
+    "electron": "34.0.1",
     "fork-ts-checker-webpack-plugin": "^9.0.0",
     "node-loader": "^2.0.0",
     "style-loader": "^4.0.0",
