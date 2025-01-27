@@ -23,4 +23,8 @@ public class WindowsPackOptions : WindowsReleasifyOptions, INugetPackCommand, IP
     public bool NoInst { get; set; }
 
     public string Shortcuts { get; set; }
+
+    public bool BuildMsi { get; set; }
+
+    public string MsiVersionOverride { get; set; }
 }

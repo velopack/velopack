@@ -1,4 +1,5 @@
 ﻿using System.Runtime.Versioning;
+using System.Text;
 using Microsoft.Extensions.Logging;
 
 #if !DEBUG
@@ -71,6 +72,13 @@ public static class HelperFile
     public static string StubExecutablePath => FindHelperFile("stub.exe");
 
     [SupportedOSPlatform("windows")]
+    public static string WixTemplatePath => FindHelperFile("wix\\template.wxs");
+    [SupportedOSPlatform("windows")]
+    public static string WixCandlePath => FindHelperFile("wix\\candle.exe");
+    [SupportedOSPlatform("windows")]
+    public static string WixLightPath => FindHelperFile("wix\\light.exe");
+
+    [SupportedOSPlatform("windows")]
     public static string SignToolPath => FindHelperFile("signing\\signtool.exe");
 
     [SupportedOSPlatform("windows")]
@@ -135,8 +143,14 @@ public static class HelperFile
             files = files.Where(predicate);
 
         var result = files.FirstOrDefault();
-        if (result == null && throwWhenNotFound)
-            throw new Exception($"HelperFile could not find '{toFind}'.");
+        if (result == null && throwWhenNotFound) {
+            StringBuilder msg = new();
+            msg.AppendLine($"HelperFile could not find '{toFind}'.");
+            msg.AppendLine("Search paths:");
+            foreach (var path in _searchPaths)
+                msg.AppendLine($"  {Path.GetFullPath(path)}");
+            throw new Exception(msg.ToString());
+        }
 
         return result;
     }

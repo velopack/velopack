@@ -1,6 +1,10 @@
-﻿using System.Runtime.Versioning;
+﻿using System.Globalization;
+using System.Runtime.Versioning;
+using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NuGet.Versioning;
 using Velopack.Compression;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
@@ -25,7 +29,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             .Select(x => x.FullName)
             .ToArray();
 
-        SignFilesImpl(Options, progress, filesToSign);
+        SignFilesImpl(progress, filesToSign);
 
         return Task.CompletedTask;
     }
@@ -198,7 +202,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         SetupBundle.CreatePackageBundle(targetSetupExe, releasePkg);
         progress(50);
         Log.Debug("Signing Setup bundle");
-        SignFilesImpl(Options, CoreUtil.CreateProgressDelegate(progress, 50, 100), targetSetupExe);
+        SignFilesImpl(CoreUtil.CreateProgressDelegate(progress, 50, 100), targetSetupExe);
         Log.Debug($"Setup bundle created '{Path.GetFileName(targetSetupExe)}'.");
         progress(100);
 
@@ -237,6 +241,14 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         return dict;
     }
 
+    protected override Task CreateMsiPackage(Action<int> progress, string setupExePath, string msiPath)
+    {
+        if (VelopackRuntimeInfo.IsWindows) {
+            CompileWixTemplateToMsi(progress, setupExePath, msiPath);
+        }
+        return Task.CompletedTask;
+    }
+
     private void CreateExecutableStubForExe(string exeToCopy, string targetStubPath)
     {
         if (!File.Exists(exeToCopy)) {
@@ -253,12 +265,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
     }
 
-    private void SignFilesImpl(WindowsSigningOptions options, Action<int> progress, params string[] filePaths)
+    private void SignFilesImpl(Action<int> progress, params string[] filePaths)
     {
-        var signParams = options.SignParameters;
-        var signTemplate = options.SignTemplate;
-        var signParallel = options.SignParallel;
-        var trustedSignMetadataPath = options.AzureTrustedSignFile;
+        var signParams = Options.SignParameters;
+        var signTemplate = Options.SignTemplate;
+        var signParallel = Options.SignParallel;
+        var trustedSignMetadataPath = Options.AzureTrustedSignFile;
         var helper = new CodeSign(Log);
 
         if (string.IsNullOrEmpty(signParams) && string.IsNullOrEmpty(signTemplate) && string.IsNullOrEmpty(trustedSignMetadataPath)) {
@@ -315,6 +327,83 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         //     entry.ExtractToFile(Path.Combine(signToolDirectory, relativePath), true);
         // }
         // return dlibPath;
+    }
+
+    [SupportedOSPlatform("windows")]
+    private void CompileWixTemplateToMsi(Action<int> progress,
+        string setupExePath, string msiFilePath)
+    {
+        bool packageAs64Bit = 
+            Options.TargetRuntime.Architecture is RuntimeCpu.x64 or RuntimeCpu.arm64;
+
+        Log.Info($"Compiling machine-wide msi deployment tool in {(packageAs64Bit ? "64-bit" : "32-bit")} mode");
+
+        var outputDirectory = Path.GetDirectoryName(setupExePath);
+        var setupName = Path.GetFileNameWithoutExtension(setupExePath);
+        var culture = CultureInfo.GetCultureInfo("en-US").TextInfo.ANSICodePage;
+
+        // WiX Identifiers may contain ASCII characters A-Z, a-z, digits, underscores (_), or
+        // periods(.). Every identifier must begin with either a letter or an underscore.
+        var wixId = Regex.Replace(Options.PackId, @"[^\w\.]", "_");
+        if (char.GetUnicodeCategory(wixId[0]) == UnicodeCategory.DecimalDigitNumber)
+            wixId = "_" + wixId;
+
+        Regex stacheRegex = new(@"\{\{(?<key>[^\}]+)\}\}", RegexOptions.Compiled);
+
+        var wxsFile = Path.Combine(outputDirectory, wixId + ".wxs");
+        var objFile = Path.Combine(outputDirectory, wixId + ".wixobj");
+
+
+        var msiVersion = Options.MsiVersionOverride;
+        if (string.IsNullOrWhiteSpace(msiVersion)) {
+            var parsedVersion = SemanticVersion.Parse(Options.PackVersion);
+            msiVersion = $"{parsedVersion.Major}.{parsedVersion.Minor}.{parsedVersion.Patch}.0";
+        }
+
+        try {
+            // apply dictionary to wsx template
+            var templateText = File.ReadAllText(HelperFile.WixTemplatePath);
+
+            var templateResult = stacheRegex.Replace(templateText, match => {
+                string key = match.Groups["key"].Value;
+                return key switch {
+                    "Id" => wixId,
+                    "Title" => GetEffectiveTitle(),
+                    "Author" => GetEffectiveAuthors(),
+                    "Version" => msiVersion,
+                    "Summary" => GetEffectiveTitle(),
+                    "Codepage" => $"{culture}",
+                    "Platform" => packageAs64Bit ? "x64" : "x86",
+                    "ProgramFilesFolder" => packageAs64Bit ? "ProgramFiles64Folder" : "ProgramFilesFolder",
+                    "Win64YesNo" => packageAs64Bit ? "yes" : "no",
+                    "SetupName" => setupName,
+                    _ when key.StartsWith("IdAsGuid") => GuidUtil.CreateGuidFromHash($"{Options.PackId}:{key.Substring(8)}").ToString(),
+                    _ => match.Value,
+                };
+            });
+
+            File.WriteAllText(wxsFile, templateResult, Encoding.UTF8);
+
+            // Candle reprocesses and compiles WiX source files into object files (.wixobj).
+            Log.Info("Compiling WiX Template (candle.exe)");
+            var candleCommand = $"{HelperFile.WixCandlePath} -nologo -ext WixNetFxExtension -out \"{objFile}\" \"{wxsFile}\"";
+            _ = Exe.RunHostedCommand(candleCommand);
+
+            progress(45);
+
+            // Light links and binds one or more .wixobj files and creates a Windows Installer database (.msi or .msm). 
+            Log.Info("Linking WiX Template (light.exe)");
+            var lightCommand = $"{HelperFile.WixLightPath} -ext WixNetFxExtension -spdb -sval -out \"{msiFilePath}\" \"{objFile}\"";
+            _ = Exe.RunHostedCommand(lightCommand);
+
+            progress(90);
+
+        } finally {
+            IoUtil.DeleteFileOrDirectoryHard(wxsFile, throwOnFailure: false);
+            IoUtil.DeleteFileOrDirectoryHard(objFile, throwOnFailure: false);
+        }
+        progress(100);
+
     }
 
     protected override string[] GetMainExeSearchPaths(string packDirectory, string mainExeName)
