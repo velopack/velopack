@@ -69,7 +69,7 @@ public static class Exe
         var stdout = IoUtil.Retry(() => File.ReadAllText(outputFile).Trim(), 10, 1000);
         var result = (process.ExitCode, stdout, "", command);
         ProcessFailedException.ThrowIfNonZero(result);
-        return result.Item2;
+        return stdout;
     }
 
     public static void RunHostedCommandNoWait(string command, string workDir = null)

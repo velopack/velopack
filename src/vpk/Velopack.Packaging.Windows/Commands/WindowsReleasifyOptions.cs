@@ -1,6 +1,4 @@
-﻿using Velopack.Core;
-
-namespace Velopack.Packaging.Windows.Commands;
+﻿namespace Velopack.Packaging.Windows.Commands;
 
 public class WindowsReleasifyOptions : WindowsSigningOptions
 {

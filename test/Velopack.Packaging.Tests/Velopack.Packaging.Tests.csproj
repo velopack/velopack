@@ -15,4 +15,10 @@
     <PackageReference Include="System.Formats.Asn1" Version="9.0.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="Microsoft.Deployment.WindowsInstaller">
+      <HintPath>..\..\vendor\wix\Microsoft.Deployment.WindowsInstaller.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>

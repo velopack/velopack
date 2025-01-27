@@ -152,7 +152,7 @@ public class ResourceEdit
 
         var file = PEFile.FromBytes(File.ReadAllBytes(otherExeFile));
         var image = PEImage.FromFile(file);
-        _resources = image.Resources;
+        _resources = image.Resources ?? new ResourceDirectory((uint) 0);
     }
 
     public void Commit()

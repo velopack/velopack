@@ -94,6 +94,10 @@ public class PackTask : MSBuildAsyncTask
     
     public string? Compression { get; set; }
 
+    public bool BuildMsi { get; set; }
+
+    public string? MsiVersionOverride { get; set; }
+
     protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
     {
         //System.Diagnostics.Debugger.Launch();

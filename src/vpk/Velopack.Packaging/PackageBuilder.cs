@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Security;
+﻿using System.Security;
 using System.Text.RegularExpressions;
 using Markdig;
 using Microsoft.Extensions.Logging;
@@ -149,12 +148,13 @@ public abstract class PackageBuilder<T> : ICommand<T>
                     });
 
                 Task setupTask = null;
+                string setupExePath = null;
                 if (!Options.NoInst && TargetOs != RuntimeOs.Linux) {
                     setupTask = ctx.RunTask(
                         "Building setup package",
                         async (progress) => {
                             var suggestedName = DefaultName.GetSuggestedSetupName(packId, channel, TargetOs);
-                            var path = assetCache.MakeAssetPath(suggestedName, VelopackAssetType.Installer);
+                            var path = setupExePath = assetCache.MakeAssetPath(suggestedName, VelopackAssetType.Installer);
                             await CreateSetupPackage(progress, releasePath, packDirectory, path);
                         });
                 }
@@ -177,6 +177,16 @@ public abstract class PackageBuilder<T> : ICommand<T>
                 if (TargetOs != RuntimeOs.Linux && portableTask != null) await portableTask;
                 if (setupTask != null) await setupTask;
 
+                if (!Options.NoInst && Options.BuildMsi && TargetOs == RuntimeOs.Windows) {
+                    await ctx.RunTask(
+                        "Building MSI package",
+                        async (progress) => {
+                            var msiName = DefaultName.GetSuggestedMsiName(packId, channel, TargetOs);
+                            var msiPath = assetCache.MakeAssetPath(msiName, VelopackAssetType.Msi);
+                            await CreateMsiPackage(progress, setupExePath, msiPath);
+                        });
+                }
+
                 await ctx.RunTask(
                     "Post-process steps",
                     (progress) => {
@@ -196,8 +206,8 @@ public abstract class PackageBuilder<T> : ICommand<T>
     protected virtual string GenerateNuspecContent()
     {
         var packId = Options.PackId;
-        var packTitle = Options.PackTitle ?? Options.PackId;
-        var packAuthors = Options.PackAuthors ?? Options.PackId;
+        var packTitle = GetEffectiveTitle();
+        var packAuthors = GetEffectiveAuthors();
         var packVersion = Options.PackVersion;
         var releaseNotes = Options.ReleaseNotes;
         var rid = Options.TargetRuntime;
@@ -240,8 +250,8 @@ public abstract class PackageBuilder<T> : ICommand<T>
             <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
             <metadata>
             <id>{packId}</id>
-            <title>{packTitle ?? packId}</title>
-            <description>{packTitle ?? packId}</description>
+            <title>{packTitle}</title>
+            <description>{packTitle}</description>
             <authors>{packAuthors ?? packId}</authors>
             <version>{packVersion}</version>
             <channel>{Options.Channel}</channel>
@@ -273,6 +283,11 @@ public abstract class PackageBuilder<T> : ICommand<T>
     }
 
     protected virtual Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string outputPath)
+    {
+        return Task.CompletedTask;
+    }
+
+    protected virtual Task CreateMsiPackage(Action<int> progress, string setupExePath, string msiPath)
     {
         return Task.CompletedTask;
     }
@@ -395,4 +410,8 @@ public abstract class PackageBuilder<T> : ICommand<T>
             """;
         File.WriteAllText(Path.Combine(relsDir, ".rels"), rels);
     }
+
+    protected string GetEffectiveTitle() => Options.PackTitle ?? Options.PackId;
+
+    protected string GetEffectiveAuthors() => Options.PackAuthors ?? Options.PackId;
 }

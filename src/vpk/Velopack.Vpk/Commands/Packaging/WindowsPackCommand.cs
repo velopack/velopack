@@ -20,6 +20,10 @@ public class WindowsPackCommand : PackCommand
 
     public string Shortcuts { get; private set; }
 
+    public bool BuildMsi { get; private set; }
+
+    public string MsiVersionOverride { get; private set; }
+
     public WindowsPackCommand()
         : base("pack", "Creates a release from a folder containing application files.", RuntimeOs.Windows)
     {
@@ -69,6 +73,17 @@ public class WindowsPackCommand : PackCommand
                 .SetArgumentHelpName("PATH");
 
             this.AreMutuallyExclusive(signTemplate, signParams, azTrustedSign);
+
+            AddOption<bool>((v) => BuildMsi = v, "--msi")
+                .SetDescription("Compile a .msi machine-wide deployment tool.")
+                .SetHidden()
+                .SetArgumentHelpName("BITNESS");
+
+            AddOption<string>((v) => MsiVersionOverride = v, "--msiVersion")
+                .SetDescription("Override the product version for the generated msi.")
+                .SetArgumentHelpName("VERSION")
+                .SetHidden()
+                .MustBeValidMsiVersion();
         }
     }
 }
