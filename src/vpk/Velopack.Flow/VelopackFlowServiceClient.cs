@@ -100,7 +100,8 @@ public class VelopackFlowServiceClient(
         AssertAuthenticated();
 
         var client = GetHttpClient();
-        var endpoint = GetFlowApi().BaseUrl;
+        Uri baseUri = new(GetFlowApi().BaseUrl);
+        Uri endpoint = new(baseUri, endpointUri);
 
         HttpRequestMessage request = new(new HttpMethod(method), endpoint);
         if (body is not null) {
