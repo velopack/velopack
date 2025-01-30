@@ -97,9 +97,6 @@ public class GiteaRepository : SourceRepository<GiteaDownloadOptions, GiteaSourc
             // Get all releases
             var allReleases = await apiInstance.RepoListReleasesWithHttpInfoAsync(repoOwner, repoName, page: 1, limit: (int) repositoryInfo.Data.ReleaseCounter);
             existingReleases = allReleases.Data;
-            if (allReleases != null && allReleases.StatusCode == HttpStatusCode.OK && allReleases.Data.Any(r => r.Name == releaseName)) {
-                throw new UserInfoException($"There is already an existing release named '{releaseName}'. Please delete this release or provide a new release name.");
-            }
         } else {
             throw new UserInfoException("Could not get all releases from server");
         }
@@ -113,7 +110,7 @@ public class GiteaRepository : SourceRepository<GiteaDownloadOptions, GiteaSourc
             }
         }
 
-        // create or retrieve github release
+        // create or retrieve gitea release
         var release = existingReleases.FirstOrDefault(r => r.TagName == semVer.ToString())
             ?? existingReleases.FirstOrDefault(r => r.Name == releaseName); ;
 
