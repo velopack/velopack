@@ -1,4 +1,5 @@
 ﻿using Amazon;
+using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
@@ -97,7 +98,7 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
         var config = new AmazonS3Config() {
             ServiceURL = options.Endpoint,
             ForcePathStyle = true, // support for MINIO
-            Timeout = TimeSpan.FromMinutes(options.Timeout)
+            Timeout = TimeSpan.FromMinutes(options.Timeout),
         };
 
         if (options.Endpoint != null) {
@@ -108,6 +109,8 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
             var uri = new Uri(options.Endpoint);
             if (uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase) && !uri.Host.Equals("amazonaws.com", StringComparison.OrdinalIgnoreCase)) {
                 disableSigning = true;
+                config.ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED;
+                config.RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED;
             }
         } else if (options.Region != null) {
             config.RegionEndpoint = RegionEndpoint.GetBySystemName(options.Region);
