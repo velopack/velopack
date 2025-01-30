@@ -1,6 +1,7 @@
 ﻿using Gitea.Net.Api;
 using Gitea.Net.Client;
 using Gitea.Net.Model;
+using Velopack.Core;
 using Velopack.Deployment;
 using Velopack.Packaging.Exceptions;
 using Velopack.Sources;
