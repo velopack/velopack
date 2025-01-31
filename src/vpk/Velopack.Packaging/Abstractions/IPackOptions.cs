@@ -9,5 +9,4 @@ public interface IPackOptions : INugetPackCommand, IPlatformOptions
     string Exclude { get; set; }
     bool NoPortable { get; set; }
     bool NoInst { get; set; }
-    bool BuildMsi { get; }
 }

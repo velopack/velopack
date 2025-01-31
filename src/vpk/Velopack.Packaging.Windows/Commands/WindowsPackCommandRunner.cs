@@ -183,11 +183,24 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         return String.Join(",", validated);
     }
 
-    protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe)
+    protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe, Func<string, VelopackAssetType, string> createAsset)
     {
+        void setupExeProgress(int x)
+        {
+            if (Options.BuildMsi) {
+                progress(x / 2);
+            } else {
+                progress(x);
+            }
+        }
+        void msiProgress(int value)
+        {
+            progress(50 + value / 2);
+        }
+
         var bundledZip = new ZipPackage(releasePkg);
         IoUtil.Retry(() => File.Copy(HelperFile.SetupPath, targetSetupExe, true));
-        progress(10);
+        setupExeProgress(10);
 
         var editor = new ResourceEdit(targetSetupExe, Log);
         editor.SetVersionInfo(bundledZip);
@@ -197,14 +210,20 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
         editor.Commit();
 
-        progress(25);
+        setupExeProgress(25);
         Log.Debug($"Creating Setup bundle");
         SetupBundle.CreatePackageBundle(targetSetupExe, releasePkg);
-        progress(50);
+        setupExeProgress(50);
         Log.Debug("Signing Setup bundle");
-        SignFilesImpl(CoreUtil.CreateProgressDelegate(progress, 50, 100), targetSetupExe);
+        SignFilesImpl(CoreUtil.CreateProgressDelegate( setupExeProgress, 50, 100), targetSetupExe);
         Log.Debug($"Setup bundle created '{Path.GetFileName(targetSetupExe)}'.");
-        progress(100);
+        setupExeProgress(100);
+
+        if (Options.BuildMsi && VelopackRuntimeInfo.IsWindows) {
+            var msiName = DefaultName.GetSuggestedMsiName(Options.PackId, Options.Channel, TargetOs);
+            var msiPath = createAsset(msiName, VelopackAssetType.MsiDeploymentTool);
+            CompileWixTemplateToMsi(msiProgress, targetSetupExe, msiPath);
+        }
 
         return Task.CompletedTask;
     }
@@ -241,13 +260,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         return dict;
     }
 
-    protected override Task CreateMsiPackage(Action<int> progress, string setupExePath, string msiPath)
-    {
-        if (VelopackRuntimeInfo.IsWindows) {
-            CompileWixTemplateToMsi(progress, setupExePath, msiPath);
-        }
-        return Task.CompletedTask;
-    }
 
     private void CreateExecutableStubForExe(string exeToCopy, string targetStubPath)
     {

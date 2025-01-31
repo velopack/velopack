@@ -37,5 +37,4 @@ public class LinuxPackOptions : IPackOptions
     public string Categories { get; set; }
     
     public string Compression { get; set; }
-    public bool BuildMsi => false;
 }

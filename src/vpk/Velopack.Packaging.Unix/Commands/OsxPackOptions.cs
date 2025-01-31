@@ -35,5 +35,4 @@ public class OsxPackOptions : OsxBundleOptions, IPackOptions
     public string Channel { get; set; }
 
     public string Exclude { get; set; }
-    public bool BuildMsi => false;
 }

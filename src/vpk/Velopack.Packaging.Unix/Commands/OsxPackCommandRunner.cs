@@ -119,7 +119,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
         return Task.CompletedTask;
     }
 
-    protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string pkgPath)
+    protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string pkgPath, Func<string, VelopackAssetType, string> createAsset)
     {
         // create installer package, sign and notarize
         if (!Options.NoInst) {
