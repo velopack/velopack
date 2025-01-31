@@ -13,7 +13,6 @@ using Velopack.Util;
 using Velopack.Vpk;
 using Velopack.Vpk.Logging;
 using Velopack.Windows;
-using static Azure.Core.HttpHeader;
 
 namespace Velopack.Packaging.Tests;
 

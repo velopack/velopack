@@ -76,8 +76,7 @@ public class WindowsPackCommand : PackCommand
 
             AddOption<bool>((v) => BuildMsi = v, "--msi")
                 .SetDescription("Compile a .msi machine-wide deployment tool.")
-                .SetHidden()
-                .SetArgumentHelpName("BITNESS");
+                .SetHidden();
 
             AddOption<string>((v) => MsiVersionOverride = v, "--msiVersion")
                 .SetDescription("Override the product version for the generated msi.")

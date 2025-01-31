@@ -29,7 +29,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
     protected Dictionary<string, string> ExtraNuspecMetadata { get; } = new();
 
-    private readonly Regex REGEX_EXCLUDES = new Regex(@".*[\\\/]createdump.*|.*\.vshost\..*|.*\.nupkg$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private readonly Regex REGEX_EXCLUDES = new(@".*[\\\/]createdump.*|.*\.vshost\..*|.*\.nupkg$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public PackageBuilder(RuntimeOs supportedOs, ILogger logger, IFancyConsole console)
     {
@@ -148,14 +148,13 @@ public abstract class PackageBuilder<T> : ICommand<T>
                     });
 
                 Task setupTask = null;
-                string setupExePath = null;
                 if (!Options.NoInst && TargetOs != RuntimeOs.Linux) {
                     setupTask = ctx.RunTask(
                         "Building setup package",
                         async (progress) => {
                             var suggestedName = DefaultName.GetSuggestedSetupName(packId, channel, TargetOs);
-                            var path = setupExePath = assetCache.MakeAssetPath(suggestedName, VelopackAssetType.Installer);
-                            await CreateSetupPackage(progress, releasePath, packDirectory, path);
+                            var path = assetCache.MakeAssetPath(suggestedName, VelopackAssetType.Installer);
+                            await CreateSetupPackage(progress, releasePath, packDirectory, path, assetCache.MakeAssetPath);
                         });
                 }
 
@@ -176,16 +175,6 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
                 if (TargetOs != RuntimeOs.Linux && portableTask != null) await portableTask;
                 if (setupTask != null) await setupTask;
-
-                if (!Options.NoInst && Options.BuildMsi && TargetOs == RuntimeOs.Windows) {
-                    await ctx.RunTask(
-                        "Building MSI package",
-                        async (progress) => {
-                            var msiName = DefaultName.GetSuggestedMsiName(packId, channel, TargetOs);
-                            var msiPath = assetCache.MakeAssetPath(msiName, VelopackAssetType.Msi);
-                            await CreateMsiPackage(progress, setupExePath, msiPath);
-                        });
-                }
 
                 await ctx.RunTask(
                     "Post-process steps",
@@ -282,12 +271,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
         return Task.FromResult(dp.PackageFile);
     }
 
-    protected virtual Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string outputPath)
-    {
-        return Task.CompletedTask;
-    }
-
-    protected virtual Task CreateMsiPackage(Action<int> progress, string setupExePath, string msiPath)
+    protected virtual Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string outputPath, Func<string, VelopackAssetType, string> createAsset)
     {
         return Task.CompletedTask;
     }
@@ -313,10 +297,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
         progress(100);
     }
 
-    protected virtual Dictionary<string, string> GetReleaseMetadataFiles()
-    {
-        return new Dictionary<string, string>();
-    }
+    protected virtual Dictionary<string, string> GetReleaseMetadataFiles() => [];
 
     protected virtual void CopyFiles(DirectoryInfo source, DirectoryInfo target, Action<int> progress, bool excludeAnnoyances = false)
     {
@@ -364,7 +345,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
             // copy the contents of the folder, not the folder itself.
             var src = source.FullName.TrimEnd('/') + "/.";
             var dest = target.FullName.TrimEnd('/') + "/";
-            Log.Debug(Exe.InvokeAndThrowIfNonZero("cp", new[] { "-a", src, dest }, null));
+            Log.Debug(Exe.InvokeAndThrowIfNonZero("cp", ["-a", src, dest], null));
 
             if (excludeAnnoyances) {
                 foreach (var f in target.EnumerateFiles("*", SearchOption.AllDirectories)) {
