@@ -94,6 +94,8 @@ public class PackTask : MSBuildAsyncTask
     
     public string? Compression { get; set; }
 
+    public string? CustomUrlProtocols { get; set; }
+
     protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
     {
         //System.Diagnostics.Debugger.Launch();

@@ -53,6 +53,10 @@ public abstract class PackCommand : PlatformCommand
 
     protected CliOption<bool> NoInstOption { get; private set; }
 
+    public string CustomUrlProtocols { get; private set; }
+
+    protected CliOption<string> CustomUrlProtocolsOption { get; private set; }
+
     public PackCommand(string name, string description, RuntimeOs targetOs = RuntimeOs.Unknown)
         : base(name, description, targetOs)
     {
@@ -112,6 +116,9 @@ public abstract class PackCommand : PlatformCommand
         NoInstOption = AddOption<bool>((v) => NoInst = v, "--noInst")
             .SetDescription("Skip generating an installer package.")
             .SetHidden(true);
+
+        CustomUrlProtocolsOption = AddOption<string>((v) => CustomUrlProtocols = v, "--customUrlProtocols")
+            .SetDescription("Custom protocol names to register for the application.");
 
         this.AreMutuallyExclusive(NoPortableOption, NoInstOption);
     }

@@ -1,1 +1,1 @@
-class Const { public const string TEST_STRING = "Hello, World!"; }
+﻿class Const { public const string TEST_STRING = "Hello, World!"; }

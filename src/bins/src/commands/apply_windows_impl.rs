@@ -142,6 +142,9 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
                 if let Err(e) = crate::windows::registry::remove_uninstall_entry(&old_locator) {
                     warn!("Failed to remove old uninstall entry ({}).", e);
                 }
+                if let Err(e) = crate::windows::registry::remove_all_custom_protocols(&old_locator) {
+                    warn!("Failed to remove custom URL protocol entries ({}).", e);
+                }
             }
             if let Err(e) = crate::windows::registry::write_uninstall_entry(&new_locator) {
                 warn!("Failed to write new uninstall entry ({}).", e);
@@ -166,6 +169,11 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
 
         if !old_locator.get_is_portable() {
             crate::windows::create_or_update_manifest_lnks(&new_locator, Some(old_locator));
+        }
+
+        // update custom url protocols
+        if !old_locator.get_is_portable() {
+            let _ = crate::windows::registry::create_or_update_custom_protocols(&new_locator, Some(old_locator));
         }
 
         // done!

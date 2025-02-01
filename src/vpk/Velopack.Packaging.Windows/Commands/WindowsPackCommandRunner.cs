@@ -43,6 +43,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         ExtraNuspecMetadata["runtimeDependencies"] = GetRuntimeDependencies();
         ExtraNuspecMetadata["shortcutLocations"] = GetShortcutLocations();
         ExtraNuspecMetadata["shortcutAmuid"] = CoreUtil.GetAppUserModelId(Options.PackId);
+        ExtraNuspecMetadata["customUrlProtocols"] = GetCustomUrlProtocols();
 
         // copy files to temp dir, so we can modify them
         var dir = TempDir.CreateSubdirectory("PreprocessPackDirWin");
@@ -177,6 +178,30 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
 
         return String.Join(",", validated);
+    }
+
+    protected string GetCustomUrlProtocols()
+    {
+        if (String.IsNullOrWhiteSpace(Options.CustomUrlProtocols))
+            return null;
+
+        try {
+            var customUrlProtocols = Options.CustomUrlProtocols.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim())
+                .Distinct()
+                .ToList();
+
+            if (customUrlProtocols.Count == 0)
+                return null;
+
+            var customUrlProtocolsString = string.Join(",", customUrlProtocols);
+            Log.Debug($"Custom URL Protocols: { customUrlProtocolsString } ");
+            return customUrlProtocolsString;
+        } catch (Exception ex) {
+            throw new UserInfoException(
+                $"Invalid custom url protocols '{Options.CustomUrlProtocols}'. " +
+                $"Error was {ex.Message}");
+        }
     }
 
     protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe)

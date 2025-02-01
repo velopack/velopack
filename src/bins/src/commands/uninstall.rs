@@ -35,6 +35,11 @@ pub fn uninstall(locator: &VelopackLocator, delete_self: bool) -> Result<()> {
             // finished_with_errors = true;
         }
 
+        if let Err(e) = windows::registry::remove_all_custom_protocols(&locator) {
+            error!("Unable to remove custom URL protocol entries ({}).", e);
+            // finished_with_errors = true;
+        }
+
         !finished_with_errors
     }
 
