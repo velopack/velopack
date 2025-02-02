@@ -38,6 +38,12 @@ namespace Velopack.Locators
         /// <inheritdoc />
         public override string? Channel { get; }
 
+        /// <inheritdoc />
+        public override uint ProcessId { get; }
+        
+        /// <inheritdoc />
+        public override string ProcessExePath { get; }
+
         /// <inheritdoc cref="WindowsVelopackLocator" />
         public WindowsVelopackLocator(string currentProcessPath, uint currentProcessId, ILogger logger)
             : base(logger)
@@ -46,7 +52,7 @@ namespace Velopack.Locators
                 throw new NotSupportedException("Cannot instantiate WindowsLocator on a non-Windows system.");
 
             ProcessId = currentProcessId;
-            ProcessExePath = currentProcessPath;
+            var ourPath = ProcessExePath = currentProcessPath;
 
             // We try various approaches here. Firstly, if Update.exe is in the parent directory,
             // we use that. If it's not present, we search for a parent "current" or "app-{ver}" directory,
@@ -54,11 +60,11 @@ namespace Velopack.Locators
             // There is some legacy code here, because it's possible that we're running in an "app-{ver}" 
             // directory which is NOT containing a sq.version, in which case we need to infer a lot of info.
 
-            ProcessExePath = Path.GetFullPath(ProcessExePath);
-            string myDirPath = Path.GetDirectoryName(ProcessExePath)!;
+            ProcessExePath = Path.GetFullPath(ourPath);
+            string myDirPath = Path.GetDirectoryName(ourPath)!;
             var myDirName = Path.GetFileName(myDirPath);
             var possibleUpdateExe = Path.GetFullPath(Path.Combine(myDirPath, "..", "Update.exe"));
-            var ixCurrent = ProcessExePath.LastIndexOf("/current/", StringComparison.InvariantCultureIgnoreCase);
+            var ixCurrent = ourPath.LastIndexOf("/current/", StringComparison.InvariantCultureIgnoreCase);
 
             Log.Info($"Initializing {nameof(WindowsVelopackLocator)}");
 
@@ -86,7 +92,7 @@ namespace Velopack.Locators
                 }
             } else if (ixCurrent > 0) {
                 // this is an attempt to handle the case where we are running in a nested current directory.
-                var rootDir = ProcessExePath.Substring(0, ixCurrent);
+                var rootDir = ourPath.Substring(0, ixCurrent);
                 var currentDir = Path.Combine(rootDir, "current");
                 var manifestFile = Path.Combine(currentDir, CoreUtil.SpecVersionFileName);
                 possibleUpdateExe = Path.GetFullPath(Path.Combine(rootDir, "Update.exe"));

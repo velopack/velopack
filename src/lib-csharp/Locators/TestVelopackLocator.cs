@@ -2,6 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
 namespace Velopack.Locators
 {
@@ -13,7 +14,6 @@ namespace Velopack.Locators
     [ExcludeFromCodeCoverage]
     public class TestVelopackLocator : VelopackLocator
     {
-        /// <inheritdoc />
         public override string? AppId {
             get {
                 if (_id == null) {
@@ -23,7 +23,6 @@ namespace Velopack.Locators
             }
         }
 
-        /// <inheritdoc />
         public override string? RootAppDir {
             get {
                 if (_root == null) {
@@ -33,7 +32,6 @@ namespace Velopack.Locators
             }
         }
 
-        /// <inheritdoc />
         public override string? PackagesDir {
             get {
                 if (_packages == null) {
@@ -43,7 +41,6 @@ namespace Velopack.Locators
             }
         }
 
-        /// <inheritdoc />
         public override string? UpdateExePath {
             get {
                 if (_updatePath == null) {
@@ -53,7 +50,6 @@ namespace Velopack.Locators
             }
         }
 
-        /// <inheritdoc />
         public override SemanticVersion? CurrentlyInstalledVersion {
             get {
                 if (_version == null) {
@@ -63,7 +59,6 @@ namespace Velopack.Locators
             }
         }
 
-        /// <inheritdoc />
         public override string? AppContentDir {
             get {
                 if (_appContent == null) {
@@ -73,14 +68,12 @@ namespace Velopack.Locators
             }
         }
 
-        /// <inheritdoc />
         public override string? Channel {
             get {
                 return _channel;
             }
         }
 
-        /// <inheritdoc />
         public override VelopackAsset? GetLatestLocalFullPackage()
         {
             if (_asset != null) {
@@ -88,6 +81,10 @@ namespace Velopack.Locators
             }
             return base.GetLatestLocalFullPackage();
         }
+
+        public override uint ProcessId => 0;
+        
+        public override string ProcessExePath { get; }
 
         private readonly string? _updatePath;
         private readonly SemanticVersion? _version;
@@ -106,7 +103,7 @@ namespace Velopack.Locators
 
         /// <inheritdoc cref="TestVelopackLocator" />
         public TestVelopackLocator(string appId, string version, string packagesDir, string? appDir,
-            string? rootDir, string? updateExe, string? channel = null, ILogger? logger = null, VelopackAsset? localPackage = null)
+            string? rootDir, string? updateExe, string? channel = null, ILogger? logger = null, VelopackAsset? localPackage = null, string processPath = null!)
             : base(logger)
         {
             _id = appId;
@@ -117,6 +114,7 @@ namespace Velopack.Locators
             _appContent = appDir;
             _channel = channel;
             _asset = localPackage;
+            ProcessExePath = processPath;
         }
     }
 }

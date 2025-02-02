@@ -47,6 +47,12 @@ namespace Velopack.Locators
 
         /// <summary> File path of the .AppImage which mounted and ran this application. </summary>
         public string? AppImagePath => Environment.GetEnvironmentVariable("APPIMAGE");
+        
+        /// <inheritdoc />
+        public override uint ProcessId { get; }
+        
+        /// <inheritdoc />
+        public override string ProcessExePath { get; }
 
         /// <summary>
         /// Creates a new <see cref="OsxVelopackLocator"/> and auto-detects the
@@ -59,18 +65,18 @@ namespace Velopack.Locators
                 throw new NotSupportedException("Cannot instantiate LinuxVelopackLocator on a non-linux system.");
             
             ProcessId = currentProcessId;
-            ProcessExePath = currentProcessPath;
+            var ourPath = ProcessExePath = currentProcessPath;
 
             Log.Info($"Initialising {nameof(LinuxVelopackLocator)}");
 
             // are we inside a mounted .AppImage?
-            var ix = ProcessExePath.IndexOf("/usr/bin/", StringComparison.InvariantCultureIgnoreCase);
+            var ix = ourPath.IndexOf("/usr/bin/", StringComparison.InvariantCultureIgnoreCase);
             if (ix <= 0) {
-                Log.Warn($"Unable to locate .AppImage root from '{ProcessExePath}'. This warning indicates that the application is not running from a mounted .AppImage, for example during development.");
+                Log.Warn($"Unable to locate .AppImage root from '{ourPath}'. This warning indicates that the application is not running from a mounted .AppImage, for example during development.");
                 return;
             }
 
-            var rootDir = ProcessExePath.Substring(0, ix);
+            var rootDir = ourPath.Substring(0, ix);
             var contentsDir = Path.Combine(rootDir, "usr", "bin");
             var updateExe = Path.Combine(contentsDir, "UpdateNix");
             var metadataPath = Path.Combine(contentsDir, CoreUtil.SpecVersionFileName);
