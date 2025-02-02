@@ -402,6 +402,9 @@ jobs:
             sample: CSharpWpf
           - os: macos-latest
             sample: CSharpWpf
+          # https://github.com/actions/runner-images/issues/11522
+          - os: ubuntu-latest
+            sample: CPlusPlusWidgets
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
