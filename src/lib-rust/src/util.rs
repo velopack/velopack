@@ -1,5 +1,5 @@
 use crate::Error;
-use rand::distributions::{Alphanumeric, DistString};
+use rand::distr::{Alphanumeric, SampleString};
 use sha2::Digest;
 use std::fs::File;
 use std::path::Path;
@@ -39,7 +39,7 @@ where
 }
 
 pub fn random_string(len: usize) -> String {
-    Alphanumeric.sample_string(&mut rand::thread_rng(), len)
+    Alphanumeric.sample_string(&mut rand::rng(), len)
 }
 
 pub fn calculate_file_sha256<P: AsRef<Path>>(file: P) -> Result<String, Error> {

@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use rand::distributions::{Alphanumeric, DistString};
+use rand::distr::{Alphanumeric, SampleString};
 use regex::Regex;
 use std::{path::Path, thread, time::Duration};
 
@@ -51,7 +51,7 @@ where
 }
 
 pub fn random_string(len: usize) -> String {
-    Alphanumeric.sample_string(&mut rand::thread_rng(), len)
+    Alphanumeric.sample_string(&mut rand::rng(), len)
 }
 
 pub fn is_error_permission_denied(e: &anyhow::Error) -> bool {
