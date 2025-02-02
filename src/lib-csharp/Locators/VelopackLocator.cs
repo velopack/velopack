@@ -66,13 +66,13 @@ namespace Velopack.Locators
         public abstract string? Channel { get; }
 
         /// <inheritdoc/>
-        public virtual bool IsPortable => false;
-        
-        /// <inheritdoc/>
-        public uint ProcessId { get; protected set; }
+        public abstract uint ProcessId { get; }
 
         /// <inheritdoc/>
-        public string ProcessExePath { get; protected set; }
+        public abstract string ProcessExePath { get; }
+        
+        /// <inheritdoc/>
+        public virtual bool IsPortable => false;
 
         /// <inheritdoc/>
         public virtual string? ThisExeRelativePath {

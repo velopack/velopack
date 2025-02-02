@@ -44,6 +44,12 @@ namespace Velopack.Locators
 
         /// <inheritdoc />
         public override string? Channel { get; }
+        
+        /// <inheritdoc />
+        public override uint ProcessId { get; }
+        
+        /// <inheritdoc />
+        public override string ProcessExePath { get; }
 
         /// <summary>
         /// Creates a new <see cref="OsxVelopackLocator"/> and auto-detects the
@@ -56,18 +62,18 @@ namespace Velopack.Locators
                 throw new NotSupportedException("Cannot instantiate OsxLocator on a non-osx system.");
             
             ProcessId = currentProcessId;
-            ProcessExePath = currentProcessPath;
+            var ourPath = ProcessExePath = currentProcessPath;
 
             Log.Info($"Initialising {nameof(OsxVelopackLocator)}");
 
             // are we inside a .app?
-            var ix = ProcessExePath.IndexOf(".app/", StringComparison.InvariantCultureIgnoreCase);
+            var ix = ourPath.IndexOf(".app/", StringComparison.InvariantCultureIgnoreCase);
             if (ix <= 0) {
-                Log.Warn($"Unable to locate .app root from '{ProcessExePath}'");
+                Log.Warn($"Unable to locate .app root from '{ourPath}'");
                 return;
             }
 
-            var appPath = ProcessExePath.Substring(0, ix + 4);
+            var appPath = ourPath.Substring(0, ix + 4);
             var contentsDir = Path.Combine(appPath, "Contents");
             var macosDir = Path.Combine(contentsDir, "MacOS");
             var updateExe = Path.Combine(macosDir, "UpdateMac");
