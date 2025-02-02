@@ -1,22 +1,23 @@
 use std::fs::File;
 use std::io::{Read, Write};
 
-use crate::{Error, util};
+use crate::{util, Error};
 
 /// Downloads a file from a URL and writes it to a file while reporting progress from 0-100.
 pub fn download_url_to_file<A>(url: &str, file_path: &str, mut progress: A) -> Result<(), Error>
-    where A: FnMut(i16),
+where
+    A: FnMut(i16),
 {
     let agent = get_download_agent()?;
-    let response = agent.get(url).call()?;
+    let (head, body) = agent.get(url).call()?.into_parts();
 
-    let total_size = response.header("Content-Length").and_then(|s| s.parse::<u64>().ok());
+    let total_size = head.headers.get("Content-Length").and_then(|s| s.to_str().ok()).and_then(|s| s.parse::<u64>().ok());
     let mut file = util::retry_io(|| File::create(file_path))?;
 
     const CHUNK_SIZE: usize = 2 * 1024 * 1024; // 2MB
     let mut downloaded: u64 = 0;
     let mut buffer = vec![0; CHUNK_SIZE];
-    let mut reader = response.into_reader();
+    let mut reader = body.into_reader();
 
     let mut last_progress = 0;
 
@@ -43,7 +44,7 @@ pub fn download_url_to_file<A>(url: &str, file_path: &str, mut progress: A) -> R
 /// Downloads a file from a URL and returns it as a string.
 pub fn download_url_as_string(url: &str) -> Result<String, Error> {
     let agent = get_download_agent()?;
-    let r = agent.get(url).call()?.into_string()?;
+    let r = agent.get(url).call()?.body_mut().read_to_string()?;
     Ok(r)
 }
 
@@ -51,12 +52,15 @@ fn get_download_agent() -> Result<ureq::Agent, Error> {
     // let tls_builder = native_tls::TlsConnector::builder();
     // let tls_connector = tls_builder.build()?;
     // Ok(ureq::AgentBuilder::new().tls_connector(tls_connector.into()).build())
-    Ok(ureq::AgentBuilder::new().build())
+    Ok(ureq::Agent::config_builder().build().into())
 }
 
 #[test]
 fn test_download_uses_tls_and_encoding_correctly() {
-    assert_eq!(download_url_as_string("https://dotnetcli.blob.core.windows.net/dotnet/WindowsDesktop/5.0/latest.version").unwrap(), "5.0.17");
+    assert_eq!(
+        download_url_as_string("https://dotnetcli.blob.core.windows.net/dotnet/WindowsDesktop/5.0/latest.version").unwrap(),
+        "5.0.17"
+    );
 }
 
 #[test]
@@ -70,7 +74,8 @@ fn test_download_file_reports_progress() {
         assert!(p >= last_prog);
         prog_count += 1;
         last_prog = p;
-    }).unwrap();
+    })
+    .unwrap();
 
     assert!(prog_count >= 4);
     assert!(prog_count <= 20);
