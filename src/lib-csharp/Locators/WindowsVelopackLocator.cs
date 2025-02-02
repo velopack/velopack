@@ -33,25 +33,20 @@ namespace Velopack.Locators
         public override string? PackagesDir => CreateSubDirIfDoesNotExist(RootAppDir, "packages");
 
         /// <inheritdoc />
-        public override bool IsPortable =>
-            RootAppDir != null ? File.Exists(Path.Combine(RootAppDir, ".portable")) : false;
+        public override bool IsPortable => RootAppDir != null && File.Exists(Path.Combine(RootAppDir, ".portable"));
 
         /// <inheritdoc />
         public override string? Channel { get; }
 
         /// <inheritdoc cref="WindowsVelopackLocator" />
-        public WindowsVelopackLocator(ILogger logger) : this(VelopackRuntimeInfo.EntryExePath, logger)
-        {
-        }
-
-        /// <summary>
-        /// Internal use only. Auto detect app details from the specified EXE path.
-        /// </summary>
-        internal WindowsVelopackLocator(string ourExePath, ILogger logger)
+        public WindowsVelopackLocator(string currentProcessPath, uint currentProcessId, ILogger logger)
             : base(logger)
         {
             if (!VelopackRuntimeInfo.IsWindows)
                 throw new NotSupportedException("Cannot instantiate WindowsLocator on a non-Windows system.");
+
+            ProcessId = currentProcessId;
+            ProcessExePath = currentProcessPath;
 
             // We try various approaches here. Firstly, if Update.exe is in the parent directory,
             // we use that. If it's not present, we search for a parent "current" or "app-{ver}" directory,
@@ -59,11 +54,11 @@ namespace Velopack.Locators
             // There is some legacy code here, because it's possible that we're running in an "app-{ver}" 
             // directory which is NOT containing a sq.version, in which case we need to infer a lot of info.
 
-            ourExePath = Path.GetFullPath(ourExePath);
-            string myDirPath = Path.GetDirectoryName(ourExePath)!;
+            ProcessExePath = Path.GetFullPath(ProcessExePath);
+            string myDirPath = Path.GetDirectoryName(ProcessExePath)!;
             var myDirName = Path.GetFileName(myDirPath);
             var possibleUpdateExe = Path.GetFullPath(Path.Combine(myDirPath, "..", "Update.exe"));
-            var ixCurrent = ourExePath.LastIndexOf("/current/", StringComparison.InvariantCultureIgnoreCase);
+            var ixCurrent = ProcessExePath.LastIndexOf("/current/", StringComparison.InvariantCultureIgnoreCase);
 
             Log.Info($"Initializing {nameof(WindowsVelopackLocator)}");
 
@@ -91,7 +86,7 @@ namespace Velopack.Locators
                 }
             } else if (ixCurrent > 0) {
                 // this is an attempt to handle the case where we are running in a nested current directory.
-                var rootDir = ourExePath.Substring(0, ixCurrent);
+                var rootDir = ProcessExePath.Substring(0, ixCurrent);
                 var currentDir = Path.Combine(rootDir, "current");
                 var manifestFile = Path.Combine(currentDir, CoreUtil.SpecVersionFileName);
                 possibleUpdateExe = Path.GetFullPath(Path.Combine(rootDir, "Update.exe"));

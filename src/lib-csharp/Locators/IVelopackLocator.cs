@@ -46,6 +46,18 @@ namespace Velopack.Locators
         /// home directory.
         /// </summary>
         public bool IsPortable { get; }
+        
+        /// <summary>
+        /// The process for which the Velopack Locator has been constructed. This should usually be the current process path.
+        /// </summary>
+        public string ProcessExePath { get; }
+        
+        /// <summary>
+        /// The process ID for which the Velopack Locator has been constructed. This should usually be the current process ID.
+        /// Setting this to zero will disable some features of Velopack (like the ability to wait for the process to exit
+        /// before installing updates).
+        /// </summary>
+        public uint ProcessId { get; }
 
         /// <summary>
         /// Finds .nupkg files in the PackagesDir and returns a list of ReleaseEntryName objects.

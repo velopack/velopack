@@ -49,23 +49,25 @@ namespace Velopack.Locators
         /// Creates a new <see cref="OsxVelopackLocator"/> and auto-detects the
         /// app information from metadata embedded in the .app.
         /// </summary>
-        public OsxVelopackLocator(ILogger logger)
+        public OsxVelopackLocator(string currentProcessPath, uint currentProcessId, ILogger logger)
             : base(logger)
         {
             if (!VelopackRuntimeInfo.IsOSX)
                 throw new NotSupportedException("Cannot instantiate OsxLocator on a non-osx system.");
+            
+            ProcessId = currentProcessId;
+            ProcessExePath = currentProcessPath;
 
             Log.Info($"Initialising {nameof(OsxVelopackLocator)}");
 
             // are we inside a .app?
-            var ourPath = VelopackRuntimeInfo.EntryExePath;
-            var ix = ourPath.IndexOf(".app/", StringComparison.InvariantCultureIgnoreCase);
+            var ix = ProcessExePath.IndexOf(".app/", StringComparison.InvariantCultureIgnoreCase);
             if (ix <= 0) {
-                Log.Warn($"Unable to locate .app root from '{ourPath}'");
+                Log.Warn($"Unable to locate .app root from '{ProcessExePath}'");
                 return;
             }
 
-            var appPath = ourPath.Substring(0, ix + 4);
+            var appPath = ProcessExePath.Substring(0, ix + 4);
             var contentsDir = Path.Combine(appPath, "Contents");
             var macosDir = Path.Combine(contentsDir, "MacOS");
             var updateExe = Path.Combine(macosDir, "UpdateMac");

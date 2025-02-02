@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -77,9 +78,16 @@ namespace Velopack.Util
             logger ??= NullLogger.Instance;
             logger.Debug($"Starting to delete: {path}");
 
+            string? currentExePath = null;
+            try {
+                currentExePath = Process.GetCurrentProcess().MainModule?.FileName;
+            } catch {
+                // ... ignore
+            }
+
             try {
                 if (File.Exists(path)) {
-                    DeleteFsiVeryHard(new FileInfo(path), logger);
+                    DeleteFsiVeryHard(new FileInfo(path), currentExePath, logger);
                 } else if (Directory.Exists(path)) {
                     if (renameFirst) {
                         // if there are locked files in a directory, we will not attempt to delte it
@@ -88,7 +96,7 @@ namespace Velopack.Util
                         path = oldPath;
                     }
 
-                    DeleteFsiTree(new DirectoryInfo(path), logger);
+                    DeleteFsiTree(new DirectoryInfo(path), currentExePath, logger);
                 } else {
                     if (throwOnFailure)
                         logger?.Warn($"Cannot delete '{path}' if it does not exist.");
@@ -103,11 +111,11 @@ namespace Velopack.Util
             }
         }
 
-        private static void DeleteFsiTree(FileSystemInfo fileSystemInfo, ILogger logger)
+        private static void DeleteFsiTree(FileSystemInfo fileSystemInfo, string? currentExePath, ILogger logger)
         {
             // if junction / symlink, don't iterate, just delete it.
             if (fileSystemInfo.Attributes.HasFlag(FileAttributes.ReparsePoint)) {
-                DeleteFsiVeryHard(fileSystemInfo, logger);
+                DeleteFsiVeryHard(fileSystemInfo, currentExePath, logger);
                 return;
             }
 
@@ -115,7 +123,7 @@ namespace Velopack.Util
             try {
                 if (fileSystemInfo is DirectoryInfo directoryInfo) {
                     foreach (FileSystemInfo childInfo in directoryInfo.GetFileSystemInfos()) {
-                        DeleteFsiTree(childInfo, logger);
+                        DeleteFsiTree(childInfo, currentExePath, logger);
                     }
                 }
             } catch (Exception ex) {
@@ -124,14 +132,15 @@ namespace Velopack.Util
 
             // finally, delete myself, we should try this even if deleting children failed
             // because Directory.Delete can also be recursive
-            DeleteFsiVeryHard(fileSystemInfo, logger);
+            DeleteFsiVeryHard(fileSystemInfo, currentExePath, logger);
         }
 
-        private static void DeleteFsiVeryHard(FileSystemInfo fileSystemInfo, ILogger logger)
+        private static void DeleteFsiVeryHard(FileSystemInfo fileSystemInfo, string? currentExePath, ILogger logger)
         {
             // don't try to delete the running process
-            if (PathUtil.FullPathEquals(fileSystemInfo.FullName, VelopackRuntimeInfo.EntryExePath))
+            if (currentExePath != null && PathUtil.FullPathEquals(fileSystemInfo.FullName, currentExePath)) {
                 return;
+            }
 
             // try to remove "ReadOnly" attributes
             try { fileSystemInfo.Attributes = FileAttributes.Normal; } catch { }
