@@ -294,12 +294,26 @@ bool vpkc_download_updates(vpkc_update_manager_t *p_manager,
  * You should then clean up any state and exit your app. The updater will apply updates and then
  * optionally restart your app. The updater will only wait for 60 seconds before giving up.
  */
-bool vpkc_wait_exit_then_apply_update(vpkc_update_manager_t *p_manager,
-                                      struct vpkc_asset_t *p_asset,
-                                      bool b_silent,
-                                      bool b_restart,
-                                      char **p_restart_args,
-                                      size_t c_restart_args);
+bool vpkc_wait_exit_then_apply_updates(vpkc_update_manager_t *p_manager,
+                                       struct vpkc_asset_t *p_asset,
+                                       bool b_silent,
+                                       bool b_restart,
+                                       char **p_restart_args,
+                                       size_t c_restart_args);
+
+/**
+ * This will launch the Velopack updater and optionally wait for a program to exit gracefully.
+ * This method is unsafe because it does not necessarily wait for any / the correct process to exit
+ * before applying updates. The `vpkc_wait_exit_then_apply_updates` method is recommended for most use cases.
+ * If dw_wait_pid is 0, the updater will not wait for any process to exit before applying updates (Not Recommended).
+ */
+bool vpkc_unsafe_apply_updates(vpkc_update_manager_t *p_manager,
+                               struct vpkc_asset_t *p_asset,
+                               bool b_silent,
+                               uint32_t dw_wait_pid,
+                               bool b_restart,
+                               char **p_restart_args,
+                               size_t c_restart_args);
 
 /**
  * Frees a vpkc_update_manager_t instance.

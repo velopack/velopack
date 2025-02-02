@@ -6,24 +6,36 @@ use std::{
     sync::mpsc::Sender,
 };
 
+use semver::Version;
+use serde::{Deserialize, Serialize};
+
 #[cfg(feature = "async")]
 use async_std::channel::Sender as AsyncSender;
 #[cfg(feature = "async")]
 use async_std::task::JoinHandle;
-use semver::Version;
-use serde::{Deserialize, Serialize};
 
 use crate::{
-    locator::{self, VelopackLocatorConfig, LocationContext, VelopackLocator},
+    locator::{self, LocationContext, VelopackLocator, VelopackLocatorConfig},
     sources::UpdateSource,
-    Error,
-    util,
+    util, Error,
 };
 
+/// Configure how the update process should wait before applying updates.
+pub enum ApplyWaitMode {
+    /// NOT RECOMMENDED: Will not wait for any process before continuing. This could result in the update process being
+    /// killed, or the update process itself failing.
+    NoWait,
+    /// Will wait for the current process to exit before continuing. This is the default and recommended mode.
+    WaitCurrentProcess,
+    /// Wait for the specified process ID to exit before continuing. This is useful if you are updating a program
+    /// different from the one that is currently running.
+    WaitPid(u32),
+}
+
+/// A feed of Velopack assets, usually retrieved from a remote location.
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
-/// A feed of Velopack assets, usually retrieved from a remote location.
 pub struct VelopackAssetFeed {
     /// The list of assets in the (probably remote) update feed.
     pub Assets: Vec<VelopackAsset>,
@@ -36,11 +48,11 @@ impl VelopackAssetFeed {
     }
 }
 
+/// An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[cfg_attr(feature = "typescript", derive(ts_rs::TS))]
 #[serde(default)]
-/// An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
 pub struct VelopackAsset {
     /// The name or Id of the package containing this release.
     pub PackageId: String,
@@ -62,11 +74,11 @@ pub struct VelopackAsset {
     pub NotesHtml: String,
 }
 
+/// Holds information about the current version and pending updates, such as how many there are, and access to release notes.
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[cfg_attr(feature = "typescript", derive(ts_rs::TS))]
 #[serde(default)]
-/// Holds information about the current version and pending updates, such as how many there are, and access to release notes.
 pub struct UpdateInfo {
     /// The available version that we are updating to.
     pub TargetFullRelease: VelopackAsset,
@@ -88,11 +100,11 @@ impl AsRef<VelopackAsset> for VelopackAsset {
     }
 }
 
+/// Options to customise the behaviour of UpdateManager.
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[cfg_attr(feature = "typescript", derive(ts_rs::TS))]
 #[serde(default)]
-/// Options to customise the behaviour of UpdateManager.
 pub struct UpdateOptions {
     /// Allows UpdateManager to update to a version that's lower than the current version (i.e. downgrading).
     /// This could happen if a release has bugs and was retracted from the release feed, or if you're using
@@ -166,11 +178,7 @@ impl UpdateManager {
         } else {
             locator::auto_locate_app_manifest(LocationContext::FromCurrentExe)?
         };
-        Ok(UpdateManager {
-            options: options.unwrap_or_default(),
-            source,
-            locator,
-        })
+        Ok(UpdateManager { options: options.unwrap_or_default(), source, locator })
     }
 
     fn get_practical_channel(&self) -> String {
@@ -189,7 +197,7 @@ impl UpdateManager {
     pub fn get_current_version_as_string(&self) -> String {
         self.locator.get_manifest_version_full_string()
     }
-    
+
     /// The currently installed app version as a semver Version.
     pub fn get_current_version(&self) -> Version {
         self.locator.get_manifest_version()
@@ -206,7 +214,7 @@ impl UpdateManager {
         self.locator.get_is_portable()
     }
 
-    /// Returns None if there is no local package waiting to be applied. Returns a VelopackAsset 
+    /// Returns None if there is no local package waiting to be applied. Returns a VelopackAsset
     /// if there is an update downloaded which has not yet been applied. In that case, the
     /// VelopackAsset can be applied by calling apply_updates_and_restart or wait_exit_then_apply_updates.
     pub fn get_update_pending_restart(&self) -> Option<VelopackAsset> {
@@ -235,10 +243,9 @@ impl UpdateManager {
         self.source.get_release_feed(&channel, &self.locator.get_manifest())
     }
 
-    #[cfg(feature = "async")]
     /// Get a list of available remote releases from the package source.
-    pub fn get_release_feed_async(&self) -> JoinHandle<Result<VelopackAssetFeed, Error>>
-    {
+    #[cfg(feature = "async")]
+    pub fn get_release_feed_async(&self) -> JoinHandle<Result<VelopackAssetFeed, Error>> {
         let self_clone = self.clone();
         async_std::task::spawn_blocking(move || self_clone.get_release_feed())
     }
@@ -299,11 +306,10 @@ impl UpdateManager {
         }
     }
 
-    #[cfg(feature = "async")]
     /// Checks for updates, returning None if there are none available. If there are updates available, this method will return an
     /// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
-    pub fn check_for_updates_async(&self) -> JoinHandle<Result<UpdateCheck, Error>>
-    {
+    #[cfg(feature = "async")]
+    pub fn check_for_updates_async(&self) -> JoinHandle<Result<UpdateCheck, Error>> {
         let self_clone = self.clone();
         async_std::task::spawn_blocking(move || self_clone.check_for_updates())
     }
@@ -331,7 +337,7 @@ impl UpdateManager {
         let old_nupkg_pattern = format!("{}/*.nupkg", packages_dir.to_string_lossy());
         let old_partial_pattern = format!("{}/*.partial", packages_dir.to_string_lossy());
         let mut to_delete = Vec::new();
-        
+
         fn find_files_to_delete(pattern: &str, to_delete: &mut Vec<String>) {
             info!("Searching for packages to clean: '{}'", pattern);
             match glob::glob(pattern) {
@@ -345,13 +351,13 @@ impl UpdateManager {
                 }
             }
         }
-        
+
         find_files_to_delete(&old_nupkg_pattern, &mut to_delete);
         find_files_to_delete(&old_partial_pattern, &mut to_delete);
 
         self.source.download_release_entry(&update.TargetFullRelease, &partial_file.to_string_lossy(), progress)?;
         info!("Successfully placed file: '{}'", partial_file.to_string_lossy());
-        
+
         info!("Renaming partial file to final target: '{}'", final_target_file.to_string_lossy());
         fs::rename(&partial_file, &final_target_file)?;
 
@@ -378,13 +384,13 @@ impl UpdateManager {
         Ok(())
     }
 
-    #[cfg(feature = "async")]
     /// Downloads the specified updates to the local app packages directory. Progress is reported back to the caller via an optional Sender.
     /// This function will acquire a global update lock so may fail if there is already another update operation in progress.
     /// - If the update contains delta packages and the delta feature is enabled
     ///   this method will attempt to unpack and prepare them.
     /// - If there is no delta update available, or there is an error preparing delta
     ///   packages, this method will fall back to downloading the full version of the update.
+    #[cfg(feature = "async")]
     pub fn download_updates_async(&self, update: &UpdateInfo, progress: Option<AsyncSender<i16>>) -> JoinHandle<Result<(), Error>> {
         let mut sync_progress: Option<Sender<i16>> = None;
 
@@ -424,7 +430,7 @@ impl UpdateManager {
     where
         A: AsRef<VelopackAsset>,
         S: AsRef<str>,
-        C: IntoIterator<Item=S>,
+        C: IntoIterator<Item = S>,
     {
         self.wait_exit_then_apply_updates(to_apply, false, true, restart_args)?;
         exit(0);
@@ -449,7 +455,27 @@ impl UpdateManager {
     where
         A: AsRef<VelopackAsset>,
         S: AsRef<str>,
-        C: IntoIterator<Item=S>,
+        C: IntoIterator<Item = S>,
+    {
+        self.unsafe_apply_updates(to_apply, silent, ApplyWaitMode::WaitCurrentProcess, restart, restart_args)?;
+        Ok(())
+    }
+
+    /// This will launch the Velopack updater and optionally wait for a program to exit gracefully.
+    /// This method is unsafe because it does not necessarily wait for any / the correct process to exit 
+    /// before applying updates. The `wait_exit_then_apply_updates` method is recommended for most use cases.
+    pub fn unsafe_apply_updates<A, C, S>(
+        &self,
+        to_apply: A,
+        silent: bool,
+        wait_mode: ApplyWaitMode,
+        restart: bool,
+        restart_args: C,
+    ) -> Result<(), Error>
+    where
+        A: AsRef<VelopackAsset>,
+        S: AsRef<str>,
+        C: IntoIterator<Item = S>,
     {
         let to_apply = to_apply.as_ref();
         let pkg_path = self.locator.get_packages_dir().join(&to_apply.FileName);
@@ -457,10 +483,26 @@ impl UpdateManager {
 
         let mut args = Vec::new();
         args.push("apply".to_string());
-        args.push("--waitPid".to_string());
-        args.push(format!("{}", std::process::id()));
+
         args.push("--package".to_string());
-        args.push(pkg_path_str.into_owned());
+        args.push(pkg_path_str.to_string());
+
+        if !pkg_path.exists() {
+            error!("Package does not exist on disk: '{}'", &pkg_path_str);
+            return Err(Error::FileNotFound(pkg_path_str.to_string()));
+        }
+
+        match wait_mode {
+            ApplyWaitMode::NoWait => {}
+            ApplyWaitMode::WaitCurrentProcess => {
+                args.push("--waitPid".to_string());
+                args.push(format!("{}", std::process::id()));
+            }
+            ApplyWaitMode::WaitPid(pid) => {
+                args.push("--waitPid".to_string());
+                args.push(format!("{}", pid));
+            }
+        }
 
         if silent {
             args.push("--silent".to_string());

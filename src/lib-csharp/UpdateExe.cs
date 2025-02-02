@@ -58,11 +58,11 @@ namespace Velopack
         /// Runs Update.exe in the current working directory with the 'start' command which will simply start the application.
         /// Combined with the `waitForExit` parameter, this can be used to gracefully restart the application.
         /// </summary>
-        /// <param name="waitForExit">If true, Update.exe will wait for the current process to exit before re-starting the application.</param>
+        /// <param name="waitPid">Optionally wait for the specified process to exit before continuing.</param>
         /// <param name="locator">The locator to use to find the path to Update.exe and the packages directory.</param>
         /// <param name="startArgs">The arguments to pass to the application when it is restarted.</param>
         /// <param name="logger">The logger to use for diagnostic messages</param>
-        public static void Start(IVelopackLocator? locator = null, bool waitForExit = true, string[]? startArgs = null, ILogger? logger = null)
+        public static void Start(IVelopackLocator? locator = null, uint waitPid = 0, string[]? startArgs = null, ILogger? logger = null)
         {
             logger ??= NullLogger.Instance;
             locator ??= VelopackLocator.GetDefault(logger);
@@ -70,9 +70,9 @@ namespace Velopack
             var args = new List<string>();
             args.Add("start");
 
-            if (waitForExit) {
+            if (waitPid > 0) {
                 args.Add("--waitPid");
-                args.Add(Process.GetCurrentProcess().Id.ToString());
+                args.Add(waitPid.ToString());
             }
 
             if (startArgs != null && startArgs.Length > 0) {
@@ -85,8 +85,8 @@ namespace Velopack
             StartUpdateExe(logger, locator, args);
         }
 
-        private static Process ApplyImpl(IVelopackLocator? locator, VelopackAsset? toApply, bool silent, bool restart, string[]? restartArgs = null,
-            ILogger? logger = null)
+        private static Process ApplyImpl(IVelopackLocator? locator, VelopackAsset? toApply, bool silent, uint waitPid, bool restart,
+            string[]? restartArgs = null, ILogger? logger = null)
         {
             logger ??= NullLogger.Instance;
             locator ??= VelopackLocator.GetDefault(logger);
@@ -104,8 +104,10 @@ namespace Velopack
                 }
             }
 
-            args.Add("--waitPid");
-            args.Add(Process.GetCurrentProcess().Id.ToString());
+            if (waitPid > 0) {
+                args.Add("--waitPid");
+                args.Add(waitPid.ToString());
+            }
 
             if (!restart) args.Add("--norestart"); // restarting is now the default Update.exe behavior
 
@@ -128,13 +130,14 @@ namespace Velopack
         /// <param name="restart">If true, restarts the application after updates are applied (or if they failed)</param>
         /// <param name="locator">The locator to use to find the path to Update.exe and the packages directory.</param>
         /// <param name="toApply">The update package you wish to apply, can be left null.</param>
+        /// <param name="waitPid">Optionally wait for the specified process to exit before continuing.</param>
         /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
         /// <param name="logger">The logger to use for diagnostic messages</param>
         /// <exception cref="Exception">Thrown if Update.exe does not initialize properly.</exception>
-        public static void Apply(IVelopackLocator? locator, VelopackAsset? toApply, bool silent, bool restart, string[]? restartArgs = null,
-            ILogger? logger = null)
+        public static void Apply(IVelopackLocator? locator, VelopackAsset? toApply, bool silent, uint waitPid, bool restart, 
+            string[]? restartArgs = null, ILogger? logger = null)
         {
-            var process = ApplyImpl(locator, toApply, silent, restart, restartArgs, logger);
+            var process = ApplyImpl(locator, toApply, silent, waitPid, restart, restartArgs, logger);
             Thread.Sleep(500);
 
             if (process.HasExited) {
@@ -143,10 +146,10 @@ namespace Velopack
         }
 
         /// <inheritdoc cref="Apply"/>
-        public static async Task ApplyAsync(IVelopackLocator? locator, VelopackAsset? toApply, bool silent, bool restart, string[]? restartArgs = null,
+        public static async Task ApplyAsync(IVelopackLocator? locator, VelopackAsset? toApply, bool silent, uint waitPid, bool restart, string[]? restartArgs = null,
             ILogger? logger = null)
         {
-            var process = ApplyImpl(locator, toApply, silent, restart, restartArgs, logger);
+            var process = ApplyImpl(locator, toApply, silent, waitPid, restart, restartArgs, logger);
             await Task.Delay(500).ConfigureAwait(false);
 
             if (process.HasExited) {
