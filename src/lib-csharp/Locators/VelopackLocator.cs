@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -27,14 +28,18 @@ namespace Velopack.Locators
             if (_current != null)
                 return _current;
 
+            var process = Process.GetCurrentProcess();
+            var processExePath = process.MainModule?.FileName ?? throw new InvalidOperationException("Could not determine process path.");
+            var processId = (uint)process.Id;
+
             if (VelopackRuntimeInfo.IsWindows)
-                return _current = new WindowsVelopackLocator(log);
+                return _current = new WindowsVelopackLocator(processExePath, processId, log);
 
             if (VelopackRuntimeInfo.IsOSX)
-                return _current = new OsxVelopackLocator(log);
+                return _current = new OsxVelopackLocator(processExePath, processId, log);
 
             if (VelopackRuntimeInfo.IsLinux)
-                return _current = new LinuxVelopackLocator(log);
+                return _current = new LinuxVelopackLocator(processExePath, processId, log);
 
             throw new PlatformNotSupportedException($"OS platform '{VelopackRuntimeInfo.SystemOs.GetOsLongName()}' is not supported.");
         }
@@ -62,12 +67,18 @@ namespace Velopack.Locators
 
         /// <inheritdoc/>
         public virtual bool IsPortable => false;
+        
+        /// <inheritdoc/>
+        public uint ProcessId { get; protected set; }
+
+        /// <inheritdoc/>
+        public string ProcessExePath { get; protected set; }
 
         /// <inheritdoc/>
         public virtual string? ThisExeRelativePath {
             get {
                 if (AppContentDir == null) return null;
-                var path = VelopackRuntimeInfo.EntryExePath;
+                var path = ProcessExePath;
                 if (path.StartsWith(AppContentDir, StringComparison.OrdinalIgnoreCase)) {
                     return path.Substring(AppContentDir.Length + 1);
                 } else {

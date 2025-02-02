@@ -34,7 +34,9 @@ namespace System.Runtime.Versioning
 
 namespace System.Runtime.CompilerServices
 {
-    internal static class IsExternalInit { }
+    internal static class IsExternalInit
+    {
+    }
 }
 #endif
 
@@ -88,12 +90,6 @@ namespace Velopack
         /// <summary> The current compiled Velopack ProductVersion. </summary>
         public static NuGetVersion VelopackProductVersion { get; }
 
-        /// <summary> The path on disk of the entry assembly. </summary>
-        public static string EntryExePath { get; }
-        
-        /// <summary> The current executing process ID. </summary>
-        public static uint ProcessId { get; }
-
         /// <summary> The current machine architecture, ignoring the current process / pe architecture. </summary>
         public static RuntimeCpu SystemArch { get; private set; }
 
@@ -125,10 +121,6 @@ namespace Velopack
 
         static VelopackRuntimeInfo()
         {
-            var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
-            EntryExePath = currentProcess.MainModule.FileName;
-            ProcessId = (uint)currentProcess.Id;
-
 #if DEBUG
             InUnitTestRunner = CheckForUnitTestRunner();
 #endif
@@ -145,6 +137,7 @@ namespace Velopack
                     VelopackNugetVersion = NuGetVersion.Parse(VelopackNugetVersion.ToNormalizedString() + "-g" + VelopackNugetVersion.Metadata);
                 }
             }
+
             VelopackDisplayVersion = VelopackNugetVersion.ToNormalizedString() + (VelopackNugetVersion.IsPrerelease ? " (prerelease)" : "");
 #pragma warning restore CS0612
 
