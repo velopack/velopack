@@ -583,10 +583,19 @@ public:
      * You should then clean up any state and exit your app. The updater will apply updates and then
      * optionally restart your app. The updater will only wait for 60 seconds before giving up.
      */
-    void WaitExitThenApplyUpdate(const VelopackAsset& asset, bool silent = false, bool restart = true, std::vector<std::string> restartArgs = {}) {
+    void WaitExitThenApplyUpdates(const UpdateInfo& asset, bool silent = false, bool restart = true, std::vector<std::string> restartArgs = {}) {
+        this->WaitExitThenApplyUpdates(asset.TargetFullRelease, silent, restart, restartArgs);
+    };
+
+    /**
+     * This will launch the Velopack updater and tell it to wait for this program to exit gracefully.
+     * You should then clean up any state and exit your app. The updater will apply updates and then
+     * optionally restart your app. The updater will only wait for 60 seconds before giving up.
+     */
+    void WaitExitThenApplyUpdates(const VelopackAsset& asset, bool silent = false, bool restart = true, std::vector<std::string> restartArgs = {}) {
         char** pRestartArgs = allocate_cstring_array(restartArgs);
         vpkc_asset_t vpkc_asset = to_c(asset);
-        bool result = vpkc_wait_exit_then_apply_update(m_pManager, &vpkc_asset, silent, restart, pRestartArgs, restartArgs.size());
+        bool result = vpkc_wait_exit_then_apply_updates(m_pManager, &vpkc_asset, silent, restart, pRestartArgs, restartArgs.size());
         free_cstring_array(pRestartArgs, restartArgs.size());
         
         if (!result) {
@@ -595,12 +604,20 @@ public:
     };
 
     /**
-     * This will launch the Velopack updater and tell it to wait for this program to exit gracefully.
-     * You should then clean up any state and exit your app. The updater will apply updates and then
-     * optionally restart your app. The updater will only wait for 60 seconds before giving up.
+     * This will launch the Velopack updater and optionally wait for a program to exit gracefully.
+     * This method is unsafe because it does not necessarily wait for any / the correct process to exit 
+     * before applying updates. The `WaitExitThenApplyUpdates` method is recommended for most use cases.
+     * If waitPid is 0, the updater will not wait for any process to exit before applying updates (Not Recommended).
      */
-    void WaitExitThenApplyUpdate(const UpdateInfo& asset, bool silent = false, bool restart = true, std::vector<std::string> restartArgs = {}) {
-        this->WaitExitThenApplyUpdate(asset.TargetFullRelease, silent, restart, restartArgs);
+    void UnsafeApplyUpdates(const VelopackAsset& asset, bool silent, uint32_t waitPid, bool restart, std::vector<std::string> restartArgs) {
+        char** pRestartArgs = allocate_cstring_array(restartArgs);
+        vpkc_asset_t vpkc_asset = to_c(asset);
+        bool result = vpkc_unsafe_apply_updates(m_pManager, &vpkc_asset, silent, waitPid, restart, pRestartArgs, restartArgs.size());
+        free_cstring_array(pRestartArgs, restartArgs.size());
+        
+        if (!result) {
+            throw_last_error();
+        }
     };
 };
 

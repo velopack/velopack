@@ -188,7 +188,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     MessageBoxCentered(hWnd, L"Download an update first.", szTitle, MB_OK);
                 }
                 else {
-                    manager->WaitExitThenApplyUpdate(updInfo.value());
+                    manager->WaitExitThenApplyUpdates(updInfo.value());
                     exit(0);
                 }
             }

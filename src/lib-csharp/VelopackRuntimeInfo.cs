@@ -90,6 +90,9 @@ namespace Velopack
 
         /// <summary> The path on disk of the entry assembly. </summary>
         public static string EntryExePath { get; }
+        
+        /// <summary> The current executing process ID. </summary>
+        public static uint ProcessId { get; }
 
         /// <summary> The current machine architecture, ignoring the current process / pe architecture. </summary>
         public static RuntimeCpu SystemArch { get; private set; }
@@ -122,7 +125,9 @@ namespace Velopack
 
         static VelopackRuntimeInfo()
         {
-            EntryExePath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
+            var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+            EntryExePath = currentProcess.MainModule.FileName;
+            ProcessId = (uint)currentProcess.Id;
 
 #if DEBUG
             InUnitTestRunner = CheckForUnitTestRunner();

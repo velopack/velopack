@@ -179,7 +179,7 @@ private:
 
         try
         {
-            updateManager->WaitExitThenApplyUpdate(updateInfo.value());
+            updateManager->WaitExitThenApplyUpdates(updateInfo.value());
             wxTheApp->ExitMainLoop();
         }
         catch (...) { /* exception will print in log */ }

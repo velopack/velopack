@@ -15,7 +15,7 @@ use anyhow::{anyhow, bail};
 use libc::{c_char, c_void, size_t};
 use log_derive::{logfn, logfn_inputs};
 use std::{ffi::CString, ptr};
-use velopack::{sources, Error as VelopackError, UpdateCheck, UpdateManager, VelopackApp};
+use velopack::{sources, ApplyWaitMode, Error as VelopackError, UpdateCheck, UpdateManager, VelopackApp};
 
 /// Create a new FileSource update source for a given file path.
 #[no_mangle]
@@ -295,7 +295,7 @@ pub extern "C" fn vpkc_download_updates(
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
-pub extern "C" fn vpkc_wait_exit_then_apply_update(
+pub extern "C" fn vpkc_wait_exit_then_apply_updates(
     p_manager: *mut vpkc_update_manager_t,
     p_asset: *mut vpkc_asset_t,
     b_silent: bool,
@@ -312,6 +312,36 @@ pub extern "C" fn vpkc_wait_exit_then_apply_update(
         let asset = c_to_velopackasset_opt(p_asset).ok_or(anyhow!("pAsset must not be null"))?;
         let restart_args = c_to_string_array_opt(p_restart_args, c_restart_args).unwrap_or_default();
         manager.wait_exit_then_apply_updates(&asset, b_silent, b_restart, &restart_args)?;
+        Ok(())
+    })
+}
+
+/// This will launch the Velopack updater and optionally wait for a program to exit gracefully.
+/// This method is unsafe because it does not necessarily wait for any / the correct process to exit 
+/// before applying updates. The `vpkc_wait_exit_then_apply_updates` method is recommended for most use cases.
+/// If dw_wait_pid is 0, the updater will not wait for any process to exit before applying updates (Not Recommended).
+#[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
+pub extern "C" fn vpkc_unsafe_apply_updates(
+    p_manager: *mut vpkc_update_manager_t,
+    p_asset: *mut vpkc_asset_t,
+    b_silent: bool,
+    dw_wait_pid: u32,
+    b_restart: bool,
+    p_restart_args: *mut *mut c_char,
+    c_restart_args: size_t,
+) -> bool {
+    wrap_error(|| {
+        let manager = match p_manager.to_opaque_ref() {
+            Some(manager) => manager,
+            None => bail!("pManager must not be null"),
+        };
+
+        let asset = c_to_velopackasset_opt(p_asset).ok_or(anyhow!("pAsset must not be null"))?;
+        let restart_args = c_to_string_array_opt(p_restart_args, c_restart_args).unwrap_or_default();
+        let wait_mode = if dw_wait_pid > 0 { ApplyWaitMode::WaitPid(dw_wait_pid) } else { ApplyWaitMode::NoWait };
+        manager.unsafe_apply_updates(&asset, b_silent, wait_mode, b_restart, &restart_args)?;
         Ok(())
     })
 }
