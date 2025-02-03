@@ -74,11 +74,11 @@ public class WindowsPackCommand : PackCommand
 
             this.AreMutuallyExclusive(signTemplate, signParams, azTrustedSign);
 
-            AddOption<bool>((v) => BuildMsi = v, "--msi")
+            AddOption<bool>((v) => BuildMsi = v, "--msiDeploymentTool")
                 .SetDescription("Compile a .msi machine-wide deployment tool.")
                 .SetHidden();
 
-            AddOption<string>((v) => MsiVersionOverride = v, "--msiVersion")
+            AddOption<string>((v) => MsiVersionOverride = v, "--msiDeploymentToolVersion")
                 .SetDescription("Override the product version for the generated msi.")
                 .SetArgumentHelpName("VERSION")
                 .SetHidden()
