@@ -15,6 +15,8 @@ public class OsxPackCommand : OsxBundleCommand
     public string SignInstallIdentity { get; private set; }
 
     public string SignEntitlements { get; private set; }
+    
+    public bool SignDisableDeep { get; private set; }
 
     public string NotaryProfile { get; private set; }
 
@@ -56,6 +58,9 @@ public class OsxPackCommand : OsxBundleCommand
             .SetArgumentHelpName("PATH")
             .MustExist()
             .RequiresExtension(".entitlements");
+
+        AddOption<bool>((v) => SignDisableDeep = v, "--signDisableDeep")
+            .SetDescription("Disable deep signing, requires you to pre-sign your binaries.");
 
         AddOption<string>((v) => NotaryProfile = v, "--notaryProfile")
             .SetDescription("Name of profile containing Apple credentials stored with notarytool.")
