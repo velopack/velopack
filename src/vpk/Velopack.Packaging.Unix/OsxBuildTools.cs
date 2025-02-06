@@ -36,7 +36,7 @@ public class OsxBuildTools
         }
 
         if (!String.IsNullOrEmpty(keychainPath)) {
-            Log.Info($"Using non-default keychain at '{keychainPath}'");
+            Log.Debug($"Using non-default keychain at '{keychainPath}'");
             args.Add("--keychain");
             args.Add(keychainPath);
         }

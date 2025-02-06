@@ -27,6 +27,8 @@ public class OsxPackOptions : OsxBundleOptions, IPackOptions
     public string SignInstallIdentity { get; set; }
 
     public string SignEntitlements { get; set; }
+    
+    public bool SignDisableDeep { get; set; }
 
     public string NotaryProfile { get; set; }
 

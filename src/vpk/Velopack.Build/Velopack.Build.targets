@@ -79,6 +79,7 @@
       SignAppIdentity="$(VelopackSignAppIdentity)"
       SignInstallIdentity="$(VelopackSignInstallIdentity)"
       SignEntitlements="$(VelopackSignEntitlements)"
+      SignDisableDeep="$(VelopackSignDisableDeep)"
       NotaryProfile="$(VelopackNotaryProfile)"
       Keychain="$(VelopackKeychain)"
       BundleId="$(VelopackBundleId)"

@@ -66,6 +66,8 @@ public class PackTask : MSBuildAsyncTask
     public string? SignInstallIdentity { get; set; }
 
     public string? SignEntitlements { get; set; }
+    
+    public bool SignDisableDeep { get; set; }
 
     public string? NotaryProfile { get; set; }
 
@@ -80,6 +82,7 @@ public class PackTask : MSBuildAsyncTask
     public bool SkipVelopackAppCheck { get; set; }
 
     public string? SignParameters { get; set; }
+    
     public string? AzureTrustedSignFile { get; set; }
 
     public string? SignExclude { get; set; }
