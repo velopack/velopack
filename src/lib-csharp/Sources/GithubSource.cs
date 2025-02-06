@@ -91,7 +91,7 @@ namespace Velopack.Sources
         protected override async Task<GithubRelease[]> GetReleases(bool includePrereleases)
         {
             // https://docs.github.com/en/rest/reference/releases
-            const int perPage = 10;
+            const int perPage = 30;
             const int page = 1;
             var releasesPath = $"repos{RepoUri.AbsolutePath}/releases?per_page={perPage}&page={page}";
             var baseUri = GetApiBaseUrl(RepoUri);
