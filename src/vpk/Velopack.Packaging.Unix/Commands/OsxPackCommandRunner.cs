@@ -95,6 +95,9 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
                 var structure = new OsxStructureBuilder(packDir);
                 var updateMacPath = Path.Combine(structure.MacosDirectory, "UpdateMac");
                 helper.CodeSign(Options.SignAppIdentity, entitlements, updateMacPath, false, keychainPath);
+                signProgress(25);
+                var versionPath = Path.Combine(structure.MacosDirectory, "sq.version");
+                helper.CodeSign(Options.SignAppIdentity, entitlements, versionPath, false, keychainPath);
                 signProgress(50);
                 
                 Log.Info("Code signing application bundle...");
