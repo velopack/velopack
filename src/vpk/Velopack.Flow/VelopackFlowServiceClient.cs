@@ -125,13 +125,13 @@ public class VelopackFlowServiceClient(
     }
 
     public async Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory,
-        RuntimeOs os, bool waitForLive, CancellationToken cancellationToken)
+        RuntimeOs os, bool waitForLive, int tieredRolloutPercentage, CancellationToken cancellationToken)
     {
         AssertAuthenticated();
 
         channel ??= DefaultName.GetDefaultChannel(os);
         BuildAssets assets = BuildAssets.Read(releaseDirectory, channel);
-        var fullAsset = assets.GetReleaseEntries().SingleOrDefault(a => a.Type == VelopackAssetType.Full);
+        var fullAsset = assets.GetReleaseEntries().SingleOrDefault(a => a.Type == Velopack.VelopackAssetType.Full);
 
         if (fullAsset is null) {
             Logger.LogError("No full asset found in release directory {ReleaseDirectory} (or it's missing from assets file)", releaseDirectory);
@@ -143,7 +143,7 @@ public class VelopackFlowServiceClient(
         var version = fullAsset.Version;
 
         var filesToUpload = assets.GetAssets()
-            .Where(p => p.Type is not VelopackAssetType.Delta)
+            .Where(p => p.Type is not Velopack.VelopackAssetType.Delta)
             .Select(p => (p.Path, p.Type.ToFileType()))
             .ToArray();
 
@@ -160,7 +160,7 @@ public class VelopackFlowServiceClient(
                             report(-1);
                             await CreateChannelIfNotExists(client, packageId, channel, cancellationToken);
                             report(50);
-                            var result = await CreateReleaseGroupAsync(client, packageId, version, channel, cancellationToken);
+                            var result = await CreateReleaseGroupAsync(client, packageId, version, channel, tieredRolloutPercentage / 100.0, cancellationToken);
                             Logger.LogInformation("Created release {Version} ({ReleaseGroupId})", version, result.Id);
                             report(100);
                             return result;
@@ -316,12 +316,13 @@ public class VelopackFlowServiceClient(
     }
 
     private static async Task<ReleaseGroup> CreateReleaseGroupAsync(FlowApi client, string packageId, SemanticVersion version, string channel,
-        CancellationToken cancellationToken)
+        double tieredRolloutPercentage, CancellationToken cancellationToken)
     {
         CreateReleaseGroupRequest request = new() {
             ChannelIdentifier = channel,
             PackageId = packageId,
-            Version = version.ToNormalizedString()
+            Version = version.ToNormalizedString(),
+            TieredRolloutPercentage = tieredRolloutPercentage
         };
 
         return await client.CreateReleaseGroupAsync(request, cancellationToken);

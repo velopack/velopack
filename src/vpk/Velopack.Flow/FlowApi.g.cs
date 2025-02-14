@@ -1589,14 +1589,14 @@ namespace Velopack.Flow
         }
 
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task<System.Collections.Generic.ICollection<VelopackAsset>> GetManifestAsync(string packageId, string channel)
+        public virtual System.Threading.Tasks.Task<System.Collections.Generic.ICollection<VelopackAsset>> GetManifestAsync(string packageId, string channel, string id, string stagingId, string arch, string os, string rid, string localVersion)
         {
-            return GetManifestAsync(packageId, channel, System.Threading.CancellationToken.None);
+            return GetManifestAsync(packageId, channel, id, stagingId, arch, os, rid, localVersion, System.Threading.CancellationToken.None);
         }
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<VelopackAsset>> GetManifestAsync(string packageId, string channel, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<VelopackAsset>> GetManifestAsync(string packageId, string channel, string id, string stagingId, string arch, string os, string rid, string localVersion, System.Threading.CancellationToken cancellationToken)
         {
             if (packageId == null)
                 throw new System.ArgumentNullException("packageId");
@@ -1620,6 +1620,32 @@ namespace Velopack.Flow
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(packageId, System.Globalization.CultureInfo.InvariantCulture)));
                     urlBuilder_.Append('/');
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(channel, System.Globalization.CultureInfo.InvariantCulture)));
+                    urlBuilder_.Append('?');
+                    if (id != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("Id")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(id, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (stagingId != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("StagingId")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(stagingId, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (arch != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("Arch")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(arch, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (os != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("Os")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(os, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (rid != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("Rid")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(rid, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (localVersion != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("LocalVersion")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(localVersion, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    urlBuilder_.Length--;
 
                     PrepareRequest(client_, request_, urlBuilder_);
 
@@ -1684,14 +1710,14 @@ namespace Velopack.Flow
         }
 
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task<System.Collections.Generic.ICollection<VelopackAsset>> GetChannelManifestAsync(string channel, string id, string arch, string os, string rid, string localVersion)
+        public virtual System.Threading.Tasks.Task<System.Collections.Generic.ICollection<VelopackAsset>> GetChannelManifestAsync(string channel, string id, string stagingId, string arch, string os, string rid, string localVersion)
         {
-            return GetChannelManifestAsync(channel, id, arch, os, rid, localVersion, System.Threading.CancellationToken.None);
+            return GetChannelManifestAsync(channel, id, stagingId, arch, os, rid, localVersion, System.Threading.CancellationToken.None);
         }
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<VelopackAsset>> GetChannelManifestAsync(string channel, string id, string arch, string os, string rid, string localVersion, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<VelopackAsset>> GetChannelManifestAsync(string channel, string id, string stagingId, string arch, string os, string rid, string localVersion, System.Threading.CancellationToken cancellationToken)
         {
             if (channel == null)
                 throw new System.ArgumentNullException("channel");
@@ -1715,6 +1741,10 @@ namespace Velopack.Flow
                     if (id != null)
                     {
                         urlBuilder_.Append(System.Uri.EscapeDataString("Id")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(id, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (stagingId != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("StagingId")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(stagingId, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
                     }
                     if (arch != null)
                     {
@@ -3841,14 +3871,14 @@ namespace Velopack.Flow
         }
 
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual System.Threading.Tasks.Task<ReleaseGroupListResponse> ListReleaseGroupsAsync(System.Guid projectId)
+        public virtual System.Threading.Tasks.Task<ReleaseGroupListResponse> ListReleaseGroupsAsync(System.Guid projectId, string channelId)
         {
-            return ListReleaseGroupsAsync(projectId, System.Threading.CancellationToken.None);
+            return ListReleaseGroupsAsync(projectId, channelId, System.Threading.CancellationToken.None);
         }
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<ReleaseGroupListResponse> ListReleaseGroupsAsync(System.Guid projectId, System.Threading.CancellationToken cancellationToken)
+        public virtual async System.Threading.Tasks.Task<ReleaseGroupListResponse> ListReleaseGroupsAsync(System.Guid projectId, string channelId, System.Threading.CancellationToken cancellationToken)
         {
             if (projectId == null)
                 throw new System.ArgumentNullException("projectId");
@@ -3868,6 +3898,10 @@ namespace Velopack.Flow
                     urlBuilder_.Append("v1/releaseGroups/list");
                     urlBuilder_.Append('?');
                     urlBuilder_.Append(System.Uri.EscapeDataString("projectId")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(projectId, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    if (channelId != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("channelId")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(channelId, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
                     urlBuilder_.Length--;
 
                     PrepareRequest(client_, request_, urlBuilder_);
@@ -4094,6 +4128,12 @@ namespace Velopack.Flow
                             throw new ApiException("A server side error occurred.", status_, responseText_, headers_, null);
                         }
                         else
+                        if (status_ == 400)
+                        {
+                            string responseText_ = ( response_.Content == null ) ? string.Empty : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new ApiException("A server side error occurred.", status_, responseText_, headers_, null);
+                        }
+                        else
                         if (status_ == 401)
                         {
                             string responseText_ = ( response_.Content == null ) ? string.Empty : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
@@ -4267,6 +4307,12 @@ namespace Velopack.Flow
                                 throw new ApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 400)
+                        {
+                            string responseText_ = ( response_.Content == null ) ? string.Empty : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new ApiException("A server side error occurred.", status_, responseText_, headers_, null);
                         }
                         else
                         if (status_ == 401)
@@ -4891,6 +4937,9 @@ namespace Velopack.Flow
         [Newtonsoft.Json.JsonProperty("version", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
         public string Version { get; set; }
 
+        [Newtonsoft.Json.JsonProperty("type", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
+        public VelopackAssetType Type { get; set; }
+
         [Newtonsoft.Json.JsonProperty("size", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
         public long Size { get; set; }
 
@@ -4908,6 +4957,24 @@ namespace Velopack.Flow
 
         [Newtonsoft.Json.JsonProperty("isComplete", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
         public bool IsComplete { get; set; }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public enum VelopackAssetType
+    {
+
+        Unknown = 0,
+
+        Full = 1,
+
+        Delta = 2,
+
+        Portable = 3,
+
+        Setup = 4,
+
+        MsiDeploymentTool = 5,
 
     }
 
@@ -5265,6 +5332,12 @@ namespace Velopack.Flow
         [Newtonsoft.Json.JsonProperty("channelName", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
         public string ChannelName { get; set; }
 
+        [Newtonsoft.Json.JsonProperty("packageId", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
+        public string PackageId { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("tieredRolloutPercentage", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
+        public double TieredRolloutPercentage { get; set; }
+
         [Newtonsoft.Json.JsonProperty("createdAt", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
         public System.DateTimeOffset CreatedAt { get; set; }
 
@@ -5406,6 +5479,10 @@ namespace Velopack.Flow
         [Newtonsoft.Json.JsonProperty("channelIdentifier", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
         public string ChannelIdentifier { get; set; }
 
+        [Newtonsoft.Json.JsonProperty("tieredRolloutPercentage", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
+        [System.ComponentModel.DataAnnotations.Range(0.0D, 1.0D)]
+        public double TieredRolloutPercentage { get; set; }
+
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
@@ -5420,6 +5497,10 @@ namespace Velopack.Flow
         [Newtonsoft.Json.JsonProperty("state", Required = Newtonsoft.Json.Required.Default, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
         [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
         public ReleaseGroupPublishState? State { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("tieredRolloutPercentage", Required = Newtonsoft.Json.Required.Default, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
+        [System.ComponentModel.DataAnnotations.Range(0.0D, 1.0D)]
+        public double? TieredRolloutPercentage { get; set; }
 
     }
 

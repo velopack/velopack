@@ -32,8 +32,14 @@ namespace Velopack.Sources
         public async Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null,
             VelopackAsset? latestLocalRelease = null)
         {
+            string? packageId = latestLocalRelease?.PackageId ?? VelopackLocator.GetDefault(logger).AppId;
+            if (string.IsNullOrWhiteSpace(packageId)) {
+                //Without a package id, we can't get a feed.
+                return new VelopackAssetFeed();
+            }
+
             Uri baseUri = new(BaseUri, $"v1.0/manifest/");
-            var uri = HttpUtil.AppendPathToUri(baseUri, CoreUtil.GetVeloReleaseIndexName(channel));
+            Uri uri = HttpUtil.AppendPathToUri(baseUri, $"{packageId}/{channel}");
             var args = new Dictionary<string, string>();
 
             if (VelopackRuntimeInfo.SystemArch != RuntimeCpu.Unknown) {
@@ -46,10 +52,11 @@ namespace Velopack.Sources
             }
 
             if (latestLocalRelease != null) {
-                args.Add("id", latestLocalRelease.PackageId);
                 args.Add("localVersion", latestLocalRelease.Version.ToString());
-            } else {
-                args.Add("id", VelopackLocator.GetDefault(logger).AppId ?? "");
+            }
+
+            if (stagingId != null) {
+                args.Add("stagingId", stagingId.Value.ToString());
             }
 
             var uriAndQuery = HttpUtil.AddQueryParamsToUri(uri, args);

@@ -38,19 +38,15 @@ public static class FlowApiExtensions
         return null;
     }
 
-    public static FileType ToFileType(this VelopackAssetType type)
+    public static FileType ToFileType(this Velopack.VelopackAssetType type)
     {
-        switch (type) {
-        case VelopackAssetType.Full:
-            return FileType.Full;
-        case VelopackAssetType.Delta:
-            return FileType.Delta;
-        case VelopackAssetType.Portable:
-            return FileType.Portable;
-        case VelopackAssetType.Installer:
-            return FileType.Setup;
-        default:
-            throw new ArgumentOutOfRangeException(nameof(type), type, null);
-        }
+        return type switch {
+            Velopack.VelopackAssetType.Full => FileType.Full,
+            Velopack.VelopackAssetType.Delta => FileType.Delta,
+            Velopack.VelopackAssetType.Portable => FileType.Portable,
+            Velopack.VelopackAssetType.Installer => FileType.Setup,
+            //TODO: MSI Deployment Tool?
+            _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
+        };
     }
 }

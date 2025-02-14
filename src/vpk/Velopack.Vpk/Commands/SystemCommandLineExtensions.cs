@@ -53,6 +53,12 @@ internal static class SystemCommandLineExtensions
         return option;
     }
 
+    public static CliOption<int> SetValidRange(this CliOption<int> option, int minimum, int maximum)
+    {
+        option.Validators.Add(x => Validate.MustBeBetween(x, minimum, maximum));
+        return option;
+    }
+
     public static CliOption<T> SetArgumentHelpName<T>(this CliOption<T> option, string argumentHelpName)
     {
         option.HelpName = argumentHelpName;
