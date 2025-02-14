@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use semver::Version;
-use guid_create::GUID;
+use uuid::Uuid;
+
 use crate::{
     bundle::{self, Manifest},
     util, Error,
@@ -306,9 +307,9 @@ impl VelopackLocator {
                 return beta_id;
             }
         }
-        let new_id = GUID::rand();
+        let new_id = Uuid::new_v4();
         std::fs::write(&beta_id_path, &new_id).expect("Unable to write .betaId file");
-        new_id
+        new_id.to_string()
     }
 }
 

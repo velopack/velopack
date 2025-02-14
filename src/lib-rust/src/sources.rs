@@ -12,7 +12,7 @@ use crate::bundle::Manifest;
 pub trait UpdateSource: Send + Sync {
     /// Retrieve the list of available remote releases from the package source. These releases
     /// can subsequently be downloaded with download_release_entry.
-    fn get_release_feed(&self, channel: &str, app: &bundle::Manifest) -> Result<VelopackAssetFeed, Error>;
+    fn get_release_feed(&self, channel: &str, app: &bundle::Manifest, staged_user_id: &str) -> Result<VelopackAssetFeed, Error>;
     /// Download the specified VelopackAsset to the provided local file path.
     fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress_sender: Option<Sender<i16>>) -> Result<(), Error>;
     /// Clone the source to create a new lifetime.
@@ -30,7 +30,7 @@ impl Clone for Box<dyn UpdateSource> {
 pub struct NoneSource {}
 
 impl UpdateSource for NoneSource {
-    fn get_release_feed(&self, _channel: &str, _app: &Manifest) -> Result<VelopackAssetFeed, Error> {
+    fn get_release_feed(&self, _channel: &str, _app: &Manifest, _staged_user_id: &str) -> Result<VelopackAssetFeed, Error> {
         Err(Error::Generic("None source does not checking release feed".to_owned()))
     }
     fn download_release_entry(&self, _asset: &VelopackAsset, _local_file: &str, _progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
@@ -68,8 +68,8 @@ impl AutoSource {
 }
 
 impl UpdateSource for AutoSource {
-    fn get_release_feed(&self, channel: &str, app: &bundle::Manifest) -> Result<VelopackAssetFeed, Error> {
-        self.source.get_release_feed(channel, app)
+    fn get_release_feed(&self, channel: &str, app: &bundle::Manifest, staged_user_id: &str) -> Result<VelopackAssetFeed, Error> {
+        self.source.get_release_feed(channel, app, staged_user_id)
     }
 
     fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
@@ -97,13 +97,13 @@ impl HttpSource {
 }
 
 impl UpdateSource for HttpSource {
-    fn get_release_feed(&self, channel: &str, app: &bundle::Manifest) -> Result<VelopackAssetFeed, Error> {
+    fn get_release_feed(&self, channel: &str, app: &bundle::Manifest, staged_user_id: &str) -> Result<VelopackAssetFeed, Error> {
         let releases_name = format!("releases.{}.json", channel);
 
         let path = self.url.trim_end_matches('/').to_owned() + "/";
         let url = url::Url::parse(&path)?;
         let mut releases_url = url.join(&releases_name)?;
-        releases_url.set_query(Some(format!("localVersion={}&id={}", app.version, app.id).as_str()));
+        releases_url.set_query(Some(format!("localVersion={}&id={}&stagingId={}", app.version, app.id, staged_user_id).as_str()));
 
         info!("Downloading releases for channel {} from: {}", channel, releases_url.to_string());
         let json = download::download_url_as_string(releases_url.as_str())?;
@@ -146,7 +146,7 @@ impl FileSource {
 }
 
 impl UpdateSource for FileSource {
-    fn get_release_feed(&self, channel: &str, _: &bundle::Manifest) -> Result<VelopackAssetFeed, Error> {
+    fn get_release_feed(&self, channel: &str, _: &bundle::Manifest, _staged_user_id: &str) -> Result<VelopackAssetFeed, Error> {
         let releases_name = format!("releases.{}.json", channel);
         let releases_path = self.path.join(&releases_name);
 

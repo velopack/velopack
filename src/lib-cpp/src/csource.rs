@@ -36,7 +36,7 @@ unsafe impl Send for CCallbackUpdateSource {}
 unsafe impl Sync for CCallbackUpdateSource {}
 
 impl UpdateSource for CCallbackUpdateSource {
-    fn get_release_feed(&self, channel: &str, _: &Manifest) -> Result<VelopackAssetFeed, Error> {
+    fn get_release_feed(&self, channel: &str, _: &Manifest, _staged_user_id: &str) -> Result<VelopackAssetFeed, Error> {
         let releases_name = format!("releases.{}.json", channel);
         let releases_name_cstr = CString::new(releases_name).unwrap();
 
