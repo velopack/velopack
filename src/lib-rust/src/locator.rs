@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use semver::Version;
+use guid_create::GUID;
 use crate::{
     bundle::{self, Manifest},
     util, Error,
@@ -211,6 +212,11 @@ impl VelopackLocator {
         self.manifest.version.clone()
     }
 
+    /// Returns unique identifier for this user which is used to calculate whether this user is eligible for staged roll outs.
+    pub fn get_staged_user_id(&self) -> String {
+        self.get_or_create_staged_user_id().clone()
+    }
+
     /// Returns the current app's version as a string containing all parts.
     pub fn get_manifest_version_full_string(&self) -> String {
         self.manifest.version.to_string()
@@ -289,6 +295,20 @@ impl VelopackLocator {
 
     fn path_as_string(path: &PathBuf) -> String {
         path.to_string_lossy().to_string()
+    }
+
+    fn get_or_create_staged_user_id(&self) -> String {
+        let packages_dir = self.get_packages_dir();
+        let beta_id_path = packages_dir.join(".betaId");
+        if beta_id_path.exists() {
+            info!("Found existing staged user id...");
+            if let Ok(beta_id) = std::fs::read_to_string(&beta_id_path) {
+                return beta_id;
+            }
+        }
+        let new_id = GUID::rand();
+        std::fs::write(&beta_id_path, &new_id).expect("Unable to write .betaId file");
+        new_id
     }
 }
 
