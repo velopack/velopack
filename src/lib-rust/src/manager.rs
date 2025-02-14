@@ -245,9 +245,9 @@ impl UpdateManager {
 
     /// Get a list of available remote releases from the package source.
     #[cfg(feature = "async")]
-    pub fn get_release_feed_async(&self) -> JoinHandle<Result<VelopackAssetFeed, Error>> {
+    pub fn get_release_feed_async(&self, staged_user_id: String) -> JoinHandle<Result<VelopackAssetFeed, Error>> {
         let self_clone = self.clone();
-        async_std::task::spawn_blocking(move || self_clone.get_release_feed())
+        async_std::task::spawn_blocking(move || self_clone.get_release_feed(staged_user_id.as_str()))
     }
 
     /// Checks for updates, returning None if there are none available. If there are updates available, this method will return an
