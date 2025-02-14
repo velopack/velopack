@@ -256,6 +256,7 @@ impl UpdateManager {
         let allow_downgrade = self.options.AllowVersionDowngrade;
         let app_channel = self.locator.get_manifest_channel();
         let app_version = self.locator.get_manifest_version();
+        let staged_user_id = self.locator.get_staged_user_id();
         let feed = self.get_release_feed()?;
         let assets = feed.Assets;
 
