@@ -238,9 +238,9 @@ impl UpdateManager {
     }
 
     /// Get a list of available remote releases from the package source.
-    pub fn get_release_feed(&self) -> Result<VelopackAssetFeed, Error> {
+    pub fn get_release_feed(&self, staged_user_id: &str) -> Result<VelopackAssetFeed, Error> {
         let channel = self.get_practical_channel();
-        self.source.get_release_feed(&channel, &self.locator.get_manifest())
+        self.source.get_release_feed(&channel, &self.locator.get_manifest(), &staged_user_id)
     }
 
     /// Get a list of available remote releases from the package source.
@@ -257,7 +257,7 @@ impl UpdateManager {
         let app_channel = self.locator.get_manifest_channel();
         let app_version = self.locator.get_manifest_version();
         let staged_user_id = self.locator.get_staged_user_id();
-        let feed = self.get_release_feed()?;
+        let feed = self.get_release_feed(&staged_user_id)?;
         let assets = feed.Assets;
 
         let practical_channel = self.get_practical_channel();

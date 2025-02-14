@@ -82,6 +82,7 @@ cbindgen = "0.28"
 log-panics = "2.1.0"
 core-foundation = "0.10"
 core-foundation-sys = "0.8"
+uuid = { version = "1.13.1", features = ["v4", "fast-rng", "macro-diagnostics"] }
 
 # default to small, optimized workspace release binaries
 [profile.release]
