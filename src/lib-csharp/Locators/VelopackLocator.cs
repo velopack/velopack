@@ -154,7 +154,7 @@ namespace Velopack.Locators
         {
             if (PackagesDir == null) return null;
             var stagedUserIdFile = Path.Combine(PackagesDir, ".betaId");
-            var ret = default(Guid);
+            Guid ret;
 
             if (File.Exists(stagedUserIdFile)) {
                 try {
@@ -170,13 +170,9 @@ namespace Velopack.Locators
                 Log.Warn($"No userId could not be parsed from '{stagedUserIdFile}', creating a new one.");
             }
 
-            var prng = new Random();
-            var buf = new byte[4096];
-            prng.NextBytes(buf);
-
-            ret = GuidUtil.CreateGuidFromHash(buf);
+            ret = Guid.NewGuid();
             try {
-                File.WriteAllText(stagedUserIdFile, ret.ToString(), Encoding.UTF8);
+                File.WriteAllText(stagedUserIdFile, ret.ToString("N"), Encoding.UTF8);
                 Log.Info($"Generated new staging userId: {ret}");
                 return ret;
             } catch (Exception ex) {

@@ -7,7 +7,7 @@ using Velopack.Util;
 
 namespace Velopack.Tests.TestHelpers;
 
-internal class FakeFixtureRepository : Sources.IFileDownloader
+internal class FakeFixtureRepository : IFileDownloader
 {
     private readonly string _pkgId;
     private readonly IEnumerable<ReleaseEntry> _releases;

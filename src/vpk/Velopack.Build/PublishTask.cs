@@ -53,7 +53,7 @@ public class PublishTask : MSBuildAsyncTask
         // todo: currently it's not possible to cross-compile for different OSes using Velopack.Build
         var targetOs = VelopackRuntimeInfo.SystemOs;
 
-        await client.UploadLatestReleaseAssetsAsync(Channel, ReleaseDirectory, targetOs, WaitForLive, cancellationToken)
+        await client.UploadLatestReleaseAssetsAsync(Channel, ReleaseDirectory, targetOs, WaitForLive, 100, cancellationToken)
             .ConfigureAwait(false);
 
         return true;

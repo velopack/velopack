@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt
+// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt
 
 using System;
 using System.Collections.Concurrent;
@@ -104,7 +104,7 @@ namespace Velopack.Util
             return ExtremaBy(source, keySelector, (key, minValue) => comparer.Compare(key, minValue));
         }
 
-        private static IList<TSource> ExtremaBy<TSource, TKey>(IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TKey, TKey, int> compare)
+        private static List<TSource> ExtremaBy<TSource, TKey>(IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TKey, TKey, int> compare)
         {
             var result = new List<TSource>();
 

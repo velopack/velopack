@@ -9,4 +9,6 @@ public sealed class PublishOptions : VelopackFlowServiceOptions
     public string? Channel { get; set; }
 
     public bool WaitForLive { get; set; }
+
+    public int TieredRolloutPercentage { get; set; }
 }

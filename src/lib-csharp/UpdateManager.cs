@@ -122,11 +122,11 @@ namespace Velopack
         {
             EnsureInstalled();
             var installedVer = CurrentVersion!;
-            var betaId = Locator.GetOrCreateStagedUserId();
+            var stagedUserId = Locator.GetOrCreateStagedUserId();
             var latestLocalFull = Locator.GetLatestLocalFullPackage();
 
             Log.Debug("Retrieving latest release feed.");
-            var feedObj = await Source.GetReleaseFeed(Log, Channel, betaId, latestLocalFull).ConfigureAwait(false);
+            var feedObj = await Source.GetReleaseFeed(Log, Channel, stagedUserId, latestLocalFull).ConfigureAwait(false);
             var feed = feedObj.Assets;
 
             var latestRemoteFull = feed.Where(r => r.Type == VelopackAssetType.Full).MaxByPolyfill(x => x.Version).FirstOrDefault();

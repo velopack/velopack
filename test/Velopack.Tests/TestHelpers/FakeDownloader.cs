@@ -1,14 +1,15 @@
 ﻿using System.Text;
+using Velopack.Sources;
 
 namespace Velopack.Tests;
 
-public class FakeDownloader : Sources.IFileDownloader
+public class FakeDownloader : IFileDownloader
 {
     public string LastUrl { get; private set; }
     public string LastLocalFile { get; private set; }
     public string LastAuthHeader { get; private set; }
     public string LastAcceptHeader { get; private set; }
-    public byte[] MockedResponseBytes { get; set; } = new byte[0];
+    public byte[] MockedResponseBytes { get; set; } = [];
     public bool WriteMockLocalFile { get; set; } = false;
 
     public Task<byte[]> DownloadBytes(string url, string auth, string acc, double timeout = 30)
