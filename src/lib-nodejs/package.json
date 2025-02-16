@@ -36,7 +36,7 @@
   "author": "Velopack Ltd, Caelan Sayler",
   "license": "MIT",
   "engines": {
-    "node": ">=18.0.0 <=22.13.1"
+    "node": ">=18.0.0 <=22.14.0"
   },
   "files": [
     "lib/**/*.ts",
@@ -50,7 +50,7 @@
     "cross-env": "^7.0.3",
     "del-cli": "^6.0.0",
     "jest": "^29.7.0",
-    "prettier": "3.4.2",
+    "prettier": "3.5.1",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
