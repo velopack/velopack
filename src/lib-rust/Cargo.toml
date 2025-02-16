@@ -26,6 +26,9 @@ features = ["async", "delta"]
 name = "velopack"
 path = "src/lib.rs"
 
+[dev-dependencies]
+tempfile.workspace = true
+
 [dependencies]
 log.workspace = true
 ureq.workspace = true
