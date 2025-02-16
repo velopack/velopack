@@ -38,6 +38,10 @@ where
         }
     }
 
+    if downloaded < total_size.unwrap_or(0) {
+        return Err(Error::Generic("Download updates were interrupted.".to_owned()));
+    }
+
     Ok(())
 }
 
