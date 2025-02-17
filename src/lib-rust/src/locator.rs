@@ -309,6 +309,11 @@ impl VelopackLocator {
         }
         let new_id = Uuid::new_v4();
         std::fs::write(&beta_id_path, &new_id).expect("Unable to write .betaId file");
+        if let Err(_e) = std::fs::write(&beta_id_path, &new_id) {
+            warn!("Couldn't write out staging userId.");
+        } else {
+            info!("Generated new staging userId: {}", new_id.to_string());
+        }
         new_id.to_string()
     }
 }
