@@ -238,16 +238,17 @@ impl UpdateManager {
     }
 
     /// Get a list of available remote releases from the package source.
-    pub fn get_release_feed(&self, staged_user_id: &str) -> Result<VelopackAssetFeed, Error> {
+    pub fn get_release_feed(&self) -> Result<VelopackAssetFeed, Error> {
         let channel = self.get_practical_channel();
-        self.source.get_release_feed(&channel, &self.locator.get_manifest(), &staged_user_id)
+        let staged_user_id = self.locator.get_staged_user_id();
+        return self.source.get_release_feed(&channel, &self.locator.get_manifest(), staged_user_id.as_str());
     }
 
     /// Get a list of available remote releases from the package source.
     #[cfg(feature = "async")]
-    pub fn get_release_feed_async(&self, staged_user_id: String) -> JoinHandle<Result<VelopackAssetFeed, Error>> {
+    pub fn get_release_feed_async(&self) -> JoinHandle<Result<VelopackAssetFeed, Error>> {
         let self_clone = self.clone();
-        async_std::task::spawn_blocking(move || self_clone.get_release_feed(staged_user_id.as_str()))
+        async_std::task::spawn_blocking(move || self_clone.get_release_feed())
     }
 
     /// Checks for updates, returning None if there are none available. If there are updates available, this method will return an
@@ -256,8 +257,7 @@ impl UpdateManager {
         let allow_downgrade = self.options.AllowVersionDowngrade;
         let app_channel = self.locator.get_manifest_channel();
         let app_version = self.locator.get_manifest_version();
-        let staged_user_id = self.locator.get_staged_user_id();
-        let feed = self.get_release_feed(&staged_user_id)?;
+        let feed = self.get_release_feed()?;
         let assets = feed.Assets;
 
         let practical_channel = self.get_practical_channel();
