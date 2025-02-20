@@ -26,7 +26,7 @@ public class PublishCommand : VelopackServiceCommand
         AddOption<bool>(v => WaitForLive = v, "--waitForLive")
             .SetDescription("Wait for the release to finish processing and go live.");
 
-        AddOption<int>(v => TieredRolloutPercentage = v, "--tieredRolloutPercentage")
+        AddOption<int>(v => TieredRolloutPercentage = v, "--rolloutPercentage")
             .SetDescription("Set the starting percentage for this release when using a tiered rollout. Range 0 to 100")
             .SetDefault(100)
             .SetValidRange(0, 100);
