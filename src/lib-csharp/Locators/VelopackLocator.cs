@@ -167,7 +167,7 @@ namespace Velopack.Locators
                     Log.Debug(ex, "Couldn't read staging userId, creating a new one");
                 }
             } else {
-                Log.Warn($"No userId could not be parsed from '{stagedUserIdFile}', creating a new one.");
+                Log.Warn($"No staging userId in file '{stagedUserIdFile}', creating a new one.");
             }
 
             ret = Guid.NewGuid();
