@@ -308,7 +308,7 @@ impl VelopackLocator {
             }
         }
         let new_id = Uuid::new_v4();
-        if let Err(_e) = std::fs::write(&beta_id_path, &new_id) {
+        if let Err(_e) = std::fs::write(&beta_id_path, new_id.to_string()) {
             warn!("Couldn't write out staging userId.");
         } else {
             info!("Generated new staging userId: {}", new_id.to_string());
@@ -555,4 +555,76 @@ pub fn find_latest_full_package(packages_dir: &PathBuf) -> Option<(PathBuf, Mani
         }
     }
     package
+}
+
+mod locator_tests
+{
+    use super::*;
+    use std::fs;
+
+    struct TestCleanup {
+        path: PathBuf,
+    }
+    
+    impl Drop for TestCleanup {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.path);
+        }
+    }
+
+    #[test]
+    fn test_locator_staged_id_for_new_user() {
+        //Create new locator with paths to a test directory
+        let test_dir = std::env::temp_dir().join(format!("velopack_{}", util::random_string(8)));
+
+        let _cleanup = TestCleanup {
+            path: test_dir.clone(),
+        };
+
+        let mut paths = VelopackLocatorConfig::default();
+        paths.PackagesDir = test_dir;
+        //Esure the packages directory exists
+        assert!(std::fs::create_dir_all(&paths.PackagesDir).is_ok());
+    
+        let locator = VelopackLocator::new(paths, Manifest::default());
+    
+        let staged_user_id = locator.get_staged_user_id();
+    
+        assert_ne!(staged_user_id, "");
+        let packages_dir = locator.get_packages_dir();
+        let beta_id_path = packages_dir.join(".betaId");
+        assert!(beta_id_path.exists());
+    
+        if let Ok(beta_id) = std::fs::read_to_string(&beta_id_path) {
+            assert_eq!(staged_user_id, beta_id);
+        } else {
+            assert!(false, "Couldn't read staging userId.");
+        }
+    }
+    
+    #[test]
+    fn test_locator_staged_id_for_existing_user() {
+        let test_dir = std::env::temp_dir().join(format!("velopack_{}", util::random_string(8)));
+
+        let _cleanup = TestCleanup {
+            path: test_dir.clone(),
+        };
+
+        let mut paths = VelopackLocatorConfig::default();
+        paths.PackagesDir = test_dir;
+        //Esure the packages directory exists
+        assert!(std::fs::create_dir_all(&paths.PackagesDir).is_ok());
+    
+        let locator = VelopackLocator::new(paths, Manifest::default());
+    
+        let packages_dir = locator.get_packages_dir();
+        let beta_id_path = packages_dir.join(".betaId");
+    
+        let expected_user_id = "test user id";
+        std::fs::write(&beta_id_path, expected_user_id).unwrap();
+    
+        let staged_user_id = locator.get_staged_user_id();
+    
+        assert_eq!(expected_user_id, staged_user_id);
+    }
 }
