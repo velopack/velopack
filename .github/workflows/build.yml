@@ -91,6 +91,7 @@ jobs:
       - name: Install Dependencies
         run: |
           rustup target add aarch64-unknown-linux-gnu
+          sudo apt update
           sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
       - name: Update Version
         shell: pwsh
@@ -230,6 +231,7 @@ jobs:
       - name: Install FUSE
         run: |
           sudo add-apt-repository universe
+          sudo apt update
           sudo apt install libfuse2
         if: ${{ matrix.os == 'ubuntu-latest' }}
       - name: Install squashfs-tools
@@ -426,6 +428,7 @@ jobs:
         if: ${{ matrix.sample == 'CPlusPlusWidgets' && matrix.os == 'macos-latest' }}
       - name: Install wxWidgets (Linux)
         run: |
+          sudo apt update
           sudo apt-cache search libwxgt*
           sudo apt-cache search libgtk*
           sudo apt install -y libwxgtk3.2-dev libgtk-3-dev
