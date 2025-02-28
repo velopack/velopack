@@ -23,7 +23,7 @@
     <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.68.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.2" />
     <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="6.0.0" Aliases="HttpFormatting" />
-    <PackageReference Include="NuGet.Protocol" Version="6.13.1" />
+    <PackageReference Include="NuGet.Protocol" Version="6.13.2" />
   </ItemGroup>
 
 </Project>
