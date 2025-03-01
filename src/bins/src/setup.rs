@@ -60,7 +60,7 @@ fn main() -> Result<()> {
 fn main_inner() -> Result<()> {
     #[rustfmt::skip]
     let mut arg_config = Command::new("Setup")
-        .about(format!("Velopack Setup ({}) installs applications.\nhttps:/velopack.io", env!("NGBV_VERSION")))
+        .about(format!("Velopack Setup ({}) installs applications.\nhttps://velopack.io", env!("NGBV_VERSION")))
         .arg(arg!(-s --silent "Hides all dialogs and answers 'yes' to all prompts"))
         .arg(arg!(-v --verbose "Print debug messages to console"))
         .arg(arg!(-l --log <FILE> "Enable file logging and set location").required(false).value_parser(value_parser!(PathBuf)))

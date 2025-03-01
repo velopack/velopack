@@ -14,7 +14,7 @@ use velopack_bins::{*, shared::OperationWait};
 fn root_command() -> Command {
     let cmd = Command::new("Update")
     .version(env!("NGBV_VERSION"))
-    .about(format!("Velopack Updater ({}) manages packages and installs updates.\nhttps:/velopack.io", env!("NGBV_VERSION")))
+    .about(format!("Velopack Updater ({}) manages packages and installs updates.\nhttps://velopack.io", env!("NGBV_VERSION")))
     .subcommand(Command::new("apply")
         .about("Applies a staged / prepared update, installing prerequisite runtimes if necessary")
         .arg(arg!(--norestart "Do not restart the application after the update"))
@@ -45,10 +45,10 @@ fn root_command() -> Command {
         // Reason being is clap.ignore_errors(true) is not 100%, and sometimes old args can trip things up.
     .arg(arg!(--forceLatest "Legacy argument").hide(true).global(true))
     .arg(arg!(-r --restart "Legacy argument").hide(true).global(true))
-    .arg(arg!(--nocolor "Legacy argument").hide(true).global(true))
-    .ignore_errors(true)
-    .disable_help_subcommand(true)
-    .flatten_help(true);
+    .arg(arg!(--nocolor "Legacy argument").hide(true).global(true));
+    // .ignore_errors(true)
+    // .disable_help_subcommand(true)
+    // .flatten_help(true);
 
     #[cfg(target_os = "windows")]
     let cmd = cmd.subcommand(Command::new("uninstall")
@@ -135,6 +135,7 @@ fn main() -> Result<()> {
     let desired_log_file = log_file.cloned().unwrap_or(locator::default_log_location(LocationContext::IAmUpdateExe));
     logging::setup_logging("update", Some(&desired_log_file), true, verbose)?;
 
+    warn!("This is a warning message");
     // change working directory to the parent directory of the exe
     let mut containing_dir = env::current_exe()?;
     containing_dir.pop();
