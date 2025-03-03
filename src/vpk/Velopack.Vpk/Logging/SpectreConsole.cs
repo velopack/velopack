@@ -1,5 +1,6 @@
 ﻿using System.Threading;
 using Spectre.Console;
+using Velopack.Core;
 using Velopack.Core.Abstractions;
 using Velopack.Util;
 

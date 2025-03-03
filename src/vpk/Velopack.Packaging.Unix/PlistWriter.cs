@@ -1,6 +1,7 @@
 ﻿// https://raw.githubusercontent.com/egramtel/dotnet-bundle/master/DotNet.Bundle/PlistWriter.cs
 using System.Xml;
 using Microsoft.Extensions.Logging;
+using Velopack.Core;
 using Velopack.Util;
 
 namespace Velopack.Packaging.Unix;

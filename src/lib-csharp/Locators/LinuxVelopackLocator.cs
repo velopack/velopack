@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Runtime.Versioning;
-using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
+using Velopack.Logging;
 using Velopack.NuGet;
 using Velopack.Util;
 
@@ -34,6 +34,9 @@ namespace Velopack.Locators
         public override string? Channel { get; }
         
         /// <inheritdoc />
+        public override IVelopackLogger Log { get; }
+
+        /// <inheritdoc />
         public override string? AppTempDir => CreateSubDirIfDoesNotExist(TempUtil.GetDefaultTempBaseDirectory(), AppId);
 
         /// <inheritdoc />
@@ -58,8 +61,7 @@ namespace Velopack.Locators
         /// Creates a new <see cref="OsxVelopackLocator"/> and auto-detects the
         /// app information from metadata embedded in the .app.
         /// </summary>
-        public LinuxVelopackLocator(string currentProcessPath, uint currentProcessId, ILogger logger)
-            : base(logger)
+        public LinuxVelopackLocator(string currentProcessPath, uint currentProcessId, IVelopackLogger? logger)
         {
             if (!VelopackRuntimeInfo.IsLinux)
                 throw new NotSupportedException("Cannot instantiate LinuxVelopackLocator on a non-linux system.");
@@ -67,12 +69,16 @@ namespace Velopack.Locators
             ProcessId = currentProcessId;
             var ourPath = ProcessExePath = currentProcessPath;
 
-            Log.Info($"Initialising {nameof(LinuxVelopackLocator)}");
+            logger ??= new FileVelopackLogger("/tmp/velopack.log", currentProcessId);
+            logger.Info($"Initialising {nameof(LinuxVelopackLocator)}");
+            Log = logger;
 
             // are we inside a mounted .AppImage?
             var ix = ourPath.IndexOf("/usr/bin/", StringComparison.InvariantCultureIgnoreCase);
             if (ix <= 0) {
-                Log.Warn($"Unable to locate .AppImage root from '{ourPath}'. This warning indicates that the application is not running from a mounted .AppImage, for example during development.");
+                logger.Warn(
+                    $"Unable to locate .AppImage root from '{ourPath}'. " +
+                    $"This warning indicates that the application is not running from a mounted .AppImage, for example during development.");
                 return;
             }
 
@@ -83,7 +89,7 @@ namespace Velopack.Locators
 
             if (!String.IsNullOrEmpty(AppImagePath) && File.Exists(AppImagePath)) {
                 if (File.Exists(updateExe) && PackageManifest.TryParseFromFile(metadataPath, out var manifest)) {
-                    Log.Info("Located valid manifest file at: " + metadataPath);
+                    logger.Info("Located valid manifest file at: " + metadataPath);
                     AppId = manifest.Id;
                     RootAppDir = rootDir;
                     AppContentDir = contentsDir;

@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
+using Velopack.Logging;
+
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
 namespace Velopack.Locators
@@ -19,6 +20,7 @@ namespace Velopack.Locators
                 if (_id == null) {
                     throw new NotSupportedException("AppId is not supported in this test implementation.");
                 }
+
                 return _id;
             }
         }
@@ -28,6 +30,7 @@ namespace Velopack.Locators
                 if (_root == null) {
                     throw new NotSupportedException("RootAppDir is not supported in this test implementation.");
                 }
+
                 return _root;
             }
         }
@@ -37,6 +40,7 @@ namespace Velopack.Locators
                 if (_packages == null) {
                     throw new NotSupportedException("PackagesDir is not supported in this test implementation.");
                 }
+
                 return _packages;
             }
         }
@@ -46,6 +50,7 @@ namespace Velopack.Locators
                 if (_updatePath == null) {
                     throw new NotSupportedException("UpdateExePath is not supported in this test implementation.");
                 }
+
                 return _updatePath;
             }
         }
@@ -55,6 +60,7 @@ namespace Velopack.Locators
                 if (_version == null) {
                     throw new NotSupportedException("CurrentlyInstalledVersion is not supported in this test implementation.");
                 }
+
                 return _version;
             }
         }
@@ -64,6 +70,7 @@ namespace Velopack.Locators
                 if (_appContent == null) {
                     throw new NotSupportedException("AppContentDir is not supported in this test implementation.");
                 }
+
                 return _appContent;
             }
         }
@@ -74,11 +81,14 @@ namespace Velopack.Locators
             }
         }
 
+        public override IVelopackLogger Log { get; }
+
         public override VelopackAsset? GetLatestLocalFullPackage()
         {
             if (_asset != null) {
                 return _asset;
             }
+
             return base.GetLatestLocalFullPackage();
         }
 
@@ -96,15 +106,14 @@ namespace Velopack.Locators
         private readonly VelopackAsset? _asset;
 
         /// <inheritdoc cref="TestVelopackLocator" />
-        public TestVelopackLocator(string appId, string version, string packagesDir, ILogger? logger = null)
+        public TestVelopackLocator(string appId, string version, string packagesDir, IVelopackLogger? logger = null)
             : this(appId, version, packagesDir, null, null, null, null, logger)
         {
         }
 
         /// <inheritdoc cref="TestVelopackLocator" />
         public TestVelopackLocator(string appId, string version, string packagesDir, string? appDir,
-            string? rootDir, string? updateExe, string? channel = null, ILogger? logger = null, VelopackAsset? localPackage = null, string processPath = null!)
-            : base(logger)
+            string? rootDir, string? updateExe, string? channel = null, IVelopackLogger? logger = null, VelopackAsset? localPackage = null, string processPath = null!)
         {
             _id = appId;
             _packages = packagesDir;
@@ -115,6 +124,7 @@ namespace Velopack.Locators
             _channel = channel;
             _asset = localPackage;
             ProcessExePath = processPath;
+            Log = logger ?? new NullVelopackLogger();
         }
     }
 }

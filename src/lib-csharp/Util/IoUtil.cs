@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -6,8 +6,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
+using Velopack.Logging;
 
 namespace Velopack.Util
 {
@@ -73,9 +72,9 @@ namespace Velopack.Util
         /// <param name="renameFirst">Try to rename this object first before deleting. Can help prevent partial delete of folders.</param>
         /// <param name="logger">Logger for diagnostic messages.</param>
         /// <returns>True if the file system object was deleted, false otherwise.</returns>
-        public static bool DeleteFileOrDirectoryHard(string path, bool throwOnFailure = true, bool renameFirst = false, ILogger? logger = null)
+        public static bool DeleteFileOrDirectoryHard(string path, bool throwOnFailure = true, bool renameFirst = false, IVelopackLogger? logger = null)
         {
-            logger ??= NullLogger.Instance;
+            logger ??= NullVelopackLogger.Instance;
             logger.Debug($"Starting to delete: {path}");
 
             string? currentExePath = null;
@@ -111,7 +110,7 @@ namespace Velopack.Util
             }
         }
 
-        private static void DeleteFsiTree(FileSystemInfo fileSystemInfo, string? currentExePath, ILogger logger)
+        private static void DeleteFsiTree(FileSystemInfo fileSystemInfo, string? currentExePath, IVelopackLogger logger)
         {
             // if junction / symlink, don't iterate, just delete it.
             if (fileSystemInfo.Attributes.HasFlag(FileAttributes.ReparsePoint)) {
@@ -135,7 +134,7 @@ namespace Velopack.Util
             DeleteFsiVeryHard(fileSystemInfo, currentExePath, logger);
         }
 
-        private static void DeleteFsiVeryHard(FileSystemInfo fileSystemInfo, string? currentExePath, ILogger logger)
+        private static void DeleteFsiVeryHard(FileSystemInfo fileSystemInfo, string? currentExePath, IVelopackLogger logger)
         {
             // don't try to delete the running process
             if (currentExePath != null && PathUtil.FullPathEquals(fileSystemInfo.FullName, currentExePath)) {
@@ -171,7 +170,7 @@ namespace Velopack.Util
             }
         }
 
-        public static void Retry(this Action block, int retries = 4, int retryDelay = 250, ILogger? logger = null)
+        public static void Retry(this Action block, int retries = 4, int retryDelay = 250, IVelopackLogger? logger = null)
         {
             Retry(
                 () => {
@@ -183,7 +182,7 @@ namespace Velopack.Util
                 logger);
         }
 
-        public static T Retry<T>(this Func<T> block, int retries = 4, int retryDelay = 250, ILogger? logger = null)
+        public static T Retry<T>(this Func<T> block, int retries = 4, int retryDelay = 250, IVelopackLogger? logger = null)
         {
             while (true) {
                 try {
@@ -198,7 +197,7 @@ namespace Velopack.Util
             }
         }
 
-        public static Task RetryAsync(this Func<Task> block, int retries = 4, int retryDelay = 250, ILogger? logger = null)
+        public static Task RetryAsync(this Func<Task> block, int retries = 4, int retryDelay = 250, IVelopackLogger? logger = null)
         {
             return RetryAsync(
                 async () => {
@@ -210,7 +209,7 @@ namespace Velopack.Util
                 logger);
         }
 
-        public static async Task<T> RetryAsync<T>(this Func<Task<T>> block, int retries = 4, int retryDelay = 250, ILogger? logger = null)
+        public static async Task<T> RetryAsync<T>(this Func<Task<T>> block, int retries = 4, int retryDelay = 250, IVelopackLogger? logger = null)
         {
             while (true) {
                 try {

@@ -2,6 +2,7 @@
 using Velopack.Sources;
 using Octokit;
 using Velopack.Core;
+using Velopack.Locators;
 using Velopack.Packaging.Exceptions;
 using Velopack.Util;
 
@@ -167,7 +168,7 @@ public class GithubDeploymentTests
 
         // update
         var source = new GithubSource(GITHUB_REPOURL, GITHUB_TOKEN, false);
-        var releases = source.GetReleaseFeed(channel: uniqueSuffix, logger: logger).GetAwaiterResult();
+        var releases = source.GetReleaseFeed(logger.ToVelopackLogger(), null, channel: uniqueSuffix).GetAwaiterResult();
 
         var ghrel = releases.Assets.Select(r => (GithubSource.GitBaseAsset) r).ToArray();
         foreach (var g in ghrel) {

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using NuGet.Versioning;
+using Velopack.Logging;
 
 namespace Velopack.Locators
 {
@@ -38,7 +39,10 @@ namespace Velopack.Locators
 
         /// <summary> The release channel this package was built for. </summary>
         public string? Channel { get; }
-
+        
+        /// <summary> The logging interface to use for Velopack diagnostic messages. </summary>
+        public IVelopackLogger Log { get; }
+        
         /// <summary>
         /// A flag indicating if this is a portable build, and that the settings should be self-contained in the package.
         /// On Windows, this is true for portable builds, and false for non-portable builds which were installed by Setup.exe

@@ -76,8 +76,9 @@ public class DeltaPackageBuilder
             _logger.Info($"Creating delta for {basePackage.Version} -> {newPackage.Version} with {numParallel} parallel threads.");
             _logger.Debug($"Extracting {Path.GetFileName(basePackage.PackageFile)} and {Path.GetFileName(newPackage.PackageFile)} into {tempPath}");
 
-            EasyZip.ExtractZipToDirectory(_logger, basePackage.PackageFile, baseTempInfo.FullName);
-            EasyZip.ExtractZipToDirectory(_logger, newPackage.PackageFile, tempInfo.FullName);
+            var veloLogger = _logger.ToVelopackLogger();
+            EasyZip.ExtractZipToDirectory(veloLogger, basePackage.PackageFile, baseTempInfo.FullName);
+            EasyZip.ExtractZipToDirectory(veloLogger, newPackage.PackageFile, tempInfo.FullName);
 
             // Collect a list of relative paths under 'lib' and map them
             // to their full name. We'll use this later to determine in
@@ -191,7 +192,7 @@ public class DeltaPackageBuilder
                     "Delta creation failed for one or more files. See log for details. To skip delta generation, use the '--delta none' argument.");
             }
 
-            EasyZip.CreateZipFromDirectoryAsync(_logger, outputFile, tempInfo.FullName, CoreUtil.CreateProgressDelegate(progress, 70, 100)).GetAwaiterResult();
+            EasyZip.CreateZipFromDirectoryAsync(_logger.ToVelopackLogger(), outputFile, tempInfo.FullName, CoreUtil.CreateProgressDelegate(progress, 70, 100)).GetAwaiterResult();
             progress(100);
             fRemoved = baseLibFiles.Count;
 

@@ -1,5 +1,6 @@
 using System.Runtime.Versioning;
 using Velopack.Compression;
+using Velopack.Core;
 using Velopack.Util;
 
 namespace Velopack.Packaging.Tests;
@@ -32,7 +33,7 @@ public class OsxPackTests
         TestApp.PackTestApp(id, "0.0.1", string.Empty, tmpReleaseDir, logger, channel: channel, packTitle: title);
 
         var portablePath = Path.Combine(tmpReleaseDir, $"{id}-{channel}-Portable.zip");
-        EasyZip.ExtractZipToDirectory(logger, portablePath, unzipDir);
+        EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), portablePath, unzipDir);
 
         var bundlePath = Path.Combine(unzipDir, $"{title}.app");
         Assert.True(Directory.Exists(bundlePath));

@@ -33,7 +33,8 @@ public class DeltaPatchCommandRunner : ICommand<DeltaPatchOptions>
         using var _1 = TempUtil.GetTempDirectory(out var workDir);
 
         var delta = new DeltaEmbedded(HelperFile.GetZstdPath(), _logger, tmp);
-        EasyZip.ExtractZipToDirectory(_logger, options.BasePackage, workDir);
+        var veloLogger = _logger.ToVelopackLogger();
+        EasyZip.ExtractZipToDirectory(veloLogger, options.BasePackage, workDir);
 
         await _console.ExecuteProgressAsync(
             async (ctx) => {
@@ -50,7 +51,7 @@ public class DeltaPatchCommandRunner : ICommand<DeltaPatchOptions>
                 await ctx.RunTask(
                     $"Building {Path.GetFileName(options.OutputFile)}",
                     async (progress) => {
-                        await EasyZip.CreateZipFromDirectoryAsync(_logger, options.OutputFile, workDir, progress);
+                        await EasyZip.CreateZipFromDirectoryAsync(veloLogger, options.OutputFile, workDir, progress);
                         progress(100);
                     });
             });

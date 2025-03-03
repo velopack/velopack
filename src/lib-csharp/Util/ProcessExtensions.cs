@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
+using Velopack.Logging;
 
 namespace Velopack.Util
 {
@@ -56,7 +56,7 @@ namespace Velopack.Util
         }
 #endif
 
-        public static Process StartRedirectOutputToILogger(this ProcessStartInfo psi, ILogger log, LogLevel outputLevel)
+        public static Process StartRedirectOutputToILogger(this ProcessStartInfo psi, IVelopackLogger log, VelopackLogLevel outputLevel)
         {
             psi.RedirectStandardOutput = true;
             psi.RedirectStandardError = true;

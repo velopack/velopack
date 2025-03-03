@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Velopack.Core;
 using Velopack.Packaging;
 using Velopack.Sources;
 using Velopack.Util;
@@ -68,12 +69,12 @@ public class LocalRepository(ILogger logger) : ObjectRepository<LocalDownloadOpt
     protected override Task SaveEntryToFileAsync(LocalDownloadOptions options, VelopackAsset entry, string filePath)
     {
         var source = new SimpleFileSource(options.TargetPath);
-        return source.DownloadReleaseEntry(Log, entry, filePath, (i) => { }, default);
+        return source.DownloadReleaseEntry(Log.ToVelopackLogger(), entry, filePath, (i) => { }, default);
     }
 
     protected override Task<VelopackAssetFeed> GetReleasesAsync(LocalDownloadOptions options)
     {
         var source = new SimpleFileSource(options.TargetPath);
-        return source.GetReleaseFeed(channel: options.Channel, logger: Log);
+        return source.GetReleaseFeed(Log.ToVelopackLogger(), null, options.Channel);
     }
 }

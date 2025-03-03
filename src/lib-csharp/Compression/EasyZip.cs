@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
+using Velopack.Logging;
 using Velopack.Util;
 
 namespace Velopack.Compression
@@ -15,7 +15,7 @@ namespace Velopack.Compression
     {
         private const string SYMLINK_EXT = ".__symlink";
 
-        public static void ExtractZipToDirectory(ILogger logger, string inputFile, string outputDirectory, bool expandSymlinks = false)
+        public static void ExtractZipToDirectory(IVelopackLogger logger, string inputFile, string outputDirectory, bool expandSymlinks = false)
         {
             logger.Debug($"Extracting '{inputFile}' to '{outputDirectory}' using System.IO.Compression...");
             IoUtil.DeleteFileOrDirectoryHard(outputDirectory);
@@ -85,7 +85,7 @@ namespace Velopack.Compression
 
         internal static string SanitizeEntryFilePath(string entryPath) => entryPath.Replace('\0', '_');
 
-        public static async Task CreateZipFromDirectoryAsync(ILogger logger, string outputFile, string directoryToCompress, Action<int>? progress = null,
+        public static async Task CreateZipFromDirectoryAsync(IVelopackLogger logger, string outputFile, string directoryToCompress, Action<int>? progress = null,
             CompressionLevel compressionLevel = CompressionLevel.Optimal, CancellationToken cancelToken = default)
         {
             progress ??= (x => { });

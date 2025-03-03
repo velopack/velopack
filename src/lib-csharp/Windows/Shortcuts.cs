@@ -5,9 +5,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.Versioning;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Velopack.Locators;
+using Velopack.Logging;
 using Velopack.NuGet;
 using Velopack.Util;
 
@@ -58,16 +57,16 @@ namespace Velopack.Windows
     public class Shortcuts
     {
         /// <summary> Log for diagnostic messages. </summary>
-        protected ILogger Log { get; }
+        protected IVelopackLogger Log { get; }
 
         /// <summary> Locator to use for finding important application paths. </summary>
         protected IVelopackLocator Locator { get; }
 
         /// <inheritdoc cref="Shortcuts"/>
-        public Shortcuts(ILogger logger = null, IVelopackLocator locator = null)
+        public Shortcuts(IVelopackLocator locator = null)
         {
-            Log = logger ?? NullLogger.Instance;
-            Locator = locator ?? VelopackLocator.GetDefault(Log);
+            Locator = locator ?? VelopackLocator.Current;
+            Log = Locator.Log;
         }
 
         /// <summary>
@@ -80,7 +79,7 @@ namespace Velopack.Windows
                 Locator.ThisExeRelativePath,
                 location,
                 false,
-                null,  // shortcut arguments 
+                null, // shortcut arguments 
                 null); // shortcut icon
         }
 
@@ -166,30 +165,31 @@ namespace Velopack.Windows
                 Log.Info($"Creating shortcut for {relativeExeName} => {file}");
 
                 ShellLink sl;
-                IoUtil.Retry(() => {
-                    File.Delete(file);
+                IoUtil.Retry(
+                    () => {
+                        File.Delete(file);
 
-                    var target = Path.Combine(currentDir, relativeExeName);
-                    sl = new ShellLink {
-                        Target = target,
-                        IconPath = icon ?? target,
-                        IconIndex = 0,
-                        WorkingDirectory = Path.GetDirectoryName(exePath),
-                        Description = zf.ProductDescription,
-                    };
+                        var target = Path.Combine(currentDir, relativeExeName);
+                        sl = new ShellLink {
+                            Target = target,
+                            IconPath = icon ?? target,
+                            IconIndex = 0,
+                            WorkingDirectory = Path.GetDirectoryName(exePath),
+                            Description = zf.ProductDescription,
+                        };
 
-                    if (!String.IsNullOrWhiteSpace(programArguments)) {
-                        sl.Arguments += String.Format(" -a \"{0}\"", programArguments);
-                    }
+                        if (!String.IsNullOrWhiteSpace(programArguments)) {
+                            sl.Arguments += String.Format(" -a \"{0}\"", programArguments);
+                        }
 
-                    //var appUserModelId = Utility.GetAppUserModelId(zf.Id, exeName);
-                    //var toastActivatorCLSID = Utility.CreateGuidFromHash(appUserModelId).ToString();
-                    //sl.SetAppUserModelId(appUserModelId);
-                    //sl.SetToastActivatorCLSID(toastActivatorCLSID);
+                        //var appUserModelId = Utility.GetAppUserModelId(zf.Id, exeName);
+                        //var toastActivatorCLSID = Utility.CreateGuidFromHash(appUserModelId).ToString();
+                        //sl.SetAppUserModelId(appUserModelId);
+                        //sl.SetToastActivatorCLSID(toastActivatorCLSID);
 
-                    Log.Info($"About to save shortcut: {file} (target {sl.Target}, workingDir {sl.WorkingDirectory}, args {sl.Arguments})");
-                    sl.Save(file);
-                });
+                        Log.Info($"About to save shortcut: {file} (target {sl.Target}, workingDir {sl.WorkingDirectory}, args {sl.Arguments})");
+                        sl.Save(file);
+                    });
             }
         }
 
@@ -230,16 +230,16 @@ namespace Velopack.Windows
         protected virtual string LinkPathForVersionInfo(ShortcutLocation location, ZipPackage package, FileVersionInfo versionInfo, string rootdir)
         {
             var possibleProductNames = new[] {
-                    versionInfo.ProductName,
-                    package.ProductName,
-                    versionInfo.FileDescription,
-                    Path.GetFileNameWithoutExtension(versionInfo.FileName)
-                };
+                versionInfo.ProductName,
+                package.ProductName,
+                versionInfo.FileDescription,
+                Path.GetFileNameWithoutExtension(versionInfo.FileName)
+            };
 
             var possibleCompanyNames = new[] {
-                    versionInfo.CompanyName,
-                    package.ProductCompany,
-                };
+                versionInfo.CompanyName,
+                package.ProductCompany,
+            };
 
             var prodName = possibleCompanyNames.First(x => !String.IsNullOrWhiteSpace(x));
             var pkgName = possibleProductNames.First(x => !String.IsNullOrWhiteSpace(x));
@@ -250,7 +250,8 @@ namespace Velopack.Windows
         /// <summary>
         /// Given the application info, return the shortcut target path.
         /// </summary>
-        protected virtual string GetLinkPath(ShortcutLocation location, string title, string applicationName, string rootdir, bool createDirectoryIfNecessary = true)
+        protected virtual string GetLinkPath(ShortcutLocation location, string title, string applicationName, string rootdir,
+            bool createDirectoryIfNecessary = true)
         {
             var dir = default(string);
 

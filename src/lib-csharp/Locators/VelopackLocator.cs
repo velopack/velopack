@@ -1,13 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.Versioning;
-using Velopack.Util;
+using Velopack.Logging;
 
 namespace Velopack.Locators
 {
@@ -16,32 +14,55 @@ namespace Velopack.Locators
     /// </summary>
     public abstract class VelopackLocator : IVelopackLocator
     {
-        private static VelopackLocator? _current;
+        private static IVelopackLocator? _current;
 
         /// <summary>
-        /// Auto-detect the platform from the current operating system.
+        /// Check if a VelopackLocator has been set for the current process.
         /// </summary>
-        public static VelopackLocator GetDefault(ILogger? logger)
-        {
-            var log = logger ?? NullLogger.Instance;
+        public static bool IsCurrentSet => _current != null;
 
-            if (_current != null)
+        /// <summary>
+        /// Get the current locator in use, this process-wide locator can be set/overriden during VelopackApp.Build().
+        /// Alternatively, most methods which use locators also accept an IVelopackLocator as a parameter.
+        /// </summary>
+        public static IVelopackLocator Current {
+            get {
+                if (_current == null)
+                    throw new InvalidOperationException(
+                        "No VelopackLocator has been set. Either call VelopackApp.Build() or provide IVelopackLocator as a method parameter.");
                 return _current;
+            }
+        }
 
+        /// <summary> Create a new default locator based on the current operating system. </summary>
+        public static IVelopackLocator CreateDefaultForPlatform(IVelopackLogger? logger = null)
+        {
             var process = Process.GetCurrentProcess();
-            var processExePath = process.MainModule?.FileName ?? throw new InvalidOperationException("Could not determine process path.");
-            var processId = (uint)process.Id;
+            var processExePath = process.MainModule?.FileName
+                                 ?? throw new InvalidOperationException("Could not determine process path, please construct IVelopackLocator manually.");
+            var processId = (uint) process.Id;
 
             if (VelopackRuntimeInfo.IsWindows)
-                return _current = new WindowsVelopackLocator(processExePath, processId, log);
+                return _current = new WindowsVelopackLocator(processExePath, processId, logger);
 
             if (VelopackRuntimeInfo.IsOSX)
-                return _current = new OsxVelopackLocator(processExePath, processId, log);
+                return _current = new OsxVelopackLocator(processExePath, processId, logger);
 
             if (VelopackRuntimeInfo.IsLinux)
-                return _current = new LinuxVelopackLocator(processExePath, processId, log);
+                return _current = new LinuxVelopackLocator(processExePath, processId, logger);
 
             throw new PlatformNotSupportedException($"OS platform '{VelopackRuntimeInfo.SystemOs.GetOsLongName()}' is not supported.");
+        }
+
+        internal static void SetCurrentLocator(IVelopackLocator locator)
+        {
+            _current = locator;
+        }
+
+        internal static IVelopackLocator GetCurrentOrCreateDefault(IVelopackLogger? logger = null)
+        {
+            _current ??= CreateDefaultForPlatform(logger);
+            return _current;
         }
 
         /// <inheritdoc/>
@@ -66,11 +87,14 @@ namespace Velopack.Locators
         public abstract string? Channel { get; }
 
         /// <inheritdoc/>
+        public abstract IVelopackLogger Log { get; }
+
+        /// <inheritdoc/>
         public abstract uint ProcessId { get; }
 
         /// <inheritdoc/>
         public abstract string ProcessExePath { get; }
-        
+
         /// <inheritdoc/>
         public virtual bool IsPortable => false;
 
@@ -89,15 +113,6 @@ namespace Velopack.Locators
 
         /// <inheritdoc/>
         public abstract SemanticVersion? CurrentlyInstalledVersion { get; }
-
-        /// <summary> The log interface to use for diagnostic messages. </summary>
-        protected ILogger Log { get; }
-
-        /// <inheritdoc cref="VelopackLocator"/>
-        protected VelopackLocator(ILogger? logger)
-        {
-            Log = logger ?? NullLogger.Instance;
-        }
 
         /// <inheritdoc/>
         public virtual List<VelopackAsset> GetLocalPackages()
@@ -119,6 +134,7 @@ namespace Velopack.Locators
                         }
                     }
                 }
+
                 return list;
             } catch (Exception ex) {
                 Log.Error(ex, "Error while reading local packages.");
@@ -131,8 +147,7 @@ namespace Velopack.Locators
         {
             return GetLocalPackages()
                 .OrderByDescending(x => x.Version)
-                .Where(a => a.Type == VelopackAssetType.Full)
-                .FirstOrDefault();
+                .FirstOrDefault(a => a.Type == VelopackAssetType.Full);
         }
 
         /// <summary>
@@ -161,6 +176,7 @@ namespace Velopack.Locators
                     if (!Guid.TryParse(File.ReadAllText(stagedUserIdFile, Encoding.UTF8), out ret)) {
                         throw new Exception("File was read but contents were invalid");
                     }
+
                     Log.Info($"Loaded existing staging userId: {ret}");
                     return ret;
                 } catch (Exception ex) {

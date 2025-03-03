@@ -248,7 +248,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         // create a .portable file to indicate this is a portable package
         File.Create(Path.Combine(dir.FullName, ".portable")).Close();
 
-        await EasyZip.CreateZipFromDirectoryAsync(Log, outputPath, dir.FullName, CoreUtil.CreateProgressDelegate(progress, 40, 100));
+        await EasyZip.CreateZipFromDirectoryAsync(Log.ToVelopackLogger(), outputPath, dir.FullName, CoreUtil.CreateProgressDelegate(progress, 40, 100));
         progress(100);
     }
 
@@ -301,7 +301,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             Log.Info($"Use Azure Trusted Signing service for code signing. Metadata file path: {trustedSignMetadataPath}");
 
             string dlibPath = GetDlibPath(CancellationToken.None);
-            signParams = $"/fd SHA256 /tr http://timestamp.acs.microsoft.com /v /debug /td SHA256 /dlib {HelperFile.AzureDlibFileName} /dmdf \"{trustedSignMetadataPath}\"";
+            signParams =
+                $"/fd SHA256 /tr http://timestamp.acs.microsoft.com /v /debug /td SHA256 /dlib {HelperFile.AzureDlibFileName} /dmdf \"{trustedSignMetadataPath}\"";
             helper.Sign(filePaths, signParams, signParallel, progress, false);
         } else if (!string.IsNullOrEmpty(signParams)) {
             helper.Sign(filePaths, signParams, signParallel, progress, false);

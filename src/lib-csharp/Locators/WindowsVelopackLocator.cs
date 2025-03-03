@@ -1,8 +1,9 @@
-﻿using System;
+using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.Versioning;
-using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
+using Velopack.Logging;
 using Velopack.NuGet;
 using Velopack.Util;
 
@@ -33,6 +34,9 @@ namespace Velopack.Locators
         public override string? PackagesDir => CreateSubDirIfDoesNotExist(RootAppDir, "packages");
 
         /// <inheritdoc />
+        public override IVelopackLogger Log { get; }
+
+        /// <inheritdoc />
         public override bool IsPortable => RootAppDir != null && File.Exists(Path.Combine(RootAppDir, ".portable"));
 
         /// <inheritdoc />
@@ -40,13 +44,12 @@ namespace Velopack.Locators
 
         /// <inheritdoc />
         public override uint ProcessId { get; }
-        
+
         /// <inheritdoc />
         public override string ProcessExePath { get; }
 
         /// <inheritdoc cref="WindowsVelopackLocator" />
-        public WindowsVelopackLocator(string currentProcessPath, uint currentProcessId, ILogger logger)
-            : base(logger)
+        public WindowsVelopackLocator(string currentProcessPath, uint currentProcessId, IVelopackLogger? logger)
         {
             if (!VelopackRuntimeInfo.IsWindows)
                 throw new NotSupportedException("Cannot instantiate WindowsLocator on a non-Windows system.");
@@ -66,29 +69,31 @@ namespace Velopack.Locators
             var possibleUpdateExe = Path.GetFullPath(Path.Combine(myDirPath, "..", "Update.exe"));
             var ixCurrent = ourPath.LastIndexOf("/current/", StringComparison.InvariantCultureIgnoreCase);
 
-            Log.Info($"Initializing {nameof(WindowsVelopackLocator)}");
-
             if (File.Exists(possibleUpdateExe)) {
-                Log.Info("Update.exe found in parent directory");
                 // we're running in a directory with an Update.exe in the parent directory
                 var manifestFile = Path.Combine(myDirPath, CoreUtil.SpecVersionFileName);
+                var rootDir = Path.GetDirectoryName(possibleUpdateExe)!;
+                logger ??= new FileVelopackLogger(Path.Combine(rootDir, "velopack.log"), currentProcessId);
+                Log = logger;
                 if (PackageManifest.TryParseFromFile(manifestFile, out var manifest)) {
                     // ideal, the info we need is in a manifest file.
-                    Log.Info("Located valid manifest file at: " + manifestFile);
+                    logger.Info($"{nameof(WindowsVelopackLocator)}: Update.exe in parent dir, Located valid manifest file at: " + manifestFile);
                     AppId = manifest.Id;
                     CurrentlyInstalledVersion = manifest.Version;
-                    RootAppDir = Path.GetDirectoryName(possibleUpdateExe);
+                    RootAppDir = rootDir;
                     UpdateExePath = possibleUpdateExe;
                     AppContentDir = myDirPath;
                     Channel = manifest.Channel;
                 } else if (PathUtil.PathPartStartsWith(myDirName, "app-") && NuGetVersion.TryParse(myDirName.Substring(4), out var version)) {
                     // this is a legacy case, where we're running in an 'root/app-*/' directory, and there is no manifest.
-                    Log.Warn("Legacy app-* directory detected, sq.version not found. Using directory name for AppId and Version.");
+                    logger.Warn("Update.exe in parent dir, Legacy app-* directory detected, sq.version not found. Using directory name for AppId and Version.");
                     AppId = Path.GetFileName(Path.GetDirectoryName(possibleUpdateExe));
                     CurrentlyInstalledVersion = version;
-                    RootAppDir = Path.GetDirectoryName(possibleUpdateExe);
+                    RootAppDir = rootDir;
                     UpdateExePath = possibleUpdateExe;
                     AppContentDir = myDirPath;
+                } else {
+                    logger.Error("Update.exe in parent dir, but unable to locate a valid manifest file at: " + manifestFile);
                 }
             } else if (ixCurrent > 0) {
                 // this is an attempt to handle the case where we are running in a nested current directory.
@@ -98,14 +103,25 @@ namespace Velopack.Locators
                 possibleUpdateExe = Path.GetFullPath(Path.Combine(rootDir, "Update.exe"));
                 // we only support parsing a manifest when we're in a nested current directory. no legacy fallback.
                 if (File.Exists(possibleUpdateExe) && PackageManifest.TryParseFromFile(manifestFile, out var manifest)) {
-                    Log.Warn("Running in deeply nested directory. This is not an advised use-case.");
-                    Log.Info("Located valid manifest file at: " + manifestFile);
+                    logger ??= new FileVelopackLogger(Path.Combine(rootDir, "velopack.log"), currentProcessId);
+                    Log = logger;
+                    logger.Warn("Running in deeply nested directory. This is not an advised use-case.");
+                    logger.Info("Located valid manifest file at: " + manifestFile);
                     RootAppDir = Path.GetDirectoryName(possibleUpdateExe);
                     UpdateExePath = possibleUpdateExe;
                     AppId = manifest.Id;
                     CurrentlyInstalledVersion = manifest.Version;
                     AppContentDir = currentDir;
                     Channel = manifest.Channel;
+                }
+            }
+
+            if (Log == null) {
+                try {
+                    Log = new FileVelopackLogger(Path.Combine(AppContext.BaseDirectory, "velopack.log"), currentProcessId);
+                } catch (Exception ex) {
+                    Debug.WriteLine("Error creating Velopack logger: " + ex);
+                    Log = new NullVelopackLogger();
                 }
             }
         }

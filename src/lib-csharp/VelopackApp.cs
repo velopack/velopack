@@ -1,12 +1,11 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.Versioning;
 using Velopack.Locators;
+using Velopack.Logging;
 using Velopack.Util;
 
 namespace Velopack
@@ -27,18 +26,15 @@ namespace Velopack
         [DllImport("shell32.dll", SetLastError = true)]
         private static extern void SetCurrentProcessExplicitAppUserModelID([MarshalAs(UnmanagedType.LPWStr)] string AppID);
 
-        internal static ILogger DefaultLogger { get; private set; } = NullLogger.Instance;
-
-        internal static IVelopackLocator? DefaultLocator { get; private set; }
-
-        VelopackHook? _install;
-        VelopackHook? _update;
-        VelopackHook? _obsolete;
-        VelopackHook? _uninstall;
-        VelopackHook? _firstrun;
-        VelopackHook? _restarted;
-        string[]? _args;
-        bool _autoApply = true;
+        private VelopackHook? _install;
+        private VelopackHook? _update;
+        private VelopackHook? _obsolete;
+        private VelopackHook? _uninstall;
+        private VelopackHook? _firstrun;
+        private VelopackHook? _restarted;
+        private string[]? _args;
+        private bool _autoApply = true;
+        private IVelopackLocator? _customLocator;
 
         private VelopackApp()
         {
@@ -47,7 +43,7 @@ namespace Velopack
         /// <summary>
         /// Creates and returns a new Velopack application builder.
         /// </summary>
-        public static VelopackApp Build() => new VelopackApp();
+        public static VelopackApp Build() => new();
 
         /// <summary>
         /// Override the command line arguments used to determine the Velopack hook to run.
@@ -74,14 +70,14 @@ namespace Velopack
         /// </summary>
         public VelopackApp SetLocator(IVelopackLocator locator)
         {
-            DefaultLocator = locator;
+            _customLocator = locator;
             return this;
         }
 
         /// <summary>
         /// This hook is triggered when the application is started for the first time after installation.
         /// </summary>
-        public VelopackApp WithFirstRun(VelopackHook hook)
+        public VelopackApp OnFirstRun(VelopackHook hook)
         {
             _firstrun += hook;
             return this;
@@ -90,7 +86,7 @@ namespace Velopack
         /// <summary>
         /// This hook is triggered when the application is restarted by Velopack after installing updates.
         /// </summary>
-        public VelopackApp WithRestarted(VelopackHook hook)
+        public VelopackApp OnRestarted(VelopackHook hook)
         {
             _restarted += hook;
             return this;
@@ -103,7 +99,7 @@ namespace Velopack
         /// Only supported on windows; On other operating systems, this will never be called.
         /// </summary>
         [SupportedOSPlatform("windows")]
-        public VelopackApp WithAfterInstallFastCallback(VelopackHook hook)
+        public VelopackApp OnAfterInstallFastCallback(VelopackHook hook)
         {
             _install += hook;
             return this;
@@ -116,7 +112,7 @@ namespace Velopack
         /// Only supported on windows; On other operating systems, this will never be called.
         /// </summary>
         [SupportedOSPlatform("windows")]
-        public VelopackApp WithAfterUpdateFastCallback(VelopackHook hook)
+        public VelopackApp OnAfterUpdateFastCallback(VelopackHook hook)
         {
             _update += hook;
             return this;
@@ -129,7 +125,7 @@ namespace Velopack
         /// Only supported on windows; On other operating systems, this will never be called.
         /// </summary>
         [SupportedOSPlatform("windows")]
-        public VelopackApp WithBeforeUpdateFastCallback(VelopackHook hook)
+        public VelopackApp OnBeforeUpdateFastCallback(VelopackHook hook)
         {
             _obsolete += hook;
             return this;
@@ -142,7 +138,7 @@ namespace Velopack
         /// Only supported on windows; On other operating systems, this will never be called.
         /// </summary>
         [SupportedOSPlatform("windows")]
-        public VelopackApp WithBeforeUninstallFastCallback(VelopackHook hook)
+        public VelopackApp OnBeforeUninstallFastCallback(VelopackHook hook)
         {
             _uninstall += hook;
             return this;
@@ -151,9 +147,7 @@ namespace Velopack
         /// <summary>
         /// Runs the Velopack application startup code and triggers any configured hooks.
         /// </summary>
-        /// <param name="logger">A logging interface for diagnostic messages. This will be
-        /// cached and potentially re-used throughout the lifetime of the application.</param>
-        public void Run(ILogger? logger = null)
+        public void Run()
         {
             var args = _args ?? Environment.GetCommandLineArgs().Skip(1).ToArray();
 
@@ -164,11 +158,19 @@ namespace Velopack
                 return;
             }
 
-            var log = logger ?? NullLogger.Instance;
-            var locator = DefaultLocator ?? VelopackLocator.GetDefault(log);
-            DefaultLogger = log;
+            if (VelopackLocator.IsCurrentSet) {
+                VelopackLocator.Current.Log.Error(
+                    "VelopackApp.Build().Run() was called more than once. This is not allowed and can lead to unexpected behaviour.");
+            }
 
-            log.Info("Starting Velopack App (Run).");
+            if (_customLocator != null) {
+                VelopackLocator.SetCurrentLocator(_customLocator);
+            }
+
+            var locator = VelopackLocator.GetCurrentOrCreateDefault();
+            var log = locator.Log;
+
+            log.Info($"Starting VelopackApp.Run (library version {VelopackRuntimeInfo.VelopackNugetVersion}).");
 
             if (VelopackRuntimeInfo.IsWindows && locator.AppId != null) {
                 var appUserModelId = CoreUtil.GetAppUserModelId(locator.AppId);
@@ -224,7 +226,7 @@ namespace Velopack
                 log.Info($"Launching app is out-dated. Current: {myVersion}, Newest Local Available: {latestLocal.Version}");
                 if (!restarted && _autoApply) {
                     log.Info("Auto apply is true, so restarting to apply update...");
-                    UpdateExe.Apply(locator, latestLocal, false, locator.ProcessId, true, args, log);
+                    UpdateExe.Apply(locator, latestLocal, false, locator.ProcessId, true, args);
                     Exit(0);
                 } else {
                     log.Info("Pre-condition failed, we will not restart to apply updates. (restarted: " + restarted + ", autoApply: " + _autoApply + ")");

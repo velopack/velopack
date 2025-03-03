@@ -3,6 +3,7 @@ using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
+using Velopack.Core;
 using Velopack.Util;
 
 namespace Velopack.Deployment;
