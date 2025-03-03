@@ -173,8 +173,7 @@ impl UpdateManager {
     ) -> Result<UpdateManager, Error> {
         let locator = if let Some(config) = locator {
             warn!("Using explicit locator configuration, ignoring auto-locate.");
-            let manifest = config.load_manifest()?;
-            VelopackLocator::new(config.clone(), manifest)
+            VelopackLocator::new(&config)?
         } else {
             locator::auto_locate_app_manifest(LocationContext::FromCurrentExe)?
         };

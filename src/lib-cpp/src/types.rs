@@ -22,9 +22,6 @@ pub type vpkc_update_source_t = c_void;
 /// Progress callback function.
 pub type vpkc_progress_callback_t = Option<extern "C" fn(p_user_data: *mut c_void, progress: size_t)>;
 
-/// Log callback function.
-pub type vpkc_log_callback_t = Option<extern "C" fn(p_user_data: *mut c_void, psz_level: *const c_char, psz_message: *const c_char)>;
-
 /// VelopackApp startup hook callback function.
 pub type vpkc_hook_callback_t = Option<extern "C" fn(p_user_data: *mut c_void, psz_app_version: *const c_char)>;
 

@@ -47,10 +47,6 @@ declare module "./load" {
     locator: string | null,
     autoApply: boolean,
   ): void;
-
-  function js_set_logger_callback(
-    cb: (loglevel: LogLevel, msg: string) => void,
-  ): void;
 }
 
 type VelopackHookType =
@@ -62,8 +58,6 @@ type VelopackHookType =
   | "first-run";
 
 type VelopackHook = (version: string) => void;
-
-type LogLevel = "info" | "warn" | "error" | "debug" | "trace";
 
 /** 
  * VelopackApp helps you to handle app activation events correctly.
@@ -300,13 +294,4 @@ export class UpdateManager {
       restartArgs,
     );
   }
-}
-
-/**
- * Set a custom logger callback to receive log messages from Velopack. The default behavior is to log to console.log.
- */
-export function setVelopackLogger(
-  callback: (loglevel: LogLevel, msg: string) => void,
-) {
-  addon.js_set_logger_callback(callback);
 }

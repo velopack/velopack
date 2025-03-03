@@ -79,7 +79,7 @@ fn main_inner() -> Result<()> {
 
     let verbose = matches.get_flag("verbose");
     let logfile = matches.get_one::<PathBuf>("log");
-    logging::setup_logging("setup", logfile, true, verbose)?;
+    velopack::logging::init_logging("setup", logfile, true, verbose);
 
     let debug = matches.get_one::<PathBuf>("debug");
     let install_to = matches.get_one::<PathBuf>("installto");

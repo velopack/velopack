@@ -1,7 +1,5 @@
 use anyhow::Result;
-use log::{Level, Log, Metadata, Record};
-use std::ffi::{c_void, CString};
-use std::sync::{Mutex, RwLock};
+use std::sync::RwLock;
 use velopack::locator::VelopackLocatorConfig;
 
 use crate::types::*;
@@ -21,7 +19,6 @@ pub struct AppOptions {
 
 lazy_static::lazy_static! {
     static ref LAST_ERROR: RwLock<String> = RwLock::new(String::new());
-    static ref LOG_CALLBACK: Mutex<(vpkc_log_callback_t, usize)> = Mutex::new((None, 0));
     pub static ref VELOPACK_APP: RwLock<AppOptions> = RwLock::new(Default::default());
 }
 
@@ -63,54 +60,4 @@ where
             false
         }
     }
-}
-
-pub fn set_log_callback(callback: vpkc_log_callback_t, user_data: *mut c_void) {
-    // Initialize the logger if it hasn't been set yet
-    let _ = log::set_logger(&LOGGER);
-    log::set_max_level(log::LevelFilter::Trace);
-
-    let mut log_callback = LOG_CALLBACK.lock().unwrap();
-    *log_callback = (callback, user_data as usize);
-}
-
-pub fn log_message(level: &str, message: &str) {
-    let log_callback = LOG_CALLBACK.lock().unwrap();
-    let (callback, user_data) = *log_callback;
-    if let Some(callback) = callback {
-        let c_level = CString::new(level).unwrap();
-        let c_message = CString::new(message).unwrap();
-        callback(user_data as *mut c_void, c_level.as_ptr(), c_message.as_ptr());
-    }
-}
-
-struct LoggerImpl {}
-
-static LOGGER: LoggerImpl = LoggerImpl {};
-
-impl Log for LoggerImpl {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() <= log::max_level()
-    }
-
-    fn log(&self, record: &Record) {
-        if !self.enabled(record.metadata()) {
-            return;
-        }
-
-        let text = format!("{}", record.args());
-
-        let level = match record.level() {
-            Level::Error => "error",
-            Level::Warn => "warn",
-            Level::Info => "info",
-            Level::Debug => "debug",
-            Level::Trace => "trace",
-        }
-        .to_string();
-
-        log_message(&level, &text);
-    }
-
-    fn flush(&self) {}
 }
