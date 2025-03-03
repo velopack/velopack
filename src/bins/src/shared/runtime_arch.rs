@@ -81,7 +81,7 @@ type IsWow64Process2Fn = unsafe extern "system" fn(
     hProcess: windows::Win32::Foundation::HANDLE,
     pprocessmachine: *mut windows::Win32::System::SystemInformation::IMAGE_FILE_MACHINE,
     pnativemachine: *mut windows::Win32::System::SystemInformation::IMAGE_FILE_MACHINE,
-) -> windows::Win32::Foundation::BOOL;
+) -> windows::core::BOOL;
 
 #[cfg(target_os = "windows")]
 unsafe fn is_wow64_process2(handle: windows::Win32::Foundation::HANDLE) -> anyhow::Result<u16> {
