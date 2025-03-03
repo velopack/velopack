@@ -3,7 +3,6 @@ using System.Text;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
-using Microsoft.Extensions.Logging;
 using Velopack;
 
 namespace CSharpAvalonia;
@@ -18,10 +17,8 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         var updateUrl = SampleHelper.GetReleasesDir(); // replace with your update path/url
-        _um = new UpdateManager(updateUrl, logger: Program.Log);
+        _um = new UpdateManager(updateUrl);
 
-        TextLog.Text = Program.Log.ToString();
-        Program.Log.LogUpdated += LogUpdated;
         UpdateStatus();
     }
 
@@ -32,8 +29,9 @@ public partial class MainWindow : Window
             // ConfigureAwait(true) so that UpdateStatus() is called on the UI thread
             _update = await _um.CheckForUpdatesAsync().ConfigureAwait(true);
         } catch (Exception ex) {
-            Program.Log.LogError(ex, "Error checking for updates");
+            LogMessage("Error checking for updates", ex);
         }
+
         UpdateStatus();
     }
 
@@ -44,8 +42,9 @@ public partial class MainWindow : Window
             // ConfigureAwait(true) so that UpdateStatus() is called on the UI thread
             await _um.DownloadUpdatesAsync(_update, Progress).ConfigureAwait(true);
         } catch (Exception ex) {
-            Program.Log.LogError(ex, "Error downloading updates");
+            LogMessage("Error downloading updates", ex);
         }
+
         UpdateStatus();
     }
 
@@ -54,26 +53,32 @@ public partial class MainWindow : Window
         _um.ApplyUpdatesAndRestart(_update);
     }
 
-    private void LogUpdated(object sender, LogUpdatedEventArgs e)
+    private void LogMessage(string text, Exception e = null)
     {
         // logs can be sent from other threads
-        Dispatcher.UIThread.InvokeAsync(() => {
-            TextLog.Text = e.Text;
-            ScrollLog.ScrollToEnd();
-        });
+        Dispatcher.UIThread.InvokeAsync(
+            () => {
+                TextLog.Text += text + Environment.NewLine;
+                if (e != null) {
+                    TextLog.Text += e.ToString() + Environment.NewLine;
+                }
+
+                ScrollLog.ScrollToEnd();
+            });
     }
 
     private void Progress(int percent)
     {
         // progress can be sent from other threads
-        Dispatcher.UIThread.InvokeAsync(() => {
-            TextStatus.Text = $"Downloading ({percent}%)...";
-        });
+        Dispatcher.UIThread.InvokeAsync(
+            () => {
+                TextStatus.Text = $"Downloading ({percent}%)...";
+            });
     }
 
     private void Working()
     {
-        Program.Log.LogInformation("");
+        LogMessage("");
         BtnCheckUpdate.IsEnabled = false;
         BtnDownloadUpdate.IsEnabled = false;
         BtnRestartApply.IsEnabled = false;
