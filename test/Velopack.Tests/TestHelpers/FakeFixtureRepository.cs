@@ -2,6 +2,7 @@
 #pragma warning disable CS0612 // Type or member is obsolete
 using System.Text;
 using Velopack.Core;
+using Velopack.Logging;
 using Velopack.Sources;
 using Velopack.Util;
 
@@ -25,7 +26,7 @@ internal class FakeFixtureRepository : IFileDownloader
             .ToList();
 
         var releasesNew = new SimpleFileSource(new DirectoryInfo(PathHelper.GetFixturesDir()))
-            .GetReleaseFeed(NullLogger.Instance, null).GetAwaiterResult().Assets
+            .GetReleaseFeed(NullVelopackLogger.Instance, null, null).GetAwaiterResult().Assets
             .Where(r => r.FileName.StartsWith(_pkgId))
             .ToList();
 

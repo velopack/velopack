@@ -32,25 +32,20 @@ public interface IRepositoryCanDownload<TDown> where TDown : RepositoryOptions
     Task DownloadLatestFullPackageAsync(TDown options);
 }
 
-public abstract class SourceRepository<TDown, TSource> : DownRepository<TDown>
+public abstract class SourceRepository<TDown, TSource>(ILogger logger) : DownRepository<TDown>(logger)
     where TDown : RepositoryOptions
     where TSource : IUpdateSource
 {
-    public SourceRepository(ILogger logger)
-        : base(logger)
-    {
-    }
-
     protected override Task<VelopackAssetFeed> GetReleasesAsync(TDown options)
     {
         var source = CreateSource(options);
-        return source.GetReleaseFeed(channel: options.Channel, logger: Log);
+        return source.GetReleaseFeed(Log.ToVelopackLogger(), null, options.Channel);
     }
 
     protected override Task SaveEntryToFileAsync(TDown options, VelopackAsset entry, string filePath)
     {
         var source = CreateSource(options);
-        return source.DownloadReleaseEntry(Log, entry, filePath, (i) => { });
+        return source.DownloadReleaseEntry(Log.ToVelopackLogger(), entry, filePath, (i) => { });
     }
 
     public abstract TSource CreateSource(TDown options);

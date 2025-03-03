@@ -1,12 +1,45 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
+using Velopack.Logging;
 
-namespace Velopack.Util
+namespace Velopack.Core
 {
     [ExcludeFromCodeCoverage]
-    internal static class LoggerExtensions
+    public static class LoggerExtensions
     {
+        public static IVelopackLogger ToVelopackLogger(this ILogger logger)
+        {
+            return new MicrosoftExtensionsLoggerAdapter(logger);
+        }
+
+        private class MicrosoftExtensionsLoggerAdapter(ILogger logger) : IVelopackLogger
+        {
+            public void Log(VelopackLogLevel logLevel, string? message, Exception? exception)
+            {
+                switch (logLevel) {
+                case VelopackLogLevel.Trace:
+                    logger.LogTrace(exception, message);
+                    break;
+                case VelopackLogLevel.Debug:
+                    logger.LogDebug(exception, message);
+                    break;
+                case VelopackLogLevel.Information:
+                    logger.LogInformation(exception, message);
+                    break;
+                case VelopackLogLevel.Warning:
+                    logger.LogWarning(exception, message);
+                    break;
+                case VelopackLogLevel.Error:
+                    logger.LogError(exception, message);
+                    break;
+                case VelopackLogLevel.Critical:
+                    logger.LogCritical(exception, message);
+                    break;
+                }
+            }
+        }
+
         public static void Trace(this ILogger logger, string message)
         {
             logger.LogTrace(message);
@@ -16,6 +49,7 @@ namespace Velopack.Util
         {
             logger.LogTrace(ex, message);
         }
+
         public static void Trace(this ILogger logger, Exception ex)
         {
             logger.LogTrace(ex, ex.Message);

@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Runtime.Versioning;
-using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
+using Velopack.Logging;
 using Velopack.NuGet;
 using Velopack.Util;
 
@@ -36,6 +36,9 @@ namespace Velopack.Locators
         /// <inheritdoc />
         public override string? PackagesDir => CreateSubDirIfDoesNotExist(CachesAppDir, "packages");
 
+        /// <inheritdoc />
+        public override IVelopackLogger Log { get; }
+
         private string? CachesAppDir => CreateSubDirIfDoesNotExist(CachesVelopackDir, AppId);
         private string? CachesVelopackDir => CreateSubDirIfDoesNotExist(CachesDir, "velopack");
         private string? CachesDir => CreateSubDirIfDoesNotExist(LibraryDir, "Caches");
@@ -55,8 +58,7 @@ namespace Velopack.Locators
         /// Creates a new <see cref="OsxVelopackLocator"/> and auto-detects the
         /// app information from metadata embedded in the .app.
         /// </summary>
-        public OsxVelopackLocator(string currentProcessPath, uint currentProcessId, ILogger logger)
-            : base(logger)
+        public OsxVelopackLocator(string currentProcessPath, uint currentProcessId, IVelopackLogger? logger)
         {
             if (!VelopackRuntimeInfo.IsOSX)
                 throw new NotSupportedException("Cannot instantiate OsxLocator on a non-osx system.");
@@ -64,12 +66,16 @@ namespace Velopack.Locators
             ProcessId = currentProcessId;
             var ourPath = ProcessExePath = currentProcessPath;
 
-            Log.Info($"Initialising {nameof(OsxVelopackLocator)}");
+            var userLogDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Logs");
+            var logPath = Directory.Exists(userLogDir) ? Path.Combine(userLogDir, "velopack.log") : "/tmp/velopack.log";
+            logger ??= new FileVelopackLogger(logPath, currentProcessId);
+            logger.Info($"Initialising {nameof(OsxVelopackLocator)}");
+            Log = logger;
 
             // are we inside a .app?
             var ix = ourPath.IndexOf(".app/", StringComparison.InvariantCultureIgnoreCase);
             if (ix <= 0) {
-                Log.Warn($"Unable to locate .app root from '{ourPath}'");
+                logger.Warn($"Unable to locate .app root from '{ourPath}'");
                 return;
             }
 
@@ -80,7 +86,7 @@ namespace Velopack.Locators
             var metadataPath = Path.Combine(macosDir, CoreUtil.SpecVersionFileName);
 
             if (File.Exists(updateExe) && PackageManifest.TryParseFromFile(metadataPath, out var manifest)) {
-                Log.Info("Located valid manifest file at: " + metadataPath);
+                logger.Info("Located valid manifest file at: " + metadataPath);
                 AppId = manifest.Id;
                 RootAppDir = appPath;
                 UpdateExePath = updateExe;

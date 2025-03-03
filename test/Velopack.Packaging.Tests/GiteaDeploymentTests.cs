@@ -173,7 +173,7 @@ This is just a _test_!
 
         // update
         var source = new GiteaSource(GITEA_REPOURL, GITEA_TOKEN, false);
-        var releases = source.GetReleaseFeed(channel: uniqueSuffix, logger: logger).GetAwaiterResult();
+        var releases = source.GetReleaseFeed(logger.ToVelopackLogger(), null, channel: uniqueSuffix).GetAwaiterResult();
 
         var ghrel = releases.Assets.Select(r => (GiteaSource.GitBaseAsset) r).ToArray();
         foreach (var g in ghrel) {

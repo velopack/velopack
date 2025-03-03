@@ -2,6 +2,7 @@
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text;
+using Velopack.Core;
 using Velopack.Util;
 using Velopack.Windows;
 

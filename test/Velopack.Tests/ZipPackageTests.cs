@@ -1,5 +1,6 @@
 ﻿using System.IO.Packaging;
 using NuGet.Versioning;
+using Velopack.Core;
 using Velopack.NuGet;
 using Velopack.Tests.TestHelpers;
 using Velopack.Util;
@@ -38,8 +39,8 @@ public class ZipPackageTests
         SymbolicLink.Create(symlink, actual);
         SymbolicLink.Create(symfile, actualFile);
 
-        Compression.EasyZip.CreateZipFromDirectoryAsync(logger, zipFile, tempDir).GetAwaiterResult();
-        Compression.EasyZip.ExtractZipToDirectory(logger, zipFile, extractedDir, expandSymlinks: true);
+        Compression.EasyZip.CreateZipFromDirectoryAsync(logger.ToVelopackLogger(), zipFile, tempDir).GetAwaiterResult();
+        Compression.EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), zipFile, extractedDir, expandSymlinks: true);
 
         Assert.True(File.Exists(Path.Combine(extractedDir, "actual", "file.txt")));
         Assert.Equal("hello", File.ReadAllText(Path.Combine(extractedDir, "actual", "file.txt")));

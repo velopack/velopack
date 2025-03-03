@@ -1,20 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Velopack.Util;
-using Velopack.Locators;
+using Velopack.Logging;
 
 namespace Velopack.Sources
 {
     /// <summary>
     /// Retrieves updates from the hosted Velopack service.
     /// </summary>
-    public sealed class VelopackFlowUpdateSource : IUpdateSource
+    public sealed class VelopackFlowSource : IUpdateSource
     {
         /// <inheritdoc cref="SimpleWebSource" />
-        public VelopackFlowUpdateSource(
+        public VelopackFlowSource(
             string baseUri = "https://api.velopack.io/",
             IFileDownloader? downloader = null)
         {
@@ -29,17 +29,13 @@ namespace Velopack.Sources
         public IFileDownloader Downloader { get; }
 
         /// <inheritdoc />
-        public async Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null,
+        public async Task<VelopackAssetFeed> GetReleaseFeed(IVelopackLogger logger, string? appId, string channel, Guid? stagingId = null,
             VelopackAsset? latestLocalRelease = null)
         {
-            string? packageId = latestLocalRelease?.PackageId ?? VelopackLocator.GetDefault(logger).AppId;
-            if (string.IsNullOrWhiteSpace(packageId)) {
-                //Without a package id, we can't get a feed.
-                return new VelopackAssetFeed();
-            }
+            if (appId is null) return new VelopackAssetFeed(); // without an appId, we can't get any releases.
 
             Uri baseUri = new(BaseUri, $"v1.0/manifest/");
-            Uri uri = HttpUtil.AppendPathToUri(baseUri, $"{packageId}/{channel}");
+            Uri uri = HttpUtil.AppendPathToUri(baseUri, $"{appId}/{channel}");
             var args = new Dictionary<string, string>();
 
             if (VelopackRuntimeInfo.SystemArch != RuntimeCpu.Unknown) {
@@ -61,30 +57,37 @@ namespace Velopack.Sources
 
             var uriAndQuery = HttpUtil.AddQueryParamsToUri(uri, args);
 
-            logger.LogInformation("Downloading releases from '{Uri}'.", uriAndQuery);
+            logger.LogInformation($"Downloading releases from '{uriAndQuery}'.");
 
             var json = await Downloader.DownloadString(uriAndQuery.ToString()).ConfigureAwait(false);
 
             var releaseAssets = CompiledJson.DeserializeVelopackFlowAssetArray(json);
+            if (releaseAssets is null) {
+                return new VelopackAssetFeed();
+            }
+
             return new VelopackAssetFeed() {
-                Assets = releaseAssets
+                Assets = releaseAssets.Cast<VelopackAsset>().ToArray()
             };
         }
 
         /// <inheritdoc />
-        public async Task DownloadReleaseEntry(ILogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress, CancellationToken cancelToken = default)
+        public async Task DownloadReleaseEntry(IVelopackLogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress,
+            CancellationToken cancelToken = default)
         {
             if (releaseEntry is null) throw new ArgumentNullException(nameof(releaseEntry));
             if (releaseEntry is not VelopackFlowReleaseAsset velopackRelease) {
-                throw new ArgumentException($"Expected {nameof(releaseEntry)} to be {nameof(VelopackFlowReleaseAsset)} but was {releaseEntry.GetType().FullName}");
+                throw new ArgumentException(
+                    $"Expected {nameof(releaseEntry)} to be {nameof(VelopackFlowReleaseAsset)} but was {releaseEntry.GetType().FullName}");
             }
+
             if (localFile is null) throw new ArgumentNullException(nameof(localFile));
 
             Uri sourceBaseUri = HttpUtil.EnsureTrailingSlash(BaseUri);
 
             Uri downloadUri = new(sourceBaseUri, $"v1.0/download/{velopackRelease.Id}");
 
-            logger.LogInformation("Downloading '{ReleaseFileName}' from '{Uri}'.", releaseEntry.FileName, downloadUri);
+            logger.LogInformation($"Downloading '{releaseEntry.FileName}' from '{downloadUri}'.");
             await Downloader.DownloadFile(downloadUri.AbsoluteUri, localFile, progress, cancelToken: cancelToken).ConfigureAwait(false);
         }
     }

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
+using Velopack.Logging;
 using Velopack.Util;
 
 namespace Velopack.Sources
@@ -49,7 +49,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public virtual Task DownloadReleaseEntry(ILogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress, CancellationToken cancelToken)
+        public virtual Task DownloadReleaseEntry(IVelopackLogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress, CancellationToken cancelToken)
         {
             if (releaseEntry is GitBaseAsset githubEntry) {
                 // this might be a browser url or an api url (depending on whether we have a AccessToken or not)
@@ -62,7 +62,8 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public virtual async Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null, VelopackAsset? latestLocalRelease = null)
+        public virtual async Task<VelopackAssetFeed> GetReleaseFeed(IVelopackLogger logger, string? appId, string channel, Guid? stagingId = null,
+            VelopackAsset? latestLocalRelease = null)
         {
             var releases = await GetReleases(Prerelease).ConfigureAwait(false);
             if (releases == null || releases.Length == 0) {

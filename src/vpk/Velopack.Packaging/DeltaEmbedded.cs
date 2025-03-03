@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Velopack.Compression;
+using Velopack.Core;
 
 namespace Velopack.Packaging;
 
@@ -21,7 +22,7 @@ public class DeltaEmbedded
     {
         private readonly Zstd _zstd;
 
-        public DeltaImpl(string zstdPath, ILogger logger, string baseTmpDir) : base(logger, baseTmpDir)
+        public DeltaImpl(string zstdPath, ILogger logger, string baseTmpDir) : base(logger.ToVelopackLogger(), baseTmpDir)
         {
             _zstd = new Zstd(zstdPath);
         }

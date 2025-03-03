@@ -1,6 +1,8 @@
 using Azure.Storage.Blobs;
 using NuGet.Versioning;
+using Velopack.Core;
 using Velopack.Deployment;
+using Velopack.Locators;
 using Velopack.Sources;
 using Velopack.Util;
 
@@ -92,8 +94,9 @@ public class DeploymentTests
         // get the latest 
         var source = new SimpleWebSource(updateUrl);
         VelopackAssetFeed feed = new VelopackAssetFeed();
+
         try {
-            feed = await source.GetReleaseFeed(logger, CHANNEL);
+            feed = await source.GetReleaseFeed(logger.ToVelopackLogger(), null, CHANNEL);
         } catch (Exception ex) {
             logger.Warn(ex, "Failed to fetch release feed.");
         }
@@ -116,7 +119,7 @@ public class DeploymentTests
         await repo.UploadMissingAssetsAsync(options);
 
         // verify that new version has been uploaded
-        feed = await source.GetReleaseFeed(logger, CHANNEL);
+        feed = await source.GetReleaseFeed(logger.ToVelopackLogger(), null, CHANNEL);
         latestOnline = feed.Assets.Where(a => a.Version != null && a.Type == VelopackAssetType.Full).MaxBy(a => a.Version);
 
         Assert.True(latestOnline != null, "No latest version found.");

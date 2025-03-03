@@ -2,6 +2,7 @@
 using System.IO.Compression;
 using NCode.ReparsePoints;
 using Velopack.Compression;
+using Velopack.Logging;
 using Velopack.Util;
 
 namespace Velopack.Tests;
@@ -247,7 +248,7 @@ public class SymbolicLinkTests
         using var _2 = TempUtil.GetTempDirectory(out var tempOutput);
         var output = Path.Combine(tempOutput, "output.zip");
 
-        await EasyZip.CreateZipFromDirectoryAsync(NullLogger.Instance, output, tempFolder);
+        await EasyZip.CreateZipFromDirectoryAsync(NullVelopackLogger.Instance, output, tempFolder);
         ZipFile.ExtractToDirectory(output, tempOutput);
 
         var appSym = Path.Combine(tempOutput, "App.__symlink");

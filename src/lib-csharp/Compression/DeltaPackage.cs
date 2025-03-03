@@ -4,20 +4,20 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using Microsoft.Extensions.Logging;
 using Velopack.Exceptions;
+using Velopack.Logging;
 using Velopack.Util;
 
 namespace Velopack.Compression
 {
     internal abstract class DeltaPackage
     {
-        protected readonly ILogger Log;
+        protected readonly IVelopackLogger Log;
         protected readonly string BaseTempDir;
 
         private static Regex DIFF_SUFFIX = new Regex(@"\.(bs|zs)?diff$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        public DeltaPackage(ILogger logger, string baseTmpDir)
+        public DeltaPackage(IVelopackLogger logger, string baseTmpDir)
         {
             Log = logger;
             BaseTempDir = baseTmpDir;

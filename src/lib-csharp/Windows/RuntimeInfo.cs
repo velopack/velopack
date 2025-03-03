@@ -7,9 +7,9 @@ using System.Linq;
 using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using NuGet.Versioning;
+using Velopack.Logging;
 using Velopack.Sources;
 using Velopack.Util;
 
@@ -76,7 +76,7 @@ namespace Velopack.Windows
             public abstract Task<bool> CheckIsSupported();
 
             /// <summary> Download the latest installer for this runtime to the specified file </summary>
-            public virtual async Task DownloadToFile(string localPath, Action<int> progress = null, IFileDownloader downloader = null, ILogger log = null)
+            public virtual async Task DownloadToFile(string localPath, Action<int> progress = null, IFileDownloader downloader = null, IVelopackLogger log = null)
             {
                 var url = await GetDownloadUrl().ConfigureAwait(false);
                 log?.Info($"Downloading {Id} from {url} to {localPath}");
@@ -86,7 +86,7 @@ namespace Velopack.Windows
 
             /// <summary> Execute a runtime installer at a local file path. Typically used after <see cref="DownloadToFile"/> </summary>
             [SupportedOSPlatform("windows")]
-            public virtual async Task<RuntimeInstallResult> InvokeInstaller(string pathToInstaller, bool isQuiet, ILogger log = null)
+            public virtual async Task<RuntimeInstallResult> InvokeInstaller(string pathToInstaller, bool isQuiet, IVelopackLogger log = null)
             {
                 var args = new string[] { "/passive", "/norestart", "/showrmui" };
                 var quietArgs = new string[] { "/q", "/norestart" };

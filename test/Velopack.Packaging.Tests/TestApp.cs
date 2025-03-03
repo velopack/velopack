@@ -1,5 +1,6 @@
 ﻿#nullable enable
 using System.Diagnostics;
+using Velopack.Core;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Util;

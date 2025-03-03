@@ -2,10 +2,6 @@
 using System.Text;
 using Microsoft.Extensions.Logging;
 
-#if !DEBUG
-using Velopack.Util;
-#endif
-
 namespace Velopack.Packaging;
 
 public static class HelperFile
@@ -23,7 +19,7 @@ public static class HelperFile
 #else
         case RuntimeOs.Linux:
             if (!target.HasArchitecture) {
-                log.Warn("No architecture specified with --runtime, defaulting to x64. If this was not intended please specify via the --runtime parameter");
+                log.LogWarning("No architecture specified with --runtime, defaulting to x64. If this was not intended please specify via the --runtime parameter");
                 return FindHelperFile("UpdateNix_x64");
             }
 

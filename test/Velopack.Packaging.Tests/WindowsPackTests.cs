@@ -79,7 +79,7 @@ public class WindowsPackTests
         var releasesPath2 = Path.Combine(tmpReleaseDir, $"releases.asd123.json");
         Assert.True(File.Exists(releasesPath2));
 
-        EasyZip.ExtractZipToDirectory(logger, nupkgPath, unzipDir);
+        EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), nupkgPath, unzipDir);
 
         // does nuspec exist and is it valid
         var nuspecPath = Path.Combine(unzipDir, $"{id}.nuspec");
@@ -310,7 +310,7 @@ public class WindowsPackTests
         var deltaPath = Path.Combine(releaseDir, $"{id}-2.0.0-delta.nupkg");
         Assert.True(File.Exists(deltaPath));
         using var _2 = TempUtil.GetTempDirectory(out var extractDir);
-        EasyZip.ExtractZipToDirectory(logger, deltaPath, extractDir);
+        EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), deltaPath, extractDir);
         var extractDllDiff = Path.Combine(extractDir, "lib", "app", "testapp.dll.zsdiff");
         var extractDllShasum = Path.Combine(extractDir, "lib", "app", "testapp.dll.shasum");
         Assert.True(File.Exists(extractDllDiff));
@@ -659,7 +659,7 @@ public class WindowsPackTests
             () => {
                 return File.ReadAllText(path);
             },
-            logger: logger,
+            logger: logger.ToVelopackLogger(),
             retries: 10,
             retryDelay: 1000);
     }
@@ -730,7 +730,7 @@ public class WindowsPackTests
                 },
                 10,
                 1000,
-                logger);
+                logger.ToVelopackLogger());
 
             using var reader = new StreamReader(fs);
             var output = reader.ReadToEnd();

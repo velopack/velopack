@@ -1,4 +1,5 @@
-﻿using Velopack.Core.Abstractions;
+﻿using Velopack.Core;
+using Velopack.Core.Abstractions;
 using Velopack.Util;
 
 namespace Velopack.Vpk.Logging;

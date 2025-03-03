@@ -1,5 +1,6 @@
 ﻿using System.Threading;
 using NuGet.Protocol.Core.Types;
+using Velopack.Core;
 using Velopack.Packaging.NuGet;
 using Velopack.Util;
 
@@ -21,7 +22,6 @@ public class UpdateChecker
     {
         if (_defaults.SkipUpdates) return false;
         try {
-
             var myVer = VelopackRuntimeInfo.VelopackNugetVersion;
             var isPre = myVer.IsPrerelease || myVer.HasMetadata;
 
@@ -38,6 +38,7 @@ public class UpdateChecker
                 } else {
                     _logger.Warn($"[bold]There is a newer version of vpk available. Run 'dotnet tool update -g vpk --version {cacheVersion}'[/]");
                 }
+
                 return true;
             } else {
                 _logger.Debug($"vpk is up to date (latest online = {cacheVersion})");
@@ -45,6 +46,7 @@ public class UpdateChecker
         } catch (Exception ex) {
             _logger.Debug(ex, "Failed to check for updates.");
         }
+
         return false;
     }
 }

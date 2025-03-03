@@ -293,7 +293,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
         AddContentTypesAndRel(nuspecPath);
 
-        await EasyZip.CreateZipFromDirectoryAsync(Log, outputPath, stagingDir.FullName, CoreUtil.CreateProgressDelegate(progress, 30, 100));
+        await EasyZip.CreateZipFromDirectoryAsync(Log.ToVelopackLogger(), outputPath, stagingDir.FullName, CoreUtil.CreateProgressDelegate(progress, 30, 100));
         progress(100);
     }
 

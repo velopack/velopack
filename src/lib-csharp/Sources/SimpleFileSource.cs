@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
+using Velopack.Logging;
 using Velopack.NuGet;
 using Velopack.Util;
 
@@ -25,7 +25,8 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public virtual Task<VelopackAssetFeed> GetReleaseFeed(ILogger logger, string channel, Guid? stagingId = null, VelopackAsset? latestLocalRelease = null)
+        public virtual Task<VelopackAssetFeed> GetReleaseFeed(IVelopackLogger logger, string? appId, string channel, Guid? stagingId = null,
+            VelopackAsset? latestLocalRelease = null)
         {
             if (!BaseDirectory.Exists) {
                 logger.Error($"The local update directory '{BaseDirectory.FullName}' does not exist.");
@@ -65,7 +66,7 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public virtual Task DownloadReleaseEntry(ILogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress, CancellationToken cancelToken)
+        public virtual Task DownloadReleaseEntry(IVelopackLogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress, CancellationToken cancelToken)
         {
             var releasePath = Path.Combine(BaseDirectory.FullName, releaseEntry.FileName);
             if (!File.Exists(releasePath))
