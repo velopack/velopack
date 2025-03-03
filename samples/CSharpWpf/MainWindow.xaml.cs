@@ -1,6 +1,5 @@
 ﻿using System.Text;
 using System.Windows;
-using Microsoft.Extensions.Logging;
 using Velopack;
 
 namespace CSharpWpf
@@ -15,10 +14,8 @@ namespace CSharpWpf
             InitializeComponent();
 
             string updateUrl = SampleHelper.GetReleasesDir(); // replace with your update url
-            _um = new UpdateManager(updateUrl, logger: App.Log);
+            _um = new UpdateManager(updateUrl);
 
-            TextLog.Text = App.Log.ToString();
-            App.Log.LogUpdated += LogUpdated;
             UpdateStatus();
         }
 
@@ -29,7 +26,7 @@ namespace CSharpWpf
                 // ConfigureAwait(true) so that UpdateStatus() is called on the UI thread
                 _update = await _um.CheckForUpdatesAsync().ConfigureAwait(true);
             } catch (Exception ex) {
-                App.Log.LogError(ex, "Error checking for updates");
+                LogMessage("Error checking for updates", ex);
             }
             UpdateStatus();
         }
@@ -41,7 +38,7 @@ namespace CSharpWpf
                 // ConfigureAwait(true) so that UpdateStatus() is called on the UI thread
                 await _um.DownloadUpdatesAsync(_update, Progress).ConfigureAwait(true);
             } catch (Exception ex) {
-                App.Log.LogError(ex, "Error downloading updates");
+                LogMessage("Error downloading updates", ex);
             }
             UpdateStatus();
         }
@@ -51,11 +48,14 @@ namespace CSharpWpf
             _um.ApplyUpdatesAndRestart(_update);
         }
 
-        private void LogUpdated(object sender, LogUpdatedEventArgs e)
+        private void LogMessage(string text, Exception e = null)
         {
             // logs can be sent from other threads
             this.Dispatcher.InvokeAsync(() => {
-                TextLog.Text = e.Text;
+                TextLog.Text += text + Environment.NewLine;
+                if (e != null) {
+                    TextLog.Text += e.ToString() + Environment.NewLine;
+                }
                 ScrollLog.ScrollToEnd();
             });
         }
@@ -70,7 +70,7 @@ namespace CSharpWpf
 
         private void Working()
         {
-            App.Log.LogInformation("");
+            LogMessage("");
             BtnCheckUpdate.IsEnabled = false;
             BtnDownloadUpdate.IsEnabled = false;
             BtnRestartApply.IsEnabled = false;

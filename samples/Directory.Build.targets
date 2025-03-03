@@ -17,16 +17,5 @@
   <ItemGroup>
     <Compile Include="..\SampleHelper.cs" Link="SampleHelper.cs" Visible="false" />
   </ItemGroup>
-
-  <PropertyGroup Condition="$(UseLocalVelopack) != ''">
-    <RestoreSources>https://api.nuget.org/v3/index.json;$(RestoreSources)</RestoreSources>
-    <RestoreSources Condition="Exists('$(MSBuildThisFileDirectory)..\build\$(Configuration)')">
-      $([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\build\$(Configuration)'));$(RestoreSources)
-    </RestoreSources>
-  </PropertyGroup>
-  
-  <ItemGroup Condition="$(UseLocalVelopack) != ''">
-    <ProjectReference Include="..\..\src\lib-csharp\Velopack.csproj" />
-  </ItemGroup>
   
 </Project>

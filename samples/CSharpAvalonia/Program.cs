@@ -6,8 +6,6 @@ namespace CSharpAvalonia;
 
 class Program
 {
-    public static MemoryLogger Log { get; private set; }
-
     // Initialization code. Don't use any Avalonia, third-party APIs or any
     // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
     // yet and stuff might break.
@@ -15,13 +13,10 @@ class Program
     public static void Main(string[] args)
     {
         try {
-            // Logging is essential for debugging! Ideally you should write it to a file.
-            Log = new MemoryLogger();
-
             // It's important to Run() the VelopackApp as early as possible in app startup.
             VelopackApp.Build()
-                .WithFirstRun((v) => { /* Your first run code here */ })
-                .Run(Log);
+                .OnFirstRun((v) => { /* Your first run code here */ })
+                .Run();
 
             // Now it's time to run Avalonia
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
