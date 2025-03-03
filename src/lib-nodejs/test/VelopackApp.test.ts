@@ -1,5 +1,5 @@
-import { VelopackApp, VelopackLocatorConfig, setVelopackLogger } from "../src";
-import { isWindows, captureLogs } from "./helper";
+import {VelopackApp, VelopackLocatorConfig} from "../src";
+import {isWindows} from "./helper";
 
 class HookTester {
   public afterInstall = false;
@@ -42,88 +42,78 @@ class HookTester {
 }
 
 test("VelopackApp should handle restarted event", async () => {
-  await captureLogs(async () => {
-    let [builder, tester] = HookTester.build();
-    let locator: VelopackLocatorConfig = {
-      ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
-      PackagesDir: "",
-      RootAppDir: "",
-      UpdateExePath: "",
-      CurrentBinaryDir: "",
-      IsPortable: true,
-    };
-    builder.setLocator(locator).run();
+  let [builder, tester] = HookTester.build();
+  let locator: VelopackLocatorConfig = {
+    ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
+    PackagesDir: "",
+    RootAppDir: "",
+    UpdateExePath: "",
+    CurrentBinaryDir: "",
+    IsPortable: true,
+  };
+  builder.setLocator(locator).run();
 
-    expect(tester.afterInstall).toBe(false);
-    expect(tester.beforeUninstall).toBe(false);
-    expect(tester.beforeUpdate).toBe(false);
-    expect(tester.afterUpdate).toBe(false);
-    expect(tester.restarted).toBe(true);
-    expect(tester.firstRun).toBe(false);
-    expect(tester.version).toBe("1.0.0");
-  });
+  expect(tester.afterInstall).toBe(false);
+  expect(tester.beforeUninstall).toBe(false);
+  expect(tester.beforeUpdate).toBe(false);
+  expect(tester.afterUpdate).toBe(false);
+  expect(tester.restarted).toBe(true);
+  expect(tester.firstRun).toBe(false);
+  expect(tester.version).toBe("1.0.0");
 });
 
 test("VelopackApp should handle after-install hook", async () => {
   if (!isWindows()) return;
-  await captureLogs(async () => {
-    let [builder, tester] = HookTester.build();
-    builder.setArgs(["--veloapp-install", "1.2.3-test.4"]).run();
+  let [builder, tester] = HookTester.build();
+  builder.setArgs(["--veloapp-install", "1.2.3-test.4"]).run();
 
-    expect(tester.afterInstall).toBe(true);
-    expect(tester.beforeUninstall).toBe(false);
-    expect(tester.beforeUpdate).toBe(false);
-    expect(tester.afterUpdate).toBe(false);
-    expect(tester.restarted).toBe(false);
-    expect(tester.firstRun).toBe(false);
-    expect(tester.version).toBe("1.2.3-test.4");
-  });
+  expect(tester.afterInstall).toBe(true);
+  expect(tester.beforeUninstall).toBe(false);
+  expect(tester.beforeUpdate).toBe(false);
+  expect(tester.afterUpdate).toBe(false);
+  expect(tester.restarted).toBe(false);
+  expect(tester.firstRun).toBe(false);
+  expect(tester.version).toBe("1.2.3-test.4");
 });
 
 test("VelopackApp should handle before-uninstall hook", async () => {
   if (!isWindows()) return;
-  await captureLogs(async () => {
-    let [builder, tester] = HookTester.build();
-    builder.setArgs(["--veloapp-uninstall", "1.2.3-test"]).run();
+  let [builder, tester] = HookTester.build();
+  builder.setArgs(["--veloapp-uninstall", "1.2.3-test"]).run();
 
-    expect(tester.afterInstall).toBe(false);
-    expect(tester.beforeUninstall).toBe(true);
-    expect(tester.beforeUpdate).toBe(false);
-    expect(tester.afterUpdate).toBe(false);
-    expect(tester.restarted).toBe(false);
-    expect(tester.firstRun).toBe(false);
-    expect(tester.version).toBe("1.2.3-test");
-  });
+  expect(tester.afterInstall).toBe(false);
+  expect(tester.beforeUninstall).toBe(true);
+  expect(tester.beforeUpdate).toBe(false);
+  expect(tester.afterUpdate).toBe(false);
+  expect(tester.restarted).toBe(false);
+  expect(tester.firstRun).toBe(false);
+  expect(tester.version).toBe("1.2.3-test");
 });
 
 test("VelopackApp should handle after-update hook", async () => {
   if (!isWindows()) return;
-  await captureLogs(async () => {
-    let [builder, tester] = HookTester.build();
-    builder.setArgs(["--veloapp-updated", "1.2.3"]).run();
+  let [builder, tester] = HookTester.build();
+  builder.setArgs(["--veloapp-updated", "1.2.3"]).run();
 
-    expect(tester.afterInstall).toBe(false);
-    expect(tester.beforeUninstall).toBe(false);
-    expect(tester.beforeUpdate).toBe(false);
-    expect(tester.afterUpdate).toBe(true);
-    expect(tester.restarted).toBe(false);
-    expect(tester.firstRun).toBe(false);
-    expect(tester.version).toBe("1.2.3");
-  });
+  expect(tester.afterInstall).toBe(false);
+  expect(tester.beforeUninstall).toBe(false);
+  expect(tester.beforeUpdate).toBe(false);
+  expect(tester.afterUpdate).toBe(true);
+  expect(tester.restarted).toBe(false);
+  expect(tester.firstRun).toBe(false);
+  expect(tester.version).toBe("1.2.3");
 });
 
 test("VelopackApp should handle before-update hook", async () => {
   if (!isWindows()) return;
-  await captureLogs(async () => {
-    let [builder, tester] = HookTester.build();
-    builder.setArgs(["--veloapp-obsolete", "1.2.3-test.4"]).run();
+  let [builder, tester] = HookTester.build();
+  builder.setArgs(["--veloapp-obsolete", "1.2.3-test.4"]).run();
 
-    expect(tester.afterInstall).toBe(false);
-    expect(tester.beforeUninstall).toBe(false);
-    expect(tester.beforeUpdate).toBe(true);
-    expect(tester.afterUpdate).toBe(false);
-    expect(tester.restarted).toBe(false);
-    expect(tester.firstRun).toBe(false);
-    expect(tester.version).toBe("1.2.3-test.4");
-  });
+  expect(tester.afterInstall).toBe(false);
+  expect(tester.beforeUninstall).toBe(false);
+  expect(tester.beforeUpdate).toBe(true);
+  expect(tester.afterUpdate).toBe(false);
+  expect(tester.restarted).toBe(false);
+  expect(tester.firstRun).toBe(false);
+  expect(tester.version).toBe("1.2.3-test.4");
 });

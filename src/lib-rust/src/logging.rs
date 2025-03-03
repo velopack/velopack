@@ -81,10 +81,9 @@ pub fn default_logfile_from_config(config: &VelopackLocatorConfig) -> PathBuf {
 /// Default log location for Velopack on the current OS.
 #[allow(unused_variables)]
 pub fn default_logfile_from_context(context: LocationContext) -> PathBuf {
-    use crate::locator::{auto_locate_app_manifest};
     #[cfg(target_os = "windows")]
     {
-        match auto_locate_app_manifest(context) {
+        match crate::locator::auto_locate_app_manifest(context) {
             Ok(locator) => {
                 return default_logfile_from_locator(locator);
             }

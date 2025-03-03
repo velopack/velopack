@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { setVelopackLogger } from "../lib";
 
 export function isWindows(): boolean {
   return os.platform() == "win32";
@@ -34,21 +33,6 @@ export function makeId(length: number): string {
     counter += 1;
   }
   return result;
-}
-
-export async function captureLogs<T>(cb: () => Promise<T>): Promise<T> {
-  setVelopackLogger((level, msg) => {
-    console.log(level, msg);
-  });
-
-  try {
-    return await cb();
-  } finally {
-    await shortDelay();
-    setVelopackLogger(() => {
-      // unhook logger from jest
-    });
-  }
 }
 
 // export function tempd1<T>(cb: (dir: string) => T): T {
