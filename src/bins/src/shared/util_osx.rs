@@ -53,7 +53,7 @@ fn test_start_and_stop_package() {
     let mani = velopack::bundle::Manifest::default();
     let mut paths = velopack::locator::VelopackLocatorConfig::default();
     paths.RootAppDir = std::path::PathBuf::from("/Applications/Calcbot.app");
-    let locator = VelopackLocator::new(paths, mani);
+    let locator = VelopackLocator::new_with_manifest(paths, mani);
     
     let _ = force_stop_package(locator.get_root_dir());
 
