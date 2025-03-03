@@ -430,6 +430,13 @@ jobs:
           sudo apt-cache search libgtk*
           sudo apt install -y libwxgtk3.2-dev libgtk-3-dev
         if: ${{ matrix.sample == 'CPlusPlusWidgets' && matrix.os == 'ubuntu-latest' }}
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x
+            9.0.x
       - name: Install VPK
         run: dotnet tool install -g vpk
       - name: Pack Sample (Windows)
