@@ -18,37 +18,6 @@ pub fn default_channel_name() -> String {
     return "osx".to_owned();
 }
 
-/// Default log location for Velopack on the current OS.
-#[allow(unused_variables)]
-pub fn default_log_location(context: LocationContext) -> PathBuf {
-    #[cfg(target_os = "windows")]
-    {
-        if let Ok(locator) = auto_locate_app_manifest(context) {
-            return locator.get_root_dir().join("Velopack.log");
-        }
-
-        warn!("Could not auto-locate app manifest, writing log to current directory.");
-
-        // If we can't locate the current app, we write to the current directory.
-        let mut my_exe = std::env::current_exe().expect("Could not locate current executable");
-        my_exe.pop();
-        return my_exe.join("Velopack.log");
-    }
-    #[cfg(target_os = "linux")]
-    {
-        return std::path::Path::new("/tmp/velopack.log").to_path_buf();
-    }
-    #[cfg(target_os = "macos")]
-    {
-        #[allow(deprecated)]
-        let mut user_home = std::env::home_dir().expect("Could not locate user home directory via $HOME or /etc/passwd");
-        user_home.push("Library");
-        user_home.push("Logs");
-        user_home.push("velopack.log");
-        return user_home;
-    }
-}
-
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     /// ShortcutLocationFlags is a bitflags enumeration of system shortcut locations.
@@ -121,8 +90,22 @@ pub struct VelopackLocator {
 }
 
 impl VelopackLocator {
+    /// Creates a new VelopackLocator from the given paths, trying to auto-detect the manifest.
+    pub fn new(config: &VelopackLocatorConfig) -> Result<VelopackLocator, Error>
+    {
+        if !config.UpdateExePath.exists() {
+            return Err(Error::MissingUpdateExe);
+        }
+        if !config.ManifestPath.exists() {
+            return Err(Error::MissingNuspec);
+        }
+
+        let manifest = read_current_manifest(&config.ManifestPath)?;
+        Ok(Self { paths: config.clone(), manifest })
+    }
+    
     /// Creates a new VelopackLocator from the given paths and manifest.
-    pub fn new(paths: VelopackLocatorConfig, manifest: Manifest) -> Self {
+    pub fn new_with_manifest(paths: VelopackLocatorConfig, manifest: Manifest) -> Self {
         Self { paths, manifest }
     }
 
@@ -333,19 +316,6 @@ pub fn create_config_from_root_dir<P: AsRef<std::path::Path>>(root_dir: P) -> Ve
     }
 }
 
-fn config_to_locator(config: &VelopackLocatorConfig) -> Result<VelopackLocator, Error>
-{
-    if !config.UpdateExePath.exists() {
-        return Err(Error::MissingUpdateExe);
-    }
-    if !config.ManifestPath.exists() {
-        return Err(Error::MissingNuspec);
-    }
-
-    let manifest = read_current_manifest(&config.ManifestPath)?;
-    Ok(VelopackLocator::new(config.clone(), manifest))
-}
-
 /// LocationContext is an enumeration of possible contexts for locating the current app manifest.
 pub enum LocationContext
 {
@@ -381,7 +351,7 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
         }
         LocationContext::FromSpecifiedRootDir(root_dir) => {
             let config = create_config_from_root_dir(&root_dir);
-            let locator = config_to_locator(&config)?;
+            let locator = VelopackLocator::new(&config)?;
             return Ok(locator);
         }
         LocationContext::FromSpecifiedAppExecutable(exe_path) => {
@@ -390,7 +360,7 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
                 if parent_dir.join("Update.exe").exists() {
                     info!("Found Update.exe in parent directory: {}", parent_dir.to_string_lossy());
                     let config = create_config_from_root_dir(&parent_dir);
-                    let locator = config_to_locator(&config)?;
+                    let locator = VelopackLocator::new(&config)?;
                     return Ok(locator);
                 }
             }
@@ -404,7 +374,7 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
                 if maybe_root.join("Update.exe").exists() {
                     info!("Found Update.exe by current path pattern search in directory: {}", maybe_root.to_string_lossy());
                     let config = create_config_from_root_dir(&maybe_root);
-                    let locator = config_to_locator(&config)?;
+                    let locator = VelopackLocator::new(&config)?;
                     return Ok(locator);
                 }
             }
@@ -413,12 +383,12 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
             let exe_path = std::env::current_exe()?;
             if let Some(parent_dir) = exe_path.parent() {
                 let config = create_config_from_root_dir(&parent_dir);
-                let locator = config_to_locator(&config)?;
+                let locator = VelopackLocator::new(&config)?;
                 return Ok(locator);
             }
         }
     };
-
+    
     Err(Error::NotInstalled("Could not auto-locate app manifest".to_owned()))
 }
 
@@ -472,7 +442,7 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
         IsPortable: true,
     };
 
-    config_to_locator(&config)
+    Ok(VelopackLocator::new_with_manifest(config, app))
 }
 
 #[cfg(target_os = "macos")]
@@ -520,8 +490,8 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
         CurrentBinaryDir: contents_dir,
         IsPortable: true,
     };
-
-    config_to_locator(&config)
+    
+    Ok(VelopackLocator::new_with_manifest(config, app))
 }
 
 fn read_current_manifest(nuspec_path: &PathBuf) -> Result<Manifest, Error> {
@@ -569,7 +539,7 @@ fn test_locator_staged_id_for_new_user() {
     //Esure the packages directory exists
     assert!(std::fs::create_dir_all(&paths.PackagesDir).is_ok());
 
-    let locator = VelopackLocator::new(paths, Manifest::default());
+    let locator = VelopackLocator::new_with_manifest(paths, Manifest::default());
 
     let staged_user_id = locator.get_staged_user_id();
 
@@ -596,7 +566,7 @@ fn test_locator_staged_id_for_existing_user() {
     //Esure the packages directory exists
     assert!(std::fs::create_dir_all(&paths.PackagesDir).is_ok());
 
-    let locator = VelopackLocator::new(paths, Manifest::default());
+    let locator = VelopackLocator::new_with_manifest(paths, Manifest::default());
 
     let packages_dir = locator.get_packages_dir();
     let beta_id_path = packages_dir.join(".betaId");

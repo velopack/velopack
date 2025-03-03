@@ -7,8 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use velopack::sources::*;
 use velopack::*;
-
-mod logger;
+use velopack::logging::{default_logfile_from_config, default_logfile_from_context};
 
 struct UpdateManagerWrapper {
     manager: UpdateManager,
@@ -262,30 +261,29 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
             .on_after_update_fast_callback(|semver| hook_handler("after-update", semver));
     }
 
-    if let Some(locator) = locator {
-        builder = builder.set_locator(locator);
+    if let Some(locator) = &locator {
+        builder = builder.set_locator(locator.clone());
     }
 
     if let Some(arg_array) = argarray {
         builder = builder.set_args(arg_array);
     }
 
+    // init logging
+    let log_file = if let Some(locator) = &locator {
+        default_logfile_from_config(locator)
+    } else {
+        default_logfile_from_context(LocationContext::FromCurrentExe)
+    };
+
+    logging::init_logging("lib-nodejs", Some(&log_file), false, false);
     builder.run();
 
     Ok(undefined)
 }
 
-fn js_set_logger_callback(mut cx: FunctionContext) -> JsResult<JsUndefined> {
-    let arg_cb = cx.argument::<JsFunction>(0)?;
-    let cb_root = arg_cb.root(&mut cx);
-    logger::set_logger_callback(Some(cb_root), &mut cx);
-    Ok(cx.undefined())
-}
-
 #[neon::main]
 fn main(mut cx: ModuleContext) -> NeonResult<()> {
-    logger::init_logger(&mut cx);
-
     cx.export_function("js_new_update_manager", js_new_update_manager)?;
     cx.export_function("js_get_current_version", js_get_current_version)?;
     cx.export_function("js_get_app_id", js_get_app_id)?;
@@ -295,6 +293,5 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("js_download_update_async", js_download_update_async)?;
     cx.export_function("js_wait_exit_then_apply_update", js_wait_exit_then_apply_update)?;
     cx.export_function("js_appbuilder_run", js_appbuilder_run)?;
-    cx.export_function("js_set_logger_callback", js_set_logger_callback)?;
     Ok(())
 }

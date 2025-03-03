@@ -156,7 +156,7 @@ fn try_legacy_migration(root_dir: &PathBuf, manifest: &Manifest) -> Result<Velop
     // new shortcuts will be force-created
     let mut modified_manifest = manifest.clone();
     modified_manifest.shortcut_locations = String::new();
-    let locator = VelopackLocator::new(path_config, modified_manifest);
+    let locator = VelopackLocator::new_with_manifest(path_config, modified_manifest);
     let _mutex = locator.try_get_exclusive_lock()?;
 
     if !locator.get_current_bin_dir().exists() {

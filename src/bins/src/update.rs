@@ -7,8 +7,9 @@ extern crate log;
 use anyhow::{anyhow, bail, Result};
 use clap::{arg, value_parser, ArgMatches, Command};
 use std::{env, path::PathBuf};
-use velopack::locator::{self, auto_locate_app_manifest, LocationContext};
-use velopack_bins::{*, shared::OperationWait};
+use velopack::locator::{auto_locate_app_manifest, LocationContext};
+use velopack::logging::*;
+use velopack_bins::{shared::OperationWait, *};
 
 #[rustfmt::skip]
 fn root_command() -> Command {
@@ -132,8 +133,8 @@ fn main() -> Result<()> {
 
     let verbose = get_flag_or_false(&matches, "verbose");
     let log_file = matches.get_one("log");
-    let desired_log_file = log_file.cloned().unwrap_or(locator::default_log_location(LocationContext::IAmUpdateExe));
-    logging::setup_logging("update", Some(&desired_log_file), true, verbose)?;
+    let desired_log_file = log_file.cloned().unwrap_or(default_logfile_from_context(LocationContext::IAmUpdateExe));
+    init_logging("update", Some(&desired_log_file), true, verbose);
 
     // change working directory to the parent directory of the exe
     let mut containing_dir = env::current_exe()?;
@@ -212,7 +213,6 @@ fn apply(matches: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
-
 fn get_start_args(matches: &ArgMatches) -> (OperationWait, Option<&String>, Option<&String>, Option<Vec<&str>>) {
     let legacy_args = matches.get_one::<String>("args");
     let exe_name = matches.get_one::<String>("EXE_NAME");
@@ -246,10 +246,10 @@ fn uninstall(_matches: &ArgMatches) -> Result<()> {
 #[cfg(target_os = "windows")]
 #[test]
 fn test_cli_parse_handles_equals_spaces() {
-    let command = vec!["C:\\Some Path\\With = Spaces\\Update.exe", "apply" , "--package", "C:\\Some Path\\With = Spaces\\Package.zip"];
+    let command = vec!["C:\\Some Path\\With = Spaces\\Update.exe", "apply", "--package", "C:\\Some Path\\With = Spaces\\Package.zip"];
     let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
     let (wait, restart, package, exe_args) = get_apply_args(matches.subcommand_matches("apply").unwrap());
-    
+
     assert_eq!(wait, OperationWait::NoWait);
     assert_eq!(restart, true);
     assert_eq!(package, Some(&PathBuf::from("C:\\Some Path\\With = Spaces\\Package.zip")));

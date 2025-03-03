@@ -23,7 +23,7 @@ edition = "2021"
 rust-version = "1.75"
 
 [workspace.dependencies]
-velopack = { path = "src/lib-rust" }
+velopack = { path = "src/lib-rust", features = ["file-logging"] }
 log = "0.4"
 log-derive = "0.4.1"
 ureq = "3.0"

@@ -103,6 +103,9 @@ pub mod delta;
 /// Acquire and manage file-system based lock files.
 pub mod lockfile;
 
+/// Logging utilities and setup.
+pub mod logging;
+
 pub use app::*;
 pub use manager::*;
 

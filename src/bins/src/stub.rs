@@ -1,8 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(dead_code)]
 
-mod logging;
-
 #[macro_use]
 extern crate log;
 
@@ -21,7 +19,7 @@ fn main() -> ExitCode {
         my_dir.join("Velopack.log")
     };
 
-    let _ = logging::setup_logging("stub", Some(&default_log_file), false, false);
+    let _ = velopack::logging::init_logging("stub", Some(&default_log_file), false, false);
 
     info!("--");
     info!("Starting Velopack Stub (at {:?})", my_path);

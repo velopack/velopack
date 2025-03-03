@@ -18,6 +18,7 @@ default = ["zstd"]
 delta = ["zstd"]
 async = ["async-std"]
 typescript = ["ts-rs"]
+file-logging = ["log-panics", "simplelog", "file-rotate", "time"]
 
 [package.metadata.docs.rs]
 features = ["async", "delta"]
@@ -58,6 +59,12 @@ zstd = { workspace = true, optional = true }
 
 # async
 async-std = { workspace = true, optional = true }
+
+# file logging
+log-panics = { workspace = true, optional = true }
+simplelog = { workspace = true, optional = true }
+file-rotate = { workspace = true, optional = true }
+time = { workspace = true, optional = true }
 
 [target.'cfg(windows)'.dependencies]
 windows = { workspace = true, features = ["Win32_Foundation", "Win32_Storage", "Win32_Storage_FileSystem", "Win32_System_IO"] }

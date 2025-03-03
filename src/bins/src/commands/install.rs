@@ -116,7 +116,7 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     
     info!("Acquiring lock...");
     let paths = create_config_from_root_dir(&root_path);
-    let locator = VelopackLocator::new(paths, app);
+    let locator = VelopackLocator::new_with_manifest(paths, app);
     let _mutex = locator.try_get_exclusive_lock()?;
 
     let tx = if dialogs::get_silent() {
