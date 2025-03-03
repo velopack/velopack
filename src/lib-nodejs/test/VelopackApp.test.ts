@@ -1,5 +1,5 @@
 import {VelopackApp, VelopackLocatorConfig} from "../src";
-import {isWindows} from "./helper";
+import {isWindows, updateExe} from "./helper";
 
 class HookTester {
   public afterInstall = false;
@@ -47,7 +47,7 @@ test("VelopackApp should handle restarted event", async () => {
     ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
     PackagesDir: "",
     RootAppDir: "",
-    UpdateExePath: "",
+    UpdateExePath: updateExe(),
     CurrentBinaryDir: "",
     IsPortable: true,
   };
