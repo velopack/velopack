@@ -51,14 +51,8 @@ public:
 class MyFrame : public wxFrame
 {
 public:
-    ~MyFrame()
-    {
-        vpkc_set_logger(nullptr, nullptr);
-    }
     MyFrame() : wxFrame(nullptr, wxID_ANY, "VelopackCppWidgetsSample", wxDefaultPosition, wxSize(600, 600))
     {
-        vpkc_set_logger(&MyFrame::HandleVpkcLogStatic, this);
-
         // Set background color to white
         // SetBackgroundColour(*wxWHITE);
 
@@ -184,23 +178,6 @@ private:
         }
         catch (...) { /* exception will print in log */ }
 
-    }
-
-    void HandleVpkcLog(const char* pszLevel, const char* pszMessage)
-    {
-        std::string level(pszLevel);
-        std::string message(pszMessage);
-        wxTheApp->CallAfter([this, level, message]() {
-            if (textArea) { // Ensure textArea is valid.
-                textArea->AppendText(level + ": " + message + "\n");
-            }
-        });
-    }
-
-    static void HandleVpkcLogStatic(void* context, const char* pszLevel, const char* pszMessage)
-    {
-        MyFrame* instance = static_cast<MyFrame*>(context);
-        instance->HandleVpkcLog(pszLevel, pszMessage);
     }
 
     void HandleProgressCallback(size_t progress)

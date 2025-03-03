@@ -38,11 +38,6 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 std::wstring        Utf8ToWString(std::string const& str);
 std::string         WStringToUtf8(std::wstring const& wstr);
 
-void handle_vpkc_log(void* pUserData, const char* pszLevel, const char* pszMessage)
-{
-    std::cout << pszLevel << ": " << pszMessage << std::endl;
-}
-
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
     _In_ LPWSTR    lpCmdLine,
@@ -57,7 +52,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Initialize Velopack log capture
     std::cout << "Velopack C++ Sample App" << std::endl;
-    vpkc_set_logger(handle_vpkc_log, 0);
 
     // This should run as early as possible in the main method.
     // Velopack may exit / restart the app at this point. 
