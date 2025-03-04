@@ -10,7 +10,7 @@ Once built, you can install the app - build more updates, and then test updates 
 
 In your production apps, you should deploy your updates to some kind of update server instead.
 
-On Linux, there is no installer, since the program is shipped as a `.AppImage`, it is only portable - however it can still update itself by replacing it's own `.AppImage` (even if that `.AppImage` is inside priveleged directories)
+On Linux, there is no installer, since the program is shipped as a `.AppImage`, it is only portable - however it can still update itself by replacing it's own `.AppImage` (even if that `.AppImage` is inside privileged directories)
 
 ## Avalonia Implementation Notes
 The Avalonia Template will generate a `Program.Main()` for you. You need to be careful when editing this file as to not break the Avalonia designer. You must not delete the `BuildAvaloniaApp()` function, but you must add the `VelopackApp` builder to the `Main()` method. For example:
