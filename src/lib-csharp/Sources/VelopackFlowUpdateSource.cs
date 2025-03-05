@@ -52,7 +52,7 @@ namespace Velopack.Sources
             }
 
             if (latestLocalRelease != null) {
-                args.Add("localVersion", latestLocalRelease.Version.ToString());
+                args.Add("localVersion", latestLocalRelease.Version?.ToString() ?? "");
             }
 
             if (stagingId != null) {
