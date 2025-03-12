@@ -1,5 +1,8 @@
 use anyhow::Result;
-use std::sync::RwLock;
+use log::{Level, LevelFilter, Log, Metadata, Record};
+use simplelog::{Config, SharedLogger};
+use std::ffi::{c_void, CString};
+use std::sync::{Mutex, RwLock};
 use velopack::locator::VelopackLocatorConfig;
 
 use crate::types::*;
@@ -19,6 +22,7 @@ pub struct AppOptions {
 
 lazy_static::lazy_static! {
     static ref LAST_ERROR: RwLock<String> = RwLock::new(String::new());
+    static ref LOG_CALLBACK: Mutex<(vpkc_log_callback_t, usize)> = Mutex::new((None, 0));
     pub static ref VELOPACK_APP: RwLock<AppOptions> = RwLock::new(Default::default());
 }
 
@@ -60,4 +64,66 @@ where
             false
         }
     }
+}
+
+pub fn set_log_callback(callback: vpkc_log_callback_t, user_data: *mut c_void) {
+    let mut log_callback = LOG_CALLBACK.lock().unwrap();
+    *log_callback = (callback, user_data as usize);
+}
+
+pub fn log_message(level: &str, message: &str) {
+    let log_callback = LOG_CALLBACK.lock().unwrap();
+    let (callback, user_data) = *log_callback;
+    if let Some(callback) = callback {
+        let c_level = CString::new(level).unwrap();
+        let c_message = CString::new(message).unwrap();
+        callback(user_data as *mut c_void, c_level.as_ptr(), c_message.as_ptr());
+    }
+}
+
+struct LoggerImpl {}
+
+impl SharedLogger for LoggerImpl {
+    fn level(&self) -> LevelFilter {
+        LevelFilter::max()
+    }
+
+    fn config(&self) -> Option<&Config> {
+        None
+    }
+
+    fn as_log(self: Box<Self>) -> Box<dyn Log> {
+        Box::new(*self)
+    }
+}
+
+impl Log for LoggerImpl {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        metadata.level() <= log::max_level()
+    }
+
+    fn log(&self, record: &Record) {
+        if !self.enabled(record.metadata()) {
+            return;
+        }
+
+        let text = format!("{}", record.args());
+
+        let level = match record.level() {
+            Level::Error => "error",
+            Level::Warn => "warn",
+            Level::Info => "info",
+            Level::Debug => "debug",
+            Level::Trace => "trace",
+        }
+        .to_string();
+
+        log_message(&level, &text);
+    }
+
+    fn flush(&self) {}
+}
+
+pub fn create_shared_logger() -> Box<dyn SharedLogger> {
+    Box::new(LoggerImpl {})
 }

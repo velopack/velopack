@@ -2278,6 +2278,7 @@ dependencies = [
  "log",
  "log-derive",
  "serde_json",
+ "simplelog",
  "velopack",
 ]
 
