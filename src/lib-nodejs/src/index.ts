@@ -47,6 +47,10 @@ declare module "./load" {
     locator: string | null,
     autoApply: boolean,
   ): void;
+
+  function js_set_logger_callback(
+    cb: (loglevel: LogLevel, msg: string) => void,
+  ): void;
 }
 
 type VelopackHookType =
@@ -58,6 +62,8 @@ type VelopackHookType =
   | "first-run";
 
 type VelopackHook = (version: string) => void;
+
+type LogLevel = "info" | "warn" | "error" | "debug" | "trace";
 
 /** 
  * VelopackApp helps you to handle app activation events correctly.
@@ -150,6 +156,14 @@ export class VelopackApp {
    */
   setLocator(locator: VelopackLocatorConfig): VelopackApp {
     this._customLocator = locator;
+    return this;
+  }
+
+  /**
+   * Set a callback to receive log messages from VelopackApp.
+   */
+  setLogger(callback: (loglevel: LogLevel, msg: string) => void): VelopackApp {
+    addon.js_set_logger_callback(callback);
     return this;
   }
 

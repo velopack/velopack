@@ -21,6 +21,7 @@ velopack.workspace = true
 serde_json.workspace = true
 semver.workspace = true
 log.workspace = true
+simplelog.workspace = true
 lazy_static.workspace = true
 neon.workspace = true
 

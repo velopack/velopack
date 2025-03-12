@@ -8,6 +8,8 @@ use std::thread;
 use velopack::sources::*;
 use velopack::*;
 
+mod logger;
+
 struct UpdateManagerWrapper {
     manager: UpdateManager,
 }
@@ -275,10 +277,17 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
         logging::default_logfile_path(LocationContext::FromCurrentExe)
     };
 
-    logging::init_logging("lib-nodejs", Some(&log_file), false, false);
+    logging::init_logging("lib-nodejs", Some(&log_file), false, false, Some(logger::create_shared_logger()));
     builder.run();
 
     Ok(undefined)
+}
+
+fn js_set_logger_callback(mut cx: FunctionContext) -> JsResult<JsUndefined> {
+    let arg_cb = cx.argument::<JsFunction>(0)?;
+    let cb_root = arg_cb.root(&mut cx);
+    logger::set_logger_callback(Some(cb_root), &mut cx);
+    Ok(cx.undefined())
 }
 
 #[neon::main]
@@ -292,5 +301,6 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("js_download_update_async", js_download_update_async)?;
     cx.export_function("js_wait_exit_then_apply_update", js_wait_exit_then_apply_update)?;
     cx.export_function("js_appbuilder_run", js_appbuilder_run)?;
+    cx.export_function("js_set_logger_callback", js_set_logger_callback)?;
     Ok(())
 }
