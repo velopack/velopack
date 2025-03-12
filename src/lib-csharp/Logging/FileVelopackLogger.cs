@@ -27,12 +27,13 @@ namespace Velopack.Logging
                     if (_disposed) {
                         return;
                     }
-                    var logMessage = $"[lib-csharp:{ProcessId}] [{DateTime.Now.ToShortTimeString()}] [{logLevel}] {message}";
+                    var logMessage = $"[lib-csharp:{ProcessId}] [{DateTime.Now:HH:mm:ss}] [{logLevel}] {message}";
                     if (exception != null) {
                         logMessage += Environment.NewLine + exception;
                     }
 
                     _writer.WriteLine(logMessage);
+                    _writer.Flush();
                 }
             } catch (Exception ex) {
                 Debug.WriteLine($"Error writing to log file: {ex}");
