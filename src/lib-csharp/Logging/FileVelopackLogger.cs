@@ -7,7 +7,7 @@ namespace Velopack.Logging
 {
     public class FileVelopackLogger : IVelopackLogger, IDisposable
     {
-        public uint ProcessId { get; }
+        private uint ProcessId { get; }
         private readonly object _lock = new();
         private readonly StreamWriter _writer;
         private readonly FileStream _fileStream;

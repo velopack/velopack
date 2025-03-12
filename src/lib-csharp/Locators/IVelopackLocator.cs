@@ -11,37 +11,37 @@ namespace Velopack.Locators
     public interface IVelopackLocator
     {
         /// <summary> The unique application Id. This is used in various app paths. </summary>
-        public string? AppId { get; }
+        string? AppId { get; }
 
         /// <summary> 
         /// The root directory of the application. On Windows, this folder contains all 
         /// the application files, but that may not be the case on other operating systems. 
         /// </summary>
-        public string? RootAppDir { get; }
+        string? RootAppDir { get; }
 
         /// <summary> The directory in which nupkg files are stored for this application. </summary>
-        public string? PackagesDir { get; }
+        string? PackagesDir { get; }
 
         /// <summary> The directory in which versioned application files are stored. </summary>
-        public string? AppContentDir { get; }
+        string? AppContentDir { get; }
 
         /// <summary> The temporary directory for this application. </summary>
-        public string? AppTempDir { get; }
+        string? AppTempDir { get; }
 
         /// <summary> The path to the current Update.exe or similar on other operating systems. </summary>
-        public string? UpdateExePath { get; }
+        string? UpdateExePath { get; }
 
         /// <summary> The currently installed version of the application, or null if the app is not installed. </summary>
-        public SemanticVersion? CurrentlyInstalledVersion { get; }
+        SemanticVersion? CurrentlyInstalledVersion { get; }
 
         /// <summary> The path from <see cref="AppContentDir"/> to this executable. </summary>
-        public string? ThisExeRelativePath { get; }
+        string? ThisExeRelativePath { get; }
 
         /// <summary> The release channel this package was built for. </summary>
-        public string? Channel { get; }
+        string? Channel { get; }
         
         /// <summary> The logging interface to use for Velopack diagnostic messages. </summary>
-        public IVelopackLogger Log { get; }
+        IVelopackLogger Log { get; }
         
         /// <summary>
         /// A flag indicating if this is a portable build, and that the settings should be self-contained in the package.
@@ -49,34 +49,34 @@ namespace Velopack.Locators
         /// On OSX and Linux, this is always false, because settings and application files should be stored in the user's 
         /// home directory.
         /// </summary>
-        public bool IsPortable { get; }
+        bool IsPortable { get; }
         
         /// <summary>
         /// The process for which the Velopack Locator has been constructed. This should usually be the current process path.
         /// </summary>
-        public string ProcessExePath { get; }
+        string ProcessExePath { get; }
         
         /// <summary>
         /// The process ID for which the Velopack Locator has been constructed. This should usually be the current process ID.
         /// Setting this to zero will disable some features of Velopack (like the ability to wait for the process to exit
         /// before installing updates).
         /// </summary>
-        public uint ProcessId { get; }
+        uint ProcessId { get; }
 
         /// <summary>
         /// Finds .nupkg files in the PackagesDir and returns a list of ReleaseEntryName objects.
         /// </summary>
-        public List<VelopackAsset> GetLocalPackages();
+        List<VelopackAsset> GetLocalPackages();
 
         /// <summary>
         /// Finds latest .nupkg file in the PackagesDir or null if not found.
         /// </summary>
-        public VelopackAsset? GetLatestLocalFullPackage();
+        VelopackAsset? GetLatestLocalFullPackage();
 
         /// <summary>
         /// Unique identifier for this user which is used to calculate whether this user is eligible for 
         /// staged roll outs.
         /// </summary>
-        public Guid? GetOrCreateStagedUserId();
+        Guid? GetOrCreateStagedUserId();
     }
 }

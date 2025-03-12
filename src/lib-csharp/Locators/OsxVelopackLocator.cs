@@ -47,10 +47,10 @@ namespace Velopack.Locators
 
         /// <inheritdoc />
         public override string? Channel { get; }
-        
+
         /// <inheritdoc />
         public override uint ProcessId { get; }
-        
+
         /// <inheritdoc />
         public override string ProcessExePath { get; }
 
@@ -58,40 +58,66 @@ namespace Velopack.Locators
         /// Creates a new <see cref="OsxVelopackLocator"/> and auto-detects the
         /// app information from metadata embedded in the .app.
         /// </summary>
-        public OsxVelopackLocator(string currentProcessPath, uint currentProcessId, IVelopackLogger? logger)
+        public OsxVelopackLocator(string currentProcessPath, uint currentProcessId, IVelopackLogger? customLog)
         {
             if (!VelopackRuntimeInfo.IsOSX)
-                throw new NotSupportedException("Cannot instantiate OsxLocator on a non-osx system.");
-            
+                throw new NotSupportedException($"Cannot instantiate {nameof(OsxVelopackLocator)} on a non-osx system.");
+
             ProcessId = currentProcessId;
             var ourPath = ProcessExePath = currentProcessPath;
 
-            var userLogDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Logs");
-            var logPath = Directory.Exists(userLogDir) ? Path.Combine(userLogDir, "velopack.log") : "/tmp/velopack.log";
-            logger ??= new FileVelopackLogger(logPath, currentProcessId);
-            logger.Info($"Initialising {nameof(OsxVelopackLocator)}");
-            Log = logger;
+            var combinedLog = new CombinedVelopackLogger();
+            combinedLog.Add(customLog);
+            Log = combinedLog;
+
+            using var initLog = new CachedVelopackLogger(combinedLog);
+            initLog.Info($"Initialising {nameof(OsxVelopackLocator)}");
+
+            string logFolder = Path.GetTempPath();
+
+            if (!string.IsNullOrEmpty(HomeDir) && Directory.Exists(HomeDir)) {
+                var userLogsFolder = Path.Combine(HomeDir!, "Library", "Logs");
+                if (!Directory.Exists(userLogsFolder)) {
+                    logFolder = userLogsFolder;
+                }
+            }
+
+            var logFileName = DefaultLoggingFileName;
 
             // are we inside a .app?
             var ix = ourPath.IndexOf(".app/", StringComparison.InvariantCultureIgnoreCase);
-            if (ix <= 0) {
-                logger.Warn($"Unable to locate .app root from '{ourPath}'");
-                return;
+            if (ix > 0) {
+                var appPath = ourPath.Substring(0, ix + 4);
+                var contentsDir = Path.Combine(appPath, "Contents");
+                var macosDir = Path.Combine(contentsDir, "MacOS");
+                var updateExe = Path.Combine(macosDir, "UpdateMac");
+                var metadataPath = Path.Combine(macosDir, CoreUtil.SpecVersionFileName);
+
+                if (File.Exists(updateExe) && PackageManifest.TryParseFromFile(metadataPath, out var manifest)) {
+                    initLog.Info("Located valid manifest file at: " + metadataPath);
+                    AppId = manifest.Id;
+                    RootAppDir = appPath;
+                    UpdateExePath = updateExe;
+                    CurrentlyInstalledVersion = manifest.Version;
+                    Channel = manifest.Channel;
+                    logFileName = $"velopack_{manifest.Id}.log";
+                }
+            } else {
+                initLog.Warn($"Unable to locate .app root from '{ourPath}'");
             }
 
-            var appPath = ourPath.Substring(0, ix + 4);
-            var contentsDir = Path.Combine(appPath, "Contents");
-            var macosDir = Path.Combine(contentsDir, "MacOS");
-            var updateExe = Path.Combine(macosDir, "UpdateMac");
-            var metadataPath = Path.Combine(macosDir, CoreUtil.SpecVersionFileName);
+            try {
+                var logFilePath = Path.Combine(logFolder, logFileName);
+                var fileLog = new FileVelopackLogger(logFilePath, currentProcessId);
+                combinedLog.Add(fileLog);
+            } catch (Exception ex) {
+                initLog.Error("Unable to create file logger: " + ex);
+            }
 
-            if (File.Exists(updateExe) && PackageManifest.TryParseFromFile(metadataPath, out var manifest)) {
-                logger.Info("Located valid manifest file at: " + metadataPath);
-                AppId = manifest.Id;
-                RootAppDir = appPath;
-                UpdateExePath = updateExe;
-                CurrentlyInstalledVersion = manifest.Version;
-                Channel = manifest.Channel;
+            if (AppId == null) {
+                initLog.Warn($"Failed to initialise {nameof(OsxVelopackLocator)}. This could be because the program is not in a .app bundle.");
+            } else {
+                initLog.Info($"Initialised {nameof(OsxVelopackLocator)} for {AppId} v{CurrentlyInstalledVersion}");
             }
         }
     }
