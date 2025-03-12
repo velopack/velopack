@@ -76,8 +76,12 @@ pub fn default_logfile_path<L: TryInto<VelopackLocator>>(locator: L) -> PathBuf 
 /// It can only be called once per process, and should be called early in the process lifecycle.
 /// Future calls to this function will fail.
 #[cfg(feature = "file-logging")]
-pub fn init_logging(process_name: &str, file: Option<&PathBuf>, console: bool, verbose: bool) {
+pub fn init_logging(process_name: &str, file: Option<&PathBuf>, console: bool, verbose: bool, custom_log_cb: Option<Box<dyn SharedLogger>>) {
     let mut loggers: Vec<Box<dyn SharedLogger>> = Vec::new();
+    if let Some(cb) = custom_log_cb {
+        loggers.push(cb);
+    }
+    
     let color_choice = ColorChoice::Never;
     if console {
         let console_level = if verbose { LevelFilter::Debug } else { LevelFilter::Info };
