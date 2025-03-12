@@ -28,6 +28,7 @@ public class MemoryLogger : IVelopackLogger
 
     public void Log(VelopackLogLevel logLevel, string message, Exception exception)
     {
+        if (logLevel < VelopackLogLevel.Information) return;
         lock (_sb) {
             message = $"{logLevel}: {message}";
             if (exception != null) message += "\n" + exception.ToString();
