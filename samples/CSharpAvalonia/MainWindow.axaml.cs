@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Velopack;
+using Velopack.Logging;
 
 namespace CSharpAvalonia;
 
@@ -19,6 +20,8 @@ public partial class MainWindow : Window
         var updateUrl = SampleHelper.GetReleasesDir(); // replace with your update path/url
         _um = new UpdateManager(updateUrl);
 
+        TextLog.Text = Program.Log.ToString();
+        Program.Log.LogUpdated += LogUpdated;
         UpdateStatus();
     }
 
@@ -29,7 +32,7 @@ public partial class MainWindow : Window
             // ConfigureAwait(true) so that UpdateStatus() is called on the UI thread
             _update = await _um.CheckForUpdatesAsync().ConfigureAwait(true);
         } catch (Exception ex) {
-            LogMessage("Error checking for updates", ex);
+            Program.Log.LogError(ex, "Error checking for updates");
         }
 
         UpdateStatus();
@@ -42,7 +45,7 @@ public partial class MainWindow : Window
             // ConfigureAwait(true) so that UpdateStatus() is called on the UI thread
             await _um.DownloadUpdatesAsync(_update, Progress).ConfigureAwait(true);
         } catch (Exception ex) {
-            LogMessage("Error downloading updates", ex);
+            Program.Log.LogError(ex, "Error downloading updates");
         }
 
         UpdateStatus();
@@ -53,16 +56,12 @@ public partial class MainWindow : Window
         _um.ApplyUpdatesAndRestart(_update);
     }
 
-    private void LogMessage(string text, Exception e = null)
+    private void LogUpdated(object sender, LogUpdatedEventArgs e)
     {
         // logs can be sent from other threads
         Dispatcher.UIThread.InvokeAsync(
             () => {
-                TextLog.Text += text + Environment.NewLine;
-                if (e != null) {
-                    TextLog.Text += e.ToString() + Environment.NewLine;
-                }
-
+                TextLog.Text = e.Text;
                 ScrollLog.ScrollToEnd();
             });
     }
@@ -78,7 +77,7 @@ public partial class MainWindow : Window
 
     private void Working()
     {
-        LogMessage("");
+        Program.Log.LogInformation("");
         BtnCheckUpdate.IsEnabled = false;
         BtnDownloadUpdate.IsEnabled = false;
         BtnRestartApply.IsEnabled = false;
