@@ -15,6 +15,11 @@ namespace Velopack.Locators
     public abstract class VelopackLocator : IVelopackLocator
     {
         private static IVelopackLocator? _current;
+        
+        /// <summary>
+        /// The default log file name for Velopack.
+        /// </summary>
+        protected const string DefaultLoggingFileName = "velopack.log";
 
         /// <summary>
         /// Check if a VelopackLocator has been set for the current process.
