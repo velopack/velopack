@@ -134,7 +134,7 @@ fn main() -> Result<()> {
     let verbose = get_flag_or_false(&matches, "verbose");
     let log_file = matches.get_one("log");
     let desired_log_file = log_file.cloned().unwrap_or(default_logfile_path(LocationContext::IAmUpdateExe));
-    init_logging("update", Some(&desired_log_file), true, verbose);
+    init_logging("update", Some(&desired_log_file), true, verbose, None);
 
     // change working directory to the parent directory of the exe
     let mut containing_dir = env::current_exe()?;
