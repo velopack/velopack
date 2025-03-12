@@ -7,7 +7,6 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use velopack::sources::*;
 use velopack::*;
-use velopack::logging::{default_logfile_from_config, default_logfile_from_context};
 
 struct UpdateManagerWrapper {
     manager: UpdateManager,
@@ -271,9 +270,9 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
 
     // init logging
     let log_file = if let Some(locator) = &locator {
-        default_logfile_from_config(locator)
+        logging::default_logfile_path(locator)
     } else {
-        default_logfile_from_context(LocationContext::FromCurrentExe)
+        logging::default_logfile_path(LocationContext::FromCurrentExe)
     };
 
     logging::init_logging("lib-nodejs", Some(&log_file), false, false);

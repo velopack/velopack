@@ -89,6 +89,27 @@ pub struct VelopackLocator {
     manifest: Manifest,
 }
 
+impl TryFrom<VelopackLocatorConfig> for VelopackLocator {
+    type Error = Error;
+    fn try_from(config: VelopackLocatorConfig) -> Result<Self, Self::Error> {
+        VelopackLocator::new(&config)
+    }
+}
+
+impl TryFrom<&VelopackLocatorConfig> for VelopackLocator {
+    type Error = Error;
+    fn try_from(config: &VelopackLocatorConfig) -> Result<Self, Self::Error> {
+        VelopackLocator::new(config)
+    }
+}
+
+impl TryFrom<LocationContext> for VelopackLocator {
+    type Error = Error;
+    fn try_from(context: LocationContext) -> Result<Self, Self::Error> {
+        auto_locate_app_manifest(context)
+    }
+}
+
 impl VelopackLocator {
     /// Creates a new VelopackLocator from the given paths, trying to auto-detect the manifest.
     pub fn new(config: &VelopackLocatorConfig) -> Result<VelopackLocator, Error>
