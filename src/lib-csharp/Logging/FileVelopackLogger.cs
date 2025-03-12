@@ -11,6 +11,7 @@ namespace Velopack.Logging
         private readonly object _lock = new();
         private readonly StreamWriter _writer;
         private readonly FileStream _fileStream;
+        private bool _disposed;
 
         public FileVelopackLogger(string filePath, uint processId)
         {
@@ -23,6 +24,9 @@ namespace Velopack.Logging
         {
             try {
                 lock (_lock) {
+                    if (_disposed) {
+                        return;
+                    }
                     var logMessage = $"[lib-csharp:{ProcessId}] [{DateTime.Now.ToShortTimeString()}] [{logLevel}] {message}";
                     if (exception != null) {
                         logMessage += Environment.NewLine + exception;
@@ -39,6 +43,7 @@ namespace Velopack.Logging
         {
             try {
                 lock (_lock) {
+                    _disposed = true;
                     _writer.Flush();
                     _writer.Dispose();
                     _fileStream.Dispose();
