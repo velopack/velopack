@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using System.Windows;
 using Velopack;
+using Velopack.Logging;
 
 namespace CSharpWpf
 {
@@ -16,6 +17,8 @@ namespace CSharpWpf
             string updateUrl = SampleHelper.GetReleasesDir(); // replace with your update url
             _um = new UpdateManager(updateUrl);
 
+            TextLog.Text = App.Log.ToString();
+            App.Log.LogUpdated += LogUpdated;
             UpdateStatus();
         }
 
@@ -26,7 +29,7 @@ namespace CSharpWpf
                 // ConfigureAwait(true) so that UpdateStatus() is called on the UI thread
                 _update = await _um.CheckForUpdatesAsync().ConfigureAwait(true);
             } catch (Exception ex) {
-                LogMessage("Error checking for updates", ex);
+                App.Log.LogError(ex, "Error checking for updates");
             }
             UpdateStatus();
         }
@@ -38,7 +41,7 @@ namespace CSharpWpf
                 // ConfigureAwait(true) so that UpdateStatus() is called on the UI thread
                 await _um.DownloadUpdatesAsync(_update, Progress).ConfigureAwait(true);
             } catch (Exception ex) {
-                LogMessage("Error downloading updates", ex);
+                App.Log.LogError(ex, "Error downloading updates");
             }
             UpdateStatus();
         }
@@ -48,14 +51,11 @@ namespace CSharpWpf
             _um.ApplyUpdatesAndRestart(_update);
         }
 
-        private void LogMessage(string text, Exception e = null)
+        private void LogUpdated(object sender, LogUpdatedEventArgs e)
         {
             // logs can be sent from other threads
             this.Dispatcher.InvokeAsync(() => {
-                TextLog.Text += text + Environment.NewLine;
-                if (e != null) {
-                    TextLog.Text += e.ToString() + Environment.NewLine;
-                }
+                TextLog.Text = e.Text;
                 ScrollLog.ScrollToEnd();
             });
         }
@@ -70,7 +70,7 @@ namespace CSharpWpf
 
         private void Working()
         {
-            LogMessage("");
+            App.Log.LogInformation("");
             BtnCheckUpdate.IsEnabled = false;
             BtnDownloadUpdate.IsEnabled = false;
             BtnRestartApply.IsEnabled = false;

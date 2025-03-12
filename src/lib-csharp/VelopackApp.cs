@@ -35,6 +35,7 @@ namespace Velopack
         private string[]? _args;
         private bool _autoApply = true;
         private IVelopackLocator? _customLocator;
+        private IVelopackLogger? _customLogger;
 
         private VelopackApp()
         {
@@ -71,6 +72,17 @@ namespace Velopack
         public VelopackApp SetLocator(IVelopackLocator locator)
         {
             _customLocator = locator;
+            return this;
+        }
+
+        /// <summary>
+        /// Adds a custom logger to the Velopack application. This will be used for all Velopack diagnostic
+        /// messages in addition to the default log file location. This will be cached and re-used throughout
+        /// the lifetime of the application. If you have also provided a custom locator, this logger will be ignored.
+        /// </summary>
+        public VelopackApp SetLogger(IVelopackLogger logger)
+        {
+            _customLogger = logger;
             return this;
         }
 
@@ -151,13 +163,6 @@ namespace Velopack
         {
             var args = _args ?? Environment.GetCommandLineArgs().Skip(1).ToArray();
 
-            // internal hook run by the Velopack tooling to check everything is working
-            if (args.Length >= 1 && args[0].Equals("--veloapp-version", StringComparison.OrdinalIgnoreCase)) {
-                Console.WriteLine(VelopackRuntimeInfo.VelopackNugetVersion);
-                Exit(0);
-                return;
-            }
-
             if (VelopackLocator.IsCurrentSet) {
                 VelopackLocator.Current.Log.Error(
                     "VelopackApp.Build().Run() was called more than once. This is not allowed and can lead to unexpected behaviour.");
@@ -167,7 +172,7 @@ namespace Velopack
                 VelopackLocator.SetCurrentLocator(_customLocator);
             }
 
-            var locator = VelopackLocator.GetCurrentOrCreateDefault();
+            var locator = VelopackLocator.GetCurrentOrCreateDefault(_customLogger);
             var log = locator.Log;
 
             log.Info($"Starting VelopackApp.Run (library version {VelopackRuntimeInfo.VelopackNugetVersion}).");
