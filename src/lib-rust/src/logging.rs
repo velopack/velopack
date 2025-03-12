@@ -1,23 +1,29 @@
-#![allow(unused_variables)]
-
-use crate::locator::{LocationContext, VelopackLocator, VelopackLocatorConfig};
+use crate::locator::VelopackLocator;
 use std::path::PathBuf;
-
-#[cfg(not(target_os = "windows"))]
-use std::path::Path;
 
 #[cfg(feature = "file-logging")]
 use simplelog::*;
 #[cfg(feature = "file-logging")]
 use time::format_description::{modifier, Component, FormatItem};
 
+static LOGGING_FILE_NAME: &str = "velopack.log";
+
 #[cfg(target_os = "linux")]
-fn default_file_linux() -> PathBuf {
-    Path::new("/tmp/velopack.log").to_path_buf()
+fn default_file_linux<L: TryInto<VelopackLocator>>(locator: L) -> PathBuf {
+    let file_name = match locator.try_into() {
+        Ok(locator) => format!("velopack_{}.log", locator.get_manifest_id()),
+        Err(_) => LOGGING_FILE_NAME.to_string(),
+    };
+    std::env::temp_dir().join(file_name)
 }
 
 #[cfg(target_os = "macos")]
-fn default_file_macos() -> PathBuf {
+fn default_file_macos<L: TryInto<VelopackLocator>>(locator: L) -> PathBuf {
+    let file_name = match locator.try_into() {
+        Ok(locator) => format!("velopack_{}.log", locator.get_manifest_id()),
+        Err(_) => LOGGING_FILE_NAME.to_string(),
+    };
+
     #[allow(deprecated)]
     let user_home = std::env::home_dir();
 
@@ -27,81 +33,42 @@ fn default_file_macos() -> PathBuf {
         lib_logs.push("Logs");
 
         if lib_logs.exists() {
-            lib_logs.push("velopack.log");
+            lib_logs.push(file_name);
             return lib_logs;
         }
     }
 
-    return Path::new("/tmp/velopack.log").to_path_buf();
+    std::env::temp_dir().join(file_name)
 }
 
-/// Default log location for Velopack on the current OS.
-#[allow(unused_variables)]
-pub fn default_logfile_from_locator(locator: VelopackLocator) -> PathBuf {
-    #[cfg(target_os = "windows")]
-    {
-        return locator.get_root_dir().join("Velopack.log");
-    }
-    #[cfg(target_os = "linux")]
-    {
-        return default_file_linux();
-    }
-    #[cfg(target_os = "macos")]
-    {
-        return default_file_macos();
-    }
-}
-
-/// Default log location for Velopack on the current OS.
-pub fn default_logfile_from_config(config: &VelopackLocatorConfig) -> PathBuf {
-    #[cfg(target_os = "windows")]
-    {
-        match VelopackLocator::new(config) {
-            Ok(locator) => {
-                return default_logfile_from_locator(locator);
+#[cfg(target_os = "windows")]
+fn default_file_windows<L: TryInto<VelopackLocator>>(locator: L) -> PathBuf {
+    match locator.try_into() {
+        Ok(locator) => {
+            let mut log_dir = locator.get_root_dir();
+            log_dir.push(LOGGING_FILE_NAME);
+            match std::fs::OpenOptions::new().write(true).create(true).open(&log_dir) {
+                Ok(_) => log_dir, // the desired location is writable
+                Err(_) => std::env::temp_dir().join(format!("velopack_{}.log", locator.get_manifest_id())), // fallback to temp dir with app name
             }
-            Err(e) => warn!("Could not auto-locate app manifest, writing log to current directory. ({})", e),
         }
-
-        // If we can't locate the current app, we write to the current directory.
-        let mut my_exe = std::env::current_exe().expect("Could not locate current executable");
-        my_exe.pop();
-        return my_exe.join("Velopack.log");
-    }
-    #[cfg(target_os = "linux")]
-    {
-        return default_file_linux();
-    }
-    #[cfg(target_os = "macos")]
-    {
-        return default_file_macos();
+        Err(_) => std::env::temp_dir().join(LOGGING_FILE_NAME), // fallback to temp dir shared filename
     }
 }
 
 /// Default log location for Velopack on the current OS.
-#[allow(unused_variables)]
-pub fn default_logfile_from_context(context: LocationContext) -> PathBuf {
+pub fn default_logfile_path<L: TryInto<VelopackLocator>>(locator: L) -> PathBuf {
     #[cfg(target_os = "windows")]
     {
-        match crate::locator::auto_locate_app_manifest(context) {
-            Ok(locator) => {
-                return default_logfile_from_locator(locator);
-            }
-            Err(e) => warn!("Could not auto-locate app manifest, writing log to current directory. ({})", e),
-        }
-
-        // If we can't locate the current app, we write to the current directory.
-        let mut my_exe = std::env::current_exe().expect("Could not locate current executable");
-        my_exe.pop();
-        return my_exe.join("Velopack.log");
+        return default_file_windows(locator);
     }
     #[cfg(target_os = "linux")]
     {
-        return default_file_linux();
+        return default_file_linux(locator);
     }
     #[cfg(target_os = "macos")]
     {
-        return default_file_macos();
+        return default_file_macos(locator);
     }
 }
 

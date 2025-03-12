@@ -16,8 +16,8 @@ use libc::{c_char, c_void, size_t};
 use log_derive::{logfn, logfn_inputs};
 use std::{ffi::CString, ptr};
 use velopack::{sources, ApplyWaitMode, Error as VelopackError, UpdateCheck, UpdateManager, VelopackApp};
-use velopack::locator::{LocationContext};
-use velopack::logging::{default_logfile_from_config, default_logfile_from_context, init_logging};
+use velopack::locator::LocationContext;
+use velopack::logging::{default_logfile_path, init_logging};
 
 /// Create a new FileSource update source for a given file path.
 #[no_mangle]
@@ -442,9 +442,9 @@ pub extern "C" fn vpkc_app_run(p_user_data: *mut c_void) {
     
     // init logging
     let log_file = if let Some(locator) = &app_options.locator {
-        default_logfile_from_config(locator)
+        default_logfile_path(locator)
     } else {
-        default_logfile_from_context(LocationContext::FromCurrentExe)
+        default_logfile_path(LocationContext::FromCurrentExe)
     };
     
     init_logging("lib-cpp", Some(&log_file), false, false);
