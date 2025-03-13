@@ -47,7 +47,7 @@ namespace Velopack.Sources
                 args.Add("rid", VelopackRuntimeInfo.SystemRid);
             }
 
-            if (latestLocalRelease != null) {
+            if (latestLocalRelease?.Version != null) {
                 args.Add("localVersion", latestLocalRelease.Version.ToString());
             }
 
