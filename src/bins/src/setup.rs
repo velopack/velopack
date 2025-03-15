@@ -1,4 +1,4 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+//#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(dead_code)]
 
 #[macro_use]
@@ -67,6 +67,7 @@ fn main_inner() -> Result<()> {
         .arg(arg!(-v --verbose "Print debug messages to console"))
         .arg(arg!(-l --log <FILE> "Enable file logging and set location").required(false).value_parser(value_parser!(PathBuf)))
         .arg(arg!(-t --installto <DIR> "Installation directory to install the application").required(false).value_parser(value_parser!(PathBuf)))
+        .arg(arg!(-b --bootstrap "Just apply install files, do not write uninstall registry keys"))
         .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceded by '--'.").required(false).last(true).num_args(0..));
 
     if cfg!(debug_assertions) {
@@ -114,6 +115,7 @@ fn run_inner(arg_config: Command) -> Result<()> {
     let debug = matches.get_one::<PathBuf>("debug");
     let install_to = matches.get_one::<PathBuf>("installto");
     let exe_args: Option<Vec<&str>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect());
+    let is_bootstrap_install = matches.get_flag("bootstrap");
 
     info!("Starting Velopack Setup ({})", env!("NGBV_VERSION"));
     info!("    Location: {:?}", env::current_exe()?);
@@ -123,6 +125,7 @@ fn run_inner(arg_config: Command) -> Result<()> {
     info!("    Install To: {:?}", install_to);
     if cfg!(debug_assertions) {
         info!("    Debug: {:?}", debug);
+        info!("    Bootstrap: {:?}", is_bootstrap_install);
     }
 
     // change working directory to the containing directory of the exe
@@ -225,6 +228,6 @@ fn run_inner(arg_config: Command) -> Result<()> {
         }
     }
 
-    commands::install(&mut bundle, (root_path, root_is_default), exe_args)?;
+    commands::install(&mut bundle, (root_path, root_is_default), is_bootstrap_install, exe_args)?;
     Ok(())
 }

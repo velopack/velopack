@@ -16,7 +16,7 @@ use std::{
     path::PathBuf,
 };
 
-pub fn install(pkg: &mut BundleZip, install_to: (PathBuf, bool), start_args: Option<Vec<&str>>) -> Result<()> {
+pub fn install(pkg: &mut BundleZip, install_to: (PathBuf, bool), is_bootstrap_install: bool, start_args: Option<Vec<&str>>) -> Result<()> {
     // find and parse nuspec
     info!("Reading package manifest...");
     let app = pkg.read_manifest()?;
@@ -80,7 +80,7 @@ pub fn install(pkg: &mut BundleZip, install_to: (PathBuf, bool), start_args: Opt
 
     let mut root_path_renamed = String::new();
     // does the target directory exist and have files? (eg. already installed)
-    if !shared::is_dir_empty(&root_path) {
+    if !shared::is_dir_empty(&root_path) && !is_bootstrap_install {
         // the target directory is not empty, and not dead
         if !dialogs::show_overwrite_repair_dialog(&app, &root_path, root_is_default) {
             // user cancelled overwrite prompt
@@ -104,9 +104,11 @@ pub fn install(pkg: &mut BundleZip, install_to: (PathBuf, bool), start_args: Opt
         })?;
     }
 
-    info!("Preparing and cleaning installation directory...");
-    remove_dir_all::ensure_empty_dir(&root_path)?;
-
+    if !is_bootstrap_install {
+        info!("Preparing and cleaning installation directory...");
+        remove_dir_all::ensure_empty_dir(&root_path)?;
+    }
+    
     info!("Acquiring lock...");
     let paths = create_config_from_root_dir(&root_path);
     let locator = VelopackLocator::new_with_manifest(paths, app);
@@ -122,7 +124,7 @@ pub fn install(pkg: &mut BundleZip, install_to: (PathBuf, bool), start_args: Opt
         windows::splash::show_splash_dialog(locator.get_manifest_title(), splash_bytes)
     };
 
-    let install_result = install_impl(pkg, &locator, &tx, start_args);
+    let install_result = install_impl(pkg, &locator, &tx, is_bootstrap_install, start_args);
     let _ = tx.send(windows::splash::MSG_CLOSE);
 
     if install_result.is_ok() {
@@ -149,6 +151,7 @@ fn install_impl(
     pkg: &mut BundleZip,
     locator: &VelopackLocator,
     tx: &std::sync::mpsc::Sender<i16>,
+    is_bootstrap_install: bool,
     start_args: Option<Vec<&str>>,
 ) -> Result<()> {
     info!("Starting installation!");
@@ -195,7 +198,11 @@ fn install_impl(
     }
 
     let _ = tx.send(100);
-    windows::registry::write_uninstall_entry(&locator)?;
+    if is_bootstrap_install {
+        info!("Skipping uninstall entry creation.");
+    } else {
+        windows::registry::write_uninstall_entry(&locator)?;
+    }
 
     if !dialogs::get_silent() {
         info!("Starting app...");

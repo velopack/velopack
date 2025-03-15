@@ -11,6 +11,7 @@ use winsafe::{self as w, co};
 use velopack::bundle::load_bundle_from_file;
 use velopack::locator::{auto_locate_app_manifest, LocationContext};
 
+
 #[cfg(target_os = "windows")]
 #[test]
 pub fn test_install_apply_uninstall() {

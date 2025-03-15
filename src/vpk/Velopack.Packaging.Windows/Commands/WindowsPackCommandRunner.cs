@@ -1,9 +1,9 @@
-﻿using System.Globalization;
+﻿using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using NuGet.Versioning;
 using Velopack.Compression;
 using Velopack.Core;
@@ -220,10 +220,16 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         Log.Debug($"Setup bundle created '{Path.GetFileName(targetSetupExe)}'.");
         setupExeProgress(100);
 
+        if (Options.BuildMsiDeploymentTool && VelopackRuntimeInfo.IsWindows) {
+            var msiName = DefaultName.GetSuggestedMsiDeploymentToolName(Options.PackId, Options.Channel, TargetOs);
+            var msiPath = createAsset(msiName, VelopackAssetType.MsiDeploymentTool);
+            CompileWixTemplateToMsiDeploymentTool(msiProgress, targetSetupExe, msiPath);
+        }
+
         if (Options.BuildMsi && VelopackRuntimeInfo.IsWindows) {
             var msiName = DefaultName.GetSuggestedMsiName(Options.PackId, Options.Channel, TargetOs);
-            var msiPath = createAsset(msiName, VelopackAssetType.MsiDeploymentTool);
-            CompileWixTemplateToMsi(msiProgress, targetSetupExe, msiPath);
+            var msiPath = createAsset(msiName, VelopackAssetType.Msi);
+            CompileWixTemplateToMsi(msiProgress, releasePkg, packDir, msiPath);
         }
 
         return Task.CompletedTask;
@@ -260,7 +266,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         if (Options.SplashImage != null) dict["splashimage" + Path.GetExtension(Options.SplashImage)] = Options.SplashImage;
         return dict;
     }
-
 
     private void CreateExecutableStubForExe(string exeToCopy, string targetStubPath)
     {
@@ -345,6 +350,126 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
     [SupportedOSPlatform("windows")]
     private void CompileWixTemplateToMsi(Action<int> progress,
+        string releasePkg, string setupExePath, string msiFilePath)
+    {
+        bool packageAs64Bit =
+            Options.TargetRuntime.Architecture is not RuntimeCpu.x86;
+
+        Log.Info($"Compiling msi installer tool in {(packageAs64Bit ? "64-bit" : "32-bit")} mode");
+
+        var outputDirectory = Path.GetDirectoryName(releasePkg);
+        var culture = CultureInfo.GetCultureInfo("en-US").TextInfo.ANSICodePage;
+
+        // WiX Identifiers may contain ASCII characters A-Z, a-z, digits, underscores (_), or
+        // periods(.). Every identifier must begin with either a letter or an underscore.
+        var wixId = Regex.Replace(Options.PackId, @"[^\w\.]", "_");
+        if (char.GetUnicodeCategory(wixId[0]) == UnicodeCategory.DecimalDigitNumber)
+            wixId = "_" + wixId;
+
+        var msiVersion = Options.MsiVersionOverride;
+        if (string.IsNullOrWhiteSpace(msiVersion)) {
+            var parsedVersion = SemanticVersion.Parse(Options.PackVersion);
+            msiVersion = $"{parsedVersion.Major}.{parsedVersion.Minor}.{parsedVersion.Patch}.0";
+        }
+
+        static string SanitizeDirectoryString(string name)
+            => name;//TODO
+
+        string wixVersion = "5.0.2";
+
+        string wixProjectFile = $"""
+            <Project Sdk="WixToolset.Sdk/{wixVersion}">
+              <PropertyGroup>
+                <InstallerPlatform>{(packageAs64Bit ? "x64" : "x86")}</InstallerPlatform>
+                <TargetFileName>{Path.GetFileName(msiFilePath)}</TargetFileName>
+              </PropertyGroup>
+            </Project>
+            """;
+        //Scope can be perMachine or perUser or perUserOrMachine, https://docs.firegiant.com/wix/schema/wxs/packagescopetype/
+        //TODO: It is recommended to use ID rather than UpgradeCode. But this should be a namespaced id. This could probably just be our wixId above
+        string wixPackage = $"""
+            <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+              <Package Name="{GetEffectiveTitle()}" 
+                       Manufacturer="{GetEffectiveAuthors()}"
+                       Version="{msiVersion}"
+                       Codepage="{culture}"
+                       Language="1033"
+                       Scope="perMachine"
+                       UpgradeCode="{GuidUtil.CreateGuidFromHash($"{Options.PackId}:UpgradeCode")}"
+                       >
+                <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
+                <StandardDirectory Id="{(packageAs64Bit ? "ProgramFiles64Folder" : "ProgramFiles6432Folder")}">
+                  <Directory Id="INSTALLFOLDER" Name="{SanitizeDirectoryString(GetEffectiveAuthors())}">
+                    <Directory Name="current" />
+                    <Directory Id="PACKAGES_DIR" Name="packages" />
+                  </Directory>
+                </StandardDirectory>
+
+                <File Id="SetupExe" Source="{setupExePath}" KeyPath="yes" />
+                <File Id="InstallBat" Source="install.bat" KeyPath="yes" />
+
+                <!-- 
+                Impersonate="no" is required for the script to run with elevation.
+                This then breaks user checks such as attempting to find the user's Desktop location for shortcuts.
+                https://docs.firegiant.com/wix/schema/wxs/customaction/
+                --> 
+                <CustomAction Id="RunSetup"
+                              Directory="INSTALLFOLDER"
+                              ExeCommand="[INSTALLFOLDER]install.bat"
+                              Impersonate="yes"
+                              TerminalServerAware="yes"
+                              Execute="deferred"
+                              Return="check" />
+
+                <InstallExecuteSequence>
+                    <!-- https://docs.firegiant.com/wix3/xsd/wix/installexecutesequence/-->
+                    <Custom Action="RunSetup" After="InstallFiles" />
+                </InstallExecuteSequence>
+
+              </Package>
+            </Wix>
+            """;
+        //<Files Include="{packDir}\**" />
+        string installBatchScript = $"""
+            @REM @echo off
+
+            set CURRENT_DIR=%~dp0:~0,-1%
+            set SETUP_EXE="%CURRENT_DIR%\{Path.GetFileName(setupExePath)}"
+
+            %SETUP_EXE% -s --bootstrap -t "%CURRENT_DIR%"
+            """;
+        //File.Copy(Path.Combine(packDir, "Squirrel.exe"), Path.Combine(dir.FullName, "Update.exe"), true);
+
+
+        var wixproj = Path.Combine(outputDirectory, wixId + ".wixproj");
+        var wxs = Path.Combine(outputDirectory, wixId + ".wxs");
+        try {
+            File.WriteAllText(Path.Combine(outputDirectory, "install.bat"), installBatchScript, Encoding.UTF8);
+            File.WriteAllText(wixproj, wixProjectFile, Encoding.UTF8);
+            File.WriteAllText(wxs, wixPackage, Encoding.UTF8);
+
+            //TODO: Allow for some level of customization
+
+            progress(30);
+
+            // NB: Assuming dotnet is installed
+            Log.Info("Compiling WiX Template (dotnet build)");
+            var buildCommand = $"dotnet build -c Release \"{wixproj}\" -o \"{Path.GetDirectoryName(msiFilePath)}\"";
+            //Debugger.Launch();
+            _ = Exe.RunHostedCommand(buildCommand);
+
+            progress(90);
+
+        } finally {
+            IoUtil.DeleteFileOrDirectoryHard(wixproj, throwOnFailure: false);
+            IoUtil.DeleteFileOrDirectoryHard(wxs, throwOnFailure: false);
+        }
+        progress(100);
+
+    }
+
+    [SupportedOSPlatform("windows")]
+    private void CompileWixTemplateToMsiDeploymentTool(Action<int> progress,
         string setupExePath, string msiFilePath)
     {
         bool packageAs64Bit = 
@@ -391,23 +516,23 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                     "ProgramFilesFolder" => packageAs64Bit ? "ProgramFiles64Folder" : "ProgramFilesFolder",
                     "Win64YesNo" => packageAs64Bit ? "yes" : "no",
                     "SetupName" => setupName,
-                    _ when key.StartsWith("IdAsGuid") => GuidUtil.CreateGuidFromHash($"{Options.PackId}:{key.Substring(8)}").ToString(),
+                    _ when key.StartsWith("IdAsGuid", StringComparison.OrdinalIgnoreCase) => GuidUtil.CreateGuidFromHash($"{Options.PackId}:{key.Substring("IdAsGuid".Length)}").ToString(),
                     _ => match.Value,
                 };
             });
 
             File.WriteAllText(wxsFile, templateResult, Encoding.UTF8);
 
-            // Candle reprocesses and compiles WiX source files into object files (.wixobj).
+            // Candle preprocesses and compiles WiX source files into object files (.wixobj).
             Log.Info("Compiling WiX Template (candle.exe)");
-            var candleCommand = $"{HelperFile.WixCandlePath} -nologo -ext WixNetFxExtension -out \"{objFile}\" \"{wxsFile}\"";
+            var candleCommand = $"{HelperFile.WixCandlePath} -nologo -out \"{objFile}\" \"{wxsFile}\"";
             _ = Exe.RunHostedCommand(candleCommand);
 
             progress(45);
 
             // Light links and binds one or more .wixobj files and creates a Windows Installer database (.msi or .msm). 
             Log.Info("Linking WiX Template (light.exe)");
-            var lightCommand = $"{HelperFile.WixLightPath} -ext WixNetFxExtension -spdb -sval -out \"{msiFilePath}\" \"{objFile}\"";
+            var lightCommand = $"{HelperFile.WixLightPath} -spdb -sval -out \"{msiFilePath}\" \"{objFile}\"";
             _ = Exe.RunHostedCommand(lightCommand);
 
             progress(90);

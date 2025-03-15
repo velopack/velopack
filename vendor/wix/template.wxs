@@ -5,12 +5,6 @@
     <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A later version of this product is already installed. Setup will now exit."/>
     <Media Id="1" Cabinet="contents.cab" EmbedCab="yes" CompressionLevel="high"/>
 
-    <PropertyRef Id="NETFRAMEWORK45" />
-
-    <Condition Message="This application requires .NET Framework 4.5 or higher. Please install the latest .NET Framework then run this installer again.">
-      <![CDATA[Installed OR NETFRAMEWORK45]]>
-    </Condition>
-
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="{{ProgramFilesFolder}}">
         <Directory Id="APPLICATIONROOTDIRECTORY" Name="{{Title}} Deployment Tool" />

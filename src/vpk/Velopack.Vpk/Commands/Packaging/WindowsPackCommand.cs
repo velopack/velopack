@@ -21,6 +21,7 @@ public class WindowsPackCommand : PackCommand
     public string Shortcuts { get; private set; }
 
     public bool BuildMsi { get; private set; }
+    public bool BuildMsiDeploymentTool { get; private set; }
 
     public string MsiVersionOverride { get; private set; }
 
@@ -74,15 +75,20 @@ public class WindowsPackCommand : PackCommand
 
             this.AreMutuallyExclusive(signTemplate, signParams, azTrustedSign);
 
-            AddOption<bool>((v) => BuildMsi = v, "--msiDeploymentTool")
+            AddOption<bool>((v) => BuildMsiDeploymentTool = v, "--msiDeploymentTool")
                 .SetDescription("Compile a .msi machine-wide deployment tool.")
-                .SetHidden();
+                ;//.SetHidden();
 
             AddOption<string>((v) => MsiVersionOverride = v, "--msiDeploymentToolVersion")
                 .SetDescription("Override the product version for the generated msi.")
                 .SetArgumentHelpName("VERSION")
-                .SetHidden()
+                //.SetHidden()
                 .MustBeValidMsiVersion();
+
+            AddOption<bool>((v) => BuildMsi = v, "--msi")
+                .SetDescription("Compile a .msi machine-wide bootstrap package.")
+                ;//.SetHidden();
+
         }
     }
 }

@@ -23,7 +23,7 @@ pub fn write_uninstall_entry(locator: &VelopackLocator) -> Result<()> {
     let formatted_date = format!("{}{:02}{:02}", now.year(), now.month(), now.day());
 
     let uninstall_cmd = format!("\"{}\" --uninstall", updater_path);
-    let uninstall_quiet = format!("\"{}\" --uninstall --silent", updater_path);
+    let uninstall_quiet: String = format!("\"{}\" --uninstall --silent", updater_path);
 
     let reg_uninstall =
         w::HKEY::CURRENT_USER.RegCreateKeyEx(UNINSTALL_REGISTRY_KEY, None, co::REG_OPTION::NoValue, co::KEY::CREATE_SUB_KEY, None)?.0;

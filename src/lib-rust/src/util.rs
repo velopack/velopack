@@ -97,7 +97,7 @@ fn get_known_folder(rfid: *const GUID) -> Result<String, Error> {
 #[cfg(target_os = "windows")]
 fn pwstr_to_string(input: PWSTR) -> Result<String, Error> {
     unsafe {
-        let hstring = input.to_hstring()?;
+        let hstring = input.to_hstring();
         let string = hstring.to_string_lossy();
         Ok(string.trim_end_matches('\0').to_string())
     }

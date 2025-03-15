@@ -21,7 +21,9 @@ namespace Velopack
         /// <summary> An application installer archive. </summary>
         Installer = 4,
         /// <summary> A Windows Installer package (.msi) for the deployment tool.</summary>
-        MsiDeploymentTool = 5
+        MsiDeploymentTool = 5,
+        /// <summary> A Windows Installer package (.msi) that bootstraps the installer.</summary>
+        Msi = 6,
     }
 
     /// <summary>
