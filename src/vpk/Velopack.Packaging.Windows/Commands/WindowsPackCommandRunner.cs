@@ -229,7 +229,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         if (Options.BuildMsi && VelopackRuntimeInfo.IsWindows) {
             var msiName = DefaultName.GetSuggestedMsiName(Options.PackId, Options.Channel, TargetOs);
             var msiPath = createAsset(msiName, VelopackAssetType.Msi);
-            CompileWixTemplateToMsi(msiProgress, releasePkg, packDir, msiPath);
+            CompileWixTemplateToMsi(msiProgress, releasePkg, targetSetupExe, msiPath);
         }
 
         return Task.CompletedTask;
@@ -352,6 +352,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
     private void CompileWixTemplateToMsi(Action<int> progress,
         string releasePkg, string setupExePath, string msiFilePath)
     {
+        Debugger.Launch();
         bool packageAs64Bit =
             Options.TargetRuntime.Architecture is not RuntimeCpu.x86;
 

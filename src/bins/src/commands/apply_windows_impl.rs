@@ -46,18 +46,19 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
     let new_locator = old_locator.clone_self_with_new_manifest(&new_app_manifest);
 
     if !windows::is_directory_writable(&root_path) {
-        if windows::is_process_elevated() { 
+        if windows::process::is_process_elevated() { 
             bail!("The root directory is not writable & process is already admin.");
         } else {
             info!("Re-launching as administrator to update in {:?}", root_path);
             
             let package_string = package.to_string_lossy().to_string();
             let args = vec!["--norestart".to_string(), "--package".to_string(), package_string];
-            let process_handle = windows::relaunch_self_as_admin(args)?;
-            
+            let process_handle = windows::process::relaunch_self_as_admin(args)?;
             //Wait for process to finish
-            shared::wait_for_handle_to_exit(process_handle, None)?;
+            let ms_to_wait = 5 * 1000 * 60; // 5 minutes
+            let pid = process_handle.pid();
 
+            shared::wait_for_pid_to_exit(pid, ms_to_wait)?;
             return Ok(new_locator);
         }
     }

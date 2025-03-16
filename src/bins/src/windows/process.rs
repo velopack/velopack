@@ -48,7 +48,7 @@ fn ensure_no_nuls<T: AsRef<OsStr>>(str: T) -> Result<T> {
     }
 }
 
-pub fn append_arg(cmd: &mut Vec<u16>, arg: &Arg, force_quotes: bool) -> Result<()> {
+fn append_arg(cmd: &mut Vec<u16>, arg: &Arg, force_quotes: bool) -> Result<()> {
     let (arg, quote) = match arg {
         Arg::Regular(arg) => (arg, if force_quotes { Quote::Always } else { Quote::Auto }),
         Arg::Raw(arg) => (arg, Quote::Never),
@@ -178,7 +178,7 @@ pub fn is_process_elevated() -> bool {
                 .is_ok()
             {
                 // Return whether the token is elevated
-                CloseHandle(token);
+                let _ = CloseHandle(token);
                 return elevation.TokenIsElevated != 0;
             }
         }
@@ -186,25 +186,34 @@ pub fn is_process_elevated() -> bool {
 
     // Clean up the token handle
     if !token.is_invalid() {
-        unsafe { CloseHandle(token) };
+        unsafe { 
+            let _ = CloseHandle(token);
+        };
     }
 
     false
 }
 
-struct SafeProcessHandle(HANDLE);
+pub struct SafeProcessHandle {
+    handle: HANDLE,
+    pid: u32,
+}
 
 impl Drop for SafeProcessHandle {
     fn drop(&mut self) {
-        if !self.0.is_invalid() {
-            let _ = unsafe { CloseHandle(self.0) };
+        if !self.handle.is_invalid() {
+            let _ = unsafe { CloseHandle(self.handle) };
         }
     }
 }
 
 impl SafeProcessHandle {
     pub fn handle(&self) -> HANDLE {
-        self.0
+        self.handle
+    }
+
+    pub fn pid(&self) -> u32 {
+        self.pid
     }
 }
 
@@ -213,6 +222,13 @@ impl SafeProcessHandle {
 //         self.1
 //     }
 // }
+
+pub fn relaunch_self_as_admin(args: Vec<String>) -> Result<SafeProcessHandle> {
+    let exe = std::env::current_exe()?;
+    let exe_path = exe.to_string_lossy().into_owned();
+    
+    run_process_as_admin(exe_path, args, None)
+}
 
 pub fn run_process_as_admin(exe_path: String, args: Vec<String>, work_dir: Option<String>) -> Result<SafeProcessHandle> {
     let verb = string_to_u16("runas");
@@ -243,7 +259,8 @@ pub fn run_process_as_admin(exe_path: String, args: Vec<String>, work_dir: Optio
         ShellExecuteExW(&mut exe_info as *mut SHELLEXECUTEINFOW)?;
         let process_id = GetProcessId(exe_info.hProcess);
         let _ = AllowSetForegroundWindow(process_id);
-        Ok(SafeProcessHandle(exe_info.hProcess))
+        
+        Ok(SafeProcessHandle { handle: exe_info.hProcess, pid: process_id })
     }
 }
 
@@ -290,12 +307,12 @@ pub fn run_process(
     let flags = if show_window { PROCESS_CREATION_FLAGS(0) } else { CREATE_NO_WINDOW };
 
     unsafe {
-        CreateProcessW(exe_name, params, None, None, false, flags, envp.0, dirp.0, &si, &mut pi)?;
+        CreateProcessW(exe_name, Option::Some(params), None, None, false, flags, envp.0, dirp.0, &si, &mut pi)?;
         let _ = AllowSetForegroundWindow(pi.dwProcessId);
         let _ = CloseHandle(pi.hThread);
     }
 
-    Ok(SafeProcessHandle(pi.hProcess))
+    Ok(SafeProcessHandle{ handle: pi.hProcess, pid: pi.dwProcessId })
 }
 
 pub fn wait_process_timeout(process: HANDLE, dur: Duration) -> std::io::Result<Option<u32>> {

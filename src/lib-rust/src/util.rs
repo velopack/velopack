@@ -6,14 +6,14 @@ use std::path::Path;
 use std::thread;
 use std::time::Duration;
 
-#[cfg(target_os = "windows")]
-use windows::{
-    core::{GUID, PWSTR},
-    Win32::UI::Shell::{
-        FOLDERID_LocalAppData,
-        SHGetKnownFolderPath,
-    },
-};
+// #[cfg(target_os = "windows")]
+// use windows::{
+//     core::{GUID, PWSTR},
+//     Win32::UI::Shell::{
+//         FOLDERID_LocalAppData,
+//         SHGetKnownFolderPath,
+//     },
+// };
 
 pub fn retry_io<F, T, E>(op: F) -> Result<T, E>
 where
@@ -85,25 +85,25 @@ pub fn is_directory_writable<P1: AsRef<Path>>(path: P1) -> bool {
     result.is_ok()
 }
 
-#[cfg(target_os = "windows")]
-fn get_known_folder(rfid: *const GUID) -> Result<String, Error> {
-    unsafe {
-        let flag = windows::Win32::UI::Shell::KNOWN_FOLDER_FLAG(0);
-        let result = SHGetKnownFolderPath(rfid, flag, None)?;
-        pwstr_to_string(result)
-    }
-}
+// #[cfg(target_os = "windows")]
+// fn get_known_folder(rfid: *const GUID) -> Result<String, Error> {
+//     unsafe {
+//         let flag = windows::Win32::UI::Shell::KNOWN_FOLDER_FLAG(0);
+//         let result = SHGetKnownFolderPath(rfid, flag, None)?;
+//         pwstr_to_string(result)
+//     }
+// }
 
-#[cfg(target_os = "windows")]
-fn pwstr_to_string(input: PWSTR) -> Result<String, Error> {
-    unsafe {
-        let hstring = input.to_hstring();
-        let string = hstring.to_string_lossy();
-        Ok(string.trim_end_matches('\0').to_string())
-    }
-}
+// #[cfg(target_os = "windows")]
+// fn pwstr_to_string(input: PWSTR) -> Result<String, Error> {
+//     unsafe {
+//         let hstring = input.to_hstring();
+//         let string = hstring.to_string_lossy();
+//         Ok(string.trim_end_matches('\0').to_string())
+//     }
+// }
 
-#[cfg(target_os = "windows")]
-pub fn get_local_app_data() -> Result<String, Error> {
-    get_known_folder(&FOLDERID_LocalAppData)
-}
+// #[cfg(target_os = "windows")]
+// pub fn get_local_app_data() -> Result<String, Error> {
+//     get_known_folder(&FOLDERID_LocalAppData)
+// }
