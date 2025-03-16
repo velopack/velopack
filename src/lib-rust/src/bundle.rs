@@ -52,7 +52,6 @@ pub fn load_bundle_from_file<'a, P: AsRef<Path>>(file_name: P) -> Result<BundleZ
 }
 
 pub fn load_bundle_from_memory(zip_range: &[u8]) -> Result<BundleZip, Error> {
-    info!("Loading bundle from embedded zip...");
     let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(zip_range));
     let zip = ZipArchive::new(cursor)?;
     Ok(BundleZip { 

@@ -383,6 +383,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
               <PropertyGroup>
                 <InstallerPlatform>{(packageAs64Bit ? "x64" : "x86")}</InstallerPlatform>
                 <TargetFileName>{Path.GetFileName(msiFilePath)}</TargetFileName>
+                <SuppressPdbOutput>true</SuppressPdbOutput>
               </PropertyGroup>
             </Project>
             """;
@@ -437,7 +438,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             set CURRENT_DIR=%~dp0:~0,-1%
             set SETUP_EXE="%CURRENT_DIR%\{Path.GetFileName(setupExePath)}"
 
-            %SETUP_EXE% -s --bootstrap -t "%CURRENT_DIR%"
+            %SETUP_EXE% -s --bootstrap -l "D:\VelopackMsi.log" -t "%CURRENT_DIR%"
             """;
         //File.Copy(Path.Combine(packDir, "Squirrel.exe"), Path.Combine(dir.FullName, "Update.exe"), true);
 
