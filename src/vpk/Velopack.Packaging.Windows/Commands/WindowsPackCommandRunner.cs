@@ -352,7 +352,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
     private void CompileWixTemplateToMsi(Action<int> progress,
         string releasePkg, string setupExePath, string msiFilePath)
     {
-        Debugger.Launch();
         bool packageAs64Bit =
             Options.TargetRuntime.Architecture is not RuntimeCpu.x86;
 
