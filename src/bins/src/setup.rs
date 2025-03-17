@@ -218,7 +218,7 @@ fn run_inner(arg_config: Command) -> Result<()> {
                 args.push(install_to.to_string_lossy().to_string());
             }
 
-            if is_bootstrap_install {
+            if is_bootstrap_install { 
                 args.push("--bootstrap".to_string());
             }
 
