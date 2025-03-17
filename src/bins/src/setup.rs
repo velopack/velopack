@@ -123,9 +123,9 @@ fn run_inner(arg_config: Command) -> Result<()> {
     info!("    Verbose: {}", verbose);
     info!("    Log: {:?}", logfile);
     info!("    Install To: {:?}", install_to);
+    info!("    Bootstrap: {:?}", is_bootstrap_install);
     if cfg!(debug_assertions) {
         info!("    Debug: {:?}", debug);
-        info!("    Bootstrap: {:?}", is_bootstrap_install);
     }
 
     // change working directory to the containing directory of the exe
@@ -181,6 +181,9 @@ fn run_inner(arg_config: Command) -> Result<()> {
         (Path::new(&appdata).join(&app.id), true)
     };
 
+    let bar = root_path.parent();
+    info!("Parent dir: {:?}", bar);
+
     if let Some(parent_dir) = root_path.parent() {
         info!("Checking if directory is writable: {:?}", parent_dir);
         if !windows::is_directory_writable(parent_dir) {
@@ -213,6 +216,10 @@ fn run_inner(arg_config: Command) -> Result<()> {
             if let Some(install_to) = install_to {
                 args.push("--installto".to_string());
                 args.push(install_to.to_string_lossy().to_string());
+            }
+
+            if is_bootstrap_install {
+                args.push("--bootstrap".to_string());
             }
 
             if let Some(exe_args) = exe_args {

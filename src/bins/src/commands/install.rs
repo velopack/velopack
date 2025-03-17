@@ -80,7 +80,7 @@ pub fn install(pkg: &mut BundleZip, install_to: (PathBuf, bool), is_bootstrap_in
 
     let mut root_path_renamed = String::new();
     // does the target directory exist and have files? (eg. already installed)
-    if !shared::is_dir_empty(&root_path) && !is_bootstrap_install {
+    if !is_bootstrap_install && !shared::is_dir_empty(&root_path) {
         // the target directory is not empty, and not dead
         if !dialogs::show_overwrite_repair_dialog(&app, &root_path, root_is_default) {
             // user cancelled overwrite prompt
@@ -94,7 +94,7 @@ pub fn install(pkg: &mut BundleZip, install_to: (PathBuf, bool), is_bootstrap_in
         })?;
 
         root_path_renamed = format!("{}_{}", root_path_str, shared::random_string(16));
-        info!("Renaming existing directory to '{}' to allow rollback...", root_path_renamed);
+        info!("Renaming existing directory to '{}' {} to allow rollback...", root_path_renamed, is_bootstrap_install);
 
         shared::retry_io(|| fs::rename(&root_path, &root_path_renamed)).map_err(|_| {
             anyhow!(

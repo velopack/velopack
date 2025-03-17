@@ -419,7 +419,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                               Directory="INSTALLFOLDER"
                               ExeCommand="[INSTALLFOLDER]install.bat"
                               Impersonate="yes"
-                              TerminalServerAware="yes"
                               Execute="deferred"
                               Return="check" />
 
