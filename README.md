@@ -23,6 +23,8 @@ Velopack is an installation and auto-update framework for cross-platform applica
 - ⚡️ **Lightning fast** – Velopack is written in Rust for native performance. Delta packages mean your user only downloads what's changed between versions.
 - 📔 **Language agnostic** - With support for C#, C++, JS, Rust and more. Use a familiar API for updates no matter what language your project is.
 
+this is a change
+
 https://github.com/velopack/velopack/assets/1287295/0ff1bea7-15ed-42ae-8bdd-9519f1033432
 
 ## Documentation
