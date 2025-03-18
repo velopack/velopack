@@ -71,8 +71,13 @@ public static class HelperFile
     public static string WixTemplatePath => FindHelperFile("wix\\template.wxs");
     [SupportedOSPlatform("windows")]
     public static string WixCandlePath => FindHelperFile("wix\\candle.exe");
+
     [SupportedOSPlatform("windows")]
     public static string WixLightPath => FindHelperFile("wix\\light.exe");
+
+    [SupportedOSPlatform("windows")]
+    public static string WixPath => FindHelperFile("wix\\5.0.2\\wix.exe");
+
 
     [SupportedOSPlatform("windows")]
     public static string SignToolPath => FindHelperFile("signing\\signtool.exe");

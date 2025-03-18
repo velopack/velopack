@@ -229,7 +229,10 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         if (Options.BuildMsi && VelopackRuntimeInfo.IsWindows) {
             var msiName = DefaultName.GetSuggestedMsiName(Options.PackId, Options.Channel, TargetOs);
             var msiPath = createAsset(msiName, VelopackAssetType.Msi);
-            CompileWixTemplateToMsi(msiProgress, releasePkg, targetSetupExe, msiPath);
+            var portablePackage = new DirectoryInfo(Path.Combine(TempDir.FullName, "CreatePortablePackage"));
+            if (portablePackage.Exists) {
+                CompileWixTemplateToMsi(msiProgress, portablePackage, msiPath);
+            }
         }
 
         return Task.CompletedTask;
@@ -350,14 +353,14 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
     [SupportedOSPlatform("windows")]
     private void CompileWixTemplateToMsi(Action<int> progress,
-        string releasePkg, string setupExePath, string msiFilePath)
+        DirectoryInfo portableDirectory, string msiFilePath)
     {
         bool packageAs64Bit =
             Options.TargetRuntime.Architecture is not RuntimeCpu.x86;
 
-        Log.Info($"Compiling msi installer tool in {(packageAs64Bit ? "64-bit" : "32-bit")} mode");
+        Log.Info($"Compiling msi installer in {(packageAs64Bit ? "64-bit" : "32-bit")} mode");
 
-        var outputDirectory = Path.GetDirectoryName(releasePkg);
+        var outputDirectory = portableDirectory.Parent.CreateSubdirectory("msi");
         var culture = CultureInfo.GetCultureInfo("en-US").TextInfo.ANSICodePage;
 
         // WiX Identifiers may contain ASCII characters A-Z, a-z, digits, underscores (_), or
@@ -375,17 +378,17 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         static string SanitizeDirectoryString(string name)
             => name;//TODO
 
-        string wixVersion = "5.0.2";
+        //string wixVersion = "5.0.2";
 
-        string wixProjectFile = $"""
-            <Project Sdk="WixToolset.Sdk/{wixVersion}">
-              <PropertyGroup>
-                <InstallerPlatform>{(packageAs64Bit ? "x64" : "x86")}</InstallerPlatform>
-                <TargetFileName>{Path.GetFileName(msiFilePath)}</TargetFileName>
-                <SuppressPdbOutput>true</SuppressPdbOutput>
-              </PropertyGroup>
-            </Project>
-            """;
+        //string wixProjectFile = $"""
+        //    <Project Sdk="WixToolset.Sdk/{wixVersion}">
+        //      <PropertyGroup>
+        //        <InstallerPlatform>{(packageAs64Bit ? "x64" : "x86")}</InstallerPlatform>
+        //        <TargetFileName>{Path.GetFileName(msiFilePath)}</TargetFileName>
+        //        <SuppressPdbOutput>true</SuppressPdbOutput>
+        //      </PropertyGroup>
+        //    </Project>
+        //    """;
         //Scope can be perMachine or perUser or perUserOrMachine, https://docs.firegiant.com/wix/schema/wxs/packagescopetype/
         //TODO: It is recommended to use ID rather than UpgradeCode. But this should be a namespaced id. This could probably just be our wixId above
         string wixPackage = $"""
@@ -406,62 +409,30 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                   </Directory>
                 </StandardDirectory>
 
-                <File Id="SetupExe" Source="{setupExePath}" KeyPath="yes" />
-                <File Id="InstallBat" Source="install.bat" KeyPath="yes" />
-
-                <!-- 
-                Impersonate="no" is required for the script to run with elevation.
-                This then breaks user checks such as attempting to find the user's Desktop location for shortcuts.
-                https://docs.firegiant.com/wix/schema/wxs/customaction/
-                --> 
-                <CustomAction Id="RunSetup"
-                              Directory="INSTALLFOLDER"
-                              ExeCommand="[INSTALLFOLDER]install.bat"
-                              Impersonate="yes"
-                              Execute="deferred"
-                              Return="check" />
-
-                <InstallExecuteSequence>
-                    <!-- https://docs.firegiant.com/wix3/xsd/wix/installexecutesequence/-->
-                    <Custom Action="RunSetup" After="InstallFiles" />
-                </InstallExecuteSequence>
-
+                <Files Include="{portableDirectory.FullName}\**" />
               </Package>
             </Wix>
             """;
         //<Files Include="{packDir}\**" />
-        string installBatchScript = $"""
-            @REM @echo off
-
-            set CURRENT_DIR=%~dp0:~0,-1%
-            set SETUP_EXE="%CURRENT_DIR%\{Path.GetFileName(setupExePath)}"
-
-            %SETUP_EXE% -s --bootstrap -l "D:\VelopackMsi.log" -t "%CURRENT_DIR%"
-            """;
         //File.Copy(Path.Combine(packDir, "Squirrel.exe"), Path.Combine(dir.FullName, "Update.exe"), true);
 
 
-        var wixproj = Path.Combine(outputDirectory, wixId + ".wixproj");
-        var wxs = Path.Combine(outputDirectory, wixId + ".wxs");
+        var wxs = Path.Combine(outputDirectory.FullName, wixId + ".wxs");
         try {
-            File.WriteAllText(Path.Combine(outputDirectory, "install.bat"), installBatchScript, Encoding.UTF8);
-            File.WriteAllText(wixproj, wixProjectFile, Encoding.UTF8);
             File.WriteAllText(wxs, wixPackage, Encoding.UTF8);
-
-            //TODO: Allow for some level of customization
 
             progress(30);
 
             // NB: Assuming dotnet is installed
             Log.Info("Compiling WiX Template (dotnet build)");
-            var buildCommand = $"dotnet build -c Release \"{wixproj}\" -o \"{Path.GetDirectoryName(msiFilePath)}\"";
-            //Debugger.Launch();
+
+            var buildCommand = $"{HelperFile.WixPath} build -platform {(packageAs64Bit ? "x64" : "x86")} -outputType Package -pdbType none -out \"{msiFilePath}\" \"{wxs}\"";
+
             _ = Exe.RunHostedCommand(buildCommand);
 
             progress(90);
 
         } finally {
-            IoUtil.DeleteFileOrDirectoryHard(wixproj, throwOnFailure: false);
             IoUtil.DeleteFileOrDirectoryHard(wxs, throwOnFailure: false);
         }
         progress(100);
