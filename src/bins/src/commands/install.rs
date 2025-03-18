@@ -16,7 +16,7 @@ use std::{
     path::PathBuf,
 };
 
-pub fn install(pkg: &mut BundleZip, install_to: (PathBuf, bool), is_bootstrap_install: bool, start_args: Option<Vec<&str>>) -> Result<()> {
+pub fn install(pkg: &mut BundleZip, install_to: (PathBuf, bool), start_args: Option<Vec<&str>>) -> Result<()> {
     // find and parse nuspec
     info!("Reading package manifest...");
     let app = pkg.read_manifest()?;
@@ -80,7 +80,7 @@ pub fn install(pkg: &mut BundleZip, install_to: (PathBuf, bool), is_bootstrap_in
 
     let mut root_path_renamed = String::new();
     // does the target directory exist and have files? (eg. already installed)
-    if !is_bootstrap_install && !shared::is_dir_empty(&root_path) {
+    if !shared::is_dir_empty(&root_path) {
         // the target directory is not empty, and not dead
         if !dialogs::show_overwrite_repair_dialog(&app, &root_path, root_is_default) {
             // user cancelled overwrite prompt
@@ -94,7 +94,7 @@ pub fn install(pkg: &mut BundleZip, install_to: (PathBuf, bool), is_bootstrap_in
         })?;
 
         root_path_renamed = format!("{}_{}", root_path_str, shared::random_string(16));
-        info!("Renaming existing directory to '{}' {} to allow rollback...", root_path_renamed, is_bootstrap_install);
+        info!("Renaming existing directory to '{}' to allow rollback...", root_path_renamed);
 
         shared::retry_io(|| fs::rename(&root_path, &root_path_renamed)).map_err(|_| {
             anyhow!(
@@ -104,10 +104,8 @@ pub fn install(pkg: &mut BundleZip, install_to: (PathBuf, bool), is_bootstrap_in
         })?;
     }
 
-    if !is_bootstrap_install {
-        info!("Preparing and cleaning installation directory...");
-        remove_dir_all::ensure_empty_dir(&root_path)?;
-    }
+    info!("Preparing and cleaning installation directory...");
+    remove_dir_all::ensure_empty_dir(&root_path)?;
     
     info!("Acquiring lock...");
     let paths = create_config_from_root_dir(&root_path);
@@ -124,7 +122,7 @@ pub fn install(pkg: &mut BundleZip, install_to: (PathBuf, bool), is_bootstrap_in
         windows::splash::show_splash_dialog(locator.get_manifest_title(), splash_bytes)
     };
 
-    let install_result = install_impl(pkg, &locator, &tx, is_bootstrap_install, start_args);
+    let install_result = install_impl(pkg, &locator, &tx, start_args);
     let _ = tx.send(windows::splash::MSG_CLOSE);
 
     if install_result.is_ok() {
@@ -151,7 +149,6 @@ fn install_impl(
     pkg: &mut BundleZip,
     locator: &VelopackLocator,
     tx: &std::sync::mpsc::Sender<i16>,
-    is_bootstrap_install: bool,
     start_args: Option<Vec<&str>>,
 ) -> Result<()> {
     info!("Starting installation!");
@@ -198,11 +195,7 @@ fn install_impl(
     }
 
     let _ = tx.send(100);
-    if is_bootstrap_install {
-        info!("Skipping uninstall entry creation.");
-    } else {
-        windows::registry::write_uninstall_entry(&locator)?;
-    }
+    windows::registry::write_uninstall_entry(&locator)?;
 
     if !dialogs::get_silent() {
         info!("Starting app...");

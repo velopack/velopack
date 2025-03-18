@@ -115,7 +115,6 @@ fn run_inner(arg_config: Command) -> Result<()> {
     let debug = matches.get_one::<PathBuf>("debug");
     let install_to = matches.get_one::<PathBuf>("installto");
     let exe_args: Option<Vec<&str>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect());
-    let is_bootstrap_install = matches.get_flag("bootstrap");
 
     info!("Starting Velopack Setup ({})", env!("NGBV_VERSION"));
     info!("    Location: {:?}", env::current_exe()?);
@@ -123,7 +122,6 @@ fn run_inner(arg_config: Command) -> Result<()> {
     info!("    Verbose: {}", verbose);
     info!("    Log: {:?}", logfile);
     info!("    Install To: {:?}", install_to);
-    info!("    Bootstrap: {:?}", is_bootstrap_install);
     if cfg!(debug_assertions) {
         info!("    Debug: {:?}", debug);
     }
@@ -218,10 +216,6 @@ fn run_inner(arg_config: Command) -> Result<()> {
                 args.push(install_to.to_string_lossy().to_string());
             }
 
-            if is_bootstrap_install { 
-                args.push("--bootstrap".to_string());
-            }
-
             if let Some(exe_args) = exe_args {
                 args.push("--".to_string());
                 for arg in exe_args {
@@ -235,6 +229,6 @@ fn run_inner(arg_config: Command) -> Result<()> {
         }
     }
 
-    commands::install(&mut bundle, (root_path, root_is_default), is_bootstrap_install, exe_args)?;
+    commands::install(&mut bundle, (root_path, root_is_default), exe_args)?;
     Ok(())
 }

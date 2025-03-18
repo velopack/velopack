@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Globalization;
+﻿using System.Globalization;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -406,6 +405,10 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                   <Directory Id="INSTALLFOLDER" Name="{SanitizeDirectoryString(GetEffectiveAuthors())}">
                     <Directory Name="current" />
                     <Directory Id="PACKAGES_DIR" Name="packages" />
+                  </Directory>
+                  <Directory Id="DesktopFolder" />
+                  <Directory Id="ProgramMenuFolder">
+                    <Directory Id="YourAppProgramMenuFolder" Name="YourAppName" />
                   </Directory>
                 </StandardDirectory>
 
