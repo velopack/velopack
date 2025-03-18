@@ -168,8 +168,9 @@ namespace Velopack.Locators
             if (!info.Exists) {
                 try {
                     info.Create();
-                } catch (IOException) { 
-                    //IOException can occur when the directory is not writable due to permissions
+                } catch (Exception) {
+                    //UnauthorizedAccessException can occur when the directory is not writable due to permissions
+                    return null;
                 }
             }
             return info.FullName;
