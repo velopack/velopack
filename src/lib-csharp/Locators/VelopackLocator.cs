@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -165,7 +165,13 @@ namespace Velopack.Locators
             var infoBase = new DirectoryInfo(baseDir);
             if (!infoBase.Exists) return null;
             var info = new DirectoryInfo(Path.Combine(baseDir, newDir));
-            if (!info.Exists) info.Create();
+            if (!info.Exists) {
+                try {
+                    info.Create();
+                } catch (IOException) { 
+                    //IOException can occur when the directory is not writable due to permissions
+                }
+            }
             return info.FullName;
         }
 
