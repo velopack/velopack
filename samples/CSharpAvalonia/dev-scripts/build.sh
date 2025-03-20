@@ -57,4 +57,4 @@ dotnet publish -c Release --self-contained -r "$RID" -o "$PUBLISH_DIR" -p:UseLoc
 
 echo ""
 echo "Building Velopack Release v$BUILD_VERSION"
-"$SCRIPT_DIR/../../../build/Debug/net8.0/vpk" pack -u VelopackCSharpAvalonia -v $BUILD_VERSION -o "$RELEASE_DIR" -p "$PUBLISH_DIR"
+"$SCRIPT_DIR/../../../build/Debug/net8.0/vpk" pack -u VelopackCSharpAvalonia -v $BUILD_VERSION -o "$RELEASE_DIR" -p "$PUBLISH_DIR" --msi

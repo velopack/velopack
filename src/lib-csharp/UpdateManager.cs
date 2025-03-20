@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -225,7 +225,7 @@ namespace Velopack
 
             var targetRelease = updates.TargetFullRelease;
             if (targetRelease == null) {
-                throw new ArgumentException("Must pass a valid UpdateInfo object with a non-null TargetFullRelease", nameof(updates));
+                throw new ArgumentException($"Must pass a valid {nameof(UpdateInfo)} object with a non-null {nameof(UpdateInfo.TargetFullRelease)}", nameof(updates));
             }
 
             EnsureInstalled();
@@ -250,7 +250,7 @@ namespace Velopack
                 }
 
                 var deltasSize = updates.DeltasToTarget.Sum(x => x.Size);
-                var deltasCount = updates.DeltasToTarget.Count();
+                var deltasCount = updates.DeltasToTarget.Length;
 
                 try {
                     if (updates.BaseRelease?.FileName != null && deltasCount > 0) {
@@ -350,7 +350,7 @@ namespace Velopack
 
             // downloading accounts for 0%-50% of progress
             double current = 0;
-            double toIncrement = 100.0 / releasesToDownload.Count();
+            double toIncrement = 100.0 / releasesToDownload.Length;
             await releasesToDownload.ForEachAsync(
                 async x => {
                     var targetFile = Locator.GetLocalPackagePath(x);
