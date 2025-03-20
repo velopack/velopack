@@ -51,7 +51,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         // copy files to temp dir, so we can modify them
         var dir = TempDir.CreateSubdirectory("PreprocessPackDirWin");
         CopyFiles(new DirectoryInfo(packDir), dir, progress, true);
-        File.WriteAllText(Path.Combine(dir.FullName, "sq.version"), GenerateNuspecContent());
+        File.WriteAllText(Path.Combine(dir.FullName, CoreUtil.SpecVersionFileName), GenerateNuspecContent());
         packDir = dir.FullName;
 
         var updatePath = Path.Combine(TempDir.FullName, "Update.exe");

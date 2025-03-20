@@ -86,7 +86,7 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
             : GetMachineForBinary(MainExePath);
 
         // velopack required files
-        File.WriteAllText(Path.Combine(bin.FullName, "sq.version"), GenerateNuspecContent());
+        File.WriteAllText(Path.Combine(bin.FullName, CoreUtil.SpecVersionFileName), GenerateNuspecContent());
         File.Copy(HelperFile.GetUpdatePath(Options.TargetRuntime, Log), Path.Combine(bin.FullName, "UpdateNix"), true);
         progress(100);
         return Task.FromResult(dir.FullName);
