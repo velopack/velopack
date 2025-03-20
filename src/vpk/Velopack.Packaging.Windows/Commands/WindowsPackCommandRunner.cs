@@ -406,10 +406,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                     <Directory Name="current" />
                     <Directory Id="PACKAGES_DIR" Name="packages" />
                   </Directory>
-                  <Directory Id="DesktopFolder" />
-                  <Directory Id="ProgramMenuFolder">
-                    <Directory Id="YourAppProgramMenuFolder" Name="YourAppName" />
-                  </Directory>
                 </StandardDirectory>
 
                 <Files Include="{portableDirectory.FullName}\**" />

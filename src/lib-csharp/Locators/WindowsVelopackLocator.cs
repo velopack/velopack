@@ -154,7 +154,8 @@ namespace Velopack.Locators
                 //NB: fileLogException is not null here
                 initLog.Error("Unable to create file logger: " + new AggregateException(fileLogException!, tempFileLogException));
             } else if (fileLogException is not null) {
-                initLog.Info("Unable to create file logger; using temp directory for log: " + fileLogException);
+                initLog.Info("Unable to create file logger; using temp directory for log instead");
+                initLog.Trace($"File logger exception: {fileLogException}");
             }
 
             if (AppId == null) {
