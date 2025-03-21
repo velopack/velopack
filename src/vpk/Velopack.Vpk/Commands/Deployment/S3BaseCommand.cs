@@ -16,6 +16,8 @@ public class S3BaseCommand : OutputCommand
 
     public string Prefix { get; private set; }
 
+    public bool ForcePathStyle { get; private set; }
+
     public double Timeout { get; private set; }
 
     protected S3BaseCommand(string name, string description)
@@ -55,6 +57,11 @@ public class S3BaseCommand : OutputCommand
         AddOption<string>((v) => Prefix = v, "--prefix")
             .SetDescription("Prefix to the S3 url.")
             .SetArgumentHelpName("PREFIX");
+
+        AddOption<bool>((v) => ForcePathStyle = v, "--forcePathStyle")
+            .SetDescription("Force a path-style endpoint to be used where the bucket name is part of the path.")
+            .SetArgumentHelpName("BOOL")
+            .SetDefault(true);
 
         AddOption<double>((v) => Timeout = v, "--timeout")
             .SetDescription("Network timeout in minutes.")

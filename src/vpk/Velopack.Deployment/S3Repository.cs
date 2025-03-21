@@ -23,6 +23,8 @@ public class S3DownloadOptions : RepositoryOptions, IObjectDownloadOptions
     public string Bucket { get; set; }
 
     public string Prefix { get; set; }
+
+    public bool ForcePathStyle { get; set; }
 }
 
 public class S3UploadOptions : S3DownloadOptions, IObjectUploadOptions
@@ -98,8 +100,8 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
         bool disableSigning = false;
         var config = new AmazonS3Config() {
             ServiceURL = options.Endpoint,
-            ForcePathStyle = true, // support for MINIO
-            Timeout = TimeSpan.FromMinutes(options.Timeout),
+            ForcePathStyle = options.ForcePathStyle,
+            Timeout = TimeSpan.FromMinutes(options.Timeout)
         };
 
         if (options.Endpoint != null) {
