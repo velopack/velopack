@@ -377,17 +377,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         static string SanitizeDirectoryString(string name)
             => name;//TODO
 
-        //string wixVersion = "5.0.2";
-
-        //string wixProjectFile = $"""
-        //    <Project Sdk="WixToolset.Sdk/{wixVersion}">
-        //      <PropertyGroup>
-        //        <InstallerPlatform>{(packageAs64Bit ? "x64" : "x86")}</InstallerPlatform>
-        //        <TargetFileName>{Path.GetFileName(msiFilePath)}</TargetFileName>
-        //        <SuppressPdbOutput>true</SuppressPdbOutput>
-        //      </PropertyGroup>
-        //    </Project>
-        //    """;
         //Scope can be perMachine or perUser or perUserOrMachine, https://docs.firegiant.com/wix/schema/wxs/packagescopetype/
         //TODO: It is recommended to use ID rather than UpgradeCode. But this should be a namespaced id. This could probably just be our wixId above
         string wixPackage = $"""
@@ -412,8 +401,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
               </Package>
             </Wix>
             """;
-        //<Files Include="{packDir}\**" />
-        //File.Copy(Path.Combine(packDir, "Squirrel.exe"), Path.Combine(dir.FullName, "Update.exe"), true);
 
 
         var wxs = Path.Combine(outputDirectory.FullName, wixId + ".wxs");
@@ -422,7 +409,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
             progress(30);
 
-            // NB: Assuming dotnet is installed
             Log.Info("Compiling WiX Template (dotnet build)");
 
             var buildCommand = $"{HelperFile.WixPath} build -platform {(packageAs64Bit ? "x64" : "x86")} -outputType Package -pdbType none -out \"{msiFilePath}\" \"{wxs}\"";

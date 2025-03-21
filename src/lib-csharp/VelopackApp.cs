@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -274,7 +274,7 @@ namespace Velopack
             }
         }
 
-        private void Exit(int code)
+        private static void Exit(int code)
         {
             if (!VelopackRuntimeInfo.InUnitTestRunner) {
                 Environment.Exit(code);

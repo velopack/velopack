@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.Versioning;
 using NuGet.Versioning;
 using Velopack.Logging;
@@ -122,6 +124,11 @@ namespace Velopack.Locators
                 }
             }
 
+            if (Path.GetDirectoryName(UpdateExePath) is { } updateExeDirectory &&
+                !PathUtil.IsDirectoryWritable(updateExeDirectory)) {
+                UpdateExePath = Path.Combine(TempAppRootDirectory, "Update.exe");
+            }
+
             //bool fileLogCreated = false;
             Exception? fileLogException = null;
             if (!String.IsNullOrEmpty(AppId) && !String.IsNullOrEmpty(RootAppDir)) {
@@ -167,14 +174,40 @@ namespace Velopack.Locators
         private string? GetPackagesDir()
         {
             const string PackagesDirName = "packages";
-            try {
-                return CreateSubDirIfDoesNotExist(RootAppDir, PackagesDirName);
-            } catch (Exception) {
-                string tempAppDirectory = Path.Combine(Path.GetTempPath(), "velopack_" + AppId);
-                Log.Info("Unable to create packages directory in root app directory. Falling back to temp directory: " + tempAppDirectory);
-                Directory.CreateDirectory(tempAppDirectory);
-                return CreateSubDirIfDoesNotExist(tempAppDirectory, PackagesDirName);
+
+            string? writableRootDir = PossibleDirectories()
+                    .FirstOrDefault(IsWritable);
+
+            if (writableRootDir == null) {
+                Log.Warn("Unable to find a writable root directory for package.");
+                return null;
+            }
+
+            Log.Trace("Using writable root directory: " + writableRootDir);
+
+            return CreateSubDirIfDoesNotExist(writableRootDir, PackagesDirName);
+
+            static bool IsWritable(string? directoryPath)
+            {
+                if (directoryPath == null) return false;
+
+                try {
+                    if (!Directory.Exists(directoryPath)) {
+                        Directory.CreateDirectory(directoryPath);
+                    }
+                    return PathUtil.IsDirectoryWritable(directoryPath);
+                } catch {
+                    return false;
+                }
+            }
+
+            IEnumerable<string?> PossibleDirectories()
+            {
+                yield return RootAppDir;
+                yield return TempAppRootDirectory;
             }
         }
+
+        private string TempAppRootDirectory => Path.Combine(Path.GetTempPath(), "velopack_" + AppId);
     }
 }

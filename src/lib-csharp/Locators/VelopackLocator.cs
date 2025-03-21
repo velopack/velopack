@@ -182,7 +182,7 @@ namespace Velopack.Locators
                         throw new Exception("File was read but contents were invalid");
                     }
 
-                    Log.Info($"Loaded existing staging userId: {ret}");
+                    Log.Info($"Loaded existing staging userId: {ret} from {stagedUserIdFile}");
                     return ret;
                 } catch (Exception ex) {
                     Log.Debug(ex, "Couldn't read staging userId, creating a new one");
