@@ -18,9 +18,9 @@
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
     <PackageReference Include="System.Text.Json" Version="9.0.3" />
     <PackageReference Include="Markdig" Version="0.40.0" />
-    <PackageReference Include="Microsoft.Identity.Client" Version="4.69.1" />
-    <PackageReference Include="Microsoft.Identity.Client.Broker" Version="4.69.1" />
-    <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.69.1" />
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.70.0" />
+    <PackageReference Include="Microsoft.Identity.Client.Broker" Version="4.70.0" />
+    <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.70.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.3" />
     <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="6.0.0" Aliases="HttpFormatting" />
     <PackageReference Include="NuGet.Protocol" Version="6.13.2" />
