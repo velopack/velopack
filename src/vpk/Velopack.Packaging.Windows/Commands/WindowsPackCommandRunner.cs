@@ -398,6 +398,15 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                 </StandardDirectory>
 
                 <Files Include="{portableDirectory.FullName}\**" />
+
+                <CustomAction Id="RemoveTempDirectory" Directory="TempFolder" Impersonate="yes" ExeCommand="cmd.exe /C rmdir /S /Q &quot;%TEMP%\velopack_{Options.PackId}&quot;" Execute="deferred" Return="ignore" />
+                <CustomAction Id="RemoveAppDirectory" Directory="ProgramFiles64Folder" Impersonate="no" ExeCommand="cmd.exe /C for /d %D in (&quot;[INSTALLFOLDER]*&quot;) do @if /i not &quot;%~nxD&quot;==&quot;current&quot; rmdir /s /q &quot;%D&quot; &amp; for %F in (&quot;[INSTALLFOLDER]*&quot;) do @del /q &quot;%F&quot;" Execute="deferred" Return="ignore" />
+            
+
+                <InstallExecuteSequence>
+                  <Custom Action="RemoveAppDirectory" Before="RemoveFolders" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
+                  <Custom Action="RemoveTempDirectory" Before="InstallFinalize" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
+                            </InstallExecuteSequence>
               </Package>
             </Wix>
             """;
