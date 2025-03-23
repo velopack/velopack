@@ -25,7 +25,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
     {
         Regex fileExcludeRegex = Options.SignExclude != null ? new Regex(Options.SignExclude) : null;
         var filesToSign = new DirectoryInfo(packDir).GetAllFilesRecursively()
-            .Where(x => !fileExcludeRegex?.IsMatch(x.FullName) ?? PathUtil.FileIsLikelyPEImage(x.Name))
+            .Where(x => PathUtil.FileIsLikelyPEImage(x.Name))
+            .Where(x => fileExcludeRegex != null ? !fileExcludeRegex.IsMatch(x.FullName) : true)
             .Select(x => x.FullName)
             .ToArray();
 
