@@ -30,7 +30,7 @@ public class OsxBuildTools
             "--options", "runtime",
             "--entitlements", entitlements,
         };
-        
+
         if (deep) {
             args.Add("--deep");
         }
@@ -48,6 +48,7 @@ public class OsxBuildTools
         if (!String.IsNullOrWhiteSpace(output)) {
             Log.Info(output);
         }
+
         Log.Debug("codesign completed successfully");
     }
 
@@ -81,6 +82,7 @@ public class OsxBuildTools
         if (!Directory.Exists(source)) {
             throw new ArgumentException("Source directory does not exist: " + source);
         }
+
         Log.Debug($"Copying '{source}' to '{dest}' (preserving symlinks)");
 
         // copy the contents of the folder, not the folder itself.
@@ -113,13 +115,15 @@ public class OsxBuildTools
         // create postinstall scripts to open app after install
         // https://stackoverflow.com/questions/35619036/open-app-after-installation-from-pkg-file-in-mac
         var postinstall = Path.Combine(tmpScripts, "postinstall");
-        File.WriteAllText(postinstall, $"""
-#!/bin/sh
-rm -rf /tmp/velopack/{appId}
-sudo -u "$USER" rm -rf ~/Library/Caches/velopack/{appId}
-sudo -u "$USER" env VELOPACK_FIRSTRUN=1 open "$2/{bundleName}/"
-exit 0
-""");
+        File.WriteAllText(
+            postinstall,
+            $"""
+            #!/bin/sh
+            rm -rf /tmp/velopack/{appId}
+            sudo -u "$USER" rm -rf ~/Library/Caches/velopack/{appId}
+            sudo -u "$USER" env VELOPACK_FIRSTRUN=1 open "$2/{bundleName}/"
+            exit 0
+            """);
         Chmod.ChmodFileAsExecutable(postinstall);
         progress(15);
 
@@ -206,9 +210,17 @@ exit 0
         args.Add(filePath);
 
         var ntresultjson = Exe.InvokeProcess("xcrun", args, null);
-        Log.Info(ntresultjson.StdOutput);
+        if (!String.IsNullOrEmpty(ntresultjson.StdErr)) {
+            Log.Warn(ntresultjson.StdErr);
+        }
 
-        // try to catch any notarization errors. if we have a submission id, retrieve notary logs.
+        // if the keychain/credentials are missing or invalid, the notarization will fail with an empty output.
+        if (String.IsNullOrEmpty(ntresultjson.StdOutput)) {
+            throw new UserInfoException(
+                $"Notarization failed. 'xcrun notarytool submit' with exit code {ntresultjson.ExitCode} and empty output.");
+        }
+
+        // try to catch any notarization errors. if we have a submission id, retrieve and display notary logs.
         try {
             var ntresult = SimpleJson.DeserializeObject<NotaryToolResult>(ntresultjson.StdOutput);
             if (ntresult?.status != "Accepted" || ntresultjson.ExitCode != 0) {
@@ -224,12 +236,18 @@ exit 0
                     Log.Warn(result.StdOutput);
                 }
 
-                throw new Exception("Notarization failed: " + ntresultjson.StdOutput);
+                throw new UserInfoException(
+                    $"Notarization failed. 'xcrun notarytool submit' with exit code {ntresultjson.ExitCode} and output:{Environment.NewLine}" +
+                    ntresultjson.StdOutput);
             }
-        } catch (Exception ex) {
-            throw new Exception("Notarization failed: " + ntresultjson.StdOutput + Environment.NewLine + ex.Message);
+        } catch (Exception ex) when (ex is not UserInfoException) {
+            Log.Warn(ex, "Failed to parse notarization result.");
+            throw new UserInfoException(
+                $"Notarization failed. 'xcrun notarytool submit' with exit code {ntresultjson.ExitCode} and output:{Environment.NewLine}" +
+                ntresultjson.StdOutput);
         }
 
+        Log.Info(ntresultjson.StdOutput);
         Log.Info("Notarization completed successfully");
     }
 
@@ -263,15 +281,15 @@ exit 0
         Log.Debug($"Creating ditto bundle '{outputZip}'");
         Log.Debug(Exe.InvokeAndThrowIfNonZero("ditto", args, null));
     }
-    
+
     public string ExtractPkgToAppBundle(string pkgFile, string extractionTmpPath)
     {
         if (!File.Exists(pkgFile)) {
             throw new ArgumentException("Package file does not exist: " + pkgFile);
         }
-        
+
         Log.Debug($"Extracting '{pkgFile}' to '{extractionTmpPath}'");
-        
+
         var args = new List<string> {
             "--expand-full",
             pkgFile,
@@ -279,17 +297,17 @@ exit 0
         };
 
         Log.Debug(Exe.InvokeAndThrowIfNonZero("pkgutil", args, null));
-        
+
         IEnumerable<string> appPaths = Directory.EnumerateDirectories(extractionTmpPath, "*.app", SearchOption.AllDirectories).ToArray();
 
         if (appPaths.Count() > 1) {
             throw new Exception("The package contains more than one .app bundle. This is not supported.");
         }
-        
+
         if (!appPaths.Any()) {
             throw new Exception("The package does not contain an .app bundle.");
         }
-        
+
         return appPaths.First();
     }
 }
