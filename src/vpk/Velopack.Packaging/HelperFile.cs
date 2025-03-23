@@ -78,6 +78,11 @@ public static class HelperFile
     [SupportedOSPlatform("windows")]
     public static string WixPath => FindHelperFile("wix\\5.0.2\\wix.exe");
 
+    [SupportedOSPlatform("windows")]
+    public static string WixAssetsTopBanner => FindHelperFile("wix\\assets\\top-banner.bmp");
+
+    [SupportedOSPlatform("windows")]
+    public static string WixAssetsDialogBackground => FindHelperFile("wix\\assets\\dialog-background.bmp");
 
     [SupportedOSPlatform("windows")]
     public static string SignToolPath => FindHelperFile("signing\\signtool.exe");

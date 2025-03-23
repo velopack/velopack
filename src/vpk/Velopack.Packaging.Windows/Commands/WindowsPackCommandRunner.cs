@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -396,6 +396,33 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                     <Directory Id="PACKAGES_DIR" Name="packages" />
                   </Directory>
                 </StandardDirectory>
+
+                {(!string.IsNullOrWhiteSpace(Options.Icon) ? $"""
+                <Icon Id="appicon" SourceFile="{Options.Icon}"/>
+                <Property Id="ARPPRODUCTICON" Value="appicon" />
+                """ : "")}
+
+                {(!string.IsNullOrWhiteSpace(Options.InstLicense) ? $"""
+                <WixVariable
+                  Id="WixUILicenseRtf"
+                  Value="{Options.InstLicense}"
+                  />
+                """ : "")}
+
+                <WixVariable
+                  Id="WixUIBannerBmp"
+                  Value="{HelperFile.WixAssetsTopBanner}"
+                  />
+
+                <WixVariable
+                  Id="WixUIDialogBmp"
+                  Value="{HelperFile.WixAssetsDialogBackground}"
+                  />
+
+                <ui:WixUI
+                    Id="WixUI_InstallDir"
+                    InstallDirectory="INSTALLFOLDER"
+                    />
 
                 <Files Include="{portableDirectory.FullName}\**" />
 

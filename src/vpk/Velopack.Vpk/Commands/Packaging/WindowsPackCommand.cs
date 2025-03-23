@@ -20,6 +20,12 @@ public class WindowsPackCommand : PackCommand
 
     public string Shortcuts { get; private set; }
 
+    public string InstWelcome { get; set; }
+
+    public string InstLicense { get; set; }
+
+    public string InstConclusion { get; set; }
+
     public bool BuildMsi { get; private set; }
     public bool BuildMsiDeploymentTool { get; private set; }
 
@@ -88,6 +94,18 @@ public class WindowsPackCommand : PackCommand
             AddOption<bool>((v) => BuildMsi = v, "--msi")
                 .SetDescription("Compile a .msi machine-wide bootstrap package.")
                 ;//.SetHidden();
+
+            AddOption<FileInfo>((v) => InstWelcome = v.ToFullNameOrNull(), "--instWelcome")
+                .SetDescription("Set the installer package welcome content.")
+                .SetArgumentHelpName("PATH");
+
+            AddOption<FileInfo>((v) => InstLicense = v.ToFullNameOrNull(), "--instLicense")
+                .SetDescription("Set the installer package license content.")
+                .SetArgumentHelpName("PATH");
+
+            AddOption<FileInfo>((v) => InstConclusion = v.ToFullNameOrNull(), "--instConclusion")
+                .SetDescription("Set the installer package conclusion content.")
+                .SetArgumentHelpName("PATH");
 
         }
     }
