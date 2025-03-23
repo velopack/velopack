@@ -24,7 +24,7 @@ public class S3DownloadOptions : RepositoryOptions, IObjectDownloadOptions
 
     public string Prefix { get; set; }
 
-    public bool ForcePathStyle { get; set; }
+    public bool DisablePathStyle { get; set; }
 }
 
 public class S3UploadOptions : S3DownloadOptions, IObjectUploadOptions
@@ -100,8 +100,8 @@ public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions,
         bool disableSigning = false;
         var config = new AmazonS3Config() {
             ServiceURL = options.Endpoint,
-            ForcePathStyle = options.ForcePathStyle,
-            Timeout = TimeSpan.FromMinutes(options.Timeout)
+            ForcePathStyle = !options.DisablePathStyle, // default is ForcePathStyle = true, as it's more widely supported
+            Timeout = TimeSpan.FromMinutes(options.Timeout),
         };
 
         if (options.Endpoint != null) {
