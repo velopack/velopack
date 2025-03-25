@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -251,8 +251,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         var stubPath = Path.Combine(
             current.FullName,
             Path.GetFileNameWithoutExtension(Options.EntryExecutableName) + "_ExecutionStub.exe");
-        var stubName = (Options.PackTitle ?? Options.PackId) + ".exe";
-        File.Move(stubPath, Path.Combine(dir.FullName, stubName));
+        File.Move(stubPath, Path.Combine(dir.FullName, GetPortableStubFileName()));
 
         // create a .portable file to indicate this is a portable package
         File.Create(Path.Combine(dir.FullName, ".portable")).Close();
@@ -377,10 +376,15 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         static string SanitizeDirectoryString(string name)
             => name;//TODO
 
+        static string FormatXmlMessage(string message)
+            => message.Replace("\r", "&#10;").Replace("\n", "&#13;");
+
+        List<string> wixExtensions = ["WixToolset.UI.wixext"];
+        
         //Scope can be perMachine or perUser or perUserOrMachine, https://docs.firegiant.com/wix/schema/wxs/packagescopetype/
         //TODO: It is recommended to use ID rather than UpgradeCode. But this should be a namespaced id. This could probably just be our wixId above
         string wixPackage = $"""
-            <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+            <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
               <Package Name="{GetEffectiveTitle()}" 
                        Manufacturer="{GetEffectiveAuthors()}"
                        Version="{msiVersion}"
@@ -419,25 +423,43 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                   Value="{HelperFile.WixAssetsDialogBackground}"
                   />
 
-                <ui:WixUI
-                    Id="WixUI_InstallDir"
-                    InstallDirectory="INSTALLFOLDER"
-                    />
+                <!-- Message on last screen after install -->
+                {(!string.IsNullOrWhiteSpace(Options.InstConclusion) ? $"""
+                <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="{FormatXmlMessage(Options.InstConclusion)}" />
+                """: "")}
+
+                <!-- Check box for launching -->
+                <Property
+                  Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT"
+                  Value="Launch {GetEffectiveTitle()}"
+                  />
+
+                <UI>
+                  <ui:WixUI
+                      Id="WixUI_InstallDir"
+                      InstallDirectory="INSTALLFOLDER"
+                      />
+
+                  <Publish Dialog="ExitDialog"
+                      Control="Finish"
+                      Event="DoAction"
+                      Value="LaunchApplication"
+                      Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed" />
+                </UI>
 
                 <Files Include="{portableDirectory.FullName}\**" />
 
                 <CustomAction Id="RemoveTempDirectory" Directory="TempFolder" Impersonate="yes" ExeCommand="cmd.exe /C rmdir /S /Q &quot;%TEMP%\velopack_{Options.PackId}&quot;" Execute="deferred" Return="ignore" />
                 <CustomAction Id="RemoveAppDirectory" Directory="ProgramFiles64Folder" Impersonate="no" ExeCommand="cmd.exe /C for /d %D in (&quot;[INSTALLFOLDER]*&quot;) do @if /i not &quot;%~nxD&quot;==&quot;current&quot; rmdir /s /q &quot;%D&quot; &amp; for %F in (&quot;[INSTALLFOLDER]*&quot;) do @del /q &quot;%F&quot;" Execute="deferred" Return="ignore" />
-            
+                <CustomAction Id="LaunchApplication" Directory="INSTALLFOLDER" Impersonate="yes" ExeCommand="&quot;[INSTALLFOLDER]{GetPortableStubFileName()}&quot;" Execute="immediate" Return="ignore" />
 
                 <InstallExecuteSequence>
                   <Custom Action="RemoveAppDirectory" Before="RemoveFolders" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
                   <Custom Action="RemoveTempDirectory" Before="InstallFinalize" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
-                            </InstallExecuteSequence>
+                </InstallExecuteSequence>
               </Package>
             </Wix>
             """;
-
 
         var wxs = Path.Combine(outputDirectory.FullName, wixId + ".wxs");
         try {
@@ -447,7 +469,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
             Log.Info("Compiling WiX Template (dotnet build)");
 
-            var buildCommand = $"{HelperFile.WixPath} build -platform {(packageAs64Bit ? "x64" : "x86")} -outputType Package -pdbType none -out \"{msiFilePath}\" \"{wxs}\"";
+            foreach(var extension in wixExtensions) {
+                //TODO: Should extensions be versioned independently?
+                AddWixExtension(extension, HelperFile.WixVersion);
+            }
+
+            var buildCommand = $"{HelperFile.WixPath} build -platform {(packageAs64Bit ? "x64" : "x86")} -outputType Package -pdbType none {string.Join(" ", wixExtensions.Select(x => $"-ext {x}"))} -out \"{msiFilePath}\" \"{wxs}\"";
 
             _ = Exe.RunHostedCommand(buildCommand);
 
@@ -458,6 +485,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
         progress(100);
 
+
+        static void AddWixExtension(string extension, string version)
+        {
+            var addCommand = $"{HelperFile.WixPath} extension add -g {extension}/{version}";
+            _ = Exe.RunHostedCommand(addCommand);
+        }
     }
 
     [SupportedOSPlatform("windows")]
@@ -544,4 +577,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             Path.Combine(packDirectory, mainExeName) + ".exe",
         ];
     }
+
+    private string GetPortableStubFileName() => (Options.PackTitle ?? Options.PackId) + ".exe";
 }
