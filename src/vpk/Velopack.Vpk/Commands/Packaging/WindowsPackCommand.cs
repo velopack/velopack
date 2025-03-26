@@ -24,6 +24,8 @@ public class WindowsPackCommand : PackCommand
 
     public string InstLicense { get; set; }
 
+    public string InstReadme { get; private set; }
+
     public string InstConclusion { get; set; }
 
     public bool BuildMsi { get; private set; }
@@ -103,10 +105,13 @@ public class WindowsPackCommand : PackCommand
                 .SetDescription("Set the installer package license content.")
                 .SetArgumentHelpName("PATH");
 
+            AddOption<FileInfo>((v) => InstReadme = v.ToFullNameOrNull(), "--instReadme")
+                .SetDescription("Set the installer package readme content.")
+                .SetArgumentHelpName("PATH");
+
             AddOption<FileInfo>((v) => InstConclusion = v.ToFullNameOrNull(), "--instConclusion")
                 .SetDescription("Set the installer package conclusion content.")
                 .SetArgumentHelpName("PATH");
-
         }
     }
 }

@@ -376,12 +376,20 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         static string FormatXmlMessage(string message)
             => string.IsNullOrWhiteSpace(message) ? "" : message.Replace("\r", "&#10;").Replace("\n", "&#13;");
 
+        static string GetFileContent(string filePath)
+        {
+            string fileContents = File.ReadAllText(filePath, Encoding.UTF8);
+            return FormatXmlMessage(fileContents);
+        }
+
         List<string> wixExtensions = ["WixToolset.UI.wixext"];
 
         var shortcuts = GetShortcuts().ToHashSet();
         string title = GetEffectiveTitle();
         string authors = GetEffectiveAuthors();
         string stub = GetPortableStubFileName();
+        string conclusionMessage = GetFileContent(Options.InstConclusion);
+
 
         //Scope can be perMachine or perUser or perUserOrMachine, https://docs.firegiant.com/wix/schema/wxs/packagescopetype/
         //For now just hard coding to perMachine
@@ -452,8 +460,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                   />
 
                 <!-- Message on last screen after install -->
-                {(!string.IsNullOrWhiteSpace(Options.InstConclusion) ? $"""
-                <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="{FormatXmlMessage(Options.InstConclusion)}" />
+                {(!string.IsNullOrWhiteSpace(conclusionMessage) ? $"""
+                <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="{conclusionMessage}" />
                 """: "")}
 
                 <!-- Check box for launching -->
@@ -489,11 +497,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             </Wix>
             """;
 
-        string welcomeMessage = FormatXmlMessage(Options.InstWelcome);
-        string conclusionMessage = FormatXmlMessage(Options.InstConclusion);
+        string welcomeMessage = GetFileContent(Options.InstWelcome);
+        string readmeMessage = GetFileContent(Options.InstReadme);
 
         string localizedStrings = $"""
             <WixLocalization Culture="en-US" Codepage="1252" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+              {(!string.IsNullOrWhiteSpace(welcomeMessage) ? $"""
               <!-- Message on first welcome dialog; covers both initial install and update -->
               <String
                 Id="WelcomeDlgDescription"
@@ -503,12 +512,15 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                 Id="WelcomeUpdateDlgDescriptionUpdate"
                 Value="{welcomeMessage}"
                 />
+              """ : "")}
 
-              <!-- Message on the last screen after install -->
+              {(!string.IsNullOrWhiteSpace(readmeMessage) ? $"""
+              <!-- Message on the completion dialog (last screen after install) -->
               <String
                 Id="VerifyReadyDlgInstallText"
-                Value="{conclusionMessage}"
+                Value="{readmeMessage}"
                 />
+              """ : "")}
             </WixLocalization>
             """;
 
@@ -527,6 +539,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                 AddWixExtension(extension, HelperFile.WixVersion);
             }
 
+            //When localization is supported in Velopack, we will need to add -culture here:
+            //https://docs.firegiant.com/wix/tools/wixext/wixui/
             var buildCommand = $"{HelperFile.WixPath} build -platform {(packageAs64Bit ? "x64" : "x86")} -outputType Package -pdbType none {string.Join(" ", wixExtensions.Select(x => $"-ext {x}"))} -out \"{msiFilePath}\" \"{wxs}\"";
 
             _ = Exe.RunHostedCommand(buildCommand);
