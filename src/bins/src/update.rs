@@ -6,9 +6,9 @@ extern crate log;
 
 use anyhow::{anyhow, bail, Result};
 use clap::{arg, value_parser, ArgMatches, Command};
-use std::{env, path::PathBuf};
+use std::{env, path::PathBuf, time::Duration};
 use velopack::locator::{auto_locate_app_manifest, LocationContext};
-use velopack::logging::*;
+use velopack::{constants, logging::*};
 use velopack_bins::{shared::OperationWait, *};
 
 #[rustfmt::skip]
@@ -225,10 +225,7 @@ fn apply(matches: &ArgMatches) -> Result<()> {
                 args.push("--silent".to_string());
             }
             args.push("apply".to_string());
-
-            if !restart {
-                args.push("--norestart".to_string());
-            }
+            args.push("--norestart".to_string());
 
             if let Some(install_to) = install_to {
                 args.push("--installto".to_string());
@@ -247,15 +244,16 @@ fn apply(matches: &ArgMatches) -> Result<()> {
                 args.push("--wait".to_string());
             }
 
-            if let Some(exe_args) = exe_args {
-                args.push("--".to_string());
-                for arg in exe_args {
-                    args.push(arg.to_string());
-                }
+            let safe_handle = windows::process::relaunch_self_as_admin(args)?;
+            info!("Successfully re-launched as administrator.");
+
+            if restart {
+                info!("Waiting for the application to exit before restarting.");
+                windows::process::wait_process_timeout(safe_handle.handle(), Duration::from_secs(300))?;
+                info!("Restarting the application after the update.");
+                shared::start_package(&locator, exe_args, Some(constants::HOOK_ENV_RESTART))?;
             }
 
-            windows::process::relaunch_self_as_admin(args)?;
-            info!("Successfully re-launched as administrator.");
         }
         return Ok(());
     }
@@ -299,7 +297,7 @@ fn uninstall(_matches: &ArgMatches) -> Result<()> {
 fn test_cli_parse_handles_equals_spaces() {
     let command = vec!["C:\\Some Path\\With = Spaces\\Update.exe", "apply", "--package", "C:\\Some Path\\With = Spaces\\Package.zip"];
     let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
-    let (wait, restart, package, install_to, exe_args) = get_apply_args(matches.subcommand_matches("apply").unwrap());
+    let (wait, restart, package, _install_to, exe_args) = get_apply_args(matches.subcommand_matches("apply").unwrap());
 
     assert_eq!(wait, OperationWait::NoWait);
     assert_eq!(restart, true);
