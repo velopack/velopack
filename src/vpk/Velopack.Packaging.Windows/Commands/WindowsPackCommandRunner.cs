@@ -95,10 +95,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             return null;
 
         try {
-            var shortcuts = Options.Shortcuts.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries)
-                .Select(x => x.Trim())
-                .Select(x => (ShortcutLocation) Enum.Parse(typeof(ShortcutLocation), x, true))
-                .ToList();
+            var shortcuts = GetShortcuts();
 
             if (shortcuts.Count == 0)
                 return null;
@@ -380,13 +377,18 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             => message.Replace("\r", "&#10;").Replace("\n", "&#13;");
 
         List<string> wixExtensions = ["WixToolset.UI.wixext"];
-        
+
+        var shortcuts = GetShortcuts().ToHashSet();
+        string title = GetEffectiveTitle();
+        string authors = GetEffectiveAuthors();
+        string stub = GetPortableStubFileName();
         //Scope can be perMachine or perUser or perUserOrMachine, https://docs.firegiant.com/wix/schema/wxs/packagescopetype/
         //TODO: It is recommended to use ID rather than UpgradeCode. But this should be a namespaced id. This could probably just be our wixId above
+
         string wixPackage = $"""
             <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
-              <Package Name="{GetEffectiveTitle()}" 
-                       Manufacturer="{GetEffectiveAuthors()}"
+              <Package Name="{title}"
+                       Manufacturer="{authors}"
                        Version="{msiVersion}"
                        Codepage="{culture}"
                        Language="1033"
@@ -400,6 +402,32 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                     <Directory Id="PACKAGES_DIR" Name="packages" />
                   </Directory>
                 </StandardDirectory>
+                {(shortcuts.Contains(ShortcutLocation.Desktop) ? $"""
+                <StandardDirectory Id="DesktopFolder">
+                  <Component Id="ApplicationDesktopShortcut">
+                    <Shortcut Id="ApplicationDesktopShortcut"
+                              Name="{title}"
+                              Description="Desktop shortcut for {title}"
+                              Target="[INSTALLFOLDER]{stub}"
+                              WorkingDirectory="INSTALLFOLDER"/>
+                    <RemoveFolder Id="CleanUpDesktopShortcut" Directory="INSTALLFOLDER" On="uninstall"/>
+                    <RegistryValue Root="HKCU" Key="Software\{authors}\{Options.PackId}.DesktopShortcut" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+                  </Component>
+                </StandardDirectory>
+                """ : "")}
+                {(shortcuts.Contains(ShortcutLocation.StartMenu) ? $"""
+                <StandardDirectory Id="StartMenuFolder">
+                  <Component Id="ApplicationStartMenuShortcut">
+                    <Shortcut Id="ApplicationStartMenuShortcut"
+                              Name="{title}"
+                              Description="Start Menu shortcut for {title}"
+                              Target="[INSTALLFOLDER]{stub}"
+                              WorkingDirectory="INSTALLFOLDER"/>
+                    <RemoveFolder Id="CleanUpStartMenuShortcut" Directory="INSTALLFOLDER" On="uninstall"/>
+                    <RegistryValue Root="HKCU" Key="Software\{authors}\{Options.PackId}.StartMenuShortcut" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+                  </Component>
+                </StandardDirectory>
+                """ : "")}
 
                 {(!string.IsNullOrWhiteSpace(Options.Icon) ? $"""
                 <Icon Id="appicon" SourceFile="{Options.Icon}"/>
@@ -431,7 +459,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                 <!-- Check box for launching -->
                 <Property
                   Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT"
-                  Value="Launch {GetEffectiveTitle()}"
+                  Value="Launch {title}"
                   />
 
                 <UI>
@@ -451,7 +479,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
                 <CustomAction Id="RemoveTempDirectory" Directory="TempFolder" Impersonate="yes" ExeCommand="cmd.exe /C rmdir /S /Q &quot;%TEMP%\velopack_{Options.PackId}&quot;" Execute="deferred" Return="ignore" />
                 <CustomAction Id="RemoveAppDirectory" Directory="ProgramFiles64Folder" Impersonate="no" ExeCommand="cmd.exe /C for /d %D in (&quot;[INSTALLFOLDER]*&quot;) do @if /i not &quot;%~nxD&quot;==&quot;current&quot; rmdir /s /q &quot;%D&quot; &amp; for %F in (&quot;[INSTALLFOLDER]*&quot;) do @del /q &quot;%F&quot;" Execute="deferred" Return="ignore" />
-                <CustomAction Id="LaunchApplication" Directory="INSTALLFOLDER" Impersonate="yes" ExeCommand="&quot;[INSTALLFOLDER]{GetPortableStubFileName()}&quot;" Execute="immediate" Return="ignore" />
+                <CustomAction Id="LaunchApplication" Directory="INSTALLFOLDER" Impersonate="yes" ExeCommand="&quot;[INSTALLFOLDER]{stub}&quot;" Execute="immediate" Return="ignore" />
 
                 <InstallExecuteSequence>
                   <Custom Action="RemoveAppDirectory" Before="RemoveFolders" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
@@ -579,4 +607,15 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
     }
 
     private string GetPortableStubFileName() => (Options.PackTitle ?? Options.PackId) + ".exe";
+
+    private IReadOnlyList<ShortcutLocation> GetShortcuts() => [.. Options.Shortcuts.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim())
+                .Select(x => {
+                    if (Enum.TryParse(x, true, out ShortcutLocation location)) {
+                        return location;
+                    }
+                    return ShortcutLocation.None;
+                })
+                .Where(x => x != ShortcutLocation.None)
+        ];
 }
