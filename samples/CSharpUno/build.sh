@@ -18,4 +18,4 @@ dotnet publish -c Release --framework net9.0-desktop -o "$PUBLISH_DIR" UnoSample
 
 echo ""
 echo "Building Velopack Release v$BUILD_VERSION"
-vpk pack -u CSharpUno -v $BUILD_VERSION -o "$RELEASE_DIR" -p "$PUBLISH_DIR" -f net8-x64-desktop --mainExe UnoSample.exe
+vpk pack -u CSharpUno -v $BUILD_VERSION -o "$RELEASE_DIR" -p "$PUBLISH_DIR" --mainExe UnoSample.exe

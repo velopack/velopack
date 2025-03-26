@@ -15,4 +15,4 @@ dotnet publish -c Release --framework net9.0-desktop -o %~dp0UnoSample\publish U
 
 echo.
 echo Building Velopack Release v%version%
-vpk pack -u CSharpUno -v %version% -o %~dp0UnoSample\releases -p %~dp0UnoSample\publish -f net8-x64-desktop --mainExe UnoSample.exe
+vpk pack -u CSharpUno -v %version% -o %~dp0UnoSample\releases -p %~dp0UnoSample\publish --mainExe UnoSample.exe
