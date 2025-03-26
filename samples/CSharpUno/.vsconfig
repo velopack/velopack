@@ -7,16 +7,10 @@
     "Microsoft.NetCore.Component.DevelopmentTools",
     "Microsoft.Net.ComponentGroup.DevelopmentPrerequisites",
     "Microsoft.VisualStudio.Component.TextTemplating",
-    "Microsoft.VisualStudio.Component.Windows10SDK.19041",
     "Microsoft.VisualStudio.ComponentGroup.MSIX.Packaging",
     "Microsoft.VisualStudio.Component.ManagedDesktop.Prerequisites",
     "Microsoft.VisualStudio.Component.Debugger.JustInTime",
     "Microsoft.VisualStudio.Workload.ManagedDesktop",
-    "Microsoft.Component.NetFX.Native",
-    "Microsoft.VisualStudio.Component.Graphics",
-    "Microsoft.VisualStudio.Component.Merq",
-    "Microsoft.VisualStudio.Component.MonoDebugger",
-    "Microsoft.VisualStudio.ComponentGroup.Maui.All",
     "Microsoft.VisualStudio.Workload.NetCrossPlat",
     "Microsoft.VisualStudio.Workload.NetCoreTools"
   ]

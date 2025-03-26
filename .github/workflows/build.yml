@@ -393,7 +393,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        sample: [CPlusPlusWidgets, CPlusPlusWin32, CSharpAvalonia, CSharpWpf, NodeJSElectron, RustIced]
+        sample: [CPlusPlusWidgets, CPlusPlusWin32, CSharpAvalonia, CSharpUno, CSharpWpf, NodeJSElectron, RustIced]
         os: [windows-latest, ubuntu-latest, macos-latest]
         exclude:
           - os: ubuntu-latest

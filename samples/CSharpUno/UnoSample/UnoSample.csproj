@@ -1,10 +1,6 @@
 <Project Sdk="Uno.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>
-      net8.0-maccatalyst;
-      net8.0-windows10.0.19041;
-      net8.0-desktop;
-    </TargetFrameworks>
+    <TargetFrameworks>net9.0-desktop;net9.0-windows10.0.26100</TargetFrameworks>
 
     <OutputType>Exe</OutputType>
     <UnoSingleProject>true</UnoSingleProject>
@@ -19,6 +15,10 @@
     <!-- Versions -->
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
     <ApplicationVersion>1</ApplicationVersion>
+    <!-- Package Publisher -->
+    <ApplicationPublisher>Velopack</ApplicationPublisher>
+    <!-- Package Description -->
+    <Description>UnoSample powered by Uno Platform.</Description>
     <!--
       If you encounter this error message:
 
@@ -36,42 +36,12 @@
       https://aka.platform.uno/singleproject-features
     -->
     <UnoFeatures>
-      Material;
-      Dsp;
-      Hosting;
-      Toolkit;
-      Logging;
       Mvvm;
-      Configuration;
-      Http;
-      Serialization;
-      Localization;
-      Navigation;
-      ThemeService;
     </UnoFeatures>
   </PropertyGroup>
 
-  <!--
-  Disables the auto-generated Main method so that we can add in the Velopack calls at startup.
-  -->
-  <!--<PropertyGroup Condition="'$(TargetFramework)'=='net8.0-windows10.0.19041'">
-    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
-  </PropertyGroup>-->
-
   <ItemGroup>
-    <PackageReference Include="System.Private.Uri" />
-    <PackageReference Include="System.Text.Json" />
     <PackageReference Include="Velopack" />
-    <PackageReference Include="Velopack.Build">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Update="Platforms\Windows\Program.cs">
-      <Sdk>Uno</Sdk>
-    </Compile>
   </ItemGroup>
 
 </Project>
