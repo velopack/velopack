@@ -371,7 +371,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
 
         static string SanitizeDirectoryString(string name)
-            => name;//TODO
+            => string.Join("_", name.Split(Path.GetInvalidPathChars()));
 
         static string FormatXmlMessage(string message)
             => message.Replace("\r", "&#10;").Replace("\n", "&#13;");
@@ -382,9 +382,9 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         string title = GetEffectiveTitle();
         string authors = GetEffectiveAuthors();
         string stub = GetPortableStubFileName();
-        //Scope can be perMachine or perUser or perUserOrMachine, https://docs.firegiant.com/wix/schema/wxs/packagescopetype/
-        //TODO: It is recommended to use ID rather than UpgradeCode. But this should be a namespaced id. This could probably just be our wixId above
 
+        //Scope can be perMachine or perUser or perUserOrMachine, https://docs.firegiant.com/wix/schema/wxs/packagescopetype/
+        //For now just hard coding to perMachine
         string wixPackage = $"""
             <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
               <Package Name="{title}"
@@ -397,7 +397,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                        >
                 <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
                 <StandardDirectory Id="{(packageAs64Bit ? "ProgramFiles64Folder" : "ProgramFiles6432Folder")}">
-                  <Directory Id="INSTALLFOLDER" Name="{SanitizeDirectoryString(GetEffectiveAuthors())}">
+                  <Directory Id="INSTALLFOLDER" Name="{SanitizeDirectoryString(authors)}">
                     <Directory Name="current" />
                     <Directory Id="PACKAGES_DIR" Name="packages" />
                   </Directory>
@@ -411,7 +411,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                               Target="[INSTALLFOLDER]{stub}"
                               WorkingDirectory="INSTALLFOLDER"/>
                     <RemoveFolder Id="CleanUpDesktopShortcut" Directory="INSTALLFOLDER" On="uninstall"/>
-                    <RegistryValue Root="HKCU" Key="Software\{authors}\{Options.PackId}.DesktopShortcut" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+                    <RegistryValue Root="HKCU" Key="Software\{SanitizeDirectoryString(authors)}\{Options.PackId}.DesktopShortcut" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
                   </Component>
                 </StandardDirectory>
                 """ : "")}
@@ -424,7 +424,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                               Target="[INSTALLFOLDER]{stub}"
                               WorkingDirectory="INSTALLFOLDER"/>
                     <RemoveFolder Id="CleanUpStartMenuShortcut" Directory="INSTALLFOLDER" On="uninstall"/>
-                    <RegistryValue Root="HKCU" Key="Software\{authors}\{Options.PackId}.StartMenuShortcut" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+                    <RegistryValue Root="HKCU" Key="Software\{SanitizeDirectoryString(authors)}\{Options.PackId}.StartMenuShortcut" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
                   </Component>
                 </StandardDirectory>
                 """ : "")}
@@ -487,6 +487,10 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                 </InstallExecuteSequence>
               </Package>
             </Wix>
+            """;
+
+        string localizedStrings = """
+
             """;
 
         var wxs = Path.Combine(outputDirectory.FullName, wixId + ".wxs");
