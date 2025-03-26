@@ -1,0 +1,24 @@
+﻿<Page x:Class="UnoSample.MainPage"
+	  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	  xmlns:local="using:UnoSample"
+	  Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+	<Grid>
+		<StackPanel HorizontalAlignment="Center"
+					VerticalAlignment="Center"
+					Spacing="16">
+			<TextBlock Text="The app is not installed with Velopack"
+					   Visibility="{x:Bind NotInstalled}" />
+			<TextBlock Text="{x:Bind ViewModel.CurrentVersion}" />
+
+			<Button HorizontalAlignment="Center"
+					Command="{Binding CheckForUpdatesCommand}"
+					Content="Check For Updates" />
+			<Button HorizontalAlignment="Center"
+					Command="{Binding DownloadUpdatesCommand}"
+					Content="Download Updates"
+					Visibility="{x:Bind ViewModel.HasUpdate, Mode=OneWay}" />
+			<TextBlock Text="{Binding Status}" />
+		</StackPanel>
+	</Grid>
+</Page>
