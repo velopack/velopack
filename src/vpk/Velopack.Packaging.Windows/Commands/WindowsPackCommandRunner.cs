@@ -374,7 +374,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             => string.Join("_", name.Split(Path.GetInvalidPathChars()));
 
         static string FormatXmlMessage(string message)
-            => message.Replace("\r", "&#10;").Replace("\n", "&#13;");
+            => string.IsNullOrWhiteSpace(message) ? "" : message.Replace("\r", "&#10;").Replace("\n", "&#13;");
 
         List<string> wixExtensions = ["WixToolset.UI.wixext"];
 
@@ -489,13 +489,34 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             </Wix>
             """;
 
-        string localizedStrings = """
+        string welcomeMessage = FormatXmlMessage(Options.InstWelcome);
+        string conclusionMessage = FormatXmlMessage(Options.InstConclusion);
 
+        string localizedStrings = $"""
+            <WixLocalization Culture="en-US" Codepage="1252" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+              <!-- Message on first welcome dialog; covers both initial install and update -->
+              <String
+                Id="WelcomeDlgDescription"
+                Value="{welcomeMessage}"
+                />
+              <String
+                Id="WelcomeUpdateDlgDescriptionUpdate"
+                Value="{welcomeMessage}"
+                />
+
+              <!-- Message on the last screen after install -->
+              <String
+                Id="VerifyReadyDlgInstallText"
+                Value="{conclusionMessage}"
+                />
+            </WixLocalization>
             """;
 
         var wxs = Path.Combine(outputDirectory.FullName, wixId + ".wxs");
+        var localization = Path.Combine(outputDirectory.FullName, wixId + "_en-US.wxs");
         try {
             File.WriteAllText(wxs, wixPackage, Encoding.UTF8);
+            File.WriteAllText(localization, localizedStrings, Encoding.UTF8);
 
             progress(30);
 
