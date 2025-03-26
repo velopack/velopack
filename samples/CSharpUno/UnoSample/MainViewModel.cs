@@ -1,5 +1,4 @@
 using Velopack;
-using Velopack.Sources;
 
 namespace UnoSample;
 
@@ -22,7 +21,8 @@ public partial class MainViewModel : ObservableObject
 
 	public MainViewModel()
 	{
-		_updateManager = new UpdateManager(new VelopackFlowUpdateSource());
+		var updateUrl = SampleHelper.GetReleasesDir(); // replace with your update path/url
+		_updateManager = new UpdateManager(updateUrl!);
 	}
 
 	[RelayCommand(CanExecute = nameof(IsInstalled))]

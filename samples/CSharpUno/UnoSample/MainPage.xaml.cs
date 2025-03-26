@@ -4,7 +4,7 @@ public sealed partial class MainPage : Page
 {
 	public MainViewModel ViewModel { get; } = new MainViewModel();
 
-	public bool NotInstalled => ViewModel?.IsInstalled != true;
+	public bool NotInstalled => ViewModel.IsInstalled != true;
 
 	public MainPage()
 	{

@@ -7,6 +7,5 @@
   -->
   <ItemGroup>
     <PackageVersion Include="Velopack" Version="0.0.1053" />
-    <PackageVersion Include="Velopack.Build" Version="0.0.1053" />
   </ItemGroup>
 </Project>
