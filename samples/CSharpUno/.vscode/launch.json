@@ -5,22 +5,15 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Uno Platform Mobile",
-      "type": "Uno",
-      "request": "launch",
-      // any Uno* task will do, this is simply to satisfy vscode requirement when a launch.json is present
-      "preLaunchTask": "Uno: android | Debug | android-x64"
-    },
-    {
       // Use IntelliSense to find out which attributes exist for C# debugging
       // Use hover for the description of the existing attributes
       // For further information visit https://github.com/OmniSharp/omnisharp-vscode/blob/master/debugger-launchjson.md
-      "name": "Uno Platform Desktop (Debug)",
+      "name": "Uno Platform Desktop Debug",
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build-desktop",
       // If you have changed target frameworks, make sure to update the program path.
-      "program": "${workspaceFolder}/UnoSample/bin/Debug/net8.0-desktop/UnoSample.dll",
+      "program": "${workspaceFolder}/UnoSample/bin/Debug/net9.0-desktop/UnoSample.dll",
       "args": [],
       "launchSettingsProfile": "UnoSample (Desktop)",
       "env": {

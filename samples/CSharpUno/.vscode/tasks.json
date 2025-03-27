@@ -9,7 +9,7 @@
         "build",
         "${workspaceFolder}/UnoSample/UnoSample.csproj",
         "/property:GenerateFullPaths=true",
-        "/property:TargetFramework=net8.0-desktop",
+        "/property:TargetFramework=net9.0-desktop",
         "/consoleloggerparameters:NoSummary"
       ],
       "problemMatcher": "$msCompile"
@@ -22,7 +22,7 @@
         "publish",
         "${workspaceFolder}/UnoSample/UnoSample.csproj",
         "/property:GenerateFullPaths=true",
-        "/property:TargetFramework=net8.0-desktop",
+        "/property:TargetFramework=net9.0-desktop",
         "/consoleloggerparameters:NoSummary"
       ],
       "problemMatcher": "$msCompile"

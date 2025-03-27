@@ -9,11 +9,27 @@ root = true
 ##########################################
 
 [*]
-indent_style = space
+indent_style = tab
 end_of_line = crlf
 trim_trailing_whitespace = true
 insert_final_newline = true
 charset = utf-8
+dotnet_style_coalesce_expression = true:suggestion
+dotnet_style_null_propagation = true:suggestion
+dotnet_style_prefer_is_null_check_over_reference_equality_method = true:suggestion
+dotnet_style_prefer_auto_properties = true:silent
+dotnet_style_object_initializer = true:suggestion
+dotnet_style_collection_initializer = true:suggestion
+dotnet_style_prefer_simplified_boolean_expressions = true:suggestion
+dotnet_style_prefer_conditional_expression_over_assignment = true:silent
+dotnet_style_prefer_conditional_expression_over_return = true:silent
+dotnet_style_explicit_tuple_names = true:suggestion
+dotnet_style_prefer_inferred_tuple_names = true:suggestion
+dotnet_style_prefer_inferred_anonymous_type_member_names = true:suggestion
+dotnet_style_operator_placement_when_wrapping = beginning_of_line
+tab_width = 4
+indent_size = 4
+dotnet_style_prefer_compound_assignment = true:suggestion
 
 ##########################################
 # File Extension Settings
@@ -31,40 +47,40 @@ indent_style = tab
 indent_size = 2
 
 [*.{csproj,proj,projitems,shproj}]
-indent_size = 2
+indent_size = 4
 
 [*.{json,slnf}]
 indent_size = 2
 end_of_line = lf
 
 [*.{props,targets}]
-indent_size = 2
+indent_size = 4
 
 [*.xaml]
-indent_size = 2
+indent_size = 4
 charset = utf-8-bom
 
 [*.xml]
-indent_size = 2
+indent_size = 4
 end_of_line = lf
 
 [*.plist]
-indent_size = 2
+indent_size = 4
 indent_style = tab
 end_of_line = lf
 
 [*.manifest]
-indent_size = 2
+indent_size = 4
 
 [*.appxmanifest]
-indent_size = 2
+indent_size = 4
 
 [*.{json,css,webmanifest}]
 indent_size = 2
 end_of_line = lf
 
 [web.config]
-indent_size = 2
+indent_size = 4
 end_of_line = lf
 
 [*.sh]
@@ -165,3 +181,4 @@ csharp_style_expression_bodied_indexers = true:silent
 csharp_style_expression_bodied_accessors = true:silent
 csharp_style_expression_bodied_lambdas = true:silent
 csharp_style_expression_bodied_local_functions = false:silent
+csharp_prefer_system_threading_lock = true:suggestion
