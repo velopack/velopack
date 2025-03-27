@@ -20,13 +20,17 @@ public class WindowsPackCommand : PackCommand
 
     public string Shortcuts { get; private set; }
 
-    public string InstWelcome { get; set; }
+    public string InstWelcome { get; private set; }
 
-    public string InstLicense { get; set; }
+    public string InstLicense { get; private set; }
 
     public string InstReadme { get; private set; }
 
-    public string InstConclusion { get; set; }
+    public string InstConclusion { get; private set; }
+
+    public string MsiBanner { get; private set; }
+    public string MsiLogo { get; private set; }
+
 
     public bool BuildMsi { get; private set; }
     public bool BuildMsiDeploymentTool { get; private set; }
@@ -102,7 +106,8 @@ public class WindowsPackCommand : PackCommand
                 .SetArgumentHelpName("PATH");
 
             AddOption<FileInfo>((v) => InstLicense = v.ToFullNameOrNull(), "--instLicense")
-                .SetDescription("Set the installer package license content.")
+                .SetDescription("Set the installer package license RTF content.")
+                .RequiresExtension(".rtf")
                 .SetArgumentHelpName("PATH");
 
             AddOption<FileInfo>((v) => InstReadme = v.ToFullNameOrNull(), "--instReadme")
@@ -111,6 +116,16 @@ public class WindowsPackCommand : PackCommand
 
             AddOption<FileInfo>((v) => InstConclusion = v.ToFullNameOrNull(), "--instConclusion")
                 .SetDescription("Set the installer package conclusion content.")
+                .SetArgumentHelpName("PATH");
+
+            AddOption<FileInfo>((v) => MsiBanner = v.ToFullNameOrNull(), "--msiBanner")
+                .SetDescription("Set the banner bitmap image for the MSI. The resolution must be 493x58.")
+                .RequiresExtension(".bmp")
+                .SetArgumentHelpName("PATH");
+
+            AddOption<FileInfo>((v) => MsiLogo = v.ToFullNameOrNull(), "--msiLogo")
+                .SetDescription("Set the logo bitmap image for the MSI. The resolution must be 493x312.")
+                .RequiresExtension(".bmp")
                 .SetArgumentHelpName("PATH");
         }
     }

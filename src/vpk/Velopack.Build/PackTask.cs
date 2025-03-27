@@ -61,6 +61,9 @@ public class PackTask : MSBuildAsyncTask
 
     public string? InstConclusion { get; set; }
 
+    public string? MsiBanner { get; set; }
+    public string? MsiLogo { get; set; }
+
     public string? SignAppIdentity { get; set; }
 
     public string? SignInstallIdentity { get; set; }

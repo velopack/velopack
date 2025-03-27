@@ -389,7 +389,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         string authors = GetEffectiveAuthors();
         string stub = GetPortableStubFileName();
         string conclusionMessage = GetFileContent(Options.InstConclusion);
-
+        string license = GetFileContent(Options.InstLicense);
+        bool hasLicense = !string.IsNullOrWhiteSpace(license);
 
         //Scope can be perMachine or perUser or perUserOrMachine, https://docs.firegiant.com/wix/schema/wxs/packagescopetype/
         //For now just hard coding to perMachine
@@ -442,10 +443,10 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                 <Property Id="ARPPRODUCTICON" Value="appicon" />
                 """ : "")}
 
-                {(!string.IsNullOrWhiteSpace(Options.InstLicense) ? $"""
+                {(hasLicense ? $"""
                 <WixVariable
                   Id="WixUILicenseRtf"
-                  Value="{Options.InstLicense}"
+                  Value="{license}"
                   />
                 """ : "")}
 
@@ -494,6 +495,83 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                   <Custom Action="RemoveTempDirectory" Before="InstallFinalize" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
                 </InstallExecuteSequence>
               </Package>
+
+              <!-- Based on: https://github.com/wixtoolset/wix/blob/v5.0.2/src/ext/UI/wixlib/WixUI_InstallDir.wxs -->
+              <?foreach WIXUIARCH in X86;X64;A64 ?>
+                <Fragment>
+                  <UI Id="WixUI_Velopack_$(WIXUIARCH)">
+                    {(hasLicense ? $"""
+                    <Publish Dialog="LicenseAgreementDlg" Control="Print" Event="DoAction" Value="WixUIPrintEul$(WIXUIARCH)" />
+                    """ : "")}
+
+                    <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidateP$(WIXUIARCH)"Order="3"Condition="NOT WIXUI_DONTVALIDATEPATH" />
+                    <Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="WixUIValidatePa$(WIXUIARCH)"Order="2" Condition="NOT WIXUI_DONTVALIDATEPATH" />
+                  </UI>
+
+                  <UIRef Id="WixUI_Velopack" />
+                </Fragment>
+              <?endforeach?>
+
+              <Fragment>
+                <UI Id="file WixUI_Velopack">
+                  <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+                  <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+                  <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+                  
+                  <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+                  
+                  <DialogRef Id="BrowseDlg" />
+                  <DialogRef Id="DiskCostDlg" />
+                  <DialogRef Id="ErrorDlg" />
+                  <DialogRef Id="FatalError" />
+                  <DialogRef Id="FilesInUse" />
+                  <DialogRef Id="MsiRMFilesInUse" />
+                  <DialogRef Id="PrepareDlg" />
+                  <DialogRef Id="ProgressDlg" />
+                  <DialogRef Id="ResumeDlg" />
+                  <DialogRef Id="UserExit" />
+                  <Publish   Dialog="BrowseDlg"Control="OK"Event="SpawnDialog"Value="InvalidDirDlg"Order="4"Condition="NOTWIXUI_DONTVALIDATEP A THANDWIXUI_INSTALDIR_VALID&lt;&gt;&quot;1&quot;" />
+                  
+                  <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999" />
+                  {(hasLicense ? """
+                  <Publish Dialog="WelcomeDlg" Control="Next"Event="NewDialog"Value="LicenseAgreementDlg"Condition="NOTInstalled" >
+                  """ :"""
+                  <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Condition="NOTInstalled" >
+                  """)}
+                  
+                  <Publish Dialog="WelcomeDlg" Control="Next"Event="NewDialog"Value="VerifyReadyDlg"Condition="InstalledANDPATCH" />
+                  
+                  {(hasLicense ? $"""
+                  <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
+                  <PublishDialog="LicenseAgreementDlg"Control="Next"Event="NewDialog"Value="InstallDirDlg"Condition= LicenseAccepted  =&quot;1&quot;" /> 
+                  """ : "")}
+                  
+                  {(hasLicense ? $"""
+                  <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg" />
+                  """ : """
+                  <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
+                  """)}
+                  
+                  <Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1" />
+                  <Publish Dialog="InstallDirDlg"   Control="Next"Event="SpawnDialog"Value="InvalidDirDlg"Order="3"Condition=NOTWIXUI_DONTVALIDATEPATHANDWIXUI_INSTA L LDIR_VALID&lt;&gt;&quot;1&quot;" />
+                  <PublishDialog="InstallDirDlg"Control="Next"Event="NewDialog"Value="VerifyReadyDlg"Order="4"Condition="WIXUI_DONT  VALIDAEPATHORWIXUI_INSTALLDIR_VALID=&quot;1&quot;" />
+                  <PublishDialog="InstallDirDlg"Control="ChangeFolder"Property="_BrowseProperty"Value="[WIXUI_INSTALLDIR]"Order="" / >
+                  <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2" />
+                  <Publish   Dialog="VerifyReadyDlg"Control="Back"Event="NewDialog"Value="InstallDirDlg"Order="1"Condition="NOTInstalled" />
+                  <PublishDialog="VerifyReadyDlg"Control="Back"Event="NewDialog"Value="MaintenanceTypeDlg"Order="2"Condition="Insta  lledAND NOT PATCH" />
+                  <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog"Value="WelcomeDlg"Order="2" ConditionInstalledAND  PATCH" />
+                  
+                  <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg" />
+                  
+                  <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg" />
+                  <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg" />
+                  <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg" />
+                  
+                  <Property Id="ARPNOMODIFY" Value="1" />
+                </UI>
+
+                <UIRef Id="WixUI_Common" />
+              </Fragment>
             </Wix>
             """;
 
