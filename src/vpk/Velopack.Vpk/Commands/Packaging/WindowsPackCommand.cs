@@ -102,6 +102,7 @@ public class WindowsPackCommand : PackCommand
 
             AddOption<FileInfo>((v) => InstWelcome = v.ToFullNameOrNull(), "--instWelcome")
                 .SetDescription("Set the installer package welcome content.")
+                .RequiresExtension(".txt")
                 .SetArgumentHelpName("PATH");
 
             AddOption<FileInfo>((v) => InstLicense = v.ToFullNameOrNull(), "--instLicense")
@@ -111,19 +112,21 @@ public class WindowsPackCommand : PackCommand
 
             AddOption<FileInfo>((v) => InstReadme = v.ToFullNameOrNull(), "--instReadme")
                 .SetDescription("Set the installer package readme content.")
+                .RequiresExtension(".txt")
                 .SetArgumentHelpName("PATH");
 
             AddOption<FileInfo>((v) => InstConclusion = v.ToFullNameOrNull(), "--instConclusion")
                 .SetDescription("Set the installer package conclusion content.")
+                .RequiresExtension(".txt")
                 .SetArgumentHelpName("PATH");
 
             AddOption<FileInfo>((v) => MsiBanner = v.ToFullNameOrNull(), "--msiBanner")
-                .SetDescription("Set the banner bitmap image for the MSI. The resolution must be 493x58.")
+                .SetDescription("Set the top banner bitmap image for the MSI UI dialogs. The resolution must be 493x58.")
                 .RequiresExtension(".bmp")
                 .SetArgumentHelpName("PATH");
 
             AddOption<FileInfo>((v) => MsiLogo = v.ToFullNameOrNull(), "--msiLogo")
-                .SetDescription("Set the logo bitmap image for the MSI. The resolution must be 493x312.")
+                .SetDescription("Set the background logo bitmap image for the MSI UI dialogs. The resolution must be 493x312.")
                 .RequiresExtension(".bmp")
                 .SetArgumentHelpName("PATH");
         }

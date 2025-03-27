@@ -393,7 +393,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         string authors = GetEffectiveAuthors();
         string stub = GetPortableStubFileName();
         string conclusionMessage = GetFileContent(Options.InstConclusion);
-        string license = GetFileContent(Options.InstLicense);
+        string license = Options.InstLicense;
         bool hasLicense = !string.IsNullOrWhiteSpace(license);
         string bannerImage = string.IsNullOrWhiteSpace(Options.MsiBanner) ? HelperFile.WixAssetsTopBanner : Options.MsiBanner;
         string dialogImage = string.IsNullOrWhiteSpace(Options.MsiLogo) ? HelperFile.WixAssetsDialogBackground : Options.MsiLogo;
@@ -625,7 +625,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
             //When localization is supported in Velopack, we will need to add -culture here:
             //https://docs.firegiant.com/wix/tools/wixext/wixui/
-            var buildCommand = $"{HelperFile.WixPath} build -platform {(packageAs64Bit ? "x64" : "x86")} -outputType Package -pdbType none {string.Join(" ", wixExtensions.Select(x => $"-ext {x}"))} -out \"{msiFilePath}\" \"{wxs}\"";
+            var buildCommand = $"{HelperFile.WixPath} build -platform {(packageAs64Bit ? "x64" : "x86")} -outputType Package -pdbType none {string.Join(" ", wixExtensions.Select(x => $"-ext {x}"))} -loc \"{localization}\" -out \"{msiFilePath}\" \"{wxs}\"";
 
             _ = Exe.RunHostedCommand(buildCommand);
 
