@@ -31,4 +31,4 @@ dotnet publish -c Release --self-contained -r win-x64 -o publish -p:UseLocalVelo
 
 echo.
 echo Building Velopack Release v%version%
-%~dp0..\..\..\build\Debug\net8.0\vpk pack -u VelopackCSharpAvalonia -o releases -p publish --msi -v %*
+%~dp0..\..\..\build\Debug\net8.0\vpk pack -u VelopackCSharpAvalonia -o releases -p publish --msi -v %* --instWelcome %~dp0welcome.md --instLicense %~dp0mylicense.md --instReadme %~dp0readme.md --instConclusion %~dp0conclusion.md --msiBanner %~dp0banner.bmp --msiLogo %~dp0background.bmp --icon %~dp0icon.ico
