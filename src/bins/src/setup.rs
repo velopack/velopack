@@ -1,4 +1,4 @@
-//#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(dead_code)]
 
 #[macro_use]
@@ -158,7 +158,6 @@ fn run_inner(arg_config: Command) -> Result<()> {
 
     // try to load the bundle from embedded zip
     if offset > 0 && length > 0 {
-        info!("Loading bundle from embedded zip...");
         bundle = Some(velopack::bundle::load_bundle_from_memory(&mmap[offset as usize..(offset + length) as usize])?);
     }
 

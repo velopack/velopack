@@ -22,7 +22,7 @@ namespace Velopack
         Installer = 4,
         /// <summary> A Windows Installer package (.msi) for the deployment tool.</summary>
         MsiDeploymentTool = 5,
-        /// <summary> A Windows Installer package (.msi) that bootstraps the installer.</summary>
+        /// <summary> A Windows Installer package (.msi).</summary>
         Msi = 6,
     }
 

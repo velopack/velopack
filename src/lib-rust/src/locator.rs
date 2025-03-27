@@ -1,9 +1,10 @@
 use std::path::PathBuf;
 use semver::Version;
 use uuid::Uuid;
-
 use crate::{
-    bundle::{self, Manifest}, lockfile::LockFile, util::{self}, Error
+    bundle::{self, Manifest}, 
+    util::{self}, Error,
+    lockfile::LockFile
 };
 
 /// Returns the default channel name for the current OS.
@@ -132,8 +133,11 @@ impl VelopackLocator {
     pub fn get_packages_dir(&self) -> PathBuf {
         let path = self.paths.PackagesDir.clone();
         if self.is_local_machine_install() || !util::is_directory_writable(&path) {
-            //TODO Need to add in the app name here.
-            //util::get_local_app_data()
+            let velopack_dir = std::env::temp_dir().join(format!("velopack_{}", self.manifest.id));
+            if !velopack_dir.exists() {
+                std::fs::create_dir_all(&velopack_dir).unwrap();
+            }
+            return velopack_dir.join("packages");
         }
         path
     }

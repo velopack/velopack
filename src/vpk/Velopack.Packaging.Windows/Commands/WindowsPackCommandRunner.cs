@@ -25,7 +25,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         Regex fileExcludeRegex = Options.SignExclude != null ? new Regex(Options.SignExclude) : null;
         var filesToSign = new DirectoryInfo(packDir).GetAllFilesRecursively()
             .Where(x => PathUtil.FileIsLikelyPEImage(x.Name))
-            .Where(x => fileExcludeRegex != null ? !fileExcludeRegex.IsMatch(x.FullName) : true)
+            .Where(x => fileExcludeRegex == null || !fileExcludeRegex.IsMatch(x.FullName))
             .Select(x => x.FullName)
             .ToArray();
 
@@ -228,6 +228,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             var portablePackage = new DirectoryInfo(Path.Combine(TempDir.FullName, "CreatePortablePackage"));
             if (portablePackage.Exists) {
                 CompileWixTemplateToMsi(msiProgress, portablePackage, msiPath);
+            } else {
+                Log.Warn("Portable package not found, skipping MSI creation.");
             }
         }
 
@@ -391,6 +393,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         string conclusionMessage = GetFileContent(Options.InstConclusion);
         string license = GetFileContent(Options.InstLicense);
         bool hasLicense = !string.IsNullOrWhiteSpace(license);
+        string bannerImage = string.IsNullOrWhiteSpace(Options.MsiBanner) ? HelperFile.WixAssetsTopBanner : Options.MsiBanner;
+        string dialogImage = string.IsNullOrWhiteSpace(Options.MsiLogo) ? HelperFile.WixAssetsDialogBackground : Options.MsiLogo;
 
         //Scope can be perMachine or perUser or perUserOrMachine, https://docs.firegiant.com/wix/schema/wxs/packagescopetype/
         //For now just hard coding to perMachine
@@ -452,12 +456,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
                 <WixVariable
                   Id="WixUIBannerBmp"
-                  Value="{HelperFile.WixAssetsTopBanner}"
+                  Value="{bannerImage}"
                   />
 
                 <WixVariable
                   Id="WixUIDialogBmp"
-                  Value="{HelperFile.WixAssetsDialogBackground}"
+                  Value="{dialogImage}"
                   />
 
                 <!-- Message on last screen after install -->

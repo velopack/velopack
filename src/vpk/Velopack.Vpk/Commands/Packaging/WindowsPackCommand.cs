@@ -89,17 +89,16 @@ public class WindowsPackCommand : PackCommand
 
             AddOption<bool>((v) => BuildMsiDeploymentTool = v, "--msiDeploymentTool")
                 .SetDescription("Compile a .msi machine-wide deployment tool.")
-                ;//.SetHidden();
+                .SetHidden();
 
             AddOption<string>((v) => MsiVersionOverride = v, "--msiDeploymentToolVersion")
                 .SetDescription("Override the product version for the generated msi.")
                 .SetArgumentHelpName("VERSION")
-                //.SetHidden()
+                .SetHidden()
                 .MustBeValidMsiVersion();
 
             AddOption<bool>((v) => BuildMsi = v, "--msi")
-                .SetDescription("Compile a .msi machine-wide bootstrap package.")
-                ;//.SetHidden();
+                .SetDescription("Compile a .msi machine-wide bootstrap package.");
 
             AddOption<FileInfo>((v) => InstWelcome = v.ToFullNameOrNull(), "--instWelcome")
                 .SetDescription("Set the installer package welcome content.")
