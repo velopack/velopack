@@ -380,6 +380,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
         static string GetFileContent(string filePath)
         {
+            if (string.IsNullOrWhiteSpace(filePath))
+                return "";
             string fileContents = File.ReadAllText(filePath, Encoding.UTF8);
             return FormatXmlMessage(fileContents);
         }
@@ -508,8 +510,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                     <Publish Dialog="LicenseAgreementDlg" Control="Print" Event="DoAction" Value="WixUIPrintEul$(WIXUIARCH)" />
                     """ : "")}
 
-                    <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidateP$(WIXUIARCH)"Order="3"Condition="NOT WIXUI_DONTVALIDATEPATH" />
-                    <Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="WixUIValidatePa$(WIXUIARCH)"Order="2" Condition="NOT WIXUI_DONTVALIDATEPATH" />
+                    <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidateP$(WIXUIARCH)" Order="3" Condition="NOT WIXUI_DONTVALIDATEPATH" />
+                    <Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="WixUIValidatePa$(WIXUIARCH)" Order="2" Condition="NOT WIXUI_DONTVALIDATEPATH" />
                   </UI>
 
                   <UIRef Id="WixUI_Velopack" />
@@ -534,20 +536,20 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                   <DialogRef Id="ProgressDlg" />
                   <DialogRef Id="ResumeDlg" />
                   <DialogRef Id="UserExit" />
-                  <Publish   Dialog="BrowseDlg"Control="OK"Event="SpawnDialog"Value="InvalidDirDlg"Order="4"Condition="NOTWIXUI_DONTVALIDATEP A THANDWIXUI_INSTALDIR_VALID&lt;&gt;&quot;1&quot;" />
+                  <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4" Condition="NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID&lt;&gt;&quot;1&quot;" />
                   
                   <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999" />
                   {(hasLicense ? """
-                  <Publish Dialog="WelcomeDlg" Control="Next"Event="NewDialog"Value="LicenseAgreementDlg"Condition="NOTInstalled" >
+                  <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg" Condition="NOT Installed" />
                   """ :"""
-                  <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Condition="NOTInstalled" >
+                  <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Condition="NOT Installed" />
                   """)}
                   
-                  <Publish Dialog="WelcomeDlg" Control="Next"Event="NewDialog"Value="VerifyReadyDlg"Condition="InstalledANDPATCH" />
+                  <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="Installed AND PATCH" />
                   
                   {(hasLicense ? $"""
                   <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
-                  <PublishDialog="LicenseAgreementDlg"Control="Next"Event="NewDialog"Value="InstallDirDlg"Condition= LicenseAccepted  =&quot;1&quot;" /> 
+                  <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Condition="LicenseAccepted = &quot;1&quot;" /> 
                   """ : "")}
                   
                   {(hasLicense ? $"""
@@ -557,13 +559,13 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                   """)}
                   
                   <Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1" />
-                  <Publish Dialog="InstallDirDlg"   Control="Next"Event="SpawnDialog"Value="InvalidDirDlg"Order="3"Condition=NOTWIXUI_DONTVALIDATEPATHANDWIXUI_INSTA L LDIR_VALID&lt;&gt;&quot;1&quot;" />
-                  <PublishDialog="InstallDirDlg"Control="Next"Event="NewDialog"Value="VerifyReadyDlg"Order="4"Condition="WIXUI_DONT  VALIDAEPATHORWIXUI_INSTALLDIR_VALID=&quot;1&quot;" />
-                  <PublishDialog="InstallDirDlg"Control="ChangeFolder"Property="_BrowseProperty"Value="[WIXUI_INSTALLDIR]"Order="" / >
+                  <Publish Dialog="InstallDirDlg" Control="Next" Event="SpawnDialog" Value="InvalidDirDlg" Order="3" Condition="NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID&lt;&gt;&quot;1&quot;" />
+                  <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="4" Condition="WIXUI_DONTVALIDAEPATH OR WIXUI_INSTALLDIR_VALID=&quot;1&quot;" />
+                  <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1" />
                   <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2" />
-                  <Publish   Dialog="VerifyReadyDlg"Control="Back"Event="NewDialog"Value="InstallDirDlg"Order="1"Condition="NOTInstalled" />
-                  <PublishDialog="VerifyReadyDlg"Control="Back"Event="NewDialog"Value="MaintenanceTypeDlg"Order="2"Condition="Insta  lledAND NOT PATCH" />
-                  <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog"Value="WelcomeDlg"Order="2" ConditionInstalledAND  PATCH" />
+                  <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Order="1" Condition="NOT Installed" />
+                  <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2" Condition="Installed AND NOT PATCH" />
+                  <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2" Condition="Installed AND PATCH" />
                   
                   <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg" />
                   
