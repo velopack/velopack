@@ -471,6 +471,10 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                 <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="{conclusionMessage}" />
                 """: "")}
 
+                <!-- Default checked state of launch app check box to true -->
+                <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+            
+
                 <!-- Check box for launching -->
                 <Property
                   Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT"
