@@ -400,24 +400,29 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
         //Scope can be perMachine or perUser or perUserOrMachine, https://docs.firegiant.com/wix/schema/wxs/packagescopetype/
         //For now just hard coding to perMachine
-        string wixPackage = $"""
+        string wixPackage = $$"""
             <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
-              <Package Name="{title}"
-                       Manufacturer="{authors}"
-                       Version="{msiVersion}"
-                       Codepage="{culture}"
+              <Package Name="{{title}}"
+                       Manufacturer="{{authors}}"
+                       Version="{{msiVersion}}"
+                       Codepage="{{culture}}"
                        Language="1033"
                        Scope="perMachine"
-                       UpgradeCode="{GuidUtil.CreateGuidFromHash($"{Options.PackId}:UpgradeCode")}"
+                       UpgradeCode="{{GuidUtil.CreateGuidFromHash($"{Options.PackId}:UpgradeCode")}}"
                        >
                 <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
-                <StandardDirectory Id="{(packageAs64Bit ? "ProgramFiles64Folder" : "ProgramFiles6432Folder")}">
+                <StandardDirectory Id="{{(packageAs64Bit ? "ProgramFiles64Folder" : "ProgramFilesFolder")}}">
                   <Directory Id="INSTALLFOLDER" Name="{SanitizeDirectoryString(authors)}">
+                    <Directory Name="current" />
+                  </Directory>
+                </StandardDirectory>
+                <StandardDirectory Id="TARGETDIR">
+                  <Directory Id="INSTALLFOLDER" Name="{{SanitizeDirectoryString(title)}}" ComponentGuidGenerationSeed="{{GuidUtil.CreateGuidFromHash($"{Options.PackId}:INSTALLFOLDER")}}">
                     <Directory Name="current" />
                     <Directory Id="PACKAGES_DIR" Name="packages" />
                   </Directory>
                 </StandardDirectory>
-                {(shortcuts.Contains(ShortcutLocation.Desktop) ? $"""
+                {{(shortcuts.Contains(ShortcutLocation.Desktop) ? $"""
                 <StandardDirectory Id="DesktopFolder">
                   <Component Id="ApplicationDesktopShortcut">
                     <Shortcut Id="ApplicationDesktopShortcut"
@@ -429,8 +434,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                     <RegistryValue Root="HKCU" Key="Software\{SanitizeDirectoryString(authors)}\{Options.PackId}.DesktopShortcut" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
                   </Component>
                 </StandardDirectory>
-                """ : "")}
-                {(shortcuts.Contains(ShortcutLocation.StartMenu) ? $"""
+                """ : "")}}
+                {{(shortcuts.Contains(ShortcutLocation.StartMenu) ? $"""
                 <StandardDirectory Id="StartMenuFolder">
                   <Component Id="ApplicationStartMenuShortcut">
                     <Shortcut Id="ApplicationStartMenuShortcut"
@@ -442,34 +447,34 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                     <RegistryValue Root="HKCU" Key="Software\{SanitizeDirectoryString(authors)}\{Options.PackId}.StartMenuShortcut" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
                   </Component>
                 </StandardDirectory>
-                """ : "")}
+                """ : "")}}
 
-                {(!string.IsNullOrWhiteSpace(Options.Icon) ? $"""
+                {{(!string.IsNullOrWhiteSpace(Options.Icon) ? $"""
                 <Icon Id="appicon" SourceFile="{Options.Icon}"/>
                 <Property Id="ARPPRODUCTICON" Value="appicon" />
-                """ : "")}
+                """ : "")}}
 
-                {(hasLicense ? $"""
+                {{(hasLicense ? $"""
                 <WixVariable
                   Id="WixUILicenseRtf"
                   Value="{license}"
                   />
-                """ : "")}
+                """ : "")}}
 
                 <WixVariable
                   Id="WixUIBannerBmp"
-                  Value="{bannerImage}"
+                  Value="{{bannerImage}}"
                   />
 
                 <WixVariable
                   Id="WixUIDialogBmp"
-                  Value="{dialogImage}"
+                  Value="{{dialogImage}}"
                   />
 
                 <!-- Message on last screen after install -->
-                {(!string.IsNullOrWhiteSpace(conclusionMessage) ? $"""
+                {{(!string.IsNullOrWhiteSpace(conclusionMessage) ? $"""
                 <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="{conclusionMessage}" />
-                """: "")}
+                """: "")}}
 
                 <!-- Default checked state of launch app check box to true -->
                 <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
@@ -478,7 +483,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                 <!-- Check box for launching -->
                 <Property
                   Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT"
-                  Value="Launch {title}"
+                  Value="Launch {{title}}"
                   />
 
                 <UI>
@@ -494,28 +499,27 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                       Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed" />
                 </UI>
 
-                <Files Include="{portableDirectory.FullName}\**" />
+                <Files Include="{{portableDirectory.FullName}}\**" />
 
+                <CustomAction Id="RemoveAppDirectory" Directory="INSTALLFOLDER" Impersonate="no" ExeCommand="cmd.exe /C rmdir /S /Q &quot;[INSTALLFOLDER]&quot;" Execute="deferred" Return="ignore" />
                 <CustomAction Id="RemoveTempDirectory" Directory="TempFolder" Impersonate="yes" ExeCommand="cmd.exe /C rmdir /S /Q &quot;%TEMP%\velopack_{Options.PackId}&quot;" Execute="deferred" Return="ignore" />
-                <CustomAction Id="RemoveAppDirectory" Directory="ProgramFiles64Folder" Impersonate="no" ExeCommand="cmd.exe /C for /d %D in (&quot;[INSTALLFOLDER]*&quot;) do @if /i not &quot;%~nxD&quot;==&quot;current&quot; rmdir /s /q &quot;%D&quot; &amp; for %F in (&quot;[INSTALLFOLDER]*&quot;) do @del /q &quot;%F&quot;" Execute="deferred" Return="ignore" />
-                <CustomAction Id="LaunchApplication" Directory="INSTALLFOLDER" Impersonate="yes" ExeCommand="&quot;[INSTALLFOLDER]{stub}&quot;" Execute="immediate" Return="ignore" />
+                <CustomAction Id="LaunchApplication" Directory="INSTALLFOLDER" Impersonate="yes" ExeCommand="&quot;[INSTALLFOLDER]{{stub}}&quot;" Execute="immediate" Return="ignore" />
 
                 <InstallExecuteSequence>
-                  <Custom Action="RemoveAppDirectory" Before="RemoveFolders" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
+                  <Custom Action="RemoveAppDirectory" Before="RemoveFolders" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE) AND (ALLUSERS=1 OR (ALLUSERS=2 AND Privileged))" />
                   <Custom Action="RemoveTempDirectory" Before="InstallFinalize" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
                 </InstallExecuteSequence>
               </Package>
 
-              <!-- Based on: https://github.com/wixtoolset/wix/blob/v5.0.2/src/ext/UI/wixlib/WixUI_InstallDir.wxs -->
+              <!-- https://github.com/wixtoolset/wix/blob/v5.0.2/src/ext/UI/wixlib/WixUI_Advanced.wxs -->
               <?foreach WIXUIARCH in X86;X64;A64 ?>
                 <Fragment>
                   <UI Id="WixUI_Velopack_$(WIXUIARCH)">
-                    {(hasLicense ? $"""
-                    <Publish Dialog="LicenseAgreementDlg" Control="Print" Event="DoAction" Value="WixUIPrintEul$(WIXUIARCH)" />
-                    """ : "")}
-
-                    <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidateP$(WIXUIARCH)" Order="3" Condition="NOT WIXUI_DONTVALIDATEPATH" />
-                    <Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="WixUIValidatePa$(WIXUIARCH)" Order="2" Condition="NOT WIXUI_DONTVALIDATEPATH" />
+                    {{(hasLicense ? $"""
+                    <Publish Dialog="LicenseAgreementDlg" Control="Print" Event="DoAction" Value="WixUIPrintEula_$(WIXUIARCH)" />
+                    """ : "")}}
+                    <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath_$(WIXUIARCH)" Order="3" Condition="NOT WIXUI_DONTVALIDATEPATH" / >
+                    <Publish Dialog="InstallScopeDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath_$(WIXUIARCH)" Order="7" Condition="NOT WIXUI_DONTVALIDATEPATH" />
                   </UI>
 
                   <UIRef Id="WixUI_Velopack" />
@@ -523,13 +527,15 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
               <?endforeach?>
 
               <Fragment>
+                <PropertyRef Id="ApplicationFolderName" />
+
                 <UI Id="file WixUI_Velopack">
                   <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
                   <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
                   <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
-                  
+
                   <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
-                  
+
                   <DialogRef Id="BrowseDlg" />
                   <DialogRef Id="DiskCostDlg" />
                   <DialogRef Id="ErrorDlg" />
@@ -540,43 +546,40 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                   <DialogRef Id="ProgressDlg" />
                   <DialogRef Id="ResumeDlg" />
                   <DialogRef Id="UserExit" />
-                  <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4" Condition="NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID&lt;&gt;&quot;1&quot;" />
-                  
+                  <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4" Condition="NOT WIXUI_DONTVALIDATEPATH AND        WIXUI_INSTALLDIR_VALID&lt;&gt;&quot;1&quot;" />
+
                   <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999" />
-                  {(hasLicense ? """
+
+                  {{(hasLicense ? """
                   <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg" Condition="NOT Installed" />
-                  """ :"""
-                  <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Condition="NOT Installed" />
-                  """)}
-                  
-                  <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="Installed AND PATCH" />
-                  
-                  {(hasLicense ? $"""
-                  <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
-                  <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Condition="LicenseAccepted = &quot;1&quot;" /> 
-                  """ : "")}
-                  
-                  {(hasLicense ? $"""
-                  <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg" />
                   """ : """
-                  <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
-                  """)}
-                  
-                  <Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1" />
-                  <Publish Dialog="InstallDirDlg" Control="Next" Event="SpawnDialog" Value="InvalidDirDlg" Order="3" Condition="NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID&lt;&gt;&quot;1&quot;" />
-                  <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="4" Condition="WIXUI_DONTVALIDAEPATH OR WIXUI_INSTALLDIR_VALID=&quot;1&quot;" />
-                  <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1" />
-                  <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2" />
-                  <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Order="1" Condition="NOT Installed" />
+                  <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallScopeDlg" Condition="NOT Installed" />
+                  """)}}
+                  <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="Installed AND PATCH" />
+
+                  {{(hasLicense ? $"""
+                  <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
+                  <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallScopeDlg" Condition="LicenseAccepted = &quot;1&quot;" /> 
+                  """ : "")}}
+
+                  <Publish Dialog="InstallScopeDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
+                  <Publish Dialog="InstallScopeDlg" Control="Next" Property="WixAppFolder" Value="WixPerUserFolder" Order="1" Condition="!(wix.WixUISupportPerUser) AND NOT Privileged" />
+                  <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="{}" Order="2" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" / >
+                  <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="1" Order="3" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" />
+                  <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLFOLDER" Value="[LocalAppDataFolder][ApplicationFolderName]" Order=" 4" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
+                  <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLFOLDER" Value="[{{(packageAs64Bit ? "ProgramFiles64Folder" : "ProgramFilesFolder")}}][ApplicationFolderName]" Order="5" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" /> 
+                  <Publish Dialog="InstallScopeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="6" />
+                  <Publish Dialog="InstallScopeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="7" />
+
+                  <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="InstallScopeDlg" Order="1" Condition="NOT Installed" />
                   <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2" Condition="Installed AND NOT PATCH" />
                   <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2" Condition="Installed AND PATCH" />
-                  
+
                   <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg" />
-                  
                   <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg" />
                   <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg" />
                   <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg" />
-                  
+
                   <Property Id="ARPNOMODIFY" Value="1" />
                 </UI>
 
