@@ -2,6 +2,8 @@
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
+using Markdig;
+using MarkdigExtensions.RtfRenderer;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 using Velopack.Compression;
@@ -386,14 +388,41 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             return FormatXmlMessage(fileContents);
         }
 
+        static string RenderMarkdownAsPlainText(string markdown)
+            => Markdown.ToPlainText(markdown);
+
+        string licenseFile = null;
+
+        string GetLicenseRtfFile()
+        {
+            string license = Options.InstLicenseRtf;
+            if (!string.IsNullOrWhiteSpace(license)) {
+                return license;
+            }
+
+            license = Options.InstLicense;
+            if (!string.IsNullOrWhiteSpace(license)) {
+
+                licenseFile = Path.Combine(outputDirectory.FullName, wixId + "_license.rtf");
+                using var writer = new StreamWriter(licenseFile);
+                var renderer = new RtfRenderer(writer);
+                renderer.StartDocument();
+                _ = Markdown.Convert(license, renderer);
+                renderer.CloseDocument();
+                return licenseFile;
+            }
+
+            return null;
+        }
+
         List<string> wixExtensions = ["WixToolset.UI.wixext"];
 
         var shortcuts = GetShortcuts().ToHashSet();
         string title = GetEffectiveTitle();
         string authors = GetEffectiveAuthors();
         string stub = GetPortableStubFileName();
-        string conclusionMessage = GetFileContent(Options.InstConclusion);
-        string license = Options.InstLicense;
+        string conclusionMessage = RenderMarkdownAsPlainText(GetFileContent(Options.InstConclusion));
+        string license = GetLicenseRtfFile();
         bool hasLicense = !string.IsNullOrWhiteSpace(license);
         string bannerImage = string.IsNullOrWhiteSpace(Options.MsiBanner) ? HelperFile.WixAssetsTopBanner : Options.MsiBanner;
         string dialogImage = string.IsNullOrWhiteSpace(Options.MsiLogo) ? HelperFile.WixAssetsDialogBackground : Options.MsiLogo;
@@ -586,8 +615,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             </Wix>
             """;
 
-        string welcomeMessage = GetFileContent(Options.InstWelcome);
-        string readmeMessage = GetFileContent(Options.InstReadme);
+        string welcomeMessage = RenderMarkdownAsPlainText(GetFileContent(Options.InstWelcome));
+        string readmeMessage = RenderMarkdownAsPlainText(GetFileContent(Options.InstReadme));
 
         string localizedStrings = $"""
             <WixLocalization Culture="en-US" Codepage="1252" xmlns="http://wixtoolset.org/schemas/v4/wxl">
@@ -643,6 +672,9 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         } finally {
             IoUtil.DeleteFileOrDirectoryHard(wxs, throwOnFailure: false);
             IoUtil.DeleteFileOrDirectoryHard(localization, throwOnFailure: false);
+            if (licenseFile is not null) {
+                IoUtil.DeleteFileOrDirectoryHard(licenseFile, throwOnFailure: false);
+            }
         }
         progress(100);
 
