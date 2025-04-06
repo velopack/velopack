@@ -479,9 +479,14 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                   Value="Launch {{title}}"
                   />
 
+                <Property Id="WixAppFolder" Value="WixPerMachineFolder" />
+                <Property Id="ApplicationFolderName" Value="{{SanitizeDirectoryString(Options.PackId)}}" /> 
+                <WixVariable Id="override WixUISupportPerUser" Value="1" />
+                <WixVariable Id="override WixUISupportPerMachine" Value="1" />
+
                 <UI>
                   <ui:WixUI
-                      Id="WixUI_InstallDir"
+                      Id="WixUI_Velopack"
                       InstallDirectory="INSTALLFOLDER"
                       />
 
@@ -637,6 +642,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
         } finally {
             IoUtil.DeleteFileOrDirectoryHard(wxs, throwOnFailure: false);
+            IoUtil.DeleteFileOrDirectoryHard(localization, throwOnFailure: false);
         }
         progress(100);
 
