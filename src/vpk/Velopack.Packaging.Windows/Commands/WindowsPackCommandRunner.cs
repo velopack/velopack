@@ -398,8 +398,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         string bannerImage = string.IsNullOrWhiteSpace(Options.MsiBanner) ? HelperFile.WixAssetsTopBanner : Options.MsiBanner;
         string dialogImage = string.IsNullOrWhiteSpace(Options.MsiLogo) ? HelperFile.WixAssetsDialogBackground : Options.MsiLogo;
 
-        //Scope can be perMachine or perUser or perUserOrMachine, https://docs.firegiant.com/wix/schema/wxs/packagescopetype/
-        //For now just hard coding to perMachine
         string wixPackage = $$"""
             <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
               <Package Name="{{title}}"
@@ -407,15 +405,10 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                        Version="{{msiVersion}}"
                        Codepage="{{culture}}"
                        Language="1033"
-                       Scope="perMachine"
+                       Scope="perUserOrMachine"
                        UpgradeCode="{{GuidUtil.CreateGuidFromHash($"{Options.PackId}:UpgradeCode")}}"
                        >
                 <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
-                <StandardDirectory Id="{{(packageAs64Bit ? "ProgramFiles64Folder" : "ProgramFilesFolder")}}">
-                  <Directory Id="INSTALLFOLDER" Name="{SanitizeDirectoryString(authors)}">
-                    <Directory Name="current" />
-                  </Directory>
-                </StandardDirectory>
                 <StandardDirectory Id="TARGETDIR">
                   <Directory Id="INSTALLFOLDER" Name="{{SanitizeDirectoryString(title)}}" ComponentGuidGenerationSeed="{{GuidUtil.CreateGuidFromHash($"{Options.PackId}:INSTALLFOLDER")}}">
                     <Directory Name="current" />
@@ -502,7 +495,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                 <Files Include="{{portableDirectory.FullName}}\**" />
 
                 <CustomAction Id="RemoveAppDirectory" Directory="INSTALLFOLDER" Impersonate="no" ExeCommand="cmd.exe /C rmdir /S /Q &quot;[INSTALLFOLDER]&quot;" Execute="deferred" Return="ignore" />
-                <CustomAction Id="RemoveTempDirectory" Directory="TempFolder" Impersonate="yes" ExeCommand="cmd.exe /C rmdir /S /Q &quot;%TEMP%\velopack_{Options.PackId}&quot;" Execute="deferred" Return="ignore" />
+                <CustomAction Id="RemoveTempDirectory" Directory="TempFolder" Impersonate="yes" ExeCommand="cmd.exe /C rmdir /S /Q &quot;%TEMP%\velopack_{{Options.PackId}}&quot;" Execute="deferred" Return="ignore" />
                 <CustomAction Id="LaunchApplication" Directory="INSTALLFOLDER" Impersonate="yes" ExeCommand="&quot;[INSTALLFOLDER]{{stub}}&quot;" Execute="immediate" Return="ignore" />
 
                 <InstallExecuteSequence>
@@ -518,7 +511,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                     {{(hasLicense ? $"""
                     <Publish Dialog="LicenseAgreementDlg" Control="Print" Event="DoAction" Value="WixUIPrintEula_$(WIXUIARCH)" />
                     """ : "")}}
-                    <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath_$(WIXUIARCH)" Order="3" Condition="NOT WIXUI_DONTVALIDATEPATH" / >
+                    <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath_$(WIXUIARCH)" Order="3" Condition="NOT WIXUI_DONTVALIDATEPATH" />
                     <Publish Dialog="InstallScopeDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath_$(WIXUIARCH)" Order="7" Condition="NOT WIXUI_DONTVALIDATEPATH" />
                   </UI>
 
@@ -564,7 +557,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
                   <Publish Dialog="InstallScopeDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
                   <Publish Dialog="InstallScopeDlg" Control="Next" Property="WixAppFolder" Value="WixPerUserFolder" Order="1" Condition="!(wix.WixUISupportPerUser) AND NOT Privileged" />
-                  <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="{}" Order="2" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" / >
+                  <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="{}" Order="2" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
                   <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="1" Order="3" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" />
                   <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLFOLDER" Value="[LocalAppDataFolder][ApplicationFolderName]" Order=" 4" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
                   <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLFOLDER" Value="[{{(packageAs64Bit ? "ProgramFiles64Folder" : "ProgramFilesFolder")}}][ApplicationFolderName]" Order="5" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" /> 
@@ -620,6 +613,10 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         try {
             File.WriteAllText(wxs, wixPackage, Encoding.UTF8);
             File.WriteAllText(localization, localizedStrings, Encoding.UTF8);
+
+            File.WriteAllText(@"D:\Dev\Velopack\Velopack.E2ETests\TestProjects\Temp\Test.wxs", wixPackage, Encoding.UTF8);
+            File.WriteAllText(@"D:\Dev\Velopack\Velopack.E2ETests\TestProjects\Temp\Test_en-US.wxs", localizedStrings, Encoding.UTF8);
+
 
             progress(30);
 
