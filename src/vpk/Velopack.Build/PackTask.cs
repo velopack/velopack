@@ -62,6 +62,8 @@ public class PackTask : MSBuildAsyncTask
 
     public string? InstConclusion { get; set; }
 
+    public InstallLocation InstLocation { get; set; } = InstallLocation.Either;
+
     public string? MsiBanner { get; set; }
     public string? MsiLogo { get; set; }
 
