@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -350,6 +351,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         // return dlibPath;
     }
 
+    private static MarkdownPipeline markdownPipeline = new MarkdownPipelineBuilder().ConfigureNewLine(Environment.NewLine).Build();
+
     [SupportedOSPlatform("windows")]
     private void CompileWixTemplateToMsi(Action<int> progress,
         DirectoryInfo portableDirectory, string msiFilePath)
@@ -385,11 +388,15 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             if (string.IsNullOrWhiteSpace(filePath))
                 return "";
             string fileContents = File.ReadAllText(filePath, Encoding.UTF8);
-            return FormatXmlMessage(fileContents);
+            return fileContents;
         }
 
         static string RenderMarkdownAsPlainText(string markdown)
-            => Markdown.ToPlainText(markdown);
+        {
+            if (string.IsNullOrWhiteSpace(markdown))
+                return "";
+            return Markdown.ToPlainText(markdown, markdownPipeline);
+        }
 
         string licenseFile = null;
 
@@ -407,7 +414,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                 using var writer = new StreamWriter(licenseFile);
                 var renderer = new RtfRenderer(writer);
                 renderer.StartDocument();
-                _ = Markdown.Convert(license, renderer);
+                _ = Markdown.Convert(File.ReadAllText(license), renderer, markdownPipeline);
                 renderer.CloseDocument();
                 return licenseFile;
             }
@@ -416,12 +423,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
 
         List<string> wixExtensions = ["WixToolset.UI.wixext"];
-
+        Debugger.Launch();
         var shortcuts = GetShortcuts().ToHashSet();
         string title = GetEffectiveTitle();
         string authors = GetEffectiveAuthors();
         string stub = GetPortableStubFileName();
-        string conclusionMessage = RenderMarkdownAsPlainText(GetFileContent(Options.InstConclusion));
+        string conclusionMessage = FormatXmlMessage(RenderMarkdownAsPlainText(GetFileContent(Options.InstConclusion)));
         string license = GetLicenseRtfFile();
         bool hasLicense = !string.IsNullOrWhiteSpace(license);
         bool showLocationDialog = Options.InstLocation == InstallLocation.Either;
@@ -600,7 +607,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
                   {{Options.InstLocation switch {
                     InstallLocation.Either => $$"""
-                    <Publish Dialog="InstallScopeDlg" Control="Back" Event="{{(hasLicense ? "LicenseAgreementDlg" : "NewDialog")}}" Value="WelcomeDlg" />
+                    <Publish Dialog="InstallScopeDlg" Control="Back" Event="NewDialog" Value="{{(hasLicense ? "LicenseAgreementDlg" : "WelcomeDlg")}}" />
                     <Publish Dialog="InstallScopeDlg" Control="Next" Property="WixAppFolder" Value="WixPerUserFolder" Order="1" Condition="!(wix.WixUISupportPerUser) AND NOT Privileged" />
                     <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="{}" Order="2" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
                     <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="1" Order="3" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" />
@@ -641,8 +648,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             </Wix>
             """;
 
-        string welcomeMessage = RenderMarkdownAsPlainText(GetFileContent(Options.InstWelcome));
-        string readmeMessage = RenderMarkdownAsPlainText(GetFileContent(Options.InstReadme));
+        string welcomeMessage = FormatXmlMessage(RenderMarkdownAsPlainText(GetFileContent(Options.InstWelcome)));
+        string readmeMessage = FormatXmlMessage(RenderMarkdownAsPlainText(GetFileContent(Options.InstReadme)));
 
         string localizedStrings = $"""
             <WixLocalization Culture="en-US" Codepage="1252" xmlns="http://wixtoolset.org/schemas/v4/wxl">
