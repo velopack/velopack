@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml;
 using Markdig;
 using MarkdigExtensions.RtfRenderer;
 using Microsoft.Extensions.Logging;
@@ -215,7 +216,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         SetupBundle.CreatePackageBundle(targetSetupExe, releasePkg);
         setupExeProgress(50);
         Log.Debug("Signing Setup bundle");
-        SignFilesImpl(CoreUtil.CreateProgressDelegate( setupExeProgress, 50, 100), targetSetupExe);
+        SignFilesImpl(CoreUtil.CreateProgressDelegate(setupExeProgress, 50, 100), targetSetupExe);
         Log.Debug($"Setup bundle created '{Path.GetFileName(targetSetupExe)}'.");
         setupExeProgress(100);
 
@@ -351,8 +352,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         // return dlibPath;
     }
 
-    private static MarkdownPipeline markdownPipeline = new MarkdownPipelineBuilder().ConfigureNewLine(Environment.NewLine).Build();
-
     [SupportedOSPlatform("windows")]
     private void CompileWixTemplateToMsi(Action<int> progress,
         DirectoryInfo portableDirectory, string msiFilePath)
@@ -381,7 +380,22 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             => string.Join("_", name.Split(Path.GetInvalidPathChars()));
 
         static string FormatXmlMessage(string message)
-            => string.IsNullOrWhiteSpace(message) ? "" : message.Replace("\r", "&#10;").Replace("\n", "&#13;");
+        {
+            if (string.IsNullOrWhiteSpace(message))
+                return "";
+
+            StringBuilder sb = new();
+            XmlWriterSettings settings = new() {
+                ConformanceLevel = ConformanceLevel.Fragment,
+                NewLineHandling = NewLineHandling.None,
+            };
+            using XmlWriter writer = XmlWriter.Create(sb, settings);
+            writer.WriteString(message);
+            writer.Flush();
+            var rv = sb.ToString();
+            rv = rv.Replace("\r", "&#10;").Replace("\n", "&#13;");
+            return rv;
+        }
 
         static string GetFileContent(string filePath)
         {
@@ -395,7 +409,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         {
             if (string.IsNullOrWhiteSpace(markdown))
                 return "";
-            return Markdown.ToPlainText(markdown, markdownPipeline);
+            return Markdown.ToPlainText(markdown);
         }
 
         string licenseFile = null;
@@ -414,7 +428,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                 using var writer = new StreamWriter(licenseFile);
                 var renderer = new RtfRenderer(writer);
                 renderer.StartDocument();
-                _ = Markdown.Convert(File.ReadAllText(license), renderer, markdownPipeline);
+                _ = Markdown.Convert(File.ReadAllText(license), renderer);
                 renderer.CloseDocument();
                 return licenseFile;
             }
@@ -504,7 +518,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                 <!-- Message on last screen after install -->
                 {{(!string.IsNullOrWhiteSpace(conclusionMessage) ? $"""
                 <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="{conclusionMessage}" />
-                """: "")}}
+                """ : "")}}
 
                 <!-- Default checked state of launch app check box to true -->
                 <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
@@ -558,7 +572,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                     <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath_$(WIXUIARCH)" Order="3" Condition="NOT WIXUI_DONTVALIDATEPATH" />
                     {{(showLocationDialog ? """
                     <Publish Dialog="InstallScopeDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath_$(WIXUIARCH)" Order="7" Condition="NOT WIXUI_DONTVALIDATEPATH" />
-                    """: "")}}
+                    """ : "")}}
                   </UI>
 
                   <UIRef Id="WixUI_Velopack" />
@@ -591,7 +605,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
                   {{(hasLicense ? """
                   <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg" Condition="NOT Installed" />
-                  """ : showLocationDialog ? 
+                  """ : showLocationDialog ?
                   """
                   <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallScopeDlg" Condition="NOT Installed" />
                   """ : """
@@ -606,7 +620,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                   """ : "")}}
 
                   {{Options.InstLocation switch {
-                    InstallLocation.Either => $$"""
+                      InstallLocation.Either => $$"""
                     <Publish Dialog="InstallScopeDlg" Control="Back" Event="NewDialog" Value="{{(hasLicense ? "LicenseAgreementDlg" : "WelcomeDlg")}}" />
                     <Publish Dialog="InstallScopeDlg" Control="Next" Property="WixAppFolder" Value="WixPerUserFolder" Order="1" Condition="!(wix.WixUISupportPerUser) AND NOT Privileged" />
                     <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="{}" Order="2" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
@@ -616,17 +630,17 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                     <Publish Dialog="InstallScopeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="6" />
                     <Publish Dialog="InstallScopeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="7" />
                     """,
-                    InstallLocation.PerUser => """
+                      InstallLocation.PerUser => """
                     <Publish Dialog="WelcomeDlg" Control="Next" Property="ALLUSERS" Value="{}" Order="1" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
                     <Publish Dialog="WelcomeDlg" Control="Next" Property="INSTALLFOLDER" Value="[LocalAppDataFolder][ApplicationFolderName]" Order=" 2" />
                     <Publish Dialog="WelcomeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="3" />
                     """,
-                    InstallLocation.PerMachine => $$"""
+                      InstallLocation.PerMachine => $$"""
                     <Publish Dialog="WelcomeDlg" Control="Next" Property="ALLUSERS" Value="1" Order="1" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" />
                     <Publish Dialog="WelcomeDlg" Control="Next" Property="INSTALLFOLDER" Value="[{{(packageAs64Bit ? "ProgramFiles64Folder" : "ProgramFilesFolder")}}][ApplicationFolderName]" Order="5" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" /> 
                     <Publish Dialog="WelcomeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="3" />
                     """,
-                     _ => ""
+                      _ => ""
                   }}}
 
                   <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="{{(showLocationDialog ? "InstallScopeDlg" : hasLicense ? "LicenseAgreementDlg" : "WelcomeDlg")}}" Order="1" Condition="NOT Installed" />
@@ -675,21 +689,18 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             </WixLocalization>
             """;
 
+
         var wxs = Path.Combine(outputDirectory.FullName, wixId + ".wxs");
         var localization = Path.Combine(outputDirectory.FullName, wixId + "_en-US.wxs");
         try {
             File.WriteAllText(wxs, wixPackage, Encoding.UTF8);
             File.WriteAllText(localization, localizedStrings, Encoding.UTF8);
 
-            File.WriteAllText(@"D:\Dev\Velopack\Velopack.E2ETests\TestProjects\Temp\Test.wxs", wixPackage, Encoding.UTF8);
-            File.WriteAllText(@"D:\Dev\Velopack\Velopack.E2ETests\TestProjects\Temp\Test_en-US.wxs", localizedStrings, Encoding.UTF8);
-
-
             progress(30);
 
             Log.Info("Compiling WiX Template (dotnet build)");
 
-            foreach(var extension in wixExtensions) {
+            foreach (var extension in wixExtensions) {
                 //TODO: Should extensions be versioned independently?
                 AddWixExtension(extension, HelperFile.WixVersion);
             }
@@ -723,7 +734,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
     private void CompileWixTemplateToMsiDeploymentTool(Action<int> progress,
         string setupExePath, string msiFilePath)
     {
-        bool packageAs64Bit = 
+        bool packageAs64Bit =
             Options.TargetRuntime.Architecture is RuntimeCpu.x64 or RuntimeCpu.arm64;
 
         Log.Info($"Compiling machine-wide msi deployment tool in {(packageAs64Bit ? "64-bit" : "32-bit")} mode");
