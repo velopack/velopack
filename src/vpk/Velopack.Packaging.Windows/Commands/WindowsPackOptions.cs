@@ -39,7 +39,6 @@ public class WindowsPackOptions : WindowsReleasifyOptions, INugetPackCommand, IP
     public string MsiLogo { get; set; }
 
     public bool BuildMsi { get; set; }
-    public bool BuildMsiDeploymentTool { get; set; }
 
     public string MsiVersionOverride { get; set; }
 }

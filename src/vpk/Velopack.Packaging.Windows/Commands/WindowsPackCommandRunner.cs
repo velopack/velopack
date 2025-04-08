@@ -220,12 +220,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         Log.Debug($"Setup bundle created '{Path.GetFileName(targetSetupExe)}'.");
         setupExeProgress(100);
 
-        if (Options.BuildMsiDeploymentTool && VelopackRuntimeInfo.IsWindows) {
-            var msiName = DefaultName.GetSuggestedMsiDeploymentToolName(Options.PackId, Options.Channel, TargetOs);
-            var msiPath = createAsset(msiName, VelopackAssetType.MsiDeploymentTool);
-            CompileWixTemplateToMsiDeploymentTool(msiProgress, targetSetupExe, msiPath);
-        }
-
         if (Options.BuildMsi && VelopackRuntimeInfo.IsWindows) {
             var msiName = DefaultName.GetSuggestedMsiName(Options.PackId, Options.Channel, TargetOs);
             var msiPath = createAsset(msiName, VelopackAssetType.Msi);
@@ -728,83 +722,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             var addCommand = $"{HelperFile.WixPath} extension add -g {extension}/{version}";
             _ = Exe.RunHostedCommand(addCommand);
         }
-    }
-
-    [SupportedOSPlatform("windows")]
-    private void CompileWixTemplateToMsiDeploymentTool(Action<int> progress,
-        string setupExePath, string msiFilePath)
-    {
-        bool packageAs64Bit =
-            Options.TargetRuntime.Architecture is RuntimeCpu.x64 or RuntimeCpu.arm64;
-
-        Log.Info($"Compiling machine-wide msi deployment tool in {(packageAs64Bit ? "64-bit" : "32-bit")} mode");
-
-        var outputDirectory = Path.GetDirectoryName(setupExePath);
-        var setupName = Path.GetFileNameWithoutExtension(setupExePath);
-        var culture = CultureInfo.GetCultureInfo("en-US").TextInfo.ANSICodePage;
-
-        // WiX Identifiers may contain ASCII characters A-Z, a-z, digits, underscores (_), or
-        // periods(.). Every identifier must begin with either a letter or an underscore.
-        var wixId = Regex.Replace(Options.PackId, @"[^\w\.]", "_");
-        if (char.GetUnicodeCategory(wixId[0]) == UnicodeCategory.DecimalDigitNumber)
-            wixId = "_" + wixId;
-
-        Regex stacheRegex = new(@"\{\{(?<key>[^\}]+)\}\}", RegexOptions.Compiled);
-
-        var wxsFile = Path.Combine(outputDirectory, wixId + ".wxs");
-        var objFile = Path.Combine(outputDirectory, wixId + ".wixobj");
-
-
-        var msiVersion = Options.MsiVersionOverride;
-        if (string.IsNullOrWhiteSpace(msiVersion)) {
-            var parsedVersion = SemanticVersion.Parse(Options.PackVersion);
-            msiVersion = $"{parsedVersion.Major}.{parsedVersion.Minor}.{parsedVersion.Patch}.0";
-        }
-
-        try {
-            // apply dictionary to wsx template
-            var templateText = File.ReadAllText(HelperFile.WixTemplatePath);
-
-            var templateResult = stacheRegex.Replace(templateText, match => {
-                string key = match.Groups["key"].Value;
-                return key switch {
-                    "Id" => wixId,
-                    "Title" => GetEffectiveTitle(),
-                    "Author" => GetEffectiveAuthors(),
-                    "Version" => msiVersion,
-                    "Summary" => GetEffectiveTitle(),
-                    "Codepage" => $"{culture}",
-                    "Platform" => packageAs64Bit ? "x64" : "x86",
-                    "ProgramFilesFolder" => packageAs64Bit ? "ProgramFiles64Folder" : "ProgramFilesFolder",
-                    "Win64YesNo" => packageAs64Bit ? "yes" : "no",
-                    "SetupName" => setupName,
-                    _ when key.StartsWith("IdAsGuid", StringComparison.OrdinalIgnoreCase) => GuidUtil.CreateGuidFromHash($"{Options.PackId}:{key.Substring("IdAsGuid".Length)}").ToString(),
-                    _ => match.Value,
-                };
-            });
-
-            File.WriteAllText(wxsFile, templateResult, Encoding.UTF8);
-
-            // Candle preprocesses and compiles WiX source files into object files (.wixobj).
-            Log.Info("Compiling WiX Template (candle.exe)");
-            var candleCommand = $"{HelperFile.WixCandlePath} -nologo -out \"{objFile}\" \"{wxsFile}\"";
-            _ = Exe.RunHostedCommand(candleCommand);
-
-            progress(45);
-
-            // Light links and binds one or more .wixobj files and creates a Windows Installer database (.msi or .msm). 
-            Log.Info("Linking WiX Template (light.exe)");
-            var lightCommand = $"{HelperFile.WixLightPath} -spdb -sval -out \"{msiFilePath}\" \"{objFile}\"";
-            _ = Exe.RunHostedCommand(lightCommand);
-
-            progress(90);
-
-        } finally {
-            IoUtil.DeleteFileOrDirectoryHard(wxsFile, throwOnFailure: false);
-            IoUtil.DeleteFileOrDirectoryHard(objFile, throwOnFailure: false);
-        }
-        progress(100);
-
     }
 
     protected override string[] GetMainExeSearchPaths(string packDirectory, string mainExeName)

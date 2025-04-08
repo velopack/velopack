@@ -68,14 +68,6 @@ public static class HelperFile
     public static string StubExecutablePath => FindHelperFile("stub.exe");
 
     [SupportedOSPlatform("windows")]
-    public static string WixTemplatePath => FindHelperFile("wix\\template.wxs");
-    [SupportedOSPlatform("windows")]
-    public static string WixCandlePath => FindHelperFile("wix\\candle.exe");
-
-    [SupportedOSPlatform("windows")]
-    public static string WixLightPath => FindHelperFile("wix\\light.exe");
-
-    [SupportedOSPlatform("windows")]
     public static string WixPath => FindHelperFile($"wix\\{WixVersion}\\wix.exe");
 
     [SupportedOSPlatform("windows")]

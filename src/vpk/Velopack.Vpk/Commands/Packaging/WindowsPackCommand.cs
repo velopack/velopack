@@ -38,7 +38,6 @@ public class WindowsPackCommand : PackCommand
 
 
     public bool BuildMsi { get; private set; }
-    public bool BuildMsiDeploymentTool { get; private set; }
 
     public string MsiVersionOverride { get; private set; }
 
@@ -91,10 +90,6 @@ public class WindowsPackCommand : PackCommand
                 .SetArgumentHelpName("PATH");
 
             this.AreMutuallyExclusive(signTemplate, signParams, azTrustedSign);
-
-            AddOption<bool>((v) => BuildMsiDeploymentTool = v, "--msiDeploymentTool")
-                .SetDescription("Compile a .msi machine-wide deployment tool.")
-                .SetHidden();
 
             AddOption<bool>((v) => BuildMsi = v, "--msi")
                 .SetDescription("Compile a .msi machine-wide bootstrap package.");
