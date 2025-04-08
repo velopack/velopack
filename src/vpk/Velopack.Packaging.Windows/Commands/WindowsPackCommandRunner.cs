@@ -424,6 +424,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         string conclusionMessage = RenderMarkdownAsPlainText(GetFileContent(Options.InstConclusion));
         string license = GetLicenseRtfFile();
         bool hasLicense = !string.IsNullOrWhiteSpace(license);
+        bool showLocationDialog = Options.InstLocation == InstallLocation.Either;
         string bannerImage = string.IsNullOrWhiteSpace(Options.MsiBanner) ? HelperFile.WixAssetsTopBanner : Options.MsiBanner;
         string dialogImage = string.IsNullOrWhiteSpace(Options.MsiLogo) ? HelperFile.WixAssetsDialogBackground : Options.MsiLogo;
 
@@ -548,7 +549,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                     <Publish Dialog="LicenseAgreementDlg" Control="Print" Event="DoAction" Value="WixUIPrintEula_$(WIXUIARCH)" />
                     """ : "")}}
                     <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath_$(WIXUIARCH)" Order="3" Condition="NOT WIXUI_DONTVALIDATEPATH" />
-                    {{(Options.InstLocation == InstallLocation.Either ? """
+                    {{(showLocationDialog ? """
                     <Publish Dialog="InstallScopeDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath_$(WIXUIARCH)" Order="7" Condition="NOT WIXUI_DONTVALIDATEPATH" />
                     """: "")}}
                   </UI>
@@ -583,19 +584,23 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
                   {{(hasLicense ? """
                   <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg" Condition="NOT Installed" />
-                  """ : """
+                  """ : showLocationDialog ? 
+                  """
                   <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallScopeDlg" Condition="NOT Installed" />
-                  """)}}
+                  """ : """
+                  <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="NOT Installed" />
+                  """
+                  )}}
                   <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="Installed AND PATCH" />
 
                   {{(hasLicense ? $"""
                   <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
-                  <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallScopeDlg" Condition="LicenseAccepted = &quot;1&quot;" /> 
+                  <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="{(showLocationDialog ? "InstallScopeDlg" : "VerifyReadyDlg")}" Condition="LicenseAccepted = &quot;1&quot;" /> 
                   """ : "")}}
 
                   {{Options.InstLocation switch {
                     InstallLocation.Either => $$"""
-                    <Publish Dialog="InstallScopeDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
+                    <Publish Dialog="InstallScopeDlg" Control="Back" Event="{{(hasLicense ? "LicenseAgreementDlg" : "NewDialog")}}" Value="WelcomeDlg" />
                     <Publish Dialog="InstallScopeDlg" Control="Next" Property="WixAppFolder" Value="WixPerUserFolder" Order="1" Condition="!(wix.WixUISupportPerUser) AND NOT Privileged" />
                     <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="{}" Order="2" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
                     <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="1" Order="3" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" />
@@ -617,7 +622,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                      _ => ""
                   }}}
 
-                  <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="InstallScopeDlg" Order="1" Condition="NOT Installed" />
+                  <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="{{(showLocationDialog ? "InstallScopeDlg" : hasLicense ? "LicenseAgreementDlg" : "WelcomeDlg")}}" Order="1" Condition="NOT Installed" />
 
                   <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2" Condition="Installed AND NOT PATCH" />
                   <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2" Condition="Installed AND PATCH" />
