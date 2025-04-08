@@ -557,7 +557,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                 <CustomAction Id="LaunchApplication" Directory="INSTALLFOLDER" Impersonate="yes" ExeCommand="&quot;[INSTALLFOLDER]{{stub}}&quot;" Execute="immediate" Return="ignore" />
 
                 <InstallExecuteSequence>
-                  <Custom Action="RemoveAppDirectory" Before="RemoveFolders" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE) AND (ALLUSERS=1 OR (ALLUSERS=2 AND Privileged))" />
+                  <Custom Action="RemoveAppDirectory" Before="RemoveFolders" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
                   <Custom Action="RemoveTempDirectory" Before="InstallFinalize" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
                 </InstallExecuteSequence>
               </Package>
