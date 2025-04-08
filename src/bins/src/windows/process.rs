@@ -27,8 +27,8 @@ use super::strings::string_to_u16;
 enum Arg {
     /// Add quotes (if needed)
     Regular(OsString),
-    /// Append raw string without quoting
-    Raw(OsString),
+    // Append raw string without quoting
+    //Raw(OsString),
 }
 
 enum Quote {
@@ -37,7 +37,7 @@ enum Quote {
     // Whitespace and empty args are quoted
     Auto,
     // Arg appended without any changes (#29494)
-    Never,
+    //Never,
 }
 
 fn ensure_no_nuls<T: AsRef<OsStr>>(str: T) -> Result<T> {
@@ -50,8 +50,8 @@ fn ensure_no_nuls<T: AsRef<OsStr>>(str: T) -> Result<T> {
 
 fn append_arg(cmd: &mut Vec<u16>, arg: &Arg, force_quotes: bool) -> Result<()> {
     let (arg, quote) = match arg {
-        Arg::Regular(arg) => (arg, if force_quotes { Quote::Always } else { Quote::Auto }),
-        Arg::Raw(arg) => (arg, Quote::Never),
+        Arg::Regular(arg) => (arg, if force_quotes { Quote::Always } else { Quote::Auto })
+        //Arg::Raw(arg) => (arg, Quote::Never),
     };
 
     // If an argument has 0 characters then we need to quote it to ensure
@@ -62,7 +62,7 @@ fn append_arg(cmd: &mut Vec<u16>, arg: &Arg, force_quotes: bool) -> Result<()> {
     let (quote, escape) = match quote {
         Quote::Always => (true, true),
         Quote::Auto => (arg_bytes.iter().any(|c| *c == b' ' || *c == b'\t') || arg_bytes.is_empty(), true),
-        Quote::Never => (false, false),
+        //Quote::Never => (false, false),
     };
     if quote {
         cmd.push('"' as u16);

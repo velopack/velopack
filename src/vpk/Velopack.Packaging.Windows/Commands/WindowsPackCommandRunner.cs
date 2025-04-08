@@ -437,7 +437,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
 
         List<string> wixExtensions = ["WixToolset.UI.wixext"];
-        Debugger.Launch();
+
         var shortcuts = GetShortcuts().ToHashSet();
         string title = GetEffectiveTitle();
         string authors = GetEffectiveAuthors();
