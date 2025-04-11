@@ -8,7 +8,9 @@ use anyhow::{bail, Result};
 use clap::{arg, value_parser, Command};
 use memmap2::Mmap;
 use std::fs::File;
+use std::path::Path;
 use std::{env, path::PathBuf};
+use velopack::bundle::BundleZip;
 use velopack_bins::*;
 
 #[used]
@@ -65,6 +67,7 @@ fn main_inner() -> Result<()> {
         .arg(arg!(-v --verbose "Print debug messages to console"))
         .arg(arg!(-l --log <FILE> "Enable file logging and set location").required(false).value_parser(value_parser!(PathBuf)))
         .arg(arg!(-t --installto <DIR> "Installation directory to install the application").required(false).value_parser(value_parser!(PathBuf)))
+        .arg(arg!(-b --bootstrap "Just apply install files, do not write uninstall registry keys"))
         .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceded by '--'.").required(false).last(true).num_args(0..));
 
     if cfg!(debug_assertions) {
@@ -72,6 +75,34 @@ fn main_inner() -> Result<()> {
             .arg(arg!(-d --debug <FILE> "Debug mode, install from a nupkg file").required(false).value_parser(value_parser!(PathBuf)));
     }
 
+    if let Err(e) = run_inner(arg_config) {
+        let error_string = format!("An error has occurred: {:?}", e);
+        if let Ok(downcast) = e.downcast::<clap::Error>() {
+            let output_string = downcast.to_string();
+            match downcast.kind() {
+                clap::error::ErrorKind::DisplayHelp => {
+                    println!("{output_string}");
+                    return Ok(());
+                }
+                clap::error::ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand => {
+                    println!("{output_string}");
+                    return Ok(());
+                }
+                clap::error::ErrorKind::DisplayVersion => {
+                    println!("{output_string}");
+                    return Ok(());
+                }
+                _ => {}
+            }
+        }
+        error!("{}", error_string);
+        dialogs::show_error("Setup Error", None, &error_string);
+    }
+
+    Ok(())
+}
+
+fn run_inner(arg_config: Command) -> Result<()> {
     let matches = arg_config.try_get_matches()?;
 
     let silent = matches.get_flag("silent");
@@ -109,13 +140,15 @@ fn main_inner() -> Result<()> {
         bail!("This installer requires Windows 7 SPA1 or later and cannot run.");
     }
 
+    let file = File::open(env::current_exe()?)?;
+    let mmap = unsafe { Mmap::map(&file)? };
+    let mut bundle: Option<BundleZip> = None;
+
     // in debug mode only, allow a nupkg to be passed in as the first argument
     if cfg!(debug_assertions) {
         if let Some(pkg) = debug {
             info!("Loading bundle from DEBUG nupkg file {:?}...", pkg);
-            let mut bundle = velopack::bundle::load_bundle_from_file(pkg)?;
-            commands::install(&mut bundle, install_to, exe_args)?;
-            return Ok(());
+            bundle = Some(velopack::bundle::load_bundle_from_file(pkg)?);
         }
     }
 
@@ -125,14 +158,76 @@ fn main_inner() -> Result<()> {
 
     // try to load the bundle from embedded zip
     if offset > 0 && length > 0 {
-        info!("Loading bundle from embedded zip...");
-        let file = File::open(env::current_exe()?)?;
-        let mmap = unsafe { Mmap::map(&file)? };
-        let zip_range: &[u8] = &mmap[offset as usize..(offset + length) as usize];
-        let mut bundle = velopack::bundle::load_bundle_from_memory(&zip_range)?;
-        commands::install(&mut bundle, install_to, exe_args)?;
-        return Ok(());
+        bundle = Some(velopack::bundle::load_bundle_from_memory(&mmap[offset as usize..(offset + length) as usize])?);
     }
 
-    bail!("Could not find embedded zip file. Please contact the application author.");
+    if bundle.is_none() {
+        bail!("Could not find embedded zip file. Please contact the application author.");
+    }
+
+    let mut bundle = bundle.unwrap();
+
+    info!("Reading package manifest...");
+    let app = bundle.read_manifest()?;
+
+    info!("Determining install directory...");
+    let (root_path, root_is_default) = if install_to.is_some() {
+        (install_to.unwrap().clone(), false)
+    } else {
+        let appdata = windows::known_path::get_local_app_data()?;
+        (Path::new(&appdata).join(&app.id), true)
+    };
+
+    let bar = root_path.parent();
+    info!("Parent dir: {:?}", bar);
+
+    if let Some(parent_dir) = root_path.parent() {
+        info!("Checking if directory is writable: {:?}", parent_dir);
+        if !windows::is_directory_writable(parent_dir) {
+            if windows::process::is_process_elevated() {
+                bail!("The installation directory is not writable & process is already admin. Please select a different directory.");
+            }
+
+            // re-launch as admin
+            info!("Re-launching as administrator to install to {:?}", root_path);
+
+            let mut args: Vec<String> = Vec::new();
+            if silent {
+                args.push("--silent".to_string());
+            }
+
+            if verbose {
+                args.push("--verbose".to_string());
+            }
+
+            if let Some(debug) = debug {
+                args.push("--debug".to_string());
+                args.push(debug.to_string_lossy().to_string());
+            }
+
+            if let Some(logfile) = logfile {
+                args.push("--log".to_string());
+                args.push(logfile.to_string_lossy().to_string());
+            }
+
+            if let Some(install_to) = install_to {
+                args.push("--installto".to_string());
+                args.push(install_to.to_string_lossy().to_string());
+            }
+
+            if let Some(exe_args) = exe_args {
+                args.push("--".to_string());
+                for arg in exe_args {
+                    args.push(arg.to_string());
+                }
+            }
+
+            windows::process::relaunch_self_as_admin(args)?;
+            info!("Successfully re-launched as administrator.");
+            return Ok(());
+        }
+    }
+
+    commands::install(&mut bundle, (root_path, root_is_default), exe_args)?;
+    Ok(())
 }

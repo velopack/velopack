@@ -13,12 +13,7 @@
     <PackageReference Include="Octokit" Version="14.0.0" />
     <PackageReference Include="NuGet.Packaging" Version="6.13.2" />
     <PackageReference Include="System.Formats.Asn1" Version="9.0.3" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="Microsoft.Deployment.WindowsInstaller">
-      <HintPath>..\..\vendor\wix\Microsoft.Deployment.WindowsInstaller.dll</HintPath>
-    </Reference>
+    <PackageReference Include="WixToolset.Dtf.WindowsInstaller" Version="5.0.2" />
   </ItemGroup>
 
 </Project>

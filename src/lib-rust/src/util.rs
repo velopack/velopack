@@ -57,3 +57,21 @@ pub fn calculate_file_sha1<P: AsRef<Path>>(file: P) -> Result<String, Error> {
     let hash = sha1o.finalize();
     Ok(format!("{:x}", hash))
 }
+
+pub fn is_directory_writable<P1: AsRef<Path>>(path: P1) -> bool {
+    use std::os::windows::fs::OpenOptionsExt;
+    let path = path.as_ref();
+    let path = path.join(".velopack_dir_test");
+    let result = std::fs::File::options()
+        .create(true)
+        .write(true)
+        .custom_flags(0x04000000) // FILE_FLAG_DELETE_ON_CLOSE
+        .open(&path);
+
+    if let Err(e) = result {
+        warn!("Failed to open directory for writing {:?}: {}", path, e);
+        return false;
+    }
+
+    result.is_ok()
+}

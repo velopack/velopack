@@ -91,6 +91,9 @@ namespace Velopack
             if (silent) args.Add("--silent");
             args.Add("apply");
 
+            args.Add("--installto");
+            args.Add(locator.RootAppDir!);
+
             var entry = toApply ?? locator.GetLatestLocalFullPackage();
             if (entry != null && locator.PackagesDir != null) {
                 var pkg = Path.Combine(locator.PackagesDir, entry.FileName);

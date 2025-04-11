@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Runtime.Versioning;
 using NuGet.Versioning;
@@ -71,7 +71,7 @@ namespace Velopack.Locators
             Log = combinedLog;
 
             using var initLog = new CachedVelopackLogger(combinedLog);
-            initLog.Info($"Initialising {nameof(OsxVelopackLocator)}");
+            initLog.Info($"Initializing {nameof(OsxVelopackLocator)}");
 
             string logFolder = Path.GetTempPath();
 

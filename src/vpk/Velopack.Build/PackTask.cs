@@ -58,8 +58,14 @@ public class PackTask : MSBuildAsyncTask
     public string? InstReadme { get; set; }
 
     public string? InstLicense { get; set; }
+    public string? InstLicenseRtf { get; set; }
 
     public string? InstConclusion { get; set; }
+
+    public InstallLocation InstLocation { get; set; } = InstallLocation.Either;
+
+    public string? MsiBanner { get; set; }
+    public string? MsiLogo { get; set; }
 
     public string? SignAppIdentity { get; set; }
 

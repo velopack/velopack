@@ -2,7 +2,6 @@
 using System.Globalization;
 using System.Runtime.Versioning;
 using System.Xml.Linq;
-using Microsoft.Deployment.WindowsInstaller;
 using Microsoft.Win32;
 using NuGet.Packaging;
 using Velopack.Compression;
@@ -13,6 +12,7 @@ using Velopack.Util;
 using Velopack.Vpk;
 using Velopack.Vpk.Logging;
 using Velopack.Windows;
+using WixToolset.Dtf.WindowsInstaller;
 
 namespace Velopack.Packaging.Tests;
 
@@ -645,7 +645,7 @@ public class WindowsPackTests
         var runner = GetPackRunner(logger);
         await runner.Run(options);
 
-        string msiPath = Path.Combine(tmpReleaseDir, $"{id}-win-DeploymentTool.msi");
+        string msiPath = Path.Combine(tmpReleaseDir, $"{id}-win.msi");
         Assert.True(File.Exists(msiPath));
 
         using Database db = new Database(msiPath);

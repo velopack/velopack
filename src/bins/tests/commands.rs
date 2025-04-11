@@ -11,6 +11,7 @@ use winsafe::{self as w, co};
 use velopack::bundle::load_bundle_from_file;
 use velopack::locator::{auto_locate_app_manifest, LocationContext};
 
+
 #[cfg(target_os = "windows")]
 #[test]
 pub fn test_install_apply_uninstall() {
@@ -40,7 +41,7 @@ pub fn test_install_apply_uninstall() {
     let tmp_dir = tempdir().unwrap();
     let tmp_buf = tmp_dir.path().to_path_buf();
     let mut tmp_zip = load_bundle_from_file(nupkg).unwrap();
-    commands::install(&mut tmp_zip, Some(&tmp_buf), None).unwrap();
+    commands::install(&mut tmp_zip, (tmp_buf.clone(), false), None).unwrap();
 
     assert!(!lnk_desktop_1.exists()); // desktop is created during update
     assert!(lnk_start_1.exists());
@@ -88,7 +89,7 @@ pub fn test_install_preserve_symlinks() {
     let tmp_buf = tmp_dir.path().to_path_buf();
     let mut tmp_zip = load_bundle_from_file(nupkg).unwrap();
     
-    commands::install(&mut tmp_zip, Some(&tmp_buf), None).unwrap();
+    commands::install(&mut tmp_zip, (tmp_buf.clone(), false), None).unwrap();
 
     assert!(tmp_buf.join("current").join("actual").join("file.txt").exists());
     assert!(tmp_buf.join("current").join("other").join("syml").exists());

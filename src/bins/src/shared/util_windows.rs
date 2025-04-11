@@ -248,10 +248,10 @@ pub fn get_latest_app_version_folder<P: AsRef<Path>>(parent_path: P) -> Result<O
 pub fn has_app_prefixed_folder<P: AsRef<Path>>(parent_path: P) -> bool {
     match get_app_prefixed_folders(parent_path) {
         Ok(folders) => !folders.is_empty(),
-        Err(e) => { 
+        Err(e) => {
             warn!("Failed to check for app-prefixed folders: {}", e);
             false
-        },
+        }
     }
 }
 

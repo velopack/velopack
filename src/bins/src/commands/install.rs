@@ -4,23 +4,22 @@ use crate::{
     windows,
 };
 use velopack::bundle::BundleZip;
-use velopack::locator::*;
 use velopack::constants;
+use velopack::locator::*;
 
+use ::windows::core::PCWSTR;
+use ::windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 use anyhow::{anyhow, bail, Result};
 use pretty_bytes_rust::pretty_bytes;
 use std::{
     fs::{self},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
-use ::windows::core::PCWSTR;
-use ::windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 
-pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Option<Vec<&str>>) -> Result<()> {
+pub fn install(pkg: &mut BundleZip, install_to: (PathBuf, bool), start_args: Option<Vec<&str>>) -> Result<()> {
     // find and parse nuspec
     info!("Reading package manifest...");
     let app = pkg.read_manifest()?;
-
 
     info!("Package manifest loaded successfully.");
     info!("    Package ID: {}", &app.id);
@@ -31,18 +30,12 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     info!("    Package Machine Architecture: {}", &app.machine_architecture);
     info!("    Package Runtime Dependencies: {}", &app.runtime_dependencies);
 
+    let (root_path, root_is_default) = install_to;
+
     if !windows::prerequisite::prompt_and_install_all_missing(&app, None)? {
         info!("Cancelling setup. Pre-requisites not installed.");
         return Ok(());
     }
-
-    info!("Determining install directory...");
-    let (root_path, root_is_default) = if install_to.is_some() {
-        (install_to.unwrap().clone(), false)
-    } else {
-        let appdata = windows::known_path::get_local_app_data()?;
-        (Path::new(&appdata).join(&app.id), true)
-    };
 
     // path needs to exist for future operations (disk space etc)
     if !root_path.exists() {
@@ -152,7 +145,12 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     Ok(())
 }
 
-fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &std::sync::mpsc::Sender<i16>, start_args: Option<Vec<&str>>) -> Result<()> {
+fn install_impl(
+    pkg: &mut BundleZip,
+    locator: &VelopackLocator,
+    tx: &std::sync::mpsc::Sender<i16>,
+    start_args: Option<Vec<&str>>,
+) -> Result<()> {
     info!("Starting installation!");
 
     // all application paths

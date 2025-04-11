@@ -1,8 +1,7 @@
 use crate::{
     dialogs,
     shared::{self},
-    // windows::locksmith,
-    windows::splash,
+    windows::{self, splash},
 };
 use anyhow::{bail, Context, Result};
 use std::sync::mpsc;
@@ -40,11 +39,30 @@ use velopack::{bundle::load_bundle_from_file, constants, locator::VelopackLocato
 // }
 
 pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_hooks: bool) -> Result<VelopackLocator> {
+    let root_path = old_locator.get_root_dir();
+
     let mut bundle = load_bundle_from_file(package)?;
     let new_app_manifest = bundle.read_manifest()?;
     let new_locator = old_locator.clone_self_with_new_manifest(&new_app_manifest);
 
-    let root_path = old_locator.get_root_dir();
+    if !windows::is_directory_writable(&root_path) {
+        if windows::process::is_process_elevated() { 
+            bail!("The root directory is not writable & process is already admin.");
+        } else {
+            info!("Re-launching as administrator to update in {:?}", root_path);
+            
+            let package_string = package.to_string_lossy().to_string();
+            let args = vec!["--norestart".to_string(), "--package".to_string(), package_string];
+            let process_handle = windows::process::relaunch_self_as_admin(args)?;
+            //Wait for process to finish
+            let ms_to_wait = 5 * 1000 * 60; // 5 minutes
+            let pid = process_handle.pid();
+
+            shared::wait_for_pid_to_exit(pid, ms_to_wait)?;
+            return Ok(new_locator);
+        }
+    }
+
     let old_version = old_locator.get_manifest_version();
     let new_version = new_locator.get_manifest_version();
 

@@ -68,11 +68,16 @@ public static class HelperFile
     public static string StubExecutablePath => FindHelperFile("stub.exe");
 
     [SupportedOSPlatform("windows")]
-    public static string WixTemplatePath => FindHelperFile("wix\\template.wxs");
+    public static string WixPath => FindHelperFile($"wix\\{WixVersion}\\wix.exe");
+
     [SupportedOSPlatform("windows")]
-    public static string WixCandlePath => FindHelperFile("wix\\candle.exe");
+    public const string WixVersion = "5.0.2";
+
     [SupportedOSPlatform("windows")]
-    public static string WixLightPath => FindHelperFile("wix\\light.exe");
+    public static string WixAssetsTopBanner => FindHelperFile("wix\\assets\\top-banner.bmp");
+
+    [SupportedOSPlatform("windows")]
+    public static string WixAssetsDialogBackground => FindHelperFile("wix\\assets\\dialog-background.bmp");
 
     [SupportedOSPlatform("windows")]
     public static string SignToolPath => FindHelperFile("signing\\signtool.exe");

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Runtime.Versioning;
 using NuGet.Versioning;
@@ -74,7 +74,7 @@ namespace Velopack.Locators
             Log = combinedLog;
 
             using var initLog = new CachedVelopackLogger(combinedLog);
-            initLog.Info($"Initialising {nameof(LinuxVelopackLocator)}");
+            initLog.Info($"Initializing {nameof(LinuxVelopackLocator)}");
             var logFilePath = Path.Combine(Path.GetTempPath(), DefaultLoggingFileName);
 
             // are we inside a mounted .AppImage?

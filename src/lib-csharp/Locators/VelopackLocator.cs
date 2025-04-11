@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -27,14 +27,14 @@ namespace Velopack.Locators
         public static bool IsCurrentSet => _current != null;
 
         /// <summary>
-        /// Get the current locator in use, this process-wide locator can be set/overriden during VelopackApp.Build().
+        /// Get the current locator in use, this process-wide locator can be set/overridden during VelopackApp.Build().
         /// Alternatively, most methods which use locators also accept an IVelopackLocator as a parameter.
         /// </summary>
         public static IVelopackLocator Current {
             get {
                 if (_current == null)
                     throw new InvalidOperationException(
-                        "No VelopackLocator has been set. Either call VelopackApp.Build() or provide IVelopackLocator as a method parameter.");
+                        $"No VelopackLocator has been set. Either call {nameof(VelopackApp)}.{nameof(VelopackApp.Build)}() or provide {nameof(IVelopackLocator)} as a method parameter.");
                 return _current;
             }
         }
@@ -44,7 +44,7 @@ namespace Velopack.Locators
         {
             var process = Process.GetCurrentProcess();
             var processExePath = process.MainModule?.FileName
-                                 ?? throw new InvalidOperationException("Could not determine process path, please construct IVelopackLocator manually.");
+                                 ?? throw new InvalidOperationException($"Could not determine process path, please construct {nameof(IVelopackLocator)} manually.");
             var processId = (uint) process.Id;
 
             if (VelopackRuntimeInfo.IsWindows)
@@ -127,8 +127,8 @@ namespace Velopack.Locators
                     return new List<VelopackAsset>(0);
 
                 var list = new List<VelopackAsset>();
-                if (PackagesDir != null) {
-                    foreach (var pkg in Directory.EnumerateFiles(PackagesDir, "*.nupkg")) {
+                if (PackagesDir is { } packagesDir) {
+                    foreach (var pkg in Directory.EnumerateFiles(packagesDir, "*.nupkg")) {
                         try {
                             var asset = VelopackAsset.FromNupkg(pkg);
                             if (asset?.Version != null) {
@@ -182,7 +182,7 @@ namespace Velopack.Locators
                         throw new Exception("File was read but contents were invalid");
                     }
 
-                    Log.Info($"Loaded existing staging userId: {ret}");
+                    Log.Info($"Loaded existing staging userId: {ret} from {stagedUserIdFile}");
                     return ret;
                 } catch (Exception ex) {
                     Log.Debug(ex, "Couldn't read staging userId, creating a new one");

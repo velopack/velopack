@@ -1,9 +1,12 @@
-﻿using System.Globalization;
+﻿using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml;
+using Markdig;
+using MarkdigExtensions.RtfRenderer;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using NuGet.Versioning;
 using Velopack.Compression;
 using Velopack.Core;
@@ -26,7 +29,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         Regex fileExcludeRegex = Options.SignExclude != null ? new Regex(Options.SignExclude) : null;
         var filesToSign = new DirectoryInfo(packDir).GetAllFilesRecursively()
             .Where(x => PathUtil.FileIsLikelyPEImage(x.Name))
-            .Where(x => fileExcludeRegex != null ? !fileExcludeRegex.IsMatch(x.FullName) : true)
+            .Where(x => fileExcludeRegex == null || !fileExcludeRegex.IsMatch(x.FullName))
             .Select(x => x.FullName)
             .ToArray();
 
@@ -52,7 +55,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         // copy files to temp dir, so we can modify them
         var dir = TempDir.CreateSubdirectory("PreprocessPackDirWin");
         CopyFiles(new DirectoryInfo(packDir), dir, progress, true);
-        File.WriteAllText(Path.Combine(dir.FullName, "sq.version"), GenerateNuspecContent());
+        File.WriteAllText(Path.Combine(dir.FullName, CoreUtil.SpecVersionFileName), GenerateNuspecContent());
         packDir = dir.FullName;
 
         var updatePath = Path.Combine(TempDir.FullName, "Update.exe");
@@ -96,10 +99,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             return null;
 
         try {
-            var shortcuts = Options.Shortcuts.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries)
-                .Select(x => x.Trim())
-                .Select(x => (ShortcutLocation) Enum.Parse(typeof(ShortcutLocation), x, true))
-                .ToList();
+            var shortcuts = GetShortcuts();
 
             if (shortcuts.Count == 0)
                 return null;
@@ -216,14 +216,19 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         SetupBundle.CreatePackageBundle(targetSetupExe, releasePkg);
         setupExeProgress(50);
         Log.Debug("Signing Setup bundle");
-        SignFilesImpl(CoreUtil.CreateProgressDelegate( setupExeProgress, 50, 100), targetSetupExe);
+        SignFilesImpl(CoreUtil.CreateProgressDelegate(setupExeProgress, 50, 100), targetSetupExe);
         Log.Debug($"Setup bundle created '{Path.GetFileName(targetSetupExe)}'.");
         setupExeProgress(100);
 
         if (Options.BuildMsi && VelopackRuntimeInfo.IsWindows) {
             var msiName = DefaultName.GetSuggestedMsiName(Options.PackId, Options.Channel, TargetOs);
-            var msiPath = createAsset(msiName, VelopackAssetType.MsiDeploymentTool);
-            CompileWixTemplateToMsi(msiProgress, targetSetupExe, msiPath);
+            var msiPath = createAsset(msiName, VelopackAssetType.Msi);
+            var portablePackage = new DirectoryInfo(Path.Combine(TempDir.FullName, "CreatePortablePackage"));
+            if (portablePackage.Exists) {
+                CompileWixTemplateToMsi(msiProgress, portablePackage, msiPath);
+            } else {
+                Log.Warn("Portable package not found, skipping MSI creation.");
+            }
         }
 
         return Task.CompletedTask;
@@ -243,8 +248,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         var stubPath = Path.Combine(
             current.FullName,
             Path.GetFileNameWithoutExtension(Options.EntryExecutableName) + "_ExecutionStub.exe");
-        var stubName = (Options.PackTitle ?? Options.PackId) + ".exe";
-        File.Move(stubPath, Path.Combine(dir.FullName, stubName));
+        File.Move(stubPath, Path.Combine(dir.FullName, GetPortableStubFileName()));
 
         // create a .portable file to indicate this is a portable package
         File.Create(Path.Combine(dir.FullName, ".portable")).Close();
@@ -260,7 +264,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         if (Options.SplashImage != null) dict["splashimage" + Path.GetExtension(Options.SplashImage)] = Options.SplashImage;
         return dict;
     }
-
 
     private void CreateExecutableStubForExe(string exeToCopy, string targetStubPath)
     {
@@ -345,15 +348,14 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
     [SupportedOSPlatform("windows")]
     private void CompileWixTemplateToMsi(Action<int> progress,
-        string setupExePath, string msiFilePath)
+        DirectoryInfo portableDirectory, string msiFilePath)
     {
-        bool packageAs64Bit = 
-            Options.TargetRuntime.Architecture is RuntimeCpu.x64 or RuntimeCpu.arm64;
+        bool packageAs64Bit =
+            Options.TargetRuntime.Architecture is not RuntimeCpu.x86;
 
-        Log.Info($"Compiling machine-wide msi deployment tool in {(packageAs64Bit ? "64-bit" : "32-bit")} mode");
+        Log.Info($"Compiling msi installer in {(packageAs64Bit ? "64-bit" : "32-bit")} mode");
 
-        var outputDirectory = Path.GetDirectoryName(setupExePath);
-        var setupName = Path.GetFileNameWithoutExtension(setupExePath);
+        var outputDirectory = portableDirectory.Parent.CreateSubdirectory("msi");
         var culture = CultureInfo.GetCultureInfo("en-US").TextInfo.ANSICodePage;
 
         // WiX Identifiers may contain ASCII characters A-Z, a-z, digits, underscores (_), or
@@ -362,62 +364,364 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         if (char.GetUnicodeCategory(wixId[0]) == UnicodeCategory.DecimalDigitNumber)
             wixId = "_" + wixId;
 
-        Regex stacheRegex = new(@"\{\{(?<key>[^\}]+)\}\}", RegexOptions.Compiled);
-
-        var wxsFile = Path.Combine(outputDirectory, wixId + ".wxs");
-        var objFile = Path.Combine(outputDirectory, wixId + ".wixobj");
-
-
         var msiVersion = Options.MsiVersionOverride;
         if (string.IsNullOrWhiteSpace(msiVersion)) {
             var parsedVersion = SemanticVersion.Parse(Options.PackVersion);
             msiVersion = $"{parsedVersion.Major}.{parsedVersion.Minor}.{parsedVersion.Patch}.0";
         }
 
+        static string SanitizeDirectoryString(string name)
+            => string.Join("_", name.Split(Path.GetInvalidPathChars()));
+
+        static string FormatXmlMessage(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+                return "";
+
+            StringBuilder sb = new();
+            XmlWriterSettings settings = new() {
+                ConformanceLevel = ConformanceLevel.Fragment,
+                NewLineHandling = NewLineHandling.None,
+            };
+            using XmlWriter writer = XmlWriter.Create(sb, settings);
+            writer.WriteString(message);
+            writer.Flush();
+            var rv = sb.ToString();
+            rv = rv.Replace("\r", "&#10;").Replace("\n", "&#13;");
+            return rv;
+        }
+
+        static string GetFileContent(string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                return "";
+            string fileContents = File.ReadAllText(filePath, Encoding.UTF8);
+            return fileContents;
+        }
+
+        static string RenderMarkdownAsPlainText(string markdown)
+        {
+            if (string.IsNullOrWhiteSpace(markdown))
+                return "";
+            return Markdown.ToPlainText(markdown);
+        }
+
+        string licenseFile = null;
+
+        string GetLicenseRtfFile()
+        {
+            string license = Options.InstLicenseRtf;
+            if (!string.IsNullOrWhiteSpace(license)) {
+                return license;
+            }
+
+            license = Options.InstLicense;
+            if (!string.IsNullOrWhiteSpace(license)) {
+
+                licenseFile = Path.Combine(outputDirectory.FullName, wixId + "_license.rtf");
+                using var writer = new StreamWriter(licenseFile);
+                var renderer = new RtfRenderer(writer);
+                renderer.StartDocument();
+                _ = Markdown.Convert(File.ReadAllText(license), renderer);
+                renderer.CloseDocument();
+                return licenseFile;
+            }
+
+            return null;
+        }
+
+        List<string> wixExtensions = ["WixToolset.UI.wixext"];
+
+        var shortcuts = GetShortcuts().ToHashSet();
+        string title = GetEffectiveTitle();
+        string authors = GetEffectiveAuthors();
+        string stub = GetPortableStubFileName();
+        string conclusionMessage = FormatXmlMessage(RenderMarkdownAsPlainText(GetFileContent(Options.InstConclusion)));
+        string license = GetLicenseRtfFile();
+        bool hasLicense = !string.IsNullOrWhiteSpace(license);
+        bool showLocationDialog = Options.InstLocation == InstallLocation.Either;
+        string bannerImage = string.IsNullOrWhiteSpace(Options.MsiBanner) ? HelperFile.WixAssetsTopBanner : Options.MsiBanner;
+        string dialogImage = string.IsNullOrWhiteSpace(Options.MsiLogo) ? HelperFile.WixAssetsDialogBackground : Options.MsiLogo;
+
+        string wixPackage = $$"""
+            <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+              <Package Name="{{title}}"
+                       Manufacturer="{{authors}}"
+                       Version="{{msiVersion}}"
+                       Codepage="{{culture}}"
+                       Language="1033"
+                       Scope="perUserOrMachine"
+                       UpgradeCode="{{GuidUtil.CreateGuidFromHash($"{Options.PackId}:UpgradeCode")}}"
+                       >
+                <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
+                <StandardDirectory Id="TARGETDIR">
+                  <Directory Id="INSTALLFOLDER" Name="{{SanitizeDirectoryString(title)}}" ComponentGuidGenerationSeed="{{GuidUtil.CreateGuidFromHash($"{Options.PackId}:INSTALLFOLDER")}}">
+                    <Directory Name="current" />
+                    <Directory Id="PACKAGES_DIR" Name="packages" />
+                  </Directory>
+                </StandardDirectory>
+                {{(shortcuts.Contains(ShortcutLocation.Desktop) ? $"""
+                <StandardDirectory Id="DesktopFolder">
+                  <Component Id="ApplicationDesktopShortcut">
+                    <Shortcut Id="ApplicationDesktopShortcut"
+                              Name="{title}"
+                              Description="Desktop shortcut for {title}"
+                              Target="[INSTALLFOLDER]{stub}"
+                              WorkingDirectory="INSTALLFOLDER"/>
+                    <RemoveFolder Id="CleanUpDesktopShortcut" Directory="INSTALLFOLDER" On="uninstall"/>
+                    <RegistryValue Root="HKCU" Key="Software\{SanitizeDirectoryString(authors)}\{Options.PackId}.DesktopShortcut" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+                  </Component>
+                </StandardDirectory>
+                """ : "")}}
+                {{(shortcuts.Contains(ShortcutLocation.StartMenu) ? $"""
+                <StandardDirectory Id="StartMenuFolder">
+                  <Component Id="ApplicationStartMenuShortcut">
+                    <Shortcut Id="ApplicationStartMenuShortcut"
+                              Name="{title}"
+                              Description="Start Menu shortcut for {title}"
+                              Target="[INSTALLFOLDER]{stub}"
+                              WorkingDirectory="INSTALLFOLDER"/>
+                    <RemoveFolder Id="CleanUpStartMenuShortcut" Directory="INSTALLFOLDER" On="uninstall"/>
+                    <RegistryValue Root="HKCU" Key="Software\{SanitizeDirectoryString(authors)}\{Options.PackId}.StartMenuShortcut" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+                  </Component>
+                </StandardDirectory>
+                """ : "")}}
+
+                {{(!string.IsNullOrWhiteSpace(Options.Icon) ? $"""
+                <Icon Id="appicon" SourceFile="{Options.Icon}"/>
+                <Property Id="ARPPRODUCTICON" Value="appicon" />
+                """ : "")}}
+
+                {{(hasLicense ? $"""
+                <WixVariable
+                  Id="WixUILicenseRtf"
+                  Value="{license}"
+                  />
+                """ : "")}}
+
+                <WixVariable
+                  Id="WixUIBannerBmp"
+                  Value="{{bannerImage}}"
+                  />
+
+                <WixVariable
+                  Id="WixUIDialogBmp"
+                  Value="{{dialogImage}}"
+                  />
+
+                <!-- Message on last screen after install -->
+                {{(!string.IsNullOrWhiteSpace(conclusionMessage) ? $"""
+                <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="{conclusionMessage}" />
+                """ : "")}}
+
+                <!-- Default checked state of launch app check box to true -->
+                <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+            
+
+                <!-- Check box for launching -->
+                <Property
+                  Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT"
+                  Value="Launch {{title}}"
+                  />
+
+                <Property Id="WixAppFolder" Value="WixPerMachineFolder" />
+                <Property Id="ApplicationFolderName" Value="{{SanitizeDirectoryString(Options.PackId)}}" /> 
+                {{(Options.InstLocation == InstallLocation.Either ? """
+                <WixVariable Id="override WixUISupportPerUser" Value="1" />
+                <WixVariable Id="override WixUISupportPerMachine" Value="1" />
+                """ : "")}}
+
+                <UI>
+                  <ui:WixUI
+                      Id="WixUI_Velopack"
+                      InstallDirectory="INSTALLFOLDER"
+                      />
+
+                  <Publish Dialog="ExitDialog"
+                      Control="Finish"
+                      Event="DoAction"
+                      Value="LaunchApplication"
+                      Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed" />
+                </UI>
+
+                <Files Include="{{portableDirectory.FullName}}\**" />
+
+                <CustomAction Id="RemoveAppDirectory" Directory="INSTALLFOLDER" Impersonate="no" ExeCommand="cmd.exe /C rmdir /S /Q &quot;[INSTALLFOLDER]&quot;" Execute="deferred" Return="ignore" />
+                <CustomAction Id="RemoveTempDirectory" Directory="TempFolder" Impersonate="yes" ExeCommand="cmd.exe /C rmdir /S /Q &quot;%TEMP%\velopack_{{Options.PackId}}&quot;" Execute="deferred" Return="ignore" />
+                <CustomAction Id="LaunchApplication" Directory="INSTALLFOLDER" Impersonate="yes" ExeCommand="&quot;[INSTALLFOLDER]{{stub}}&quot;" Execute="immediate" Return="ignore" />
+
+                <InstallExecuteSequence>
+                  <Custom Action="RemoveAppDirectory" Before="RemoveFolders" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
+                  <Custom Action="RemoveTempDirectory" Before="InstallFinalize" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
+                </InstallExecuteSequence>
+              </Package>
+
+              <!-- https://github.com/wixtoolset/wix/blob/v5.0.2/src/ext/UI/wixlib/WixUI_Advanced.wxs -->
+              <?foreach WIXUIARCH in X86;X64;A64 ?>
+                <Fragment>
+                  <UI Id="WixUI_Velopack_$(WIXUIARCH)">
+                    {{(hasLicense ? $"""
+                    <Publish Dialog="LicenseAgreementDlg" Control="Print" Event="DoAction" Value="WixUIPrintEula_$(WIXUIARCH)" />
+                    """ : "")}}
+                    <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath_$(WIXUIARCH)" Order="3" Condition="NOT WIXUI_DONTVALIDATEPATH" />
+                    {{(showLocationDialog ? """
+                    <Publish Dialog="InstallScopeDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath_$(WIXUIARCH)" Order="7" Condition="NOT WIXUI_DONTVALIDATEPATH" />
+                    """ : "")}}
+                  </UI>
+
+                  <UIRef Id="WixUI_Velopack" />
+                </Fragment>
+              <?endforeach?>
+
+              <Fragment>
+                <PropertyRef Id="ApplicationFolderName" />
+
+                <UI Id="file WixUI_Velopack">
+                  <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+                  <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+                  <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+
+                  <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+
+                  <DialogRef Id="BrowseDlg" />
+                  <DialogRef Id="DiskCostDlg" />
+                  <DialogRef Id="ErrorDlg" />
+                  <DialogRef Id="FatalError" />
+                  <DialogRef Id="FilesInUse" />
+                  <DialogRef Id="MsiRMFilesInUse" />
+                  <DialogRef Id="PrepareDlg" />
+                  <DialogRef Id="ProgressDlg" />
+                  <DialogRef Id="ResumeDlg" />
+                  <DialogRef Id="UserExit" />
+                  <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4" Condition="NOT WIXUI_DONTVALIDATEPATH AND        WIXUI_INSTALLDIR_VALID&lt;&gt;&quot;1&quot;" />
+
+                  <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999" />
+
+                  {{(hasLicense ? """
+                  <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg" Condition="NOT Installed" />
+                  """ : showLocationDialog ?
+                  """
+                  <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallScopeDlg" Condition="NOT Installed" />
+                  """ : """
+                  <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="NOT Installed" />
+                  """
+                  )}}
+                  <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="Installed AND PATCH" />
+
+                  {{(hasLicense ? $"""
+                  <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
+                  <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="{(showLocationDialog ? "InstallScopeDlg" : "VerifyReadyDlg")}" Condition="LicenseAccepted = &quot;1&quot;" /> 
+                  """ : "")}}
+
+                  {{Options.InstLocation switch {
+                      InstallLocation.Either => $$"""
+                    <Publish Dialog="InstallScopeDlg" Control="Back" Event="NewDialog" Value="{{(hasLicense ? "LicenseAgreementDlg" : "WelcomeDlg")}}" />
+                    <Publish Dialog="InstallScopeDlg" Control="Next" Property="WixAppFolder" Value="WixPerUserFolder" Order="1" Condition="!(wix.WixUISupportPerUser) AND NOT Privileged" />
+                    <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="{}" Order="2" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
+                    <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="1" Order="3" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" />
+                    <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLFOLDER" Value="[LocalAppDataFolder][ApplicationFolderName]" Order=" 4" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
+                    <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLFOLDER" Value="[{{(packageAs64Bit ? "ProgramFiles64Folder" : "ProgramFilesFolder")}}][ApplicationFolderName]" Order="5" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" /> 
+                    <Publish Dialog="InstallScopeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="6" />
+                    <Publish Dialog="InstallScopeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="7" />
+                    """,
+                      InstallLocation.PerUser => """
+                    <Publish Dialog="WelcomeDlg" Control="Next" Property="ALLUSERS" Value="{}" Order="1" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
+                    <Publish Dialog="WelcomeDlg" Control="Next" Property="INSTALLFOLDER" Value="[LocalAppDataFolder][ApplicationFolderName]" Order=" 2" />
+                    <Publish Dialog="WelcomeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="3" />
+                    """,
+                      InstallLocation.PerMachine => $$"""
+                    <Publish Dialog="WelcomeDlg" Control="Next" Property="ALLUSERS" Value="1" Order="1" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" />
+                    <Publish Dialog="WelcomeDlg" Control="Next" Property="INSTALLFOLDER" Value="[{{(packageAs64Bit ? "ProgramFiles64Folder" : "ProgramFilesFolder")}}][ApplicationFolderName]" Order="5" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" /> 
+                    <Publish Dialog="WelcomeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="3" />
+                    """,
+                      _ => ""
+                  }}}
+
+                  <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="{{(showLocationDialog ? "InstallScopeDlg" : hasLicense ? "LicenseAgreementDlg" : "WelcomeDlg")}}" Order="1" Condition="NOT Installed" />
+
+                  <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2" Condition="Installed AND NOT PATCH" />
+                  <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2" Condition="Installed AND PATCH" />
+
+                  <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg" />
+
+                  <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg" />
+                  <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg" />
+                  <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg" />
+
+                  <Property Id="ARPNOMODIFY" Value="1" />
+                </UI>
+
+                <UIRef Id="WixUI_Common" />
+              </Fragment>
+            </Wix>
+            """;
+
+        string welcomeMessage = FormatXmlMessage(RenderMarkdownAsPlainText(GetFileContent(Options.InstWelcome)));
+        string readmeMessage = FormatXmlMessage(RenderMarkdownAsPlainText(GetFileContent(Options.InstReadme)));
+
+        string localizedStrings = $"""
+            <WixLocalization Culture="en-US" Codepage="1252" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+              {(!string.IsNullOrWhiteSpace(welcomeMessage) ? $"""
+              <!-- Message on first welcome dialog; covers both initial install and update -->
+              <String
+                Id="WelcomeDlgDescription"
+                Value="{welcomeMessage}"
+                />
+              <String
+                Id="WelcomeUpdateDlgDescriptionUpdate"
+                Value="{welcomeMessage}"
+                />
+              """ : "")}
+
+              {(!string.IsNullOrWhiteSpace(readmeMessage) ? $"""
+              <!-- Message on the completion dialog (last screen after install) -->
+              <String
+                Id="VerifyReadyDlgInstallText"
+                Value="{readmeMessage}"
+                />
+              """ : "")}
+            </WixLocalization>
+            """;
+
+
+        var wxs = Path.Combine(outputDirectory.FullName, wixId + ".wxs");
+        var localization = Path.Combine(outputDirectory.FullName, wixId + "_en-US.wxs");
         try {
-            // apply dictionary to wsx template
-            var templateText = File.ReadAllText(HelperFile.WixTemplatePath);
+            File.WriteAllText(wxs, wixPackage, Encoding.UTF8);
+            File.WriteAllText(localization, localizedStrings, Encoding.UTF8);
 
-            var templateResult = stacheRegex.Replace(templateText, match => {
-                string key = match.Groups["key"].Value;
-                return key switch {
-                    "Id" => wixId,
-                    "Title" => GetEffectiveTitle(),
-                    "Author" => GetEffectiveAuthors(),
-                    "Version" => msiVersion,
-                    "Summary" => GetEffectiveTitle(),
-                    "Codepage" => $"{culture}",
-                    "Platform" => packageAs64Bit ? "x64" : "x86",
-                    "ProgramFilesFolder" => packageAs64Bit ? "ProgramFiles64Folder" : "ProgramFilesFolder",
-                    "Win64YesNo" => packageAs64Bit ? "yes" : "no",
-                    "SetupName" => setupName,
-                    _ when key.StartsWith("IdAsGuid") => GuidUtil.CreateGuidFromHash($"{Options.PackId}:{key.Substring(8)}").ToString(),
-                    _ => match.Value,
-                };
-            });
+            progress(30);
 
-            File.WriteAllText(wxsFile, templateResult, Encoding.UTF8);
+            Log.Info("Compiling WiX Template (dotnet build)");
 
-            // Candle reprocesses and compiles WiX source files into object files (.wixobj).
-            Log.Info("Compiling WiX Template (candle.exe)");
-            var candleCommand = $"{HelperFile.WixCandlePath} -nologo -ext WixNetFxExtension -out \"{objFile}\" \"{wxsFile}\"";
-            _ = Exe.RunHostedCommand(candleCommand);
+            foreach (var extension in wixExtensions) {
+                //TODO: Should extensions be versioned independently?
+                AddWixExtension(extension, HelperFile.WixVersion);
+            }
 
-            progress(45);
+            //When localization is supported in Velopack, we will need to add -culture here:
+            //https://docs.firegiant.com/wix/tools/wixext/wixui/
+            var buildCommand = $"{HelperFile.WixPath} build -platform {(packageAs64Bit ? "x64" : "x86")} -outputType Package -pdbType none {string.Join(" ", wixExtensions.Select(x => $"-ext {x}"))} -loc \"{localization}\" -out \"{msiFilePath}\" \"{wxs}\"";
 
-            // Light links and binds one or more .wixobj files and creates a Windows Installer database (.msi or .msm). 
-            Log.Info("Linking WiX Template (light.exe)");
-            var lightCommand = $"{HelperFile.WixLightPath} -ext WixNetFxExtension -spdb -sval -out \"{msiFilePath}\" \"{objFile}\"";
-            _ = Exe.RunHostedCommand(lightCommand);
+            _ = Exe.RunHostedCommand(buildCommand);
 
             progress(90);
 
         } finally {
-            IoUtil.DeleteFileOrDirectoryHard(wxsFile, throwOnFailure: false);
-            IoUtil.DeleteFileOrDirectoryHard(objFile, throwOnFailure: false);
+            IoUtil.DeleteFileOrDirectoryHard(wxs, throwOnFailure: false);
+            IoUtil.DeleteFileOrDirectoryHard(localization, throwOnFailure: false);
+            if (licenseFile is not null) {
+                IoUtil.DeleteFileOrDirectoryHard(licenseFile, throwOnFailure: false);
+            }
         }
         progress(100);
 
+
+        static void AddWixExtension(string extension, string version)
+        {
+            var addCommand = $"{HelperFile.WixPath} extension add -g {extension}/{version}";
+            _ = Exe.RunHostedCommand(addCommand);
+        }
     }
 
     protected override string[] GetMainExeSearchPaths(string packDirectory, string mainExeName)
@@ -427,4 +731,17 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             Path.Combine(packDirectory, mainExeName) + ".exe",
         ];
     }
+
+    private string GetPortableStubFileName() => (Options.PackTitle ?? Options.PackId) + ".exe";
+
+    private IReadOnlyList<ShortcutLocation> GetShortcuts() => [.. Options.Shortcuts.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim())
+                .Select(x => {
+                    if (Enum.TryParse(x, true, out ShortcutLocation location)) {
+                        return location;
+                    }
+                    return ShortcutLocation.None;
+                })
+                .Where(x => x != ShortcutLocation.None)
+        ];
 }
