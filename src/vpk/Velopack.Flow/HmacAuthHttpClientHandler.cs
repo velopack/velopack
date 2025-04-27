@@ -15,8 +15,14 @@ public class HmacAuthHttpClientHandler(HttpMessageHandler innerHandler) : Delega
             var key = keyParts[1];
             var nonce = Guid.NewGuid().ToString();
 
+            string requestUri = "";
+
+            if (request.RequestUri is { } reqUri) {
+                requestUri = $"{reqUri.Host}{reqUri.PathAndQuery}";
+            }
+
             var secondsSinceEpoch = HmacHelper.GetSecondsSinceEpoch();
-            var signature = HmacHelper.BuildSignature(hashedId, request.Method.Method, request.RequestUri?.AbsoluteUri ?? "", secondsSinceEpoch, nonce);
+            var signature = HmacHelper.BuildSignature(hashedId, request.Method.Method, requestUri, secondsSinceEpoch, nonce);
             var secret = HmacHelper.Calculate(Convert.FromBase64String(key), signature);
             request.Headers.Authorization = BuildHeader(hashedId, secret, nonce, secondsSinceEpoch);
         }
