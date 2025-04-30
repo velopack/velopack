@@ -1,57 +1,60 @@
-use std::{
-    os::windows::process::CommandExt,
-    path::{Path, PathBuf},
-    process::Command as Process,
-    time::Duration,
+use crate::{
+    shared::{self, runtime_arch::RuntimeArch},
+    windows::strings::{string_to_u16, u16_to_string},
 };
-
-use velopack::locator::VelopackLocator;
-
 use anyhow::{anyhow, Result};
 use normpath::PathExt;
-use wait_timeout::ChildExt;
-use windows::core::PCWSTR;
-use windows::Win32::Storage::FileSystem::GetLongPathNameW;
-use windows::Win32::System::SystemInformation::{VerSetConditionMask, VerifyVersionInfoW, OSVERSIONINFOEXW, VER_FLAGS};
-use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
-use windows::Win32::Foundation;
-
-use crate::shared::{self, runtime_arch::RuntimeArch};
-use crate::windows::strings::{string_to_u16, u16_to_string};
+use std::{
+    path::{Path, PathBuf},
+    time::Duration,
+};
+use velopack::{locator::VelopackLocator, process, process::WaitResult};
+use windows::{
+    core::PCWSTR,
+    Win32::Storage::FileSystem::GetLongPathNameW,
+    Win32::System::SystemInformation::{VerSetConditionMask, VerifyVersionInfoW, OSVERSIONINFOEXW, VER_FLAGS},
+};
 
 pub fn run_hook(locator: &VelopackLocator, hook_name: &str, timeout_secs: u64) -> bool {
     let sw = simple_stopwatch::Stopwatch::start_new();
     let root_dir = locator.get_root_dir();
     let current_path = locator.get_current_bin_dir();
-    let main_exe_path = locator.get_main_exe_path();
+    let main_exe_path = locator.get_main_exe_path_as_string();
     let ver_string = locator.get_manifest_version_full_string();
     let args = vec![hook_name, &ver_string];
     let mut success = false;
 
     info!("Running {} hook...", hook_name);
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-    let cmd = Process::new(&main_exe_path).args(args).current_dir(&current_path).creation_flags(CREATE_NO_WINDOW).spawn();
+    let cmd = process::run_process(
+        main_exe_path,
+        args.iter().map(|f| f.to_string()).collect(),
+        Some(current_path.to_string_lossy().to_string()),
+        false,
+        None,
+    );
 
     if let Err(e) = cmd {
         warn!("Failed to start hook {}: {}", hook_name, e);
         return false;
     }
 
-    let mut cmd = cmd.unwrap();
-    let _ = unsafe { AllowSetForegroundWindow(cmd.id()) };
+    let cmd = cmd.unwrap();
 
-    match cmd.wait_timeout(Duration::from_secs(timeout_secs)) {
-        Ok(Some(status)) => {
-            if status.success() {
+    match process::wait_for_process_to_exit_with_timeout(cmd.handle(), Duration::from_secs(timeout_secs)) {
+        Ok(WaitResult::NoWaitRequired) => {
+            warn!("Was unable to wait for hook (it may have exited too quickly).");
+        }
+        Ok(WaitResult::ExitCode(code)) => {
+            if code == 0 {
                 info!("Hook executed successfully (took {}ms)", sw.ms());
                 success = true;
             } else {
-                warn!("Hook exited with non-zero exit code: {}", status.code().unwrap_or(0));
+                warn!("Hook exited with non-zero exit code: {}", code);
             }
         }
-        Ok(None) => {
-            let _ = cmd.kill();
-            error!("Process timed out after {}s", timeout_secs);
+        Ok(WaitResult::WaitTimeout) => {
+            let _ = process::kill_process(cmd.handle());
+            error!("Process timed out after {}s and was killed.", timeout_secs);
         }
         Err(e) => {
             error!("Error waiting for process to finish: {}", e);

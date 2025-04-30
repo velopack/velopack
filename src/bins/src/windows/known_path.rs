@@ -12,7 +12,7 @@ fn get_known_folder(rfid: *const GUID) -> Result<String> {
     unsafe {
         let flag = windows::Win32::UI::Shell::KNOWN_FOLDER_FLAG(0);
         let result = SHGetKnownFolderPath(rfid, flag, None)?;
-        super::strings::pwstr_to_string(result)
+        super::strings::u16_to_string(result)
     }
 }
 

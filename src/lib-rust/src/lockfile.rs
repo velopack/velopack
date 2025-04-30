@@ -16,7 +16,7 @@ impl LockFile {
     pub fn try_acquire_lock<P: Into<PathBuf>>(path: P) -> Result<Self> {
         let path: PathBuf = path.into();
 
-        crate::util::retry_io(|| {
+        crate::misc::retry_io(|| {
             #[cfg(windows)]
             {
                 let file = Self::windows_exclusive_lock(&path)?;

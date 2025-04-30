@@ -2,6 +2,7 @@ use anyhow::{anyhow, Result};
 use rand::distr::{Alphanumeric, SampleString};
 use regex::Regex;
 use std::{path::Path, thread, time::Duration};
+use velopack::process;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum OperationWait {
@@ -12,11 +13,11 @@ pub enum OperationWait {
 
 pub fn operation_wait(wait: OperationWait) {
     if let OperationWait::WaitPid(pid) = wait {
-        if let Err(e) = super::wait_for_pid_to_exit(pid, 60_000) {
+        if let Err(e) = process::wait_for_pid_to_exit(pid, Duration::from_secs(60)) {
             warn!("Failed to wait for process ({}) to exit ({}). Continuing...", pid, e);
         }
     } else if let OperationWait::WaitParent = wait {
-        if let Err(e) = super::wait_for_parent_to_exit(60_000) {
+        if let Err(e) = process::wait_for_parent_to_exit(Duration::from_secs(60)) {
             warn!("Failed to wait for parent process to exit ({}). Continuing...", e);
         }
     } else {

@@ -1,10 +1,6 @@
+use std::process::exit;
 #[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
-use std::{
-    fs,
-    process::{exit, Command as Process},
-    sync::mpsc::Sender,
-};
+use std::{fs, sync::mpsc::Sender};
 
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -15,9 +11,11 @@ use async_std::channel::Sender as AsyncSender;
 use async_std::task::JoinHandle;
 
 use crate::{
+    constants,
     locator::{self, LocationContext, VelopackLocator, VelopackLocatorConfig},
+    misc, process,
     sources::UpdateSource,
-    util, Error,
+    Error,
 };
 
 /// Configure how the update process should wait before applying updates.
@@ -185,8 +183,8 @@ impl UpdateManager {
         let app_channel = self.locator.get_manifest_channel();
         let mut channel = options_channel.unwrap_or(&app_channel).to_string();
         if channel.is_empty() {
-            warn!("Channel is empty, picking default.");
-            channel = locator::default_channel_name();
+            warn!("Channel is empty, using default.");
+            channel = constants::DEFAULT_CHANNEL_NAME.to_owned();
         }
         info!("Chosen channel for updates: {:?} (explicit={:?}, memorized={:?})", channel, options_channel, app_channel);
         channel
@@ -220,13 +218,14 @@ impl UpdateManager {
         let packages_dir = self.locator.get_packages_dir();
         if let Some((path, manifest)) = locator::find_latest_full_package(&packages_dir) {
             if manifest.version > self.locator.get_manifest_version() {
+                let (sha1, sha256) = misc::calculate_sha1_sha256(&path).unwrap_or_default();
                 return Some(VelopackAsset {
                     PackageId: manifest.id,
                     Version: manifest.version.to_string(),
                     Type: "Full".to_string(),
                     FileName: path.file_name().unwrap().to_string_lossy().to_string(),
-                    SHA1: util::calculate_file_sha1(&path).unwrap_or_default(),
-                    SHA256: util::calculate_file_sha256(&path).unwrap_or_default(),
+                    SHA1: sha1,
+                    SHA256: sha256,
                     Size: path.metadata().map(|m| m.len()).unwrap_or(0),
                     NotesMarkdown: manifest.release_notes,
                     NotesHtml: manifest.release_notes_html,
@@ -462,7 +461,7 @@ impl UpdateManager {
     }
 
     /// This will launch the Velopack updater and optionally wait for a program to exit gracefully.
-    /// This method is unsafe because it does not necessarily wait for any / the correct process to exit 
+    /// This method is unsafe because it does not necessarily wait for any / the correct process to exit
     /// before applying updates. The `wait_exit_then_apply_updates` method is recommended for most use cases.
     pub fn unsafe_apply_updates<A, C, S>(
         &self,
@@ -520,21 +519,8 @@ impl UpdateManager {
             }
         }
 
-        let mut p = Process::new(&self.locator.get_update_path());
-        p.args(&args);
-
-        if let Some(update_exe_parent) = self.locator.get_update_path().parent() {
-            p.current_dir(update_exe_parent);
-        }
-
-        #[cfg(target_os = "windows")]
-        {
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
-            p.creation_flags(CREATE_NO_WINDOW);
-        }
-
-        info!("About to run Update.exe: {} {:?}", self.locator.get_update_path_as_string(), args);
-        p.spawn()?;
+        let update_path = self.locator.get_update_path();
+        process::run_process(&update_path, args, update_path.parent(), false, None)?;
         Ok(())
     }
 }

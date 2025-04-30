@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{Read, Write};
 
-use crate::{util, Error};
+use crate::{misc, Error};
 
 /// Downloads a file from a URL and writes it to a file while reporting progress from 0-100.
 pub fn download_url_to_file<A>(url: &str, file_path: &str, mut progress: A) -> Result<(), Error>
@@ -12,7 +12,7 @@ where
     let (head, body) = agent.get(url).call()?.into_parts();
 
     let total_size = head.headers.get("Content-Length").and_then(|s| s.to_str().ok()).and_then(|s| s.parse::<u64>().ok());
-    let mut file = util::retry_io(|| File::create(file_path))?;
+    let mut file = misc::retry_io(|| File::create(file_path))?;
 
     const CHUNK_SIZE: usize = 2 * 1024 * 1024; // 2MB
     let mut downloaded: u64 = 0;

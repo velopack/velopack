@@ -2,6 +2,7 @@ use crate::Error;
 use rand::distr::{Alphanumeric, SampleString};
 use sha2::Digest;
 use std::fs::File;
+use std::io::{BufReader, Read};
 use std::path::Path;
 use std::thread;
 use std::time::Duration;
@@ -42,20 +43,28 @@ pub fn random_string(len: usize) -> String {
     Alphanumeric.sample_string(&mut rand::rng(), len)
 }
 
-pub fn calculate_file_sha256<P: AsRef<Path>>(file: P) -> Result<String, Error> {
-    let mut file = File::open(file)?;
-    let mut sha256 = sha2::Sha256::new();
-    std::io::copy(&mut file, &mut sha256)?;
-    let hash = sha256.finalize();
-    Ok(format!("{:x}", hash))
-}
+pub fn calculate_sha1_sha256<P: AsRef<Path>>(file: P) -> Result<(String, String), Error> {
+    let file = File::open(file)?;
+    let mut reader = BufReader::new(file);
 
-pub fn calculate_file_sha1<P: AsRef<Path>>(file: P) -> Result<String, Error> {
-    let mut file = File::open(file)?;
-    let mut sha1o = sha1::Sha1::new();
-    std::io::copy(&mut file, &mut sha1o)?;
-    let hash = sha1o.finalize();
-    Ok(format!("{:x}", hash))
+    let mut sha256 = sha2::Sha256::new();
+    let mut sha1 = sha1::Sha1::new();
+
+    let mut buffer = [0u8; 1024 * 1024]; // 1MB buffer
+    loop {
+        let bytes_read = reader.read(&mut buffer)?;
+        if bytes_read == 0 {
+            break;
+        }
+        
+        sha256.update(&buffer[..bytes_read]);
+        sha1.update(&buffer[..bytes_read]);
+    }
+
+    let sha256_hash = format!("{:x}", sha256.finalize());
+    let sha1_hash = format!("{:x}", sha1.finalize());
+
+    Ok((sha1_hash, sha256_hash))
 }
 
 pub fn is_directory_writable<P1: AsRef<Path>>(path: P1) -> bool {

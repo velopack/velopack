@@ -78,44 +78,68 @@
 
 #![warn(missing_docs)]
 
+
+
+macro_rules! maybe_pub {
+    ($($mod:ident),*) => {
+        $(
+            #[cfg(feature = "public-utils")]
+            #[allow(missing_docs)]
+            pub mod $mod;
+
+            #[cfg(not(feature = "public-utils"))]
+            #[allow(unused)]
+            mod $mod;
+        )*
+    };
+}
+
+macro_rules! maybe_pub_os {
+    ($mod:ident, $win_path:expr, $unix_path:expr) => {
+        #[cfg(all(windows, feature = "public-utils"))]
+        #[path = $win_path]
+        #[allow(missing_docs)]
+        pub mod $mod;
+
+        #[cfg(all(windows, not(feature = "public-utils")))]
+        #[path = $win_path]
+        #[allow(unused)]
+        mod $mod;
+
+        #[cfg(all(not(windows), feature = "public-utils"))]
+        #[path = $unix_path]
+        #[allow(missing_docs)]
+        pub mod $mod;
+
+        #[cfg(all(not(windows), not(feature = "public-utils")))]
+        #[path = $unix_path]
+        #[allow(unused)]
+        mod $mod;
+    };
+}
+
+
 mod app;
+pub use app::*;
+
 mod manager;
-mod util;
+pub use manager::*;
 
-/// Utility functions for loading and working with Velopack bundles and manifests.
-pub mod bundle;
-
-/// Utility function for downloading files with progress reporting.
-pub mod download;
-
-/// Constant strings used internally by Velopack.
-pub mod constants;
-
-/// Locator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
+/// Locator provides support for locating the current app important paths (eg. path to packages, update binary, and so forth).
 pub mod locator;
 
-/// Sources contains abstractions for custom update sources (eg. url, local file, github releases, etc).
+/// Sources are abstractions for custom update sources (eg. url, local file, github releases, etc).
 pub mod sources;
 
-/// Functions to patch files and reconstruct Velopack delta packages.
-pub mod delta;
-
-/// Acquire and manage file-system based lock files.
-pub mod lockfile;
-
-/// Logging utilities and setup.
-pub mod logging;
-
-pub use app::*;
-pub use manager::*;
+maybe_pub!(download, bundle, delta, constants, lockfile, logging, misc);
+maybe_pub_os!(process, "process_win.rs", "process_unix.rs");
 
 #[macro_use]
 extern crate log;
 
 #[derive(thiserror::Error, Debug)]
 #[allow(missing_docs, clippy::large_enum_variant)]
-pub enum NetworkError
-{
+pub enum NetworkError {
     #[error("Http error: {0}")]
     Http(#[from] ureq::Error),
     #[error("Url error: {0}")]
@@ -124,8 +148,7 @@ pub enum NetworkError
 
 #[derive(thiserror::Error, Debug)]
 #[allow(missing_docs)]
-pub enum Error
-{
+pub enum Error {
     #[error("File does not exist: {0}")]
     FileNotFound(String),
     #[error("IO error: {0}")]
@@ -148,6 +171,7 @@ pub enum Error
     NotInstalled(String),
     #[error("Generic error: {0}")]
     Generic(String),
+    #[cfg(target_os = "windows")]
     #[error("Win32 error: {0}")]
     Win32(#[from] windows::core::Error),
 }

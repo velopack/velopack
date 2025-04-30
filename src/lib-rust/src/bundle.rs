@@ -15,7 +15,7 @@ use xml::EventReader;
 use xml::reader::XmlEvent;
 use zip::ZipArchive;
 
-use crate::{Error, util};
+use crate::{Error, misc};
 
 #[cfg(target_os = "macos")]
 use std::os::unix::fs::PermissionsExt;
@@ -39,7 +39,7 @@ pub struct BundleZip<'a> {
 pub fn load_bundle_from_file<'a, P: AsRef<Path>>(file_name: P) -> Result<BundleZip<'a>, Error> {
     let file_name = file_name.as_ref();
     debug!("Loading bundle from file '{}'...", file_name.to_string_lossy());
-    let file = util::retry_io(|| File::open(&file_name))?;
+    let file = misc::retry_io(|| File::open(&file_name))?;
     let cursor: Box<dyn ReadSeek> = Box::new(file);
     let zip = ZipArchive::new(cursor)?;
     Ok(BundleZip { 
@@ -69,9 +69,9 @@ impl BundleZip<'_> {
     pub fn copy_bundle_to_file<T: AsRef<Path>>(&self, output_file_path: T) -> Result<(), Error> {
         let nupkg_path = output_file_path.as_ref();
         if self.zip_from_file {
-            util::retry_io(|| fs::copy(self.file_path.clone().unwrap(), nupkg_path))?;
+            misc::retry_io(|| fs::copy(self.file_path.clone().unwrap(), nupkg_path))?;
         } else {
-            util::retry_io(|| fs::write(nupkg_path, self.zip_range.unwrap()))?;
+            misc::retry_io(|| fs::write(nupkg_path, self.zip_range.unwrap()))?;
         }
         Ok(())
     }
@@ -146,12 +146,12 @@ impl BundleZip<'_> {
 
         if !parent.exists() {
             debug!("Creating parent directory: {:?}", parent);
-            util::retry_io(|| fs::create_dir_all(parent))?;
+            misc::retry_io(|| fs::create_dir_all(parent))?;
         }
 
         let mut archive = self.zip.borrow_mut();
         let mut file = archive.by_index(index)?;
-        let mut outfile = util::retry_io(|| File::create(path))?;
+        let mut outfile = misc::retry_io(|| File::create(path))?;
         let mut buffer = [0; 64000]; // Use a 64KB buffer; good balance for large/small files.
 
         debug!("Writing file to disk with 64k buffer: {:?}", path);
@@ -326,9 +326,9 @@ impl BundleZip<'_> {
             let parent = link_path.parent().unwrap();
             if !parent.exists() {
                 debug!("Creating parent directory: {:?}", parent);
-                util::retry_io(|| fs::create_dir_all(parent))?;
+                misc::retry_io(|| fs::create_dir_all(parent))?;
             }
-            util::retry_io(|| Self::create_symlink(&link_path, &contents))?;
+            misc::retry_io(|| Self::create_symlink(&link_path, &contents))?;
         }
 
         Ok(())
