@@ -2,24 +2,13 @@ use crate::shared::{self};
 use velopack::{constants, locator::VelopackLocator};
 
 use crate::windows;
-use anyhow::{bail, Result};
+use anyhow::Result;
 use std::fs::File;
 
 pub fn uninstall(locator: &VelopackLocator, delete_self: bool) -> Result<()> {
     info!("Command: Uninstall");
     
     let root_path = locator.get_root_dir();
-
-    if !windows::is_directory_writable(&root_path) {
-        if windows::process::is_process_elevated() { 
-            bail!("The root directory is not writable & process is already admin.");
-        } else {
-            info!("Re-launching as administrator to uninstall from {:?}", root_path);
-            let args = vec!["uninstall".to_string()];
-            windows::process::relaunch_self_as_admin(args)?;
-            return Ok(());
-        }
-    }
 
     fn _uninstall_impl(locator: &VelopackLocator) -> bool {
         let root_path = locator.get_root_dir();

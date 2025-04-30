@@ -1,7 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
+using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.Versioning;
 using NuGet.Versioning;
 using Velopack.Logging;
@@ -31,9 +30,8 @@ namespace Velopack.Locators
         /// <inheritdoc />
         public override SemanticVersion? CurrentlyInstalledVersion { get; }
 
-        private readonly Lazy<string?> _packagesDir;
         /// <inheritdoc />
-        public override string? PackagesDir => _packagesDir.Value;
+        public override string? PackagesDir => CreateSubDirIfDoesNotExist(RootAppDir, "packages");
 
         /// <inheritdoc />
         public override IVelopackLogger Log { get; }
@@ -56,8 +54,6 @@ namespace Velopack.Locators
             if (!VelopackRuntimeInfo.IsWindows)
                 throw new NotSupportedException($"Cannot instantiate {nameof(WindowsVelopackLocator)} on a non-Windows system.");
 
-            _packagesDir = new(GetPackagesDir);
-
             ProcessId = currentProcessId;
             var ourPath = ProcessExePath = currentProcessPath;
 
@@ -66,7 +62,7 @@ namespace Velopack.Locators
             Log = combinedLog;
 
             using var initLog = new CachedVelopackLogger(combinedLog);
-            initLog.Info($"Initializing {nameof(WindowsVelopackLocator)}");
+            initLog.Info($"Initialising {nameof(WindowsVelopackLocator)}");
 
             // We try various approaches here. Firstly, if Update.exe is in the parent directory,
             // we use that. If it's not present, we search for a parent "current" or "app-{ver}" directory,
@@ -124,90 +120,36 @@ namespace Velopack.Locators
                 }
             }
 
-            if (Path.GetDirectoryName(UpdateExePath) is { } updateExeDirectory &&
-                !PathUtil.IsDirectoryWritable(updateExeDirectory)) {
-                UpdateExePath = Path.Combine(TempAppRootDirectory, "Update.exe");
-            }
-
-            //bool fileLogCreated = false;
-            Exception? fileLogException = null;
+            bool fileLogCreated = false;
             if (!String.IsNullOrEmpty(AppId) && !String.IsNullOrEmpty(RootAppDir)) {
                 try {
                     var logFilePath = Path.Combine(RootAppDir, DefaultLoggingFileName);
                     var fileLog = new FileVelopackLogger(logFilePath, currentProcessId);
                     combinedLog.Add(fileLog);
-                    //fileLogCreated = true;
-                } catch (Exception ex) {
-                    fileLogException = ex;
+                    fileLogCreated = true;
+                } catch (Exception ex2) {
+                    initLog.Error("Unable to create default file logger: " + ex2);
                 }
             }
 
             // if the RootAppDir was unwritable, or we don't know the app id, we could try to write to the temp folder instead.
-            Exception? tempFileLogException = null;
-            if (fileLogException is not null) {
+            if (!fileLogCreated) {
                 try {
                     var logFileName = String.IsNullOrEmpty(AppId) ? DefaultLoggingFileName : $"velopack_{AppId}.log";
                     var logFilePath = Path.Combine(Path.GetTempPath(), logFileName);
                     var fileLog = new FileVelopackLogger(logFilePath, currentProcessId);
                     combinedLog.Add(fileLog);
-                } catch (Exception ex) {
-                    tempFileLogException = ex;
+                } catch (Exception ex2) {
+                    initLog.Error("Unable to create temp folder file logger: " + ex2);
                 }
-            }
-
-            if (tempFileLogException is not null) {
-                //NB: fileLogException is not null here
-                initLog.Error("Unable to create file logger: " + new AggregateException(fileLogException!, tempFileLogException));
-            } else if (fileLogException is not null) {
-                initLog.Info("Unable to create file logger; using temp directory for log instead");
-                initLog.Trace($"File logger exception: {fileLogException}");
             }
 
             if (AppId == null) {
                 initLog.Warn(
-                    $"Failed to initialize {nameof(WindowsVelopackLocator)}. This could be because the program is not installed or packaged properly.");
+                    $"Failed to initialise {nameof(WindowsVelopackLocator)}. This could be because the program is not installed or packaged properly.");
             } else {
-                initLog.Info($"Initialized {nameof(WindowsVelopackLocator)} for {AppId} v{CurrentlyInstalledVersion}");
+                initLog.Info($"Initialised {nameof(WindowsVelopackLocator)} for {AppId} v{CurrentlyInstalledVersion}");
             }
         }
-
-        private string? GetPackagesDir()
-        {
-            const string PackagesDirName = "packages";
-
-            string? writableRootDir = PossibleDirectories()
-                    .FirstOrDefault(IsWritable);
-
-            if (writableRootDir == null) {
-                Log.Warn("Unable to find a writable root directory for package.");
-                return null;
-            }
-
-            Log.Trace("Using writable root directory: " + writableRootDir);
-
-            return CreateSubDirIfDoesNotExist(writableRootDir, PackagesDirName);
-
-            static bool IsWritable(string? directoryPath)
-            {
-                if (directoryPath == null) return false;
-
-                try {
-                    if (!Directory.Exists(directoryPath)) {
-                        Directory.CreateDirectory(directoryPath);
-                    }
-                    return PathUtil.IsDirectoryWritable(directoryPath);
-                } catch {
-                    return false;
-                }
-            }
-
-            IEnumerable<string?> PossibleDirectories()
-            {
-                yield return RootAppDir;
-                yield return TempAppRootDirectory;
-            }
-        }
-
-        private string TempAppRootDirectory => Path.Combine(Path.GetTempPath(), "velopack_" + AppId);
     }
 }

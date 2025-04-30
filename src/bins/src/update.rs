@@ -6,9 +6,9 @@ extern crate log;
 
 use anyhow::{anyhow, bail, Result};
 use clap::{arg, value_parser, ArgMatches, Command};
-use std::{env, path::PathBuf, time::Duration};
+use std::{env, path::PathBuf};
 use velopack::locator::{auto_locate_app_manifest, LocationContext};
-use velopack::{constants, logging::*};
+use velopack::logging::*;
 use velopack_bins::{shared::OperationWait, *};
 
 #[rustfmt::skip]
@@ -22,7 +22,6 @@ fn root_command() -> Command {
         .arg(arg!(-w --wait "Wait for the parent process to terminate before applying the update").hide(true))
         .arg(arg!(--waitPid <PID> "Wait for the specified process to terminate before applying the update").value_parser(value_parser!(u32)))
         .arg(arg!(-p --package <FILE> "Update package to apply").value_parser(value_parser!(PathBuf)))
-        .arg(arg!(-t --installto <DIR> "Installation directory for the application").required(false).value_parser(value_parser!(PathBuf)))
         .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceded by '--'.").required(false).last(true).num_args(0..))
     )
     .subcommand(Command::new("start")
@@ -192,71 +191,23 @@ fn get_exe_args(matches: &ArgMatches) -> Option<Vec<&str>> {
     matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect())
 }
 
-fn get_apply_args(matches: &ArgMatches) -> (OperationWait, bool, Option<&PathBuf>, Option<&PathBuf>, Option<Vec<&str>>) {
+fn get_apply_args(matches: &ArgMatches) -> (OperationWait, bool, Option<&PathBuf>, Option<Vec<&str>>) {
     let restart = !get_flag_or_false(&matches, "norestart");
     let package = matches.get_one::<PathBuf>("package");
-    let install_to = matches.get_one::<PathBuf>("installto");
     let exe_args = get_exe_args(matches);
     let wait = get_op_wait(&matches);
-    (wait, restart, package, install_to, exe_args)
+    (wait, restart, package, exe_args)
 }
 
 fn apply(matches: &ArgMatches) -> Result<()> {
-    let (wait, restart, package, install_to, exe_args) = get_apply_args(matches);
+    let (wait, restart, package, exe_args) = get_apply_args(matches);
     info!("Command: Apply");
     info!("    Restart: {:?}", restart);
     info!("    Wait: {:?}", wait);
     info!("    Package: {:?}", package);
-    info!("    App Location: {:?}", install_to);
     info!("    Exe Args: {:?}", exe_args);
 
-    let locator = match install_to {
-        None => auto_locate_app_manifest(LocationContext::IAmUpdateExe)?,
-        Some(path) => auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(path.to_path_buf()))?,
-    };
-
-    #[cfg(windows)]
-    if !windows::is_directory_writable(locator.get_root_dir()) {
-        if windows::process::is_process_elevated() {
-            bail!("The installation directory {:?} is not writable & process is already admin.", locator.get_root_dir_as_string());
-        } else {
-            let mut args: Vec<String> = Vec::new();
-            if dialogs::get_silent() {
-                args.push("--silent".to_string());
-            }
-            args.push("apply".to_string());
-            args.push("--norestart".to_string());
-
-            if let Some(install_to) = install_to {
-                args.push("--installto".to_string());
-                args.push(install_to.to_string_lossy().to_string());
-            }
-
-            if let Some(package) = package {
-                args.push("--package".to_string());
-                args.push(package.to_string_lossy().to_string());
-            }
-
-            if let OperationWait::WaitPid(pid) = wait {
-                args.push("--waitPid".to_string());
-                args.push(pid.to_string());
-            } else if let OperationWait::WaitParent = wait {
-                args.push("--wait".to_string());
-            }
-
-            let safe_handle = windows::process::relaunch_self_as_admin(args)?;
-            info!("Successfully re-launched as administrator.");
-
-            if restart {
-                info!("Waiting for the application to exit before restarting.");
-                windows::process::wait_process_timeout(safe_handle.handle(), Duration::from_secs(300))?;
-                info!("Restarting the application after the update.");
-                shared::start_package(&locator, exe_args, Some(constants::HOOK_ENV_RESTART))?;
-            }
-
-        }
-        return Ok(());
-    }
+    let locator = auto_locate_app_manifest(LocationContext::IAmUpdateExe)?;
     let _mutex = locator.try_get_exclusive_lock()?;
     let _ = commands::apply(&locator, restart, wait, package, exe_args, true)?;
     Ok(())
@@ -297,7 +248,7 @@ fn uninstall(_matches: &ArgMatches) -> Result<()> {
 fn test_cli_parse_handles_equals_spaces() {
     let command = vec!["C:\\Some Path\\With = Spaces\\Update.exe", "apply", "--package", "C:\\Some Path\\With = Spaces\\Package.zip"];
     let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
-    let (wait, restart, package, _install_to, exe_args) = get_apply_args(matches.subcommand_matches("apply").unwrap());
+    let (wait, restart, package, exe_args) = get_apply_args(matches.subcommand_matches("apply").unwrap());
 
     assert_eq!(wait, OperationWait::NoWait);
     assert_eq!(restart, true);
