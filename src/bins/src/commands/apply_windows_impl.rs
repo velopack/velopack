@@ -1,13 +1,12 @@
 use crate::{
     dialogs,
     shared::{self},
-    // windows::locksmith,
-    windows::splash,
+    windows::{self, splash},
 };
 use anyhow::{bail, Context, Result};
-use std::sync::mpsc;
 use std::{fs, path::PathBuf};
-use velopack::{bundle::load_bundle_from_file, constants, locator::VelopackLocator};
+use std::{sync::mpsc, time::Duration};
+use velopack::{bundle::load_bundle_from_file, constants, locator::VelopackLocator, process};
 
 // fn ropycopy<P1: AsRef<Path>, P2: AsRef<Path>>(source: &P1, dest: &P2) -> Result<()> {
 //     let source = source.as_ref();
@@ -40,11 +39,31 @@ use velopack::{bundle::load_bundle_from_file, constants, locator::VelopackLocato
 // }
 
 pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_hooks: bool) -> Result<VelopackLocator> {
+    let root_path = old_locator.get_root_dir();
+
     let mut bundle = load_bundle_from_file(package)?;
     let new_app_manifest = bundle.read_manifest()?;
     let new_locator = old_locator.clone_self_with_new_manifest(&new_app_manifest);
 
-    let root_path = old_locator.get_root_dir();
+    if !windows::is_directory_writable(&root_path) {
+        if process::is_current_process_elevated() {
+            bail!("The root directory is not writable & process is already admin. The update cannot continue.");
+        } else {
+            info!("Re-launching as administrator to update in {:?}", root_path);
+
+            let package_string = package.to_string_lossy().to_string();
+            let args = vec!["--norestart".to_string(), "--package".to_string(), package_string];
+            let exe_path = std::env::current_exe()?;
+            let work_dir: Option<String> = None; // same as this process
+            let process_handle = process::run_process_as_admin(&exe_path, args, work_dir, false)?;
+
+            info!("Waiting (up to 10 minutes) for elevated process to exit...");
+            let result = process::wait_for_process_to_exit_with_timeout(process_handle, Duration::from_secs(10 * 60))?;
+            info!("Elevated process has exited ({:?}).", result);
+            return Ok(new_locator);
+        }
+    }
+
     let old_version = old_locator.get_manifest_version();
     let new_version = new_locator.get_manifest_version();
 

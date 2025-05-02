@@ -61,8 +61,8 @@ impl LocatorResult {
     }
 }
 
-fn legacy_locator() -> Result<LocatorResult> {
-    let locator = locator::auto_locate_app_manifest(LocationContext::IAmUpdateExe);
+fn legacy_locator(context: LocationContext) -> Result<LocatorResult> {
+    let locator = locator::auto_locate_app_manifest(context);
     match locator {
         Ok(locator) => Ok(LocatorResult::Normal(locator)),
         Err(e) => {
@@ -81,11 +81,12 @@ fn legacy_locator() -> Result<LocatorResult> {
 }
 
 pub fn start_impl(
+    context: LocationContext,
     exe_name: Option<&String>,
     exe_args: Option<Vec<&str>>,
     legacy_args: Option<&String>,
 ) -> Result<()> {
-    let locator = legacy_locator()?;
+    let locator = legacy_locator(context)?;
     let root_dir = locator.get_root_dir();
     let manifest = locator.get_manifest();
     if shared::has_app_prefixed_folder(&root_dir) {

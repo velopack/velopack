@@ -506,12 +506,15 @@ impl UpdateManager {
         if silent {
             args.push("--silent".to_string());
         }
+
         if !restart {
             args.push("--norestart".to_string());
         }
 
-        let restart_args: Vec<String> = restart_args.into_iter().map(|item| item.as_ref().to_string()).collect();
+        args.push("--root".to_string());
+        args.push(self.locator.get_root_dir_as_string());
 
+        let restart_args: Vec<String> = restart_args.into_iter().map(|item| item.as_ref().to_string()).collect();
         if !restart_args.is_empty() {
             args.push("--".to_string());
             for arg in restart_args {

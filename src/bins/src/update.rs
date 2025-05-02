@@ -41,6 +41,7 @@ fn root_command() -> Command {
     )
     .arg(arg!(--verbose "Print debug messages to console / log").global(true))
     .arg(arg!(-s --silent "Don't show any prompts / dialogs").global(true))
+    .arg(arg!(--root <PATH> "Override the default locator root directory").global(true).hide(true).value_parser(value_parser!(PathBuf)))
     .arg(arg!(-l --log <PATH> "Override the default log file location").global(true).value_parser(value_parser!(PathBuf)))
         // Legacy arguments should not be fully removed if it's possible to keep them
         // Reason being is clap.ignore_errors(true) is not 100%, and sometimes old args can trip things up.
@@ -131,9 +132,16 @@ fn main() -> Result<()> {
     let silent = get_flag_or_false(&matches, "silent");
     dialogs::set_silent(silent);
 
+    let root_dir = matches.get_one::<PathBuf>("root");
+    let location_context = if let Some(root) = root_dir {
+        LocationContext::FromSpecifiedRootDir(root.clone())
+    } else {
+        LocationContext::IAmUpdateExe
+    };
+
     let verbose = get_flag_or_false(&matches, "verbose");
     let log_file = matches.get_one("log");
-    let desired_log_file = log_file.cloned().unwrap_or(default_logfile_path(LocationContext::IAmUpdateExe));
+    let desired_log_file = log_file.cloned().unwrap_or(default_logfile_path(&location_context));
     init_logging("update", Some(&desired_log_file), true, verbose, None);
 
     // change working directory to the parent directory of the exe
@@ -148,16 +156,17 @@ fn main() -> Result<()> {
     info!("    Verbose: {}", verbose);
     info!("    Silent: {}", silent);
     info!("    Log File: {:?}", log_file);
+    info!("    Context: {:?}", &location_context);
 
     let (subcommand, subcommand_matches) =
         matches.subcommand().ok_or_else(|| anyhow!("No known subcommand was used. Try `--help` for more information."))?;
 
     let result = match subcommand {
         #[cfg(target_os = "windows")]
-        "uninstall" => uninstall(subcommand_matches).map_err(|e| anyhow!("Uninstall error: {}", e)),
-        "start" => start(subcommand_matches).map_err(|e| anyhow!("Start error: {}", e)),
-        "apply" => apply(subcommand_matches).map_err(|e| anyhow!("Apply error: {}", e)),
-        "patch" => patch(subcommand_matches).map_err(|e| anyhow!("Patch error: {}", e)),
+        "uninstall" => uninstall(location_context, subcommand_matches).map_err(|e| anyhow!("Uninstall error: {}", e)),
+        "start" => start(location_context, subcommand_matches).map_err(|e| anyhow!("Start error: {}", e)),
+        "apply" => apply(location_context, subcommand_matches).map_err(|e| anyhow!("Apply error: {}", e)),
+        "patch" => patch(location_context, subcommand_matches).map_err(|e| anyhow!("Patch error: {}", e)),
         _ => bail!("Unknown subcommand '{subcommand}'. Try `--help` for more information."),
     };
 
@@ -169,7 +178,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn patch(matches: &ArgMatches) -> Result<()> {
+fn patch(_context: LocationContext, matches: &ArgMatches) -> Result<()> {
     let old_file = matches.get_one::<PathBuf>("old");
     let patch_file = matches.get_one::<PathBuf>("patch");
     let output_file = matches.get_one::<PathBuf>("output");
@@ -199,7 +208,7 @@ fn get_apply_args(matches: &ArgMatches) -> (OperationWait, bool, Option<&PathBuf
     (wait, restart, package, exe_args)
 }
 
-fn apply(matches: &ArgMatches) -> Result<()> {
+fn apply(context: LocationContext, matches: &ArgMatches) -> Result<()> {
     let (wait, restart, package, exe_args) = get_apply_args(matches);
     info!("Command: Apply");
     info!("    Restart: {:?}", restart);
@@ -207,7 +216,7 @@ fn apply(matches: &ArgMatches) -> Result<()> {
     info!("    Package: {:?}", package);
     info!("    Exe Args: {:?}", exe_args);
 
-    let locator = auto_locate_app_manifest(LocationContext::IAmUpdateExe)?;
+    let locator = auto_locate_app_manifest(context)?;
     let _mutex = locator.try_get_exclusive_lock()?;
     let _ = commands::apply(&locator, restart, wait, package, exe_args, true)?;
     Ok(())
@@ -221,7 +230,7 @@ fn get_start_args(matches: &ArgMatches) -> (OperationWait, Option<&String>, Opti
     (wait, exe_name, legacy_args, exe_args)
 }
 
-fn start(matches: &ArgMatches) -> Result<()> {
+fn start(context: LocationContext, matches: &ArgMatches) -> Result<()> {
     let (wait, exe_name, legacy_args, exe_args) = get_start_args(matches);
 
     info!("Command: Start");
@@ -233,13 +242,13 @@ fn start(matches: &ArgMatches) -> Result<()> {
         warn!("Legacy args format is deprecated and will be removed in a future release. Please update your application to use the new format.");
     }
 
-    commands::start(wait, exe_name, exe_args, legacy_args)
+    commands::start(wait, context, exe_name, exe_args, legacy_args)
 }
 
 #[cfg(target_os = "windows")]
-fn uninstall(_matches: &ArgMatches) -> Result<()> {
+fn uninstall(context: LocationContext, _matches: &ArgMatches) -> Result<()> {
     info!("Command: Uninstall");
-    let locator = auto_locate_app_manifest(LocationContext::IAmUpdateExe)?;
+    let locator = auto_locate_app_manifest(context)?;
     commands::uninstall(&locator, true)
 }
 
@@ -254,6 +263,15 @@ fn test_cli_parse_handles_equals_spaces() {
     assert_eq!(restart, true);
     assert_eq!(package, Some(&PathBuf::from("C:\\Some Path\\With = Spaces\\Package.zip")));
     assert_eq!(exe_args, None);
+}
+
+#[cfg(target_os = "windows")]
+#[test]
+fn test_cli_handles_root_at_end() {
+    let command = vec!["C:\\Some Path\\With = Spaces\\Update.exe", "apply", "--package", "C:\\Package.zip", "--root", "C:\\Some Path"];
+    let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
+    let root = matches.get_one::<PathBuf>("root");
+    assert_eq!(root, Some(&PathBuf::from("C:\\Some Path")));
 }
 
 #[cfg(target_os = "windows")]

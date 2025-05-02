@@ -2,9 +2,8 @@ use crate::windows::strings;
 use ::windows::{
     core::PWSTR,
     Win32::{
-        Foundation::CloseHandle,
         System::ProcessStatus::EnumProcesses,
-        System::Threading::{OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION},
+        System::Threading::{QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_TERMINATE},
     },
 };
 use anyhow::{bail, Result};
@@ -33,27 +32,26 @@ fn get_pids() -> Result<Vec<u32>> {
     Ok(pids.iter().map(|x| *x as u32).collect())
 }
 
-unsafe fn get_processes_running_in_directory<P: AsRef<Path>>(dir: P) -> Result<HashMap<u32, PathBuf>> {
+unsafe fn get_processes_running_in_directory<P: AsRef<Path>>(dir: P) -> Result<Vec<(u32, PathBuf, process::SafeProcessHandle)>> {
     let dir = dir.as_ref();
-    let mut oup = HashMap::new();
+    let mut oup = Vec::new();
 
     let mut full_path_vec = vec![0; i16::MAX as usize];
     let full_path_ptr = PWSTR(full_path_vec.as_mut_ptr());
 
     for pid in get_pids()? {
-        let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+        let process = process::open_process(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE, false, pid);
         if process.is_err() {
             continue;
         }
 
         let process = process.unwrap();
-        if process.is_invalid() {
+        if process.handle().is_invalid() {
             continue;
         }
 
         let mut full_path_len = full_path_vec.len() as u32;
-        if QueryFullProcessImageNameW(process, PROCESS_NAME_WIN32, full_path_ptr, &mut full_path_len).is_err() {
-            let _ = CloseHandle(process);
+        if QueryFullProcessImageNameW(process.handle(), PROCESS_NAME_WIN32, full_path_ptr, &mut full_path_len).is_err() {
             continue;
         }
 
@@ -65,7 +63,7 @@ unsafe fn get_processes_running_in_directory<P: AsRef<Path>>(dir: P) -> Result<H
         let full_path = PathBuf::from(full_path.unwrap());
         if let Ok(is_subpath) = crate::windows::is_sub_path(&full_path, dir) {
             if is_subpath {
-                oup.insert(pid, full_path);
+                oup.push((pid, full_path, process));
             }
         }
     }
@@ -84,13 +82,13 @@ fn _force_stop_package<P: AsRef<Path>>(root_dir: P) -> Result<()> {
     info!("Checking for running processes in: {}", dir.display());
     let processes = unsafe { get_processes_running_in_directory(dir)? };
     let my_pid = std::process::id();
-    for (pid, exe) in processes.iter() {
+    for (pid, path, handle) in processes.iter() {
         if *pid == my_pid {
-            warn!("Skipping killing self: {} ({})", exe.display(), pid);
+            warn!("Skipping killing self: {} ({})", path.display(), pid);
             continue;
         }
-        warn!("Killing process: {} ({})", exe.display(), pid);
-        process::kill_pid(*pid)?;
+        warn!("Killing process: {} ({})", path.display(), pid);
+        process::kill_process(handle)?;
     }
     Ok(())
 }
@@ -195,7 +193,7 @@ fn test_get_running_processes_finds_cargo() {
     assert!(processes.len() > 0);
 
     let mut found = false;
-    for (_pid, exe) in processes.iter() {
+    for (_pid, exe, _handle) in processes.iter() {
         if exe.ends_with("cargo.exe") {
             found = true;
         }

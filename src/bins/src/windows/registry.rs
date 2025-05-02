@@ -16,7 +16,7 @@ pub fn write_uninstall_entry(locator: &VelopackLocator) -> Result<()> {
     let main_exe_path = locator.get_main_exe_path_as_string();
     let updater_path = locator.get_update_path_as_string();
 
-    let folder_size = fs_extra::dir::get_size(locator.get_root_dir()).unwrap_or(0);
+    let folder_size = fs_extra::dir::get_size(locator.get_current_bin_dir()).unwrap_or(0);
     let short_version = locator.get_manifest_version_short_string();
 
     let now = DateTime::now();

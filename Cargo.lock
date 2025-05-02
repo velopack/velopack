@@ -2230,6 +2230,7 @@ dependencies = [
  "ureq",
  "url",
  "uuid",
+ "waitpid-any",
  "windows",
  "xml",
  "zip",

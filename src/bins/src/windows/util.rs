@@ -19,7 +19,7 @@ pub fn run_hook(locator: &VelopackLocator, hook_name: &str, timeout_secs: u64) -
     let sw = simple_stopwatch::Stopwatch::start_new();
     let root_dir = locator.get_root_dir();
     let current_path = locator.get_current_bin_dir();
-    let main_exe_path = locator.get_main_exe_path_as_string();
+    let main_exe_path = locator.get_main_exe_path();
     let ver_string = locator.get_manifest_version_full_string();
     let args = vec![hook_name, &ver_string];
     let mut success = false;
@@ -40,7 +40,7 @@ pub fn run_hook(locator: &VelopackLocator, hook_name: &str, timeout_secs: u64) -
 
     let cmd = cmd.unwrap();
 
-    match process::wait_for_process_to_exit_with_timeout(cmd.handle(), Duration::from_secs(timeout_secs)) {
+    match process::wait_for_process_to_exit_with_timeout(&cmd, Duration::from_secs(timeout_secs)) {
         Ok(WaitResult::NoWaitRequired) => {
             warn!("Was unable to wait for hook (it may have exited too quickly).");
         }
@@ -53,7 +53,7 @@ pub fn run_hook(locator: &VelopackLocator, hook_name: &str, timeout_secs: u64) -
             }
         }
         Ok(WaitResult::WaitTimeout) => {
-            let _ = process::kill_process(cmd.handle());
+            let _ = process::kill_process(&cmd);
             error!("Process timed out after {}s and was killed.", timeout_secs);
         }
         Err(e) => {
