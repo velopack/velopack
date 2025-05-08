@@ -650,6 +650,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                     <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLFOLDER" Value="[{{(packageAs64Bit ? "ProgramFiles64Folder" : "ProgramFilesFolder")}}][ApplicationFolderName]" Order="5" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" /> 
                     <Publish Dialog="InstallScopeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="6" />
                     <Publish Dialog="InstallScopeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="7" />
+                    <Publish Dialog="InstallScopeDlg" Control="Next" Event="DoAction" Value="FindRelatedProducts" Order="8" />
                     """,
                       InstallLocation.PerUser => """
                     <Publish Dialog="WelcomeDlg" Control="Next" Property="ALLUSERS" Value="{}" Order="1" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
