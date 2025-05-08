@@ -71,7 +71,7 @@ public static class HelperFile
     public static string WixPath => FindHelperFile($"wix\\{WixVersion}\\wix.exe");
 
     [SupportedOSPlatform("windows")]
-    public const string WixVersion = "5.0.2";
+    public const string WixVersion = "6.0.0";
 
     [SupportedOSPlatform("windows")]
     public static string WixAssetsTopBanner => FindHelperFile("wix\\assets\\top-banner.bmp");
