@@ -102,8 +102,7 @@ public abstract class PackCommand : PlatformCommand
 
         ExcludeOption = AddOption<string>((v) => Exclude = v, "--exclude")
             .SetDescription("A regex which excludes matched files from the package.")
-            .SetArgumentHelpName("REGEX")
-            .SetDefault(@".*\.pdb");
+            .SetArgumentHelpName("REGEX");
 
         NoPortableOption = AddOption<bool>((v) => NoPortable = v, "--noPortable")
             .SetDescription("Skip generating a portable bundle.")

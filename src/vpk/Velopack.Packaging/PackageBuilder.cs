@@ -1,8 +1,13 @@
-﻿using System.Security;
+﻿using System.IO;
+using System.Security;
 using System.Text.RegularExpressions;
+
 using Markdig;
+
 using Microsoft.Extensions.Logging;
+
 using NuGet.Versioning;
+
 using Velopack.Compression;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
@@ -29,7 +34,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
     protected Dictionary<string, string> ExtraNuspecMetadata { get; } = new();
 
-    private readonly Regex REGEX_EXCLUDES = new(@".*[\\\/]createdump.*|.*\.vshost\..*|.*\.nupkg$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private readonly Regex REGEX_EXCLUDES = new(@".*[\\\/]createdump.*|.*\.vshost\..*|.*\.nupkg$|.*\.pdb", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public PackageBuilder(RuntimeOs supportedOs, ILogger logger, IFancyConsole console)
     {
@@ -325,9 +330,16 @@ public abstract class PackageBuilder<T> : ICommand<T>
                     var path = Path.Combine(target.FullName, fileInfo.Name);
                     currentFile++;
                     progress((int) ((double) currentFile / numFiles * 100));
-                    if (excludeAnnoyances && (REGEX_EXCLUDES.IsMatch(path) || manualExclude?.IsMatch(path) == true)) {
-                        Log.Debug("Skipping because matched exclude pattern: " + path);
-                        continue;
+                    if (excludeAnnoyances) {
+                        if (manualExclude != null) {
+                            if (manualExclude.IsMatch(path)) {
+                                Log.Debug("Skipping because matched exclude pattern: " + path);
+                                continue;
+                            }
+                        } else if (REGEX_EXCLUDES.IsMatch(path)) {
+                            Log.Debug("Skipping because matched exclude pattern: " + path);
+                            continue;
+                        }
                     }
 
                     fileInfo.CopyTo(path, true);
@@ -349,7 +361,12 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
             if (excludeAnnoyances) {
                 foreach (var f in target.EnumerateFiles("*", SearchOption.AllDirectories)) {
-                    if (excludeAnnoyances && (REGEX_EXCLUDES.IsMatch(f.FullName) || manualExclude?.IsMatch(f.FullName) == true)) {
+                    if (manualExclude != null) {
+                        if (manualExclude.IsMatch(f.FullName)) {
+                            Log.Debug("Deleting because matched exclude pattern: " + f.FullName);
+                            f.Delete();
+                        }
+                    } else if (REGEX_EXCLUDES.IsMatch(f.FullName)) {
                         Log.Debug("Deleting because matched exclude pattern: " + f.FullName);
                         f.Delete();
                     }
