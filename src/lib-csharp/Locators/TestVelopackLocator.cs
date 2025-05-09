@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using NuGet.Versioning;
 using Velopack.Logging;
@@ -13,7 +14,7 @@ namespace Velopack.Locators
     /// having an installed application. This could be used in a CI/CD pipeline, or unit tests etc.
     /// </summary>
     [ExcludeFromCodeCoverage]
-    public class TestVelopackLocator : VelopackLocator
+    public class TestVelopackLocator : VelopackLocator, IProcessImpl
     {
         public override string? AppId {
             get {
@@ -83,6 +84,8 @@ namespace Velopack.Locators
 
         public override IVelopackLogger Log { get; }
 
+        public override IProcessImpl Process => this;
+
         public override VelopackAsset? GetLatestLocalFullPackage()
         {
             if (_asset != null) {
@@ -92,10 +95,6 @@ namespace Velopack.Locators
             return base.GetLatestLocalFullPackage();
         }
 
-        public override uint ProcessId => 0;
-        
-        public override string ProcessExePath { get; }
-
         private readonly string? _updatePath;
         private readonly SemanticVersion? _version;
         private readonly string? _packages;
@@ -104,6 +103,7 @@ namespace Velopack.Locators
         private readonly string? _appContent;
         private readonly string? _channel;
         private readonly VelopackAsset? _asset;
+        private readonly string? _processPath;
 
         /// <inheritdoc cref="TestVelopackLocator" />
         public TestVelopackLocator(string appId, string version, string packagesDir, IVelopackLogger? logger = null)
@@ -113,7 +113,8 @@ namespace Velopack.Locators
 
         /// <inheritdoc cref="TestVelopackLocator" />
         public TestVelopackLocator(string appId, string version, string packagesDir, string? appDir,
-            string? rootDir, string? updateExe, string? channel = null, IVelopackLogger? logger = null, VelopackAsset? localPackage = null, string processPath = null!)
+            string? rootDir, string? updateExe, string? channel = null, IVelopackLogger? logger = null, VelopackAsset? localPackage = null,
+            string processPath = null!)
         {
             _id = appId;
             _packages = packagesDir;
@@ -123,8 +124,23 @@ namespace Velopack.Locators
             _appContent = appDir;
             _channel = channel;
             _asset = localPackage;
-            ProcessExePath = processPath;
+            _processPath = processPath;
             Log = logger ?? new NullVelopackLogger();
+        }
+
+        public string GetCurrentProcessPath()
+        {
+            return _processPath ?? throw new NotSupportedException("GetCurrentProcessPath is not supported in this test implementation.");
+        }
+
+        public uint GetCurrentProcessId()
+        {
+            return 0; // Not implemented in this test mock
+        }
+
+        public void StartProcess(string exePath, IEnumerable<string> args, string workDir, bool showWindow)
+        {
+            new DefaultProcessImpl(Log).StartProcess(exePath, args, workDir, showWindow);
         }
     }
 }

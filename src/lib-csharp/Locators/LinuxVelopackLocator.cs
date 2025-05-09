@@ -25,6 +25,9 @@ namespace Velopack.Locators
         public override string? UpdateExePath { get; }
 
         /// <inheritdoc />
+        public override IProcessImpl Process { get; }
+
+        /// <inheritdoc />
         public override SemanticVersion? CurrentlyInstalledVersion { get; }
 
         /// <inheritdoc />
@@ -51,27 +54,22 @@ namespace Velopack.Locators
         /// <summary> File path of the .AppImage which mounted and ran this application. </summary>
         public string? AppImagePath => Environment.GetEnvironmentVariable("APPIMAGE");
 
-        /// <inheritdoc />
-        public override uint ProcessId { get; }
-
-        /// <inheritdoc />
-        public override string ProcessExePath { get; }
-
         /// <summary>
         /// Creates a new <see cref="OsxVelopackLocator"/> and auto-detects the
         /// app information from metadata embedded in the .app.
         /// </summary>
-        public LinuxVelopackLocator(string currentProcessPath, uint currentProcessId, IVelopackLogger? customLog)
+        public LinuxVelopackLocator(IProcessImpl? processImpl, IVelopackLogger? customLog)
         {
             if (!VelopackRuntimeInfo.IsLinux)
                 throw new NotSupportedException($"Cannot instantiate {nameof(LinuxVelopackLocator)} on a non-linux system.");
 
-            ProcessId = currentProcessId;
-            var ourPath = ProcessExePath = currentProcessPath;
-
             var combinedLog = new CombinedVelopackLogger();
             combinedLog.Add(customLog);
             Log = combinedLog;
+
+            Process = processImpl ??= new DefaultProcessImpl(combinedLog);
+            var ourPath = processImpl.GetCurrentProcessPath();
+            var currentProcessId = processImpl.GetCurrentProcessId();
 
             using var initLog = new CachedVelopackLogger(combinedLog);
             initLog.Info($"Initializing {nameof(LinuxVelopackLocator)}");

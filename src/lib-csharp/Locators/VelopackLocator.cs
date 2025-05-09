@@ -40,21 +40,16 @@ namespace Velopack.Locators
         }
 
         /// <summary> Create a new default locator based on the current operating system. </summary>
-        public static IVelopackLocator CreateDefaultForPlatform(IVelopackLogger? logger = null)
+        public static IVelopackLocator CreateDefaultForPlatform(IProcessImpl? processImpl = null, IVelopackLogger? logger = null)
         {
-            var process = Process.GetCurrentProcess();
-            var processExePath = process.MainModule?.FileName
-                                 ?? throw new InvalidOperationException($"Could not determine process path, please construct {nameof(IVelopackLocator)} manually.");
-            var processId = (uint) process.Id;
-
             if (VelopackRuntimeInfo.IsWindows)
-                return _current = new WindowsVelopackLocator(processExePath, processId, logger);
+                return _current = new WindowsVelopackLocator(processImpl, logger);
 
             if (VelopackRuntimeInfo.IsOSX)
-                return _current = new OsxVelopackLocator(processExePath, processId, logger);
+                return _current = new OsxVelopackLocator(processImpl, logger);
 
             if (VelopackRuntimeInfo.IsLinux)
-                return _current = new LinuxVelopackLocator(processExePath, processId, logger);
+                return _current = new LinuxVelopackLocator(processImpl, logger);
 
             throw new PlatformNotSupportedException($"OS platform '{VelopackRuntimeInfo.SystemOs.GetOsLongName()}' is not supported.");
         }
@@ -64,9 +59,9 @@ namespace Velopack.Locators
             _current = locator;
         }
 
-        internal static IVelopackLocator GetCurrentOrCreateDefault(IVelopackLogger? logger = null)
+        internal static IVelopackLocator GetCurrentOrCreateDefault(IProcessImpl? processImpl = null, IVelopackLogger? logger = null)
         {
-            _current ??= CreateDefaultForPlatform(logger);
+            _current ??= CreateDefaultForPlatform(processImpl, logger);
             return _current;
         }
 
@@ -95,19 +90,16 @@ namespace Velopack.Locators
         public abstract IVelopackLogger Log { get; }
 
         /// <inheritdoc/>
-        public abstract uint ProcessId { get; }
-
-        /// <inheritdoc/>
-        public abstract string ProcessExePath { get; }
-
-        /// <inheritdoc/>
         public virtual bool IsPortable => false;
+
+        /// <inheritdoc/>
+        public abstract IProcessImpl Process { get; }
 
         /// <inheritdoc/>
         public virtual string? ThisExeRelativePath {
             get {
                 if (AppContentDir == null) return null;
-                var path = ProcessExePath;
+                var path = Process.GetCurrentProcessPath();
                 if (path.StartsWith(AppContentDir, StringComparison.OrdinalIgnoreCase)) {
                     return path.Substring(AppContentDir.Length + 1);
                 } else {

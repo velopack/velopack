@@ -52,17 +52,11 @@ namespace Velopack.Locators
         bool IsPortable { get; }
         
         /// <summary>
-        /// The process for which the Velopack Locator has been constructed. This should usually be the current process path.
+        /// Provides an abstraction for dealing with the dotnet Process API. This is used to start processes and
+        /// get information about the current process.
         /// </summary>
-        string ProcessExePath { get; }
+        IProcessImpl Process { get; }
         
-        /// <summary>
-        /// The process ID for which the Velopack Locator has been constructed. This should usually be the current process ID.
-        /// Setting this to zero will disable some features of Velopack (like the ability to wait for the process to exit
-        /// before installing updates).
-        /// </summary>
-        uint ProcessId { get; }
-
         /// <summary>
         /// Finds .nupkg files in the PackagesDir and returns a list of ReleaseEntryName objects.
         /// </summary>

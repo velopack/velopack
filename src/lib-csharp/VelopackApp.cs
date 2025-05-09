@@ -172,7 +172,7 @@ namespace Velopack
                 VelopackLocator.SetCurrentLocator(_customLocator);
             }
 
-            var locator = VelopackLocator.GetCurrentOrCreateDefault(_customLogger);
+            var locator = VelopackLocator.GetCurrentOrCreateDefault(null, _customLogger);
             var log = locator.Log;
 
             log.Info($"Starting VelopackApp.Run (library version {VelopackRuntimeInfo.VelopackNugetVersion}).");
@@ -231,7 +231,7 @@ namespace Velopack
                 log.Info($"Launching app is out-dated. Current: {myVersion}, Newest Local Available: {latestLocal.Version}");
                 if (!restarted && _autoApply) {
                     log.Info("Auto apply is true, so restarting to apply update...");
-                    UpdateExe.Apply(locator, latestLocal, false, locator.ProcessId, true, args);
+                    UpdateExe.Apply(locator, latestLocal, false, locator.Process.GetCurrentProcessId(), true, args);
                     Exit(0);
                 } else {
                     log.Info("Pre-condition failed, we will not restart to apply updates. (restarted: " + restarted + ", autoApply: " + _autoApply + ")");

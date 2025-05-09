@@ -44,13 +44,8 @@ namespace Velopack
         /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
         public void WaitExitThenApplyUpdates(VelopackAsset? toApply, bool silent = false, bool restart = true, string[]? restartArgs = null)
         {
-            UpdateExe.Apply(Locator, toApply, silent, Locator.ProcessId, restart, restartArgs);
+            UpdateExe.Apply(Locator, toApply, silent, Locator.Process.GetCurrentProcessId(), restart, restartArgs);
         }
-        
-        /// <inheritdoc cref="WaitExitThenApplyUpdates"/>
-        public async Task WaitExitThenApplyUpdatesAsync(VelopackAsset? toApply, bool silent = false, bool restart = true, string[]? restartArgs = null)
-        {
-            await UpdateExe.ApplyAsync(Locator, toApply, silent, Locator.ProcessId, restart, restartArgs).ConfigureAwait(false);
-        }
+      
     }
 }
