@@ -253,7 +253,7 @@ public class WindowsPackTests
         Assert.False(File.Exists(appPath));
 
         using var key2 = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)
-                   .OpenSubKey(uninstallRegSubKey + "\\" + id, RegistryKeyPermissionCheck.ReadSubTree);
+            .OpenSubKey(uninstallRegSubKey + "\\" + id, RegistryKeyPermissionCheck.ReadSubTree);
         Assert.Null(key2);
     }
 
@@ -510,10 +510,72 @@ public class WindowsPackTests
 
     [SkippableTheory]
     [InlineData("LegacyTestApp-ClowdV2-Setup.exe", "app-1.0.0")]
+    [InlineData("LegacyTestApp-SquirrelWinV2-Setup.exe", "app-1.0.0")]
+    public void LegacyAppCanMigrateUsingCli(string fixture, string origDirName)
+    {
+        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
+
+        var rootDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LegacyTestApp");
+        if (Directory.Exists(rootDir)) {
+            IoUtil.Retry(() => IoUtil.DeleteFileOrDirectoryHard(rootDir), 10, 1000);
+        }
+
+        var setup = PathHelper.GetFixture(fixture);
+        var p = Process.Start(setup);
+        p!.WaitForExit();
+
+        var currentDir = Path.Combine(rootDir, origDirName);
+        var appExe = Path.Combine(currentDir, "LegacyTestApp.exe");
+        var stubExe = Path.Combine(rootDir, "LegacyTestApp.exe");
+        var updateExe = Path.Combine(rootDir, "Update.exe");
+
+        var assertAppExe = appExe;
+        IoUtil.Retry(
+            () => {
+                Assert.True(File.Exists(assertAppExe));
+                Assert.True(File.Exists(updateExe));
+            },
+            retries: 10,
+            retryDelay: 1000);
+
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+        PackTestApp("LegacyTestApp", "2.0.0", "hello!", releaseDir, logger, assemblyNameOverride: "LegacyTestApp");
+
+        RunNoCoverage(updateExe, ["--update", releaseDir], currentDir, logger, exitCode: 0);
+        Thread.Sleep(2000); // update.exe does a self update after
+        
+        RunNoCoverage(stubExe, [], currentDir, logger, exitCode: 0);
+        Thread.Sleep(8000); // update.exe will do migration here
+        
+        string logContents = ReadFileWithRetry(Path.Combine(rootDir, "Velopack.log"), logger);
+        logger.Info("Velopack.log:" + Environment.NewLine + logContents);
+
+        if (origDirName != "current") {
+            Assert.False(Directory.Exists(currentDir));
+            currentDir = Path.Combine(rootDir, "current");
+        }
+
+        Assert.True(Directory.Exists(currentDir));
+        appExe = Path.Combine(currentDir, "LegacyTestApp.exe");
+        Assert.True(File.Exists(appExe));
+
+        Assert.False(Directory.EnumerateDirectories(rootDir, "app-*").Any());
+        Assert.False(Directory.Exists(Path.Combine(rootDir, "staging")));
+
+        // this is the file written by TestApp when it's detected the squirrel restart. if this is here, everything went smoothly.
+        Assert.True(File.Exists(Path.Combine(rootDir, "restarted")));
+
+        var chk3version = RunNoCoverage(appExe, ["version"], currentDir, logger);
+        Assert.EndsWith(Environment.NewLine + "2.0.0", chk3version);
+    }
+
+    [SkippableTheory]
+    [InlineData("LegacyTestApp-ClowdV2-Setup.exe", "app-1.0.0")]
     [InlineData("LegacyTestApp-ClowdV3-Setup.exe", "current")]
     [InlineData("LegacyTestApp-SquirrelWinV2-Setup.exe", "app-1.0.0")]
     [InlineData("LegacyTestApp-Velopack0084-Setup.exe", "current")]
-    public void LegacyAppCanSuccessfullyMigrate(string fixture, string origDirName)
+    public void LegacyAppCanMigrate(string fixture, string origDirName)
     {
         Skip.IfNot(VelopackRuntimeInfo.IsWindows);
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
@@ -807,7 +869,8 @@ public class WindowsPackTests
         return RunImpl(psi, logger, exitCode);
     }
 
-    private static void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger, bool addNewFile = false)
+    private static void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger, 
+        bool addNewFile = false, string assemblyNameOverride = null)
     {
         var projDir = PathHelper.GetTestRootPath("TestApp");
         var testStringFile = Path.Combine(projDir, "Const.cs");
@@ -815,7 +878,10 @@ public class WindowsPackTests
 
         try {
             File.WriteAllText(testStringFile, $"class Const {{ public const string TEST_STRING = \"{testString}\"; }}");
-            var args = new string[] { "publish", "--no-self-contained", "-c", "Release", "-r", "win-x64", "-o", "publish" };
+            var args = new string[] {
+                "publish", "--no-self-contained", "-c", "Release", "-r", "win-x64", "-o", "publish",
+                $"-p:PublishSingleFile=true", "--tl:off"
+            };
 
             var psi = new ProcessStartInfo("dotnet");
             psi.WorkingDirectory = projDir;
@@ -839,10 +905,20 @@ public class WindowsPackTests
                 }
             }
 
+            var publishDir = Path.Combine(projDir, "publish");
+
+            if (assemblyNameOverride != null) {
+                var targetExe = Path.Combine(publishDir, assemblyNameOverride + ".exe");
+                if (File.Exists(targetExe)) {
+                    File.Delete(targetExe);
+                }
+                File.Move(Path.Combine(publishDir, "TestApp.exe"), targetExe);
+            }
+
             //RunNoCoverage("dotnet", args, projDir, logger);
 
             var options = new WindowsPackOptions {
-                EntryExecutableName = "TestApp.exe",
+                EntryExecutableName = assemblyNameOverride + ".exe",
                 ReleaseDir = new DirectoryInfo(releaseDir),
                 PackId = id,
                 PackVersion = version,
