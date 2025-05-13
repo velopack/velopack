@@ -65,10 +65,10 @@ enum-flags.workspace = true
 log-panics.workspace = true
 zstd.workspace = true
 zip.workspace = true
-zip-extensions.workspace = true
 walkdir.workspace = true
 sha1_smol.workspace = true
-substring.workspace = true
+mtzip.workspace = true
+ripunzip.workspace = true
 
 [target.'cfg(target_os="linux")'.dependencies]
 waitpid-any.workspace = true
