@@ -63,6 +63,12 @@ wait-timeout.workspace = true
 pretty-bytes-rust.workspace = true
 enum-flags.workspace = true
 log-panics.workspace = true
+zstd.workspace = true
+zip.workspace = true
+zip-extensions.workspace = true
+walkdir.workspace = true
+sha1_smol.workspace = true
+substring.workspace = true
 
 [target.'cfg(target_os="linux")'.dependencies]
 waitpid-any.workspace = true
@@ -101,6 +107,7 @@ windows = { workspace = true, features = [
     "Win32_UI_Shell_Common",
     "Win32_UI_Shell_PropertiesSystem",
     "Win32_UI_WindowsAndMessaging",
+    "Win32_System_ApplicationInstallationAndServicing",
     "Win32_System_Kernel",
     "Wdk",
     "Wdk_System",
@@ -116,7 +123,6 @@ same-file.workspace = true
 tempfile.workspace = true
 ntest.workspace = true
 pretty_assertions.workspace = true
-sha1_smol.workspace = true
 
 [build-dependencies]
 semver.workspace = true
