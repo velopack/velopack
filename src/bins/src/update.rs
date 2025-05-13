@@ -5,7 +5,7 @@
 extern crate log;
 
 use anyhow::{anyhow, bail, Result};
-use clap::{arg, value_parser, ArgMatches, Command};
+use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 use std::{env, path::PathBuf};
 use velopack::locator::{auto_locate_app_manifest, LocationContext};
 use velopack::logging::*;
@@ -34,9 +34,9 @@ fn root_command() -> Command {
         .long_flag_aliases(vec!["processStart", "processStartAndWait"])
     )
     .subcommand(Command::new("patch")
-        .about("Applies a Zstd patch file")
+        .about("Applies a series of delta bundles to a base file")
         .arg(arg!(--old <FILE> "Base / old file to apply the patch to").required(true).value_parser(value_parser!(PathBuf)))
-        .arg(arg!(--patch <FILE> "The Zstd patch to apply to the old file").required(true).value_parser(value_parser!(PathBuf)))
+        .arg(arg!(--delta <FILE> "The delta bundle to apply to the base package").required(true).action(ArgAction::Append).value_parser(value_parser!(PathBuf)))
         .arg(arg!(--output <FILE> "The file to create with the patch applied").required(true).value_parser(value_parser!(PathBuf)))
     )
     .arg(arg!(--verbose "Print debug messages to console / log").global(true))
@@ -180,19 +180,34 @@ fn main() -> Result<()> {
 
 fn patch(matches: &ArgMatches) -> Result<()> {
     let old_file = matches.get_one::<PathBuf>("old");
-    let patch_file = matches.get_one::<PathBuf>("patch");
+    let deltas: Vec<&PathBuf> = matches.get_many::<PathBuf>("delta").unwrap_or_default().collect();
     let output_file = matches.get_one::<PathBuf>("output");
 
     info!("Command: Patch");
     info!("    Old File: {:?}", old_file);
-    info!("    Patch File: {:?}", patch_file);
+    info!("    Delta Files: {:?}", deltas);
     info!("    Output File: {:?}", output_file);
 
-    if old_file.is_none() || patch_file.is_none() || output_file.is_none() {
-        bail!("Missing required arguments. Please provide --old, --patch, and --output.");
+    if old_file.is_none() || deltas.is_empty() || output_file.is_none() {
+        bail!("Missing required arguments. Please provide --old, --delta, and --output.");
     }
 
-    velopack::delta::zstd_patch_single(old_file.unwrap(), patch_file.unwrap(), output_file.unwrap())?;
+    let temp_dir = match auto_locate_app_manifest(LocationContext::IAmUpdateExe) {
+        Ok(locator) => locator.get_temp_dir_rand16(),
+        Err(_) => {
+            let mut temp_dir = std::env::temp_dir();
+            let rand = shared::random_string(16);
+            temp_dir.push("velopack_".to_owned() + &rand);
+            temp_dir
+        }
+    };
+
+    let result = commands::delta(old_file.unwrap(), deltas, &temp_dir, output_file.unwrap());
+    let _ = remove_dir_all::remove_dir_all(temp_dir);
+
+    if let Err(e) = result {
+        bail!("Delta error: {}", e);
+    }
     Ok(())
 }
 

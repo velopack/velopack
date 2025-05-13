@@ -4,6 +4,9 @@ pub use apply::*;
 mod start;
 pub use start::*;
 
+mod patch;
+pub use patch::*;
+
 #[cfg(target_os = "linux")]
 mod apply_linux_impl;
 #[cfg(target_os = "macos")]

@@ -97,9 +97,6 @@ pub mod locator;
 /// Sources contains abstractions for custom update sources (eg. url, local file, github releases, etc).
 pub mod sources;
 
-/// Functions to patch files and reconstruct Velopack delta packages.
-pub mod delta;
-
 /// Acquire and manage file-system based lock files.
 pub mod lockfile;
 
