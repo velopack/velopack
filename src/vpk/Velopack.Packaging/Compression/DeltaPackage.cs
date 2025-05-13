@@ -1,6 +1,7 @@
 ﻿#nullable enable
 using System.Text;
 using System.Text.RegularExpressions;
+using Velopack.Core;
 using Velopack.Exceptions;
 using Velopack.Logging;
 using Velopack.Util;

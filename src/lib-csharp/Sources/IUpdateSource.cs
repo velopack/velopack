@@ -27,7 +27,7 @@ namespace Velopack.Sources
         ///     metadata from this package may be provided to the remote server (such as package id,
         ///     or cpu architecture) to ensure that the correct package is downloaded for this user.
         /// </param>
-        /// <returns>An array of <see cref="ReleaseEntry"/> objects that are available for download
+        /// <returns>An array of <see cref="VelopackAsset"/> objects that are available for download
         /// and are applicable to this user.</returns>
         Task<VelopackAssetFeed> GetReleaseFeed(IVelopackLogger logger, string? appId, string channel, Guid? stagingId = null, VelopackAsset? latestLocalRelease = null);
 
