@@ -169,7 +169,6 @@ namespace Velopack
             }
 
             EnsureInstalled();
-            var installedVer = CurrentVersion!;
 
             var matchingRemoteDelta = feed.Where(r => r.Type == VelopackAssetType.Delta && r.Version == latestRemoteFull.Version).FirstOrDefault();
             if (matchingRemoteDelta == null) {
@@ -328,7 +327,7 @@ namespace Velopack
                 async x => {
                     var targetFile = Locator.GetLocalPackagePath(x);
                     double component = 0;
-                    Log.Debug($"Downloading delta version {x.Version}");
+                    Log.Info($"Downloading delta {x.Version}");
                     await Source.DownloadReleaseEntry(
                         Log,
                         x,
@@ -347,7 +346,8 @@ namespace Velopack
                     Log.Debug($"Download complete for delta version {x.Version}");
                 }).ConfigureAwait(false);
 
-            Log.Info("All delta packages downloaded and verified, applying them to the base now.");
+            Log.Info("All delta packages downloaded and verified.");
+            Log.Info($"Applying {releasesToDownload.Length} patches to {updates.BaseRelease?.FileName}.");
 
             // applying deltas accounts for 70%-100% of progress
             var baseFile = Locator.GetLocalPackagePath(updates.BaseRelease!);
@@ -365,10 +365,10 @@ namespace Velopack
             }
 
             var psi = new ProcessStartInfo(updateExe);
-            psi.AppendArgumentListSafe(args, out var _);
+            psi.AppendArgumentListSafe(args, out _);
             psi.CreateNoWindow = true;
             var p = psi.StartRedirectOutputToILogger(Log, VelopackLogLevel.Debug);
-            if (!p.WaitForExit((int)TimeSpan.FromMinutes(5).TotalMilliseconds)) {
+            if (!p.WaitForExit((int) TimeSpan.FromMinutes(5).TotalMilliseconds)) {
                 p.Kill();
                 throw new TimeoutException("patch process timed out (5min).");
             }
