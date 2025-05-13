@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Velopack.Core.Abstractions;
+using Velopack.Packaging.Compression;
 
 namespace Velopack.Packaging.Commands;
 

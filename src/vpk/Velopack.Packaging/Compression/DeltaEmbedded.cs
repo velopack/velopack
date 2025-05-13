@@ -1,8 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
-using Velopack.Compression;
 using Velopack.Core;
 
-namespace Velopack.Packaging;
+namespace Velopack.Packaging.Compression;
 
 public class DeltaEmbedded
 {

@@ -1,13 +1,10 @@
 ﻿#nullable disable
-using System;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using System.IO.Compression;
-using System.Threading;
 
 // Adapted from https://github.com/LogosBible/bsdiff.net/blob/master/src/bsdiff/BinaryPatchUtility.cs
 
-namespace Velopack.Compression
+namespace Velopack.Packaging.Compression
 {
     /*
     The original bsdiff.c source code (http://www.daemonology.net/bsdiff/) is

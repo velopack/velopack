@@ -1,5 +1,4 @@
 using System.Runtime.Versioning;
-using Velopack.Compression;
 using Velopack.Core;
 using Velopack.Util;
 

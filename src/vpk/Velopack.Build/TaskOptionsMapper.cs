@@ -2,6 +2,7 @@
 using System.IO;
 using Riok.Mapperly.Abstractions;
 using Velopack.Packaging;
+using Velopack.Packaging.Compression;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
 

@@ -1,4 +1,6 @@
-﻿namespace Velopack.Packaging.Abstractions;
+﻿using Velopack.Packaging.Compression;
+
+namespace Velopack.Packaging.Abstractions;
 
 public interface IPackOptions : INugetPackCommand, IPlatformOptions
 {
