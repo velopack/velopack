@@ -35,7 +35,6 @@ glob = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 zip = { version = "2.6", default-features = false, features = ["deflate"] }
-zip-extensions = "0.8.2"
 thiserror = "2.0"
 lazy_static = "1.5"
 regex = "1.10"
@@ -85,7 +84,8 @@ core-foundation = "0.10"
 core-foundation-sys = "0.8"
 uuid = { version = "1.13.1", features = ["v4", "fast-rng", "macro-diagnostics"] }
 walkdir = "2.5"
-substring = " 1.4"
+mtzip = "=4.0.2"
+ripunzip = "2.0.2"
 
 # default to small, optimized workspace release binaries
 [profile.release]
