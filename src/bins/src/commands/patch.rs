@@ -1,4 +1,6 @@
 use anyhow::{anyhow, bail, Result};
+use mtzip::level::CompressionLevel;
+use ripunzip::{NullProgressReporter, UnzipEngine, UnzipOptions};
 use std::os::windows::fs::MetadataExt;
 use std::{
     collections::HashSet,
@@ -6,8 +8,6 @@ use std::{
     path::{Path, PathBuf},
 };
 use walkdir::WalkDir;
-use zip::{write::SimpleFileOptions, CompressionMethod};
-use zip_extensions::{zip_create_from_directory_with_options, zip_extract};
 
 pub fn zstd_patch_single<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(old_file: P1, patch_file: P2, output_file: P3) -> Result<()> {
     let old_file = old_file.as_ref();
@@ -54,6 +54,22 @@ fn fio_highbit64(v: u64) -> u32 {
     return count;
 }
 
+fn zip_extract<P1: AsRef<Path>, P2: AsRef<Path>>(archive_file: P1, target_dir: P2) -> Result<()> {
+    let target_dir = target_dir.as_ref().to_path_buf();
+    let file = fs::File::open(archive_file)?;
+    let engine = UnzipEngine::for_file(file)?;
+    let null_progress = Box::new(NullProgressReporter {});
+    let options = UnzipOptions {
+        filename_filter: None,
+        progress_reporter: null_progress,
+        output_directory: Some(target_dir),
+        password: None,
+        single_threaded: false,
+    };
+    engine.unzip(options)?;
+    Ok(())
+}
+
 pub fn delta<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(
     old_file: P1,
     delta_files: Vec<&PathBuf>,
@@ -93,15 +109,7 @@ pub fn delta<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(
         fs::create_dir_all(&delta_dir)?;
         zip_extract(delta_file, &delta_dir)?;
 
-        let delta_relative_paths: Vec<PathBuf> = WalkDir::new(&delta_dir)
-            .follow_links(false)
-            .into_iter()
-            .filter_map(|entry| entry.ok())
-            .filter(|entry| entry.file_type().is_file())
-            .map(|entry| entry.path().strip_prefix(&delta_dir).map(|p| p.to_path_buf()))
-            .filter_map(|entry| entry.ok())
-            .collect();
-
+        let delta_relative_paths = enumerate_files_relative(&delta_dir);
         let mut visited_paths = HashSet::new();
 
         // apply all the zsdiff patches for files which exist in both the delta and the base package
@@ -153,15 +161,7 @@ pub fn delta<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(
         }
 
         // anything in the work dir which was not visited is an old / deleted file and should be removed
-        let workdir_relative_paths: Vec<PathBuf> = WalkDir::new(&work_dir)
-            .follow_links(false)
-            .into_iter()
-            .filter_map(|entry| entry.ok())
-            .filter(|entry| entry.file_type().is_file())
-            .map(|entry| entry.path().strip_prefix(&work_dir).map(|p| p.to_path_buf()))
-            .filter_map(|entry| entry.ok())
-            .collect();
-
+        let workdir_relative_paths = enumerate_files_relative(&work_dir);
         for relative_path in &workdir_relative_paths {
             if !visited_paths.contains(relative_path) {
                 let file_to_delete = work_dir.join(relative_path);
@@ -173,13 +173,30 @@ pub fn delta<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(
 
     info!("All delta patches applied. Asembling output package at: {}", output_file.to_string_lossy());
 
-    // NOTE: zstd is not supported by older versions of Squirrel/Velopack, but
-    // it's assumed if someone is using this code, they are using a recent enough version
-    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Zstd);
-    zip_create_from_directory_with_options(&output_file, &work_dir, |_| options)?;
+    let mut zipper = mtzip::ZipArchive::new();
+    let workdir_relative_paths = enumerate_files_relative(&work_dir);
+    for relative_path in &workdir_relative_paths {
+        zipper
+            .add_file_from_fs(work_dir.join(&relative_path), relative_path.to_string_lossy().to_string())
+            .compression_level(CompressionLevel::fast())
+            .done();
+    }
+    let mut file = fs::File::create(&output_file)?;
+    zipper.write(&mut file)?;
 
     info!("Successfully applied {} delta patches in {}s.", delta_files.len(), time.s());
     Ok(())
+}
+
+fn enumerate_files_relative<P: AsRef<Path>>(dir: P) -> Vec<PathBuf> {
+    WalkDir::new(&dir)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.file_type().is_file())
+        .map(|entry| entry.path().strip_prefix(&dir).map(|p| p.to_path_buf()))
+        .filter_map(|entry| entry.ok())
+        .collect()
 }
 
 // NOTE: this is some code to do checksum verification, but it is not being used
