@@ -56,6 +56,13 @@ fn root_command() -> Command {
         .about("Remove all app shortcuts, files, and registry entries.")
         .long_flag_alias("uninstall")
     );
+
+    #[cfg(target_os = "windows")]
+    let cmd = cmd.subcommand(Command::new("update-self")
+        .about("Copy the currently executing Update.exe into the default location.")
+        .long_flag_alias("updateSelf")
+        .hide(true)
+    );
     cmd
 }
 
@@ -155,6 +162,8 @@ fn main() -> Result<()> {
     let result = match subcommand {
         #[cfg(target_os = "windows")]
         "uninstall" => uninstall(subcommand_matches).map_err(|e| anyhow!("Uninstall error: {}", e)),
+        #[cfg(target_os = "windows")]
+        "update-self" => update_self(subcommand_matches).map_err(|e| anyhow!("Update-self error: {}", e)),
         "start" => start(subcommand_matches).map_err(|e| anyhow!("Start error: {}", e)),
         "apply" => apply(subcommand_matches).map_err(|e| anyhow!("Apply error: {}", e)),
         "patch" => patch(subcommand_matches).map_err(|e| anyhow!("Patch error: {}", e)),
@@ -241,6 +250,47 @@ fn uninstall(_matches: &ArgMatches) -> Result<()> {
     info!("Command: Uninstall");
     let locator = auto_locate_app_manifest(LocationContext::IAmUpdateExe)?;
     commands::uninstall(&locator, true)
+}
+
+#[cfg(target_os = "windows")]
+fn update_self(_matches: &ArgMatches) -> Result<()> {
+    info!("Command: Update Self");
+    let my_path = env::current_exe()?;
+    const RETRY_DELAY: i32 = 500;
+    const RETRY_COUNT: i32 = 20;
+    match auto_locate_app_manifest(LocationContext::IAmUpdateExe) {
+        Ok(locator) => {
+            let target_update_path = locator.get_update_path();
+            if same_file::is_same_file(&target_update_path, &my_path)? {
+                bail!("Update.exe is already in the default location. No need to update.");
+            } else {
+                info!("Copying Update.exe to the default location: {:?}", target_update_path);
+                shared::retry_io_ex(|| std::fs::copy(&my_path, &target_update_path), RETRY_DELAY, RETRY_COUNT)?;
+                info!("Update.exe copied successfully.");
+            }
+        }
+        Err(e) => {
+            warn!("Failed to initialise locator: {}", e);
+            // search for an Update.exe in parent directories (at least 2 levels up)
+            let mut current_dir = env::current_dir()?;
+            let mut found = false;
+            for _ in 0..2 {
+                current_dir.pop();
+                let target_update_path = current_dir.join("Update.exe");
+                if target_update_path.exists() {
+                    info!("Found Update.exe in parent directory: {:?}", target_update_path);
+                    shared::retry_io_ex(|| std::fs::copy(&my_path, &target_update_path), RETRY_DELAY, RETRY_COUNT)?;
+                    info!("Update.exe copied successfully.");
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                bail!("Failed to locate Update.exe in parent directories, so it could not be updated.");
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(target_os = "windows")]
