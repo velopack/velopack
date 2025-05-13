@@ -5,6 +5,7 @@
     <TargetFrameworks>net6.0;net8.0;net9.0</TargetFrameworks>
     <AssemblyName>vpk</AssemblyName>
     <LangVersion>latest</LangVersion>
+    <BuildInParallel>false</BuildInParallel> <!-- https://github.com/dotnet/sdk/issues/17454 -->
     <NoWarn>$(NoWarn);CA2007;CS8002</NoWarn>
   </PropertyGroup>
 
