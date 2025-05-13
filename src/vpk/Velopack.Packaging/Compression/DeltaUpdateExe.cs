@@ -1,9 +1,8 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Velopack.Logging;
 using Velopack.Util;
 
-namespace Velopack.Compression
+namespace Velopack.Packaging.Compression
 {
     internal class DeltaUpdateExe : DeltaPackage
     {

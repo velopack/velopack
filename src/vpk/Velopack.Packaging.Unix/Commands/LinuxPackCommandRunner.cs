@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
+using Velopack.Packaging.Compression;
 using Velopack.Util;
 
 namespace Velopack.Packaging.Unix.Commands;

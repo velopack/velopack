@@ -1,7 +1,6 @@
 ﻿using System.ComponentModel;
 using System.IO.Compression;
 using NCode.ReparsePoints;
-using Velopack.Compression;
 using Velopack.Logging;
 using Velopack.Util;
 

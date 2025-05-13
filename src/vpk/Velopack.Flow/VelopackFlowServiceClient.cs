@@ -13,6 +13,7 @@ using Velopack.NuGet;
 using Velopack.Packaging;
 using Velopack.Util;
 using System.Net;
+using Velopack.Packaging.Compression;
 
 #if !NET6_0_OR_GREATER
 using System.Net.Http;
