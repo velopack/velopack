@@ -878,10 +878,13 @@ public class WindowsPackTests
 
         try {
             File.WriteAllText(testStringFile, $"class Const {{ public const string TEST_STRING = \"{testString}\"; }}");
-            var args = new string[] {
-                "publish", "--no-self-contained", "-c", "Release", "-r", "win-x64", "-o", "publish",
-                $"-p:PublishSingleFile=true", "--tl:off"
+            var args = new List<string> {
+                "publish", "--no-self-contained", "-c", "Release", "-r", "win-x64", "-o", "publish", "--tl:off"
             };
+
+            if (assemblyNameOverride != null) {
+                args.Add("-p:PublishSingleFile=true");
+            }
 
             var psi = new ProcessStartInfo("dotnet");
             psi.WorkingDirectory = projDir;
@@ -918,7 +921,7 @@ public class WindowsPackTests
             //RunNoCoverage("dotnet", args, projDir, logger);
 
             var options = new WindowsPackOptions {
-                EntryExecutableName = assemblyNameOverride + ".exe",
+                EntryExecutableName = (assemblyNameOverride ?? "TestApp") + ".exe",
                 ReleaseDir = new DirectoryInfo(releaseDir),
                 PackId = id,
                 PackVersion = version,
