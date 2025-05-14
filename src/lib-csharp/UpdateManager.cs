@@ -69,6 +69,9 @@ namespace Velopack
         /// <summary> If true, UpdateManager should return the latest asset in the feed, even if that version is lower than the current version. </summary>
         protected bool ShouldAllowVersionDowngrade { get; }
 
+        /// <summary>  Sets the maximum number of deltas to consider before falling back to a full update. </summary>
+        protected int MaximumDeltasBeforeFallback { get; }
+
         /// <summary>
         /// Creates a new UpdateManager instance using the specified URL or file path to the releases feed, and the specified channel name.
         /// </summary>
@@ -96,6 +99,7 @@ namespace Velopack
             Log = Locator.Log;
             Channel = options?.ExplicitChannel ?? DefaultChannel;
             ShouldAllowVersionDowngrade = options?.AllowVersionDowngrade ?? false;
+            MaximumDeltasBeforeFallback = options?.MaximumDeltasBeforeFallback ?? 10;
         }
 
         /// <inheritdoc cref="CheckForUpdatesAsync()"/>
@@ -185,9 +189,9 @@ namespace Velopack
         }
 
         /// <inheritdoc cref="DownloadUpdatesAsync(UpdateInfo, Action{int}, bool, CancellationToken)"/>
-        public void DownloadUpdates(UpdateInfo updates, Action<int>? progress = null, bool ignoreDeltas = false)
+        public void DownloadUpdates(UpdateInfo updates, Action<int>? progress = null)
         {
-            DownloadUpdatesAsync(updates, progress, ignoreDeltas)
+            DownloadUpdatesAsync(updates, progress)
                 .ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
@@ -201,8 +205,7 @@ namespace Velopack
         /// <param name="progress">The progress callback. Will be called with values from 0-100.</param>
         /// <param name="ignoreDeltas">Whether to attempt downloading delta's or skip to full package download.</param>
         /// <param name="cancelToken">An optional cancellation token if you wish to stop this operation.</param>
-        public virtual async Task DownloadUpdatesAsync(
-            UpdateInfo updates, Action<int>? progress = null, bool ignoreDeltas = false, CancellationToken cancelToken = default)
+        public virtual async Task DownloadUpdatesAsync(UpdateInfo updates, Action<int>? progress = null, CancellationToken cancelToken = default)
         {
             progress ??= (_ => { });
 
@@ -252,19 +255,15 @@ namespace Velopack
 
                 try {
                     if (updates.BaseRelease?.FileName != null && deltasCount > 0) {
-                        if (ignoreDeltas) {
-                            Log.Info("Ignoring delta updates (ignoreDeltas parameter)");
+                        if (deltasCount > MaximumDeltasBeforeFallback || deltasSize > targetRelease.Size) {
+                            Log.Info(
+                                $"There are too many delta's ({deltasCount} > {MaximumDeltasBeforeFallback}) or the sum of their size ({deltasSize} > {targetRelease.Size}) is too large. " +
+                                $"Only full update will be available.");
                         } else {
-                            if (deltasCount > 10 || deltasSize > targetRelease.Size) {
-                                Log.Info(
-                                    $"There are too many delta's ({deltasCount} > 10) or the sum of their size ({deltasSize} > {targetRelease.Size}) is too large. " +
-                                    $"Only full update will be available.");
-                            } else {
-                                await DownloadAndApplyDeltaUpdates(updates, incompleteFile, progress, cancelToken).ConfigureAwait(false);
-                                IoUtil.MoveFile(incompleteFile, completeFile, true);
-                                Log.Info("Delta update download complete. Package moved to: " + completeFile);
-                                return; // success!
-                            }
+                            await DownloadAndApplyDeltaUpdates(updates, incompleteFile, progress, cancelToken).ConfigureAwait(false);
+                            IoUtil.MoveFile(incompleteFile, completeFile, true);
+                            Log.Info("Delta update download complete. Package moved to: " + completeFile);
+                            return; // success!
                         }
                     }
                 } catch (Exception ex) when (!VelopackRuntimeInfo.InUnitTestRunner) {
