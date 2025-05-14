@@ -12,7 +12,7 @@ export type UpdateOptions = {
  */
 AllowVersionDowngrade: boolean, 
 /**
- * **This option should usually be left None**. <br/>
+ * **This option should usually be left None**.
  * Overrides the default channel used to fetch updates.
  * The default channel will be whatever channel was specified on the command line when building this release.
  * For example, if the current release was packaged with '--channel beta', then the default channel will be 'beta'.
@@ -20,4 +20,9 @@ AllowVersionDowngrade: boolean,
  * allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
  * without having to reinstall the application.
  */
-ExplicitChannel: string | null, };
+ExplicitChannel: string | null, 
+/**
+ * Sets the maximum number of deltas to consider before falling back to a full update.
+ * The default is 10. Set to a negative number (eg. -1) to disable deltas.
+ */
+MaximumDeltasBeforeFallback: number, };

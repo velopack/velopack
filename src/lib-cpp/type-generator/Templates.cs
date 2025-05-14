@@ -60,7 +60,15 @@
         using (sb.Indent()) {
             foreach (var field in rs.Fields) {
                 sb.AppendDocComment(field.DocComment);
-                sb.AppendLine($"pub {field.Name}: {GetBasicCTypeInRust(nameMap, field.Type)},");
+                var basicc = GetBasicCTypeInRust(nameMap, field.Type);
+                if (field.Vec) {
+                    sb.AppendLine($"pub {field.Name}: *mut *mut {basicc},");
+                    sb.AppendDocComment($"Count for {field.Name} Array");
+                    sb.AppendLine($"pub {field.Name}Count: size_t,");
+                } else {
+                    string opt = field.Optional && !basicc.StartsWith("*") ? "*mut " : "";
+                    sb.AppendLine($"pub {field.Name}: {opt}{basicc},");
+                }
             }
         }
 
@@ -74,8 +82,10 @@
             sb.AppendLine($"{rs.Name} {{");
             using (sb.Indent()) {
                 foreach (var field in rs.Fields) {
-                    if (field.Optional || field.Type == "PathBuf" || field.Type == "String" || nameMap.ContainsKey(field.Type)) {
-                        sb.AppendLine($"{field.Name}: c_to_{field.Type.ToLower()}{(field.Optional ? "_opt": "")}({(nameMap.ContainsKey(field.Type) ? "&" : "")}obj.{field.Name}),");
+                    if (field.Vec) {
+                        sb.AppendLine($"{field.Name}: c_to_{field.Type.ToLower()}_vec(obj.{field.Name}, obj.{field.Name}Count),");
+                    } else if (field.Optional || field.Type == "PathBuf" || field.Type == "String" || nameMap.ContainsKey(field.Type)) {
+                        sb.AppendLine($"{field.Name}: c_to_{field.Type.ToLower()}{(field.Optional ? "_opt" : "")}({(nameMap.ContainsKey(field.Type) && !field.Optional ? "&" : "")}obj.{field.Name}),");
                     } else {
                         sb.AppendLine($"{field.Name}: obj.{field.Name},");
                     }
@@ -85,7 +95,7 @@
         }
         sb.AppendLine("}");
         sb.AppendLine();
-        
+
         sb.AppendLine("#[rustfmt::skip]");
         sb.AppendLine($"pub fn c_to_{rs.Name.ToLower()}_opt(obj: *mut {cName}) -> Option<{rs.Name}> {{");
         using (sb.Indent()) {
@@ -94,7 +104,23 @@
         }
         sb.AppendLine("}");
         sb.AppendLine();
-        
+
+        sb.AppendLine("#[rustfmt::skip]");
+        sb.AppendLine($"pub fn c_to_{rs.Name.ToLower()}_vec(obj: *mut *mut {cName}, count: size_t) -> Vec<{rs.Name}> {{");
+        using (sb.Indent()) {
+            sb.AppendLine("if obj.is_null() || count == 0 { return Vec::new(); }");
+            sb.AppendLine("let mut assets = Vec::with_capacity(count as usize);");
+            sb.AppendLine("for i in 0..count {");
+            using (sb.Indent()) {
+                sb.AppendLine("let ptr = unsafe { *obj.add(i as usize) };");
+                sb.AppendLine($"assets.push(c_to_{rs.Name.ToLower()}(unsafe {{ &*ptr }}));");
+            }
+            sb.AppendLine("}");
+            sb.AppendLine("assets");
+        }
+        sb.AppendLine("}");
+        sb.AppendLine();
+
         sb.AppendLine("#[rustfmt::skip]");
         sb.AppendLine($"pub unsafe fn allocate_{rs.Name.ToLower()}(dto: {rs.Name}, obj: *mut {cName}) {{");
         using (sb.Indent()) {
@@ -102,7 +128,18 @@
             sb.AppendLine($"log::debug!(\"{cName} allocated\");");
             foreach (var field in rs.Fields) {
                 if (field.Optional || field.Type == "PathBuf" || field.Type == "String" || nameMap.ContainsKey(field.Type)) {
-                    sb.AppendLine($"allocate_{field.Type.ToLower()}{(field.Optional ? "_opt": "")}(dto.{field.Name}, &mut (*obj).{field.Name});");
+                    if (field.Optional && !(field.Type == "PathBuf" || field.Type == "String")) {
+                        sb.AppendLine($"if let Some(opt) = dto.{field.Name} {{");
+                        using (sb.Indent()) {
+                            var fieldcName = nameMap[field.Type];
+                            sb.AppendLine($"let ptr = libc::malloc(size_of::<{fieldcName}>()) as *mut {fieldcName};");
+                            sb.AppendLine($"(*obj).{field.Name} = ptr;");
+                            sb.AppendLine($"allocate_{field.Type.ToLower()}(opt, ptr);");
+                        }
+                        sb.AppendLine($"}}");
+                    } else {
+                        sb.AppendLine($"allocate_{field.Type.ToLower()}(dto.{field.Name}, &mut (*obj).{field.Name});");
+                    }
                 } else {
                     sb.AppendLine($"(*obj).{field.Name} = dto.{field.Name};");
                 }
@@ -110,7 +147,7 @@
         }
         sb.AppendLine("}");
         sb.AppendLine();
-        
+
         sb.AppendLine("#[rustfmt::skip]");
         sb.AppendLine($"pub unsafe fn free_{rs.Name.ToLower()}(obj: *mut {cName}) {{");
         using (sb.Indent()) {
@@ -118,7 +155,11 @@
             sb.AppendLine($"log::debug!(\"{cName} freed\");");
             foreach (var field in rs.Fields) {
                 if (field.Optional || field.Type == "PathBuf" || field.Type == "String" || nameMap.ContainsKey(field.Type)) {
-                    sb.AppendLine($"free_{field.Type.ToLower()}(&mut (*obj).{field.Name});");
+                    if (field.Optional) {
+                        sb.AppendLine($"free_{field.Type.ToLower()}((*obj).{field.Name});");
+                    } else {
+                        sb.AppendLine($"free_{field.Type.ToLower()}(&mut (*obj).{field.Name});");
+                    }
                 }
             }
         }
@@ -126,7 +167,7 @@
         sb.AppendLine();
     }
 
-    private static string GetCPlusPlusType(string[] coreTypes, string rustType, bool optional)
+    private static string GetCPlusPlusType(string[] coreTypes, string rustType, bool optional, bool vec)
     {
         string type = rustType switch {
             "PathBuf" => "std::string",
@@ -139,7 +180,9 @@
             _ => coreTypes.Contains(rustType) ? rustType : throw new NotSupportedException("Unsupported type for c-plus-plus: " + rustType),
         };
 
-        return optional ? "std::optional<" + type + ">" : type;
+        type = vec ? "std::vector<" + type + ">" : type;
+        type = optional ? "std::optional<" + type + ">" : type;
+        return type;
     }
 
     public static void WriteCBridgeMapping(Dictionary<string, string> nameMap, IndentStringBuilder sb, RustStruct rs)
@@ -288,7 +331,7 @@
         foreach (var field in rs.Fields) {
             using (sb.Indent()) {
                 sb.AppendDocComment(field.DocComment);
-                sb.AppendLine($"{GetCPlusPlusType(coreTypes, field.Type, field.Optional)} {field.Name};");
+                sb.AppendLine($"{GetCPlusPlusType(coreTypes, field.Type, field.Optional, field.Vec)} {field.Name};");
             }
         }
 

@@ -9,6 +9,7 @@
   
   <ItemGroup>
     <PackageReference Include="Superpower" Version="3.0.0" />
+    <PackageReference Include="Handlebars.Net" Version="2.1.6" />
   </ItemGroup>
 
   <ItemGroup>
@@ -16,6 +17,10 @@
       <_Parameter1>SelfDir</_Parameter1>
       <_Parameter2>$(MSBuildThisFileDirectory)</_Parameter2>
     </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Templates\" />
   </ItemGroup>
 
 </Project>

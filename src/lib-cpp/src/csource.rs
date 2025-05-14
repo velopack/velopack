@@ -42,9 +42,9 @@ impl UpdateSource for CCallbackUpdateSource {
 
         if let Some(cb_get_release_feed) = self.cb_get_release_feed {
             let json_cstr_ptr = (cb_get_release_feed)(self.p_user_data, releases_name_cstr.as_ptr());
-            let json = c_to_string_opt(json_cstr_ptr)
-                .ok_or(Error::Generic("User vpkc_release_feed_delegate_t returned a null pointer instead of an asset feed".to_string()))?;
-
+            let json = c_to_String(json_cstr_ptr).map_err(|_| {
+                Error::Generic("User vpkc_release_feed_delegate_t returned a null pointer instead of an asset feed".to_string())
+            })?;
             if let Some(cb_free_release_feed) = self.cb_free_release_feed {
                 (cb_free_release_feed)(self.p_user_data, json_cstr_ptr); // Free the C string returned by the callback
             } else {
@@ -60,9 +60,7 @@ impl UpdateSource for CCallbackUpdateSource {
     fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
         if let Some(cb_download_release_entry) = self.cb_download_release_entry {
             let local_file_cstr = CString::new(local_file).unwrap();
-            let mut asset_c: vpkc_asset_t = unsafe { std::mem::zeroed() };
-            let asset_ptr: *mut vpkc_asset_t = &mut asset_c as *mut vpkc_asset_t;
-            unsafe { allocate_velopackasset(asset.clone(), asset_ptr) };
+            let asset_ptr = unsafe { allocate_VelopackAsset(asset) };
 
             let progress_callback_id = PROGRESS_ID.fetch_add(1, Ordering::SeqCst);
             if let Some(progress_sender) = &progress_sender {
@@ -71,8 +69,7 @@ impl UpdateSource for CCallbackUpdateSource {
             }
 
             let success = (cb_download_release_entry)(self.p_user_data, asset_ptr, local_file_cstr.as_ptr(), progress_callback_id);
-
-            unsafe { free_velopackasset(asset_ptr) };
+            unsafe { free_VelopackAsset(asset_ptr) };
 
             if let Some(sender) = PROGRESS_CALLBACKS.write().unwrap().remove(&progress_callback_id) {
                 let _ = sender.send(100);
