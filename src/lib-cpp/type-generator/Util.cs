@@ -6,7 +6,7 @@
         ReplaceTextBetween(ref body, placeholderName, text);
         File.WriteAllText(path, body);
     }
-    
+
     public static void ReplaceTextBetween(ref string body, string placeholderName, string text)
     {
         var start = $"// !! AUTO-GENERATED-START {placeholderName}";
@@ -23,5 +23,12 @@
 
         body = body.Remove(startIndex, endIndex - startIndex);
         body = body.Insert(startIndex, text.TrimEnd());
+    }
+
+    public static string PrefixEveryLine(this string text, string prefix)
+    {
+        if (string.IsNullOrEmpty(prefix)) { return text; }
+        var lines = text.ReplaceLineEndings("\n").Split(['\n']).Select(l => prefix + l);
+        return String.Join("\n", lines);
     }
 }

@@ -91,6 +91,10 @@ struct VelopackAsset {
 struct UpdateInfo {
     /// The available version that we are updating to.
     VelopackAsset TargetFullRelease;
+    /// The base release that this update is based on. This is only available if the update is a delta update.
+    std::optional<VelopackAsset> BaseRelease;
+    /// The list of delta updates that can be applied to the base version to get to the target version.
+    std::vector<VelopackAsset> DeltasToTarget;
     /// True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
     /// In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
     /// deleted.
@@ -104,7 +108,7 @@ struct UpdateOptions {
     /// ExplicitChannel to switch channels to another channel where the latest version on that
     /// channel is lower than the current version.
     bool AllowVersionDowngrade;
-    /// **This option should usually be left None**. <br/>
+    /// **This option should usually be left None**.
     /// Overrides the default channel used to fetch updates.
     /// The default channel will be whatever channel was specified on the command line when building this release.
     /// For example, if the current release was packaged with '--channel beta', then the default channel will be 'beta'.
@@ -112,6 +116,9 @@ struct UpdateOptions {
     /// allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
     /// without having to reinstall the application.
     std::optional<std::string> ExplicitChannel;
+    /// Sets the maximum number of deltas to consider before falling back to a full update.
+    /// The default is 10. Set to a negative number (eg. -1) to disable deltas.
+    int64_t MaximumDeltasBeforeFallback;
 };
 
 static inline vpkc_locator_config_t to_c(const VelopackLocatorConfig& dto) {
@@ -167,6 +174,8 @@ static inline VelopackAsset to_cpp(const vpkc_asset_t& dto) {
 static inline vpkc_update_info_t to_c(const UpdateInfo& dto) {
     return {
         to_c(dto.TargetFullRelease),
+        to_c_opt(dto.BaseRelease),
+        to_c(dto.DeltasToTarget),
         to_cbool(dto.IsDowngrade),
     };
 }
@@ -174,6 +183,8 @@ static inline vpkc_update_info_t to_c(const UpdateInfo& dto) {
 static inline UpdateInfo to_cpp(const vpkc_update_info_t& dto) {
     return {
         to_cpp(dto.TargetFullRelease),
+        to_cpp_opt(dto.BaseRelease),
+        to_cpp(dto.DeltasToTarget),
         to_cppbool(dto.IsDowngrade),
     };
 }
@@ -182,6 +193,7 @@ static inline vpkc_update_options_t to_c(const UpdateOptions& dto) {
     return {
         to_cbool(dto.AllowVersionDowngrade),
         to_cstring_opt(dto.ExplicitChannel),
+        to_ci32(dto.MaximumDeltasBeforeFallback),
     };
 }
 
@@ -189,6 +201,7 @@ static inline UpdateOptions to_cpp(const vpkc_update_options_t& dto) {
     return {
         to_cppbool(dto.AllowVersionDowngrade),
         to_cppstring_opt(dto.ExplicitChannel),
+        to_cppi32(dto.MaximumDeltasBeforeFallback),
     };
 }
 // !! AUTO-GENERATED-END CPP_TYPES
