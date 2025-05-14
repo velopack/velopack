@@ -4,7 +4,7 @@
     {
         var body = File.ReadAllText(path);
         ReplaceTextBetween(ref body, placeholderName, text);
-        File.WriteAllText(path, body);
+        File.WriteAllText(path, body.ReplaceLineEndings("\n"));
     }
 
     public static void ReplaceTextBetween(ref string body, string placeholderName, string text)
@@ -30,5 +30,19 @@
         if (string.IsNullOrEmpty(prefix)) { return text; }
         var lines = text.ReplaceLineEndings("\n").Split(['\n']).Select(l => prefix + l);
         return String.Join("\n", lines);
+    }
+
+    public static string ToRustComment(this string text)
+    {
+        return text.PrefixEveryLine("/// ");
+    }
+
+    public static string ToCppComment(this string text)
+    {
+        if (text.Contains("\n")) {
+            return "/**\n" + text.PrefixEveryLine(" * ") + "\n */";
+        } else {
+            return $"/** {text} */";
+        }
     }
 }

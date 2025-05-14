@@ -19,194 +19,27 @@
 
 namespace Velopack {
 
-static inline void throw_last_error() {
+static inline void throw_last_error()
+{
     size_t neededSize = vpkc_get_last_error(nullptr, 0);
     std::string strError(neededSize, '\0');
     vpkc_get_last_error(&strError[0], neededSize);
     throw std::runtime_error(strError);
 }
 
-static inline std::string to_cppstring(const char* psz) {
-    return psz == nullptr ? "" : psz;
+static inline std::optional<std::string> to_cpp_string(const char* psz)
+{
+    return psz == nullptr ? std::optional<std::string>("") : std::optional<std::string>(psz);
 }
 
-static inline char* to_cstring(const std::string& str) {
-    return const_cast<char*>(str.c_str());
+static inline char* alloc_c_string(const std::optional<std::string>& str)
+{
+    if (!str.has_value()) { return nullptr; }
+    return alloc_c_string(str.value());
 }
 
-static inline char* to_cstring_opt(const std::optional<std::string>& str) {
-    return str.has_value() ? to_cstring(str.value()) : nullptr;
-}
-
-static inline std::optional<std::string> to_cppstring_opt(const char* psz) {
-    return psz == nullptr ? std::nullopt : std::optional<std::string>(psz);
-}
-
-static inline bool to_cppbool(bool b) { return b; }
-static inline bool to_cbool(bool b) { return b; }
-static inline uint64_t to_cu64(uint64_t i) { return i; }
-static inline uint64_t to_cppu64(uint64_t i) { return i; }
-
-// !! AUTO-GENERATED-START CPP_TYPES
-
-/// VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
-struct VelopackLocatorConfig {
-    /// The root directory of the current app.
-    std::string RootAppDir;
-    /// The path to the Update.exe binary.
-    std::string UpdateExePath;
-    /// The path to the packages' directory.
-    std::string PackagesDir;
-    /// The current app manifest.
-    std::string ManifestPath;
-    /// The directory containing the application's user binaries.
-    std::string CurrentBinaryDir;
-    /// Whether the current application is portable or installed.
-    bool IsPortable;
-};
-
-/// An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
-struct VelopackAsset {
-    /// The name or Id of the package containing this release.
-    std::string PackageId;
-    /// The version of this release.
-    std::string Version;
-    /// The type of asset (eg. "Full" or "Delta").
-    std::string Type;
-    /// The filename of the update package containing this release.
-    std::string FileName;
-    /// The SHA1 checksum of the update package containing this release.
-    std::string SHA1;
-    /// The SHA256 checksum of the update package containing this release.
-    std::string SHA256;
-    /// The size in bytes of the update package containing this release.
-    uint64_t Size;
-    /// The release notes in markdown format, as passed to Velopack when packaging the release. This may be an empty string.
-    std::string NotesMarkdown;
-    /// The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
-    std::string NotesHtml;
-};
-
-/// Holds information about the current version and pending updates, such as how many there are, and access to release notes.
-struct UpdateInfo {
-    /// The available version that we are updating to.
-    VelopackAsset TargetFullRelease;
-    /// The base release that this update is based on. This is only available if the update is a delta update.
-    std::optional<VelopackAsset> BaseRelease;
-    /// The list of delta updates that can be applied to the base version to get to the target version.
-    std::vector<VelopackAsset> DeltasToTarget;
-    /// True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
-    /// In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
-    /// deleted.
-    bool IsDowngrade;
-};
-
-/// Options to customise the behaviour of UpdateManager.
-struct UpdateOptions {
-    /// Allows UpdateManager to update to a version that's lower than the current version (i.e. downgrading).
-    /// This could happen if a release has bugs and was retracted from the release feed, or if you're using
-    /// ExplicitChannel to switch channels to another channel where the latest version on that
-    /// channel is lower than the current version.
-    bool AllowVersionDowngrade;
-    /// **This option should usually be left None**.
-    /// Overrides the default channel used to fetch updates.
-    /// The default channel will be whatever channel was specified on the command line when building this release.
-    /// For example, if the current release was packaged with '--channel beta', then the default channel will be 'beta'.
-    /// This allows users to automatically receive updates from the same channel they installed from. This options
-    /// allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
-    /// without having to reinstall the application.
-    std::optional<std::string> ExplicitChannel;
-    /// Sets the maximum number of deltas to consider before falling back to a full update.
-    /// The default is 10. Set to a negative number (eg. -1) to disable deltas.
-    int64_t MaximumDeltasBeforeFallback;
-};
-
-static inline vpkc_locator_config_t to_c(const VelopackLocatorConfig& dto) {
-    return {
-        to_cstring(dto.RootAppDir),
-        to_cstring(dto.UpdateExePath),
-        to_cstring(dto.PackagesDir),
-        to_cstring(dto.ManifestPath),
-        to_cstring(dto.CurrentBinaryDir),
-        to_cbool(dto.IsPortable),
-    };
-}
-
-static inline VelopackLocatorConfig to_cpp(const vpkc_locator_config_t& dto) {
-    return {
-        to_cppstring(dto.RootAppDir),
-        to_cppstring(dto.UpdateExePath),
-        to_cppstring(dto.PackagesDir),
-        to_cppstring(dto.ManifestPath),
-        to_cppstring(dto.CurrentBinaryDir),
-        to_cppbool(dto.IsPortable),
-    };
-}
-
-static inline vpkc_asset_t to_c(const VelopackAsset& dto) {
-    return {
-        to_cstring(dto.PackageId),
-        to_cstring(dto.Version),
-        to_cstring(dto.Type),
-        to_cstring(dto.FileName),
-        to_cstring(dto.SHA1),
-        to_cstring(dto.SHA256),
-        to_cu64(dto.Size),
-        to_cstring(dto.NotesMarkdown),
-        to_cstring(dto.NotesHtml),
-    };
-}
-
-static inline VelopackAsset to_cpp(const vpkc_asset_t& dto) {
-    return {
-        to_cppstring(dto.PackageId),
-        to_cppstring(dto.Version),
-        to_cppstring(dto.Type),
-        to_cppstring(dto.FileName),
-        to_cppstring(dto.SHA1),
-        to_cppstring(dto.SHA256),
-        to_cppu64(dto.Size),
-        to_cppstring(dto.NotesMarkdown),
-        to_cppstring(dto.NotesHtml),
-    };
-}
-
-static inline vpkc_update_info_t to_c(const UpdateInfo& dto) {
-    return {
-        to_c(dto.TargetFullRelease),
-        to_c_opt(dto.BaseRelease),
-        to_c(dto.DeltasToTarget),
-        to_cbool(dto.IsDowngrade),
-    };
-}
-
-static inline UpdateInfo to_cpp(const vpkc_update_info_t& dto) {
-    return {
-        to_cpp(dto.TargetFullRelease),
-        to_cpp_opt(dto.BaseRelease),
-        to_cpp(dto.DeltasToTarget),
-        to_cppbool(dto.IsDowngrade),
-    };
-}
-
-static inline vpkc_update_options_t to_c(const UpdateOptions& dto) {
-    return {
-        to_cbool(dto.AllowVersionDowngrade),
-        to_cstring_opt(dto.ExplicitChannel),
-        to_ci32(dto.MaximumDeltasBeforeFallback),
-    };
-}
-
-static inline UpdateOptions to_cpp(const vpkc_update_options_t& dto) {
-    return {
-        to_cppbool(dto.AllowVersionDowngrade),
-        to_cppstring_opt(dto.ExplicitChannel),
-        to_cppi32(dto.MaximumDeltasBeforeFallback),
-    };
-}
-// !! AUTO-GENERATED-END CPP_TYPES
-
-static inline char* allocate_cstring(const std::string& str) {
+static inline char* alloc_c_string(const std::string& str)
+{
     char* result = new char[str.size() + 1]; // +1 for null-terminator
 #ifdef _WIN32
     strcpy_s(result, str.size() + 1, str.c_str());  // Copy string content
@@ -217,25 +50,402 @@ static inline char* allocate_cstring(const std::string& str) {
     return result;
 }
 
-static inline void free_cstring(char* str) {
+static inline void free_c_string(char* str)
+{
     delete[] str;
 }
 
-static inline char** allocate_cstring_array(const std::vector<std::string>& vec) {
-    char** result = new char*[vec.size()];
-    for (size_t i = 0; i < vec.size(); ++i) {
-        result[i] = allocate_cstring(vec[i]);
+static inline char** alloc_c_string_vec(const std::vector<std::string>& dto, size_t* count)
+{
+    if (dto.empty()) {
+        *count = 0;
+        return nullptr;
     }
-    return result;
+    *count = dto.size();
+    char** arr = new char* [*count];
+    for (size_t i = 0; i < *count; ++i) {
+        arr[i] = alloc_c_string(dto[i]);
+    }
+    return arr;
 }
 
-static inline void free_cstring_array(char** arr, size_t size) {
+static inline void free_c_string_vec(char** arr, size_t size)
+{
     for (size_t i = 0; i < size; ++i) {
-        free_cstring(arr[i]);
+        free_c_string(arr[i]);
         arr[i] = nullptr;
     }
     delete[] arr;
 }
+
+// !! AUTO-GENERATED-START CPP_TYPES
+
+/** VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth). */
+struct VelopackLocatorConfig {
+    /** The root directory of the current app. */
+    std::string RootAppDir;
+    /** The path to the Update.exe binary. */
+    std::string UpdateExePath;
+    /** The path to the packages' directory. */
+    std::string PackagesDir;
+    /** The current app manifest. */
+    std::string ManifestPath;
+    /** The directory containing the application's user binaries. */
+    std::string CurrentBinaryDir;
+    /** Whether the current application is portable or installed. */
+    bool IsPortable;
+};
+
+static inline std::optional<VelopackLocatorConfig> to_cpp_VelopackLocatorConfig(const vpkc_locator_config_t* dto) {
+    if (dto == nullptr) { return std::nullopt; }
+    return std::optional<VelopackLocatorConfig>({
+        to_cpp_string(dto->RootAppDir).value(),
+        to_cpp_string(dto->UpdateExePath).value(),
+        to_cpp_string(dto->PackagesDir).value(),
+        to_cpp_string(dto->ManifestPath).value(),
+        to_cpp_string(dto->CurrentBinaryDir).value(),
+        dto->IsPortable,
+    });
+}
+
+static inline std::vector<VelopackLocatorConfig> to_cpp_VelopackLocatorConfig_vec(const vpkc_locator_config_t* const* arr, size_t c) {
+    if (arr == nullptr || c < 1) { return std::vector<VelopackLocatorConfig>(); }
+    std::vector<VelopackLocatorConfig> result;
+    result.reserve(c);
+    for (size_t i = 0; i < c; ++i) {
+        auto dto = arr[i];
+        if (dto == nullptr) { continue; }
+        result.push_back(to_cpp_VelopackLocatorConfig(dto).value());
+    }
+    return result;
+}
+
+static inline vpkc_locator_config_t* alloc_c_VelopackLocatorConfig(const VelopackLocatorConfig* dto) {
+    if (dto == nullptr) { return nullptr; }
+    vpkc_locator_config_t* obj = new vpkc_locator_config_t{};
+    obj->RootAppDir = alloc_c_string(dto->RootAppDir);
+    obj->UpdateExePath = alloc_c_string(dto->UpdateExePath);
+    obj->PackagesDir = alloc_c_string(dto->PackagesDir);
+    obj->ManifestPath = alloc_c_string(dto->ManifestPath);
+    obj->CurrentBinaryDir = alloc_c_string(dto->CurrentBinaryDir);
+    obj->IsPortable = dto->IsPortable;
+    return obj;
+}
+
+static inline vpkc_locator_config_t* alloc_c_VelopackLocatorConfig(const std::optional<VelopackLocatorConfig>& dto) {
+    if (!dto.has_value()) { return nullptr; }
+    return alloc_c_VelopackLocatorConfig(dto.value());
+}
+
+static inline vpkc_locator_config_t** alloc_c_VelopackLocatorConfig_vec(const std::vector<VelopackLocatorConfig>& dto, size_t* count) {
+    if (dto.empty()) {
+        *count = 0;
+        return nullptr;
+    }
+    *count = dto.size();
+    vpkc_locator_config_t** arr = new vpkc_locator_config_t*[*count];
+    for (size_t i = 0; i < *count; ++i) {
+        arr[i] = alloc_c_VelopackLocatorConfig(dto[i]);
+    }
+    return arr;
+}
+
+static inline void free_c_VelopackLocatorConfig(vpkc_locator_config_t* obj) {
+    if (obj == nullptr) { return; }
+    free_c_string(obj->RootAppDir);
+    free_c_string(obj->UpdateExePath);
+    free_c_string(obj->PackagesDir);
+    free_c_string(obj->ManifestPath);
+    free_c_string(obj->CurrentBinaryDir);
+    
+    delete obj;
+}
+
+static inline void free_c_VelopackLocatorConfig_vec(vpkc_locator_config_t** arr, size_t count) {
+    if (arr == nullptr || count < 1) { return; }
+    for (size_t i = 0; i < count; ++i) {
+        free_c_VelopackLocatorConfig(arr[i]);
+    }
+    delete[] arr;
+}
+
+/** An individual Velopack asset, could refer to an asset on-disk or in a remote package feed. */
+struct VelopackAsset {
+    /** The name or Id of the package containing this release. */
+    std::string PackageId;
+    /** The version of this release. */
+    std::string Version;
+    /** The type of asset (eg. "Full" or "Delta"). */
+    std::string Type;
+    /** The filename of the update package containing this release. */
+    std::string FileName;
+    /** The SHA1 checksum of the update package containing this release. */
+    std::string SHA1;
+    /** The SHA256 checksum of the update package containing this release. */
+    std::string SHA256;
+    /** The size in bytes of the update package containing this release. */
+    uint64_t Size;
+    /** The release notes in markdown format, as passed to Velopack when packaging the release. This may be an empty string. */
+    std::string NotesMarkdown;
+    /** The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string. */
+    std::string NotesHtml;
+};
+
+static inline std::optional<VelopackAsset> to_cpp_VelopackAsset(const vpkc_asset_t* dto) {
+    if (dto == nullptr) { return std::nullopt; }
+    return std::optional<VelopackAsset>({
+        to_cpp_string(dto->PackageId).value(),
+        to_cpp_string(dto->Version).value(),
+        to_cpp_string(dto->Type).value(),
+        to_cpp_string(dto->FileName).value(),
+        to_cpp_string(dto->SHA1).value(),
+        to_cpp_string(dto->SHA256).value(),
+        dto->Size,
+        to_cpp_string(dto->NotesMarkdown).value(),
+        to_cpp_string(dto->NotesHtml).value(),
+    });
+}
+
+static inline std::vector<VelopackAsset> to_cpp_VelopackAsset_vec(const vpkc_asset_t* const* arr, size_t c) {
+    if (arr == nullptr || c < 1) { return std::vector<VelopackAsset>(); }
+    std::vector<VelopackAsset> result;
+    result.reserve(c);
+    for (size_t i = 0; i < c; ++i) {
+        auto dto = arr[i];
+        if (dto == nullptr) { continue; }
+        result.push_back(to_cpp_VelopackAsset(dto).value());
+    }
+    return result;
+}
+
+static inline vpkc_asset_t* alloc_c_VelopackAsset(const VelopackAsset* dto) {
+    if (dto == nullptr) { return nullptr; }
+    vpkc_asset_t* obj = new vpkc_asset_t{};
+    obj->PackageId = alloc_c_string(dto->PackageId);
+    obj->Version = alloc_c_string(dto->Version);
+    obj->Type = alloc_c_string(dto->Type);
+    obj->FileName = alloc_c_string(dto->FileName);
+    obj->SHA1 = alloc_c_string(dto->SHA1);
+    obj->SHA256 = alloc_c_string(dto->SHA256);
+    obj->Size = dto->Size;
+    obj->NotesMarkdown = alloc_c_string(dto->NotesMarkdown);
+    obj->NotesHtml = alloc_c_string(dto->NotesHtml);
+    return obj;
+}
+
+static inline vpkc_asset_t* alloc_c_VelopackAsset(const std::optional<VelopackAsset>& dto) {
+    if (!dto.has_value()) { return nullptr; }
+    return alloc_c_VelopackAsset(dto.value());
+}
+
+static inline vpkc_asset_t** alloc_c_VelopackAsset_vec(const std::vector<VelopackAsset>& dto, size_t* count) {
+    if (dto.empty()) {
+        *count = 0;
+        return nullptr;
+    }
+    *count = dto.size();
+    vpkc_asset_t** arr = new vpkc_asset_t*[*count];
+    for (size_t i = 0; i < *count; ++i) {
+        arr[i] = alloc_c_VelopackAsset(dto[i]);
+    }
+    return arr;
+}
+
+static inline void free_c_VelopackAsset(vpkc_asset_t* obj) {
+    if (obj == nullptr) { return; }
+    free_c_string(obj->PackageId);
+    free_c_string(obj->Version);
+    free_c_string(obj->Type);
+    free_c_string(obj->FileName);
+    free_c_string(obj->SHA1);
+    free_c_string(obj->SHA256);
+    
+    free_c_string(obj->NotesMarkdown);
+    free_c_string(obj->NotesHtml);
+    delete obj;
+}
+
+static inline void free_c_VelopackAsset_vec(vpkc_asset_t** arr, size_t count) {
+    if (arr == nullptr || count < 1) { return; }
+    for (size_t i = 0; i < count; ++i) {
+        free_c_VelopackAsset(arr[i]);
+    }
+    delete[] arr;
+}
+
+/** Holds information about the current version and pending updates, such as how many there are, and access to release notes. */
+struct UpdateInfo {
+    /** The available version that we are updating to. */
+    VelopackAsset TargetFullRelease;
+    /** The base release that this update is based on. This is only available if the update is a delta update. */
+    std::optional<VelopackAsset> BaseRelease;
+    /** The list of delta updates that can be applied to the base version to get to the target version. */
+    std::vector<VelopackAsset> DeltasToTarget;
+    /**
+     * True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
+     * In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
+     * deleted.
+     */
+    bool IsDowngrade;
+};
+
+static inline std::optional<UpdateInfo> to_cpp_UpdateInfo(const vpkc_update_info_t* dto) {
+    if (dto == nullptr) { return std::nullopt; }
+    return std::optional<UpdateInfo>({
+        to_cpp_VelopackAsset(dto->TargetFullRelease).value(),
+        to_cpp_VelopackAsset(dto->BaseRelease),
+        to_cpp_VelopackAsset_vec(dto->DeltasToTarget, dto->DeltasToTargetCount),
+        dto->IsDowngrade,
+    });
+}
+
+static inline std::vector<UpdateInfo> to_cpp_UpdateInfo_vec(const vpkc_update_info_t* const* arr, size_t c) {
+    if (arr == nullptr || c < 1) { return std::vector<UpdateInfo>(); }
+    std::vector<UpdateInfo> result;
+    result.reserve(c);
+    for (size_t i = 0; i < c; ++i) {
+        auto dto = arr[i];
+        if (dto == nullptr) { continue; }
+        result.push_back(to_cpp_UpdateInfo(dto).value());
+    }
+    return result;
+}
+
+static inline vpkc_update_info_t* alloc_c_UpdateInfo(const UpdateInfo* dto) {
+    if (dto == nullptr) { return nullptr; }
+    vpkc_update_info_t* obj = new vpkc_update_info_t{};
+    obj->TargetFullRelease = alloc_c_VelopackAsset(dto->TargetFullRelease);
+    obj->BaseRelease = alloc_c_VelopackAsset(dto->BaseRelease);
+    obj->DeltasToTarget = alloc_c_VelopackAsset_vec(dto->DeltasToTarget, &obj->DeltasToTargetCount);
+    obj->IsDowngrade = dto->IsDowngrade;
+    return obj;
+}
+
+static inline vpkc_update_info_t* alloc_c_UpdateInfo(const std::optional<UpdateInfo>& dto) {
+    if (!dto.has_value()) { return nullptr; }
+    return alloc_c_UpdateInfo(dto.value());
+}
+
+static inline vpkc_update_info_t** alloc_c_UpdateInfo_vec(const std::vector<UpdateInfo>& dto, size_t* count) {
+    if (dto.empty()) {
+        *count = 0;
+        return nullptr;
+    }
+    *count = dto.size();
+    vpkc_update_info_t** arr = new vpkc_update_info_t*[*count];
+    for (size_t i = 0; i < *count; ++i) {
+        arr[i] = alloc_c_UpdateInfo(dto[i]);
+    }
+    return arr;
+}
+
+static inline void free_c_UpdateInfo(vpkc_update_info_t* obj) {
+    if (obj == nullptr) { return; }
+    free_c_VelopackAsset(obj->TargetFullRelease);
+    free_c_VelopackAsset(obj->BaseRelease);
+    free_c_VelopackAsset_vec(obj->DeltasToTarget, obj->DeltasToTargetCount);
+    
+    delete obj;
+}
+
+static inline void free_c_UpdateInfo_vec(vpkc_update_info_t** arr, size_t count) {
+    if (arr == nullptr || count < 1) { return; }
+    for (size_t i = 0; i < count; ++i) {
+        free_c_UpdateInfo(arr[i]);
+    }
+    delete[] arr;
+}
+
+/** Options to customise the behaviour of UpdateManager. */
+struct UpdateOptions {
+    /**
+     * Allows UpdateManager to update to a version that's lower than the current version (i.e. downgrading).
+     * This could happen if a release has bugs and was retracted from the release feed, or if you're using
+     * ExplicitChannel to switch channels to another channel where the latest version on that
+     * channel is lower than the current version.
+     */
+    bool AllowVersionDowngrade;
+    /**
+     * **This option should usually be left None**.
+     * Overrides the default channel used to fetch updates.
+     * The default channel will be whatever channel was specified on the command line when building this release.
+     * For example, if the current release was packaged with '--channel beta', then the default channel will be 'beta'.
+     * This allows users to automatically receive updates from the same channel they installed from. This options
+     * allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
+     * without having to reinstall the application.
+     */
+    std::optional<std::string> ExplicitChannel;
+    /**
+     * Sets the maximum number of deltas to consider before falling back to a full update.
+     * The default is 10. Set to a negative number (eg. -1) to disable deltas.
+     */
+    int32_t MaximumDeltasBeforeFallback;
+};
+
+static inline std::optional<UpdateOptions> to_cpp_UpdateOptions(const vpkc_update_options_t* dto) {
+    if (dto == nullptr) { return std::nullopt; }
+    return std::optional<UpdateOptions>({
+        dto->AllowVersionDowngrade,
+        to_cpp_string(dto->ExplicitChannel),
+        dto->MaximumDeltasBeforeFallback,
+    });
+}
+
+static inline std::vector<UpdateOptions> to_cpp_UpdateOptions_vec(const vpkc_update_options_t* const* arr, size_t c) {
+    if (arr == nullptr || c < 1) { return std::vector<UpdateOptions>(); }
+    std::vector<UpdateOptions> result;
+    result.reserve(c);
+    for (size_t i = 0; i < c; ++i) {
+        auto dto = arr[i];
+        if (dto == nullptr) { continue; }
+        result.push_back(to_cpp_UpdateOptions(dto).value());
+    }
+    return result;
+}
+
+static inline vpkc_update_options_t* alloc_c_UpdateOptions(const UpdateOptions* dto) {
+    if (dto == nullptr) { return nullptr; }
+    vpkc_update_options_t* obj = new vpkc_update_options_t{};
+    obj->AllowVersionDowngrade = dto->AllowVersionDowngrade;
+    obj->ExplicitChannel = alloc_c_string(dto->ExplicitChannel);
+    obj->MaximumDeltasBeforeFallback = dto->MaximumDeltasBeforeFallback;
+    return obj;
+}
+
+static inline vpkc_update_options_t* alloc_c_UpdateOptions(const std::optional<UpdateOptions>& dto) {
+    if (!dto.has_value()) { return nullptr; }
+    return alloc_c_UpdateOptions(dto.value());
+}
+
+static inline vpkc_update_options_t** alloc_c_UpdateOptions_vec(const std::vector<UpdateOptions>& dto, size_t* count) {
+    if (dto.empty()) {
+        *count = 0;
+        return nullptr;
+    }
+    *count = dto.size();
+    vpkc_update_options_t** arr = new vpkc_update_options_t*[*count];
+    for (size_t i = 0; i < *count; ++i) {
+        arr[i] = alloc_c_UpdateOptions(dto[i]);
+    }
+    return arr;
+}
+
+static inline void free_c_UpdateOptions(vpkc_update_options_t* obj) {
+    if (obj == nullptr) { return; }
+    
+    free_c_string(obj->ExplicitChannel);
+    
+    delete obj;
+}
+
+static inline void free_c_UpdateOptions_vec(vpkc_update_options_t** arr, size_t count) {
+    if (arr == nullptr || count < 1) { return; }
+    for (size_t i = 0; i < count; ++i) {
+        free_c_UpdateOptions(arr[i]);
+    }
+    delete[] arr;
+}
+// !! AUTO-GENERATED-END CPP_TYPES
 
 /** 
  * VelopackApp helps you to handle app activation events correctly.
@@ -273,9 +483,10 @@ public:
      * Override the command line arguments used by VelopackApp. (by default this is env::args().skip(1))
      */
     VelopackApp& SetArgs(const std::vector<std::string>& args) {
-        char** pArgs = allocate_cstring_array(args);
-        vpkc_app_set_args(pArgs, args.size());
-        free_cstring_array(pArgs, args.size());
+        size_t c;
+        char** pArgs = alloc_c_string_vec(args, &c);
+        vpkc_app_set_args(pArgs, c);
+        free_c_string_vec(pArgs, c);
         return *this;
     };
 
@@ -283,8 +494,9 @@ public:
      * VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
      */
     VelopackApp& SetLocator(const VelopackLocatorConfig& locator) {
-        vpkc_locator_config_t vpkc_locator = to_c(locator);
-        vpkc_app_set_locator(&vpkc_locator);
+        vpkc_locator_config_t* vpkc_locator = alloc_c_VelopackLocatorConfig(locator);
+        vpkc_app_set_locator(vpkc_locator);
+        free_c_VelopackLocatorConfig(vpkc_locator);
         return *this;
     };
 
@@ -360,7 +572,7 @@ public:
 /**
  * Progress callback function. Call with values between 0 and 100 inclusive.
  */
-typedef std::function<void(size_t)> vpkc_progress_send_t;
+typedef std::function<void(int16_t)> vpkc_progress_send_t;
 
 /**
  * Abstract class for retrieving release feeds and downloading assets. You should subclass this and 
@@ -385,16 +597,16 @@ public:
             [](void* userData, const char* releasesName) {
                 IUpdateSource* source = reinterpret_cast<IUpdateSource*>(userData);
                 std::string json = source->GetReleaseFeed(releasesName);
-                return allocate_cstring(json);
+                return alloc_c_string(json);
             }, 
             [](void* userData, char* pszFeed) {
-                free_cstring(pszFeed);
+                free_c_string(pszFeed);
             },
             [](void* userData, const struct vpkc_asset_t *pAsset, const char* pszLocalPath, size_t progressCallbackId) {
                 IUpdateSource* source = reinterpret_cast<IUpdateSource*>(userData);
-                VelopackAsset asset = to_cpp(*pAsset);
-                std::string localPath = to_cppstring(pszLocalPath);
-                std::function<void(size_t)> progress_callback = [progressCallbackId](size_t progress) {
+                VelopackAsset asset = to_cpp_VelopackAsset(pAsset).value();
+                std::string localPath = to_cpp_string(pszLocalPath).value();
+                std::function<void(int16_t)> progress_callback = [progressCallbackId](int16_t progress) {
                     vpkc_source_report_progress(progressCallbackId, progress);
                 };
                 return source->DownloadReleaseEntry(asset, localPath, progress_callback);
@@ -457,21 +669,12 @@ public:
      * @param locator Override the default locator configuration (usually used for testing / mocks).
      */
     UpdateManager(const std::string& urlOrPath, const UpdateOptions* options = nullptr, const VelopackLocatorConfig* locator = nullptr) {
-        vpkc_update_options_t vpkc_options;
-        vpkc_update_options_t* pOptions = nullptr;
-        if (options != nullptr) {
-            vpkc_options = to_c(*options);
-            pOptions = &vpkc_options;
-        }
-        
-        vpkc_locator_config_t vpkc_locator;
-        vpkc_locator_config_t* pLocator = nullptr;
-        if (locator != nullptr) {
-            vpkc_locator = to_c(*locator);
-            pLocator = &vpkc_locator;
-        }
-        
-        if (!vpkc_new_update_manager(urlOrPath.c_str(), pOptions, pLocator, &m_pManager)) {
+        vpkc_update_options_t* pOptions = alloc_c_UpdateOptions(options);
+        vpkc_locator_config_t* pLocator = alloc_c_VelopackLocatorConfig(locator);
+        bool result = vpkc_new_update_manager(urlOrPath.c_str(), pOptions, pLocator, &m_pManager);
+        free_c_UpdateOptions(pOptions);
+        free_c_VelopackLocatorConfig(pLocator);
+        if (!result) {
             throw_last_error();
         }
     };
@@ -484,23 +687,14 @@ public:
      */
     template <typename T, typename = std::enable_if_t<std::is_base_of_v<IUpdateSource, T>>>
     UpdateManager(std::unique_ptr<T> pUpdateSource, const UpdateOptions* options = nullptr, const VelopackLocatorConfig* locator = nullptr) {
-        vpkc_update_options_t vpkc_options;
-        vpkc_update_options_t* pOptions = nullptr;
-        if (options != nullptr) {
-            vpkc_options = to_c(*options);
-            pOptions = &vpkc_options;
-        }
-        
-        vpkc_locator_config_t vpkc_locator;
-        vpkc_locator_config_t* pLocator = nullptr;
-        if (locator != nullptr) {
-            vpkc_locator = to_c(*locator);
-            pLocator = &vpkc_locator;
-        }
-
+        vpkc_update_options_t* pOptions = alloc_c_UpdateOptions(options);
+        vpkc_locator_config_t* pLocator = alloc_c_VelopackLocatorConfig(locator);
         m_pUpdateSource = std::unique_ptr<IUpdateSource>(static_cast<IUpdateSource*>(pUpdateSource.release()));
         vpkc_update_source_t* pSource = m_pUpdateSource->m_pSource;
-        if (!vpkc_new_update_manager_with_source(pSource, pOptions, pLocator, &m_pManager)) {
+        bool result = vpkc_new_update_manager_with_source(pSource, pOptions, pLocator, &m_pManager);
+        free_c_UpdateOptions(pOptions);
+        free_c_VelopackLocatorConfig(pLocator);
+        if (!result) {
             throw_last_error();
         }
     };
@@ -545,10 +739,10 @@ public:
      * You can pass the UpdateInfo object to waitExitThenApplyUpdate to apply the update.
      */
     std::optional<VelopackAsset> UpdatePendingRestart() noexcept {
-        vpkc_asset_t asset;
+        vpkc_asset_t* asset;
         if (vpkc_update_pending_restart(m_pManager, &asset)) {
-            VelopackAsset cpp_asset = to_cpp(asset);
-            vpkc_free_asset(&asset);
+            VelopackAsset cpp_asset = to_cpp_VelopackAsset(asset).value();
+            vpkc_free_asset(asset);
             return cpp_asset;
         }
         return std::nullopt;
@@ -559,7 +753,7 @@ public:
      * UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
      */
     std::optional<UpdateInfo> CheckForUpdates() {
-        vpkc_update_info_t update;
+        vpkc_update_info_t* update;
         vpkc_update_check_t result = vpkc_check_for_updates(m_pManager, &update);
         switch (result) {
             case vpkc_update_check_t::UPDATE_ERROR:
@@ -569,8 +763,8 @@ public:
             case vpkc_update_check_t::REMOTE_IS_EMPTY:
                 return std::nullopt;
             case vpkc_update_check_t::UPDATE_AVAILABLE:
-                UpdateInfo cpp_info = to_cpp(update);
-                vpkc_free_update_info(&update);
+                UpdateInfo cpp_info = to_cpp_UpdateInfo(update).value();
+                vpkc_free_update_info(update);
                 return cpp_info;
         }
         return std::nullopt;
@@ -585,8 +779,10 @@ public:
      *   packages, this method will fall back to downloading the full version of the update.
      */
     void DownloadUpdates(const UpdateInfo& update, vpkc_progress_callback_t progress = nullptr, void* pUserData = 0) {
-        vpkc_update_info_t vpkc_update = to_c(update);
-        if (!vpkc_download_updates(m_pManager, &vpkc_update, progress, pUserData)) {
+        vpkc_update_info_t* vpkc_update = alloc_c_UpdateInfo(update);
+        bool result = vpkc_download_updates(m_pManager, vpkc_update, progress, pUserData);
+        free_c_UpdateInfo(vpkc_update);
+        if (!result) {
             throw_last_error();
         }
     };
@@ -606,11 +802,12 @@ public:
      * optionally restart your app. The updater will only wait for 60 seconds before giving up.
      */
     void WaitExitThenApplyUpdates(const VelopackAsset& asset, bool silent = false, bool restart = true, std::vector<std::string> restartArgs = {}) {
-        char** pRestartArgs = allocate_cstring_array(restartArgs);
-        vpkc_asset_t vpkc_asset = to_c(asset);
-        bool result = vpkc_wait_exit_then_apply_updates(m_pManager, &vpkc_asset, silent, restart, pRestartArgs, restartArgs.size());
-        free_cstring_array(pRestartArgs, restartArgs.size());
-        
+        size_t cRestartArgs;
+        char** pRestartArgs = alloc_c_string_vec(restartArgs, &cRestartArgs);
+        vpkc_asset_t* vpkc_asset = alloc_c_VelopackAsset(asset);
+        bool result = vpkc_wait_exit_then_apply_updates(m_pManager, vpkc_asset, silent, restart, pRestartArgs, cRestartArgs);
+        free_c_string_vec(pRestartArgs, cRestartArgs);
+        free_c_VelopackAsset(vpkc_asset);
         if (!result) {
             throw_last_error();
         }
@@ -623,11 +820,12 @@ public:
      * If waitPid is 0, the updater will not wait for any process to exit before applying updates (Not Recommended).
      */
     void UnsafeApplyUpdates(const VelopackAsset& asset, bool silent, uint32_t waitPid, bool restart, std::vector<std::string> restartArgs) {
-        char** pRestartArgs = allocate_cstring_array(restartArgs);
-        vpkc_asset_t vpkc_asset = to_c(asset);
-        bool result = vpkc_unsafe_apply_updates(m_pManager, &vpkc_asset, silent, waitPid, restart, pRestartArgs, restartArgs.size());
-        free_cstring_array(pRestartArgs, restartArgs.size());
-        
+        size_t cRestartArgs;
+        char** pRestartArgs = alloc_c_string_vec(restartArgs, &cRestartArgs);
+        vpkc_asset_t* vpkc_asset = alloc_c_VelopackAsset(asset);
+        bool result = vpkc_unsafe_apply_updates(m_pManager, vpkc_asset, silent, waitPid, restart, pRestartArgs, cRestartArgs);
+        free_c_string_vec(pRestartArgs, cRestartArgs);
+        free_c_VelopackAsset(vpkc_asset);
         if (!result) {
             throw_last_error();
         }

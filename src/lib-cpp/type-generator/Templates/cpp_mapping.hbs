@@ -1,0 +1,82 @@
+{{#each this}}
+
+{{cpp_comment}}
+struct {{struct_rust_name}} {
+    {{#each fields}}
+    {{#indent "cpp_comment" "    "}}
+    {{#unless field_vector}}{{#if field_optional}}std::optional<{{/if~}}
+    {{~#if field_system~}}std::{{~/if~}}{{field_cpp_type}}
+    {{~#if field_optional}}>{{/if}} {{field_name}};{{~/unless~}}
+    {{#if field_vector}}std::vector<{{field_cpp_type}}> {{field_name}};{{/if}}
+    {{/each}}
+};
+
+static inline std::optional<{{struct_rust_name}}> to_cpp_{{struct_rust_name}}(const {{struct_c_name}}* dto) {
+    if (dto == nullptr) { return std::nullopt; }
+    return std::optional<{{struct_rust_name}}>({
+        {{#each fields}}
+        {{#if field_primitive}}dto->{{field_name}},{{/if~}}
+        {{#if field_normal}}to_cpp_{{field_cpp_type}}(dto->{{field_name}}){{~#unless field_optional}}.value(){{/unless}},{{/if~}}
+        {{#if field_vector}}to_cpp_{{field_cpp_type}}_vec(dto->{{field_name}}, dto->{{field_name}}Count),{{/if}}
+        {{/each}}
+    });
+}
+
+static inline std::vector<{{struct_rust_name}}> to_cpp_{{struct_rust_name}}_vec(const {{struct_c_name}}* const* arr, size_t c) {
+    if (arr == nullptr || c < 1) { return std::vector<{{struct_rust_name}}>(); }
+    std::vector<{{struct_rust_name}}> result;
+    result.reserve(c);
+    for (size_t i = 0; i < c; ++i) {
+        auto dto = arr[i];
+        if (dto == nullptr) { continue; }
+        result.push_back(to_cpp_{{struct_rust_name}}(dto).value());
+    }
+    return result;
+}
+
+static inline {{struct_c_name}}* alloc_c_{{struct_rust_name}}(const {{struct_rust_name}}* dto) {
+    if (dto == nullptr) { return nullptr; }
+    {{struct_c_name}}* obj = new {{struct_c_name}}{};
+    {{#each fields}}
+    {{#if field_primitive}}obj->{{field_name}} = dto->{{field_name}};{{/if~}}
+    {{#if field_normal}}obj->{{field_name}} = alloc_c_{{field_cpp_type}}(dto->{{field_name}});{{/if~}}
+    {{#if field_vector}}obj->{{field_name}} = alloc_c_{{field_cpp_type}}_vec(dto->{{field_name}}, &obj->{{field_name}}Count);{{/if}}
+    {{/each}}
+    return obj;
+}
+
+static inline {{struct_c_name}}* alloc_c_{{struct_rust_name}}(const std::optional<{{struct_rust_name}}>& dto) {
+    if (!dto.has_value()) { return nullptr; }
+    return alloc_c_{{struct_rust_name}}(dto.value());
+}
+
+static inline {{struct_c_name}}** alloc_c_{{struct_rust_name}}_vec(const std::vector<{{struct_rust_name}}>& dto, size_t* count) {
+    if (dto.empty()) {
+        *count = 0;
+        return nullptr;
+    }
+    *count = dto.size();
+    {{struct_c_name}}** arr = new {{struct_c_name}}*[*count];
+    for (size_t i = 0; i < *count; ++i) {
+        arr[i] = alloc_c_{{struct_rust_name}}(dto[i]);
+    }
+    return arr;
+}
+
+static inline void free_c_{{struct_rust_name}}({{struct_c_name}}* obj) {
+    if (obj == nullptr) { return; }
+    {{#each fields}}
+    {{#if field_normal}}free_c_{{field_cpp_type}}(obj->{{field_name}});{{/if~}}
+    {{#if field_vector}}free_c_{{field_cpp_type}}_vec(obj->{{field_name}}, obj->{{field_name}}Count);{{/if}}
+    {{/each}}
+    delete obj;
+}
+
+static inline void free_c_{{struct_rust_name}}_vec({{struct_c_name}}** arr, size_t count) {
+    if (arr == nullptr || count < 1) { return; }
+    for (size_t i = 0; i < count; ++i) {
+        free_c_{{struct_rust_name}}(arr[i]);
+    }
+    delete[] arr;
+}
+{{/each}}
