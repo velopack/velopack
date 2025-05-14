@@ -22,5 +22,11 @@
         /// without having to reinstall the application.
         /// </summary>
         public string? ExplicitChannel { get; set; }
+
+        /// <summary>
+        /// Sets the maximum number of deltas to consider before falling back to a full update.
+        /// The default is 10. Set to a negative number to disable deltas.
+        /// </summary>
+        public int? MaximumDeltasBeforeFallback { get; set; }
     }
 }
