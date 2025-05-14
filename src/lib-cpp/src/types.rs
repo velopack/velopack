@@ -223,7 +223,7 @@ pub struct vpkc_asset_t {
     pub PackageId: *mut c_char,
     /// The version of this release.
     pub Version: *mut c_char,
-    /// The type of asset (eg. &quot;Full&quot; or &quot;Delta&quot;).
+    /// The type of asset (eg. "Full" or "Delta").
     pub Type: *mut c_char,
     /// The filename of the update package containing this release.
     pub FileName: *mut c_char,
@@ -347,8 +347,8 @@ pub struct vpkc_update_info_t {
     /// The number of elements in the DeltasToTarget array.
     pub DeltasToTargetCount: size_t,
     /// True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
-/// In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
-/// deleted.
+    /// In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
+    /// deleted.
     pub IsDowngrade: bool,
 }
 
@@ -437,20 +437,20 @@ pub unsafe fn free_UpdateInfo_vec(obj: *mut *mut vpkc_update_info_t, count: size
 /// Options to customise the behaviour of UpdateManager.
 pub struct vpkc_update_options_t {
     /// Allows UpdateManager to update to a version that's lower than the current version (i.e. downgrading).
-/// This could happen if a release has bugs and was retracted from the release feed, or if you're using
-/// ExplicitChannel to switch channels to another channel where the latest version on that
-/// channel is lower than the current version.
+    /// This could happen if a release has bugs and was retracted from the release feed, or if you're using
+    /// ExplicitChannel to switch channels to another channel where the latest version on that
+    /// channel is lower than the current version.
     pub AllowVersionDowngrade: bool,
     /// **This option should usually be left None**.
-/// Overrides the default channel used to fetch updates.
-/// The default channel will be whatever channel was specified on the command line when building this release.
-/// For example, if the current release was packaged with '--channel beta', then the default channel will be 'beta'.
-/// This allows users to automatically receive updates from the same channel they installed from. This options
-/// allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
-/// without having to reinstall the application.
+    /// Overrides the default channel used to fetch updates.
+    /// The default channel will be whatever channel was specified on the command line when building this release.
+    /// For example, if the current release was packaged with '--channel beta', then the default channel will be 'beta'.
+    /// This allows users to automatically receive updates from the same channel they installed from. This options
+    /// allows you to explicitly switch channels, for example if the user wished to switch back to the 'stable' channel
+    /// without having to reinstall the application.
     pub ExplicitChannel: *mut c_char,
     /// Sets the maximum number of deltas to consider before falling back to a full update.
-/// The default is 10. Set to a negative number (eg. -1) to disable deltas.
+    /// The default is 10. Set to a negative number (eg. -1) to disable deltas.
     pub MaximumDeltasBeforeFallback: i32,
 }
 
