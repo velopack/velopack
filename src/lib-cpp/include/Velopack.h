@@ -55,7 +55,7 @@ typedef struct vpkc_asset_t {
    */
   char *Version;
   /**
-   * The type of asset (eg. &quot;Full&quot; or &quot;Delta&quot;).
+   * The type of asset (eg. "Full" or "Delta").
    */
   char *Type;
   /**

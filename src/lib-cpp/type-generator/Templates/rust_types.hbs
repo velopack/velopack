@@ -4,7 +4,7 @@
 {{rust_comment}}
 pub struct {{struct_c_name}} {
     {{#each fields}}
-    {{rust_comment}}
+    {{#indent "rust_comment" "    "}}
     pub {{field_name}}: {{#unless field_primitive}}*mut {{/unless}}{{~#if field_vector}}*mut {{/if}}{{field_c_type}},
     {{#if field_vector}}
     /// The number of elements in the {{field_name}} array.
