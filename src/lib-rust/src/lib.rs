@@ -127,6 +127,8 @@ pub enum Error
     FileNotFound(String),
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+    #[error("Checusum did not match for {0} (expected {1}, actual {2})")]
+    Checksum(String, String, String),
     #[error("Zip error: {0}")]
     Zip(#[from] zip::result::ZipError),
     #[error("Network error: {0}")]
