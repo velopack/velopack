@@ -87,6 +87,9 @@ namespace Velopack.Sources
         {
         }
 
+        /// <inheritdoc cref="Authorization"/>
+        protected override (string Name, string Value) Authorization => ("Authorization", $"Bearer {AccessToken}");
+
         /// <inheritdoc />
         protected override async Task<GithubRelease[]> GetReleases(bool includePrereleases)
         {
@@ -96,7 +99,12 @@ namespace Velopack.Sources
             var releasesPath = $"repos{RepoUri.AbsolutePath}/releases?per_page={perPage}&page={page}";
             var baseUri = GetApiBaseUrl(RepoUri);
             var getReleasesUri = new Uri(baseUri, releasesPath);
-            var response = await Downloader.DownloadString(getReleasesUri.ToString(), Authorization, "application/vnd.github.v3+json").ConfigureAwait(false);
+            var response = await Downloader.DownloadString(getReleasesUri.ToString(),                    
+                new Dictionary<string, string> {
+                    [Authorization.Name] = Authorization.Value,
+                    ["Accept"] = "application/vnd.github.v3+json"
+                }
+            ).ConfigureAwait(false);
             var releases = CompiledJson.DeserializeGithubReleaseList(response);
             if (releases == null) return Array.Empty<GithubRelease>();
             return releases.OrderByDescending(d => d.PublishedAt).Where(x => includePrereleases || !x.Prerelease).ToArray();
