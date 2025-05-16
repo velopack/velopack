@@ -1,6 +1,7 @@
 ﻿#pragma warning disable CS0618 // Type or member is obsolete
 using System.Text;
 using NuGet.Versioning;
+using Velopack.Core;
 using OldReleaseEntry = Velopack.Tests.OldSquirrel.ReleaseEntry;
 using OldSemanticVersion = Velopack.Tests.OldSquirrel.SemanticVersion;
 

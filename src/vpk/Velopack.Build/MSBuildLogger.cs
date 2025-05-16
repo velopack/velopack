@@ -10,38 +10,13 @@ using Task = System.Threading.Tasks.Task;
 
 namespace Velopack.Build;
 
-public class MSBuildLogger(TaskLoggingHelper loggingHelper) : ILogger, IFancyConsole, IFancyConsoleProgress
+public class MSBuildLogger(TaskLoggingHelper loggingHelper) : ILogger
 {
     private TaskLoggingHelper LoggingHelper { get; } = loggingHelper;
 
     IDisposable ILogger.BeginScope<TState>(TState state)
     {
         throw new NotImplementedException();
-    }
-
-    public async Task ExecuteProgressAsync(Func<IFancyConsoleProgress, Task> action)
-    {
-        await action(this).ConfigureAwait(false);
-    }
-
-    public async Task RunTask(string name, Func<Action<int>, Task> fn)
-    {
-        try {
-            await fn(x => { }).ConfigureAwait(false);
-        } catch (Exception ex) {
-            this.LogError(ex, "Error running task {taskName}", name);
-            throw;
-        }
-    }
-
-    public async Task<T> RunTask<T>(string name, Func<Action<int>, Task<T>> fn)
-    {
-        try {
-            return await fn(x => { }).ConfigureAwait(false);
-        } catch (Exception ex) {
-            this.LogError(ex, "Error running task {taskName}", name);
-            throw;
-        }
     }
 
     public bool IsEnabled(LogLevel logLevel)
@@ -60,6 +35,7 @@ public class MSBuildLogger(TaskLoggingHelper loggingHelper) : ILogger, IFancyCon
         if (exception != null) {
             message += " " + exception.Message;
         }
+
         switch (logLevel) {
         case LogLevel.Trace:
             LoggingHelper.LogMessage(MessageImportance.Low, message);
@@ -78,28 +54,5 @@ public class MSBuildLogger(TaskLoggingHelper loggingHelper) : ILogger, IFancyCon
             LoggingHelper.LogError(message);
             break;
         }
-    }
-
-    public void WriteTable(string tableName, IEnumerable<IEnumerable<string>> rows, bool hasHeaderRow = true)
-    {
-        LoggingHelper.LogMessage(tableName);
-        foreach (var row in rows) {
-            LoggingHelper.LogMessage("  " + String.Join("    ", row));
-        }
-    }
-
-    public System.Threading.Tasks.Task<bool> PromptYesNo(string prompt, bool? defaultValue = null, TimeSpan? timeout = null)
-    {
-        return Task.FromResult(true);
-    }
-
-    public void WriteLine(string text = "")
-    {
-        Log(LogLevel.Information, 0, null, null, (object? state, Exception? exception) => text);
-    }
-
-    public string EscapeMarkup(string text)
-    {
-        return text;
     }
 }

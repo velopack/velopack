@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using Velopack.Logging;
 using Velopack.Util;
 
-namespace Velopack.Compression
+namespace Velopack.Util
 {
     internal static class EasyZip
     {

@@ -111,7 +111,7 @@ namespace Velopack.Sources
         protected abstract string GetAssetUrlFromName(T release, string assetName);
 
         /// <summary>
-        /// Provides a wrapper around <see cref="ReleaseEntry"/> which also contains a Git Release.
+        /// Provides a wrapper around <see cref="VelopackAsset"/> which also contains a Git Release.
         /// </summary>
         protected internal record GitBaseAsset : VelopackAsset
         {

@@ -39,8 +39,8 @@ public class ZipPackageTests
         SymbolicLink.Create(symlink, actual);
         SymbolicLink.Create(symfile, actualFile);
 
-        Compression.EasyZip.CreateZipFromDirectoryAsync(logger.ToVelopackLogger(), zipFile, tempDir).GetAwaiterResult();
-        Compression.EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), zipFile, extractedDir, expandSymlinks: true);
+        EasyZip.CreateZipFromDirectoryAsync(logger.ToVelopackLogger(), zipFile, tempDir).GetAwaiterResult();
+        EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), zipFile, extractedDir, expandSymlinks: true);
 
         Assert.True(File.Exists(Path.Combine(extractedDir, "actual", "file.txt")));
         Assert.Equal("hello", File.ReadAllText(Path.Combine(extractedDir, "actual", "file.txt")));

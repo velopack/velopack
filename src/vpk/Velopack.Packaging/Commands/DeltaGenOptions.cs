@@ -1,4 +1,5 @@
 ﻿using Velopack.Core;
+using Velopack.Packaging.Compression;
 
 namespace Velopack.Packaging.Commands;
 

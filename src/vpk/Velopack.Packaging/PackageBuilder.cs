@@ -3,11 +3,11 @@ using System.Text.RegularExpressions;
 using Markdig;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
-using Velopack.Compression;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
 using Velopack.NuGet;
 using Velopack.Packaging.Abstractions;
+using Velopack.Packaging.Compression;
 using Velopack.Util;
 
 namespace Velopack.Packaging;

@@ -5,7 +5,6 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NuGet.Versioning;
-using Velopack.Compression;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
 using Velopack.NuGet;
