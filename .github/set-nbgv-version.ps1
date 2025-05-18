@@ -2,7 +2,7 @@ param(
     [string]$version = $(nbgv get-version -v NuGetPackageVersion).Trim()
 )
 
-$scriptDir = $PSScriptRoot
+$scriptDir = "$PSScriptRoot/.."
 $path = Join-Path $scriptDir "Cargo.toml"
 Write-Host "Setting version to $version"
 
