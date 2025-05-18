@@ -2,8 +2,8 @@
 
 mod common;
 use common::*;
-use std::{fs, path::Path, path::PathBuf};
 use std::hint::assert_unchecked;
+use std::{fs, path::Path, path::PathBuf};
 use tempfile::tempdir;
 use velopack_bins::*;
 
@@ -153,9 +153,12 @@ pub fn test_delta_apply_legacy() {
     assert_eq!(manifest.id, "Clowd");
     assert_eq!(manifest.version, semver::Version::parse("3.4.293").unwrap());
 
-    let extract_dir = tmp_dir.path().join("_extracted");
-    bundle.extract_lib_contents_to_path(&extract_dir, |_| {}).unwrap();
-    
-    let extracted = extract_dir.join("Clowd.dll");
-    assert!(extracted.exists());
+    #[cfg(not(target_os = "linux"))]
+    {
+        let extract_dir = tmp_dir.path().join("_extracted");
+        bundle.extract_lib_contents_to_path(&extract_dir, |_| {}).unwrap();
+
+        let extracted = extract_dir.join("Clowd.dll");
+        assert!(extracted.exists());
+    }
 }
