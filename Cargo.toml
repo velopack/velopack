@@ -86,6 +86,7 @@ uuid = { version = "1.13.1", features = ["v4", "fast-rng", "macro-diagnostics"] 
 walkdir = "2.5"
 mtzip = "=4.0.2"
 ripunzip = "=2.0.1"
+zerofrom = "=0.1.5"
 
 # default to small, optimized workspace release binaries
 [profile.release]
