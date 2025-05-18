@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 
 namespace Velopack.Sources
 {
-
     /// <inheritdoc cref="IFileDownloader"/>
     public class HttpClientFileDownloader : IFileDownloader
     {
@@ -72,7 +71,7 @@ namespace Velopack.Sources
         {
             // https://stackoverflow.com/a/46497896/184746
             // Get the http headers first to examine the content length
-            using var response = await client.GetAsync(requestUri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+            using var response = await client.GetAsync(requestUri, HttpCompletionOption.ResponseHeadersRead, cancelToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             var contentLength = response.Content.Headers.ContentLength;
