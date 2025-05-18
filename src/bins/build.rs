@@ -1,33 +1,31 @@
 #![allow(unused_variables)]
 
-use std::env;
+use std::{env, path::Path};
 
 fn main() {
-    #[cfg(target_os = "windows")]
-    delay_load();
-
     let version = env!("CARGO_PKG_VERSION");
     let ver = semver::Version::parse(&version).expect("Unable to parse ngbv output as semver version");
     let ver: u64 = ver.major << 48 | ver.minor << 32 | ver.patch << 16;
     let desc = format!("Velopack {}", version);
-
     println!("cargo:rustc-env=NGBV_VERSION={}", version);
 
-    #[cfg(target_os = "windows")]
-    winres::WindowsResource::new()
-        .set_manifest_file("app.manifest")
-        .set_version_info(winres::VersionInfo::PRODUCTVERSION, ver)
-        .set_version_info(winres::VersionInfo::FILEVERSION, ver)
-        .set("CompanyName", "Velopack")
-        .set("ProductName", "Velopack")
-        .set("ProductVersion", &version)
-        .set("FileDescription", &desc)
-        .set("LegalCopyright", "Caelan Sayler (c) 2023, Velopack Ltd. (c) 2024")
-        .compile()
-        .unwrap();
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    if target_os == "windows" {
+        delay_load();
+        link_manifest_msvc(Path::new("app.manifest"));
+    }
 }
 
-#[cfg(target_os = "windows")]
+fn link_manifest_msvc(manifest_path: &Path) {
+    println!("cargo:rustc-link-arg-bins=/MANIFEST:EMBED");
+    println!(
+        "cargo:rustc-link-arg-bins=/MANIFESTINPUT:{}",
+        manifest_path.canonicalize().unwrap().display()
+    );
+    println!("cargo:rustc-link-arg-bins=/MANIFESTUAC:NO");
+}
+
+
 fn delay_load() {
     let features = env::var("CARGO_CFG_TARGET_FEATURE").unwrap_or_default();
     if features.contains("crt-static") {
@@ -42,7 +40,6 @@ fn delay_load() {
 }
 
 // https://github.com/rust-lang/rustup/blob/master/build.rs#L45
-#[cfg(target_os = "windows")]
 fn delay_load_exe(bin_name: &str) {
     // Only search system32 for DLLs
     // This applies to DLLs loaded at load time. However, this setting is ignored
