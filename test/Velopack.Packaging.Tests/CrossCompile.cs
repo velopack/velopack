@@ -1,4 +1,5 @@
-﻿using Velopack.Packaging.Unix;
+﻿using Velopack.Core;
+using Velopack.Packaging.Unix;
 using Velopack.Util;
 
 namespace Velopack.Packaging.Tests;

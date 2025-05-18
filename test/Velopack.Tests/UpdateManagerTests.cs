@@ -547,6 +547,7 @@ public class UpdateManagerTests
         File.Copy(basePkgFixturePath, basePkgPath);
 
         var updateExe = PathHelper.CopyUpdateTo(packagesDir);
+        Chmod.ChmodFileAsExecutable(updateExe);
         var locator = new TestVelopackLocator(
             id,
             fromVersion,
