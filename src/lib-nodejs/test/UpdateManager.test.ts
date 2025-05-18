@@ -22,6 +22,7 @@ test("UpdateManager detects local update", async () => {
     const options: UpdateOptions = {
       ExplicitChannel: "beta",
       AllowVersionDowngrade: false,
+      MaximumDeltasBeforeFallback: 10,
     };
 
     const um = new UpdateManager(tmpDir, options, locator);
@@ -54,6 +55,7 @@ test("UpdateManager downloads full update", async () => {
     const options: UpdateOptions = {
       ExplicitChannel: "beta",
       AllowVersionDowngrade: false,
+      MaximumDeltasBeforeFallback: 10,
     };
 
     const um = new UpdateManager(feedDir, options, locator);
