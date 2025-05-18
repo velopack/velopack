@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-namespace Velopack.Packaging.Unix;
+namespace Velopack.Core;
 
 public class Chmod
 {
