@@ -160,7 +160,7 @@ namespace Velopack
 
         /// <summary>
         /// Given a feed of releases, and the latest local full release, and the latest remote full release, this method will return a delta
-        /// update strategy to be used by <see cref="DownloadUpdatesAsync(UpdateInfo, Action{int}?, bool, CancellationToken)"/>.
+        /// update strategy to be used by <see cref="DownloadUpdatesAsync(UpdateInfo, Action{int}?, CancellationToken)"/>.
         /// </summary>
         protected virtual UpdateInfo CreateDeltaUpdateStrategy(VelopackAsset[] feed, VelopackAsset? latestLocalFull, VelopackAsset latestRemoteFull)
         {
@@ -188,7 +188,7 @@ namespace Velopack
             return new UpdateInfo(latestRemoteFull, false, latestLocalFull, deltas);
         }
 
-        /// <inheritdoc cref="DownloadUpdatesAsync(UpdateInfo, Action{int}, bool, CancellationToken)"/>
+        /// <inheritdoc cref="DownloadUpdatesAsync(UpdateInfo, Action{int}, CancellationToken)"/>
         public void DownloadUpdates(UpdateInfo updates, Action<int>? progress = null)
         {
             DownloadUpdatesAsync(updates, progress)
@@ -203,7 +203,6 @@ namespace Velopack
         /// </summary>
         /// <param name="updates">The updates to download. Should be retrieved from <see cref="CheckForUpdates"/>.</param>
         /// <param name="progress">The progress callback. Will be called with values from 0-100.</param>
-        /// <param name="ignoreDeltas">Whether to attempt downloading delta's or skip to full package download.</param>
         /// <param name="cancelToken">An optional cancellation token if you wish to stop this operation.</param>
         public virtual async Task DownloadUpdatesAsync(UpdateInfo updates, Action<int>? progress = null, CancellationToken cancelToken = default)
         {
