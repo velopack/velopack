@@ -7,7 +7,7 @@ public class FakeDownloader : IFileDownloader
 {
     public string LastUrl { get; private set; }
     public string LastLocalFile { get; private set; }
-    public IDictionary<string, string>? LastHeaders { get; private set; }
+    public IDictionary<string, string> LastHeaders { get; private set; } = new Dictionary<string, string>();
     public byte[] MockedResponseBytes { get; set; } = [];
     public bool WriteMockLocalFile { get; set; } = false;
 
