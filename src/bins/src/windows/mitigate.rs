@@ -3,7 +3,7 @@ use windows::Win32::System::LibraryLoader::LOAD_LIBRARY_SEARCH_SYSTEM32;
 use windows::Win32::System::LibraryLoader::LOAD_LIBRARY_FLAGS;
 
 #[cfg(target_os = "windows")]
-type SetDefaultDllDirectoriesFn = unsafe extern "system" fn(DirectoryFlags: u32) -> BOOL;
+type SetDefaultDllDirectoriesFn = unsafe extern "system" fn(directory_flags: u32) -> BOOL;
 
 #[cfg(target_os = "windows")]
 unsafe fn set_default_dll_directories(flags: LOAD_LIBRARY_FLAGS) {
