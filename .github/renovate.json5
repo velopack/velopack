@@ -67,7 +67,9 @@
         "System.CommandLine",                         // too many breaking changes too frequently
         "Microsoft.Extensions.Logging.Abstractions",  // we have multiple versions of this
         "@vercel/webpack-asset-relocator-loader",     // an update was incompatible with electron
-        "xunit.runner.visualstudio"                   // 20-12-2024: broke tests (something about sn signing maybe?)
+        "xunit.runner.visualstudio",                  // 20-12-2024: broke tests (something about sn signing maybe?)
+        "mtzip",                                      // 18-05-2025: new versions use edition 2024 which is not compatible with 1.75  
+        "ripunzip",                                   // 18-05-2025: v2.0.2 depends on zip 2.6 which has been yanked
       ],
       "dependencyDashboardApproval": true
     },
