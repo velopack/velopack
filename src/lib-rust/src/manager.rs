@@ -519,10 +519,16 @@ impl UpdateManager {
     }
 
     fn verify_package_checksum(&self, file: &PathBuf, asset: &VelopackAsset) -> Result<(), Error> {
+        let file_size = file.metadata()?.len();
+        if file_size != asset.Size {
+            error!("File size mismatch for file '{}': expected {}, got {}", file.to_string_lossy(), asset.Size, file_size);
+            return Err(Error::SizeInvalid(file.to_string_lossy().to_string(), asset.Size, file_size));
+        }
+
         let sha1 = util::calculate_file_sha1(file)?;
         if !sha1.eq_ignore_ascii_case(&asset.SHA1) {
             error!("SHA1 checksum mismatch for file '{}': expected '{}', got '{}'", file.to_string_lossy(), asset.SHA1, sha1);
-            return Err(Error::Checksum(file.to_string_lossy().to_string(), asset.SHA1.clone(), sha1));
+            return Err(Error::ChecksumInvalid(file.to_string_lossy().to_string(), asset.SHA1.clone(), sha1));
         }
         Ok(())
     }

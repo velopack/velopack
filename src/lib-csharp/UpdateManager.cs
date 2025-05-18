@@ -235,20 +235,14 @@ namespace Velopack
 
             var completeFile = Locator.GetLocalPackagePath(targetRelease);
             var incompleteFile = completeFile + ".partial";
+            
+            // if the package already exists on disk, we can skip the download.
+            if (File.Exists(completeFile)) {
+                Log.Info($"Package already exists on disk: '{completeFile}', nothing to do.");
+                return;
+            }
 
             try {
-                // if the package already exists on disk, we can skip the download.
-                if (File.Exists(completeFile)) {
-                    Log.Info($"Package already exists on disk: '{completeFile}', verifying checksum...");
-                    try {
-                        VerifyPackageChecksum(targetRelease, completeFile);
-                        Log.Info("Package checksum verified, skipping download.");
-                        return;
-                    } catch (ChecksumFailedException ex) {
-                        Log.Warn(ex, $"Checksum failed for file '{completeFile}'. Deleting and starting over.");
-                    }
-                }
-
                 var deltasSize = updates.DeltasToTarget.Sum(x => x.Size);
                 var deltasCount = updates.DeltasToTarget.Count();
 

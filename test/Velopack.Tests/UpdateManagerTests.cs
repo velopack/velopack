@@ -145,6 +145,31 @@ public class UpdateManagerTests
     }
 
     [Fact]
+    public void DownlaodFullUpdateFromFixtures()
+    {
+        using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var packagesPath);
+        using var _2 = TempUtil.GetTempDirectory(out var feedPath);
+        
+        var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", packagesPath, logger.ToVelopackLogger());
+        
+        File.Copy(PathHelper.GetFixture("testfeed.json"), Path.Combine(feedPath, "releases.beta.json"), true);
+        File.Copy(PathHelper.GetFixture("AvaloniaCrossPlat-1.0.11-win-full.nupkg"), Path.Combine(feedPath, "AvaloniaCrossPlat-1.0.11-full.nupkg"), true);
+        
+        var options = new UpdateOptions() {
+            ExplicitChannel = "beta",
+            AllowVersionDowngrade = false,
+            MaximumDeltasBeforeFallback = 10,
+        };
+        
+        var um = new UpdateManager(feedPath, options, locator);
+        var updateInfo = um.CheckForUpdates();
+        Assert.NotNull(updateInfo);
+        um.DownloadUpdates(updateInfo);
+        Assert.True(File.Exists(Path.Combine(packagesPath, "AvaloniaCrossPlat-1.0.11-full.nupkg")));
+    }
+
+    [Fact]
     public void CheckFromLocal()
     {
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
