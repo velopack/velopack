@@ -69,6 +69,7 @@ walkdir.workspace = true
 sha1_smol.workspace = true
 mtzip.workspace = true
 ripunzip.workspace = true
+zerofrom.workspace = true
 
 [target.'cfg(target_os="linux")'.dependencies]
 waitpid-any.workspace = true
