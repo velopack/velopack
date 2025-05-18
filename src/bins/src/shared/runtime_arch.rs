@@ -78,7 +78,7 @@ fn check_arch_windows() -> Option<RuntimeArch> {
 
 #[cfg(target_os = "windows")]
 type IsWow64Process2Fn = unsafe extern "system" fn(
-    hProcess: windows::Win32::Foundation::HANDLE,
+    hprocess: windows::Win32::Foundation::HANDLE,
     pprocessmachine: *mut windows::Win32::System::SystemInformation::IMAGE_FILE_MACHINE,
     pnativemachine: *mut windows::Win32::System::SystemInformation::IMAGE_FILE_MACHINE,
 ) -> windows::core::BOOL;
