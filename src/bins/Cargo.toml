@@ -127,3 +127,6 @@ pretty_assertions.workspace = true
 
 [build-dependencies]
 semver.workspace = true
+
+[target.'cfg(windows)'.build-dependencies]
+winres.workspace = true
