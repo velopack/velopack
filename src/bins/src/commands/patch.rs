@@ -1,7 +1,6 @@
 use anyhow::{anyhow, bail, Result};
 use mtzip::level::CompressionLevel;
 use ripunzip::{NullProgressReporter, UnzipEngine, UnzipOptions};
-use std::os::windows::fs::MetadataExt;
 use std::{
     collections::HashSet,
     fs, io,
@@ -127,7 +126,7 @@ pub fn delta<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(
 
                     visited_paths.insert(file_without_extension);
 
-                    if fs::metadata(&patch_file_path)?.file_size() == 0 {
+                    if fs::metadata(&patch_file_path)?.len() == 0 {
                         // file has not changed, so we can continue.
                         continue;
                     }

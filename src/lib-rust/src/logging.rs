@@ -112,6 +112,7 @@ pub fn init_logging(
 }
 
 /// Initialize a Trace / Console logger for the current process.
+#[cfg(feature = "file-logging")]
 pub fn trace_logger() {
     TermLogger::init(LevelFilter::Trace, get_config(None), TerminalMode::Mixed, ColorChoice::Never).unwrap();
 }
