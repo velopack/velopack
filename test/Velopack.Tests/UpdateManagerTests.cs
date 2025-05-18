@@ -150,18 +150,18 @@ public class UpdateManagerTests
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
         using var _1 = TempUtil.GetTempDirectory(out var packagesPath);
         using var _2 = TempUtil.GetTempDirectory(out var feedPath);
-        
+
         var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", packagesPath, logger.ToVelopackLogger());
-        
+
         File.Copy(PathHelper.GetFixture("testfeed.json"), Path.Combine(feedPath, "releases.beta.json"), true);
         File.Copy(PathHelper.GetFixture("AvaloniaCrossPlat-1.0.11-win-full.nupkg"), Path.Combine(feedPath, "AvaloniaCrossPlat-1.0.11-full.nupkg"), true);
-        
+
         var options = new UpdateOptions() {
             ExplicitChannel = "beta",
             AllowVersionDowngrade = false,
             MaximumDeltasBeforeFallback = 10,
         };
-        
+
         var um = new UpdateManager(feedPath, options, locator);
         var updateInfo = um.CheckForUpdates();
         Assert.NotNull(updateInfo);
@@ -375,6 +375,8 @@ public class UpdateManagerTests
 
         info.TargetFullRelease.SHA256 = null;
         um.DownloadUpdates(info);
+
+        Directory.EnumerateFiles(packagesDir, "*.nupkg", SearchOption.TopDirectoryOnly).ForEach(File.Delete);
 
         // change hash, it should now fail
         string actualHash = info.TargetFullRelease.SHA1;
