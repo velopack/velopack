@@ -248,19 +248,28 @@ pub fn get_latest_app_version_folder<P: AsRef<Path>>(parent_path: P) -> Result<O
 pub fn has_app_prefixed_folder<P: AsRef<Path>>(parent_path: P) -> bool {
     match get_app_prefixed_folders(parent_path) {
         Ok(folders) => !folders.is_empty(),
-        Err(e) => { 
+        Err(e) => {
             warn!("Failed to check for app-prefixed folders: {}", e);
             false
-        },
+        }
     }
 }
 
-pub fn delete_app_prefixed_folders<P: AsRef<Path>>(parent_path: P) -> Result<()> {
-    let folders = get_app_prefixed_folders(parent_path)?;
-    for folder in folders {
-        super::retry_io(|| remove_dir_all::remove_dir_all(&folder))?;
+pub fn delete_app_prefixed_folders<P: AsRef<Path>>(parent_path: P) {
+    match get_app_prefixed_folders(parent_path) {
+        Ok(folders) => {
+            for folder in folders {
+                if let Err(e) = super::retry_io(|| remove_dir_all::remove_dir_all(&folder)) {
+                    warn!("Failed to delete app-prefixed folder: {} ({})", folder.display(), e);
+                } else {
+                    info!("Deleted app-prefixed folder: {}", folder.display());
+                }
+            }
+        }
+        Err(e) => {
+            warn!("Failed to find app-prefixed folders: {}", e);
+        }
     }
-    Ok(())
 }
 
 fn parse_version_from_folder_name(folder_name: &str) -> Option<Version> {
