@@ -136,10 +136,10 @@ pub fn test_delta_apply_legacy() {
     dialogs::set_silent(true);
     let fixtures = find_fixtures();
     let base = fixtures.join("Clowd-3.4.287-full.nupkg");
-    let d1 = fixtures.join("Clowd-3.4.288-delta-zstd.nupkg");
-    let d2 = fixtures.join("Clowd-3.4.291-delta-zstd.nupkg");
-    let d3 = fixtures.join("Clowd-3.4.292-delta-zstd.nupkg");
-    let d4 = fixtures.join("Clowd-3.4.293-delta-zstd.nupkg");
+    let d1 = fixtures.join("Clowd-3.4.288-delta.nupkg");
+    let d2 = fixtures.join("Clowd-3.4.291-delta.nupkg");
+    let d3 = fixtures.join("Clowd-3.4.292-delta.nupkg");
+    let d4 = fixtures.join("Clowd-3.4.293-delta.nupkg");
 
     let deltas = vec![&d1, &d2, &d3, &d4];
 

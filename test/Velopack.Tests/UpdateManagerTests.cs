@@ -145,7 +145,7 @@ public class UpdateManagerTests
     }
 
     [Fact]
-    public void DownlaodFullUpdateFromFixtures()
+    public void DownloadFullUpdateFromFixtures()
     {
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
         using var _1 = TempUtil.GetTempDirectory(out var packagesPath);
@@ -388,7 +388,6 @@ public class UpdateManagerTests
         Assert.Contains(modifiedHash, ex.Message);
     }
 
-
     [Fact]
     public void NoDeltaIfNoBasePackage()
     {
@@ -527,7 +526,7 @@ public class UpdateManagerTests
     }
 
     [SkippableTheory]
-    [InlineData("Clowd", "3.4.287", "3.4.292")]
+    [InlineData("Clowd", "3.4.287", "3.4.293")]
     //[InlineData("slack", "1.1.8", "1.2.2")]
     public async Task DownloadsDeltasAndCreatesFullVersion(string id, string fromVersion, string toVersion)
     {
@@ -560,7 +559,7 @@ public class UpdateManagerTests
         var info = await um.CheckForUpdatesAsync();
         Assert.NotNull(info);
         Assert.True(SemanticVersion.Parse(toVersion) == info.TargetFullRelease.Version);
-        Assert.Equal(3, info.DeltasToTarget.Count());
+        Assert.Equal(4, info.DeltasToTarget.Count());
         Assert.NotNull(info.BaseRelease);
 
         await um.DownloadUpdatesAsync(info);
