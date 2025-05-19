@@ -5,7 +5,7 @@
     ":semanticCommitsDisabled"
   ],
   "labels": ["renovate"],
-  "schedule": ["on friday"],
+  "schedule": ["on friday before 11am"],
   "timezone": "Europe/London",
   "ignorePaths": [
     "**/node_modules/**",
