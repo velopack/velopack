@@ -19,9 +19,9 @@ public class FaultySourceHandlingTests(ITestOutputHelper testOutputHelper)
 
     private class FaultySource : IUpdateSource
     {
-        public Task<VelopackAssetFeed> GetReleaseFeed(IVelopackLogger logger, string? appId, string channel,
+        public Task<VelopackAssetFeed> GetReleaseFeed(IVelopackLogger logger, string appId, string channel,
             Guid? stagingId = null,
-            VelopackAsset? latestLocalRelease = null)
+            VelopackAsset latestLocalRelease = null)
         {
             return Task.FromResult(
                 VelopackAssetFeed.FromJson(
