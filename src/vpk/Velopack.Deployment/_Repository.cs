@@ -63,12 +63,15 @@ public abstract class DownRepository<TDown> : IRepositoryCanDownload<TDown>
 
     public virtual async Task DownloadLatestFullPackageAsync(TDown options)
     {
-        VelopackAssetFeed feed = await RetryAsyncRet(() => GetReleasesAsync(options), $"Fetching releases for channel {options.Channel}...");
+        VelopackAssetFeed feed = await RetryAsyncRet(
+            () => GetReleasesAsync(options),
+            $"Fetching releases for channel {options.Channel}...");
         var releases = feed.Assets;
 
-        Log.Info($"Found {releases.Length} release(s) in remote file");
+        Log.Info($"Found {releases?.Length ?? 0} release(s) in remote file");
 
-        var latest = releases.Where(r => r.Type == VelopackAssetType.Full).OrderByDescending(r => r.Version).FirstOrDefault();
+        var latest = releases?.Where(r => r.Type == VelopackAssetType.Full).OrderByDescending(r => r.Version)
+            .FirstOrDefault();
         if (latest == null) {
             Log.Warn("No full / applicable release was found to download. Aborting.");
             return;

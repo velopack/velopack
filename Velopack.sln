@@ -59,6 +59,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Velopack.Flow", "src\vpk\Ve
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Velopack.Core", "src\vpk\Velopack.Core\Velopack.Core.csproj", "{2A60F8BE-EAD4-4229-A04E-52A37C8F1D0E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Velopack.Deployment.Tests", "test\Velopack.Deployment.Tests\Velopack.Deployment.Tests.csproj", "{3D9C793D-60F0-4C4B-8B65-3A26DD60ECA0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -133,6 +135,10 @@ Global
 		{2A60F8BE-EAD4-4229-A04E-52A37C8F1D0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2A60F8BE-EAD4-4229-A04E-52A37C8F1D0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2A60F8BE-EAD4-4229-A04E-52A37C8F1D0E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3D9C793D-60F0-4C4B-8B65-3A26DD60ECA0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3D9C793D-60F0-4C4B-8B65-3A26DD60ECA0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3D9C793D-60F0-4C4B-8B65-3A26DD60ECA0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3D9C793D-60F0-4C4B-8B65-3A26DD60ECA0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -145,6 +151,7 @@ Global
 		{1FF6A262-13D0-45DF-B818-77AC84C52C6F} = {3EBFA551-780C-473D-A197-0EE56F2CBA82}
 		{8B27C4BF-21B8-48B0-80F8-74520227C35F} = {7AC3A776-B582-4B65-9D03-BD52332B5CA3}
 		{9E0F2B00-1B88-4B75-BEED-6DF8DBCA36B5} = {3EBFA551-780C-473D-A197-0EE56F2CBA82}
+		{3D9C793D-60F0-4C4B-8B65-3A26DD60ECA0} = {7AC3A776-B582-4B65-9D03-BD52332B5CA3}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {68CA987A-9BAB-4C75-8EEB-4596BA6BBD07}
