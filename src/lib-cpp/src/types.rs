@@ -2,6 +2,7 @@ use anyhow::{bail, Result};
 use libc::{c_char, c_void, size_t};
 use std::ffi::{CStr, CString};
 use std::path::PathBuf;
+use std::mem::size_of;
 use velopack::{locator::VelopackLocatorConfig, UpdateInfo, UpdateOptions, VelopackAsset};
 
 /// The result of a call to check for updates. This can indicate that an update is available, or that an error occurred.
@@ -89,9 +90,10 @@ pub fn allocate_PathBuf(p: &PathBuf) -> *mut c_char {
 
 pub unsafe fn free_String(psz: *mut c_char) {
     if !psz.is_null() {
-        let _ = unsafe { CString::from_raw(psz) };
+        drop(CString::from_raw(psz));
     }
 }
+
 pub unsafe fn free_PathBuf(psz: *mut c_char) {
     free_String(psz);
 }
@@ -181,6 +183,7 @@ pub unsafe fn allocate_VelopackLocatorConfig_vec(dto: &Vec<VelopackLocatorConfig
     }
     log::debug!("vpkc_locator_config_t vector allocated");
     let count_value = dto.len() as size_t;
+    *count = count_value;
     let mut assets = Vec::with_capacity(count_value as usize);
     for i in 0..count_value {
         let ptr = allocate_VelopackLocatorConfig(&dto[i as usize]);
@@ -297,6 +300,7 @@ pub unsafe fn allocate_VelopackAsset_vec(dto: &Vec<VelopackAsset>, count: *mut s
     }
     log::debug!("vpkc_asset_t vector allocated");
     let count_value = dto.len() as size_t;
+    *count = count_value;
     let mut assets = Vec::with_capacity(count_value as usize);
     for i in 0..count_value {
         let ptr = allocate_VelopackAsset(&dto[i as usize]);
@@ -400,6 +404,7 @@ pub unsafe fn allocate_UpdateInfo_vec(dto: &Vec<UpdateInfo>, count: *mut size_t)
     }
     log::debug!("vpkc_update_info_t vector allocated");
     let count_value = dto.len() as size_t;
+    *count = count_value;
     let mut assets = Vec::with_capacity(count_value as usize);
     for i in 0..count_value {
         let ptr = allocate_UpdateInfo(&dto[i as usize]);
@@ -500,6 +505,7 @@ pub unsafe fn allocate_UpdateOptions_vec(dto: &Vec<UpdateOptions>, count: *mut s
     }
     log::debug!("vpkc_update_options_t vector allocated");
     let count_value = dto.len() as size_t;
+    *count = count_value;
     let mut assets = Vec::with_capacity(count_value as usize);
     for i in 0..count_value {
         let ptr = allocate_UpdateOptions(&dto[i as usize]);

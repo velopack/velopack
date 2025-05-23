@@ -16,7 +16,7 @@ static inline std::optional<{{struct_rust_name}}> to_cpp_{{struct_rust_name}}(co
     return std::optional<{{struct_rust_name}}>({
         {{#each fields}}
         {{#if field_primitive}}dto->{{field_name}},{{/if~}}
-        {{#if field_normal}}to_cpp_{{field_cpp_type}}(dto->{{field_name}}){{~#unless field_optional}}.value(){{/unless}},{{/if~}}
+        {{#if field_normal}}{{#unless field_optional}}unwrap({{/unless}}to_cpp_{{field_cpp_type}}(dto->{{field_name}}){{~#unless field_optional}}, "Required property {{field_name}} was null"){{/unless}},{{/if~}}
         {{#if field_vector}}to_cpp_{{field_cpp_type}}_vec(dto->{{field_name}}, dto->{{field_name}}Count),{{/if}}
         {{/each}}
     });
@@ -29,12 +29,12 @@ static inline std::vector<{{struct_rust_name}}> to_cpp_{{struct_rust_name}}_vec(
     for (size_t i = 0; i < c; ++i) {
         auto dto = arr[i];
         if (dto == nullptr) { continue; }
-        result.push_back(to_cpp_{{struct_rust_name}}(dto).value());
+        result.push_back(unwrap(to_cpp_{{struct_rust_name}}(dto)));
     }
     return result;
 }
 
-static inline {{struct_c_name}}* alloc_c_{{struct_rust_name}}(const {{struct_rust_name}}* dto) {
+static inline {{struct_c_name}}* alloc_c_{{struct_rust_name}}_ptr(const {{struct_rust_name}}* dto) {
     if (dto == nullptr) { return nullptr; }
     {{struct_c_name}}* obj = new {{struct_c_name}}{};
     {{#each fields}}
@@ -47,7 +47,8 @@ static inline {{struct_c_name}}* alloc_c_{{struct_rust_name}}(const {{struct_rus
 
 static inline {{struct_c_name}}* alloc_c_{{struct_rust_name}}(const std::optional<{{struct_rust_name}}>& dto) {
     if (!dto.has_value()) { return nullptr; }
-    return alloc_c_{{struct_rust_name}}(dto.value());
+    {{struct_rust_name}} obj = unwrap(dto);
+    return alloc_c_{{struct_rust_name}}_ptr(&obj);
 }
 
 static inline {{struct_c_name}}** alloc_c_{{struct_rust_name}}_vec(const std::vector<{{struct_rust_name}}>& dto, size_t* count) {

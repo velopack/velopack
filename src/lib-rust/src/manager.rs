@@ -398,7 +398,7 @@ impl UpdateManager {
 
         fs::create_dir_all(packages_dir)?;
         let final_target_file = packages_dir.join(name);
-        let partial_file = final_target_file.with_extension(".partial");
+        let partial_file = final_target_file.with_extension("partial");
 
         if final_target_file.exists() {
             info!("Package already exists on disk, skipping download: '{}'", final_target_file.to_string_lossy());
@@ -407,11 +407,10 @@ impl UpdateManager {
 
         let old_nupkg_pattern = format!("{}/*.nupkg", packages_dir.to_string_lossy());
         let old_partial_pattern = format!("{}/*.partial", packages_dir.to_string_lossy());
-        let delta_pattern = format!("{}/-delta.nupkg", packages_dir.to_string_lossy());
+        let delta_pattern = format!("{}/*-delta.nupkg", packages_dir.to_string_lossy());
         let mut to_delete = Vec::new();
 
         fn find_files_to_delete(pattern: &str, to_delete: &mut Vec<String>) {
-            info!("Searching for packages to clean: '{}'", pattern);
             match glob::glob(pattern) {
                 Ok(paths) => {
                     for path in paths.into_iter().flatten() {
@@ -434,13 +433,13 @@ impl UpdateManager {
                 info!("Falling back to full update...");
                 self.source.download_release_entry(&update.TargetFullRelease, &partial_file.to_string_lossy(), progress)?;
                 self.verify_package_checksum(&partial_file, &update.TargetFullRelease)?;
+                info!("Successfully downloaded file: '{}'", partial_file.to_string_lossy());
             }
         } else {
             self.source.download_release_entry(&update.TargetFullRelease, &partial_file.to_string_lossy(), progress)?;
             self.verify_package_checksum(&partial_file, &update.TargetFullRelease)?;
+            info!("Successfully downloaded file: '{}'", partial_file.to_string_lossy());
         }
-
-        info!("Successfully downloaded file: '{}'", partial_file.to_string_lossy());
 
         info!("Renaming partial file to final target: '{}'", final_target_file.to_string_lossy());
         fs::rename(&partial_file, &final_target_file)?;
@@ -477,6 +476,12 @@ impl UpdateManager {
         progress: Option<Sender<i16>>,
     ) -> Result<(), Error> {
         let packages_dir = self.locator.get_packages_dir();
+        let base_release_path = packages_dir.join(&update.BaseRelease.as_ref().unwrap().FileName);
+        let base_release_path = base_release_path.to_string_lossy().to_string();
+        let output_path = target_file.to_string_lossy().to_string();
+
+        let mut args: Vec<String> = ["patch", "--old", &base_release_path, "--output", &output_path].iter().map(|s| s.to_string()).collect();
+
         for (i, delta) in update.DeltasToTarget.iter().enumerate() {
             let delta_file = packages_dir.join(&delta.FileName);
             let partial_file = delta_file.with_extension("partial");
@@ -490,18 +495,16 @@ impl UpdateManager {
             if let Some(progress) = &progress {
                 let _ = progress.send(((i as f64 / update.DeltasToTarget.len() as f64) * 70.0) as i16);
             }
-        }
 
-        let mut args: Vec<String> =
-            ["patch", "--old", &update.BaseRelease.as_ref().unwrap().FileName, "--output"].iter().map(|s| s.to_string()).collect();
-        args.push(target_file.to_string_lossy().to_string());
-        for delta in update.DeltasToTarget.iter() {
             args.push("--delta".to_string());
-            let path = packages_dir.join(&delta.FileName);
-            args.push(path.to_string_lossy().to_string());
+            args.push(delta_file.to_string_lossy().to_string());
         }
 
-        info!("Applying {} patches to {}.", update.DeltasToTarget.len(), target_file.to_string_lossy());
+        info!("Applying {} patches to {}.", update.DeltasToTarget.len(), output_path);
+
+        if let Some(progress) = &progress {
+            let _ = progress.send(70);
+        }
 
         let output = std::process::Command::new(self.locator.get_update_path()).args(args).output()?;
         if output.status.success() {
