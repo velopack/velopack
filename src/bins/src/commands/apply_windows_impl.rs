@@ -58,7 +58,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
             let process_handle = process::run_process_as_admin(&exe_path, args, work_dir, false)?;
 
             info!("Waiting (up to 10 minutes) for elevated process to exit...");
-            let result = process::wait_for_process_to_exit_with_timeout(process_handle, Duration::from_secs(10 * 60))?;
+            let result = process::wait_for_process_to_exit(process_handle, Some(Duration::from_secs(10 * 60)))?;
             info!("Elevated process has exited ({:?}).", result);
             return Ok(new_locator);
         }

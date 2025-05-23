@@ -40,7 +40,7 @@ pub fn run_hook(locator: &VelopackLocator, hook_name: &str, timeout_secs: u64) -
 
     let cmd = cmd.unwrap();
 
-    match process::wait_for_process_to_exit_with_timeout(&cmd, Duration::from_secs(timeout_secs)) {
+    match process::wait_for_process_to_exit(&cmd, Some(Duration::from_secs(timeout_secs))) {
         Ok(WaitResult::NoWaitRequired) => {
             warn!("Was unable to wait for hook (it may have exited too quickly).");
         }

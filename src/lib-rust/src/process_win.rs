@@ -14,7 +14,7 @@ use windows::{
         Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION},
         System::Threading::{
             CreateProcessW, GetCurrentProcess, GetExitCodeProcess, GetProcessId, GetProcessTimes, OpenProcess, OpenProcessToken,
-            TerminateProcess, WaitForSingleObject, CREATE_NO_WINDOW, CREATE_UNICODE_ENVIRONMENT, PROCESS_ACCESS_RIGHTS,
+            TerminateProcess, WaitForSingleObject, CREATE_NO_WINDOW, CREATE_UNICODE_ENVIRONMENT, INFINITE, PROCESS_ACCESS_RIGHTS,
             PROCESS_BASIC_INFORMATION, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE, STARTUPINFOW,
             STARTUPINFOW_FLAGS,
         },
@@ -394,14 +394,30 @@ pub enum WaitResult {
     NoWaitRequired,
 }
 
-pub fn wait_for_process_to_exit_with_timeout<T: AsRef<HANDLE>>(process: T, dur: Duration) -> IoResult<WaitResult> {
+impl WaitResult {
+    pub fn code(&self) -> Option<u32> {
+        match self {
+            WaitResult::WaitTimeout => None,
+            WaitResult::ExitCode(c) => Some(*c),
+            WaitResult::NoWaitRequired => None,
+        }
+    }
+}
+
+pub fn wait_for_process_to_exit<T: AsRef<HANDLE>>(process: T, dur: Option<Duration>) -> IoResult<WaitResult> {
     let process = *process.as_ref();
     if process.is_invalid() {
         return Ok(WaitResult::NoWaitRequired);
     }
 
-    let ms = duration_to_ms(dur);
-    info!("Waiting {}ms for process handle to exit.", ms);
+    let ms = if let Some(dur) = dur {
+        let ms = duration_to_ms(dur);
+        info!("Waiting {}ms for process handle to exit.", ms);
+        ms
+    } else {
+        info!("Waiting indefinitely process handle to exit.");
+        INFINITE
+    };
 
     unsafe {
         match WaitForSingleObject(process, ms) {
@@ -416,13 +432,13 @@ pub fn wait_for_process_to_exit_with_timeout<T: AsRef<HANDLE>>(process: T, dur: 
     }
 }
 
-pub fn wait_for_pid_to_exit(pid: u32, dur: Duration) -> IoResult<WaitResult> {
+pub fn wait_for_pid_to_exit(pid: u32, dur: Option<Duration>) -> IoResult<WaitResult> {
     info!("Waiting for process pid-{} to exit.", pid);
     let handle = open_process(PROCESS_SYNCHRONIZE, false, pid)?;
-    wait_for_process_to_exit_with_timeout(handle, dur)
+    wait_for_process_to_exit(handle, dur)
 }
 
-pub fn wait_for_parent_to_exit(dur: Duration) -> IoResult<WaitResult> {
+pub fn wait_for_parent_to_exit(dur: Option<Duration>) -> IoResult<WaitResult> {
     info!("Reading parent process information.");
     let basic_info = ProcessBasicInformation;
     let my_handle = unsafe { GetCurrentProcess() };
@@ -477,7 +493,7 @@ pub fn wait_for_parent_to_exit(dur: Duration) -> IoResult<WaitResult> {
     }
 
     info!("Waiting for parent process ({}) to exit.", info.InheritedFromUniqueProcessId);
-    wait_for_process_to_exit_with_timeout(parent_handle, dur)
+    wait_for_process_to_exit(parent_handle, dur)
 }
 
 #[test]
