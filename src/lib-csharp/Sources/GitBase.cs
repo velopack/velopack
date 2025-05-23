@@ -35,12 +35,14 @@ namespace Velopack.Sources
         protected virtual string? AccessToken { get; }
 
         /// <summary>
-        /// The Bearer token used in the request.
+        /// The Bearer or other type of Authorization header used to authenticate against the Api.
         /// </summary>
-        protected virtual string? Authorization => string.IsNullOrWhiteSpace(AccessToken) ? null : "Bearer " + AccessToken;
+        protected abstract (string Name, string Value) Authorization { get; }
 
-        /// <inheritdoc />
-        public GitBase(string repoUrl, string? accessToken, bool prerelease, IFileDownloader? downloader = null)
+        /// <summary>
+        /// Base constructor.
+        /// </summary>
+        protected GitBase(string repoUrl, string? accessToken, bool prerelease, IFileDownloader? downloader = null)
         {
             RepoUri = new Uri(repoUrl.TrimEnd('/'));
             AccessToken = accessToken;
@@ -55,7 +57,12 @@ namespace Velopack.Sources
                 // this might be a browser url or an api url (depending on whether we have a AccessToken or not)
                 // https://docs.github.com/en/rest/reference/releases#get-a-release-asset
                 var assetUrl = GetAssetUrlFromName(githubEntry.Release, releaseEntry.FileName);
-                return Downloader.DownloadFile(assetUrl, localFile, progress, Authorization, "application/octet-stream", cancelToken: cancelToken);
+                return Downloader.DownloadFile(assetUrl, localFile, progress,
+                   new Dictionary<string, string> {
+                            [Authorization.Name] = Authorization.Value,
+                            ["Accept"] = "application/octet-stream"
+                        },
+                    cancelToken: cancelToken);
             }
 
             throw new ArgumentException($"Expected releaseEntry to be {nameof(GitBaseAsset)} but got {releaseEntry.GetType().Name}.");
@@ -84,7 +91,12 @@ namespace Velopack.Sources
                     logger.Trace(ex.ToString());
                     continue;
                 }
-                var releaseBytes = await Downloader.DownloadBytes(assetUrl, Authorization, "application/octet-stream").ConfigureAwait(false);
+                var releaseBytes = await Downloader.DownloadBytes(assetUrl,                    
+                    new Dictionary<string, string> {
+                        [Authorization.Name] = Authorization.Value,
+                        ["Accept"] = "application/octet-stream"
+                    }
+                ).ConfigureAwait(false);
                 var txt = CoreUtil.RemoveByteOrderMarkerIfPresent(releaseBytes);
                 var feed = VelopackAssetFeed.FromJson(txt);
                 foreach (var f in feed.Assets) {
@@ -111,7 +123,7 @@ namespace Velopack.Sources
         protected abstract string GetAssetUrlFromName(T release, string assetName);
 
         /// <summary>
-        /// Provides a wrapper around <see cref="ReleaseEntry"/> which also contains a Git Release.
+        /// Provides a wrapper around <see cref="VelopackAsset"/> which also contains a Git Release.
         /// </summary>
         protected internal record GitBaseAsset : VelopackAsset
         {

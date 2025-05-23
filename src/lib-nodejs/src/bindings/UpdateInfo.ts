@@ -10,6 +10,14 @@ export type UpdateInfo = {
  */
 TargetFullRelease: VelopackAsset, 
 /**
+ * The base release that this update is based on. This is only available if the update is a delta update.
+ */
+BaseRelease: VelopackAsset | null, 
+/**
+ * The list of delta updates that can be applied to the base version to get to the target version.
+ */
+DeltasToTarget: Array<VelopackAsset>, 
+/**
  * True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
  * In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
  * deleted.

@@ -1,6 +1,5 @@
 ﻿using System.Text;
 using NuGet.Versioning;
-using Velopack.Compression;
 using Velopack.Core;
 using Velopack.Exceptions;
 using Velopack.Locators;
@@ -143,6 +142,31 @@ public class UpdateManagerTests
         Assert.True(File.Exists(Path.Combine(tempPath, "AvaloniaCrossPlat$-1.1.0.nupkg")));
         Assert.Equal(Path.Combine(tempPath, "AvaloniaCrossPlat$-1.1.0.nupkg.partial"), dl.LastLocalFile);
         Assert.Equal("https://mysite.com/releases/AvaloniaCrossPlat$-1.1.0.nupkg", dl.LastUrl);
+    }
+
+    [Fact]
+    public void DownloadFullUpdateFromFixtures()
+    {
+        using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var packagesPath);
+        using var _2 = TempUtil.GetTempDirectory(out var feedPath);
+
+        var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", packagesPath, logger.ToVelopackLogger());
+
+        File.Copy(PathHelper.GetFixture("testfeed.json"), Path.Combine(feedPath, "releases.beta.json"), true);
+        File.Copy(PathHelper.GetFixture("AvaloniaCrossPlat-1.0.11-win-full.nupkg"), Path.Combine(feedPath, "AvaloniaCrossPlat-1.0.11-full.nupkg"), true);
+
+        var options = new UpdateOptions() {
+            ExplicitChannel = "beta",
+            AllowVersionDowngrade = false,
+            MaximumDeltasBeforeFallback = 10,
+        };
+
+        var um = new UpdateManager(feedPath, options, locator);
+        var updateInfo = um.CheckForUpdates();
+        Assert.NotNull(updateInfo);
+        um.DownloadUpdates(updateInfo);
+        Assert.True(File.Exists(Path.Combine(packagesPath, "AvaloniaCrossPlat-1.0.11-full.nupkg")));
     }
 
     [Fact]
@@ -352,6 +376,8 @@ public class UpdateManagerTests
         info.TargetFullRelease.SHA256 = null;
         um.DownloadUpdates(info);
 
+        Directory.EnumerateFiles(packagesDir, "*.nupkg", SearchOption.TopDirectoryOnly).ForEach(File.Delete);
+
         // change hash, it should now fail
         string actualHash = info.TargetFullRelease.SHA1;
         string modifiedHash = info.TargetFullRelease.SHA1.Substring(1) + "A";
@@ -363,7 +389,6 @@ public class UpdateManagerTests
         Assert.Contains(actualHash, ex.Message);
         Assert.Contains(modifiedHash, ex.Message);
     }
-
 
     [Fact]
     public void NoDeltaIfNoBasePackage()
@@ -503,7 +528,7 @@ public class UpdateManagerTests
     }
 
     [SkippableTheory]
-    [InlineData("Clowd", "3.4.287", "3.4.292")]
+    [InlineData("Clowd", "3.4.287", "3.4.293")]
     //[InlineData("slack", "1.1.8", "1.2.2")]
     public async Task DownloadsDeltasAndCreatesFullVersion(string id, string fromVersion, string toVersion)
     {
@@ -522,6 +547,7 @@ public class UpdateManagerTests
         File.Copy(basePkgFixturePath, basePkgPath);
 
         var updateExe = PathHelper.CopyUpdateTo(packagesDir);
+        Chmod.ChmodFileAsExecutable(updateExe);
         var locator = new TestVelopackLocator(
             id,
             fromVersion,
@@ -536,7 +562,7 @@ public class UpdateManagerTests
         var info = await um.CheckForUpdatesAsync();
         Assert.NotNull(info);
         Assert.True(SemanticVersion.Parse(toVersion) == info.TargetFullRelease.Version);
-        Assert.Equal(3, info.DeltasToTarget.Count());
+        Assert.Equal(4, info.DeltasToTarget.Count());
         Assert.NotNull(info.BaseRelease);
 
         await um.DownloadUpdatesAsync(info);

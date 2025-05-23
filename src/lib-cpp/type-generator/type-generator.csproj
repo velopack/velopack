@@ -4,11 +4,12 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
+    <Nullable>disable</Nullable>
   </PropertyGroup>
   
   <ItemGroup>
     <PackageReference Include="Superpower" Version="3.0.0" />
+    <PackageReference Include="Handlebars.Net" Version="2.1.6" />
   </ItemGroup>
 
   <ItemGroup>

@@ -7,7 +7,6 @@ using Markdig;
 using MarkdigExtensions.RtfRenderer;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
-using Velopack.Compression;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
 using Velopack.NuGet;

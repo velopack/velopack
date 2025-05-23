@@ -1,6 +1,5 @@
 using ICSharpCode.SharpZipLib.Tar;
 using Microsoft.Extensions.Logging;
-using Velopack.Compression;
 using Velopack.Core;
 using Velopack.Util;
 

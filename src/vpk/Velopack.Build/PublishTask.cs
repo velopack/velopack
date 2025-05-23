@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Build.Framework;
 using Microsoft.Extensions.Logging;
+using Velopack.Core;
 using Velopack.Flow;
 
 namespace Velopack.Build;
@@ -44,7 +45,8 @@ public class PublishTask : MSBuildAsyncTask
             AllowInteractiveLogin = false,
         };
 
-        var client = new VelopackFlowServiceClient(options, Logger, Logger);
+        var console = new LoggerConsole(Logger);
+        var client = new VelopackFlowServiceClient(options, Logger, console);
         if (!await client.LoginAsync(loginOptions, false, cancellationToken).ConfigureAwait(false)) {
             Logger.LogWarning("Not logged into Velopack Flow service, skipping publish. Please run vpk login.");
             return true;

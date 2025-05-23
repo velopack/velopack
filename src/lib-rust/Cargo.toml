@@ -14,15 +14,14 @@ edition.workspace = true
 rust-version.workspace = true
 
 [features]
-default = ["zstd"]
-delta = ["zstd"]
+default = []
 async = ["async-std"]
 typescript = ["ts-rs"]
 file-logging = ["log-panics", "simplelog", "file-rotate", "time"]
 public-utils = []
 
 [package.metadata.docs.rs]
-features = ["async", "delta"]
+features = ["async"]
 
 [lib]
 name = "velopack"
@@ -54,9 +53,6 @@ uuid.workspace = true
 
 # typescript
 ts-rs = { workspace = true, optional = true }
-
-# delta packages
-zstd = { workspace = true, optional = true }
 
 # async
 async-std = { workspace = true, optional = true }

@@ -1,10 +1,10 @@
-﻿using System;
+﻿#nullable enable
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-namespace Velopack.Compression
+namespace Velopack.Packaging.Compression
 {
     [ExcludeFromCodeCoverage]
     [SupportedOSPlatform("windows")]

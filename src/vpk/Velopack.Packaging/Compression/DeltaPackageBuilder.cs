@@ -1,12 +1,11 @@
 ﻿using System.IO.MemoryMappedFiles;
 using System.Text;
 using Microsoft.Extensions.Logging;
-using Velopack.Compression;
 using Velopack.Core;
 using Velopack.Packaging.Exceptions;
 using Velopack.Util;
 
-namespace Velopack.Packaging;
+namespace Velopack.Packaging.Compression;
 
 public class DeltaPackageBuilder
 {

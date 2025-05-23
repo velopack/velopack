@@ -78,8 +78,6 @@
 
 #![warn(missing_docs)]
 
-
-
 macro_rules! maybe_pub {
     ($($mod:ident),*) => {
         $(
@@ -118,7 +116,6 @@ macro_rules! maybe_pub_os {
     };
 }
 
-
 mod app;
 pub use app::*;
 
@@ -131,7 +128,7 @@ pub mod locator;
 /// Sources are abstractions for custom update sources (eg. url, local file, github releases, etc).
 pub mod sources;
 
-maybe_pub!(download, bundle, delta, constants, lockfile, logging, misc);
+maybe_pub!(download, bundle, constants, lockfile, logging, misc);
 maybe_pub_os!(process, "process_win.rs", "process_unix.rs");
 
 #[macro_use]
@@ -153,6 +150,10 @@ pub enum Error {
     FileNotFound(String),
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+    #[error("Checksum did not match for {0} (expected {1}, actual {2})")]
+    ChecksumInvalid(String, String, String),
+    #[error("Size did not match for {0} (expected {1}, actual {2})")]
+    SizeInvalid(String, u64, u64),
     #[error("Zip error: {0}")]
     Zip(#[from] zip::result::ZipError),
     #[error("Network error: {0}")]

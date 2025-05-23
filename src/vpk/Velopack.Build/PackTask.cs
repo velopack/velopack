@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Build.Framework;
+using Velopack.Core;
 using Velopack.Packaging;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
@@ -111,6 +112,7 @@ public class PackTask : MSBuildAsyncTask
     {
         //System.Diagnostics.Debugger.Launch();
         try {
+            var console = new LoggerConsole(Logger);
             HelperFile.ClearSearchPaths();
             var searchPath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "..", "..", "vendor"));
             HelperFile.AddSearchPath(searchPath);
@@ -138,15 +140,15 @@ public class PackTask : MSBuildAsyncTask
 #pragma warning restore CS0618 // Type or member is obsolete
                 }
 
-                var runner = new WindowsPackCommandRunner(Logger, Logger);
+                var runner = new WindowsPackCommandRunner(Logger, console);
                 await runner.Run(options).ConfigureAwait(false);
             } else if (VelopackRuntimeInfo.IsOSX) {
                 var options = this.ToOsxPackOptions();
-                var runner = new OsxPackCommandRunner(Logger, Logger);
+                var runner = new OsxPackCommandRunner(Logger, console);
                 await runner.Run(options).ConfigureAwait(false);
             } else if (VelopackRuntimeInfo.IsLinux) {
                 var options = this.ToLinuxPackOptions();
-                var runner = new LinuxPackCommandRunner(Logger, Logger);
+                var runner = new LinuxPackCommandRunner(Logger, console);
                 await runner.Run(options).ConfigureAwait(false);
             } else {
                 throw new NotSupportedException("Unsupported OS platform: " + VelopackRuntimeInfo.SystemOs.GetOsLongName());

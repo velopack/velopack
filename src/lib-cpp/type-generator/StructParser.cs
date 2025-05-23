@@ -1,7 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using Superpower;
-using Superpower.Parsers;
 using Superpower.Model;
+using Superpower.Parsers;
 using Superpower.Tokenizers;
 
 public class RustField
@@ -10,6 +10,7 @@ public class RustField
     public string Name { get; set; }
     public string Type { get; set; }
     public bool Optional { get; set; }
+    public bool Vec { get; set; }
 }
 
 public class RustStruct
@@ -80,7 +81,7 @@ public static class StructParser
     {
         return
             (from nested in SkipNestedBraces() select Unit.Value) // handle recursive braces
-            .Or(from nonBrace in Token.Matching<RustToken>(kind => kind != RustToken.OpenBrace && kind != RustToken.CloseBrace,"non-brace").AtLeastOnce() select Unit.Value).Many() 
+            .Or(from nonBrace in Token.Matching<RustToken>(kind => kind != RustToken.OpenBrace && kind != RustToken.CloseBrace, "non-brace").AtLeastOnce() select Unit.Value).Many()
             .Select(_ => Unit.Value);
     }
 
@@ -92,7 +93,7 @@ public static class StructParser
 
     private static readonly TokenListParser<RustToken, string> TypeParser =
         from rest in Token.Matching<RustToken>(kind => kind != RustToken.Comma, "Expected tokens before ','").AtLeastOnce()
-        from end in Token.EqualTo(RustToken.Comma) 
+        from end in Token.EqualTo(RustToken.Comma)
         select string.Join(" ", rest.Select(t => t.ToStringValue()));
 
     private static readonly TokenListParser<RustToken, RustField> FieldDefinition =
@@ -103,8 +104,7 @@ public static class StructParser
         from fieldName in Token.EqualTo(RustToken.Identifier).Select(t => t.ToStringValue())
         from colon in Token.EqualTo(RustToken.Colon)
         from fieldType in TypeParser
-        select new RustField
-        {
+        select new RustField {
             DocComment = docComments,
             Name = fieldName,
             Type = fieldType.Trim()
@@ -124,8 +124,7 @@ public static class StructParser
         from structKeyword in Token.EqualTo(RustToken.KeywordStruct)
         from structName in Token.EqualTo(RustToken.Identifier).Select(t => t.ToStringValue())
         from structBody in StructBody
-        select new RustStruct
-        {
+        select new RustStruct {
             DocComment = docComments,
             Name = structName,
             Fields = structBody
@@ -133,7 +132,7 @@ public static class StructParser
 
     private static readonly TokenListParser<RustToken, RustStruct> TopLevelItem =
         (from impl in ImplBlock
-         select (RustStruct)null)
+         select (RustStruct) null)
         .Or(
          from structDef in StructDefinition
          select structDef
@@ -145,27 +144,30 @@ public static class StructParser
         var parser = TopLevelItem.Many();
         var result = parser(tokens);
 
-        if (!result.HasValue)
-        {
+        if (!result.HasValue) {
             throw new Exception(result.ToString());
         }
 
         var structs = result.Value.Where(s => s != null).ToArray();
-        
-        foreach(var s in structs)
-        {
-            foreach(var f in s.Fields)
-            {
+
+        foreach (var s in structs) {
+            foreach (var f in s.Fields) {
                 var match = Regex.Match(f.Type, @"Option<(.*)>");
                 // If the field type is an Option, extract the inner type and set Optional to true
-                if (match.Success)
-                {
+                if (match.Success) {
                     f.Type = match.Groups[1].Value;
                     f.Optional = true;
                 }
+
+                var match2 = Regex.Match(f.Type, @"Vec<(.*)>");
+                // If the field type is an Vec, extract the inner type and set Vec to true
+                if (match2.Success) {
+                    f.Type = match2.Groups[1].Value;
+                    f.Vec = true;
+                }
             }
         }
-        
+
         return structs;
     }
 }

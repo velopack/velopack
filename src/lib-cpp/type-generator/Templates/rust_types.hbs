@@ -1,0 +1,99 @@
+{{#each this}}
+#[rustfmt::skip]
+#[repr(C)]
+{{rust_comment}}
+pub struct {{struct_c_name}} {
+    {{#each fields}}
+    {{#indent "rust_comment" "    "}}
+    pub {{field_name}}: {{#unless field_primitive}}*mut {{/unless}}{{~#if field_vector}}*mut {{/if}}{{field_c_type}},
+    {{#if field_vector}}
+    /// The number of elements in the {{field_name}} array.
+    pub {{field_name}}Count: size_t,
+    {{/if}}
+    {{/each}}
+}
+
+#[rustfmt::skip]
+pub fn c_to_{{struct_rust_name}}(obj: *mut {{struct_c_name}}) -> Result<{{struct_rust_name}}> {
+    if obj.is_null() { bail!("Null pointer: {{struct_rust_name}} must be set."); }
+    let obj = unsafe { &*obj };
+    let result = {{struct_rust_name}} {
+        {{#each fields}}
+        {{#if field_normal}}{{field_name}}: c_to_{{field_rust_type}}(obj.{{field_name}}){{#if field_optional}}.ok(){{else}}?{{/if}},{{/if~}}
+        {{#if field_vector}}{{field_name}}: c_to_{{field_rust_type}}_vec(obj.{{field_name}}, obj.{{field_name}}Count)?,{{/if~}}
+        {{#if field_primitive}}{{field_name}}: obj.{{field_name}},{{/if}}
+        {{/each}}
+    };
+    Ok(result)
+}
+
+#[rustfmt::skip]
+pub fn c_to_{{struct_rust_name}}_vec(obj: *mut *mut {{struct_c_name}}, count: size_t) -> Result<Vec<{{struct_rust_name}}>> {
+    if obj.is_null() || count == 0 { return Ok(Vec::new()); }
+    let mut assets = Vec::with_capacity(count as usize);
+    for i in 0..count {
+        let ptr = unsafe { *obj.add(i as usize) };
+        assets.push(c_to_{{struct_rust_name}}(ptr)?);
+    }
+    Ok(assets)
+}
+
+#[rustfmt::skip]
+pub unsafe fn allocate_{{struct_rust_name}}<'a, T: Into<Option<&'a {{struct_rust_name}}>>>(dto: T) -> *mut {{struct_c_name}} {
+    let dto = dto.into();
+    if dto.is_none() {
+        return std::ptr::null_mut();
+    }
+    log::debug!("{{struct_c_name}} allocated");
+    let dto = dto.unwrap();
+    let obj = libc::malloc(size_of::<{{struct_c_name}}>()) as *mut {{struct_c_name}};
+    {{#each fields}}
+    {{#if field_normal}}(*obj).{{field_name}} = allocate_{{field_rust_type}}(&dto.{{field_name}});{{/if~}}
+    {{#if field_vector}}(*obj).{{field_name}} = allocate_{{field_rust_type}}_vec(&dto.{{field_name}}, &mut (*obj).{{field_name}}Count);{{/if~}}
+    {{#if field_primitive}}(*obj).{{field_name}} = dto.{{field_name}};{{/if}}
+    {{/each}}
+    obj
+}
+
+#[rustfmt::skip]
+pub unsafe fn allocate_{{struct_rust_name}}_vec(dto: &Vec<{{struct_rust_name}}>, count: *mut size_t) -> *mut *mut {{struct_c_name}} {
+    if dto.is_empty() {
+        *count = 0;
+        return std::ptr::null_mut(); 
+    }
+    log::debug!("{{struct_c_name}} vector allocated");
+    let count_value = dto.len() as size_t;
+    *count = count_value;
+    let mut assets = Vec::with_capacity(count_value as usize);
+    for i in 0..count_value {
+        let ptr = allocate_{{struct_rust_name}}(&dto[i as usize]);
+        assets.push(ptr);
+    }
+    let ptr = assets.as_mut_ptr();
+    std::mem::forget(assets);
+    ptr
+}
+
+#[rustfmt::skip]
+pub unsafe fn free_{{struct_rust_name}}(obj: *mut {{struct_c_name}}) {
+    if obj.is_null() { return; }
+    {{#each fields}}
+    {{#if field_vector}}free_{{field_rust_type}}_vec((*obj).{{field_name}}, (*obj).{{field_name}}Count);{{/if~}}
+    {{#if field_normal}}free_{{field_rust_type}}((*obj).{{field_name}});{{/if}}
+    {{/each}}
+    libc::free(obj as *mut c_void);
+    log::debug!("{{struct_c_name}} freed");
+}
+
+#[rustfmt::skip]
+pub unsafe fn free_{{struct_rust_name}}_vec(obj: *mut *mut {{struct_c_name}}, count: size_t) {
+    if obj.is_null() || count == 0 { return; }
+    let vec = Vec::from_raw_parts(obj, count as usize, count as usize);
+    for i in 0..count {
+        let ptr = *vec.get_unchecked(i as usize);
+        free_{{struct_rust_name}}(ptr);
+    }
+    log::debug!("{{struct_c_name}} vector freed");
+}
+
+{{/each}}

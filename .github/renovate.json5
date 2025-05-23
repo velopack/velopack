@@ -5,7 +5,7 @@
     ":semanticCommitsDisabled"
   ],
   "labels": ["renovate"],
-  "schedule": ["on friday"],
+  "schedule": ["on friday before 11am"],
   "timezone": "Europe/London",
   "ignorePaths": [
     "**/node_modules/**",
@@ -65,9 +65,8 @@
       "matchPackageNames": [
         "winsafe",                                    // newer versions causes runtime errors in release builds
         "System.CommandLine",                         // too many breaking changes too frequently
-        "Microsoft.Extensions.Logging.Abstractions",  // we have multiple versions of this
-        "@vercel/webpack-asset-relocator-loader",     // an update was incompatible with electron
-        "xunit.runner.visualstudio"                   // 20-12-2024: broke tests (something about sn signing maybe?)
+        "xunit.runner.visualstudio",                  // 20-12-2024: broke tests (something about sn signing maybe?)
+        "Microsoft.NET.Test.Sdk",                     // 23-05-2025: 17.13.0 was the last version which supported net6
       ],
       "dependencyDashboardApproval": true
     },

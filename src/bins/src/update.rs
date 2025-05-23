@@ -5,7 +5,7 @@
 extern crate log;
 
 use anyhow::{anyhow, bail, Result};
-use clap::{arg, value_parser, ArgMatches, Command};
+use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 use std::{env, path::PathBuf};
 use velopack::locator::{auto_locate_app_manifest, LocationContext};
 use velopack::logging::*;
@@ -34,9 +34,9 @@ fn root_command() -> Command {
         .long_flag_aliases(vec!["processStart", "processStartAndWait"])
     )
     .subcommand(Command::new("patch")
-        .about("Applies a Zstd patch file")
+        .about("Applies a series of delta bundles to a base file")
         .arg(arg!(--old <FILE> "Base / old file to apply the patch to").required(true).value_parser(value_parser!(PathBuf)))
-        .arg(arg!(--patch <FILE> "The Zstd patch to apply to the old file").required(true).value_parser(value_parser!(PathBuf)))
+        .arg(arg!(--delta <FILE> "The delta bundle to apply to the base package").required(true).action(ArgAction::Append).value_parser(value_parser!(PathBuf)))
         .arg(arg!(--output <FILE> "The file to create with the patch applied").required(true).value_parser(value_parser!(PathBuf)))
     )
     .arg(arg!(--verbose "Print debug messages to console / log").global(true))
@@ -56,6 +56,13 @@ fn root_command() -> Command {
     let cmd = cmd.subcommand(Command::new("uninstall")
         .about("Remove all app shortcuts, files, and registry entries.")
         .long_flag_alias("uninstall")
+    );
+
+    #[cfg(target_os = "windows")]
+    let cmd = cmd.subcommand(Command::new("update-self")
+        .about("Copy the currently executing Update.exe into the default location.")
+        .long_flag_alias("updateSelf")
+        .hide(true)
     );
     cmd
 }
@@ -164,6 +171,8 @@ fn main() -> Result<()> {
     let result = match subcommand {
         #[cfg(target_os = "windows")]
         "uninstall" => uninstall(location_context, subcommand_matches).map_err(|e| anyhow!("Uninstall error: {}", e)),
+        #[cfg(target_os = "windows")]
+        "update-self" => update_self(location_context, subcommand_matches).map_err(|e| anyhow!("Update-self error: {}", e)),
         "start" => start(location_context, subcommand_matches).map_err(|e| anyhow!("Start error: {}", e)),
         "apply" => apply(location_context, subcommand_matches).map_err(|e| anyhow!("Apply error: {}", e)),
         "patch" => patch(location_context, subcommand_matches).map_err(|e| anyhow!("Patch error: {}", e)),
@@ -180,19 +189,34 @@ fn main() -> Result<()> {
 
 fn patch(_context: LocationContext, matches: &ArgMatches) -> Result<()> {
     let old_file = matches.get_one::<PathBuf>("old");
-    let patch_file = matches.get_one::<PathBuf>("patch");
+    let deltas: Vec<&PathBuf> = matches.get_many::<PathBuf>("delta").unwrap_or_default().collect();
     let output_file = matches.get_one::<PathBuf>("output");
 
     info!("Command: Patch");
     info!("    Old File: {:?}", old_file);
-    info!("    Patch File: {:?}", patch_file);
+    info!("    Delta Files: {:?}", deltas);
     info!("    Output File: {:?}", output_file);
 
-    if old_file.is_none() || patch_file.is_none() || output_file.is_none() {
-        bail!("Missing required arguments. Please provide --old, --patch, and --output.");
+    if old_file.is_none() || deltas.is_empty() || output_file.is_none() {
+        bail!("Missing required arguments. Please provide --old, --delta, and --output.");
     }
 
-    velopack::delta::zstd_patch_single(old_file.unwrap(), patch_file.unwrap(), output_file.unwrap())?;
+    let temp_dir = match auto_locate_app_manifest(LocationContext::IAmUpdateExe) {
+        Ok(locator) => locator.get_temp_dir_rand16(),
+        Err(_) => {
+            let mut temp_dir = std::env::temp_dir();
+            let rand = shared::random_string(16);
+            temp_dir.push("velopack_".to_owned() + &rand);
+            temp_dir
+        }
+    };
+
+    let result = commands::delta(old_file.unwrap(), deltas, &temp_dir, output_file.unwrap());
+    let _ = remove_dir_all::remove_dir_all(temp_dir);
+
+    if let Err(e) = result {
+        bail!("Delta error: {}", e);
+    }
     Ok(())
 }
 
@@ -250,6 +274,47 @@ fn uninstall(context: LocationContext, _matches: &ArgMatches) -> Result<()> {
     info!("Command: Uninstall");
     let locator = auto_locate_app_manifest(context)?;
     commands::uninstall(&locator, true)
+}
+
+#[cfg(target_os = "windows")]
+fn update_self(context: LocationContext, _matches: &ArgMatches) -> Result<()> {
+    info!("Command: Update Self");
+    let my_path = env::current_exe()?;
+    const RETRY_DELAY: i32 = 500;
+    const RETRY_COUNT: i32 = 20;
+    match auto_locate_app_manifest(context) {
+        Ok(locator) => {
+            let target_update_path = locator.get_update_path();
+            if same_file::is_same_file(&target_update_path, &my_path)? {
+                bail!("Update.exe is already in the default location. No need to update.");
+            } else {
+                info!("Copying Update.exe to the default location: {:?}", target_update_path);
+                shared::retry_io_ex(|| std::fs::copy(&my_path, &target_update_path), RETRY_DELAY, RETRY_COUNT)?;
+                info!("Update.exe copied successfully.");
+            }
+        }
+        Err(e) => {
+            warn!("Failed to initialise locator: {}", e);
+            // search for an Update.exe in parent directories (at least 2 levels up)
+            let mut current_dir = env::current_dir()?;
+            let mut found = false;
+            for _ in 0..2 {
+                current_dir.pop();
+                let target_update_path = current_dir.join("Update.exe");
+                if target_update_path.exists() {
+                    info!("Found Update.exe in parent directory: {:?}", target_update_path);
+                    shared::retry_io_ex(|| std::fs::copy(&my_path, &target_update_path), RETRY_DELAY, RETRY_COUNT)?;
+                    info!("Update.exe copied successfully.");
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                bail!("Failed to locate Update.exe in parent directories, so it could not be updated.");
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(target_os = "windows")]

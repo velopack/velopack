@@ -1,4 +1,5 @@
 ﻿using Velopack.Packaging.Abstractions;
+using Velopack.Packaging.Compression;
 
 namespace Velopack.Packaging.Unix.Commands;
 

@@ -53,7 +53,6 @@ pub fn run_process(
 }
 
 pub fn wait_for_process_exit_with_timeout(process: Child, dur: Duration) -> IoResult<Option<u32>> {
-    
     let mut status = process.wait_timeout(dur)?;
     if status.is_none() {
         return Err(IoError::new(IoErrorKind::TimedOut, "Process timed out"));

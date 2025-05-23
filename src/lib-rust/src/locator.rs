@@ -545,7 +545,7 @@ pub fn find_latest_full_package(packages_dir: &PathBuf) -> Option<(PathBuf, Mani
     info!("Attempting to auto-detect package in: {}", packages_dir);
     let mut package: Option<(PathBuf, Manifest)> = None;
 
-    let search_glob = format!("{}/*.nupkg", packages_dir);
+    let search_glob = format!("{}/*-full.nupkg", packages_dir);
     if let Ok(paths) = glob::glob(search_glob.as_str()) {
         for path in paths.into_iter().flatten() {
             trace!("Checking package: '{}'", path.to_string_lossy());

@@ -86,9 +86,9 @@ pub fn expand_environment_strings<P: AsRef<str>>(input: P) -> Result<String> {
 
 #[test]
 fn test_expand_environment_strings() {
-    assert_eq!(expand_environment_strings("%windir%").unwrap(), "C:\\Windows");
-    assert_eq!(expand_environment_strings("%windir%\\system32").unwrap(), "C:\\Windows\\system32");
-    assert_eq!(expand_environment_strings("%windir%\\system32\\").unwrap(), "C:\\Windows\\system32\\");
+    assert!(expand_environment_strings("%windir%").unwrap().eq_ignore_ascii_case("C:\\Windows"));
+    assert!(expand_environment_strings("%windir%\\system32").unwrap().eq_ignore_ascii_case("C:\\Windows\\system32"));
+    assert!(expand_environment_strings("%windir%\\system32\\").unwrap().eq_ignore_ascii_case("C:\\Windows\\system32\\"));
 }
 
 pub fn get_long_path<P: AsRef<str>>(str: P) -> Result<String> {

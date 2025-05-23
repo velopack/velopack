@@ -1,14 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+﻿#nullable enable
 using System.Text;
 using System.Text.RegularExpressions;
+using Velopack.Core;
 using Velopack.Exceptions;
 using Velopack.Logging;
 using Velopack.Util;
 
-namespace Velopack.Compression
+namespace Velopack.Packaging.Compression
 {
     internal abstract class DeltaPackage
     {

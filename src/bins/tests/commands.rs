@@ -2,14 +2,15 @@
 
 mod common;
 use common::*;
+use std::hint::assert_unchecked;
 use std::{fs, path::Path, path::PathBuf};
 use tempfile::tempdir;
 use velopack_bins::*;
 
-#[cfg(target_os = "windows")]
-use winsafe::{self as w, co};
 use velopack::bundle::load_bundle_from_file;
 use velopack::locator::{auto_locate_app_manifest, LocationContext};
+#[cfg(target_os = "windows")]
+use winsafe::{self as w, co};
 
 #[cfg(target_os = "windows")]
 #[test]
@@ -87,7 +88,7 @@ pub fn test_install_preserve_symlinks() {
     let tmp_dir = tempdir().unwrap();
     let tmp_buf = tmp_dir.path().to_path_buf();
     let mut tmp_zip = load_bundle_from_file(nupkg).unwrap();
-    
+
     commands::install(&mut tmp_zip, Some(&tmp_buf), None).unwrap();
 
     assert!(tmp_buf.join("current").join("actual").join("file.txt").exists());
@@ -119,13 +120,45 @@ pub fn test_patch_apply() {
     let expected_sha1 = get_sha1(&new_file);
     let tmp_file = Path::new("temp.patch").to_path_buf();
 
-    velopack::delta::zstd_patch_single(&old_file, &p1, &tmp_file).unwrap();
+    velopack_bins::commands::zstd_patch_single(&old_file, &p1, &tmp_file).unwrap();
     let tmp_sha1 = get_sha1(&tmp_file);
     fs::remove_file(&tmp_file).unwrap();
     assert_eq!(expected_sha1, tmp_sha1);
 
-    velopack::delta::zstd_patch_single(&old_file, &p2, &tmp_file).unwrap();
+    velopack_bins::commands::zstd_patch_single(&old_file, &p2, &tmp_file).unwrap();
     let tmp_sha1 = get_sha1(&tmp_file);
     fs::remove_file(&tmp_file).unwrap();
     assert_eq!(expected_sha1, tmp_sha1);
-} 
+}
+
+#[test]
+pub fn test_delta_apply_legacy() {
+    dialogs::set_silent(true);
+    let fixtures = find_fixtures();
+    let base = fixtures.join("Clowd-3.4.287-full.nupkg");
+    let d1 = fixtures.join("Clowd-3.4.288-delta.nupkg");
+    let d2 = fixtures.join("Clowd-3.4.291-delta.nupkg");
+    let d3 = fixtures.join("Clowd-3.4.292-delta.nupkg");
+    let d4 = fixtures.join("Clowd-3.4.293-delta.nupkg");
+
+    let deltas = vec![&d1, &d2, &d3, &d4];
+
+    let tmp_dir = tempdir().unwrap();
+    let temp_output = tmp_dir.path().join("Clowd-3.4.293-full.nupkg");
+    commands::delta(&base, deltas, tmp_dir.path(), &temp_output).unwrap();
+
+    let mut bundle = load_bundle_from_file(temp_output).unwrap();
+    let manifest = bundle.read_manifest().unwrap();
+
+    assert_eq!(manifest.id, "Clowd");
+    assert_eq!(manifest.version, semver::Version::parse("3.4.293").unwrap());
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        let extract_dir = tmp_dir.path().join("_extracted");
+        bundle.extract_lib_contents_to_path(&extract_dir, |_| {}).unwrap();
+
+        let extracted = extract_dir.join("Clowd.dll");
+        assert!(extracted.exists());
+    }
+}

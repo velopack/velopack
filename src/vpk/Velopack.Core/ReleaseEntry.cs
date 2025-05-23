@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 using NuGet.Versioning;
 using Velopack.Util;
 
-namespace Velopack
+namespace Velopack.Core
 {
     /// <summary>
     /// Describes the requested release notes text format.
@@ -146,7 +146,7 @@ namespace Velopack
         /// <summary>
         /// Create a new instance of <see cref="ReleaseEntry"/>.
         /// </summary>
-        protected internal ReleaseEntry(string sha1, string filename, long filesize, string baseUrl = null, string query = null, float? stagingPercentage = null)
+        public ReleaseEntry(string sha1, string filename, long filesize, string baseUrl = null, string query = null, float? stagingPercentage = null)
         {
             Contract.Requires(sha1 != null && sha1.Length == 40);
             Contract.Requires(filename != null);

@@ -1,5 +1,6 @@
 pub mod runtime_arch;
 pub mod cli_host;
+pub mod fastzip;
 
 mod dialogs_const;
 mod dialogs_common;

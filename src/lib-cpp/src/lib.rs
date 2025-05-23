@@ -15,16 +15,16 @@ use anyhow::{anyhow, bail};
 use libc::{c_char, c_void, size_t};
 use log_derive::{logfn, logfn_inputs};
 use std::{ffi::CString, ptr};
-use velopack::{sources, ApplyWaitMode, Error as VelopackError, UpdateCheck, UpdateManager, VelopackApp};
 use velopack::locator::LocationContext;
 use velopack::logging::{default_logfile_path, init_logging};
+use velopack::{sources, ApplyWaitMode, Error as VelopackError, UpdateCheck, UpdateManager, VelopackApp};
 
 /// Create a new FileSource update source for a given file path.
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_new_source_file(psz_file_path: *const c_char) -> *mut vpkc_update_source_t {
-    if let Some(update_path) = c_to_string_opt(psz_file_path) {
+    if let Some(update_path) = c_to_String(psz_file_path).ok() {
         UpdateSourceRawPtr::new(Box::new(sources::FileSource::new(update_path)))
     } else {
         log::error!("psz_file_path is null");
@@ -37,7 +37,7 @@ pub extern "C" fn vpkc_new_source_file(psz_file_path: *const c_char) -> *mut vpk
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_new_source_http_url(psz_http_url: *const c_char) -> *mut vpkc_update_source_t {
-    if let Some(update_url) = c_to_string_opt(psz_http_url) {
+    if let Some(update_url) = c_to_String(psz_http_url).ok() {
         UpdateSourceRawPtr::new(Box::new(sources::HttpSource::new(update_url)))
     } else {
         log::error!("psz_http_url is null");
@@ -103,10 +103,10 @@ pub extern "C" fn vpkc_new_update_manager(
     p_manager: *mut *mut vpkc_update_manager_t,
 ) -> bool {
     wrap_error(|| {
-        let update_url = c_to_string_opt(psz_url_or_path).ok_or(anyhow!("URL or path is null"))?;
+        let update_url = c_to_String(psz_url_or_path)?;
         let source = sources::AutoSource::new(&update_url);
-        let options = c_to_updateoptions_opt(p_options);
-        let locator = c_to_velopacklocatorconfig_opt(p_locator);
+        let options = c_to_UpdateOptions(p_options).ok();
+        let locator = c_to_VelopackLocatorConfig(p_locator).ok();
         let manager = UpdateManager::new(source, options, locator)?;
         unsafe { *p_manager = UpdateManagerRawPtr::new(manager) };
         Ok(())
@@ -128,8 +128,8 @@ pub extern "C" fn vpkc_new_update_manager_with_source(
 ) -> bool {
     wrap_error(|| {
         let source = UpdateSourceRawPtr::get_source_clone(p_source).ok_or(anyhow!("pSource must not be null"))?;
-        let options = c_to_updateoptions_opt(p_options);
-        let locator = c_to_velopacklocatorconfig_opt(p_locator);
+        let options = c_to_UpdateOptions(p_options).ok();
+        let locator = c_to_VelopackLocatorConfig(p_locator).ok();
         let manager = UpdateManager::new_boxed(source, options, locator)?;
         unsafe { *p_manager = UpdateManagerRawPtr::new(manager) };
         Ok(())
@@ -181,11 +181,11 @@ pub extern "C" fn vpkc_is_portable(p_manager: *mut vpkc_update_manager_t) -> boo
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
-pub extern "C" fn vpkc_update_pending_restart(p_manager: *mut vpkc_update_manager_t, p_asset: *mut vpkc_asset_t) -> bool {
+pub extern "C" fn vpkc_update_pending_restart(p_manager: *mut vpkc_update_manager_t, p_asset: *mut *mut vpkc_asset_t) -> bool {
     match p_manager.to_opaque_ref() {
         Some(manager) => match manager.get_update_pending_restart() {
             Some(asset) => {
-                unsafe { allocate_velopackasset(asset, p_asset) };
+                unsafe { *p_asset = allocate_VelopackAsset(&asset) };
                 true
             }
             None => false,
@@ -199,13 +199,14 @@ pub extern "C" fn vpkc_update_pending_restart(p_manager: *mut vpkc_update_manage
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
-pub extern "C" fn vpkc_check_for_updates(p_manager: *mut vpkc_update_manager_t, p_update: *mut vpkc_update_info_t) -> vpkc_update_check_t {
+pub extern "C" fn vpkc_check_for_updates(
+    p_manager: *mut vpkc_update_manager_t,
+    p_update: *mut *mut vpkc_update_info_t,
+) -> vpkc_update_check_t {
     match p_manager.to_opaque_ref() {
         Some(manager) => match manager.check_for_updates() {
             Ok(UpdateCheck::UpdateAvailable(info)) => {
-                unsafe {
-                    allocate_updateinfo(info, p_update);
-                }
+                unsafe { *p_update = allocate_UpdateInfo(&info) };
                 vpkc_update_check_t::UPDATE_AVAILABLE
             }
             Ok(UpdateCheck::RemoteIsEmpty) => vpkc_update_check_t::REMOTE_IS_EMPTY,
@@ -243,7 +244,7 @@ pub extern "C" fn vpkc_download_updates(
             None => bail!("pManager must not be null"),
         };
 
-        let update = c_to_updateinfo_opt(p_update).ok_or(anyhow!("pUpdate must not be null"))?;
+        let update = c_to_UpdateInfo(p_update)?;
 
         if let Some(cb_progress) = cb_progress {
             let (progress_sender, progress_receiver) = std::sync::mpsc::channel::<i16>();
@@ -311,15 +312,15 @@ pub extern "C" fn vpkc_wait_exit_then_apply_updates(
             None => bail!("pManager must not be null"),
         };
 
-        let asset = c_to_velopackasset_opt(p_asset).ok_or(anyhow!("pAsset must not be null"))?;
-        let restart_args = c_to_string_array_opt(p_restart_args, c_restart_args).unwrap_or_default();
+        let asset = c_to_VelopackAsset(p_asset)?;
+        let restart_args = c_to_String_vec(p_restart_args, c_restart_args)?;
         manager.wait_exit_then_apply_updates(&asset, b_silent, b_restart, &restart_args)?;
         Ok(())
     })
 }
 
 /// This will launch the Velopack updater and optionally wait for a program to exit gracefully.
-/// This method is unsafe because it does not necessarily wait for any / the correct process to exit 
+/// This method is unsafe because it does not necessarily wait for any / the correct process to exit
 /// before applying updates. The `vpkc_wait_exit_then_apply_updates` method is recommended for most use cases.
 /// If dw_wait_pid is 0, the updater will not wait for any process to exit before applying updates (Not Recommended).
 #[no_mangle]
@@ -335,13 +336,9 @@ pub extern "C" fn vpkc_unsafe_apply_updates(
     c_restart_args: size_t,
 ) -> bool {
     wrap_error(|| {
-        let manager = match p_manager.to_opaque_ref() {
-            Some(manager) => manager,
-            None => bail!("pManager must not be null"),
-        };
-
-        let asset = c_to_velopackasset_opt(p_asset).ok_or(anyhow!("pAsset must not be null"))?;
-        let restart_args = c_to_string_array_opt(p_restart_args, c_restart_args).unwrap_or_default();
+        let manager = p_manager.to_opaque_ref().ok_or(anyhow!("pManager must not be null"))?;
+        let asset = c_to_VelopackAsset(p_asset)?;
+        let restart_args = c_to_String_vec(p_restart_args, c_restart_args)?;
         let wait_mode = if dw_wait_pid > 0 { ApplyWaitMode::WaitPid(dw_wait_pid) } else { ApplyWaitMode::NoWait };
         manager.unsafe_apply_updates(&asset, b_silent, wait_mode, b_restart, &restart_args)?;
         Ok(())
@@ -361,7 +358,7 @@ pub extern "C" fn vpkc_free_update_manager(p_manager: *mut vpkc_update_manager_t
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_free_update_info(p_update_info: *mut vpkc_update_info_t) {
-    unsafe { free_updateinfo(p_update_info) };
+    unsafe { free_UpdateInfo(p_update_info) };
 }
 
 /// Frees a vpkc_asset_t instance.
@@ -369,7 +366,7 @@ pub extern "C" fn vpkc_free_update_info(p_update_info: *mut vpkc_update_info_t) 
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_free_asset(p_asset: *mut vpkc_asset_t) {
-    unsafe { free_velopackasset(p_asset) };
+    unsafe { free_VelopackAsset(p_asset) };
 }
 
 /// VelopackApp helps you to handle app activation events correctly.
@@ -439,14 +436,14 @@ pub extern "C" fn vpkc_app_run(p_user_data: *mut c_void) {
             hook(p_user_data, c_string.as_ptr());
         });
     }
-    
+
     // init logging
     let log_file = if let Some(locator) = &app_options.locator {
         default_logfile_path(locator)
     } else {
         default_logfile_path(LocationContext::FromCurrentExe)
     };
-    
+
     init_logging("lib-cpp", Some(&log_file), false, false, Some(create_shared_logger()));
     app.run();
 }
@@ -463,7 +460,7 @@ pub extern "C" fn vpkc_app_set_auto_apply_on_startup(b_auto_apply: bool) {
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_args(p_args: *mut *mut c_char, c_args: size_t) {
     update_app_options(|opt| {
-        opt.args = c_to_string_array_opt(p_args, c_args);
+        opt.args = c_to_String_vec(p_args, c_args).ok();
     });
 }
 
@@ -471,7 +468,7 @@ pub extern "C" fn vpkc_app_set_args(p_args: *mut *mut c_char, c_args: size_t) {
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_locator(p_locator: *mut vpkc_locator_config_t) {
     update_app_options(|opt| {
-        opt.locator = c_to_velopacklocatorconfig_opt(p_locator);
+        opt.locator = c_to_VelopackLocatorConfig(p_locator).ok();
     });
 }
 

@@ -1,10 +1,8 @@
 ﻿#nullable disable
-using System;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using System.IO.Compression;
 
-namespace Velopack.Compression
+namespace Velopack.Packaging.Compression
 {
     [ExcludeFromCodeCoverage]
     internal sealed class BZip2Stream : Stream

@@ -107,7 +107,7 @@ typedef struct vpkc_update_options_t {
    */
   bool AllowVersionDowngrade;
   /**
-   * **This option should usually be left None**. <br/>
+   * **This option should usually be left None**.
    * Overrides the default channel used to fetch updates.
    * The default channel will be whatever channel was specified on the command line when building this release.
    * For example, if the current release was packaged with '--channel beta', then the default channel will be 'beta'.
@@ -116,6 +116,11 @@ typedef struct vpkc_update_options_t {
    * without having to reinstall the application.
    */
   char *ExplicitChannel;
+  /**
+   * Sets the maximum number of deltas to consider before falling back to a full update.
+   * The default is 10. Set to a negative number (eg. -1) to disable deltas.
+   */
+  int32_t MaximumDeltasBeforeFallback;
 } vpkc_update_options_t;
 
 /**
@@ -160,7 +165,19 @@ typedef struct vpkc_update_info_t {
   /**
    * The available version that we are updating to.
    */
-  struct vpkc_asset_t TargetFullRelease;
+  struct vpkc_asset_t *TargetFullRelease;
+  /**
+   * The base release that this update is based on. This is only available if the update is a delta update.
+   */
+  struct vpkc_asset_t *BaseRelease;
+  /**
+   * The list of delta updates that can be applied to the base version to get to the target version.
+   */
+  struct vpkc_asset_t **DeltasToTarget;
+  /**
+   * The number of elements in the DeltasToTarget array.
+   */
+  size_t DeltasToTargetCount;
   /**
    * True if the update is a version downgrade or lateral move (such as when switching channels to the same version number).
    * In this case, only full updates are allowed, and any local packages on disk newer than the downloaded version will be
@@ -267,14 +284,14 @@ bool vpkc_is_portable(vpkc_update_manager_t *p_manager);
  * Returns an UpdateInfo object if there is an update downloaded which still needs to be applied.
  * You can pass the UpdateInfo object to waitExitThenApplyUpdate to apply the update.
  */
-bool vpkc_update_pending_restart(vpkc_update_manager_t *p_manager, struct vpkc_asset_t *p_asset);
+bool vpkc_update_pending_restart(vpkc_update_manager_t *p_manager, struct vpkc_asset_t **p_asset);
 
 /**
  * Checks for updates, returning None if there are none available. If there are updates available, this method will return an
  * UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
  */
 vpkc_update_check_t vpkc_check_for_updates(vpkc_update_manager_t *p_manager,
-                                           struct vpkc_update_info_t *p_update);
+                                           struct vpkc_update_info_t **p_update);
 
 /**
  * Downloads the specified updates to the local app packages directory. Progress is reported back to the caller via an optional callback.

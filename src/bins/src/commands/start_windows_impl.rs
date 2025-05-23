@@ -175,7 +175,7 @@ fn try_legacy_migration(root_dir: &PathBuf, manifest: &Manifest) -> Result<Velop
     let new_locator = super::apply(&locator, false, OperationWait::NoWait, Some(&buf), None, false)?;
 
     info!("Removing old app-* folders...");
-    shared::delete_app_prefixed_folders(&root_dir)?;
+    shared::delete_app_prefixed_folders(&root_dir);
     let _ = remove_dir_all::remove_dir_all(root_dir.join("staging"));
     Ok(new_locator)
 }
