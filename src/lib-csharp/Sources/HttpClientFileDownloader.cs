@@ -18,48 +18,54 @@ namespace Velopack.Sources
         public static ProductInfoHeaderValue UserAgent => new("Velopack", VelopackRuntimeInfo.VelopackNugetVersion.ToFullString());
 
         /// <inheritdoc />
-        public virtual async Task DownloadFile(string url, string targetFile, Action<int> progress, IDictionary<string, string>? headers, double timeout, CancellationToken cancelToken = default)
+        public virtual async Task DownloadFile(string url, string targetFile, Action<int> progress, IDictionary<string, string>? headers, double timeout,
+            CancellationToken cancelToken = default)
         {
             using var client = CreateHttpClient(headers, timeout);
+            await TryDownloadThenLowercase(
+                async (reqUrl) => {
+                    using (var fs = File.Open(targetFile, FileMode.Create)) {
+                        await DownloadToStreamInternal(client, reqUrl, fs, progress, cancelToken).ConfigureAwait(false);
+                    }
 
-            try {
-                using (var fs = File.Open(targetFile, FileMode.Create)) {
-                    await DownloadToStreamInternal(client, url, fs, progress, cancelToken).ConfigureAwait(false);
-                }
-            } catch {
-                // NB: Some super brain-dead services are case-sensitive yet 
-                // corrupt case on upload. I can't even.
-                using (var fs = File.Open(targetFile, FileMode.Create)) {
-                    await DownloadToStreamInternal(client, url.ToLower(), fs, progress, cancelToken).ConfigureAwait(false);
-                }
-            }
+                    return true;
+                },
+                url).ConfigureAwait(false);
         }
 
         /// <inheritdoc />
         public virtual async Task<byte[]> DownloadBytes(string url, IDictionary<string, string>? headers, double timeout)
         {
             using var client = CreateHttpClient(headers, timeout);
-
-            try {
-                return await client.GetByteArrayAsync(url).ConfigureAwait(false);
-            } catch {
-                // NB: Some super brain-dead services are case-sensitive yet 
-                // corrupt case on upload. I can't even.
-                return await client.GetByteArrayAsync(url.ToLower()).ConfigureAwait(false);
-            }
+            return await TryDownloadThenLowercase(client.GetByteArrayAsync, url).ConfigureAwait(false);
         }
 
         /// <inheritdoc />
         public virtual async Task<string> DownloadString(string url, IDictionary<string, string>? headers, double timeout)
         {
             using var client = CreateHttpClient(headers, timeout);
+            return await TryDownloadThenLowercase(client.GetStringAsync, url).ConfigureAwait(false);
+        }
 
+        /// <summary>
+        /// Tries to download a string from the specified url. If it fails, it will attempt to
+        /// download the string again with the url lowercased. This is useful for services that
+        /// are case-sensitive yet corrupt the case on upload.
+        /// </summary>
+        protected virtual async Task<T> TryDownloadThenLowercase<T>(Func<string, Task<T>> downloadFunc, string url)
+        {
             try {
-                return await client.GetStringAsync(url).ConfigureAwait(false);
+                return await downloadFunc(url).ConfigureAwait(false);
             } catch {
-                // NB: Some super brain-dead services are case-sensitive yet 
-                // corrupt case on upload. I can't even.
-                return await client.GetStringAsync(url.ToLower()).ConfigureAwait(false);
+                try {
+                    // NB: Some super brain-dead services are case-sensitive yet 
+                    // corrupt case on upload. I can't even.
+                    return await downloadFunc(url.ToLower()).ConfigureAwait(false);
+                } catch {
+                    // we don't want to throw the "fallback" exception
+                }
+
+                throw; // rethrow the original exception
             }
         }
 
@@ -67,7 +73,8 @@ namespace Velopack.Sources
         /// Asynchronously downloads a remote url to the specified destination stream while 
         /// providing progress updates.
         /// </summary>
-        protected virtual async Task DownloadToStreamInternal(HttpClient client, string requestUri, Stream destination, Action<int>? progress = null, CancellationToken cancelToken = default)
+        protected virtual async Task DownloadToStreamInternal(HttpClient client, string requestUri, Stream destination, Action<int>? progress = null,
+            CancellationToken cancelToken = default)
         {
             // https://stackoverflow.com/a/46497896/184746
             // Get the http headers first to examine the content length
@@ -128,8 +135,7 @@ namespace Velopack.Sources
             var client = new HttpClient(CreateHttpClientHandler());
             client.DefaultRequestHeaders.UserAgent.Add(UserAgent);
 
-            foreach (var header in headers ?? new Dictionary<string, string>())
-            {
+            foreach (var header in headers ?? new Dictionary<string, string>()) {
                 client.DefaultRequestHeaders.Add(header.Key, header.Value);
             }
 
