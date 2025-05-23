@@ -38,9 +38,6 @@ namespace Velopack.Locators
         public override string? PackagesDir => _packagesDir.Value;
 
         /// <inheritdoc />
-        public override IVelopackLogger Log { get; }
-
-        /// <inheritdoc />
         public override bool IsPortable => RootAppDir != null && File.Exists(Path.Combine(RootAppDir, ".portable"));
 
         /// <inheritdoc />
@@ -56,16 +53,13 @@ namespace Velopack.Locators
                 throw new NotSupportedException($"Cannot instantiate {nameof(WindowsVelopackLocator)} on a non-Windows system.");
 
             _packagesDir = new(GetPackagesDir);
+            CombinedLogger = new CombinedVelopackLogger(customLog);
 
-            var combinedLog = new CombinedVelopackLogger();
-            combinedLog.Add(customLog);
-            Log = combinedLog;
-
-            Process = processImpl ??= new DefaultProcessImpl(combinedLog);
+            Process = processImpl ??= new DefaultProcessImpl(CombinedLogger);
             var ourPath = processImpl.GetCurrentProcessPath();
             var currentProcessId = processImpl.GetCurrentProcessId();
 
-            using var initLog = new CachedVelopackLogger(combinedLog);
+            using var initLog = new CachedVelopackLogger(CombinedLogger);
             initLog.Info($"Initializing {nameof(WindowsVelopackLocator)}");
 
             // We try various approaches here. Firstly, if Update.exe is in the parent directory,
@@ -133,6 +127,7 @@ namespace Velopack.Locators
                     Directory.CreateDirectory(TempAppRootDirectory);
                     File.Copy(UpdateExePath, tempTargetUpdateExe);
                 }
+
                 UpdateExePath = tempTargetUpdateExe;
             }
 
@@ -142,7 +137,7 @@ namespace Velopack.Locators
                 try {
                     var logFilePath = Path.Combine(RootAppDir, DefaultLoggingFileName);
                     var fileLog = new FileVelopackLogger(logFilePath, currentProcessId);
-                    combinedLog.Add(fileLog);
+                    CombinedLogger.Add(fileLog);
                     //fileLogCreated = true;
                 } catch (Exception ex) {
                     fileLogException = ex;
@@ -156,7 +151,7 @@ namespace Velopack.Locators
                     var logFileName = String.IsNullOrEmpty(AppId) ? DefaultLoggingFileName : $"velopack_{AppId}.log";
                     var logFilePath = Path.Combine(Path.GetTempPath(), logFileName);
                     var fileLog = new FileVelopackLogger(logFilePath, currentProcessId);
-                    combinedLog.Add(fileLog);
+                    CombinedLogger.Add(fileLog);
                 } catch (Exception ex) {
                     tempFileLogException = ex;
                 }

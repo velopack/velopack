@@ -39,9 +39,6 @@ namespace Velopack.Locators
         /// <inheritdoc />
         public override string? PackagesDir => CreateSubDirIfDoesNotExist(CachesAppDir, "packages");
 
-        /// <inheritdoc />
-        public override IVelopackLogger Log { get; }
-
         private string? CachesAppDir => CreateSubDirIfDoesNotExist(CachesVelopackDir, AppId);
         private string? CachesVelopackDir => CreateSubDirIfDoesNotExist(CachesDir, "velopack");
         private string? CachesDir => CreateSubDirIfDoesNotExist(LibraryDir, "Caches");
@@ -60,15 +57,13 @@ namespace Velopack.Locators
             if (!VelopackRuntimeInfo.IsOSX)
                 throw new NotSupportedException($"Cannot instantiate {nameof(OsxVelopackLocator)} on a non-osx system.");
 
-            var combinedLog = new CombinedVelopackLogger();
-            combinedLog.Add(customLog);
-            Log = combinedLog;
+            CombinedLogger = new CombinedVelopackLogger(customLog);
             
-            Process = processImpl ??= new DefaultProcessImpl(combinedLog);
+            Process = processImpl ??= new DefaultProcessImpl(CombinedLogger);
             var ourPath = processImpl.GetCurrentProcessPath();
             var currentProcessId = processImpl.GetCurrentProcessId();
 
-            using var initLog = new CachedVelopackLogger(combinedLog);
+            using var initLog = new CachedVelopackLogger(CombinedLogger);
             initLog.Info($"Initializing {nameof(OsxVelopackLocator)}");
 
             string logFolder = Path.GetTempPath();
@@ -107,7 +102,7 @@ namespace Velopack.Locators
             try {
                 var logFilePath = Path.Combine(logFolder, logFileName);
                 var fileLog = new FileVelopackLogger(logFilePath, currentProcessId);
-                combinedLog.Add(fileLog);
+                CombinedLogger.Add(fileLog);
             } catch (Exception ex) {
                 initLog.Error("Unable to create file logger: " + ex);
             }

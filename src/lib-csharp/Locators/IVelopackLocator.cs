@@ -58,6 +58,12 @@ namespace Velopack.Locators
         IProcessImpl Process { get; }
         
         /// <summary>
+        /// Add a logger to the list of loggers. This will be used to log messages from Velopack.
+        /// </summary>
+        /// <param name="logger"></param>
+        void AddLogger(IVelopackLogger logger);
+        
+        /// <summary>
         /// Finds .nupkg files in the PackagesDir and returns a list of ReleaseEntryName objects.
         /// </summary>
         List<VelopackAsset> GetLocalPackages();

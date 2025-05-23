@@ -4,7 +4,7 @@ using Velopack;
 using Velopack.Locators;
 using Velopack.Logging;
 
-var locator = VelopackLocator.CreateDefaultForPlatform(new ConsoleVelopackLogger());
+var locator = VelopackLocator.CreateDefaultForPlatform(logger: new ConsoleVelopackLogger());
 
 try {
     bool shouldExit = false;

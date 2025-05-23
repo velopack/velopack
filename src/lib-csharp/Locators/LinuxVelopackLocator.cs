@@ -37,9 +37,6 @@ namespace Velopack.Locators
         public override string? Channel { get; }
 
         /// <inheritdoc />
-        public override IVelopackLogger Log { get; }
-
-        /// <inheritdoc />
         public override string? AppTempDir => CreateSubDirIfDoesNotExist(TempUtil.GetDefaultTempBaseDirectory(), AppId);
 
         /// <inheritdoc />
@@ -63,15 +60,13 @@ namespace Velopack.Locators
             if (!VelopackRuntimeInfo.IsLinux)
                 throw new NotSupportedException($"Cannot instantiate {nameof(LinuxVelopackLocator)} on a non-linux system.");
 
-            var combinedLog = new CombinedVelopackLogger();
-            combinedLog.Add(customLog);
-            Log = combinedLog;
+            CombinedLogger = new CombinedVelopackLogger(customLog);
 
-            Process = processImpl ??= new DefaultProcessImpl(combinedLog);
+            Process = processImpl ??= new DefaultProcessImpl(CombinedLogger);
             var ourPath = processImpl.GetCurrentProcessPath();
             var currentProcessId = processImpl.GetCurrentProcessId();
 
-            using var initLog = new CachedVelopackLogger(combinedLog);
+            using var initLog = new CachedVelopackLogger(CombinedLogger);
             initLog.Info($"Initializing {nameof(LinuxVelopackLocator)}");
             var logFilePath = Path.Combine(Path.GetTempPath(), DefaultLoggingFileName);
 
@@ -107,7 +102,7 @@ namespace Velopack.Locators
 
             try {
                 var fileLog = new FileVelopackLogger(logFilePath, currentProcessId);
-                combinedLog.Add(fileLog);
+                CombinedLogger.Add(fileLog);
             } catch (Exception ex) {
                 initLog.Error("Unable to create file logger: " + ex);
             }

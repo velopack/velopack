@@ -15,7 +15,7 @@ namespace Velopack.Locators
     public abstract class VelopackLocator : IVelopackLocator
     {
         private static IVelopackLocator? _current;
-        
+
         /// <summary>
         /// The default log file name for Velopack.
         /// </summary>
@@ -34,7 +34,8 @@ namespace Velopack.Locators
             get {
                 if (_current == null)
                     throw new InvalidOperationException(
-                        $"No VelopackLocator has been set. Either call {nameof(VelopackApp)}.{nameof(VelopackApp.Build)}() or provide {nameof(IVelopackLocator)} as a method parameter.");
+                        $"No VelopackLocator has been set. Either call {nameof(VelopackApp)}.{nameof(VelopackApp.Build)}().Run() " +
+                        $"or provide {nameof(IVelopackLocator)} as a method parameter.");
                 return _current;
             }
         }
@@ -43,13 +44,13 @@ namespace Velopack.Locators
         public static IVelopackLocator CreateDefaultForPlatform(IProcessImpl? processImpl = null, IVelopackLogger? logger = null)
         {
             if (VelopackRuntimeInfo.IsWindows)
-                return _current = new WindowsVelopackLocator(processImpl, logger);
+                return new WindowsVelopackLocator(processImpl, logger);
 
             if (VelopackRuntimeInfo.IsOSX)
-                return _current = new OsxVelopackLocator(processImpl, logger);
+                return new OsxVelopackLocator(processImpl, logger);
 
             if (VelopackRuntimeInfo.IsLinux)
-                return _current = new LinuxVelopackLocator(processImpl, logger);
+                return new LinuxVelopackLocator(processImpl, logger);
 
             throw new PlatformNotSupportedException($"OS platform '{VelopackRuntimeInfo.SystemOs.GetOsLongName()}' is not supported.");
         }
@@ -87,7 +88,7 @@ namespace Velopack.Locators
         public abstract string? Channel { get; }
 
         /// <inheritdoc/>
-        public abstract IVelopackLogger Log { get; }
+        public virtual IVelopackLogger Log => ((IVelopackLogger?) CombinedLogger) ?? new NullVelopackLogger();
 
         /// <inheritdoc/>
         public virtual bool IsPortable => false;
@@ -110,6 +111,14 @@ namespace Velopack.Locators
 
         /// <inheritdoc/>
         public abstract SemanticVersion? CurrentlyInstalledVersion { get; }
+
+        internal CombinedVelopackLogger? CombinedLogger { get; set; }
+
+        /// <inheritdoc/>
+        public void AddLogger(IVelopackLogger logger)
+        {
+            CombinedLogger?.Add(logger);
+        }
 
         /// <inheritdoc/>
         public virtual List<VelopackAsset> GetLocalPackages()
