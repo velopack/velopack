@@ -1,6 +1,5 @@
 //! This header provides the C++ API for the Velopack library.
 //! This C++ API is a thin wrapper around the C API, providing a more idiomatic C++ interface.
-//! You should not mix and match the C and C++ APIs in the same program.
 #ifndef VELOPACK_HPP
 #define VELOPACK_HPP
 
@@ -78,6 +77,14 @@ static inline void free_c_string_vec(char** arr, size_t size)
     delete[] arr;
 }
 
+template<typename T>
+inline T unwrap(const std::optional<T>& opt, const std::string& message = "Expected value not present") {
+    if (!opt.has_value()) {
+        throw std::runtime_error(message);
+    }
+    return opt.value();
+}
+
 // !! AUTO-GENERATED-START CPP_TYPES
 
 /** VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth). */
@@ -99,11 +106,11 @@ struct VelopackLocatorConfig {
 static inline std::optional<VelopackLocatorConfig> to_cpp_VelopackLocatorConfig(const vpkc_locator_config_t* dto) {
     if (dto == nullptr) { return std::nullopt; }
     return std::optional<VelopackLocatorConfig>({
-        to_cpp_string(dto->RootAppDir).value(),
-        to_cpp_string(dto->UpdateExePath).value(),
-        to_cpp_string(dto->PackagesDir).value(),
-        to_cpp_string(dto->ManifestPath).value(),
-        to_cpp_string(dto->CurrentBinaryDir).value(),
+        unwrap(to_cpp_string(dto->RootAppDir), "Required property RootAppDir was null"),
+        unwrap(to_cpp_string(dto->UpdateExePath), "Required property UpdateExePath was null"),
+        unwrap(to_cpp_string(dto->PackagesDir), "Required property PackagesDir was null"),
+        unwrap(to_cpp_string(dto->ManifestPath), "Required property ManifestPath was null"),
+        unwrap(to_cpp_string(dto->CurrentBinaryDir), "Required property CurrentBinaryDir was null"),
         dto->IsPortable,
     });
 }
@@ -115,12 +122,12 @@ static inline std::vector<VelopackLocatorConfig> to_cpp_VelopackLocatorConfig_ve
     for (size_t i = 0; i < c; ++i) {
         auto dto = arr[i];
         if (dto == nullptr) { continue; }
-        result.push_back(to_cpp_VelopackLocatorConfig(dto).value());
+        result.push_back(unwrap(to_cpp_VelopackLocatorConfig(dto)));
     }
     return result;
 }
 
-static inline vpkc_locator_config_t* alloc_c_VelopackLocatorConfig(const VelopackLocatorConfig* dto) {
+static inline vpkc_locator_config_t* alloc_c_VelopackLocatorConfig_ptr(const VelopackLocatorConfig* dto) {
     if (dto == nullptr) { return nullptr; }
     vpkc_locator_config_t* obj = new vpkc_locator_config_t{};
     obj->RootAppDir = alloc_c_string(dto->RootAppDir);
@@ -134,7 +141,8 @@ static inline vpkc_locator_config_t* alloc_c_VelopackLocatorConfig(const Velopac
 
 static inline vpkc_locator_config_t* alloc_c_VelopackLocatorConfig(const std::optional<VelopackLocatorConfig>& dto) {
     if (!dto.has_value()) { return nullptr; }
-    return alloc_c_VelopackLocatorConfig(dto.value());
+    VelopackLocatorConfig obj = unwrap(dto);
+    return alloc_c_VelopackLocatorConfig_ptr(&obj);
 }
 
 static inline vpkc_locator_config_t** alloc_c_VelopackLocatorConfig_vec(const std::vector<VelopackLocatorConfig>& dto, size_t* count) {
@@ -194,15 +202,15 @@ struct VelopackAsset {
 static inline std::optional<VelopackAsset> to_cpp_VelopackAsset(const vpkc_asset_t* dto) {
     if (dto == nullptr) { return std::nullopt; }
     return std::optional<VelopackAsset>({
-        to_cpp_string(dto->PackageId).value(),
-        to_cpp_string(dto->Version).value(),
-        to_cpp_string(dto->Type).value(),
-        to_cpp_string(dto->FileName).value(),
-        to_cpp_string(dto->SHA1).value(),
-        to_cpp_string(dto->SHA256).value(),
+        unwrap(to_cpp_string(dto->PackageId), "Required property PackageId was null"),
+        unwrap(to_cpp_string(dto->Version), "Required property Version was null"),
+        unwrap(to_cpp_string(dto->Type), "Required property Type was null"),
+        unwrap(to_cpp_string(dto->FileName), "Required property FileName was null"),
+        unwrap(to_cpp_string(dto->SHA1), "Required property SHA1 was null"),
+        unwrap(to_cpp_string(dto->SHA256), "Required property SHA256 was null"),
         dto->Size,
-        to_cpp_string(dto->NotesMarkdown).value(),
-        to_cpp_string(dto->NotesHtml).value(),
+        unwrap(to_cpp_string(dto->NotesMarkdown), "Required property NotesMarkdown was null"),
+        unwrap(to_cpp_string(dto->NotesHtml), "Required property NotesHtml was null"),
     });
 }
 
@@ -213,12 +221,12 @@ static inline std::vector<VelopackAsset> to_cpp_VelopackAsset_vec(const vpkc_ass
     for (size_t i = 0; i < c; ++i) {
         auto dto = arr[i];
         if (dto == nullptr) { continue; }
-        result.push_back(to_cpp_VelopackAsset(dto).value());
+        result.push_back(unwrap(to_cpp_VelopackAsset(dto)));
     }
     return result;
 }
 
-static inline vpkc_asset_t* alloc_c_VelopackAsset(const VelopackAsset* dto) {
+static inline vpkc_asset_t* alloc_c_VelopackAsset_ptr(const VelopackAsset* dto) {
     if (dto == nullptr) { return nullptr; }
     vpkc_asset_t* obj = new vpkc_asset_t{};
     obj->PackageId = alloc_c_string(dto->PackageId);
@@ -235,7 +243,8 @@ static inline vpkc_asset_t* alloc_c_VelopackAsset(const VelopackAsset* dto) {
 
 static inline vpkc_asset_t* alloc_c_VelopackAsset(const std::optional<VelopackAsset>& dto) {
     if (!dto.has_value()) { return nullptr; }
-    return alloc_c_VelopackAsset(dto.value());
+    VelopackAsset obj = unwrap(dto);
+    return alloc_c_VelopackAsset_ptr(&obj);
 }
 
 static inline vpkc_asset_t** alloc_c_VelopackAsset_vec(const std::vector<VelopackAsset>& dto, size_t* count) {
@@ -292,7 +301,7 @@ struct UpdateInfo {
 static inline std::optional<UpdateInfo> to_cpp_UpdateInfo(const vpkc_update_info_t* dto) {
     if (dto == nullptr) { return std::nullopt; }
     return std::optional<UpdateInfo>({
-        to_cpp_VelopackAsset(dto->TargetFullRelease).value(),
+        unwrap(to_cpp_VelopackAsset(dto->TargetFullRelease), "Required property TargetFullRelease was null"),
         to_cpp_VelopackAsset(dto->BaseRelease),
         to_cpp_VelopackAsset_vec(dto->DeltasToTarget, dto->DeltasToTargetCount),
         dto->IsDowngrade,
@@ -306,12 +315,12 @@ static inline std::vector<UpdateInfo> to_cpp_UpdateInfo_vec(const vpkc_update_in
     for (size_t i = 0; i < c; ++i) {
         auto dto = arr[i];
         if (dto == nullptr) { continue; }
-        result.push_back(to_cpp_UpdateInfo(dto).value());
+        result.push_back(unwrap(to_cpp_UpdateInfo(dto)));
     }
     return result;
 }
 
-static inline vpkc_update_info_t* alloc_c_UpdateInfo(const UpdateInfo* dto) {
+static inline vpkc_update_info_t* alloc_c_UpdateInfo_ptr(const UpdateInfo* dto) {
     if (dto == nullptr) { return nullptr; }
     vpkc_update_info_t* obj = new vpkc_update_info_t{};
     obj->TargetFullRelease = alloc_c_VelopackAsset(dto->TargetFullRelease);
@@ -323,7 +332,8 @@ static inline vpkc_update_info_t* alloc_c_UpdateInfo(const UpdateInfo* dto) {
 
 static inline vpkc_update_info_t* alloc_c_UpdateInfo(const std::optional<UpdateInfo>& dto) {
     if (!dto.has_value()) { return nullptr; }
-    return alloc_c_UpdateInfo(dto.value());
+    UpdateInfo obj = unwrap(dto);
+    return alloc_c_UpdateInfo_ptr(&obj);
 }
 
 static inline vpkc_update_info_t** alloc_c_UpdateInfo_vec(const std::vector<UpdateInfo>& dto, size_t* count) {
@@ -398,12 +408,12 @@ static inline std::vector<UpdateOptions> to_cpp_UpdateOptions_vec(const vpkc_upd
     for (size_t i = 0; i < c; ++i) {
         auto dto = arr[i];
         if (dto == nullptr) { continue; }
-        result.push_back(to_cpp_UpdateOptions(dto).value());
+        result.push_back(unwrap(to_cpp_UpdateOptions(dto)));
     }
     return result;
 }
 
-static inline vpkc_update_options_t* alloc_c_UpdateOptions(const UpdateOptions* dto) {
+static inline vpkc_update_options_t* alloc_c_UpdateOptions_ptr(const UpdateOptions* dto) {
     if (dto == nullptr) { return nullptr; }
     vpkc_update_options_t* obj = new vpkc_update_options_t{};
     obj->AllowVersionDowngrade = dto->AllowVersionDowngrade;
@@ -414,7 +424,8 @@ static inline vpkc_update_options_t* alloc_c_UpdateOptions(const UpdateOptions* 
 
 static inline vpkc_update_options_t* alloc_c_UpdateOptions(const std::optional<UpdateOptions>& dto) {
     if (!dto.has_value()) { return nullptr; }
-    return alloc_c_UpdateOptions(dto.value());
+    UpdateOptions obj = unwrap(dto);
+    return alloc_c_UpdateOptions_ptr(&obj);
 }
 
 static inline vpkc_update_options_t** alloc_c_UpdateOptions_vec(const std::vector<UpdateOptions>& dto, size_t* count) {
@@ -669,8 +680,8 @@ public:
      * @param locator Override the default locator configuration (usually used for testing / mocks).
      */
     UpdateManager(const std::string& urlOrPath, const UpdateOptions* options = nullptr, const VelopackLocatorConfig* locator = nullptr) {
-        vpkc_update_options_t* pOptions = alloc_c_UpdateOptions(options);
-        vpkc_locator_config_t* pLocator = alloc_c_VelopackLocatorConfig(locator);
+        vpkc_update_options_t* pOptions = alloc_c_UpdateOptions_ptr(options);
+        vpkc_locator_config_t* pLocator = alloc_c_VelopackLocatorConfig_ptr(locator);
         bool result = vpkc_new_update_manager(urlOrPath.c_str(), pOptions, pLocator, &m_pManager);
         free_c_UpdateOptions(pOptions);
         free_c_VelopackLocatorConfig(pLocator);
@@ -687,8 +698,8 @@ public:
      */
     template <typename T, typename = std::enable_if_t<std::is_base_of_v<IUpdateSource, T>>>
     UpdateManager(std::unique_ptr<T> pUpdateSource, const UpdateOptions* options = nullptr, const VelopackLocatorConfig* locator = nullptr) {
-        vpkc_update_options_t* pOptions = alloc_c_UpdateOptions(options);
-        vpkc_locator_config_t* pLocator = alloc_c_VelopackLocatorConfig(locator);
+        vpkc_update_options_t* pOptions = alloc_c_UpdateOptions_ptr(options);
+        vpkc_locator_config_t* pLocator = alloc_c_VelopackLocatorConfig_ptr(locator);
         m_pUpdateSource = std::unique_ptr<IUpdateSource>(static_cast<IUpdateSource*>(pUpdateSource.release()));
         vpkc_update_source_t* pSource = m_pUpdateSource->m_pSource;
         bool result = vpkc_new_update_manager_with_source(pSource, pOptions, pLocator, &m_pManager);
@@ -703,7 +714,10 @@ public:
      * Destructor for UpdateManager.
      */
     ~UpdateManager() {
-        vpkc_free_update_manager(m_pManager);
+        if (m_pManager != nullptr) {
+            vpkc_free_update_manager(m_pManager);
+            m_pManager = nullptr;
+        }
     };
 
     /**

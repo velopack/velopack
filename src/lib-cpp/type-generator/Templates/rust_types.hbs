@@ -63,6 +63,7 @@ pub unsafe fn allocate_{{struct_rust_name}}_vec(dto: &Vec<{{struct_rust_name}}>,
     }
     log::debug!("{{struct_c_name}} vector allocated");
     let count_value = dto.len() as size_t;
+    *count = count_value;
     let mut assets = Vec::with_capacity(count_value as usize);
     for i in 0..count_value {
         let ptr = allocate_{{struct_rust_name}}(&dto[i as usize]);
