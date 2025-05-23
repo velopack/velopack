@@ -1,9 +1,22 @@
 use super::{dialogs_common::*, dialogs_const::*};
-use velopack::bundle::Manifest;
+use crate::windows::strings::string_to_wide;
 use anyhow::Result;
 use std::path::PathBuf;
-use winsafe::{self as w, co, prelude::*, WString};
-use velopack::locator::{auto_locate_app_manifest, LocationContext};
+use velopack::{
+    bundle::Manifest,
+    locator::{auto_locate_app_manifest, LocationContext},
+};
+use windows::{
+    core::HRESULT,
+    Win32::{
+        Foundation::{FALSE, HWND, LPARAM, S_FALSE, S_OK, WPARAM},
+        UI::{
+            Controls::*,
+            Shell::ShellExecuteW,
+            WindowsAndMessaging::{GetDesktopWindow, IDCANCEL, IDCONTINUE, IDOK, IDRETRY, IDYES, SW_SHOWDEFAULT},
+        },
+    },
+};
 
 pub fn show_restart_required(app: &Manifest) {
     show_warn(
@@ -34,7 +47,7 @@ pub fn show_update_missing_dependencies_dialog(
             "{} {to} has missing dependencies which need to be installed: {}, would you like to continue?",
             app.title, depedency_string
         )
-            .as_str(),
+        .as_str(),
         Some("Install & Update"),
     )
 }
@@ -58,32 +71,33 @@ pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Opt
         return;
     }
 
-    let mut setup_name = WString::from_str(format!("{} Uninstall", app_title));
-    let mut instruction = WString::from_str(format!("{} uninstall has completed with errors.", app_title));
-    let mut content = WString::from_str(
+    let setup_name = string_to_wide(format!("{} Uninstall", app_title));
+    let instruction = string_to_wide(format!("{} uninstall has completed with errors.", app_title));
+    let content = string_to_wide(
         "There may be left-over files or directories on your system. You can attempt to remove these manually or re-install the application and try again.",
     );
 
-    let mut config: w::TASKDIALOGCONFIG = Default::default();
-    config.dwFlags = co::TDF::ENABLE_HYPERLINKS | co::TDF::SIZE_TO_CONTENT;
-    config.dwCommonButtons = co::TDCBF::OK;
-    config.set_pszMainIcon(w::IconIdTdicon::Tdicon(co::TD_ICON::WARNING));
-    config.set_pszWindowTitle(Some(&mut setup_name));
-    config.set_pszMainInstruction(Some(&mut instruction));
-    config.set_pszContent(Some(&mut content));
+    let mut config = TASKDIALOGCONFIG::default();
+    config.cbSize = std::mem::size_of::<TASKDIALOGCONFIG>() as u32;
+    config.dwFlags = TDF_ENABLE_HYPERLINKS | TDF_SIZE_TO_CONTENT;
+    config.dwCommonButtons = TDCBF_OK_BUTTON;
+    config.pszWindowTitle = setup_name.as_pcwstr();
+    config.pszMainInstruction = instruction.as_pcwstr();
+    config.pszContent = content.as_pcwstr();
+    config.Anonymous1.pszMainIcon = TD_WARNING_ICON;
 
     let footer_path = log_path.map(|p| p.to_string_lossy().to_string()).unwrap_or("".to_string());
-    let mut footer = WString::from_str(format!("Log file: '<A HREF=\"na\">{}</A>'", footer_path));
+    let footer = string_to_wide(format!("Log file: '<A HREF=\"na\">{}</A>'", footer_path));
     if let Some(log_path) = log_path {
         if log_path.exists() {
-            config.set_pszFooterIcon(w::IconId::Id(co::TD_ICON::INFORMATION.into()));
-            config.set_pszFooter(Some(&mut footer));
-            config.lpCallbackData = log_path as *const PathBuf as usize;
+            config.Anonymous2.pszFooterIcon = TD_INFORMATION_ICON;
+            config.pszFooter = footer.as_pcwstr();
+            config.lpCallbackData = log_path as *const PathBuf as isize;
             config.pfCallback = Some(task_dialog_callback);
         }
     }
 
-    let _ = w::TaskDialogIndirect(&config, None);
+    unsafe { TaskDialogIndirect(&config, None, None, None).ok() };
 }
 
 pub fn show_processes_locking_folder_dialog(app_title: &str, app_version: &str, process_names: &str) -> DialogResult {
@@ -91,42 +105,38 @@ pub fn show_processes_locking_folder_dialog(app_title: &str, app_version: &str, 
         return DialogResult::Cancel;
     }
 
-    let mut config: w::TASKDIALOGCONFIG = Default::default();
-    config.set_pszMainIcon(w::IconIdTdicon::Tdicon(co::TD_ICON::INFORMATION));
+    let mut config = TASKDIALOGCONFIG::default();
+    config.cbSize = std::mem::size_of::<TASKDIALOGCONFIG>() as u32;
+    config.Anonymous1.pszMainIcon = TD_INFORMATION_ICON;
 
-    let mut update_name = WString::from_str(format!("{} Update {}", app_title, app_version));
-    let mut instruction = WString::from_str(format!("{} Update", app_title));
-
-    let mut content = WString::from_str(format!(
+    let update_name = string_to_wide(format!("{} Update {}", app_title, app_version));
+    let instruction = string_to_wide(format!("{} Update", app_title));
+    let content = string_to_wide(format!(
         "There are programs ({}) preventing the {} update from proceeding. \n\n\
         You can press Continue to have this updater attempt to close them automatically, or if you've closed them yourself press Retry for the updater to check again.",
         process_names, app_title));
 
-    let mut btn_retry_txt = WString::from_str("Retry\nTry again if you've closed the program(s)");
-    let mut btn_continue_txt = WString::from_str("Continue\nAttempt to close the program(s) automatically");
-    let mut btn_cancel_txt = WString::from_str("Cancel\nThe update will not continue");
+    let btn_retry_txt = string_to_wide("Retry\nTry again if you've closed the program(s)");
+    let btn_continue_txt = string_to_wide("Continue\nAttempt to close the program(s) automatically");
+    let btn_cancel_txt = string_to_wide("Cancel\nThe update will not continue");
+    let btn_retry = TASKDIALOG_BUTTON { nButtonID: IDRETRY.0, pszButtonText: btn_retry_txt.as_pcwstr() };
+    let btn_continue = TASKDIALOG_BUTTON { nButtonID: IDCONTINUE.0, pszButtonText: btn_continue_txt.as_pcwstr() };
+    let btn_cancel = TASKDIALOG_BUTTON { nButtonID: IDCANCEL.0, pszButtonText: btn_cancel_txt.as_pcwstr() };
+    let custom_btns = vec![btn_retry, btn_continue, btn_cancel];
 
-    let mut btn_retry = w::TASKDIALOG_BUTTON::default();
-    btn_retry.set_nButtonID(co::DLGID::RETRY.into());
-    btn_retry.set_pszButtonText(Some(&mut btn_retry_txt));
+    config.dwFlags = TDF_USE_COMMAND_LINKS;
+    config.cButtons = custom_btns.len() as u32;
+    config.pButtons = custom_btns.as_ptr();
+    config.pszWindowTitle = update_name.as_pcwstr();
+    config.pszMainInstruction = instruction.as_pcwstr();
+    config.pszContent = content.as_pcwstr();
 
-    let mut btn_continue = w::TASKDIALOG_BUTTON::default();
-    btn_continue.set_nButtonID(co::DLGID::CONTINUE.into());
-    btn_continue.set_pszButtonText(Some(&mut btn_continue_txt));
+    let mut pnbutton = 0;
+    let mut pnradiobutton = 0;
+    let mut pfverificationflagchecked = FALSE;
 
-    let mut btn_cancel = w::TASKDIALOG_BUTTON::default();
-    btn_cancel.set_nButtonID(co::DLGID::CANCEL.into());
-    btn_cancel.set_pszButtonText(Some(&mut btn_cancel_txt));
-
-    let mut custom_btns = vec![btn_retry, btn_continue, btn_cancel];
-    config.dwFlags = co::TDF::USE_COMMAND_LINKS;
-    config.set_pButtons(Some(&mut custom_btns));
-    config.set_pszWindowTitle(Some(&mut update_name));
-    config.set_pszMainInstruction(Some(&mut instruction));
-    config.set_pszContent(Some(&mut content));
-
-    let (btn, _) = w::TaskDialogIndirect(&config, None).ok().unwrap_or((co::DLGID::CANCEL, 0));
-    DialogResult::from_win(btn)
+    unsafe { TaskDialogIndirect(&config, Some(&mut pnbutton), Some(&mut pnradiobutton), Some(&mut pfverificationflagchecked)).ok() };
+    DialogResult::from_win(pnbutton)
 }
 
 pub fn show_overwrite_repair_dialog(app: &Manifest, root_path: &PathBuf, root_is_default: bool) -> bool {
@@ -134,79 +144,75 @@ pub fn show_overwrite_repair_dialog(app: &Manifest, root_path: &PathBuf, root_is
         return true;
     }
 
-    // these are the defaults, if we can't detect the current app version - we call it "Repair"
-    let mut config: w::TASKDIALOGCONFIG = Default::default();
-    config.set_pszMainIcon(w::IconIdTdicon::Tdicon(co::TD_ICON::WARNING));
+    let mut config = TASKDIALOGCONFIG::default();
+    config.cbSize = std::mem::size_of::<TASKDIALOGCONFIG>() as u32;
+    config.Anonymous1.pszMainIcon = TD_WARNING_ICON;
 
-    let mut setup_name = WString::from_str(format!("{} Setup {}", app.title, app.version));
-    let mut instruction = WString::from_str(format!("{} is already installed.", app.title));
-    let mut content = WString::from_str(
-        "This application is installed on your computer. If it is not functioning correctly, you can attempt to repair it.",
-    );
-    let mut btn_yes_txt = WString::from_str(format!("Repair\nErase the application and re-install version {}.", app.version));
-    let mut btn_cancel_txt = WString::from_str("Cancel\nBackup or save your work first");
+    let setup_name = string_to_wide(format!("{} Setup {}", app.title, app.version));
+    let mut instruction = string_to_wide(format!("{} is already installed.", app.title));
+    let mut content =
+        string_to_wide("This application is installed on your computer. If it is not functioning correctly, you can attempt to repair it.");
+    let mut btn_yes_txt = string_to_wide(format!("Repair\nErase the application and re-install version {}.", app.version));
+    let btn_cancel_txt = string_to_wide("Cancel\nBackup or save your work first");
 
     // if we can detect the current app version, we call it "Update" or "Downgrade"
     let old_app = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(root_path.to_owned()));
     if let Ok(old) = old_app {
         let old_version = old.get_manifest_version();
         if old_version < app.version {
-            instruction = WString::from_str(format!("An older version of {} is installed.", app.title));
-            content = WString::from_str(format!("Would you like to update from {} to {}?", old_version, app.version));
-            btn_yes_txt = WString::from_str(format!("Update\nTo version {}", app.version));
-            config.set_pszMainIcon(w::IconIdTdicon::Tdicon(co::TD_ICON::INFORMATION));
+            instruction = string_to_wide(format!("An older version of {} is installed.", app.title));
+            content = string_to_wide(format!("Would you like to update from {} to {}?", old_version, app.version));
+            btn_yes_txt = string_to_wide(format!("Update\nTo version {}", app.version));
+            config.Anonymous1.pszMainIcon = TD_INFORMATION_ICON;
         } else if old_version > app.version {
-            instruction = WString::from_str(format!("A newer version of {} is installed.", app.title));
-            content = WString::from_str(format!(
+            instruction = string_to_wide(format!("A newer version of {} is installed.", app.title));
+            content = string_to_wide(format!(
                 "You already have {} installed. Would you like to downgrade this application to an older version?",
                 old_version
             ));
-            btn_yes_txt = WString::from_str(format!("Downgrade\nTo version {}", app.version));
+            btn_yes_txt = string_to_wide(format!("Downgrade\nTo version {}", app.version));
         }
     }
 
-    let mut footer = if root_is_default {
-        WString::from_str(format!("The install directory is '<A HREF=\"na\">%LocalAppData%\\{}</A>'", app.id))
+    let footer = if root_is_default {
+        string_to_wide(format!("The install directory is '<A HREF=\"na\">%LocalAppData%\\{}</A>'", app.id))
     } else {
-        WString::from_str(format!("The install directory is '<A HREF=\"na\">{}</A>'", root_path.display()))
+        string_to_wide(format!("The install directory is '<A HREF=\"na\">{}</A>'", root_path.display()))
     };
 
-    let mut btn_yes = w::TASKDIALOG_BUTTON::default();
-    btn_yes.set_nButtonID(co::DLGID::YES.into());
-    btn_yes.set_pszButtonText(Some(&mut btn_yes_txt));
+    let btn_yes = TASKDIALOG_BUTTON { nButtonID: IDYES.0, pszButtonText: btn_yes_txt.as_pcwstr() };
+    let btn_cancel = TASKDIALOG_BUTTON { nButtonID: IDCANCEL.0, pszButtonText: btn_cancel_txt.as_pcwstr() };
+    let custom_btns = vec![btn_yes, btn_cancel];
 
-    let mut btn_cancel = w::TASKDIALOG_BUTTON::default();
-    btn_cancel.set_nButtonID(co::DLGID::CANCEL.into());
-    btn_cancel.set_pszButtonText(Some(&mut btn_cancel_txt));
+    config.dwFlags = TDF_ENABLE_HYPERLINKS | TDF_USE_COMMAND_LINKS;
+    config.cButtons = custom_btns.len() as u32;
+    config.pButtons = custom_btns.as_ptr();
+    config.pszWindowTitle = setup_name.as_pcwstr();
+    config.pszMainInstruction = instruction.as_pcwstr();
+    config.pszContent = content.as_pcwstr();
+    config.Anonymous2.pszFooterIcon = TD_INFORMATION_ICON;
+    config.pszFooter = footer.as_pcwstr();
 
-    let mut custom_btns = Vec::with_capacity(2);
-    custom_btns.push(btn_yes);
-    custom_btns.push(btn_cancel);
-
-    config.dwFlags = co::TDF::ENABLE_HYPERLINKS | co::TDF::USE_COMMAND_LINKS;
-    config.set_pButtons(Some(&mut custom_btns));
-    config.set_pszWindowTitle(Some(&mut setup_name));
-    config.set_pszMainInstruction(Some(&mut instruction));
-    config.set_pszContent(Some(&mut content));
-    config.set_pszFooterIcon(w::IconId::Id(co::TD_ICON::INFORMATION.into()));
-    config.set_pszFooter(Some(&mut footer));
-
-    config.lpCallbackData = root_path as *const PathBuf as usize;
+    config.lpCallbackData = root_path as *const PathBuf as isize;
     config.pfCallback = Some(task_dialog_callback);
 
-    let (btn, _) = w::TaskDialogIndirect(&config, None).ok().unwrap_or_else(|| (co::DLGID::YES, 0));
-    return btn == co::DLGID::YES;
+    let mut pnbutton = 0;
+    let mut pnradiobutton = 0;
+    let mut pfverificationflagchecked = FALSE;
+    unsafe { TaskDialogIndirect(&config, Some(&mut pnbutton), Some(&mut pnradiobutton), Some(&mut pfverificationflagchecked)).ok() };
+    pnbutton == IDYES.0
 }
 
-extern "system" fn task_dialog_callback(_: w::HWND, msg: co::TDN, _: usize, _: isize, lp_ref_data: usize) -> co::HRESULT {
-    if msg == co::TDN::HYPERLINK_CLICKED {
+extern "system" fn task_dialog_callback(_hwnd: HWND, msg: TASKDIALOG_NOTIFICATIONS, _: WPARAM, _: LPARAM, lp_ref_data: isize) -> HRESULT {
+    if msg == TDN_HYPERLINK_CLICKED {
         let raw = lp_ref_data as *const PathBuf;
         let path: &PathBuf = unsafe { &*raw };
-        let dir = path.to_str().unwrap();
-        w::HWND::GetDesktopWindow().ShellExecute("open", &dir, None, None, co::SW::SHOWDEFAULT).ok();
-        return co::HRESULT::S_FALSE; // do not close dialog
+        let dir = path.to_string_lossy().to_string();
+        let dir = string_to_wide(dir);
+        unsafe { ShellExecuteW(Some(GetDesktopWindow()), None, dir.as_pcwstr(), None, None, SW_SHOWDEFAULT) };
+        return S_FALSE; // do not close dialog
     }
-    return co::HRESULT::S_OK; // close dialog on button press
+    return S_OK; // close dialog on button press
 }
 
 pub fn generate_confirm(
@@ -217,42 +223,40 @@ pub fn generate_confirm(
     btns: DialogButton,
     ico: DialogIcon,
 ) -> Result<DialogResult> {
-    let hparent = w::HWND::GetDesktopWindow();
-    let mut ok_text_buf = WString::from_opt_str(ok_text);
-    let mut custom_btns = if ok_text.is_some() {
-        let mut td_btn = w::TASKDIALOG_BUTTON::default();
-        td_btn.set_nButtonID(co::DLGID::OK.into());
-        td_btn.set_pszButtonText(Some(&mut ok_text_buf));
-        let mut custom_btns = Vec::with_capacity(1);
-        custom_btns.push(td_btn);
-        custom_btns
+    let hparent = unsafe { GetDesktopWindow() };
+    let mut ok_text_buf = ok_text.map(string_to_wide);
+    let mut custom_btns = if let Some(ok_text_buf) = ok_text_buf.as_mut() {
+        let td_btn = TASKDIALOG_BUTTON { nButtonID: IDOK.0, pszButtonText: ok_text_buf.as_pcwstr() };
+        vec![td_btn]
     } else {
-        Vec::<w::TASKDIALOG_BUTTON>::default()
+        Vec::new()
     };
 
-    let mut tdc = w::TASKDIALOGCONFIG::default();
-    tdc.hwndParent = unsafe { hparent.raw_copy() };
-    tdc.dwFlags = co::TDF::ALLOW_DIALOG_CANCELLATION | co::TDF::POSITION_RELATIVE_TO_WINDOW;
+    let mut tdc = TASKDIALOGCONFIG { hwndParent: hparent, ..Default::default() };
+    tdc.cbSize = std::mem::size_of::<TASKDIALOGCONFIG>() as u32;
+    tdc.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION | TDF_POSITION_RELATIVE_TO_WINDOW;
     tdc.dwCommonButtons = btns.to_win();
-    tdc.set_pszMainIcon(w::IconIdTdicon::Tdicon(ico.to_win()));
+    tdc.Anonymous1.pszMainIcon = ico.to_win();
 
-    if ok_text.is_some() {
-        tdc.set_pButtons(Some(&mut custom_btns));
+    if !custom_btns.is_empty() {
+        tdc.cButtons = custom_btns.len() as u32;
+        tdc.pButtons = custom_btns.as_mut_ptr();
     }
 
-    let mut title_buf = WString::from_str(title);
-    tdc.set_pszWindowTitle(Some(&mut title_buf));
+    let title_buf = string_to_wide(title);
+    tdc.pszWindowTitle = title_buf.as_pcwstr();
 
-    let mut header_buf = WString::from_opt_str(header);
-    if header.is_some() {
-        tdc.set_pszMainInstruction(Some(&mut header_buf));
+    let mut header_buf = header.map(string_to_wide);
+    if let Some(header_buf) = header_buf.as_mut() {
+        tdc.pszMainInstruction = header_buf.as_pcwstr();
     }
 
-    let mut body_buf = WString::from_str(body);
-    tdc.set_pszContent(Some(&mut body_buf));
+    let body_buf = string_to_wide(body);
+    tdc.pszContent = body_buf.as_pcwstr();
 
-    let result = w::TaskDialogIndirect(&tdc, None).map(|(dlg_id, _)| dlg_id)?;
-    Ok(DialogResult::from_win(result))
+    let mut pnbutton = 0;
+    unsafe { TaskDialogIndirect(&tdc, Some(&mut pnbutton), None, None).expect("didnt work") };
+    Ok(DialogResult::from_win(pnbutton))
 }
 
 pub fn generate_alert(
@@ -263,6 +267,28 @@ pub fn generate_alert(
     btns: DialogButton,
     ico: DialogIcon,
 ) -> Result<()> {
-    let _ = generate_confirm(title, header, body, ok_text, btns, ico).map(|_| ())?;
+    let _ = generate_confirm(title, header, body, ok_text, btns, ico)?;
     Ok(())
+}
+
+#[ignore]
+#[test]
+fn show_all_windows_dialogs() {
+    use semver::Version;
+    let app = Manifest {
+        id: "test.app".to_string(),
+        title: "Test Application".to_string(),
+        version: semver::Version::new(1, 0, 0),
+        description: "A test application for dialog generation.".to_string(),
+        authors: "Test Author".to_string(),
+        runtime_dependencies: "net8-x64".to_string(),
+        ..Default::default()
+    };
+
+    show_restart_required(&app);
+    show_update_missing_dependencies_dialog(&app, "net8-x64", &Version::new(1, 0, 0), &Version::new(2, 0, 0));
+    show_setup_missing_dependencies_dialog(&app, "net8-x64");
+    show_uninstall_complete_with_errors_dialog("Test Application", Some(&PathBuf::from("C:\\audio.log")));
+    show_processes_locking_folder_dialog(&app.title, &app.version.to_string(), "TestProcess1, TestProcess2");
+    show_overwrite_repair_dialog(&app, &PathBuf::from("C:\\Program Files\\TestApp"), false);
 }

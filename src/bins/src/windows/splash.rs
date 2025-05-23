@@ -1,16 +1,17 @@
+use super::strings::string_to_wide;
 use anyhow::{bail, Result};
 use image::{codecs::gif::GifDecoder, AnimationDecoder, DynamicImage, ImageFormat, ImageReader};
-use std::sync::atomic::{AtomicI16, Ordering};
-use std::{
-    cell::RefCell,
-    io::Cursor,
-    ops::Deref,
-    rc::Rc,
-    sync::mpsc::{self, Receiver, Sender},
-    thread,
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::{io::Cursor, thread};
+use windows::{
+    core::HRESULT,
+    Win32::{
+        Foundation::{COLORREF, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, S_OK, WPARAM},
+        Graphics::Gdi::*,
+        System::LibraryLoader::GetModuleHandleW,
+        UI::{Controls::*, WindowsAndMessaging::*},
+    },
 };
-use winsafe::guard::DeleteObjectGuard;
-use winsafe::{self as w, co, gui, prelude::*, WString};
 
 const TMR_GIF: usize = 1;
 const MSG_NOMESSAGE: i16 = -99;
@@ -33,10 +34,9 @@ pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>) -> Sende
     thread::spawn(move || {
         info!("Showing splash screen immediately...");
         if imgstream.is_some() {
-            let _ = SplashWindow::new(app_name, imgstream.unwrap(), rx).and_then(|w| {
-                w.run()?;
-                Ok(())
-            });
+            if let Err(e) = unsafe { SplashWindow::run(app_name, imgstream.unwrap(), rx) } {
+                error!("Failed to show splash screen: {:?}", e);
+            }
         } else {
             let setup_name = format!("{} Setup", app_name);
             let content = format!("Installing {}...", app_name);
@@ -46,21 +46,19 @@ pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>) -> Sende
     tx
 }
 
-#[derive(Clone)]
-pub struct SplashWindow {
-    wnd: gui::WindowMain,
-    frames: Rc<Vec<DeleteObjectGuard<w::HBITMAP>>>,
-    rx: Rc<Receiver<i16>>,
-    delay: u16,
-    progress: Rc<RefCell<i16>>,
-    frame_idx: Rc<RefCell<usize>>,
-    w: u16,
-    h: u16,
+struct SplashWindow {
+    frames: Vec<HBITMAP>,
+    rx: Receiver<i16>,
+    progress: i16,
+    frame_idx: usize,
+    w: i32,
+    h: i32,
+    hdc_screen: HDC,
 }
 
-fn average(numbers: &[u16]) -> u16 {
-    let sum: u16 = numbers.iter().sum();
-    let count = numbers.len() as u16;
+fn average(numbers: &[u32]) -> u32 {
+    let sum: u32 = numbers.iter().sum();
+    let count = numbers.len() as u32;
     sum / count
 }
 
@@ -73,17 +71,30 @@ fn convert_rgba_to_bgra(image_data: &mut Vec<u8>) {
     }
 }
 
+unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    let ptr = GetWindowLongPtrW(hwnd, GWL_USERDATA) as *mut SplashWindow;
+    match ptr.as_mut() {
+        Some(data) => LRESULT(data.handle_event(hwnd, msg, wparam, lparam)),
+        // If the pointer is null, we can just call the default window procedure
+        None => DefWindowProcW(hwnd, msg, wparam, lparam),
+    }
+}
+
+fn rgb(red: u8, green: u8, blue: u8) -> COLORREF {
+    COLORREF((red as u32) | ((green as u32) << 8) | ((blue as u32) << 16))
+}
+
 impl SplashWindow {
-    pub fn new(app_name: String, img_stream: Vec<u8>, rx: Receiver<i16>) -> Result<Self> {
+    pub unsafe fn run(app_name: String, img_stream: Vec<u8>, rx: Receiver<i16>) -> Result<()> {
         let mut delays = Vec::new();
         let mut frames = Vec::new();
+
         let fmt_cursor = Cursor::new(&img_stream);
         let fmt_reader = ImageReader::new(fmt_cursor).with_guessed_format()?;
         let fmt = fmt_reader.format();
-
         let dims = &fmt_reader.into_dimensions()?;
-        let w: u16 = u16::try_from(dims.0)?;
-        let h: u16 = u16::try_from(dims.1)?;
+        let w: i32 = i32::try_from(dims.0)?;
+        let h: i32 = i32::try_from(dims.1)?;
 
         if Some(ImageFormat::Gif) == fmt {
             info!("Image is animated GIF ({}x{}), loading frames...", w, h);
@@ -93,22 +104,22 @@ impl SplashWindow {
             for frame in dec_frames.into_iter() {
                 let frame = frame?;
                 let (num, dem) = frame.delay().numer_denom_ms();
-                delays.push((num / dem) as u16);
+                delays.push((num / dem) as u32);
                 let dynamic = DynamicImage::from(frame.buffer().to_owned());
                 let mut vec = dynamic.to_rgba8().to_vec();
                 convert_rgba_to_bgra(&mut vec);
-                let bitmap = w::HBITMAP::CreateBitmap(winsafe::SIZE { cx: w.into(), cy: h.into() }, 1, 32, vec.as_mut_ptr() as *mut u8)?;
+                let bitmap = CreateBitmap(w, h, 1, 32, Some(vec.as_mut_ptr() as *mut _));
                 frames.push(bitmap);
             }
             info!("Successfully loaded {} frames.", frames.len());
         } else {
             info!("Loading static image (detected {:?})...", fmt);
-            delays.push(16); // 60 fps
+            delays.push(16u32); // 60 fps
             let img_cursor = Cursor::new(&img_stream);
             let img_decoder = ImageReader::new(img_cursor).with_guessed_format()?.decode()?;
             let mut vec = img_decoder.to_rgba8().to_vec();
             convert_rgba_to_bgra(&mut vec);
-            let bitmap = w::HBITMAP::CreateBitmap(winsafe::SIZE { cx: w.into(), cy: h.into() }, 1, 32, vec.as_mut_ptr() as *mut u8)?;
+            let bitmap = CreateBitmap(w, h, 1, 32, Some(vec.as_mut_ptr() as *mut _));
             frames.push(bitmap);
             info!("Successfully loaded.");
         }
@@ -117,256 +128,268 @@ impl SplashWindow {
         // support a variable frame delay in the future.
         let delay = average(&delays);
 
-        let wnd = gui::WindowMain::new(gui::WindowMainOpts {
-            class_icon: gui::Icon::Idi(co::IDI::APPLICATION),
-            class_cursor: gui::Cursor::Idc(co::IDC::APPSTARTING),
-            class_style: co::CS::HREDRAW | co::CS::VREDRAW,
-            class_name: "VelopackSetupSplashWindow".to_owned(),
-            title: app_name,
-            size: (w.into(), h.into()),
-            ex_style: co::WS_EX::NoValue,
-            style: co::WS::POPUP,
+        let class_name = string_to_wide("VelopackSetupSplashWindow");
+        let app_name = string_to_wide(&app_name);
+
+        let h_instance: HINSTANCE = GetModuleHandleW(None)?.into();
+
+        let wnd_class = WNDCLASSEXW {
+            cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
+            style: CS_HREDRAW | CS_VREDRAW,
+            lpfnWndProc: Some(window_proc),
+            hInstance: h_instance,
+            hCursor: LoadCursorW(None, IDC_APPSTARTING)?,
+            hbrBackground: CreateSolidBrush(rgb(0, 0, 0)),
+            lpszClassName: class_name.as_pcwstr(),
             ..Default::default()
-        });
+        };
 
-        let frames = Rc::new(frames);
-        let rx = Rc::new(rx);
-        let progress = Rc::new(RefCell::new(0));
-        let frame_idx = Rc::new(RefCell::new(0));
-        let mut new_self = Self { wnd, frames, delay, frame_idx, w, h, rx, progress };
-        new_self.events();
-        Ok(new_self)
-    }
+        let class_id = unsafe { RegisterClassExW(&wnd_class) };
+        if class_id == 0 {
+            // if class already registered we can ignore
+            let err = std::io::Error::last_os_error();
+            if err.raw_os_error() != Some(1410) {
+                bail!("Failed to register window class: {:?}", err);
+            }
+        }
 
-    pub fn run(&self) -> Result<i32> {
-        let res = self.wnd.run_main(Some(co::SW::SHOWNOACTIVATE));
-        if res.is_err() {
-            error!("Error Showing Splash Window: {:?}", res);
-            bail!("Error Showing Splash Window: {:?}", res);
+        // center the window on the screen containing the cursor
+        let mut lppoint = POINT::default();
+        GetCursorPos(&mut lppoint)?;
+
+        let h_monitor = MonitorFromPoint(lppoint, MONITOR_DEFAULTTONEAREST);
+        let mut mi: MONITORINFO = Default::default();
+        mi.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+        if GetMonitorInfoW(h_monitor, &mut mi).as_bool() {
+            // center the window in the monitor
+            let rc_monitor = mi.rcMonitor;
+            let left = (rc_monitor.left + rc_monitor.right - w) / 2;
+            let top = (rc_monitor.top + rc_monitor.bottom - h) / 2;
+            lppoint.x = left;
+            lppoint.y = top;
         } else {
-            info!("Splash Window Closed");
-        }
-        Ok(res.unwrap())
-    }
-
-    fn events(&mut self) {
-        let self2 = self.clone();
-        self.wnd.on().wm_create(move |_m| {
-            // will ask Windows to give us a WM_TIMER every `delay` milliseconds
-            self2.wnd.hwnd().SetTimer(TMR_GIF, self2.delay.into(), None)?;
-            Ok(0)
-        });
-
-        self.wnd.on().wm_nc_hit_test(|_m| {
-            Ok(co::HT::CAPTION) // make the window draggable
-        });
-
-        let self2 = self.clone();
-        self.wnd.on().wm_timer(TMR_GIF, move || {
-            // handle any incoming messages before painting
-            loop {
-                let msg = self2.rx.try_recv().unwrap_or(MSG_NOMESSAGE);
-                if msg == MSG_NOMESSAGE {
-                    break;
-                } else if msg == MSG_CLOSE {
-                    self2.wnd.hwnd().SendMessage(w::msg::wm::Close {});
-                    return Ok(());
-                } else if msg >= 0 {
-                    let mut p = self2.progress.borrow_mut();
-                    *p = msg;
-                }
-            }
-
-            // trigger a new WM_PAINT
-            self2.wnd.hwnd().InvalidateRect(None, false)?;
-            Ok(())
-        });
-
-        let self2 = self.clone();
-        self.wnd.on().wm_paint(move || {
-            // initial setup
-            let hwnd = self2.wnd.hwnd();
-            let rect = hwnd.GetClientRect()?;
-            let hdc = hwnd.BeginPaint()?;
-            let w = rect.right - rect.left;
-            let h = rect.bottom - rect.top;
-            let desktop = w::HWND::GetDesktopWindow();
-            let hdc_screen = desktop.GetDC()?;
-
-            // retrieve the next frame to draw
-            let mut idx = self2.frame_idx.borrow_mut();
-            let h_bitmap = self2.frames[*idx].deref();
-            *idx += 1;
-            if *idx >= self2.frames.len() {
-                *idx = 0;
-            }
-
-            // create double buffer
-            let hdc_mem = hdc_screen.CreateCompatibleDC()?;
-            let buffer_bmp = hdc_screen.CreateCompatibleBitmap(w, h)?;
-            let _buffer_old = hdc_mem.SelectObject(buffer_bmp.deref())?;
-
-            // load image into hdc_bitmap
-            let hdc_bitmap = hdc_screen.CreateCompatibleDC()?;
-            let _bitmap_old = hdc_bitmap.SelectObject(h_bitmap)?;
-
-            // draw background to hdc_mem
-            let background_brush = w::HBRUSH::CreateSolidBrush(w::COLORREF::new(0, 0, 0))?;
-            hdc_mem.FillRect(w::RECT { left: 0, top: 0, right: w, bottom: h }, &background_brush)?;
-
-            // copy bitmap from hdc_bitmap to hdc_mem
-            hdc_mem.SetStretchBltMode(co::STRETCH_MODE::STRETCH_HALFTONE)?;
-            hdc_mem.StretchBlt(
-                w::POINT { x: 0, y: 0 },
-                w::SIZE { cx: rect.right, cy: rect.bottom },
-                &hdc_bitmap,
-                w::POINT { x: 0, y: 0 },
-                w::SIZE { cx: self2.w.into(), cy: self2.h.into() },
-                co::ROP::SRCCOPY,
+            // fallback to work area if monitor info is not available
+            let mut rc_work_area: RECT = Default::default();
+            SystemParametersInfoW(
+                SPI_GETWORKAREA,
+                0,
+                Some(&mut rc_work_area as *mut RECT as *mut _),
+                SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
             )?;
+            lppoint.x = (rc_work_area.left + rc_work_area.right - w) / 2;
+            lppoint.y = (rc_work_area.top + rc_work_area.bottom - h) / 2;
+        }
 
-            // draw progress bar to hdc_mem
-            let progress = self2.progress.borrow();
-            let progress_brush = w::HBRUSH::CreateSolidBrush(w::COLORREF::new(0, 255, 0))?;
-            let progress_width = (rect.right as f32 * (*progress as f32 / 100.0)) as i32;
-            let progress_rect = w::RECT { left: 0, bottom: rect.bottom, right: progress_width, top: rect.bottom - 10 };
-            hdc_mem.FillRect(progress_rect, &progress_brush)?;
+        let hwnd = CreateWindowExW(
+            WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
+            class_name.as_pcwstr(),
+            app_name.as_pcwstr(),
+            WS_CLIPCHILDREN | WS_POPUP,
+            lppoint.x,
+            lppoint.y,
+            w,
+            h,
+            None,
+            None,
+            Some(h_instance),
+            None,
+        )?;
 
-            // finally, copy hdc_mem to hdc
-            hdc.BitBlt(w::POINT { x: 0, y: 0 }, w::SIZE { cx: w, cy: h }, &hdc_mem, w::POINT { x: 0, y: 0 }, co::ROP::SRCCOPY)?;
+        let desktop = unsafe { GetDesktopWindow() };
+        let hdc_screen = unsafe { GetDC(Some(desktop)) };
 
-            Ok(())
-        });
-    }
-}
+        let data_ptr = Box::into_raw(Box::new(Self { frames, rx, frame_idx: 0, w, h, progress: 0, hdc_screen }));
 
-pub const TDM_SET_PROGRESS_BAR_MARQUEE: co::WM = unsafe { co::WM::from_raw(1131) };
-pub const TDM_SET_MARQUEE_PROGRESS_BAR: co::WM = unsafe { co::WM::from_raw(1127) };
-pub const TDM_SET_PROGRESS_BAR_POS: co::WM = unsafe { co::WM::from_raw(1130) };
+        SetWindowLongPtrW(hwnd, GWL_USERDATA, data_ptr as isize);
+        let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+        SetTimer(Some(hwnd), TMR_GIF, delay, None);
 
-struct MsgSetProgressMarqueeOnOff {
-    is_marquee_on: bool,
-}
-unsafe impl MsgSend for MsgSetProgressMarqueeOnOff {
-    type RetType = ();
-    fn convert_ret(&self, _: isize) -> Self::RetType {
-        ()
-    }
-    fn as_generic_wm(&mut self) -> w::msg::WndMsg {
-        let v: usize = if self.is_marquee_on { 1 } else { 0 };
-        w::msg::WndMsg { msg_id: TDM_SET_PROGRESS_BAR_MARQUEE, wparam: v, lparam: 0 }
-    }
-}
+        let mut msg = MSG::default();
+        let _ = PeekMessageW(&mut msg, Some(hwnd), 0, 0, PEEK_MESSAGE_REMOVE_TYPE(0)); // invoke creating message queue
 
-struct MsgSetProgressMarqueeMode {
-    is_marquee_on: bool,
-}
-unsafe impl MsgSend for MsgSetProgressMarqueeMode {
-    type RetType = ();
-    fn convert_ret(&self, _: isize) -> Self::RetType {
-        ()
-    }
-    fn as_generic_wm(&mut self) -> w::msg::WndMsg {
-        let v: usize = if self.is_marquee_on { 1 } else { 0 };
-        w::msg::WndMsg { msg_id: TDM_SET_MARQUEE_PROGRESS_BAR, wparam: v, lparam: 0 }
-    }
-}
-
-struct MsgSetProgressPos {
-    pos: usize,
-}
-unsafe impl MsgSend for MsgSetProgressPos {
-    type RetType = ();
-    fn convert_ret(&self, _: isize) -> Self::RetType {
-        ()
-    }
-    fn as_generic_wm(&mut self) -> w::msg::WndMsg {
-        w::msg::WndMsg { msg_id: TDM_SET_PROGRESS_BAR_POS, wparam: self.pos, lparam: 0 }
-    }
-}
-
-#[derive(Clone)]
-pub struct ComCtlProgressWindow {
-    // hwnd: Rc<RefCell<w::HWND>>,
-    rx: Rc<Receiver<i16>>,
-    last_progress: Rc<AtomicI16>,
-}
-
-impl ComCtlProgressWindow {
-    pub fn set_progress(&self, value: i16) {
-        self.last_progress.store(value, Ordering::SeqCst);
-    }
-    pub fn get_progress(&self) -> i16 {
-        self.last_progress.load(Ordering::SeqCst)
-    }
-    pub fn get_next_message(&self) -> i16 {
-        let mut progress: i16 = MSG_NOMESSAGE;
-        loop {
-            let msg = self.rx.try_recv().unwrap_or(MSG_NOMESSAGE);
-            if msg == MSG_NOMESSAGE {
+        while GetMessageW(&mut msg, None, 0, 0).as_bool() {
+            if msg.message == WM_QUIT {
                 break;
-            } else {
-                progress = msg;
+            }
+            let _ = TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+        }
+
+        let arc_data = Box::from_raw(data_ptr); // drop the reference to the data
+        let _ = DeleteDC(arc_data.hdc_screen);
+        for h_bitmap in &arc_data.frames {
+            let _ = DeleteObject((*h_bitmap).into());
+        }
+
+        let _ = DestroyWindow(hwnd);
+        Ok(())
+    }
+
+    pub unsafe fn handle_event(&mut self, hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> isize {
+        match msg {
+            WM_NCHITTEST => {
+                return HTCAPTION as isize; // make the window draggable
+            }
+            WM_TIMER => {
+                if wparam.0 as usize == TMR_GIF {
+                    // handle any incoming messages before painting
+                    let next_message = drain_and_get_next_message(&self.rx);
+                    if next_message == MSG_CLOSE {
+                        let _ = PostMessageW(Some(hwnd), WM_CLOSE, WPARAM(0), LPARAM(0));
+                        return 0;
+                    } else if next_message >= 0 {
+                        self.progress = next_message;
+                    }
+
+                    // advance the frame index
+                    self.frame_idx += 1;
+                    if self.frame_idx >= self.frames.len() {
+                        self.frame_idx = 0; // loop back to the first frame
+                    }
+
+                    // trigger a new WM_PAINT
+                    let _ = InvalidateRect(Some(hwnd), None, false);
+                }
+                return 0;
+            }
+            WM_PAINT => {
+                let mut ps = PAINTSTRUCT::default();
+                let hdc = BeginPaint(hwnd, &mut ps);
+                if hdc.is_invalid() {
+                    return 0;
+                }
+
+                // get the bitmap for the current frame
+                let h_bitmap = self.frames[self.frame_idx];
+
+                // create double buffer
+                let hdc_mem = CreateCompatibleDC(Some(self.hdc_screen));
+                let buffer_bmp = CreateCompatibleBitmap(self.hdc_screen, self.w, self.h);
+                let buffer_old = SelectObject(hdc_mem, buffer_bmp.into());
+
+                // load image into hdc_bitmap
+                let hdc_bitmap = CreateCompatibleDC(Some(self.hdc_screen));
+                let bitmap_old = SelectObject(hdc_bitmap, h_bitmap.into());
+
+                // draw background to hdc_mem
+                let background_brush = CreateSolidBrush(rgb(0, 0, 0));
+                FillRect(hdc_mem, &RECT { left: 0, top: 0, right: self.w, bottom: self.h }, background_brush);
+
+                // copy bitmap from hdc_bitmap to hdc_mem
+                SetStretchBltMode(hdc_mem, STRETCH_HALFTONE);
+                let _ = StretchBlt(hdc_mem, 0, 0, self.w, self.h, Some(hdc_bitmap), 0, 0, self.w, self.h, SRCCOPY);
+
+                // draw progress bar to hdc_mem
+                let progress = self.progress;
+                let progress_brush = CreateSolidBrush(rgb(15, 123, 15));
+                let progress_width = (self.w as f32 * (progress as f32 / 100.0)) as i32;
+                let progress_rect = RECT { left: 0, bottom: self.h, right: progress_width, top: self.h - 10 };
+                FillRect(hdc_mem, &progress_rect, progress_brush);
+
+                // finally, copy hdc_mem to hdc
+                let _ = BitBlt(hdc, 0, 0, self.w, self.h, Some(hdc_mem), 0, 0, SRCCOPY);
+
+                // clean up
+                let _ = DeleteObject(background_brush.into());
+                let _ = DeleteObject(progress_brush.into());
+                SelectObject(hdc_mem, buffer_old);
+                SelectObject(hdc_bitmap, bitmap_old);
+                let _ = DeleteDC(hdc_mem);
+                let _ = DeleteDC(hdc_bitmap);
+                let _ = DeleteObject(buffer_bmp.into());
+
+                let _ = EndPaint(hwnd, &ps);
+                return 0;
+            }
+            _ => {
+                // handle other messages
+                return DefWindowProcW(hwnd, msg, wparam, lparam).0;
             }
         }
-        progress
     }
+}
+
+pub struct ComCtlProgressWindow {
+    rx: Receiver<i16>,
+    last_progress: i16,
 }
 
 fn show_com_ctl_progress_dialog(rx: Receiver<i16>, window_title: &str, content: &str) {
-    let mut window_title = WString::from_str(window_title);
-    let mut content = WString::from_str(content);
+    let window_title = string_to_wide(window_title);
+    let content = string_to_wide(content);
+    let ok_text = string_to_wide("Hide");
 
-    let mut ok_text_buf = WString::from_str("Hide");
-    let mut td_btn = w::TASKDIALOG_BUTTON::default();
-    td_btn.set_nButtonID(co::DLGID::OK.into());
-    td_btn.set_pszButtonText(Some(&mut ok_text_buf));
-    let mut custom_btns = Vec::with_capacity(1);
-    custom_btns.push(td_btn);
+    let td_btn = TASKDIALOG_BUTTON {
+        nButtonID: 1, // OK button id
+        pszButtonText: ok_text.as_pcwstr(),
+    };
+    let custom_btns = vec![td_btn];
 
-    let mut config: w::TASKDIALOGCONFIG = Default::default();
-    config.dwFlags = co::TDF::SIZE_TO_CONTENT | co::TDF::SHOW_PROGRESS_BAR | co::TDF::CALLBACK_TIMER;
-    config.set_pszMainIcon(w::IconIdTdicon::Tdicon(co::TD_ICON::INFORMATION));
-    config.set_pszWindowTitle(Some(&mut window_title));
-    config.set_pszMainInstruction(Some(&mut content));
-    config.set_pButtons(Some(&mut custom_btns));
+    let mut config: TASKDIALOGCONFIG = Default::default();
+    config.cbSize = std::mem::size_of::<TASKDIALOGCONFIG>() as u32;
+    config.dwFlags = TDF_SIZE_TO_CONTENT | TDF_SHOW_PROGRESS_BAR | TDF_CALLBACK_TIMER;
+    config.pszWindowTitle = window_title.as_pcwstr();
+    config.pszMainInstruction = content.as_pcwstr();
+    config.pButtons = custom_btns.as_ptr();
+    config.cButtons = custom_btns.len() as u32;
+    config.nDefaultButton = 1;
+    config.Anonymous1.pszMainIcon = TD_INFORMATION_ICON;
 
-    // if (_icon != null) {
-    //     config.dwFlags |= TASKDIALOG_FLAGS.TDF_USE_HICON_MAIN;
-    //     config.mainIcon = _icon.Handle;
-    // }
-
-    let me = ComCtlProgressWindow { rx: Rc::new(rx), last_progress: Rc::new(AtomicI16::new(0)) };
-    config.lpCallbackData = &me as *const ComCtlProgressWindow as usize;
+    let me = ComCtlProgressWindow { rx, last_progress: 0 };
+    let data_ptr = Box::into_raw(Box::new(me));
+    config.lpCallbackData = data_ptr as isize;
     config.pfCallback = Some(task_dialog_callback);
 
-    let _ = w::TaskDialogIndirect(&config, None);
+    unsafe {
+        let _ = TaskDialogIndirect(&config, None, None, None);
+    }
+
+    let _ = unsafe { Box::from_raw(data_ptr) }; // This will drop the ComCtlProgressWindow instance
 }
 
-extern "system" fn task_dialog_callback(hwnd: w::HWND, msg: co::TDN, _: usize, _: isize, lp_ref_data: usize) -> co::HRESULT {
-    let raw = lp_ref_data as *const ComCtlProgressWindow;
-    let me: &ComCtlProgressWindow = unsafe { &*raw };
+fn drain_and_get_next_message(rx: &Receiver<i16>) -> i16 {
+    let mut progress: i16 = MSG_NOMESSAGE;
+    loop {
+        let msg = rx.try_recv().unwrap_or(MSG_NOMESSAGE);
+        if msg == MSG_NOMESSAGE {
+            break;
+        } else {
+            progress = msg;
+        }
+    }
+    progress
+}
 
-    if msg == co::TDN::TIMER {
-        let next_message = me.get_next_message();
-        if next_message == MSG_CLOSE {
-            let _ = hwnd.EndDialog(0);
-            return co::HRESULT::S_OK;
-        } else if next_message == MSG_INDEFINITE {
-            hwnd.SendMessage(MsgSetProgressMarqueeOnOff { is_marquee_on: true });
-            hwnd.SendMessage(MsgSetProgressMarqueeMode { is_marquee_on: true });
-            me.set_progress(MSG_INDEFINITE);
-        } else if next_message >= 0 {
-            if me.get_progress() < 0 {
-                hwnd.SendMessage(MsgSetProgressMarqueeOnOff { is_marquee_on: false });
-                hwnd.SendMessage(MsgSetProgressMarqueeMode { is_marquee_on: false });
+unsafe extern "system" fn task_dialog_callback(
+    hwnd: HWND,
+    msg: TASKDIALOG_NOTIFICATIONS,
+    _wparam: WPARAM,
+    _lparam: LPARAM,
+    lp_ref_data: isize,
+) -> HRESULT {
+    let raw = lp_ref_data as *mut ComCtlProgressWindow;
+
+    if let Some(me) = raw.as_mut() {
+        if msg == TDN_TIMER {
+            let next_message = drain_and_get_next_message(&me.rx);
+            if next_message == MSG_CLOSE {
+                let _ = EndDialog(hwnd, 0);
+            } else if next_message == MSG_INDEFINITE {
+                SendMessageW(hwnd, TDM_SET_PROGRESS_BAR_MARQUEE.0 as u32, Some(WPARAM(1)), Some(LPARAM(0)));
+                SendMessageW(hwnd, TDM_SET_MARQUEE_PROGRESS_BAR.0 as u32, Some(WPARAM(1)), Some(LPARAM(0)));
+                me.last_progress = MSG_INDEFINITE;
+            } else if next_message >= 0 {
+                if me.last_progress < 0 {
+                    SendMessageW(hwnd, TDM_SET_PROGRESS_BAR_MARQUEE.0 as u32, Some(WPARAM(0)), Some(LPARAM(0)));
+                    SendMessageW(hwnd, TDM_SET_MARQUEE_PROGRESS_BAR.0 as u32, Some(WPARAM(0)), Some(LPARAM(0)));
+                }
+                SendMessageW(hwnd, TDM_SET_PROGRESS_BAR_POS.0 as u32, Some(WPARAM(next_message as usize)), Some(LPARAM(0)));
+                me.last_progress = next_message;
             }
-            hwnd.SendMessage(MsgSetProgressPos { pos: next_message as usize });
-            me.set_progress(next_message);
         }
     }
 
-    return co::HRESULT::S_OK;
+    return S_OK;
 }
 
 #[test]
@@ -374,8 +397,16 @@ extern "system" fn task_dialog_callback(hwnd: w::HWND, msg: co::TDN, _: usize, _
 fn show_test_gif() {
     let rd = std::fs::read(r"C:\Source\Clowd\artwork\splash.gif").unwrap();
     let tx = show_splash_dialog("osu!".to_string(), Some(rd));
-    tx.send(80).unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(6));
+    let _ = tx.send(25);
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    let _ = tx.send(50);
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    let _ = tx.send(75);
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    let _ = tx.send(100);
+    std::thread::sleep(std::time::Duration::from_secs(3));
+    let _ = tx.send(MSG_CLOSE);
+    std::thread::sleep(std::time::Duration::from_secs(3));
 }
 
 #[test]

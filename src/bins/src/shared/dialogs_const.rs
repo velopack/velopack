@@ -37,25 +37,26 @@ pub enum DialogResult {
 
 #[cfg(target_os = "windows")]
 impl DialogButton {
-    pub fn to_win(&self) -> winsafe::co::TDCBF {
-        let mut result = unsafe { winsafe::co::TDCBF::from_raw(0) };
+    pub fn to_win(&self) -> windows::Win32::UI::Controls::TASKDIALOG_COMMON_BUTTON_FLAGS {
+        use windows::Win32::UI::Controls::*;
+        let mut result = TASKDIALOG_COMMON_BUTTON_FLAGS(0);
         if self.has_ok() {
-            result |= winsafe::co::TDCBF::OK;
+            result |= TDCBF_OK_BUTTON;
         }
         if self.has_yes() {
-            result |= winsafe::co::TDCBF::YES;
+            result |= TDCBF_YES_BUTTON;
         }
         if self.has_no() {
-            result |= winsafe::co::TDCBF::NO;
+            result |= TDCBF_NO_BUTTON;
         }
         if self.has_cancel() {
-            result |= winsafe::co::TDCBF::CANCEL;
+            result |= TDCBF_CANCEL_BUTTON;
         }
         if self.has_retry() {
-            result |= winsafe::co::TDCBF::RETRY;
+            result |= TDCBF_RETRY_BUTTON;
         }
         if self.has_close() {
-            result |= winsafe::co::TDCBF::CLOSE;
+            result |= TDCBF_CLOSE_BUTTON;
         }
         result
     }
@@ -63,28 +64,31 @@ impl DialogButton {
 
 impl DialogIcon {
     #[cfg(target_os = "windows")]
-    pub fn to_win(&self) -> winsafe::co::TD_ICON {
+    pub fn to_win(&self) -> windows::core::PCWSTR {
+        use windows::Win32::UI::Controls::*;
         match self {
-            DialogIcon::Warning => winsafe::co::TD_ICON::WARNING,
-            DialogIcon::Error => winsafe::co::TD_ICON::ERROR,
-            DialogIcon::Information => winsafe::co::TD_ICON::INFORMATION,
+            DialogIcon::Warning => TD_WARNING_ICON,
+            DialogIcon::Error => TD_ERROR_ICON,
+            DialogIcon::Information => TD_INFORMATION_ICON,
         }
     }
 }
 
 #[cfg(target_os = "windows")]
 impl DialogResult {
-    pub fn from_win(dlg_id: winsafe::co::DLGID) -> DialogResult {
+    pub fn from_win(dlg_id: i32) -> DialogResult {
+        use windows::Win32::UI::WindowsAndMessaging::*;
+        let dlg_id = MESSAGEBOX_RESULT(dlg_id);
         match dlg_id {
-            winsafe::co::DLGID::OK => DialogResult::Ok,
-            winsafe::co::DLGID::CANCEL => DialogResult::Cancel,
-            winsafe::co::DLGID::ABORT => DialogResult::Abort,
-            winsafe::co::DLGID::RETRY => DialogResult::Retry,
-            winsafe::co::DLGID::IGNORE => DialogResult::Ignore,
-            winsafe::co::DLGID::YES => DialogResult::Yes,
-            winsafe::co::DLGID::NO => DialogResult::No,
-            winsafe::co::DLGID::TRYAGAIN => DialogResult::Tryagain,
-            winsafe::co::DLGID::CONTINUE => DialogResult::Continue,
+            IDOK => DialogResult::Ok,
+            IDCANCEL => DialogResult::Cancel,
+            IDABORT => DialogResult::Abort,
+            IDRETRY => DialogResult::Retry,
+            IDIGNORE => DialogResult::Ignore,
+            IDYES => DialogResult::Yes,
+            IDNO => DialogResult::No,
+            IDTRYAGAIN => DialogResult::Tryagain,
+            IDCONTINUE => DialogResult::Continue,
             _ => DialogResult::Unknown,
         }
     }

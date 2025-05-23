@@ -63,7 +63,6 @@
     {
       "groupName": "frozen",
       "matchPackageNames": [
-        "winsafe",                                    // newer versions causes runtime errors in release builds
         "System.CommandLine",                         // too many breaking changes too frequently
         "xunit.runner.visualstudio",                  // 20-12-2024: broke tests (something about sn signing maybe?)
         "Microsoft.NET.Test.Sdk",                     // 23-05-2025: 17.13.0 was the last version which supported net6

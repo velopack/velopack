@@ -85,7 +85,6 @@ waitpid-any.workspace = true
 fs_extra.workspace = true
 memmap2.workspace = true
 image.workspace = true
-winsafe.workspace = true
 windows = { workspace = true, features = [
     "Win32_Foundation",
     "Win32_Security",
@@ -93,23 +92,26 @@ windows = { workspace = true, features = [
     "Win32_Globalization",
     "Win32_UI",
     "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
+    "Win32_UI_Shell_PropertiesSystem",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Controls",
+    "Win32_Graphics",
+    "Win32_Graphics_Gdi",
     "Win32_System_Threading",
     "Win32_System_SystemInformation",
     "Win32_System_Variant",
     "Win32_System_Environment",
-    "Win32_Storage_EnhancedStorage",
-    "Win32_Storage_FileSystem",
     "Win32_System_Com_StructuredStorage",
     "Win32_System_Registry",
     "Win32_System_Threading",
     "Win32_System_ProcessStatus",
     "Win32_System_WindowsProgramming",
     "Win32_System_LibraryLoader",
-    "Win32_UI_Shell_Common",
-    "Win32_UI_Shell_PropertiesSystem",
-    "Win32_UI_WindowsAndMessaging",
     "Win32_System_ApplicationInstallationAndServicing",
     "Win32_System_Kernel",
+    "Win32_Storage_EnhancedStorage",
+    "Win32_Storage_FileSystem",
     "Wdk",
     "Wdk_System",
     "Wdk_System_Threading",
@@ -118,6 +120,7 @@ webview2-com-sys.workspace = true
 libloading.workspace = true
 strsim.workspace = true
 same-file.workspace = true
+winreg.workspace = true
 # filelocksmith.workspace = true
 
 [dev-dependencies]

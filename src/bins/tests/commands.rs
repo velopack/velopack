@@ -5,16 +5,16 @@ use common::*;
 use std::hint::assert_unchecked;
 use std::{fs, path::Path, path::PathBuf};
 use tempfile::tempdir;
-use velopack_bins::*;
 
+use velopack_bins::*;
+    use velopack_bins::windows::known_path;
 use velopack::bundle::load_bundle_from_file;
 use velopack::locator::{auto_locate_app_manifest, LocationContext};
-#[cfg(target_os = "windows")]
-use winsafe::{self as w, co};
 
 #[cfg(target_os = "windows")]
 #[test]
 pub fn test_install_apply_uninstall() {
+
     dialogs::set_silent(true);
 
     let fixtures = find_fixtures();
@@ -22,10 +22,8 @@ pub fn test_install_apply_uninstall() {
     let app_id = "AvaloniaCrossPlat";
     let pkg_name = "AvaloniaCrossPlat-1.0.11-win-full.nupkg";
 
-    let start_menu = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::StartMenu, co::KF::DONT_UNEXPAND, None).unwrap();
-    let start_menu = Path::new(&start_menu).join("Programs");
-    let desktop = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Desktop, co::KF::DONT_UNEXPAND, None).unwrap();
-    let desktop = Path::new(&desktop);
+    let start_menu = PathBuf::from(known_path::get_start_menu().unwrap());
+    let desktop = PathBuf::from(known_path::get_user_desktop().unwrap());
 
     let lnk_start_1 = start_menu.join(format!("{}.lnk", app_id));
     let lnk_desktop_1 = desktop.join(format!("{}.lnk", app_id));
