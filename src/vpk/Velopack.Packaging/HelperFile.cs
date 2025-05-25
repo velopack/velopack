@@ -69,6 +69,9 @@ public static class HelperFile
 
     [SupportedOSPlatform("windows")]
     public static string WixPath => FindHelperFile($"wix\\{WixVersion}\\wix.exe");
+    
+    [SupportedOSPlatform("windows")]
+    public static string WixUiExtPath => FindHelperFile($"wix\\{WixVersion}\\WixToolset.UI.wixext.dll");
 
     [SupportedOSPlatform("windows")]
     public const string WixVersion = "5.0.2";

@@ -429,8 +429,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             return null;
         }
 
-        List<string> wixExtensions = ["WixToolset.UI.wixext"];
-
         var shortcuts = GetShortcuts().ToHashSet();
         string title = GetEffectiveTitle();
         string authors = GetEffectiveAuthors();
@@ -692,16 +690,13 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
             progress(30);
 
-            Log.Info("Compiling WiX Template (dotnet build)");
+            Log.Info("Compiling WiX Template");
 
-            foreach (var extension in wixExtensions) {
-                //TODO: Should extensions be versioned independently?
-                AddWixExtension(extension, HelperFile.WixVersion);
-            }
+            List<string> wixExtensions = [HelperFile.WixUiExtPath];
 
             //When localization is supported in Velopack, we will need to add -culture here:
             //https://docs.firegiant.com/wix/tools/wixext/wixui/
-            var buildCommand = $"{HelperFile.WixPath} build -platform {(packageAs64Bit ? "x64" : "x86")} -outputType Package -pdbType none {string.Join(" ", wixExtensions.Select(x => $"-ext {x}"))} -loc \"{localization}\" -out \"{msiFilePath}\" \"{wxs}\"";
+            var buildCommand = $"\"{HelperFile.WixPath}\" build -platform {(packageAs64Bit ? "x64" : "x86")} -outputType Package -pdbType none {string.Join(" ", wixExtensions.Select(x => $"-ext \"{x}\""))} -loc \"{localization}\" -out \"{msiFilePath}\" \"{wxs}\"";
 
             _ = Exe.RunHostedCommand(buildCommand);
 
@@ -715,13 +710,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             }
         }
         progress(100);
-
-
-        static void AddWixExtension(string extension, string version)
-        {
-            var addCommand = $"{HelperFile.WixPath} extension add -g {extension}/{version}";
-            _ = Exe.RunHostedCommand(addCommand);
-        }
     }
 
     protected override string[] GetMainExeSearchPaths(string packDirectory, string mainExeName)
