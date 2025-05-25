@@ -4,7 +4,7 @@ use crate::{
     windows::{self, splash},
 };
 use anyhow::{bail, Context, Result};
-use std::{fs, path::PathBuf};
+use std::{ffi::OsString, fs, path::PathBuf};
 use std::{sync::mpsc, time::Duration};
 use velopack::{bundle::load_bundle_from_file, constants, locator::VelopackLocator, process};
 
@@ -51,8 +51,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
         } else {
             info!("Re-launching as administrator to update in {:?}", root_path);
 
-            let package_string = package.to_string_lossy().to_string();
-            let args = vec!["--norestart".to_string(), "--package".to_string(), package_string];
+            let args: Vec<OsString> = vec!["--norestart".into(), "--package".into(), package.into()];
             let exe_path = std::env::current_exe()?;
             let work_dir: Option<String> = None; // same as this process
             let process_handle = process::run_process_as_admin(&exe_path, args, work_dir, false)?;
@@ -108,7 +107,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
         // }
 
         // fourth, we make as backup of the current dir to temp_path_old
-        info!("Backing up current dir to {}", &temp_path_old.to_string_lossy());
+        info!("Backing up current dir to {:?}", &temp_path_old);
         shared::retry_io_ex(|| fs::rename(&current_dir, &temp_path_old), 1000, 10)
             .context("Unable to start the update, because one or more running processes prevented it. Try again later, or if the issue persists, restart your computer.")?;
 
@@ -121,7 +120,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
 
         // fifth, we try to replace the current dir with temp_path_new
         // if this fails we will yolo a rollback...
-        info!("Replacing current dir with {}", &temp_path_new.to_string_lossy());
+        info!("Replacing current dir with {:?}", &temp_path_new);
         shared::retry_io_ex(|| fs::rename(&temp_path_new, &current_dir), 1000, 30)
             .context("Unable to complete the update, and the app was left in a broken state. You may need to re-install or repair this application manually.")?;
 

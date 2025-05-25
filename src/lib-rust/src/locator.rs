@@ -110,10 +110,10 @@ impl VelopackLocator {
     /// Creates a new VelopackLocator from the given paths, trying to auto-detect the manifest.
     pub fn new(config: &VelopackLocatorConfig) -> Result<VelopackLocator, Error> {
         if !config.UpdateExePath.exists() {
-            return Err(Error::MissingUpdateExe);
+            return Err(Error::NotInstalled("Update.exe does not exist in the expected path".to_owned()));
         }
         if !config.ManifestPath.exists() {
-            return Err(Error::MissingNuspec);
+            return Err(Error::NotInstalled("Manifest file does not exist in the expected path".to_owned()));
         }
 
         let manifest = read_current_manifest(&config.ManifestPath)?;
@@ -152,21 +152,11 @@ impl VelopackLocator {
         self.paths.PackagesDir.clone()
     }
 
-    /// Returns the path to the current app's packages directory as a string.
-    pub fn get_packages_dir_as_string(&self) -> String {
-        Self::path_as_string(&self.paths.PackagesDir)
-    }
-
     /// Returns the path to the ideal local nupkg path.
     pub fn get_ideal_local_nupkg_path(&self, id: Option<&str>, version: Option<Version>) -> PathBuf {
         let id = id.unwrap_or(&self.manifest.id);
         let version = version.unwrap_or(self.manifest.version.clone());
         self.paths.RootAppDir.join("packages").join(format!("{}-{}-full.nupkg", id, version))
-    }
-
-    /// Returns the path to the ideal local nupkg path as a string.
-    pub fn get_ideal_local_nupkg_path_as_string(&self, id: Option<&str>, version: Option<Version>) -> String {
-        Self::path_as_string(&self.get_ideal_local_nupkg_path(id, version))
     }
 
     /// Returns the path to the current app temporary directory.
@@ -179,19 +169,9 @@ impl VelopackLocator {
         self.get_temp_dir_root().join("tmp_".to_string() + &misc::random_string(16))
     }
 
-    /// Returns the path to the current app temporary directory as a string.
-    pub fn get_temp_dir_as_string(&self) -> String {
-        Self::path_as_string(&self.get_temp_dir_root())
-    }
-
     /// Returns the root directory of the current app.
     pub fn get_root_dir(&self) -> PathBuf {
         self.paths.RootAppDir.clone()
-    }
-
-    /// Returns the root directory of the current app as a string.
-    pub fn get_root_dir_as_string(&self) -> String {
-        Self::path_as_string(&self.paths.RootAppDir)
     }
 
     /// Returns the path to the current app's Update.exe binary.
@@ -199,29 +179,14 @@ impl VelopackLocator {
         self.paths.UpdateExePath.clone()
     }
 
-    /// Returns the path to the current app's Update.exe binary as a string.
-    pub fn get_update_path_as_string(&self) -> String {
-        Self::path_as_string(&self.paths.UpdateExePath)
-    }
-
     /// Returns the path to the current app's main executable.
     pub fn get_main_exe_path(&self) -> PathBuf {
         self.paths.CurrentBinaryDir.join(&self.manifest.main_exe)
     }
 
-    /// Returns the path to the current app's main executable as a string.
-    pub fn get_main_exe_path_as_string(&self) -> String {
-        Self::path_as_string(&self.get_main_exe_path())
-    }
-
     /// Returns the path to the current app's user binary directory.
     pub fn get_current_bin_dir(&self) -> PathBuf {
         self.paths.CurrentBinaryDir.clone()
-    }
-
-    /// Returns the path to the current app's user binary directory as a string.
-    pub fn get_current_bin_dir_as_string(&self) -> String {
-        Self::path_as_string(&self.paths.CurrentBinaryDir)
     }
 
     /// Returns a clone of the current app's manifest.
@@ -309,10 +274,6 @@ impl VelopackLocator {
         let lock_file_path = packages_dir.join(".velopack_lock");
         let lock_file = LockFile::try_acquire_lock(&lock_file_path)?;
         Ok(lock_file)
-    }
-
-    fn path_as_string(path: &PathBuf) -> String {
-        path.to_string_lossy().to_string()
     }
 
     fn get_or_create_staged_user_id(&self) -> String {
@@ -535,24 +496,24 @@ fn read_current_manifest(nuspec_path: &PathBuf) -> Result<Manifest, Error> {
             return bundle::read_manifest_from_string(&nuspec);
         }
     }
-    Err(Error::MissingNuspec)
+    Err(Error::NotInstalled(format!("Manifest file does not exist or is not readable: {:?}", nuspec_path)))
 }
 
 /// Returns the path and manifest of the latest full package in the given directory.
 pub fn find_latest_full_package(packages_dir: &PathBuf) -> Option<(PathBuf, Manifest)> {
     let packages_dir = packages_dir.to_string_lossy();
 
-    info!("Attempting to auto-detect package in: {}", packages_dir);
+    info!("Attempting to auto-detect package in: {:?}", packages_dir);
     let mut package: Option<(PathBuf, Manifest)> = None;
 
     let search_glob = format!("{}/*-full.nupkg", packages_dir);
     if let Ok(paths) = glob::glob(search_glob.as_str()) {
         for path in paths.into_iter().flatten() {
-            trace!("Checking package: '{}'", path.to_string_lossy());
+            trace!("Checking package: '{:?}'", path);
             if let Ok(mut bun) = bundle::load_bundle_from_file(&path) {
                 if let Ok(mani) = bun.read_manifest() {
                     if package.is_none() || mani.version > package.clone()?.1.version {
-                        info!("Found {}: '{}'", mani.version, path.to_string_lossy());
+                        info!("Found {}: '{:?}'", mani.version, path);
                         package = Some((path, mani));
                     }
                 }

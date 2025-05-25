@@ -3,24 +3,23 @@ use crate::{
     shared::{self},
     windows,
 };
-use velopack::bundle::BundleZip;
-use velopack::locator::*;
 use velopack::constants;
+use velopack::locator::*;
+use velopack::{bundle::BundleZip, wide_strings::string_to_wide};
 
+use ::windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 use anyhow::{anyhow, bail, Result};
 use pretty_bytes_rust::pretty_bytes;
 use std::{
+    ffi::OsString,
     fs::{self},
     path::{Path, PathBuf},
 };
-use ::windows::core::PCWSTR;
-use ::windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 
-pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Option<Vec<&str>>) -> Result<()> {
+pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Option<Vec<OsString>>) -> Result<()> {
     // find and parse nuspec
     info!("Reading package manifest...");
     let app = pkg.read_manifest()?;
-
 
     info!("Package manifest loaded successfully.");
     info!("    Package ID: {}", &app.id);
@@ -49,17 +48,15 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
         shared::retry_io(|| fs::create_dir_all(&root_path))?;
     }
 
-    let root_path_str = root_path.to_str().unwrap();
-    info!("Installation Directory: {:?}", root_path_str);
+    info!("Installation Directory: {:?}", root_path);
 
     // do we have enough disk space?
     let (compressed_size, extracted_size) = pkg.calculate_size();
     let required_space = compressed_size + extracted_size + (50 * 1000 * 1000); // archive + velopack overhead
 
     let mut free_space: u64 = 0;
-    let root_pcwstr = windows::strings::string_to_u16(root_path_str);
-    let root_pcwstr: PCWSTR = PCWSTR(root_pcwstr.as_ptr());
-    if let Ok(()) = unsafe { GetDiskFreeSpaceExW(root_pcwstr, None, None, Some(&mut free_space)) } {
+    let root_pcwstr = string_to_wide(&root_path);
+    if let Ok(()) = unsafe { GetDiskFreeSpaceExW(root_pcwstr.as_pcwstr(), None, None, Some(&mut free_space)) } {
         if free_space < required_space {
             bail!(
                 "{} requires at least {} disk space to be installed. There is only {} available.",
@@ -85,7 +82,7 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
         bail!("This application ({}) does not support your CPU architecture.", &app.machine_architecture);
     }
 
-    let mut root_path_renamed = String::new();
+    let mut root_path_renamed: Option<PathBuf> = None;
     // does the target directory exist and have files? (eg. already installed)
     if !shared::is_dir_empty(&root_path) {
         // the target directory is not empty, and not dead
@@ -100,20 +97,22 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
             anyhow!("Failed to stop application ({}), please close the application and try running the installer again.", z)
         })?;
 
-        root_path_renamed = format!("{}_{}", root_path_str, shared::random_string(16));
-        info!("Renaming existing directory to '{}' to allow rollback...", root_path_renamed);
+        let renamed = root_path.with_extension(shared::random_string(16));
+        info!("Renaming existing directory to '{:?}' to allow rollback...", renamed);
 
-        shared::retry_io(|| fs::rename(&root_path, &root_path_renamed)).map_err(|_| {
+        shared::retry_io(|| fs::rename(&root_path, &renamed)).map_err(|_| {
             anyhow!(
                 "Failed to remove existing application directory, please close the application and try running the installer again. \
                 If the issue persists, try uninstalling first via Programs & Features, or restarting your computer."
             )
         })?;
+
+        root_path_renamed = Some(renamed);
     }
 
     info!("Preparing and cleaning installation directory...");
     remove_dir_all::ensure_empty_dir(&root_path)?;
-    
+
     info!("Acquiring lock...");
     let paths = create_config_from_root_dir(&root_path);
     let locator = VelopackLocator::new_with_manifest(paths, app);
@@ -134,17 +133,17 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
 
     if install_result.is_ok() {
         info!("Installation completed successfully!");
-        if !root_path_renamed.is_empty() {
+        if let Some(renamed) = root_path_renamed {
             info!("Removing rollback directory...");
-            let _ = shared::retry_io(|| fs::remove_dir_all(&root_path_renamed));
+            let _ = shared::retry_io(|| remove_dir_all::remove_dir_all(&renamed));
         }
     } else {
         error!("Installation failed!");
-        if !root_path_renamed.is_empty() {
+        if let Some(renamed) = root_path_renamed {
             info!("Rolling back installation...");
             let _ = shared::force_stop_package(&root_path);
-            let _ = shared::retry_io(|| fs::remove_dir_all(&root_path));
-            let _ = shared::retry_io(|| fs::rename(&root_path_renamed, &root_path));
+            let _ = shared::retry_io(|| remove_dir_all::remove_dir_all(&root_path));
+            let _ = shared::retry_io(|| fs::rename(&renamed, &root_path));
         }
         install_result?;
     }
@@ -152,7 +151,12 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     Ok(())
 }
 
-fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &std::sync::mpsc::Sender<i16>, start_args: Option<Vec<&str>>) -> Result<()> {
+fn install_impl(
+    pkg: &mut BundleZip,
+    locator: &VelopackLocator,
+    tx: &std::sync::mpsc::Sender<i16>,
+    start_args: Option<Vec<OsString>>,
+) -> Result<()> {
     info!("Starting installation!");
 
     // all application paths

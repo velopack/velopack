@@ -6,7 +6,7 @@ use velopack::{bundle, locator::VelopackLocator};
 
 pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _runhooks: bool) -> Result<VelopackLocator> {
     // on linux, the current "dir" is actually an AppImage file which we need to replace.
-    info!("Loading bundle from {}", pkg.to_string_lossy());
+    info!("Loading bundle from {:?}", pkg);
     let mut bundle = bundle::load_bundle_from_file(pkg)?;
     let manifest = bundle.read_manifest()?;
     let temp_path = locator.get_temp_dir_rand16().to_string_lossy().to_string();

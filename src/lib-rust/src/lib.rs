@@ -116,6 +116,8 @@ macro_rules! maybe_pub_os {
     };
 }
 
+use std::path::PathBuf;
+
 mod app;
 pub use app::*;
 
@@ -128,6 +130,7 @@ pub mod locator;
 /// Sources are abstractions for custom update sources (eg. url, local file, github releases, etc).
 pub mod sources;
 
+maybe_pub!(wide_strings);
 maybe_pub!(download, bundle, constants, lockfile, logging, misc);
 maybe_pub_os!(process, "process_win.rs", "process_unix.rs");
 
@@ -147,13 +150,13 @@ pub enum NetworkError {
 #[allow(missing_docs)]
 pub enum Error {
     #[error("File does not exist: {0}")]
-    FileNotFound(String),
+    FileNotFound(PathBuf),
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Checksum did not match for {0} (expected {1}, actual {2})")]
-    ChecksumInvalid(String, String, String),
+    ChecksumInvalid(PathBuf, String, String),
     #[error("Size did not match for {0} (expected {1}, actual {2})")]
-    SizeInvalid(String, u64, u64),
+    SizeInvalid(PathBuf, u64, u64),
     #[error("Zip error: {0}")]
     Zip(#[from] zip::result::ZipError),
     #[error("Network error: {0}")]
@@ -162,16 +165,14 @@ pub enum Error {
     Json(#[from] serde_json::Error),
     #[error("Semver parse error: {0}")]
     Semver(#[from] semver::Error),
-    #[error("This application is missing a package manifest (.nuspec) or it could not be parsed.")]
-    MissingNuspec,
-    #[error("This application is missing a required property in its package manifest: {0}")]
-    MissingNuspecProperty(String),
-    #[error("This application is missing an Update.exe/UpdateNix/UpdateMac binary.")]
-    MissingUpdateExe,
+    #[error("This update package is invalid: {0}.")]
+    InvalidPackage(String),
     #[error("This application is not properly installed: {0}")]
     NotInstalled(String),
-    #[error("Generic error: {0}")]
-    Generic(String),
+    #[error("This is not supported: {0}")]
+    NotSupported(String),
+    #[error("{0}")]
+    Other(String),
     #[cfg(target_os = "windows")]
     #[error("Win32 error: {0}")]
     Win32(#[from] windows::core::Error),

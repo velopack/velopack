@@ -1,10 +1,10 @@
 use super::{dialogs_common::*, dialogs_const::*};
-use crate::windows::strings::string_to_wide;
 use anyhow::Result;
 use std::path::PathBuf;
 use velopack::{
     bundle::Manifest,
     locator::{auto_locate_app_manifest, LocationContext},
+    wide_strings::{string_to_wide, string_to_wide_opt},
 };
 use windows::{
     core::HRESULT,
@@ -74,7 +74,7 @@ pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Opt
     let setup_name = string_to_wide(format!("{} Uninstall", app_title));
     let instruction = string_to_wide(format!("{} uninstall has completed with errors.", app_title));
     let content = string_to_wide(
-        "There may be left-over files or directories on your system. You can attempt to remove these manually or re-install the application and try again.",
+        "There may be left-over files or directories on your system. You can attempt to remove these manually or re-install the application and try again."
     );
 
     let mut config = TASKDIALOGCONFIG::default();
@@ -224,7 +224,7 @@ pub fn generate_confirm(
     ico: DialogIcon,
 ) -> Result<DialogResult> {
     let hparent = unsafe { GetDesktopWindow() };
-    let mut ok_text_buf = ok_text.map(string_to_wide);
+    let mut ok_text_buf = string_to_wide_opt(ok_text);
     let mut custom_btns = if let Some(ok_text_buf) = ok_text_buf.as_mut() {
         let td_btn = TASKDIALOG_BUTTON { nButtonID: IDOK.0, pszButtonText: ok_text_buf.as_pcwstr() };
         vec![td_btn]
@@ -246,7 +246,7 @@ pub fn generate_confirm(
     let title_buf = string_to_wide(title);
     tdc.pszWindowTitle = title_buf.as_pcwstr();
 
-    let mut header_buf = header.map(string_to_wide);
+    let mut header_buf = string_to_wide_opt(header);
     if let Some(header_buf) = header_buf.as_mut() {
         tdc.pszMainInstruction = header_buf.as_pcwstr();
     }

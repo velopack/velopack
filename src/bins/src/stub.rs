@@ -37,7 +37,7 @@ fn main() -> ExitCode {
     args.insert(0, "start".to_owned());
     args.insert(1, "--".to_owned());
 
-    info!("Stub about to start Update.exe ({}) with args: {:?}", update_exe.to_string_lossy(), args);
+    info!("Stub about to start Update.exe ({:?}) with args: {:?}", update_exe, args);
 
     const CREATE_NO_WINDOW: u32 = 0x08000000;
     match Process::new(update_exe).args(args).creation_flags(CREATE_NO_WINDOW).spawn() {

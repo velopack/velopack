@@ -12,11 +12,11 @@ pub fn zstd_patch_single<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(old_
     let output_file = output_file.as_ref();
 
     if !old_file.exists() {
-        bail!("Old file does not exist: {}", old_file.to_string_lossy());
+        bail!("Old file does not exist: {:?}", old_file);
     }
 
     if !patch_file.exists() {
-        bail!("Patch file does not exist: {}", patch_file.to_string_lossy());
+        bail!("Patch file does not exist: {:?}", patch_file);
     }
 
     let dict = fs::read(old_file)?;
@@ -62,7 +62,7 @@ pub fn delta<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(
     let output_file = output_file.as_ref().to_path_buf();
 
     if !old_file.exists() {
-        bail!("Old file does not exist: {}", old_file.to_string_lossy());
+        bail!("Old file does not exist: {:?}", old_file);
     }
 
     if delta_files.is_empty() {
@@ -71,13 +71,13 @@ pub fn delta<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(
 
     for delta_file in &delta_files {
         if !delta_file.exists() {
-            bail!("Delta file does not exist: {}", delta_file.to_string_lossy());
+            bail!("Delta file does not exist: {:?}", delta_file);
         }
     }
 
     let time = simple_stopwatch::Stopwatch::start_new();
 
-    info!("Extracting base package for delta patching: {}", temp_dir.to_string_lossy());
+    info!("Extracting base package for delta patching: {:?}", temp_dir);
     let work_dir = temp_dir.join("_work");
     fs::create_dir_all(&work_dir)?;
     fastzip::extract_to_directory(&old_file, &work_dir, None)?;
@@ -85,7 +85,7 @@ pub fn delta<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(
     info!("Base package extracted. {} delta packages to apply.", delta_files.len());
 
     for (i, delta_file) in delta_files.iter().enumerate() {
-        info!("{}: extracting apply delta patch: {}", i, delta_file.to_string_lossy());
+        info!("{}: extracting apply delta patch: {:?}", i, delta_file);
         let delta_dir = temp_dir.join(format!("delta_{}", i));
         fs::create_dir_all(&delta_dir)?;
         fastzip::extract_to_directory(&delta_file, &delta_dir, None)?;
@@ -152,7 +152,7 @@ pub fn delta<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(
         }
     }
 
-    info!("All delta patches applied. Asembling output package at: {}", output_file.to_string_lossy());
+    info!("All delta patches applied. Asembling output package at: {:?}", output_file);
 
     fastzip::compress_directory(&work_dir, &output_file, fastzip::CompressionLevel::fast())?;
 

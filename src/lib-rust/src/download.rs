@@ -1,10 +1,11 @@
 use std::fs::File;
 use std::io::{Read, Write};
+use std::path::Path;
 
 use crate::{misc, Error};
 
 /// Downloads a file from a URL and writes it to a file while reporting progress from 0-100.
-pub fn download_url_to_file<A>(url: &str, file_path: &str, mut progress: A) -> Result<(), Error>
+pub fn download_url_to_file<A>(url: &str, file_path: &Path, mut progress: A) -> Result<(), Error>
 where
     A: FnMut(i16),
 {
@@ -74,7 +75,7 @@ fn test_download_file_reports_progress() {
     let tmpfile = tempfile::NamedTempFile::new().unwrap();
     let tmppath = tmpfile.path();
 
-    download_url_to_file(test_file, tmppath.to_str().unwrap(), |p| {
+    download_url_to_file(test_file, Path::new(tmppath), |p| {
         assert!(p >= last_prog);
         prog_count += 1;
         last_prog = p;
@@ -117,11 +118,7 @@ fn test_interrupted_download() {
     });
 
     let tmpfile = tempfile::NamedTempFile::new().unwrap();
-    let result = download_url_to_file(
-        &format!("http://{}", addr),
-        tmpfile.path().to_str().unwrap(),
-        |_| {}
-    );
+    let result = download_url_to_file(&format!("http://{}", addr), tmpfile.path(), |_| {});
 
     assert!(result.is_err(), "Download should fail due to connection interruption");
 }
@@ -152,11 +149,7 @@ fn test_successful_download() {
     });
 
     let tmpfile = tempfile::NamedTempFile::new().unwrap();
-    let _ = download_url_to_file(
-        &format!("http://{}", addr),
-        tmpfile.path().to_str().unwrap(),
-        |_| {},
-    ).unwrap();
+    let _ = download_url_to_file(&format!("http://{}", addr), tmpfile.path(), |_| {}).unwrap();
 
     // Verify that the downloaded file has the expected size
     let metadata = tmpfile.path().metadata().unwrap();

@@ -7,6 +7,7 @@ extern crate log;
 use anyhow::{bail, Result};
 use clap::{arg, value_parser, Command};
 use memmap2::Mmap;
+use std::ffi::OsString;
 use std::fs::File;
 use std::{env, path::PathBuf};
 use velopack_bins::*;
@@ -83,7 +84,7 @@ fn main_inner() -> Result<()> {
 
     let debug = matches.get_one::<PathBuf>("debug");
     let install_to = matches.get_one::<PathBuf>("installto");
-    let exe_args: Option<Vec<&str>> = matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect());
+    let exe_args = matches.get_many::<OsString>("EXE_ARGS").map(|v| v.map(|f| f.to_os_string()).collect());
 
     info!("Starting Velopack Setup ({})", env!("NGBV_VERSION"));
     info!("    Location: {:?}", env::current_exe()?);

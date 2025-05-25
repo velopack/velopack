@@ -1,4 +1,3 @@
-use crate::windows::strings;
 use ::windows::{
     core::PWSTR,
     Win32::{
@@ -11,10 +10,11 @@ use regex::Regex;
 use semver::Version;
 use std::{
     collections::HashMap,
+    ffi::OsString,
     fs,
     path::{Path, PathBuf},
 };
-use velopack::{locator::VelopackLocator, process};
+use velopack::{locator::VelopackLocator, process, wide_strings::wide_to_os_string};
 
 // https://github.com/nushell/nushell/blob/4458aae3d41517d74ce1507ad3e8cd94021feb16/crates/nu-system/src/windows.rs#L593
 fn get_pids() -> Result<Vec<u32>> {
@@ -55,12 +55,9 @@ unsafe fn get_processes_running_in_directory<P: AsRef<Path>>(dir: P) -> Result<V
             continue;
         }
 
-        let full_path = strings::u16_to_string(&full_path_vec);
-        if let Err(_) = full_path {
-            continue;
-        }
-
-        let full_path = PathBuf::from(full_path.unwrap());
+        let slice = &full_path_vec[..full_path_len as usize];
+        let full_path = wide_to_os_string(slice);
+        let full_path = PathBuf::from(full_path);
         if let Ok(is_subpath) = crate::windows::is_sub_path(&full_path, dir) {
             if is_subpath {
                 oup.push((pid, full_path, process));
@@ -93,21 +90,20 @@ fn _force_stop_package<P: AsRef<Path>>(root_dir: P) -> Result<()> {
     Ok(())
 }
 
-pub fn start_package(locator: &VelopackLocator, exe_args: Option<Vec<&str>>, set_env: Option<&str>) -> Result<()> {
+pub fn start_package(locator: &VelopackLocator, exe_args: Option<Vec<OsString>>, set_env: Option<&str>) -> Result<()> {
     let current = locator.get_current_bin_dir();
     let exe_to_execute = locator.get_main_exe_path();
 
     if !exe_to_execute.exists() {
-        bail!("Unable to find executable to start: '{}'", exe_to_execute.to_string_lossy());
+        bail!("Unable to find executable to start: '{:?}'", exe_to_execute);
     }
 
-    let args: Vec<String> = exe_args.unwrap_or_default().iter().map(|s| s.to_string()).collect();
     let mut environment = HashMap::new();
     if let Some(env_var) = set_env {
         debug!("Setting environment variable: {}={}", env_var, "true");
         environment.insert(env_var.to_string(), "true".to_string());
     }
-    process::run_process(exe_to_execute, args, Some(current), true, Some(environment))?;
+    process::run_process(exe_to_execute, exe_args.unwrap_or_default(), Some(current), true, Some(environment))?;
     Ok(())
 }
 

@@ -1,8 +1,8 @@
-use super::strings::string_to_wide;
 use anyhow::{bail, Result};
 use image::{codecs::gif::GifDecoder, AnimationDecoder, DynamicImage, ImageFormat, ImageReader};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::{io::Cursor, thread};
+use velopack::wide_strings::string_to_wide;
 use windows::{
     core::HRESULT,
     Win32::{

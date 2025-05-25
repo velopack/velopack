@@ -6,6 +6,7 @@ extern crate log;
 
 use anyhow::{anyhow, bail, Result};
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
+use std::ffi::OsString;
 use std::{env, path::PathBuf};
 use velopack::locator::{auto_locate_app_manifest, LocationContext};
 use velopack::logging::*;
@@ -22,15 +23,15 @@ fn root_command() -> Command {
         .arg(arg!(-w --wait "Wait for the parent process to terminate before applying the update").hide(true))
         .arg(arg!(--waitPid <PID> "Wait for the specified process to terminate before applying the update").value_parser(value_parser!(u32)))
         .arg(arg!(-p --package <FILE> "Update package to apply").value_parser(value_parser!(PathBuf)))
-        .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceded by '--'.").required(false).last(true).num_args(0..))
+        .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceded by '--'.").required(false).last(true).num_args(0..).value_parser(value_parser!(OsString)))
     )
     .subcommand(Command::new("start")
         .about("Starts the currently installed version of the application")
-        .arg(arg!(-a --args <ARGS> "Legacy args format").aliases(vec!["processStartArgs", "process-start-args"]).hide(true).allow_hyphen_values(true).num_args(1))
+        .arg(arg!(-a --args <ARGS> "Legacy args format").aliases(vec!["processStartArgs", "process-start-args"]).hide(true).allow_hyphen_values(true).num_args(1).value_parser(value_parser!(OsString)))
         .arg(arg!(-w --wait "Wait for the parent process to terminate before starting the application").hide(true))
         .arg(arg!(--waitPid <PID> "Wait for the specified process to terminate before applying the update").value_parser(value_parser!(u32)))
-        .arg(arg!([EXE_NAME] "The optional name of the binary to execute"))
-        .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceded by '--'.").required(false).last(true).num_args(0..))
+        .arg(arg!([EXE_NAME] "The optional name of the binary to execute").value_parser(value_parser!(OsString)))
+        .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceded by '--'.").required(false).last(true).num_args(0..).value_parser(value_parser!(OsString)))
         .long_flag_aliases(vec!["processStart", "processStartAndWait"])
     )
     .subcommand(Command::new("patch")
@@ -158,8 +159,8 @@ fn main() -> Result<()> {
 
     info!("--");
     info!("Starting Velopack Updater ({})", env!("NGBV_VERSION"));
-    info!("    Location: {}", env::current_exe()?.to_string_lossy());
-    info!("    CWD: {}", env::current_dir()?.to_string_lossy());
+    info!("    Location: {:?}", env::current_exe()?);
+    info!("    CWD: {:?}", env::current_dir()?);
     info!("    Verbose: {}", verbose);
     info!("    Silent: {}", silent);
     info!("    Log File: {:?}", log_file);
@@ -220,11 +221,11 @@ fn patch(_context: LocationContext, matches: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
-fn get_exe_args(matches: &ArgMatches) -> Option<Vec<&str>> {
-    matches.get_many::<String>("EXE_ARGS").map(|v| v.map(|f| f.as_str()).collect())
+fn get_exe_args(matches: &ArgMatches) -> Option<Vec<OsString>> {
+    matches.get_many::<OsString>("EXE_ARGS").map(|v| v.map(|f| f.to_os_string()).collect())
 }
 
-fn get_apply_args(matches: &ArgMatches) -> (OperationWait, bool, Option<&PathBuf>, Option<Vec<&str>>) {
+fn get_apply_args(matches: &ArgMatches) -> (OperationWait, bool, Option<&PathBuf>, Option<Vec<OsString>>) {
     let restart = !get_flag_or_false(&matches, "norestart");
     let package = matches.get_one::<PathBuf>("package");
     let exe_args = get_exe_args(matches);
@@ -246,9 +247,9 @@ fn apply(context: LocationContext, matches: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
-fn get_start_args(matches: &ArgMatches) -> (OperationWait, Option<&String>, Option<&String>, Option<Vec<&str>>) {
-    let legacy_args = matches.get_one::<String>("args");
-    let exe_name = matches.get_one::<String>("EXE_NAME");
+fn get_start_args(matches: &ArgMatches) -> (OperationWait, Option<&OsString>, Option<&OsString>, Option<Vec<OsString>>) {
+    let legacy_args = matches.get_one::<OsString>("args");
+    let exe_name = matches.get_one::<OsString>("EXE_NAME");
     let exe_args = get_exe_args(matches);
     let wait = get_op_wait(&matches);
     (wait, exe_name, legacy_args, exe_args)
@@ -346,7 +347,7 @@ fn test_start_command_supports_legacy_commands() {
     let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
     let (wait_for_parent, exe_name, legacy_args, exe_args) = get_start_args(matches.subcommand_matches("start").unwrap());
     assert_eq!(wait_for_parent, OperationWait::NoWait);
-    assert_eq!(exe_name, Some(&"hello.exe".to_string()));
+    assert_eq!(exe_name, Some(&"hello.exe".into()));
     assert_eq!(legacy_args, None);
     assert_eq!(exe_args, None);
 
@@ -354,7 +355,7 @@ fn test_start_command_supports_legacy_commands() {
     let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
     let (wait_for_parent, exe_name, legacy_args, exe_args) = get_start_args(matches.subcommand_matches("start").unwrap());
     assert_eq!(wait_for_parent, OperationWait::NoWait);
-    assert_eq!(exe_name, Some(&"hello.exe".to_string()));
+    assert_eq!(exe_name, Some(&"hello.exe".into()));
     assert_eq!(legacy_args, None);
     assert_eq!(exe_args, None);
 
@@ -362,7 +363,7 @@ fn test_start_command_supports_legacy_commands() {
     let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
     let (wait_for_parent, exe_name, legacy_args, exe_args) = get_start_args(matches.subcommand_matches("start").unwrap());
     assert_eq!(wait_for_parent, OperationWait::WaitParent);
-    assert_eq!(exe_name, Some(&"hello.exe".to_string()));
+    assert_eq!(exe_name, Some(&"hello.exe".into()));
     assert_eq!(legacy_args, None);
     assert_eq!(exe_args, None);
 
@@ -370,40 +371,40 @@ fn test_start_command_supports_legacy_commands() {
     let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
     let (wait_for_parent, exe_name, legacy_args, exe_args) = get_start_args(matches.subcommand_matches("start").unwrap());
     assert_eq!(wait_for_parent, OperationWait::WaitParent);
-    assert_eq!(exe_name, Some(&"hello.exe".to_string()));
+    assert_eq!(exe_name, Some(&"hello.exe".into()));
     assert_eq!(legacy_args, None);
-    assert_eq!(exe_args, Some(vec!["Foo=Bar"]));
+    assert_eq!(exe_args, Some(vec!["Foo=Bar".into()]));
 
     let command = vec!["Update.exe", "--processStartAndWait", "hello.exe", "-a", "myarg"];
     let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
     let (wait_for_parent, exe_name, legacy_args, exe_args) = get_start_args(matches.subcommand_matches("start").unwrap());
     assert_eq!(wait_for_parent, OperationWait::WaitParent);
-    assert_eq!(exe_name, Some(&"hello.exe".to_string()));
-    assert_eq!(legacy_args, Some(&"myarg".to_string()));
+    assert_eq!(exe_name, Some(&"hello.exe".into()));
+    assert_eq!(legacy_args, Some(&"myarg".into()));
     assert_eq!(exe_args, None);
 
     let command = vec!["Update.exe", "--processStartAndWait", "hello.exe", "-a", "myarg"];
     let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
     let (wait_for_parent, exe_name, legacy_args, exe_args) = get_start_args(matches.subcommand_matches("start").unwrap());
     assert_eq!(wait_for_parent, OperationWait::WaitParent);
-    assert_eq!(exe_name, Some(&"hello.exe".to_string()));
-    assert_eq!(legacy_args, Some(&"myarg".to_string()));
+    assert_eq!(exe_name, Some(&"hello.exe".into()));
+    assert_eq!(legacy_args, Some(&"myarg".into()));
     assert_eq!(exe_args, None);
 
     let command = vec!["Update.exe", "--processStartAndWait", "hello.exe", "--processStartArgs", "myarg"];
     let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
     let (wait_for_parent, exe_name, legacy_args, exe_args) = get_start_args(matches.subcommand_matches("start").unwrap());
     assert_eq!(wait_for_parent, OperationWait::WaitParent);
-    assert_eq!(exe_name, Some(&"hello.exe".to_string()));
-    assert_eq!(legacy_args, Some(&"myarg".to_string()));
+    assert_eq!(exe_name, Some(&"hello.exe".into()));
+    assert_eq!(legacy_args, Some(&"myarg".into()));
     assert_eq!(exe_args, None);
 
     let command = vec!["Update.exe", "--processStartAndWait", "hello.exe", "--process-start-args", "myarg"];
     let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
     let (wait_for_parent, exe_name, legacy_args, exe_args) = get_start_args(matches.subcommand_matches("start").unwrap());
     assert_eq!(wait_for_parent, OperationWait::WaitParent);
-    assert_eq!(exe_name, Some(&"hello.exe".to_string()));
-    assert_eq!(legacy_args, Some(&"myarg".to_string()));
+    assert_eq!(exe_name, Some(&"hello.exe".into()));
+    assert_eq!(legacy_args, Some(&"myarg".into()));
     assert_eq!(exe_args, None);
 
     let command = vec!["Update.exe", "--processStartAndWait", "-a", "myarg"];
@@ -411,7 +412,7 @@ fn test_start_command_supports_legacy_commands() {
     let (wait_for_parent, exe_name, legacy_args, exe_args) = get_start_args(matches.subcommand_matches("start").unwrap());
     assert_eq!(wait_for_parent, OperationWait::WaitParent);
     assert_eq!(exe_name, None);
-    assert_eq!(legacy_args, Some(&"myarg".to_string()));
+    assert_eq!(legacy_args, Some(&"myarg".into()));
     assert_eq!(exe_args, None);
 
     let command = vec!["Update.exe", "--processStartAndWait", "-a", "-- -c \" asda --aasd"];
@@ -419,6 +420,6 @@ fn test_start_command_supports_legacy_commands() {
     let (wait_for_parent, exe_name, legacy_args, exe_args) = get_start_args(matches.subcommand_matches("start").unwrap());
     assert_eq!(wait_for_parent, OperationWait::WaitParent);
     assert_eq!(exe_name, None);
-    assert_eq!(legacy_args, Some(&"-- -c \" asda --aasd".to_string()));
+    assert_eq!(legacy_args, Some(&"-- -c \" asda --aasd".into()));
     assert_eq!(exe_args, None);
 }

@@ -1,8 +1,9 @@
+use crate::wide_strings::*;
 use std::{
     collections::HashMap,
     ffi::{OsStr, OsString},
     io::{Error as IoError, ErrorKind as IoErrorKind, Result as IoResult},
-    os::{raw::c_void, windows::ffi::OsStrExt},
+    os::windows::ffi::OsStrExt,
     path::Path,
     time::Duration,
 };
@@ -101,7 +102,7 @@ fn append_arg(cmd: &mut Vec<u16>, arg: &Arg, force_quotes: bool) -> IoResult<()>
     Ok(())
 }
 
-fn make_command_line(argv0: Option<&OsStr>, args: &[Arg], force_quotes: bool) -> IoResult<Vec<u16>> {
+fn make_command_line(argv0: Option<&OsStr>, args: &[Arg], force_quotes: bool) -> IoResult<WideString> {
     // Encode the command and arguments in a command line string such
     // that the spawned process may recover them using CommandLineToArgvW.
     let mut cmd: Vec<u16> = Vec::new();
@@ -123,10 +124,10 @@ fn make_command_line(argv0: Option<&OsStr>, args: &[Arg], force_quotes: bool) ->
     }
 
     cmd.push(0);
-    Ok(cmd)
+    Ok(cmd.into())
 }
 
-fn make_envp(maybe_env: Option<HashMap<String, String>>) -> IoResult<(Option<*const c_void>, Vec<u16>)> {
+fn make_envp(maybe_env: Option<HashMap<String, String>>) -> IoResult<Option<WideString>> {
     // On Windows we pass an "environment block" which is not a char**, but
     // rather a concatenation of null-terminated k=v\0 sequences, with a final
     // \0 to terminate.
@@ -148,9 +149,9 @@ fn make_envp(maybe_env: Option<HashMap<String, String>>) -> IoResult<(Option<*co
             blk.push(0);
         }
         blk.push(0);
-        Ok((Some(blk.as_ptr() as *mut c_void), blk))
+        Ok(Some(blk.into()))
     } else {
-        Ok((None, Vec::new()))
+        Ok(None)
     }
 }
 
@@ -232,36 +233,18 @@ impl AsRef<HANDLE> for SafeProcessHandle {
 //     }
 // }
 
-fn os_to_pcwstr<P: AsRef<OsStr>>(d: P) -> IoResult<(PCWSTR, Vec<u16>)> {
-    let d = d.as_ref();
-    let d = OsString::from(d);
-    let mut d_str: Vec<u16> = ensure_no_nuls(d)?.encode_wide().collect();
-    d_str.push(0);
-    Ok((PCWSTR(d_str.as_ptr()), d_str))
-}
-
-fn pathopt_to_pcwstr<P: AsRef<Path>>(d: Option<P>) -> IoResult<(PCWSTR, Vec<u16>)> {
-    match d {
-        Some(dir) => {
-            let dir = dir.as_ref();
-            os_to_pcwstr(dir)
-        }
-        None => Ok((PCWSTR::null(), Vec::new())),
-    }
-}
-
 pub fn run_process_as_admin<P1: AsRef<Path>, P2: AsRef<Path>>(
     exe_path: P1,
-    args: Vec<String>,
+    args: Vec<OsString>,
     work_dir: Option<P2>,
     show_window: bool,
 ) -> IoResult<SafeProcessHandle> {
-    let verb = os_to_pcwstr("runas")?;
-    let exe = os_to_pcwstr(exe_path.as_ref())?;
+    let verb = string_to_wide("runas");
+    let exe = string_to_wide(exe_path.as_ref());
     let wrapped_args: Vec<Arg> = args.iter().map(|a| Arg::Regular(a.into())).collect();
     let params = make_command_line(None, &wrapped_args, false)?;
     let params = PCWSTR(params.as_ptr());
-    let work_dir = pathopt_to_pcwstr(work_dir.as_ref())?;
+    let work_dir = string_to_wide_opt(work_dir.map(|w| w.as_ref().to_path_buf()));
 
     let n_show = if show_window {
         windows::Win32::UI::WindowsAndMessaging::SW_NORMAL.0
@@ -272,10 +255,10 @@ pub fn run_process_as_admin<P1: AsRef<Path>, P2: AsRef<Path>>(
     let mut exe_info: SHELLEXECUTEINFOW = SHELLEXECUTEINFOW {
         cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
         fMask: SEE_MASK_NOCLOSEPROCESS,
-        lpVerb: verb.0,
-        lpFile: exe.0,
+        lpVerb: verb.as_pcwstr(),
+        lpFile: exe.as_pcwstr(),
         lpParameters: params,
-        lpDirectory: work_dir.0,
+        lpDirectory: work_dir.as_ref().map(|d| d.as_pcwstr()).unwrap_or(PCWSTR::default()),
         nShow: n_show,
         ..Default::default()
     };
@@ -291,20 +274,16 @@ pub fn run_process_as_admin<P1: AsRef<Path>, P2: AsRef<Path>>(
 
 pub fn run_process<P1: AsRef<Path>, P2: AsRef<Path>>(
     exe_path: P1,
-    args: Vec<String>,
+    args: Vec<OsString>,
     work_dir: Option<P2>,
     show_window: bool,
     set_env: Option<HashMap<String, String>>,
 ) -> IoResult<SafeProcessHandle> {
-    let exe_path = exe_path.as_ref();
-    let exe_path = OsString::from(exe_path);
-    let exe_name_ptr = os_to_pcwstr(&exe_path)?;
-
-    let work_dir = work_dir.map(|d| d.as_ref().to_path_buf());
-
+    let exe_path = string_to_wide(exe_path.as_ref());
+    let dirp = string_to_wide_opt(work_dir.map(|w| w.as_ref().to_path_buf()));
+    let envp = make_envp(set_env)?;
     let wrapped_args: Vec<Arg> = args.iter().map(|a| Arg::Regular(a.into())).collect();
-    let mut params = make_command_line(Some(&exe_path), &wrapped_args, false)?;
-    let params = PWSTR(params.as_mut_ptr());
+    let mut params = make_command_line(Some(exe_path.as_os_str()), &wrapped_args, false)?;
 
     let mut pi = windows::Win32::System::Threading::PROCESS_INFORMATION::default();
 
@@ -329,9 +308,6 @@ pub fn run_process<P1: AsRef<Path>, P2: AsRef<Path>>(
         hStdError: HANDLE(std::ptr::null_mut()),
     };
 
-    let envp = make_envp(set_env)?;
-    let dirp = pathopt_to_pcwstr(work_dir.as_deref())?;
-
     let flags = if show_window {
         CREATE_UNICODE_ENVIRONMENT
     } else {
@@ -339,8 +315,19 @@ pub fn run_process<P1: AsRef<Path>, P2: AsRef<Path>>(
     };
 
     unsafe {
-        info!("About to launch: '{:?}' in dir '{:?}' with arguments: {:?}", exe_path, work_dir, args);
-        CreateProcessW(exe_name_ptr.0, Option::Some(params), None, None, false, flags, envp.0, dirp.0, &si, &mut pi)?;
+        info!("About to launch: '{:?}' in dir '{:?}' with arguments: {:?}", exe_path, dirp, args);
+        CreateProcessW(
+            exe_path.as_pcwstr(),
+            Some(params.as_pwstr()),
+            None,
+            None,
+            false,
+            flags,
+            envp.map(|e| e.as_cvoid()),
+            dirp.map(|d| d.as_pcwstr()).unwrap_or(PCWSTR::default()),
+            &si,
+            &mut pi,
+        )?;
         let _ = AllowSetForegroundWindow(pi.dwProcessId);
         let _ = CloseHandle(pi.hThread);
     }

@@ -67,7 +67,7 @@ pub enum RuntimeInstallResult {
     RestartRequired,
 }
 
-fn def_installer_routine(installer_path: &str, quiet: bool) -> Result<RuntimeInstallResult> {
+fn def_installer_routine(installer_path: &Path, quiet: bool) -> Result<RuntimeInstallResult> {
     let mut args = Vec::new();
     args.push("/norestart");
     if quiet {
@@ -77,7 +77,7 @@ fn def_installer_routine(installer_path: &str, quiet: bool) -> Result<RuntimeIns
         args.push("/showrmui");
     }
 
-    info!("Running installer: '{}', args={:?}", installer_path, args);
+    info!("Running installer: '{:?}', args={:?}", installer_path, args);
     let mut cmd = Process::new(installer_path).args(&args).spawn()?;
     let result: i32 = cmd.wait()?.code().ok_or_else(|| anyhow!("Unable to get installer exit code."))?;
 
@@ -99,7 +99,7 @@ pub trait RuntimeInfo {
     fn display_name(&self) -> &str;
     fn is_installed(&self) -> bool;
     fn get_download_url(&self) -> Result<String>;
-    fn install(&self, installer_path: &str, quiet: bool) -> Result<RuntimeInstallResult>;
+    fn install(&self, installer_path: &Path, quiet: bool) -> Result<RuntimeInstallResult>;
 }
 
 #[derive(Clone, Debug)]
@@ -143,7 +143,7 @@ impl RuntimeInfo for FullFrameworkInfo {
         }
     }
 
-    fn install(&self, installer_path: &str, quiet: bool) -> Result<RuntimeInstallResult> {
+    fn install(&self, installer_path: &Path, quiet: bool) -> Result<RuntimeInstallResult> {
         def_installer_routine(installer_path, quiet)
     }
 }
@@ -204,7 +204,7 @@ impl RuntimeInfo for VCRedistInfo {
         false
     }
 
-    fn install(&self, installer_path: &str, quiet: bool) -> Result<RuntimeInstallResult> {
+    fn install(&self, installer_path: &Path, quiet: bool) -> Result<RuntimeInstallResult> {
         def_installer_routine(installer_path, quiet)
     }
 }
@@ -460,7 +460,7 @@ impl RuntimeInfo for DotnetInfo {
         false
     }
 
-    fn install(&self, installer_path: &str, quiet: bool) -> Result<RuntimeInstallResult> {
+    fn install(&self, installer_path: &Path, quiet: bool) -> Result<RuntimeInstallResult> {
         def_installer_routine(installer_path, quiet)
     }
 }
@@ -549,14 +549,14 @@ impl RuntimeInfo for WebView2Info {
         }
     }
 
-    fn install(&self, installer_path: &str, quiet: bool) -> Result<RuntimeInstallResult> {
+    fn install(&self, installer_path: &Path, quiet: bool) -> Result<RuntimeInstallResult> {
         let args = if quiet {
             vec!["/silent", "/install"]
         } else {
             vec!["/install"]
         };
 
-        info!("Running installer: '{}', args={:?}", installer_path, args);
+        info!("Running installer: '{:?}', args={:?}", installer_path, args);
         let mut cmd = Process::new(installer_path).args(&args).spawn()?;
         let result: i32 = cmd.wait()?.code().ok_or_else(|| anyhow!("Unable to get installer exit code."))?;
 
