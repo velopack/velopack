@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -428,7 +429,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             return null;
         }
 
-        List<string> wixExtensions = ["WixToolset.UI.wixext", "WixToolset.Util.wixext"];
+        List<string> wixExtensions = ["WixToolset.UI.wixext"];
 
         var shortcuts = GetShortcuts().ToHashSet();
         string title = GetEffectiveTitle();
@@ -444,12 +445,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         string wixPackage = $$"""
             <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
               <Package Name="{{title}}"
-                       Id="{{Options.PackId}}"
                        Manufacturer="{{authors}}"
                        Version="{{msiVersion}}"
                        Codepage="{{culture}}"
                        Language="1033"
                        Scope="perUserOrMachine"
+                       UpgradeCode="{{GuidUtil.CreateGuidFromHash($"{Options.PackId}:UpgradeCode")}}"
                        >
                 <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
                 <StandardDirectory Id="TARGETDIR">
@@ -538,47 +539,19 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                   <Publish Dialog="ExitDialog"
                       Control="Finish"
                       Event="DoAction"
-                      Value="LaunchApplicationAction"
+                      Value="LaunchApplication"
                       Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed" />
                 </UI>
 
                 <Files Include="{{portableDirectory.FullName}}\**" />
 
-                <SetProperty
-                  Id="RemoveAppDirectoryAction"
-                  Value="&quot;rmdir&quot; /S /Q &quot;[INSTALLFOLDER]&quot;"
-                  Before="RemoveAppDirectoryAction"
-                  Sequence="execute"
-                  />
-                <CustomAction
-                  Id="RemoveAppDirectoryAction"
-                  BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)"
-                  DllEntry="WixQuietExec"
-                  Execute="deferred"
-                  Impersonate="no"
-                  Return="ignore"
-                  />
-
-                <SetProperty
-                  Id="RemoveTempDirectoryAction"
-                  Value="&quot;rmdir /S /Q &quot;%TEMP%\velopack_{{Options.PackId}}&quot;"
-                  Before="RemoveTempDirectoryAction"
-                  Sequence="execute"
-                  />
-                <CustomAction
-                  Id="RemoveTempDirectoryAction"
-                  BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)"
-                  DllEntry="WixQuietExec"
-                  Execute="deferred"
-                  Impersonate="yes"
-                  Return="ignore"
-                  />
-
-                <CustomAction Id="LaunchApplicationAction" Directory="INSTALLFOLDER" Impersonate="yes" ExeCommand="&quot;[INSTALLFOLDER]{{stub}}&quot;" Execute="immediate" Return="ignore" />
+                <CustomAction Id="RemoveAppDirectory" Directory="INSTALLFOLDER" Impersonate="no" ExeCommand="cmd.exe /C rmdir /S /Q &quot;[INSTALLFOLDER]&quot;" Execute="deferred" Return="ignore" />
+                <CustomAction Id="RemoveTempDirectory" Directory="TempFolder" Impersonate="yes" ExeCommand="cmd.exe /C rmdir /S /Q &quot;%TEMP%\velopack_{{Options.PackId}}&quot;" Execute="deferred" Return="ignore" />
+                <CustomAction Id="LaunchApplication" Directory="INSTALLFOLDER" Impersonate="yes" ExeCommand="&quot;[INSTALLFOLDER]{{stub}}&quot;" Execute="immediate" Return="ignore" />
 
                 <InstallExecuteSequence>
-                  <Custom Action="RemoveAppDirectoryAction" Before="RemoveFolders" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
-                  <Custom Action="RemoveTempDirectoryAction" Before="InstallFinalize" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
+                  <Custom Action="RemoveAppDirectory" Before="RemoveFolders" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
+                  <Custom Action="RemoveTempDirectory" Before="InstallFinalize" Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)" />
                 </InstallExecuteSequence>
               </Package>
 
