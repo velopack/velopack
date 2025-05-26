@@ -158,7 +158,7 @@ namespace Velopack.Sources
             const int page = 1;
             // https://docs.gitlab.com/ee/api/releases/
             var releasesPath = $"releases?per_page={perPage}&page={page}";
-            var getReleasesUri = new Uri(RepoUri + releasesPath);
+            var getReleasesUri = CombineUri(RepoUri, releasesPath);
             var response = await Downloader.DownloadString(getReleasesUri.ToString(),
                 new Dictionary<string, string> {
                     [Authorization.Name] = Authorization.Value,
@@ -167,6 +167,16 @@ namespace Velopack.Sources
             var releases = CompiledJson.DeserializeGitlabReleaseList(response);
             if (releases == null) return Array.Empty<GitlabRelease>();
             return releases.OrderByDescending(d => d.ReleasedAt).Where(x => includePrereleases || !x.UpcomingRelease).ToArray();
+        }
+        
+        private static Uri CombineUri(Uri baseUri, string relativePath)
+        {
+            string baseUriStr = baseUri.ToString();
+
+            if (!baseUriStr.EndsWith("/"))
+                baseUriStr += "/";
+
+            return new Uri(baseUriStr + relativePath);
         }
     }
 }
