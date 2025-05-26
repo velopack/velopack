@@ -1,0 +1,25 @@
+
+[package]
+name = "velopack_wix"
+publish = false
+version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+anyhow.workspace = true
+velopack.workspace = true
+velopack_bins.workspace = true
+remove_dir_all.workspace = true
+windows = { workspace = true, features = ["Win32_Foundation"] }

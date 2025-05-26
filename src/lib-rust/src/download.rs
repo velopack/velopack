@@ -5,10 +5,11 @@ use std::path::Path;
 use crate::{misc, Error};
 
 /// Downloads a file from a URL and writes it to a file while reporting progress from 0-100.
-pub fn download_url_to_file<A>(url: &str, file_path: &Path, mut progress: A) -> Result<(), Error>
+pub fn download_url_to_file<A, S: AsRef<Path>>(url: &str, file_path: S, mut progress: A) -> Result<(), Error>
 where
     A: FnMut(i16),
 {
+    let file_path = file_path.as_ref();
     let agent = get_download_agent()?;
     let (head, body) = agent.get(url).call()?.into_parts();
 

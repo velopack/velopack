@@ -18,20 +18,15 @@ use windows::{
     },
 };
 
-pub fn show_restart_required(app: &Manifest) {
+pub fn show_restart_required(app_name: &str, app_version: &str) {
     show_warn(
-        format!("{} Setup {}", app.title, app.version).as_str(),
+        format!("{} Setup {}", app_name, app_version).as_str(),
         Some("Restart Required"),
         "A restart is required before Setup can continue. Please restart your computer and try again.",
     );
 }
 
-pub fn show_update_missing_dependencies_dialog(
-    app: &Manifest,
-    depedency_string: &str,
-    from: &semver::Version,
-    to: &semver::Version,
-) -> bool {
+pub fn show_update_missing_dependencies_dialog(app_name: &str, depedency_string: &str, from_ver: &str, to_ver: &str) -> bool {
     if get_silent() {
         // this has different behavior to show_setup_missing_dependencies_dialog,
         // if silent is true then we will bail because the app is probably exiting
@@ -41,27 +36,23 @@ pub fn show_update_missing_dependencies_dialog(
     }
 
     show_ok_cancel(
-        format!("{} Update", app.title).as_str(),
-        Some(format!("{} would like to update from {} to {}", app.title, from, to).as_str()),
-        format!(
-            "{} {to} has missing dependencies which need to be installed: {}, would you like to continue?",
-            app.title, depedency_string
-        )
-        .as_str(),
+        format!("{} Update", app_name).as_str(),
+        Some(format!("{} would like to update from {} to {}", app_name, from_ver, to_ver).as_str()),
+        format!("{} {to_ver} has missing dependencies which need to be installed: {}, would you like to continue?", app_name, depedency_string)
+            .as_str(),
         Some("Install & Update"),
     )
 }
 
-pub fn show_setup_missing_dependencies_dialog(app: &Manifest, depedency_string: &str) -> bool {
+pub fn show_setup_missing_dependencies_dialog(app_name: &str, app_version: &str, depedency_string: &str) -> bool {
     if get_silent() {
         return true;
     }
 
     show_ok_cancel(
-        format!("{} Setup {}", app.title, app.version).as_str(),
-        Some(format!("{} has missing system dependencies.", app.title).as_str()),
-        format!("{} requires the following packages to be installed: {}, would you like to continue?", app.title, depedency_string)
-            .as_str(),
+        format!("{} Setup {}", app_name, app_version).as_str(),
+        Some(format!("{} has missing system dependencies.", app_name).as_str()),
+        format!("{} requires the following packages to be installed: {}, would you like to continue?", app_name, depedency_string).as_str(),
         Some("Install"),
     )
 }
@@ -259,14 +250,7 @@ pub fn generate_confirm(
     Ok(DialogResult::from_win(pnbutton))
 }
 
-pub fn generate_alert(
-    title: &str,
-    header: Option<&str>,
-    body: &str,
-    ok_text: Option<&str>,
-    btns: DialogButton,
-    ico: DialogIcon,
-) -> Result<()> {
+pub fn generate_alert(title: &str, header: Option<&str>, body: &str, ok_text: Option<&str>, btns: DialogButton, ico: DialogIcon) -> Result<()> {
     let _ = generate_confirm(title, header, body, ok_text, btns, ico)?;
     Ok(())
 }
@@ -274,7 +258,6 @@ pub fn generate_alert(
 #[ignore]
 #[test]
 fn show_all_windows_dialogs() {
-    use semver::Version;
     let app = Manifest {
         id: "test.app".to_string(),
         title: "Test Application".to_string(),
@@ -285,9 +268,9 @@ fn show_all_windows_dialogs() {
         ..Default::default()
     };
 
-    show_restart_required(&app);
-    show_update_missing_dependencies_dialog(&app, "net8-x64", &Version::new(1, 0, 0), &Version::new(2, 0, 0));
-    show_setup_missing_dependencies_dialog(&app, "net8-x64");
+    show_restart_required(&app.title, &app.version.to_string());
+    show_update_missing_dependencies_dialog(&app.title, "net8-x64", "1.0.0", "2.0.0");
+    show_setup_missing_dependencies_dialog(&app.title, &app.version.to_string(), "net8-x64");
     show_uninstall_complete_with_errors_dialog("Test Application", Some(&PathBuf::from("C:\\audio.log")));
     show_processes_locking_folder_dialog(&app.title, &app.version.to_string(), "TestProcess1, TestProcess2");
     show_overwrite_repair_dialog(&app, &PathBuf::from("C:\\Program Files\\TestApp"), false);

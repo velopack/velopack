@@ -30,7 +30,7 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     info!("    Package Machine Architecture: {}", &app.machine_architecture);
     info!("    Package Runtime Dependencies: {}", &app.runtime_dependencies);
 
-    if !windows::prerequisite::prompt_and_install_all_missing(&app, None)? {
+    if !windows::prerequisite::prompt_and_install_all_missing(&app.title, &app.version.to_string(), &app.runtime_dependencies, None)? {
         info!("Cancelling setup. Pre-requisites not installed.");
         return Ok(());
     }

@@ -1,11 +1,16 @@
 use super::{runtimes, splash};
 use crate::shared::dialogs;
 use anyhow::Result;
-use velopack::{bundle, download};
+use velopack::download;
 
-pub fn prompt_and_install_all_missing(app: &bundle::Manifest, updating_from: Option<&semver::Version>) -> Result<bool> {
+pub fn prompt_and_install_all_missing(
+    app_name: &str,
+    app_version: &str,
+    dependencies: &str,
+    updating_from: Option<&semver::Version>,
+) -> Result<bool> {
     info!("Checking application pre-requisites...");
-    let dependencies = super::runtimes::parse_dependency_list(&app.runtime_dependencies);
+    let dependencies = super::runtimes::parse_dependency_list(dependencies);
     let mut missing: Vec<&Box<dyn runtimes::RuntimeInfo>> = Vec::new();
     let mut missing_str = String::new();
 
@@ -25,12 +30,12 @@ pub fn prompt_and_install_all_missing(app: &bundle::Manifest, updating_from: Opt
 
     if !missing.is_empty() {
         if let Some(from_version) = updating_from {
-            if !dialogs::show_update_missing_dependencies_dialog(&app, &missing_str, &from_version, &app.version) {
+            if !dialogs::show_update_missing_dependencies_dialog(app_name, &missing_str, &from_version.to_string(), app_version) {
                 error!("User cancelled pre-requisite installation.");
                 return Ok(false);
             }
         } else {
-            if !dialogs::show_setup_missing_dependencies_dialog(&app, &missing_str) {
+            if !dialogs::show_setup_missing_dependencies_dialog(app_name, app_version, &missing_str) {
                 error!("User cancelled pre-requisite installation.");
                 return Ok(false);
             }
@@ -68,7 +73,7 @@ pub fn prompt_and_install_all_missing(app: &bundle::Manifest, updating_from: Opt
             let result = dep.install(&exe_path, quiet)?;
             if result == runtimes::RuntimeInstallResult::RestartRequired {
                 warn!("A restart is required to complete the installation of {}.", dep.display_name());
-                dialogs::show_restart_required(&app);
+                dialogs::show_restart_required(&app_name, app_version);
                 return Ok(false);
             }
         }

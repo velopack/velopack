@@ -20,6 +20,7 @@ public class MsiTemplateData
     public string AppPublisher;
     public string AppPublisherSanitized => MsiUtil.SanitizeDirectoryString(AppPublisher);
     public string AppMsiVersion;
+    public string AppVersion;
 
     public string StubFileName;
     public string RuntimeDependencies;
@@ -52,9 +53,4 @@ public class MsiTemplateData
 
     public bool HasSideBannerImage => !string.IsNullOrWhiteSpace(SideBannerImagePath) && File.Exists(SideBannerImagePath);
     public string SideBannerImagePath;
-
-    public string WelcomeNextPage => HasLicense ? "LicenseAgreementDlg" : LicenseNextPage;
-    public string LicenseNextPage => InstallLocationEither ? "InstallScopeDlg" : "VerifyReadyDlg";
-    public string InstallScopePrevPage => HasLicense ? "LicenseAgreementDlg" : "WelcomeDlg";
-    public string VerifyReadyPrevPage => InstallLocationEither ? "InstallScopeDlg" : InstallScopePrevPage;
 }

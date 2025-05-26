@@ -2364,6 +2364,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "velopack_wix"
+version = "0.0.0-local"
+dependencies = [
+ "anyhow",
+ "remove_dir_all",
+ "velopack",
+ "velopack_bins",
+ "windows",
+]
+
+[[package]]
 name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

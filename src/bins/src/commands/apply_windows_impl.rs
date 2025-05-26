@@ -68,7 +68,12 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
 
     info!("Applying package {} to current: {}", new_version, old_version);
 
-    if !crate::windows::prerequisite::prompt_and_install_all_missing(&new_app_manifest, Some(&old_version))? {
+    if !crate::windows::prerequisite::prompt_and_install_all_missing(
+        &new_app_manifest.title,
+        &new_version.to_string(),
+        &new_app_manifest.runtime_dependencies,
+        Some(&old_version),
+    )? {
         bail!("Stopping apply. Pre-requisites are missing and user cancelled.");
     }
 
@@ -121,8 +126,9 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
         // fifth, we try to replace the current dir with temp_path_new
         // if this fails we will yolo a rollback...
         info!("Replacing current dir with {:?}", &temp_path_new);
-        shared::retry_io_ex(|| fs::rename(&temp_path_new, &current_dir), 1000, 30)
-            .context("Unable to complete the update, and the app was left in a broken state. You may need to re-install or repair this application manually.")?;
+        shared::retry_io_ex(|| fs::rename(&temp_path_new, &current_dir), 1000, 30).context(
+            "Unable to complete the update, and the app was left in a broken state. You may need to re-install or repair this application manually.",
+        )?;
 
         // if !requires_robocopy {
         //     // if we didn't need robocopy for the backup, we don't need it for the deploy hopefully

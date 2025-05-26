@@ -10,8 +10,7 @@
 
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes"/>
         <StandardDirectory Id="TARGETDIR">
-            <Directory Id="INSTALLFOLDER" Name="{{AppTitleSanitized}}"
-                       ComponentGuidGenerationSeed="{{ComponentGenerationSeedGuid}}">
+            <Directory Id="INSTALLFOLDER" Name="{{AppTitleSanitized}}" ComponentGuidGenerationSeed="{{ComponentGenerationSeedGuid}}">
                 <Directory Name="current"/>
                 <Directory Id="PACKAGES_DIR" Name="packages"/>
             </Directory>
@@ -20,14 +19,10 @@
         {{#if DesktopShortcut}}
             <StandardDirectory Id="DesktopFolder">
                 <Component Id="ApplicationDesktopShortcut">
-                    <Shortcut Id="ApplicationDesktopShortcut"
-                              Name="{{AppTitle}}"
-                              Description="Desktop shortcut for {{AppTitle}}"
-                              Target="[INSTALLFOLDER]{{StubFileName}}"
-                              WorkingDirectory="INSTALLFOLDER"/>
+                    <Shortcut Id="ApplicationDesktopShortcut" Name="{{AppTitle}}" Description="Desktop shortcut for {{AppTitle}}"
+                              Target="[INSTALLFOLDER]{{StubFileName}}" WorkingDirectory="INSTALLFOLDER"/>
                     <RemoveFolder Id="CleanUpDesktopShortcut" Directory="INSTALLFOLDER" On="uninstall"/>
-                    <RegistryValue Root="HKCU"
-                                   Key="Software&#92;{{AppPublisherSanitized}}&#92;{{AppId}}.DesktopShortcut"
+                    <RegistryValue Root="HKCU" Key="Software&#92;{{AppPublisherSanitized}}&#92;{{AppId}}.DesktopShortcut"
                                    Name="installed" Type="integer" Value="1" KeyPath="yes"/>
                 </Component>
             </StandardDirectory>
@@ -36,14 +31,10 @@
         {{#if StartMenuShortcut}}
             <StandardDirectory Id="StartMenuFolder">
                 <Component Id="ApplicationStartMenuShortcut">
-                    <Shortcut Id="ApplicationStartMenuShortcut"
-                              Name="{{AppTitle}}"
-                              Description="Start Menu shortcut for {{AppTitle}}"
-                              Target="[INSTALLFOLDER]{{StubFileName}}"
-                              WorkingDirectory="INSTALLFOLDER"/>
+                    <Shortcut Id="ApplicationStartMenuShortcut" Name="{{AppTitle}}" Description="Start Menu shortcut for {{AppTitle}}"
+                              Target="[INSTALLFOLDER]{{StubFileName}}" WorkingDirectory="INSTALLFOLDER"/>
                     <RemoveFolder Id="CleanUpStartMenuShortcut" Directory="INSTALLFOLDER" On="uninstall"/>
-                    <RegistryValue Root="HKCU"
-                                   Key="Software&#92;{{AppPublisherSanitized}}&#92;{{AppId}}.StartMenuShortcut"
+                    <RegistryValue Root="HKCU" Key="Software&#92;{{AppPublisherSanitized}}&#92;{{AppId}}.StartMenuShortcut"
                                    Name="installed" Type="integer" Value="1" KeyPath="yes"/>
                 </Component>
             </StandardDirectory>
@@ -86,40 +77,46 @@
         {{/if}}
 
         <UI>
-            <ui:WixUI Id="WixUI_Velopack"
-                      InstallDirectory="INSTALLFOLDER"/>
+            <ui:WixUI Id="WixUI_Velopack" InstallDirectory="INSTALLFOLDER"/>
 
-            <Publish Dialog="ExitDialog"
-                     Control="Finish"
-                     Event="DoAction"
-                     Value="LaunchApplication"
+            <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="RustLaunchApplication"
                      Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed"/>
         </UI>
 
         <Files Include="{{SourceDirectoryPath}}\**"/>
 
-        <CustomAction Id="RemoveAppDirectory" Directory="INSTALLFOLDER" Impersonate="no"
-                      ExeCommand="cmd.exe /C rmdir /S /Q &quot;[INSTALLFOLDER]&quot;" Execute="deferred"
-                      Return="ignore"/>
-        <CustomAction Id="RemoveTempDirectory" Directory="TempFolder" Impersonate="yes"
-                      ExeCommand="cmd.exe /C rmdir /S /Q &quot;%TEMP%\velopack_{{AppId}}&quot;"
-                      Execute="deferred" Return="ignore"/>
-        <CustomAction Id="LaunchApplication" Directory="INSTALLFOLDER" Impersonate="yes"
-                      ExeCommand="&quot;[INSTALLFOLDER]{{StubFileName}}&quot;" Execute="immediate" Return="ignore"/>
+        <!--        <CustomAction Id="RemoveAppDirectory" Directory="INSTALLFOLDER" Impersonate="no"-->
+        <!--                      ExeCommand="cmd.exe /C rmdir /S /Q &quot;[INSTALLFOLDER]&quot;" Execute="deferred" Return="ignore"/>-->
+        <!--        <CustomAction Id="RemoveTempDirectory" Directory="TempFolder" Impersonate="yes"-->
+        <!--                      ExeCommand="cmd.exe /C rmdir /S /Q &quot;%TEMP%\velopack_{{AppId}}&quot;" Execute="deferred" Return="ignore"/>-->
+        <!--        <CustomAction Id="LaunchApplication" Directory="INSTALLFOLDER" Impersonate="yes"-->
+        <!--                      ExeCommand="&quot;[INSTALLFOLDER]{{StubFileName}}&quot;" Execute="immediate" Return="ignore"/>-->
 
         <!-- Add our custom Rust module for custom actions -->
         <Binary Id="RustDll" SourceFile="{{RustNativeModulePath}}"/>
+        <Property Id="RustAppId" Value="{{AppTitle}}"/>
+        <Property Id="RustAppTitle" Value="{{AppTitle}}"/>
+        <Property Id="RustAppVersion" Value="{{AppVersion}}"/>
         <Property Id="RustRuntimeDependencies" Value="{{RuntimeDependencies}}"/>
-        <CustomAction Id="RustBootstrap" BinaryRef="RustDll" DllEntry="Bootstrap" Execute="immediate" Return="check"/>
-        <CustomAction Id="RustCheckMissing" BinaryRef="RustDll" DllEntry="CheckMissing" Execute="immediate"
+        <Property Id="RustStubFileName" Value="{{StubFileName}}"/>
+
+        <CustomAction Id="RustEarlyBootstrap" BinaryRef="RustDll" DllEntry="EarlyBootstrap" Execute="immediate" Return="check"/>
+
+        <!-- deferred actions do not have access to msi properties and read all data from "CustomActionData" which is a string, 
+             so we delimit with &quot; which is unlikely (or disallowed) from to appearing in filenames / paths.-->
+        <CustomAction Id="SetRustCleanupData" Property="RustCleanup" Value="[INSTALLFOLDER]&quot;[RustAppId]" Execute="immediate"
                       Return="check"/>
+        <CustomAction Id="RustCleanup" BinaryRef="RustDll" DllEntry="CleanupDeferred" Execute="deferred" Impersonate="no" Return="ignore"/>
+        <CustomAction Id="RustLaunchApplication" BinaryRef="RustDll" DllEntry="LaunchApplication" Impersonate="yes" Execute="immediate"
+                      Return="ignore"/>
+
+        <InstallUISequence>
+            <Custom Action="RustEarlyBootstrap" Before="AppSearch" Condition="REMOVE=&quot;&quot;"/>
+        </InstallUISequence>
 
         <InstallExecuteSequence>
-            <Custom Action="RemoveAppDirectory" Before="RemoveFolders"
-                    Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)"/>
-            <Custom Action="RemoveTempDirectory" Before="InstallFinalize"
-                    Condition="(REMOVE=&quot;ALL&quot;) AND (NOT UPGRADINGPRODUCTCODE)"/>
-            <Custom Action="RustBootstrap" Before="InstallInitialize" Condition="(REMOVE=&quot;&quot;)"/>
+            <Custom Action="SetRustCleanupData" Before="RustCleanup" Condition="(REMOVE=&quot;ALL&quot;)"/>
+            <Custom Action="RustCleanup" Before="RemoveFolders" Condition="(REMOVE=&quot;ALL&quot;)"/>
         </InstallExecuteSequence>
     </Package>
 
@@ -155,49 +152,6 @@
 
             <Property Id="DefaultUIFont" Value="WixUI_Font_Normal"/>
 
-            <Dialog Id="InstallPrerequisitesDlg" Width="370" Height="270" Title="!(loc.VerifyReadyDlg_Title)">
-
-                <Control Id="InstallTitle" Type="Text" X="15" Y="15" Width="300" Height="15" Transparent="yes"
-                         NoPrefix="yes" Text="{\WixUI_Font_Title}!(loc.InstallPrerequisitesDlgInstallTitle)"/>
-                <Control Id="InstallText" Type="Text" X="25" Y="70" Width="320" Height="80"
-                         Text="!(loc.InstallPrerequisitesDlgInstallText) [MISSING_DEPENDENCIES]"/>
-                <Control Id="InstallProgressBar" Type="ProgressBar" X="25" Y="180" Width="320" Height="16"
-                         Property="MISSING_DEPENDENCIES_PROGRESS"/>
-                <!-- MISSING_DEPENDENCIES_STARTED, MISSING_DEPENDENCIES_COMPLETE, MISSING_DEPENDENCIES_PROGRESS, MISSING_DEPENDENCIES  -->
-
-                <Control Id="Continue" Type="PushButton" ElevationShield="yes" X="212" Y="243" Width="80" Height="17"
-                         Hidden="yes" Disabled="yes" Text="!(loc.InstallPrerequisitesDlgContinue)"
-                         ShowCondition="MISSING_DEPENDENCIES_COMPLETE" EnableCondition="MISSING_DEPENDENCIES_COMPLETE">
-                    <Publish Event="EndDialog" Value="Return" Condition="OutOfDiskSpace &lt;&gt; 1"/>
-                    <Publish Event="SpawnDialog" Value="OutOfRbDiskDlg"
-                             Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND (PROMPTROLLBACKCOST=&quot;P&quot; OR NOT PROMPTROLLBACKCOST)"/>
-                    <Publish Event="EndDialog" Value="Return"
-                             Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;"/>
-                    <Publish Event="EnableRollback" Value="False"
-                             Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;"/>
-                    <Publish Event="SpawnDialog" Value="OutOfDiskDlg"
-                             Condition="(OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 1) OR (OutOfDiskSpace = 1 AND PROMPTROLLBACKCOST=&quot;F&quot;)"/>
-                </Control>
-
-                <Control Id="Install" Type="PushButton" ElevationShield="yes" X="212" Y="243" Width="80" Height="17"
-                         Default="yes" Hidden="yes" Disabled="yes" Text="!(loc.VerifyReadyDlgInstall)"
-                         ShowCondition="NOT MISSING_DEPENDENCIES_COMPLETE"
-                         EnableCondition="NOT MISSING_DEPENDENCIES_STARTED">
-
-                </Control>
-
-                <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes"
-                         Text="!(loc.WixUICancel)">
-                    <Publish Event="SpawnDialog" Value="CancelDlg"/>
-                </Control>
-                <Control Id="Back" Type="PushButton" X="156" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)"/>
-                <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no"
-                         Text="!(loc.VerifyReadyDlgBannerBitmap)"/>
-                <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="373" Height="0"/>
-                <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="373" Height="0"/>
-
-            </Dialog>
-
             <DialogRef Id="BrowseDlg"/>
             <DialogRef Id="DiskCostDlg"/>
             <DialogRef Id="ErrorDlg"/>
@@ -209,22 +163,39 @@
             <DialogRef Id="ResumeDlg"/>
             <DialogRef Id="UserExit"/>
             <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4"
-                     Condition="NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID&lt;&gt;&quot;1&quot;"/>
+                     Condition="NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID&lt;&gt;1"/>
 
             <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999"/>
-            <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="{{WelcomeNextPage}}"
-                     Condition="NOT Installed"/>
-            <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg"
-                     Condition="Installed AND PATCH"/>
+
+            {{#if HasLicense}}
+                <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg" Condition="NOT Installed"/>
+            {{else}}
+                {{#if InstallLocationEither}}
+                    <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallScopeDlg" Condition="NOT Installed"/>
+                {{else}}
+                    <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="NOT Installed"/>
+                {{/if}}
+            {{/if}}
+
+            <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="Installed AND PATCH"/>
 
             {{#if HasLicense}}
                 <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg"/>
-                <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="{{LicenseNextPage}}"
-                         Condition="LicenseAccepted = &quot;1&quot;"/>
+                {{#if InstallLocationEither}}
+                    <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallScopeDlg"
+                             Condition="LicenseAccepted = &quot;1&quot;"/>
+                {{else}}
+                    <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg"
+                             Condition="LicenseAccepted = &quot;1&quot;"/>
+                {{/if}}
             {{/if}}
 
             {{#if InstallLocationEither}}
-                <Publish Dialog="InstallScopeDlg" Control="Back" Event="NewDialog" Value="{{InstallScopePrevPage}}"/>
+                {{#if HasLicense}}
+                    <Publish Dialog="InstallScopeDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg"/>
+                {{else}}
+                    <Publish Dialog="InstallScopeDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg"/>
+                {{/if}}
                 <Publish Dialog="InstallScopeDlg" Control="Next" Property="WixAppFolder" Value="WixPerUserFolder"
                          Order="1" Condition="!(wix.WixUISupportPerUser) AND NOT Privileged"/>
                 <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="{}" Order="2"
@@ -232,15 +203,14 @@
                 <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="1" Order="3"
                          Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;"/>
                 <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLFOLDER"
-                         Value="[LocalAppDataFolder][ApplicationFolderName]" Order=" 4"
+                         Value="[LocalAppDataFolder][ApplicationFolderName]" Order="4"
                          Condition="WixAppFolder = &quot;WixPerUserFolder&quot;"/>
                 <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLFOLDER"
                          Value="{{ProgramFilesFolderName}}[ApplicationFolderName]" Order="5"
                          Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;"/>
                 <Publish Dialog="InstallScopeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="6"/>
                 <Publish Dialog="InstallScopeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="7"/>
-                <Publish Dialog="InstallScopeDlg" Control="Next" Event="DoAction" Value="FindRelatedProducts"
-                         Order="8"/>
+                <Publish Dialog="InstallScopeDlg" Control="Next" Event="DoAction" Value="FindRelatedProducts" Order="8"/>
             {{/if}}
 
             {{#if InstallLocationCurrentUserOnly}}
@@ -260,19 +230,25 @@
                 <Publish Dialog="WelcomeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="3"/>
             {{/if}}
 
-            <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="{{VerifyReadyPrevPage}}" Order="1"
-                     Condition="NOT Installed"/>
+            {{#if InstallLocationEither}}
+                <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="InstallScopeDlg" Order="1"
+                         Condition="NOT Installed"/>
+            {{else}}
+                {{#if HasLicense}}
+                    <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg" Order="1"
+                             Condition="NOT Installed"/>
+                {{else}}
+                    <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="1"
+                             Condition="NOT Installed"/>
+                {{/if}}
+            {{/if}}
+
             <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2"
                      Condition="Installed AND NOT PATCH"/>
             <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2"
                      Condition="Installed AND PATCH"/>
 
-            <!--            <Publish Dialog="VerifyReadyDlg" Control="Install" Event="DoAction" Value="RustCheckMissing" Order="1"/>-->
-            <!--            <Publish Dialog="VerifyReadyDlg" Control="Install" Event="NewDialog" Value="InstallPrerequisitesDlg"-->
-            <!--                     Order="1"/>-->
-
             <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg"/>
-
             <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg"/>
             <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg"/>
             <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg"/>

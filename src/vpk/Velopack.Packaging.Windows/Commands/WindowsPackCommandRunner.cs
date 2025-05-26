@@ -175,8 +175,13 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
     protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe,
         Func<string, VelopackAssetType, string> createAsset)
     {
-        var setupExeProgress = Options.BuildMsi ? CoreUtil.CreateProgressDelegate(progress, 0, 50) : progress;
-        var msiProgress = CoreUtil.CreateProgressDelegate(progress, 50, 100);
+        var setupExeProgress = Options.BuildMsi
+            ? CoreUtil.CreateProgressDelegate(progress, 0, 33)
+            : CoreUtil.CreateProgressDelegate(progress, 0, 66);
+        var msiProgress = CoreUtil.CreateProgressDelegate(progress, 33, 66);
+        var signingProgress = CoreUtil.CreateProgressDelegate(progress, 66, 100);
+
+        List<string> filesToSign = new();
 
         var bundledZip = new ZipPackage(releasePkg);
         IoUtil.Retry(() => File.Copy(HelperFile.SetupPath, targetSetupExe, true));
@@ -191,11 +196,9 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         editor.Commit();
 
         setupExeProgress(25);
-        Log.Debug($"Creating Setup bundle");
+        Log.Debug("Creating Setup bundle");
         SetupBundle.CreatePackageBundle(targetSetupExe, releasePkg);
-        setupExeProgress(50);
-        Log.Debug("Signing Setup bundle");
-        SignFilesImpl(CoreUtil.CreateProgressDelegate(setupExeProgress, 50, 100), targetSetupExe);
+        filesToSign.Add(targetSetupExe);
         Log.Info($"Setup bundle created '{Path.GetFileName(targetSetupExe)}'.");
         setupExeProgress(100);
 
@@ -205,11 +208,17 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             var portablePackage = new DirectoryInfo(Path.Combine(TempDir.FullName, "CreatePortablePackage"));
             if (portablePackage.Exists) {
                 CompileWixTemplateToMsi(msiProgress, portablePackage, msiPath);
+                Log.Info($"MSI created '{Path.GetFileName(msiPath)}'.");
+                filesToSign.Add(msiPath);
+                msiProgress(100);
             } else {
                 Log.Warn("Portable package not found, skipping MSI creation.");
             }
         }
 
+        Log.Debug("Signing Setup files");
+        SignFilesImpl(signingProgress, filesToSign.ToArray());
+        progress(100);
         return Task.CompletedTask;
     }
 
@@ -232,7 +241,11 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         // create a .portable file to indicate this is a portable package
         File.Create(Path.Combine(dir.FullName, ".portable")).Close();
 
-        await EasyZip.CreateZipFromDirectoryAsync(Log.ToVelopackLogger(), outputPath, dir.FullName, CoreUtil.CreateProgressDelegate(progress, 40, 100));
+        await EasyZip.CreateZipFromDirectoryAsync(
+            Log.ToVelopackLogger(),
+            outputPath,
+            dir.FullName,
+            CoreUtil.CreateProgressDelegate(progress, 40, 100));
         progress(100);
     }
 
@@ -350,7 +363,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
 
         var licenseRtfPath = GetLicenseRtfFile();
-        var templateData = MsiBuilder.ConvertOptionsToTemplateData(portableDirectory, GetShortcuts(), licenseRtfPath, GetRuntimeDependencies(), Options);
+        var templateData = MsiBuilder.ConvertOptionsToTemplateData(
+            portableDirectory,
+            GetShortcuts(),
+            licenseRtfPath,
+            GetRuntimeDependencies(),
+            Options);
         MsiBuilder.CompileWixMsi(Log, templateData, progress, msiFilePath);
     }
 

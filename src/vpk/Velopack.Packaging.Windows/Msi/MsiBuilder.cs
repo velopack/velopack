@@ -29,7 +29,8 @@ public static class MsiBuilder
         return (template(data), locale(data));
     }
 
-    public static MsiTemplateData ConvertOptionsToTemplateData(DirectoryInfo portableDir, ShortcutLocation shortcuts, string licenseRtfPath, string runtimeDeps,
+    public static MsiTemplateData ConvertOptionsToTemplateData(DirectoryInfo portableDir, ShortcutLocation shortcuts, string licenseRtfPath,
+        string runtimeDeps,
         WindowsPackOptions options)
     {
         // WiX Identifiers may contain ASCII characters A-Z, a-z, digits, underscores (_), or
@@ -38,9 +39,9 @@ public static class MsiBuilder
         if (char.GetUnicodeCategory(wixId[0]) == UnicodeCategory.DecimalDigitNumber)
             wixId = "_" + wixId;
 
+        var parsedVersion = SemanticVersion.Parse(options.PackVersion);
         var msiVersion = options.MsiVersionOverride;
         if (string.IsNullOrWhiteSpace(msiVersion)) {
-            var parsedVersion = SemanticVersion.Parse(options.PackVersion);
             msiVersion = $"{parsedVersion.Major}.{parsedVersion.Minor}.{parsedVersion.Patch}.0";
         }
 
@@ -54,6 +55,7 @@ public static class MsiBuilder
             AppPublisher = options.PackAuthors ?? options.PackId,
             AppTitle = options.PackTitle ?? options.PackId,
             AppMsiVersion = msiVersion,
+            AppVersion = parsedVersion.ToFullString(),
             SourceDirectoryPath = portableDir.FullName,
             Is64Bit = options.TargetRuntime.Architecture is not RuntimeCpu.x86,
             CultureLCID = CultureInfo.GetCultureInfo("en-US").TextInfo.ANSICodePage,
@@ -116,7 +118,8 @@ public static class MsiBuilder
         string[] manifestResourceNames = assy.GetManifestResourceNames();
         string resourceNameFull = manifestResourceNames.SingleOrDefault(name => name.EndsWith(resourceName));
         if (string.IsNullOrEmpty(resourceNameFull))
-            throw new InvalidOperationException($"Resource '{resourceName}' not found in assembly. Available resources: {string.Join(", ", manifestResourceNames)}");
+            throw new InvalidOperationException(
+                $"Resource '{resourceName}' not found in assembly. Available resources: {string.Join(", ", manifestResourceNames)}");
 
         using var stream = assy.GetManifestResourceStream(resourceNameFull);
         if (stream == null)
