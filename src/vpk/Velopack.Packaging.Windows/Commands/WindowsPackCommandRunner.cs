@@ -90,9 +90,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
     protected string GetShortcutLocations()
     {
-        if (String.IsNullOrWhiteSpace(Options.Shortcuts))
-            return "None";
-
         var flags = GetShortcuts();
         var names = Enum.GetValues(typeof(ShortcutLocation))
             .Cast<ShortcutLocation>()
@@ -100,7 +97,9 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             .Select(f => f.ToString())
             .ToList();
 
-        return names.Count > 0 ? string.Join(",", names) : "None";
+        var shortcutStr = names.Count > 0 ? string.Join(",", names) : "None";
+        Log.Info($"Shortcuts: {shortcutStr}");
+        return shortcutStr;
     }
 
     protected string GetRuntimeDependencies()

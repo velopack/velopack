@@ -29,15 +29,40 @@
         {{/if}}
 
         {{#if StartMenuShortcut}}
-            <StandardDirectory Id="StartMenuFolder">
+            <!-- Shortcut is placed in Start > Programs > AppPublisher -->
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="AppPublisherProgramMenuDir" Name="{{AppPublisherSanitized}}"/>
+            </Directory>
+            <DirectoryRef Id="AppPublisherProgramMenuDir">
                 <Component Id="ApplicationStartMenuShortcut">
-                    <Shortcut Id="ApplicationStartMenuShortcut" Name="{{AppTitle}}" Description="Start Menu shortcut for {{AppTitle}}"
-                              Target="[INSTALLFOLDER]{{StubFileName}}" WorkingDirectory="INSTALLFOLDER"/>
-                    <RemoveFolder Id="CleanUpStartMenuShortcut" Directory="INSTALLFOLDER" On="uninstall"/>
-                    <RegistryValue Root="HKCU" Key="Software&#92;{{AppPublisherSanitized}}&#92;{{AppId}}.StartMenuShortcut"
+                    <Shortcut
+                            Id="ApplicationStartMenuShortcut"
+                            Name="{{AppTitle}}"
+                            Description="Start Menu shortcut for {{AppTitle}}"
+                            Target="[INSTALLFOLDER]{{StubFileName}}"
+                            WorkingDirectory="INSTALLFOLDER"/>
+                    <RemoveFolder Id="CleanUpStartMenuShortcut" Directory="AppPublisherProgramMenuDir" On="uninstall"/>
+                    <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitized}}&#92;{{AppId}}.StartMenuShortcut"
+                                   Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+                </Component>
+            </DirectoryRef>
+        {{/if}}
+
+        {{#if StartMenuRootShortcut}}
+            <!-- Shortcut is placed directly in Start > Programs -->
+            <StandardDirectory Id="ProgramMenuFolder">
+                <Component Id="ApplicationStartMenuRootShortcut">
+                    <Shortcut
+                            Id="ApplicationStartMenuRootShortcut"
+                            Name="{{AppTitle}}"
+                            Description="Start Menu shortcut for {{AppTitle}}"
+                            Target="[INSTALLFOLDER]{{StubFileName}}"
+                            WorkingDirectory="INSTALLFOLDER"/>
+                    <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitized}}&#92;{{AppId}}.StartMenuRootShortcut"
                                    Name="installed" Type="integer" Value="1" KeyPath="yes"/>
                 </Component>
             </StandardDirectory>
+
         {{/if}}
 
         {{#if HasIcon}}
@@ -90,7 +115,9 @@
         <Property Id="RustAppId" Value="{{AppTitle}}"/>
         <Property Id="RustAppTitle" Value="{{AppTitle}}"/>
         <Property Id="RustAppVersion" Value="{{AppVersion}}"/>
-        <Property Id="RustRuntimeDependencies" Value="{{RuntimeDependencies}}"/>
+        {{#if HasRuntimeDependencies}}
+            <Property Id="RustRuntimeDependencies" Value="{{RuntimeDependencies}}"/>
+        {{/if}}
         <Property Id="RustStubFileName" Value="{{StubFileName}}"/>
 
         <CustomAction Id="RustEarlyBootstrap" BinaryRef="RustDll" DllEntry="EarlyBootstrap" Execute="immediate" Return="check"/>
@@ -104,7 +131,7 @@
                       Return="ignore"/>
 
         <InstallUISequence>
-            <Custom Action="RustEarlyBootstrap" Before="AppSearch" Condition="NOT REMOVE AND NOT RustRuntimeDependencies"/>
+            <Custom Action="RustEarlyBootstrap" Before="AppSearch" Condition="NOT REMOVE AND RustRuntimeDependencies"/>
         </InstallUISequence>
 
         <InstallExecuteSequence>

@@ -68,6 +68,7 @@ public static class MsiBuilder
             StubFileName = (options.PackTitle ?? options.PackId) + ".exe",
             DesktopShortcut = shortcuts.HasFlag(ShortcutLocation.Desktop),
             StartMenuShortcut = shortcuts.HasFlag(ShortcutLocation.StartMenu),
+            StartMenuRootShortcut = shortcuts.HasFlag(ShortcutLocation.StartMenuRoot),
             RustNativeModulePath = HelperFile.GetWixNativeModulePath(options.TargetRuntime),
             SideBannerImagePath = options.MsiBanner ?? HelperFile.WixAssetsDialogBackground,
             TopBannerImagePath = options.MsiLogo ?? HelperFile.WixAssetsTopBanner,

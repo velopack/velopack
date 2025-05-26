@@ -24,10 +24,14 @@ public class MsiTemplateData
     public string AppVersion;
 
     public string StubFileName;
-    public string RuntimeDependencies;
     public bool DesktopShortcut;
     public bool StartMenuShortcut;
+    public bool StartMenuRootShortcut;
 
+    public string RuntimeDependencies;
+    public bool HasRuntimeDependencies => !string.IsNullOrWhiteSpace(RuntimeDependencies);
+
+    
     public bool InstallLocationEither => InstallForAllUsers && InstallForCurrentUser;
     public bool InstallLocationAllUsersOnly => InstallForAllUsers && !InstallForCurrentUser;
     public bool InstallLocationCurrentUserOnly => !InstallForAllUsers && InstallForCurrentUser;
