@@ -157,16 +157,15 @@ namespace Velopack.Sources
             const int perPage = 10;
             const int page = 1;
             // https://docs.gitlab.com/ee/api/releases/
-            var releasesPath = $"{RepoUri.AbsolutePath}/releases?per_page={perPage}&page={page}";
-            var baseUri = new Uri("https://gitlab.com");
-            var getReleasesUri = new Uri(baseUri, releasesPath);
+            var releasesPath = $"releases?per_page={perPage}&page={page}";
+            var getReleasesUri = new Uri(RepoUri + releasesPath);
             var response = await Downloader.DownloadString(getReleasesUri.ToString(),
                 new Dictionary<string, string> {
                     [Authorization.Name] = Authorization.Value,
                     ["Accept"] = "application/json"
                 }).ConfigureAwait(false);
             var releases = CompiledJson.DeserializeGitlabReleaseList(response);
-            if (releases == null) return new GitlabRelease[0];
+            if (releases == null) return Array.Empty<GitlabRelease>();
             return releases.OrderByDescending(d => d.ReleasedAt).Where(x => includePrereleases || !x.UpcomingRelease).ToArray();
         }
     }
