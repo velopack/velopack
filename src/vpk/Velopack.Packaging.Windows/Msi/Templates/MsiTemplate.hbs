@@ -97,14 +97,14 @@
 
         <!-- deferred actions do not have access to msi properties and read all data from "CustomActionData" which is a string, 
              so we delimit with &quot; which is unlikely (or disallowed) from to appearing in filenames / paths.-->
-        <CustomAction Id="SetRustCleanupData" Property="RustCleanup" Value="[INSTALLFOLDER]&quot;[RustAppId]" Execute="immediate"
+        <CustomAction Id="SetRustCleanupData" Property="RustCleanup" Value="[INSTALLFOLDER]&quot;[RustAppId]&quot;[TempFolder]" Execute="immediate"
                       Return="check"/>
         <CustomAction Id="RustCleanup" BinaryRef="RustDll" DllEntry="CleanupDeferred" Execute="deferred" Impersonate="no" Return="ignore"/>
         <CustomAction Id="RustLaunchApplication" BinaryRef="RustDll" DllEntry="LaunchApplication" Impersonate="yes" Execute="immediate"
                       Return="ignore"/>
 
         <InstallUISequence>
-            <Custom Action="RustEarlyBootstrap" Before="AppSearch" Condition="REMOVE=&quot;&quot;"/>
+            <Custom Action="RustEarlyBootstrap" Before="AppSearch" Condition="NOT REMOVE AND NOT RustRuntimeDependencies"/>
         </InstallUISequence>
 
         <InstallExecuteSequence>

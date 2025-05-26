@@ -48,19 +48,23 @@ pub extern "system" fn CleanupDeferred(h_install: MSIHANDLE) -> c_uint {
         let mut custom_data = custom_data.split('"');
         let install_dir = custom_data.next();
         let app_id = custom_data.next();
+        let temp_dir = custom_data.next();
 
-        show_debug_message("CleanupDeferred", format!("install_dir={:?}, app_id={:?}", install_dir, app_id));
+        show_debug_message("CleanupDeferred", format!("install_dir={:?}, app_id={:?}, temp_dir={:?}", install_dir, app_id, temp_dir));
 
         if let Some(install_dir) = install_dir {
             if let Err(e) = remove_dir_all::remove_dir_all(install_dir) {
-                show_debug_message("CleanupDeferred", format!("Failed to remove install directory: {}", e));
+                show_debug_message("CleanupDeferred", format!("Failed to remove install directory: {:?} {}", install_dir, e));
             }
         }
 
         if let Some(app_id) = app_id {
-            let temp_dir = std::env::temp_dir();
-            if let Err(e) = remove_dir_all::remove_dir_all(temp_dir.join(format!("velopack_{}", app_id))) {
-                show_debug_message("CleanupDeferred", format!("Failed to remove temp directory: {}", e));
+            if let Some(temp_dir) = temp_dir {
+                let temp_dir = PathBuf::from(temp_dir);
+                let temp_dir = temp_dir.join(format!("velopack_{}", app_id));
+                if let Err(e) = remove_dir_all::remove_dir_all(&temp_dir) {
+                    show_debug_message("CleanupDeferred", format!("Failed to remove temp directory: {:?} {}", temp_dir, e));
+                }
             }
         }
 

@@ -22,12 +22,16 @@ pub fn uninstall(locator: &VelopackLocator, delete_self: bool) -> Result<()> {
     info!("Removing directory '{:?}'", root_path);
     let _ = remove_dir_all::remove_dir_contents(&root_path);
 
+    let temp_dir = std::env::temp_dir();
+    let temp_dir = temp_dir.join(format!("velopack_{}", locator.get_manifest_id()));
+
+    info!("Removing directory '{:?}'", temp_dir);
+    let _ = remove_dir_all::remove_dir_all(&temp_dir);
+
     if let Err(e) = windows::registry::remove_uninstall_entry(&locator) {
         error!("Unable to remove uninstall registry entry ({}).", e);
     }
 
-    // if it returns true, it was a success.
-    // if it returns false, it was completed with errors which the user should be notified of.
     let app_title = locator.get_manifest_title();
 
     info!("Finished successfully.");

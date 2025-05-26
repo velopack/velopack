@@ -85,7 +85,7 @@ public static class MsiBuilder
         var wixArch = data.IsArm64 ? "arm64" : data.Is64Bit ? "x64" : "x86";
         Log.Info($"Configuring WiX in {wixArch} mode");
 
-        var _1 = TempUtil.GetTempDirectory(out var outputDir);
+        using var _1 = TempUtil.GetTempDirectory(out var outputDir);
         var wixId = data.WixId;
         var wxsPath = Path.Combine(outputDir, wixId + ".wxs");
         var localizationPath = Path.Combine(outputDir, wixId + "_en-US.wxs");
