@@ -85,13 +85,6 @@
 
         <Files Include="{{SourceDirectoryPath}}\**"/>
 
-        <!--        <CustomAction Id="RemoveAppDirectory" Directory="INSTALLFOLDER" Impersonate="no"-->
-        <!--                      ExeCommand="cmd.exe /C rmdir /S /Q &quot;[INSTALLFOLDER]&quot;" Execute="deferred" Return="ignore"/>-->
-        <!--        <CustomAction Id="RemoveTempDirectory" Directory="TempFolder" Impersonate="yes"-->
-        <!--                      ExeCommand="cmd.exe /C rmdir /S /Q &quot;%TEMP%\velopack_{{AppId}}&quot;" Execute="deferred" Return="ignore"/>-->
-        <!--        <CustomAction Id="LaunchApplication" Directory="INSTALLFOLDER" Impersonate="yes"-->
-        <!--                      ExeCommand="&quot;[INSTALLFOLDER]{{StubFileName}}&quot;" Execute="immediate" Return="ignore"/>-->
-
         <!-- Add our custom Rust module for custom actions -->
         <Binary Id="RustDll" SourceFile="{{RustNativeModulePath}}"/>
         <Property Id="RustAppId" Value="{{AppTitle}}"/>

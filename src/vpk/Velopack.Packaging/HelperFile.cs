@@ -36,6 +36,21 @@ public static class HelperFile
         throw new PlatformNotSupportedException($"Update binary is not available for this platform ({target}).");
     }
 
+    public static string GetWixNativeModulePath(RID target)
+    {
+#if DEBUG
+        return FindHelperFile("velopack_wix.dll");
+#else
+        return target.Architecture switch {
+            RuntimeCpu.x86 => FindHelperFile("velopack_wix_x86.dll"),
+            RuntimeCpu.x64 => FindHelperFile("velopack_wix_x64.dll"),
+            RuntimeCpu.arm64 => FindHelperFile("velopack_wix_arm64.dll"),
+            _ => throw new PlatformNotSupportedException($"Wix binary is not available for this platform ({target}).")
+        };
+#endif
+        // return @"C:\Source\velopack\target\debug\velopack_wix.dll";
+    }
+
     public static string GetUpdatePath(RID target, ILogger log) => FindHelperFile(GetUpdateExeName(target, log));
 
     public static string GetZstdPath()
@@ -69,17 +84,15 @@ public static class HelperFile
 
     [SupportedOSPlatform("windows")]
     public static string WixPath => FindHelperFile($"wix\\{WixVersion}\\wix.exe");
-    
+
     [SupportedOSPlatform("windows")]
     public static string WixUiExtPath => FindHelperFile($"wix\\{WixVersion}\\WixToolset.UI.wixext.dll");
 
     [SupportedOSPlatform("windows")]
     public const string WixVersion = "5.0.2";
 
-    [SupportedOSPlatform("windows")]
     public static string WixAssetsTopBanner => FindHelperFile("wix\\assets\\top-banner.bmp");
 
-    [SupportedOSPlatform("windows")]
     public static string WixAssetsDialogBackground => FindHelperFile("wix\\assets\\dialog-background.bmp");
 
     [SupportedOSPlatform("windows")]
