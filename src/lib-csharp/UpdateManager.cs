@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -73,6 +73,17 @@ namespace Velopack
         protected int MaximumDeltasBeforeFallback { get; }
 
         /// <summary>
+        /// Creates a new UpdateManager instance using the default <see cref="VelopackFlowSource"/>
+        /// </summary>
+        /// <param name="options">Override / configure default update behaviors.</param>
+        /// <param name="locator">This should usually be left null. Providing an <see cref="IVelopackLocator" /> allows you to mock up certain application paths. 
+        public UpdateManager(UpdateOptions? options = null, IVelopackLocator? locator = null)
+            : this(new VelopackFlowSource(), options, locator)
+        {
+            
+        }
+
+        /// <summary>
         /// Creates a new UpdateManager instance using the specified URL or file path to the releases feed, and the specified channel name.
         /// </summary>
         /// <param name="urlOrPath">A basic URL or file path to use when checking for updates.</param>
@@ -88,7 +99,7 @@ namespace Velopack
         /// Creates a new UpdateManager instance using the specified URL or file path to the releases feed, and the specified channel name.
         /// </summary>
         /// <param name="source">The source describing where to search for updates. This can be a custom source, if you are integrating with some private resource,
-        /// or it could be one of the predefined sources. (eg. <see cref="SimpleWebSource"/> or <see cref="GithubSource"/>, etc).</param>
+        /// or it could be one of the predefined sources. (eg. <see cref="VelopackFlowSource"/>, <see cref="SimpleWebSource"/>, or <see cref="GithubSource"/>, etc).</param>
         /// <param name="options">Override / configure default update behaviors.</param>
         /// <param name="locator">This should usually be left null. Providing an <see cref="IVelopackLocator" /> allows you to mock up certain application paths. 
         /// For example, if you wanted to test that updates are working in a unit test, you could provide an instance of <see cref="TestVelopackLocator"/>. </param>
