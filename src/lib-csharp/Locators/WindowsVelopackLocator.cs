@@ -123,7 +123,7 @@ namespace Velopack.Locators
                 var tempTargetUpdateExe = Path.Combine(TempAppRootDirectory, "Update.exe");
                 if (File.Exists(UpdateExePath) && !File.Exists(tempTargetUpdateExe)) {
                     initLog.Warn("Application directory is not writable. Copying Update.exe to temp location: " + tempTargetUpdateExe);
-                    Debugger.Launch();
+                    // Debugger.Launch();
                     Directory.CreateDirectory(TempAppRootDirectory);
                     File.Copy(UpdateExePath, tempTargetUpdateExe);
                 }

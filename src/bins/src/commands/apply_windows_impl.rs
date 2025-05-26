@@ -51,14 +51,29 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
         } else {
             info!("Re-launching as administrator to update in {:?}", root_path);
 
-            let args: Vec<OsString> = vec!["--norestart".into(), "--package".into(), package.into()];
+            let args: Vec<OsString> = vec!["--norestart".into(), "--package".into(), package.into(), "--root".into(), root_path.into()];
             let exe_path = std::env::current_exe()?;
             let work_dir: Option<String> = None; // same as this process
             let process_handle = process::run_process_as_admin(&exe_path, args, work_dir, false)?;
 
             info!("Waiting (up to 10 minutes) for elevated process to exit...");
             let result = process::wait_for_process_to_exit(process_handle, Some(Duration::from_secs(10 * 60)))?;
-            info!("Elevated process has exited ({:?}).", result);
+
+            match result {
+                process::WaitResult::WaitTimeout => {
+                    bail!("Elevated process has not exited within 10 minutes. (TIMEOUT)");
+                }
+                process::WaitResult::ExitCode(code) => {
+                    if code != 0 {
+                        bail!("Elevated process has exited with ERROR: {}.", code);
+                    } else {
+                        info!("Elevated process has run successfully.");
+                    }
+                }
+                process::WaitResult::NoWaitRequired => {
+                    info!("Elevated process has not required waiting.");
+                }
+            }
             return Ok(new_locator);
         }
     }
