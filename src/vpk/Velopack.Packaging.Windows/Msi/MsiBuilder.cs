@@ -57,7 +57,8 @@ public static class MsiBuilder
             AppMsiVersion = msiVersion,
             AppVersion = parsedVersion.ToFullString(),
             SourceDirectoryPath = portableDir.FullName,
-            Is64Bit = options.TargetRuntime.Architecture is not RuntimeCpu.x86,
+            Is64Bit = options.TargetRuntime.Architecture is not RuntimeCpu.x86 and not RuntimeCpu.Unknown,
+            IsArm64 = options.TargetRuntime.Architecture is RuntimeCpu.arm64,
             CultureLCID = CultureInfo.GetCultureInfo("en-US").TextInfo.ANSICodePage,
             InstallForAllUsers = options.InstLocation.HasFlag(InstallLocation.PerMachine),
             InstallForCurrentUser = options.InstLocation.HasFlag(InstallLocation.PerUser),
@@ -81,8 +82,8 @@ public static class MsiBuilder
     [SupportedOSPlatform("windows")]
     public static void CompileWixMsi(ILogger Log, MsiTemplateData data, Action<int> progress, string outputFilePath)
     {
-        bool as64Bit = data.Is64Bit;
-        Log.Info($"Configuring WiX in {(as64Bit ? "64-bit" : "32-bit")} mode");
+        var wixArch = data.IsArm64 ? "arm64" : data.Is64Bit ? "x64" : "x86";
+        Log.Info($"Configuring WiX in {wixArch} mode");
 
         var _1 = TempUtil.GetTempDirectory(out var outputDir);
         var wixId = data.WixId;
@@ -91,6 +92,7 @@ public static class MsiBuilder
 
         var (wxsContent, localizationContent) = GenerateWixTemplate(data);
 
+        // File.WriteAllText(@"C:\Source\velopack\samples\CSharpAvalonia\releases\test.wxs", wxsContent, Encoding.UTF8);
         File.WriteAllText(wxsPath, wxsContent, Encoding.UTF8);
         File.WriteAllText(localizationPath, localizationContent, Encoding.UTF8);
 
@@ -103,7 +105,7 @@ public static class MsiBuilder
         //When localization is supported in Velopack, we will need to add -culture here:
         //https://docs.firegiant.com/wix/tools/wixext/wixui/
         var buildCommand =
-            $"\"{HelperFile.WixPath}\" build -platform {(as64Bit ? "x64" : "x86")} -outputType Package " +
+            $"\"{HelperFile.WixPath}\" build -arch {wixArch} -outputType Package " +
             $"-pdbType none {string.Join(" ", wixExtensions.Select(x => $"-ext \"{x}\""))} -loc \"{localizationPath}\" -out \"{outputFilePath}\" \"{wxsPath}\"";
 
         _ = Exe.RunHostedCommand(buildCommand);

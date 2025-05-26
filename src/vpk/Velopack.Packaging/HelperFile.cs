@@ -42,6 +42,7 @@ public static class HelperFile
         return FindHelperFile("velopack_wix.dll");
 #else
         return target.Architecture switch {
+            RuntimeCpu.Unknown => FindHelperFile("velopack_wix_x86.dll"),
             RuntimeCpu.x86 => FindHelperFile("velopack_wix_x86.dll"),
             RuntimeCpu.x64 => FindHelperFile("velopack_wix_x64.dll"),
             RuntimeCpu.arm64 => FindHelperFile("velopack_wix_arm64.dll"),

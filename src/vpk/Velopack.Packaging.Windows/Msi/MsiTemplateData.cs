@@ -6,6 +6,7 @@ public class MsiTemplateData
     public string SourceDirectoryPath;
     public string RustNativeModulePath;
     public bool Is64Bit;
+    public bool IsArm64;
     public int CultureLCID;
     public string UpgradeCodeGuid;
     public string ComponentGenerationSeedGuid;
