@@ -1,0 +1,23 @@
+<!--suppress CheckEmptyScriptTag -->
+<WixLocalization Culture="en-US" Codepage="1252" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+    <String Id="InstallPrerequisitesDlgInstallTitle"
+            Value="Missing System Requirements"/>
+    <String Id="InstallPrerequisitesDlgInstallText"
+            Value="There are several prerequisites which need to be installed before setup can continue: "/>
+    <String Id="InstallPrerequisitesDlgContinue"
+            Value="Continue"/>
+
+    <!-- Message on first welcome dialog; covers both initial install and update -->
+    {{#if HasWelcomeMessage}}
+        <String Id="WelcomeDlgDescription"
+                Value="{welcomeMessage}"/>
+        <String Id="WelcomeUpdateDlgDescriptionUpdate"
+                Value="{welcomeMessage}"/>
+    {{/if}}
+
+    <!-- Message on the completion dialog (last screen after install) -->
+    {{#if HasReadmeMessage}}
+        <String Id="VerifyReadyDlgInstallText"
+                Value="{readmeMessage}"/>
+    {{/if}}
+</WixLocalization>
