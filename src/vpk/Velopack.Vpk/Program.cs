@@ -8,13 +8,11 @@ using Serilog.Events;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
 using Velopack.Deployment;
-using Velopack.Flow;
 using Velopack.Flow.Commands;
 using Velopack.Packaging.Commands;
 using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
-using Velopack.Util;
 using Velopack.Vpk.Commands;
 using Velopack.Vpk.Commands.Deployment;
 using Velopack.Vpk.Commands.Flow;
@@ -163,11 +161,11 @@ public class Program
         deltaCommand.AddCommand<DeltaPatchCommand, DeltaPatchCommandRunner, DeltaPatchOptions>(provider);
         rootCommand.Add(deltaCommand);
 
-        HideCommand(rootCommand.AddCommand<LoginCommand, LoginCommandRunner, LoginOptions>(provider));
-        HideCommand(rootCommand.AddCommand<LogoutCommand, LogoutCommandRunner, LogoutOptions>(provider));
-        HideCommand(rootCommand.AddCommand<PublishCommand, PublishCommandRunner, PublishOptions>(provider));
+        rootCommand.AddCommand<LoginCommand, LoginCommandRunner, LoginOptions>(provider);
+        rootCommand.AddCommand<LogoutCommand, LogoutCommandRunner, LogoutOptions>(provider);
+        rootCommand.AddCommand<PublishCommand, PublishCommandRunner, PublishOptions>(provider);
 
-        var flowCommand = new CliCommand("flow", "Commands for interacting with Velopack Flow.") { Hidden = true };
+        var flowCommand = new CliCommand("flow", "Commands for interacting with Velopack Flow.");
         HideCommand(flowCommand.AddCommand<ApiCommand, ApiCommandRunner, ApiOptions>(provider));
         rootCommand.Add(flowCommand); 
 
