@@ -61,19 +61,19 @@ public class WindowsPackCommand : PackCommand
             .SetHidden();
 
         var signTemplate = AddOption<string>((v) => SignTemplate = v, "--signTemplate")
-          .SetDescription("Use a custom signing command. {{file}} will be substituted.")
-          .SetArgumentHelpName("COMMAND");
+            .SetDescription("Use a custom signing command. {{file}} will be substituted.")
+            .SetArgumentHelpName("COMMAND");
 
         AddOption<string>((v) => SignExclude = v, "--signExclude")
             .SetDescription("A regex which excludes matched files from signing.")
             .SetHidden();
 
         AddOption<int>((v) => SignParallel = v, "--signParallel")
-             .SetDescription("The number of files to sign in each signing command.")
-             .SetArgumentHelpName("NUM")
-             .MustBeBetween(1, 1000)
-             .SetHidden()
-             .SetDefault(10);
+            .SetDescription("The number of files to sign in each signing command.")
+            .SetArgumentHelpName("NUM")
+            .MustBeBetween(1, 1000)
+            .SetHidden()
+            .SetDefault(10);
 
         AddOption<string>((v) => Shortcuts = v, "--shortcuts")
             .SetDescription("List of locations to install shortcuts to during setup.")
@@ -93,36 +93,26 @@ public class WindowsPackCommand : PackCommand
 
             AddOption<bool>((v) => BuildMsi = v, "--msi")
                 .SetDescription("Compile a .msi machine-wide bootstrap package.");
-            
+
             AddOption<string>(v => MsiVersionOverride = v, "--msiVersion")
                 .SetDescription("Override the product version for the generated msi.")
                 .SetArgumentHelpName("VERSION")
                 .MustBeValidMsiVersion();
 
             AddOption<FileInfo>(v => InstWelcome = v.ToFullNameOrNull(), "--instWelcome")
-                .SetDescription("Set the installer package welcome content. Most formatting is not supported.")
-                .RequiresExtension(".md")
+                .SetDescription("Set the plain-text installer package welcome content.")
                 .SetArgumentHelpName("PATH");
 
             AddOption<FileInfo>(v => InstLicense = v.ToFullNameOrNull(), "--instLicense")
-                .SetDescription("Set the installer package license content. This will be rendered as RTF content for the MSI. Formatting is done using https://github.com/uniederer/MarkdigExtensions.RtfRenderer.")
-                .RequiresExtension(".md")
+                .SetDescription("Set the installer package license content. Can be either RTF or Markdown.")
                 .SetArgumentHelpName("PATH");
 
-            AddOption<FileInfo>(v => InstLicenseRtf = v.ToFullNameOrNull(), "--instLicenseRtf")
-                .SetDescription("Set the installer package license RTF content.")
-                .RequiresExtension(".rtf")
-                .SetArgumentHelpName("PATH")
-                .SetHidden();
-
             AddOption<FileInfo>(v => InstReadme = v.ToFullNameOrNull(), "--instReadme")
-                .SetDescription("Set the installer package readme content. Most formatting is not supported.")
-                .RequiresExtension(".md")
+                .SetDescription("Set the plain-text installer package readme content.")
                 .SetArgumentHelpName("PATH");
 
             AddOption<FileInfo>(v => InstConclusion = v.ToFullNameOrNull(), "--instConclusion")
-                .SetDescription("Set the installer package conclusion content. Most formatting is not supported.")
-                .RequiresExtension(".md")
+                .SetDescription("Set the plain-text installer package conclusion content.")
                 .SetArgumentHelpName("PATH");
 
             AddOption<InstallLocation>(v => InstLocation = v, "--instLocation")

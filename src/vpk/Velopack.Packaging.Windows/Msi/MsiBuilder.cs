@@ -3,10 +3,13 @@ using System.Reflection;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml;
 using HandlebarsDotNet;
+using Markdig;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
 using Velopack.Core;
+using Velopack.Packaging.Rtf;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Util;
 using Velopack.Windows;
@@ -29,9 +32,81 @@ public static class MsiBuilder
         return (template(data), locale(data));
     }
 
-    public static MsiTemplateData ConvertOptionsToTemplateData(DirectoryInfo portableDir, ShortcutLocation shortcuts, string licenseRtfPath,
-        string runtimeDeps,
-        WindowsPackOptions options)
+    private static string GetPlainTextMessage(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+            return "";
+
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException("File not found", filePath);
+
+        var extension = Path.GetExtension(filePath);
+        var content = File.ReadAllText(filePath, Encoding.UTF8);
+
+        // if extension is .md render it to plain text
+        if (extension.Equals(".md", StringComparison.OrdinalIgnoreCase)) {
+            content = Markdown.ToPlainText(content);
+        } else if (extension.Equals(".txt", StringComparison.OrdinalIgnoreCase)) {
+            // do nothing but it's valid
+        } else {
+            throw new ArgumentException("Installer plain-text messages must be .md or .txt", nameof(filePath));
+        }
+
+        return FormatXmlMessage(content);
+    }
+
+    private static string GetLicenseRtfPath(string licensePath, DirectoryInfo tempDir)
+    {
+        if (string.IsNullOrWhiteSpace(licensePath))
+            return "";
+
+        if (!File.Exists(licensePath))
+            throw new FileNotFoundException("File not found", licensePath);
+
+        var extension = Path.GetExtension(licensePath);
+        var content = File.ReadAllText(licensePath, Encoding.UTF8);
+
+        // if extension is .md, render it to rtf
+        if (extension.Equals(".md", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".txt", StringComparison.OrdinalIgnoreCase)) {
+            licensePath = Path.Combine(tempDir.FullName, "rendered_license.rtf");
+            using var writer = new StreamWriter(licensePath);
+            var renderer = new RtfRenderer(writer);
+            renderer.WriteRtfStart();
+            _ = Markdown.Convert(content, renderer);
+            renderer.WriteRtfEnd();
+        } else if (extension.Equals(".rtf", StringComparison.OrdinalIgnoreCase)) {
+            // do nothing but it's valid
+        } else {
+            throw new ArgumentException("Installer license must be .txt, .md, or .rtf", nameof(licensePath));
+        }
+
+        return licensePath;
+    }
+
+    public static string SanitizeDirectoryString(string name)
+        => string.Join("_", name.Split(Path.GetInvalidPathChars()));
+
+    public static string FormatXmlMessage(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return "";
+
+        StringBuilder sb = new();
+        XmlWriterSettings settings = new() {
+            ConformanceLevel = ConformanceLevel.Fragment,
+            NewLineHandling = NewLineHandling.None,
+        };
+        using XmlWriter writer = XmlWriter.Create(sb, settings);
+        writer.WriteString(message);
+        writer.Flush();
+        var rv = sb.ToString();
+        rv = rv.Replace("\r", "&#10;").Replace("\n", "&#13;");
+        return rv;
+    }
+
+    public static MsiTemplateData ConvertOptionsToTemplateData(DirectoryInfo portableDir, ShortcutLocation shortcuts,
+        string runtimeDeps, WindowsPackOptions options)
     {
         // WiX Identifiers may contain ASCII characters A-Z, a-z, digits, underscores (_), or
         // periods(.). Every identifier must begin with either a letter or an underscore.
@@ -45,10 +120,6 @@ public static class MsiBuilder
             msiVersion = $"{parsedVersion.Major}.{parsedVersion.Minor}.{parsedVersion.Patch}.0";
         }
 
-        string welcomeMessage = MsiUtil.FormatXmlMessage(MsiUtil.RenderMarkdownAsPlainText(MsiUtil.GetFileContent(options.InstWelcome)));
-        string readmeMessage = MsiUtil.FormatXmlMessage(MsiUtil.RenderMarkdownAsPlainText(MsiUtil.GetFileContent(options.InstReadme)));
-        string conclusionMessage = MsiUtil.FormatXmlMessage(MsiUtil.RenderMarkdownAsPlainText(MsiUtil.GetFileContent(options.InstConclusion)));
-
         return new MsiTemplateData() {
             WixId = wixId,
             AppId = options.PackId,
@@ -59,7 +130,6 @@ public static class MsiBuilder
             SourceDirectoryPath = portableDir.FullName,
             Is64Bit = options.TargetRuntime.Architecture is not RuntimeCpu.x86 and not RuntimeCpu.Unknown,
             IsArm64 = options.TargetRuntime.Architecture is RuntimeCpu.arm64,
-            CultureLCID = CultureInfo.GetCultureInfo("en-US").TextInfo.ANSICodePage,
             InstallForAllUsers = options.InstLocation.HasFlag(InstallLocation.PerMachine),
             InstallForCurrentUser = options.InstLocation.HasFlag(InstallLocation.PerUser),
             UpgradeCodeGuid = GuidUtil.CreateGuidFromHash($"{options.PackId}:UpgradeCode").ToString(),
@@ -73,10 +143,10 @@ public static class MsiBuilder
             SideBannerImagePath = options.MsiBanner ?? HelperFile.WixAssetsDialogBackground,
             TopBannerImagePath = options.MsiLogo ?? HelperFile.WixAssetsTopBanner,
             RuntimeDependencies = runtimeDeps,
-            ConclusionMessage = conclusionMessage,
-            ReadmeMessage = readmeMessage,
-            WelcomeMessage = welcomeMessage,
-            LicenseRtfFilePath = licenseRtfPath,
+            ConclusionMessage = GetPlainTextMessage(options.InstConclusion),
+            ReadmeMessage = GetPlainTextMessage(options.InstReadme),
+            WelcomeMessage = GetPlainTextMessage(options.InstWelcome),
+            LicenseRtfFilePath = GetLicenseRtfPath(options.InstLicense, portableDir.Parent),
         };
     }
 

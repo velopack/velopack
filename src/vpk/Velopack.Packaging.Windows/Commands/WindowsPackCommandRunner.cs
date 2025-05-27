@@ -1,7 +1,5 @@
 ﻿using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
-using Markdig;
-using MarkdigExtensions.RtfRenderer;
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
@@ -340,32 +338,9 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
     [SupportedOSPlatform("windows")]
     private void CompileWixTemplateToMsi(Action<int> progress, DirectoryInfo portableDirectory, string msiFilePath)
     {
-        string GetLicenseRtfFile()
-        {
-            string license = Options.InstLicenseRtf;
-            if (!string.IsNullOrWhiteSpace(license)) {
-                return license;
-            }
-
-            license = Options.InstLicense;
-            if (!string.IsNullOrWhiteSpace(license)) {
-                var licenseFile = Path.Combine(portableDirectory.Parent!.FullName, "license.rtf");
-                using var writer = new StreamWriter(licenseFile);
-                var renderer = new RtfRenderer(writer);
-                renderer.StartDocument();
-                _ = Markdown.Convert(File.ReadAllText(license), renderer);
-                renderer.CloseDocument();
-                return licenseFile;
-            }
-
-            return null;
-        }
-
-        var licenseRtfPath = GetLicenseRtfFile();
         var templateData = MsiBuilder.ConvertOptionsToTemplateData(
             portableDirectory,
             GetShortcuts(),
-            licenseRtfPath,
             GetRuntimeDependencies(),
             Options);
         MsiBuilder.CompileWixMsi(Log, templateData, progress, msiFilePath);

@@ -15,7 +15,6 @@
   <ItemGroup>
     <PackageReference Include="AsmResolver.DotNet" Version="5.5.1" />
     <PackageReference Include="AsmResolver.PE.Win32Resources" Version="5.5.1" />
-    <PackageReference Include="MarkdigExtensions.RtfRenderer" Version="1.1.0" />
     <PackageReference Include="Microsoft.Security.Extensions" Version="1.4.0" />
     <PackageReference Include="Handlebars.Net" Version="2.1.6" />
   </ItemGroup>

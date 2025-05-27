@@ -3,7 +3,6 @@
     <Package Name="{{AppTitle}}"
              Manufacturer="{{AppPublisher}}"
              Version="{{AppMsiVersion}}"
-             Codepage="{{CultureLCID}}"
              Language="1033"
              Scope="perUserOrMachine"
              UpgradeCode="{{UpgradeCodeGuid}}">
@@ -91,7 +90,7 @@
         <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1"/>
 
         <!-- Check box for launching -->
-        <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch {{AppTitle}}"/>
+        <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.ConclusionLaunchCheckboxText) {{AppTitle}}"/>
 
         <Property Id="WixAppFolder" Value="WixPerMachineFolder"/>
         <Property Id="ApplicationFolderName" Value="{{AppId}}"/>

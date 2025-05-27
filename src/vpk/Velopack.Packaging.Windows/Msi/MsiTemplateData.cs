@@ -7,7 +7,6 @@ public class MsiTemplateData
     public string RustNativeModulePath;
     public bool Is64Bit;
     public bool IsArm64;
-    public int CultureLCID;
     public string UpgradeCodeGuid;
     public string ComponentGenerationSeedGuid;
 
@@ -17,9 +16,9 @@ public class MsiTemplateData
 
     public string AppId;
     public string AppTitle;
-    public string AppTitleSanitized => MsiUtil.SanitizeDirectoryString(AppTitle);
+    public string AppTitleSanitized => MsiBuilder.SanitizeDirectoryString(AppTitle);
     public string AppPublisher;
-    public string AppPublisherSanitized => MsiUtil.SanitizeDirectoryString(AppPublisher);
+    public string AppPublisherSanitized => MsiBuilder.SanitizeDirectoryString(AppPublisher);
     public string AppMsiVersion;
     public string AppVersion;
 

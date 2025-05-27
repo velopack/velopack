@@ -29,7 +29,6 @@ public class WindowsPackOptions : WindowsReleasifyOptions, INugetPackCommand, IP
     public string InstReadme { get; set; }
 
     public string InstLicense { get; set; }
-    public string InstLicenseRtf { get; set; }
 
     public string InstConclusion { get; set; }
 
