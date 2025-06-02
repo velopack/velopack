@@ -1,10 +1,8 @@
 use pyo3::prelude::*;
 
-// Import your original structs from your rust library
-// Adjust the import path according to your crate structure
 use velopack::{VelopackAsset, UpdateInfo};
 
-#[pyclass(name = "VelopackAsset")]
+#[pyclass(name = "Asset")]
 #[derive(Debug, Clone)]
 pub struct PyVelopackAsset(pub VelopackAsset);
 
@@ -84,7 +82,7 @@ impl PyVelopackAsset {
 
     fn __repr__(&self) -> String {
         format!(
-            "VelopackAsset(package_id='{}', version='{}', type='{}', file_name='{}', size={})",
+            "Velopack.Asset(package_id='{}', version='{}', type='{}', file_name='{}', size={})",
             self.0.PackageId, self.0.Version, self.0.Type, self.0.FileName, self.0.Size
         )
     }
