@@ -18,3 +18,4 @@ impl VelopackError {
         self.message.clone()
     }
 }
+

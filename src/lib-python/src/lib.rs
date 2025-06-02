@@ -1,5 +1,10 @@
+use asset::PyUpdateInfo;
 use pyo3::prelude::*;
 use pyo3::types::PyModule;
+
+mod asset;
+pub use asset::PyVelopackAsset;
+
 
 mod exceptions;
 pub use exceptions::VelopackError;
@@ -14,6 +19,10 @@ pub use manager::UpdateManagerWrapper;
 #[pymodule]
 fn velopack(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<VelopackError>()?;
+
+    m.add_class::<PyVelopackAsset>()?;
+    m.add_class::<PyUpdateInfo>()?;
+    
     
 
     m.add_class::<VelopackAppWrapper>()?;
