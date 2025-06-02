@@ -78,7 +78,7 @@ memmap2 = "0.9"
 windows = "0.61"
 webview2-com-sys = "0.37"
 winsafe = { version = "0.0.20", features = ["gui"] }
-cbindgen = "0.28"
+cbindgen = "0.29"
 log-panics = "2.1.0"
 core-foundation = "0.10"
 core-foundation-sys = "0.8"
