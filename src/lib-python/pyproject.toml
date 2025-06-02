@@ -1,0 +1,17 @@
+[project]
+dynamic = ["version", "description", "authors", "license"]
+name = "velopack"
+requires-python = ">=3.8"
+
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[dependency-groups]
+dev = [
+    "maturin>=1.8.6",
+    "pyinstaller>=6.13.0",
+]
+test = [
+    "pyinstaller>=6.13.0",
+]
