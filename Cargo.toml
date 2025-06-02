@@ -5,13 +5,14 @@ members = [
     "src/lib-rust",
     "src/lib-nodejs/velopack_nodeffi",
     "src/lib-cpp",
+    "src/lib-python",
 ]
 exclude = [
     "samples/RustIced",
 ]
 
 [workspace.package]
-version = "0.0.0-local"
+version = "0.0.1"
 authors = ["Velopack Ltd, Caelan Sayler <git@caesay.com>"]
 homepage = "https://velopack.io"
 repository = "https://github.com/velopack/velopack"
