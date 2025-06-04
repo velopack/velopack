@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using HandlebarsDotNet;
 
 var scriptsDir = Assembly.GetEntryAssembly()!
@@ -98,6 +98,12 @@ Console.WriteLine("Writing all to file");
 Util.ReplaceTextInFile(rustTypes, "RUST_TYPES", rustCTypes.ToString().ReplaceLineEndings("\n"));
 Util.ReplaceTextInFile(rustCppInclude, "CPP_TYPES", cppTypes.ToString().ReplaceLineEndings("\n"));
 
+// --- Python asset.rs generation ---
+string pythonAssetRs = Path.Combine(scriptsDir, "..", "lib-python", "src", "asset.rs");
+var pythonAssetTemplate = Handlebars.Compile(File.ReadAllText(Path.Combine(templatesDir, "python_asset.hbs")));
+var pythonAsset = pythonAssetTemplate(handlebarData);
+File.WriteAllText(pythonAssetRs, pythonAsset.ToString().ReplaceLineEndings("\n"));
+
 return 0;
 
 class TypeMap
@@ -166,6 +172,7 @@ class RustStruct_Field
     public bool field_vector;
     public bool field_system;
     public bool field_normal;
+    public bool field_primitive_or_system => field_primitive || field_system;
     public string rust_comment;
     public string cpp_comment;
 }
