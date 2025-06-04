@@ -2374,17 +2374,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "velopack-python"
-version = "0.0.1"
-dependencies = [
- "pyo3",
- "semver",
- "serde",
- "serde_json",
- "velopack",
-]
-
-[[package]]
 name = "velopack_bins"
 version = "0.0.1"
 dependencies = [
@@ -2465,6 +2454,14 @@ dependencies = [
  "serde_json",
  "simplelog",
  "ts-rs",
+ "velopack",
+]
+
+[[package]]
+name = "velopack_python"
+version = "0.0.1"
+dependencies = [
+ "pyo3",
  "velopack",
 ]
 

@@ -1,5 +1,5 @@
 [package]
-name = "velopack-python"
+name = "velopack_python"
 version.workspace = true
 authors.workspace = true
 homepage.workspace = true
@@ -11,14 +11,9 @@ edition.workspace = true
 rust-version.workspace = true
 
 [lib]
-name = "velopack"
+name = "velopack_python"
 crate-type = ["cdylib"]
 
-
 [dependencies]
-velopack = { path = "../lib-rust" }
-pyo3 = { version = "0.25.0", features = ["extension-module", "macros"] }
-serde = { workspace = true }
-serde_json = { workspace = true }
-semver = { workspace = true }
-
+velopack.workspace = true
+pyo3.workspace = true
