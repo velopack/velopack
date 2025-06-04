@@ -85,8 +85,7 @@ impl VelopackAppWrapper {
     /// Runs the Velopack startup logic
     pub fn run(&mut self, _py: Python) -> PyResult<()> {
         // Create the Rust VelopackApp with our stored configuration
-        let mut app = VelopackAppRust::build()
-            .set_auto_apply_on_startup(self.auto_apply);
+        let mut app = VelopackAppRust::build().set_auto_apply_on_startup(self.auto_apply);
 
         // Set args if provided
         if let Some(ref args) = self.args {
@@ -175,4 +174,3 @@ impl VelopackAppWrapper {
         Ok(())
     }
 }
-
