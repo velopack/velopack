@@ -5,8 +5,8 @@ var scriptsDir = Assembly.GetEntryAssembly()!
     .GetCustomAttributes<AssemblyMetadataAttribute>()
     .Single(x => x.Key == "SelfDir").Value!;
 
-var librustDir = Path.Combine(scriptsDir, "..", "..", "lib-rust", "src");
-var libcppDir = Path.Combine(scriptsDir, "..");
+var librustDir = Path.Combine(scriptsDir, "..", "lib-rust", "src");
+var libcppDir = Path.Combine(scriptsDir, "..", "lib-cpp");
 var templatesDir = Path.Combine(scriptsDir, "Templates");
 var files = Directory.EnumerateFiles(librustDir, "*.rs", SearchOption.AllDirectories);
 
