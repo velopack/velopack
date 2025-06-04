@@ -4,9 +4,6 @@ use pyo3::types::PyModule;
 mod types;
 use types::*;
 
-mod exceptions;
-use exceptions::VelopackError;
-
 mod app;
 use app::VelopackAppWrapper;
 
@@ -15,8 +12,8 @@ use manager::UpdateManagerWrapper;
 
 #[pymodule]
 fn velopack(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<VelopackError>()?;
-
+    pyo3_log::init();
+    
     // auto-generated DTO's
     m.add_class::<PyVelopackAsset>()?;
     m.add_class::<PyUpdateInfo>()?;

@@ -87,7 +87,9 @@ walkdir = "2.5"
 rayon = "1.6"
 progress-streams = "1.1"
 flate2 = { version = "1.0", default-features = false }
-pyo3 = { version = "0.25.0", features = ["extension-module", "macros"] }
+pyo3 = { version = "0.25.0", features = ["extension-module", "macros", "abi3", "abi3-py37", "anyhow"] }
+pyo3-build-config = "0.25.0"
+pyo3-log = "0.12.4"
 # mtzip = "=4.0.2"
 # ripunzip = "=2.0.1"
 # zerofrom = "=0.1.5"
