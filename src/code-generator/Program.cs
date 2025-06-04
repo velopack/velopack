@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using HandlebarsDotNet;
 
 var scriptsDir = Assembly.GetEntryAssembly()!
@@ -62,12 +62,8 @@ var types = new List<TypeMap>() {
     TypeMap.Primitive("u64", "uint64_t"),
 }.ToDictionary(v => v.rustType, v => v);
 
-var handlebarData = availableStructs.Select(s => new RustStruct_Struct {
-    rust_comment = s.DocComment.ToRustComment(),
-    cpp_comment = s.DocComment.ToCppComment(),
-    struct_rust_name = s.Name,
-    struct_c_name = types[s.Name].interopType,
-    fields = s.Fields.Select(f => {
+var handlebarData = availableStructs.Select(s => {
+    var fields = s.Fields.Select(f => {
         var isString = types[f.Type].rustType == "PathBuf" || types[f.Type].rustType == "String";
         var field = new RustStruct_Field {
             rust_comment = f.DocComment.ToRustComment(),
@@ -83,7 +79,22 @@ var handlebarData = availableStructs.Select(s => new RustStruct_Struct {
             field_normal = !f.Vec && !types[f.Type].primitive,
         };
         return field;
-    }).ToArray(),
+    }).ToArray();
+
+    var opt_ordered_fields = fields
+        .Where(f => !f.field_optional)
+        .Concat(fields.Where(f => f.field_optional))
+        .ToArray();
+
+    var stru = new RustStruct_Struct {
+        rust_comment = s.DocComment.ToRustComment(),
+        cpp_comment = s.DocComment.ToCppComment(),
+        struct_rust_name = s.Name,
+        struct_c_name = types[s.Name].interopType,
+        fields = fields,
+        opt_ordered_fields = opt_ordered_fields,
+    };
+    return stru;
 }).ToArray();
 
 string rustTypes = Path.Combine(libcppDir, "src", "types.rs");
@@ -99,7 +110,7 @@ Util.ReplaceTextInFile(rustTypes, "RUST_TYPES", rustCTypes.ToString().ReplaceLin
 Util.ReplaceTextInFile(rustCppInclude, "CPP_TYPES", cppTypes.ToString().ReplaceLineEndings("\n"));
 
 // --- Python asset.rs generation ---
-string pythonAssetRs = Path.Combine(scriptsDir, "..", "lib-python", "src", "asset.rs");
+string pythonAssetRs = Path.Combine(scriptsDir, "..", "lib-python", "src", "types.rs");
 var pythonAssetTemplate = Handlebars.Compile(File.ReadAllText(Path.Combine(templatesDir, "python_asset.hbs")));
 var pythonAsset = pythonAssetTemplate(handlebarData);
 File.WriteAllText(pythonAssetRs, pythonAsset.ToString().ReplaceLineEndings("\n"));
@@ -159,6 +170,7 @@ class RustStruct_Struct
     public string rust_comment;
     public string cpp_comment;
     public RustStruct_Field[] fields;
+    public RustStruct_Field[] opt_ordered_fields;
 }
 
 class RustStruct_Field

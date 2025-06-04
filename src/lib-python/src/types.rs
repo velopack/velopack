@@ -7,12 +7,41 @@ use std::path::PathBuf;
 #[pyclass(name = "VelopackLocatorConfig")]
 #[derive(Debug, Clone, Default)]
 pub struct PyVelopackLocatorConfig {
+    #[pyo3(get, set)]
     pub RootAppDir: PathBuf,
+    #[pyo3(get, set)]
     pub UpdateExePath: PathBuf,
+    #[pyo3(get, set)]
     pub PackagesDir: PathBuf,
+    #[pyo3(get, set)]
     pub ManifestPath: PathBuf,
+    #[pyo3(get, set)]
     pub CurrentBinaryDir: PathBuf,
+    #[pyo3(get, set)]
     pub IsPortable: bool,
+}
+
+#[pymethods]
+impl PyVelopackLocatorConfig {
+    #[new]
+    #[pyo3(signature = (RootAppDir, UpdateExePath, PackagesDir, ManifestPath, CurrentBinaryDir, IsPortable))]
+    fn new(
+        RootAppDir: PathBuf,
+        UpdateExePath: PathBuf,
+        PackagesDir: PathBuf,
+        ManifestPath: PathBuf,
+        CurrentBinaryDir: PathBuf,
+        IsPortable: bool,
+        ) -> Self {
+        Self {
+            RootAppDir: RootAppDir.into(),
+            UpdateExePath: UpdateExePath.into(),
+            PackagesDir: PackagesDir.into(),
+            ManifestPath: ManifestPath.into(),
+            CurrentBinaryDir: CurrentBinaryDir.into(),
+            IsPortable: IsPortable,
+        }
+    }
 }
 
 impl From<VelopackLocatorConfig> for PyVelopackLocatorConfig {
@@ -44,15 +73,53 @@ impl Into<VelopackLocatorConfig> for PyVelopackLocatorConfig {
 #[pyclass(name = "VelopackAsset")]
 #[derive(Debug, Clone, Default)]
 pub struct PyVelopackAsset {
+    #[pyo3(get, set)]
     pub PackageId: String,
+    #[pyo3(get, set)]
     pub Version: String,
+    #[pyo3(get, set)]
     pub Type: String,
+    #[pyo3(get, set)]
     pub FileName: String,
+    #[pyo3(get, set)]
     pub SHA1: String,
+    #[pyo3(get, set)]
     pub SHA256: String,
+    #[pyo3(get, set)]
     pub Size: u64,
+    #[pyo3(get, set)]
     pub NotesMarkdown: String,
+    #[pyo3(get, set)]
     pub NotesHtml: String,
+}
+
+#[pymethods]
+impl PyVelopackAsset {
+    #[new]
+    #[pyo3(signature = (PackageId, Version, Type, FileName, SHA1, SHA256, Size, NotesMarkdown, NotesHtml))]
+    fn new(
+        PackageId: String,
+        Version: String,
+        Type: String,
+        FileName: String,
+        SHA1: String,
+        SHA256: String,
+        Size: u64,
+        NotesMarkdown: String,
+        NotesHtml: String,
+        ) -> Self {
+        Self {
+            PackageId: PackageId.into(),
+            Version: Version.into(),
+            Type: Type.into(),
+            FileName: FileName.into(),
+            SHA1: SHA1.into(),
+            SHA256: SHA256.into(),
+            Size: Size,
+            NotesMarkdown: NotesMarkdown.into(),
+            NotesHtml: NotesHtml.into(),
+        }
+    }
 }
 
 impl From<VelopackAsset> for PyVelopackAsset {
@@ -90,10 +157,33 @@ impl Into<VelopackAsset> for PyVelopackAsset {
 #[pyclass(name = "UpdateInfo")]
 #[derive(Debug, Clone, Default)]
 pub struct PyUpdateInfo {
+    #[pyo3(get, set)]
     pub TargetFullRelease: PyVelopackAsset,
+    #[pyo3(get, set)]
     pub BaseRelease: Option<PyVelopackAsset>,
+    #[pyo3(get, set)]
     pub DeltasToTarget: Vec<PyVelopackAsset>,
+    #[pyo3(get, set)]
     pub IsDowngrade: bool,
+}
+
+#[pymethods]
+impl PyUpdateInfo {
+    #[new]
+    #[pyo3(signature = (TargetFullRelease, DeltasToTarget, IsDowngrade, BaseRelease = None))]
+    fn new(
+        TargetFullRelease: PyVelopackAsset,
+        DeltasToTarget: Vec<PyVelopackAsset>,
+        IsDowngrade: bool,
+        BaseRelease: Option<PyVelopackAsset>,
+        ) -> Self {
+        Self {
+            TargetFullRelease: TargetFullRelease.into(),
+            BaseRelease: BaseRelease.map(Into::into),
+            DeltasToTarget: DeltasToTarget.into_iter().map(Into::into).collect(),
+            IsDowngrade: IsDowngrade,
+        }
+    }
 }
 
 impl From<UpdateInfo> for PyUpdateInfo {
@@ -121,9 +211,29 @@ impl Into<UpdateInfo> for PyUpdateInfo {
 #[pyclass(name = "UpdateOptions")]
 #[derive(Debug, Clone, Default)]
 pub struct PyUpdateOptions {
+    #[pyo3(get, set)]
     pub AllowVersionDowngrade: bool,
+    #[pyo3(get, set)]
     pub ExplicitChannel: Option<String>,
+    #[pyo3(get, set)]
     pub MaximumDeltasBeforeFallback: i32,
+}
+
+#[pymethods]
+impl PyUpdateOptions {
+    #[new]
+    #[pyo3(signature = (AllowVersionDowngrade, MaximumDeltasBeforeFallback, ExplicitChannel = None))]
+    fn new(
+        AllowVersionDowngrade: bool,
+        MaximumDeltasBeforeFallback: i32,
+        ExplicitChannel: Option<String>,
+        ) -> Self {
+        Self {
+            AllowVersionDowngrade: AllowVersionDowngrade,
+            ExplicitChannel: ExplicitChannel.map(Into::into),
+            MaximumDeltasBeforeFallback: MaximumDeltasBeforeFallback,
+        }
+    }
 }
 
 impl From<UpdateOptions> for PyUpdateOptions {
