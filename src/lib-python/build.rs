@@ -3,6 +3,8 @@ use std::fs;
 use std::path::Path;
 
 fn main() {
+    pyo3_build_config::add_extension_module_link_args();
+
     // Get the workspace version
     let version = get_workspace_version().unwrap_or_else(|| env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "0.1.0".to_string()));
 

@@ -15,5 +15,10 @@ name = "velopack_python"
 crate-type = ["cdylib"]
 
 [dependencies]
+anyhow.workspace = true
 velopack.workspace = true
 pyo3.workspace = true
+pyo3-log.workspace = true
+
+[build-dependencies]
+pyo3-build-config.workspace = true
