@@ -1,5 +1,5 @@
-use pyo3::prelude::*;
 use pyo3::exceptions::PyException;
+use pyo3::prelude::*;
 
 #[pyclass(name="VelopackError", extends=PyException, module="velopack.exceptions")]
 #[derive(Debug)]
@@ -18,4 +18,3 @@ impl VelopackError {
         self.message.clone()
     }
 }
-
