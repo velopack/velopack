@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::types::PyFunction;
+use pyo3::types::PyCFunction;
 
 use velopack::VelopackApp as VelopackAppRust;
 
@@ -7,12 +7,12 @@ use velopack::VelopackApp as VelopackAppRust;
 #[pyclass(name = "App")]
 pub struct VelopackAppWrapper {
     // We'll store the callbacks as Python objects
-    install_hook: Option<Py<PyFunction>>,
-    update_hook: Option<Py<PyFunction>>,
-    obsolete_hook: Option<Py<PyFunction>>,
-    uninstall_hook: Option<Py<PyFunction>>,
-    firstrun_hook: Option<Py<PyFunction>>,
-    restarted_hook: Option<Py<PyFunction>>,
+    install_hook: Option<Py<PyCFunction>>,
+    update_hook: Option<Py<PyCFunction>>,
+    obsolete_hook: Option<Py<PyCFunction>>,
+    uninstall_hook: Option<Py<PyCFunction>>,
+    firstrun_hook: Option<Py<PyCFunction>>,
+    restarted_hook: Option<Py<PyCFunction>>,
     auto_apply: bool,
     args: Option<Vec<String>>,
 }
@@ -47,37 +47,37 @@ impl VelopackAppWrapper {
     }
 
     /// This hook is triggered when the application is started for the first time after installation
-    pub fn on_first_run(mut slf: PyRefMut<Self>, callback: Py<PyFunction>) -> PyRefMut<Self> {
+    pub fn on_first_run(mut slf: PyRefMut<Self>, callback: Py<PyCFunction>) -> PyRefMut<Self> {
         slf.firstrun_hook = Some(callback);
         slf
     }
 
     /// This hook is triggered when the application is restarted by Velopack after installing updates
-    pub fn on_restarted(mut slf: PyRefMut<Self>, callback: Py<PyFunction>) -> PyRefMut<Self> {
+    pub fn on_restarted(mut slf: PyRefMut<Self>, callback: Py<PyCFunction>) -> PyRefMut<Self> {
         slf.restarted_hook = Some(callback);
         slf
     }
 
     /// Fast callback hook for after installation (Windows only)
-    pub fn on_after_install_fast_callback(mut slf: PyRefMut<Self>, callback: Py<PyFunction>) -> PyRefMut<Self> {
+    pub fn on_after_install_fast_callback(mut slf: PyRefMut<Self>, callback: Py<PyCFunction>) -> PyRefMut<Self> {
         slf.install_hook = Some(callback);
         slf
     }
 
     /// Fast callback hook for after update (Windows only)  
-    pub fn on_after_update_fast_callback(mut slf: PyRefMut<Self>, callback: Py<PyFunction>) -> PyRefMut<Self> {
+    pub fn on_after_update_fast_callback(mut slf: PyRefMut<Self>, callback: Py<PyCFunction>) -> PyRefMut<Self> {
         slf.update_hook = Some(callback);
         slf
     }
 
     /// Fast callback hook for before update (Windows only)
-    pub fn on_before_update_fast_callback(mut slf: PyRefMut<Self>, callback: Py<PyFunction>) -> PyRefMut<Self> {
+    pub fn on_before_update_fast_callback(mut slf: PyRefMut<Self>, callback: Py<PyCFunction>) -> PyRefMut<Self> {
         slf.obsolete_hook = Some(callback);
         slf
     }
 
     /// Fast callback hook for before uninstall (Windows only)
-    pub fn on_before_uninstall_fast_callback(mut slf: PyRefMut<Self>, callback: Py<PyFunction>) -> PyRefMut<Self> {
+    pub fn on_before_uninstall_fast_callback(mut slf: PyRefMut<Self>, callback: Py<PyCFunction>) -> PyRefMut<Self> {
         slf.uninstall_hook = Some(callback);
         slf
     }
