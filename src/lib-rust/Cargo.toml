@@ -17,7 +17,7 @@ rust-version.workspace = true
 default = []
 async = ["async-std"]
 typescript = ["ts-rs"]
-file-logging = ["log-panics", "simplelog", "file-rotate", "time"]
+file-logging = ["log-panics", "simplelog", "time"]
 
 [package.metadata.docs.rs]
 features = ["async"]
@@ -59,7 +59,6 @@ async-std = { workspace = true, optional = true }
 # file logging
 log-panics = { workspace = true, optional = true }
 simplelog = { workspace = true, optional = true }
-file-rotate = { workspace = true, optional = true }
 time = { workspace = true, optional = true }
 
 [target.'cfg(windows)'.dependencies]

@@ -96,12 +96,9 @@ pub fn init_logging(
 
     if let Some(f) = file {
         let file_level = if verbose { LevelFilter::Trace } else { LevelFilter::Info };
-        let writer = file_rotate::FileRotate::new(
+        let writer = super::file_rotate::FileRotate::new(
             f.clone(),
-            file_rotate::suffix::AppendCount::new(1),          // keep 1 old log file
-            file_rotate::ContentLimit::Bytes(1 * 1024 * 1024), // 1MB max log file size
-            file_rotate::compression::Compression::None,
-            None,
+            1 * 1024 * 1024, // 1MB max log file size
         );
         loggers.push(WriteLogger::new(file_level, get_config(Some(process_name)), writer));
     }

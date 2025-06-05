@@ -16,7 +16,7 @@ namespace Velopack.Logging
         public FileVelopackLogger(string filePath, uint processId)
         {
             ProcessId = processId;
-            _fileStream = new FileStream(filePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+            _fileStream = new FileStream(filePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
             _writer = new StreamWriter(_fileStream);
         }
 
