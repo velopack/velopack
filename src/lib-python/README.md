@@ -17,4 +17,5 @@
  - `uv run python run_test.py`
 
  # Building / Publishing
- todo
+ 
+ - uv build
