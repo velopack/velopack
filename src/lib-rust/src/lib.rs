@@ -82,6 +82,9 @@ mod app;
 mod manager;
 mod util;
 
+// #[cfg(feature = "file-logging")]
+mod file_rotate;
+
 /// Utility functions for loading and working with Velopack bundles and manifests.
 pub mod bundle;
 

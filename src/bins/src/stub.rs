@@ -5,21 +5,17 @@
 extern crate log;
 
 use std::{
-    env,
     os::windows::process::CommandExt,
     process::{Command as Process, ExitCode},
 };
+use velopack::locator::LocationContext;
+use velopack::logging;
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 
 fn main() -> ExitCode {
     let my_path = std::env::current_exe().unwrap();
-    let default_log_file = {
-        let mut my_dir = env::current_exe().unwrap();
-        my_dir.pop();
-        my_dir.join("Velopack.log")
-    };
-
-    let _ = velopack::logging::init_logging("stub", Some(&default_log_file), false, false, None);
+    let default_log_file = logging::default_logfile_path(LocationContext::IAmUpdateExe);
+    let _ = logging::init_logging("stub", Some(&default_log_file), false, false, None);
 
     info!("--");
     info!("Starting Velopack Stub (at {:?})", my_path);

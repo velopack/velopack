@@ -51,7 +51,6 @@ clap = "4.5"
 chrono = "0.4"
 wait-timeout = "0.2"
 strum = { version = "0.27", features = ["derive"] }
-file-rotate = "0.8"
 simple-stopwatch = "0.1"
 enum-flags = "0.4"
 remove_dir_all = "1.0"
