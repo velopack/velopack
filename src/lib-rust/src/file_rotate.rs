@@ -144,6 +144,7 @@ Line 28: Hello World!
     assert_eq!(content.trim(), expected.trim());
 }
 
+#[cfg(windows)]
 #[test]
 fn test_file_rotate_case_insensitive() {
     let tmpdir = tempfile::tempdir().unwrap();
