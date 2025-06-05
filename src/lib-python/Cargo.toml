@@ -1,0 +1,24 @@
+[package]
+name = "velopack_python"
+version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "velopack"
+crate-type = ["cdylib"]
+
+[dependencies]
+anyhow.workspace = true
+velopack.workspace = true
+pyo3.workspace = true
+pyo3-log.workspace = true
+
+[build-dependencies]
+pyo3-build-config.workspace = true
