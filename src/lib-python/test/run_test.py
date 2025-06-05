@@ -60,6 +60,8 @@ def extract_full_path(zip_file, target_dir):
 if platform.system() != "Windows":
     raise RuntimeError("This script is intended to run on Windows only, for now")
 
+_pyinstaller_command = ["uv", "run", "pyinstaller", "--onedir", "--console", "app.py", "--noconfirm"]
+
 # check if we are running from the test dir
 if Path(__file__).parent.name != "test":
     raise RuntimeError("This script must be run from the 'test' directory")
@@ -69,7 +71,7 @@ _run_cmd(["vpk", "-h"])
 
 write_app_version("1.0.0")
 
-_run_cmd(["uv", "run", "pyinstaller", "app.spec", "-y"])
+_run_cmd(_pyinstaller_command)
 
 # make app version
 _run_cmd(["vpk", "pack", "--packId", "test-app", "--packVersion", "1.0.0", "--packDir", "dist/app/", "--mainExe", "app.exe"])
@@ -96,7 +98,7 @@ if current_version.strip() != "1.0.0":
 log("App version is correct: 1.0.0")
 log("Trying to create update package...")
 write_app_version("1.0.1")
-_run_cmd(["uv", "run", "pyinstaller", "app.spec", "-y"])
+_run_cmd(_pyinstaller_command)
 _run_cmd(["vpk", "pack", "--packId", "test-app", "--packVersion", "1.0.1", "--packDir", "dist/app/", "--mainExe", "app.exe"])
 # check if the app version is correct
 _run_cmd(["output/test-app.exe"])
