@@ -37,7 +37,7 @@ namespace Velopack.Sources
         /// <summary>
         /// The Bearer or other type of Authorization header used to authenticate against the Api.
         /// </summary>
-        protected abstract (string Name, string Value) Authorization { get; }
+        protected abstract (string Name, string Value)? Authorization { get; }
 
         /// <summary>
         /// Base constructor.
@@ -51,17 +51,18 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc />
-        public virtual Task DownloadReleaseEntry(IVelopackLogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress, CancellationToken cancelToken)
+        public virtual Task DownloadReleaseEntry(IVelopackLogger logger, VelopackAsset releaseEntry, string localFile, Action<int> progress,
+            CancellationToken cancelToken)
         {
             if (releaseEntry is GitBaseAsset githubEntry) {
                 // this might be a browser url or an api url (depending on whether we have a AccessToken or not)
                 // https://docs.github.com/en/rest/reference/releases#get-a-release-asset
                 var assetUrl = GetAssetUrlFromName(githubEntry.Release, releaseEntry.FileName);
-                return Downloader.DownloadFile(assetUrl, localFile, progress,
-                   new Dictionary<string, string> {
-                            [Authorization.Name] = Authorization.Value,
-                            ["Accept"] = "application/octet-stream"
-                        },
+                return Downloader.DownloadFile(
+                    assetUrl,
+                    localFile,
+                    progress,
+                    GetRequestHeaders("application/octet-stream"),
                     cancelToken: cancelToken);
             }
 
@@ -91,11 +92,10 @@ namespace Velopack.Sources
                     logger.Trace(ex.ToString());
                     continue;
                 }
-                var releaseBytes = await Downloader.DownloadBytes(assetUrl,                    
-                    new Dictionary<string, string> {
-                        [Authorization.Name] = Authorization.Value,
-                        ["Accept"] = "application/octet-stream"
-                    }
+
+                var releaseBytes = await Downloader.DownloadBytes(
+                    assetUrl,
+                    GetRequestHeaders("application/octet-stream")
                 ).ConfigureAwait(false);
                 var txt = CoreUtil.RemoveByteOrderMarkerIfPresent(releaseBytes);
                 var feed = VelopackAssetFeed.FromJson(txt);
@@ -121,6 +121,24 @@ namespace Velopack.Sources
         /// or not. Throws if the specified release has no matching assets.
         /// </summary>
         protected abstract string GetAssetUrlFromName(T release, string assetName);
+
+
+        /// <summary>
+        /// Constructs a dictionary containing HTTP request headers.
+        /// </summary>
+        /// <param name="accept">The value for the "Accept" header; defaults to "application/json".</param>
+        /// <returns>A dictionary of headers including "Accept" and, if available, authorization headers.</returns>
+        protected virtual Dictionary<string, string> GetRequestHeaders(string accept = "application/json")
+        {
+            var headers = new Dictionary<string, string> {
+                ["Accept"] = accept,
+            };
+            if (Authorization.HasValue) {
+                headers.Add(Authorization.Value.Name, Authorization.Value.Value);
+            }
+
+            return headers;
+        }
 
         /// <summary>
         /// Provides a wrapper around <see cref="VelopackAsset"/> which also contains a Git Release.

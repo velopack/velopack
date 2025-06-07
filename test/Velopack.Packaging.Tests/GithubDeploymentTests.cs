@@ -20,6 +20,26 @@ public class GithubDeploymentTests
         _output = output;
     }
 
+    [Fact(Skip = "Need to create a repo to test with")]
+    public async Task TestUnauthenticatedDownload()
+    {
+        using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+
+        var repo = new GitHubRepository(logger);
+        var options = new GitHubDownloadOptions {
+            TargetOs = RuntimeOs.Linux,
+            Channel = "linux-x64",
+            ReleaseDir = new DirectoryInfo(releaseDir),
+            Timeout = 60,
+            Prerelease = false,
+            RepoUrl = "TODO",
+            Token = null,
+        };
+
+        await repo.DownloadLatestFullPackageAsync(options);
+    }
+
     [SkippableFact]
     public void WillRefuseToUploadMultipleWithoutMergeArg()
     {

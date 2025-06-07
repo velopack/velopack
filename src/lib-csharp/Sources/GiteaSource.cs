@@ -83,7 +83,8 @@ namespace Velopack.Sources
         }
         
         /// <inheritdoc cref="Authorization"/>
-        protected override (string Name, string Value) Authorization => ("Authorization", $"token {AccessToken}");
+        protected override (string Name, string Value)? Authorization => 
+            string.IsNullOrEmpty(AccessToken) ? null : ("Authorization", $"token {AccessToken}");
 
         /// <inheritdoc />
         protected override async Task<GiteaRelease[]> GetReleases(bool includePrereleases)
@@ -96,14 +97,9 @@ namespace Velopack.Sources
             var releasesPath = $"repos{RepoUri.AbsolutePath}/releases?limit={perPage}&page={page}&draft=false";
             var baseUri = GetApiBaseUrl(RepoUri);
             var getReleasesUri = new Uri(baseUri, releasesPath);
-            var response = await Downloader.DownloadString(getReleasesUri.ToString(),                    
-                new Dictionary<string, string> {
-                    [Authorization.Name] = Authorization.Value,
-                    ["Accept"] = "application/json"
-                }
-            ).ConfigureAwait(false);
+            var response = await Downloader.DownloadString(getReleasesUri.ToString(), GetRequestHeaders()).ConfigureAwait(false);
             var releases = CompiledJson.DeserializeGiteaReleaseList(response);
-            if (releases == null) return new GiteaRelease[0];
+            if (releases == null) return Array.Empty<GiteaRelease>();
             return releases.OrderByDescending(d => d.PublishedAt).Where(x => includePrereleases || !x.Prerelease).ToArray();
         }
 

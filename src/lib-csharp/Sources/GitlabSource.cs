@@ -100,7 +100,8 @@ namespace Velopack.Sources
     public class GitlabSource : GitBase<GitlabRelease>
     {
         /// <inheritdoc cref="Authorization"/>
-        protected override (string Name, string Value) Authorization => ("PRIVATE-TOKEN", AccessToken ?? string.Empty);
+        protected override (string Name, string Value)? Authorization => 
+            string.IsNullOrEmpty(AccessToken) ? null : ("PRIVATE-TOKEN", AccessToken ?? string.Empty);
         
         /// <inheritdoc cref="GitlabSource" />
         /// <param name="repoUrl">
@@ -159,11 +160,7 @@ namespace Velopack.Sources
             // https://docs.gitlab.com/ee/api/releases/
             var releasesPath = $"releases?per_page={perPage}&page={page}";
             var getReleasesUri = CombineUri(RepoUri, releasesPath);
-            var response = await Downloader.DownloadString(getReleasesUri.ToString(),
-                new Dictionary<string, string> {
-                    [Authorization.Name] = Authorization.Value,
-                    ["Accept"] = "application/json"
-                }).ConfigureAwait(false);
+            var response = await Downloader.DownloadString(getReleasesUri.ToString(), GetRequestHeaders()).ConfigureAwait(false);
             var releases = CompiledJson.DeserializeGitlabReleaseList(response);
             if (releases == null) return Array.Empty<GitlabRelease>();
             return releases.OrderByDescending(d => d.ReleasedAt).Where(x => includePrereleases || !x.UpcomingRelease).ToArray();
