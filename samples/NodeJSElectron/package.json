@@ -21,15 +21,15 @@
     "@electron-forge/plugin-fuses": "^7.5.0",
     "@electron-forge/plugin-webpack": "^7.5.0",
     "@electron/fuses": "^1.8.0",
-    "@vercel/webpack-asset-relocator-loader": "=1.7.3",
+    "@vercel/webpack-asset-relocator-loader": "=1.7.4",
     "css-loader": "^7.0.0",
-    "electron": "36.2.0",
+    "electron": "36.4.0",
     "fork-ts-checker-webpack-plugin": "^9.0.0",
     "node-loader": "^2.0.0",
     "style-loader": "^4.0.0",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "typescript": "~5.8.0",
-    "velopack": "^0.0.1053"
+    "velopack": "^0.0.1298"
   }
 }
