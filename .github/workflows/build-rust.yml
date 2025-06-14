@@ -3,11 +3,14 @@ on:
   workflow_call:
 
 jobs:
-  build-rust-windows:
+  windows:
     runs-on: windows-latest
     env:
       RUSTFLAGS: -C target-feature=+crt-static
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/job-setup
       - uses: Swatinem/rust-cache@v2
         with:
@@ -60,9 +63,12 @@ jobs:
       #   uses: andymckay/cancel-action@0.5
       #   if: ${{ failure() }}
 
-  build-rust-linux:
+  linux:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/job-setup
       - name: Install Dependencies
         run: |
@@ -119,9 +125,12 @@ jobs:
         uses: andymckay/cancel-action@0.5
         if: ${{ failure() }}
 
-  build-rust-macos:
+  macos:
     runs-on: macos-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/job-setup
       - uses: Swatinem/rust-cache@v2
         with:

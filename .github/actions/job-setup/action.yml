@@ -13,9 +13,6 @@ runs:
     - name: Print dotnet version
       shell: pwsh
       run: dotnet --info
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
     - name: Install NBGV CLI
       shell: pwsh
       run: dotnet tool update -g nbgv

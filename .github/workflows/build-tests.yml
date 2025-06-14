@@ -55,18 +55,10 @@ jobs:
       VELOPACK_B2_TEST_TOKEN: ${{ secrets.VELOPACK_B2_TEST_TOKEN }}
       VELOPACK_AZ_TEST_TOKEN: ${{ secrets.VELOPACK_AZ_TEST_TOKEN }}
     steps:
-      - name: Setup dotnet
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: |
-            6.0.x
-            8.0.x
-            9.0.x
-      - name: Print dotnet version
-        run: dotnet --info
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: ./.github/actions/job-setup
       - name: Install FUSE
         run: |
           sudo add-apt-repository universe
@@ -80,7 +72,7 @@ jobs:
         run: dotnet tool install -g dotnet-coverage
       - name: Build .NET
         run: dotnet build -c Release
-      - uses: caesay/wait-artifact-action@494939e840383463b1686ce3624a8aab059c2c8b
+      - uses: ./.github/actions/wait-artifact
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           max_wait_seconds: 900
@@ -114,7 +106,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           directory: ./test
-      - uses: caesay/wait-artifact-action@494939e840383463b1686ce3624a8aab059c2c8b
+      - uses: ./.github/actions/wait-artifact
         if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
