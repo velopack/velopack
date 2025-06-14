@@ -1,7 +1,8 @@
 [project]
-dynamic = ["version", "description", "authors", "license"]
+dynamic = ["description", "authors", "license"]
 name = "velopack"
 requires-python = ">=3.8"
+version = "0.0.1"
 
 [build-system]
 requires = ["maturin>=1.0,<2.0"]
