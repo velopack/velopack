@@ -9,7 +9,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: ./.github/actions/job-setup
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
+        with:
+          update-dotnet: true
       - name: Download Rust Artifacts
         uses: actions/download-artifact@v4
         with:

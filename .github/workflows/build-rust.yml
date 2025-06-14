@@ -11,10 +11,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: ./.github/actions/job-setup
-      - uses: Swatinem/rust-cache@v2
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
         with:
-          key: "rust-build-windows"
+          rust-cache: true
       - name: Install Dependencies
         run: |
           rustup target add aarch64-pc-windows-msvc --toolchain nightly-x86_64-pc-windows-msvc
@@ -69,7 +69,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: ./.github/actions/job-setup
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
       - name: Install Dependencies
         run: |
           curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
@@ -131,10 +132,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: ./.github/actions/job-setup
-      - uses: Swatinem/rust-cache@v2
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
         with:
-          key: "rust-build-macos"
+          rust-cache: true
       - name: Install Dependencies
         run: |
           rustup target add x86_64-apple-darwin 
