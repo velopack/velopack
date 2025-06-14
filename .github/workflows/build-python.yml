@@ -6,13 +6,14 @@ jobs:
   linux:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
+      fail-fast: false
       matrix:
         platform:
           - runner: ubuntu-22.04
             target: x86_64
           - runner: ubuntu-22.04
             target: x86
-          - runner: ubuntu-22.04
+          - runner: ubuntu-22.04-arm
             target: aarch64
           - runner: ubuntu-22.04
             target: armv7
@@ -21,10 +22,16 @@ jobs:
           - runner: ubuntu-22.04
             target: ppc64le
     steps:
+      - name: Install Dependencies
+        if: ${{ matrix.platform.runner == 'ubuntu-22.04-arm' }}
+        run: |
+          sudo apt update
+          sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: ./.github/actions/job-setup
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
@@ -53,6 +60,7 @@ jobs:
   musllinux:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
+      fail-fast: false
       matrix:
         platform:
           - runner: ubuntu-22.04
@@ -67,7 +75,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: ./.github/actions/job-setup
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
@@ -96,33 +105,42 @@ jobs:
   windows:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
+      fail-fast: false
       matrix:
         platform:
           - runner: windows-latest
             target: x64
+            rust_target: x86_64-pc-windows-msvc
           - runner: windows-latest
             target: x86
+            rust_target: i686-pc-windows-msvc
+          - runner: windows-11-arm
+            target: arm64
+            rust_target: aarch64-pc-windows-msvc
     steps:
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        if: ${{ matrix.platform.runner == 'windows-11-arm' }}
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: ./.github/actions/job-setup
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.x
+          python-version: 3.13t
           architecture: ${{ matrix.platform.target }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           working-directory: src/lib-python
-          target: ${{ matrix.platform.target }}
+          target: ${{ matrix.platform.rust_target }}
           args: --release --out dist
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
       - name: Build free-threaded wheels
         uses: PyO3/maturin-action@v1
         with:
           working-directory: src/lib-python
-          target: ${{ matrix.platform.target }}
+          target: ${{ matrix.platform.rust_target }}
           args: --release --out dist -i python3.13t
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
       - name: Upload wheels
@@ -134,6 +152,7 @@ jobs:
   macos:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
+      fail-fast: false
       matrix:
         platform:
           - runner: macos-13
@@ -144,7 +163,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: ./.github/actions/job-setup
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
@@ -174,7 +194,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: ./.github/actions/job-setup
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
       - name: Build sdist
         uses: PyO3/maturin-action@v1
         with:

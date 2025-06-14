@@ -11,7 +11,7 @@ env:
   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
 jobs:
-  test-bins:
+  rust:
     strategy:
       fail-fast: false
       matrix:
@@ -24,19 +24,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: "rust-test-${{ matrix.os }}"
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Check lib-rust
         run: cargo check -p velopack -F async
-      - name: Check lib-nodejs
-        working-directory: src/lib-nodejs
-        run: |
-          npm install
-          npm run build
-          npm run test
       - name: Test Rust
         run: cargo llvm-cov ${{ matrix.rust_flags }} --cobertura --output-path ./test/coverage.rust.${{ matrix.os }}.xml
       - name: Upload Coverage
@@ -44,8 +37,28 @@ jobs:
         with:
           files: ./test/coverage.rust.${{ matrix.os }}.xml
 
-  test-vpk:
+  nodejs:
     strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
+      - name: Check lib-nodejs
+        working-directory: src/lib-nodejs
+        run: |
+          npm install
+          npm run build
+          npm run test
+
+  vpk:
+    strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
@@ -58,7 +71,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: ./.github/actions/job-setup
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
+        with:
+          update-dotnet: true
       - name: Install FUSE
         run: |
           sudo add-apt-repository universe
