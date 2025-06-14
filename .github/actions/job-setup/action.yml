@@ -1,0 +1,27 @@
+name: "Setup Job Environment"
+description: "Installs dependencies like dotnet, rust, etc."
+runs:
+  using: "composite"
+  steps:
+    - name: Setup dotnet
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: |
+          6.0.x
+          8.0.x
+          9.0.x
+    - name: Print dotnet version
+      shell: pwsh
+      run: dotnet --info
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Install NBGV CLI
+      shell: pwsh
+      run: dotnet tool update -g nbgv
+    - uses: dotnet/nbgv@master
+      with:
+        setAllVars: true
+    - name: Update Project Version
+      shell: pwsh
+      run: ./.github/set-nbgv-version.ps1

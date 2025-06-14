@@ -1,0 +1,90 @@
+name: "Wait for Artifacts"
+description: "Wait for artifacts to be available before continuing"
+inputs:
+  artifacts:
+    description: "A list of artifact names to wait for"
+    required: true
+  token:
+    description: "GitHub token"
+    required: true
+  max_wait_seconds:
+    description: "Maximum number of seconds to wait for the artifact"
+    required: false
+    default: "300"
+  repository:
+    description: "The GitHub repository (e.g., owner/repo)"
+    required: false
+    default: ${{ github.repository }}
+  workflow_run_id:
+    description: "The workflow run ID"
+    required: false
+    default: ${{ github.run_id }}
+  verbose:
+    description: "Enable verbose logging"
+    required: false
+    default: "false"
+runs:
+  using: "composite"
+  steps:
+    - name: Wait for artifacts
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        # Parse the artifacts input
+        $artifactInput = '${{ inputs.artifacts }}'
+        $artifactNames = $artifactInput -split ',|;|`n'
+        $artifactNames = $artifactNames | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
+
+        # Get other inputs
+        $maxWaitSeconds = [int]"${{ inputs.max_wait_seconds }}"
+        $maxAttempts = [math]::Round($maxWaitSeconds / 10)
+        $sleepSeconds = 10
+        $attempt = 0
+        $workflowRunId = "${{ inputs.workflow_run_id }}"
+        $repository = "${{ inputs.repository }}"
+        $verbose = [bool]"${{ inputs.verbose }}"
+
+        $artifactsAvailable = @{}
+        foreach ($artifactName in $artifactNames) {
+          $artifactsAvailable[$artifactName.Trim()] = $false
+        }
+
+        # Verbose logging
+        if ($verbose) {
+          Write-Host "Parameters:"
+          Write-Host "  Artifacts: $artifactInput"
+          Write-Host "  Parsed Artifacts: $($artifactNames -join ', ')"
+          Write-Host "  Max Wait Seconds: $maxWaitSeconds"
+          Write-Host "  Max Attempts: $maxAttempts"
+          Write-Host "  Sleep Seconds: $sleepSeconds"
+          Write-Host "  Workflow Run ID: $workflowRunId"
+          Write-Host "  Repository: $repository"
+          Write-Host "  Verbose: $verbose"
+        }
+
+        Write-Host "Waiting for artifacts '$($artifactNames -join ', ')' to become available in workflow run $workflowRunId..."
+        while ($attempt -lt $maxAttempts -and $artifactsAvailable.Values -contains $false) {
+          $artifactsJson = gh api repos/$repository/actions/runs/$workflowRunId/artifacts
+          $artifacts = $artifactsJson | ConvertFrom-Json
+          
+          foreach ($artifactName in $artifactNames) {
+            if ($artifacts.artifacts | Where-Object { $_.name -eq $artifactName.Trim() }) {
+              $artifactsAvailable[$artifactName.Trim()] = $true
+            }
+          }
+          
+          $waitingFor = $artifactsAvailable.GetEnumerator() | Where-Object { $_.Value -eq $false } | ForEach-Object { $_.Key }
+          if ($waitingFor.Count -gt 0) {
+            Write-Host "Still waiting for: $($waitingFor -join ', '). Attempt $($attempt + 1)/$maxAttempts"
+            Start-Sleep -Seconds $sleepSeconds
+            $attempt++
+          }
+        }
+
+        if ($artifactsAvailable.Values -contains $false) {
+          Write-Host "Error: Not all artifacts became available in time."
+          exit 1
+        } else {
+          Write-Host "All artifacts are available, continuing..."
+        }
