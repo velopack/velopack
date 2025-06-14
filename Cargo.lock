@@ -2482,7 +2482,7 @@ dependencies = [
 
 [[package]]
 name = "velopack_python"
-version = "0.0.0-local"
+version = "0.0.0"
 dependencies = [
  "anyhow",
  "pyo3",
