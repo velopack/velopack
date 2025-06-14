@@ -6,24 +6,10 @@ jobs:
   package:
     runs-on: ubuntu-latest
     steps:
-      - name: Setup dotnet
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: |
-            6.0.x
-            8.0.x
-            9.0.x
-      - name: Print dotnet version
-        run: dotnet --info
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: dotnet/nbgv@master
-        with:
-          setAllVars: true
-      - name: Update Version
-        shell: pwsh
-        run: ./.github/set-nbgv-version.ps1
+      - uses: ./.github/actions/job-setup
       - name: Download Rust Artifacts
         uses: actions/download-artifact@v4
         with:

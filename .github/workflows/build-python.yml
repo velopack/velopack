@@ -3,7 +3,7 @@ on:
   workflow_call:
 
 jobs:
-  build-python-linux:
+  linux:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
@@ -21,6 +21,9 @@ jobs:
           - runner: ubuntu-22.04
             target: ppc64le
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/job-setup
       - uses: actions/setup-python@v5
         with:
@@ -47,7 +50,7 @@ jobs:
           name: wheels-linux-${{ matrix.platform.target }}
           path: src/lib-python/dist
 
-  build-python-musllinux:
+  musllinux:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
@@ -61,6 +64,9 @@ jobs:
           - runner: ubuntu-22.04
             target: armv7
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/job-setup
       - uses: actions/setup-python@v5
         with:
@@ -87,7 +93,7 @@ jobs:
           name: wheels-musllinux-${{ matrix.platform.target }}
           path: src/lib-python/dist
 
-  build-python-windows:
+  windows:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
@@ -97,6 +103,9 @@ jobs:
           - runner: windows-latest
             target: x86
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/job-setup
       - uses: actions/setup-python@v5
         with:
@@ -122,7 +131,7 @@ jobs:
           name: wheels-windows-${{ matrix.platform.target }}
           path: src/lib-python/dist
 
-  build-python-macos:
+  macos:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
@@ -132,6 +141,9 @@ jobs:
           - runner: macos-14
             target: aarch64
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/job-setup
       - uses: actions/setup-python@v5
         with:
@@ -156,9 +168,12 @@ jobs:
           name: wheels-macos-${{ matrix.platform.target }}
           path: src/lib-python/dist
 
-  build-python-sdist:
+  sdist:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/job-setup
       - name: Build sdist
         uses: PyO3/maturin-action@v1
