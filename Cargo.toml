@@ -12,7 +12,7 @@ exclude = [
 ]
 
 [workspace.package]
-version = "0.0.1"
+version = "0.0.0-local"
 authors = ["Velopack Ltd, Caelan Sayler <git@caesay.com>"]
 homepage = "https://velopack.io"
 repository = "https://github.com/velopack/velopack"
