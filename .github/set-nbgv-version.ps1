@@ -2,6 +2,8 @@ param(
     [string]$version = $(nbgv get-version -v NuGetPackageVersion).Trim()
 )
 
+$originalLocation = Get-Location
+
 $scriptDir = "$PSScriptRoot/.."
 $path = Join-Path $scriptDir "Cargo.toml"
 Write-Host "Setting version to $version"
@@ -20,3 +22,6 @@ npm version $version --no-git-tag-version
 
 Copy-Item -Path "$scriptDir/README_NUGET.md" -Destination "$scriptDir/src/lib-nodejs/README.md" -Force
 Copy-Item -Path "$scriptDir/README_NUGET.md" -Destination "$scriptDir/src/lib-rust/README.md" -Force
+
+Set-Location $originalLocation
+
