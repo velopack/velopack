@@ -1,0 +1,65 @@
+name: Build Samples
+on:
+  workflow_call:
+
+jobs:
+  samples:
+    strategy:
+      fail-fast: false
+      matrix:
+        sample: [CPlusPlusWidgets, CPlusPlusWin32, CSharpAvalonia, CSharpUno, CSharpWpf, NodeJSElectron, RustIced]
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        exclude:
+          - os: ubuntu-latest
+            sample: CPlusPlusWin32
+          - os: macos-latest
+            sample: CPlusPlusWin32
+          - os: ubuntu-latest
+            sample: CSharpWpf
+          - os: macos-latest
+            sample: CSharpWpf
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install wxWidgets (Windows)
+        working-directory: samples/${{ matrix.sample }}
+        run: |
+          curl -L -o wxWidgets-3.2.6-headers.7z https://github.com/wxWidgets/wxWidgets/releases/download/v3.2.6/wxWidgets-3.2.6-headers.7z
+          curl -L -o wxMSW-3.2.6_vc14x_x64_Dev.7z https://github.com/wxWidgets/wxWidgets/releases/download/v3.2.6/wxMSW-3.2.6_vc14x_x64_Dev.7z
+          curl -L -o wxMSW-3.2.6_vc14x_x64_ReleaseDLL.7z https://github.com/wxWidgets/wxWidgets/releases/download/v3.2.6/wxMSW-3.2.6_vc14x_x64_ReleaseDLL.7z
+          7z x wxWidgets-3.2.6-headers.7z -o".\wxWidgets" -y
+          7z x wxMSW-3.2.6_vc14x_x64_Dev.7z -o".\wxWidgets" -y
+          7z x wxMSW-3.2.6_vc14x_x64_ReleaseDLL.7z -o".\wxWidgets" -y
+          dir wxWidgets
+        if: ${{ matrix.sample == 'CPlusPlusWidgets' && matrix.os == 'windows-latest' }}
+      - name: Install wxWidgets (MacOS)
+        run: brew install wxwidgets
+        if: ${{ matrix.sample == 'CPlusPlusWidgets' && matrix.os == 'macos-latest' }}
+      - name: Install wxWidgets (Linux)
+        run: |
+          sudo apt update
+          sudo apt-cache search libwxgt*
+          sudo apt-cache search libgtk*
+          sudo apt install -y libwxgtk3.2-dev libgtk-3-dev
+        if: ${{ matrix.sample == 'CPlusPlusWidgets' && matrix.os == 'ubuntu-latest' }}
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x
+            9.0.x
+      - name: Install VPK
+        run: dotnet tool install -g vpk
+      - name: Pack Sample (Windows)
+        working-directory: samples/${{ matrix.sample }}
+        run: .\build.bat 1.0.0
+        if: ${{ matrix.os == 'windows-latest' }}
+      - name: Pack Sample (Unix)
+        working-directory: samples/${{ matrix.sample }}
+        run: |
+          chmod 755 ./build.sh
+          ./build.sh 1.0.0
+        if: ${{ matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest' }}
