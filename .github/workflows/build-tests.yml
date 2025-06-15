@@ -56,6 +56,29 @@ jobs:
           npm run build
           npm run test
 
+  python:
+    # strategy:
+    #   fail-fast: false
+    #   matrix:
+    #     os: [windows-latest, ubuntu-latest, macos-latest]
+    # runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
+      - name: Install Dependencies
+        working-directory: src/lib-python
+        run: |
+          dotnet tool update -g vpk
+          pip install uv
+          uv sync
+      - name: Check lib-python
+        working-directory: src/lib-python/test
+        run: uv run python run_test.py
+
   vpk:
     strategy:
       fail-fast: false
@@ -88,7 +111,8 @@ jobs:
         run: dotnet tool install -g dotnet-coverage
       - name: Build .NET
         run: dotnet build -c Release
-      - uses: ./.github/actions/wait-artifact
+      - name: Wait for Artifacts
+        uses: ./.github/actions/wait-artifact
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           max_wait_seconds: 900
@@ -123,7 +147,8 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           directory: ./test
-      - uses: ./.github/actions/wait-artifact
+      - name: Wait for Artifacts
+        uses: ./.github/actions/wait-artifact
         if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
