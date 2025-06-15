@@ -22,11 +22,6 @@ jobs:
           - runner: ubuntu-22.04
             target: ppc64le
     steps:
-      - name: Install Dependencies
-        if: ${{ matrix.platform.runner == 'ubuntu-22.04-arm' }}
-        run: |
-          sudo apt update
-          sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -56,6 +51,7 @@ jobs:
         with:
           name: wheels-linux-${{ matrix.platform.target }}
           path: src/lib-python/dist
+          retention-days: 1
 
   musllinux:
     runs-on: ${{ matrix.platform.runner }}
@@ -101,6 +97,7 @@ jobs:
         with:
           name: wheels-musllinux-${{ matrix.platform.target }}
           path: src/lib-python/dist
+          retention-days: 1
 
   windows:
     runs-on: ${{ matrix.platform.runner }}
@@ -148,6 +145,7 @@ jobs:
         with:
           name: wheels-windows-${{ matrix.platform.target }}
           path: src/lib-python/dist
+          retention-days: 1
 
   macos:
     runs-on: ${{ matrix.platform.runner }}
@@ -187,6 +185,7 @@ jobs:
         with:
           name: wheels-macos-${{ matrix.platform.target }}
           path: src/lib-python/dist
+          retention-days: 1
 
   sdist:
     runs-on: ubuntu-latest
@@ -207,3 +206,4 @@ jobs:
         with:
           name: wheels-sdist
           path: src/lib-python/dist
+          retention-days: 1

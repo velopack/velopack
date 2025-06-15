@@ -8,12 +8,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-python:
-    uses: ./.github/workflows/build-python.yml
-    
   build-rust:
     uses: ./.github/workflows/build-rust.yml
 
+  build-python:
+    uses: ./.github/workflows/build-python.yml
+    
   build-tests:
     uses: ./.github/workflows/build-tests.yml
     secrets: inherit # tests need secrets to run

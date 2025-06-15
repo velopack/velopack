@@ -92,7 +92,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           max_wait_seconds: 900
-          artifacts: rust-macos-latest,rust-windows-latest,rust-ubuntu-latest
+          artifacts: rust-macos,rust-windows-bins,rust-ubuntu-bins-x64,rust-ubuntu-bins-arm64
           verbose: true
       - name: Download Rust Artifacts
         uses: actions/download-artifact@v4
@@ -118,6 +118,7 @@ jobs:
         with:
           name: cross-${{ matrix.os }}
           path: test/artifacts/*
+          retention-days: 1
       - name: Upload Coverage
         uses: codecov/codecov-action@v5
         with:
