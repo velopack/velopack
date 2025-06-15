@@ -77,6 +77,17 @@ runs:
           $waitingFor = $artifactsAvailable.GetEnumerator() | Where-Object { $_.Value -eq $false } | ForEach-Object { $_.Key }
           if ($waitingFor.Count -gt 0) {
             Write-Host "Still waiting for: $($waitingFor -join ', '). Attempt $($attempt + 1)/$maxAttempts"
+            if ($verbose) {
+              $currentlyAvailableInLoop = @()
+              if ($artifacts.artifacts) {
+                $currentlyAvailableInLoop = $artifacts.artifacts | ForEach-Object { $_.name }
+              }
+              if ($currentlyAvailableInLoop.Count -gt 0) {
+                Write-Host "  (Verbose) Currently available in this check: $($currentlyAvailableInLoop -join ', ')"
+              } else {
+                Write-Host "  (Verbose) No artifacts reported as available in this check."
+              }
+            }
             Start-Sleep -Seconds $sleepSeconds
             $attempt++
           }
