@@ -26,201 +26,230 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./
 
-      - name: Download vpk
-        uses: actions/download-artifact@v4
-        with:
-          name: packages
-          run-id: ${{ github.event.inputs.workflow_run_id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: ./packages
-          
-      - name: Download lib-nodejs
-        uses: actions/download-artifact@v4
-        with:
-          name: lib-nodejs
-          run-id: ${{ github.event.inputs.workflow_run_id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: ./lib-nodejs
-          
-      - name: Download lib-rust
-        uses: actions/download-artifact@v4
-        with:
-          name: lib-rust
-          run-id: ${{ github.event.inputs.workflow_run_id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: ./lib-rust
-
-      - name: Download lib-c
-        uses: actions/download-artifact@v4
-        with:
-          name: lib-c
-          run-id: ${{ github.event.inputs.workflow_run_id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: ./lib-c-files
-
       - name: Load version from file
         run: |
           version=$(cat version.txt | xargs)
           echo "PKG_VERSION=$version" >> $GITHUB_ENV
 
-      - name: Create lib-c zip package
-        working-directory: ./lib-c-files
-        run: |
-          mkdir -p ../lib-c
-          zip -r ../lib-c/velopack_libc_$PKG_VERSION.zip .
+      # - name: Download vpk
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: packages
+      #     run-id: ${{ github.event.inputs.workflow_run_id }}
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      #     path: ./packages
+          
+      # - name: Download lib-nodejs
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: lib-nodejs
+      #     run-id: ${{ github.event.inputs.workflow_run_id }}
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      #     path: ./lib-nodejs
+          
+      # - name: Download lib-rust
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: lib-rust
+      #     run-id: ${{ github.event.inputs.workflow_run_id }}
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      #     path: ./lib-rust
 
-      - uses: actions/checkout@v4
+      # - name: Download lib-c
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: lib-c
+      #     run-id: ${{ github.event.inputs.workflow_run_id }}
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      #     path: ./lib-c-files
+
+      # - name: Create lib-c zip package
+      #   working-directory: ./lib-c-files
+      #   run: |
+      #     mkdir -p ../lib-c
+      #     zip -r ../lib-c/velopack_libc_$PKG_VERSION.zip .
+
+      - name: Download lib-python
+        uses: actions/download-artifact@v4
         with:
-          path: ./repo
-          fetch-depth: 0
+          name: lib-python
+          run-id: ${{ github.event.inputs.workflow_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./lib-python-files
+
+      - name: Create lib-python zip package
+        working-directory: ./lib-python-files
+        run: |
+          mkdir -p ../lib-python
+          zip -r ../lib-python/velopack_libpython_$PKG_VERSION.zip .
+
+      - name: test-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifact
+          path: lib-python/*
+          retention-days: 1
+
+      # - uses: actions/checkout@v4
+      #   with:
+      #     path: ./repo
+      #     fetch-depth: 0
           
-      - name: Checkout release commit
-        working-directory: ./repo
-        run: |
-          echo $PKG_VERSION
-          COMMIT_HASH=$(gh run view ${{ github.event.inputs.workflow_run_id }} --json headSha -q ".headSha")
-          git checkout $COMMIT_HASH
+      # - name: Checkout release commit
+      #   working-directory: ./repo
+      #   run: |
+      #     echo $PKG_VERSION
+      #     COMMIT_HASH=$(gh run view ${{ github.event.inputs.workflow_run_id }} --json headSha -q ".headSha")
+      #     git checkout $COMMIT_HASH
 
-      - name: Generate Release
-        working-directory: ./repo
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
+      # - name: Generate Release
+      #   working-directory: ./repo
+      #   shell: pwsh
+      #   run: |
+      #     $ErrorActionPreference = "Stop"
 
-          $currentTag = Get-Content -Path "../version.txt" -Raw
-          $currentTag = $currentTag.Trim()
+      #     $currentTag = Get-Content -Path "../version.txt" -Raw
+      #     $currentTag = $currentTag.Trim()
 
-          # Get the previous release tag
-          Write-Host "Detecting previous release tag..."
-          $gitTags = git tag --list
+      #     # Get the previous release tag
+      #     Write-Host "Detecting previous release tag..."
+      #     $gitTags = git tag --list
 
-          $tags = $gitTags | ForEach-Object {
-              $fullTag = $_
-              $isPrerelease = $fullTag -like "*-*"
+      #     $tags = $gitTags | ForEach-Object {
+      #         $fullTag = $_
+      #         $isPrerelease = $fullTag -like "*-*"
 
-              if ($isPrerelease) {
-                  # For prerelease versions, extract the version part before the hyphen
-                  $versionPart = $fullTag.Split('-')[0]
-              } else {
-                  $versionPart = $fullTag
-              }
+      #         if ($isPrerelease) {
+      #             # For prerelease versions, extract the version part before the hyphen
+      #             $versionPart = $fullTag.Split('-')[0]
+      #         } else {
+      #             $versionPart = $fullTag
+      #         }
 
-              try {
-                  $version = [System.Version]$versionPart
-                  [PSCustomObject]@{
-                      FullTag = $fullTag
-                      Version = $version
-                      IsPrerelease = $isPrerelease
-                  }
-              } catch {
-                  # Skip tags that cannot be parsed into a System.Version
-                  $null
-              }
-          } | Where-Object { $_ -ne $null }
+      #         try {
+      #             $version = [System.Version]$versionPart
+      #             [PSCustomObject]@{
+      #                 FullTag = $fullTag
+      #                 Version = $version
+      #                 IsPrerelease = $isPrerelease
+      #             }
+      #         } catch {
+      #             # Skip tags that cannot be parsed into a System.Version
+      #             $null
+      #         }
+      #     } | Where-Object { $_ -ne $null }
 
-          $isCurrentPrerelease = $currentTag -like "*-*"
-          $latestPrerelease = ($tags | Where-Object { $_.IsPrerelease } | Sort-Object Version -Descending | Select-Object -First 1).FullTag
-          $latestStable = ($tags | Where-Object { -not $_.IsPrerelease } |  Sort-Object Version -Descending | Select-Object -First 1).FullTag
-          $latestOverall = ($tags | Sort-Object Version -Descending | Select-Object -First 1).FullTag
+      #     $isCurrentPrerelease = $currentTag -like "*-*"
+      #     $latestPrerelease = ($tags | Where-Object { $_.IsPrerelease } | Sort-Object Version -Descending | Select-Object -First 1).FullTag
+      #     $latestStable = ($tags | Where-Object { -not $_.IsPrerelease } |  Sort-Object Version -Descending | Select-Object -First 1).FullTag
+      #     $latestOverall = ($tags | Sort-Object Version -Descending | Select-Object -First 1).FullTag
 
-          if ($isCurrentPrerelease) {
-              $releaseArg = "--prerelease"
-              $previousTag = $latestOverall
-          } else {
-              $releaseArg = "--latest"
-              $previousTag = $latestStable
-          }
+      #     if ($isCurrentPrerelease) {
+      #         $releaseArg = "--prerelease"
+      #         $previousTag = $latestOverall
+      #     } else {
+      #         $releaseArg = "--latest"
+      #         $previousTag = $latestStable
+      #     }
 
-          Write-Host "Current version is prerelease: $isCurrentPrerelease"
-          Write-Host "Latest prerelease: $latestPrerelease"
-          Write-Host "Latest stable: $latestStable"
-          Write-Host "Latest overall: $latestOverall"
-          Write-Host "---"
-          Write-Host "Current tag: $currentTag"
-          Write-Host "Previous tag: $previousTag"
+      #     Write-Host "Current version is prerelease: $isCurrentPrerelease"
+      #     Write-Host "Latest prerelease: $latestPrerelease"
+      #     Write-Host "Latest stable: $latestStable"
+      #     Write-Host "Latest overall: $latestOverall"
+      #     Write-Host "---"
+      #     Write-Host "Current tag: $currentTag"
+      #     Write-Host "Previous tag: $previousTag"
 
-          # Push the tag to the repository
-          Write-Host "Tagging release commit..."
-          git tag $currentTag
-          git push origin $currentTag
+      #     # Push the tag to the repository
+      #     Write-Host "Tagging release commit..."
+      #     git tag $currentTag
+      #     git push origin $currentTag
 
-          # Generate release notes
-          Write-Host "Generating release notes..."
-          $headers = @{
-              "Authorization" = "Bearer ${{ github.token }}"
-              "Accept" = "application/vnd.github.v3+json"
-          }
-          $body = @{
-              "tag_name" = "$currentTag"
-              "previous_tag_name" = "$previousTag"
-          } | ConvertTo-Json
-          $apiUrl = "https://api.github.com/repos/velopack/velopack/releases/generate-notes"
-          $response = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $body -ContentType 'application/json'
+      #     # Generate release notes
+      #     Write-Host "Generating release notes..."
+      #     $headers = @{
+      #         "Authorization" = "Bearer ${{ github.token }}"
+      #         "Accept" = "application/vnd.github.v3+json"
+      #     }
+      #     $body = @{
+      #         "tag_name" = "$currentTag"
+      #         "previous_tag_name" = "$previousTag"
+      #     } | ConvertTo-Json
+      #     $apiUrl = "https://api.github.com/repos/velopack/velopack/releases/generate-notes"
+      #     $response = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $body -ContentType 'application/json'
 
-          $releaseName = $response.name
-          $releaseBody = $response.body
+      #     $releaseName = $response.name
+      #     $releaseBody = $response.body
 
-          # Move dependencies to dedicated section
-          $lines = $releaseBody -split "`n"
-          $dependenciesLines = @()
-          $otherLines = @()
-          $changelog = ""
+      #     # Move dependencies to dedicated section
+      #     $lines = $releaseBody -split "`n"
+      #     $dependenciesLines = @()
+      #     $otherLines = @()
+      #     $changelog = ""
 
-          foreach ($line in $lines) {
-              if ($line -match 'Full Changelog') {
-                  $changelog = $line
-              } elseif ($line -match '@renovate') {
-                  $dependenciesLines += $line
-              } else {
-                  $otherLines += $line
-              }
-          }
+      #     foreach ($line in $lines) {
+      #         if ($line -match 'Full Changelog') {
+      #             $changelog = $line
+      #         } elseif ($line -match '@renovate') {
+      #             $dependenciesLines += $line
+      #         } else {
+      #             $otherLines += $line
+      #         }
+      #     }
 
-          $releaseBody = $otherLines -join "`n"
-          if ($dependenciesLines.Count -gt 0) {
-              $releaseBody += "`## Dependency Updates`n"
-              $releaseBody += "`n<details>`n"
-              $releaseBody += "`n<summary>Expand to see all changed dependencies</summary>`n`n"
-              $releaseBody += $dependenciesLines -join "`n"
-              $releaseBody += "`n`n</details>`n"
-          }
-          $releaseBody += "`n" + $changelog
+      #     $releaseBody = $otherLines -join "`n"
+      #     if ($dependenciesLines.Count -gt 0) {
+      #         $releaseBody += "`## Dependency Updates`n"
+      #         $releaseBody += "`n<details>`n"
+      #         $releaseBody += "`n<summary>Expand to see all changed dependencies</summary>`n`n"
+      #         $releaseBody += $dependenciesLines -join "`n"
+      #         $releaseBody += "`n`n</details>`n"
+      #     }
+      #     $releaseBody += "`n" + $changelog
 
-          Write-Host "Release name: $releaseName"
-          Write-Host "Release body:"
-          Write-Host $releaseBody
+      #     Write-Host "Release name: $releaseName"
+      #     Write-Host "Release body:"
+      #     Write-Host $releaseBody
 
-          # Create release
-          Write-Host "Creating release..."
-          $notesFilePath = "./RELEASE_NOTES.md"
-          $releaseBody | Out-File -FilePath $notesFilePath -Encoding utf8
-          gh release create $currentTag --title $releaseName --notes-file $notesFilePath $releaseArg --verify-tag
+      #     # Create release
+      #     Write-Host "Creating release..."
+      #     $notesFilePath = "./RELEASE_NOTES.md"
+      #     $releaseBody | Out-File -FilePath $notesFilePath -Encoding utf8
+      #     gh release create $currentTag --title $releaseName --notes-file $notesFilePath $releaseArg --verify-tag
 
-          # Upload artifacts
-          Write-Host "Uploading artifacts..."
-          gh release upload $currentTag (get-item ../packages/*.nupkg)
-          gh release upload $currentTag (get-item ../lib-nodejs/*.tgz)
-          gh release upload $currentTag (get-item ../lib-rust/*.crate)
-          gh release upload $currentTag (get-item ../lib-c/*.zip)
+      #     # Upload artifacts
+      #     Write-Host "Uploading artifacts..."
+      #     gh release upload $currentTag (get-item ../packages/*.nupkg)
+      #     gh release upload $currentTag (get-item ../lib-nodejs/*.tgz)
+      #     gh release upload $currentTag (get-item ../lib-rust/*.crate)
+      #     gh release upload $currentTag (get-item ../lib-c/*.zip)
 
-      - name: Publish NuGet Packages
-        run: |
-          for f in packages/*.nupkg; do
-            dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
-          done
+      # - name: Publish NuGet Packages
+      #   run: |
+      #     for f in packages/*.nupkg; do
+      #       dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
+      #     done
           
-      - name: Publish NPM Package
-        working-directory: ./lib-nodejs
-        run: |
-          npm set "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}"
-          npm publish velopack-$PKG_VERSION.tgz --access public
+      # - name: Publish NPM Package
+      #   working-directory: ./lib-nodejs
+      #   run: |
+      #     npm set "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}"
+      #     npm publish velopack-$PKG_VERSION.tgz --access public
           
-      - name: Publish Rust Crate
-        working-directory: ./lib-rust
-        run: |
-          tar -xzf velopack-$PKG_VERSION.crate
-          cd velopack-$PKG_VERSION
-          rm Cargo.toml.orig
-          rm .cargo_vcs_info.json
-          cargo login ${{ secrets.CARGO_TOKEN }}
-          cargo publish --allow-dirty --no-verify
+      # - name: Publish Rust Crate
+      #   working-directory: ./lib-rust
+      #   run: |
+      #     tar -xzf velopack-$PKG_VERSION.crate
+      #     cd velopack-$PKG_VERSION
+      #     rm Cargo.toml.orig
+      #     rm .cargo_vcs_info.json
+      #     cargo login ${{ secrets.CARGO_TOKEN }}
+      #     cargo publish --allow-dirty --no-verify
+
+      - name: Publish distribution to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          packages-dir: lib-python-files/
+          verbose: true
