@@ -17,6 +17,7 @@ authors = ["Velopack Ltd, Caelan Sayler <git@caesay.com>"]
 homepage = "https://velopack.io"
 repository = "https://github.com/velopack/velopack"
 documentation = "https://docs.velopack.io"
+description = "Installer and automatic update framework for cross-platform desktop applications"
 keywords = ["update", "install", "velopack", "squirrel", "automatic-updates"]
 categories = ["development-tools"]
 license = "MIT"

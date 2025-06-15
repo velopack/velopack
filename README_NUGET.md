@@ -11,7 +11,7 @@ Velopack is an installation and auto-update framework for cross-platform applica
 
 ## Documentation
 - 📖 [Read the docs](https://docs.velopack.io/)
-- ⚡ [Quick start guides](https://docs.velopack.io/category/quick-start)
+- ⚡ [Quick start guides](https://docs.velopack.io/category/getting-started)
 - 🕶️ [View example apps](https://docs.velopack.io/category/sample-apps)
 - 📺 [See website & demo](https://velopack.io/)
 
