@@ -3,7 +3,7 @@ on:
   workflow_call:
 
 jobs:
-  windows:
+  windows-bins:
     runs-on: windows-latest
     env:
       RUSTFLAGS: -C target-feature=+crt-static
@@ -17,53 +17,78 @@ jobs:
           rust-cache: true
       - name: Install Dependencies
         run: |
-          rustup target add aarch64-pc-windows-msvc --toolchain nightly-x86_64-pc-windows-msvc
           rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
-      - name: Build Rust Binaries (x86)
-        run: cargo +nightly build --target i686-win7-windows-msvc -Z build-std="core,alloc,std,panic_abort" --features windows --release -p velopack_bins
+      - name: Build Rust Binaries
+        run: cargo +nightly build --target i686-win7-windows-msvc --features windows --release -Z build-std="core,alloc,std,panic_abort" -p velopack_bins
       - name: Upload Rust Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rust-windows-latest
+          name: rust-windows-bins
           path: |
             target\i686-win7-windows-msvc\release\*.exe
             target\i686-win7-windows-msvc\release\*.pdb
-      - name: Build Rust (x86)
-        run: cargo +nightly build --target i686-win7-windows-msvc -Z build-std="core,alloc,std,panic_abort" --release -p velopack_nodeffi -p velopack_libc
-      - name: Build Rust (x64)
-        run: cargo +nightly build --target x86_64-win7-windows-msvc -Z build-std="core,alloc,std,panic_abort" --release -p velopack_nodeffi -p velopack_libc
-      - name: Build Rust (arm64)
-        run: cargo +nightly build --target aarch64-pc-windows-msvc --release -p velopack_nodeffi -p velopack_libc
-      - name: Collect Artifacts
+          retention-days: 1
+
+  windows:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86, x64, arm64]
+        include:
+          - target: x86
+            rust_flags: --release -Z build-std="core,alloc,std,panic_abort"
+            rust_target: i686-win7-windows-msvc
+          - target: x64
+            rust_flags: --release -Z build-std="core,alloc,std,panic_abort"
+            rust_target: x86_64-win7-windows-msvc
+          - target: arm64
+            rust_flags: --release
+            rust_target: aarch64-pc-windows-msvc
+    env:
+      RUSTFLAGS: -C target-feature=+crt-static
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
+        with:
+          rust-cache: true
+      - name: Install Dependencies
         run: |
-          move target\i686-win7-windows-msvc\release\velopack_nodeffi.dll target\velopack_nodeffi_win_x86_msvc.node 
-          move target\x86_64-win7-windows-msvc\release\velopack_nodeffi.dll target\velopack_nodeffi_win_x64_msvc.node
-          move target\aarch64-pc-windows-msvc\release\velopack_nodeffi.dll target\velopack_nodeffi_win_arm64_msvc.node
-
-          move target\i686-win7-windows-msvc\release\velopack_libc.dll target\velopack_libc_win_x86_msvc.dll
-          move target\x86_64-win7-windows-msvc\release\velopack_libc.dll target\velopack_libc_win_x64_msvc.dll
-          move target\aarch64-pc-windows-msvc\release\velopack_libc.dll target\velopack_libc_win_arm64_msvc.dll
-
-          move target\i686-win7-windows-msvc\release\velopack_libc.dll.lib target\velopack_libc_win_x86_msvc.dll.lib
-          move target\x86_64-win7-windows-msvc\release\velopack_libc.dll.lib target\velopack_libc_win_x64_msvc.dll.lib
-          move target\aarch64-pc-windows-msvc\release\velopack_libc.dll.lib target\velopack_libc_win_arm64_msvc.dll.lib
-
-          move target\i686-win7-windows-msvc\release\velopack_libc.lib target\velopack_libc_win_x86_msvc.lib
-          move target\x86_64-win7-windows-msvc\release\velopack_libc.lib target\velopack_libc_win_x64_msvc.lib
-          move target\aarch64-pc-windows-msvc\release\velopack_libc.lib target\velopack_libc_win_arm64_msvc.lib
+          rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
+          rustup target add aarch64-pc-windows-msvc --toolchain nightly-x86_64-pc-windows-msvc
+      - name: Build Rust (${{ matrix.target }})
+        run: |
+          cargo +nightly build --target ${{ matrix.rust_target }} ${{ matrix.rust_flags }} -p velopack_nodeffi -p velopack_libc
+          move target\${{ matrix.rust_target }}\release\velopack_nodeffi.dll target\velopack_nodeffi_win_${{ matrix.target }}_msvc.node 
+          move target\${{ matrix.rust_target }}\release\velopack_libc.dll target\velopack_libc_win_${{ matrix.target }}_msvc.dll
+          move target\${{ matrix.rust_target }}\release\velopack_libc.dll.lib target\velopack_libc_win_${{ matrix.target }}_msvc.dll.lib
+          move target\${{ matrix.rust_target }}\release\velopack_libc.lib target\velopack_libc_win_${{ matrix.target }}_msvc.lib
       - name: Upload Rust Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rust-windows-latest-libs
+          name: rust-windows-libs-${{ matrix.target }}
           path: |
             target\*.node
             target\*.dll
             target\*.lib
-      # - name: Cancel workflow if failed
-      #   uses: andymckay/cancel-action@0.5
-      #   if: ${{ failure() }}
+          retention-days: 1
+      - name: Cancel workflow if failed
+        uses: andymckay/cancel-action@0.5
+        if: ${{ failure() }}
 
-  linux:
+  linux-bins:
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x64, arm64]
+        include:
+          - target: x64
+            rust_target: x86_64-unknown-linux-musl
+          - target: arm64
+            rust_target: aarch64-unknown-linux-musl
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -75,58 +100,66 @@ jobs:
         run: |
           curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
           cargo binstall cross
+          mkdir ./artifacts
+      - name: Build Rust Binaries (${{ matrix.target }})
+        run: |
+          cross build --release --target ${{ matrix.rust_target }} -p velopack_bins
+          ldd ./target/${{ matrix.rust_target }}/release/update || true
+          cp ./target/${{ matrix.rust_target }}/release/update ./artifacts/UpdateNix_${{ matrix.target }}
+      - name: Upload Rust Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-ubuntu-bins-${{ matrix.target }}
+          path: |
+            artifacts/UpdateNix_${{ matrix.target }}
+          retention-days: 1
+      # - name: Cancel workflow if failed
+      #   uses: andymckay/cancel-action@0.5
+      #   if: ${{ failure() }}
+
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x64, arm64]
+        include:
+          - target: x64
+            rust_target: x86_64-unknown-linux-gnu
+          - target: arm64
+            rust_target: aarch64-unknown-linux-gnu
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
+      - name: Install Dependencies
+        run: |
           rustup target add aarch64-unknown-linux-gnu
           sudo apt update
           sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
           mkdir ./artifacts
-        # rustup target add x86_64-unknown-linux-musl
-        # rustup target add aarch64-unknown-linux-musl
-        # sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu musl-tools musl:arm64
-      - name: Build Rust Binaries (x64)
-        run: |
-          cargo clean
-          cross build --release --target x86_64-unknown-linux-musl -p velopack_bins
-          ldd ./target/x86_64-unknown-linux-musl/release/update || true
-          cp ./target/x86_64-unknown-linux-musl/release/update ./artifacts/UpdateNix_x64
-      - name: Build Rust Binaries (arm64)
-        run: |
-          cargo clean
-          cross build --release --target aarch64-unknown-linux-musl -p velopack_bins
-          ldd ./target/aarch64-unknown-linux-musl/release/update || true
-          cp ./target/aarch64-unknown-linux-musl/release/update ./artifacts/UpdateNix_arm64
-      - name: Upload Rust Build Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: rust-ubuntu-latest
-          path: |
-            artifacts/UpdateNix*
-      - name: Build Rust (x64)
-        run: |
-          cargo clean
-          cargo build --release --target x86_64-unknown-linux-gnu -p velopack_nodeffi -p velopack_libc
-          cp ./target/x86_64-unknown-linux-gnu/release/libvelopack_nodeffi.so ./artifacts/velopack_nodeffi_linux_x64_gnu.node
-          cp ./target/x86_64-unknown-linux-gnu/release/libvelopack_libc.so ./artifacts/velopack_libc_linux_x64_gnu.so
-          cp ./target/x86_64-unknown-linux-gnu/release/libvelopack_libc.a ./artifacts/velopack_libc_linux_x64_gnu.a
-      - name: Build Rust (arm64)
+      - name: Build Rust (${{ matrix.target }})
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
         run: |
-          cargo clean
-          cargo build --release --target aarch64-unknown-linux-gnu -p velopack_nodeffi -p velopack_libc
-          cp ./target/aarch64-unknown-linux-gnu/release/libvelopack_nodeffi.so ./artifacts/velopack_nodeffi_linux_arm64_gnu.node
-          cp ./target/aarch64-unknown-linux-gnu/release/libvelopack_libc.so ./artifacts/velopack_libc_linux_arm64_gnu.so
-          cp ./target/aarch64-unknown-linux-gnu/release/libvelopack_libc.a ./artifacts/velopack_libc_linux_arm64_gnu.a
+          cargo build --release --target ${{ matrix.rust_target }} -p velopack_nodeffi -p velopack_libc
+          cp ./target/${{ matrix.rust_target }}/release/libvelopack_nodeffi.so ./artifacts/velopack_nodeffi_linux_${{ matrix.target }}_gnu.node
+          cp ./target/${{ matrix.rust_target }}/release/libvelopack_libc.so ./artifacts/velopack_libc_linux_${{ matrix.target }}_gnu.so
+          cp ./target/${{ matrix.rust_target }}/release/libvelopack_libc.a ./artifacts/velopack_libc_linux_${{ matrix.target }}_gnu.a
       - name: Upload Rust Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rust-ubuntu-latest-libs
+          name: rust-ubuntu-libs-${{ matrix.target }}
           path: |
             artifacts/*.so
             artifacts/*.node
             artifacts/*.a
-      - name: Cancel workflow if failed
-        uses: andymckay/cancel-action@0.5
-        if: ${{ failure() }}
+          retention-days: 1
+      # - name: Cancel workflow if failed
+      #   uses: andymckay/cancel-action@0.5
+      #   if: ${{ failure() }}
 
   macos:
     runs-on: macos-latest
@@ -162,12 +195,13 @@ jobs:
       - name: Upload Rust Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rust-macos-latest
+          name: rust-macos
           path: |
             target/UpdateMac
             target/*.dylib
             target/*.node
             target/*.a
+          retention-days: 1
       - name: Cancel workflow if failed
         uses: andymckay/cancel-action@0.5
         if: ${{ failure() }}
