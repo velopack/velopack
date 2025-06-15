@@ -11,6 +11,7 @@ mod manager;
 use manager::UpdateManagerWrapper;
 
 #[pymodule]
+#[pyo3(name = "velopack")]
 fn velopack(m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
     
