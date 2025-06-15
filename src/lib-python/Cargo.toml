@@ -10,7 +10,6 @@ edition.workspace = true
 rust-version.workspace = true
 
 [lib]
-name = "velopack"
 crate-type = ["cdylib"]
 
 [dependencies]

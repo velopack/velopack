@@ -8,6 +8,9 @@ version = "0.0.1"
 requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
+[tool.maturin]
+module-name = "velopack" 
+
 [dependency-groups]
 dev = [
     "maturin>=1.8.6",
