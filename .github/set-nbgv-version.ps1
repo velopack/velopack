@@ -46,6 +46,7 @@ Write-Host "Python version to $pythonVersion"
 # copying README.md
 Copy-Item -Path "$scriptDir/README_NUGET.md" -Destination "$scriptDir/src/lib-nodejs/README.md" -Force
 Copy-Item -Path "$scriptDir/README_NUGET.md" -Destination "$scriptDir/src/lib-rust/README.md" -Force
+Copy-Item -Path "$scriptDir/README_NUGET.md" -Destination "$scriptDir/src/lib-python/README.md" -Force
 
 Set-Location $originalLocation
 

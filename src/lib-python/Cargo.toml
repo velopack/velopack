@@ -1,8 +1,10 @@
 [package]
 name = "velopack_python"
+publish = false
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
+description.workspace = true
 keywords.workspace = true
 categories.workspace = true
 license.workspace = true
