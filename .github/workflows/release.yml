@@ -83,13 +83,6 @@ jobs:
           mkdir -p ../lib-python
           zip -r ../lib-python/velopack_libpython_$PKG_VERSION.zip .
 
-      - name: test-artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-artifact
-          path: lib-python/*
-          retention-days: 1
-
       - uses: actions/checkout@v4
         with:
           path: ./repo
