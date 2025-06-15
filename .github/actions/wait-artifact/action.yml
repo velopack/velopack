@@ -65,7 +65,7 @@ runs:
 
         Write-Host "Waiting for artifacts '$($artifactNames -join ', ')' to become available in workflow run $workflowRunId..."
         while ($attempt -lt $maxAttempts -and $artifactsAvailable.Values -contains $false) {
-          $artifactsJson = gh api repos/$repository/actions/runs/$workflowRunId/artifacts
+          $artifactsJson = gh api "repos/$repository/actions/runs/$workflowRunId/artifacts?per_page=100"
           $artifacts = $artifactsJson | ConvertFrom-Json
           
           foreach ($artifactName in $artifactNames) {
