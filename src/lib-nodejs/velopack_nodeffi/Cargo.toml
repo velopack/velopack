@@ -25,7 +25,3 @@ log.workspace = true
 simplelog.workspace = true
 lazy_static.workspace = true
 neon.workspace = true
-
-[build-dependencies]
-velopack = { workspace = true, features = ["typescript"] }
-ts-rs.workspace = true

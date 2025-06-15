@@ -1,0 +1,12 @@
+// This file is auto-generated. Do not edit by hand.
+
+{{#each this}}
+{{cpp_comment}}
+export type {{struct_rust_name}} = {
+    {{#each fields}}
+    {{#indent "cpp_comment" "    "}}
+    {{field_name}}{{#if field_optional}}?{{/if}}: {{field_node_type}}{{#if field_vector}}[]{{/if}},
+    {{/each}}
+}
+
+{{/each}}

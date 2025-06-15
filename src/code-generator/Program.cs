@@ -55,16 +55,16 @@ var types = new List<TypeMap>() {
     TypeMap.RustStruct("VelopackLocatorConfig", "vpkc_locator_config_t"),
     TypeMap.SystemType("String", "char", "string", "c_char"),
     TypeMap.SystemType("PathBuf", "char", "string", "c_char"),
-    TypeMap.Primitive("bool", "bool"),
-    TypeMap.Primitive("i32", "int32_t"),
-    TypeMap.Primitive("i64", "int64_t"),
-    TypeMap.Primitive("u32", "uint32_t"),
-    TypeMap.Primitive("u64", "uint64_t"),
+    TypeMap.Primitive("bool", "bool", "boolean"),
+    TypeMap.Primitive("i32", "int32_t", "number"),
+    TypeMap.Primitive("i64", "int64_t", "number"),
+    TypeMap.Primitive("u32", "uint32_t", "number"),
+    TypeMap.Primitive("u64", "uint64_t", "number"),
 }.ToDictionary(v => v.rustType, v => v);
 
 var handlebarData = availableStructs.Select(s => {
     var fields = s.Fields.Select(f => {
-        var isString = types[f.Type].rustType == "PathBuf" || types[f.Type].rustType == "String";
+        //var isString = types[f.Type].rustType == "PathBuf" || types[f.Type].rustType == "String";
         var field = new RustStruct_Field {
             rust_comment = f.DocComment.ToRustComment(),
             cpp_comment = f.DocComment.ToCppComment(),
@@ -74,6 +74,7 @@ var handlebarData = availableStructs.Select(s => {
             field_rust_type = f.Type,
             field_c_type = types[f.Type].interopType,
             field_cpp_type = types[f.Type].cppType,
+            field_node_type = types[f.Type].nodeType,
             field_system = types[f.Type].system,
             field_primitive = types[f.Type].primitive,
             field_normal = !f.Vec && !types[f.Type].primitive,
@@ -97,23 +98,29 @@ var handlebarData = availableStructs.Select(s => {
     return stru;
 }).ToArray();
 
+// --- rust generation ---
 string rustTypes = Path.Combine(libcppDir, "src", "types.rs");
 var rustCTypesTemplate = Handlebars.Compile(File.ReadAllText(Path.Combine(templatesDir, "rust_types.hbs")));
 var rustCTypes = rustCTypesTemplate(handlebarData);
+Util.ReplaceTextInFile(rustTypes, "RUST_TYPES", rustCTypes.ToString().ReplaceLineEndings("\n"));
 
+// --- C++ generation ---
 string rustCppInclude = Path.Combine(libcppDir, "include", "Velopack.hpp");
 var cppTypesTemplate = Handlebars.Compile(File.ReadAllText(Path.Combine(templatesDir, "cpp_mapping.hbs")));
 var cppTypes = cppTypesTemplate(handlebarData);
-
-Console.WriteLine("Writing all to file");
-Util.ReplaceTextInFile(rustTypes, "RUST_TYPES", rustCTypes.ToString().ReplaceLineEndings("\n"));
 Util.ReplaceTextInFile(rustCppInclude, "CPP_TYPES", cppTypes.ToString().ReplaceLineEndings("\n"));
 
-// --- Python asset.rs generation ---
+// --- python generation ---
 string pythonAssetRs = Path.Combine(scriptsDir, "..", "lib-python", "src", "types.rs");
 var pythonAssetTemplate = Handlebars.Compile(File.ReadAllText(Path.Combine(templatesDir, "python_asset.hbs")));
 var pythonAsset = pythonAssetTemplate(handlebarData);
 File.WriteAllText(pythonAssetRs, pythonAsset.ToString().ReplaceLineEndings("\n"));
+
+// --- nodejs generation ---
+var libnodeTypesFile = Path.Combine(scriptsDir, "..", "lib-nodejs", "src", "types.ts");
+var nodeTemplate = Handlebars.Compile(File.ReadAllText(Path.Combine(templatesDir, "node_types.hbs")));
+var nodeData = nodeTemplate(handlebarData);
+File.WriteAllText(libnodeTypesFile, nodeData.ToString().ReplaceLineEndings("\n"));
 
 return 0;
 
@@ -122,6 +129,7 @@ class TypeMap
     public string rustType;
     public string cType;
     public string cppType;
+    public string nodeType;
     public string interopType;
     public bool primitive;
     public bool system;
@@ -132,18 +140,20 @@ class TypeMap
             rustType = rustName,
             cType = cType,
             cppType = rustName,
+            nodeType = rustName,
             interopType = cType,
             primitive = false,
             system = false,
         };
     }
 
-    public static TypeMap Primitive(string rustName, string cType)
+    public static TypeMap Primitive(string rustName, string cType, string nodeType)
     {
         return new TypeMap() {
             rustType = rustName,
             cType = cType,
             cppType = cType,
+            nodeType = nodeType,
             interopType = rustName,
             primitive = true,
             system = false,
@@ -156,6 +166,7 @@ class TypeMap
             rustType = rustName,
             cType = cType,
             cppType = cppType,
+            nodeType = cppType,
             interopType = interopType,
             primitive = false,
             system = true,
@@ -179,6 +190,7 @@ class RustStruct_Field
     public string field_c_type;
     public string field_cpp_type;
     public string field_rust_type;
+    public string field_node_type;
     public bool field_primitive;
     public bool field_optional;
     public bool field_vector;

@@ -1,9 +1,7 @@
 import * as addon from "./load";
-import type { UpdateInfo } from "./bindings/UpdateInfo";
-import type { UpdateOptions } from "./bindings/UpdateOptions";
-import type { VelopackLocatorConfig } from "./bindings/VelopackLocatorConfig";
 
-export { UpdateInfo, UpdateOptions, VelopackLocatorConfig };
+import type { UpdateInfo, UpdateOptions, VelopackLocatorConfig, VelopackAsset } from "./types";
+export { UpdateInfo, UpdateOptions, VelopackLocatorConfig, VelopackAsset };
 
 type UpdateManagerOpaque = {};
 declare module "./load" {

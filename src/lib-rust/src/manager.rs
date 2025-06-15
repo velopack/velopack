@@ -52,7 +52,6 @@ impl VelopackAssetFeed {
 /// An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
-#[cfg_attr(feature = "typescript", derive(ts_rs::TS))]
 #[serde(default)]
 pub struct VelopackAsset {
     /// The name or Id of the package containing this release.
@@ -78,7 +77,6 @@ pub struct VelopackAsset {
 /// Holds information about the current version and pending updates, such as how many there are, and access to release notes.
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
-#[cfg_attr(feature = "typescript", derive(ts_rs::TS))]
 #[serde(default)]
 pub struct UpdateInfo {
     /// The available version that we are updating to.
@@ -118,7 +116,6 @@ impl AsRef<VelopackAsset> for VelopackAsset {
 /// Options to customise the behaviour of UpdateManager.
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
-#[cfg_attr(feature = "typescript", derive(ts_rs::TS))]
 #[serde(default)]
 pub struct UpdateOptions {
     /// Allows UpdateManager to update to a version that's lower than the current version (i.e. downgrading).
