@@ -4,6 +4,7 @@ use libc::{c_void, size_t};
 use std::{
     collections::HashMap,
     ffi::CString,
+    path::Path,
     sync::{
         atomic::{AtomicUsize, Ordering},
         mpsc::Sender,
@@ -43,7 +44,7 @@ impl UpdateSource for CCallbackUpdateSource {
         if let Some(cb_get_release_feed) = self.cb_get_release_feed {
             let json_cstr_ptr = (cb_get_release_feed)(self.p_user_data, releases_name_cstr.as_ptr());
             let json = c_to_String(json_cstr_ptr).map_err(|_| {
-                Error::Generic("User vpkc_release_feed_delegate_t returned a null pointer instead of an asset feed".to_string())
+                Error::Other("User vpkc_release_feed_delegate_t returned a null pointer instead of an asset feed".to_string())
             })?;
             if let Some(cb_free_release_feed) = self.cb_free_release_feed {
                 (cb_free_release_feed)(self.p_user_data, json_cstr_ptr); // Free the C string returned by the callback
@@ -53,12 +54,13 @@ impl UpdateSource for CCallbackUpdateSource {
             let feed: VelopackAssetFeed = serde_json::from_str(&json)?;
             Ok(feed)
         } else {
-            Err(Error::Generic("User vpkc_release_feed_delegate_t is null".to_string()))
+            Err(Error::Other("User vpkc_release_feed_delegate_t is null".to_string()))
         }
     }
 
-    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
+    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &Path, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
         if let Some(cb_download_release_entry) = self.cb_download_release_entry {
+            let local_file = local_file.to_string_lossy().to_string();
             let local_file_cstr = CString::new(local_file).unwrap();
             let asset_ptr = unsafe { allocate_VelopackAsset(asset) };
 
@@ -76,12 +78,12 @@ impl UpdateSource for CCallbackUpdateSource {
             }
 
             if !success {
-                return Err(Error::Generic("User vpkc_download_asset_delegate_t returned false to indicate download failed".to_owned()));
+                return Err(Error::Other("User vpkc_download_asset_delegate_t returned false to indicate download failed".to_owned()));
             }
 
             Ok(())
         } else {
-            Err(Error::Generic("User vpkc_download_asset_delegate_t is null".to_string()))
+            Err(Error::Other("User vpkc_download_asset_delegate_t is null".to_string()))
         }
     }
 

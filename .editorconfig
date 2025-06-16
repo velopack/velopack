@@ -6,6 +6,7 @@ root = true
 # All files 
 [*]
 indent_style = space
+max_line_length = 150
 
 # ReSharper properties
 resharper_csharp_wrap_after_invocation_lpar = true
@@ -17,7 +18,7 @@ resharper_indent_raw_literal_string = indent
 indent_size = 2
 
 # Xml files
-[*.xml]
+[*.{xml, hbs}]
 indent_size = 2
 
 # Code files 

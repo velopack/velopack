@@ -17,6 +17,7 @@ rust-version.workspace = true
 default = []
 async = ["async-std"]
 file-logging = ["log-panics", "simplelog", "time"]
+public-utils = []
 
 [package.metadata.docs.rs]
 features = ["async"]
@@ -58,7 +59,23 @@ simplelog = { workspace = true, optional = true }
 time = { workspace = true, optional = true }
 
 [target.'cfg(windows)'.dependencies]
-windows = { workspace = true, features = ["Win32_Foundation", "Win32_Storage", "Win32_Storage_FileSystem", "Win32_System_IO"] }
+windows = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_Storage",
+    "Win32_Storage_FileSystem",
+    "Win32_Security",
+    "Win32_System_IO",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Shell",
+    "Win32_System_Kernel",
+    "Win32_System_Registry",
+    "Wdk",
+    "Wdk_System",
+    "Wdk_System_Threading",
+] }
 
 [target.'cfg(unix)'.dependencies]
 libc.workspace = true
+wait-timeout.workspace = true
+waitpid-any.workspace = true

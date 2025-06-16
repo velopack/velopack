@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -227,7 +227,7 @@ namespace Velopack
 
             var targetRelease = updates.TargetFullRelease;
             if (targetRelease == null) {
-                throw new ArgumentException("Must pass a valid UpdateInfo object with a non-null TargetFullRelease", nameof(updates));
+                throw new ArgumentException($"Must pass a valid {nameof(UpdateInfo)} object with a non-null {nameof(UpdateInfo.TargetFullRelease)}", nameof(updates));
             }
 
             EnsureInstalled();
@@ -314,7 +314,7 @@ namespace Velopack
 
             // downloading accounts for 0%-70% of progress
             double current = 0;
-            double toIncrement = 100.0 / releasesToDownload.Count();
+            double toIncrement = 100.0 / releasesToDownload.Length;
             await releasesToDownload.ForEachAsync(
                 async x => {
                     var targetFile = Locator.GetLocalPackagePath(x);

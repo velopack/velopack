@@ -1,5 +1,6 @@
-max_width = 140
+max_width = 150
 use_small_heuristics = "Max"
 indent_style = "Visual"
 unstable_features = true
 format_strings = true
+single_line_if_else_max_width = 40

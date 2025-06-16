@@ -61,11 +61,12 @@ jobs:
           rustup target add aarch64-pc-windows-msvc --toolchain nightly-x86_64-pc-windows-msvc
       - name: Build Rust (${{ matrix.target }})
         run: |
-          cargo +nightly build --target ${{ matrix.rust_target }} ${{ matrix.rust_flags }} -p velopack_nodeffi -p velopack_libc
+          cargo +nightly build --target ${{ matrix.rust_target }} ${{ matrix.rust_flags }} -p velopack_nodeffi -p velopack_libc -p velopack_wix
           move target\${{ matrix.rust_target }}\release\velopack_nodeffi.dll target\velopack_nodeffi_win_${{ matrix.target }}_msvc.node 
           move target\${{ matrix.rust_target }}\release\velopack_libc.dll target\velopack_libc_win_${{ matrix.target }}_msvc.dll
           move target\${{ matrix.rust_target }}\release\velopack_libc.dll.lib target\velopack_libc_win_${{ matrix.target }}_msvc.dll.lib
           move target\${{ matrix.rust_target }}\release\velopack_libc.lib target\velopack_libc_win_${{ matrix.target }}_msvc.lib
+          move target\${{ matrix.rust_target }}\release\velopack_wix.dll target\velopack_wix_${{ matrix.target }}.dll
       - name: Upload Rust Build Artifacts
         uses: actions/upload-artifact@v4
         with:
