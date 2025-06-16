@@ -216,6 +216,7 @@ jobs:
           gh release upload $currentTag (get-item ../lib-nodejs/*.tgz)
           gh release upload $currentTag (get-item ../lib-rust/*.crate)
           gh release upload $currentTag (get-item ../lib-c/*.zip)
+          gh release upload $currentTag (get-item ../lib-python/*.zip)
 
       - name: Publish NuGet Packages
         run: |
