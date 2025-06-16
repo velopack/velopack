@@ -200,7 +200,7 @@ impl SplashWindow {
 
         let data_ptr = Box::into_raw(Box::new(Self { frames, rx, frame_idx: 0, w, h, progress: 0, hdc_screen }));
 
-        SetWindowLongPtrW(hwnd, GWL_USERDATA, data_ptr as isize);
+        SetWindowLongPtrW(hwnd, GWL_USERDATA, (data_ptr as isize).try_into()?);
         let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
         SetTimer(Some(hwnd), TMR_GIF, delay, None);
 

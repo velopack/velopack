@@ -102,6 +102,6 @@ fn show_debug_message(fn_name: &str, message: String) {
 }
 
 #[cfg(not(debug_assertions))]
-fn show_debug_message(fn_name: &str, message: String) {
+fn show_debug_message(_fn_name: &str, _message: String) {
     // no-op
 }
