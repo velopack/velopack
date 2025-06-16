@@ -88,7 +88,8 @@ namespace Velopack.Sources
         }
 
         /// <inheritdoc cref="Authorization"/>
-        protected override (string Name, string Value) Authorization => ("Authorization", $"Bearer {AccessToken}");
+        protected override (string Name, string Value)? Authorization =>
+            string.IsNullOrEmpty(AccessToken) ? null : ("Authorization", $"Bearer {AccessToken}");
 
         /// <inheritdoc />
         protected override async Task<GithubRelease[]> GetReleases(bool includePrereleases)
@@ -99,11 +100,9 @@ namespace Velopack.Sources
             var releasesPath = $"repos{RepoUri.AbsolutePath}/releases?per_page={perPage}&page={page}";
             var baseUri = GetApiBaseUrl(RepoUri);
             var getReleasesUri = new Uri(baseUri, releasesPath);
-            var response = await Downloader.DownloadString(getReleasesUri.ToString(),                    
-                new Dictionary<string, string> {
-                    [Authorization.Name] = Authorization.Value,
-                    ["Accept"] = "application/vnd.github.v3+json"
-                }
+            var response = await Downloader.DownloadString(
+                getReleasesUri.ToString(),
+                GetRequestHeaders("application/vnd.github.v3+json")
             ).ConfigureAwait(false);
             var releases = CompiledJson.DeserializeGithubReleaseList(response);
             if (releases == null) return Array.Empty<GithubRelease>();
@@ -117,7 +116,8 @@ namespace Velopack.Sources
                 throw new ArgumentException($"No assets found in GitHub Release '{release.Name}'.");
             }
 
-            IEnumerable<GithubReleaseAsset> allReleasesFiles = release.Assets.Where(a => a.Name?.Equals(assetName, StringComparison.InvariantCultureIgnoreCase) == true);
+            IEnumerable<GithubReleaseAsset> allReleasesFiles =
+                release.Assets.Where(a => a.Name?.Equals(assetName, StringComparison.InvariantCultureIgnoreCase) == true);
             if (!allReleasesFiles.Any()) {
                 throw new ArgumentException($"Could not find asset called '{assetName}' in GitHub Release '{release.Name}'.");
             }
@@ -157,6 +157,7 @@ namespace Velopack.Sources
                 // API location is http://internal.github.server.local/api/v3
                 baseAddress = new Uri(string.Format("{0}{1}{2}/api/v3/", repoUrl.Scheme, Uri.SchemeDelimiter, repoUrl.Host));
             }
+
             // above ^^ notice the end slashes for the baseAddress, explained here: http://stackoverflow.com/a/23438417/162694
             return baseAddress;
         }

@@ -1,0 +1,170 @@
+name: Build Tests
+on:
+  workflow_call:
+
+permissions:
+  id-token: write
+  actions: write
+  contents: read
+
+env:
+  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+jobs:
+  rust:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        include:
+          - os: windows-latest
+            rust_flags: "--features windows"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Check lib-rust
+        run: cargo check -p velopack -F async
+      - name: Test Rust
+        run: cargo llvm-cov ${{ matrix.rust_flags }} --cobertura --output-path ./test/coverage.rust.${{ matrix.os }}.xml
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./test/coverage.rust.${{ matrix.os }}.xml
+
+  nodejs:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
+      - name: Check lib-nodejs
+        working-directory: src/lib-nodejs
+        run: |
+          npm install
+          npm run build
+          npm run test
+
+  python:
+    # strategy:
+    #   fail-fast: false
+    #   matrix:
+    #     os: [windows-latest, ubuntu-latest, macos-latest]
+    # runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
+      - name: Install Dependencies
+        working-directory: src/lib-python
+        run: |
+          dotnet tool update -g vpk
+          pip install uv
+          uv sync
+      - name: Check lib-python
+        working-directory: src/lib-python/test
+        run: uv run python run_test.py
+
+  vpk:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+      VELOPACK_GITHUB_TEST_TOKEN: ${{ secrets.VELOPACK_GITHUB_TEST_TOKEN }}
+      VELOPACK_B2_TEST_TOKEN: ${{ secrets.VELOPACK_B2_TEST_TOKEN }}
+      VELOPACK_AZ_TEST_TOKEN: ${{ secrets.VELOPACK_AZ_TEST_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
+        with:
+          update-dotnet: true
+      - name: Install FUSE
+        run: |
+          sudo add-apt-repository universe
+          sudo apt update
+          sudo apt install libfuse2
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+      - name: Install squashfs-tools
+        run: brew install squashfs
+        if: ${{ matrix.os == 'macos-latest' }}
+      - name: Install dotnet-coverage
+        run: dotnet tool install -g dotnet-coverage
+      - name: Build .NET
+        run: dotnet build -c Release
+      - name: Wait for Artifacts
+        uses: ./.github/actions/wait-artifact
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max_wait_seconds: 900
+          artifacts: rust-macos,rust-windows-bins,rust-ubuntu-bins-x64,rust-ubuntu-bins-arm64
+          verbose: true
+      - name: Download Rust Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: target/release
+          pattern: rust-*
+          merge-multiple: true
+      - name: Azure login
+        uses: azure/login@v2
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Test Velopack.Tests
+        run: dotnet test test/Velopack.Tests/Velopack.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+      - name: Test Velopack.Packaging.Tests
+        run: dotnet test test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+      - name: Test Velopack.CommandLine.Tests
+        run: dotnet test test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+      - name: Upload Cross-Compile Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-${{ matrix.os }}
+          path: test/artifacts/*
+          retention-days: 1
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v5
+        with:
+          directory: ./test
+      - name: Wait for Artifacts
+        uses: ./.github/actions/wait-artifact
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max_wait_seconds: 900
+          artifacts: cross-macos-latest,cross-ubuntu-latest,cross-windows-latest
+          verbose: true
+      - name: Download Cross Artifacts
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
+        uses: actions/download-artifact@v4
+        with:
+          path: test/artifacts
+          pattern: cross-*
+          merge-multiple: true
+      - name: Test Cross-Compiled Apps
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
+        env:
+          VELOPACK_CROSS_ARTIFACTS: true
+        run: dotnet test test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj --no-build -c Release --filter "FullyQualifiedName~RunCrossApp" -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+      

@@ -3,6 +3,7 @@
 name = "velopack_libc"
 publish = false
 version.workspace = true
+description.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true

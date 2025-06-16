@@ -26,7 +26,7 @@ https://github.com/velopack/velopack/assets/1287295/0ff1bea7-15ed-42ae-8bdd-9519
 
 ## Documentation
 - 📖 [Read the docs](https://docs.velopack.io/)
-- ⚡ [Quick start guides](https://docs.velopack.io/category/quick-start)
+- ⚡ [Quick start guides](https://docs.velopack.io/category/getting-started)
 - 🕶️ [View example apps](https://docs.velopack.io/category/sample-apps)
 - 📺 [See website & demo](https://velopack.io/)
 

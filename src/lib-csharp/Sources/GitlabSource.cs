@@ -100,7 +100,8 @@ namespace Velopack.Sources
     public class GitlabSource : GitBase<GitlabRelease>
     {
         /// <inheritdoc cref="Authorization"/>
-        protected override (string Name, string Value) Authorization => ("PRIVATE-TOKEN", AccessToken ?? string.Empty);
+        protected override (string Name, string Value)? Authorization => 
+            string.IsNullOrEmpty(AccessToken) ? null : ("PRIVATE-TOKEN", AccessToken ?? string.Empty);
         
         /// <inheritdoc cref="GitlabSource" />
         /// <param name="repoUrl">
@@ -157,17 +158,22 @@ namespace Velopack.Sources
             const int perPage = 10;
             const int page = 1;
             // https://docs.gitlab.com/ee/api/releases/
-            var releasesPath = $"{RepoUri.AbsolutePath}/releases?per_page={perPage}&page={page}";
-            var baseUri = new Uri("https://gitlab.com");
-            var getReleasesUri = new Uri(baseUri, releasesPath);
-            var response = await Downloader.DownloadString(getReleasesUri.ToString(),
-                new Dictionary<string, string> {
-                    [Authorization.Name] = Authorization.Value,
-                    ["Accept"] = "application/json"
-                }).ConfigureAwait(false);
+            var releasesPath = $"releases?per_page={perPage}&page={page}";
+            var getReleasesUri = CombineUri(RepoUri, releasesPath);
+            var response = await Downloader.DownloadString(getReleasesUri.ToString(), GetRequestHeaders()).ConfigureAwait(false);
             var releases = CompiledJson.DeserializeGitlabReleaseList(response);
-            if (releases == null) return new GitlabRelease[0];
+            if (releases == null) return Array.Empty<GitlabRelease>();
             return releases.OrderByDescending(d => d.ReleasedAt).Where(x => includePrereleases || !x.UpcomingRelease).ToArray();
+        }
+        
+        private static Uri CombineUri(Uri baseUri, string relativePath)
+        {
+            string baseUriStr = baseUri.ToString();
+
+            if (!baseUriStr.EndsWith("/"))
+                baseUriStr += "/";
+
+            return new Uri(baseUriStr + relativePath);
         }
     }
 }

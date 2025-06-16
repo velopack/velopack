@@ -118,6 +118,9 @@ macro_rules! maybe_pub_os {
 
 use std::path::PathBuf;
 
+#[cfg(feature = "file-logging")]
+mod file_rotate;
+
 mod app;
 pub use app::*;
 

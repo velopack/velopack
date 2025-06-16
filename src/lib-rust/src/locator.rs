@@ -48,7 +48,6 @@ impl ShortcutLocationFlags {
 /// VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
 #[allow(non_snake_case)]
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
-#[cfg_attr(feature = "typescript", derive(ts_rs::TS))]
 pub struct VelopackLocatorConfig {
     /// The root directory of the current app.
     pub RootAppDir: PathBuf,

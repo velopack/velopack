@@ -1,0 +1,92 @@
+// This file is auto-generated. Do not edit by hand.
+#![allow(non_snake_case)]
+use pyo3::prelude::*;
+use velopack::{VelopackAsset, UpdateInfo, UpdateOptions, locator::VelopackLocatorConfig};
+use std::path::PathBuf;
+
+{{#each this}}
+#[pyclass(name = "{{struct_rust_name}}")]
+#[derive(Debug, Clone, Default)]
+pub struct Py{{struct_rust_name}} {
+    {{#each fields}}
+    #[pyo3(get, set)]
+    pub {{field_name}}: {{#if field_vector}}Vec<{{/if}}{{#if field_optional}}Option<{{/if~}}
+    {{~#unless field_primitive_or_system}}Py{{/unless}}{{field_rust_type}}
+    {{~#if field_optional}}>{{/if}}{{#if field_vector}}>{{/if}},
+    {{/each}}
+}
+
+#[pymethods]
+impl Py{{struct_rust_name}} {
+    #[new]
+    #[pyo3(signature = ({{#each opt_ordered_fields}}{{field_name}}{{#if field_optional}} = None{{/if~}}{{#unless @last}}, {{/unless}}{{/each}}))]
+    fn new(
+        {{#each opt_ordered_fields}}{{field_name}}: {{#if field_vector}}Vec<{{/if}}{{#if field_optional}}Option<{{/if~}}
+            {{~#unless field_primitive_or_system}}Py{{/unless}}{{field_rust_type}}
+            {{~#if field_optional}}>{{/if}}{{#if field_vector}}>{{/if}},
+        {{/each}}) -> Self {
+        Self {
+            {{#each fields}}
+            {{#if field_vector}}
+            {{field_name}}: {{field_name}}.into_iter().map(Into::into).collect(),
+            {{/if}}
+            {{#if field_primitive}}
+            {{field_name}}: {{field_name}},
+            {{/if}}
+            {{#if field_optional}}
+            {{field_name}}: {{field_name}}.map(Into::into),
+            {{else}}
+            {{#if field_normal}}
+            {{field_name}}: {{field_name}}.into(),
+            {{/if}}
+            {{/if}}
+            {{/each}}
+        }
+    }
+}
+
+impl From<{{struct_rust_name}}> for Py{{struct_rust_name}} {
+    fn from(value: {{struct_rust_name}}) -> Self {
+        Py{{struct_rust_name}} {
+            {{#each fields}}
+            {{#if field_vector}}
+            {{field_name}}: value.{{field_name}}.into_iter().map(Into::into).collect(),
+            {{/if}}
+            {{#if field_primitive}}
+            {{field_name}}: value.{{field_name}},
+            {{/if}}
+            {{#if field_optional}}
+            {{field_name}}: value.{{field_name}}.map(Into::into),
+            {{else}}
+            {{#if field_normal}}
+            {{field_name}}: value.{{field_name}}.into(),
+            {{/if}}
+            {{/if}}
+            {{/each}}
+        }
+    }
+}
+
+impl Into<{{struct_rust_name}}> for Py{{struct_rust_name}} {
+    fn into(self) -> {{struct_rust_name}} {
+        {{struct_rust_name}} {
+            {{#each fields}}
+            {{#if field_vector}}
+            {{field_name}}: self.{{field_name}}.into_iter().map(Into::into).collect(),
+            {{/if}}
+            {{#if field_primitive}}
+            {{field_name}}: self.{{field_name}},
+            {{/if}}
+            {{#if field_optional}}
+            {{field_name}}: self.{{field_name}}.map(Into::into),
+            {{else}}
+            {{#if field_normal}}
+            {{field_name}}: self.{{field_name}}.into(),
+            {{/if}}
+            {{/if}}
+            {{/each}}
+        }
+    }
+}
+
+{{/each}}

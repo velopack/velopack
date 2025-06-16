@@ -1,8 +1,8 @@
 [package]
 name = "velopack"
-description = "Installer and automatic updates for cross-platform desktop applications"
 readme = "README.md"
 version.workspace = true
+description.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
@@ -16,8 +16,7 @@ rust-version.workspace = true
 [features]
 default = []
 async = ["async-std"]
-typescript = ["ts-rs"]
-file-logging = ["log-panics", "simplelog", "file-rotate", "time"]
+file-logging = ["log-panics", "simplelog", "time"]
 public-utils = []
 
 [package.metadata.docs.rs]
@@ -51,16 +50,12 @@ sha1.workspace = true
 sha2.workspace = true
 uuid.workspace = true
 
-# typescript
-ts-rs = { workspace = true, optional = true }
-
 # async
 async-std = { workspace = true, optional = true }
 
 # file logging
 log-panics = { workspace = true, optional = true }
 simplelog = { workspace = true, optional = true }
-file-rotate = { workspace = true, optional = true }
 time = { workspace = true, optional = true }
 
 [target.'cfg(windows)'.dependencies]

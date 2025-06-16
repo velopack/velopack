@@ -1,13 +1,10 @@
 [package]
-name = "velopack_nodeffi"
-exclude = ["index.node"]
+name = "velopack_python"
 publish = false
-version.workspace = true
 authors.workspace = true
-description.workspace = true
 homepage.workspace = true
 repository.workspace = true
-documentation.workspace = true
+description.workspace = true
 keywords.workspace = true
 categories.workspace = true
 license.workspace = true
@@ -18,10 +15,10 @@ rust-version.workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
+anyhow.workspace = true
 velopack.workspace = true
-serde_json.workspace = true
-semver.workspace = true
-log.workspace = true
-simplelog.workspace = true
-lazy_static.workspace = true
-neon.workspace = true
+pyo3.workspace = true
+pyo3-log.workspace = true
+
+[build-dependencies]
+pyo3-build-config.workspace = true

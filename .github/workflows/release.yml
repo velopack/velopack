@@ -26,6 +26,11 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./
 
+      - name: Load version from file
+        run: |
+          version=$(cat version.txt | xargs)
+          echo "PKG_VERSION=$version" >> $GITHUB_ENV
+
       - name: Download vpk
         uses: actions/download-artifact@v4
         with:
@@ -58,16 +63,25 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./lib-c-files
 
-      - name: Load version from file
-        run: |
-          version=$(cat version.txt | xargs)
-          echo "PKG_VERSION=$version" >> $GITHUB_ENV
-
       - name: Create lib-c zip package
         working-directory: ./lib-c-files
         run: |
           mkdir -p ../lib-c
           zip -r ../lib-c/velopack_libc_$PKG_VERSION.zip .
+
+      - name: Download lib-python
+        uses: actions/download-artifact@v4
+        with:
+          name: lib-python
+          run-id: ${{ github.event.inputs.workflow_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./lib-python-files
+
+      - name: Create lib-python zip package
+        working-directory: ./lib-python-files
+        run: |
+          mkdir -p ../lib-python
+          zip -r ../lib-python/velopack_libpython_$PKG_VERSION.zip .
 
       - uses: actions/checkout@v4
         with:
@@ -202,6 +216,7 @@ jobs:
           gh release upload $currentTag (get-item ../lib-nodejs/*.tgz)
           gh release upload $currentTag (get-item ../lib-rust/*.crate)
           gh release upload $currentTag (get-item ../lib-c/*.zip)
+          gh release upload $currentTag (get-item ../lib-python/*.zip)
 
       - name: Publish NuGet Packages
         run: |
@@ -224,3 +239,18 @@ jobs:
           rm .cargo_vcs_info.json
           cargo login ${{ secrets.CARGO_TOKEN }}
           cargo publish --allow-dirty --no-verify
+
+      # - name: Publish to TestPyPI
+      #   uses: pypa/gh-action-pypi-publish@release/v1
+      #   with:
+      #     repository-url: https://test.pypi.org/legacy/
+      #     password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+      #     packages-dir: lib-python-files/
+      #     verbose: true
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages-dir: lib-python-files/
+          verbose: true
