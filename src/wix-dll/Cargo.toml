@@ -17,7 +17,7 @@ rust-version.workspace = true
 path = "src/lib.rs"
 crate-type = ["cdylib"]
 
-[dependencies]
+[target.'cfg(windows)'.dependencies]
 anyhow.workspace = true
 velopack.workspace = true
 velopack_bins.workspace = true

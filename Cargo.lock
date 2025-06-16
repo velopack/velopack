@@ -2365,6 +2365,7 @@ dependencies = [
  "ureq",
  "url",
  "uuid",
+ "wait-timeout",
  "waitpid-any",
  "windows",
  "xml",

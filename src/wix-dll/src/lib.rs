@@ -1,3 +1,5 @@
+#![cfg(windows)]
+
 mod msi;
 use msi::*;
 

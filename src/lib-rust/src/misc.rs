@@ -56,7 +56,7 @@ pub fn calculate_sha1_sha256<P: AsRef<Path>>(file: P) -> Result<(String, String)
         if bytes_read == 0 {
             break;
         }
-        
+
         sha256.update(&buffer[..bytes_read]);
         sha1.update(&buffer[..bytes_read]);
     }
@@ -67,6 +67,7 @@ pub fn calculate_sha1_sha256<P: AsRef<Path>>(file: P) -> Result<(String, String)
     Ok((sha1_hash, sha256_hash))
 }
 
+#[cfg(target_os = "windows")]
 pub fn is_directory_writable<P1: AsRef<Path>>(path: P1) -> bool {
     use std::os::windows::fs::OpenOptionsExt;
     let path = path.as_ref();

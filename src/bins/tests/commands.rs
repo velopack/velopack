@@ -7,13 +7,13 @@ use std::{fs, path::Path, path::PathBuf};
 use tempfile::tempdir;
 
 use velopack_bins::*;
-    use velopack_bins::windows::known_path;
 use velopack::bundle::load_bundle_from_file;
 use velopack::locator::{auto_locate_app_manifest, LocationContext};
 
 #[cfg(target_os = "windows")]
 #[test]
 pub fn test_install_apply_uninstall() {
+    use velopack_bins::windows::known_path;
 
     dialogs::set_silent(true);
 

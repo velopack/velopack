@@ -77,4 +77,5 @@ windows = { workspace = true, features = [
 
 [target.'cfg(unix)'.dependencies]
 libc.workspace = true
+wait-timeout.workspace = true
 waitpid-any.workspace = true
