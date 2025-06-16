@@ -464,7 +464,7 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
     let metadata_path = contents_dir.join("sq.version");
 
     if !update_exe_path.exists() {
-        return Err(Error::MissingUpdateExe);
+        return Err(Error::NotInstalled("UpdateMac does not exist in the expected path".to_owned()));
     }
 
     let app = read_current_manifest(&metadata_path)?;

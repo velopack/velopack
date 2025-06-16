@@ -301,7 +301,7 @@ impl BundleZip<'_> {
             #[cfg(target_os = "macos")]
             {
                 if let Err(e) = std::fs::set_permissions(&file_path_on_disk, std::fs::Permissions::from_mode(0o755)) {
-                    warn!("Failed to set mode 755 on '{}': {:?}", file_path_on_disk, e);
+                    warn!("Failed to set mode 755 on '{:?}': {:?}", file_path_on_disk, e);
                 }
             }
 

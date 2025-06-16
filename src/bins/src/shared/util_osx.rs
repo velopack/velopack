@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Result};
-use std::{path::Path, process::Command as Process, time::Duration};
+use std::{ffi::OsString, path::Path, process::Command as Process, time::Duration};
 use velopack::locator::VelopackLocator;
 
 pub fn wait_for_pid_to_exit(pid: u32, ms_to_wait: u32) -> Result<()> {
@@ -25,16 +25,16 @@ pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
 
 pub fn force_stop_package<P: AsRef<Path>>(root_dir: P) -> Result<()> {
     let root_dir = root_dir.as_ref();
-    let command = format!("quit app \"{}\"", root_dir);
+    let command = format!("quit app \"{}\"", root_dir.to_string_lossy().to_string());
     Process::new("/usr/bin/osascript").arg("-e").arg(command).spawn().map_err(|z| anyhow!("Failed to stop application ({}).", z))?;
     Ok(())
 }
 
-pub fn start_package(locator: &VelopackLocator, exe_args: Option<Vec<&str>>, set_env: Option<&str>) -> Result<()> {
-    let root_dir = locator.get_root_dir_as_string();
-    let mut args = vec!["-n", &root_dir];
+pub fn start_package(locator: &VelopackLocator, exe_args: Option<Vec<OsString>>, set_env: Option<&str>) -> Result<()> {
+    let root_dir = locator.get_root_dir();
+    let mut args: Vec<OsString> = vec!["-n".into(), root_dir.into()];
     if let Some(a) = exe_args {
-        args.push("--args");
+        args.push("--args".into());
         args.extend(a);
     }
     info!("Starting application: open {:?}", args);
