@@ -1,0 +1,18 @@
+[project]
+name = "pythonwxpython"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "velopack",
+    "wxpython>=4.2.3",
+]
+
+[tool.uv.sources]
+velopack = { path = "../../src/lib-python" }
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.14.1",
+]
