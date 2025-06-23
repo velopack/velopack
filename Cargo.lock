@@ -1115,9 +1115,9 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "libc"
-version = "0.2.173"
+version = "0.2.174"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8cfeafaffdbc32176b64fb251369d52ea9f0a8fbc6f8759edffef7b525d64bb"
+checksum = "1171693293099992e19cddea4e8b849964e9846f4acee11b3948bcc337be8776"
 
 [[package]]
 name = "libloading"
@@ -2251,9 +2251,9 @@ checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
 name = "ureq"
-version = "3.0.11"
+version = "3.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7a3e9af6113ecd57b8c63d3cd76a385b2e3881365f1f489e54f49801d0c83ea"
+checksum = "9f0fde9bc91026e381155f8c67cb354bcd35260b2f4a29bcc84639f762760c39"
 dependencies = [
  "base64",
  "flate2",
@@ -2620,9 +2620,9 @@ dependencies = [
 
 [[package]]
 name = "webview2-com-sys"
-version = "0.37.0"
+version = "0.38.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ae2d11c4a686e4409659d7891791254cf9286d3cfe0eef54df1523533d22295"
+checksum = "36695906a1b53a3bf5c4289621efedac12b73eeb0b89e7e1a89b517302d5d75c"
 dependencies = [
  "thiserror 2.0.12",
  "windows",
