@@ -77,4 +77,36 @@ impl UpdateManagerWrapper {
         self.inner.apply_updates_and_restart(&rust_update_info)?;
         Ok(())
     }
+
+    pub fn apply_updates_and_restart_with_args(&mut self, update_info: &PyUpdateInfo, restart_args: Vec<String>) -> Result<()> {
+        // Convert PyUpdateInfo back to rust UpdateInfo
+        let rust_update_info: UpdateInfo = update_info.clone().into();
+        self.inner.apply_updates_and_restart_with_args(&rust_update_info, restart_args)?;
+        Ok(())
+    }
+
+    pub fn apply_updates_and_exit(&mut self, update_info: &PyUpdateInfo) -> Result<()> {
+        // Convert PyUpdateInfo back to rust UpdateInfo
+        let rust_update_info: UpdateInfo = update_info.clone().into();
+        self.inner.apply_updates_and_exit(&rust_update_info)?;
+        Ok(())
+    }
+
+    #[pyo3(signature = (update_info, silent = false, restart = true, restart_args = None))]
+    pub fn wait_exit_then_apply_updates(
+        &mut self,
+        update_info: &PyUpdateInfo,
+        silent: bool,
+        restart: bool,
+        restart_args: Option<Vec<String>>,
+    ) -> Result<()> {
+        // Convert PyUpdateInfo back to rust UpdateInfo
+        let rust_update_info: UpdateInfo = update_info.clone().into();
+        
+        // Convert restart_args to the format expected by the Rust function
+        let args = restart_args.unwrap_or_default();
+        
+        self.inner.wait_exit_then_apply_updates(&rust_update_info, silent, restart, args)?;
+        Ok(())
+    }
 }
