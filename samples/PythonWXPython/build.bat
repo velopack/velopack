@@ -9,12 +9,11 @@ if "%~1"=="" (
 
 cd %~dp0
 
-
-
-
 echo.
 echo Installing dependencies
 uv sync
+
+echo update_url = R"%~dp0releases" > _build_config.py
 
 echo.
 echo Building Python application
@@ -32,4 +31,3 @@ rmdir /S /Q build 2>nul
 rmdir /S /Q dist 2>nul
 rmdir /S /Q publish 2>nul
 del /Q main.spec 2>nul
-
