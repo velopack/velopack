@@ -7,7 +7,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        sample: [CPlusPlusWidgets, CPlusPlusWin32, CSharpAvalonia, CSharpUno, CSharpWpf, NodeJSElectron, RustIced]
+        sample:
+          - CPlusPlusWidgets
+          - CPlusPlusWin32
+          - CSharpAvalonia
+          - CSharpUno
+          - CSharpWpf
+          - NodeJSElectron
+          - PythonWXPython
+          - RustIced
         os: [windows-latest, ubuntu-latest, macos-latest]
         exclude:
           - os: ubuntu-latest
@@ -44,6 +52,16 @@ jobs:
           sudo apt-cache search libgtk*
           sudo apt install -y libwxgtk3.2-dev libgtk-3-dev
         if: ${{ matrix.sample == 'CPlusPlusWidgets' && matrix.os == 'ubuntu-latest' }}
+      - name: Install uv
+        run: |
+          pip install uv
+        if: ${{ matrix.sample == 'PythonWXPython' }}
+      - name: Refresh uv.lock for wxPython
+        working-directory: samples/${{ matrix.sample }}
+        run: |
+          rm uv.lock
+          uv sync --find-links https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-24.04
+        if: ${{ matrix.sample == 'PythonWXPython' && matrix.os == 'ubuntu-latest' }}
       - name: Setup dotnet
         uses: actions/setup-dotnet@v4
         with:
@@ -51,6 +69,7 @@ jobs:
             6.0.x
             8.0.x
             9.0.x
+        if: ${{ startsWith(matrix.sample, 'CSharp') }}
       - name: Install VPK
         run: dotnet tool install -g vpk
       - name: Pack Sample (Windows)
