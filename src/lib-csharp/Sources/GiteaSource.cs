@@ -128,13 +128,21 @@ namespace Velopack.Sources
         /// Given a repository URL (e.g. https://Gitea.com/myuser/myrepo) this function
         /// returns the API base for performing requests. (eg. "https://api.Gitea.com/" 
         /// or http://internal.Gitea.server.local/api/v1)
+        /// or http://localhost:3000/api/v1
         /// </summary>
         /// <param name="repoUrl"></param>
         /// <returns></returns>
         protected virtual Uri GetApiBaseUrl(Uri repoUrl)
         {
-            Uri baseAddress = new Uri(string.Format("{0}{1}{2}/api/v1/", repoUrl.Scheme, Uri.SchemeDelimiter, repoUrl.Host));
-            // above ^^ notice the end slashes for the baseAddress, explained here: http://stackoverflow.com/a/23438417/162694
+            Uri baseAddress;
+
+            if (repoUrl.IsDefaultPort) {
+                baseAddress = new Uri(string.Format("{0}{1}{2}/api/v1/", repoUrl.Scheme, Uri.SchemeDelimiter, repoUrl.Host));
+                // above ^^ notice the end slashes for the baseAddress, explained here: http://stackoverflow.com/a/23438417/162694
+            } else {
+                baseAddress = new Uri(string.Format("{0}{1}{2}:{3}/api/v1/", repoUrl.Scheme, Uri.SchemeDelimiter, repoUrl.Host, repoUrl.Port));
+            }
+
             return baseAddress;
         }
     }
