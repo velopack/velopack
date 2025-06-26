@@ -2,6 +2,7 @@ import logging
 import wx
 
 import velopack
+from _build_config import update_url
 
 class BufferedLogHandler(logging.Handler):
     """Buffers log messages and provides access to them"""
@@ -84,7 +85,7 @@ class MainFrame(wx.Frame):
     
     def on_check(self, event):
         try:
-            self.update_manager = velopack.UpdateManager("../../releases/")
+            self.update_manager = velopack.UpdateManager(update_url)
         except Exception as e:
             logging.error(f"Failed to initialize update manager: {e}")
             return
