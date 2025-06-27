@@ -209,12 +209,12 @@ fn js_wait_exit_then_apply_update(mut cx: FunctionContext) -> JsResult<JsUndefin
     let arg_silent = cx.argument::<JsBoolean>(2)?.value(&mut cx);
     let arg_restart = cx.argument::<JsBoolean>(3)?.value(&mut cx);
 
-    let update_info = serde_json::from_str::<UpdateInfo>(&arg_update).or_else(|e| cx.throw_error(e.to_string()))?;
+    let asset = serde_json::from_str::<VelopackAsset>(&arg_update).or_else(|e| cx.throw_error(e.to_string()))?;
 
     let arg_restart_args = cx.argument::<JsArray>(4)?;
     let restart_args = args_array_to_vec_string(&mut cx, arg_restart_args)?;
 
-    mgr_ref.wait_exit_then_apply_updates(update_info, arg_silent, arg_restart, restart_args).or_else(|e| cx.throw_error(e.to_string()))?;
+    mgr_ref.wait_exit_then_apply_updates(asset, arg_silent, arg_restart, restart_args).or_else(|e| cx.throw_error(e.to_string()))?;
     Ok(cx.undefined())
 }
 

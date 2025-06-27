@@ -19,7 +19,7 @@ declare module "./load" {
 
   function js_update_pending_restart(
     um: UpdateManagerOpaque,
-  ): UpdateInfo | null;
+  ): string | null;
 
   function js_check_for_updates_async(
     um: UpdateManagerOpaque,
@@ -239,11 +239,15 @@ export class UpdateManager {
   }
 
   /**
-   * Returns an UpdateInfo object if there is an update downloaded which still needs to be applied.
-   * You can pass the UpdateInfo object to waitExitThenApplyUpdate to apply the update.
+   * Returns an VelopackAsset object if there is an update downloaded which still needs to be applied.
+   * You can pass the VelopackAsset object to waitExitThenApplyUpdate to apply the update.
    */
-  getUpdatePendingRestart(): UpdateInfo | null {
-    return addon.js_update_pending_restart(this.opaque);
+  getUpdatePendingRestart(): VelopackAsset | null {
+    let json: string | null = addon.js_update_pending_restart(this.opaque);
+    if (json && json.length > 0) {
+      return JSON.parse(json);
+    }
+    return null;
   }
 
   /**
@@ -290,7 +294,7 @@ export class UpdateManager {
    * optionally restart your app. The updater will only wait for 60 seconds before giving up.
    */
   waitExitThenApplyUpdate(
-    update: UpdateInfo,
+    update: UpdateInfo | VelopackAsset,
     silent: boolean = false,
     restart: boolean = true,
     restartArgs: string[] = [],
@@ -298,6 +302,12 @@ export class UpdateManager {
     if (!update) {
       throw new Error("update is required");
     }
+
+    // the backend API only accepts VelopackAsset, so we need to extract it from UpdateInfo
+    if ("TargetFullRelease" in update && typeof update.TargetFullRelease === "object") {
+      update = update.TargetFullRelease;
+    }
+
     addon.js_wait_exit_then_apply_update(
       this.opaque,
       JSON.stringify(update),
