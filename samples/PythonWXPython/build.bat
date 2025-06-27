@@ -11,7 +11,7 @@ cd %~dp0
 
 echo.
 echo Installing dependencies
-uv sync
+uv sync --reinstall-package velopack
 if errorlevel 1 exit /b 1
 
 echo update_url = R"%~dp0releases" > _build_config.py

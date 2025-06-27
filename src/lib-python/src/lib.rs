@@ -10,11 +10,28 @@ use app::VelopackAppWrapper;
 mod manager;
 use manager::UpdateManagerWrapper;
 
+use ::velopack::VelopackAsset;
+
+#[derive(FromPyObject)]
+pub enum PyUpdateInfoOrAsset {
+    UpdateInfo(PyUpdateInfo),
+    Asset(PyVelopackAsset),
+}
+
+impl PyUpdateInfoOrAsset {
+    pub fn into_asset(self) -> VelopackAsset {
+        match self {
+            PyUpdateInfoOrAsset::UpdateInfo(update_info) => update_info.TargetFullRelease.into(),
+            PyUpdateInfoOrAsset::Asset(asset) => asset.into(),
+        }
+    }
+}
+
 #[pymodule]
 #[pyo3(name = "velopack")]
 fn velopack(m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
-    
+
     // auto-generated DTO's
     m.add_class::<PyVelopackAsset>()?;
     m.add_class::<PyUpdateInfo>()?;
