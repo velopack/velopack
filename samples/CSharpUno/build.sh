@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Check if version parameter is provided
 if [ "$#" -ne 1 ]; then

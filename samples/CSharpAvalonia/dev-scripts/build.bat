@@ -17,10 +17,12 @@ cd %~dp0..\..\..\
 echo.
 echo Building Velopack Rust
 cargo build --features windows
+if errorlevel 1 exit /b 1
 
 echo.
 echo Building Velopack Vpk
 dotnet build src/vpk/Velopack.Vpk/Velopack.Vpk.csproj
+if errorlevel 1 exit /b 1
 
 cd %~dp0..
 set "version=%~1"
@@ -28,7 +30,9 @@ set "version=%~1"
 echo.
 echo Compiling VelopackCSharpAvalonia with dotnet...
 dotnet publish -c Release --self-contained -r win-x64 -o publish -p:UseLocalVelopack=true
+if errorlevel 1 exit /b 1
 
 echo.
 echo Building Velopack Release v%version%
 %~dp0..\..\..\build\Debug\net8.0\vpk pack -u VelopackCSharpAvalonia -o releases -p publish -v %*
+if errorlevel 1 exit /b 1

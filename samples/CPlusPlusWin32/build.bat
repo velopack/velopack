@@ -15,6 +15,7 @@ if "%~1"=="" (
 echo.
 echo Building Velopack C Lib with Cargo
 cargo build -p velopack_libc
+if errorlevel 1 exit /b 1
 
 cd %~dp0
 
@@ -39,9 +40,11 @@ echo.
 echo Building CppWin32Sample
 cd %~dp0
 "%MSBUILD_PATH%" CppWin32Sample.sln
+if errorlevel 1 exit /b 1
 
 echo #define UPDATE_URL "REPLACE_ME" > constants.h
 
 echo.
 echo Building Velopack Release v%~1
 vpk pack -u VelopackCppWin32Sample -o releases -p x64\Debug -v %* -e CppWin32Sample.exe
+if errorlevel 1 exit /b 1
