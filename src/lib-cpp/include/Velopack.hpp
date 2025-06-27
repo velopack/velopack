@@ -31,12 +31,6 @@ static inline std::optional<std::string> to_cpp_string(const char* psz)
     return psz == nullptr ? std::optional<std::string>("") : std::optional<std::string>(psz);
 }
 
-static inline char* alloc_c_string(const std::optional<std::string>& str)
-{
-    if (!str.has_value()) { return nullptr; }
-    return alloc_c_string(str.value());
-}
-
 static inline char* alloc_c_string(const std::string& str)
 {
     char* result = new char[str.size() + 1]; // +1 for null-terminator
@@ -47,6 +41,12 @@ static inline char* alloc_c_string(const std::string& str)
 #endif
     result[str.size()] = '\0'; // Null-terminate the string
     return result;
+}
+
+static inline char* alloc_c_string(const std::optional<std::string>& str)
+{
+    if (!str.has_value()) { return nullptr; }
+    return alloc_c_string(str.value());
 }
 
 static inline void free_c_string(char* str)
@@ -165,7 +165,7 @@ static inline void free_c_VelopackLocatorConfig(vpkc_locator_config_t* obj) {
     free_c_string(obj->PackagesDir);
     free_c_string(obj->ManifestPath);
     free_c_string(obj->CurrentBinaryDir);
-    
+
     delete obj;
 }
 
@@ -268,7 +268,7 @@ static inline void free_c_VelopackAsset(vpkc_asset_t* obj) {
     free_c_string(obj->FileName);
     free_c_string(obj->SHA1);
     free_c_string(obj->SHA256);
-    
+
     free_c_string(obj->NotesMarkdown);
     free_c_string(obj->NotesHtml);
     delete obj;
@@ -354,7 +354,7 @@ static inline void free_c_UpdateInfo(vpkc_update_info_t* obj) {
     free_c_VelopackAsset(obj->TargetFullRelease);
     free_c_VelopackAsset(obj->BaseRelease);
     free_c_VelopackAsset_vec(obj->DeltasToTarget, obj->DeltasToTargetCount);
-    
+
     delete obj;
 }
 
@@ -443,9 +443,9 @@ static inline vpkc_update_options_t** alloc_c_UpdateOptions_vec(const std::vecto
 
 static inline void free_c_UpdateOptions(vpkc_update_options_t* obj) {
     if (obj == nullptr) { return; }
-    
+
     free_c_string(obj->ExplicitChannel);
-    
+
     delete obj;
 }
 
@@ -458,7 +458,7 @@ static inline void free_c_UpdateOptions_vec(vpkc_update_options_t** arr, size_t 
 }
 // !! AUTO-GENERATED-END CPP_TYPES
 
-/** 
+/**
  * VelopackApp helps you to handle app activation events correctly.
  * This should be used as early as possible in your application startup code.
  * (eg. the beginning of main() or wherever your entry point is)
@@ -470,8 +470,8 @@ public:
     /**
      * Build a new VelopackApp instance.
      */
-    static VelopackApp Build() { 
-        return VelopackApp(); 
+    static VelopackApp Build() {
+        return VelopackApp();
     };
 
     /**
@@ -586,7 +586,7 @@ public:
 typedef std::function<void(int16_t)> vpkc_progress_send_t;
 
 /**
- * Abstract class for retrieving release feeds and downloading assets. You should subclass this and 
+ * Abstract class for retrieving release feeds and downloading assets. You should subclass this and
  * implement/override the GetReleaseFeed and DownloadReleaseEntry methods.
  * This class is used by the UpdateManager to fetch release feeds and download assets in a custom way.
  * SAFETY: It is your responsibility to ensure that a derived class instance is thread-safe,
@@ -596,7 +596,7 @@ class IUpdateSource {
     friend class UpdateManager;
     friend class FileSource;
     friend class HttpSource;
-private: 
+private:
     IUpdateSource(vpkc_update_source_t* pSource) : m_pSource(pSource) {}
     vpkc_update_source_t* m_pSource = 0;
 public:
@@ -609,7 +609,7 @@ public:
                 IUpdateSource* source = reinterpret_cast<IUpdateSource*>(userData);
                 std::string json = source->GetReleaseFeed(releasesName);
                 return alloc_c_string(json);
-            }, 
+            },
             [](void* userData, char* pszFeed) {
                 free_c_string(pszFeed);
             },
@@ -642,11 +642,11 @@ public:
 class FileSource : public IUpdateSource {
 public:
     FileSource(const std::string& filePath) : IUpdateSource(vpkc_new_source_file(filePath.c_str())) { }
-    const std::string GetReleaseFeed(const std::string releasesName) override { 
-        throw std::runtime_error("Not implemented"); 
+    const std::string GetReleaseFeed(const std::string releasesName) override {
+        throw std::runtime_error("Not implemented");
     }
-    bool DownloadReleaseEntry(const VelopackAsset& asset, const std::string localFilePath, vpkc_progress_send_t progress) override { 
-        throw std::runtime_error("Not implemented"); 
+    bool DownloadReleaseEntry(const VelopackAsset& asset, const std::string localFilePath, vpkc_progress_send_t progress) override {
+        throw std::runtime_error("Not implemented");
     }
 };
 
@@ -656,11 +656,11 @@ public:
 class HttpSource : public IUpdateSource {
 public:
     HttpSource(const std::string& httpUrl) : IUpdateSource(vpkc_new_source_http_url(httpUrl.c_str())) { }
-    const std::string GetReleaseFeed(const std::string releasesName) override { 
-        throw std::runtime_error("Not implemented"); 
+    const std::string GetReleaseFeed(const std::string releasesName) override {
+        throw std::runtime_error("Not implemented");
     }
-    bool DownloadReleaseEntry(const VelopackAsset& asset, const std::string localFilePath, vpkc_progress_send_t progress) override { 
-        throw std::runtime_error("Not implemented"); 
+    bool DownloadReleaseEntry(const VelopackAsset& asset, const std::string localFilePath, vpkc_progress_send_t progress) override {
+        throw std::runtime_error("Not implemented");
     }
 };
 
@@ -829,7 +829,7 @@ public:
 
     /**
      * This will launch the Velopack updater and optionally wait for a program to exit gracefully.
-     * This method is unsafe because it does not necessarily wait for any / the correct process to exit 
+     * This method is unsafe because it does not necessarily wait for any / the correct process to exit
      * before applying updates. The `WaitExitThenApplyUpdates` method is recommended for most use cases.
      * If waitPid is 0, the updater will not wait for any process to exit before applying updates (Not Recommended).
      */
