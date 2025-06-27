@@ -446,7 +446,7 @@ pub struct vpkc_update_options_t {
     /// ExplicitChannel to switch channels to another channel where the latest version on that
     /// channel is lower than the current version.
     pub AllowVersionDowngrade: bool,
-    /// **This option should usually be left None**.
+    /// **This option should usually be left None/NULL**.
     /// Overrides the default channel used to fetch updates.
     /// The default channel will be whatever channel was specified on the command line when building this release.
     /// For example, if the current release was packaged with '--channel beta', then the default channel will be 'beta'.
