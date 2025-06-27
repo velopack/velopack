@@ -462,13 +462,16 @@ static inline void free_c_UpdateOptions_vec(vpkc_update_options_t** arr, size_t 
  * VelopackApp helps you to handle app activation events correctly.
  * This should be used as early as possible in your application startup code.
  * (eg. the beginning of main() or wherever your entry point is)
+ * To use this class, you should create a new VelopackApp::Build() builder instance,
+ * and then chain calls to the builder to configure your app.
+ * Finally, call the Run() method to execute the Velopack logic.
  */
 class VelopackApp {
 private:
     VelopackApp() {};
 public:
     /**
-     * Build a new VelopackApp instance.
+     * Create and return a new VelopackApp builder.
      */
     static VelopackApp Build() {
         return VelopackApp();
@@ -491,7 +494,10 @@ public:
     };
 
     /**
-     * Override the command line arguments used by VelopackApp. (by default this is env::args().skip(1))
+     * Override the command line arguments used by VelopackApp.
+     * By default, Velopack will use the command line arguments from the current process.
+     * @param args The command line arguments to use.
+     * @returns A reference to the builder.
      */
     VelopackApp& SetArgs(const std::vector<std::string>& args) {
         size_t c;
@@ -502,7 +508,9 @@ public:
     };
 
     /**
-     * VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
+     * Override the default VelopackLocator. The locator is used to find important paths for the application.
+     * @param locator The locator to use.
+     * @returns A reference to the builder.
      */
     VelopackApp& SetLocator(const VelopackLocatorConfig& locator) {
         vpkc_locator_config_t* vpkc_locator = alloc_c_VelopackLocatorConfig(locator);
@@ -512,68 +520,85 @@ public:
     };
 
     /**
-     * WARNING: FastCallback hooks are run during critical stages of Velopack operations.
+     * This hook is triggered after the app has been installed.
+     * WARNING: This hook is run during critical stages of Velopack operations.
      * Your code will be run and then the process will exit.
      * If your code has not completed within 30 seconds, it will be terminated.
      * Only supported on windows; On other operating systems, this will never be called.
+     * @param cbAfterInstall The callback to run after the app has been installed.
+     * @returns A reference to the builder.
      */
-    VelopackApp& OnAfterInstall(vpkc_hook_callback_t cbInstall) {
-        vpkc_app_set_hook_after_install(cbInstall);
+    VelopackApp& OnAfterInstall(vpkc_hook_callback_t cbAfterInstall) {
+        vpkc_app_set_hook_after_install(cbAfterInstall);
         return *this;
     };
 
     /**
-     * WARNING: FastCallback hooks are run during critical stages of Velopack operations.
+     * This hook is triggered before the app is uninstalled.
+     * WARNING: This hook is run during critical stages of Velopack operations.
      * Your code will be run and then the process will exit.
      * If your code has not completed within 30 seconds, it will be terminated.
      * Only supported on windows; On other operating systems, this will never be called.
+     * @param cbBeforeUninstall The callback to run before the app is uninstalled.
+     * @returns A reference to the builder.
      */
-    VelopackApp& OnBeforeUninstall(vpkc_hook_callback_t cbInstall) {
-        vpkc_app_set_hook_before_uninstall(cbInstall);
+    VelopackApp& OnBeforeUninstall(vpkc_hook_callback_t cbBeforeUninstall) {
+        vpkc_app_set_hook_before_uninstall(cbBeforeUninstall);
         return *this;
     };
 
     /**
-     * WARNING: FastCallback hooks are run during critical stages of Velopack operations.
+     * This hook is triggered before the app is updated.
+     * WARNING: This hook is run during critical stages of Velopack operations.
      * Your code will be run and then the process will exit.
      * If your code has not completed within 30 seconds, it will be terminated.
      * Only supported on windows; On other operating systems, this will never be called.
+     * @param cbBeforeUpdate The callback to run before the app is updated.
+     * @returns A reference to the builder.
      */
-    VelopackApp& OnBeforeUpdate(vpkc_hook_callback_t cbInstall) {
-        vpkc_app_set_hook_before_update(cbInstall);
+    VelopackApp& OnBeforeUpdate(vpkc_hook_callback_t cbBeforeUpdate) {
+        vpkc_app_set_hook_before_update(cbBeforeUpdate);
         return *this;
     };
 
     /**
-     * WARNING: FastCallback hooks are run during critical stages of Velopack operations.
+     * This hook is triggered after the app is updated.
+     * WARNING: This hook is run during critical stages of Velopack operations.
      * Your code will be run and then the process will exit.
      * If your code has not completed within 30 seconds, it will be terminated.
      * Only supported on windows; On other operating systems, this will never be called.
+     * @param cbAfterUpdate The callback to run after the app is updated.
+     * @returns A reference to the builder.
      */
-    VelopackApp& OnAfterUpdate(vpkc_hook_callback_t cbInstall) {
-        vpkc_app_set_hook_after_update(cbInstall);
+    VelopackApp& OnAfterUpdate(vpkc_hook_callback_t cbAfterUpdate) {
+        vpkc_app_set_hook_after_update(cbAfterUpdate);
         return *this;
     };
 
     /**
      * This hook is triggered when the application is started for the first time after installation.
+     * @param cbFirstRun The callback to run when the application is started for the first time.
+     * @returns A reference to the builder.
      */
-    VelopackApp& OnFirstRun(vpkc_hook_callback_t cbInstall) {
-        vpkc_app_set_hook_first_run(cbInstall);
+    VelopackApp& OnFirstRun(vpkc_hook_callback_t cbFirstRun) {
+        vpkc_app_set_hook_first_run(cbFirstRun);
         return *this;
     };
 
     /**
      * This hook is triggered when the application is restarted by Velopack after installing updates.
+     * @param cbRestarted The callback to run when the application is restarted.
+     * @returns A reference to the builder.
      */
-    VelopackApp& OnRestarted(vpkc_hook_callback_t cbInstall) {
-        vpkc_app_set_hook_restarted(cbInstall);
+    VelopackApp& OnRestarted(vpkc_hook_callback_t cbRestarted) {
+        vpkc_app_set_hook_restarted(cbRestarted);
         return *this;
     };
 
     /**
      * Runs the Velopack startup logic. This should be the first thing to run in your app.
      * In some circumstances it may terminate/restart the process to perform tasks.
+     * @param pUserData A pointer to user data that will be passed to any hooks that are executed.
      */
     void Run(void* pUserData = 0) {
         vpkc_app_run(pUserData);
@@ -600,9 +625,15 @@ private:
     IUpdateSource(vpkc_update_source_t* pSource) : m_pSource(pSource) {}
     vpkc_update_source_t* m_pSource = 0;
 public:
+    /**
+     * Destructor for IUpdateSource.
+     */
     virtual ~IUpdateSource() {
         vpkc_free_source(m_pSource);
     }
+    /**
+     * Default constructor for IUpdateSource. This will create a new custom source that calls back into the virtual methods of this class.
+     */
     IUpdateSource() {
         m_pSource = vpkc_new_source_custom_callback(
             [](void* userData, const char* releasesName) {
@@ -623,6 +654,9 @@ public:
                 return source->DownloadReleaseEntry(asset, localPath, progress_callback);
             },
             this);
+        if (!m_pSource) {
+            throw_last_error();
+        }
     }
 
     /**
@@ -641,6 +675,10 @@ public:
  */
 class FileSource : public IUpdateSource {
 public:
+    /**
+     * Creates a new FileSource.
+     * @param filePath The path to the directory containing the releases.
+     */
     FileSource(const std::string& filePath) : IUpdateSource(vpkc_new_source_file(filePath.c_str())) { }
     const std::string GetReleaseFeed(const std::string releasesName) override {
         throw std::runtime_error("Not implemented");
@@ -655,6 +693,10 @@ public:
  */
 class HttpSource : public IUpdateSource {
 public:
+    /**
+     * Creates a new HttpSource.
+     * @param httpUrl The URL to the releases feed.
+     */
     HttpSource(const std::string& httpUrl) : IUpdateSource(vpkc_new_source_http_url(httpUrl.c_str())) { }
     const std::string GetReleaseFeed(const std::string releasesName) override {
         throw std::runtime_error("Not implemented");
@@ -666,6 +708,7 @@ public:
 
 /**
  * Provides functionality for checking for updates, downloading updates, and applying updates to the current application.
+ * This class is the main entry point for interacting with Velopack.
  */
 class UpdateManager {
 private:
@@ -674,7 +717,7 @@ private:
 
 public:
     /**
-     * Create a new UpdateManager instance.
+     * Create a new UpdateManager instance for a local or remote directory of releases.
      * @param urlOrPath Location of the http update server or the local update directory path containing releases.
      * @param options Optional extra configuration for update manager.
      * @param locator Override the default locator configuration (usually used for testing / mocks).
@@ -691,7 +734,7 @@ public:
     };
 
     /**
-     * Create a new UpdateManager instance.
+     * Create a new UpdateManager instance with a custom update source.
      * @param updateSource The source to use for retrieving feed and downloading assets.
      * @param options Optional extra configuration for update manager.
      * @param locator Override the default locator configuration (usually used for testing / mocks).
@@ -749,8 +792,9 @@ public:
     };
 
     /**
-     * Returns an UpdateInfo object if there is an update downloaded which still needs to be applied.
-     * You can pass the UpdateInfo object to waitExitThenApplyUpdate to apply the update.
+     * Returns a VelopackAsset object if there is an update downloaded which still needs to be applied.
+     * You can pass this object to WaitExitThenApplyUpdates to apply the update.
+     * @returns A VelopackAsset object if there is a pending update, otherwise null.
      */
     std::optional<VelopackAsset> UpdatePendingRestart() noexcept {
         vpkc_asset_t* asset;
@@ -763,8 +807,9 @@ public:
     };
 
     /**
-     * Checks for updates, returning None if there are none available. If there are updates available, this method will return an
+     * Checks for updates, returning null if there are none available. If there are updates available, this method will return an
      * UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
+     * @returns An UpdateInfo object if there is an update available, otherwise null.
      */
     std::optional<UpdateInfo> CheckForUpdates() {
         vpkc_update_info_t* update;
@@ -791,6 +836,9 @@ public:
      *   this method will attempt to unpack and prepare them.
      * - If there is no delta update available, or there is an error preparing delta
      *   packages, this method will fall back to downloading the full version of the update.
+     * @param update The update to download.
+     * @param progress A callback to report progress to.
+     * @param pUserData A pointer to user data that will be passed to the progress callback.
      */
     void DownloadUpdates(const UpdateInfo& update, vpkc_progress_callback_t progress = nullptr, void* pUserData = 0) {
         vpkc_update_info_t* vpkc_update = alloc_c_UpdateInfo(update);
@@ -805,6 +853,10 @@ public:
      * This will launch the Velopack updater and tell it to wait for this program to exit gracefully.
      * You should then clean up any state and exit your app. The updater will apply updates and then
      * optionally restart your app. The updater will only wait for 60 seconds before giving up.
+     * @param asset The UpdateInfo object for the update to apply.
+     * @param silent If true, the updater will not show any UI.
+     * @param restart If true, the app will be restarted after the update is applied.
+     * @param restartArgs The arguments to pass to the app when it is restarted.
      */
     void WaitExitThenApplyUpdates(const UpdateInfo& asset, bool silent = false, bool restart = true, std::vector<std::string> restartArgs = {}) {
         this->WaitExitThenApplyUpdates(asset.TargetFullRelease, silent, restart, restartArgs);
@@ -814,6 +866,10 @@ public:
      * This will launch the Velopack updater and tell it to wait for this program to exit gracefully.
      * You should then clean up any state and exit your app. The updater will apply updates and then
      * optionally restart your app. The updater will only wait for 60 seconds before giving up.
+     * @param asset The update to apply.
+     * @param silent If true, the updater will not show any UI.
+     * @param restart If true, the app will be restarted after the update is applied.
+     * @param restartArgs The arguments to pass to the app when it is restarted.
      */
     void WaitExitThenApplyUpdates(const VelopackAsset& asset, bool silent = false, bool restart = true, std::vector<std::string> restartArgs = {}) {
         size_t cRestartArgs;
@@ -832,6 +888,11 @@ public:
      * This method is unsafe because it does not necessarily wait for any / the correct process to exit
      * before applying updates. The `WaitExitThenApplyUpdates` method is recommended for most use cases.
      * If waitPid is 0, the updater will not wait for any process to exit before applying updates (Not Recommended).
+     * @param asset The update to apply.
+     * @param silent If true, the updater will not show any UI.
+     * @param waitPid The process ID to wait for before applying updates. If 0, the updater will not wait.
+     * @param restart If true, the app will be restarted after the update is applied.
+     * @param restartArgs The arguments to pass to the app when it is restarted.
      */
     void UnsafeApplyUpdates(const VelopackAsset& asset, bool silent, uint32_t waitPid, bool restart, std::vector<std::string> restartArgs) {
         size_t cRestartArgs;

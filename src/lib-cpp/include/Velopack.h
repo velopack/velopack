@@ -231,7 +231,7 @@ vpkc_update_source_t *vpkc_new_source_http_url(const char *psz_http_url);
  * @param cb_free_release_feed A callback to free the memory allocated by `cb_release_feed`.
  * @param cb_download_entry A callback to download an asset.
  * @param p_user_data Optional user data to be passed to the callbacks.
- * @returns A new vpkc_update_source_t instance, or null on error.
+ * @returns A new vpkc_update_source_t instance, or null on error. If null, the error will be available via `vpkc_get_last_error`.
  */
 vpkc_update_source_t *vpkc_new_source_custom_callback(vpkc_release_feed_delegate_t cb_release_feed,
                                                       vpkc_free_release_feed_t cb_free_release_feed,
