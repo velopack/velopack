@@ -3,8 +3,8 @@ use std::{
     sync::mpsc::Sender,
 };
 
-use crate::*;
 use crate::bundle::Manifest;
+use crate::*;
 
 /// Abstraction for finding and downloading updates from a package source / repository.
 /// An implementation may copy a file from a local repository, download from a web address,
@@ -14,7 +14,7 @@ pub trait UpdateSource: Send + Sync {
     /// can subsequently be downloaded with download_release_entry.
     fn get_release_feed(&self, channel: &str, app: &bundle::Manifest, staged_user_id: &str) -> Result<VelopackAssetFeed, Error>;
     /// Download the specified VelopackAsset to the provided local file path.
-    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress_sender: Option<Sender<i16>>) -> Result<(), Error>;
+    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &Path, progress_sender: Option<Sender<i16>>) -> Result<(), Error>;
     /// Clone the source to create a new lifetime.
     fn clone_boxed(&self) -> Box<dyn UpdateSource>;
 }
@@ -25,16 +25,21 @@ impl Clone for Box<dyn UpdateSource> {
     }
 }
 
-/// A source that does not provide any update capability. 
+/// A source that does not provide any update capability.
 #[derive(Clone)]
 pub struct NoneSource {}
 
 impl UpdateSource for NoneSource {
     fn get_release_feed(&self, _channel: &str, _app: &Manifest, _staged_user_id: &str) -> Result<VelopackAssetFeed, Error> {
-        Err(Error::Generic("None source does not checking release feed".to_owned()))
+        Err(Error::NotSupported("None source does not checking release feed".to_owned()))
     }
-    fn download_release_entry(&self, _asset: &VelopackAsset, _local_file: &str, _progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
-        Err(Error::Generic("None source does not support downloads".to_owned()))
+    fn download_release_entry(
+        &self,
+        _asset: &VelopackAsset,
+        _local_file: &Path,
+        _progress_sender: Option<Sender<i16>>,
+    ) -> Result<(), Error> {
+        Err(Error::NotSupported("None source does not support downloads".to_owned()))
     }
     fn clone_boxed(&self) -> Box<dyn UpdateSource> {
         Box::new(self.clone())
@@ -72,7 +77,7 @@ impl UpdateSource for AutoSource {
         self.source.get_release_feed(channel, app, staged_user_id)
     }
 
-    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
+    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &Path, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
         self.source.download_release_entry(asset, local_file, progress_sender)
     }
 
@@ -111,12 +116,12 @@ impl UpdateSource for HttpSource {
         Ok(feed)
     }
 
-    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
+    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &Path, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
         let path = self.url.trim_end_matches('/').to_owned() + "/";
         let url = url::Url::parse(&path)?;
         let asset_url = url.join(&asset.FileName)?;
 
-        info!("About to download from URL '{}' to file '{}'", asset_url, local_file);
+        info!("About to download from URL '{}' to file '{:?}'", asset_url, local_file);
         download::download_url_to_file(asset_url.as_str(), local_file, move |p| {
             if let Some(progress_sender) = &progress_sender {
                 let _ = progress_sender.send(p);
@@ -150,15 +155,15 @@ impl UpdateSource for FileSource {
         let releases_name = format!("releases.{}.json", channel);
         let releases_path = self.path.join(&releases_name);
 
-        info!("Reading releases from file: {}", releases_path.display());
+        info!("Reading releases from file: {:?}", releases_path);
         let json = std::fs::read_to_string(releases_path)?;
         let feed: VelopackAssetFeed = serde_json::from_str(&json)?;
         Ok(feed)
     }
 
-    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
+    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &Path, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
         let asset_path = self.path.join(&asset.FileName);
-        info!("About to copy from file '{}' to file '{}'", asset_path.display(), local_file);
+        info!("About to copy from file '{:?}' to file '{:?}'", asset_path, local_file);
         if let Some(progress_sender) = &progress_sender {
             let _ = progress_sender.send(50);
         }

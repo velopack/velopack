@@ -1,23 +1,20 @@
-use std::{
-    os::windows::process::CommandExt,
-    path::{Path, PathBuf},
-    process::Command as Process,
-    time::Duration,
-};
-
-use velopack::locator::VelopackLocator;
-
+use crate::shared::{self, runtime_arch::RuntimeArch};
 use anyhow::{anyhow, Result};
 use normpath::PathExt;
-use wait_timeout::ChildExt;
-use windows::core::PCWSTR;
-use windows::Win32::Storage::FileSystem::GetLongPathNameW;
-use windows::Win32::System::SystemInformation::{VerSetConditionMask, VerifyVersionInfoW, OSVERSIONINFOEXW, VER_FLAGS};
-use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
-use windows::Win32::Foundation;
-
-use crate::shared::{self, runtime_arch::RuntimeArch};
-use crate::windows::strings::{string_to_u16, u16_to_string};
+use std::{
+    ffi::{OsStr, OsString},
+    path::{Path, PathBuf},
+    time::Duration,
+};
+use velopack::{
+    locator::VelopackLocator,
+    process::{self, WaitResult},
+    wide_strings::{string_to_wide, wide_to_os_string},
+};
+use windows::{
+    Win32::Storage::FileSystem::GetLongPathNameW,
+    Win32::System::SystemInformation::{VerSetConditionMask, VerifyVersionInfoW, OSVERSIONINFOEXW, VER_FLAGS},
+};
 
 pub fn run_hook(locator: &VelopackLocator, hook_name: &str, timeout_secs: u64) -> bool {
     let sw = simple_stopwatch::Stopwatch::start_new();
@@ -25,33 +22,34 @@ pub fn run_hook(locator: &VelopackLocator, hook_name: &str, timeout_secs: u64) -
     let current_path = locator.get_current_bin_dir();
     let main_exe_path = locator.get_main_exe_path();
     let ver_string = locator.get_manifest_version_full_string();
-    let args = vec![hook_name, &ver_string];
+    let args: Vec<OsString> = vec![hook_name.into(), ver_string.into()];
     let mut success = false;
 
     info!("Running {} hook...", hook_name);
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-    let cmd = Process::new(&main_exe_path).args(args).current_dir(&current_path).creation_flags(CREATE_NO_WINDOW).spawn();
+    let cmd = process::run_process(main_exe_path, args, Some(current_path), false, None);
 
     if let Err(e) = cmd {
         warn!("Failed to start hook {}: {}", hook_name, e);
         return false;
     }
 
-    let mut cmd = cmd.unwrap();
-    let _ = unsafe { AllowSetForegroundWindow(cmd.id()) };
+    let cmd = cmd.unwrap();
 
-    match cmd.wait_timeout(Duration::from_secs(timeout_secs)) {
-        Ok(Some(status)) => {
-            if status.success() {
+    match process::wait_for_process_to_exit(&cmd, Some(Duration::from_secs(timeout_secs))) {
+        Ok(WaitResult::NoWaitRequired) => {
+            warn!("Was unable to wait for hook (it may have exited too quickly).");
+        }
+        Ok(WaitResult::ExitCode(code)) => {
+            if code == 0 {
                 info!("Hook executed successfully (took {}ms)", sw.ms());
                 success = true;
             } else {
-                warn!("Hook exited with non-zero exit code: {}", status.code().unwrap_or(0));
+                warn!("Hook exited with non-zero exit code: {}", code);
             }
         }
-        Ok(None) => {
-            let _ = cmd.kill();
-            error!("Process timed out after {}s", timeout_secs);
+        Ok(WaitResult::WaitTimeout) => {
+            let _ = process::kill_process(&cmd);
+            error!("Process timed out after {}s and was killed.", timeout_secs);
         }
         Err(e) => {
             error!("Error waiting for process to finish: {}", e);
@@ -63,34 +61,22 @@ pub fn run_hook(locator: &VelopackLocator, hook_name: &str, timeout_secs: u64) -
     success
 }
 
-pub struct MutexDropGuard {
-    mutex: Foundation::HANDLE,
-}
-
-impl Drop for MutexDropGuard {
-    fn drop(&mut self) {
-        unsafe {
-            Foundation::CloseHandle(self.mutex).ok();
-        }
-    }
-}
-
-pub fn expand_environment_strings<P: AsRef<str>>(input: P) -> Result<String> {
+pub fn expand_environment_strings<P: AsRef<OsStr>>(input: P) -> Result<OsString> {
     use windows::Win32::System::Environment::ExpandEnvironmentStringsW;
-    let encoded_u16 = super::strings::string_to_u16(input);
-    let encoded = PCWSTR(encoded_u16.as_ptr());
-    let mut buffer_size = unsafe { ExpandEnvironmentStringsW(encoded, None) };
+    let input = input.as_ref();
+    let encoded = string_to_wide(input);
+    let mut buffer_size = unsafe { ExpandEnvironmentStringsW(encoded.as_pcwstr(), None) };
     if buffer_size == 0 {
         return Err(anyhow!(windows::core::Error::from_win32()));
     }
 
     let mut buffer: Vec<u16> = vec![0; buffer_size as usize];
-    buffer_size = unsafe { ExpandEnvironmentStringsW(encoded, Some(&mut buffer)) };
+    buffer_size = unsafe { ExpandEnvironmentStringsW(encoded.as_pcwstr(), Some(&mut buffer)) };
     if buffer_size == 0 {
         return Err(anyhow!(windows::core::Error::from_win32()));
     }
 
-    super::strings::u16_to_string(buffer)
+    Ok(wide_to_os_string(buffer))
 }
 
 #[test]
@@ -100,24 +86,41 @@ fn test_expand_environment_strings() {
     assert!(expand_environment_strings("%windir%\\system32\\").unwrap().eq_ignore_ascii_case("C:\\Windows\\system32\\"));
 }
 
-pub fn get_long_path<P: AsRef<str>>(str: P) -> Result<String> {
-    let str = str.as_ref().to_string();
-    let str = string_to_u16(str);
-    let str = PCWSTR(str.as_ptr());
+pub fn get_long_path<P: AsRef<OsStr>>(str: P) -> Result<OsString> {
+    let str = str.as_ref();
+    let str = string_to_wide(str);
+
     // SAFETY: str is a valid wide string, this call will return required size of buffer
-    let len = unsafe { GetLongPathNameW(str, None) };
+    let len = unsafe { GetLongPathNameW(str.as_pcwstr(), None) };
     if len == 0 {
         return Err(anyhow!(windows::core::Error::from_win32()));
     }
 
     let mut vec = vec![0u16; len as usize];
-    let len = unsafe { GetLongPathNameW(str, Some(vec.as_mut_slice())) };
+    let len = unsafe { GetLongPathNameW(str.as_pcwstr(), Some(vec.as_mut_slice())) };
     if len == 0 {
         return Err(anyhow!(windows::core::Error::from_win32()));
     }
 
-    let result = u16_to_string(vec)?;
-    Ok(result)
+    Ok(wide_to_os_string(vec))
+}
+
+pub fn is_directory_writable<P1: AsRef<Path>>(path: P1) -> bool {
+    use std::os::windows::fs::OpenOptionsExt;
+    let path = path.as_ref();
+    let path = path.join(".velopack_dir_test");
+    let result = std::fs::File::options()
+        .create(true)
+        .write(true)
+        .custom_flags(0x04000000) // FILE_FLAG_DELETE_ON_CLOSE
+        .open(&path);
+
+    if let Err(e) = result {
+        warn!("Failed to open directory for writing {:?}: {}", path, e);
+        return false;
+    }
+
+    result.is_ok()
 }
 
 pub fn is_sub_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, parent: P2) -> Result<bool> {
@@ -156,21 +159,12 @@ pub fn is_sub_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, parent: P2) -> Re
     let path = path.normalize().or_else(|_| path.normalize_virtually())?;
     let parent = parent.normalize().or_else(|_| parent.normalize_virtually())?;
 
-    let mut path = path.as_path().to_string_lossy().to_string();
-    let mut parent = parent.as_path().to_string_lossy().to_string();
-
     // calls GetLongPathNameW
-    match get_long_path(&path) {
-        Ok(p) => path = p,
-        Err(e) => warn!("Failed to get long path for '{}': {}", path, e),
-    }
-    match get_long_path(&parent) {
-        Ok(p) => parent = p,
-        Err(e) => warn!("Failed to get long path for '{}': {}", parent, e),
-    }
+    let mut path = get_long_path(&path).unwrap_or(path.into());
+    let mut parent = get_long_path(&parent).unwrap_or(parent.into());
 
-    path = path.to_lowercase();
-    parent = parent.to_lowercase();
+    path = path.to_ascii_lowercase();
+    parent = parent.to_ascii_lowercase();
 
     let path = PathBuf::from(path);
     let parent = PathBuf::from(parent);
@@ -300,7 +294,11 @@ pub fn is_os_version_or_greater(version: &str) -> Result<bool> {
     }
 
     if major == 8 {
-        return Ok(if minor >= 1 { is_windows_8_or_greater() } else { is_windows_8_1_or_greater() });
+        return Ok(if minor >= 1 {
+            is_windows_8_or_greater()
+        } else {
+            is_windows_8_1_or_greater()
+        });
     }
 
     // https://en.wikipedia.org/wiki/List_of_Microsoft_Windows_versions

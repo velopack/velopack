@@ -1,13 +1,10 @@
-﻿using System.Globalization;
-using System.Runtime.Versioning;
-using System.Text;
+﻿using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using NuGet.Versioning;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
 using Velopack.NuGet;
+using Velopack.Packaging.Windows.Msi;
 using Velopack.Util;
 using Velopack.Windows;
 
@@ -25,7 +22,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         Regex fileExcludeRegex = Options.SignExclude != null ? new Regex(Options.SignExclude) : null;
         var filesToSign = new DirectoryInfo(packDir).GetAllFilesRecursively()
             .Where(x => PathUtil.FileIsLikelyPEImage(x.Name))
-            .Where(x => fileExcludeRegex != null ? !fileExcludeRegex.IsMatch(x.FullName) : true)
+            .Where(x => fileExcludeRegex == null || !fileExcludeRegex.IsMatch(x.FullName))
             .Select(x => x.FullName)
             .ToArray();
 
@@ -51,7 +48,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         // copy files to temp dir, so we can modify them
         var dir = TempDir.CreateSubdirectory("PreprocessPackDirWin");
         CopyFiles(new DirectoryInfo(packDir), dir, progress, true);
-        File.WriteAllText(Path.Combine(dir.FullName, "sq.version"), GenerateNuspecContent());
+        File.WriteAllText(Path.Combine(dir.FullName, CoreUtil.SpecVersionFileName), GenerateNuspecContent());
         packDir = dir.FullName;
 
         var updatePath = Path.Combine(TempDir.FullName, "Update.exe");
@@ -91,27 +88,16 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
     protected string GetShortcutLocations()
     {
-        if (String.IsNullOrWhiteSpace(Options.Shortcuts))
-            return null;
+        var flags = GetShortcuts();
+        var names = Enum.GetValues(typeof(ShortcutLocation))
+            .Cast<ShortcutLocation>()
+            .Where(f => f != ShortcutLocation.None && flags.HasFlag(f))
+            .Select(f => f.ToString())
+            .ToList();
 
-        try {
-            var shortcuts = Options.Shortcuts.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries)
-                .Select(x => x.Trim())
-                .Select(x => (ShortcutLocation) Enum.Parse(typeof(ShortcutLocation), x, true))
-                .ToList();
-
-            if (shortcuts.Count == 0)
-                return null;
-
-            var shortcutString = string.Join(",", shortcuts.Select(x => x.ToString()));
-            Log.Debug($"Shortcut Locations: {shortcutString}");
-            return shortcutString;
-        } catch (Exception ex) {
-            throw new UserInfoException(
-                $"Invalid shortcut locations '{Options.Shortcuts}'. " +
-                $"Valid values for comma delimited list are: {string.Join(", ", Enum.GetNames(typeof(ShortcutLocation)))}." +
-                $"Error was {ex.Message}");
-        }
+        var shortcutStr = names.Count > 0 ? string.Join(",", names) : "None";
+        Log.Info($"Shortcuts: {shortcutStr}");
+        return shortcutStr;
     }
 
     protected string GetRuntimeDependencies()
@@ -183,20 +169,16 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         return String.Join(",", validated);
     }
 
-    protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe, Func<string, VelopackAssetType, string> createAsset)
+    protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe,
+        Func<string, VelopackAssetType, string> createAsset)
     {
-        void setupExeProgress(int x)
-        {
-            if (Options.BuildMsi) {
-                progress(x / 2);
-            } else {
-                progress(x);
-            }
-        }
-        void msiProgress(int value)
-        {
-            progress(50 + value / 2);
-        }
+        var setupExeProgress = Options.BuildMsi
+            ? CoreUtil.CreateProgressDelegate(progress, 0, 33)
+            : CoreUtil.CreateProgressDelegate(progress, 0, 66);
+        var msiProgress = CoreUtil.CreateProgressDelegate(progress, 33, 66);
+        var signingProgress = CoreUtil.CreateProgressDelegate(progress, 66, 100);
+
+        List<string> filesToSign = new();
 
         var bundledZip = new ZipPackage(releasePkg);
         IoUtil.Retry(() => File.Copy(HelperFile.SetupPath, targetSetupExe, true));
@@ -211,20 +193,29 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         editor.Commit();
 
         setupExeProgress(25);
-        Log.Debug($"Creating Setup bundle");
+        Log.Debug("Creating Setup bundle");
         SetupBundle.CreatePackageBundle(targetSetupExe, releasePkg);
-        setupExeProgress(50);
-        Log.Debug("Signing Setup bundle");
-        SignFilesImpl(CoreUtil.CreateProgressDelegate( setupExeProgress, 50, 100), targetSetupExe);
-        Log.Debug($"Setup bundle created '{Path.GetFileName(targetSetupExe)}'.");
+        filesToSign.Add(targetSetupExe);
+        Log.Info($"Setup bundle created '{Path.GetFileName(targetSetupExe)}'.");
         setupExeProgress(100);
 
         if (Options.BuildMsi && VelopackRuntimeInfo.IsWindows) {
             var msiName = DefaultName.GetSuggestedMsiName(Options.PackId, Options.Channel, TargetOs);
-            var msiPath = createAsset(msiName, VelopackAssetType.MsiDeploymentTool);
-            CompileWixTemplateToMsi(msiProgress, targetSetupExe, msiPath);
+            var msiPath = createAsset(msiName, VelopackAssetType.Msi);
+            var portablePackage = new DirectoryInfo(Path.Combine(TempDir.FullName, "CreatePortablePackage"));
+            if (portablePackage.Exists) {
+                CompileWixTemplateToMsi(msiProgress, portablePackage, msiPath);
+                Log.Info($"MSI created '{Path.GetFileName(msiPath)}'.");
+                filesToSign.Add(msiPath);
+                msiProgress(100);
+            } else {
+                Log.Warn("Portable package not found, skipping MSI creation.");
+            }
         }
 
+        Log.Debug("Signing Setup files");
+        SignFilesImpl(signingProgress, filesToSign.ToArray());
+        progress(100);
         return Task.CompletedTask;
     }
 
@@ -242,13 +233,16 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         var stubPath = Path.Combine(
             current.FullName,
             Path.GetFileNameWithoutExtension(Options.EntryExecutableName) + "_ExecutionStub.exe");
-        var stubName = (Options.PackTitle ?? Options.PackId) + ".exe";
-        File.Move(stubPath, Path.Combine(dir.FullName, stubName));
+        File.Move(stubPath, Path.Combine(dir.FullName, GetPortableStubFileName()));
 
         // create a .portable file to indicate this is a portable package
         File.Create(Path.Combine(dir.FullName, ".portable")).Close();
 
-        await EasyZip.CreateZipFromDirectoryAsync(Log.ToVelopackLogger(), outputPath, dir.FullName, CoreUtil.CreateProgressDelegate(progress, 40, 100));
+        await EasyZip.CreateZipFromDirectoryAsync(
+            Log.ToVelopackLogger(),
+            outputPath,
+            dir.FullName,
+            CoreUtil.CreateProgressDelegate(progress, 40, 100));
         progress(100);
     }
 
@@ -259,7 +253,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         if (Options.SplashImage != null) dict["splashimage" + Path.GetExtension(Options.SplashImage)] = Options.SplashImage;
         return dict;
     }
-
 
     private void CreateExecutableStubForExe(string exeToCopy, string targetStubPath)
     {
@@ -343,80 +336,14 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
     }
 
     [SupportedOSPlatform("windows")]
-    private void CompileWixTemplateToMsi(Action<int> progress,
-        string setupExePath, string msiFilePath)
+    private void CompileWixTemplateToMsi(Action<int> progress, DirectoryInfo portableDirectory, string msiFilePath)
     {
-        bool packageAs64Bit = 
-            Options.TargetRuntime.Architecture is RuntimeCpu.x64 or RuntimeCpu.arm64;
-
-        Log.Info($"Compiling machine-wide msi deployment tool in {(packageAs64Bit ? "64-bit" : "32-bit")} mode");
-
-        var outputDirectory = Path.GetDirectoryName(setupExePath);
-        var setupName = Path.GetFileNameWithoutExtension(setupExePath);
-        var culture = CultureInfo.GetCultureInfo("en-US").TextInfo.ANSICodePage;
-
-        // WiX Identifiers may contain ASCII characters A-Z, a-z, digits, underscores (_), or
-        // periods(.). Every identifier must begin with either a letter or an underscore.
-        var wixId = Regex.Replace(Options.PackId, @"[^\w\.]", "_");
-        if (char.GetUnicodeCategory(wixId[0]) == UnicodeCategory.DecimalDigitNumber)
-            wixId = "_" + wixId;
-
-        Regex stacheRegex = new(@"\{\{(?<key>[^\}]+)\}\}", RegexOptions.Compiled);
-
-        var wxsFile = Path.Combine(outputDirectory, wixId + ".wxs");
-        var objFile = Path.Combine(outputDirectory, wixId + ".wixobj");
-
-
-        var msiVersion = Options.MsiVersionOverride;
-        if (string.IsNullOrWhiteSpace(msiVersion)) {
-            var parsedVersion = SemanticVersion.Parse(Options.PackVersion);
-            msiVersion = $"{parsedVersion.Major}.{parsedVersion.Minor}.{parsedVersion.Patch}.0";
-        }
-
-        try {
-            // apply dictionary to wsx template
-            var templateText = File.ReadAllText(HelperFile.WixTemplatePath);
-
-            var templateResult = stacheRegex.Replace(templateText, match => {
-                string key = match.Groups["key"].Value;
-                return key switch {
-                    "Id" => wixId,
-                    "Title" => GetEffectiveTitle(),
-                    "Author" => GetEffectiveAuthors(),
-                    "Version" => msiVersion,
-                    "Summary" => GetEffectiveTitle(),
-                    "Codepage" => $"{culture}",
-                    "Platform" => packageAs64Bit ? "x64" : "x86",
-                    "ProgramFilesFolder" => packageAs64Bit ? "ProgramFiles64Folder" : "ProgramFilesFolder",
-                    "Win64YesNo" => packageAs64Bit ? "yes" : "no",
-                    "SetupName" => setupName,
-                    _ when key.StartsWith("IdAsGuid") => GuidUtil.CreateGuidFromHash($"{Options.PackId}:{key.Substring(8)}").ToString(),
-                    _ => match.Value,
-                };
-            });
-
-            File.WriteAllText(wxsFile, templateResult, Encoding.UTF8);
-
-            // Candle reprocesses and compiles WiX source files into object files (.wixobj).
-            Log.Info("Compiling WiX Template (candle.exe)");
-            var candleCommand = $"{HelperFile.WixCandlePath} -nologo -ext WixNetFxExtension -out \"{objFile}\" \"{wxsFile}\"";
-            _ = Exe.RunHostedCommand(candleCommand);
-
-            progress(45);
-
-            // Light links and binds one or more .wixobj files and creates a Windows Installer database (.msi or .msm). 
-            Log.Info("Linking WiX Template (light.exe)");
-            var lightCommand = $"{HelperFile.WixLightPath} -ext WixNetFxExtension -spdb -sval -out \"{msiFilePath}\" \"{objFile}\"";
-            _ = Exe.RunHostedCommand(lightCommand);
-
-            progress(90);
-
-        } finally {
-            IoUtil.DeleteFileOrDirectoryHard(wxsFile, throwOnFailure: false);
-            IoUtil.DeleteFileOrDirectoryHard(objFile, throwOnFailure: false);
-        }
-        progress(100);
-
+        var templateData = MsiBuilder.ConvertOptionsToTemplateData(
+            portableDirectory,
+            GetShortcuts(),
+            GetRuntimeDependencies(),
+            Options);
+        MsiBuilder.CompileWixMsi(Log, templateData, progress, msiFilePath);
     }
 
     protected override string[] GetMainExeSearchPaths(string packDirectory, string mainExeName)
@@ -425,5 +352,28 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             Path.Combine(packDirectory, mainExeName),
             Path.Combine(packDirectory, mainExeName) + ".exe",
         ];
+    }
+
+    private string GetPortableStubFileName() => (Options.PackTitle ?? Options.PackId) + ".exe";
+
+    private ShortcutLocation GetShortcuts()
+    {
+        var items = Options.Shortcuts
+            .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim());
+
+        ShortcutLocation result = ShortcutLocation.None;
+
+        foreach (var item in items) {
+            if (Enum.TryParse<ShortcutLocation>(item, true, out var loc)) {
+                result |= loc;
+            } else {
+                throw new UserInfoException(
+                    $"Invalid shortcut locations '{Options.Shortcuts}'. " +
+                    $"Valid values for comma delimited list are: {string.Join(", ", Enum.GetNames(typeof(ShortcutLocation)))}.");
+            }
+        }
+
+        return result;
     }
 }

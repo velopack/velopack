@@ -78,44 +78,73 @@
 
 #![warn(missing_docs)]
 
-mod app;
-mod manager;
-mod util;
+macro_rules! maybe_pub {
+    ($($mod:ident),*) => {
+        $(
+            #[cfg(feature = "public-utils")]
+            #[allow(missing_docs)]
+            pub mod $mod;
 
-// #[cfg(feature = "file-logging")]
+            #[cfg(not(feature = "public-utils"))]
+            #[allow(unused)]
+            mod $mod;
+        )*
+    };
+}
+
+macro_rules! maybe_pub_os {
+    ($mod:ident, $win_path:expr, $unix_path:expr) => {
+        #[cfg(all(windows, feature = "public-utils"))]
+        #[path = $win_path]
+        #[allow(missing_docs)]
+        pub mod $mod;
+
+        #[cfg(all(windows, not(feature = "public-utils")))]
+        #[path = $win_path]
+        #[allow(unused)]
+        mod $mod;
+
+        #[cfg(all(not(windows), feature = "public-utils"))]
+        #[path = $unix_path]
+        #[allow(missing_docs)]
+        pub mod $mod;
+
+        #[cfg(all(not(windows), not(feature = "public-utils")))]
+        #[path = $unix_path]
+        #[allow(unused)]
+        mod $mod;
+    };
+}
+
+use std::path::PathBuf;
+
+#[cfg(feature = "file-logging")]
 mod file_rotate;
 
-/// Utility functions for loading and working with Velopack bundles and manifests.
-pub mod bundle;
+mod app;
+pub use app::*;
 
-/// Utility function for downloading files with progress reporting.
-pub mod download;
+mod manager;
+pub use manager::*;
 
-/// Constant strings used internally by Velopack.
-pub mod constants;
-
-/// Locator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
+/// Locator provides support for locating the current app important paths (eg. path to packages, update binary, and so forth).
 pub mod locator;
 
-/// Sources contains abstractions for custom update sources (eg. url, local file, github releases, etc).
+/// Sources are abstractions for custom update sources (eg. url, local file, github releases, etc).
 pub mod sources;
 
-/// Acquire and manage file-system based lock files.
-pub mod lockfile;
+#[cfg(target_os = "windows")]
+maybe_pub!(wide_strings);
 
-/// Logging utilities and setup.
-pub mod logging;
-
-pub use app::*;
-pub use manager::*;
+maybe_pub!(download, bundle, constants, lockfile, logging, misc);
+maybe_pub_os!(process, "process_win.rs", "process_unix.rs");
 
 #[macro_use]
 extern crate log;
 
 #[derive(thiserror::Error, Debug)]
 #[allow(missing_docs, clippy::large_enum_variant)]
-pub enum NetworkError
-{
+pub enum NetworkError {
     #[error("Http error: {0}")]
     Http(#[from] ureq::Error),
     #[error("Url error: {0}")]
@@ -124,16 +153,15 @@ pub enum NetworkError
 
 #[derive(thiserror::Error, Debug)]
 #[allow(missing_docs)]
-pub enum Error
-{
+pub enum Error {
     #[error("File does not exist: {0}")]
-    FileNotFound(String),
+    FileNotFound(PathBuf),
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Checksum did not match for {0} (expected {1}, actual {2})")]
-    ChecksumInvalid(String, String, String),
+    ChecksumInvalid(PathBuf, String, String),
     #[error("Size did not match for {0} (expected {1}, actual {2})")]
-    SizeInvalid(String, u64, u64),
+    SizeInvalid(PathBuf, u64, u64),
     #[error("Zip error: {0}")]
     Zip(#[from] zip::result::ZipError),
     #[error("Network error: {0}")]
@@ -142,16 +170,17 @@ pub enum Error
     Json(#[from] serde_json::Error),
     #[error("Semver parse error: {0}")]
     Semver(#[from] semver::Error),
-    #[error("This application is missing a package manifest (.nuspec) or it could not be parsed.")]
-    MissingNuspec,
-    #[error("This application is missing a required property in its package manifest: {0}")]
-    MissingNuspecProperty(String),
-    #[error("This application is missing an Update.exe/UpdateNix/UpdateMac binary.")]
-    MissingUpdateExe,
+    #[error("This update package is invalid: {0}.")]
+    InvalidPackage(String),
     #[error("This application is not properly installed: {0}")]
     NotInstalled(String),
-    #[error("Generic error: {0}")]
-    Generic(String),
+    #[error("This is not supported: {0}")]
+    NotSupported(String),
+    #[error("{0}")]
+    Other(String),
+    #[cfg(target_os = "windows")]
+    #[error("Win32 error: {0}")]
+    Win32(#[from] windows::core::Error),
 }
 
 impl From<url::ParseError> for Error {
