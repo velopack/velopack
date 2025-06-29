@@ -20,6 +20,8 @@ use velopack::logging::{default_logfile_path, init_logging};
 use velopack::{sources, ApplyWaitMode, Error as VelopackError, UpdateCheck, UpdateManager, VelopackApp};
 
 /// Create a new FileSource update source for a given file path.
+/// @param psz_file_path The path to a local directory containing updates.
+/// @returns A new vpkc_update_source_t instance, or null on error.
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -33,6 +35,8 @@ pub extern "C" fn vpkc_new_source_file(psz_file_path: *const c_char) -> *mut vpk
 }
 
 /// Create a new HttpSource update source for a given HTTP URL.
+/// @param psz_http_url The URL to a remote update server.
+/// @returns A new vpkc_update_source_t instance, or null on error.
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -50,6 +54,11 @@ pub extern "C" fn vpkc_new_source_http_url(psz_http_url: *const c_char) -> *mut 
 /// for the lifetime of any UpdateManager's that use this source. You should call `vpkc_free_source` to free the source,
 /// but note that if the source is still in use by an UpdateManager, it will not be freed until the UpdateManager is freed.
 /// Therefore to avoid possible issues, it is recommended to create this type of source once for the lifetime of your application.
+/// @param cb_release_feed A callback to fetch the release feed.
+/// @param cb_free_release_feed A callback to free the memory allocated by `cb_release_feed`.
+/// @param cb_download_entry A callback to download an asset.
+/// @param p_user_data Optional user data to be passed to the callbacks.
+/// @returns A new vpkc_update_source_t instance, or null on error. If null, the error will be available via `vpkc_get_last_error`.
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -59,8 +68,21 @@ pub extern "C" fn vpkc_new_source_custom_callback(
     cb_download_entry: vpkc_download_asset_delegate_t,
     p_user_data: *mut c_void,
 ) -> *mut vpkc_update_source_t {
-    if cb_release_feed.is_none() || cb_download_entry.is_none() || cb_free_release_feed.is_none() {
-        log::error!("cb_release_feed, cb_download_entry, or cb_free_release_feed is null");
+    if cb_release_feed.is_none() {
+        log::error!("cb_release_feed must not be null");
+        set_last_error("cb_release_feed must not be null");
+        return ptr::null_mut();
+    }
+
+    if cb_download_entry.is_none() {
+        log::error!("cb_download_entry must not be null");
+        set_last_error("cb_download_entry must not be null");
+        return ptr::null_mut();
+    }
+
+    if cb_free_release_feed.is_none() {
+        log::error!("cb_free_release_feed must not be null");
+        set_last_error("cb_free_release_feed must not be null");
         return ptr::null_mut();
     }
 
@@ -76,12 +98,15 @@ pub extern "C" fn vpkc_new_source_custom_callback(
 
 /// Sends a progress update to the callback with the specified ID. This is used by custom
 /// update sources created with `vpkc_new_source_custom_callback` to report download progress.
+/// @param progress_callback_id The ID of the progress callback to send the update to.
+/// @param progress The progress value to send (0-100).
 #[no_mangle]
 pub extern "C" fn vpkc_source_report_progress(progress_callback_id: size_t, progress: i16) {
     report_csource_progress(progress_callback_id, progress);
 }
 
 /// Frees a vpkc_update_source_t instance.
+/// @param p_source The source to free.
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -90,9 +115,11 @@ pub extern "C" fn vpkc_free_source(p_source: *mut vpkc_update_source_t) {
 }
 
 /// Create a new UpdateManager instance.
-/// @param urlOrPath Location of the update server or path to the local update directory.
-/// @param options Optional extra configuration for update manager.
-/// @param locator Override the default locator configuration (usually used for testing / mocks).
+/// @param psz_url_or_path Location of the http update server url or path to the local update directory.
+/// @param p_options Optional extra configuration for update manager.
+/// @param p_locator Optional explicit path configuration for Velopack. If null, the default locator will be used.
+/// @param p_manager A pointer to where the new vpkc_update_manager_t* instance will be stored.
+/// @returns True if the update manager was created successfully, false otherwise. If false, the error will be available via `vpkc_get_last_error`.
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -114,9 +141,11 @@ pub extern "C" fn vpkc_new_update_manager(
 }
 
 /// Create a new UpdateManager instance with a custom UpdateSource.
-/// @param urlOrPath Location of the update server or path to the local update directory.
-/// @param options Optional extra configuration for update manager.
-/// @param locator Override the default locator configuration (usually used for testing / mocks).
+/// @param p_source A pointer to a custom UpdateSource.
+/// @param p_options Optional extra configuration for update manager.
+/// @param p_locator Optional explicit path configuration for Velopack. If null, the default locator will be used.
+/// @param p_manager A pointer to where the new vpkc_update_manager_t* instance will be stored.
+/// @returns True if the update manager was created successfully, false otherwise. If false, the error will be available via `vpkc_get_last_error`.
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -137,6 +166,10 @@ pub extern "C" fn vpkc_new_update_manager_with_source(
 }
 
 /// Returns the currently installed version of the app.
+/// @param p_manager The update manager instance.
+/// @param psz_version A buffer to store the version string.
+/// @param c_version The size of the `psz_version` buffer.
+/// @returns The number of characters written to `psz_version` (including null terminator), or the required buffer size if the buffer is too small.
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -151,6 +184,10 @@ pub extern "C" fn vpkc_get_current_version(p_manager: *mut vpkc_update_manager_t
 }
 
 /// Returns the currently installed app id.
+/// @param p_manager The update manager instance.
+/// @param psz_id A buffer to store the app id string.
+/// @param c_id The size of the `psz_id` buffer.
+/// @returns The number of characters written to `psz_id` (including null terminator), or the required buffer size if the buffer is too small.
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -166,6 +203,8 @@ pub extern "C" fn vpkc_get_app_id(p_manager: *mut vpkc_update_manager_t, psz_id:
 
 /// Returns whether the app is in portable mode. On Windows this can be true or false.
 /// On MacOS and Linux this will always be true.
+/// @param p_manager The update manager instance.
+/// @returns True if the app is in portable mode, false otherwise.
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -176,8 +215,11 @@ pub extern "C" fn vpkc_is_portable(p_manager: *mut vpkc_update_manager_t) -> boo
     }
 }
 
-/// Returns an UpdateInfo object if there is an update downloaded which still needs to be applied.
-/// You can pass the UpdateInfo object to waitExitThenApplyUpdate to apply the update.
+/// Returns an asset if there is an update downloaded which still needs to be applied.
+/// You can pass this asset to `vpkc_wait_exit_then_apply_updates` to apply the update.
+/// @param p_manager The update manager instance.
+/// @param p_asset A pointer to where the new vpkc_asset_t* instance will be stored.
+/// @returns True if there is an update pending restart, false otherwise.
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -194,8 +236,11 @@ pub extern "C" fn vpkc_update_pending_restart(p_manager: *mut vpkc_update_manage
     }
 }
 
-/// Checks for updates, returning None if there are none available. If there are updates available, this method will return an
+/// Checks for updates. If there are updates available, this method will return an
 /// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
+/// @param p_manager The update manager instance.
+/// @param p_update A pointer to where the new vpkc_update_info_t* instance will be stored if an update is available.
+/// @returns A `vpkc_update_check_t` value indicating the result of the check. If an update is available, the value will be `HasUpdate` and `p_update` will be populated.
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -229,6 +274,12 @@ pub extern "C" fn vpkc_check_for_updates(
 ///   this method will attempt to unpack and prepare them.
 /// - If there is no delta update available, or there is an error preparing delta
 ///   packages, this method will fall back to downloading the full version of the update.
+/// @param p_manager The update manager instance.
+/// @param p_update The update info object from `vpkc_check_for_updates`.
+/// @param cb_progress An optional callback to report download progress (0-100).
+/// @param p_user_data Optional user data to be passed to the progress callback.
+/// @returns true on success, false on failure. If false, the error will be available via `vpkc_get_last_error`.
+
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -294,7 +345,14 @@ pub extern "C" fn vpkc_download_updates(
 
 /// This will launch the Velopack updater and tell it to wait for this program to exit gracefully.
 /// You should then clean up any state and exit your app. The updater will apply updates and then
-/// optionally restart your app. The updater will only wait for 60 seconds before giving up.
+/// (if specified) restart your app. The updater will only wait for 60 seconds before giving up.
+/// @param p_manager The update manager instance.
+/// @param p_asset The asset to apply. This can be from `vpkc_update_pending_restart` or `vpkc_update_info_get_target_asset`.
+/// @param b_silent True to attempt to apply the update without showing any UI.
+/// @param b_restart True to restart the app after the update is applied.
+/// @param p_restart_args An array of command line arguments to pass to the new process when it's restarted.
+/// @param c_restart_args The number of arguments in `p_restart_args`.
+/// @returns true on success, false on failure. If false, the error will be available via `vpkc_get_last_error`.
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -323,6 +381,14 @@ pub extern "C" fn vpkc_wait_exit_then_apply_updates(
 /// This method is unsafe because it does not necessarily wait for any / the correct process to exit
 /// before applying updates. The `vpkc_wait_exit_then_apply_updates` method is recommended for most use cases.
 /// If dw_wait_pid is 0, the updater will not wait for any process to exit before applying updates (Not Recommended).
+/// @param p_manager The update manager instance.
+/// @param p_asset The asset to apply. This can be from `vpkc_update_pending_restart` or `vpkc_update_info_get_target_asset`.
+/// @param b_silent True to attempt to apply the update without showing any UI.
+/// @param dw_wait_pid The process ID to wait for before applying updates. If 0, the updater will not wait.
+/// @param b_restart True to restart the app after the update is applied.
+/// @param p_restart_args An array of command line arguments to pass to the new process when it's restarted.
+/// @param c_restart_args The number of arguments in `p_restart_args`.
+/// @returns true on success, false on failure. If false, the error will be available via `vpkc_get_last_error`.
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -346,6 +412,7 @@ pub extern "C" fn vpkc_unsafe_apply_updates(
 }
 
 /// Frees a vpkc_update_manager_t instance.
+/// @param p_manager The update manager instance to free.
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -354,6 +421,7 @@ pub extern "C" fn vpkc_free_update_manager(p_manager: *mut vpkc_update_manager_t
 }
 
 /// Frees a vpkc_update_info_t instance.
+/// @param p_update_info The update info instance to free.
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -362,6 +430,7 @@ pub extern "C" fn vpkc_free_update_info(p_update_info: *mut vpkc_update_info_t) 
 }
 
 /// Frees a vpkc_asset_t instance.
+/// @param p_asset The asset instance to free.
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -371,7 +440,9 @@ pub extern "C" fn vpkc_free_asset(p_asset: *mut vpkc_asset_t) {
 
 /// VelopackApp helps you to handle app activation events correctly.
 /// This should be used as early as possible in your application startup code.
-/// (eg. the beginning of main() or wherever your entry point is)
+/// (eg. the beginning of main() or wherever your entry point is).
+/// This function will not return in some cases.
+/// @param p_user_data Optional user data to be passed to the callbacks.
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -449,6 +520,7 @@ pub extern "C" fn vpkc_app_run(p_user_data: *mut c_void) {
 }
 
 /// Set whether to automatically apply downloaded updates on startup. This is ON by default.
+/// @param b_auto_apply True to automatically apply updates, false otherwise.
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_auto_apply_on_startup(b_auto_apply: bool) {
     update_app_options(|opt| {
@@ -457,6 +529,8 @@ pub extern "C" fn vpkc_app_set_auto_apply_on_startup(b_auto_apply: bool) {
 }
 
 /// Override the command line arguments used by VelopackApp. (by default this is env::args().skip(1))
+/// @param p_args An array of command line arguments.
+/// @param c_args The number of arguments in `p_args`.
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_args(p_args: *mut *mut c_char, c_args: size_t) {
     update_app_options(|opt| {
@@ -465,6 +539,7 @@ pub extern "C" fn vpkc_app_set_args(p_args: *mut *mut c_char, c_args: size_t) {
 }
 
 /// VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
+/// @param p_locator The locator configuration to use.
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_locator(p_locator: *mut vpkc_locator_config_t) {
     update_app_options(|opt| {
@@ -472,10 +547,12 @@ pub extern "C" fn vpkc_app_set_locator(p_locator: *mut vpkc_locator_config_t) {
     });
 }
 
+/// Sets a callback to be run after the app is installed.
 /// WARNING: FastCallback hooks are run during critical stages of Velopack operations.
 /// Your code will be run and then the process will exit.
 /// If your code has not completed within 30 seconds, it will be terminated.
 /// Only supported on windows; On other operating systems, this will never be called.
+/// @param cb_after_install The callback to run after the app is installed. The callback takes a user data pointer and the version of the app as a string.
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_hook_after_install(cb_after_install: vpkc_hook_callback_t) {
     update_app_options(|opt| {
@@ -483,10 +560,12 @@ pub extern "C" fn vpkc_app_set_hook_after_install(cb_after_install: vpkc_hook_ca
     });
 }
 
+/// Sets a callback to be run before the app is uninstalled.
 /// WARNING: FastCallback hooks are run during critical stages of Velopack operations.
 /// Your code will be run and then the process will exit.
 /// If your code has not completed within 30 seconds, it will be terminated.
 /// Only supported on windows; On other operating systems, this will never be called.
+/// @param cb_before_uninstall The callback to run before the app is uninstalled. The callback takes a user data pointer and the version of the app as a string.
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_hook_before_uninstall(cb_before_uninstall: vpkc_hook_callback_t) {
     update_app_options(|opt| {
@@ -494,10 +573,12 @@ pub extern "C" fn vpkc_app_set_hook_before_uninstall(cb_before_uninstall: vpkc_h
     });
 }
 
+/// Sets a callback to be run before the app is updated.
 /// WARNING: FastCallback hooks are run during critical stages of Velopack operations.
 /// Your code will be run and then the process will exit.
 /// If your code has not completed within 30 seconds, it will be terminated.
 /// Only supported on windows; On other operating systems, this will never be called.
+/// @param cb_before_update The callback to run before the app is updated. The callback takes a user data pointer and the version of the app as a string.
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_hook_before_update(cb_before_update: vpkc_hook_callback_t) {
     update_app_options(|opt| {
@@ -505,10 +586,12 @@ pub extern "C" fn vpkc_app_set_hook_before_update(cb_before_update: vpkc_hook_ca
     });
 }
 
+/// Sets a callback to be run after the app is updated.
 /// WARNING: FastCallback hooks are run during critical stages of Velopack operations.
 /// Your code will be run and then the process will exit.
 /// If your code has not completed within 30 seconds, it will be terminated.
 /// Only supported on windows; On other operating systems, this will never be called.
+/// @param cb_after_update The callback to run after the app is updated. The callback takes a user data pointer and the version of the app as a string.
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_hook_after_update(cb_after_update: vpkc_hook_callback_t) {
     update_app_options(|opt| {
@@ -517,6 +600,7 @@ pub extern "C" fn vpkc_app_set_hook_after_update(cb_after_update: vpkc_hook_call
 }
 
 /// This hook is triggered when the application is started for the first time after installation.
+/// @param cb_first_run The callback to run on first run. The callback takes a user data pointer and the version of the app as a string.
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_hook_first_run(cb_first_run: vpkc_hook_callback_t) {
     update_app_options(|opt| {
@@ -525,6 +609,7 @@ pub extern "C" fn vpkc_app_set_hook_first_run(cb_first_run: vpkc_hook_callback_t
 }
 
 /// This hook is triggered when the application is restarted by Velopack after installing updates.
+/// @param cb_restarted The callback to run after the app is restarted. The callback takes a user data pointer and the version of the app as a string.
 #[no_mangle]
 pub extern "C" fn vpkc_app_set_hook_restarted(cb_restarted: vpkc_hook_callback_t) {
     update_app_options(|opt| {
@@ -533,6 +618,9 @@ pub extern "C" fn vpkc_app_set_hook_restarted(cb_restarted: vpkc_hook_callback_t
 }
 
 /// Get the last error message that occurred in the Velopack library.
+/// @param psz_error A buffer to store the error message.
+/// @param c_error The size of the `psz_error` buffer.
+/// @returns The number of characters written to `psz_error` (including null terminator). If the return value is greater than `c_error`, the buffer was too small and the message was truncated.
 #[no_mangle]
 pub extern "C" fn vpkc_get_last_error(psz_error: *mut c_char, c_error: size_t) -> size_t {
     let error = get_last_error();
@@ -540,6 +628,8 @@ pub extern "C" fn vpkc_get_last_error(psz_error: *mut c_char, c_error: size_t) -
 }
 
 /// Set a custom log callback. This will be called for all log messages generated by the Velopack library.
+/// @param cb_log The callback to call with log messages. The callback takes a user data pointer, a log level, and the log message as a string.
+/// @param p_user_data Optional user data to be passed to the callback.
 #[no_mangle]
 pub extern "C" fn vpkc_set_logger(cb_log: vpkc_log_callback_t, p_user_data: *mut c_void) {
     set_log_callback(cb_log, p_user_data);
