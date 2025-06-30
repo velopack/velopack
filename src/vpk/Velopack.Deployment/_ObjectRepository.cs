@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
 using Velopack.Packaging;
@@ -9,6 +9,7 @@ namespace Velopack.Deployment;
 public interface IObjectUploadOptions
 {
     public int KeepMaxReleases { get; set; }
+    public int KeepMaxDeltaReleases { get; set; }
 }
 
 public interface IObjectDownloadOptions
@@ -63,7 +64,8 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
 
         Log.Info($"{releaseEntries.Length} merged local/remote release(s).");
 
-        var toDelete = new VelopackAsset[0];
+        var toDeleteFull = Array.Empty<VelopackAsset>();
+        var toDeleteDelta = Array.Empty<VelopackAsset>();
 
         if (options.KeepMaxReleases > 0) {
             var fullReleases = releaseEntries
@@ -72,15 +74,31 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
                 .ToArray();
             if (fullReleases.Length > options.KeepMaxReleases) {
                 var minVersion = fullReleases[options.KeepMaxReleases - 1].Version;
-                toDelete = releaseEntries
+                toDeleteFull = fullReleases
                     .Where(x => x.Version < minVersion)
                     .ToArray();
-                releaseEntries = releaseEntries.Except(toDelete).ToArray();
-                Log.Info($"Retention policy (keepMaxReleases={options.KeepMaxReleases}) will delete {toDelete.Length} release(s).");
+                Log.Info($"Retention policy (keepMaxReleases={options.KeepMaxReleases}) will delete {toDeleteFull.Length} release(s).");
             } else {
                 Log.Info($"Retention policy (keepMaxReleases={options.KeepMaxReleases}) will not be applied, because there will only be {fullReleases.Length} full release(s) when this upload has completed.");
             }
         }
+        if (options.KeepMaxDeltaReleases > 0) {
+            var deltaReleases = releaseEntries
+                .OrderByDescending(x => x.Version)
+                .Where(x => x.Type == VelopackAssetType.Delta)
+                .ToArray();
+            if (deltaReleases.Length > options.KeepMaxDeltaReleases) {
+                var minVersion = deltaReleases[options.KeepMaxDeltaReleases - 1].Version;
+                toDeleteDelta = deltaReleases
+                    .Where(x => x.Version < minVersion)
+                    .ToArray();
+                Log.Info($"Retention policy (keepMaxDeltaReleases={options.KeepMaxDeltaReleases}) will delete {toDeleteDelta.Length} release(s).");
+            } else {
+                Log.Info($"Retention policy (keepMaxDeltaReleases={options.KeepMaxDeltaReleases}) will not be applied, because there will only be {deltaReleases.Length} full release(s) when this upload has completed.");
+            }
+        }
+
+        releaseEntries = releaseEntries.Except(toDeleteFull).Except(toDeleteDelta).ToArray();
 
         foreach (var asset in build.GetFilePaths()) {
             await UploadObject(client, Path.GetFileName(asset), new FileInfo(asset), true, noCache: false);
@@ -99,6 +117,8 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
         using var _2 = TempUtil.GetTempFileName(out var tmpReleases2);
         File.WriteAllText(tmpReleases2, ReleaseEntryHelper.GetLegacyMigrationReleaseFeedString(newReleaseFeed));
         await UploadObject(client, legacyKey, new FileInfo(tmpReleases2), true, noCache: true);
+
+        VelopackAsset[] toDelete = [.. toDeleteFull, .. toDeleteDelta];
 
         if (toDelete.Length > 0) {
             Log.Info($"Retention policy about to delete {toDelete.Length} release(s)...");
