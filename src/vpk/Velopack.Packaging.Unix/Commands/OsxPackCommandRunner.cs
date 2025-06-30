@@ -46,7 +46,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
 
         var structure = new OsxStructureBuilder(dir.FullName);
         var macosdir = structure.MacosDirectory;
-        File.WriteAllText(Path.Combine(macosdir, "sq.version"), GenerateNuspecContent());
+        File.WriteAllText(Path.Combine(macosdir, CoreUtil.SpecVersionFileName), GenerateNuspecContent());
         File.Copy(HelperFile.GetUpdatePath(Options.TargetRuntime, Log), Path.Combine(macosdir, "UpdateMac"), true);
 
         foreach (var f in Directory.GetFiles(macosdir, "*", SearchOption.AllDirectories)) {
@@ -97,7 +97,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
                 var updateMacPath = Path.Combine(structure.MacosDirectory, "UpdateMac");
                 helper.CodeSign(Options.SignAppIdentity, entitlements, updateMacPath, false, keychainPath);
                 signProgress(25);
-                var versionPath = Path.Combine(structure.MacosDirectory, "sq.version");
+                var versionPath = Path.Combine(structure.MacosDirectory, CoreUtil.SpecVersionFileName);
                 helper.CodeSign(Options.SignAppIdentity, entitlements, versionPath, false, keychainPath);
                 signProgress(50);
                 
