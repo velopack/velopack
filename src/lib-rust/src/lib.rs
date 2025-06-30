@@ -134,8 +134,7 @@ pub mod locator;
 pub mod sources;
 
 #[cfg(target_os = "windows")]
-maybe_pub!(wide_strings);
-
+maybe_pub!(known_path, wide_strings);
 maybe_pub!(download, bundle, constants, lockfile, logging, misc);
 maybe_pub_os!(process, "process_win.rs", "process_unix.rs");
 

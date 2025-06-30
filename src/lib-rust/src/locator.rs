@@ -7,6 +7,11 @@ use semver::Version;
 use std::path::PathBuf;
 use uuid::Uuid;
 
+#[cfg(windows)]
+use crate:: {
+    known_path::get_local_app_data
+};
+
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     /// ShortcutLocationFlags is a bitflags enumeration of system shortcut locations.
@@ -124,13 +129,13 @@ impl VelopackLocator {
     pub fn new_with_manifest(mut paths: VelopackLocatorConfig, manifest: Manifest) -> Self {
         let root = paths.RootAppDir.clone();
         if root.starts_with("C:\\Program Files") || !misc::is_directory_writable(&root) {
-            let temp_root = std::env::temp_dir().join(format!("velopack_{}", manifest.id));
+            let velopack_package_root = get_local_app_data().unwrap().join("velopack").join(&manifest.id);
             let orig_update_path = paths.UpdateExePath.clone();
-            paths.PackagesDir = temp_root.join("packages");
+            paths.PackagesDir = velopack_package_root.join("packages");
             if !paths.PackagesDir.exists() {
                 std::fs::create_dir_all(&paths.PackagesDir).unwrap();
             }
-            paths.UpdateExePath = temp_root.join("Update.exe");
+            paths.UpdateExePath = velopack_package_root.join("Update.exe");
             if !paths.UpdateExePath.exists() && orig_update_path.exists() {
                 std::fs::copy(orig_update_path, &paths.UpdateExePath).unwrap();
                 warn!("Application directory is not writable. Copying Update.exe to temp location: {:?}", paths.UpdateExePath);

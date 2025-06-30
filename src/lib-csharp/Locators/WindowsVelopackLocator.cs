@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.Versioning;
@@ -119,12 +118,11 @@ namespace Velopack.Locators
 
             if (UpdateExePath != null
                 && Path.GetDirectoryName(UpdateExePath) is { } updateExeDirectory
-                && !PathUtil.IsDirectoryWritable(updateExeDirectory)) {
-                var tempTargetUpdateExe = Path.Combine(TempAppRootDirectory, "Update.exe");
+                && !PathUtil.IsDirectoryWritable(updateExeDirectory) &&
+                PackagesDir is { } packagesDir) {
+                var tempTargetUpdateExe = Path.Combine(packagesDir, "Update.exe");
                 if (File.Exists(UpdateExePath) && !File.Exists(tempTargetUpdateExe)) {
                     initLog.Warn("Application directory is not writable. Copying Update.exe to temp location: " + tempTargetUpdateExe);
-                    // Debugger.Launch();
-                    Directory.CreateDirectory(TempAppRootDirectory);
                     File.Copy(UpdateExePath, tempTargetUpdateExe);
                 }
 
@@ -165,7 +163,7 @@ namespace Velopack.Locators
                 initLog.Trace($"File logger exception: {fileLogException}");
             }
 
-            if (AppId == null) {
+            if (AppId is null) {
                 initLog.Warn(
                     $"Failed to initialize {nameof(WindowsVelopackLocator)}. This could be because the program is not installed or packaged properly.");
             } else {
@@ -180,7 +178,7 @@ namespace Velopack.Locators
             string? writableRootDir = PossibleDirectories()
                 .FirstOrDefault(IsWritable);
 
-            if (writableRootDir == null) {
+            if (writableRootDir is null) {
                 Log.Warn("Unable to find a writable root directory for package.");
                 return null;
             }
@@ -191,7 +189,7 @@ namespace Velopack.Locators
 
             static bool IsWritable(string? directoryPath)
             {
-                if (directoryPath == null) return false;
+                if (directoryPath is null) return false;
 
                 try {
                     if (!Directory.Exists(directoryPath)) {
@@ -206,11 +204,11 @@ namespace Velopack.Locators
 
             IEnumerable<string?> PossibleDirectories()
             {
+                if (!string.IsNullOrWhiteSpace(AppId)) {
+                    yield return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "velopack", AppId);
+                }
                 yield return RootAppDir;
-                yield return TempAppRootDirectory;
             }
         }
-
-        private string TempAppRootDirectory => Path.Combine(Path.GetTempPath(), "velopack_" + AppId);
     }
 }
