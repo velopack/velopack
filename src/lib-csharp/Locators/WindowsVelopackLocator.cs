@@ -125,15 +125,21 @@ namespace Velopack.Locators
                     initLog.Warn("Application directory is not writable. Copying Update.exe to temp location: " + tempTargetUpdateExe);
                     File.Copy(UpdateExePath, tempTargetUpdateExe);
                 }
+                var specVersionFileName = Path.Combine(updateExeDirectory, "current", CoreUtil.SpecVersionFileName);
+                var tempManifestFile = Path.Combine(packagesDir, CoreUtil.SpecVersionFileName);
+                if (File.Exists(specVersionFileName) && !File.Exists(tempManifestFile)) {
+                    initLog.Warn($"Application directory is not writable. Copying {CoreUtil.SpecVersionFileName} to temp location: " + tempManifestFile);
+                    File.Copy(specVersionFileName, tempManifestFile);
+                }
 
                 UpdateExePath = tempTargetUpdateExe;
             }
 
             //bool fileLogCreated = false;
             Exception? fileLogException = null;
-            if (!String.IsNullOrEmpty(AppId) && !String.IsNullOrEmpty(RootAppDir)) {
+            if (!String.IsNullOrEmpty(AppId) && !String.IsNullOrEmpty(PackagesDir)) {
                 try {
-                    var logFilePath = Path.Combine(RootAppDir, DefaultLoggingFileName);
+                    var logFilePath = Path.Combine(PackagesDir, DefaultLoggingFileName);
                     var fileLog = new FileVelopackLogger(logFilePath, currentProcessId);
                     CombinedLogger.Add(fileLog);
                     //fileLogCreated = true;
@@ -142,7 +148,7 @@ namespace Velopack.Locators
                 }
             }
 
-            // if the RootAppDir was unwritable, or we don't know the app id, we could try to write to the temp folder instead.
+            // if the PackagesDir was unwritable, or we don't know the app id, we could try to write to the temp folder instead.
             Exception? tempFileLogException = null;
             if (fileLogException is not null) {
                 try {

@@ -204,8 +204,11 @@ fn patch(_context: LocationContext, matches: &ArgMatches) -> Result<()> {
 
     let temp_dir = match auto_locate_app_manifest(LocationContext::IAmUpdateExe) {
         Ok(locator) => locator.get_temp_dir_rand16(),
-        Err(_) => {
+        Err(e) => {
+            
             let mut temp_dir = std::env::temp_dir();
+            info!("Failed to initialise locator: {}", e);
+            info!("Using alternate directory: {}", temp_dir.display());
             let rand = shared::random_string(16);
             temp_dir.push("velopack_".to_owned() + &rand);
             temp_dir

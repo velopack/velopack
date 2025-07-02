@@ -380,6 +380,7 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
         LocationContext::IAmUpdateExe => {
             let exe_path = std::env::current_exe()?;
             if let Some(parent_dir) = exe_path.parent() {
+                info!("Current Update.exe path: {}, using parent directory as root {}", exe_path.to_string_lossy(), parent_dir.to_string_lossy());
                 let config = create_config_from_root_dir(&parent_dir);
                 let locator = VelopackLocator::new(&config)?;
                 return Ok(locator);
