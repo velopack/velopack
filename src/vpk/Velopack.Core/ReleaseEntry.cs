@@ -136,7 +136,7 @@ namespace Velopack.Core
         public string EntryAsString {
             get {
                 if (StagingPercentage != null) {
-                    return String.Format("{0} {1}{2} {3} # {4}", SHA1, BaseUrl, OriginalFilename, Filesize, stagingPercentageAsString(StagingPercentage.Value));
+                    return String.Format("{0} {1}{2} {3} # {4}", SHA1, BaseUrl, OriginalFilename, Filesize, StagingPercentageAsString(StagingPercentage.Value));
                 } else {
                     return String.Format("{0} {1}{2} {3}", SHA1, BaseUrl, OriginalFilename, Filesize);
                 }
@@ -378,9 +378,8 @@ namespace Velopack.Core
             // Generate release entries for all of the local packages
             var entriesQueue = new ConcurrentQueue<ReleaseEntry>();
             Parallel.ForEach(packagesDir.GetFiles("*.nupkg"), x => {
-                using (var file = x.OpenRead()) {
-                    entriesQueue.Enqueue(GenerateFromFile(file, x.Name));
-                }
+                using var file = x.OpenRead();
+                entriesQueue.Enqueue(GenerateFromFile(file, x.Name));
             });
 
             // Write the new RELEASES file to a temp file then move it into
@@ -403,7 +402,7 @@ namespace Velopack.Core
             return entries;
         }
 
-        static string stagingPercentageAsString(float percentage)
+        private static string StagingPercentageAsString(float percentage)
         {
             return String.Format("{0:F0}%", percentage * 100.0);
         }

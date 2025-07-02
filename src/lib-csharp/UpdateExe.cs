@@ -1,8 +1,7 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using Velopack.Locators;
 using Velopack.Logging;
-using Velopack.Util;
 
 namespace Velopack
 {
@@ -91,7 +90,7 @@ namespace Velopack
                 }
             }
 
-            var updatePath = locator.UpdateExePath!;
+            var updatePath = locator.GetUpdateExePathForUpdate();
             var workingDir = Path.GetDirectoryName(updatePath)!;
             locator.Process.StartProcess(updatePath, args, workingDir, false);
             locator.Log.Info("Update.exe [apply] executed successfully.");

@@ -41,7 +41,8 @@ namespace Velopack.Locators
 
         public void StartProcess(string exePath, IEnumerable<string> args, string? workDir, bool showWindow)
         {
-            var psi = new ProcessStartInfo() {
+            var psi = new ProcessStartInfo()
+            {
                 CreateNoWindow = true,
                 FileName = exePath,
                 WorkingDirectory = workDir,
@@ -50,19 +51,28 @@ namespace Velopack.Locators
             psi.AppendArgumentListSafe(args, out var debugArgs);
             _logger.Debug($"Running: {psi.FileName} {debugArgs}");
 
-            var p = Process.Start(psi);
-            if (p == null) {
-                throw new Exception("Failed to launch process.");
-            }
+            var p = Process.Start(psi) ?? throw new Exception("Failed to launch process.");
 
-            if (VelopackRuntimeInfo.IsWindows) {
-                try {
+            _logger.Info($"Process started with ID: {p.Id}");
+
+            if (VelopackRuntimeInfo.IsWindows)
+            {
+                try
+                {
                     // this is an attempt to work around a bug where the restarted app fails to come to foreground.
                     if (!AllowSetForegroundWindow(p.Id))
-                        throw new Win32Exception();
-                } catch (Exception ex) {
-                    _logger.LogWarning(ex, "Failed to allow Update.exe to set foreground window.");
+                        _logger.LogWarning("Failed to allow Update.exe to set foreground window.");
+
                 }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error occurred while trying to allow Update.exe to set foreground window.");
+                }
+            }
+            
+            if (p.HasExited)
+            {
+                _logger.Error($"Process {p.Id} has already exited.");
             }
         }
     }

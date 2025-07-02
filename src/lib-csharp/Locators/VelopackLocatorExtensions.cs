@@ -17,5 +17,18 @@ namespace Velopack.Locators
             return Path.Combine(locator.PackagesDir!, PathUtil.GetSafeFilename(velopackAsset.FileName));
         }
 
+        public static string GetUpdateExePathForUpdate(this IVelopackLocator locator, bool checkExists = true)
+        {
+            string updateExePath = locator.UpdateExePath!;
+            if (Path.GetDirectoryName(updateExePath) is { } updateExeDirectory
+               && !PathUtil.IsDirectoryWritable(updateExeDirectory) &&
+               locator.PackagesDir is { } packagesDir) {
+                string newPath = Path.Combine(Path.GetDirectoryName(packagesDir)!, "Update.exe");
+                if (!checkExists || File.Exists(newPath)) {
+                    return newPath;
+                }
+            }
+            return updateExePath;
+        }
     }
 }

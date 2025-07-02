@@ -61,6 +61,13 @@ pub extern "system" fn CleanupDeferred(h_install: MSIHANDLE) -> c_uint {
         }
 
         if let Some(app_id) = app_id {
+            if let Ok(appdata) = std::env::var("LOCALAPPDATA") {
+                let velopack_app_dir = PathBuf::from(appdata).join("Velopack").join(app_id);
+                if let Err(e) = remove_dir_all::remove_dir_all(&velopack_app_dir) {
+                    show_debug_message("CleanupDeferred", format!("Failed to remove local app data directory: {:?} {}", velopack_app_dir, e));
+                }
+            }
+
             if let Some(temp_dir) = temp_dir {
                 let temp_dir = PathBuf::from(temp_dir);
                 let temp_dir = temp_dir.join(format!("velopack_{}", app_id));
@@ -81,12 +88,13 @@ pub extern "system" fn LaunchApplication(h_install: MSIHANDLE) -> c_uint {
     let install_dir = msi_get_property(h_install, "INSTALLFOLDER");
     let stub_file = msi_get_property(h_install, "RustStubFileName");
 
-    show_debug_message("LaunchApplication", format!("INSTALLFOLDER={:?}, RustStubFileName={:?}", install_dir, stub_file));
-
     if let Some(install_dir) = install_dir {
         if let Some(stub_file) = stub_file {
             let stub_path = PathBuf::from(&install_dir).join(stub_file);
-            if let Err(e) = process::run_process(stub_path, vec![], Some(&install_dir), false, None) {
+            show_debug_message("LaunchApplication", format!("INSTALLFOLDER={:?}, RustStubFileName={:?}", install_dir, stub_path));
+            
+            //NB: Need to start the process because the MSI starting a child process won't have any environment variables set.
+            if let Err(e) = process::start_process(stub_path, vec![], Some(&install_dir), false) {
                 show_debug_message("LaunchApplication", format!("Failed to launch application: {}", e));
             }
         }

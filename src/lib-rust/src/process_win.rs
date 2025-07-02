@@ -14,10 +14,9 @@ use windows::{
         Foundation::{CloseHandle, FILETIME, HANDLE, WAIT_OBJECT_0, WAIT_TIMEOUT},
         Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION},
         System::Threading::{
-            CreateProcessW, GetCurrentProcess, GetExitCodeProcess, GetProcessId, GetProcessTimes, OpenProcess, OpenProcessToken,
-            TerminateProcess, WaitForSingleObject, CREATE_NO_WINDOW, CREATE_UNICODE_ENVIRONMENT, INFINITE, PROCESS_ACCESS_RIGHTS,
-            PROCESS_BASIC_INFORMATION, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE, STARTUPINFOW,
-            STARTUPINFOW_FLAGS,
+            CreateProcessW, GetCurrentProcess, GetExitCodeProcess, GetProcessId, GetProcessTimes, OpenProcess, OpenProcessToken, TerminateProcess,
+            WaitForSingleObject, CREATE_NO_WINDOW, CREATE_UNICODE_ENVIRONMENT, INFINITE, PROCESS_ACCESS_RIGHTS, PROCESS_BASIC_INFORMATION,
+            PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE, STARTUPINFOW, STARTUPINFOW_FLAGS,
         },
         UI::{
             Shell::{ShellExecuteExW, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW},
@@ -122,8 +121,10 @@ fn make_command_line(argv0: Option<&OsStr>, args: &[Arg], force_quotes: bool) ->
         append_arg(&mut cmd, arg, force_quotes)?;
         cmd.push(' ' as u16);
     }
+    if !cmd.is_empty() {
+        cmd.pop();
+    }
 
-    cmd.push(0);
     Ok(cmd.into())
 }
 
@@ -131,15 +132,26 @@ fn make_envp(maybe_env: Option<HashMap<String, String>>) -> IoResult<Option<Wide
     // On Windows we pass an "environment block" which is not a char**, but
     // rather a concatenation of null-terminated k=v\0 sequences, with a final
     // \0 to terminate.
-    if let Some(env) = maybe_env {
-        let mut blk = Vec::new();
+    let mut blk = Vec::new();
 
-        // If there are no environment variables to set then signal this by
-        // pushing a null.
-        if env.is_empty() {
-            blk.push(0);
+    // Copy current process environment variables
+    for (key, value) in std::env::vars_os() {
+        if key.is_empty() || value.is_empty() {
+            continue; // Skip empty keys or values
         }
 
+        let key_str = key.to_string_lossy();
+        if key_str.starts_with("=") {
+            continue;
+        }
+
+        blk.extend(ensure_no_nuls(key)?.encode_wide());
+        blk.push('=' as u16);
+        blk.extend(ensure_no_nuls(value)?.encode_wide());
+        blk.push(0);
+    }
+
+    if let Some(env) = maybe_env {
         for (k, v) in env {
             let os_key = OsString::from(k);
             let os_value = OsString::from(v);
@@ -148,10 +160,13 @@ fn make_envp(maybe_env: Option<HashMap<String, String>>) -> IoResult<Option<Wide
             blk.extend(ensure_no_nuls(os_value)?.encode_wide());
             blk.push(0);
         }
+    }
+
+    if blk.len() == 0 {
+        Ok(None)
+    } else {
         blk.push(0);
         Ok(Some(blk.into()))
-    } else {
-        Ok(None)
     }
 }
 
@@ -172,9 +187,7 @@ pub fn is_current_process_elevated() -> bool {
             let elevation_ptr: *mut core::ffi::c_void = &mut elevation as *mut _ as *mut _;
 
             // Query the token information to check if it is elevated
-            if GetTokenInformation(token, TokenElevation, Some(elevation_ptr), std::mem::size_of::<TOKEN_ELEVATION>() as u32, &mut size)
-                .is_ok()
-            {
+            if GetTokenInformation(token, TokenElevation, Some(elevation_ptr), std::mem::size_of::<TOKEN_ELEVATION>() as u32, &mut size).is_ok() {
                 // Return whether the token is elevated
                 let _ = CloseHandle(token);
                 return elevation.TokenIsElevated != 0;
@@ -272,6 +285,49 @@ pub fn run_process_as_admin<P1: AsRef<Path>, P2: AsRef<Path>>(
     }
 }
 
+pub fn start_process<P1: AsRef<Path>, P2: AsRef<Path>>(
+    exe_path: P1,
+    args: Vec<OsString>,
+    work_dir: Option<P2>,
+    show_window: bool,
+) -> IoResult<SafeProcessHandle> {
+    let exe = string_to_wide(exe_path.as_ref());
+    let wrapped_args: Vec<Arg> = args.iter().map(|a| Arg::Regular(a.into())).collect();
+    let params = if args.len() > 0 {
+        PCWSTR(make_command_line(Some(exe.as_os_str()), &wrapped_args, false)?.as_ptr())
+    } else {
+        PCWSTR::null()
+    };
+    let work_dir = string_to_wide_opt(work_dir.map(|w| w.as_ref().to_path_buf()));
+
+    let n_show = if show_window {
+        windows::Win32::UI::WindowsAndMessaging::SW_NORMAL.0
+    } else {
+        windows::Win32::UI::WindowsAndMessaging::SW_HIDE.0
+    };
+
+    let mut exe_info: SHELLEXECUTEINFOW = SHELLEXECUTEINFOW {
+        cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
+        fMask: SEE_MASK_NOCLOSEPROCESS,
+        //lpVerb: PCWSTR::null(),
+        lpFile: exe.as_pcwstr(),
+        lpParameters: params,
+        lpDirectory: work_dir.as_ref().map(|d| d.as_pcwstr()).unwrap_or(PCWSTR::default()),
+        nShow: n_show,
+        ..Default::default()
+    };
+
+    unsafe {
+        info!("About to launch: '{:?}' in dir '{:?}' with arguments: {:?}", exe, work_dir, args);
+        ShellExecuteExW(&mut exe_info as *mut SHELLEXECUTEINFOW)?;
+        let process_id = GetProcessId(exe_info.hProcess);
+        if show_window {
+            let _ = AllowSetForegroundWindow(process_id);
+        }
+        Ok(SafeProcessHandle { handle: exe_info.hProcess, pid: process_id })
+    }
+}
+
 pub fn run_process<P1: AsRef<Path>, P2: AsRef<Path>>(
     exe_path: P1,
     args: Vec<OsString>,
@@ -283,7 +339,7 @@ pub fn run_process<P1: AsRef<Path>, P2: AsRef<Path>>(
     let dirp = string_to_wide_opt(work_dir.map(|w| w.as_ref().to_path_buf()));
     let envp = make_envp(set_env)?;
     let wrapped_args: Vec<Arg> = args.iter().map(|a| Arg::Regular(a.into())).collect();
-    let mut params = make_command_line(Some(exe_path.as_os_str()), &wrapped_args, false)?;
+    let mut params: WideString = make_command_line(Some(exe_path.as_os_str()), &wrapped_args, false)?;
 
     let mut pi = windows::Win32::System::Threading::PROCESS_INFORMATION::default();
 
@@ -314,21 +370,17 @@ pub fn run_process<P1: AsRef<Path>, P2: AsRef<Path>>(
         CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT
     };
 
+    // Keep environment block alive for the duration of the CreateProcessW call
+    let env_ptr = envp.as_ref().map(|e| e.as_cvoid());
+    let dir_ptr = dirp.as_ref().map(|d| d.as_pcwstr()).unwrap_or(PCWSTR::default());
+
     unsafe {
-        info!("About to launch: '{:?}' in dir '{:?}' with arguments: {:?}", exe_path, dirp, args);
-        CreateProcessW(
-            exe_path.as_pcwstr(),
-            Some(params.as_pwstr()),
-            None,
-            None,
-            false,
-            flags,
-            envp.map(|e| e.as_cvoid()),
-            dirp.map(|d| d.as_pcwstr()).unwrap_or(PCWSTR::default()),
-            &si,
-            &mut pi,
-        )?;
-        let _ = AllowSetForegroundWindow(pi.dwProcessId);
+        info!("About to launch: '{:?}' in dir '{:?}' with arguments: {:?}", exe_path, dirp, params);
+        info!("Environment block present: {}, flags: {:?}", envp.is_some(), flags);
+        CreateProcessW(None, Some(params.as_pwstr()), None, None, false, flags, env_ptr, dir_ptr, &si, &mut pi)?;
+        if show_window {
+            let _ = AllowSetForegroundWindow(pi.dwProcessId);
+        }
         let _ = CloseHandle(pi.hThread);
     }
 
@@ -359,11 +411,7 @@ pub fn kill_process<T: AsRef<HANDLE>>(process: T) -> IoResult<()> {
     Ok(())
 }
 
-pub fn open_process(
-    dwdesiredaccess: PROCESS_ACCESS_RIGHTS,
-    binherithandle: bool,
-    dwprocessid: u32,
-) -> windows::core::Result<SafeProcessHandle> {
+pub fn open_process(dwdesiredaccess: PROCESS_ACCESS_RIGHTS, binherithandle: bool, dwprocessid: u32) -> windows::core::Result<SafeProcessHandle> {
     let handle = unsafe { OpenProcess(dwdesiredaccess, binherithandle, dwprocessid)? };
     return Ok(SafeProcessHandle { handle, pid: dwprocessid });
 }
@@ -485,10 +533,10 @@ pub fn wait_for_parent_to_exit(dur: Option<Duration>) -> IoResult<WaitResult> {
 
 #[test]
 fn test_kill_process() {
-    let cmd =
-        std::process::Command::new("cmd.exe").arg("/C").arg("ping").arg("8.8.8.8").arg("-t").spawn().expect("failed to start process");
+    let cmd = std::process::Command::new("cmd.exe").arg("/C").arg("ping").arg("8.8.8.8").arg("-t").spawn().expect("failed to start process");
 
     let pid = cmd.id();
 
     kill_pid(pid).expect("failed to kill process");
 }
+

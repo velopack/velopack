@@ -51,7 +51,6 @@ namespace Velopack.Locators
             if (!VelopackRuntimeInfo.IsWindows)
                 throw new NotSupportedException($"Cannot instantiate {nameof(WindowsVelopackLocator)} on a non-Windows system.");
 
-            _packagesDir = new(GetPackagesDir);
             CombinedLogger = new CombinedVelopackLogger(customLog);
 
             Process = processImpl ??= new DefaultProcessImpl(CombinedLogger);
@@ -116,24 +115,13 @@ namespace Velopack.Locators
                 }
             }
 
-            if (UpdateExePath != null
-                && Path.GetDirectoryName(UpdateExePath) is { } updateExeDirectory
-                && !PathUtil.IsDirectoryWritable(updateExeDirectory) &&
-                PackagesDir is { } packagesDir) {
-                var tempTargetUpdateExe = Path.Combine(packagesDir, "Update.exe");
-                if (File.Exists(UpdateExePath) && !File.Exists(tempTargetUpdateExe)) {
-                    initLog.Warn("Application directory is not writable. Copying Update.exe to temp location: " + tempTargetUpdateExe);
-                    File.Copy(UpdateExePath, tempTargetUpdateExe);
-                }
+            string? writableRootDir = GetWritableDirectory();
+            _packagesDir = new(() => GetPackagesDir(writableRootDir));
 
-                UpdateExePath = tempTargetUpdateExe;
-            }
-
-            //bool fileLogCreated = false;
             Exception? fileLogException = null;
-            if (!String.IsNullOrEmpty(AppId) && !String.IsNullOrEmpty(RootAppDir)) {
+            if (!string.IsNullOrEmpty(AppId) && !string.IsNullOrEmpty(writableRootDir)) {
                 try {
-                    var logFilePath = Path.Combine(RootAppDir, DefaultLoggingFileName);
+                    var logFilePath = Path.Combine(writableRootDir, DefaultLoggingFileName);
                     var fileLog = new FileVelopackLogger(logFilePath, currentProcessId);
                     CombinedLogger.Add(fileLog);
                     //fileLogCreated = true;
@@ -142,11 +130,11 @@ namespace Velopack.Locators
                 }
             }
 
-            // if the RootAppDir was unwritable, or we don't know the app id, we could try to write to the temp folder instead.
+            // if the PackagesDir was unwritable, or we don't know the app id, we could try to write to the temp folder instead.
             Exception? tempFileLogException = null;
             if (fileLogException is not null) {
                 try {
-                    var logFileName = String.IsNullOrEmpty(AppId) ? DefaultLoggingFileName : $"velopack_{AppId}.log";
+                    var logFileName = string.IsNullOrEmpty(AppId) ? DefaultLoggingFileName : $"velopack_{AppId}.log";
                     var logFilePath = Path.Combine(Path.GetTempPath(), logFileName);
                     var fileLog = new FileVelopackLogger(logFilePath, currentProcessId);
                     CombinedLogger.Add(fileLog);
@@ -171,21 +159,36 @@ namespace Velopack.Locators
             }
         }
 
-        private string? GetPackagesDir()
+        private string? GetPackagesDir(string? writableRootDir)
         {
             const string PackagesDirName = "packages";
 
+            if (writableRootDir is not null) {
+                // If we have a writable root directory, we can create the packages directory there.
+                return CreateSubDirIfDoesNotExist(writableRootDir, PackagesDirName);
+            }
+
+            Log.Warn("Unable to create packages directory");
+            return null;
+        }
+
+        private string? GetWritableDirectory()
+        {
+            if (string.IsNullOrWhiteSpace(AppId)) {
+                Log.Warn("AppId is not set, cannot determine writable directory.");
+                return null;
+            }
             string? writableRootDir = PossibleDirectories()
                 .FirstOrDefault(IsWritable);
 
             if (writableRootDir is null) {
-                Log.Warn("Unable to find a writable root directory for package.");
+                Log.Warn("Unable to find a writable directory for package.");
                 return null;
             }
 
-            Log.Trace("Using writable root directory: " + writableRootDir);
+            Log.Trace("Using writable directory: " + writableRootDir);
 
-            return CreateSubDirIfDoesNotExist(writableRootDir, PackagesDirName);
+            return writableRootDir;
 
             static bool IsWritable(string? directoryPath)
             {

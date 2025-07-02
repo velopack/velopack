@@ -114,10 +114,10 @@ impl VelopackLocator {
     /// Creates a new VelopackLocator from the given paths, trying to auto-detect the manifest.
     pub fn new(config: &VelopackLocatorConfig) -> Result<VelopackLocator, Error> {
         if !config.UpdateExePath.exists() {
-            return Err(Error::NotInstalled("Update.exe does not exist in the expected path".to_owned()));
+            return Err(Error::NotInstalled(format!("Update.exe does not exist in the expected path ({})", config.UpdateExePath.display())));
         }
         if !config.ManifestPath.exists() {
-            return Err(Error::NotInstalled("Manifest file does not exist in the expected path".to_owned()));
+            return Err(Error::NotInstalled(format!("Manifest file does not exist in the expected path ({})", config.ManifestPath.display())));
         }
 
         let manifest = read_current_manifest(&config.ManifestPath)?;
@@ -130,15 +130,9 @@ impl VelopackLocator {
         let root = paths.RootAppDir.clone();
         if root.starts_with("C:\\Program Files") || !misc::is_directory_writable(&root) {
             let velopack_package_root = get_local_app_data().unwrap().join("velopack").join(&manifest.id);
-            let orig_update_path = paths.UpdateExePath.clone();
             paths.PackagesDir = velopack_package_root.join("packages");
             if !paths.PackagesDir.exists() {
                 std::fs::create_dir_all(&paths.PackagesDir).unwrap();
-            }
-            paths.UpdateExePath = velopack_package_root.join("Update.exe");
-            if !paths.UpdateExePath.exists() && orig_update_path.exists() {
-                std::fs::copy(orig_update_path, &paths.UpdateExePath).unwrap();
-                warn!("Application directory is not writable. Copying Update.exe to temp location: {:?}", paths.UpdateExePath);
             }
         }
 

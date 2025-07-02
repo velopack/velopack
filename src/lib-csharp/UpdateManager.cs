@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NuGet.Versioning;
@@ -221,12 +222,12 @@ namespace Velopack
                 }
             }
 
-            if (updates == null) {
+            if (updates is null) {
                 throw new ArgumentNullException(nameof(updates));
             }
 
             var targetRelease = updates.TargetFullRelease;
-            if (targetRelease == null) {
+            if (targetRelease is null) {
                 throw new ArgumentException($"Must pass a valid {nameof(UpdateInfo)} object with a non-null {nameof(UpdateInfo.TargetFullRelease)}", nameof(updates));
             }
 
@@ -235,7 +236,7 @@ namespace Velopack
 
             var completeFile = Locator.GetLocalPackagePath(targetRelease);
             var incompleteFile = completeFile + ".partial";
-            
+
             // if the package already exists on disk, we can skip the download.
             if (File.Exists(completeFile)) {
                 Log.Info($"Package already exists on disk: '{completeFile}', nothing to do.");
@@ -275,7 +276,7 @@ namespace Velopack
             } finally {
                 if (VelopackRuntimeInfo.IsWindows && !cancelToken.IsCancellationRequested) {
                     try {
-                        var updateExe = Locator.UpdateExePath!;
+                        var updateExe = Locator.GetUpdateExePathForUpdate(checkExists: false);
                         Log.Info("Extracting new Update.exe to " + updateExe);
                         var zip = new ZipPackage(completeFile, loadUpdateExe: true);
 
@@ -310,7 +311,7 @@ namespace Velopack
             CancellationToken cancelToken)
         {
             var releasesToDownload = updates.DeltasToTarget.OrderBy(d => d.Version).ToArray();
-            var updateExe = Locator.UpdateExePath!;
+            var updateExe = Locator.GetUpdateExePathForUpdate();
 
             // downloading accounts for 0%-70% of progress
             double current = 0;
@@ -348,8 +349,13 @@ namespace Velopack
                 "--old",
                 baseFile,
                 "--output",
-                targetFile,
+                targetFile
             };
+
+            if (Locator.RootAppDir is { Length: > 0 }) {
+                args.Add("--root");
+                args.Add(Locator.RootAppDir);
+            }
 
             foreach (var x in releasesToDownload) {
                 args.Add("--delta");
@@ -357,6 +363,7 @@ namespace Velopack
             }
 
             var psi = new ProcessStartInfo(updateExe);
+            psi.UseShellExecute = true;
             psi.AppendArgumentListSafe(args, out _);
             psi.CreateNoWindow = true;
             var p = psi.StartRedirectOutputToILogger(Log, VelopackLogLevel.Debug);
@@ -452,6 +459,9 @@ namespace Velopack
         /// </summary>
         protected virtual async Task<IDisposable> AcquireUpdateLock()
         {
+            if (Locator.PackagesDir is null) {
+                throw new InvalidOperationException($"Cannot acquire update lock, {nameof(IVelopackLocator)}.{nameof(IVelopackLocator.PackagesDir)} is not set.");
+            }
             var dir = Directory.CreateDirectory(Locator.PackagesDir!);
             var lockPath = Path.Combine(dir.FullName, ".velopack_lock");
             var fsLock = new LockFile(lockPath);
@@ -461,7 +471,7 @@ namespace Velopack
 
         private static IUpdateSource CreateSimpleSource(string urlOrPath)
         {
-            if (String.IsNullOrWhiteSpace(urlOrPath)) {
+            if (string.IsNullOrWhiteSpace(urlOrPath)) {
                 throw new ArgumentException("Must pass a valid URL or file path to UpdateManager", nameof(urlOrPath));
             }
 

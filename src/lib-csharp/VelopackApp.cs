@@ -196,11 +196,11 @@ namespace Velopack
                 new { Key = "--squirrel-obsolete", Value = defaultBlock },
                 new { Key = "--squirrel-uninstall", Value = defaultBlock },
             }.ToDictionary(k => k.Key, v => v.Value, StringComparer.OrdinalIgnoreCase);
-            if (args.Length >= 2 && fastExitlookup.ContainsKey(args[0])) {
+            if (args.Length >= 2 && fastExitlookup.TryGetValue(args[0], out var hook)) {
                 try {
                     log.Info("Found fast exit hook: " + args[0]);
                     var version = SemanticVersion.Parse(args[1]);
-                    fastExitlookup[args[0]](version);
+                    hook(version);
                     log.Info("Completed hook, exiting...");
                     Exit(0);
                     return;

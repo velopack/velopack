@@ -163,7 +163,8 @@ fn main() -> Result<()> {
     info!("    CWD: {:?}", env::current_dir()?);
     info!("    Verbose: {}", verbose);
     info!("    Silent: {}", silent);
-    info!("    Log File: {:?}", log_file);
+    info!("    Root Directory: {:?}", root_dir);
+    info!("    Log File: {:?}", desired_log_file);
     info!("    Context: {:?}", &location_context);
 
     let (subcommand, subcommand_matches) =

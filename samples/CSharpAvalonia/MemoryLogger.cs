@@ -12,12 +12,7 @@ public class LogUpdatedEventArgs : EventArgs
 public class MemoryLogger : IVelopackLogger
 {
     public event EventHandler<LogUpdatedEventArgs> LogUpdated;
-    private readonly StringBuilder _sb = new StringBuilder();
-
-    public IDisposable BeginScope<TState>(TState state)
-    {
-        return null;
-    }
+    private readonly StringBuilder _sb = new();
 
     public override string ToString()
     {
