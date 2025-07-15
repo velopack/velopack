@@ -128,3 +128,56 @@ pub fn utf8_safe_substring(s: &str, start_char_idx: usize) -> Option<&str> {
     let start_byte_idx = char_iter.nth(start_char_idx)?.0;
     s.get(start_byte_idx..)
 }
+
+/// Gets the user's temp directory instead of the system temp directory.
+/// On Windows, when running as elevated, std::env::temp_dir() returns the system temp dir (e.g., C:\WINDOWS\Temp).
+/// This function attempts to get the user's temp directory even when elevated.
+pub fn get_user_temp_dir() -> std::path::PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        debug!("Attempting to resolve user temp directory on Windows");
+        
+        // Try to get the user's temp directory from environment variables
+        // TEMP and TMP usually point to the user's temp directory
+        if let Ok(temp) = std::env::var("TEMP") {
+            let path = std::path::PathBuf::from(&temp);
+            debug!("Found TEMP environment variable: {}", temp);
+            if path.exists() {
+                debug!("Using TEMP environment variable path: {}", path.display());
+                return path;
+            }
+        }
+        
+        if let Ok(tmp) = std::env::var("TMP") {
+            let path = std::path::PathBuf::from(&tmp);
+            if path.exists() {
+                debug!("Using TMP environment variable path: {}", path.display());
+                return path;
+            }
+        }
+        
+        // If environment variables don't work, try to construct the user temp path
+        if let Ok(userprofile) = std::env::var("USERPROFILE") {
+            let user_temp = std::path::PathBuf::from(&userprofile)
+                .join("AppData")
+                .join("Local")
+                .join("Temp");
+            if user_temp.exists() {
+                debug!("Using constructed user temp path: {}", user_temp.display());
+                return user_temp;
+            }
+        }
+        
+        // Fallback to system temp directory
+        let system_temp = std::env::temp_dir();
+        warn!("Falling back to system temp directory: {}", system_temp.display());
+        system_temp
+    }
+    
+    #[cfg(not(target_os = "windows"))]
+    {
+        let temp_dir = std::env::temp_dir();
+        debug!("Using system temp directory: {}", temp_dir.display());
+        temp_dir
+    }
+}

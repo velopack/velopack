@@ -46,7 +46,7 @@ namespace Velopack.Locators
                 FileName = exePath,
                 WorkingDirectory = workDir,
             };
-
+            
             psi.AppendArgumentListSafe(args, out var debugArgs);
             _logger.Debug($"Running: {psi.FileName} {debugArgs}");
 

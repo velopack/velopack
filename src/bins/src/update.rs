@@ -10,7 +10,7 @@ use std::ffi::OsString;
 use std::{env, path::PathBuf};
 use velopack::locator::{auto_locate_app_manifest, LocationContext};
 use velopack::logging::*;
-use velopack_bins::{shared::OperationWait, *};
+use velopack_bins::{shared::{OperationWait, get_user_temp_dir}, *};
 
 #[rustfmt::skip]
 fn root_command() -> Command {
@@ -165,6 +165,11 @@ fn main() -> Result<()> {
     info!("    Silent: {}", silent);
     info!("    Log File: {:?}", log_file);
     info!("    Context: {:?}", &location_context);
+    info!("    Environment Variables:");
+    for (key, value) in env::vars() {
+        info!("        {}={}", key, value);
+    }
+
 
     let (subcommand, subcommand_matches) =
         matches.subcommand().ok_or_else(|| anyhow!("No known subcommand was used. Try `--help` for more information."))?;
@@ -206,7 +211,7 @@ fn patch(_context: LocationContext, matches: &ArgMatches) -> Result<()> {
         Ok(locator) => locator.get_temp_dir_rand16(),
         Err(e) => {
             
-            let mut temp_dir = std::env::temp_dir();
+            let mut temp_dir = get_user_temp_dir();
             info!("Failed to initialise locator: {}", e);
             info!("Using alternate directory: {}", temp_dir.display());
             let rand = shared::random_string(16);

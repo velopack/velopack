@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NuGet.Versioning;
@@ -357,6 +358,13 @@ namespace Velopack
             }
 
             var psi = new ProcessStartInfo(updateExe);
+            psi.UseShellExecute = true;
+            StringBuilder sb = new();
+            var envVars = Environment.GetEnvironmentVariables();
+            foreach (var envVar in envVars.Keys) {
+                sb.AppendLine($"{envVar}={envVars[envVar]}");
+            }
+            Log.LogInformation("KEVIN TEST: Environment variables:\n" + sb.ToString());
             psi.AppendArgumentListSafe(args, out _);
             psi.CreateNoWindow = true;
             var p = psi.StartRedirectOutputToILogger(Log, VelopackLogLevel.Debug);
