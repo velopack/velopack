@@ -101,9 +101,12 @@ pub fn start_package(locator: &VelopackLocator, exe_args: Option<Vec<OsString>>,
     let mut environment = HashMap::new();
 
     // Copy current process environment variables
-    for (key, value) in std::env::vars() {
-        info!("Including existing environment variable: {}", key);
-        environment.insert(key, value);
+    for (key, value) in std::env::vars_os() {
+        info!("Including existing environment variable: {:?}", key);
+        environment.insert(
+            key.to_string_lossy().into_owned(),
+            value.to_string_lossy().into_owned(),
+        );
     }
     if let Some(env_var) = set_env {
         info!("Setting environment variable: {}={}", env_var, "true");
