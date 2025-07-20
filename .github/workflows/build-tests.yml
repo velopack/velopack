@@ -116,7 +116,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           max_wait_seconds: 900
-          artifacts: rust-macos,rust-windows-bins,rust-ubuntu-bins-x64,rust-ubuntu-bins-arm64
+          artifacts: rust-macos,rust-windows-bins-x86,rust-windows-bins-x64,rust-windows-bins-arm64,rust-ubuntu-bins-x64,rust-ubuntu-bins-arm64
           verbose: true
       - name: Download Rust Artifacts
         uses: actions/download-artifact@v4
