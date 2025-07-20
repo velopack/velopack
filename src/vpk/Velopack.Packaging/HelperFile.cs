@@ -8,15 +8,29 @@ public static class HelperFile
 {
     private static string GetUpdateExeName(RID target, ILogger log)
     {
+#if DEBUG
         switch (target.BaseRID) {
         case RuntimeOs.Windows:
             return FindHelperFile("update.exe");
-#if DEBUG
         case RuntimeOs.Linux:
             return FindHelperFile("update");
         case RuntimeOs.OSX:
             return FindHelperFile("update");
+        }
 #else
+        switch (target.BaseRID) {
+        case RuntimeOs.Windows:
+            if (!target.HasArchitecture) {
+                log.LogWarning("No architecture specified with --runtime, defaulting to x86. If this was not intended please specify via the --runtime parameter");
+                return FindHelperFile("UpdateWin_x86.exe");
+            }
+
+            return target.Architecture switch {
+                RuntimeCpu.arm64 => FindHelperFile("UpdateWin_arm64.exe"),
+                RuntimeCpu.x64 => FindHelperFile("UpdateWin_x64.exe"),
+                RuntimeCpu.x86 => FindHelperFile("UpdateWin_x86.exe"),
+                _ => throw new PlatformNotSupportedException($"Update binary is not available for this platform ({target}).")
+            };
         case RuntimeOs.Linux:
             if (!target.HasArchitecture) {
                 log.LogWarning("No architecture specified with --runtime, defaulting to x64. If this was not intended please specify via the --runtime parameter");
@@ -30,8 +44,8 @@ public static class HelperFile
             };
         case RuntimeOs.OSX:
             return FindHelperFile("UpdateMac");
-#endif
         }
+#endif
 
         throw new PlatformNotSupportedException($"Update binary is not available for this platform ({target}).");
     }
@@ -63,9 +77,19 @@ public static class HelperFile
 
     public static string AppImageRuntimeX86 => FindHelperFile("appimagekit-runtime-i686");
 
-    public static string SetupPath => FindHelperFile("setup.exe");
+    public static string SetupPath => 
+#if DEBUG
+        FindHelperFile("setup.exe");
+#else
+        FindHelperFile("SetupWin_x86.exe");
+#endif
 
-    public static string StubExecutablePath => FindHelperFile("stub.exe");
+    public static string StubExecutablePath => 
+#if DEBUG
+        FindHelperFile("stub.exe");
+#else
+        FindHelperFile("StubWin_x86.exe");
+#endif
 
     [SupportedOSPlatform("windows")]
     public static string WixTemplatePath => FindHelperFile("wix\\template.wxs");
