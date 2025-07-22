@@ -94,20 +94,14 @@ pub fn start_package(locator: &VelopackLocator, exe_args: Option<Vec<OsString>>,
     let current = locator.get_current_bin_dir();
     let exe_to_execute = locator.get_main_exe_path();
 
+    info!("Starting package: {:?}", exe_to_execute);
+
     if !exe_to_execute.exists() {
         bail!("Unable to find executable to start: '{:?}'", exe_to_execute);
     }
 
     let mut environment = HashMap::new();
 
-    // Copy current process environment variables
-    for (key, value) in std::env::vars_os() {
-        info!("Including existing environment variable: {:?}", key);
-        environment.insert(
-            key.to_string_lossy().into_owned(),
-            value.to_string_lossy().into_owned(),
-        );
-    }
     if let Some(env_var) = set_env {
         info!("Setting environment variable: {}={}", env_var, "true");
         environment.insert(env_var.to_string(), "true".to_string());

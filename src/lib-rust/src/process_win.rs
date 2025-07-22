@@ -131,9 +131,22 @@ fn make_envp(maybe_env: Option<HashMap<String, String>>) -> IoResult<Option<Wide
     // On Windows we pass an "environment block" which is not a char**, but
     // rather a concatenation of null-terminated k=v\0 sequences, with a final
     // \0 to terminate.
-    if let Some(env) = maybe_env {
-        let mut blk = Vec::new();
+    
+    let mut blk = Vec::new();
 
+    // Copy current process environment variables
+    for (key, value) in std::env::vars_os() {
+        if key.is_empty() || value.is_empty() {
+            continue; // Skip empty keys or values
+        }
+        info!("Including existing environment variable: {:?}", key);
+        blk.extend(ensure_no_nuls(key)?.encode_wide());
+        blk.push('=' as u16);
+        blk.extend(ensure_no_nuls(value)?.encode_wide());
+        blk.push(0);
+    }
+
+    if let Some(env) = maybe_env {
         // If there are no environment variables to set then signal this by
         // pushing a null.
         if env.is_empty() {
@@ -149,9 +162,12 @@ fn make_envp(maybe_env: Option<HashMap<String, String>>) -> IoResult<Option<Wide
             blk.push(0);
         }
         blk.push(0);
-        Ok(Some(blk.into()))
-    } else {
+    }
+    
+    if blk.len() == 0 {
         Ok(None)
+    } else {
+        Ok(Some(blk.into()))
     }
 }
 
