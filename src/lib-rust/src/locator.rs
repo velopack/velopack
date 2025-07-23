@@ -114,10 +114,10 @@ impl VelopackLocator {
     /// Creates a new VelopackLocator from the given paths, trying to auto-detect the manifest.
     pub fn new(config: &VelopackLocatorConfig) -> Result<VelopackLocator, Error> {
         if !config.UpdateExePath.exists() {
-            return Err(Error::NotInstalled("Update.exe does not exist in the expected path".to_owned()));
+            return Err(Error::NotInstalled(format!("Update.exe does not exist in the expected path ({})", config.UpdateExePath.display())));
         }
         if !config.ManifestPath.exists() {
-            return Err(Error::NotInstalled("Manifest file does not exist in the expected path".to_owned()));
+            return Err(Error::NotInstalled(format!("Manifest file does not exist in the expected path ({})", config.ManifestPath.display())));
         }
 
         let manifest = read_current_manifest(&config.ManifestPath)?;

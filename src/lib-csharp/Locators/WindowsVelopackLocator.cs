@@ -116,24 +116,24 @@ namespace Velopack.Locators
                 }
             }
 
-            if (UpdateExePath != null
-                && Path.GetDirectoryName(UpdateExePath) is { } updateExeDirectory
-                && !PathUtil.IsDirectoryWritable(updateExeDirectory) &&
-                PackagesDir is { } packagesDir) {
-                var tempTargetUpdateExe = Path.Combine(packagesDir, "Update.exe");
-                if (File.Exists(UpdateExePath) && !File.Exists(tempTargetUpdateExe)) {
-                    initLog.Warn("Application directory is not writable. Copying Update.exe to temp location: " + tempTargetUpdateExe);
-                    File.Copy(UpdateExePath, tempTargetUpdateExe);
-                }
-                var specVersionFileName = Path.Combine(updateExeDirectory, "current", CoreUtil.SpecVersionFileName);
-                var tempManifestFile = Path.Combine(packagesDir, CoreUtil.SpecVersionFileName);
-                if (File.Exists(specVersionFileName) && !File.Exists(tempManifestFile)) {
-                    initLog.Warn($"Application directory is not writable. Copying {CoreUtil.SpecVersionFileName} to temp location: " + tempManifestFile);
-                    File.Copy(specVersionFileName, tempManifestFile);
-                }
+            //if (UpdateExePath != null
+            //    && Path.GetDirectoryName(UpdateExePath) is { } updateExeDirectory
+            //    && !PathUtil.IsDirectoryWritable(updateExeDirectory) &&
+            //    PackagesDir is { } packagesDir) {
+            //    var tempTargetUpdateExe = Path.Combine(Path.GetDirectoryName(packagesDir)!, "Update.exe");
+            //    if (File.Exists(UpdateExePath) && !File.Exists(tempTargetUpdateExe)) {
+            //        initLog.Warn("Application directory is not writable. Copying Update.exe to temp location: " + tempTargetUpdateExe);
+            //        File.Copy(UpdateExePath, tempTargetUpdateExe);
+            //    }
+            //    var specVersionFileName = Path.Combine(updateExeDirectory, "current", CoreUtil.SpecVersionFileName);
+            //    var tempManifestFile = Path.Combine(packagesDir, CoreUtil.SpecVersionFileName);
+            //    if (File.Exists(specVersionFileName) && !File.Exists(tempManifestFile)) {
+            //        initLog.Warn($"Application directory is not writable. Copying {CoreUtil.SpecVersionFileName} to temp location: " + tempManifestFile);
+            //        File.Copy(specVersionFileName, tempManifestFile);
+            //    }
 
-                UpdateExePath = tempTargetUpdateExe;
-            }
+            //    UpdateExePath = tempTargetUpdateExe;
+            //}
 
             //bool fileLogCreated = false;
             Exception? fileLogException = null;
