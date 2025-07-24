@@ -20,7 +20,7 @@ public static class MsiBuilder
 {
     public static (string mainTemplate, string enLocale) GenerateWixTemplate(MsiTemplateData data)
     {
-        if (data == null)
+        if (data is null)
             throw new ArgumentNullException(nameof(data));
 
         var templateContent = GetResourceContent("MsiTemplate.hbs");

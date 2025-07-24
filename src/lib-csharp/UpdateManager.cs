@@ -236,7 +236,7 @@ namespace Velopack
 
             var completeFile = Locator.GetLocalPackagePath(targetRelease);
             var incompleteFile = completeFile + ".partial";
-            
+
             // if the package already exists on disk, we can skip the download.
             if (File.Exists(completeFile)) {
                 Log.Info($"Package already exists on disk: '{completeFile}', nothing to do.");
@@ -276,7 +276,7 @@ namespace Velopack
             } finally {
                 if (VelopackRuntimeInfo.IsWindows && !cancelToken.IsCancellationRequested) {
                     try {
-                        var updateExe = Locator.UpdateExePath!;
+                        var updateExe = Locator.GetUpdateExePathForUpdate(checkExists: false);
                         Log.Info("Extracting new Update.exe to " + updateExe);
                         var zip = new ZipPackage(completeFile, loadUpdateExe: true);
 
@@ -311,7 +311,7 @@ namespace Velopack
             CancellationToken cancelToken)
         {
             var releasesToDownload = updates.DeltasToTarget.OrderBy(d => d.Version).ToArray();
-            var updateExe = Locator.UpdateExePath!;
+            var updateExe = Locator.GetUpdateExePathForUpdate();
 
             // downloading accounts for 0%-70% of progress
             double current = 0;

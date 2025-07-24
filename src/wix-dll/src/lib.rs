@@ -61,6 +61,13 @@ pub extern "system" fn CleanupDeferred(h_install: MSIHANDLE) -> c_uint {
         }
 
         if let Some(app_id) = app_id {
+            if let Ok(appdata) = std::env::var("LOCALAPPDATA") {
+                let velopack_app_dir = PathBuf::from(appdata).join("Velopack").join(app_id);
+                if let Err(e) = remove_dir_all::remove_dir_all(&velopack_app_dir) {
+                    show_debug_message("CleanupDeferred", format!("Failed to remove local app data directory: {:?} {}", velopack_app_dir, e));
+                }
+            }
+
             if let Some(temp_dir) = temp_dir {
                 let temp_dir = PathBuf::from(temp_dir);
                 let temp_dir = temp_dir.join(format!("velopack_{}", app_id));

@@ -130,16 +130,16 @@ impl VelopackLocator {
         let root = paths.RootAppDir.clone();
         if root.starts_with("C:\\Program Files") || !misc::is_directory_writable(&root) {
             let velopack_package_root = get_local_app_data().unwrap().join("velopack").join(&manifest.id);
-            let orig_update_path = paths.UpdateExePath.clone();
+            //let orig_update_path = paths.UpdateExePath.clone();
             paths.PackagesDir = velopack_package_root.join("packages");
             if !paths.PackagesDir.exists() {
                 std::fs::create_dir_all(&paths.PackagesDir).unwrap();
             }
-            paths.UpdateExePath = velopack_package_root.join("Update.exe");
-            if !paths.UpdateExePath.exists() && orig_update_path.exists() {
-                std::fs::copy(orig_update_path, &paths.UpdateExePath).unwrap();
-                warn!("Application directory is not writable. Copying Update.exe to temp location: {:?}", paths.UpdateExePath);
-            }
+            //paths.UpdateExePath = velopack_package_root.join("Update.exe");
+            //if !paths.UpdateExePath.exists() && orig_update_path.exists() {
+            //    std::fs::copy(orig_update_path, &paths.UpdateExePath).unwrap();
+            //    warn!("Application directory is not writable. Copying Update.exe to temp location: {:?}", paths.UpdateExePath);
+            //}
         }
 
         Self { paths, manifest }
