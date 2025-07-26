@@ -1,4 +1,5 @@
-﻿using Azure;
+﻿using System.Text;
+using Azure;
 using Azure.Storage;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -19,6 +20,8 @@ public class AzureDownloadOptions : RepositoryOptions, IObjectDownloadOptions
     public string Container { get; set; }
 
     public string SasToken { get; set; }
+    
+    public string Folder { get; set; }
 }
 
 public class AzureUploadOptions : AzureDownloadOptions, IObjectUploadOptions
@@ -56,6 +59,11 @@ public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploa
 
     protected override async Task DeleteObject(BlobContainerClient client, string key)
     {
+        // Prepend folder path if specified (using _uploadFolder since this is called during upload)
+        if (!string.IsNullOrEmpty(_uploadFolder)) {
+            key = _uploadFolder.TrimEnd('/') + "/" + key;
+        }
+        
         await RetryAsync(
             async () => {
                 await client.DeleteBlobIfExistsAsync(key);
@@ -79,19 +87,62 @@ public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploa
             $"Downloading {key}...");
     }
 
+    protected override async Task<VelopackAssetFeed> GetReleasesAsync(AzureDownloadOptions options)
+    {
+        var releasesName = CoreUtil.GetVeloReleaseIndexName(options.Channel);
+        
+        // Prepend folder path if specified
+        if (!string.IsNullOrEmpty(options.Folder)) {
+            releasesName = options.Folder.TrimEnd('/') + "/" + releasesName;
+        }
+        
+        var client = CreateClient(options);
+        var bytes = await GetObjectBytes(client, releasesName);
+        if (bytes == null || bytes.Length == 0) {
+            return new VelopackAssetFeed();
+        }
+        return VelopackAssetFeed.FromJson(Encoding.UTF8.GetString(bytes));
+    }
+
     protected override async Task SaveEntryToFileAsync(AzureDownloadOptions options, VelopackAsset entry, string filePath)
     {
         await RetryAsync(
             async () => {
                 var client = CreateClient(options);
-                var obj = client.GetBlobClient(entry.FileName);
+                var key = entry.FileName;
+                
+                // Prepend folder path if specified
+                if (!string.IsNullOrEmpty(options.Folder)) {
+                    key = options.Folder.TrimEnd('/') + "/" + key;
+                }
+                
+                var obj = client.GetBlobClient(key);
                 using var response = await obj.DownloadToAsync(filePath, CancellationToken.None);
             },
             $"Downloading {entry.FileName}...");
     }
 
+    public override async Task UploadMissingAssetsAsync(AzureUploadOptions options)
+    {
+        // Store the folder in a private field for use in UploadObject
+        // Note: Azure Blob Storage will handle path validation and reject invalid paths
+        _uploadFolder = options.Folder;
+        try {
+            await base.UploadMissingAssetsAsync(options);
+        } finally {
+            _uploadFolder = null;
+        }
+    }
+
+    private string _uploadFolder;
+
     protected override async Task UploadObject(BlobContainerClient client, string key, FileInfo f, bool overwriteRemote, bool noCache)
     {
+        // Prepend folder path if specified
+        if (!string.IsNullOrEmpty(_uploadFolder)) {
+            key = _uploadFolder.TrimEnd('/') + "/" + key;
+        }
+
         var blobClient = client.GetBlobClient(key);
         try {
             var properties = await blobClient.GetPropertiesAsync();
