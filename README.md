@@ -54,12 +54,14 @@ I'm extremely impressed with Velopack's performance in creating releases, as wel
 ## Sponsors
 Huge thanks to everyone who provides the project with free tools, services, or donations!
 
-<span>
-  Free tools provided by - <br/>
+<img width="1667" height="1131" alt="image" src="https://github.com/user-attachments/assets/1d8a301b-2470-4f98-8cbc-34785ccb9e89" />
+
+<div align="center">
+  Free tools provided by<br/>
   <a href="https://jb.gg/OpenSource">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://www.jetbrains.com/company/brand/img/logo_jb_dos_3.svg">
     <img alt="Jetbrains Logo" src="https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg" width="160">
   </picture>
   </a>
-</span>
+</div>
