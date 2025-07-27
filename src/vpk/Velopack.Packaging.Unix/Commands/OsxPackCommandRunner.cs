@@ -46,7 +46,6 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
 
         var structure = new OsxStructureBuilder(dir.FullName);
         var macosdir = structure.MacosDirectory;
-        File.WriteAllText(Path.Combine(macosdir, "sq.version"), GenerateNuspecContent());
         File.Copy(HelperFile.GetUpdatePath(Options.TargetRuntime, Log), Path.Combine(macosdir, "UpdateMac"), true);
 
         foreach (var f in Directory.GetFiles(macosdir, "*", SearchOption.AllDirectories)) {
@@ -55,6 +54,12 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
                 Chmod.ChmodFileAsExecutable(f);
             }
         }
+
+        // Files in the MacOS directory need to be signed, but text files are signed via xattrs, which we don't yet preserve
+        // in nupkg releases. Instead we can put it in the Resources dir and symlink to it. Symlinks don't need to be signed.
+        var resourcesdir = structure.ResourcesDirectory;
+        File.WriteAllText(Path.Combine(resourcesdir, "sq.version"), GenerateNuspecContent());
+        SymbolicLink.Create(Path.Combine(macosdir, "sq.version"), Path.Combine(resourcesdir, "sq.version"), false, true);
 
         progress(100);
         return Task.FromResult(dir.FullName);
@@ -96,9 +101,6 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
                 var structure = new OsxStructureBuilder(packDir);
                 var updateMacPath = Path.Combine(structure.MacosDirectory, "UpdateMac");
                 helper.CodeSign(Options.SignAppIdentity, entitlements, updateMacPath, false, keychainPath);
-                signProgress(25);
-                var versionPath = Path.Combine(structure.MacosDirectory, "sq.version");
-                helper.CodeSign(Options.SignAppIdentity, entitlements, versionPath, false, keychainPath);
                 signProgress(50);
                 
                 Log.Info("Code signing application bundle...");
