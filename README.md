@@ -50,3 +50,16 @@ I've used a lot of installer frameworks and Velopack is by far the best. Everyth
 
 I'm extremely impressed with Velopack's performance in creating releases, as well as checking for and applying updates. It is significantly faster than other tools. The vpk CLI is intuitive and easy to implement, even with my complex build pipeline. Thanks to Velopack, I've been able to streamline my workflow and save valuable time. It's a fantastic tool that I highly recommend!
 [- khdc (Discord)](https://discord.com/channels/767856501477343282/947444323765583913/1216460920696344576)
+
+## Sponsors
+Huge thanks to everyone who provides the project with free tools, services, or donations!
+
+<span>
+  Free tools provided by - <br/>
+  <a href="https://jb.gg/OpenSource">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://www.jetbrains.com/company/brand/img/logo_jb_dos_3.svg">
+    <img alt="Jetbrains Logo" src="https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg" width="160">
+  </picture>
+  </a>
+</span>
