@@ -2,6 +2,9 @@
 using System.Globalization;
 using System.Runtime.Versioning;
 using System.Xml.Linq;
+using AsmResolver.PE;
+using AsmResolver.PE.File;
+using AsmResolver.PE.File.Headers;
 using Microsoft.Deployment.WindowsInstaller;
 using Microsoft.Win32;
 using NuGet.Packaging;
@@ -870,7 +873,7 @@ public class WindowsPackTests
     }
 
     private static void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger, 
-        bool addNewFile = false, string assemblyNameOverride = null)
+        bool addNewFile = false, string assemblyNameOverride = null, string targetRuntime = "win-x64")
     {
         var projDir = PathHelper.GetTestRootPath("TestApp");
         var testStringFile = Path.Combine(projDir, "Const.cs");
@@ -879,7 +882,7 @@ public class WindowsPackTests
         try {
             File.WriteAllText(testStringFile, $"class Const {{ public const string TEST_STRING = \"{testString}\"; }}");
             var args = new List<string> {
-                "publish", "--no-self-contained", "-c", "Release", "-r", "win-x64", "-o", "publish", "--tl:off"
+                "publish", "--no-self-contained", "-c", "Release", "-r", targetRuntime, "-o", "publish", "--tl:off"
             };
 
             if (assemblyNameOverride != null) {
@@ -925,7 +928,7 @@ public class WindowsPackTests
                 ReleaseDir = new DirectoryInfo(releaseDir),
                 PackId = id,
                 PackVersion = version,
-                TargetRuntime = RID.Parse("win-x64"),
+                TargetRuntime = RID.Parse(targetRuntime),
                 PackDirectory = Path.Combine(projDir, "publish"),
             };
 
@@ -934,5 +937,70 @@ public class WindowsPackTests
         } finally {
             File.WriteAllText(testStringFile, oldText);
         }
+    }
+
+    [SkippableTheory]
+    [InlineData("x86", MachineType.I386)]
+    [InlineData("x64", MachineType.Amd64)]
+    [InlineData("arm64", MachineType.Arm64)]
+    public void PackIncludesCorrectArchitectureUpdateBinary(string architecture, MachineType expectedMachineType)
+    {
+        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+
+        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
+
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
+        var unzipDir = @"C:\Source\velopack\test_inspect_" + architecture;
+
+        var exe = "testapp.exe";
+        var id = "Test.Squirrel-App";
+        var version = "1.0.0";
+
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+
+        var options = new WindowsPackOptions {
+            EntryExecutableName = exe,
+            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
+            PackId = id,
+            PackVersion = version,
+            TargetRuntime = RID.Parse($"win-{architecture}"),
+            PackDirectory = tmpOutput,
+        };
+
+        var runner = GetPackRunner(logger);
+        runner.Run(options).GetAwaiterResult();
+
+        var nupkgPath = Path.Combine(tmpReleaseDir, $"{id}-{version}-full.nupkg");
+        Assert.True(File.Exists(nupkgPath));
+
+        // Create extraction directory
+        if (Directory.Exists(unzipDir))
+            Directory.Delete(unzipDir, true);
+        Directory.CreateDirectory(unzipDir);
+
+        EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), nupkgPath, unzipDir);
+        
+        _output.WriteLine($"Package extracted to: {unzipDir}");
+        _output.WriteLine("Contents:");
+        foreach (var file in Directory.GetFiles(unzipDir, "*", SearchOption.AllDirectories))
+        {
+            _output.WriteLine($"  {file.Replace(unzipDir, "")}");
+        }
+
+        // Check if Squirrel.exe is the Update.exe binary
+        var squirrelExePath = Path.Combine(unzipDir, "lib", "app", "Squirrel.exe");
+        Assert.True(File.Exists(squirrelExePath), "Expected Squirrel.exe to be present in the package");
+
+        // Use AsmResolver to verify the binary architecture
+        var peFile = PEFile.FromFile(squirrelExePath);
+        var actualMachineType = peFile.FileHeader.Machine;
+        
+        _output.WriteLine($"Squirrel.exe architecture: {actualMachineType}, expected: {expectedMachineType}");
+        
+        Assert.True(expectedMachineType == actualMachineType, 
+            $"Squirrel.exe should be {expectedMachineType} architecture but was {actualMachineType}");
+
+        _output.WriteLine($"Successfully verified {architecture} architecture in package");
     }
 }
