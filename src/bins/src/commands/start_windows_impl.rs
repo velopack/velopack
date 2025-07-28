@@ -4,19 +4,16 @@ use crate::{
     windows as win,
 };
 use anyhow::{anyhow, bail, Result};
-use std::os::windows::process::CommandExt;
 use std::{
-    fs,
-    path::Path,
-    path::PathBuf,
-    process::Command as Process,
+    ffi::{OsStr, OsString},
+    os::windows::process::CommandExt,
 };
-use velopack::{bundle::Manifest, constants};
+use std::{fs, path::Path, path::PathBuf, process::Command as Process};
 use velopack::locator::{self, LocationContext, VelopackLocator};
+use velopack::{bundle::Manifest, constants};
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 
-enum LocatorResult
-{
+enum LocatorResult {
     Normal(VelopackLocator),
     Legacy(PathBuf, Manifest),
 }
@@ -34,18 +31,18 @@ impl LocatorResult {
             LocatorResult::Legacy(_, manifest) => manifest.clone(),
         }
     }
-    
+
     pub fn get_current_dir(&self) -> PathBuf {
         match self {
             LocatorResult::Normal(locator) => locator.get_current_bin_dir(),
             LocatorResult::Legacy(path, _) => path.join("current"),
         }
     }
-    
-    pub fn get_exe_to_start(&self, name: Option<&String>) -> Result<PathBuf> {
+
+    pub fn get_exe_to_start<P: AsRef<OsStr>>(&self, name: Option<P>) -> Result<PathBuf> {
         let current_dir = self.get_current_dir();
         if let Some(name) = name {
-            Ok(Path::new(&current_dir).join(name))
+            Ok(Path::new(&current_dir).join(name.as_ref()))
         } else {
             match self {
                 LocatorResult::Normal(locator) => Ok(locator.get_main_exe_path()),
@@ -61,8 +58,8 @@ impl LocatorResult {
     }
 }
 
-fn legacy_locator() -> Result<LocatorResult> {
-    let locator = locator::auto_locate_app_manifest(LocationContext::IAmUpdateExe);
+fn legacy_locator(context: LocationContext) -> Result<LocatorResult> {
+    let locator = locator::auto_locate_app_manifest(context);
     match locator {
         Ok(locator) => Ok(LocatorResult::Normal(locator)),
         Err(e) => {
@@ -71,21 +68,26 @@ fn legacy_locator() -> Result<LocatorResult> {
             let parent_dir = my_exe.parent().expect("Unable to determine parent directory");
             let packages_dir = parent_dir.join("packages");
             if let Some((path, manifest)) = locator::find_latest_full_package(&packages_dir) {
-                info!("Found full package to read: {}", path.to_string_lossy());
+                info!("Found full package to read: {:?}", path);
                 Ok(LocatorResult::Legacy(parent_dir.to_path_buf(), manifest))
             } else {
-                bail!("Unable to locate app manifest or full package in {}.", packages_dir.to_string_lossy());
+                bail!("Unable to locate app manifest or full package in {:?}.", packages_dir);
             }
         }
     }
 }
 
 pub fn start_impl(
-    exe_name: Option<&String>,
-    exe_args: Option<Vec<&str>>,
-    legacy_args: Option<&String>,
+    context: LocationContext,
+    exe_name: Option<&OsString>,
+    exe_args: Option<Vec<OsString>>,
+    legacy_args: Option<&OsString>,
 ) -> Result<()> {
-    let locator = legacy_locator()?;
+    if legacy_args.is_some() && exe_args.is_some() {
+        anyhow::bail!("Cannot use both legacy args and new args format at the same time.");
+    }
+
+    let locator = legacy_locator(context)?;
     let root_dir = locator.get_root_dir();
     let manifest = locator.get_manifest();
     if shared::has_app_prefixed_folder(&root_dir) {
@@ -112,17 +114,17 @@ pub fn start_impl(
 
 fn start_regular(
     locator: LocatorResult,
-    exe_name: Option<&String>,
-    exe_args: Option<Vec<&str>>,
-    legacy_args: Option<&String>,
+    exe_name: Option<&OsString>,
+    exe_args: Option<Vec<OsString>>,
+    legacy_args: Option<&OsString>,
 ) -> Result<()> {
-    // we can't just run the normal start_package command, because legacy squirrel might provide 
+    // we can't just run the normal start_package command, because legacy squirrel might provide
     // an "exe name" to restart which no longer exists in the package
     let exe_to_execute = locator.get_exe_to_start(exe_name)?;
     if !exe_to_execute.exists() {
         bail!("Unable to find executable to start: '{:?}'", exe_to_execute);
     }
-    
+
     let current = locator.get_current_dir();
     info!("About to launch: '{:?}' in dir '{:?}'", exe_to_execute, current);
 
@@ -142,13 +144,14 @@ fn start_regular(
 
 fn try_legacy_migration(root_dir: &PathBuf, manifest: &Manifest) -> Result<VelopackLocator> {
     info!("This is a legacy app. Will try and upgrade it now.");
-    
+
     // if started by legacy Squirrel, the working dir of Update.exe may be inside the app-* folder,
     // meaning we can not clean up properly.
     std::env::set_current_dir(&root_dir)?;
     let path_config = locator::create_config_from_root_dir(root_dir);
-    let package = locator::find_latest_full_package(&path_config.PackagesDir).ok_or_else(|| anyhow!("Unable to find latest full package."))?;
-    
+    let package =
+        locator::find_latest_full_package(&path_config.PackagesDir).ok_or_else(|| anyhow!("Unable to find latest full package."))?;
+
     warn!("This application is installed in a folder prefixed with 'app-'. Attempting to migrate...");
     let _ = shared::force_stop_package(&root_dir);
 

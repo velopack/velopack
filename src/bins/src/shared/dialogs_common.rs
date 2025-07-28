@@ -79,7 +79,7 @@ fn test_show_all_dialogs() {
     show_warn("Warning", None, "This is a warning.");
     show_info("Information", None, "This is information.");
     assert!(show_ok_cancel("Ok/Cancel", None, "This is a question.", None));
-    assert!(!show_ok_cancel("Ok/Cancel", None, "This is a question.", Some("Ok")));
+    assert!(!show_ok_cancel("Ok/Cancel", None, "This is a question.", Some("Dont click!")));
 }
 
 // pub fn yes_no(title: &str, header: Option<&str>, body: &str) -> Result<bool> {

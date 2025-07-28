@@ -1,8 +1,8 @@
 use anyhow::{bail, Result};
 use libc::{c_char, c_void, size_t};
 use std::ffi::{CStr, CString};
-use std::path::PathBuf;
 use std::mem::size_of;
+use std::path::PathBuf;
 use velopack::{locator::VelopackLocatorConfig, UpdateInfo, UpdateOptions, VelopackAsset};
 
 /// The result of a call to check for updates. This can indicate that an update is available, or that an error occurred.
