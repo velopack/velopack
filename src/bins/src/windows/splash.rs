@@ -227,7 +227,7 @@ impl SplashWindow {
 
             // draw progress bar to hdc_mem
             let progress = self2.progress.borrow();
-            let progress_brush = w::HBRUSH::CreateSolidBrush(w::COLORREF::new(0, 255, 0))?;
+            let progress_brush = w::HBRUSH::CreateSolidBrush(w::COLORREF::new(6, 176, 37))?;
             let progress_width = (rect.right as f32 * (*progress as f32 / 100.0)) as i32;
             let progress_rect = w::RECT { left: 0, bottom: rect.bottom, right: progress_width, top: rect.bottom - 10 };
             hdc_mem.FillRect(progress_rect, &progress_brush)?;
