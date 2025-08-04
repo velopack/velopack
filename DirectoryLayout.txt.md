@@ -9,6 +9,7 @@
     - [AppId]
       - Update.exe
       - packages
+      - velopack.log
 
 
 ### MSI - All Users
@@ -17,7 +18,6 @@
   - [AppId]
     - .portable
     - Update.exe
-    - velopack.log
     - [AppId].exe (stub)
     - current
       - sq.version

@@ -61,11 +61,12 @@ namespace Velopack.Locators
                 {
                     // this is an attempt to work around a bug where the restarted app fails to come to foreground.
                     if (!AllowSetForegroundWindow(p.Id))
-                        throw new Win32Exception();
+                        _logger.LogWarning("Failed to allow Update.exe to set foreground window.");
+
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to allow Update.exe to set foreground window.");
+                    _logger.LogWarning(ex, "Error occurred while trying to allow Update.exe to set foreground window.");
                 }
             }
             

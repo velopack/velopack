@@ -126,7 +126,7 @@ fn start_regular(
     }
 
     let current = locator.get_current_dir();
-    info!("About to launch: '{:?}' in dir '{:?}'", exe_to_execute, current);
+    info!("About to launch [START_REGULAR]: '{:?}' in dir '{:?}'", exe_to_execute, current);
 
     let mut cmd = Process::new(&exe_to_execute);
     cmd.current_dir(&current);
@@ -138,6 +138,8 @@ fn start_regular(
     }
 
     let cmd = cmd.spawn()?;
+    info!("Started process with ID: {}", cmd.id());
+
     let _ = unsafe { AllowSetForegroundWindow(cmd.id()) };
     Ok(())
 }

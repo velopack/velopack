@@ -122,8 +122,11 @@ fn make_command_line(argv0: Option<&OsStr>, args: &[Arg], force_quotes: bool) ->
         append_arg(&mut cmd, arg, force_quotes)?;
         cmd.push(' ' as u16);
     }
+    if !cmd.is_empty() {
+        cmd.pop();
+    }
+    //cmd.push(0);
 
-    cmd.push(0);
     Ok(cmd.into())
 }
 
@@ -139,7 +142,6 @@ fn make_envp(maybe_env: Option<HashMap<String, String>>) -> IoResult<Option<Wide
         if key.is_empty() || value.is_empty() {
             continue; // Skip empty keys or values
         }
-        info!("Including existing environment variable: {:?}", key);
         blk.extend(ensure_no_nuls(key)?.encode_wide());
         blk.push('=' as u16);
         blk.extend(ensure_no_nuls(value)?.encode_wide());
@@ -149,9 +151,9 @@ fn make_envp(maybe_env: Option<HashMap<String, String>>) -> IoResult<Option<Wide
     if let Some(env) = maybe_env {
         // If there are no environment variables to set then signal this by
         // pushing a null.
-        if env.is_empty() {
-            blk.push(0);
-        }
+        // if env.is_empty() {
+        //     blk.push(0);
+        // }
 
         for (k, v) in env {
             let os_key = OsString::from(k);
@@ -161,12 +163,12 @@ fn make_envp(maybe_env: Option<HashMap<String, String>>) -> IoResult<Option<Wide
             blk.extend(ensure_no_nuls(os_value)?.encode_wide());
             blk.push(0);
         }
-        blk.push(0);
     }
     
     if blk.len() == 0 {
         Ok(None)
     } else {
+        blk.push(0); 
         Ok(Some(blk.into()))
     }
 }
@@ -288,6 +290,49 @@ pub fn run_process_as_admin<P1: AsRef<Path>, P2: AsRef<Path>>(
     }
 }
 
+pub fn start_process<P1: AsRef<Path>, P2: AsRef<Path>>(
+    exe_path: P1,
+    args: Vec<OsString>,
+    work_dir: Option<P2>,
+    show_window: bool,
+) -> IoResult<SafeProcessHandle> {
+    let exe = string_to_wide(exe_path.as_ref());
+    let wrapped_args: Vec<Arg> = args.iter().map(|a| Arg::Regular(a.into())).collect();
+    let params = if args.len() > 0 {
+        PCWSTR(make_command_line(Some(exe.as_os_str()), &wrapped_args, false)?.as_ptr())
+    } else {
+        PCWSTR::null()
+    };
+    // let params = make_command_line(None, &wrapped_args, false)?;
+    // let params = PCWSTR(params.as_ptr());
+    let work_dir = string_to_wide_opt(work_dir.map(|w| w.as_ref().to_path_buf()));
+
+    let n_show = if show_window {
+        windows::Win32::UI::WindowsAndMessaging::SW_NORMAL.0
+    } else {
+        windows::Win32::UI::WindowsAndMessaging::SW_HIDE.0
+    };
+
+    let mut exe_info: SHELLEXECUTEINFOW = SHELLEXECUTEINFOW {
+        cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
+        fMask: SEE_MASK_NOCLOSEPROCESS,
+        //lpVerb: PCWSTR::null(),
+        lpFile: exe.as_pcwstr(),
+        lpParameters: params,
+        lpDirectory: work_dir.as_ref().map(|d| d.as_pcwstr()).unwrap_or(PCWSTR::default()),
+        nShow: n_show,
+        ..Default::default()
+    };
+
+    unsafe {
+        info!("About to launch [AS USER]: '{:?}' in dir '{:?}' with arguments: {:?}", exe, work_dir, args);
+        ShellExecuteExW(&mut exe_info as *mut SHELLEXECUTEINFOW)?;
+        let process_id = GetProcessId(exe_info.hProcess);
+        let _ = AllowSetForegroundWindow(process_id);
+        Ok(SafeProcessHandle { handle: exe_info.hProcess, pid: process_id })
+    }
+}
+
 pub fn run_process<P1: AsRef<Path>, P2: AsRef<Path>>(
     exe_path: P1,
     args: Vec<OsString>,
@@ -299,7 +344,7 @@ pub fn run_process<P1: AsRef<Path>, P2: AsRef<Path>>(
     let dirp = string_to_wide_opt(work_dir.map(|w| w.as_ref().to_path_buf()));
     let envp = make_envp(set_env)?;
     let wrapped_args: Vec<Arg> = args.iter().map(|a| Arg::Regular(a.into())).collect();
-    let mut params = make_command_line(Some(exe_path.as_os_str()), &wrapped_args, false)?;
+    let mut params: WideString = make_command_line(Some(exe_path.as_os_str()), &wrapped_args, false)?;
 
     let mut pi = windows::Win32::System::Threading::PROCESS_INFORMATION::default();
 
@@ -330,10 +375,13 @@ pub fn run_process<P1: AsRef<Path>, P2: AsRef<Path>>(
         CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT
     };
 
+    let cmd = params.as_pwstr();
+    let _d = Some(cmd);
+
     unsafe {
-        info!("About to launch: '{:?}' in dir '{:?}' with arguments: {:?}", exe_path, dirp, args);
+        info!("About to launch: '{:?}' in dir '{:?}' with arguments: {:?}", exe_path, dirp, params);
         CreateProcessW(
-            exe_path.as_pcwstr(),
+            None,
             Some(params.as_pwstr()),
             None,
             None,
@@ -344,7 +392,9 @@ pub fn run_process<P1: AsRef<Path>, P2: AsRef<Path>>(
             &si,
             &mut pi,
         )?;
-        let _ = AllowSetForegroundWindow(pi.dwProcessId);
+        if show_window {
+            let _ = AllowSetForegroundWindow(pi.dwProcessId);
+        }
         let _ = CloseHandle(pi.hThread);
     }
 
@@ -507,4 +557,67 @@ fn test_kill_process() {
     let pid = cmd.id();
 
     kill_pid(pid).expect("failed to kill process");
+}
+
+#[test]
+fn test_avalonia() {
+    let p = run_process(
+        "C:\\Program Files (x86)\\VelopackCSharpAvalonia\\current\\VelopackCSharpAvalonia.exe",
+        vec![OsString::from("--veloapp-updated"), OsString::from("1.0.5")],
+        Some("C:\\Program Files (x86)\\VelopackCSharpAvalonia\\current"),
+        false,
+        Some(HashMap::from([("VELOPACK_RESTART".to_string(), "true".to_string())])),
+    );
+    let handle = p.expect("failed to start process");
+    info!("Process started with PID: {:?}", handle.pid);
+}
+
+#[test]
+fn test_avalonia_start_process() {
+    let p = start_process(
+        "C:\\Program Files (x86)\\VelopackCSharpAvalonia\\current\\VelopackCSharpAvalonia.exe",
+        vec![OsString::from("--veloapp-updated"), OsString::from("1.0.5")],
+        Some("C:\\Program Files (x86)\\VelopackCSharpAvalonia\\current"),
+        false
+    );
+    let handle = p.expect("failed to start process");
+    info!("Process started with PID: {:?}", handle.pid);
+}
+
+#[test]
+fn test_avalonia2() {
+    let p = run_process(
+        "C:\\Program Files (x86)\\VelopackCSharpAvalonia\\current\\VelopackCSharpAvalonia.exe",
+        vec![],
+        Some("C:\\Program Files (x86)\\VelopackCSharpAvalonia\\current"),
+        false,
+        None,
+    );
+    let handle = p.expect("failed to start process");
+    info!("Process started with PID: {:?}", handle.pid);
+}
+
+#[test]
+fn test_avalonia2_start_process() {
+    let p = start_process(
+        "C:\\Program Files (x86)\\VelopackCSharpAvalonia\\current\\VelopackCSharpAvalonia.exe",
+        vec![],
+        Some("C:\\Program Files (x86)\\VelopackCSharpAvalonia\\current"),
+        false
+    );
+    let handle = p.expect("failed to start process");
+    info!("Process started with PID: {:?}", handle.pid);
+}
+
+#[test]
+fn test_msi_launch() {
+    let p = run_process(
+        "C:\\Program Files (x86)\\VelopackCSharpAvalonia\\VelopackCSharpAvalonia.exe",
+        vec![],
+        Some("C:\\Program Files (x86)\\VelopackCSharpAvalonia\\"),
+        false,
+        None,
+    );
+    let handle = p.expect("failed to start process");
+    info!("Process started with PID: {:?}", handle.pid);
 }

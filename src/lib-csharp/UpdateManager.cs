@@ -222,12 +222,12 @@ namespace Velopack
                 }
             }
 
-            if (updates == null) {
+            if (updates is null) {
                 throw new ArgumentNullException(nameof(updates));
             }
 
             var targetRelease = updates.TargetFullRelease;
-            if (targetRelease == null) {
+            if (targetRelease is null) {
                 throw new ArgumentException($"Must pass a valid {nameof(UpdateInfo)} object with a non-null {nameof(UpdateInfo.TargetFullRelease)}", nameof(updates));
             }
 
@@ -349,8 +349,13 @@ namespace Velopack
                 "--old",
                 baseFile,
                 "--output",
-                targetFile,
+                targetFile
             };
+
+            if (Locator.RootAppDir is { Length: > 0 }) {
+                args.Add("--root");
+                args.Add(Locator.RootAppDir);
+            }
 
             foreach (var x in releasesToDownload) {
                 args.Add("--delta");
@@ -359,12 +364,6 @@ namespace Velopack
 
             var psi = new ProcessStartInfo(updateExe);
             psi.UseShellExecute = true;
-            StringBuilder sb = new();
-            var envVars = Environment.GetEnvironmentVariables();
-            foreach (var envVar in envVars.Keys) {
-                sb.AppendLine($"{envVar}={envVars[envVar]}");
-            }
-            Log.LogInformation("KEVIN TEST: Environment variables:\n" + sb.ToString());
             psi.AppendArgumentListSafe(args, out _);
             psi.CreateNoWindow = true;
             var p = psi.StartRedirectOutputToILogger(Log, VelopackLogLevel.Debug);
@@ -460,6 +459,9 @@ namespace Velopack
         /// </summary>
         protected virtual async Task<IDisposable> AcquireUpdateLock()
         {
+            if (Locator.PackagesDir is null) {
+                throw new InvalidOperationException($"Cannot acquire update lock, {nameof(IVelopackLocator)}.{nameof(IVelopackLocator.PackagesDir)} is not set.");
+            }
             var dir = Directory.CreateDirectory(Locator.PackagesDir!);
             var lockPath = Path.Combine(dir.FullName, ".velopack_lock");
             var fsLock = new LockFile(lockPath);
@@ -469,7 +471,7 @@ namespace Velopack
 
         private static IUpdateSource CreateSimpleSource(string urlOrPath)
         {
-            if (String.IsNullOrWhiteSpace(urlOrPath)) {
+            if (string.IsNullOrWhiteSpace(urlOrPath)) {
                 throw new ArgumentException("Must pass a valid URL or file path to UpdateManager", nameof(urlOrPath));
             }
 
