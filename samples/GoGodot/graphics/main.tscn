@@ -1,0 +1,45 @@
+[gd_scene load_steps=3 format=3 uid="uid://bmhmiv43fqo4c"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7dm0k"]
+bg_color = Color(0.162066, 0.162066, 0.162065, 1)
+
+[sub_resource type="Theme" id="Theme_ig7tw"]
+ScrollContainer/styles/panel = SubResource("StyleBoxFlat_7dm0k")
+
+[node name="Node" type="GUI"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Actions" type="HBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="Check" type="Button" parent="Actions"]
+layout_mode = 2
+text = "Check"
+
+[node name="Download" type="Button" parent="Actions"]
+layout_mode = 2
+text = "Download"
+
+[node name="ProgressBar" type="ProgressBar" parent="Actions"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Apply" type="Button" parent="Actions"]
+layout_mode = 2
+text = "Apply"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="."]
+clip_contents = false
+layout_mode = 2
+size_flags_vertical = 3
+theme = SubResource("Theme_ig7tw")
+
+[node name="Label" type="Label" parent="ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
