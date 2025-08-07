@@ -28,6 +28,7 @@ func init() {
 	velopack.Logger = func(level, message string) {
 		early_logs = append(early_logs, level+": "+message)
 	}
+	velopack.Args = []string{"restart=true"}
 	velopack.Run()
 }
 
@@ -72,7 +73,7 @@ func (gui *GUI) Ready() {
 		}
 	})
 	gui.Actions.Apply.AsBaseButton().OnPressed(func() {
-		if err := up.WaitExitThenApplyUpdates(update); err != nil {
+		if err := up.WaitExitThenApplyUpdates(update, velopack.Restart{}); err != nil {
 			Engine.Raise(err)
 			return
 		}
