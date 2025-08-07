@@ -3,6 +3,7 @@ package velopack
 
 /*
 #include <stdlib.h>
+#cgo LDFLAGS: -lvelopack_libc -Wl,-rpath=\$ORIGIN
 #include "../../lib-cpp/include/Velopack.h"
 */
 import "C"
@@ -119,6 +120,8 @@ type UpdateOptions struct {
 
 // UpdateInfo holds information about the current version and pending updates, such as how many there are, and access to release notes.
 type UpdateInfo struct {
+	assetAndOrSilentAndOrRestart
+
 	handle *C.vpkc_update_info_t // opaque handle to the underlying C update info, if applicable.
 
 	TargetFullRelease *Asset   // The available version that we are updating to.
@@ -130,6 +133,28 @@ type UpdateInfo struct {
 		deleted.
 	*/
 	IsDowngrade bool
+}
+
+func (info *UpdateInfo) load(update_info *C.vpkc_update_info_t) *UpdateInfo {
+	var deltas []*Asset
+	if update_info.DeltasToTarget != nil {
+		for ptr := update_info.DeltasToTarget; *ptr != nil; ptr = (**C.vpkc_asset_t)(unsafe.Pointer(uintptr(unsafe.Pointer(ptr)) + unsafe.Sizeof(*ptr))) {
+			deltas = append(deltas, toAsset(*ptr))
+		}
+	}
+	if info.handle != update_info {
+		runtime.AddCleanup(info, func(handle *C.vpkc_update_info_t) {
+			C.vpkc_free_update_info(handle)
+		}, update_info)
+	}
+	*info = UpdateInfo{
+		handle:            update_info,
+		TargetFullRelease: toAsset(update_info.TargetFullRelease),
+		BaseRelease:       toAsset(update_info.BaseRelease),
+		DeltasToTarget:    deltas,
+		IsDowngrade:       bool(update_info.IsDowngrade),
+	}
+	return info
 }
 
 // LocatorConfig for locating the current app important paths (eg. path to packages, update binary, and so forth).
@@ -198,7 +223,7 @@ func optionsLocator(options ...updateOptionsAndLocatorConfig) (*C.vpkc_update_op
 	if len(options) > 0 {
 		for _, option := range options {
 			switch option := option.(type) {
-			case *UpdateOptions:
+			case UpdateOptions:
 				ExplicitChannel := C.CString(option.ExplicitChannel)
 				defer C.free(unsafe.Pointer(ExplicitChannel))
 				p_options = &C.vpkc_update_options_t{
@@ -206,7 +231,7 @@ func optionsLocator(options ...updateOptionsAndLocatorConfig) (*C.vpkc_update_op
 					ExplicitChannel:             ExplicitChannel,
 					MaximumDeltasBeforeFallback: C.int32_t(option.MaximumDeltasBeforeFallback),
 				}
-			case *LocatorConfig:
+			case LocatorConfig:
 				RootAppDir := C.CString(option.RootAppDir)
 				defer C.free(unsafe.Pointer(RootAppDir))
 				UpdateExePath := C.CString(option.UpdateExePath)
@@ -305,23 +330,9 @@ func (up *UpdateManager) CheckForUpdates() (*UpdateInfo, UpdateCheck) {
 	if update_info == nil {
 		return nil, UpdateCheck(check_result)
 	}
-	var deltas []*Asset
-	if update_info.DeltasToTarget != nil {
-		for ptr := update_info.DeltasToTarget; *ptr != nil; ptr = (**C.vpkc_asset_t)(unsafe.Pointer(uintptr(unsafe.Pointer(ptr)) + unsafe.Sizeof(*ptr))) {
-			deltas = append(deltas, toAsset(*ptr))
-		}
-	}
-	info := &UpdateInfo{
-		handle:            update_info,
-		TargetFullRelease: toAsset(update_info.TargetFullRelease),
-		BaseRelease:       toAsset(update_info.BaseRelease),
-		DeltasToTarget:    deltas,
-		IsDowngrade:       bool(update_info.IsDowngrade),
-	}
-	runtime.AddCleanup(info, func(handle *C.vpkc_update_info_t) {
-		C.vpkc_free_update_info(handle)
-	}, info.handle)
-	return info, UpdateCheck(check_result)
+	var info UpdateInfo
+	info.load(update_info)
+	return &info, UpdateCheck(check_result)
 }
 
 type assetAndOrSilentAndOrRestart interface {
@@ -344,7 +355,11 @@ func assetSilentRestart(options ...assetAndOrSilentAndOrRestart) (*C.vpkc_asset_
 	var restart []*C.char
 	for _, option := range options {
 		switch option := option.(type) {
-		case Asset:
+		case *UpdateInfo:
+			if option != nil {
+				p_asset = (*C.vpkc_asset_t)(unsafe.Pointer(option.TargetFullRelease.handle))
+			}
+		case *Asset:
 			p_asset = (*C.vpkc_asset_t)(unsafe.Pointer(option.handle))
 		case Silent:
 			silent = C.bool(option)

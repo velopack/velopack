@@ -20,7 +20,7 @@ extern GO_EXPORT void go_before_update_callback(uintptr_t user_data, char *psz_a
 extern GO_EXPORT void go_after_update_callback(uintptr_t user_data, char *psz_app_version);
 extern GO_EXPORT void go_first_run_callback(uintptr_t user_data, char *psz_app_version);
 extern GO_EXPORT void go_restarted_callback(uintptr_t user_data, char *psz_app_version);
-extern GO_EXPORT void go_log_callback(char *level, char *psz_message);
+extern GO_EXPORT void go_log_callback(uintptr_t user_data, char *level, char *psz_message);
 
 static vpkc_update_source_t *go_vpkc_new_source_custom_callback(uintptr_t user_data) {
     return vpkc_new_source_custom_callback(
@@ -150,7 +150,7 @@ func go_restarted_callback(_ uintptr, psz_app_version *C.char) {
 }
 
 //export go_log_callback
-func go_log_callback(level, psz_message *C.char) {
+func go_log_callback(_ uintptr, level, psz_message *C.char) {
 	Logger(C.GoString(level), C.GoString(psz_message))
 }
 
@@ -185,12 +185,17 @@ func NewSourceCustomCallback(callbacks SourceCustomCallbacks) (*UpdateSource, er
 //   - If there is no delta update available, or there is an error preparing delta
 //     packages, this method will fall back to downloading the full version of the update.
 func (up *UpdateManager) DownloadUpdates(update_info *UpdateInfo, progress func(progress uint)) error {
+	var info_handle *C.vpkc_update_info_t
+	if update_info != nil {
+		info_handle = update_info.handle
+	}
 	if !C.go_vpkc_download_updates(up.handle,
-		update_info.handle,
+		info_handle,
 		C.uintptr_t(cgo.NewHandle(progress)),
 	) {
 		return get_last_error()
 	}
+	update_info.load(update_info.handle)
 	return nil
 }
 
