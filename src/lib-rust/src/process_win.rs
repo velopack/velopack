@@ -328,7 +328,9 @@ pub fn start_process<P1: AsRef<Path>, P2: AsRef<Path>>(
         info!("About to launch [AS USER]: '{:?}' in dir '{:?}' with arguments: {:?}", exe, work_dir, args);
         ShellExecuteExW(&mut exe_info as *mut SHELLEXECUTEINFOW)?;
         let process_id = GetProcessId(exe_info.hProcess);
-        let _ = AllowSetForegroundWindow(process_id);
+        if show_window {
+            let _ = AllowSetForegroundWindow(process_id);
+        }
         Ok(SafeProcessHandle { handle: exe_info.hProcess, pid: process_id })
     }
 }
@@ -563,10 +565,10 @@ fn test_kill_process() {
 fn test_avalonia() {
     let p = run_process(
         "C:\\Program Files (x86)\\VelopackCSharpAvalonia\\current\\VelopackCSharpAvalonia.exe",
-        vec![OsString::from("--veloapp-updated"), OsString::from("1.0.5")],
+        vec![OsString::from("--veloapp-obsolete"), OsString::from("1.0.0")],
         Some("C:\\Program Files (x86)\\VelopackCSharpAvalonia\\current"),
         false,
-        Some(HashMap::from([("VELOPACK_RESTART".to_string(), "true".to_string())])),
+        None,
     );
     let handle = p.expect("failed to start process");
     info!("Process started with PID: {:?}", handle.pid);

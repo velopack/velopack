@@ -54,10 +54,10 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
             let args: Vec<OsString> =
                 vec!["apply".into(), "--norestart".into(), "--package".into(), package.into(), "--root".into(), root_path.into()];
             let exe_path = std::env::current_exe()?;
-            let work_dir: Option<String> = None; // same as this process
+            let work_dir: Option<String> = Some(std::env::current_dir()?.to_string_lossy().into_owned());
             let process_handle = process::run_process_as_admin(&exe_path, args, work_dir, false)?;
 
-            info!("Waiting (up to 10 minutes) for elevated process to exit...");
+            info!("Waiting (up to 10 minutes) for elevated process (pid: {}) to exit...", process_handle.pid());
             let result = process::wait_for_process_to_exit(process_handle, Some(Duration::from_secs(10 * 60)))?;
 
             match result {
