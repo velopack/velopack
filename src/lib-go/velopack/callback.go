@@ -103,55 +103,55 @@ func go_progress_callback(user_data uintptr, progress C.size_t) {
 
 //export go_after_install_callback
 func go_after_install_callback(_ uintptr, psz_app_version *C.char) {
-	if WindowsHookAfterInstall == nil {
+	if app.WindowsHookAfterInstall == nil {
 		return
 	}
-	WindowsHookAfterInstall(C.GoString(psz_app_version))
+	app.WindowsHookAfterInstall(C.GoString(psz_app_version))
 }
 
 //export go_before_uninstall_callback
 func go_before_uninstall_callback(_ uintptr, psz_app_version *C.char) {
-	if WindowsHookBeforeUninstall == nil {
+	if app.WindowsHookBeforeUninstall == nil {
 		return
 	}
-	WindowsHookBeforeUninstall(C.GoString(psz_app_version))
+	app.WindowsHookBeforeUninstall(C.GoString(psz_app_version))
 }
 
 //export go_before_update_callback
 func go_before_update_callback(_ uintptr, psz_app_version *C.char) {
-	if WindowsHookBeforeUpdate == nil {
+	if app.WindowsHookBeforeUpdate == nil {
 		return
 	}
-	WindowsHookBeforeUpdate(C.GoString(psz_app_version))
+	app.WindowsHookBeforeUpdate(C.GoString(psz_app_version))
 }
 
 //export go_after_update_callback
 func go_after_update_callback(_ uintptr, psz_app_version *C.char) {
-	if WindowsHookAfterUpdate == nil {
+	if app.WindowsHookAfterUpdate == nil {
 		return
 	}
-	WindowsHookAfterUpdate(C.GoString(psz_app_version))
+	app.WindowsHookAfterUpdate(C.GoString(psz_app_version))
 }
 
 //export go_first_run_callback
 func go_first_run_callback(_ uintptr, psz_app_version *C.char) {
-	if HookFirstRun == nil {
+	if app.HookFirstRun == nil {
 		return
 	}
-	HookFirstRun(C.GoString(psz_app_version))
+	app.HookFirstRun(C.GoString(psz_app_version))
 }
 
 //export go_restarted_callback
 func go_restarted_callback(_ uintptr, psz_app_version *C.char) {
-	if HookRestarted == nil {
+	if app.HookRestarted == nil {
 		return
 	}
-	HookRestarted(C.GoString(psz_app_version))
+	app.HookRestarted(C.GoString(psz_app_version))
 }
 
 //export go_log_callback
 func go_log_callback(_ uintptr, level, psz_message *C.char) {
-	Logger(C.GoString(level), C.GoString(psz_message))
+	app.Logger(C.GoString(level), C.GoString(psz_message))
 }
 
 /*
@@ -203,27 +203,28 @@ func (up *UpdateManager) DownloadUpdates(update_info *UpdateInfo, progress func(
 // This should be used as early as possible in your application startup code.
 // (eg. the beginning of main() or wherever your entry point is).
 // This function will not return in some cases.
-func Run() {
-	C.vpkc_app_set_auto_apply_on_startup(C.bool(AutoApplyOnStartup))
-	if Args != nil {
-		var args = make([]*C.char, len(Args)+1) // +1 for null terminator
-		for i, arg := range Args {
+func Run(a App) {
+	app = a
+	C.vpkc_app_set_auto_apply_on_startup(C.bool(app.AutoApplyOnStartup))
+	if app.Args != nil {
+		var args = make([]*C.char, len(app.Args)+1) // +1 for null terminator
+		for i, arg := range app.Args {
 			arg_cstr := C.CString(arg)
 			defer C.free(unsafe.Pointer(arg_cstr))
 			args[i] = arg_cstr
 		}
-		C.vpkc_app_set_args(&args[0], C.size_t(len(Args)))
+		C.vpkc_app_set_args(&args[0], C.size_t(len(app.Args)))
 	}
-	if Locator != nil {
-		RootAppDir := C.CString(Locator.RootAppDir)
+	if app.Locator != nil {
+		RootAppDir := C.CString(app.Locator.RootAppDir)
 		defer C.free(unsafe.Pointer(RootAppDir))
-		UpdateExePath := C.CString(Locator.UpdateExePath)
+		UpdateExePath := C.CString(app.Locator.UpdateExePath)
 		defer C.free(unsafe.Pointer(UpdateExePath))
-		PackagesDir := C.CString(Locator.PackagesDir)
+		PackagesDir := C.CString(app.Locator.PackagesDir)
 		defer C.free(unsafe.Pointer(PackagesDir))
-		ManifestPath := C.CString(Locator.ManifestPath)
+		ManifestPath := C.CString(app.Locator.ManifestPath)
 		defer C.free(unsafe.Pointer(ManifestPath))
-		CurrentBinaryDir := C.CString(Locator.CurrentBinaryDir)
+		CurrentBinaryDir := C.CString(app.Locator.CurrentBinaryDir)
 		defer C.free(unsafe.Pointer(CurrentBinaryDir))
 		C.vpkc_app_set_locator(&C.vpkc_locator_config_t{
 			RootAppDir:       RootAppDir,
@@ -231,11 +232,11 @@ func Run() {
 			PackagesDir:      PackagesDir,
 			ManifestPath:     ManifestPath,
 			CurrentBinaryDir: CurrentBinaryDir,
-			IsPortable:       C.bool(Locator.IsPortable),
+			IsPortable:       C.bool(app.Locator.IsPortable),
 		})
 	}
 	C.go_callbacks()
-	if Logger != nil {
+	if app.Logger != nil {
 		C.go_set_logger()
 	}
 	C.vpkc_app_run(nil)

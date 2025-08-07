@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"strings"
 
@@ -19,17 +18,20 @@ import (
 	"github.com/velopack/velopack/src/lib-go/velopack"
 )
 
-var early_logs []string
+var catch_early_logs []string
+var ready_logger func(string, string)
 
 func init() {
-	velopack.HookRestarted = func(appVersion string) {
-		fmt.Println("Restarted with version:", appVersion)
-	}
-	velopack.Logger = func(level, message string) {
-		early_logs = append(early_logs, level+": "+message)
-	}
-	velopack.Args = []string{"restart=true"}
-	velopack.Run()
+	velopack.Run(velopack.App{
+		AutoApplyOnStartup: true,
+		Logger: func(level, message string) {
+			if ready_logger != nil {
+				ready_logger(level, message)
+			} else {
+				catch_early_logs = append(catch_early_logs, level+": "+message)
+			}
+		},
+	})
 }
 
 type GUI struct {
@@ -43,37 +45,38 @@ type GUI struct {
 		ProgressBar ProgressBar.Instance
 		Apply       Button.Instance
 	}
-	ScrollContainer struct {
+	Scrollable struct {
 		ScrollContainer.Instance
 
-		Label Label.Instance
+		Logs Label.Instance
 	}
 }
 
 func (gui *GUI) Ready() {
-	gui.ScrollContainer.Label.SetText(strings.Join(early_logs, "\n"))
-	velopack.Logger = func(level, message string) {
-		gui.ScrollContainer.Label.SetText(gui.ScrollContainer.Label.Text() + "\n" + level + ": " + message)
+	gui.Scrollable.Logs.SetText(strings.Join(catch_early_logs, "\n"))
+	ready_logger = func(level, message string) {
+		gui.Scrollable.Logs.SetText(gui.Scrollable.Logs.Text() + "\n" + level + ": " + message)
 	}
-	up, err := velopack.NewUpdateManager(os.Getenv("RELEASES_DIR"))
+	manager, err := velopack.NewUpdateManager(os.Getenv("RELEASES_DIR"))
 	if err != nil {
 		Engine.Raise(err)
 		return
 	}
-	var update *velopack.UpdateInfo
+	var latest *velopack.UpdateInfo
 	gui.Actions.Check.AsBaseButton().OnPressed(func() {
-		update, _ = up.CheckForUpdates()
+		latest, _ = manager.CheckForUpdates()
 	})
 	gui.Actions.Download.AsBaseButton().OnPressed(func() {
-		if err := up.DownloadUpdates(update, func(progress uint) {
+		if err := manager.DownloadUpdates(latest, func(progress uint) {
 			gui.Actions.ProgressBar.AsRange().SetValue(Float.X(progress))
 		}); err != nil {
 			Engine.Raise(err)
 			return
 		}
+		gui.Actions.ProgressBar.AsRange().SetValue(100)
 	})
 	gui.Actions.Apply.AsBaseButton().OnPressed(func() {
-		if err := up.WaitExitThenApplyUpdates(update, velopack.Restart{}); err != nil {
+		if err := manager.WaitForExitThenApplyUpdates(latest, velopack.Restart{}); err != nil {
 			Engine.Raise(err)
 			return
 		}
@@ -82,7 +85,6 @@ func (gui *GUI) Ready() {
 }
 
 func main() {
-	fmt.Println("HELLO")
 	classdb.Register[GUI]()
 	startup.Scene()
 }
