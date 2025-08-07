@@ -518,3 +518,5 @@ tests/Test.xml
 
 
 launchsettings.json
+samples/GoGodot/go.work.sum
+samples/GoGodot/go.work
