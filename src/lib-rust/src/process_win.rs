@@ -14,10 +14,9 @@ use windows::{
         Foundation::{CloseHandle, FILETIME, HANDLE, WAIT_OBJECT_0, WAIT_TIMEOUT},
         Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION},
         System::Threading::{
-            CreateProcessW, GetCurrentProcess, GetExitCodeProcess, GetProcessId, GetProcessTimes, OpenProcess, OpenProcessToken,
-            TerminateProcess, WaitForSingleObject, CREATE_NO_WINDOW, CREATE_UNICODE_ENVIRONMENT, INFINITE, PROCESS_ACCESS_RIGHTS,
-            PROCESS_BASIC_INFORMATION, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE, STARTUPINFOW,
-            STARTUPINFOW_FLAGS,
+            CreateProcessW, GetCurrentProcess, GetExitCodeProcess, GetProcessId, GetProcessTimes, OpenProcess, OpenProcessToken, TerminateProcess,
+            WaitForSingleObject, CREATE_NO_WINDOW, CREATE_UNICODE_ENVIRONMENT, INFINITE, PROCESS_ACCESS_RIGHTS, PROCESS_BASIC_INFORMATION,
+            PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE, STARTUPINFOW, STARTUPINFOW_FLAGS,
         },
         UI::{
             Shell::{ShellExecuteExW, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW},
@@ -134,7 +133,7 @@ fn make_envp(maybe_env: Option<HashMap<String, String>>) -> IoResult<Option<Wide
     // On Windows we pass an "environment block" which is not a char**, but
     // rather a concatenation of null-terminated k=v\0 sequences, with a final
     // \0 to terminate.
-    
+    // return Ok(None);
     let mut blk = Vec::new();
 
     // Copy current process environment variables
@@ -142,9 +141,16 @@ fn make_envp(maybe_env: Option<HashMap<String, String>>) -> IoResult<Option<Wide
         if key.is_empty() || value.is_empty() {
             continue; // Skip empty keys or values
         }
+
+        let key_str = key.to_string_lossy();
+        if key_str.starts_with("=") {
+            continue;
+        }
+
         blk.extend(ensure_no_nuls(key)?.encode_wide());
         blk.push('=' as u16);
         blk.extend(ensure_no_nuls(value)?.encode_wide());
+        // blk.push(0);
         blk.push(0);
     }
 
@@ -162,13 +168,18 @@ fn make_envp(maybe_env: Option<HashMap<String, String>>) -> IoResult<Option<Wide
             blk.push('=' as u16);
             blk.extend(ensure_no_nuls(os_value)?.encode_wide());
             blk.push(0);
+            // blk.push(0);
         }
     }
-    
+
     if blk.len() == 0 {
+        info!("No environment variables set, returning None.");
         Ok(None)
     } else {
-        blk.push(0); 
+        // blk.push(0);
+        blk.push(0);
+        info!("Environment block: {:?}", String::from_utf16_lossy(&blk));
+
         Ok(Some(blk.into()))
     }
 }
@@ -190,9 +201,7 @@ pub fn is_current_process_elevated() -> bool {
             let elevation_ptr: *mut core::ffi::c_void = &mut elevation as *mut _ as *mut _;
 
             // Query the token information to check if it is elevated
-            if GetTokenInformation(token, TokenElevation, Some(elevation_ptr), std::mem::size_of::<TOKEN_ELEVATION>() as u32, &mut size)
-                .is_ok()
-            {
+            if GetTokenInformation(token, TokenElevation, Some(elevation_ptr), std::mem::size_of::<TOKEN_ELEVATION>() as u32, &mut size).is_ok() {
                 // Return whether the token is elevated
                 let _ = CloseHandle(token);
                 return elevation.TokenIsElevated != 0;
@@ -377,23 +386,14 @@ pub fn run_process<P1: AsRef<Path>, P2: AsRef<Path>>(
         CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT
     };
 
-    let cmd = params.as_pwstr();
-    let _d = Some(cmd);
+    // Keep environment block alive for the duration of the CreateProcessW call
+    let env_ptr = envp.as_ref().map(|e| e.as_cvoid());
+    let dir_ptr = dirp.as_ref().map(|d| d.as_pcwstr()).unwrap_or(PCWSTR::default());
 
     unsafe {
         info!("About to launch: '{:?}' in dir '{:?}' with arguments: {:?}", exe_path, dirp, params);
-        CreateProcessW(
-            None,
-            Some(params.as_pwstr()),
-            None,
-            None,
-            false,
-            flags,
-            envp.map(|e| e.as_cvoid()),
-            dirp.map(|d| d.as_pcwstr()).unwrap_or(PCWSTR::default()),
-            &si,
-            &mut pi,
-        )?;
+        info!("Environment block present: {}, flags: {:?}", envp.is_some(), flags);
+        CreateProcessW(None, Some(params.as_pwstr()), None, None, false, flags, env_ptr, dir_ptr, &si, &mut pi)?;
         if show_window {
             let _ = AllowSetForegroundWindow(pi.dwProcessId);
         }
@@ -427,11 +427,7 @@ pub fn kill_process<T: AsRef<HANDLE>>(process: T) -> IoResult<()> {
     Ok(())
 }
 
-pub fn open_process(
-    dwdesiredaccess: PROCESS_ACCESS_RIGHTS,
-    binherithandle: bool,
-    dwprocessid: u32,
-) -> windows::core::Result<SafeProcessHandle> {
+pub fn open_process(dwdesiredaccess: PROCESS_ACCESS_RIGHTS, binherithandle: bool, dwprocessid: u32) -> windows::core::Result<SafeProcessHandle> {
     let handle = unsafe { OpenProcess(dwdesiredaccess, binherithandle, dwprocessid)? };
     return Ok(SafeProcessHandle { handle, pid: dwprocessid });
 }
@@ -553,8 +549,7 @@ pub fn wait_for_parent_to_exit(dur: Option<Duration>) -> IoResult<WaitResult> {
 
 #[test]
 fn test_kill_process() {
-    let cmd =
-        std::process::Command::new("cmd.exe").arg("/C").arg("ping").arg("8.8.8.8").arg("-t").spawn().expect("failed to start process");
+    let cmd = std::process::Command::new("cmd.exe").arg("/C").arg("ping").arg("8.8.8.8").arg("-t").spawn().expect("failed to start process");
 
     let pid = cmd.id();
 
@@ -580,7 +575,7 @@ fn test_avalonia_start_process() {
         "C:\\Program Files (x86)\\VelopackCSharpAvalonia\\current\\VelopackCSharpAvalonia.exe",
         vec![OsString::from("--veloapp-updated"), OsString::from("1.0.5")],
         Some("C:\\Program Files (x86)\\VelopackCSharpAvalonia\\current"),
-        false
+        false,
     );
     let handle = p.expect("failed to start process");
     info!("Process started with PID: {:?}", handle.pid);
@@ -605,7 +600,7 @@ fn test_avalonia2_start_process() {
         "C:\\Program Files (x86)\\VelopackCSharpAvalonia\\current\\VelopackCSharpAvalonia.exe",
         vec![],
         Some("C:\\Program Files (x86)\\VelopackCSharpAvalonia\\current"),
-        false
+        false,
     );
     let handle = p.expect("failed to start process");
     info!("Process started with PID: {:?}", handle.pid);
