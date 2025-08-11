@@ -46,6 +46,10 @@ fn default_file_windows<L: TryInto<VelopackLocator>>(locator: L) -> PathBuf {
     match locator.try_into() {
         Ok(locator) => {
             let mut log_dir = locator.get_root_dir();
+            if let Ok(appdata) = std::env::var("LOCALAPPDATA") {
+                let velopack_app_dir = PathBuf::from(appdata).join("Velopack").join(locator.get_manifest_id());
+                log_dir = velopack_app_dir;
+            }
             log_dir.push(LOGGING_FILE_NAME);
             match std::fs::OpenOptions::new().write(true).create(true).open(&log_dir) {
                 Ok(_) => log_dir, // the desired location is writable

@@ -1,7 +1,7 @@
 use crate::shared::{self, OperationWait};
-use velopack::{locator, locator::VelopackLocator, constants};
 use anyhow::{bail, Result};
-use std::path::PathBuf;
+use std::{ffi::OsString, path::PathBuf};
+use velopack::{constants, locator, locator::VelopackLocator};
 
 #[cfg(target_os = "linux")]
 use super::apply_linux_impl::apply_package_impl;
@@ -15,7 +15,7 @@ pub fn apply<'a>(
     restart: bool,
     wait: OperationWait,
     package: Option<&PathBuf>,
-    exe_args: Option<Vec<&str>>,
+    exe_args: Option<Vec<OsString>>,
     run_hooks: bool,
 ) -> Result<VelopackLocator> {
     shared::operation_wait(wait);
@@ -25,10 +25,12 @@ pub fn apply<'a>(
 
     match package {
         Some(package) => {
-            info!("Getting ready to apply package to {} ver {}: {}", 
-                locator.get_manifest_id(), 
-                locator.get_manifest_version_full_string(), 
-                package.to_string_lossy());
+            info!(
+                "Getting ready to apply package to {} ver {}: {:?}",
+                locator.get_manifest_id(),
+                locator.get_manifest_version_full_string(),
+                package
+            );
             match apply_package_impl(&locator, &package, run_hooks) {
                 Ok(applied_locator) => {
                     info!("Package version {} applied successfully.", applied_locator.get_manifest_version_full_string());
