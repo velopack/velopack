@@ -999,8 +999,8 @@ public class WindowsPackTests
         var actualMachineType = peFile.FileHeader.Machine;
         
         _output.WriteLine($"Squirrel.exe architecture: {actualMachineType}, expected: {expectedMachineType}");
-        
-        Assert.True(expectedMachineType == actualMachineType, 
+
+        Assert.True(expectedMachineType == actualMachineType); 
         Assert.Equal(expectedMachineType, actualMachineType);
 
         _output.WriteLine($"Successfully verified {architecture} architecture in package");
