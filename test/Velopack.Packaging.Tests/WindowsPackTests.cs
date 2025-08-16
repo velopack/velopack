@@ -999,7 +999,7 @@ public class WindowsPackTests
         _output.WriteLine($"Squirrel.exe architecture: {actualMachineType}, expected: {expectedMachineType}");
         
         Assert.True(expectedMachineType == actualMachineType, 
-            $"Squirrel.exe should be {expectedMachineType} architecture but was {actualMachineType}");
+        Assert.Equal(expectedMachineType, actualMachineType);
 
         _output.WriteLine($"Successfully verified {architecture} architecture in package");
     }
