@@ -1,13 +1,9 @@
 ﻿using System;
-using System.ComponentModel;
 using System.IO;
-using System.Runtime.InteropServices;
-using System.Text;
-using NCode.ReparsePoints;
 
 namespace Velopack.Util
 {
-    internal static class SymbolicLink
+    internal static partial class SymbolicLink
     {
         /// <summary>
         /// Creates a symlink from the specified directory to the specified target directory.
@@ -38,9 +34,9 @@ namespace Velopack.Util
                 : targetPath;
 
             if (Directory.Exists(targetPath)) {
-                CreateDirectoryLink(linkPath, finalTarget, targetPath);
+                CreateSymlink(linkPath, finalTarget, SymbolicLinkFlag.Directory);
             } else if (File.Exists(targetPath)) {
-                CreateFileLink(linkPath, finalTarget);
+                CreateSymlink(linkPath, finalTarget, SymbolicLinkFlag.File);
             } else {
                 throw new IOException("Target path does not exist.");
             }
@@ -92,42 +88,32 @@ namespace Velopack.Util
             }
         }
 
-        private static void CreateFileLink(string linkPath, string targetPath)
+        [Serializable]
+        private enum SymbolicLinkFlag : uint
         {
-            if (VelopackRuntimeInfo.IsWindows) {
-                var rp = new ReparsePointProvider();
-                rp.CreateSymbolicLink(linkPath, targetPath, false);
-            } else {
-#if NETSTANDARD
-                UnixCreateSymlink(targetPath, linkPath);
-#elif NET6_0_OR_GREATER
-                File.CreateSymbolicLink(linkPath, targetPath);
-#else
-                throw new NotSupportedException();
-#endif
-            }
+            File = 0,
+            Directory = 1,
         }
 
-        private static void CreateDirectoryLink(string linkPath, string targetPath, string absoluteTargetPath)
+        private static void CreateSymlink(string linkPath, string targetPath, SymbolicLinkFlag mode)
         {
-            if (VelopackRuntimeInfo.IsWindows) {
-                var rp = new ReparsePointProvider();
-                try {
-                    rp.CreateSymbolicLink(linkPath, targetPath, true);
-                } catch (Win32Exception ex) when (ex.NativeErrorCode == 1314) {
-                    // on windows 10 and below, symbolic links can only be created by an administrator
-                    // junctions also do not support relative target path's
-                    rp.CreateJunction(linkPath, absoluteTargetPath);
-                }
-            } else {
-#if NETSTANDARD
-                UnixCreateSymlink(targetPath, linkPath);
-#elif NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
+            if (mode == SymbolicLinkFlag.File) {
+                File.CreateSymbolicLink(linkPath, targetPath);
+            } else if (mode == SymbolicLinkFlag.Directory) {
                 Directory.CreateSymbolicLink(linkPath, targetPath);
-#else
-                throw new NotSupportedException();
-#endif
+            } else {
+                throw new ArgumentOutOfRangeException(nameof(mode), mode, "Invalid symbolic link mode.");
             }
+#else
+            if (VelopackRuntimeInfo.IsWindows) {
+                WindowsCreateSymlink(targetPath, linkPath, mode);
+            } else if (VelopackRuntimeInfo.IsLinux || VelopackRuntimeInfo.IsOSX) {
+                UnixCreateSymlink(targetPath, linkPath);
+            } else {
+                throw new NotSupportedException("Symbolic links are not supported on this platform.");
+            }
+#endif
         }
 
         private static string GetUnresolvedTarget(string linkPath)
@@ -136,19 +122,19 @@ namespace Velopack.Util
                 throw new IOException("Path does not exist or is not a junction point / symlink.");
             }
 
-            if (VelopackRuntimeInfo.IsWindows) {
-                var rp = new ReparsePointProvider();
-                var link = rp.GetLink(linkPath);
-                return link.Target;
-            } else {
-#if NETSTANDARD
-                return UnixReadLink(linkPath);
-#elif NET6_0_OR_GREATER
-                return fsi!.LinkTarget!;
+#if NET6_0_OR_GREATER
+            return fsi!.LinkTarget!;
 #else
-                throw new NotSupportedException();
-#endif
+            if (VelopackRuntimeInfo.IsWindows) {
+                return WindowsReadLink(linkPath);
             }
+
+            if (VelopackRuntimeInfo.IsLinux || VelopackRuntimeInfo.IsOSX) {
+                return UnixReadLink(linkPath);
+            }
+
+            throw new NotSupportedException();
+#endif
         }
 
         private static bool TryGetLinkFsi(string path, out FileSystemInfo? fsi)
@@ -166,37 +152,5 @@ namespace Velopack.Util
 
             return (fsi.Attributes & FileAttributes.ReparsePoint) != 0;
         }
-
-#if NETSTANDARD
-        [DllImport("libc", SetLastError = true)]
-        private static extern nint readlink(string path, byte[] buffer, ulong bufferSize);
-
-        [DllImport("libc", SetLastError = true)]
-        private static extern int symlink(string target, string linkPath);
-
-        private static string UnixReadLink(string symlinkPath)
-        {
-            const int bufferSize = 1024;
-            byte[] buffer = new byte[bufferSize];
-            nint bytesWritten = readlink(symlinkPath, buffer, bufferSize);
-
-            if (bytesWritten < 1) {
-                throw new InvalidOperationException($"Error resolving symlink: {Marshal.GetLastWin32Error()}");
-            }
-
-            return Encoding.UTF8.GetString(buffer, 0, (int) bytesWritten);
-        }
-
-        private static void UnixCreateSymlink(string target, string linkPath)
-        {
-            // Call the symlink function from libc
-            int result = symlink(target, linkPath);
-
-            // Check for errors (-1 return value indicates failure)
-            if (result == -1) {
-                throw new InvalidOperationException($"Error creating symlink: {Marshal.GetLastWin32Error()}");
-            }
-        }
-#endif
     }
 }
