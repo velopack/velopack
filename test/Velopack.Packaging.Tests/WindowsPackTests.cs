@@ -951,7 +951,9 @@ public class WindowsPackTests
 
         using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
         using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
-        var unzipDir = @"C:\Source\velopack\test_inspect_" + architecture;
+        using var _3 = TempUtil.GetTempDirectory(out var unzipDirBase);
+        var unzipDir = Path.Combine(unzipDirBase, "test_inspect_" + architecture);
+        Directory.CreateDirectory(unzipDir);
 
         var exe = "testapp.exe";
         var id = "Test.Squirrel-App";
