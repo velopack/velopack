@@ -55,6 +55,8 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
                 vec!["apply".into(), "--norestart".into(), "--package".into(), package.into(), "--root".into(), root_path.into()];
             let exe_path = std::env::current_exe()?;
             let work_dir: Option<String> = None; // same as this process
+            // NB: show_window must be true for dialogs to be shown
+            // https://learn.microsoft.com/en-us/windows/win32/api/commctrl/nf-commctrl-taskdialogindirect#remarks
             let process_handle = process::run_process_as_admin(&exe_path, args, work_dir, false)?;
 
             info!("Waiting (up to 10 minutes) for elevated process (pid: {}) to exit...", process_handle.pid());
