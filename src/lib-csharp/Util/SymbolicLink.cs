@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 
 namespace Velopack.Util
@@ -59,7 +60,7 @@ namespace Velopack.Util
         {
             var isLink = TryGetLinkFsi(linkPath, out var fsi);
             if (fsi != null && !isLink) {
-                throw new IOException("Path is not a junction point / symlink.");
+                ThrowPathNotASymlinkException(linkPath);
             } else {
                 fsi?.Delete();
             }
@@ -73,6 +74,7 @@ namespace Velopack.Util
         public static string GetTarget(string linkPath, bool relative = false)
         {
             var target = GetUnresolvedTarget(linkPath);
+
             if (relative) {
                 if (Path.IsPathRooted(target)) {
                     return PathUtil.MakePathRelativeTo(Path.GetDirectoryName(linkPath)!, target);
@@ -97,6 +99,8 @@ namespace Velopack.Util
 
         private static void CreateSymlink(string linkPath, string targetPath, SymbolicLinkFlag mode)
         {
+            linkPath = linkPath.TrimEnd('\\', '/');
+
 #if NET6_0_OR_GREATER
             if (mode == SymbolicLinkFlag.File) {
                 File.CreateSymbolicLink(linkPath, targetPath);
@@ -118,23 +122,30 @@ namespace Velopack.Util
 
         private static string GetUnresolvedTarget(string linkPath)
         {
+            linkPath = linkPath.TrimEnd('\\', '/');
+
             if (!TryGetLinkFsi(linkPath, out var fsi)) {
-                throw new IOException("Path does not exist or is not a junction point / symlink.");
+                ThrowPathNotASymlinkException(linkPath);
             }
+
+            string target;
 
 #if NET6_0_OR_GREATER
-            return fsi!.LinkTarget!;
+            target = fsi!.LinkTarget!;
 #else
             if (VelopackRuntimeInfo.IsWindows) {
-                return WindowsReadLink(linkPath);
+                target = WindowsReadLink(linkPath);
+            } else if (VelopackRuntimeInfo.IsLinux || VelopackRuntimeInfo.IsOSX) {
+                target = UnixReadLink(linkPath);
+            } else {
+                throw new NotSupportedException("Symbolic links are not supported on this platform.");
             }
-
-            if (VelopackRuntimeInfo.IsLinux || VelopackRuntimeInfo.IsOSX) {
-                return UnixReadLink(linkPath);
-            }
-
-            throw new NotSupportedException();
 #endif
+            if (String.IsNullOrEmpty(target)) {
+                ThrowPathNotASymlinkException(linkPath);
+            }
+
+            return target;
         }
 
         private static bool TryGetLinkFsi(string path, out FileSystemInfo? fsi)
@@ -151,6 +162,14 @@ namespace Velopack.Util
             }
 
             return (fsi.Attributes & FileAttributes.ReparsePoint) != 0;
+        }
+
+#if NET6_0_OR_GREATER
+        [DoesNotReturn]
+#endif
+        private static void ThrowPathNotASymlinkException(string path)
+        {
+            throw new IOException($"The path '{path}' is not a symbolic link or junction point.");
         }
     }
 }
