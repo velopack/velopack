@@ -281,7 +281,7 @@ impl SplashWindow {
 
                 // draw progress bar to hdc_mem
                 let progress = self.progress;
-                let progress_brush = CreateSolidBrush(rgb(15, 123, 15));
+                let progress_brush = CreateSolidBrush(rgb(6, 176, 37));
                 let progress_width = (self.w as f32 * (progress as f32 / 100.0)) as i32;
                 let progress_rect = RECT { left: 0, bottom: self.h, right: progress_width, top: self.h - 10 };
                 FillRect(hdc_mem, &progress_rect, progress_brush);
