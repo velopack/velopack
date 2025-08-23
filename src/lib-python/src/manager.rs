@@ -63,15 +63,14 @@ impl UpdateManagerWrapper {
 
             // Spawn a thread to handle progress updates
             let progress_thread = thread::spawn(move || {
-                Python::with_gil(|py| {
-                    while let Ok(progress) = receiver.recv() {
+                while let Ok(progress) = receiver.recv() {
+                    Python::with_gil(|py| {
                         if let Err(e) = callback.call1(py, (progress,)) {
                             // Log error but continue - don't break the download
                             eprintln!("Progress callback error: {}", e);
-                            break;
                         }
-                    }
-                });
+                    });
+                }
             });
 
             // Call download with the sender
