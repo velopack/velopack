@@ -1,0 +1,18 @@
+[project]
+name = "pythonqt"
+version = "0.1.0"
+description = "Velopack sample app using PySide6 (Qt6)"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "velopack",
+    "PySide6>=6.9",
+]
+
+[tool.uv.sources]
+velopack = { path = "../../src/lib-python" }
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.14.1",
+]
