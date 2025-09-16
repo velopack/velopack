@@ -535,6 +535,7 @@ public class UpdateManagerTests
         Skip.If(VelopackRuntimeInfo.IsLinux);
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
         using var _1 = TempUtil.GetTempDirectory(out var packagesDir);
+        using var _2 = TempUtil.GetTempDirectory(out var rootDir);
         var repo = new FakeFixtureRepository(id, true);
         var source = new SimpleWebSource("http://any.com", repo);
 
@@ -553,7 +554,7 @@ public class UpdateManagerTests
             fromVersion,
             packagesDir,
             null,
-            null,
+            rootDir,
             updateExe,
             null,
             logger.ToVelopackLogger());
