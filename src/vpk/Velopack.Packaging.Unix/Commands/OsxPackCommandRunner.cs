@@ -1,4 +1,4 @@
-﻿using System.Runtime.Versioning;
+using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
@@ -55,6 +55,12 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
                 Chmod.ChmodFileAsExecutable(f);
             }
         }
+
+        // Files in the MacOS directory need to be signed, but text files are signed via xattrs, which we don't yet preserve
+        // in nupkg releases. Instead we can put it in the Resources dir and symlink to it. Symlinks don't need to be signed.
+        var resourcesdir = structure.ResourcesDirectory;
+        File.WriteAllText(Path.Combine(resourcesdir, "sq.version"), GenerateNuspecContent());
+        SymbolicLink.Create(Path.Combine(macosdir, "sq.version"), Path.Combine(resourcesdir, "sq.version"), false, true);
 
         progress(100);
         return Task.FromResult(dir.FullName);
