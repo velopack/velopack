@@ -358,9 +358,9 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
     private ShortcutLocation GetShortcuts()
     {
-        var items = Options.Shortcuts
+        var items = Options.Shortcuts?
             .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries)
-            .Select(x => x.Trim());
+            .Select(x => x.Trim()) ?? [];
 
         ShortcutLocation result = ShortcutLocation.None;
 
