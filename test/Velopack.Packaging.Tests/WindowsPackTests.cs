@@ -302,7 +302,9 @@ public class WindowsPackTests
         // move package into local packages dir
         var fileName = $"{id}-2.0.0-full.nupkg";
         var mvFrom = Path.Combine(releaseDir, fileName);
-        var mvTo = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "velopack", id, "packages", fileName);
+        string packagesPath = GetPackagesPath(id);
+        Directory.CreateDirectory(packagesPath);
+        var mvTo = Path.Combine(packagesPath, fileName);
         File.Copy(mvFrom, mvTo, true);
 
         RunCoveredDotnet(appPath, ["--autoupdate"], installDir, logger, exitCode: null);
@@ -447,7 +449,10 @@ public class WindowsPackTests
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var _2 = TempUtil.GetTempDirectory(out var installDir);
         string id = "SquirrelIntegrationTest";
-        Directory.Delete(GetPackagesPath(id), true);
+        string packagesPath = GetPackagesPath(id);
+        if (Directory.Exists(packagesPath)) {
+            Directory.Delete(packagesPath, true);
+        }
 
         // pack v1
         await PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
@@ -721,7 +726,7 @@ public class WindowsPackTests
             PackDirectory = tmpOutput,
             Shortcuts = "Desktop,StartMenuRoot",
             BuildMsi = true,
-            MsiVersionOverride = "4.5.6.1"
+            MsiVersionOverride = "4.5.6.1 "
         };
 
         var runner = GetPackRunner(logger);
