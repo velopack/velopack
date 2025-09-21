@@ -726,7 +726,7 @@ public class WindowsPackTests
             PackDirectory = tmpOutput,
             Shortcuts = "Desktop,StartMenuRoot",
             BuildMsi = true,
-            MsiVersionOverride = "4.5.6.1 "
+            MsiVersionOverride = "4.5.6.1"
         };
 
         var runner = GetPackRunner(logger);
