@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.Versioning;
 using System.Xml.Linq;
@@ -30,6 +30,24 @@ public class WindowsPackTests
     {
         var console = new BasicConsole(logger, new VelopackDefaults(false));
         return new WindowsPackCommandRunner(logger, console);
+    }
+
+    private static string GetLogFilePath(string appId)
+    {
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "velopack",
+            appId,
+            "Velopack.log");
+    }
+
+    private static string GetPackagesPath(string appId)
+    {
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "velopack",
+            appId,
+            "packages");
     }
 
     [SkippableFact]
@@ -284,8 +302,8 @@ public class WindowsPackTests
         // move package into local packages dir
         var fileName = $"{id}-2.0.0-full.nupkg";
         var mvFrom = Path.Combine(releaseDir, fileName);
-        var mvTo = Path.Combine(installDir, "packages", fileName);
-        File.Copy(mvFrom, mvTo);
+        var mvTo = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "velopack", id, "packages", fileName);
+        File.Copy(mvFrom, mvTo, true);
 
         RunCoveredDotnet(appPath, ["--autoupdate"], installDir, logger, exitCode: null);
 
@@ -391,11 +409,12 @@ public class WindowsPackTests
 
         var argsPath = Path.Combine(installDir, "args.txt");
         Assert.True(File.Exists(argsPath));
-        Assert.Equal("--veloapp-install 1.0.0", File.ReadAllText(argsPath).Trim());
+        string contents = File.ReadAllText(argsPath).Trim();
+        Assert.Equal("OnAfterInstallFastCallback: --veloapp-install 1.0.0", contents);
 
         var firstRun = Path.Combine(installDir, "firstrun");
         Assert.True(File.Exists(argsPath));
-        Assert.Equal("1.0.0", File.ReadAllText(firstRun).Trim());
+        Assert.Equal("OnFirstRun: 1.0.0", File.ReadAllText(firstRun).Trim());
 
         // pack v2
         await PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
@@ -406,7 +425,7 @@ public class WindowsPackTests
 
         Thread.Sleep(2000);
 
-        var logFile = Path.Combine(installDir, "Velopack.log");
+        var logFile = GetLogFilePath(id);
         logger.Info("TEST: update log output - " + Environment.NewLine + File.ReadAllText(logFile));
 
         Assert.Contains("--veloapp-obsolete 1.0.0", File.ReadAllText(argsPath).Trim());
@@ -414,7 +433,7 @@ public class WindowsPackTests
 
         var restartedPath = Path.Combine(installDir, "restarted");
         Assert.True(File.Exists(restartedPath));
-        Assert.Equal("2.0.0,test,args !!", File.ReadAllText(restartedPath).Trim());
+        Assert.Equal("OnRestarted: 2.0.0,test,args !!", File.ReadAllText(restartedPath).Trim());
 
         var updatePath = Path.Combine(installDir, "Update.exe");
         RunNoCoverage(updatePath, ["--silent", "--uninstall"], Environment.CurrentDirectory, logger);
@@ -427,8 +446,8 @@ public class WindowsPackTests
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var _2 = TempUtil.GetTempDirectory(out var installDir);
-
         string id = "SquirrelIntegrationTest";
+        Directory.Delete(GetPackagesPath(id), true);
 
         // pack v1
         await PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
@@ -447,7 +466,7 @@ public class WindowsPackTests
         var argsPath = Path.Combine(installDir, "args.txt");
         Assert.True(File.Exists(argsPath));
         var argsContent = File.ReadAllText(argsPath).Trim();
-        Assert.Equal("--veloapp-install 1.0.0", argsContent);
+        Assert.Equal("OnAfterInstallFastCallback: --veloapp-install 1.0.0", argsContent);
         logger.Info("TEST: v1 installed");
 
         // check app output
@@ -491,7 +510,7 @@ public class WindowsPackTests
         logger.Info("TEST: v3 output verified");
 
         // print log output
-        var logPath = Path.Combine(installDir, "Velopack.log");
+        var logPath = GetLogFilePath(id);
         logger.Info("TEST: log output - " + Environment.NewLine + File.ReadAllText(logPath));
 
 
@@ -548,7 +567,7 @@ public class WindowsPackTests
         RunNoCoverage(stubExe, [], currentDir, logger, exitCode: 0);
         Thread.Sleep(8000); // update.exe will do migration here
         
-        string logContents = ReadFileWithRetry(Path.Combine(rootDir, "Velopack.log"), logger);
+        string logContents = ReadFileWithRetry(GetLogFilePath("LegacyTestApp"), logger);
         logger.Info("Velopack.log:" + Environment.NewLine + logContents);
 
         if (origDirName != "current") {
@@ -852,8 +871,7 @@ public class WindowsPackTests
     {
         string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".ToLower();
         return new string(
-            Enumerable.Repeat(chars, length)
-                .Select(s => s[_random.Next(s.Length)]).ToArray());
+            [.. Enumerable.Repeat(chars, length).Select(s => s[_random.Next(s.Length)])]);
     }
 
     private string RunNoCoverage(string exe, string[] args, string workingDir, ILogger logger, int? exitCode = 0)

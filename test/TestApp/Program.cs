@@ -19,21 +19,21 @@ try {
         .SetAutoApplyOnStartup(shouldAutoUpdate)
         .OnFirstRun(
             (v) => {
-                debugFile("firstrun", v.ToString());
+                debugFile("firstrun", v.ToString(), "OnFirstRun");
                 Console.WriteLine("was first run");
                 shouldExit = true;
             })
         .OnRestarted(
             (v) => {
-                debugFile("restarted", v.ToString() + "," + String.Join(",", args));
+                debugFile("restarted", v.ToString() + "," + String.Join(",", args), "OnRestarted");
                 Console.WriteLine("app just restarted");
                 shouldExit = true;
             })
         .SetLocator(locator)
-        .OnAfterInstallFastCallback((v) => debugFile("args.txt", String.Join(" ", args)))
-        .OnBeforeUpdateFastCallback((v) => debugFile("args.txt", String.Join(" ", args)))
-        .OnAfterUpdateFastCallback((v) => debugFile("args.txt", String.Join(" ", args)))
-        .OnBeforeUninstallFastCallback((v) => debugFile("args.txt", String.Join(" ", args)))
+        .OnAfterInstallFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnAfterInstallFastCallback"))
+        .OnBeforeUpdateFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnBeforeUpdateFastCallback"))
+        .OnAfterUpdateFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnAfterUpdateFastCallback"))
+        .OnBeforeUninstallFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnBeforeUninstallFastCallback"))
         .Run();
 
     if (shouldAutoUpdate) {
@@ -77,7 +77,7 @@ try {
                 return -1;
             }
 
-            um.DownloadUpdates(info, (x) => Console.WriteLine(x));
+            um.DownloadUpdates(info, Console.WriteLine);
             return 0;
         }
 
@@ -89,7 +89,7 @@ try {
             }
 
             Console.WriteLine("applying...");
-            um.ApplyUpdatesAndRestart((VelopackAsset) null, new[] { "test", "args !!" });
+            um.ApplyUpdatesAndRestart(null, ["test", "args !!"]);
             return 0;
         }
     }
@@ -102,8 +102,8 @@ try {
 Console.WriteLine("Invalid args: " + String.Join(", ", args));
 return -1;
 
-void debugFile(string name, string message)
+static void debugFile(string name, string message, string hook)
 {
     var path = Path.Combine(AppContext.BaseDirectory, "..", name);
-    File.AppendAllText(path, message + Environment.NewLine);
+    File.AppendAllText(path, $"{hook}: {message}{Environment.NewLine}");
 }

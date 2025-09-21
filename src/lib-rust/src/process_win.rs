@@ -125,7 +125,11 @@ fn make_command_line(argv0: Option<&OsStr>, args: &[Arg], force_quotes: bool) ->
         cmd.pop();
     }
 
-    Ok(cmd.into())
+    // Ensure null termination
+    cmd.push(0);
+    
+    let wide_string: WideString = cmd.into();
+    Ok(wide_string)
 }
 
 fn make_envp(maybe_env: Option<HashMap<String, String>>) -> IoResult<Option<WideString>> {
@@ -144,7 +148,7 @@ fn make_envp(maybe_env: Option<HashMap<String, String>>) -> IoResult<Option<Wide
         if key_str.starts_with("=") {
             continue;
         }
-
+        
         blk.extend(ensure_no_nuls(key)?.encode_wide());
         blk.push('=' as u16);
         blk.extend(ensure_no_nuls(value)?.encode_wide());
