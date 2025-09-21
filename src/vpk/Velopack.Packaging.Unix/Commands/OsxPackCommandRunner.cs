@@ -1,4 +1,4 @@
-using System.Runtime.Versioning;
+﻿using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
@@ -46,7 +46,6 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
 
         var structure = new OsxStructureBuilder(dir.FullName);
         var macosdir = structure.MacosDirectory;
-        File.WriteAllText(Path.Combine(macosdir, CoreUtil.SpecVersionFileName), GenerateNuspecContent());
         File.Copy(HelperFile.GetUpdatePath(Options.TargetRuntime, Log), Path.Combine(macosdir, "UpdateMac"), true);
 
         foreach (var f in Directory.GetFiles(macosdir, "*", SearchOption.AllDirectories)) {
@@ -102,9 +101,6 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
                 var structure = new OsxStructureBuilder(packDir);
                 var updateMacPath = Path.Combine(structure.MacosDirectory, "UpdateMac");
                 helper.CodeSign(Options.SignAppIdentity, entitlements, updateMacPath, false, keychainPath);
-                signProgress(25);
-                var versionPath = Path.Combine(structure.MacosDirectory, CoreUtil.SpecVersionFileName);
-                helper.CodeSign(Options.SignAppIdentity, entitlements, versionPath, false, keychainPath);
                 signProgress(50);
                 
                 Log.Info("Code signing application bundle...");
