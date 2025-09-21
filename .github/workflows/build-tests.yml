@@ -124,8 +124,6 @@ jobs:
           path: target/release
           pattern: rust-*
           merge-multiple: true
-      - name: List Binaries
-        run: ls target/release
       - name: Azure login
         uses: azure/login@v2
         if: github.event.pull_request.head.repo.full_name == github.repository
