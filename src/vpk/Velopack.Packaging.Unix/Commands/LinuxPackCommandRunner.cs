@@ -34,6 +34,10 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
             File.Copy(icon, Path.Combine(dir.FullName, iconFilename), true);
             File.Copy(icon, Path.Combine(dir.FullName, ".DirIcon"), true);
 
+            string iconDirPath = Path.Combine(dir.FullName, "usr", "share", "icons", "hicolor", "scalable", "apps");
+            Directory.CreateDirectory(iconDirPath);
+            File.Copy(icon, Path.Combine(iconDirPath, iconFilename), true);
+
             var categories = String.IsNullOrWhiteSpace(Options.Categories)
                 ? "Utility"
                 : Options.Categories.TrimEnd(';');
