@@ -1,0 +1,7 @@
+.godot
+*.so
+*.dll
+*.dylib
+*.exe
+*.a
+library_documentation.xml
