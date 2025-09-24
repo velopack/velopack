@@ -12,31 +12,37 @@ public class AzureBaseCommand : OutputCommand
 
     public string SasToken { get; private set; }
 
+    public string Prefix { get; private set; }
+
     public double Timeout { get; private set; }
 
     protected AzureBaseCommand(string name, string description)
         : base(name, description)
     {
         AddOption<string>((v) => Account = v, "--account")
-            .SetDescription("Account name")
+            .SetDescription("Account name.")
             .SetArgumentHelpName("ACCOUNT")
             .SetRequired();
 
         var key = AddOption<string>((v) => Key = v, "--key")
-            .SetDescription("Account secret key")
+            .SetDescription("Account secret key.")
             .SetArgumentHelpName("KEY");
 
         var sas = AddOption<string>((v) => SasToken = v, "--sas")
-            .SetDescription("Shared access signature token (not the url)")
+            .SetDescription("Shared access signature token (not the url).")
             .SetArgumentHelpName("TOKEN");
 
         AddOption<string>((v) => Container = v, "--container")
-            .SetDescription("Azure container name")
+            .SetDescription("Azure storage container name.")
             .SetArgumentHelpName("NAME")
             .SetRequired();
 
+        AddOption<string>((v) => Prefix = v, "--prefix")
+            .SetDescription("Optional blob filename path prefix.")
+            .SetArgumentHelpName("PREFIX");
+
         AddOption<Uri>((v) => Endpoint = v.ToAbsoluteOrNull(), "--endpoint")
-            .SetDescription("Service url (eg. https://<account-name>.blob.core.windows.net)")
+            .SetDescription("Service url (eg. https://<account-name>.blob.core.windows.net).")
             .SetArgumentHelpName("URL")
             .MustBeValidHttpUri();
 

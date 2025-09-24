@@ -34,10 +34,10 @@ public class AzureDownloadCommandTests : AzureCommandTests<AzureDownloadCommand>
     {
         var command = new AzureDownloadCommand();
 
-        string cli = GetRequiredDefaultOptions() + " --folder \"releases/v1\"";
+        string cli = GetRequiredDefaultOptions() + " --prefix \"releases/v1\"";
         ParseResult parseResult = command.ParseAndApply(cli);
 
-        Assert.Equal("releases/v1", command.Folder);
+        Assert.Equal("releases/v1", command.Prefix);
     }
 }
 
@@ -55,10 +55,10 @@ public class AzureUploadCommandTests : AzureCommandTests<AzureUploadCommand>
     {
         var command = new AzureUploadCommand();
 
-        string cli = GetRequiredDefaultOptions() + " --folder \"releases/v1\"";
+        string cli = GetRequiredDefaultOptions() + " --prefix \"releases/v1\"";
         ParseResult parseResult = command.ParseAndApply(cli);
 
-        Assert.Equal("releases/v1", command.Folder);
+        Assert.Equal("releases/v1", command.Prefix);
     }
 
 }
