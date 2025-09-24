@@ -40,8 +40,9 @@ impl UpdateManagerWrapper {
         pending.map(Into::into)
     }
 
-    pub fn check_for_updates(&mut self) -> Result<Option<PyUpdateInfo>> {
-        let update_check = self.inner.check_for_updates()?;
+    pub fn check_for_updates(&mut self, py: Python) -> Result<Option<PyUpdateInfo>> {
+        // Release GIL during network operation
+        let update_check = py.allow_threads(|| self.inner.check_for_updates())?;
         match update_check {
             UpdateCheck::UpdateAvailable(updates) => {
                 let py_updates = PyUpdateInfo::from(updates);
@@ -53,7 +54,7 @@ impl UpdateManagerWrapper {
     }
 
     #[pyo3(signature = (update_info, progress_callback = None))]
-    pub fn download_updates(&mut self, update_info: PyUpdateInfo, progress_callback: Option<PyObject>) -> Result<()> {
+    pub fn download_updates(&mut self, py: Python, update_info: PyUpdateInfo, progress_callback: Option<PyObject>) -> Result<()> {
         // Convert PyUpdateInfo back to rust UpdateInfo
         let rust_update_info: UpdateInfo = update_info.into();
 
@@ -61,27 +62,39 @@ impl UpdateManagerWrapper {
             // Create a channel for progress updates
             let (sender, receiver) = mpsc::channel::<i16>();
 
-            // Spawn a thread to handle progress updates
-            let progress_thread = thread::spawn(move || {
-                while let Ok(progress) = receiver.recv() {
-                    Python::with_gil(|py| {
-                        if let Err(e) = callback.call1(py, (progress,)) {
-                            // Log error but continue - don't break the download
-                            eprintln!("Progress callback error: {}", e);
-                        }
-                    });
-                }
-            });
+            // Clone the callback for the thread
+            let callback_clone = callback.clone_ref(py);
+            
+            // Release the GIL before starting the download
+            py.allow_threads(|| {
+                // Spawn a thread to handle progress updates
+                let progress_thread = thread::spawn(move || {
+                    while let Ok(progress) = receiver.recv() {
+                        // Acquire GIL only when needed to call the callback
+                        Python::with_gil(|py| {
+                            if let Err(e) = callback_clone.call1(py, (progress,)) {
+                                // Log error but continue - don't break the download
+                                eprintln!("Progress callback error: {}", e);
+                            }
+                        });
+                    }
+                });
 
-            // Call download with the sender
-            let result = self.inner.download_updates(&rust_update_info, Some(sender))?;
+                // Call download with the sender
+                let result = self.inner.download_updates(&rust_update_info, Some(sender));
 
-            // Wait for the progress thread to finish
-            let _ = progress_thread.join();
-            Ok(result)
+                // Wait for the progress thread to finish
+                let _ = progress_thread.join();
+                
+                result
+            })?;
+            
+            Ok(())
         } else {
-            // No progress callback provided
-            self.inner.download_updates(&rust_update_info, None)?;
+            // No progress callback provided - still release GIL for the download
+            py.allow_threads(|| {
+                self.inner.download_updates(&rust_update_info, None)
+            })?;
             Ok(())
         }
     }
