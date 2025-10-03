@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using NuGet.Versioning;
@@ -86,6 +86,8 @@ namespace Velopack.Locators
 
         public override IProcessImpl Process => this;
 
+        public int? ExitCode { get; private set; }
+
         public override VelopackAsset? GetLatestLocalFullPackage()
         {
             if (_asset != null) {
@@ -141,6 +143,14 @@ namespace Velopack.Locators
         public void StartProcess(string exePath, IEnumerable<string> args, string workDir, bool showWindow)
         {
             new DefaultProcessImpl(Log).StartProcess(exePath, args, workDir, showWindow);
+        }
+
+        public void Exit(int exitCode)
+        {
+            if (ExitCode is not null) {
+                throw new InvalidOperationException("Exit has already been called on this instance.");
+            }
+            ExitCode = exitCode;
         }
     }
 }

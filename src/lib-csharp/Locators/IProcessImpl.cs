@@ -9,5 +9,11 @@ namespace Velopack.Locators
         string GetCurrentProcessPath();
         uint GetCurrentProcessId();
         void StartProcess(string exePath, IEnumerable<string> args, string workDir, bool showWindow);
+
+        /// <summary>
+        /// Exit the current process with the given exit code.
+        /// </summary>
+        /// <param name="exitCode">The exit code</param>
+        void Exit(int exitCode);
     }
 }

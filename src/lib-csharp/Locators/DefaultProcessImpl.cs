@@ -75,5 +75,7 @@ namespace Velopack.Locators
                 _logger.Error($"Process {p.Id} has already exited.");
             }
         }
+
+        public void Exit(int exitCode) => Environment.Exit(exitCode);
     }
 }

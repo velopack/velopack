@@ -276,9 +276,7 @@ namespace Velopack
 
         private static void Exit(int code)
         {
-            if (!VelopackRuntimeInfo.InUnitTestRunner) {
-                Environment.Exit(code);
-            }
+            VelopackLocator.GetCurrentOrCreateDefault().Process.Exit(code);
         }
     }
 }
