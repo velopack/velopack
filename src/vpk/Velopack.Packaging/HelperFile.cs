@@ -92,10 +92,6 @@ public static class HelperFile
     [SupportedOSPlatform("windows")]
     public const string WixVersion = "5.0.2";
 
-    public static string WixAssetsTopBanner => FindHelperFile("wix\\assets\\top-banner.bmp");
-
-    public static string WixAssetsDialogBackground => FindHelperFile("wix\\assets\\dialog-background.bmp");
-
     [SupportedOSPlatform("windows")]
     public static string SignToolPath => FindHelperFile("signing\\signtool.exe");
 
