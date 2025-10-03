@@ -339,6 +339,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
     private void CompileWixTemplateToMsi(Action<int> progress, DirectoryInfo portableDirectory, string msiFilePath)
     {
         var templateData = MsiBuilder.ConvertOptionsToTemplateData(
+            MainExePath,
             portableDirectory,
             GetShortcuts(),
             GetRuntimeDependencies(),
