@@ -202,11 +202,11 @@ namespace Velopack
                     var version = SemanticVersion.Parse(args[1]);
                     hook(version);
                     log.Info("Completed hook, exiting...");
-                    Exit(0);
+                    locator.Process.Exit(0);
                     return;
                 } catch (Exception ex) {
                     log.Error(ex, $"Error occurred executing user defined Velopack hook. ({args[0]})");
-                    Exit(-1);
+                    locator.Process.Exit(-1);
                     return;
                 }
             }
@@ -232,7 +232,7 @@ namespace Velopack
                 if (!restarted && _autoApply) {
                     log.Info("Auto apply is true, so restarting to apply update...");
                     UpdateExe.Apply(locator, latestLocal, false, locator.Process.GetCurrentProcessId(), true, args);
-                    Exit(0);
+                    locator.Process.Exit(0);
                 } else {
                     log.Info("Pre-condition failed, we will not restart to apply updates. (restarted: " + restarted + ", autoApply: " + _autoApply + ")");
                 }
@@ -272,11 +272,6 @@ namespace Velopack
                     log.Error(ex, $"Error occurred executing user defined Velopack hook. (restarted)");
                 }
             }
-        }
-
-        private static void Exit(int code)
-        {
-            VelopackLocator.GetCurrentOrCreateDefault().Process.Exit(code);
         }
     }
 }

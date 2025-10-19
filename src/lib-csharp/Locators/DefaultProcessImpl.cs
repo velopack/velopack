@@ -2,8 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 using Velopack.Logging;
@@ -29,7 +29,8 @@ namespace Velopack.Locators
         {
             _currentProcess ??= Process.GetCurrentProcess();
             var fileName = _currentProcess.MainModule?.FileName ??
-                   throw new InvalidOperationException($"Could not determine process path, please construct {nameof(IVelopackLocator)} manually.");
+                           throw new InvalidOperationException(
+                               $"Could not determine process path, please construct {nameof(IVelopackLocator)} manually.");
             return Path.GetFullPath(fileName);
         }
 
@@ -41,8 +42,7 @@ namespace Velopack.Locators
 
         public void StartProcess(string exePath, IEnumerable<string> args, string? workDir, bool showWindow)
         {
-            var psi = new ProcessStartInfo()
-            {
+            var psi = new ProcessStartInfo() {
                 CreateNoWindow = true,
                 FileName = exePath,
                 WorkingDirectory = workDir,
@@ -55,27 +55,26 @@ namespace Velopack.Locators
 
             _logger.Info($"Process started with ID: {p.Id}");
 
-            if (VelopackRuntimeInfo.IsWindows)
-            {
-                try
-                {
+            if (VelopackRuntimeInfo.IsWindows) {
+                try {
                     // this is an attempt to work around a bug where the restarted app fails to come to foreground.
                     if (!AllowSetForegroundWindow(p.Id))
-                        _logger.LogWarning("Failed to allow Update.exe to set foreground window.");
-
-                }
-                catch (Exception ex)
-                {
+                        _logger.LogWarning("Failed to allow Update.exe to set foreground window. (This is not generally concerning.)");
+                } catch (Exception ex) {
                     _logger.LogWarning(ex, "Error occurred while trying to allow Update.exe to set foreground window.");
                 }
             }
-            
-            if (p.HasExited)
-            {
+
+            if (p.HasExited) {
                 _logger.Error($"Process {p.Id} has already exited.");
             }
         }
 
-        public void Exit(int exitCode) => Environment.Exit(exitCode);
+        public void Exit(int exitCode)
+        {
+            if (!VelopackRuntimeInfo.InUnitTestRunner) {
+                Environment.Exit(exitCode);
+            }
+        }
     }
 }
