@@ -4,7 +4,6 @@ using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
-using AsmResolver.PE;
 using HandlebarsDotNet;
 using Markdig;
 using Microsoft.Extensions.Logging;
@@ -106,7 +105,7 @@ public static class MsiBuilder
         return rv;
     }
 
-    public static MsiTemplateData ConvertOptionsToTemplateData(string mainExePath, DirectoryInfo portableDir, ShortcutLocation shortcuts,
+    public static MsiTemplateData ConvertOptionsToTemplateData(DirectoryInfo portableDir, ShortcutLocation shortcuts,
         string runtimeDeps, WindowsPackOptions options)
     {
         // WiX Identifiers may contain ASCII characters A-Z, a-z, digits, underscores (_), or
@@ -120,13 +119,7 @@ public static class MsiBuilder
         if (string.IsNullOrWhiteSpace(msiVersion)) {
             msiVersion = $"{parsedVersion.Major}.{parsedVersion.Minor}.{parsedVersion.Patch}.0";
         }
-
-        RuntimeCpu runtimeCpu = options.TargetRuntime.Architecture;
-        if (runtimeCpu == RuntimeCpu.Unknown) {
-            runtimeCpu = GetMachineForBinary(mainExePath);
-            options.TargetRuntime.Architecture = runtimeCpu;
-        }
-
+        
         return new MsiTemplateData() {
             WixId = wixId,
             AppId = options.PackId,
@@ -135,8 +128,8 @@ public static class MsiBuilder
             AppMsiVersion = msiVersion,
             AppVersion = parsedVersion.ToFullString(),
             SourceDirectoryPath = portableDir.FullName,
-            Is64Bit = runtimeCpu is RuntimeCpu.x64,
-            IsArm64 = runtimeCpu is RuntimeCpu.arm64,
+            Is64Bit = options.TargetRuntime.Architecture is not RuntimeCpu.x86 and not RuntimeCpu.Unknown,
+            IsArm64 = options.TargetRuntime.Architecture is RuntimeCpu.arm64,
             InstallForAllUsers = options.InstLocation.HasFlag(InstallLocation.PerMachine),
             InstallForCurrentUser = options.InstLocation.HasFlag(InstallLocation.PerUser),
             UpgradeCodeGuid = GuidUtil.CreateGuidFromHash($"{options.PackId}:UpgradeCode").ToString(),
@@ -155,17 +148,6 @@ public static class MsiBuilder
             WelcomeMessage = GetPlainTextMessage(options.InstWelcome),
             LicenseRtfFilePath = GetLicenseRtfPath(options.InstLicense, portableDir.Parent),
         };
-
-        static RuntimeCpu GetMachineForBinary(string path)
-        {
-            var image = PEImage.FromFile(path);
-            
-            if (image.MachineType.HasFlag(AsmResolver.PE.File.Headers.MachineType.Amd64))
-                return RuntimeCpu.x64;
-            if (image.MachineType.HasFlag(AsmResolver.PE.File.Headers.MachineType.Arm64))
-                return RuntimeCpu.arm64;
-            return RuntimeCpu.x86;
-        }
     }
 
     [SupportedOSPlatform("windows")]

@@ -1,5 +1,6 @@
 ﻿using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
+using AsmResolver.PE;
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
@@ -82,6 +83,10 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         var mainPath = Path.Combine(packDir, mainExeName);
         var stubPath = Path.Combine(packDir, Path.GetFileNameWithoutExtension(mainExeName) + "_ExecutionStub.exe");
         CreateExecutableStubForExe(mainPath, stubPath);
+
+        Options.TargetRuntime.Architecture = Options.TargetRuntime.HasArchitecture
+            ? Options.TargetRuntime.Architecture
+            : GetMachineForBinary(MainExePath);
 
         return Task.FromResult(packDir);
     }
@@ -339,12 +344,24 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
     private void CompileWixTemplateToMsi(Action<int> progress, DirectoryInfo portableDirectory, string msiFilePath)
     {
         var templateData = MsiBuilder.ConvertOptionsToTemplateData(
-            MainExePath,
             portableDirectory,
             GetShortcuts(),
             GetRuntimeDependencies(),
             Options);
         MsiBuilder.CompileWixMsi(Log, templateData, progress, msiFilePath);
+    }
+
+    protected virtual RuntimeCpu GetMachineForBinary(string path)
+    {
+        var image = PEImage.FromFile(path);
+
+        if (image.MachineType.HasFlag(AsmResolver.PE.File.Headers.MachineType.Amd64))
+            return RuntimeCpu.x64;
+
+        if (image.MachineType.HasFlag(AsmResolver.PE.File.Headers.MachineType.Arm64))
+            return RuntimeCpu.arm64;
+
+        return RuntimeCpu.x86;
     }
 
     protected override string[] GetMainExeSearchPaths(string packDirectory, string mainExeName)
