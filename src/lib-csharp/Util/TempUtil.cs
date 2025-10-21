@@ -9,17 +9,32 @@ namespace Velopack.Util
         {
             string tempDir;
 
-            if (VelopackRuntimeInfo.IsOSX || VelopackRuntimeInfo.IsLinux) {
-                tempDir = "/tmp/velopack";
-            } else if (VelopackRuntimeInfo.IsWindows) {
-                tempDir = Path.Combine(Path.GetTempPath(), "Velopack");
+            var velopackTemp = Environment.GetEnvironmentVariable("VELOPACK_TEMP");
+            if (!string.IsNullOrWhiteSpace(velopackTemp)) {
+                tempDir = velopackTemp;
             } else {
-                throw new PlatformNotSupportedException();
-            }
+                var tmpdir = Environment.GetEnvironmentVariable("TMPDIR");
+                var temp = Environment.GetEnvironmentVariable("TEMP");
+                var tmp = Environment.GetEnvironmentVariable("TMP");
 
-            if (Environment.GetEnvironmentVariable("VELOPACK_TEMP") is var squirrlTmp
-                && !string.IsNullOrWhiteSpace(squirrlTmp))
-                tempDir = squirrlTmp;
+                string? baseEnv = !string.IsNullOrWhiteSpace(tmpdir)
+                    ? tmpdir
+                    : !string.IsNullOrWhiteSpace(temp)
+                        ? temp
+                        : !string.IsNullOrWhiteSpace(tmp)
+                            ? tmp
+                            : null;
+
+                if (!string.IsNullOrWhiteSpace(baseEnv)) {
+                    tempDir = Path.Combine(baseEnv!, "velopack");
+                } else if (VelopackRuntimeInfo.IsWindows) {
+                    tempDir = Path.Combine(Path.GetTempPath(), "Velopack");
+                } else if (VelopackRuntimeInfo.IsOSX || VelopackRuntimeInfo.IsLinux) {
+                    tempDir = "/tmp/velopack";
+                } else {
+                    throw new PlatformNotSupportedException();
+                }
+            }
 
             var di = new DirectoryInfo(tempDir);
             if (!di.Exists) di.Create();
