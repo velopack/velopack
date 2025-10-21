@@ -66,9 +66,16 @@ public class AppImageTool
                     compression,
                     "-root-owned",
                     "-noappend",
-                    "-mkfs-time",
-                    "0",
                 ];
+
+                // If SOURCE_DATE_EPOCH is not set, pin filesystem time to 0 for determinism.
+                // When SOURCE_DATE_EPOCH is set, mksquashfs expects to control timestamps via env; do not pass -mkfs-time.
+                if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("SOURCE_DATE_EPOCH"))) {
+                    args.AddRange([
+                        "-mkfs-time",
+                        "0"
+                    ]);
+                }
 
                 // see: https://github.com/AppImage/AppImageKit/blob/e8dadbb09fed3ae3c3d5a5a9ba2c47a072f71c40/src/appimagetool.c#L188-L195
                 if (compression == "xz") {
@@ -86,8 +93,26 @@ public class AppImageTool
 
             logger.Info($"Creating AppImage with {Path.GetFileName(runtime)} runtime");
             File.Copy(runtime, outputFile, true);
+            // Ensure the copied runtime is writable/executable before appending squashfs (works across TFMs)
+            Chmod.ChmodFileAsExecutable(outputFile);
 
-            using var outputfs = File.Open(outputFile, FileMode.Append);
+            // Ensure the copied runtime is writable before appending squashfs.
+            try {
+                if (VelopackRuntimeInfo.IsLinux) {
+#if NET8_0_OR_GREATER
+                    System.IO.File.SetUnixFileMode(
+                        outputFile,
+                        UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                        UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                        UnixFileMode.OtherRead | UnixFileMode.OtherExecute
+                    );
+#endif
+                }
+            } catch {
+                // best-effort; ignore if setting permissions fails
+            }
+
+            using var outputfs = File.Open(outputFile, FileMode.Append, FileAccess.Write, FileShare.None);
             using var squashfs = File.OpenRead(tmpSquashFile);
             squashfs.CopyTo(outputfs);
 

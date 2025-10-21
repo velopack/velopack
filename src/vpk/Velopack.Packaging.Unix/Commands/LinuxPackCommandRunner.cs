@@ -21,9 +21,11 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
         var dir = TempDir.CreateSubdirectory("PreprocessPackDir.AppDir");
         var bin = dir.CreateSubdirectory("usr").CreateSubdirectory("bin");
 
-        if (Options.PackDirectory.EndsWith(".AppDir", StringComparison.OrdinalIgnoreCase)) {
+        var packDirName = Options.PackDirectory?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var packDirBase = string.IsNullOrWhiteSpace(packDirName) ? Options.PackDirectory : packDirName;
+        if (Path.GetFileName(packDirBase).EndsWith(".AppDir", StringComparison.OrdinalIgnoreCase)) {
             Log.Info("Pack directory ends with .AppDir, will skip building new one.");
-            CopyFiles(new DirectoryInfo(Options.PackDirectory), dir, progress, true);
+            CopyFiles(new DirectoryInfo(packDirBase), dir, progress, true);
         } else {
             Log.Info("Building new AppDir from pack directory contents");
             var appRunPath = Path.Combine(dir.FullName, "AppRun");
