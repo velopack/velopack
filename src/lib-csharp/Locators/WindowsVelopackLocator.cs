@@ -30,12 +30,11 @@ namespace Velopack.Locators
         public override SemanticVersion? CurrentlyInstalledVersion { get; }
 
         /// <inheritdoc />
-        public override string? PackagesDir => EmbeddedPackagesDir
+        public override string? PackagesDir => _embeddedPackagesDir
             ? CreateSubDirIfDoesNotExist(RootAppDir, "packages")
             : CreateSubDirIfDoesNotExist(VelopackAppSpecificDir, "packages");
 
-        private bool EmbeddedPackagesDir =>
-            IsPortable || (RootAppDir != null && AppDataDir != null && PathUtil.IsFileInDirectory(RootAppDir, AppDataDir));
+        private readonly bool _embeddedPackagesDir;
 
         /// <summary>
         /// Provides a semi-persistent directory for storing app specific data outside the installation directory.
@@ -124,6 +123,18 @@ namespace Velopack.Locators
                 }
             }
 
+            // Determine if we should use embedded packages (inside RootAppDir) or external packages (in AppData)
+            // EmbeddedPackagesDir = IsPortable || RootAppDir is inside AppDataDir
+            var wouldBeEmbedded = IsPortable || (RootAppDir != null && AppDataDir != null && PathUtil.IsFileInDirectory(RootAppDir, AppDataDir));
+
+            // If embedded, verify we can actually write to the directory
+            if (wouldBeEmbedded && RootAppDir != null && !PathUtil.IsDirectoryWritable(RootAppDir)) {
+                initLog.Warn("Root directory is not writable, using external packages directory");
+                wouldBeEmbedded = false;
+            }
+
+            _embeddedPackagesDir = wouldBeEmbedded;
+
             var logFilePath = Path.Combine(Path.GetTempPath(), DefaultLoggingFileName);
             if (!string.IsNullOrEmpty(AppId)) {
                 logFilePath = Path.Combine(Path.GetTempPath(), $"velopack_{AppId}.log");
@@ -136,7 +147,7 @@ namespace Velopack.Locators
                 initLog.Error("Unable to create file logger: " + ex);
             }
 
-            if (PackagesDir != null && !EmbeddedPackagesDir) {
+            if (PackagesDir != null && !_embeddedPackagesDir) {
                 var writableUpdateExe = Path.GetFullPath(Path.Combine(PackagesDir, "..", "Update.exe"));
                 if (UpdateExePath != null && !File.Exists(writableUpdateExe)) {
                     try {

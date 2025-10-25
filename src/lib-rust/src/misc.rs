@@ -85,3 +85,27 @@ pub fn is_directory_writable<P1: AsRef<Path>>(path: P1) -> bool {
 
     result.is_ok()
 }
+
+/// Check if a path is a subdirectory of a parent directory
+pub fn is_sub_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, parent: P2) -> bool {
+    let path = path.as_ref().to_string_lossy().to_lowercase();
+    let parent = parent.as_ref().to_string_lossy().to_lowercase();
+
+    // Normalize separator
+    #[cfg(windows)]
+    let separator = "\\";
+    #[cfg(not(windows))]
+    let separator = "/";
+
+    let parent = parent.trim_end_matches('\\').trim_end_matches('/').to_owned() + separator;
+
+    if path.is_empty() || parent.is_empty() {
+        return false;
+    }
+
+    if path.len() < parent.len() {
+        return false;
+    }
+
+    path.starts_with(&parent)
+}

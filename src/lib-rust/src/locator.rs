@@ -128,11 +128,59 @@ impl VelopackLocator {
     #[cfg(windows)]
     pub fn new_with_manifest(mut paths: VelopackLocatorConfig, manifest: Manifest) -> Self {
         let root = paths.RootAppDir.clone();
-        if root.starts_with("C:\\Program Files") || !misc::is_directory_writable(&root) {
-            let velopack_package_root = get_local_app_data().unwrap().join("velopack").join(&manifest.id);
-            paths.PackagesDir = velopack_package_root.join("packages");
-            if !paths.PackagesDir.exists() {
-                std::fs::create_dir_all(&paths.PackagesDir).unwrap();
+
+        // Check for .msi-installed file - if present, this is an MSI install
+        // which should be treated as portable=true but embedded=false
+        let msi_installed_path = root.join(".msi-installed");
+        let is_msi_installed = msi_installed_path.exists();
+
+        if is_msi_installed {
+            paths.IsPortable = true;
+        }
+
+        // Determine if we should use embedded packages (inside RootAppDir) or external packages (in AppData)
+        // EmbeddedPackagesDir = IsPortable || RootAppDir is inside AppDataDir
+        // Exception: MSI installs are portable but not embedded
+        let app_data_dir = get_local_app_data().ok();
+        let mut embedded_packages_dir = if is_msi_installed {
+            false
+        } else {
+            paths.IsPortable ||
+            (app_data_dir.is_some() && misc::is_sub_path(&root, app_data_dir.as_ref().unwrap()))
+        };
+
+        // If embedded, verify we can actually write to the directory
+        if embedded_packages_dir && !misc::is_directory_writable(&root) {
+            warn!("Root directory is not writable, using external packages directory");
+            embedded_packages_dir = false;
+        }
+
+        if !embedded_packages_dir {
+            // Use external packages directory in AppData
+            if let Some(app_data) = app_data_dir {
+                let velopack_package_root = app_data.join("velopack").join(&manifest.id);
+                paths.PackagesDir = velopack_package_root.join("packages");
+                if !paths.PackagesDir.exists() {
+                    if let Err(e) = std::fs::create_dir_all(&paths.PackagesDir) {
+                        error!("Unable to create packages directory: {}", e);
+                    }
+                }
+
+                // Copy Update.exe to writable location if it doesn't exist
+                let writable_update_exe = velopack_package_root.join("Update.exe");
+                if paths.UpdateExePath.exists() && !writable_update_exe.exists() {
+                    match std::fs::copy(&paths.UpdateExePath, &writable_update_exe) {
+                        Ok(_) => {
+                            info!("Copied Update.exe to writable location: {}", writable_update_exe.display());
+                            paths.UpdateExePath = writable_update_exe;
+                        }
+                        Err(e) => {
+                            error!("Unable to copy Update.exe to writable location: {}", e);
+                        }
+                    }
+                }
+            } else {
+                error!("Root directory is not writable and AppData directory is unavailable. Updates may not work correctly.");
             }
         }
 

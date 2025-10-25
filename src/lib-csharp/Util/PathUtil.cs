@@ -90,6 +90,16 @@ namespace Velopack.Util
             return peExtensions.Any(x => ext.Equals(x, StringComparison.OrdinalIgnoreCase));
         }
 
+        public static bool IsDirectoryWritable(string directoryPath)
+        {
+            try {
+                using var fs = File.Create(Path.Combine(directoryPath, ".velopack_dir_test"), 1, FileOptions.DeleteOnClose);
+                return true;
+            } catch {
+                return false;
+            }
+        }
+
 #if NETFRAMEWORK || NETSTANDARD
         private static string ToggleRelative(string basePath, string toggledPath)
         {
