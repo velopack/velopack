@@ -205,17 +205,20 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         setupExeProgress(100);
 
         if (Options.BuildMsi && VelopackRuntimeInfo.IsWindows) {
+            var dir = TempDir.CreateSubdirectory("MsiPackage");
+            File.Copy(Path.Combine(packDir, "Squirrel.exe"), Path.Combine(dir.FullName, "Update.exe"), true);
+            var current = dir.CreateSubdirectory("current");
+            CopyFiles(new DirectoryInfo(packDir), current, CoreUtil.CreateProgressDelegate(msiProgress, 0, 45));
+            File.Delete(Path.Combine(current.FullName, "Squirrel.exe"));
+            File.Create(Path.Combine(dir.FullName, ".msi-installed")).Close();
+            msiProgress(50);
+            
             var msiName = DefaultName.GetSuggestedMsiName(Options.PackId, Options.Channel, TargetOs);
             var msiPath = createAsset(msiName, VelopackAssetType.Msi);
-            var portablePackage = new DirectoryInfo(Path.Combine(TempDir.FullName, "CreatePortablePackage"));
-            if (portablePackage.Exists) {
-                CompileWixTemplateToMsi(msiProgress, portablePackage, msiPath);
-                Log.Info($"MSI created '{Path.GetFileName(msiPath)}'.");
-                filesToSign.Add(msiPath);
-                msiProgress(100);
-            } else {
-                Log.Warn("Portable package not found, skipping MSI creation.");
-            }
+            CompileWixTemplateToMsi(msiProgress, dir, msiPath);
+            Log.Info($"MSI created '{Path.GetFileName(msiPath)}'.");
+            filesToSign.Add(msiPath);
+            msiProgress(100);
         }
 
         Log.Debug("Signing Setup files");

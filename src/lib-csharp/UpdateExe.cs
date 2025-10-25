@@ -90,9 +90,13 @@ namespace Velopack
                 }
             }
 
-            var updatePath = locator.GetUpdateExePathForUpdate();
+            var updatePath = locator.UpdateExePath;
+            if (string.IsNullOrEmpty(updatePath) || !File.Exists(updatePath)) {
+                throw new FileNotFoundException("Cannot find Update.exe to apply updates.", updatePath);
+            }
+            
             var workingDir = Path.GetDirectoryName(updatePath)!;
-            locator.Process.StartProcess(updatePath, args, workingDir, false);
+            locator.Process.StartProcess(updatePath!, args, workingDir, false);
             locator.Log.Info("Update.exe [apply] executed successfully.");
         }
     }
