@@ -125,15 +125,33 @@ namespace Velopack.Locators
 
             // Determine if we should use embedded packages (inside RootAppDir) or external packages (in AppData)
             // EmbeddedPackagesDir = IsPortable || RootAppDir is inside AppDataDir
-            var wouldBeEmbedded = IsPortable || (RootAppDir != null && AppDataDir != null && PathUtil.IsFileInDirectory(RootAppDir, AppDataDir));
+            var wouldBeEmbedded = false;
+            if (IsPortable) {
+                initLog.Info("Portable install detected (.portable file present)");
+                wouldBeEmbedded = true;
+            } else if (RootAppDir != null && AppDataDir != null && PathUtil.IsFileInDirectory(RootAppDir, AppDataDir)) {
+                initLog.Info("Root directory is inside AppData, using embedded packages directory");
+                wouldBeEmbedded = true;
+            }
 
             // If embedded, verify we can actually write to the directory
-            if (wouldBeEmbedded && RootAppDir != null && !PathUtil.IsDirectoryWritable(RootAppDir)) {
-                initLog.Warn("Root directory is not writable, using external packages directory");
-                wouldBeEmbedded = false;
+            if (RootAppDir != null) {
+                var isWritable = PathUtil.IsDirectoryWritable(RootAppDir);
+                initLog.Info($"Root directory writable: {isWritable}");
+
+                if (wouldBeEmbedded && !isWritable) {
+                    initLog.Warn("Root directory is not writable, switching to external packages directory");
+                    wouldBeEmbedded = false;
+                }
             }
 
             _embeddedPackagesDir = wouldBeEmbedded;
+
+            if (_embeddedPackagesDir) {
+                initLog.Info($"Using embedded packages directory: {PackagesDir}");
+            } else {
+                initLog.Info($"Using external packages directory: {PackagesDir}");
+            }
 
             var logFilePath = Path.Combine(Path.GetTempPath(), DefaultLoggingFileName);
             if (!string.IsNullOrEmpty(AppId)) {

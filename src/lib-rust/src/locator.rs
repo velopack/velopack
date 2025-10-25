@@ -138,50 +138,78 @@ impl VelopackLocator {
             paths.IsPortable = true;
         }
 
-        // Determine if we should use embedded packages (inside RootAppDir) or external packages (in AppData)
-        // EmbeddedPackagesDir = IsPortable || RootAppDir is inside AppDataDir
-        // Exception: MSI installs are portable but not embedded
-        let app_data_dir = get_local_app_data().ok();
-        let mut embedded_packages_dir = if is_msi_installed {
-            false
-        } else {
-            paths.IsPortable ||
-            (app_data_dir.is_some() && misc::is_sub_path(&root, app_data_dir.as_ref().unwrap()))
-        };
+        // Only override PackagesDir if it's the default value (root/packages)
+        // This allows users to specify a custom PackagesDir that we'll respect
+        let default_packages_dir = root.join("packages");
+        let should_compute_packages_dir = paths.PackagesDir == default_packages_dir;
 
-        // If embedded, verify we can actually write to the directory
-        if embedded_packages_dir && !misc::is_directory_writable(&root) {
-            warn!("Root directory is not writable, using external packages directory");
-            embedded_packages_dir = false;
-        }
-
-        if !embedded_packages_dir {
-            // Use external packages directory in AppData
-            if let Some(app_data) = app_data_dir {
-                let velopack_package_root = app_data.join("velopack").join(&manifest.id);
-                paths.PackagesDir = velopack_package_root.join("packages");
-                if !paths.PackagesDir.exists() {
-                    if let Err(e) = std::fs::create_dir_all(&paths.PackagesDir) {
-                        error!("Unable to create packages directory: {}", e);
-                    }
-                }
-
-                // Copy Update.exe to writable location if it doesn't exist
-                let writable_update_exe = velopack_package_root.join("Update.exe");
-                if paths.UpdateExePath.exists() && !writable_update_exe.exists() {
-                    match std::fs::copy(&paths.UpdateExePath, &writable_update_exe) {
-                        Ok(_) => {
-                            info!("Copied Update.exe to writable location: {}", writable_update_exe.display());
-                            paths.UpdateExePath = writable_update_exe;
-                        }
-                        Err(e) => {
-                            error!("Unable to copy Update.exe to writable location: {}", e);
-                        }
-                    }
-                }
+        if should_compute_packages_dir {
+            // Determine if we should use embedded packages (inside RootAppDir) or external packages (in AppData)
+            // EmbeddedPackagesDir = IsPortable || RootAppDir is inside AppDataDir
+            // Exception: MSI installs are portable but not embedded
+            let app_data_dir = get_local_app_data().ok();
+            let mut embedded_packages_dir = if is_msi_installed {
+                info!("MSI install detected (.msi-installed file present), using external packages directory");
+                false
             } else {
-                error!("Root directory is not writable and AppData directory is unavailable. Updates may not work correctly.");
+                if paths.IsPortable {
+                    info!("Portable install detected (.portable file present)");
+                    true
+                } else if app_data_dir.is_some() && misc::is_sub_path(&root, app_data_dir.as_ref().unwrap()) {
+                    info!("Root directory is inside AppData, using embedded packages directory");
+                    true
+                } else {
+                    false
+                }
+            };
+
+            // If embedded, verify we can actually write to the directory
+            let is_writable = misc::is_directory_writable(&root);
+            info!("Root directory writable: {}", is_writable);
+
+            if embedded_packages_dir && !is_writable {
+                warn!("Root directory is not writable, switching to external packages directory");
+                embedded_packages_dir = false;
             }
+
+            if embedded_packages_dir {
+                info!("Using embedded packages directory: {}", paths.PackagesDir.display());
+            } else {
+                // Use external packages directory in AppData
+                if let Some(app_data) = app_data_dir {
+                    let velopack_package_root = app_data.join("velopack").join(&manifest.id);
+                    paths.PackagesDir = velopack_package_root.join("packages");
+                    info!("Using external packages directory: {}", paths.PackagesDir.display());
+
+                    if !paths.PackagesDir.exists() {
+                        if let Err(e) = std::fs::create_dir_all(&paths.PackagesDir) {
+                            error!("Unable to create packages directory: {}", e);
+                        }
+                    }
+
+                    // Copy Update.exe to writable location if it doesn't exist
+                    // Only do this if UpdateExePath is also the default value
+                    let default_update_exe = root.join("Update.exe");
+                    if paths.UpdateExePath == default_update_exe {
+                        let writable_update_exe = velopack_package_root.join("Update.exe");
+                        if paths.UpdateExePath.exists() && !writable_update_exe.exists() {
+                            match std::fs::copy(&paths.UpdateExePath, &writable_update_exe) {
+                                Ok(_) => {
+                                    info!("Copied Update.exe to writable location: {}", writable_update_exe.display());
+                                    paths.UpdateExePath = writable_update_exe;
+                                }
+                                Err(e) => {
+                                    error!("Unable to copy Update.exe to writable location: {}", e);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    error!("Root directory is not writable and AppData directory is unavailable. Updates may not work correctly.");
+                }
+            }
+        } else {
+            info!("Using custom packages directory (not overriding user-provided path): {}", paths.PackagesDir.display());
         }
 
         Self { paths, manifest }
