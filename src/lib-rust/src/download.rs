@@ -4,12 +4,29 @@ use std::io::{Read, Write};
 use crate::{util, Error};
 
 /// Downloads a file from a URL and writes it to a file while reporting progress from 0-100.
-pub fn download_url_to_file<A>(url: &str, file_path: &str, mut progress: A) -> Result<(), Error>
+pub fn download_url_to_file<A>(url: &str, file_path: &str, progress: A) -> Result<(), Error>
+where
+    A: FnMut(i16),
+{
+    download_url_to_file_with_headers(url, file_path, &[], progress)
+}
+
+/// Downloads a file from a URL and returns it as a string.
+pub fn download_url_as_string(url: &str) -> Result<String, Error> {
+    download_url_as_string_with_headers(url, &[])
+}
+
+/// Downloads a file from a URL using custom headers and writes it to a file while reporting progress from 0-100.
+pub fn download_url_to_file_with_headers<A>(url: &str, file_path: &str, headers: &[(&str, &str)], mut progress: A) -> Result<(), Error>
 where
     A: FnMut(i16),
 {
     let agent = get_download_agent()?;
-    let (head, body) = agent.get(url).call()?.into_parts();
+    let mut req = agent.get(url);
+    for &(k, v) in headers {
+        req = req.header(k, v);
+    }
+    let (head, body) = req.call()?.into_parts();
 
     let total_size = head.headers.get("Content-Length").and_then(|s| s.to_str().ok()).and_then(|s| s.parse::<u64>().ok());
     let mut file = util::retry_io(|| File::create(file_path))?;
@@ -42,10 +59,14 @@ where
     Ok(())
 }
 
-/// Downloads a file from a URL and returns it as a string.
-pub fn download_url_as_string(url: &str) -> Result<String, Error> {
+/// Downloads a URL as a string with custom headers.
+pub fn download_url_as_string_with_headers(url: &str, headers: &[(&str, &str)]) -> Result<String, Error> {
     let agent = get_download_agent()?;
-    let r = agent.get(url).call()?.body_mut().read_to_string()?;
+    let mut req = agent.get(url);
+    for &(k, v) in headers {
+        req = req.header(k, v);
+    }
+    let r = req.call()?.body_mut().read_to_string()?;
     Ok(r)
 }
 
@@ -117,11 +138,7 @@ fn test_interrupted_download() {
     });
 
     let tmpfile = tempfile::NamedTempFile::new().unwrap();
-    let result = download_url_to_file(
-        &format!("http://{}", addr),
-        tmpfile.path().to_str().unwrap(),
-        |_| {}
-    );
+    let result = download_url_to_file(&format!("http://{}", addr), tmpfile.path().to_str().unwrap(), |_| {});
 
     assert!(result.is_err(), "Download should fail due to connection interruption");
 }
@@ -152,11 +169,7 @@ fn test_successful_download() {
     });
 
     let tmpfile = tempfile::NamedTempFile::new().unwrap();
-    let _ = download_url_to_file(
-        &format!("http://{}", addr),
-        tmpfile.path().to_str().unwrap(),
-        |_| {},
-    ).unwrap();
+    let _ = download_url_to_file(&format!("http://{}", addr), tmpfile.path().to_str().unwrap(), |_| {}).unwrap();
 
     // Verify that the downloaded file has the expected size
     let metadata = tmpfile.path().metadata().unwrap();
