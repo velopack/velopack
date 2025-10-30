@@ -228,7 +228,7 @@ impl GithubSource {
     fn get_authorization(&self) -> Vec<(&str, String)> {
         let mut headers = Vec::new();
         if let Some(token) = &self.access_token {
-            headers.push(("Authorization", format!("token {}", token)));
+            headers.push(("Authorization", format!("Bearer {}", token)));
         }
         headers
     }
