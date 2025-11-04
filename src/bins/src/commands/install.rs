@@ -125,8 +125,16 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
         tx
     } else {
         info!("Reading splash image...");
+        let manifest = locator.get_manifest();
         let splash_bytes = pkg.get_splash_bytes();
-        windows::splash::show_splash_dialog(locator.get_manifest_title(), splash_bytes, locator.get_manifest().no_progress_bar)
+        windows::splash::show_splash_dialog(
+                manifest.title,
+                splash_bytes,
+                windows::splash::SplashOptions {
+                    no_progress_bar: manifest.no_progress_bar,
+                    progress_bar_color: Some(manifest.progress_bar_color),
+                },
+            )
     };
 
     let install_result = install_impl(pkg, &locator, &tx, start_args);

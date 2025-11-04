@@ -8,6 +8,8 @@ public class WindowsPackCommand : PackCommand
 
     public bool NoProgressBar { get; private set; }
 
+    public string ProgressBarColor { get; private set; }
+
     public bool SkipVelopackAppCheck { get; private set; }
 
     public string SignParameters { get; private set; }
@@ -43,6 +45,10 @@ public class WindowsPackCommand : PackCommand
 
         AddOption<bool>((v) => NoProgressBar = v, "--noProgressBar")
             .SetDescription("Hide the progress bar during installation.");
+
+        AddOption<string>((v) => ProgressBarColor = v, "--progressBarColor")
+            .SetDescription("Color of the progress bar during installation (RGB hex: FF0000, or \"#FF0000\" with quotes).")
+            .SetArgumentHelpName("COLOR");
 
         AddOption<bool>((v) => SkipVelopackAppCheck = v, "--skipVeloAppCheck")
             .SetDescription("Skip the VelopackApp builder verification.")

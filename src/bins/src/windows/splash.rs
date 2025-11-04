@@ -18,6 +18,12 @@ const MSG_NOMESSAGE: i16 = -99;
 pub const MSG_CLOSE: i16 = -1;
 pub const MSG_INDEFINITE: i16 = -2;
 
+#[derive(Default, Clone)]
+pub struct SplashOptions {
+    pub no_progress_bar: bool,
+    pub progress_bar_color: Option<String>,
+}
+
 pub fn show_progress_dialog<T1: AsRef<str>, T2: AsRef<str>>(window_title: T1, content: T2) -> Sender<i16> {
     let window_title = window_title.as_ref().to_string();
     let content = content.as_ref().to_string();
@@ -28,12 +34,13 @@ pub fn show_progress_dialog<T1: AsRef<str>, T2: AsRef<str>>(window_title: T1, co
     tx
 }
 
-pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>, no_progress_bar: bool) -> Sender<i16> {
+pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>, options: SplashOptions) -> Sender<i16> {
     let (tx, rx) = mpsc::channel::<i16>();
     thread::spawn(move || {
         info!("Showing splash screen immediately...");
         if imgstream.is_some() {
-            let _ = SplashWindow::new(app_name, imgstream.unwrap(), rx, no_progress_bar).and_then(|w| {
+            let color = options.progress_bar_color.as_deref().unwrap_or("");
+            let _ = SplashWindow::new(app_name, imgstream.unwrap(), rx, options.no_progress_bar, color).and_then(|w| {
                 w.run()?;
                 Ok(())
             });
@@ -57,12 +64,43 @@ pub struct SplashWindow {
     w: u16,
     h: u16,
     no_progress_bar: bool,
+    progress_bar_color: (u8, u8, u8),
 }
 
 fn average(numbers: &[u16]) -> u16 {
     let sum: u16 = numbers.iter().sum();
     let count = numbers.len() as u16;
     sum / count
+}
+
+fn parse_hex_color(color_str: &str) -> (u8, u8, u8) {
+    // Default to green if parsing fails
+    let default_color = (0, 255, 0);
+
+    if color_str.is_empty() {
+        return default_color;
+    }
+
+    // Remove leading # if present
+    let hex_str = color_str.trim_start_matches('#');
+
+    // Parse hex string (should be 6 characters: RRGGBB)
+    if hex_str.len() != 6 {
+        warn!("Invalid color format '{}', using default green", color_str);
+        return default_color;
+    }
+
+    match (
+        u8::from_str_radix(&hex_str[0..2], 16),
+        u8::from_str_radix(&hex_str[2..4], 16),
+        u8::from_str_radix(&hex_str[4..6], 16),
+    ) {
+        (Ok(r), Ok(g), Ok(b)) => (r, g, b),
+        _ => {
+            warn!("Failed to parse color '{}', using default green", color_str);
+            default_color
+        }
+    }
 }
 
 fn convert_rgba_to_bgra(image_data: &mut Vec<u8>) {
@@ -75,7 +113,7 @@ fn convert_rgba_to_bgra(image_data: &mut Vec<u8>) {
 }
 
 impl SplashWindow {
-    pub fn new(app_name: String, img_stream: Vec<u8>, rx: Receiver<i16>, no_progress_bar: bool) -> Result<Self> {
+    pub fn new(app_name: String, img_stream: Vec<u8>, rx: Receiver<i16>, no_progress_bar: bool, progress_bar_color: &str) -> Result<Self> {
         let mut delays = Vec::new();
         let mut frames = Vec::new();
         let fmt_cursor = Cursor::new(&img_stream);
@@ -134,7 +172,8 @@ impl SplashWindow {
         let rx = Rc::new(rx);
         let progress = Rc::new(RefCell::new(0));
         let frame_idx = Rc::new(RefCell::new(0));
-        let mut new_self = Self { wnd, frames, delay, frame_idx, w, h, rx, progress, no_progress_bar };
+        let progress_bar_color = parse_hex_color(progress_bar_color);
+        let mut new_self = Self { wnd, frames, delay, frame_idx, w, h, rx, progress, no_progress_bar, progress_bar_color };
         new_self.events();
         Ok(new_self)
     }
@@ -229,7 +268,8 @@ impl SplashWindow {
             // draw progress bar to hdc_mem (if enabled)
             if !self2.no_progress_bar {
                 let progress = self2.progress.borrow();
-                let progress_brush = w::HBRUSH::CreateSolidBrush(w::COLORREF::new(0, 255, 0))?;
+                let (r, g, b) = self2.progress_bar_color;
+                let progress_brush = w::HBRUSH::CreateSolidBrush(w::COLORREF::new(r, g, b))?;
                 let progress_width = (rect.right as f32 * (*progress as f32 / 100.0)) as i32;
                 let progress_rect = w::RECT { left: 0, bottom: rect.bottom, right: progress_width, top: rect.bottom - 10 };
                 hdc_mem.FillRect(progress_rect, &progress_brush)?;
@@ -376,7 +416,16 @@ extern "system" fn task_dialog_callback(hwnd: w::HWND, msg: co::TDN, _: usize, _
 #[ignore]
 fn show_test_gif() {
     let rd = std::fs::read(r"C:\Source\Clowd\artwork\splash.gif").unwrap();
-    let tx = show_splash_dialog("osu!".to_string(), Some(rd));
+    let tx = show_splash_dialog("osu!".to_string(), Some(rd), SplashOptions::default());
+    tx.send(80).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(6));
+}
+
+#[test]
+#[ignore]
+fn show_test_gif_without_progress_bar() {
+    let rd = std::fs::read(r"C:\Source\Clowd\artwork\splash.gif").unwrap();
+    let tx = show_splash_dialog("osu!".to_string(), Some(rd), SplashOptions { no_progress_bar: true, progress_bar_color: None });
     tx.send(80).unwrap();
     std::thread::sleep(std::time::Duration::from_secs(6));
 }

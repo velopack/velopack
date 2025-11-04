@@ -82,6 +82,8 @@ public class PackTask : MSBuildAsyncTask
 
     public bool NoProgressBar { get; set; }
 
+    public string? ProgressBarColor { get; set; }
+
     public bool SkipVelopackAppCheck { get; set; }
 
     public string? SignParameters { get; set; }
