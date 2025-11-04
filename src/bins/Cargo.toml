@@ -109,6 +109,7 @@ windows = { workspace = true, features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_System_ApplicationInstallationAndServicing",
     "Win32_System_Kernel",
+    "Win32_Graphics_Gdi",
     "Wdk",
     "Wdk_System",
     "Wdk_System_Threading",

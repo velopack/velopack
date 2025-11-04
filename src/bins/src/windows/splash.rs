@@ -163,7 +163,7 @@ impl SplashWindow {
             class_name: "VelopackSetupSplashWindow".to_owned(),
             title: app_name,
             size: (w.into(), h.into()),
-            ex_style: co::WS_EX::NoValue,
+            ex_style: co::WS_EX::LAYERED | co::WS_EX::TOPMOST,
             style: co::WS::POPUP,
             ..Default::default()
         });
@@ -227,9 +227,9 @@ impl SplashWindow {
             // initial setup
             let hwnd = self2.wnd.hwnd();
             let rect = hwnd.GetClientRect()?;
-            let hdc = hwnd.BeginPaint()?;
-            let w = rect.right - rect.left;
-            let h = rect.bottom - rect.top;
+            let _hdc = hwnd.BeginPaint()?;
+            let _w = rect.right - rect.left;
+            let _h = rect.bottom - rect.top;
             let desktop = w::HWND::GetDesktopWindow();
             let hdc_screen = desktop.GetDC()?;
 
@@ -241,43 +241,52 @@ impl SplashWindow {
                 *idx = 0;
             }
 
-            // create double buffer
+            // create memory DC with the frame bitmap
             let hdc_mem = hdc_screen.CreateCompatibleDC()?;
-            let buffer_bmp = hdc_screen.CreateCompatibleBitmap(w, h)?;
-            let _buffer_old = hdc_mem.SelectObject(buffer_bmp.deref())?;
+            let _bitmap_old = hdc_mem.SelectObject(h_bitmap)?;
 
-            // load image into hdc_bitmap
-            let hdc_bitmap = hdc_screen.CreateCompatibleDC()?;
-            let _bitmap_old = hdc_bitmap.SelectObject(h_bitmap)?;
-
-            // draw background to hdc_mem
-            let background_brush = w::HBRUSH::CreateSolidBrush(w::COLORREF::new(0, 0, 0))?;
-            hdc_mem.FillRect(w::RECT { left: 0, top: 0, right: w, bottom: h }, &background_brush)?;
-
-            // copy bitmap from hdc_bitmap to hdc_mem
-            hdc_mem.SetStretchBltMode(co::STRETCH_MODE::STRETCH_HALFTONE)?;
-            hdc_mem.StretchBlt(
-                w::POINT { x: 0, y: 0 },
-                w::SIZE { cx: rect.right, cy: rect.bottom },
-                &hdc_bitmap,
-                w::POINT { x: 0, y: 0 },
-                w::SIZE { cx: self2.w.into(), cy: self2.h.into() },
-                co::ROP::SRCCOPY,
-            )?;
-
-            // draw progress bar to hdc_mem (if enabled)
+            // draw progress bar on top of the bitmap (if enabled)
             if !self2.no_progress_bar {
                 let progress = self2.progress.borrow();
                 let (r, g, b) = self2.progress_bar_color;
                 let progress_brush = w::HBRUSH::CreateSolidBrush(w::COLORREF::new(r, g, b))?;
-                let progress_width = (rect.right as f32 * (*progress as f32 / 100.0)) as i32;
-                let progress_rect = w::RECT { left: 0, bottom: rect.bottom, right: progress_width, top: rect.bottom - 10 };
+                let progress_width = (self2.w as f32 * (*progress as f32 / 100.0)) as i32;
+                let progress_rect = w::RECT { left: 0, bottom: self2.h.into(), right: progress_width, top: self2.h as i32 - 10 };
                 hdc_mem.FillRect(progress_rect, &progress_brush)?;
             }
 
-            // finally, copy hdc_mem to hdc
-            hdc.BitBlt(w::POINT { x: 0, y: 0 }, w::SIZE { cx: w, cy: h }, &hdc_mem, w::POINT { x: 0, y: 0 }, co::ROP::SRCCOPY)?;
+            // Use UpdateLayeredWindow for true transparency with per-pixel alpha
+            unsafe {
+                use windows::Win32::Graphics::Gdi::{BLENDFUNCTION, AC_SRC_OVER, AC_SRC_ALPHA, HDC};
+                use windows::Win32::UI::WindowsAndMessaging::{UpdateLayeredWindow, ULW_ALPHA};
+                use windows::Win32::Foundation::{POINT, SIZE, COLORREF};
 
+                let blend_fn = BLENDFUNCTION {
+                    BlendOp: AC_SRC_OVER as u8,
+                    BlendFlags: 0,
+                    SourceConstantAlpha: 255,
+                    AlphaFormat: AC_SRC_ALPHA as u8,
+                };
+
+                let size = SIZE {
+                    cx: self2.w as i32,
+                    cy: self2.h as i32,
+                };
+
+                let pt_src = POINT { x: 0, y: 0 };
+
+                UpdateLayeredWindow(
+                    windows::Win32::Foundation::HWND(hwnd.ptr()),
+                    None,
+                    None,
+                    Some(&size),
+                    Some(HDC(hdc_mem.ptr() as _)),
+                    Some(&pt_src),
+                    COLORREF(0),
+                    Some(&blend_fn),
+                    ULW_ALPHA,
+                )?;
+            }
             Ok(())
         });
     }
