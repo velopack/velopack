@@ -6,6 +6,8 @@ public class WindowsPackCommand : PackCommand
 
     public string SplashImage { get; private set; }
 
+    public bool NoProgressBar { get; private set; }
+
     public bool SkipVelopackAppCheck { get; private set; }
 
     public string SignParameters { get; private set; }
@@ -38,6 +40,9 @@ public class WindowsPackCommand : PackCommand
             .SetDescription("Path to image displayed during installation.")
             .SetArgumentHelpName("PATH")
             .MustExist();
+
+        AddOption<bool>((v) => NoProgressBar = v, "--noProgressBar")
+            .SetDescription("Hide the progress bar during installation.");
 
         AddOption<bool>((v) => SkipVelopackAppCheck = v, "--skipVeloAppCheck")
             .SetDescription("Skip the VelopackApp builder verification.")

@@ -355,6 +355,7 @@ pub struct Manifest {
     pub shortcut_amuid: String,
     pub release_notes: String,
     pub release_notes_html: String,
+    pub no_progress_bar: bool,
 }
 
 /// Parse manifest object from an XML string.
@@ -403,6 +404,8 @@ pub fn read_manifest_from_string(xml: &str) -> Result<Manifest, Error> {
                     obj.release_notes = text;
                 } else if el_name == "releaseNotesHtml" {
                     obj.release_notes_html = text;
+                } else if el_name == "noProgressBar" {
+                    obj.no_progress_bar = text.parse::<bool>().unwrap_or(false);
                 }
             }
             Ok(XmlEvent::EndElement { .. }) => {

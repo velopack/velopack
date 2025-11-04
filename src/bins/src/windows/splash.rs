@@ -28,12 +28,12 @@ pub fn show_progress_dialog<T1: AsRef<str>, T2: AsRef<str>>(window_title: T1, co
     tx
 }
 
-pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>) -> Sender<i16> {
+pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>, no_progress_bar: bool) -> Sender<i16> {
     let (tx, rx) = mpsc::channel::<i16>();
     thread::spawn(move || {
         info!("Showing splash screen immediately...");
         if imgstream.is_some() {
-            let _ = SplashWindow::new(app_name, imgstream.unwrap(), rx).and_then(|w| {
+            let _ = SplashWindow::new(app_name, imgstream.unwrap(), rx, no_progress_bar).and_then(|w| {
                 w.run()?;
                 Ok(())
             });
@@ -56,6 +56,7 @@ pub struct SplashWindow {
     frame_idx: Rc<RefCell<usize>>,
     w: u16,
     h: u16,
+    no_progress_bar: bool,
 }
 
 fn average(numbers: &[u16]) -> u16 {
@@ -74,7 +75,7 @@ fn convert_rgba_to_bgra(image_data: &mut Vec<u8>) {
 }
 
 impl SplashWindow {
-    pub fn new(app_name: String, img_stream: Vec<u8>, rx: Receiver<i16>) -> Result<Self> {
+    pub fn new(app_name: String, img_stream: Vec<u8>, rx: Receiver<i16>, no_progress_bar: bool) -> Result<Self> {
         let mut delays = Vec::new();
         let mut frames = Vec::new();
         let fmt_cursor = Cursor::new(&img_stream);
@@ -133,7 +134,7 @@ impl SplashWindow {
         let rx = Rc::new(rx);
         let progress = Rc::new(RefCell::new(0));
         let frame_idx = Rc::new(RefCell::new(0));
-        let mut new_self = Self { wnd, frames, delay, frame_idx, w, h, rx, progress };
+        let mut new_self = Self { wnd, frames, delay, frame_idx, w, h, rx, progress, no_progress_bar };
         new_self.events();
         Ok(new_self)
     }
@@ -225,12 +226,14 @@ impl SplashWindow {
                 co::ROP::SRCCOPY,
             )?;
 
-            // draw progress bar to hdc_mem
-            let progress = self2.progress.borrow();
-            let progress_brush = w::HBRUSH::CreateSolidBrush(w::COLORREF::new(0, 255, 0))?;
-            let progress_width = (rect.right as f32 * (*progress as f32 / 100.0)) as i32;
-            let progress_rect = w::RECT { left: 0, bottom: rect.bottom, right: progress_width, top: rect.bottom - 10 };
-            hdc_mem.FillRect(progress_rect, &progress_brush)?;
+            // draw progress bar to hdc_mem (if enabled)
+            if !self2.no_progress_bar {
+                let progress = self2.progress.borrow();
+                let progress_brush = w::HBRUSH::CreateSolidBrush(w::COLORREF::new(0, 255, 0))?;
+                let progress_width = (rect.right as f32 * (*progress as f32 / 100.0)) as i32;
+                let progress_rect = w::RECT { left: 0, bottom: rect.bottom, right: progress_width, top: rect.bottom - 10 };
+                hdc_mem.FillRect(progress_rect, &progress_brush)?;
+            }
 
             // finally, copy hdc_mem to hdc
             hdc.BitBlt(w::POINT { x: 0, y: 0 }, w::SIZE { cx: w, cy: h }, &hdc_mem, w::POINT { x: 0, y: 0 }, co::ROP::SRCCOPY)?;
