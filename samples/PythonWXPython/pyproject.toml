@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
     "velopack",
-    "wxpython>=4.2.3",
+    "wxpython>=4.2.4",
 ]
 
 [tool.uv.sources]
