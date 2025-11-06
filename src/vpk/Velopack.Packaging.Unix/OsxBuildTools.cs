@@ -128,9 +128,24 @@ public class OsxBuildTools
         progress(15);
 
         // generate non-relocatable component pkg. this will be included into a product archive
+        //
+        // The plist format varies depending on the OSX version:
+        // - in older versions, the dict is at the root of the XML document
+        // - in recent versions, the dict is one level lower, in an array at the root of the XML document
+        //
+        // This change seems to not be documented so it's unclear which OSX version generates which format.
+        // For backward compatibility we try the new format and then fallback to the old format.
+
         var pkgPlistPath = Path.Combine(tmp, "tmp.plist");
+
         Exe.InvokeAndThrowIfNonZero("pkgbuild", new[] { "--analyze", "--root", tmpPayload1, pkgPlistPath }, null);
-        Exe.InvokeAndThrowIfNonZero("plutil", new[] { "-replace", "BundleIsRelocatable", "-bool", "NO", pkgPlistPath }, null);
+
+        var (plutilExitCode, _, _, _) = Exe.InvokeProcess("plutil", new[] { "-replace", "0.BundleIsRelocatable", "-bool", "NO", pkgPlistPath }, null);
+
+        if (plutilExitCode != 0) {
+            Exe.InvokeAndThrowIfNonZero("plutil", new[] { "-replace", "BundleIsRelocatable", "-bool", "NO", pkgPlistPath }, null);
+        }
+
         progress(50);
 
         var pkg1Path = Path.Combine(tmpPayload2, "1.pkg");
