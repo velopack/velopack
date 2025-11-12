@@ -128,6 +128,7 @@ pub fn delta<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(
                     let file_path = delta_dir.join(relative_path);
                     let dest_path = work_dir.join(relative_path);
                     info!("{}: new file: {:?}", i, relative_path);
+                    fs::create_dir_all(dest_path.parent().ok_or(anyhow!("Failed to get parent"))?)?;
                     fs::copy(&file_path, &dest_path)?;
                     visited_paths.insert(relative_path.clone());
                 }
