@@ -42,7 +42,7 @@
       <Output TaskParameter="AbsolutePaths" PropertyName="VelopackPackDirectory"/>
     </ConvertToAbsolutePath>
 
-    <ConvertToAbsolutePath Paths="$(VelopackIcon)">
+    <ConvertToAbsolutePath Paths="$(VelopackIcon)" Condition="'$(VelopackIcon)' != ''">
       <Output TaskParameter="AbsolutePaths" PropertyName="VelopackIcon"/>
     </ConvertToAbsolutePath>
   </Target>
@@ -93,6 +93,11 @@
       Categories="$(VelopackCategories)"
       Shortcuts="$(VelopackShortcuts)"
       Compression="$(VelopackAppImageCompression)"
+      VelopackToolMode="$(VelopackToolMode)"
+      VelopackToolVersion="$(VelopackToolVersion)"
+      VelopackToolPrerelease="$(VelopackToolPrerelease)"
+      VelopackToolSource="$(VelopackToolSource)"
+      VelopackSkipToolInstall="$(VelopackSkipToolInstall)"
     />
   </Target>
 
@@ -105,6 +110,11 @@
       Channel="$(VelopackChannel)"
       Timeout="$(VelopackHttpTimeout)"
       WaitForLive="$(VelopackWaitForLive)"
+      VelopackToolMode="$(VelopackToolMode)"
+      VelopackToolVersion="$(VelopackToolVersion)"
+      VelopackToolPrerelease="$(VelopackToolPrerelease)"
+      VelopackToolSource="$(VelopackToolSource)"
+      VelopackSkipToolInstall="$(VelopackSkipToolInstall)"
     />
   </Target>
 </Project>
