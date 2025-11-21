@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net472;net6.0</TargetFrameworks>
+    <TargetFrameworks>net472;net8.0</TargetFrameworks>
     <Nullable>enable</Nullable>
-    <LangVersion>12</LangVersion>
+    <LangVersion>13</LangVersion>
     <SignAssembly>false</SignAssembly>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
   </PropertyGroup>
@@ -16,9 +16,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Velopack.Flow\Velopack.Flow.csproj" />
-    <ProjectReference Include="..\Velopack.Packaging.Unix\Velopack.Packaging.Unix.csproj" />
-    <ProjectReference Include="..\Velopack.Packaging.Windows\Velopack.Packaging.Windows.csproj" />
+    <Compile Include="..\..\lib-csharp\Util\ProcessExtensions.cs" Link="ProcessExtensions.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,6 +27,7 @@
 
   <ItemGroup>
     <None Include="Velopack.Build.targets" Pack="true" PackagePath="build/Velopack.Build.targets" />
+    <None Include="Velopack.Build.props" Pack="true" PackagePath="build/Velopack.Build.props" />
   </ItemGroup>
 
 </Project>
