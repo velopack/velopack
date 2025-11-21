@@ -1,4 +1,4 @@
-﻿using Velopack.Core;
+using Velopack.Core;
 using Velopack.Packaging;
 
 namespace Velopack.Vpk.Commands;
@@ -9,9 +9,9 @@ public abstract class OutputCommand : BaseCommand
 
     public string Channel { get; private set; }
 
-    protected CliOption<DirectoryInfo> ReleaseDirectoryOption { get; private set; }
+    protected Option<DirectoryInfo> ReleaseDirectoryOption { get; private set; }
 
-    protected CliOption<string> ChannelOption { get; private set; }
+    protected Option<string> ChannelOption { get; private set; }
 
     protected OutputCommand(string name, string description, RuntimeOs targetOs = RuntimeOs.Unknown)
         : base(name, description)
@@ -35,3 +35,4 @@ public abstract class OutputCommand : BaseCommand
         return di;
     }
 }
+

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>net6.0;net8.0;net9.0</TargetFrameworks>
+    <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
     <AssemblyName>vpk</AssemblyName>
     <LangVersion>latest</LangVersion>
     <BuildInParallel>false</BuildInParallel> <!-- https://github.com/dotnet/sdk/issues/17454 -->
@@ -23,7 +23,7 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="9.0.0" />
     <PackageReference Include="Serilog.Expressions" Version="5.0.0" />
-    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.23407.1" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0" />
     <PackageReference Include="NuGet.Protocol" Version="6.14.0" />
     <PackageReference Include="Spectre.Console" Version="0.50.0" />
     <PackageReference Include="Riok.Mapperly" Version="4.2.1" />

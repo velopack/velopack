@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using NuGet.Versioning;
 using Velopack.NuGet;
 
@@ -17,86 +17,86 @@ internal static class SystemCommandLineExtensions
         return null;
     }
 
-    public static CliOption<T> SetDescription<T>(this CliOption<T> option, string description)
+    public static Option<T> SetDescription<T>(this Option<T> option, string description)
     {
         option.Description = description;
         return option;
     }
 
-    public static CliOption<T> SetRecursive<T>(this CliOption<T> option, bool isRecursive = true)
+    public static Option<T> SetRecursive<T>(this Option<T> option, bool isRecursive = true)
     {
         option.Recursive = isRecursive;
         return option;
     }
 
-    public static CliOption<T> SetHidden<T>(this CliOption<T> option, bool isHidden = true)
+    public static Option<T> SetHidden<T>(this Option<T> option, bool isHidden = true)
     {
         option.Hidden = isHidden;
         return option;
     }
 
-    public static CliOption<T> AllowMultiple<T>(this CliOption<T> option, bool allowMultiple = true)
+    public static Option<T> AllowMultiple<T>(this Option<T> option, bool allowMultiple = true)
     {
         option.AllowMultipleArgumentsPerToken = allowMultiple;
         return option;
     }
 
-    public static CliOption<T> SetRequired<T>(this CliOption<T> option, bool isRequired = true)
+    public static Option<T> SetRequired<T>(this Option<T> option, bool isRequired = true)
     {
         option.Required = isRequired;
         return option;
     }
 
-    public static CliOption<T> SetDefault<T>(this CliOption<T> option, T defaultValue)
+    public static Option<T> SetDefault<T>(this Option<T> option, T defaultValue)
     {
         option.DefaultValueFactory = (r) => defaultValue;
         return option;
     }
 
-    public static CliOption<int> SetValidRange(this CliOption<int> option, int minimum, int maximum)
+    public static Option<int> SetValidRange(this Option<int> option, int minimum, int maximum)
     {
         option.Validators.Add(x => Validate.MustBeBetween(x, minimum, maximum));
         return option;
     }
 
-    public static CliOption<T> SetArgumentHelpName<T>(this CliOption<T> option, string argumentHelpName)
+    public static Option<T> SetArgumentHelpName<T>(this Option<T> option, string argumentHelpName)
     {
         option.HelpName = argumentHelpName;
         return option;
     }
 
-    public static CliOption<int> MustBeBetween(this CliOption<int> option, int minimum, int maximum)
+    public static Option<int> MustBeBetween(this Option<int> option, int minimum, int maximum)
     {
         option.Validators.Add(x => Validate.MustBeBetween(x, minimum, maximum));
         return option;
     }
 
-    public static CliOption<Uri> MustBeValidHttpUri(this CliOption<Uri> option)
+    public static Option<Uri> MustBeValidHttpUri(this Option<Uri> option)
     {
         option.CustomParser = (v) => new Uri(v.Tokens.Single().Value, UriKind.RelativeOrAbsolute);
         option.RequiresScheme(Uri.UriSchemeHttp, Uri.UriSchemeHttps).RequiresAbsolute();
         return option;
     }
 
-    public static CliOption<FileInfo> RequiresExtension(this CliOption<FileInfo> option, string extension)
+    public static Option<FileInfo> RequiresExtension(this Option<FileInfo> option, string extension)
     {
         option.Validators.Add(x => Validate.RequiresExtension(x, extension));
         return option;
     }
 
-    public static CliOption<DirectoryInfo> RequiresExtension(this CliOption<DirectoryInfo> option, string extension)
+    public static Option<DirectoryInfo> RequiresExtension(this Option<DirectoryInfo> option, string extension)
     {
         option.Validators.Add(x => Validate.RequiresExtension(x, extension));
         return option;
     }
 
-    public static CliOption<string> RequiresExtension(this CliOption<string> option, string extension)
+    public static Option<string> RequiresExtension(this Option<string> option, string extension)
     {
         option.Validators.Add(x => Validate.RequiresExtension(x, extension));
         return option;
     }
 
-    public static CliCommand AreMutuallyExclusive(this CliCommand command, params CliOption[] options)
+    public static Command AreMutuallyExclusive(this Command command, params Option[] options)
     {
         command.Validators.Add(x => Validate.AreMutuallyExclusive(x, options));
         return command;
@@ -108,74 +108,74 @@ internal static class SystemCommandLineExtensions
     //    return command;
     //}
 
-    public static CliCommand AtLeastOneRequired(this CliCommand command, params CliOption[] options)
+    public static Command AtLeastOneRequired(this Command command, params Option[] options)
     {
         command.Validators.Add(x => Validate.AtLeastOneRequired(x, options, false));
         return command;
     }
 
-    public static CliOption<string> MustContain(this CliOption<string> option, string value)
+    public static Option<string> MustContain(this Option<string> option, string value)
     {
         option.Validators.Add(x => Validate.MustContain(x, value));
         return option;
     }
 
-    public static CliOption<Uri> RequiresScheme(this CliOption<Uri> option, params string[] validSchemes)
+    public static Option<Uri> RequiresScheme(this Option<Uri> option, params string[] validSchemes)
     {
         option.Validators.Add(x => Validate.RequiresScheme(x, validSchemes));
         return option;
     }
 
-    public static CliOption<Uri> RequiresAbsolute(this CliOption<Uri> option, params string[] validSchemes)
+    public static Option<Uri> RequiresAbsolute(this Option<Uri> option, params string[] validSchemes)
     {
         option.Validators.Add(Validate.RequiresAbsolute);
         return option;
     }
 
-    public static CliOption<string> RequiresValidNuGetId(this CliOption<string> option)
+    public static Option<string> RequiresValidNuGetId(this Option<string> option)
     {
         option.Validators.Add(Validate.RequiresValidNuGetId);
         return option;
     }
 
     //TODO: Could setup the options to accept type SemanticVersion and apply an appropriate parser for it
-    public static CliOption<string> RequiresSemverCompliant(this CliOption<string> option)
+    public static Option<string> RequiresSemverCompliant(this Option<string> option)
     {
         option.Validators.Add(Validate.RequiresSemverCompliant);
         return option;
     }
 
-    public static CliOption<DirectoryInfo> MustNotBeEmpty(this CliOption<DirectoryInfo> option)
+    public static Option<DirectoryInfo> MustNotBeEmpty(this Option<DirectoryInfo> option)
     {
         option.Validators.Add(Validate.MustNotBeEmpty);
         return option;
     }
 
-    public static CliOption<string> MustBeValidMsiVersion(this CliOption<string> option)
+    public static Option<string> MustBeValidMsiVersion(this Option<string> option)
     {
         option.Validators.Add(Validate.MustBeValidMsiVersion);
         return option;
     }
 
-    public static CliOption<string> MustBeSupportedRid(this CliOption<string> option)
+    public static Option<string> MustBeSupportedRid(this Option<string> option)
     {
         option.Validators.Add(Validate.MustBeSupportedRid);
         return option;
     }
 
-    public static CliOption<FileInfo> MustExist(this CliOption<FileInfo> option)
+    public static Option<FileInfo> MustExist(this Option<FileInfo> option)
     {
         option.Validators.Add(Validate.FileMustExist);
         return option;
     }
 
-    public static CliOption<DirectoryInfo> MustExist(this CliOption<DirectoryInfo> option)
+    public static Option<DirectoryInfo> MustExist(this Option<DirectoryInfo> option)
     {
         option.Validators.Add(Validate.DirectoryMustExist);
         return option;
     }
 
-    public static CliOption MustBeOneOfStringValues(this CliOption<string> option, string[] validValues, bool caseInsensitive = true)
+    public static Option MustBeOneOfStringValues(this Option<string> option, string[] validValues, bool caseInsensitive = true)
     {
         option.Validators.Add(x => Validate.MustBeOneOfValues(x, validValues, caseInsensitive));
         return option;
@@ -241,7 +241,7 @@ internal static class SystemCommandLineExtensions
             }
         }
 
-        public static void AreMutuallyExclusive(CommandResult result, CliOption[] options)
+        public static void AreMutuallyExclusive(CommandResult result, Option[] options)
         {
             var specifiedOptions = options
                 .Where(x => result.GetResult(x) is not null)
@@ -252,7 +252,7 @@ internal static class SystemCommandLineExtensions
             }
         }
 
-        public static void AtLeastOneRequired(CommandResult result, CliOption[] options, bool onlyShowFirst = false)
+        public static void AtLeastOneRequired(CommandResult result, Option[] options, bool onlyShowFirst = false)
         {
             var anySpecifiedOptions = options
                 .Any(x => result.GetResult(x) is not null);
@@ -369,3 +369,4 @@ internal static class SystemCommandLineExtensions
         }
     }
 }
+

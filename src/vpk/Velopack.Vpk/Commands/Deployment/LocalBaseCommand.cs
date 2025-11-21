@@ -4,7 +4,7 @@ public class LocalBaseCommand : OutputCommand
 {
     public DirectoryInfo TargetPath { get; private set; }
 
-    public CliOption<DirectoryInfo> TargetPathOption { get; private set; }
+    public Option<DirectoryInfo> TargetPathOption { get; private set; }
 
     public LocalBaseCommand(string command, string description)
         : base(command, description)

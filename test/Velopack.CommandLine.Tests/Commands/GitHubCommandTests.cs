@@ -47,7 +47,7 @@ public abstract class GitHubCommandTests<T> : BaseCommandTests<T>
         GitHubBaseCommand command = new T();
 
         string cli = GetRequiredDefaultOptions() + $"--token \"abc\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        ParseResult _ = command.ParseAndApply(cli);
 
         Assert.Equal("abc", command.Token);
     }
@@ -66,7 +66,7 @@ public class GitHubDownloadCommandTests : GitHubCommandTests<GitHubDownloadComma
         var command = new GitHubDownloadCommand();
 
         string cli = GetRequiredDefaultOptions() + "--pre";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        ParseResult _ = command.ParseAndApply(cli);
 
         Assert.True(command.Prerelease);
     }
@@ -82,7 +82,7 @@ public class GitHubUploadCommandTests : GitHubCommandTests<GitHubUploadCommand>
         var command = new GitHubUploadCommand();
 
         string cli = GetRequiredDefaultOptions() + "--publish";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        ParseResult _ = command.ParseAndApply(cli);
 
         Assert.True(command.Publish);
     }
@@ -93,7 +93,7 @@ public class GitHubUploadCommandTests : GitHubCommandTests<GitHubUploadCommand>
         var command = new GitHubUploadCommand();
 
         string cli = GetRequiredDefaultOptions() + $"--releaseName \"my release\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        ParseResult _ = command.ParseAndApply(cli);
 
         Assert.Equal("my release", command.ReleaseName);
     }
@@ -104,7 +104,7 @@ public class GitHubUploadCommandTests : GitHubCommandTests<GitHubUploadCommand>
         var command = new GitHubUploadCommand();
 
         string cli = GetRequiredDefaultOptions() + $"--tag \"v1.2.3\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        ParseResult _ = command.ParseAndApply(cli);
 
         Assert.Equal("v1.2.3", command.TagName);
     }
@@ -115,7 +115,7 @@ public class GitHubUploadCommandTests : GitHubCommandTests<GitHubUploadCommand>
         var command = new GitHubUploadCommand();
 
         string cli = GetRequiredDefaultOptions() + $"--targetCommitish \"main\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        ParseResult _ = command.ParseAndApply(cli);
 
         Assert.Equal("main", command.TargetCommitish);
     }

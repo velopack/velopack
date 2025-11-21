@@ -39,9 +39,9 @@ public abstract class ReleaseCommandTests<T> : BaseCommandTests<T>
         var command = new T();
 
         string cli = GetRequiredDefaultOptions() + "--delta none";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        ParseResult _ = command.ParseAndApply(cli);
 
-        Assert.True(command.DeltaMode == Packaging.Compression.DeltaMode.None);
+        Assert.Equal(Packaging.Compression.DeltaMode.None, command.DeltaMode);
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public abstract class ReleaseCommandTests<T> : BaseCommandTests<T>
     {
         var command = new T();
         string cli = GetRequiredDefaultOptions() + $"--framework \"net6,vcredist143\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        ParseResult _ = command.ParseAndApply(cli);
 
         Assert.Equal("net6,vcredist143", command.Runtimes);
     }
@@ -61,7 +61,7 @@ public abstract class ReleaseCommandTests<T> : BaseCommandTests<T>
         var command = new T();
 
         string cli = GetRequiredDefaultOptions() + $"--splashImage \"{fileInfo.FullName}\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        ParseResult _ = command.ParseAndApply(cli);
 
         Assert.Equal(fileInfo.FullName, command.SplashImage);
     }
@@ -88,7 +88,7 @@ public abstract class ReleaseCommandTests<T> : BaseCommandTests<T>
         var command = new T();
 
         string cli = GetRequiredDefaultOptions() + $"--icon \"{fileInfo.FullName}\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        ParseResult _ = command.ParseAndApply(cli);
 
         Assert.Equal(fileInfo.FullName, command.Icon);
     }
@@ -160,7 +160,7 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
         CreateTempFile(packDir);
         var command = new WindowsPackCommand();
 
-        ParseResult parseResult = command.ParseAndApply($"-u Clowd.Squirrel --packTitle Clowd.Squirrel -v 1.0.0 -p \"{packDir.FullName}\" -e main.exe");
+        ParseResult _ = command.ParseAndApply($"-u Clowd.Squirrel --packTitle Clowd.Squirrel -v 1.0.0 -p \"{packDir.FullName}\" -e main.exe");
 
         Assert.Equal("Clowd.Squirrel", command.PackTitle);
     }
@@ -185,7 +185,7 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
         var command = new WindowsPackCommand();
 
         string cli = GetRequiredDefaultOptions() + "--packTitle \"My Awesome Title\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        ParseResult _ = command.ParseAndApply(cli);
 
         Assert.Equal("My Awesome Title", command.PackTitle);
     }
@@ -196,7 +196,7 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
         var command = new WindowsPackCommand();
 
         string cli = GetRequiredDefaultOptions() + "--packAuthors Me,mysel,I";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        ParseResult _ = command.ParseAndApply(cli);
 
         Assert.Equal("Me,mysel,I", command.PackAuthors);
     }
@@ -208,7 +208,7 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
         var command = new WindowsPackCommand();
 
         string cli = GetRequiredDefaultOptions() + $"--releaseNotes \"{releaseNotes.FullName}\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        ParseResult _ = command.ParseAndApply(cli);
 
         Assert.Equal(releaseNotes.FullName, command.ReleaseNotes);
     }
@@ -235,7 +235,7 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
         var command = new WindowsPackCommand();
 
         string cli = GetRequiredDefaultOptions() + "--signTemplate \"signtool {{file}}\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        ParseResult _ = command.ParseAndApply(cli);
 
         Assert.Equal("signtool {{file}}", command.SignTemplate);
     }
@@ -246,7 +246,7 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
         var command = new WindowsPackCommand();
 
         string cli = GetRequiredDefaultOptions() + "--signParams \"param1 param2\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        ParseResult _ = command.ParseAndApply(cli);
 
         Assert.Equal("param1 param2", command.SignParameters);
     }
@@ -270,7 +270,7 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
         var command = new WindowsPackCommand();
 
         string cli = GetRequiredDefaultOptions() + @"--signExclude \.dll$";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        ParseResult _ = command.ParseAndApply(cli);
 
         Assert.Equal(@"\.dll$", command.SignExclude);
     }
@@ -281,7 +281,7 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
         var command = new WindowsPackCommand();
 
         string cli = GetRequiredDefaultOptions() + "--signParallel 42";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        ParseResult _ = command.ParseAndApply(cli);
 
         Assert.Equal(42, command.SignParallel);
     }
