@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Build.Framework;
@@ -104,38 +105,21 @@ public class PackTask : MSBuildAsyncTask
 
     public string? MsiVersionOverride { get; set; }
 
-    // Tool configuration properties
-    public string VelopackToolMode { get; set; } = "Auto";
-    public string? VelopackToolVersion { get; set; }
-    public bool VelopackToolPrerelease { get; set; }
-    public string? VelopackToolSource { get; set; }
-    public bool VelopackSkipToolInstall { get; set; }
-
     protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
     {
         try {
+            Debugger.Launch();
             // Resolve VPK tool
-            var resolver = new VpkToolResolver(Log);
-            var config = new VpkToolConfiguration
-            {
-                Mode = ParseToolMode(VelopackToolMode),
-                Version = VelopackToolVersion,
-                AllowPrerelease = VelopackToolPrerelease,
-                Source = VelopackToolSource,
-                SkipInstall = VelopackSkipToolInstall,
-                WorkingDirectory = System.Environment.CurrentDirectory
-            };
-
-            var tool = await resolver.ResolveToolAsync(config, cancellationToken);
-            var toolRunner = new DotNetToolRunner(Log);
+            var toolRunner = new VpkToolRunner(Log);
 
             // Build VPK pack command arguments
             var args = BuildPackArguments();
 
-            Log.LogMessage(MessageImportance.High, $"Executing: dotnet {tool.ExecutionPrefix} {string.Join(" ", args)}");
+            Log.LogMessage(MessageImportance.High, $"Executing: vpk pack {string.Join(" ", args)}");
 
             // Run VPK tool
-            var exitCode = await toolRunner.RunToolAsync("vpk", args, tool.IsLocal, config.WorkingDirectory, null, cancellationToken);
+            var exitCode = await toolRunner.RunVpk(args, null, cancellationToken)
+                .ConfigureAwait(false);
 
             if (exitCode == 0)
             {
@@ -144,7 +128,7 @@ public class PackTask : MSBuildAsyncTask
             }
             else
             {
-                Log.LogError($"VPK tool exited with code {exitCode}");
+                Log.LogError($"vpk tool exited with code {exitCode}");
                 return false;
             }
         } catch (Exception ex) {
@@ -155,6 +139,7 @@ public class PackTask : MSBuildAsyncTask
 
     private string[] BuildPackArguments()
     {
+        /*
         var builder = new ArgumentBuilder();
         
         // Add pack command
@@ -200,15 +185,7 @@ public class PackTask : MSBuildAsyncTask
         builder.AddOption("--signDisableDeep", SignDisableDeep);
 
         return builder.Build();
-    }
-
-    private static VpkToolConfiguration.ToolMode ParseToolMode(string mode)
-    {
-        return mode?.ToLowerInvariant() switch
-        {
-            "local" => VpkToolConfiguration.ToolMode.Local,
-            "global" => VpkToolConfiguration.ToolMode.Global,
-            _ => VpkToolConfiguration.ToolMode.Auto
-        };
+        */
+        return [];
     }
 }

@@ -20,30 +20,11 @@ public class PublishTask : MSBuildAsyncTask
 
     public bool WaitForLive { get; set; }
 
-    // Tool configuration properties
-    public string VelopackToolMode { get; set; } = "Auto";
-    public string? VelopackToolVersion { get; set; }
-    public bool VelopackToolPrerelease { get; set; }
-    public string? VelopackToolSource { get; set; }
-    public bool VelopackSkipToolInstall { get; set; }
-
     protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
     {
         try {
             // Resolve VPK tool
-            var resolver = new VpkToolResolver(Log);
-            var config = new VpkToolConfiguration
-            {
-                Mode = ParseToolMode(VelopackToolMode),
-                Version = VelopackToolVersion,
-                AllowPrerelease = VelopackToolPrerelease,
-                Source = VelopackToolSource,
-                SkipInstall = VelopackSkipToolInstall,
-                WorkingDirectory = System.Environment.CurrentDirectory
-            };
-
-            var tool = await resolver.ResolveToolAsync(config, cancellationToken);
-            var toolRunner = new DotNetToolRunner(Log);
+            var toolRunner = new VpkToolRunner(Log);
 
             // Build VPK flow publish command arguments
             var args = BuildPublishArguments();
@@ -52,17 +33,18 @@ public class PublishTask : MSBuildAsyncTask
             var envVars = new System.Collections.Generic.Dictionary<string, string>();
             if (!string.IsNullOrWhiteSpace(ServiceUrl))
             {
-                envVars["VPK_FLOW_SERVICE_URL"] = ServiceUrl;
+                envVars["VPK_FLOW_SERVICE_URL"] = ServiceUrl!;
             }
             if (!string.IsNullOrWhiteSpace(ApiKey))
             {
-                envVars["VPK_FLOW_API_KEY"] = ApiKey;
+                envVars["VPK_FLOW_API_KEY"] = ApiKey!;
             }
 
-            Log.LogMessage(MessageImportance.High, $"Executing: dotnet {tool.ExecutionPrefix} {string.Join(" ", args)}");
+            Log.LogMessage(MessageImportance.High, $"Executing: vpk publish {string.Join(" ", args)}");
 
             // Run VPK tool
-            var exitCode = await toolRunner.RunToolAsync("vpk", args, tool.IsLocal, config.WorkingDirectory, envVars, cancellationToken);
+            var exitCode = await toolRunner.RunVpk(args, envVars, cancellationToken)
+                .ConfigureAwait(false);
 
             if (exitCode == 0)
             {
@@ -82,6 +64,7 @@ public class PublishTask : MSBuildAsyncTask
 
     private string[] BuildPublishArguments()
     {
+        /*
         var builder = new ArgumentBuilder();
         
         // Add flow publish command
@@ -98,15 +81,7 @@ public class PublishTask : MSBuildAsyncTask
         builder.AddOption("--waitForLive", WaitForLive);
 
         return builder.Build();
-    }
-
-    private static VpkToolConfiguration.ToolMode ParseToolMode(string mode)
-    {
-        return mode?.ToLowerInvariant() switch
-        {
-            "local" => VpkToolConfiguration.ToolMode.Local,
-            "global" => VpkToolConfiguration.ToolMode.Global,
-            _ => VpkToolConfiguration.ToolMode.Auto
-        };
+        */
+        return [];
     }
 }

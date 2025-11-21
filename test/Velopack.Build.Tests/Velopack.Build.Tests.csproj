@@ -7,11 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="..\PathHelper.cs" />
-    <Compile Remove="..\GlobalUsings.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\src\vpk\Velopack.Build\Velopack.Build.csproj" />
   </ItemGroup>
 
@@ -27,6 +22,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Moq" Version="4.20.72" />
+
   </ItemGroup>
 
 </Project>
