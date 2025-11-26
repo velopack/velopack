@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Build.Framework;
@@ -64,24 +65,35 @@ public class PublishTask : MSBuildAsyncTask
 
     private string[] BuildPublishArguments()
     {
-        /*
-        var builder = new ArgumentBuilder();
-        
-        // Add flow publish command
-        builder.AddCommand("flow");
-        builder.AddCommand("publish");
+        IEnumerable<string> GetArguments()
+        {
+            yield return "flow";
+            yield return "publish";
 
-        // Required arguments
-        builder.AddOption("--outputDir", ReleaseDirectory);
+            if (!string.IsNullOrWhiteSpace(ReleaseDirectory))
+            {
+                yield return "--outputDir";
+                yield return ReleaseDirectory;
+            }
 
-        // Optional arguments
-        builder.AddOption("--channel", Channel);
-        
-        // Wait for live flag
-        builder.AddOption("--waitForLive", WaitForLive);
+            if (!string.IsNullOrWhiteSpace(Channel))
+            {
+                yield return "--channel";
+                yield return Channel!;
+            }
 
-        return builder.Build();
-        */
-        return [];
+            if (!string.IsNullOrWhiteSpace(Timeout))
+            {
+                yield return "--timeout";
+                yield return Timeout!;
+            }
+
+            if (WaitForLive)
+            {
+                yield return "--waitForLive";
+            }
+        }
+
+        return [..GetArguments()];
     }
 }
