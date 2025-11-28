@@ -3,8 +3,8 @@
     <VelopackPackOnPublish Condition="$(VelopackPackOnPublish) == ''">true</VelopackPackOnPublish>
     <VelopackPushOnPublish Condition="$(VelopackPushOnPublish) == ''">false</VelopackPushOnPublish>
     <!-- https://learn.microsoft.com/visualstudio/msbuild/tutorial-custom-task-code-generation?view=vs-2022&WT.mc_id=DT-MVP-5003472#changes-required-to-multitarget -->
-    <VelopackStronglyTyped_TFM Condition=" '$(MSBuildRuntimeType)' != 'Core' ">net472</VelopackStronglyTyped_TFM>
-    <VelopackStronglyTyped_TFM Condition=" '$(MSBuildRuntimeType)' == 'Core' ">net8.0</VelopackStronglyTyped_TFM>
+    <VelopackStronglyTyped_TFM Condition="'$(MSBuildRuntimeType)' != 'Core'">net472</VelopackStronglyTyped_TFM>
+    <VelopackStronglyTyped_TFM Condition="'$(MSBuildRuntimeType)' == 'Core'">net8.0</VelopackStronglyTyped_TFM>
     <VelopackBuildDll>$(MSBuildThisFileDirectory)$(VelopackStronglyTyped_TFM)\Velopack.Build.dll</VelopackBuildDll>
   </PropertyGroup>
 

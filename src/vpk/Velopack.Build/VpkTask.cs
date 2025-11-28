@@ -1,14 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Build.Framework;
+﻿using Microsoft.Build.Framework;
 
 namespace Velopack.Build;
 
 public abstract class VpkTask : MSBuildAsyncTask
 {
-    protected override sealed async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
+    protected sealed override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
     {
         try {
             var toolRunner = new VpkToolRunner(Log);
