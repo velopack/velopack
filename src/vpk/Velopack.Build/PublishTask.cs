@@ -6,7 +6,7 @@ using Microsoft.Build.Framework;
 
 namespace Velopack.Build;
 
-public class PublishTask : MSBuildAsyncTask
+public class PublishTask : VpkTask
 {
     [Required]
     public string ReleaseDirectory { get; set; } = "";
@@ -21,79 +21,49 @@ public class PublishTask : MSBuildAsyncTask
 
     public bool WaitForLive { get; set; }
 
-    protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
+    protected override Dictionary<string, string> BuildEnvironmentVariables()
     {
-        try {
-            // Resolve VPK tool
-            var toolRunner = new VpkToolRunner(Log);
-
-            // Build VPK flow publish command arguments
-            var args = BuildPublishArguments();
-
-            // Setup environment variables for API configuration
-            var envVars = new System.Collections.Generic.Dictionary<string, string>();
-            if (!string.IsNullOrWhiteSpace(ServiceUrl))
-            {
-                envVars["VPK_FLOW_SERVICE_URL"] = ServiceUrl!;
-            }
-            if (!string.IsNullOrWhiteSpace(ApiKey))
-            {
-                envVars["VPK_FLOW_API_KEY"] = ApiKey!;
-            }
-
-            Log.LogMessage(MessageImportance.High, $"Executing: vpk publish {string.Join(" ", args)}");
-
-            // Run VPK tool
-            var exitCode = await toolRunner.RunVpk(args, envVars, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (exitCode == 0)
-            {
-                Log.LogMessage(MessageImportance.High, "Successfully published release to Velopack Flow");
-                return true;
-            }
-            else
-            {
-                Log.LogError($"VPK tool exited with code {exitCode}");
-                return false;
-            }
-        } catch (Exception ex) {
-            Log.LogErrorFromException(ex, true, true, null);
-            return false;
+        Dictionary<string, string> envVars = base.BuildEnvironmentVariables();
+        if (!string.IsNullOrWhiteSpace(ServiceUrl)) {
+            envVars["VPK_FLOW_SERVICE_URL"] = ServiceUrl!;
         }
+        if (!string.IsNullOrWhiteSpace(ApiKey)) {
+            envVars["VPK_FLOW_API_KEY"] = ApiKey!;
+        }
+        return envVars;
     }
 
-    private string[] BuildPublishArguments()
+    protected override string GetSuccesMessage()
+        => "Successfully published release to Velopack Flow";
+
+    protected override string[] BuildArguments()
     {
         IEnumerable<string> GetArguments()
         {
-            yield return "flow";
             yield return "publish";
+            yield return "--legacyConsole";
+            yield return "--yes";
 
-            if (!string.IsNullOrWhiteSpace(ReleaseDirectory))
-            {
+            if (!string.IsNullOrWhiteSpace(ReleaseDirectory)) {
                 yield return "--outputDir";
                 yield return ReleaseDirectory;
             }
 
-            if (!string.IsNullOrWhiteSpace(Channel))
-            {
+            if (!string.IsNullOrWhiteSpace(Channel)) {
                 yield return "--channel";
                 yield return Channel!;
             }
 
-            if (!string.IsNullOrWhiteSpace(Timeout))
-            {
+            if (!string.IsNullOrWhiteSpace(Timeout)) {
                 yield return "--timeout";
                 yield return Timeout!;
             }
 
-            if (WaitForLive)
-            {
+            if (WaitForLive) {
                 yield return "--waitForLive";
             }
         }
 
-        return [..GetArguments()];
+        return [.. GetArguments()];
     }
 }
