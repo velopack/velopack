@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFrameworks>net472;net8.0</TargetFrameworks>
     <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>13</LangVersion>
     <SignAssembly>false</SignAssembly>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
@@ -17,7 +18,7 @@
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <!-- TODO: we might be able to remove the entire SelfContained.targets file now -->
     <VelopackPackageSelfContained>false</VelopackPackageSelfContained>
-    <!-- Removed DevelopmentDependency to allow package dependencies -->
+    <_VelopackVpkPackLocation>tools\net8.0\any\</_VelopackVpkPackLocation>
   </PropertyGroup>
 
   <ItemGroup>
@@ -50,10 +51,18 @@
     <None Include="Velopack.Build.props" Pack="true" PackagePath="build/Velopack.Build.props" />
   </ItemGroup>
 
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>VelopackVpkPackLocation</_Parameter1>
+      <_Parameter2>$(_VelopackVpkPackLocation)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
   <!-- Include Velopack.Vpk output in the tools directory -->
   <Target Name="IncludeVpkInPackage" BeforeTargets="Build">
     <ItemGroup>
-      <None Include="$(MSBuildThisFileDirectory)..\..\..\build\$(Configuration)\net8.0\publish\**\*.*" Pack="true" PackagePath="tools\net8.0\any\" />
+      <None Include="$(MSBuildThisFileDirectory)..\..\..\build\$(Configuration)\net8.0\publish\**\*.*" Pack="true" PackagePath="$(_VelopackVpkPackLocation)" />
     </ItemGroup>
   </Target>
 
