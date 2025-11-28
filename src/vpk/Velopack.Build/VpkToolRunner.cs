@@ -20,7 +20,8 @@ public class VpkToolRunner(TaskLoggingHelper log)
     {
         string assemblyLocation = Assembly.GetExecutingAssembly().Location;
         string assemblyDirectory = Path.GetDirectoryName(assemblyLocation)!;
-        string vpkPath = Path.GetFullPath(Path.Combine(assemblyDirectory, "..", "..", "tools", "net8.0", "vpk.dll"));
+        //TODO: Make this mor dynamic
+        string vpkPath = Path.GetFullPath(Path.Combine(assemblyDirectory, "..", "..", "tools", "net8.0", "any", "vpk.dll"));
 
         if (!File.Exists(vpkPath)) {
             throw new FileNotFoundException("vpk tool not found at expected path.", vpkPath);
