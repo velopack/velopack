@@ -1,13 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using Microsoft.Build.Framework;
 
 namespace Velopack.Build;
 
-public class PackTask : MSBuildAsyncTask
+public class PackTask : VpkTask
 {
     public bool SelfContained { get; set; }
 
@@ -106,43 +102,16 @@ public class PackTask : MSBuildAsyncTask
 
     public string? MsiVersionOverride { get; set; }
 
-    protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
-    {
-        try {
-            Debugger.Launch();
-            // Resolve VPK tool
-            var toolRunner = new VpkToolRunner(Log);
+    protected override string GetSuccesMessage()
+        => $"{PackId} ({PackVersion}) created in {ReleaseDir}";
 
-            // Build VPK pack command arguments
-            var args = BuildPackArguments();
-
-            Log.LogMessage(MessageImportance.High, $"Executing: vpk pack {string.Join(" ", args)}");
-
-            // Run VPK tool
-            var exitCode = await toolRunner.RunVpk(args, null, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (exitCode == 0)
-            {
-                Log.LogMessage(MessageImportance.High, $"{PackId} ({PackVersion}) created in {ReleaseDir}");
-                return true;
-            }
-            else
-            {
-                Log.LogError($"vpk tool exited with code {exitCode}");
-                return false;
-            }
-        } catch (Exception ex) {
-            Log.LogErrorFromException(ex, true, true, null);
-            return false;
-        }
-    }
-
-    private string[] BuildPackArguments()
+    protected override string[] BuildArguments()
     {
         IEnumerable<string> GetArguments()
         {
             yield return "pack";
+            yield return "--legacyConsole";
+            yield return "--yes";
 
             if (!string.IsNullOrWhiteSpace(PackId))
             {
