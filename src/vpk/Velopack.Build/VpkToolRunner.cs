@@ -1,10 +1,6 @@
-﻿using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Reflection;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using Velopack.Util;
@@ -18,10 +14,14 @@ public class VpkToolRunner(TaskLoggingHelper log)
 {
     private static string FindVpk()
     {
-        string assemblyLocation = Assembly.GetExecutingAssembly().Location;
-        string assemblyDirectory = Path.GetDirectoryName(assemblyLocation)!;
-        //TODO: Make this mor dynamic
-        string vpkPath = Path.GetFullPath(Path.Combine(assemblyDirectory, "..", "..", "tools", "net8.0", "any", "vpk.dll"));
+        Assembly assembly = Assembly.GetExecutingAssembly();
+        string vpkPackLocation = assembly
+            .GetCustomAttributes<AssemblyMetadataAttribute>()
+            .Single(x => x.Key == "VelopackVpkPackLocation")
+            .Value ?? throw new InvalidOperationException("Could not find VPK pack location");
+
+        string assemblyDirectory = Path.GetDirectoryName(assembly.Location)!;
+        string vpkPath = Path.GetFullPath(Path.Combine(assemblyDirectory, "..", "..", vpkPackLocation, "vpk.dll"));
 
         if (!File.Exists(vpkPath)) {
             throw new FileNotFoundException("vpk tool not found at expected path.", vpkPath);
