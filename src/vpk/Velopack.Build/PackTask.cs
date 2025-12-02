@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Microsoft.Build.Framework;
 
 namespace Velopack.Build;
