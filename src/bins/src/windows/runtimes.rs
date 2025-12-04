@@ -702,6 +702,36 @@ fn test_parse_dotnet_version() {
     assert_eq!(info.architecture, RuntimeArch::X64);
     assert_eq!(info.runtime_type, DotnetRuntimeType::Sdk);
 
+    let info = parse_dotnet_version("net9").unwrap();
+    assert_eq!(info.version, "9.0.0");
+    assert_eq!(info.architecture, RuntimeArch::X64);
+    assert_eq!(info.runtime_type, DotnetRuntimeType::WindowsDesktop);
+
+    let info = parse_dotnet_version("net9.0-x86").unwrap();
+    assert_eq!(info.version, "9.0.0");
+    assert_eq!(info.architecture, RuntimeArch::X86);
+    assert_eq!(info.runtime_type, DotnetRuntimeType::WindowsDesktop);
+
+    let info = parse_dotnet_version("net9-arm64-runtime").unwrap();
+    assert_eq!(info.version, "9.0.0");
+    assert_eq!(info.architecture, RuntimeArch::Arm64);
+    assert_eq!(info.runtime_type, DotnetRuntimeType::Runtime);
+
+    let info = parse_dotnet_version("net10").unwrap();
+    assert_eq!(info.version, "10.0.0");
+    assert_eq!(info.architecture, RuntimeArch::X64);
+    assert_eq!(info.runtime_type, DotnetRuntimeType::WindowsDesktop);
+
+    let info = parse_dotnet_version("net10.0-x86").unwrap();
+    assert_eq!(info.version, "10.0.0");
+    assert_eq!(info.architecture, RuntimeArch::X86);
+    assert_eq!(info.runtime_type, DotnetRuntimeType::WindowsDesktop);
+
+    let info = parse_dotnet_version("net10-arm64-asp").unwrap();
+    assert_eq!(info.version, "10.0.0");
+    assert_eq!(info.architecture, RuntimeArch::Arm64);
+    assert_eq!(info.runtime_type, DotnetRuntimeType::AspNetCore);
+
     let info = parse_dotnet_version("net321.321.321").unwrap();
     assert_eq!(info.version, "321.321.321");
     assert_eq!(info.architecture, RuntimeArch::X64);
