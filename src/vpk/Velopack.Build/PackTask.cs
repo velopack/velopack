@@ -35,7 +35,7 @@ public class PackTask : VpkTask
 
     public string? ReleaseNotes { get; set; }
 
-    public string? DeltaMode { get; set; } = "BestSpeed";
+    public string? DeltaMode { get; set; }
 
     public string? Channel { get; set; }
 
@@ -87,7 +87,7 @@ public class PackTask : VpkTask
 
     public string? SignExclude { get; set; }
 
-    public int SignParallel { get; set; } = 10;
+    public int? SignParallel { get; set; }
 
     public string? SignTemplate { get; set; }
 
@@ -214,10 +214,10 @@ public class PackTask : VpkTask
                 yield return SignExclude!;
             }
 
-            if (SignParallel != 10)
+            if (SignParallel is { } signParallel)
             {
                 yield return "--signParallel";
-                yield return SignParallel.ToString();
+                yield return signParallel.ToString();
             }
 
             if (!string.IsNullOrWhiteSpace(Shortcuts))
