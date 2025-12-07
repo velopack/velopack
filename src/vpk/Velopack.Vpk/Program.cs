@@ -148,6 +148,7 @@ public class Program
         downloadCommand.AddRepositoryDownload<AzureDownloadCommand, AzureRepository, AzureDownloadOptions>(provider);
         downloadCommand.AddRepositoryDownload<LocalDownloadCommand, LocalRepository, LocalDownloadOptions>(provider);
         downloadCommand.AddRepositoryDownload<HttpDownloadCommand, HttpRepository, HttpDownloadOptions>(provider);
+        HideCommand(downloadCommand.AddRepositoryDownload<FlowDownloadCommand, FlowRepository, FlowDownloadOptions>(provider));
         rootCommand.Add(downloadCommand);
 
         var uploadCommand = new CliCommand("upload", "Upload local package(s) to a remote update source.");

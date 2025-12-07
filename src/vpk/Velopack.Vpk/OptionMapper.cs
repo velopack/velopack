@@ -49,6 +49,8 @@ public static partial class OptionMapper
 
     public static partial AzureUploadOptions ToOptions(this AzureUploadCommand cmd);
 
+    public static partial FlowDownloadOptions ToOptions(this FlowDownloadCommand cmd);
+
     public static partial DeltaGenOptions ToOptions(this DeltaGenCommand cmd);
 
     public static partial DeltaPatchOptions ToOptions(this DeltaPatchCommand cmd);
