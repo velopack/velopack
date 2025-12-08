@@ -14,7 +14,7 @@
   <PropertyGroup>
     <VelopackPackageId>Velopack.Build</VelopackPackageId>
     <VelopackPackageVendorLibs>true</VelopackPackageVendorLibs>
-    <PackRustAssets>true</PackRustAssets>
+    <PackRustAssets>false</PackRustAssets>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <!-- TODO: we might be able to remove the entire SelfContained.targets file now -->
     <VelopackPackageSelfContained>false</VelopackPackageSelfContained>
