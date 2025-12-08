@@ -56,6 +56,11 @@ jobs:
         run: |
           pip install uv
         if: ${{ matrix.sample == 'PythonWXPython' }}
+      - name: Install wxPython
+        working-directory: samples/${{ matrix.sample }}
+        run: |
+          pip install -U wxPython
+        if: ${{ matrix.sample == 'PythonWXPython' && matrix.os == 'macos-latest' }}
       - name: Refresh uv.lock for wxPython
         working-directory: samples/${{ matrix.sample }}
         run: |
