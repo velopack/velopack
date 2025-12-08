@@ -1,4 +1,6 @@
-﻿namespace Velopack.Build.Tests;
+﻿using Velopack.Packaging.Compression;
+
+namespace Velopack.Build.Tests;
 
 public class PackTaskTests
 {
@@ -106,7 +108,7 @@ public class PackTaskTests
             PackTitle = "Complex Application Title",
             Icon = "app.ico",
             ReleaseNotes = "release-notes.md",
-            DeltaMode = "BestSize",
+            DeltaMode = DeltaMode.BestSize,
             Channel = "stable",
             Exclude = @".*\.(pdb|xml)",
             Runtimes = "net8-x64-desktop",

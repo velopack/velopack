@@ -8,6 +8,11 @@ public abstract class VpkTask : MSBuildAsyncTask
     {
         try {
             var toolRunner = new VpkToolRunner(Log);
+            
+            if (!await PreExecuteAsync(toolRunner, cancellationToken).ConfigureAwait(false)) {
+                return false;
+            }
+            
             var args = BuildArguments();
 
             Dictionary<string, string> envVars = BuildEnvironmentVariables();
@@ -28,6 +33,11 @@ public abstract class VpkTask : MSBuildAsyncTask
             Log.LogErrorFromException(ex, true, true, null);
             return false;
         }
+    }
+
+    protected virtual Task<bool> PreExecuteAsync(VpkToolRunner toolRunner, CancellationToken cancellationToken)
+    {
+        return Task.FromResult(true);
     }
 
     protected abstract string GetSuccesMessage();

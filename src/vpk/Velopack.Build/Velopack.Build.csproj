@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <Compile Include="..\..\lib-csharp\Util\ProcessExtensions.Shared.cs" Link="ProcessExtensions.Shared.cs" />
+    <Compile Include="..\Velopack.Packaging\Compression\DeltaMode.cs" Link="DeltaMode.cs" />
   </ItemGroup>
 
   <ItemGroup>
