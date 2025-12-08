@@ -1,4 +1,5 @@
 ﻿using Microsoft.Build.Framework;
+using Velopack.Packaging.Compression;
 
 namespace Velopack.Build;
 
@@ -35,7 +36,7 @@ public class PackTask : VpkTask
 
     public string? ReleaseNotes { get; set; }
 
-    public string? DeltaMode { get; set; }
+    public DeltaMode DeltaMode { get; set; }
 
     public string? Channel { get; set; }
 
@@ -100,6 +101,57 @@ public class PackTask : VpkTask
     public bool BuildMsi { get; set; }
 
     public string? MsiVersionOverride { get; set; }
+
+    public string? VelopackBaseUrl { get; set; }
+
+    public double Timeout { get; set; } = 30d;
+
+    protected override async Task<bool> PreExecuteAsync(VpkToolRunner toolRunner, CancellationToken cancellationToken)
+    {
+        if (DeltaMode == DeltaMode.None)
+        {
+            return true;
+        }
+
+        Log.LogMessage(MessageImportance.High, "DeltaMode is enabled, downloading latest release from Velopack Flow...");
+
+        var args = new List<string>
+        {
+            "download",
+            "flow",
+            "--legacyConsole",
+            "--yes",
+            "--packageId",
+            PackId,
+            "--outputDir",
+            ReleaseDir,
+            "--timeout",
+            Timeout.ToString()
+        };
+
+        if (!string.IsNullOrWhiteSpace(Channel))
+        {
+            args.Add("--channel");
+            args.Add(Channel!);
+        }
+
+        if (!string.IsNullOrWhiteSpace(VelopackBaseUrl))
+        {
+            args.Add("--baseUrl");
+            args.Add(VelopackBaseUrl!);
+        }
+
+        Log.LogMessage(MessageImportance.High, $"Executing: vpk {string.Join(" ", args)}");
+
+        var exitCode = await toolRunner.RunVpk(args, [], cancellationToken).ConfigureAwait(false);
+
+        if (exitCode != 0)
+        {
+            Log.LogWarning($"Failed to download latest release from Velopack Flow (exit code {exitCode}). Delta generation may not work correctly.");
+        }
+
+        return true;
+    }
 
     protected override string GetSuccesMessage()
         => $"{PackId} ({PackVersion}) created in {ReleaseDir}";
@@ -166,10 +218,10 @@ public class PackTask : VpkTask
                 yield return ReleaseNotes!;
             }
 
-            if (!string.IsNullOrWhiteSpace(DeltaMode))
+            if (DeltaMode != DeltaMode.None)
             {
                 yield return "--delta";
-                yield return DeltaMode!;
+                yield return DeltaMode.ToString();
             }
 
             if (!string.IsNullOrWhiteSpace(Channel))
