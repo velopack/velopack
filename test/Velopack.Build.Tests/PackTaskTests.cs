@@ -108,7 +108,7 @@ public class PackTaskTests
             PackTitle = "Complex Application Title",
             Icon = "app.ico",
             ReleaseNotes = "release-notes.md",
-            DeltaMode = DeltaMode.BestSize,
+            DeltaMode = nameof(DeltaMode.BestSize),
             Channel = "stable",
             Exclude = @".*\.(pdb|xml)",
             Runtimes = "net8-x64-desktop",
