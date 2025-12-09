@@ -1,4 +1,4 @@
-﻿namespace Velopack.Flow.Commands;
+namespace Velopack.Flow.Commands;
 
 public sealed class PublishOptions : VelopackFlowServiceOptions
 {
@@ -11,4 +11,6 @@ public sealed class PublishOptions : VelopackFlowServiceOptions
     public bool WaitForLive { get; set; }
 
     public int TieredRolloutPercentage { get; set; } = 100;
+
+    public bool SkipDuplicate { get; set; }
 }
