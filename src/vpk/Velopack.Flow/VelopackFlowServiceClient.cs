@@ -454,13 +454,16 @@ public class VelopackFlowServiceClient(
         return null;
     }
 
-    private static async Task<AuthenticationResult?> AcquireInteractiveAsync(IPublicClientApplication pca, AuthConfiguration authConfiguration,
+    private async Task<AuthenticationResult?> AcquireInteractiveAsync(IPublicClientApplication pca, AuthConfiguration authConfiguration,
         CancellationToken cancellationToken)
     {
         try {
+            
             return await pca.AcquireTokenInteractive(Scopes)
                 .WithB2CAuthority(authConfiguration.B2CAuthority)
                 .ExecuteAsync(cancellationToken);
+        } catch(MsalException e) when (e.ErrorCode == "http_listener_error") {
+            Logger.LogError("An error occured listening for login: {Error}", e.Message);
         } catch (MsalException) {
         }
 
