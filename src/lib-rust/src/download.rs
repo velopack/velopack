@@ -67,7 +67,8 @@ fn test_download_uses_tls_and_encoding_correctly() {
 #[test]
 fn test_download_file_reports_progress() {
     // https://www.ip-toolbox.com/speedtest-files/
-    let test_file = "https://proof.ovh.net/files/10Mb.dat";
+    //"https://proof.ovh.net/files/10Mb.dat"
+    let test_file = "https://velopacktesting.blob.core.windows.net/ci-test-files/10Mb.dat";
     let mut prog_count = 0;
     let mut last_prog = 0;
 
