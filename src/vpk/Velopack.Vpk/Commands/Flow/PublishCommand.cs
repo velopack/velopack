@@ -1,4 +1,4 @@
-﻿namespace Velopack.Vpk.Commands.Flow;
+namespace Velopack.Vpk.Commands.Flow;
 
 #nullable enable
 public class PublishCommand : VelopackServiceCommand
@@ -10,6 +10,8 @@ public class PublishCommand : VelopackServiceCommand
     public bool WaitForLive { get; set; }
 
     public int TieredRolloutPercentage { get; set; }
+
+    public bool SkipDuplicate { get; set; }
 
     public PublishCommand()
         : base("publish", "Uploads a release to Velopack's hosted service")
@@ -28,6 +30,10 @@ public class PublishCommand : VelopackServiceCommand
         AddOption<int>(v => TieredRolloutPercentage = v, ["--rolloutPercentage"])
             .SetDescription("Set the starting percentage for this release when using a tiered rollout. Range 0 to 100")
             .SetArgumentHelpName("PERCENT")
-            .SetDefault(100);
+            .SetDefault(100)
+            .SetValidRange(0, 100);
+
+        AddOption<bool>(v => SkipDuplicate = v, "--skip-duplicate")
+            .SetDescription("Skip publishing if the version already exists in Velopack Flow.");
     }
 }

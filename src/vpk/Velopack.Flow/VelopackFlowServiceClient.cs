@@ -125,7 +125,7 @@ public class VelopackFlowServiceClient(
     }
 
     public async Task UploadLatestReleaseAssetsAsync(string? channel, string releaseDirectory,
-        RuntimeOs os, bool waitForLive, int tieredRolloutPercentage, CancellationToken cancellationToken)
+        RuntimeOs os, bool waitForLive, int tieredRolloutPercentage, bool skipDuplicate, CancellationToken cancellationToken)
     {
         AssertAuthenticated();
 
@@ -150,6 +150,15 @@ public class VelopackFlowServiceClient(
         Logger.LogInformation("Beginning upload to Velopack Flow");
 
         FlowApi client = GetFlowApi();
+
+        // Check if version already exists when skipDuplicate is enabled
+        if (skipDuplicate) {
+            var existingVersion = await CheckExistingVersionAsync(client, packageId, channel, version, cancellationToken);
+            if (existingVersion) {
+                Logger.LogInformation("Version {Version} already exists in channel {Channel}. Skipping publish due to --skip-duplicate flag.", version, channel);
+                return;
+            }
+        }
 
         try {
             await Console.ExecuteProgressAsync(
@@ -255,6 +264,20 @@ public class VelopackFlowServiceClient(
             } else {
                 throw;
             }
+        }
+    }
+
+    private async Task<bool> CheckExistingVersionAsync(FlowApi client, string packageId, string channel, SemanticVersion version, CancellationToken cancellationToken)
+    {
+        try {
+            // Use a HEAD request to check if the version exists without downloading the file
+            var httpClient = GetHttpClient();
+            var url = $"{client.BaseUrl}v1/download/{Uri.EscapeDataString(packageId)}/{Uri.EscapeDataString(channel)}/{Uri.EscapeDataString(version.ToNormalizedString())}?assetType=Full";
+            using var request = new HttpRequestMessage(HttpMethod.Head, url);
+            using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            return response.IsSuccessStatusCode;
+        } catch (HttpRequestException) {
+            return false;
         }
     }
 
