@@ -36,7 +36,7 @@ public class PackTask : VpkTask
 
     public string? ReleaseNotes { get; set; }
 
-    public DeltaMode DeltaMode { get; set; }
+    public string? DeltaMode { get; set; }
 
     public string? Channel { get; set; }
 
@@ -110,7 +110,7 @@ public class PackTask : VpkTask
 
     protected override async Task<bool> PreExecuteAsync(VpkToolRunner toolRunner, CancellationToken cancellationToken)
     {
-        if (DeltaMode == DeltaMode.None)
+        if (DeltaMode == nameof(Velopack.Packaging.Compression.DeltaMode.None))
         {
             return true;
         }
@@ -220,10 +220,10 @@ public class PackTask : VpkTask
                 yield return ReleaseNotes!;
             }
 
-            if (DeltaMode != DeltaMode.None)
+            if (!string.IsNullOrEmpty(DeltaMode))
             {
                 yield return "--delta";
-                yield return DeltaMode.ToString();
+                yield return DeltaMode;
             }
 
             if (!string.IsNullOrWhiteSpace(Channel))
