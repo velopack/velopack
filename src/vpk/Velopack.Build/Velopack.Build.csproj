@@ -7,8 +7,8 @@
     <LangVersion>13</LangVersion>
     <SignAssembly>false</SignAssembly>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
-    <GenerateNuspecDependsOn>$(GenerateNuspecDependsOn);IncludeVpkInPackage</GenerateNuspecDependsOn>
-    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);IncludeTfmDependenciesInPackage</TargetsForTfmSpecificContentInPackage>
+    <GenerateNuspecDependsOn>$(GenerateNuspecDependsOn);PublishVpkForPackage</GenerateNuspecDependsOn>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);IncludeTfmDependenciesInPackage;IncludeVpkInPackage</TargetsForTfmSpecificContentInPackage>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -60,17 +60,30 @@
     </AssemblyAttribute>
   </ItemGroup>
 
-  <!-- Include Velopack.Vpk output in the tools directory -->
-  <Target Name="IncludeVpkInPackage" BeforeTargets="Build">
+  <!-- Publish Velopack.Vpk and include output in the tools directory -->
+  <Target Name="PublishVpkForPackage" BeforeTargets="IncludeVpkInPackage" Condition="'$(TargetFramework)' == 'net8.0'">
+    <MSBuild Projects="$(MSBuildThisFileDirectory)..\Velopack.Vpk\Velopack.Vpk.csproj"
+             Targets="Publish"
+             Properties="Configuration=$(Configuration);TargetFramework=net8.0;PublishDir=$(MSBuildThisFileDirectory)..\..\..\build\$(Configuration)\net8.0\publish\" />
+  </Target>
+
+  <Target Name="IncludeVpkInPackage" Condition="'$(TargetFramework)' == 'net8.0'">
     <ItemGroup>
-      <None Include="$(MSBuildThisFileDirectory)..\..\..\build\$(Configuration)\net8.0\publish\**\*.*" Pack="true" PackagePath="$(_VelopackVpkPackLocation)" />
+      <_VpkPublishFiles Include="$(MSBuildThisFileDirectory)..\..\..\build\$(Configuration)\net8.0\publish\**\*.*" />
+      <TfmSpecificPackageFile Include="@(_VpkPublishFiles)">
+        <PackagePath>$(_VelopackVpkPackLocation)%(RecursiveDir)</PackagePath>
+      </TfmSpecificPackageFile>
     </ItemGroup>
   </Target>
 
   <Target Name="IncludeTfmDependenciesInPackage">
     <ItemGroup>
-      <TfmSpecificPackageFile Include="$(TargetDir)**/*.*">
+      <!-- Exclude the publish folder and vpk files as vpk is packaged separately in tools folder -->
+      <TfmSpecificPackageFile Include="$(TargetDir)*.*" Exclude="$(TargetDir)vpk.*;$(TargetDir)Velopack.Core.*;$(TargetDir)Velopack.Packaging.*;$(TargetDir)Velopack.Deployment.*;$(TargetDir)Velopack.Flow.*;$(TargetDir)Velopack.IcoLib.*;$(TargetDir)Velopack.Packaging.Unix.*;$(TargetDir)Velopack.Packaging.Windows.*">
         <PackagePath>build\$(TargetFramework)</PackagePath>
+      </TfmSpecificPackageFile>
+      <TfmSpecificPackageFile Include="$(TargetDir)runtimes\**\*.*">
+        <PackagePath>build\$(TargetFramework)\runtimes</PackagePath>
       </TfmSpecificPackageFile>
     </ItemGroup>
   </Target>
