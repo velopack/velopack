@@ -95,14 +95,14 @@ unsafe fn unsafe_update_app_manifest_lnks(next_app: &VelopackLocator, previous_a
     let app_id = next_app.get_manifest_id();
     let app_title = next_app.get_manifest_title();
     let app_authors = next_app.get_manifest_authors();
-    let app_model_id: Option<String> = next_app.get_manifest_shortcut_amuid();
+    let app_model_id: Option<String> = next_app.get_manifest_shortcut_aumid();
     let app_main_exe = next_app.get_main_exe_path_as_string();
     let app_work_dir = next_app.get_current_bin_dir_as_string();
 
     info!("App Model ID: {:?}", app_model_id);
     let mut current_shortcuts = unsafe_get_shortcuts_for_root_dir(root_path);
 
-    // update all existing shortcuts, verify target/workdir/amuid and icon is correct.
+    // update all existing shortcuts, verify target/workdir/aumid and icon is correct.
     info!("Will update all current shortcuts: {:?}", current_shortcuts);
 
     for (flag, lnk) in current_shortcuts.iter_mut() {

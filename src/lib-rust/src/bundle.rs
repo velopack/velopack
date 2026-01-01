@@ -352,7 +352,7 @@ pub struct Manifest {
     pub os_min_version: String,
     pub channel: String,
     pub shortcut_locations: String,
-    pub shortcut_amuid: String,
+    pub shortcut_aumid: String,
     pub release_notes: String,
     pub release_notes_html: String,
 }
@@ -397,8 +397,8 @@ pub fn read_manifest_from_string(xml: &str) -> Result<Manifest, Error> {
                     obj.channel = text;
                 } else if el_name == "shortcutLocations" {
                     obj.shortcut_locations = text;
-                } else if el_name == "shortcutAmuid" {
-                    obj.shortcut_amuid = text;
+                } else if el_name == "shortcutAumid" {
+                    obj.shortcut_aumid = text;
                 } else if el_name == "releaseNotes" {
                     obj.release_notes = text;
                 } else if el_name == "releaseNotesHtml" {

@@ -264,12 +264,12 @@ impl VelopackLocator {
         ShortcutLocationFlags::from_string(&self.manifest.shortcut_locations)
     }
 
-    /// Returns the desired shortcut AMUID, or None if no AMUID has been provided.
-    pub fn get_manifest_shortcut_amuid(&self) -> Option<String> {
-        if self.manifest.shortcut_amuid.is_empty() {
+    /// Returns the desired shortcut AUMID, or None if no AUMID has been provided.
+    pub fn get_manifest_shortcut_aumid(&self) -> Option<String> {
+        if self.manifest.shortcut_aumid.is_empty() {
             return None;
         }
-        Some(self.manifest.shortcut_amuid.clone())
+        Some(self.manifest.shortcut_aumid.clone())
     }
 
     /// Returns a copy of the current VelopackLocator with the manifest field set to the given manifest.
