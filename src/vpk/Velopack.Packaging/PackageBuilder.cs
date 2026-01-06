@@ -206,11 +206,11 @@ public abstract class PackageBuilder<T> : ICommand<T>
         void addMetadata(string key, string value)
         {
             if (!String.IsNullOrEmpty(key) && !String.IsNullOrEmpty(value)) {
-                value = SecurityElement.Escape(value);
-
-                if (!SecurityElement.IsValidText(value)) {
-                    value = $"""<![CDATA[{"\n"}{value}{"\n"}]]>""";
-                }
+                // Always use CDATA to preserve content exactly as-is (prevents double-escaping)
+                // and to avoid XML injection. Only need to handle ]]> which terminates CDATA.
+                // Standard approach: split ]]> into ]]]]><![CDATA[>
+                value = value.Replace("]]>", "]]]]><![CDATA[>");
+                value = $"""<![CDATA[{"\n"}{value}{"\n"}]]>""";
 
                 extraMetadata += $"<{key}>{value}</{key}>{Environment.NewLine}";
             }
