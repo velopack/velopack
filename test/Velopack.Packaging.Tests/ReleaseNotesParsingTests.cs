@@ -122,6 +122,17 @@ public class ReleaseNotesParsingTests
     }
 
     [Fact]
+    public void DebugCDataSequence()
+    {
+        // Test specifically for ]]> preservation
+        var notes = "Before]]>After";
+        ValidateReleaseNotesInNuspec(notes);
+
+        // If this test passes, ]]> is preserved exactly
+        _output.WriteLine($"Test passed: ']]>' sequence is preserved correctly");
+    }
+
+    [Fact]
     public void WithVariousProblematicContent()
     {
         // Comprehensive test combining all edge cases that could break XML parsing:
@@ -185,6 +196,40 @@ For questions, contact support@example.com & check docs.";
             lines.Add("");
         }
         var notes = string.Join(Environment.NewLine, lines);
+
+        ValidateReleaseNotesInNuspec(notes);
+    }
+
+    [Fact]
+    public void WithPreEscapedContent()
+    {
+        // Test that pre-escaped HTML entities are preserved correctly
+        var notes = @"## Copyright Notice
+Copyright &copy; 2026 My Company &trade;
+
+## Special Characters
+- Registered: &reg;
+- Ampersand: &amp;
+- Less than: &lt;
+- Greater than: &gt;
+- Quote: &quot;
+
+These should remain as HTML entities, not be double-escaped.";
+
+        ValidateReleaseNotesInNuspec(notes);
+    }
+
+    [Fact]
+    public void WithCDataTerminator()
+    {
+        // Test that ]]> is properly handled (it terminates CDATA sections)
+        var notes = @"## CDATA Edge Case
+
+This content contains ]]> which would normally terminate a CDATA section.
+
+Multiple cases: ]]> and then ]]> again.
+
+Also test: ]] without > and > without ]].";
 
         ValidateReleaseNotesInNuspec(notes);
     }
