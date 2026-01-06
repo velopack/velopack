@@ -206,6 +206,8 @@ public abstract class PackageBuilder<T> : ICommand<T>
         void addMetadata(string key, string value)
         {
             if (!String.IsNullOrEmpty(key) && !String.IsNullOrEmpty(value)) {
+                value = SecurityElement.Escape(value);
+
                 if (!SecurityElement.IsValidText(value)) {
                     value = $"""<![CDATA[{"\n"}{value}{"\n"}]]>""";
                 }
