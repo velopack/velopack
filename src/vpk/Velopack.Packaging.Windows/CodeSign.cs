@@ -88,7 +88,9 @@ public class CodeSign
             if (VelopackRuntimeInfo.IsWindows) {
                 filesToSignStr = String.Join(" ", filesToSign.Select(f => $"\"{f}\""));
             } else {
+                // For Linux: use single quotes and escape special characters for bash
                 filesToSignStr = String.Join(" ", filesToSign.Select(f => $"'{f}'"));
+                signArguments = EscapeForBash(signArguments);
             }
 
             string command;
@@ -123,8 +125,7 @@ public class CodeSign
 
         if (!VelopackRuntimeInfo.IsWindows) {
             fileName = "/bin/bash";
-            string escapedCommand = command.Replace("'", "'\\''");
-            args = $"-c \"{escapedCommand} >> \\\"{signLogFile}\\\" 2>&1\"";
+            args = $"-c \"{command} >> \\\"{signLogFile}\\\" 2>&1\"";
         }
 
         var psi = new ProcessStartInfo {
@@ -145,5 +146,14 @@ public class CodeSign
                 $"Signing command failed. Specify --verbose argument to print signing command." + Environment.NewLine +
                 $"Output was:" + Environment.NewLine + output);
         }
+    }
+
+    private string EscapeForBash(string filePath)
+    {
+        return filePath.Replace("$", "\\$")
+                       .Replace("`", "\\`")
+                       .Replace("\"", "\\\"")
+                       .Replace("'", "\\'")
+                       .Replace("\\", "\\\\");
     }
 }
