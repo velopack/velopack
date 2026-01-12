@@ -84,7 +84,12 @@ public class CodeSign
                 filesToSign.Add(pendingSign.Dequeue());
             }
 
-            var filesToSignStr = String.Join(" ", filesToSign.Select(f => $"\"{f}\""));
+            string filesToSignStr;
+            if (VelopackRuntimeInfo.IsWindows) {
+                filesToSignStr = String.Join(" ", filesToSign.Select(f => $"\"{f}\""));
+            } else {
+                filesToSignStr = String.Join(" ", filesToSign.Select(f => $"'{f}'"));
+            }
 
             string command;
             if (signAsTemplate) {
