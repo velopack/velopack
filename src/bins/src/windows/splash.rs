@@ -61,8 +61,10 @@ pub struct SplashWindow {
     delay: u16,
     progress: Rc<RefCell<i16>>,
     frame_idx: Rc<RefCell<usize>>,
-    w: u16,
-    h: u16,
+    w: u16,              // original bitmap width
+    h: u16,              // original bitmap height
+    scaled_w: u16,       // DPI-scaled window width
+    scaled_h: u16,       // DPI-scaled window height
     no_progress_bar: bool,
     progress_bar_color: (u8, u8, u8),
 }
@@ -71,6 +73,17 @@ fn average(numbers: &[u16]) -> u16 {
     let sum: u16 = numbers.iter().sum();
     let count = numbers.len() as u16;
     sum / count
+}
+
+fn get_dpi_scale() -> f32 {
+    // Get system DPI - standard DPI is 96
+    unsafe {
+        use windows::Win32::UI::HiDpi::{GetDpiForSystem, SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2};
+        // Ensure DPI awareness is set (in case manifest didn't work)
+        let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        let dpi = GetDpiForSystem();
+        dpi as f32 / 96.0
+    }
 }
 
 fn parse_hex_color(color_str: &str) -> (u8, u8, u8) {
@@ -156,13 +169,19 @@ impl SplashWindow {
         // support a variable frame delay in the future.
         let delay = average(&delays);
 
+        // Calculate DPI-scaled dimensions
+        let dpi_scale = get_dpi_scale();
+        let scaled_w = (w as f32 * dpi_scale) as u16;
+        let scaled_h = (h as f32 * dpi_scale) as u16;
+        info!("DPI scale: {}, window size: {}x{} -> {}x{}", dpi_scale, w, h, scaled_w, scaled_h);
+
         let wnd = gui::WindowMain::new(gui::WindowMainOpts {
             class_icon: gui::Icon::Idi(co::IDI::APPLICATION),
             class_cursor: gui::Cursor::Idc(co::IDC::APPSTARTING),
             class_style: co::CS::HREDRAW | co::CS::VREDRAW,
             class_name: "VelopackSetupSplashWindow".to_owned(),
             title: app_name,
-            size: (w.into(), h.into()),
+            size: (scaled_w.into(), scaled_h.into()),
             ex_style: co::WS_EX::LAYERED | co::WS_EX::TOPMOST,
             style: co::WS::POPUP,
             ..Default::default()
@@ -173,7 +192,7 @@ impl SplashWindow {
         let progress = Rc::new(RefCell::new(0));
         let frame_idx = Rc::new(RefCell::new(0));
         let progress_bar_color = parse_hex_color(progress_bar_color);
-        let mut new_self = Self { wnd, frames, delay, frame_idx, w, h, rx, progress, no_progress_bar, progress_bar_color };
+        let mut new_self = Self { wnd, frames, delay, frame_idx, w, h, scaled_w, scaled_h, rx, progress, no_progress_bar, progress_bar_color };
         new_self.events();
         Ok(new_self)
     }
@@ -226,10 +245,7 @@ impl SplashWindow {
         self.wnd.on().wm_paint(move || {
             // initial setup
             let hwnd = self2.wnd.hwnd();
-            let rect = hwnd.GetClientRect()?;
             let _hdc = hwnd.BeginPaint()?;
-            let _w = rect.right - rect.left;
-            let _h = rect.bottom - rect.top;
             let desktop = w::HWND::GetDesktopWindow();
             let hdc_screen = desktop.GetDC()?;
 
@@ -241,18 +257,57 @@ impl SplashWindow {
                 *idx = 0;
             }
 
-            // create memory DC with the frame bitmap
-            let hdc_mem = hdc_screen.CreateCompatibleDC()?;
-            let _bitmap_old = hdc_mem.SelectObject(h_bitmap)?;
+            // create memory DC with the original frame bitmap
+            let hdc_src = hdc_screen.CreateCompatibleDC()?;
+            let _src_old = hdc_src.SelectObject(h_bitmap)?;
 
-            // draw progress bar on top of the bitmap (if enabled)
+            // create a scaled bitmap for the output
+            let hdc_dest = hdc_screen.CreateCompatibleDC()?;
+            let scaled_bitmap = hdc_screen.CreateCompatibleBitmap(self2.scaled_w.into(), self2.scaled_h.into())?;
+            let _dest_old = hdc_dest.SelectObject(&*scaled_bitmap)?;
+
+            // stretch the original bitmap to the scaled size
+            hdc_dest.SetStretchBltMode(co::STRETCH_MODE::STRETCH_HALFTONE)?;
+
+            unsafe {
+                use windows::Win32::Graphics::Gdi::{AlphaBlend, AC_SRC_OVER, AC_SRC_ALPHA, BLENDFUNCTION, HDC};
+
+                // Use AlphaBlend to preserve alpha channel during scaling
+                let blend_fn = BLENDFUNCTION {
+                    BlendOp: AC_SRC_OVER as u8,
+                    BlendFlags: 0,
+                    SourceConstantAlpha: 255,
+                    AlphaFormat: AC_SRC_ALPHA as u8,
+                };
+
+                let result = AlphaBlend(
+                    HDC(hdc_dest.ptr() as _),
+                    0, 0,
+                    self2.scaled_w as i32, self2.scaled_h as i32,
+                    HDC(hdc_src.ptr() as _),
+                    0, 0,
+                    self2.w as i32, self2.h as i32,
+                    blend_fn,
+                );
+                if !result.as_bool() {
+                    warn!("AlphaBlend failed");
+                }
+            }
+
+            // draw progress bar on top of the scaled bitmap (if enabled)
             if !self2.no_progress_bar {
                 let progress = self2.progress.borrow();
                 let (r, g, b) = self2.progress_bar_color;
                 let progress_brush = w::HBRUSH::CreateSolidBrush(w::COLORREF::new(r, g, b))?;
-                let progress_width = (self2.w as f32 * (*progress as f32 / 100.0)) as i32;
-                let progress_rect = w::RECT { left: 0, bottom: self2.h.into(), right: progress_width, top: self2.h as i32 - 10 };
-                hdc_mem.FillRect(progress_rect, &progress_brush)?;
+                let progress_width = (self2.scaled_w as f32 * (*progress as f32 / 100.0)) as i32;
+                let progress_height = 10.max((self2.scaled_h as f32 * 0.02) as i32); // Scale progress bar height (min 10px)
+                let progress_rect = w::RECT {
+                    left: 0,
+                    bottom: self2.scaled_h.into(),
+                    right: progress_width,
+                    top: self2.scaled_h as i32 - progress_height
+                };
+                hdc_dest.FillRect(progress_rect, &progress_brush)?;
             }
 
             // Use UpdateLayeredWindow for true transparency with per-pixel alpha
@@ -269,8 +324,8 @@ impl SplashWindow {
                 };
 
                 let size = SIZE {
-                    cx: self2.w as i32,
-                    cy: self2.h as i32,
+                    cx: self2.scaled_w as i32,
+                    cy: self2.scaled_h as i32,
                 };
 
                 let pt_src = POINT { x: 0, y: 0 };
@@ -280,7 +335,7 @@ impl SplashWindow {
                     None,
                     None,
                     Some(&size),
-                    Some(HDC(hdc_mem.ptr() as _)),
+                    Some(HDC(hdc_dest.ptr() as _)),
                     Some(&pt_src),
                     COLORREF(0),
                     Some(&blend_fn),
