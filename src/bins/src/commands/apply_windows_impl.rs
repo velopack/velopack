@@ -212,6 +212,25 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
 
         // done!
         info!("Package applied successfully.");
+
+        // Sync Update.exe to root directory if we're running from a different location
+        let default_update_exe = root_path.join("Update.exe");
+        let current_update_exe = std::env::current_exe()?;
+
+        if default_update_exe != current_update_exe {
+            if default_update_exe.exists() {
+                info!("Running from non-default location. Attempting to update default Update.exe at: {:?}", default_update_exe);
+                match std::fs::copy(&current_update_exe, &default_update_exe) {
+                    Ok(_) => info!("Successfully updated default Update.exe"),
+                    Err(e) => warn!("Failed to update default Update.exe: {} (non-fatal)", e),
+                }
+            } else {
+                info!("Default Update.exe does not exist, skipping update");
+            }
+        } else {
+            info!("Running from default location ({:?}), no Update.exe sync needed", default_update_exe);
+        }
+
         Ok(())
     })();
 

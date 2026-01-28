@@ -125,19 +125,29 @@ namespace Velopack.Locators
 
             // Determine if we should use embedded packages (inside RootAppDir) or external packages (in AppData)
             // EmbeddedPackagesDir = IsPortable || RootAppDir is inside AppDataDir
+            initLog.Info($"Evaluating packages directory location. RootAppDir: {RootAppDir}, AppDataDir: {AppDataDir}");
+
             var wouldBeEmbedded = false;
             if (IsPortable) {
-                initLog.Info("Portable install detected (.portable file present)");
+                initLog.Info("Portable install detected (.portable file present), using embedded packages");
                 wouldBeEmbedded = true;
             } else if (RootAppDir != null && AppDataDir != null && PathUtil.IsFileInDirectory(RootAppDir, AppDataDir)) {
-                initLog.Info("Root directory is inside AppData, using embedded packages directory");
+                initLog.Info($"Root directory '{RootAppDir}' is inside AppData '{AppDataDir}', using embedded packages");
                 wouldBeEmbedded = true;
+            } else {
+                if (RootAppDir == null) {
+                    initLog.Info("RootAppDir is null, using external packages");
+                } else if (AppDataDir == null) {
+                    initLog.Info("AppDataDir is null, using external packages");
+                } else {
+                    initLog.Info($"Root directory '{RootAppDir}' is NOT inside AppData '{AppDataDir}', using external packages");
+                }
             }
 
             // If embedded, verify we can actually write to the directory
             if (RootAppDir != null) {
                 var isWritable = PathUtil.IsDirectoryWritable(RootAppDir);
-                initLog.Info($"Root directory writable: {isWritable}");
+                initLog.Info($"Root directory '{RootAppDir}' writable: {isWritable}");
 
                 if (wouldBeEmbedded && !isWritable) {
                     initLog.Warn("Root directory is not writable, switching to external packages directory");
@@ -148,9 +158,9 @@ namespace Velopack.Locators
             _embeddedPackagesDir = wouldBeEmbedded;
 
             if (_embeddedPackagesDir) {
-                initLog.Info($"Using embedded packages directory: {PackagesDir}");
+                initLog.Info($"DECISION: Using embedded packages directory: {PackagesDir}");
             } else {
-                initLog.Info($"Using external packages directory: {PackagesDir}");
+                initLog.Info($"DECISION: Using external packages directory: {PackagesDir}");
             }
 
             var logFilePath = Path.Combine(Path.GetTempPath(), DefaultLoggingFileName);
