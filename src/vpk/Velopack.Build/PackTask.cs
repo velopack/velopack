@@ -80,9 +80,7 @@ public class PackTask : MSBuildAsyncTask
 
     public string? SplashImage { get; set; }
 
-    public bool NoProgressBar { get; set; }
-
-    public string? ProgressBarColor { get; set; }
+    public string? SplashProgressColor { get; set; }
 
     public bool SkipVelopackAppCheck { get; set; }
 

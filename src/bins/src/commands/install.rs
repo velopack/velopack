@@ -131,8 +131,7 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
                 manifest.title,
                 splash_bytes,
                 windows::splash::SplashOptions {
-                    no_progress_bar: manifest.no_progress_bar,
-                    progress_bar_color: Some(manifest.progress_bar_color),
+                    splash_progress_color: Some(manifest.splash_progress_color),
                 },
             )
     };

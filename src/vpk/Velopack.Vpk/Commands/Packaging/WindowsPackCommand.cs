@@ -6,9 +6,7 @@ public class WindowsPackCommand : PackCommand
 
     public string SplashImage { get; private set; }
 
-    public bool NoProgressBar { get; private set; }
-
-    public string ProgressBarColor { get; private set; }
+    public string SplashProgressColor { get; private set; }
 
     public bool SkipVelopackAppCheck { get; private set; }
 
@@ -43,11 +41,8 @@ public class WindowsPackCommand : PackCommand
             .SetArgumentHelpName("PATH")
             .MustExist();
 
-        AddOption<bool>((v) => NoProgressBar = v, "--noProgressBar")
-            .SetDescription("Hide the progress bar during installation.");
-
-        AddOption<string>((v) => ProgressBarColor = v, "--progressBarColor")
-            .SetDescription("Color of the progress bar during installation (RGB hex: FF0000, or \"#FF0000\" with quotes).")
+        AddOption<string>((v) => SplashProgressColor = v, "--splashProgressColor")
+            .SetDescription("Color of the progress bar during installation (RGB hex: FF0000, or \"#FF0000\" with quotes). Use 'None' to hide the progress bar.")
             .SetArgumentHelpName("COLOR");
 
         AddOption<bool>((v) => SkipVelopackAppCheck = v, "--skipVeloAppCheck")

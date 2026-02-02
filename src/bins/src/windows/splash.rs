@@ -20,8 +20,17 @@ pub const MSG_INDEFINITE: i16 = -2;
 
 #[derive(Default, Clone)]
 pub struct SplashOptions {
-    pub no_progress_bar: bool,
-    pub progress_bar_color: Option<String>,
+    pub splash_progress_color: Option<String>,
+}
+
+impl SplashOptions {
+    pub fn is_progress_bar_hidden(&self) -> bool {
+        self.splash_progress_color.as_ref().map_or(false, |c| c.eq_ignore_ascii_case("none"))
+    }
+
+    pub fn get_progress_bar_color(&self) -> &str {
+        self.splash_progress_color.as_deref().unwrap_or("")
+    }
 }
 
 pub fn show_progress_dialog<T1: AsRef<str>, T2: AsRef<str>>(window_title: T1, content: T2) -> Sender<i16> {
@@ -39,8 +48,9 @@ pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>, options:
     thread::spawn(move || {
         info!("Showing splash screen immediately...");
         if imgstream.is_some() {
-            let color = options.progress_bar_color.as_deref().unwrap_or("");
-            let _ = SplashWindow::new(app_name, imgstream.unwrap(), rx, options.no_progress_bar, color).and_then(|w| {
+            let no_progress_bar = options.is_progress_bar_hidden();
+            let color = options.get_progress_bar_color();
+            let _ = SplashWindow::new(app_name, imgstream.unwrap(), rx, no_progress_bar, color).and_then(|w| {
                 w.run()?;
                 Ok(())
             });
@@ -489,7 +499,7 @@ fn show_test_gif() {
 #[ignore]
 fn show_test_gif_without_progress_bar() {
     let rd = std::fs::read(r"C:\Source\Clowd\artwork\splash.gif").unwrap();
-    let tx = show_splash_dialog("osu!".to_string(), Some(rd), SplashOptions { no_progress_bar: true, progress_bar_color: None });
+    let tx = show_splash_dialog("osu!".to_string(), Some(rd), SplashOptions { splash_progress_color: Some("None".to_string()) });
     tx.send(80).unwrap();
     std::thread::sleep(std::time::Duration::from_secs(6));
 }

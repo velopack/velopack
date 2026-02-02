@@ -14,9 +14,7 @@ public class WindowsReleasifyOptions : WindowsSigningOptions
 
     public string SplashImage { get; set; }
 
-    public bool NoProgressBar { get; set; }
-    
-    public string ProgressBarColor { get; set; }
+    public string SplashProgressColor { get; set; }
 
     public string Icon { get; set; }
 
