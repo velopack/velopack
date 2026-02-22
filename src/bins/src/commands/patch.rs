@@ -155,7 +155,7 @@ pub fn delta<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(
 
     info!("All delta patches applied. Asembling output package at: {:?}", output_file);
 
-    fastzip::compress_directory(&work_dir, &output_file, fastzip::CompressionLevel::fast())?;
+    fastzip::compress_directory(&work_dir, &output_file)?;
 
     info!("Successfully applied {} delta patches in {}s.", delta_files.len(), time.s());
     Ok(())
