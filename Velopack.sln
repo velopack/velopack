@@ -51,8 +51,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LegacyTestApp", "test\Legac
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CSharpWpf", "samples\CSharpWpf\CSharpWpf.csproj", "{9E0F2B00-1B88-4B75-BEED-6DF8DBCA36B5}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Velopack.Build", "src\vpk\Velopack.Build\Velopack.Build.csproj", "{97C9B2CF-877F-4C98-A513-058784A23697}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Velopack.IcoLib", "src\vpk\Velopack.IcoLib\Velopack.IcoLib.csproj", "{8A0A980A-D51C-458E-8942-00BC900FD2D0}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Velopack.Flow", "src\vpk\Velopack.Flow\Velopack.Flow.csproj", "{DC836A20-E770-451A-B26E-4CC74633F741}"
