@@ -6,6 +6,7 @@ using Velopack.Packaging.Windows.Commands;
 using Velopack.Util;
 using Velopack.Vpk;
 using Velopack.Vpk.Logging;
+using WixToolset.Dtf.WindowsInstaller;
 
 namespace Velopack.Packaging.Tests;
 
@@ -19,86 +20,9 @@ public class MsiTests
         _output = output;
     }
 
-    private static WindowsPackCommandRunner GetPackRunner(ILogger logger)
-    {
-        var console = new BasicConsole(logger, new VelopackDefaults(false));
-        return new WindowsPackCommandRunner(logger, console);
-    }
-
-    private static readonly Random _random = Random.Shared;
-
-    private static string RandomString(int length)
-    {
-        string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".ToLower();
-        return new string(
-            [.. Enumerable.Repeat(chars, length).Select(s => s[_random.Next(s.Length)])]);
-    }
-
-    private static string RunImpl(ProcessStartInfo psi, ILogger logger, int? exitCode = 0)
-    {
-        var outputFile = PathHelper.GetTestRootPath($"run.{RandomString(8)}.log");
-
-        try {
-            var args = new string[psi.ArgumentList.Count];
-            psi.ArgumentList.CopyTo(args, 0);
-            new ProcessStartInfo().AppendArgumentListSafe(args, out var debug);
-
-            var fix = new ProcessStartInfo("cmd.exe");
-            fix.CreateNoWindow = true;
-            fix.WorkingDirectory = psi.WorkingDirectory;
-            fix.Arguments = $"/s /c \"\"{psi.FileName}\" {debug} > \"{outputFile}\" 2>&1\"";
-
-            Stopwatch sw = new Stopwatch();
-            sw.Start();
-
-            logger.Info($"TEST: Running {fix.FileName} {fix.Arguments}");
-            using var p = Process.Start(fix);
-
-            var timeout = TimeSpan.FromMinutes(3);
-            if (!p.WaitForExit(timeout))
-                throw new TimeoutException($"Process did not exit within {timeout.TotalSeconds}s.");
-
-            var elapsed = sw.Elapsed;
-            sw.Stop();
-
-            logger.Info($"TEST: Process exited with code {p.ExitCode} in {elapsed.TotalSeconds}s");
-
-            using var fs = IoUtil.Retry(
-                () => File.Open(outputFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None),
-                10,
-                1000,
-                logger.ToVelopackLogger());
-
-            using var reader = new StreamReader(fs);
-            var output = reader.ReadToEnd();
-
-            if (String.IsNullOrWhiteSpace(output)) {
-                logger.Warn($"TEST: Process output was empty");
-            } else {
-                logger.Info($"TEST: Process output: {Environment.NewLine}{output.Trim()}{Environment.NewLine}");
-            }
-
-            if (exitCode.HasValue && p.ExitCode != exitCode.Value) {
-                throw new Exception($"Process exited with code {p.ExitCode} but expected {exitCode.Value}");
-            }
-
-            return String.Join(
-                Environment.NewLine,
-                output
-                    .Split('\n')
-                    .Where(l => !l.Contains("Code coverage results"))
-                    .Select(l => l.Trim())
-            ).Trim();
-        } finally {
-            try {
-                File.Delete(outputFile);
-            } catch { }
-        }
-    }
-
     private static string RunMsiExec(string rawArgs, ILogger logger, int? exitCode = 0)
     {
-        var outputFile = PathHelper.GetTestRootPath($"run.{RandomString(8)}.log");
+        var outputFile = PathHelper.GetTestRootPath($"run.{WindowsTestHelper.RandomString(8)}.log");
 
         try {
             var fix = new ProcessStartInfo("cmd.exe");
@@ -148,30 +72,6 @@ public class MsiTests
         }
     }
 
-    private static string RunCoveredDotnet(string exe, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
-    {
-        var outputfile = PathHelper.GetTestRootPath($"coverage.rundotnet.{RandomString(8)}.xml");
-
-        if (!File.Exists(exe))
-            throw new Exception($"File {exe} does not exist.");
-
-        var psi = new ProcessStartInfo("dotnet-coverage");
-        psi.WorkingDirectory = workingDir;
-        psi.CreateNoWindow = true;
-        psi.RedirectStandardOutput = true;
-        psi.RedirectStandardError = true;
-
-        psi.ArgumentList.Add("collect");
-        psi.ArgumentList.Add("-o");
-        psi.ArgumentList.Add(outputfile);
-        psi.ArgumentList.Add("-f");
-        psi.ArgumentList.Add("cobertura");
-        psi.ArgumentList.Add(exe);
-        foreach (var arg in args) psi.ArgumentList.Add(arg);
-
-        return RunImpl(psi, logger, exitCode);
-    }
-
     private static string RunCoveredDotnetDeelevated(string exe, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
     {
         // Runs dotnet-coverage with the target exe as a truly non-elevated user via explorer.exe.
@@ -179,9 +79,9 @@ public class MsiTests
         // process gets a proper non-elevated token (TokenIsElevated = false).
         // Note: "runas /trustlevel:0x20000" does NOT work for this because the restricted token
         // still reports TokenIsElevated=true (it was derived from an elevated session).
-        var outputFile = PathHelper.GetTestRootPath($"run.{RandomString(8)}.log");
-        var coverageFile = PathHelper.GetTestRootPath($"coverage.rundotnet.{RandomString(8)}.xml");
-        var batchFile = PathHelper.GetTestRootPath($"run.{RandomString(8)}.cmd");
+        var outputFile = PathHelper.GetTestRootPath($"run.{WindowsTestHelper.RandomString(8)}.log");
+        var coverageFile = PathHelper.GetTestRootPath($"coverage.rundotnet.{WindowsTestHelper.RandomString(8)}.xml");
+        var batchFile = PathHelper.GetTestRootPath($"run.{WindowsTestHelper.RandomString(8)}.cmd");
 
         if (!File.Exists(exe))
             throw new Exception($"File {exe} does not exist.");
@@ -266,11 +166,91 @@ public class MsiTests
                 InstLocation = instLocation,
             };
 
-            var runner = GetPackRunner(logger);
+            var runner = WindowsTestHelper.GetPackRunner(logger);
             await runner.Run(options);
         } finally {
             File.WriteAllText(testStringFile, oldText);
         }
+    }
+
+    [Fact]
+    public async Task TestPackGeneratesMsi()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+
+        using var logger = _output.BuildLoggerFor<MsiTests>();
+
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
+
+        var exe = "testapp.exe";
+        var pdb = Path.ChangeExtension(exe, ".pdb");
+        var id = "Test.Squirrel-App";
+        var version = "1.2.3";
+
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+        PathHelper.CopyRustAssetTo(pdb, tmpOutput);
+
+        var options = new WindowsPackOptions {
+            EntryExecutableName = exe,
+            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
+            PackId = id,
+            PackVersion = version,
+            TargetRuntime = RID.Parse("win-x64"),
+            PackDirectory = tmpOutput,
+            Shortcuts = "Desktop,StartMenuRoot",
+            BuildMsi = true
+        };
+
+        var runner = WindowsTestHelper.GetPackRunner(logger);
+        await runner.Run(options);
+
+        string msiPath = Path.Combine(tmpReleaseDir, $"{id}-win.msi");
+        Assert.True(File.Exists(msiPath));
+        using Database db = new Database(msiPath);
+        var msiVersion = db.ExecuteScalar("SELECT `Value` FROM `Property` WHERE `Property` = 'ProductVersion'") as string;
+        Assert.Equal("1.2.3.0", msiVersion);
+    }
+
+    [Fact]
+    public async Task TestPackGeneratesMsiWithSpecifiedVersion()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+
+        using var logger = _output.BuildLoggerFor<MsiTests>();
+
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
+
+        var exe = "testapp.exe";
+        var pdb = Path.ChangeExtension(exe, ".pdb");
+        var id = "Test.Squirrel-App";
+        var version = "1.0.0";
+
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+        PathHelper.CopyRustAssetTo(pdb, tmpOutput);
+
+        var options = new WindowsPackOptions {
+            EntryExecutableName = exe,
+            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
+            PackId = id,
+            PackVersion = version,
+            TargetRuntime = RID.Parse("win-x64"),
+            PackDirectory = tmpOutput,
+            Shortcuts = "Desktop,StartMenuRoot",
+            BuildMsi = true,
+            MsiVersionOverride = "4.5.6.1"
+        };
+
+        var runner = WindowsTestHelper.GetPackRunner(logger);
+        await runner.Run(options);
+
+        string msiPath = Path.Combine(tmpReleaseDir, $"{id}-win.msi");
+        Assert.True(File.Exists(msiPath));
+
+        using Database db = new Database(msiPath);
+        var msiVersion = db.ExecuteScalar("SELECT `Value` FROM `Property` WHERE `Property` = 'ProductVersion'") as string;
+        Assert.Equal("4.5.6.1", msiVersion);
     }
 
     [Fact]
@@ -297,30 +277,30 @@ public class MsiTests
 
             // verify install
             Assert.True(File.Exists(appPath), $"TestApp.exe not found at {appPath}");
-            var chk1version = RunCoveredDotnet(appPath, ["version"], installDir, logger);
+            var chk1version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
             Assert.EndsWith(Environment.NewLine + "1.0.0", chk1version);
             logger.Info("TEST: v1 installed and verified");
 
             // per-user installs to writable dir, so packages dir should be in install dir
             string packagesPath = Path.Combine(installDir, "packages");
-            var chk1pkgdir = RunCoveredDotnet(appPath, ["packagesdir"], installDir, logger);
+            var chk1pkgdir = WindowsTestHelper.RunCoveredDotnet(appPath, ["packagesdir"], installDir, logger);
             Assert.EndsWith(Environment.NewLine + packagesPath, chk1pkgdir);
             logger.Info("TEST: packages dir verified at " + packagesPath);
 
             // no updates available yet
-            var chk1check = RunCoveredDotnet(appPath, ["check", releaseDir], installDir, logger);
+            var chk1check = WindowsTestHelper.RunCoveredDotnet(appPath, ["check", releaseDir], installDir, logger);
             Assert.EndsWith(Environment.NewLine + "no updates", chk1check);
 
             // pack v2
             await PackTestAppWithMsi(id, "2.0.0", "version 2 test", releaseDir, logger, InstallLocation.PerUser);
 
             // check for updates
-            var chk2check = RunCoveredDotnet(appPath, ["check", releaseDir], installDir, logger);
+            var chk2check = WindowsTestHelper.RunCoveredDotnet(appPath, ["check", releaseDir], installDir, logger);
             Assert.EndsWith(Environment.NewLine + "update: 2.0.0", chk2check);
             logger.Info("TEST: found v2 update");
 
             // download update (this puts the nupkg in the locator's packages dir)
-            RunCoveredDotnet(appPath, ["download", releaseDir], installDir, logger);
+            WindowsTestHelper.RunCoveredDotnet(appPath, ["download", releaseDir], installDir, logger);
 
             // verify nupkg ended up in the correct packages dir
             var nupkgFileName = $"{id}-2.0.0-full.nupkg";
@@ -329,11 +309,11 @@ public class MsiTests
             logger.Info("TEST: nupkg downloaded to correct packages dir");
 
             // apply update
-            RunCoveredDotnet(appPath, ["apply", releaseDir], installDir, logger, exitCode: null);
+            WindowsTestHelper.RunCoveredDotnet(appPath, ["apply", releaseDir], installDir, logger, exitCode: null);
             Thread.Sleep(3000);
 
             // verify update
-            var chk2version = RunCoveredDotnet(appPath, ["version"], installDir, logger);
+            var chk2version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
             Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
             logger.Info("TEST: v2 update verified");
         } finally {
@@ -383,7 +363,7 @@ public class MsiTests
 
             // verify install
             Assert.True(File.Exists(appPath), $"TestApp.exe not found at {appPath}");
-            var chk1version = RunCoveredDotnet(appPath, ["version"], installDir, logger);
+            var chk1version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
             Assert.EndsWith(Environment.NewLine + "1.0.0", chk1version);
             logger.Info("TEST: v1 installed and verified");
 
