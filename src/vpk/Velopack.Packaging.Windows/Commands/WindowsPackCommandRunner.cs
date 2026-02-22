@@ -78,7 +78,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
         File.Copy(updatePath, Path.Combine(packDir, "Squirrel.exe"), true);
 
-        // create a stub for portable packages
+        // create a stub for portable / MSI packages
         var mainExeName = Options.EntryExecutableName;
         var mainPath = Path.Combine(packDir, mainExeName);
         var stubPath = Path.Combine(packDir, Path.GetFileNameWithoutExtension(mainExeName) + "_ExecutionStub.exe");
@@ -210,6 +210,13 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             var current = dir.CreateSubdirectory("current");
             CopyFiles(new DirectoryInfo(packDir), current, CoreUtil.CreateProgressDelegate(msiProgress, 0, 45));
             File.Delete(Path.Combine(current.FullName, "Squirrel.exe"));
+
+            // move the stub to the root of the MSI package
+            var msiStubPath = Path.Combine(
+                current.FullName,
+                Path.GetFileNameWithoutExtension(Options.EntryExecutableName) + "_ExecutionStub.exe");
+            File.Move(msiStubPath, Path.Combine(dir.FullName, GetStubFileName()));
+
             msiProgress(50);
             
             var msiName = DefaultName.GetSuggestedMsiName(Options.PackId, Options.Channel, TargetOs);
@@ -240,7 +247,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         var stubPath = Path.Combine(
             current.FullName,
             Path.GetFileNameWithoutExtension(Options.EntryExecutableName) + "_ExecutionStub.exe");
-        File.Move(stubPath, Path.Combine(dir.FullName, GetPortableStubFileName()));
+        File.Move(stubPath, Path.Combine(dir.FullName, GetStubFileName()));
 
         // create a .portable file to indicate this is a portable package
         File.Create(Path.Combine(dir.FullName, ".portable")).Close();
@@ -374,7 +381,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         ];
     }
 
-    private string GetPortableStubFileName() => (Options.PackTitle ?? Options.PackId) + ".exe";
+    private string GetStubFileName() => (Options.PackTitle ?? Options.PackId) + ".exe";
 
     private ShortcutLocation GetShortcuts()
     {

@@ -244,6 +244,9 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
             }
         }
 
+        // Sync stub executable(s) to root directory.
+        let _ = bundle.extract_stubs_to_dir(&root_path);
+
         Ok(())
     })();
 

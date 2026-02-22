@@ -238,6 +238,34 @@ impl BundleZip<'_> {
         Ok(())
     }
 
+    /// Extracts all `_ExecutionStub.exe` files from the archive to the given directory,
+    /// renaming them by stripping the `_ExecutionStub` suffix (e.g. `Blah_ExecutionStub.exe` -> `Blah.exe`).
+    pub fn extract_stubs_to_dir<P: AsRef<Path>>(&self, dir: P) -> Result<(), Error> {
+        let dir = dir.as_ref();
+        let mut archive = self.zip.borrow_mut();
+        let stub_suffix = "_ExecutionStub.exe";
+        for i in 0..archive.len() {
+            let name = match archive.by_index(i) {
+                Ok(f) => f.name().to_string(),
+                Err(_) => continue,
+            };
+            let file_name = match name.rsplit(&['/', '\\']).next() {
+                Some(n) if n.ends_with(stub_suffix) => n.to_string(),
+                _ => continue,
+            };
+            let dest_name = file_name.replace(stub_suffix, ".exe");
+            let dest_path = dir.join(&dest_name);
+            drop(archive);
+            info!("Extracting stub '{}' to '{:?}'", file_name, dest_path);
+            match self.extract_zip_idx_to_path(i, &dest_path) {
+                Ok(_) => info!("Successfully extracted stub executable: {:?}", dest_path),
+                Err(e) => warn!("Failed to extract stub executable {:?}: {} (non-fatal)", dest_path, e),
+            }
+            archive = self.zip.borrow_mut();
+        }
+        Ok(())
+    }
+
     #[cfg(not(target_os = "linux"))]
     pub fn extract_lib_contents_to_path<P: AsRef<Path>, F: Fn(i16)>(&self, current_path: P, progress: F) -> Result<(), Error> {
         let current_path = current_path.as_ref();

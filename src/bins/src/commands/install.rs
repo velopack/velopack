@@ -170,6 +170,8 @@ fn install_impl(
     let _ = pkg
         .extract_zip_predicate_to_path(|name| name.ends_with("Squirrel.exe"), updater_path)
         .map_err(|_| anyhow!("This installer is missing a critical binary (Update.exe). Please contact the application author."))?;
+
+    let _ = pkg.extract_stubs_to_dir(locator.get_root_dir());
     let _ = tx.send(5);
 
     info!("Copying nupkg to packages directory...");
