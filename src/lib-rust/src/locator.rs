@@ -153,10 +153,21 @@ impl VelopackLocator {
             } else if let Some(app_data) = get_local_app_data().ok() {
                 let fallback_base = app_data.join(&manifest.id);
                 paths.PackagesDir = fallback_base.join("packages");
-                info!("Using fallback packages directory: {}", paths.PackagesDir.display());
+                paths.UpdateExePath = fallback_base.join("Update.exe");
+                info!("Using fallback directory: {}", fallback_base.display());
 
                 if let Err(e) = std::fs::create_dir_all(&paths.PackagesDir) {
                     error!("Unable to create fallback packages directory: {}", e);
+                }
+
+                // If the fallback Update.exe doesn't exist yet (e.g. first launch after MSI install),
+                // copy it from the root directory so UpdateExePath always points to an existing file.
+                let root_update_exe = root.join("Update.exe");
+                if !paths.UpdateExePath.exists() && root_update_exe.exists() {
+                    match std::fs::copy(&root_update_exe, &paths.UpdateExePath) {
+                        Ok(_) => info!("Copied Update.exe from root to fallback: {}", paths.UpdateExePath.display()),
+                        Err(e) => error!("Failed to copy Update.exe to fallback path: {}", e),
+                    }
                 }
             } else {
                 error!("Root directory is not writable and LocalAppData is unavailable. Updates may not work correctly.");

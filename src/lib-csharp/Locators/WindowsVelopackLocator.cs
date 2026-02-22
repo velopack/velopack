@@ -123,7 +123,20 @@ namespace Velopack.Locators
                         Directory.CreateDirectory(fallbackBase);
                         PackagesDir = Path.Combine(fallbackBase, "packages");
                         Directory.CreateDirectory(PackagesDir);
-                        initLog.Info($"Root directory is not writable, using fallback packages directory: {PackagesDir}");
+                        UpdateExePath = Path.Combine(fallbackBase, "Update.exe");
+                        initLog.Info($"Root directory is not writable, using fallback directory: {fallbackBase}");
+
+                        // If the fallback Update.exe doesn't exist yet (e.g. first launch after MSI install),
+                        // copy it from the root directory so UpdateExePath always points to an existing file.
+                        var rootUpdateExe = Path.Combine(RootAppDir, "Update.exe");
+                        if (!File.Exists(UpdateExePath) && File.Exists(rootUpdateExe)) {
+                            try {
+                                File.Copy(rootUpdateExe, UpdateExePath);
+                                initLog.Info($"Copied Update.exe from root to fallback: {UpdateExePath}");
+                            } catch (Exception ex) {
+                                initLog.Error($"Failed to copy Update.exe to fallback path: {ex.Message}");
+                            }
+                        }
                     } else {
                         initLog.Error("Root directory is not writable and LocalAppData is unavailable. Updates may not work correctly.");
                     }
