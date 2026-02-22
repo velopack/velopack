@@ -2,8 +2,6 @@ use anyhow::{bail, Result};
 use chrono::{Datelike, Local as DateTime};
 use std::ffi::OsString;
 use velopack::locator::VelopackLocator;
-use velopack::wide_strings::{string_to_wide, wide_to_string_lossy};
-use windows::Win32::System::ApplicationInstallationAndServicing::MsiEnumRelatedProductsW;
 use winreg::{enums::*, RegKey};
 
 const UNINSTALL_REGISTRY_KEY: &'static str = "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
@@ -84,56 +82,24 @@ pub fn update_uninstall_entry(old_locator: &VelopackLocator, new_locator: &Velop
 }
 
 pub fn update_msi_uninstall_entry(locator: &VelopackLocator) -> Result<()> {
-    let manifest = locator.get_manifest();
-    let upgrade_code = &manifest.msi_upgrade_code;
-    if upgrade_code.is_empty() {
-        bail!("No msiUpgradeCode found in manifest.");
-    }
-
-    // Ensure the UpgradeCode is in braced GUID format {XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}
-    let braced = if upgrade_code.starts_with('{') {
-        upgrade_code.to_string()
-    } else {
-        format!("{{{}}}", upgrade_code)
-    };
-
-    info!("Looking up MSI ProductCode for UpgradeCode: {}", braced);
-
-    // Call MsiEnumRelatedProductsW to find the ProductCode for this UpgradeCode
-    let upgrade_wide = string_to_wide(&braced);
-    let mut product_buf: Vec<u16> = vec![0u16; 39];
-    let result = unsafe {
-        MsiEnumRelatedProductsW(
-            upgrade_wide.as_pcwstr(),
-            Some(0),
-            0,
-            windows::core::PWSTR(product_buf.as_mut_ptr()),
-        )
-    };
-
-    if result != 0 {
-        bail!("MsiEnumRelatedProductsW failed with error code {}. No MSI product found for UpgradeCode {}.", result, braced);
-    }
-
-    let product_code = wide_to_string_lossy(&product_buf);
-    let product_code = product_code.trim_end_matches('\0');
-    info!("Found MSI ProductCode: {}", product_code);
-
+    let app_id = locator.get_manifest_id();
     let short_version = locator.get_manifest_version_short_string();
-    let reg_path = format!("{}\\{}", UNINSTALL_REGISTRY_KEY, product_code);
+    let reg_path = format!("{}\\MSI:{}", UNINSTALL_REGISTRY_KEY, app_id);
 
-    // Try HKLM first (per-machine MSI install), then fall back to HKCU (per-user MSI install)
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    info!("Updating MSI uninstall entry for {} to version {}", app_id, short_version);
+
+    // Try HKCU first (per-user MSI install), then HKLM (per-machine MSI install)
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
 
-    if let Ok(reg_app) = hklm.open_subkey_with_flags(&reg_path, winreg::enums::KEY_SET_VALUE) {
-        info!("Updating DisplayVersion in HKLM to {}", short_version);
-        reg_app.set_value("DisplayVersion", &short_version)?;
-    } else if let Ok(reg_app) = hkcu.open_subkey_with_flags(&reg_path, winreg::enums::KEY_SET_VALUE) {
+    if let Ok(reg_app) = hkcu.open_subkey_with_flags(&reg_path, KEY_SET_VALUE) {
         info!("Updating DisplayVersion in HKCU to {}", short_version);
         reg_app.set_value("DisplayVersion", &short_version)?;
+    } else if let Ok(reg_app) = hklm.open_subkey_with_flags(&reg_path, KEY_SET_VALUE) {
+        info!("Updating DisplayVersion in HKLM to {}", short_version);
+        reg_app.set_value("DisplayVersion", &short_version)?;
     } else {
-        bail!("Could not open MSI uninstall registry key for ProductCode {} in either HKLM or HKCU.", product_code);
+        bail!("Could not find MSI uninstall registry key for {} in HKCU or HKLM.", app_id);
     }
 
     Ok(())

@@ -4,7 +4,13 @@
              Manufacturer="{{AppPublisher}}"
              Version="{{AppMsiVersion}}"
              Language="1033"
+             {{#if InstallLocationCurrentUserOnly}}
+             Scope="perUser"
+             {{else if InstallLocationAllUsersOnly}}
+             Scope="perMachine"
+             {{else}}
              Scope="perUserOrMachine"
+             {{/if}}
              UpgradeCode="{{UpgradeCodeGuid}}">
 
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes"/>
@@ -66,8 +72,26 @@
 
         {{#if HasIcon}}
             <Icon Id="appicon" SourceFile="{{IconPath}}"/>
-            <Property Id="ARPPRODUCTICON" Value="appicon"/>
         {{/if}}
+
+        <!-- Suppress MSI's default ARP entry (always goes to HKLM regardless of per-user context)
+             and write our own using HKMU (resolves to HKCU for per-user, HKLM for per-machine) -->
+        <Property Id="ARPSYSTEMCOMPONENT" Value="1"/>
+        <DirectoryRef Id="INSTALLFOLDER">
+            <Component Id="ArpRegistration">
+                <RegistryKey Root="HKMU" Key="Software&#92;Microsoft&#92;Windows&#92;CurrentVersion&#92;Uninstall&#92;MSI:{{AppId}}">
+                    <RegistryValue Name="DisplayName" Value="{{AppTitle}}" Type="string"/>
+                    <RegistryValue Name="DisplayVersion" Value="{{AppVersion}}" Type="string"/>
+                    <RegistryValue Name="DisplayIcon" Value="[INSTALLFOLDER]{{StubFileName}}" Type="string"/>
+                    <RegistryValue Name="Publisher" Value="{{AppPublisher}}" Type="string"/>
+                    <RegistryValue Name="UninstallString" Value="msiexec.exe /x [ProductCode]" Type="string"/>
+                    <RegistryValue Name="QuietUninstallString" Value="msiexec.exe /x [ProductCode] /qn" Type="string"/>
+                    <RegistryValue Name="InstallLocation" Value="[INSTALLFOLDER]" Type="string"/>
+                    <RegistryValue Name="NoModify" Value="1" Type="integer"/>
+                    <RegistryValue Name="NoRepair" Value="1" Type="integer" KeyPath="yes"/>
+                </RegistryKey>
+            </Component>
+        </DirectoryRef>
 
         {{#if HasLicense}}
             <WixVariable Id="WixUILicenseRtf" Value="{{LicenseRtfFilePath}}"/>
@@ -92,7 +116,11 @@
         <!-- Check box for launching -->
         <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.ConclusionLaunchCheckboxText) {{AppTitle}}"/>
 
+        {{#if InstallLocationCurrentUserOnly}}
+        <Property Id="WixAppFolder" Value="WixPerUserFolder"/>
+        {{else}}
         <Property Id="WixAppFolder" Value="WixPerMachineFolder"/>
+        {{/if}}
         <Property Id="ApplicationFolderName" Value="{{AppId}}"/>
 
         {{#if InstallLocationEither}}
@@ -217,9 +245,17 @@
                 {{/if}}
                 <Publish Dialog="InstallScopeDlg" Control="Next" Property="WixAppFolder" Value="WixPerUserFolder"
                          Order="1" Condition="!(wix.WixUISupportPerUser) AND NOT Privileged"/>
-                <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="{}" Order="2"
+                <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="2" Order="2"
+                         Condition="WixAppFolder = &quot;WixPerUserFolder&quot;"/>
+                <Publish Dialog="InstallScopeDlg" Control="Next" Property="MSIINSTALLPERUSER" Value="1" Order="2"
+                         Condition="WixAppFolder = &quot;WixPerUserFolder&quot;"/>
+                <Publish Dialog="InstallScopeDlg" Control="Next" Property="Privileged" Value="0" Order="2"
+                         Condition="WixAppFolder = &quot;WixPerUserFolder&quot;"/>
+                <Publish Dialog="InstallScopeDlg" Control="Next" Property="InstallPrivileges" Value="limited" Order="2"
                          Condition="WixAppFolder = &quot;WixPerUserFolder&quot;"/>
                 <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="1" Order="3"
+                         Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;"/>
+                <Publish Dialog="InstallScopeDlg" Control="Next" Property="MSIINSTALLPERUSER" Value="{}" Order="3"
                          Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;"/>
                 <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLFOLDER"
                          Value="[LocalAppDataFolder][ApplicationFolderName]" Order="4"
@@ -233,20 +269,15 @@
             {{/if}}
 
             {{#if InstallLocationCurrentUserOnly}}
-                <Publish Dialog="WelcomeDlg" Control="Next" Property="ALLUSERS" Value="{}" Order="1"
-                         Condition="WixAppFolder = &quot;WixPerUserFolder&quot;"/>
                 <Publish Dialog="WelcomeDlg" Control="Next" Property="INSTALLFOLDER"
-                         Value="[LocalAppDataFolder][ApplicationFolderName]" Order=" 2"/>
-                <Publish Dialog="WelcomeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="3"/>
+                         Value="[LocalAppDataFolder][ApplicationFolderName]" Order="1"/>
+                <Publish Dialog="WelcomeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="2"/>
             {{/if}}
 
             {{#if InstallLocationAllUsersOnly}}
-                <Publish Dialog="WelcomeDlg" Control="Next" Property="ALLUSERS" Value="1" Order="1"
-                         Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;"/>
                 <Publish Dialog="WelcomeDlg" Control="Next" Property="INSTALLFOLDER"
-                         Value="{{ProgramFilesFolderName}}[ApplicationFolderName]" Order="5"
-                         Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;"/>
-                <Publish Dialog="WelcomeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="3"/>
+                         Value="{{ProgramFilesFolderName}}[ApplicationFolderName]" Order="1"/>
+                <Publish Dialog="WelcomeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="2"/>
             {{/if}}
 
             {{#if InstallLocationEither}}

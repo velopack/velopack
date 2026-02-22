@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.Versioning;
+using Microsoft.Win32;
 using Velopack.Core;
 using Velopack.Packaging.Commands;
 using Velopack.Packaging.Windows.Commands;
@@ -173,6 +174,13 @@ public class MsiTests
         }
     }
 
+    private static (bool found, string displayVersion) FindUninstallEntry(RegistryKey root, string appId)
+    {
+        using var key = root.OpenSubKey($@"Software\Microsoft\Windows\CurrentVersion\Uninstall\MSI:{appId}");
+        if (key == null) return (false, null);
+        return (true, key.GetValue("DisplayVersion") as string);
+    }
+
     [Fact]
     public async Task TestPackGeneratesMsi()
     {
@@ -271,7 +279,7 @@ public class MsiTests
             await PackTestAppWithMsi(id, "1.0.0", "version 1 test", releaseDir, logger, InstallLocation.PerUser);
             Assert.True(File.Exists(msiPath), $"MSI not found at {msiPath}");
 
-            // install via msiexec (must pass INSTALLFOLDER for silent installs since UI events don't fire)
+            // install via msiexec per-user (must pass INSTALLFOLDER for silent installs since UI events don't fire)
             logger.Info("TEST: Installing MSI per-user...");
             RunMsiExec($"/i \"{msiPath}\" /qn INSTALLFOLDER=\"{installDir}\"", logger);
 
@@ -280,6 +288,14 @@ public class MsiTests
             var chk1version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
             Assert.EndsWith(Environment.NewLine + "1.0.0", chk1version);
             logger.Info("TEST: v1 installed and verified");
+
+            // verify uninstall registry is in HKCU (not HKLM) for per-user install
+            var (hkcuFound, hkcuVersion) = FindUninstallEntry(Registry.CurrentUser, id);
+            var (hklmFound, _) = FindUninstallEntry(Registry.LocalMachine, id);
+            Assert.True(hkcuFound, "Uninstall entry should exist in HKCU for per-user MSI install");
+            Assert.False(hklmFound, "Uninstall entry should NOT exist in HKLM for per-user MSI install");
+            Assert.Equal("1.0.0", hkcuVersion);
+            logger.Info("TEST: registry entry verified in HKCU with version 1.0.0");
 
             // per-user installs to writable dir, so packages dir should be in install dir
             string packagesPath = Path.Combine(installDir, "packages");
@@ -316,6 +332,12 @@ public class MsiTests
             var chk2version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
             Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
             logger.Info("TEST: v2 update verified");
+
+            // verify registry was updated to v2
+            var (hkcuFound2, hkcuVersion2) = FindUninstallEntry(Registry.CurrentUser, id);
+            Assert.True(hkcuFound2, "Uninstall entry should still exist in HKCU after update");
+            Assert.Equal("2.0.0", hkcuVersion2);
+            logger.Info("TEST: registry entry verified in HKCU with version 2.0.0");
         } finally {
             // cleanup: uninstall MSI
             try {
@@ -353,7 +375,7 @@ public class MsiTests
 
         try {
             // pack v1
-            await PackTestAppWithMsi(id, "1.0.0", "version 1 test", releaseDir, logger, InstallLocation.PerMachine);
+            await PackTestAppWithMsi(id, "1.0.0", "version 1 test", releaseDir, logger, InstallLocation.Either);
             Assert.True(File.Exists(msiPath), $"MSI not found at {msiPath}");
 
             // install via msiexec with ALLUSERS=1 (per-machine, requires admin)
@@ -367,6 +389,12 @@ public class MsiTests
             Assert.EndsWith(Environment.NewLine + "1.0.0", chk1version);
             logger.Info("TEST: v1 installed and verified");
 
+            // verify uninstall registry is in HKLM for per-machine install
+            var (hklmFound, hklmVersion) = FindUninstallEntry(Registry.LocalMachine, id);
+            Assert.True(hklmFound, "Uninstall entry should exist in HKLM for per-machine MSI install");
+            Assert.Equal("1.0.0", hklmVersion);
+            logger.Info("TEST: registry entry verified in HKLM with version 1.0.0");
+
             // Run packagesdir check as a de-elevated (standard) user.
             // Program Files is not writable for standard users, so the locator should
             // fallback to %LOCALAPPDATA%/{id}/packages.
@@ -376,7 +404,7 @@ public class MsiTests
             logger.Info("TEST: packages dir correctly fell back to " + fallbackPackagesPath);
 
             // pack v2
-            await PackTestAppWithMsi(id, "2.0.0", "version 2 test", releaseDir, logger, InstallLocation.PerMachine);
+            await PackTestAppWithMsi(id, "2.0.0", "version 2 test", releaseDir, logger, InstallLocation.Either);
 
             // check for updates (de-elevated)
             var chk2check = RunCoveredDotnetDeelevated(appPath, ["check", releaseDir], installDir, logger);
@@ -409,6 +437,12 @@ public class MsiTests
             var chk2version = RunCoveredDotnetDeelevated(appPath, ["version"], installDir, logger);
             Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
             logger.Info("TEST: v2 update verified");
+
+            // verify registry was updated to v2
+            var (hklmFound2, hklmVersion2) = FindUninstallEntry(Registry.LocalMachine, id);
+            Assert.True(hklmFound2, "Uninstall entry should still exist in HKLM after update");
+            Assert.Equal("2.0.0", hklmVersion2);
+            logger.Info("TEST: registry entry verified in HKLM with version 2.0.0");
         } finally {
             // cleanup: uninstall MSI
             try {

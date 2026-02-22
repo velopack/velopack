@@ -45,7 +45,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         ExtraNuspecMetadata["runtimeDependencies"] = GetRuntimeDependencies();
         ExtraNuspecMetadata["shortcutLocations"] = GetShortcutLocations();
         ExtraNuspecMetadata["shortcutAmuid"] = CoreUtil.GetAppUserModelId(Options.PackId);
-        ExtraNuspecMetadata["msiUpgradeCode"] = GuidUtil.CreateGuidFromHash($"{Options.PackId}:UpgradeCode").ToString();
 
         // copy files to temp dir, so we can modify them
         var dir = TempDir.CreateSubdirectory("PreprocessPackDirWin");
