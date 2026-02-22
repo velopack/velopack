@@ -301,6 +301,12 @@ impl VelopackLocator {
         self.paths.IsPortable
     }
 
+    /// Returns whether the app was installed via MSI (indicated by a `.msi-installed` marker file).
+    #[cfg(windows)]
+    pub fn get_is_msi_install(&self) -> bool {
+        self.paths.RootAppDir.join(".msi-installed").exists()
+    }
+
     /// Attemps to open / lock a file in the app's package directory for exclusive write access.
     /// Fails immediately if the lock cannot be acquired.
     pub fn try_get_exclusive_lock(&self) -> Result<LockFile, Error> {

@@ -2,10 +2,14 @@ use crate::shared::{self};
 use velopack::{constants, locator::VelopackLocator};
 
 use crate::windows;
-use anyhow::Result;
+use anyhow::{bail, Result};
 
 pub fn uninstall(locator: &VelopackLocator, delete_self: bool) -> Result<()> {
     info!("Command: Uninstall");
+
+    if locator.get_is_msi_install() {
+        bail!("MSI installation detected. Uninstall should be performed via msiexec, not Update.exe.");
+    }
 
     let root_path = locator.get_root_dir();
 

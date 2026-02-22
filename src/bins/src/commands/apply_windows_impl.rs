@@ -185,14 +185,8 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
         // from this point on, we're past the point of no return and should not bail
         // sixth, we write the uninstall entry
         if !old_locator.get_is_portable() {
-            if old_locator.get_manifest_id() != new_locator.get_manifest_id() {
-                info!("The app ID has changed, removing old uninstall registry entry.");
-                if let Err(e) = crate::windows::registry::remove_uninstall_entry(&old_locator) {
-                    warn!("Failed to remove old uninstall entry ({}).", e);
-                }
-            }
-            if let Err(e) = crate::windows::registry::write_uninstall_entry(&new_locator) {
-                warn!("Failed to write new uninstall entry ({}).", e);
+            if let Err(e) = crate::windows::registry::update_uninstall_entry(&old_locator, &new_locator) {
+                warn!("Failed to update uninstall entry ({}).", e);
             }
         } else {
             info!("Skipping uninstall entry for portable app.");

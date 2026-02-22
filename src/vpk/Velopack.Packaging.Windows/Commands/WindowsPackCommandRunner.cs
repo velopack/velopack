@@ -45,6 +45,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         ExtraNuspecMetadata["runtimeDependencies"] = GetRuntimeDependencies();
         ExtraNuspecMetadata["shortcutLocations"] = GetShortcutLocations();
         ExtraNuspecMetadata["shortcutAmuid"] = CoreUtil.GetAppUserModelId(Options.PackId);
+        ExtraNuspecMetadata["msiUpgradeCode"] = GuidUtil.CreateGuidFromHash($"{Options.PackId}:UpgradeCode").ToString();
 
         // copy files to temp dir, so we can modify them
         var dir = TempDir.CreateSubdirectory("PreprocessPackDirWin");
@@ -216,6 +217,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                 current.FullName,
                 Path.GetFileNameWithoutExtension(Options.EntryExecutableName) + "_ExecutionStub.exe");
             File.Move(msiStubPath, Path.Combine(dir.FullName, GetStubFileName()));
+
+            File.Create(Path.Combine(dir.FullName, ".msi-installed")).Close();
 
             msiProgress(50);
             
