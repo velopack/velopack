@@ -1,18 +1,18 @@
 #![allow(dead_code)]
 
 mod cloneable_seekable_reader;
-mod mtzip;
 mod progress_updater;
 mod ripunzip;
 
 use anyhow::Result;
-pub use mtzip::level::CompressionLevel;
 use ripunzip::{UnzipEngine, UnzipOptions};
 use std::{
     fs::File,
+    io::{Read, Write},
     path::{Path, PathBuf},
 };
 use walkdir::WalkDir;
+use zip::{write::SimpleFileOptions, CompressionMethod, ZipWriter};
 
 /// A trait of types which wish to hear progress updates on the unzip.
 pub trait UnzipProgressReporter: Sync {
@@ -22,15 +22,7 @@ pub trait UnzipProgressReporter: Sync {
     fn extraction_finished(&self, _display_name: &str) {}
     /// The total number of compressed bytes we expect to extract.
     fn total_bytes_expected(&self, _expected: u64) {}
-    /// Some bytes of a file have been decompressed. This is probably
-    /// the best way to display an overall progress bar. This should eventually
-    /// add up to the number you're given using `total_bytes_expected`.
-    /// The 'count' parameter is _not_ a running total - you must add up
-    /// each call to this function into the running total.
-    /// It's a bit unfortunate that we give compressed bytes rather than
-    /// uncompressed bytes, but currently we can't calculate uncompressed
-    /// bytes without downloading the whole zip file first, which rather
-    /// defeats the point.
+    /// Some bytes of a file have been decompressed.
     fn bytes_extracted(&self, _count: u64) {}
 }
 
@@ -59,18 +51,26 @@ pub fn extract_to_directory<'b, P1: AsRef<Path>, P2: AsRef<Path>>(
     Ok(())
 }
 
-pub fn compress_directory<'b, P1: AsRef<Path>, P2: AsRef<Path>>(target_dir: P1, output_file: P2, level: CompressionLevel) -> Result<()> {
-    let target_dir = target_dir.as_ref().to_path_buf();
-    let mut zipper = mtzip::ZipArchive::new();
-    let workdir_relative_paths = enumerate_files_relative(&target_dir);
-    for relative_path in &workdir_relative_paths {
-        zipper
-            .add_file_from_fs(target_dir.join(&relative_path), relative_path.to_string_lossy().to_string())
-            .compression_level(level)
-            .done();
+pub fn compress_directory<P1: AsRef<Path>, P2: AsRef<Path>>(target_dir: P1, output_file: P2) -> Result<()> {
+    let target_dir = target_dir.as_ref();
+    let file = File::create(&output_file)?;
+    let mut zip = ZipWriter::new(file);
+    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
+
+    let relative_paths = enumerate_files_relative(target_dir);
+    for relative_path in &relative_paths {
+        let full_path = target_dir.join(relative_path);
+        let name = relative_path.to_string_lossy();
+        // Use forward slashes in zip entries
+        let name = name.replace('\\', "/");
+        zip.start_file(name, options)?;
+        let mut f = File::open(&full_path)?;
+        let mut buffer = Vec::new();
+        f.read_to_end(&mut buffer)?;
+        zip.write_all(&buffer)?;
     }
-    let mut file = File::create(&output_file)?;
-    zipper.write_with_rayon(&mut file)?;
+
+    zip.finish()?;
     Ok(())
 }
 
