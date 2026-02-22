@@ -96,8 +96,6 @@ jobs:
           fetch-depth: 0
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
-        with:
-          update-dotnet: true
       - name: Install FUSE
         run: |
           sudo add-apt-repository universe
