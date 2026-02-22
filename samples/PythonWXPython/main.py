@@ -1,4 +1,5 @@
 import logging
+import threading
 import wx
 
 import velopack
@@ -34,10 +35,14 @@ class MainFrame(wx.Frame):
         # Create main panel
         panel = wx.Panel(self)
         
-        # Create buttons
-        self.check_btn = wx.Button(panel, label="Check")
-        self.download_btn = wx.Button(panel, label="Download")
-        self.apply_btn = wx.Button(panel, label="Apply")
+        # Create buttons with minimum width to prevent text cutoff
+        self.check_btn = wx.Button(panel, label="Check", size=(150, -1))
+        self.download_btn = wx.Button(panel, label="Download", size=(150, -1))
+        self.apply_btn = wx.Button(panel, label="Apply", size=(150, -1))
+        
+        # Start with Download and Apply disabled
+        self.download_btn.Disable()
+        self.apply_btn.Disable()
         
         # Create log text control (multiline and read-only)
         self.log_text = wx.TextCtrl(panel, 
@@ -92,8 +97,14 @@ class MainFrame(wx.Frame):
         self.update_info = self.update_manager.check_for_updates()
         if self.update_info:
             logging.info(f"Update available: {self.update_info}")
+            # Enable download and apply buttons when update is available
+            self.download_btn.Enable()
+            self.apply_btn.Enable()
         else:
             logging.info("No updates available")
+            # Keep buttons disabled if no update
+            self.download_btn.Disable()
+            self.apply_btn.Disable()
 
     
     def on_download(self, event):
@@ -101,11 +112,37 @@ class MainFrame(wx.Frame):
             logging.warning("No update information available. Please check first.")
             return
         
-        try:
-            self.update_manager.download_updates(self.update_info)
-            logging.info("Update downloaded successfully")
-        except Exception as e:
-            logging.error(f"Failed to download update: {e}")
+        # Disable buttons during download
+        self.download_btn.Disable()
+        self.apply_btn.Disable()
+        
+        def progress_callback(progress):
+            # Update button text with progress percentage
+            wx.CallAfter(self.download_btn.SetLabel, f"Downloading... {progress}%")
+        
+        def download_thread():
+            try:
+                # Store original button label
+                original_label = self.download_btn.GetLabel()
+                
+                # Call download_updates with progress callback
+                self.update_manager.download_updates(self.update_info, progress_callback)
+                
+                # Restore original button label when done
+                wx.CallAfter(self.download_btn.SetLabel, original_label)
+                wx.CallAfter(self.download_btn.Enable)
+                wx.CallAfter(self.apply_btn.Enable)
+                wx.CallAfter(logging.info, "Update downloaded successfully")
+            except Exception as e:
+                # Restore button label on error
+                wx.CallAfter(self.download_btn.SetLabel, "Download")
+                wx.CallAfter(self.download_btn.Enable)
+                wx.CallAfter(self.apply_btn.Enable)
+                wx.CallAfter(logging.error, f"Failed to download update: {e}")
+        
+        # Start download in a separate thread
+        thread = threading.Thread(target=download_thread, daemon=True)
+        thread.start()
     
     def on_apply(self, event):
         if not self.update_info:

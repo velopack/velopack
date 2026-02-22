@@ -1,0 +1,1 @@
+update_url = R"D:\WinDev\Projects\velopack\samples\PythonPySide6\releases"

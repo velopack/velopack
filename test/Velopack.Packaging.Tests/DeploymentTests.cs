@@ -71,7 +71,7 @@ public class DeploymentTests
         };
 
         var updateUrl = $"https://{AZ_ENDPOINT}/{AZ_CONTAINER}";
-        await Deploy<AzureRepository, AzureDownloadOptions, AzureUploadOptions, BlobContainerClient>("AZTestApp", repo, options, releaseDir, updateUrl, logger);
+        await Deploy<AzureRepository, AzureDownloadOptions, AzureUploadOptions, AzureBlobClient>("AZTestApp", repo, options, releaseDir, updateUrl, logger);
     }
 
     static SemanticVersion GenerateSemverFromDateTime()

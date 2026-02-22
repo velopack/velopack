@@ -1,4 +1,5 @@
-﻿using Azure;
+﻿using System.Text;
+using Azure;
 using Azure.Storage;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -19,6 +20,8 @@ public class AzureDownloadOptions : RepositoryOptions, IObjectDownloadOptions
     public string Container { get; set; }
 
     public string SasToken { get; set; }
+
+    public string Prefix { get; set; }
 }
 
 public class AzureUploadOptions : AzureDownloadOptions, IObjectUploadOptions
@@ -26,13 +29,26 @@ public class AzureUploadOptions : AzureDownloadOptions, IObjectUploadOptions
     public int KeepMaxReleases { get; set; }
 }
 
-public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploadOptions, BlobContainerClient>
+public class AzureBlobClient(BlobContainerClient client, string prefix)
+{
+    public virtual Task DeleteBlobIfExistsAsync(string key, CancellationToken cancellationToken = default)
+    {
+        return client.DeleteBlobIfExistsAsync(prefix + key, cancellationToken: cancellationToken);
+    }
+
+    public virtual BlobClient GetBlobClient(string key)
+    {
+        return client.GetBlobClient(prefix + key);
+    }
+}
+
+public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploadOptions, AzureBlobClient>
 {
     public AzureRepository(ILogger logger) : base(logger)
     {
     }
 
-    protected override BlobContainerClient CreateClient(AzureDownloadOptions options)
+    protected override AzureBlobClient CreateClient(AzureDownloadOptions options)
     {
         var serviceUrl = options.Endpoint ?? "https://" + options.Account + ".blob.core.windows.net";
         if (options.Endpoint == null) {
@@ -51,10 +67,21 @@ public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploa
             client = new BlobServiceClient(new Uri(serviceUrl), new StorageSharedKeyCredential(options.Account, options.Key), clientOptions);
         }
 
-        return client.GetBlobContainerClient(options.Container);
+        var containerClient = client.GetBlobContainerClient(options.Container);
+
+        var prefix = options.Prefix?.Trim();
+        if (prefix == null) {
+            prefix = "";
+        }
+
+        if (!string.IsNullOrEmpty(prefix) && !prefix.EndsWith("/")) {
+            prefix += "/";
+        }
+
+        return new AzureBlobClient(containerClient, prefix);
     }
 
-    protected override async Task DeleteObject(BlobContainerClient client, string key)
+    protected override async Task DeleteObject(AzureBlobClient client, string key)
     {
         await RetryAsync(
             async () => {
@@ -63,7 +90,7 @@ public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploa
             "Deleting " + key);
     }
 
-    protected override async Task<byte[]> GetObjectBytes(BlobContainerClient client, string key)
+    protected override async Task<byte[]> GetObjectBytes(AzureBlobClient client, string key)
     {
         return await RetryAsyncRet(
             async () => {
@@ -79,6 +106,17 @@ public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploa
             $"Downloading {key}...");
     }
 
+    protected override async Task<VelopackAssetFeed> GetReleasesAsync(AzureDownloadOptions options)
+    {
+        var releasesName = CoreUtil.GetVeloReleaseIndexName(options.Channel);
+        var client = CreateClient(options);
+        var bytes = await GetObjectBytes(client, releasesName);
+        if (bytes == null || bytes.Length == 0) {
+            return new VelopackAssetFeed();
+        }
+        return VelopackAssetFeed.FromJson(Encoding.UTF8.GetString(bytes));
+    }
+
     protected override async Task SaveEntryToFileAsync(AzureDownloadOptions options, VelopackAsset entry, string filePath)
     {
         await RetryAsync(
@@ -90,7 +128,8 @@ public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploa
             $"Downloading {entry.FileName}...");
     }
 
-    protected override async Task UploadObject(BlobContainerClient client, string key, FileInfo f, bool overwriteRemote, bool noCache)
+
+    protected override async Task UploadObject(AzureBlobClient client, string key, FileInfo f, bool overwriteRemote, bool noCache)
     {
         var blobClient = client.GetBlobClient(key);
         try {

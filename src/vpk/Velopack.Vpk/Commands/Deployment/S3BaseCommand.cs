@@ -55,7 +55,7 @@ public class S3BaseCommand : OutputCommand
             .SetRequired();
 
         AddOption<string>((v) => Prefix = v, "--prefix")
-            .SetDescription("Prefix to the S3 url.")
+            .SetDescription("Optional filename path prefix.")
             .SetArgumentHelpName("PREFIX");
 
         AddOption<bool>((v) => DisablePathStyle = v, "--disablePathStyle")
