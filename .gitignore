@@ -12,6 +12,7 @@ cross.log
 *.tgz
 *.node
 out/
+.claude/
 
 #################
 ## Eclipse
