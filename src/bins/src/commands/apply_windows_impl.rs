@@ -55,8 +55,8 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
                 vec!["apply".into(), "--norestart".into(), "--package".into(), package.into(), "--root".into(), root_path.into()];
             let exe_path = std::env::current_exe()?;
             let work_dir: Option<String> = None; // same as this process
-            // NB: show_window must be true for dialogs to be shown
-            // https://learn.microsoft.com/en-us/windows/win32/api/commctrl/nf-commctrl-taskdialogindirect#remarks
+                                                 // NB: show_window must be true for dialogs to be shown
+                                                 // https://learn.microsoft.com/en-us/windows/win32/api/commctrl/nf-commctrl-taskdialogindirect#remarks
             let process_handle = process::run_process_as_admin(&exe_path, args, work_dir, true)?;
 
             info!("Waiting (up to 10 minutes) for elevated process (pid: {}) to exit...", process_handle.pid());
@@ -124,7 +124,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
         }
 
         // third, we try _REALLY HARD_ to stop the package
-        let _ = shared::force_stop_package(root_path);
+        let _ = shared::force_stop_package(&root_path);
         // if winsafe::IsWindows10OrGreater() == Ok(true) && !locksmith::close_processes_locking_dir(&old_locator) {
         //     bail!("Failed to close processes locking directory / user cancelled.");
         // }
@@ -214,21 +214,28 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
         info!("Package applied successfully.");
 
         // Sync Update.exe to root directory if we're running from a different location
-        let default_update_exe = root_path.join("Update.exe");
+        let default_update_exe = &root_path.join("Update.exe");
         let current_update_exe = std::env::current_exe()?;
 
-        if default_update_exe != current_update_exe {
-            if default_update_exe.exists() {
+        if (current_update_exe.exists()) == false {
+            warn!("Current Update.exe path does not exist, skipping default path sync (this shouldn't happen)");
+            return Ok(());
+        }
+
+        match (default_update_exe.exists(), same_file::is_same_file(&default_update_exe, &current_update_exe)) {
+            (true, Ok(true)) => {
+                info!("Update.exe is already in the correct location: {:?}", &current_update_exe);
+            }
+            (false, _) | (_, Ok(false)) => {
                 info!("Running from non-default location. Attempting to update default Update.exe at: {:?}", default_update_exe);
                 match std::fs::copy(&current_update_exe, &default_update_exe) {
                     Ok(_) => info!("Successfully updated default Update.exe"),
                     Err(e) => warn!("Failed to update default Update.exe: {} (non-fatal)", e),
                 }
-            } else {
-                info!("Default Update.exe does not exist, skipping update");
             }
-        } else {
-            info!("Running from default location ({:?}), no Update.exe sync needed", default_update_exe);
+            (_, Err(e)) => {
+                warn!("Failed to compare Update.exe locations: {} (non-fatal)", e);
+            }
         }
 
         Ok(())
