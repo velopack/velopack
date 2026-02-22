@@ -67,7 +67,6 @@ pub fn test_install_apply_uninstall() {
 
     commands::uninstall(&locator, false).unwrap();
     assert!(!tmp_buf.join("current").exists());
-    assert!(tmp_buf.join(".dead").exists());
 
     assert!(!lnk_desktop_1.exists());
     assert!(!lnk_start_1.exists());

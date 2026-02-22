@@ -3,7 +3,6 @@ use velopack::{constants, locator::VelopackLocator};
 
 use crate::windows;
 use anyhow::Result;
-use std::fs::File;
 
 pub fn uninstall(locator: &VelopackLocator, delete_self: bool) -> Result<()> {
     info!("Command: Uninstall");
@@ -36,9 +35,6 @@ pub fn uninstall(locator: &VelopackLocator, delete_self: bool) -> Result<()> {
 
     info!("Finished successfully.");
     shared::dialogs::show_info(format!("{} Uninstall", app_title).as_str(), None, "The application was successfully uninstalled.");
-
-    let dead_path = root_path.join(".dead");
-    let _ = File::create(dead_path);
 
     if delete_self {
         if let Err(e) = windows::register_intent_to_delete_self(3, &root_path) {

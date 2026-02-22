@@ -115,8 +115,8 @@ public class CrossCompile
         var uninstallOutput = Exe.RunHostedCommand($"\"{appUpdate}\" --uninstall --silent");
         logger.LogInformation(uninstallOutput);
 
-        Assert.False(File.Exists(appExe));
-        Assert.True(File.Exists(Path.Combine(appRoot, ".dead")));
-        IoUtil.DeleteFileOrDirectoryHard(appRoot);
+        // wait for the scheduled rmdir to complete (3 second delay + margin)
+        Thread.Sleep(5000);
+        Assert.False(Directory.Exists(appRoot));
     }
 }
