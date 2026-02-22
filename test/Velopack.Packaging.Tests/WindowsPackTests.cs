@@ -37,17 +37,7 @@ public class WindowsPackTests
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "velopack",
-            appId,
-            "Velopack.log");
-    }
-
-    private static string GetPackagesPath(string appId)
-    {
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "velopack",
-            appId,
-            "packages");
+            $"velopack_{appId}.log");
     }
 
     [SkippableFact]
@@ -299,10 +289,10 @@ public class WindowsPackTests
         // pack v2
         await PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
 
-        // move package into local packages dir
+        // move package into local packages dir (installDir is writable, so packages dir is installDir/packages)
         var fileName = $"{id}-2.0.0-full.nupkg";
         var mvFrom = Path.Combine(releaseDir, fileName);
-        string packagesPath = GetPackagesPath(id);
+        string packagesPath = Path.Combine(installDir, "packages");
         Directory.CreateDirectory(packagesPath);
         var mvTo = Path.Combine(packagesPath, fileName);
         File.Copy(mvFrom, mvTo, true);
@@ -449,7 +439,7 @@ public class WindowsPackTests
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var _2 = TempUtil.GetTempDirectory(out var installDir);
         string id = "SquirrelIntegrationTest";
-        string packagesPath = GetPackagesPath(id);
+        string packagesPath = Path.Combine(installDir, "packages");
         if (Directory.Exists(packagesPath)) {
             Directory.Delete(packagesPath, true);
         }
@@ -636,7 +626,7 @@ public class WindowsPackTests
 
         Thread.Sleep(10_000); // update.exe runs in a separate process here
 
-        var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "velopack", "LegacyTestApp", "Velopack.log");
+        var logPath = GetLogFilePath("LegacyTestApp");
         string logContents = ReadFileWithRetry(logPath, logger);
         logger.Info("Velopack.log:" + Environment.NewLine + logContents);
         logger.Info("TEST: " + DateTime.Now.ToLongTimeString());
