@@ -147,7 +147,7 @@ pub fn show_overwrite_repair_dialog(app: &Manifest, root_path: &PathBuf, root_is
     let btn_cancel_txt = string_to_wide("Cancel\nBackup or save your work first");
 
     // if we can detect the current app version, we call it "Update" or "Downgrade"
-    let old_app = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(root_path.to_owned()));
+    let old_app = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(root_path.to_owned(), None));
     if let Ok(old) = old_app {
         let old_version = old.get_manifest_version();
         if old_version < app.version {

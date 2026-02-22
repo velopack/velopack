@@ -1,4 +1,5 @@
 use crate::locator::VelopackLocator;
+use crate::Error;
 use std::path::PathBuf;
 
 #[cfg(feature = "file-logging")]
@@ -7,6 +8,17 @@ use simplelog::*;
 use time::format_description::{modifier, Component, FormatItem};
 
 static LOGGING_FILE_NAME: &str = "velopack.log";
+
+/// A placeholder that can be passed to `default_logfile_path` when no locator
+/// is available (e.g. during setup before any app is installed).
+pub struct NoLocator;
+
+impl TryFrom<NoLocator> for VelopackLocator {
+    type Error = Error;
+    fn try_from(_: NoLocator) -> Result<Self, Self::Error> {
+        Err(Error::NotInstalled("No locator available".to_owned()))
+    }
+}
 
 #[cfg(target_os = "linux")]
 fn default_file_linux<L: TryInto<VelopackLocator>>(locator: L) -> PathBuf {
@@ -43,21 +55,20 @@ fn default_file_macos<L: TryInto<VelopackLocator>>(locator: L) -> PathBuf {
 
 #[cfg(target_os = "windows")]
 fn default_file_windows<L: TryInto<VelopackLocator>>(locator: L) -> PathBuf {
-    match locator.try_into() {
-        Ok(locator) => {
-            let mut log_dir = locator.get_root_dir();
-            if let Ok(appdata) = std::env::var("LOCALAPPDATA") {
-                let velopack_app_dir = PathBuf::from(appdata).join("Velopack").join(locator.get_manifest_id());
-                log_dir = velopack_app_dir;
-            }
-            log_dir.push(LOGGING_FILE_NAME);
-            match std::fs::OpenOptions::new().write(true).create(true).open(&log_dir) {
-                Ok(_) => log_dir, // the desired location is writable
-                Err(_) => std::env::temp_dir().join(format!("velopack_{}.log", locator.get_manifest_id())), // fallback to temp dir with app name
-            }
-        }
-        Err(_) => std::env::temp_dir().join(LOGGING_FILE_NAME), // fallback to temp dir shared filename
+    use crate::known_path::get_local_app_data;
+
+    let file_name = match locator.try_into() {
+        Ok(locator) => format!("velopack_{}.log", locator.get_manifest_id()),
+        Err(_) => LOGGING_FILE_NAME.to_string(),
+    };
+
+    if let Ok(appdata) = get_local_app_data() {
+        let log_dir = appdata.join("velopack");
+        let _ = std::fs::create_dir_all(&log_dir);
+        return log_dir.join(file_name);
     }
+
+    std::env::temp_dir().join(file_name)
 }
 
 /// Default log location for Velopack on the current OS.

@@ -42,7 +42,8 @@ fn root_command() -> Command {
     )
     .arg(arg!(--verbose "Print debug messages to console / log").global(true))
     .arg(arg!(-s --silent "Don't show any prompts / dialogs").global(true))
-    .arg(arg!(--root <PATH> "Override the default locator root directory").global(true).hide(true).value_parser(value_parser!(PathBuf)))
+    .arg(arg!(--rootDir <PATH> "Override the default locator root directory").alias("root").global(true).value_parser(value_parser!(PathBuf)))
+    .arg(arg!(--packageDir <PATH> "Override the default packages directory").global(true).value_parser(value_parser!(PathBuf)))
     .arg(arg!(-l --log <PATH> "Override the default log file location").global(true).value_parser(value_parser!(PathBuf)))
         // Legacy arguments should not be fully removed if it's possible to keep them
         // Reason being is clap.ignore_errors(true) is not 100%, and sometimes old args can trip things up.
@@ -140,9 +141,10 @@ fn main() -> Result<()> {
     let silent = get_flag_or_false(&matches, "silent");
     dialogs::set_silent(silent);
 
-    let root_dir = matches.get_one::<PathBuf>("root");
+    let root_dir = matches.get_one::<PathBuf>("rootDir");
+    let package_dir = matches.get_one::<PathBuf>("packageDir").cloned();
     let location_context = if let Some(root) = root_dir {
-        LocationContext::FromSpecifiedRootDir(root.clone())
+        LocationContext::FromSpecifiedRootDir(root.clone(), package_dir)
     } else {
         LocationContext::IAmUpdateExe
     };
@@ -334,11 +336,31 @@ fn test_cli_parse_handles_equals_spaces() {
 
 #[cfg(target_os = "windows")]
 #[test]
-fn test_cli_handles_root_at_end() {
-    let command = vec!["C:\\Some Path\\With = Spaces\\Update.exe", "apply", "--package", "C:\\Package.zip", "--root", "C:\\Some Path"];
+fn test_cli_handles_root_dir_at_end() {
+    let command = vec!["C:\\Some Path\\With = Spaces\\Update.exe", "apply", "--package", "C:\\Package.zip", "--rootDir", "C:\\Some Path"];
     let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
-    let root = matches.get_one::<PathBuf>("root");
+    let root = matches.get_one::<PathBuf>("rootDir");
     assert_eq!(root, Some(&PathBuf::from("C:\\Some Path")));
+}
+
+#[cfg(target_os = "windows")]
+#[test]
+fn test_cli_handles_root_alias() {
+    let command = vec!["Update.exe", "apply", "--package", "C:\\Package.zip", "--root", "C:\\Some Path"];
+    let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
+    let root = matches.get_one::<PathBuf>("rootDir");
+    assert_eq!(root, Some(&PathBuf::from("C:\\Some Path")));
+}
+
+#[cfg(target_os = "windows")]
+#[test]
+fn test_cli_handles_package_dir() {
+    let command = vec!["Update.exe", "apply", "--package", "C:\\Package.zip", "--rootDir", "C:\\Root", "--packageDir", "C:\\Custom\\Packages"];
+    let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
+    let root = matches.get_one::<PathBuf>("rootDir");
+    let pkg_dir = matches.get_one::<PathBuf>("packageDir");
+    assert_eq!(root, Some(&PathBuf::from("C:\\Root")));
+    assert_eq!(pkg_dir, Some(&PathBuf::from("C:\\Custom\\Packages")));
 }
 
 #[cfg(target_os = "windows")]

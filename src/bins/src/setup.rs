@@ -80,7 +80,8 @@ fn main_inner() -> Result<()> {
 
     let verbose = matches.get_flag("verbose");
     let logfile = matches.get_one::<PathBuf>("log");
-    velopack::logging::init_logging("setup", logfile, true, verbose, None);
+    let desired_log_file = logfile.cloned().unwrap_or(velopack::logging::default_logfile_path(velopack::logging::NoLocator));
+    velopack::logging::init_logging("setup", Some(&desired_log_file), true, verbose, None);
 
     let debug = matches.get_one::<PathBuf>("debug");
     let install_to = matches.get_one::<PathBuf>("installto");
@@ -90,7 +91,7 @@ fn main_inner() -> Result<()> {
     info!("    Location: {:?}", env::current_exe()?);
     info!("    Silent: {}", silent);
     info!("    Verbose: {}", verbose);
-    info!("    Log: {:?}", logfile);
+    info!("    Log: {:?}", desired_log_file);
     info!("    Install To: {:?}", install_to);
     if cfg!(debug_assertions) {
         info!("    Debug: {:?}", debug);

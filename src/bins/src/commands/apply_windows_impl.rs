@@ -51,8 +51,9 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
         } else {
             info!("Re-launching as administrator to update in {:?}", root_path);
 
+            let packages_dir = old_locator.get_packages_dir();
             let args: Vec<OsString> =
-                vec!["apply".into(), "--norestart".into(), "--package".into(), package.into(), "--root".into(), root_path.into()];
+                vec!["apply".into(), "--norestart".into(), "--package".into(), package.into(), "--rootDir".into(), root_path.into(), "--packageDir".into(), packages_dir.into()];
             let exe_path = std::env::current_exe()?;
             let work_dir: Option<String> = None; // same as this process
                                                  // NB: show_window must be true for dialogs to be shown

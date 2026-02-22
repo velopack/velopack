@@ -30,19 +30,7 @@ namespace Velopack.Locators
         public override SemanticVersion? CurrentlyInstalledVersion { get; }
 
         /// <inheritdoc />
-        public override string? PackagesDir => _embeddedPackagesDir
-            ? CreateSubDirIfDoesNotExist(RootAppDir, "packages")
-            : CreateSubDirIfDoesNotExist(VelopackAppSpecificDir, "packages");
-
-        private readonly bool _embeddedPackagesDir;
-
-        /// <summary>
-        /// Provides a semi-persistent directory for storing app specific data outside the installation directory.
-        /// </summary>
-        public virtual string? VelopackAppSpecificDir => CreateSubDirIfDoesNotExist(VelopackDataDir, AppId);
-
-        private string? VelopackDataDir => CreateSubDirIfDoesNotExist(AppDataDir, "velopack");
-        private string? AppDataDir => Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        public override string? PackagesDir { get; }
 
         /// <inheritdoc />
         public override bool IsPortable => RootAppDir != null && File.Exists(Path.Combine(RootAppDir, ".portable"));
@@ -123,69 +111,37 @@ namespace Velopack.Locators
                 }
             }
 
-            // Determine if we should use embedded packages (inside RootAppDir) or external packages (in AppData)
-            // EmbeddedPackagesDir = IsPortable || RootAppDir is inside AppDataDir
-            initLog.Info($"Evaluating packages directory location. RootAppDir: {RootAppDir}, AppDataDir: {AppDataDir}");
-
-            var wouldBeEmbedded = false;
-            if (IsPortable) {
-                initLog.Info("Portable install detected (.portable file present), using embedded packages");
-                wouldBeEmbedded = true;
-            } else if (RootAppDir != null && AppDataDir != null && PathUtil.IsFileInDirectory(RootAppDir, AppDataDir)) {
-                initLog.Info($"Root directory '{RootAppDir}' is inside AppData '{AppDataDir}', using embedded packages");
-                wouldBeEmbedded = true;
-            } else {
-                if (RootAppDir == null) {
-                    initLog.Info("RootAppDir is null, using external packages");
-                } else if (AppDataDir == null) {
-                    initLog.Info("AppDataDir is null, using external packages");
-                } else {
-                    initLog.Info($"Root directory '{RootAppDir}' is NOT inside AppData '{AppDataDir}', using external packages");
-                }
-            }
-
-            // If embedded, verify we can actually write to the directory
+            // Determine packages directory using simple writability test
             if (RootAppDir != null) {
-                var isWritable = PathUtil.IsDirectoryWritable(RootAppDir);
-                initLog.Info($"Root directory '{RootAppDir}' writable: {isWritable}");
-
-                if (wouldBeEmbedded && !isWritable) {
-                    initLog.Warn("Root directory is not writable, switching to external packages directory");
-                    wouldBeEmbedded = false;
+                if (PathUtil.IsDirectoryWritable(RootAppDir)) {
+                    PackagesDir = CreateSubDirIfDoesNotExist(RootAppDir, "packages");
+                    initLog.Info($"Root directory is writable, using packages directory: {PackagesDir}");
+                } else {
+                    var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                    if (!string.IsNullOrEmpty(localAppData) && !string.IsNullOrEmpty(AppId)) {
+                        var fallbackBase = Path.Combine(localAppData, AppId);
+                        Directory.CreateDirectory(fallbackBase);
+                        PackagesDir = Path.Combine(fallbackBase, "packages");
+                        Directory.CreateDirectory(PackagesDir);
+                        initLog.Info($"Root directory is not writable, using fallback packages directory: {PackagesDir}");
+                    } else {
+                        initLog.Error("Root directory is not writable and LocalAppData is unavailable. Updates may not work correctly.");
+                    }
                 }
             }
 
-            _embeddedPackagesDir = wouldBeEmbedded;
-
-            if (_embeddedPackagesDir) {
-                initLog.Info($"DECISION: Using embedded packages directory: {PackagesDir}");
-            } else {
-                initLog.Info($"DECISION: Using external packages directory: {PackagesDir}");
-            }
-
-            var logFilePath = Path.Combine(Path.GetTempPath(), DefaultLoggingFileName);
-            if (!string.IsNullOrEmpty(AppId)) {
-                logFilePath = Path.Combine(Path.GetTempPath(), $"velopack_{AppId}.log");
-            }
+            var localAppDataForLog = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var logDir = Path.Combine(localAppDataForLog, "velopack");
+            try { Directory.CreateDirectory(logDir); } catch { }
+            var logFilePath = !string.IsNullOrEmpty(AppId)
+                ? Path.Combine(logDir, $"velopack_{AppId}.log")
+                : Path.Combine(logDir, "velopack.log");
 
             try {
                 var fileLog = new FileVelopackLogger(logFilePath, currentProcessId);
                 CombinedLogger.Add(fileLog);
             } catch (Exception ex) {
                 initLog.Error("Unable to create file logger: " + ex);
-            }
-
-            if (PackagesDir != null && !_embeddedPackagesDir) {
-                var writableUpdateExe = Path.GetFullPath(Path.Combine(PackagesDir, "..", "Update.exe"));
-                if (UpdateExePath != null && !File.Exists(writableUpdateExe)) {
-                    try {
-                        File.Copy(UpdateExePath, writableUpdateExe);
-                        initLog.Info($"Copied Update.exe to writable location: {writableUpdateExe}");
-                        UpdateExePath = writableUpdateExe;
-                    } catch (Exception ex) {
-                        initLog.Error("Unable to copy Update.exe to writable location: " + ex);
-                    }
-                }
             }
 
             if (AppId is null) {

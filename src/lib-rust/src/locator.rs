@@ -128,88 +128,39 @@ impl VelopackLocator {
     #[cfg(windows)]
     pub fn new_with_manifest(mut paths: VelopackLocatorConfig, manifest: Manifest) -> Self {
         let root = paths.RootAppDir.clone();
+        let default_packages_dir = root.join("packages");
+        let has_custom_packages_dir = paths.PackagesDir != default_packages_dir;
 
-        // Check for .msi-installed file - if present, this is an MSI install
-        // which should be treated as portable=true but embedded=false
-        let msi_installed_path = root.join(".msi-installed");
-        let is_msi_installed = msi_installed_path.exists();
-
-        if is_msi_installed {
-            paths.IsPortable = true;
+        if has_custom_packages_dir {
+            // A custom PackagesDir was provided (e.g. via --packageDir)
+            if misc::is_directory_writable(&paths.PackagesDir) {
+                info!("Using custom packages directory (writable): {}", paths.PackagesDir.display());
+            } else {
+                warn!("Custom packages directory is not writable, falling through to standard logic: {}", paths.PackagesDir.display());
+                // Fall through to standard logic below
+                paths.PackagesDir = default_packages_dir.clone();
+            }
         }
 
-        // Only override PackagesDir if it's the default value (root/packages)
-        // This allows users to specify a custom PackagesDir that we'll respect
-        let default_packages_dir = root.join("packages");
-        let should_compute_packages_dir = paths.PackagesDir == default_packages_dir;
-
-        if should_compute_packages_dir {
-            // Determine if we should use embedded packages (inside RootAppDir) or external packages (in AppData)
-            // EmbeddedPackagesDir = IsPortable || RootAppDir is inside AppDataDir
-            // Exception: MSI installs are portable but not embedded
-            let app_data_dir = get_local_app_data().ok();
-            let mut embedded_packages_dir = if is_msi_installed {
-                info!("MSI install detected (.msi-installed file present), using external packages directory");
-                false
-            } else {
-                if paths.IsPortable {
-                    info!("Portable install detected (.portable file present)");
-                    true
-                } else if app_data_dir.is_some() && misc::is_sub_path(&root, app_data_dir.as_ref().unwrap()) {
-                    info!("Root directory is inside AppData, using embedded packages directory");
-                    true
-                } else {
-                    false
-                }
-            };
-
-            // If embedded, verify we can actually write to the directory
+        // Standard logic: only run if we don't have a valid custom dir
+        if paths.PackagesDir == default_packages_dir {
             let is_writable = misc::is_directory_writable(&root);
-            info!("Root directory writable: {}", is_writable);
+            info!("Root directory '{}' writable: {}", root.display(), is_writable);
 
-            if embedded_packages_dir && !is_writable {
-                warn!("Root directory is not writable, switching to external packages directory");
-                embedded_packages_dir = false;
-            }
+            if is_writable {
+                paths.PackagesDir = root.join("packages");
+                info!("Using root packages directory: {}", paths.PackagesDir.display());
+            } else if let Some(app_data) = get_local_app_data().ok() {
+                let fallback_base = app_data.join(&manifest.id);
+                paths.PackagesDir = fallback_base.join("packages");
+                info!("Using fallback packages directory: {}", paths.PackagesDir.display());
 
-            if embedded_packages_dir {
-                info!("Using embedded packages directory: {}", paths.PackagesDir.display());
-            } else {
-                // Use external packages directory in AppData
-                if let Some(app_data) = app_data_dir {
-                    let velopack_package_root = app_data.join("velopack").join(&manifest.id);
-                    paths.PackagesDir = velopack_package_root.join("packages");
-                    info!("Using external packages directory: {}", paths.PackagesDir.display());
-
-                    if !paths.PackagesDir.exists() {
-                        if let Err(e) = std::fs::create_dir_all(&paths.PackagesDir) {
-                            error!("Unable to create packages directory: {}", e);
-                        }
-                    }
-
-                    // Copy Update.exe to writable location if it doesn't exist
-                    // Only do this if UpdateExePath is also the default value
-                    let default_update_exe = root.join("Update.exe");
-                    if paths.UpdateExePath == default_update_exe {
-                        let writable_update_exe = velopack_package_root.join("Update.exe");
-                        if paths.UpdateExePath.exists() && !writable_update_exe.exists() {
-                            match std::fs::copy(&paths.UpdateExePath, &writable_update_exe) {
-                                Ok(_) => {
-                                    info!("Copied Update.exe to writable location: {}", writable_update_exe.display());
-                                    paths.UpdateExePath = writable_update_exe;
-                                }
-                                Err(e) => {
-                                    error!("Unable to copy Update.exe to writable location: {}", e);
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    error!("Root directory is not writable and AppData directory is unavailable. Updates may not work correctly.");
+                if let Err(e) = std::fs::create_dir_all(&paths.PackagesDir) {
+                    error!("Unable to create fallback packages directory: {}", e);
                 }
+            } else {
+                error!("Root directory is not writable and LocalAppData is unavailable. Updates may not work correctly.");
             }
-        } else {
-            info!("Using custom packages directory (not overriding user-provided path): {}", paths.PackagesDir.display());
         }
 
         Self { paths, manifest }
@@ -230,7 +181,7 @@ impl VelopackLocator {
     pub fn get_ideal_local_nupkg_path(&self, id: Option<&str>, version: Option<Version>) -> PathBuf {
         let id = id.unwrap_or(&self.manifest.id);
         let version = version.unwrap_or(self.manifest.version.clone());
-        self.paths.RootAppDir.join("packages").join(format!("{}-{}-full.nupkg", id, version))
+        self.paths.PackagesDir.join(format!("{}-{}-full.nupkg", id, version))
     }
 
     /// Returns the path to the current app temporary directory.
@@ -393,8 +344,9 @@ pub enum LocationContext {
     IAmUpdateExe,
     /// Locates the app manifest by assuming the current process is inside the application current/binary directory.
     FromCurrentExe,
-    /// Locates the app manifest by assuming the app is installed in the specified root directory.
-    FromSpecifiedRootDir(PathBuf),
+    /// Locates the app manifest by assuming the app is installed in the specified root directory,
+    /// with an optional packages directory override.
+    FromSpecifiedRootDir(PathBuf, Option<PathBuf>),
     /// Locates the app manifest by assuming the specified path is inside the application current/binary directory.
     FromSpecifiedAppExecutable(PathBuf),
 }
@@ -417,8 +369,11 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
             let current_exe = std::env::current_exe()?;
             return auto_locate_app_manifest(LocationContext::FromSpecifiedAppExecutable(current_exe));
         }
-        LocationContext::FromSpecifiedRootDir(root_dir) => {
-            let config = create_config_from_root_dir(&root_dir);
+        LocationContext::FromSpecifiedRootDir(root_dir, package_dir) => {
+            let mut config = create_config_from_root_dir(&root_dir);
+            if let Some(pkg_dir) = package_dir {
+                config.PackagesDir = pkg_dir;
+            }
             let locator = VelopackLocator::new(&config)?;
             return Ok(locator);
         }
@@ -465,7 +420,7 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
 pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLocator, Error> {
     let mut search_path = std::env::current_exe()?;
     match context {
-        LocationContext::FromSpecifiedRootDir(dir) => search_path = dir.join("dummy"),
+        LocationContext::FromSpecifiedRootDir(dir, _) => search_path = dir.join("dummy"),
         LocationContext::FromSpecifiedAppExecutable(exe) => search_path = exe,
         _ => {}
     }
@@ -520,7 +475,7 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
 pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLocator, Error> {
     let mut search_path = std::env::current_exe()?;
     match context {
-        LocationContext::FromSpecifiedRootDir(dir) => search_path = dir.join("dummy"),
+        LocationContext::FromSpecifiedRootDir(dir, _) => search_path = dir.join("dummy"),
         LocationContext::FromSpecifiedAppExecutable(exe) => search_path = exe,
         _ => {}
     }

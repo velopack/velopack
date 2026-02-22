@@ -48,7 +48,7 @@ pub fn test_install_apply_uninstall() {
     assert!(tmp_buf.join("current").join("AvaloniaCrossPlat.exe").exists());
     assert!(tmp_buf.join("current").join("sq.version").exists());
 
-    let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(tmp_buf.clone())).unwrap();
+    let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(tmp_buf.clone(), None)).unwrap();
     assert_eq!(app_id, locator.get_manifest_id());
     assert_eq!(semver::Version::parse("1.0.11").unwrap(), locator.get_manifest_version());
 
@@ -62,7 +62,7 @@ pub fn test_install_apply_uninstall() {
     assert!(lnk_desktop_2.exists());
     assert!(lnk_start_2.exists());
 
-    let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(tmp_buf.clone())).unwrap();
+    let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(tmp_buf.clone(), None)).unwrap();
     assert_eq!(semver::Version::parse("1.0.15").unwrap(), locator.get_manifest_version());
 
     commands::uninstall(&locator, false).unwrap();

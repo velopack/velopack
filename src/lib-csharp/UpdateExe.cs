@@ -80,8 +80,10 @@ namespace Velopack
 
             if (!restart) args.Add("--norestart"); // restarting is now the default Update.exe behavior
 
-            args.Add("--root");
+            args.Add("--rootDir");
             args.Add(locator.RootAppDir!);
+            args.Add("--packageDir");
+            args.Add(locator.PackagesDir!);
 
             if (restart && restartArgs != null && restartArgs.Length > 0) {
                 args.Add("--");
