@@ -41,17 +41,17 @@ public class CrossCompile
         File.Copy(src, dest, overwrite: true);
     }
 
-    [SkippableTheory]
+    [Theory]
     [InlineData("from-win-targets-linux")]
     [InlineData("from-linux-targets-linux")]
     [InlineData("from-osx-targets-linux")]
     public async Task RunCrossAppLinux(string artifactId)
     {
         using var logger = _output.BuildLoggerFor<CrossCompile>();
-        Skip.If(
+        Assert.SkipWhen(
             String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VELOPACK_CROSS_ARTIFACTS")),
             "VELOPACK_CROSS_ARTIFACTS not set");
-        Skip.IfNot(VelopackRuntimeInfo.IsLinux, "AppImage's can only run on Linux");
+        Assert.SkipUnless(VelopackRuntimeInfo.IsLinux, "AppImage's can only run on Linux");
 
         var artifactsDir = PathHelper.GetTestRootPath("artifacts");
         var artifactPath = Path.Combine(artifactsDir, artifactId + ".AppImage");
@@ -77,17 +77,17 @@ public class CrossCompile
         // logger.LogInformation(lintOutput);
     }
 
-    [SkippableTheory]
+    [Theory]
     [InlineData("from-win-targets-win")]
     [InlineData("from-linux-targets-win")]
     [InlineData("from-osx-targets-win")]
     public void RunCrossAppWindows(string artifactId)
     {
         using var logger = _output.BuildLoggerFor<CrossCompile>();
-        Skip.If(
+        Assert.SkipWhen(
             String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VELOPACK_CROSS_ARTIFACTS")),
             "VELOPACK_CROSS_ARTIFACTS not set");
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows, "PE files can only run on Windows");
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "PE files can only run on Windows");
 
         var artifactsDir = PathHelper.GetTestRootPath("artifacts");
         var artifactPath = Path.Combine(artifactsDir, artifactId + ".exe");
@@ -115,8 +115,8 @@ public class CrossCompile
         var uninstallOutput = Exe.RunHostedCommand($"\"{appUpdate}\" --uninstall --silent");
         logger.LogInformation(uninstallOutput);
 
-        Assert.False(File.Exists(appExe));
-        Assert.True(File.Exists(Path.Combine(appRoot, ".dead")));
-        IoUtil.DeleteFileOrDirectoryHard(appRoot);
+        // wait for the scheduled rmdir to complete (3 second delay + margin)
+        Thread.Sleep(5000);
+        Assert.False(Directory.Exists(appRoot));
     }
 }

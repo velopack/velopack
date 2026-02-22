@@ -24,18 +24,18 @@ public class CompatUtilTests
         return logger;
     }
 
-    [SkippableFact]
+    [Fact]
     public void NonDotnetBinaryPasses()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = GetCompat(out var compat);
         Assert.Null(compat.Verify(PathHelper.GetRustAsset("testapp.exe")));
     }
 
-    [SkippableFact]
+    [Fact]
     public void PublishSingleFilePasses()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = GetCompat(out var compat);
         using var _1 = TempUtil.GetTempDirectory(out var dir);
         var sample = PathHelper.GetAvaloniaSample();
@@ -53,10 +53,10 @@ public class CompatUtilTests
         Assert.Equal(VelopackRuntimeInfo.VelopackProductVersion, compat.Verify(newPath));
     }
 
-    [SkippableFact]
+    [Fact]
     public void PublishDotnet6Passes()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = GetCompat(out var compat);
         using var _1 = TempUtil.GetTempDirectory(out var dir);
         var sample = PathHelper.GetAvaloniaSample();
@@ -74,10 +74,10 @@ public class CompatUtilTests
         Assert.Equal(VelopackRuntimeInfo.VelopackProductVersion, compat.Verify(newPath));
     }
 
-    [SkippableFact]
+    [Fact]
     public void PublishNet48Passes()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = GetCompat(out var compat);
         using var _1 = TempUtil.GetTempDirectory(out var dir);
         var sample = PathHelper.GetWpfSample();
@@ -99,10 +99,10 @@ public class CompatUtilTests
         Assert.NotNull(compat.Verify(newPath));
     }
 
-    [SkippableFact]
+    [Fact]
     public void UnawareDotnetAppFails()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = GetCompat(out var compat);
         using var _1 = TempUtil.GetTempDirectory(out var dir);
         var sample = PathHelper.GetTestRootPath("TestApp");
@@ -116,10 +116,10 @@ public class CompatUtilTests
         Assert.Throws<UserInfoException>(() => compat.Verify(path));
     }
 
-    [SkippableFact]
+    [Fact]
     public void PublishAsyncMainPasses()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = GetCompat(out var compat);
         using var _1 = TempUtil.GetTempDirectory(out var dir);
         var sample = PathHelper.GetTestRootPath("TestApp");

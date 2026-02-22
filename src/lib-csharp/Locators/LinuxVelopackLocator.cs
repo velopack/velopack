@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Runtime.Versioning;
 using NuGet.Versioning;
@@ -25,6 +25,9 @@ namespace Velopack.Locators
         public override string? UpdateExePath { get; }
 
         /// <inheritdoc />
+        public override IProcessImpl Process { get; }
+
+        /// <inheritdoc />
         public override SemanticVersion? CurrentlyInstalledVersion { get; }
 
         /// <inheritdoc />
@@ -32,9 +35,6 @@ namespace Velopack.Locators
 
         /// <inheritdoc />
         public override string? Channel { get; }
-
-        /// <inheritdoc />
-        public override IVelopackLogger Log { get; }
 
         /// <inheritdoc />
         public override string? AppTempDir => CreateSubDirIfDoesNotExist(TempUtil.GetDefaultTempBaseDirectory(), AppId);
@@ -51,30 +51,23 @@ namespace Velopack.Locators
         /// <summary> File path of the .AppImage which mounted and ran this application. </summary>
         public string? AppImagePath => Environment.GetEnvironmentVariable("APPIMAGE");
 
-        /// <inheritdoc />
-        public override uint ProcessId { get; }
-
-        /// <inheritdoc />
-        public override string ProcessExePath { get; }
-
         /// <summary>
         /// Creates a new <see cref="OsxVelopackLocator"/> and auto-detects the
         /// app information from metadata embedded in the .app.
         /// </summary>
-        public LinuxVelopackLocator(string currentProcessPath, uint currentProcessId, IVelopackLogger? customLog)
+        public LinuxVelopackLocator(IProcessImpl? processImpl, IVelopackLogger? customLog)
         {
             if (!VelopackRuntimeInfo.IsLinux)
                 throw new NotSupportedException($"Cannot instantiate {nameof(LinuxVelopackLocator)} on a non-linux system.");
 
-            ProcessId = currentProcessId;
-            var ourPath = ProcessExePath = currentProcessPath;
+            CombinedLogger = new CombinedVelopackLogger(customLog);
 
-            var combinedLog = new CombinedVelopackLogger();
-            combinedLog.Add(customLog);
-            Log = combinedLog;
+            Process = processImpl ??= new DefaultProcessImpl(CombinedLogger);
+            var ourPath = processImpl.GetCurrentProcessPath();
+            var currentProcessId = processImpl.GetCurrentProcessId();
 
-            using var initLog = new CachedVelopackLogger(combinedLog);
-            initLog.Info($"Initialising {nameof(LinuxVelopackLocator)}");
+            using var initLog = new CachedVelopackLogger(CombinedLogger);
+            initLog.Info($"Initializing {nameof(LinuxVelopackLocator)}");
             var logFilePath = Path.Combine(Path.GetTempPath(), DefaultLoggingFileName);
 
             // are we inside a mounted .AppImage?
@@ -109,7 +102,7 @@ namespace Velopack.Locators
 
             try {
                 var fileLog = new FileVelopackLogger(logFilePath, currentProcessId);
-                combinedLog.Add(fileLog);
+                CombinedLogger.Add(fileLog);
             } catch (Exception ex) {
                 initLog.Error("Unable to create file logger: " + ex);
             }

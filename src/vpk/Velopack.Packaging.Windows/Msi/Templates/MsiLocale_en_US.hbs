@@ -1,0 +1,18 @@
+<!--suppress CheckEmptyScriptTag -->
+<WixLocalization Culture="en-US" Language="1033" Codepage="65001" SummaryInformationCodepage="0" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+    <String Id="ConclusionLaunchCheckboxText" Value="Launch"/>
+
+    <!-- Message on first welcome dialog; covers both initial install and update -->
+    {{#if HasWelcomeMessage}}
+        <String Id="WelcomeDlgDescription"
+                Value="{welcomeMessage}"/>
+        <String Id="WelcomeUpdateDlgDescriptionUpdate"
+                Value="{welcomeMessage}"/>
+    {{/if}}
+
+    <!-- Message on the completion dialog (last screen after install) -->
+    {{#if HasReadmeMessage}}
+        <String Id="VerifyReadyDlgInstallText"
+                Value="{readmeMessage}"/>
+    {{/if}}
+</WixLocalization>

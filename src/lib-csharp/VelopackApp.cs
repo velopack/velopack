@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -172,7 +172,7 @@ namespace Velopack
                 VelopackLocator.SetCurrentLocator(_customLocator);
             }
 
-            var locator = VelopackLocator.GetCurrentOrCreateDefault(_customLogger);
+            var locator = VelopackLocator.GetCurrentOrCreateDefault(null, _customLogger);
             var log = locator.Log;
 
             log.Info($"Starting VelopackApp.Run (library version {VelopackRuntimeInfo.VelopackNugetVersion}).");
@@ -196,17 +196,17 @@ namespace Velopack
                 new { Key = "--squirrel-obsolete", Value = defaultBlock },
                 new { Key = "--squirrel-uninstall", Value = defaultBlock },
             }.ToDictionary(k => k.Key, v => v.Value, StringComparer.OrdinalIgnoreCase);
-            if (args.Length >= 2 && fastExitlookup.ContainsKey(args[0])) {
+            if (args.Length >= 2 && fastExitlookup.TryGetValue(args[0], out var hook)) {
                 try {
                     log.Info("Found fast exit hook: " + args[0]);
                     var version = SemanticVersion.Parse(args[1]);
-                    fastExitlookup[args[0]](version);
+                    hook(version);
                     log.Info("Completed hook, exiting...");
-                    Exit(0);
+                    locator.Process.Exit(0);
                     return;
                 } catch (Exception ex) {
                     log.Error(ex, $"Error occurred executing user defined Velopack hook. ({args[0]})");
-                    Exit(-1);
+                    locator.Process.Exit(-1);
                     return;
                 }
             }
@@ -231,8 +231,8 @@ namespace Velopack
                 log.Info($"Launching app is out-dated. Current: {myVersion}, Newest Local Available: {latestLocal.Version}");
                 if (!restarted && _autoApply) {
                     log.Info("Auto apply is true, so restarting to apply update...");
-                    UpdateExe.Apply(locator, latestLocal, false, locator.ProcessId, true, args);
-                    Exit(0);
+                    UpdateExe.Apply(locator, latestLocal, false, locator.Process.GetCurrentProcessId(), true, args);
+                    locator.Process.Exit(0);
                 } else {
                     log.Info("Pre-condition failed, we will not restart to apply updates. (restarted: " + restarted + ", autoApply: " + _autoApply + ")");
                 }
@@ -271,13 +271,6 @@ namespace Velopack
                 } catch (Exception ex) {
                     log.Error(ex, $"Error occurred executing user defined Velopack hook. (restarted)");
                 }
-            }
-        }
-
-        private void Exit(int code)
-        {
-            if (!VelopackRuntimeInfo.InUnitTestRunner) {
-                Environment.Exit(code);
             }
         }
     }

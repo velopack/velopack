@@ -8,6 +8,15 @@ namespace Velopack.Logging
     {
         private readonly List<IVelopackLogger> _loggers = new();
 
+        public CombinedVelopackLogger(params IVelopackLogger?[] loggers)
+        {
+            foreach (var logger in loggers) {
+                if (logger != null) {
+                    _loggers.Add(logger);
+                }
+            }
+        }
+
         public void Log(VelopackLogLevel logLevel, string? message, Exception? exception)
         {
             foreach (var logger in _loggers) {

@@ -20,8 +20,8 @@ namespace Velopack
         Portable = 3,
         /// <summary> An application installer archive. </summary>
         Installer = 4,
-        /// <summary> A Windows Installer package (.msi) for the deployment tool.</summary>
-        MsiDeploymentTool = 5
+        /// <summary> A Windows Installer package (.msi).</summary>
+        Msi = 5,
     }
 
     /// <summary>

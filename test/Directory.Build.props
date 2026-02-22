@@ -20,7 +20,7 @@
     <IsPackable>false</IsPackable>
     <LangVersion>latest</LangVersion>
     <IsTest>true</IsTest>
-    <NoWarn>$(NoWarn);CS1998,xUnit2015,xUnit2017,xUnit2005,xUnit2009,xUnit2013,xUnit1013,xUnit2004;CA2007;CS8002</NoWarn>
+    <NoWarn>$(NoWarn);CS1998,xUnit1051,xUnit2015,xUnit2017,xUnit2005,xUnit2009,xUnit2013,xUnit1013,xUnit2004;CA2007;CS8002</NoWarn>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\..\Velopack.snk</AssemblyOriginatorKeyFile>
     <IsPackable>false</IsPackable>
@@ -41,12 +41,11 @@
   </ItemGroup>
 
   <ItemGroup Condition=" $(MSBuildProjectName.EndsWith('Tests')) ">
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
-    <PackageReference Include="Neovolve.Logging.Xunit.Signed" Version="6.3.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageReference Include="Neovolve.Logging.Xunit.Signed.v3" Version="7.2.0" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-    <PackageReference Include="xunit" Version="2.9.3" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
-    <PackageReference Include="Xunit.SkippableFact" Version="1.5.23" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageReference Include="coverlet.msbuild" Version="6.0.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>

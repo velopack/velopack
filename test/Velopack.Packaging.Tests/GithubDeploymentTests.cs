@@ -40,10 +40,10 @@ public class GithubDeploymentTests
         await repo.DownloadLatestFullPackageAsync(options);
     }
 
-    [SkippableFact]
+    [Fact]
     public void WillRefuseToUploadMultipleWithoutMergeArg()
     {
-        Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
+        Assert.SkipWhen(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var _2 = TempUtil.GetTempDirectory(out var releaseDir2);
@@ -72,10 +72,10 @@ public class GithubDeploymentTests
         Assert.ThrowsAny<UserInfoException>(() => gh.UploadMissingAssetsAsync(options).GetAwaiterResult());
     }
 
-    [SkippableFact]
+    [Fact]
     public void WillNotMergeMixmatchedTag()
     {
-        Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
+        Assert.SkipWhen(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var _2 = TempUtil.GetTempDirectory(out var releaseDir2);
@@ -105,10 +105,10 @@ public class GithubDeploymentTests
         Assert.ThrowsAny<UserInfoException>(() => gh.UploadMissingAssetsAsync(options).GetAwaiterResult());
     }
 
-    [SkippableFact]
+    [Fact]
     public void WillMergeGithubReleases()
     {
-        Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
+        Assert.SkipWhen(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var _2 = TempUtil.GetTempDirectory(out var releaseDir2);
@@ -140,10 +140,10 @@ public class GithubDeploymentTests
         gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
     }
 
-    [SkippableFact]
+    [Fact]
     public void CanDeployAndUpdateFromGithub()
     {
-        Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
+        Assert.SkipWhen(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
         var id = "GithubUpdateTest";
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
@@ -217,10 +217,10 @@ public class GithubDeploymentTests
         Assert.True(File.Exists(Path.Combine(releaseDirNew, filename)));
     }
 
-    [SkippableFact]
+    [Fact]
     public void WillCreateTagOnDefaultBranchIfTargetCommitishNotSet()
     {
-        Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
+        Assert.SkipWhen(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var ghvar = GitHubReleaseTest.Create("targetCommitish", logger, true);
@@ -251,12 +251,12 @@ public class GithubDeploymentTests
         Assert.Equal(expected, newRelease.TargetCommitish);
     }
 
-    [SkippableTheory]
+    [Theory]
     [InlineData("main")]
     [InlineData("31fca3d97e657a4fbee076462c5efb271f074656")] //Commit SHA in VelopackGithubUpdateTest repo
     public void WillCreateTagUsingTargetCommitish(string targetCommitish)
     {
-        Skip.If(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
+        Assert.SkipWhen(String.IsNullOrWhiteSpace(GITHUB_TOKEN), "VELOPACK_GITHUB_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var ghvar = GitHubReleaseTest.Create("targetCommitish", logger, true);

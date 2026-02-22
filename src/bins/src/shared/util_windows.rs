@@ -1,89 +1,20 @@
-use ::windows::Win32::System::ProcessStatus::EnumProcesses;
-use ::windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
-use anyhow::{anyhow, bail, Result};
+use ::windows::{
+    core::PWSTR,
+    Win32::{
+        System::ProcessStatus::EnumProcesses,
+        System::Threading::{QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_TERMINATE},
+    },
+};
+use anyhow::{bail, Result};
 use regex::Regex;
 use semver::Version;
 use std::{
     collections::HashMap,
+    ffi::OsString,
     fs,
     path::{Path, PathBuf},
-    process::Command as Process,
 };
-use windows::Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasicInformation};
-use windows::Win32::System::Threading::{GetCurrentProcess, PROCESS_BASIC_INFORMATION};
-use winsafe::{self as w, co, prelude::*};
-
-use velopack::locator::VelopackLocator;
-
-pub fn wait_for_pid_to_exit(pid: u32, ms_to_wait: u32) -> Result<()> {
-    info!("Waiting {}ms for process ({}) to exit.", ms_to_wait, pid);
-    let handle = w::HPROCESS::OpenProcess(co::PROCESS::SYNCHRONIZE, false, pid)?;
-    match handle.WaitForSingleObject(Some(ms_to_wait)) {
-        Ok(co::WAIT::OBJECT_0) => Ok(()),
-        // Ok(co::WAIT::TIMEOUT) => Ok(()),
-        _ => Err(anyhow!("WaitForSingleObject Failed.")),
-    }
-}
-
-pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
-    info!("Reading parent process information.");
-    let basic_info = ProcessBasicInformation;
-    let handle = unsafe { GetCurrentProcess() };
-    let mut return_length: u32 = 0;
-    let return_length_ptr: *mut u32 = &mut return_length as *mut u32;
-
-    let mut info = PROCESS_BASIC_INFORMATION {
-        AffinityMask: 0,
-        BasePriority: 0,
-        ExitStatus: Default::default(),
-        InheritedFromUniqueProcessId: 0,
-        PebBaseAddress: std::ptr::null_mut(),
-        UniqueProcessId: 0,
-    };
-
-    let info_ptr: *mut ::core::ffi::c_void = &mut info as *mut _ as *mut ::core::ffi::c_void;
-    let info_size = std::mem::size_of::<PROCESS_BASIC_INFORMATION>() as u32;
-    let hres = unsafe { NtQueryInformationProcess(handle, basic_info, info_ptr, info_size, return_length_ptr) };
-    if hres.is_err() {
-        return Err(anyhow!("Failed to query process information: {:?}", hres));
-    }
-
-    if info.InheritedFromUniqueProcessId <= 1 {
-        // the parent process has exited
-        info!("The parent process ({}) has already exited", info.InheritedFromUniqueProcessId);
-        return Ok(());
-    }
-
-    fn get_pid_start_time(process: w::HPROCESS) -> Result<u64> {
-        let mut creation = w::FILETIME::default();
-        let mut exit = w::FILETIME::default();
-        let mut kernel = w::FILETIME::default();
-        let mut user = w::FILETIME::default();
-        process.GetProcessTimes(&mut creation, &mut exit, &mut kernel, &mut user)?;
-        Ok(((creation.dwHighDateTime as u64) << 32) | creation.dwLowDateTime as u64)
-    }
-
-    let permissions = co::PROCESS::QUERY_LIMITED_INFORMATION | co::PROCESS::SYNCHRONIZE;
-    let parent_handle = w::HPROCESS::OpenProcess(permissions, false, info.InheritedFromUniqueProcessId as u32)?;
-    let parent_start_time = get_pid_start_time(unsafe { parent_handle.raw_copy() })?;
-    let myself_start_time = get_pid_start_time(w::HPROCESS::GetCurrentProcess())?;
-
-    if parent_start_time > myself_start_time {
-        // the parent process has exited and the id has been re-used
-        info!(
-            "The parent process ({}) has already exited. parent_start={}, my_start={}",
-            info.InheritedFromUniqueProcessId, parent_start_time, myself_start_time
-        );
-        return Ok(());
-    }
-
-    info!("Waiting {}ms for parent process ({}) to exit.", ms_to_wait, info.InheritedFromUniqueProcessId);
-    match parent_handle.WaitForSingleObject(Some(ms_to_wait)) {
-        Ok(co::WAIT::OBJECT_0) => Ok(()),
-        // Ok(co::WAIT::TIMEOUT) => Ok(()),
-        _ => Err(anyhow!("WaitForSingleObject Failed.")),
-    }
-}
+use velopack::{locator::VelopackLocator, process, wide_strings::wide_to_os_string};
 
 // https://github.com/nushell/nushell/blob/4458aae3d41517d74ce1507ad3e8cd94021feb16/crates/nu-system/src/windows.rs#L593
 fn get_pids() -> Result<Vec<u32>> {
@@ -101,50 +32,40 @@ fn get_pids() -> Result<Vec<u32>> {
     Ok(pids.iter().map(|x| *x as u32).collect())
 }
 
-fn get_processes_running_in_directory<P: AsRef<Path>>(dir: P) -> Result<HashMap<u32, PathBuf>> {
+unsafe fn get_processes_running_in_directory<P: AsRef<Path>>(dir: P) -> Result<Vec<(u32, PathBuf, process::SafeProcessHandle)>> {
     let dir = dir.as_ref();
-    let mut oup = HashMap::new();
+    let mut oup = Vec::new();
+
+    let mut full_path_vec = vec![0; i16::MAX as usize];
+    let full_path_ptr = PWSTR(full_path_vec.as_mut_ptr());
 
     for pid in get_pids()? {
-        // I don't like using catch_unwind, but QueryFullProcessImageName seems to panic
-        // when it reaches a mingw64 process. This is a workaround.
-        let process_path = std::panic::catch_unwind(|| {
-            let process = w::HPROCESS::OpenProcess(co::PROCESS::QUERY_LIMITED_INFORMATION, false, pid);
-            if let Err(_) = process {
-                // trace!("Failed to open process: {} ({})", pid, e);
-                return None;
-            }
+        let process = process::open_process(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE, false, pid);
+        if process.is_err() {
+            continue;
+        }
 
-            let process = process.unwrap();
-            let full_path = process.QueryFullProcessImageName(co::PROCESS_NAME::WIN32);
-            if let Err(_) = full_path {
-                // trace!("Failed to query process path: {} ({})", pid, e);
-                return None;
-            }
-            return Some(full_path.unwrap());
-        });
+        let process = process.unwrap();
+        if process.handle().is_invalid() {
+            continue;
+        }
 
-        match process_path {
-            Ok(Some(full_path)) => {
-                let full_path = Path::new(&full_path);
-                if let Ok(is_subpath) = crate::windows::is_sub_path(full_path, dir) {
-                    if is_subpath {
-                        oup.insert(pid, full_path.to_path_buf());
-                    }
-                }
+        let mut full_path_len = full_path_vec.len() as u32;
+        if QueryFullProcessImageNameW(process.handle(), PROCESS_NAME_WIN32, full_path_ptr, &mut full_path_len).is_err() {
+            continue;
+        }
+
+        let slice = &full_path_vec[..full_path_len as usize];
+        let full_path = wide_to_os_string(slice);
+        let full_path = PathBuf::from(full_path);
+        if let Ok(is_subpath) = crate::windows::is_sub_path(&full_path, dir) {
+            if is_subpath {
+                oup.push((pid, full_path, process));
             }
-            Ok(None) => {}
-            Err(e) => error!("Fatal panic checking process: {} ({:?})", pid, e),
         }
     }
 
     Ok(oup)
-}
-
-fn kill_pid(pid: u32) -> Result<()> {
-    let process = w::HPROCESS::OpenProcess(co::PROCESS::TERMINATE, false, pid)?;
-    process.TerminateProcess(1)?;
-    Ok(())
 }
 
 pub fn force_stop_package<P: AsRef<Path>>(root_dir: P) -> Result<()> {
@@ -156,42 +77,33 @@ pub fn force_stop_package<P: AsRef<Path>>(root_dir: P) -> Result<()> {
 fn _force_stop_package<P: AsRef<Path>>(root_dir: P) -> Result<()> {
     let dir = root_dir.as_ref();
     info!("Checking for running processes in: {}", dir.display());
-    let processes = get_processes_running_in_directory(dir)?;
+    let processes = unsafe { get_processes_running_in_directory(dir)? };
     let my_pid = std::process::id();
-    for (pid, exe) in processes.iter() {
+    for (pid, path, handle) in processes.iter() {
         if *pid == my_pid {
-            warn!("Skipping killing self: {} ({})", exe.display(), pid);
+            warn!("Skipping killing self: {} ({})", path.display(), pid);
             continue;
         }
-        warn!("Killing process: {} ({})", exe.display(), pid);
-        kill_pid(*pid)?;
+        warn!("Killing process: {} ({})", path.display(), pid);
+        process::kill_process(handle)?;
     }
     Ok(())
 }
 
-pub fn start_package(locator: &VelopackLocator, exe_args: Option<Vec<&str>>, set_env: Option<&str>) -> Result<()> {
+pub fn start_package(locator: &VelopackLocator, exe_args: Option<Vec<OsString>>, set_env: Option<&str>) -> Result<()> {
     let current = locator.get_current_bin_dir();
     let exe_to_execute = locator.get_main_exe_path();
 
     if !exe_to_execute.exists() {
-        bail!("Unable to find executable to start: '{}'", exe_to_execute.to_string_lossy());
+        bail!("Unable to find executable to start: '{:?}'", exe_to_execute);
     }
 
-    let mut psi = Process::new(&exe_to_execute);
-    psi.current_dir(&current);
-    if let Some(args) = exe_args {
-        psi.args(args);
+    let mut environment = HashMap::new();
+    if let Some(env_var) = set_env {
+        debug!("Setting environment variable: {}={}", env_var, "true");
+        environment.insert(env_var.to_string(), "true".to_string());
     }
-    if let Some(env) = set_env {
-        debug!("Setting environment variable: {}={}", env, "true");
-        psi.env(env, "true");
-    }
-
-    info!("About to launch: '{:?}' in dir '{:?}'", exe_to_execute, current);
-    info!("Args: {:?}", psi.get_args());
-    let child = psi.spawn().map_err(|z| anyhow!("Failed to start application ({}).", z))?;
-    let _ = unsafe { AllowSetForegroundWindow(child.id()) };
-
+    process::run_process(exe_to_execute, exe_args.unwrap_or_default(), Some(current), true, Some(environment))?;
     Ok(())
 }
 
@@ -282,11 +194,11 @@ fn test_get_running_processes_finds_cargo() {
     let path = Path::new(&profile);
     let rustup = path.join(".rustup");
 
-    let processes = get_processes_running_in_directory(&rustup).unwrap();
+    let processes = unsafe { get_processes_running_in_directory(&rustup).unwrap() };
     assert!(processes.len() > 0);
 
     let mut found = false;
-    for (_pid, exe) in processes.iter() {
+    for (_pid, exe, _handle) in processes.iter() {
         if exe.ends_with("cargo.exe") {
             found = true;
         }

@@ -4,7 +4,7 @@ using Velopack;
 using Velopack.Locators;
 using Velopack.Logging;
 
-var locator = VelopackLocator.CreateDefaultForPlatform(new ConsoleVelopackLogger());
+var locator = VelopackLocator.CreateDefaultForPlatform(logger: new ConsoleVelopackLogger());
 
 try {
     bool shouldExit = false;
@@ -19,21 +19,21 @@ try {
         .SetAutoApplyOnStartup(shouldAutoUpdate)
         .OnFirstRun(
             (v) => {
-                debugFile("firstrun", v.ToString());
+                debugFile("firstrun", v.ToString(), "OnFirstRun");
                 Console.WriteLine("was first run");
                 shouldExit = true;
             })
         .OnRestarted(
             (v) => {
-                debugFile("restarted", v.ToString() + "," + String.Join(",", args));
+                debugFile("restarted", v.ToString() + "," + String.Join(",", args), "OnRestarted");
                 Console.WriteLine("app just restarted");
                 shouldExit = true;
             })
         .SetLocator(locator)
-        .OnAfterInstallFastCallback((v) => debugFile("args.txt", String.Join(" ", args)))
-        .OnBeforeUpdateFastCallback((v) => debugFile("args.txt", String.Join(" ", args)))
-        .OnAfterUpdateFastCallback((v) => debugFile("args.txt", String.Join(" ", args)))
-        .OnBeforeUninstallFastCallback((v) => debugFile("args.txt", String.Join(" ", args)))
+        .OnAfterInstallFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnAfterInstallFastCallback"))
+        .OnBeforeUpdateFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnBeforeUpdateFastCallback"))
+        .OnAfterUpdateFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnAfterUpdateFastCallback"))
+        .OnBeforeUninstallFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnBeforeUninstallFastCallback"))
         .Run();
 
     if (shouldAutoUpdate) {
@@ -53,6 +53,11 @@ try {
 
     if (args.Length == 1 && args[0] == "test") {
         Console.WriteLine(Const.TEST_STRING ?? "no_test_string");
+        return 0;
+    }
+
+    if (args.Length == 1 && args[0] == "packagesdir") {
+        Console.WriteLine(locator.PackagesDir ?? "no_packages_dir");
         return 0;
     }
 
@@ -77,7 +82,7 @@ try {
                 return -1;
             }
 
-            um.DownloadUpdates(info, (x) => Console.WriteLine(x));
+            um.DownloadUpdates(info, Console.WriteLine);
             return 0;
         }
 
@@ -89,7 +94,7 @@ try {
             }
 
             Console.WriteLine("applying...");
-            um.ApplyUpdatesAndRestart((VelopackAsset) null, new[] { "test", "args !!" });
+            um.ApplyUpdatesAndRestart(null, ["test", "args !!"]);
             return 0;
         }
     }
@@ -102,8 +107,8 @@ try {
 Console.WriteLine("Invalid args: " + String.Join(", ", args));
 return -1;
 
-void debugFile(string name, string message)
+static void debugFile(string name, string message, string hook)
 {
     var path = Path.Combine(AppContext.BaseDirectory, "..", name);
-    File.AppendAllText(path, message + Environment.NewLine);
+    File.AppendAllText(path, $"{hook}: {message}{Environment.NewLine}");
 }

@@ -1,24 +1,21 @@
 use semver::Version;
 use serde::{Deserialize, Serialize};
-#[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
-use std::path::PathBuf;
-use std::{
-    fs,
-    process::{exit, Command as Process},
-    sync::mpsc::Sender,
-};
+use std::ffi::{OsStr, OsString};
+use std::path::{Path, PathBuf};
+use std::{fs, process::exit, sync::mpsc::Sender};
 
 #[cfg(feature = "async")]
 use async_std::channel::Sender as AsyncSender;
 #[cfg(feature = "async")]
 use async_std::task::JoinHandle;
 
-use crate::bundle::Manifest;
 use crate::{
+    bundle::Manifest,
+    constants,
     locator::{self, LocationContext, VelopackLocator, VelopackLocatorConfig},
+    misc,
     sources::UpdateSource,
-    util, Error,
+    Error,
 };
 
 /// Configure how the update process should wait before applying updates.
@@ -204,8 +201,8 @@ impl UpdateManager {
         let app_channel = self.locator.get_manifest_channel();
         let mut channel = options_channel.unwrap_or(&app_channel).to_string();
         if channel.is_empty() {
-            warn!("Channel is empty, picking default.");
-            channel = locator::default_channel_name();
+            warn!("Channel is empty, using default.");
+            channel = constants::DEFAULT_CHANNEL_NAME.to_owned();
         }
         info!("Chosen channel for updates: {:?} (explicit={:?}, memorized={:?})", channel, options_channel, app_channel);
         channel
@@ -237,22 +234,21 @@ impl UpdateManager {
     /// VelopackAsset can be applied by calling apply_updates_and_restart or wait_exit_then_apply_updates.
     pub fn get_update_pending_restart(&self) -> Option<VelopackAsset> {
         let packages_dir = self.locator.get_packages_dir();
-        if let Some((path, manifest)) = locator::find_latest_full_package(&packages_dir) {
-            if manifest.version > self.locator.get_manifest_version() {
-                return Some(self.local_manifest_to_asset(&manifest, &path));
-            }
+        if let Some((_, manifest)) = locator::find_latest_full_package(&packages_dir) {
+            if manifest.version > self.locator.get_manifest_version() {}
         }
         None
     }
 
     fn local_manifest_to_asset(&self, manifest: &Manifest, path: &PathBuf) -> VelopackAsset {
+        let (sha1, sha256) = misc::calculate_sha1_sha256(path).unwrap_or_default();
         VelopackAsset {
             PackageId: manifest.id.clone(),
             Version: manifest.version.to_string(),
             Type: "Full".to_string(),
             FileName: path.file_name().unwrap().to_string_lossy().to_string(),
-            SHA1: util::calculate_file_sha1(&path).unwrap_or_default(),
-            SHA256: util::calculate_file_sha256(&path).unwrap_or_default(),
+            SHA1: sha1,
+            SHA256: sha256,
             Size: path.metadata().map(|m| m.len()).unwrap_or(0),
             NotesMarkdown: manifest.release_notes.clone(),
             NotesHtml: manifest.release_notes_html.clone(),
@@ -398,7 +394,7 @@ impl UpdateManager {
         let partial_file = final_target_file.with_extension("partial");
 
         if final_target_file.exists() {
-            info!("Package already exists on disk, skipping download: '{}'", final_target_file.to_string_lossy());
+            info!("Package already exists on disk, skipping download: '{:?}'", final_target_file);
             return Ok(());
         }
 
@@ -407,11 +403,11 @@ impl UpdateManager {
         let delta_pattern = format!("{}/*-delta.nupkg", packages_dir.to_string_lossy());
         let mut to_delete = Vec::new();
 
-        fn find_files_to_delete(pattern: &str, to_delete: &mut Vec<String>) {
+        fn find_files_to_delete(pattern: &str, to_delete: &mut Vec<PathBuf>) {
             match glob::glob(pattern) {
                 Ok(paths) => {
                     for path in paths.into_iter().flatten() {
-                        to_delete.push(path.to_string_lossy().to_string());
+                        to_delete.push(path);
                     }
                 }
                 Err(e) => {
@@ -425,20 +421,19 @@ impl UpdateManager {
 
         if update.BaseRelease.is_some() && !update.DeltasToTarget.is_empty() {
             info!("Beginning delta update process.");
-            if let Err(e) = self.download_and_apply_delta_updates(update, &partial_file, progress.clone()) {
-                error!("Error downloading delta updates: {}", e);
+            if self.download_and_apply_delta_updates(update, &partial_file, progress.clone()).is_err() {
                 info!("Falling back to full update...");
-                self.source.download_release_entry(&update.TargetFullRelease, &partial_file.to_string_lossy(), progress)?;
+                self.source.download_release_entry(&update.TargetFullRelease, &partial_file, progress)?;
                 self.verify_package_checksum(&partial_file, &update.TargetFullRelease)?;
-                info!("Successfully downloaded file: '{}'", partial_file.to_string_lossy());
+                info!("Successfully downloaded file: '{:?}'", partial_file);
             }
         } else {
-            self.source.download_release_entry(&update.TargetFullRelease, &partial_file.to_string_lossy(), progress)?;
+            self.source.download_release_entry(&update.TargetFullRelease, &partial_file, progress)?;
             self.verify_package_checksum(&partial_file, &update.TargetFullRelease)?;
-            info!("Successfully downloaded file: '{}'", partial_file.to_string_lossy());
+            info!("Successfully downloaded file: '{:?}'", partial_file);
         }
 
-        info!("Renaming partial file to final target: '{}'", final_target_file.to_string_lossy());
+        info!("Renaming partial file to final target: '{:?}'", final_target_file);
         fs::rename(&partial_file, &final_target_file)?;
 
         find_files_to_delete(&delta_pattern, &mut to_delete);
@@ -459,7 +454,7 @@ impl UpdateManager {
         }
 
         for path in to_delete {
-            info!("Deleting up old package: '{}'", path);
+            info!("Deleting up old package: '{:?}'", path);
             let _ = fs::remove_file(&path);
         }
 
@@ -469,22 +464,21 @@ impl UpdateManager {
     fn download_and_apply_delta_updates(
         &self,
         update: &UpdateInfo,
-        target_file: &PathBuf,
+        output_file: &PathBuf,
         progress: Option<Sender<i16>>,
     ) -> Result<(), Error> {
         let packages_dir = self.locator.get_packages_dir();
         let base_release_path = packages_dir.join(&update.BaseRelease.as_ref().unwrap().FileName);
-        let base_release_path = base_release_path.to_string_lossy().to_string();
-        let output_path = target_file.to_string_lossy().to_string();
 
-        let mut args: Vec<String> = ["patch", "--old", &base_release_path, "--output", &output_path].iter().map(|s| s.to_string()).collect();
+        let mut args: Vec<OsString> =
+            vec!["patch".into(), "--old".into(), base_release_path.clone().into(), "--output".into(), output_file.clone().into()];
 
         for (i, delta) in update.DeltasToTarget.iter().enumerate() {
             let delta_file = packages_dir.join(&delta.FileName);
             let partial_file = delta_file.with_extension("partial");
 
             info!("Downloading delta package: '{}'", &delta.FileName);
-            self.source.download_release_entry(&delta, &partial_file.to_string_lossy(), None)?;
+            self.source.download_release_entry(&delta, &partial_file, None)?;
             self.verify_package_checksum(&partial_file, delta)?;
 
             fs::rename(&partial_file, &delta_file)?;
@@ -493,11 +487,11 @@ impl UpdateManager {
                 let _ = progress.send(((i as f64 / update.DeltasToTarget.len() as f64) * 70.0) as i16);
             }
 
-            args.push("--delta".to_string());
-            args.push(delta_file.to_string_lossy().to_string());
+            args.push("--delta".into());
+            args.push(delta_file.into());
         }
 
-        info!("Applying {} patches to {}.", update.DeltasToTarget.len(), output_path);
+        info!("Applying {} patches to {:?}.", update.DeltasToTarget.len(), output_file);
 
         if let Some(progress) = &progress {
             let _ = progress.send(70);
@@ -509,7 +503,7 @@ impl UpdateManager {
         } else {
             let error_message = String::from_utf8_lossy(&output.stderr);
             error!("Error applying delta updates: {}", error_message);
-            return Err(Error::Generic(error_message.to_string()));
+            return Err(Error::Io(std::io::Error::new(std::io::ErrorKind::Other, "Process exited with non-zero status")));
         }
 
         if let Some(progress) = &progress {
@@ -518,17 +512,17 @@ impl UpdateManager {
         Ok(())
     }
 
-    fn verify_package_checksum(&self, file: &PathBuf, asset: &VelopackAsset) -> Result<(), Error> {
+    fn verify_package_checksum(&self, file: &Path, asset: &VelopackAsset) -> Result<(), Error> {
         let file_size = file.metadata()?.len();
         if file_size != asset.Size {
-            error!("File size mismatch for file '{}': expected {}, got {}", file.to_string_lossy(), asset.Size, file_size);
-            return Err(Error::SizeInvalid(file.to_string_lossy().to_string(), asset.Size, file_size));
+            error!("File size mismatch for file '{:?}': expected {}, got {}", file, asset.Size, file_size);
+            return Err(Error::SizeInvalid(file.to_path_buf(), asset.Size, file_size));
         }
 
-        let sha1 = util::calculate_file_sha1(file)?;
+        let (sha1, _) = misc::calculate_sha1_sha256(file)?;
         if !sha1.eq_ignore_ascii_case(&asset.SHA1) {
-            error!("SHA1 checksum mismatch for file '{}': expected '{}', got '{}'", file.to_string_lossy(), asset.SHA1, sha1);
-            return Err(Error::ChecksumInvalid(file.to_string_lossy().to_string(), asset.SHA1.clone(), sha1));
+            error!("SHA1 checksum mismatch for file '{:?}': expected '{}', got '{}'", file, asset.SHA1, sha1);
+            return Err(Error::ChecksumInvalid(file.to_path_buf(), asset.SHA1.clone(), sha1));
         }
         Ok(())
     }
@@ -578,7 +572,7 @@ impl UpdateManager {
     pub fn apply_updates_and_restart_with_args<A, C, S>(&self, to_apply: A, restart_args: C) -> Result<(), Error>
     where
         A: AsRef<VelopackAsset>,
-        S: AsRef<str>,
+        S: AsRef<OsStr>,
         C: IntoIterator<Item = S>,
     {
         self.wait_exit_then_apply_updates(to_apply, false, true, restart_args)?;
@@ -603,7 +597,7 @@ impl UpdateManager {
     pub fn wait_exit_then_apply_updates<A, C, S>(&self, to_apply: A, silent: bool, restart: bool, restart_args: C) -> Result<(), Error>
     where
         A: AsRef<VelopackAsset>,
-        S: AsRef<str>,
+        S: AsRef<OsStr>,
         C: IntoIterator<Item = S>,
     {
         self.unsafe_apply_updates(to_apply, silent, ApplyWaitMode::WaitCurrentProcess, restart, restart_args)?;
@@ -623,67 +617,56 @@ impl UpdateManager {
     ) -> Result<(), Error>
     where
         A: AsRef<VelopackAsset>,
-        S: AsRef<str>,
+        S: AsRef<OsStr>,
         C: IntoIterator<Item = S>,
     {
         let to_apply = to_apply.as_ref();
         let pkg_path = self.locator.get_packages_dir().join(&to_apply.FileName);
-        let pkg_path_str = pkg_path.to_string_lossy();
-
-        let mut args = Vec::new();
-        args.push("apply".to_string());
-
-        args.push("--package".to_string());
-        args.push(pkg_path_str.to_string());
 
         if !pkg_path.exists() {
-            error!("Package does not exist on disk: '{}'", &pkg_path_str);
-            return Err(Error::FileNotFound(pkg_path_str.to_string()));
+            error!("Package does not exist on disk: '{:?}'", &pkg_path);
+            return Err(Error::FileNotFound(pkg_path));
         }
+
+        let mut args: Vec<OsString> = Vec::new();
+        args.push("apply".into());
+
+        args.push("--package".into());
+        args.push(pkg_path.into());
 
         match wait_mode {
             ApplyWaitMode::NoWait => {}
             ApplyWaitMode::WaitCurrentProcess => {
-                args.push("--waitPid".to_string());
-                args.push(format!("{}", std::process::id()));
+                args.push("--waitPid".into());
+                args.push(format!("{}", std::process::id()).into());
             }
             ApplyWaitMode::WaitPid(pid) => {
-                args.push("--waitPid".to_string());
-                args.push(format!("{}", pid));
+                args.push("--waitPid".into());
+                args.push(format!("{}", pid).into());
             }
         }
 
         if silent {
-            args.push("--silent".to_string());
+            args.push("--silent".into());
         }
+
         if !restart {
-            args.push("--norestart".to_string());
+            args.push("--norestart".into());
         }
 
-        let restart_args: Vec<String> = restart_args.into_iter().map(|item| item.as_ref().to_string()).collect();
+        args.push("--root".into());
+        args.push(self.locator.get_root_dir().into());
 
+        let restart_args: Vec<OsString> = restart_args.into_iter().map(|item| item.as_ref().to_os_string()).collect();
         if !restart_args.is_empty() {
-            args.push("--".to_string());
+            args.push("--".into());
             for arg in restart_args {
                 args.push(arg);
             }
         }
 
-        let mut p = Process::new(&self.locator.get_update_path());
-        p.args(&args);
-
-        if let Some(update_exe_parent) = self.locator.get_update_path().parent() {
-            p.current_dir(update_exe_parent);
-        }
-
-        #[cfg(target_os = "windows")]
-        {
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
-            p.creation_flags(CREATE_NO_WINDOW);
-        }
-
-        info!("About to run Update.exe: {} {:?}", self.locator.get_update_path_as_string(), args);
-        p.spawn()?;
+        let update_path = self.locator.get_update_path();
+        crate::process::run_process(&update_path, args, update_path.parent(), false, None)?;
         Ok(())
     }
 }

@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using System.Runtime.Serialization;
 
 namespace Velopack.Core;
 
@@ -18,10 +17,6 @@ public class UserInfoException : Exception
     }
 
     public UserInfoException(string message, Exception innerException) : base(message, innerException)
-    {
-    }
-
-    protected UserInfoException(SerializationInfo info, StreamingContext context) : base(info, context)
     {
     }
 }

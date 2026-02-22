@@ -1,5 +1,4 @@
-using System;
-using System.Diagnostics;
+﻿using System;
 using System.IO;
 using System.Runtime.Versioning;
 using NuGet.Versioning;
@@ -31,38 +30,31 @@ namespace Velopack.Locators
         public override SemanticVersion? CurrentlyInstalledVersion { get; }
 
         /// <inheritdoc />
-        public override string? PackagesDir => CreateSubDirIfDoesNotExist(RootAppDir, "packages");
-
-        /// <inheritdoc />
-        public override IVelopackLogger Log { get; }
+        public override string? PackagesDir { get; }
 
         /// <inheritdoc />
         public override bool IsPortable => RootAppDir != null && File.Exists(Path.Combine(RootAppDir, ".portable"));
 
         /// <inheritdoc />
+        public override IProcessImpl Process { get; }
+
+        /// <inheritdoc />
         public override string? Channel { get; }
 
-        /// <inheritdoc />
-        public override uint ProcessId { get; }
-
-        /// <inheritdoc />
-        public override string ProcessExePath { get; }
-
         /// <inheritdoc cref="WindowsVelopackLocator" />
-        public WindowsVelopackLocator(string currentProcessPath, uint currentProcessId, IVelopackLogger? customLog)
+        public WindowsVelopackLocator(IProcessImpl? processImpl, IVelopackLogger? customLog)
         {
             if (!VelopackRuntimeInfo.IsWindows)
                 throw new NotSupportedException($"Cannot instantiate {nameof(WindowsVelopackLocator)} on a non-Windows system.");
 
-            ProcessId = currentProcessId;
-            var ourPath = ProcessExePath = currentProcessPath;
+            CombinedLogger = new CombinedVelopackLogger(customLog);
 
-            var combinedLog = new CombinedVelopackLogger();
-            combinedLog.Add(customLog);
-            Log = combinedLog;
+            Process = processImpl ??= new DefaultProcessImpl(CombinedLogger);
+            var ourPath = processImpl.GetCurrentProcessPath();
+            var currentProcessId = processImpl.GetCurrentProcessId();
 
-            using var initLog = new CachedVelopackLogger(combinedLog);
-            initLog.Info($"Initialising {nameof(WindowsVelopackLocator)}");
+            using var initLog = new CachedVelopackLogger(CombinedLogger);
+            initLog.Info($"Initializing {nameof(WindowsVelopackLocator)}");
 
             // We try various approaches here. Firstly, if Update.exe is in the parent directory,
             // we use that. If it's not present, we search for a parent "current" or "app-{ver}" directory,
@@ -70,7 +62,6 @@ namespace Velopack.Locators
             // There is some legacy code here, because it's possible that we're running in an "app-{ver}" 
             // directory which is NOT containing a sq.version, in which case we need to infer a lot of info.
 
-            ProcessExePath = Path.GetFullPath(ourPath);
             string myDirPath = Path.GetDirectoryName(ourPath)!;
             var myDirName = Path.GetFileName(myDirPath);
             var possibleUpdateExe = Path.GetFullPath(Path.Combine(myDirPath, "..", "Update.exe"));
@@ -120,35 +111,57 @@ namespace Velopack.Locators
                 }
             }
 
-            bool fileLogCreated = false;
-            if (!String.IsNullOrEmpty(AppId) && !String.IsNullOrEmpty(RootAppDir)) {
-                try {
-                    var logFilePath = Path.Combine(RootAppDir, DefaultLoggingFileName);
-                    var fileLog = new FileVelopackLogger(logFilePath, currentProcessId);
-                    combinedLog.Add(fileLog);
-                    fileLogCreated = true;
-                } catch (Exception ex2) {
-                    initLog.Error("Unable to create default file logger: " + ex2);
+            // Determine packages directory using simple writability test
+            if (RootAppDir != null) {
+                if (PathUtil.IsDirectoryWritable(RootAppDir)) {
+                    PackagesDir = CreateSubDirIfDoesNotExist(RootAppDir, "packages");
+                    initLog.Info($"Root directory is writable, using packages directory: {PackagesDir}");
+                } else {
+                    var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                    if (!string.IsNullOrEmpty(localAppData) && !string.IsNullOrEmpty(AppId)) {
+                        var fallbackBase = Path.Combine(localAppData, AppId);
+                        Directory.CreateDirectory(fallbackBase);
+                        PackagesDir = Path.Combine(fallbackBase, "packages");
+                        Directory.CreateDirectory(PackagesDir);
+                        UpdateExePath = Path.Combine(fallbackBase, "Update.exe");
+                        initLog.Info($"Root directory is not writable, using fallback directory: {fallbackBase}");
+
+                        // If the fallback Update.exe doesn't exist yet (e.g. first launch after MSI install),
+                        // copy it from the root directory so UpdateExePath always points to an existing file.
+                        var rootUpdateExe = Path.Combine(RootAppDir, "Update.exe");
+                        if (!File.Exists(UpdateExePath) && File.Exists(rootUpdateExe)) {
+                            try {
+                                File.Copy(rootUpdateExe, UpdateExePath);
+                                initLog.Info($"Copied Update.exe from root to fallback: {UpdateExePath}");
+                            } catch (Exception ex) {
+                                initLog.Error($"Failed to copy Update.exe to fallback path: {ex.Message}");
+                            }
+                        }
+                    } else {
+                        initLog.Error("Root directory is not writable and LocalAppData is unavailable. Updates may not work correctly.");
+                    }
                 }
             }
 
-            // if the RootAppDir was unwritable, or we don't know the app id, we could try to write to the temp folder instead.
-            if (!fileLogCreated) {
-                try {
-                    var logFileName = String.IsNullOrEmpty(AppId) ? DefaultLoggingFileName : $"velopack_{AppId}.log";
-                    var logFilePath = Path.Combine(Path.GetTempPath(), logFileName);
-                    var fileLog = new FileVelopackLogger(logFilePath, currentProcessId);
-                    combinedLog.Add(fileLog);
-                } catch (Exception ex2) {
-                    initLog.Error("Unable to create temp folder file logger: " + ex2);
-                }
+            var localAppDataForLog = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var logDir = Path.Combine(localAppDataForLog, "velopack");
+            try { Directory.CreateDirectory(logDir); } catch { }
+            var logFilePath = !string.IsNullOrEmpty(AppId)
+                ? Path.Combine(logDir, $"velopack_{AppId}.log")
+                : Path.Combine(logDir, "velopack.log");
+
+            try {
+                var fileLog = new FileVelopackLogger(logFilePath, currentProcessId);
+                CombinedLogger.Add(fileLog);
+            } catch (Exception ex) {
+                initLog.Error("Unable to create file logger: " + ex);
             }
 
-            if (AppId == null) {
+            if (AppId is null) {
                 initLog.Warn(
-                    $"Failed to initialise {nameof(WindowsVelopackLocator)}. This could be because the program is not installed or packaged properly.");
+                    $"Failed to initialize {nameof(WindowsVelopackLocator)}. This could be because the program is not installed or packaged properly.");
             } else {
-                initLog.Info($"Initialised {nameof(WindowsVelopackLocator)} for {AppId} v{CurrentlyInstalledVersion}");
+                initLog.Info($"Initialized {nameof(WindowsVelopackLocator)} for {AppId} v{CurrentlyInstalledVersion}");
             }
         }
     }

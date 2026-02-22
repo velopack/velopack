@@ -20,10 +20,10 @@ public class GiteaDeploymentTests
         _output = output;
     }
 
-    [SkippableFact]
+    [Fact]
     public void WillRefuseToUploadMultipleWithoutMergeArg()
     {
-        Skip.If(String.IsNullOrWhiteSpace(GITEA_TOKEN), "VELOPACK_GITEA_TEST_TOKEN is not set.");
+        Assert.SkipWhen(String.IsNullOrWhiteSpace(GITEA_TOKEN), "VELOPACK_GITEA_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<GiteaDeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var _2 = TempUtil.GetTempDirectory(out var releaseDir2);
@@ -50,10 +50,10 @@ public class GiteaDeploymentTests
         Assert.ThrowsAny<UserInfoException>(() => gh.UploadMissingAssetsAsync(options).GetAwaiterResult());
     }
 
-    [SkippableFact]
+    [Fact]
     public void WillNotMergeMixmatchedTag()
     {
-        Skip.If(String.IsNullOrWhiteSpace(GITEA_TOKEN), "VELOPACK_GITEA_TEST_TOKEN is not set.");
+        Assert.SkipWhen(String.IsNullOrWhiteSpace(GITEA_TOKEN), "VELOPACK_GITEA_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<GiteaDeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var _2 = TempUtil.GetTempDirectory(out var releaseDir2);
@@ -81,10 +81,10 @@ public class GiteaDeploymentTests
         Assert.ThrowsAny<UserInfoException>(() => gh.UploadMissingAssetsAsync(options).GetAwaiterResult());
     }
 
-    [SkippableFact]
+    [Fact]
     public void WillMergeGiteaReleases()
     {
-        Skip.If(String.IsNullOrWhiteSpace(GITEA_TOKEN), "VELOPACK_GITEA_TEST_TOKEN is not set.");
+        Assert.SkipWhen(String.IsNullOrWhiteSpace(GITEA_TOKEN), "VELOPACK_GITEA_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<GiteaDeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var _2 = TempUtil.GetTempDirectory(out var releaseDir2);
@@ -114,10 +114,10 @@ public class GiteaDeploymentTests
         gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
     }
 
-    [SkippableFact]
+    [Fact]
     public void CanDeployAndUpdateFromGitea()
     {
-        Skip.If(String.IsNullOrWhiteSpace(GITEA_TOKEN), "VELOPACK_GITEA_TEST_TOKEN is not set.");
+        Assert.SkipWhen(String.IsNullOrWhiteSpace(GITEA_TOKEN), "VELOPACK_GITEA_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<GiteaDeploymentTests>();
         var id = "GiteaUpdateTest";
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
@@ -201,10 +201,10 @@ This is just a _test_!
         Assert.True(File.Exists(Path.Combine(releaseDirNew, filename)));
     }
 
-    [SkippableFact]
+    [Fact]
     public void WillCreateTagOnDefaultBranchIfTargetCommitishNotSet()
     {
-        Skip.If(String.IsNullOrWhiteSpace(GITEA_TOKEN), "VELOPACK_GITEA_TEST_TOKEN is not set.");
+        Assert.SkipWhen(String.IsNullOrWhiteSpace(GITEA_TOKEN), "VELOPACK_GITEA_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<GiteaDeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var ghvar = GiteaReleaseTest.Create("targetCommitish", logger, true);
@@ -246,12 +246,12 @@ This is just a _test_!
         Assert.Equal(expected, newRelease.TargetCommitish);
     }
 
-    [SkippableTheory]
+    [Theory]
     [InlineData("main")]
     [InlineData("efad3d96421c50737abd1bcfeccd90019d6541ed")] //Commit SHA in VelopackGiteaUpdateTest repo
     public void WillCreateTagUsingTargetCommitish(string targetCommitish)
     {
-        Skip.If(String.IsNullOrWhiteSpace(GITEA_TOKEN), "VELOPACK_GITEA_TEST_TOKEN is not set.");
+        Assert.SkipWhen(String.IsNullOrWhiteSpace(GITEA_TOKEN), "VELOPACK_GITEA_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<GiteaDeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var ghvar = GiteaReleaseTest.Create("targetCommitish", logger, true);

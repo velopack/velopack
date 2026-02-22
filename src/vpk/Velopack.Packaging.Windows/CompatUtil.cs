@@ -72,7 +72,7 @@ public class CompatUtil
         if (dllVersion > myVersion) {
             //throw new UserInfoException($"Velopack library version is greater than vpk version ({dllVersion} > {myVersion}). This can cause compatibility issues, please update vpk first.");
             _log.Error($"Velopack library version is greater than vpk version ({dllVersion} > {myVersion}). " +
-                $"This can cause compatibility issues, please update vpk first. [red underline]In a future version this will be a fatal error.[/]");
+                $"This can cause compatibility issues, please update vpk first. [red underline]In a future version this may become be a fatal error.[/]");
         } else {
             _log.Warn($"Velopack library version is lower than vpk version ({dllVersion} < {myVersion}). This can occasionally cause compatibility issues.");
         }
