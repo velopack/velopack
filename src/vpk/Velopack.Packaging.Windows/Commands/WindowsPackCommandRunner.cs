@@ -210,8 +210,6 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             var current = dir.CreateSubdirectory("current");
             CopyFiles(new DirectoryInfo(packDir), current, CoreUtil.CreateProgressDelegate(msiProgress, 0, 45));
             File.Delete(Path.Combine(current.FullName, "Squirrel.exe"));
-            File.Create(Path.Combine(dir.FullName, ".msi-installed")).Close();
-            File.Create(Path.Combine(dir.FullName, ".portable")).Close();
             msiProgress(50);
             
             var msiName = DefaultName.GetSuggestedMsiName(Options.PackId, Options.Channel, TargetOs);
