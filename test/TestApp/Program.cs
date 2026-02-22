@@ -56,6 +56,11 @@ try {
         return 0;
     }
 
+    if (args.Length == 1 && args[0] == "packagesdir") {
+        Console.WriteLine(locator.PackagesDir ?? "no_packages_dir");
+        return 0;
+    }
+
     if (args.Length == 2) {
         if (args[0] == "check") {
             var um = new UpdateManager(args[1], null, locator);
