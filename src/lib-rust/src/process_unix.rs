@@ -87,3 +87,115 @@ pub fn wait_for_parent_to_exit(dur: Option<Duration>) -> IoResult<WaitResult> {
 pub fn kill_process(mut process: Child) -> IoResult<()> {
     process.kill()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::OsString;
+    use std::path::{Path, PathBuf};
+    use std::time::Duration;
+
+    // ===== WaitResult tests =====
+
+    #[test]
+    fn test_wait_result_code() {
+        assert_eq!(WaitResult::ExitCode(42).code(), Some(42));
+        assert_eq!(WaitResult::ExitCode(0).code(), Some(0));
+        assert_eq!(WaitResult::WaitTimeout.code(), None);
+        assert_eq!(WaitResult::NoWaitRequired.code(), None);
+    }
+
+    // ===== run_process tests =====
+
+    #[test]
+    fn test_run_process_with_all_options() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let mut env = std::collections::HashMap::new();
+        env.insert("MY_VAR".to_string(), "value".to_string());
+
+        let mut child = run_process(
+            "/bin/sh",
+            vec![OsString::from("-c"), OsString::from("exit 0")],
+            Some(temp_dir.path()),
+            true,
+            Some(env),
+        )
+        .expect("failed to run process");
+
+        let status = child.wait().expect("failed to wait");
+        assert!(status.success());
+    }
+
+    #[test]
+    fn test_run_process_nonexistent_exe() {
+        let result = run_process("/nonexistent/binary", vec![], None::<PathBuf>, false, None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_run_process_nonexistent_work_dir() {
+        let result = run_process("/bin/echo", vec![], Some(Path::new("/nonexistent/dir")), false, None);
+        assert!(result.is_err());
+    }
+
+    // ===== kill_process =====
+
+    #[test]
+    fn test_kill_process_running() {
+        let child = run_process("/bin/sleep", vec![OsString::from("60")], None::<PathBuf>, false, None)
+            .expect("failed to run process");
+        kill_process(child).expect("failed to kill process");
+    }
+
+    // ===== wait_for_process_exit_with_timeout =====
+
+    #[test]
+    fn test_wait_for_process_exit_no_timeout() {
+        let mut child = run_process("/bin/true", vec![], None::<PathBuf>, false, None).unwrap();
+        let result = wait_for_process_exit_with_timeout(&mut child, None).unwrap();
+        assert_eq!(result.code(), Some(0));
+    }
+
+    #[test]
+    fn test_wait_for_process_exit_timeout_expires() {
+        let mut child = run_process("/bin/sleep", vec![OsString::from("60")], None::<PathBuf>, false, None).unwrap();
+        let result = wait_for_process_exit_with_timeout(&mut child, Some(Duration::from_millis(100))).unwrap();
+        assert!(matches!(result, WaitResult::WaitTimeout));
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+
+    #[test]
+    fn test_wait_for_process_exit_nonzero_code() {
+        let mut child = run_process("/bin/sh", vec![OsString::from("-c"), OsString::from("exit 42")], None::<PathBuf>, false, None).unwrap();
+        let result = wait_for_process_exit_with_timeout(&mut child, Some(Duration::from_secs(10))).unwrap();
+        assert_eq!(result.code(), Some(42));
+    }
+
+    // ===== wait_for_pid_to_exit =====
+
+    #[test]
+    fn test_wait_for_pid_to_exit_success() {
+        let child = run_process("/bin/echo", vec![OsString::from("bye")], None::<PathBuf>, false, None).unwrap();
+        let pid = child.id();
+        let result = wait_for_pid_to_exit(pid, Some(Duration::from_secs(30))).unwrap();
+        assert_eq!(result.code(), Some(0));
+    }
+
+    #[test]
+    fn test_wait_for_pid_to_exit_timeout() {
+        let child = run_process("/bin/sleep", vec![OsString::from("60")], None::<PathBuf>, false, None).unwrap();
+        let pid = child.id();
+        let result = wait_for_pid_to_exit(pid, Some(Duration::from_millis(100)));
+        assert!(result.is_err());
+        let _ = kill_process(child);
+    }
+
+    // ===== wait_for_parent_to_exit =====
+
+    #[test]
+    fn test_wait_for_parent_to_exit_smoke() {
+        // Just verify it doesn't panic; parent is still alive so expect timeout or NoWaitRequired
+        let _ = wait_for_parent_to_exit(Some(Duration::from_millis(100)));
+    }
+}
