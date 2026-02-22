@@ -40,10 +40,10 @@ public class WindowsPackTests
             $"velopack_{appId}.log");
     }
 
-    [SkippableFact]
+    [Fact]
     public void PackBuildValidPackageMostOptions()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
 
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
 
@@ -109,10 +109,10 @@ public class WindowsPackTests
         Assert.False(File.Exists(Path.Combine(unzipDir, "lib", "app", Path.GetFileName(pdb))));
     }
 
-    [SkippableFact]
+    [Fact]
     public void PackBuildRefuseSameVersion()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
 
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
 
@@ -142,10 +142,10 @@ public class WindowsPackTests
         Assert.Throws<UserInfoException>(() => runner.Run(options).GetAwaiterResult());
     }
 
-    [SkippableFact]
+    [Fact]
     public void PackBuildRefuseChannelMultipleRids()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
 
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
 
@@ -180,10 +180,10 @@ public class WindowsPackTests
         Assert.Throws<UserInfoException>(() => runner.Run(options).GetAwaiterResult());
     }
 
-    [SkippableFact]
+    [Fact]
     public void PackBuildsPackageWhichIsInstallable()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
 
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
 
@@ -265,10 +265,10 @@ public class WindowsPackTests
         Assert.Null(key2);
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task TestAppAutoUpdatesWhenLocalIsAvailable()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var _2 = TempUtil.GetTempDirectory(out var installDir);
@@ -305,10 +305,10 @@ public class WindowsPackTests
         Assert.EndsWith(Environment.NewLine + "2.0.0", chk1version);
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task TestPackGeneratesValidDelta()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         string id = "SquirrelDeltaTest";
@@ -378,10 +378,10 @@ public class WindowsPackTests
         Assert.True(DeltaPackageBuilder.AreFilesEqualFast(output, v3));
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task TestAppHooks()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var _2 = TempUtil.GetTempDirectory(out var installDir);
@@ -431,10 +431,10 @@ public class WindowsPackTests
         RunNoCoverage(updatePath, ["--silent", "--uninstall"], Environment.CurrentDirectory, logger);
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task TestPackedAppCanDeltaUpdateToLatest()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var _2 = TempUtil.GetTempDirectory(out var installDir);
@@ -522,12 +522,12 @@ public class WindowsPackTests
         logger.Info("TEST: uninstalled / complete");
     }
 
-    [SkippableTheory]
+    [Theory]
     [InlineData("LegacyTestApp-ClowdV2-Setup.exe", "app-1.0.0")]
     [InlineData("LegacyTestApp-SquirrelWinV2-Setup.exe", "app-1.0.0")]
     public async Task LegacyAppCanMigrateUsingCli(string fixture, string origDirName)
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
 
         var rootDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LegacyTestApp");
@@ -584,14 +584,14 @@ public class WindowsPackTests
         Assert.EndsWith(Environment.NewLine + "2.0.0", chk3version);
     }
 
-    [SkippableTheory]
+    [Theory]
     [InlineData("LegacyTestApp-ClowdV2-Setup.exe", "app-1.0.0")]
     [InlineData("LegacyTestApp-ClowdV3-Setup.exe", "current")]
     [InlineData("LegacyTestApp-SquirrelWinV2-Setup.exe", "app-1.0.0")]
     [InlineData("LegacyTestApp-Velopack0084-Setup.exe", "current")]
     public async Task LegacyAppCanMigrate(string fixture, string origDirName)
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
 
         var rootDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LegacyTestApp");
@@ -650,10 +650,10 @@ public class WindowsPackTests
         Assert.EndsWith(Environment.NewLine + "2.0.0", chk3version);
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task TestPackGeneratesMsi()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
 
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
 
@@ -689,10 +689,10 @@ public class WindowsPackTests
         Assert.Equal("1.2.3.0", msiVersion);
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task TestPackGeneratesMsiWithSpecifiedVersion()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
 
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
 

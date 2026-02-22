@@ -555,10 +555,10 @@ public class SymbolicLinkTests
         Assert.Equal("important data", File.ReadAllText(target));
     }
 
-    [SkippableFact]
+    [Fact]
     public void Exists_ReturnsFalseForHardLink()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
 
         using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var target = Path.Combine(tempFolder, "target.txt");

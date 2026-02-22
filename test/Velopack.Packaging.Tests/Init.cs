@@ -1,13 +1,11 @@
-﻿using Xunit.Sdk;
-
-[assembly: TestFramework("Velopack.Packaging.Tests.TestsInit", "Velopack.Packaging.Tests")]
+using System.Runtime.CompilerServices;
 
 namespace Velopack.Packaging.Tests;
 
-public class TestsInit : XunitTestFramework
+internal static class TestsInit
 {
-    public TestsInit(IMessageSink messageSink)
-      : base(messageSink)
+    [ModuleInitializer]
+    internal static void Init()
     {
         HelperFile.AddSearchPath(PathHelper.GetRustBuildOutputDir());
         HelperFile.AddSearchPath(PathHelper.GetVendorLibDir());

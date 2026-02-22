@@ -17,7 +17,7 @@ public class UtilityTests
         _output = output;
     }
 
-    [SkippableTheory]
+    [Theory]
     [InlineData("file.txt", "file.txt")]
     [InlineData("file", "file")]
     [InlineData("/file", "\\file")]
@@ -26,13 +26,13 @@ public class UtilityTests
     [InlineData("C:/AnApp/file/", "C:\\AnApp\\file")]
     public void PathIsNormalized(string input, string expected)
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         var exp = Path.GetFullPath(expected);
         var normal = PathUtil.NormalizePath(input);
         Assert.Equal(exp, normal);
     }
 
-    [SkippableTheory]
+    [Theory]
     [InlineData("C:\\AnApp", "C:\\AnApp\\file.exe", true)]
     [InlineData("C:\\AnApp\\", "C:\\AnApp\\file.exe", true)]
     [InlineData("C:\\AnApp", "C:\\AnApp\\sub\\dir\\file.exe", true)]
@@ -44,15 +44,15 @@ public class UtilityTests
     [InlineData("AnAppThree", "AnAppThree\\file.exe", true)]
     public void FileIsInDirectory(string directory, string file, bool isIn)
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         var fileInDir = PathUtil.IsFileInDirectory(file, directory);
         Assert.Equal(isIn, fileInDir);
     }
 
-    [SkippableFact]
+    [Fact]
     public void SetAppIdOnShortcutTest()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         var sl = new ShellLink() {
             Target = @"C:\Windows\Notepad.exe",
             Description = "It's Notepad",

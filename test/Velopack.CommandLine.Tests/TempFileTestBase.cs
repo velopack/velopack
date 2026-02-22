@@ -1,6 +1,4 @@
-﻿using Xunit.Sdk;
-
-namespace Velopack.CommandLine.Tests;
+﻿namespace Velopack.CommandLine.Tests;
 
 public abstract class TempFileTestBase : IDisposable
 {
@@ -54,7 +52,7 @@ public abstract class TempFileTestBase : IDisposable
 
         _Disposed = true;
 
-        ExceptionAggregator aggregator = new();
+        var exceptions = new List<Exception>();
 
         var items = _TempFiles
             .Cast<FileSystemInfo>()
@@ -73,7 +71,7 @@ public abstract class TempFileTestBase : IDisposable
 
             if (action is null) return;
 
-            aggregator.Run(() => {
+            try {
                 for (int i = 0; i < 100; i++) {
                     try {
                         action();
@@ -82,11 +80,13 @@ public abstract class TempFileTestBase : IDisposable
                         Thread.Sleep(TimeSpan.FromMilliseconds(10));
                     }
                 }
-            });
+            } catch (Exception ex) {
+                exceptions.Add(ex);
+            }
         }
 
-        if (aggregator.HasExceptions) {
-            throw aggregator.ToException();
+        if (exceptions.Count > 0) {
+            throw new AggregateException(exceptions);
         }
     }
 

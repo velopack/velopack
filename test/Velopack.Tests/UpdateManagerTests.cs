@@ -527,12 +527,12 @@ public class UpdateManagerTests
         um.VerifyPackageChecksum(info.TargetFullRelease);
     }
 
-    [SkippableTheory]
+    [Theory]
     [InlineData("Clowd", "3.4.287", "3.4.293")]
     //[InlineData("slack", "1.1.8", "1.2.2")]
     public async Task DownloadsDeltasAndCreatesFullVersion(string id, string fromVersion, string toVersion)
     {
-        Skip.If(VelopackRuntimeInfo.IsLinux);
+        Assert.SkipWhen(VelopackRuntimeInfo.IsLinux, "Not supported on Linux");
         using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
         using var _1 = TempUtil.GetTempDirectory(out var packagesDir);
         using var _2 = TempUtil.GetTempDirectory(out var rootDir);

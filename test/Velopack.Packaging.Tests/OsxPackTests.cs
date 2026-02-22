@@ -14,10 +14,10 @@ public class OsxPackTests
         _output = output;
     }
 
-    [SkippableFact]
+    [Fact]
     public void PackBuildUsesAppTitleAsBundleName()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsOSX);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsOSX, "macOS only");
 
         using var logger = _output.BuildLoggerFor<OsxPackTests>();
 
