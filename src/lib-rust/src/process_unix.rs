@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_wait_for_process_exit_no_timeout() {
-        let mut child = run_process("/bin/true", vec![], None::<PathBuf>, false, None).unwrap();
+        let mut child = run_process("/bin/sh", vec![OsString::from("-c"), OsString::from("exit 0")], None::<PathBuf>, false, None).unwrap();
         let result = wait_for_process_exit_with_timeout(&mut child, None).unwrap();
         assert_eq!(result.code(), Some(0));
     }
