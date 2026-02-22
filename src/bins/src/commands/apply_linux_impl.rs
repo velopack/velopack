@@ -5,6 +5,7 @@ use std::{fs, path::PathBuf, process::Command};
 use velopack::{bundle, locator::VelopackLocator};
 
 pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _runhooks: bool) -> Result<VelopackLocator> {
+    let _mutex = locator.try_get_exclusive_lock()?;
     // on linux, the current "dir" is actually an AppImage file which we need to replace.
     info!("Loading bundle from {:?}", pkg);
     let mut bundle = bundle::load_bundle_from_file(pkg)?;

@@ -82,6 +82,11 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
         }
     }
 
+    // Acquire exclusive lock AFTER the self-elevation check. If we acquired it before,
+    // the non-elevated parent would hold the lock while waiting for the elevated child,
+    // which would also try to acquire the lock — causing a deadlock.
+    let _mutex = old_locator.try_get_exclusive_lock()?;
+
     let old_version = old_locator.get_manifest_version();
     let new_version = new_locator.get_manifest_version();
 

@@ -245,7 +245,9 @@ fn apply(context: LocationContext, matches: &ArgMatches) -> Result<()> {
     info!("    Exe Args: {:?}", exe_args);
 
     let locator = auto_locate_app_manifest(context)?;
-    let _mutex = locator.try_get_exclusive_lock()?;
+    // Note: lock is NOT acquired here. It's acquired inside apply_package_impl
+    // AFTER the self-elevation check, to avoid deadlock when the non-elevated
+    // parent spawns an elevated child (both would try to lock the same file).
     let _ = commands::apply(&locator, restart, wait, package, exe_args, true)?;
     Ok(())
 }
