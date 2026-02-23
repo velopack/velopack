@@ -93,24 +93,9 @@ public class AppImageTool
 
             logger.Info($"Creating AppImage with {Path.GetFileName(runtime)} runtime");
             File.Copy(runtime, outputFile, true);
-            // Ensure the copied runtime is writable/executable before appending squashfs (works across TFMs)
+            // Ensure the copied runtime is writable/executable before appending squashfs.
+            // ChmodFileAsExecutable sets 755 which includes write permission.
             Chmod.ChmodFileAsExecutable(outputFile);
-
-            // Ensure the copied runtime is writable before appending squashfs.
-            try {
-                if (VelopackRuntimeInfo.IsLinux) {
-#if NET8_0_OR_GREATER
-                    System.IO.File.SetUnixFileMode(
-                        outputFile,
-                        UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-                        UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
-                        UnixFileMode.OtherRead | UnixFileMode.OtherExecute
-                    );
-#endif
-                }
-            } catch {
-                // best-effort; ignore if setting permissions fails
-            }
 
             using var outputfs = File.Open(outputFile, FileMode.Append, FileAccess.Write, FileShare.None);
             using var squashfs = File.OpenRead(tmpSquashFile);
