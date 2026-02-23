@@ -67,13 +67,13 @@ pub fn expand_environment_strings<P: AsRef<OsStr>>(input: P) -> Result<OsString>
     let encoded = string_to_wide(input);
     let mut buffer_size = unsafe { ExpandEnvironmentStringsW(encoded.as_pcwstr(), None) };
     if buffer_size == 0 {
-        return Err(anyhow!(windows::core::Error::from_win32()));
+        return Err(anyhow!(windows::core::Error::from_thread()));
     }
 
     let mut buffer: Vec<u16> = vec![0; buffer_size as usize];
     buffer_size = unsafe { ExpandEnvironmentStringsW(encoded.as_pcwstr(), Some(&mut buffer)) };
     if buffer_size == 0 {
-        return Err(anyhow!(windows::core::Error::from_win32()));
+        return Err(anyhow!(windows::core::Error::from_thread()));
     }
 
     Ok(wide_to_os_string(buffer))
@@ -93,13 +93,13 @@ pub fn get_long_path<P: AsRef<OsStr>>(str: P) -> Result<OsString> {
     // SAFETY: str is a valid wide string, this call will return required size of buffer
     let len = unsafe { GetLongPathNameW(str.as_pcwstr(), None) };
     if len == 0 {
-        return Err(anyhow!(windows::core::Error::from_win32()));
+        return Err(anyhow!(windows::core::Error::from_thread()));
     }
 
     let mut vec = vec![0u16; len as usize];
     let len = unsafe { GetLongPathNameW(str.as_pcwstr(), Some(vec.as_mut_slice())) };
     if len == 0 {
-        return Err(anyhow!(windows::core::Error::from_win32()));
+        return Err(anyhow!(windows::core::Error::from_thread()));
     }
 
     Ok(wide_to_os_string(vec))

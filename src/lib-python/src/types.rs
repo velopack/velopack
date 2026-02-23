@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 use velopack::{VelopackAsset, UpdateInfo, UpdateOptions, locator::VelopackLocatorConfig};
 use std::path::PathBuf;
 
-#[pyclass(name = "VelopackLocatorConfig")]
+#[pyclass(name = "VelopackLocatorConfig", from_py_object)]
 #[derive(Debug, Clone, Default)]
 pub struct PyVelopackLocatorConfig {
     #[pyo3(get, set)]
@@ -70,7 +70,7 @@ impl Into<VelopackLocatorConfig> for PyVelopackLocatorConfig {
     }
 }
 
-#[pyclass(name = "VelopackAsset")]
+#[pyclass(name = "VelopackAsset", from_py_object)]
 #[derive(Debug, Clone, Default)]
 pub struct PyVelopackAsset {
     #[pyo3(get, set)]
@@ -154,7 +154,7 @@ impl Into<VelopackAsset> for PyVelopackAsset {
     }
 }
 
-#[pyclass(name = "UpdateInfo")]
+#[pyclass(name = "UpdateInfo", from_py_object)]
 #[derive(Debug, Clone, Default)]
 pub struct PyUpdateInfo {
     #[pyo3(get, set)]
@@ -208,7 +208,7 @@ impl Into<UpdateInfo> for PyUpdateInfo {
     }
 }
 
-#[pyclass(name = "UpdateOptions")]
+#[pyclass(name = "UpdateOptions", from_py_object)]
 #[derive(Debug, Clone, Default)]
 pub struct PyUpdateOptions {
     #[pyo3(get, set)]

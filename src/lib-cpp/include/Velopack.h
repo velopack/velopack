@@ -1,7 +1,7 @@
 #ifndef VELOPACK_H
 #define VELOPACK_H
 
-/* Generated with cbindgen:0.29.0 */
+/* Generated with cbindgen:0.29.2 */
 
 /* THIS FILE IS AUTO-GENERATED - DO NOT EDIT */
 

@@ -5,7 +5,7 @@ use velopack::{VelopackAsset, UpdateInfo, UpdateOptions, locator::VelopackLocato
 use std::path::PathBuf;
 
 {{#each this}}
-#[pyclass(name = "{{struct_rust_name}}")]
+#[pyclass(name = "{{struct_rust_name}}", from_py_object)]
 #[derive(Debug, Clone, Default)]
 pub struct Py{{struct_rust_name}} {
     {{#each fields}}
