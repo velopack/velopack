@@ -1,7 +1,6 @@
-using System.Security;
 using System.Xml.Linq;
-using NuGet.Packaging;
 using Velopack.Core;
+using Velopack.NuGet;
 using Velopack.Packaging.Abstractions;
 using Velopack.Packaging.Windows.Commands;
 using Velopack.Util;
@@ -122,14 +121,10 @@ public class ReleaseNotesParsingTests
     }
 
     [Fact]
-    public void DebugCDataSequence()
+    public void WithBareAmpersand()
     {
-        // Test specifically for ]]> preservation
-        var notes = "Before]]>After";
-        ValidateReleaseNotesInNuspec(notes);
-
-        // If this test passes, ]]> is preserved exactly
-        _output.WriteLine($"Test passed: ']]>' sequence is preserved correctly");
+        // Regression test for #666 — bare ampersands broke XML parsing
+        ValidateReleaseNotesInNuspec("Feature A&B released");
     }
 
     [Fact]

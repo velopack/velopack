@@ -394,7 +394,7 @@ pub fn read_manifest_from_string(xml: &str) -> Result<Manifest, Error> {
             Ok(XmlEvent::StartElement { name, .. }) => {
                 vec.push(name.local_name);
             }
-            Ok(XmlEvent::Characters(text)) => {
+            Ok(XmlEvent::Characters(text)) | Ok(XmlEvent::CData(text)) => {
                 if vec.is_empty() {
                     continue;
                 }
@@ -558,4 +558,68 @@ fn test_parse_package_file_name() {
     assert!(parse_package_file_name("MyCoolApp-1.2.3-beta1-win7-x64-full.zip").is_none());
     assert!(parse_package_file_name("MyCoolApp-1.2.3.nupkg").is_none());
     assert!(parse_package_file_name("MyCoolApp-1.2-full.nupkg").is_none());
+}
+
+#[test]
+fn test_read_manifest_with_cdata_release_notes() {
+    let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+<metadata>
+<id>TestApp</id>
+<title>Test App</title>
+<description>Test App</description>
+<authors>test</authors>
+<version>1.0.0</version>
+<channel></channel>
+<mainExe>test.exe</mainExe>
+<os>win</os>
+<rid>win-x64</rid>
+<machineArchitecture>x64</machineArchitecture>
+<releaseNotes><![CDATA[
+Feature A&B: support for <configuration> files
+Fixed: paths with '&' and '<' characters
+Unicode: café 🎉
+]]></releaseNotes>
+</metadata>
+</package>"#;
+
+    let manifest = read_manifest_from_string(xml).unwrap();
+    assert_eq!(manifest.id, "TestApp");
+    assert_eq!(manifest.version, Version::parse("1.0.0").unwrap());
+    assert_eq!(manifest.machine_architecture, "x64");
+    assert!(manifest.release_notes.contains("Feature A&B"));
+    assert!(manifest.release_notes.contains("<configuration>"));
+    assert!(manifest.release_notes.contains("café 🎉"));
+}
+
+#[test]
+fn test_read_manifest_plain_and_cdata_mixed() {
+    // Verify that plain text elements still work alongside CDATA elements
+    let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+<metadata>
+<id>MixedApp</id>
+<title>Mixed App</title>
+<description>Mixed App</description>
+<authors>author</authors>
+<version>2.0.0</version>
+<channel>stable</channel>
+<mainExe>app.exe</mainExe>
+<os>win</os>
+<rid>win-x64</rid>
+<osMinVersion>10.0.19043</osMinVersion>
+<machineArchitecture>x64</machineArchitecture>
+<releaseNotes><![CDATA[
+Notes with special chars: & < > " '
+]]></releaseNotes>
+</metadata>
+</package>"#;
+
+    let manifest = read_manifest_from_string(xml).unwrap();
+    assert_eq!(manifest.id, "MixedApp");
+    assert_eq!(manifest.version, Version::parse("2.0.0").unwrap());
+    assert_eq!(manifest.os_min_version, "10.0.19043");
+    assert_eq!(manifest.machine_architecture, "x64");
+    assert_eq!(manifest.channel, "stable");
+    assert!(manifest.release_notes.contains("& < > \" '"));
 }
