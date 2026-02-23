@@ -84,6 +84,10 @@
     {
       "matchPackageNames": "@electron/fuses",
       "allowedVersions": "< 2.0.0"                   // 2.x is ESM-only, breaks webpack/forge setup
+    },
+    {
+      "matchPackageNames": "coverlet.msbuild",
+      "allowedVersions": "< 7.0.0"                   // 8.x breaks instrumentation on net8.0 targets
     }
   ]
 }
