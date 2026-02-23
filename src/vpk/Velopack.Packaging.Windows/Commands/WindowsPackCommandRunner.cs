@@ -292,7 +292,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         var signTemplate = Options.SignTemplate;
         var signParallel = Options.SignParallel;
         var trustedSignMetadataPath = Options.AzureTrustedSignFile;
-        var helper = new CodeSign(Log);
+        var helper = new CodeSign(Log, Console);
 
         if (string.IsNullOrEmpty(signParams) && string.IsNullOrEmpty(signTemplate) && string.IsNullOrEmpty(trustedSignMetadataPath)) {
             Log.Warn($"No signing parameters provided, {filePaths.Length} file(s) will not be signed.");
