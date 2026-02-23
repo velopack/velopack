@@ -8,9 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Velopack is an installation and auto-update framework for cross-platform desktop applications. It has a C#/.NET frontend (library + CLI tool called `vpk`) and a Rust backend (update binaries for Windows/macOS/Linux). The library supports C#, C++, Node.js, Python, and Rust clients.
 
-## Build Commands
+## CRITICAL: Do Not `cd` to the Repo Root
 
-**IMPORTANT: Never `cd` before running commands.** All commands must be run from the repository root using the Bash tool directly. Do not use `cd /c/Source/velopack &&` or similar — the working directory is already set to the repo root.
+**The working directory is ALREADY the repo root.** Never write `cd /c/Source/velopack &&` or any variation — you are already there. Just run commands directly (e.g. `cargo build`, `dotnet test test/Velopack.Tests`). You may `cd` into a subdirectory if a specific task genuinely requires it, but never `cd` to the repo root itself.
+
+## Build Commands
 
 ```bash
 # .NET (main solution)
@@ -138,6 +140,7 @@ Locators (`IVelopackLocator` in C#, `VelopackLocator` in Rust) resolve platform-
 
 ## Key Conventions
 
+- **Do not `cd` to the repo root** — you are already there. Never prefix commands with `cd /c/Source/velopack &&`. You may `cd` into a subdirectory only if genuinely needed.
 - **Test framework**: xunit v3. Test helpers in `test/PathHelper.cs` — use `PathHelper.GetFixturesDir()` for test fixture paths and `PathHelper.IsCI` to detect CI.
 - **Versioning**: Nerdbank.GitVersioning (NBGV) — version derived from git height, not manually set.
 - **Assembly signing**: All assemblies signed with `Velopack.snk`.
@@ -148,3 +151,4 @@ Locators (`IVelopackLocator` in C#, `VelopackLocator` in Rust) resolve platform-
 - **C# lang version**: `latest`.
 - **Max line length**: 150 characters (C# and Rust).
 - **Indent**: 4 spaces for C#, 2 spaces for XML/csproj/props, spaces everywhere (no tabs).
+- **Rust formatting**: Always run `rustfmt` on Rust files after finishing edits.

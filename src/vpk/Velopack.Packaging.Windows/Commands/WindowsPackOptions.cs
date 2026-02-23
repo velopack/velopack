@@ -40,4 +40,6 @@ public class WindowsPackOptions : WindowsReleasifyOptions, INugetPackCommand, IP
     public bool BuildMsi { get; set; }
 
     public string MsiVersionOverride { get; set; }
+
+    public string Aumid { get; set; }
 }
