@@ -426,6 +426,8 @@ pub fn read_manifest_from_string(xml: &str) -> Result<Manifest, Error> {
                     obj.shortcut_locations = text;
                 } else if el_name == "shortcutAumid" {
                     obj.shortcut_aumid = text;
+                } else if el_name == "shortcutAmuid" { // legacy typo / backwards compatibility
+                    obj.shortcut_aumid = text;
                 } else if el_name == "releaseNotes" {
                     obj.release_notes = text;
                 } else if el_name == "releaseNotesHtml" {
