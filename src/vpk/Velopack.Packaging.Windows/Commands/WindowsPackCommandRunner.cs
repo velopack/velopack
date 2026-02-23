@@ -44,7 +44,9 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         // add nuspec metadata
         ExtraNuspecMetadata["runtimeDependencies"] = GetRuntimeDependencies();
         ExtraNuspecMetadata["shortcutLocations"] = GetShortcutLocations();
-        ExtraNuspecMetadata["shortcutAumid"] = CoreUtil.GetAppUserModelId(Options.PackId);
+        ExtraNuspecMetadata["shortcutAumid"] = !string.IsNullOrEmpty(Options.Aumid)
+            ? Options.Aumid
+            : CoreUtil.GetAppUserModelId(Options.PackId);
         if (!string.IsNullOrEmpty(Options.SplashProgressColor)) {
             ExtraNuspecMetadata["splashProgressColor"] = Options.SplashProgressColor;
         }

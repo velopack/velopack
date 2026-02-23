@@ -43,6 +43,8 @@ public class WindowsPackCommand : PackCommand
 
     public string MsiVersionOverride { get; private set; }
 
+    public string Aumid { get; private set; }
+
     public WindowsPackCommand()
         : base("pack", "Creates a release from a folder containing application files.", RuntimeOs.Windows)
     {
@@ -80,6 +82,11 @@ public class WindowsPackCommand : PackCommand
             .MustBeBetween(1, 1000)
             .SetHidden()
             .SetDefault(10);
+
+        AddOption<string>((v) => Aumid = v, "--aumid")
+            .SetDescription("Override the Application User Model ID (AUMID) for shortcuts.")
+            .SetArgumentHelpName("AUMID")
+            .SetHidden();
 
         AddOption<string>((v) => Shortcuts = v, "--shortcuts")
             .SetDescription("List of locations to install shortcuts to during setup.")
