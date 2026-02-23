@@ -15,8 +15,10 @@ permissions:
   contents: write
 
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
+    outputs:
+      pkg_version: ${{ steps.version.outputs.pkg_version }}
     steps:
       - name: Download build version
         uses: actions/download-artifact@v4
@@ -27,9 +29,11 @@ jobs:
           path: ./
 
       - name: Load version from file
+        id: version
         run: |
           version=$(cat version.txt | xargs)
           echo "PKG_VERSION=$version" >> $GITHUB_ENV
+          echo "pkg_version=$version" >> $GITHUB_OUTPUT
 
       - name: Download vpk
         uses: actions/download-artifact@v4
@@ -38,7 +42,7 @@ jobs:
           run-id: ${{ github.event.inputs.workflow_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./packages
-          
+
       - name: Download lib-nodejs
         uses: actions/download-artifact@v4
         with:
@@ -46,7 +50,7 @@ jobs:
           run-id: ${{ github.event.inputs.workflow_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./lib-nodejs
-          
+
       - name: Download lib-rust
         uses: actions/download-artifact@v4
         with:
@@ -87,7 +91,7 @@ jobs:
         with:
           path: ./repo
           fetch-depth: 0
-          
+
       - name: Checkout release commit
         working-directory: ./repo
         run: |
@@ -218,18 +222,58 @@ jobs:
           gh release upload $currentTag (get-item ../lib-c/*.zip)
           gh release upload $currentTag (get-item ../lib-python/*.zip)
 
+  publish-nuget:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download NuGet packages
+        uses: actions/download-artifact@v4
+        with:
+          name: packages
+          run-id: ${{ github.event.inputs.workflow_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./packages
+
       - name: Publish NuGet Packages
         run: |
           for f in packages/*.nupkg; do
             dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
           done
-          
+
+  publish-npm:
+    needs: release
+    runs-on: ubuntu-latest
+    env:
+      PKG_VERSION: ${{ needs.release.outputs.pkg_version }}
+    steps:
+      - name: Download NPM package
+        uses: actions/download-artifact@v4
+        with:
+          name: lib-nodejs
+          run-id: ${{ github.event.inputs.workflow_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./lib-nodejs
+
       - name: Publish NPM Package
         working-directory: ./lib-nodejs
         run: |
           npm set "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}"
           npm publish velopack-$PKG_VERSION.tgz --access public
-          
+
+  publish-crate:
+    needs: release
+    runs-on: ubuntu-latest
+    env:
+      PKG_VERSION: ${{ needs.release.outputs.pkg_version }}
+    steps:
+      - name: Download Rust crate
+        uses: actions/download-artifact@v4
+        with:
+          name: lib-rust
+          run-id: ${{ github.event.inputs.workflow_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./lib-rust
+
       - name: Publish Rust Crate
         working-directory: ./lib-rust
         run: |
@@ -240,13 +284,17 @@ jobs:
           cargo login ${{ secrets.CARGO_TOKEN }}
           cargo publish --allow-dirty --no-verify
 
-      # - name: Publish to TestPyPI
-      #   uses: pypa/gh-action-pypi-publish@release/v1
-      #   with:
-      #     repository-url: https://test.pypi.org/legacy/
-      #     password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-      #     packages-dir: lib-python-files/
-      #     verbose: true
+  publish-pypi:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Python package
+        uses: actions/download-artifact@v4
+        with:
+          name: lib-python
+          run-id: ${{ github.event.inputs.workflow_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./lib-python-files
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
