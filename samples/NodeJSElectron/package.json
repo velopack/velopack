@@ -30,6 +30,6 @@
     "ts-loader": "^9.5.4",
     "ts-node": "^10.9.2",
     "typescript": "~5.9.0",
-    "velopack": "file:../../src/lib-nodejs/velopack-0.0.0.tgz"
+    "velopack": "^0.0.1298"
   }
 }
