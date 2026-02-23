@@ -63,9 +63,9 @@ pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>, options:
     let (tx, rx) = mpsc::channel::<i16>();
     thread::spawn(move || {
         info!("Showing splash screen immediately...");
-        if imgstream.is_some() {
+        if let Some(img) = imgstream {
             let progress_bar_color = options.get_progress_bar_color();
-            if let Err(e) = unsafe { SplashWindow::run(app_name, imgstream.unwrap(), rx, progress_bar_color) } {
+            if let Err(e) = unsafe { SplashWindow::run(app_name, img, rx, progress_bar_color) } {
                 error!("Failed to show splash screen: {:?}", e);
             }
         } else {
@@ -82,11 +82,11 @@ struct SplashWindow {
     rx: Receiver<i16>,
     progress: i16,
     frame_idx: usize,
-    w: i32,              // original bitmap width
-    h: i32,              // original bitmap height
-    scaled_w: i32,       // DPI-scaled window width
-    scaled_h: i32,       // DPI-scaled window height
-    dpi_scale: f32,      // current DPI scale factor
+    w: i32,         // original bitmap width
+    h: i32,         // original bitmap height
+    scaled_w: i32,  // DPI-scaled window width
+    scaled_h: i32,  // DPI-scaled window height
+    dpi_scale: f32, // current DPI scale factor
     hdc_screen: HDC,
     progress_bar_color: Option<(u8, u8, u8)>,
 }
@@ -137,8 +137,7 @@ fn get_monitor_dpi_scale(h_monitor: HMONITOR) -> f32 {
     // Lazy-load GetDpiForMonitor from shcore.dll (Win8.1+).
     // Falls back to GetDpiForSystem (Vista+) if unavailable.
     unsafe {
-        type GetDpiForMonitorFn =
-            unsafe extern "system" fn(hmonitor: HMONITOR, dpi_type: u32, dpi_x: *mut u32, dpi_y: *mut u32) -> HRESULT;
+        type GetDpiForMonitorFn = unsafe extern "system" fn(hmonitor: HMONITOR, dpi_type: u32, dpi_x: *mut u32, dpi_y: *mut u32) -> HRESULT;
         if let Ok(lib) = libloading::Library::new("shcore.dll") {
             if let Ok(func) = lib.get::<GetDpiForMonitorFn>(b"GetDpiForMonitor") {
                 let mut dpi_x: u32 = 0;
@@ -166,12 +165,9 @@ fn clamp_to_monitor(scaled_w: i32, scaled_h: i32, monitor_rect: &RECT) -> (i32, 
     }
 }
 
-fn convert_rgba_to_bgra(image_data: &mut Vec<u8>) {
+fn convert_rgba_to_bgra(image_data: &mut [u8]) {
     for chunk in image_data.chunks_mut(4) {
-        // Swap red and blue channels
-        let tmp = chunk[0];
-        chunk[0] = chunk[2];
-        chunk[2] = tmp;
+        chunk.swap(0, 2);
     }
 }
 
@@ -188,13 +184,15 @@ fn rgb(red: u8, green: u8, blue: u8) -> COLORREF {
     COLORREF((red as u32) | ((green as u32) << 8) | ((blue as u32) << 16))
 }
 
+const ALPHA_BLEND_FN: BLENDFUNCTION = BLENDFUNCTION {
+    BlendOp: AC_SRC_OVER as u8,
+    BlendFlags: 0,
+    SourceConstantAlpha: 255,
+    AlphaFormat: AC_SRC_ALPHA as u8,
+};
+
 impl SplashWindow {
-    pub unsafe fn run(
-        app_name: String,
-        img_stream: Vec<u8>,
-        rx: Receiver<i16>,
-        progress_bar_color: Option<(u8, u8, u8)>,
-    ) -> Result<()> {
+    pub unsafe fn run(app_name: String, img_stream: Vec<u8>, rx: Receiver<i16>, progress_bar_color: Option<(u8, u8, u8)>) -> Result<()> {
         let mut delays = Vec::new();
         let mut frames = Vec::new();
 
@@ -311,8 +309,8 @@ impl SplashWindow {
             None,
         )?;
 
-        let desktop = unsafe { GetDesktopWindow() };
-        let hdc_screen = unsafe { GetDC(Some(desktop)) };
+        let hwnd_desktop = unsafe { GetDesktopWindow() };
+        let hdc_screen = unsafe { GetDC(Some(hwnd_desktop)) };
 
         let data_ptr = Box::into_raw(Box::new(Self {
             frames,
@@ -343,9 +341,9 @@ impl SplashWindow {
             DispatchMessageW(&msg);
         }
 
-        let arc_data = Box::from_raw(data_ptr); // drop the reference to the data
-        let _ = DeleteDC(arc_data.hdc_screen);
-        for h_bitmap in &arc_data.frames {
+        let data = Box::from_raw(data_ptr);
+        ReleaseDC(Some(hwnd_desktop), data.hdc_screen);
+        for h_bitmap in &data.frames {
             let _ = DeleteObject((*h_bitmap).into());
         }
 
@@ -367,8 +365,13 @@ impl SplashWindow {
                 self.dpi_scale = (wparam.0 & 0xFFFF) as f32 / 96.0;
 
                 let _ = SetWindowPos(
-                    hwnd, None, suggested.left, suggested.top,
-                    self.scaled_w, self.scaled_h, SWP_NOZORDER | SWP_NOACTIVATE,
+                    hwnd,
+                    None,
+                    suggested.left,
+                    suggested.top,
+                    self.scaled_w,
+                    self.scaled_h,
+                    SWP_NOZORDER | SWP_NOACTIVATE,
                 );
                 let _ = InvalidateRect(Some(hwnd), None, false);
                 return 0;
@@ -417,12 +420,6 @@ impl SplashWindow {
                 // stretch the original bitmap to the scaled size using AlphaBlend
                 // to preserve alpha channel during scaling
                 SetStretchBltMode(hdc_dest, STRETCH_HALFTONE);
-                let blend_fn = BLENDFUNCTION {
-                    BlendOp: AC_SRC_OVER as u8,
-                    BlendFlags: 0,
-                    SourceConstantAlpha: 255,
-                    AlphaFormat: AC_SRC_ALPHA as u8,
-                };
                 let result = AlphaBlend(
                     hdc_dest,
                     0,
@@ -434,7 +431,7 @@ impl SplashWindow {
                     0,
                     self.w,
                     self.h,
-                    blend_fn,
+                    ALPHA_BLEND_FN,
                 );
                 if !result.as_bool() {
                     warn!("AlphaBlend failed");
@@ -454,12 +451,6 @@ impl SplashWindow {
                         let bar_bmp = CreateBitmap(1, 1, 1, 32, Some(pixel_data.as_mut_ptr() as *mut _));
                         let hdc_bar = CreateCompatibleDC(Some(self.hdc_screen));
                         let old_bar = SelectObject(hdc_bar, bar_bmp.into());
-                        let bar_blend = BLENDFUNCTION {
-                            BlendOp: AC_SRC_OVER as u8,
-                            BlendFlags: 0,
-                            SourceConstantAlpha: 255,
-                            AlphaFormat: AC_SRC_ALPHA as u8,
-                        };
                         let _ = AlphaBlend(
                             hdc_dest,
                             0,
@@ -471,7 +462,7 @@ impl SplashWindow {
                             0,
                             1,
                             1,
-                            bar_blend,
+                            ALPHA_BLEND_FN,
                         );
                         SelectObject(hdc_bar, old_bar);
                         let _ = DeleteDC(hdc_bar);
@@ -480,13 +471,10 @@ impl SplashWindow {
                 }
 
                 // Use UpdateLayeredWindow for true transparency with per-pixel alpha
-                let ulw_blend = BLENDFUNCTION {
-                    BlendOp: AC_SRC_OVER as u8,
-                    BlendFlags: 0,
-                    SourceConstantAlpha: 255,
-                    AlphaFormat: AC_SRC_ALPHA as u8,
+                let size = SIZE {
+                    cx: self.scaled_w,
+                    cy: self.scaled_h,
                 };
-                let size = SIZE { cx: self.scaled_w, cy: self.scaled_h };
                 let pt_src = POINT { x: 0, y: 0 };
                 let _ = UpdateLayeredWindow(
                     hwnd,
@@ -496,7 +484,7 @@ impl SplashWindow {
                     Some(hdc_dest),
                     Some(&pt_src),
                     COLORREF(0),
-                    Some(&ulw_blend),
+                    Some(&ALPHA_BLEND_FN),
                     ULW_ALPHA,
                 );
 
@@ -518,7 +506,7 @@ impl SplashWindow {
     }
 }
 
-pub struct ComCtlProgressWindow {
+struct ComCtlProgressWindow {
     rx: Receiver<i16>,
     last_progress: i16,
 }
@@ -592,7 +580,12 @@ unsafe extern "system" fn task_dialog_callback(
                     SendMessageW(hwnd, TDM_SET_PROGRESS_BAR_MARQUEE.0 as u32, Some(WPARAM(0)), Some(LPARAM(0)));
                     SendMessageW(hwnd, TDM_SET_MARQUEE_PROGRESS_BAR.0 as u32, Some(WPARAM(0)), Some(LPARAM(0)));
                 }
-                SendMessageW(hwnd, TDM_SET_PROGRESS_BAR_POS.0 as u32, Some(WPARAM(next_message as usize)), Some(LPARAM(0)));
+                SendMessageW(
+                    hwnd,
+                    TDM_SET_PROGRESS_BAR_POS.0 as u32,
+                    Some(WPARAM(next_message as usize)),
+                    Some(LPARAM(0)),
+                );
                 me.last_progress = next_message;
             }
         }
@@ -656,7 +649,9 @@ fn show_splash_without_progress_bar() {
     let tx = show_splash_dialog(
         "osu!".to_string(),
         Some(rd),
-        SplashOptions { splash_progress_color: Some("None".to_string()) },
+        SplashOptions {
+            splash_progress_color: Some("None".to_string()),
+        },
     );
     let _ = tx.send(80);
     std::thread::sleep(std::time::Duration::from_secs(6));
