@@ -166,10 +166,12 @@ public class CodeSign
 
     public static string EscapeForBash(string input)
     {
-        return input.Replace("$", "\\$")
+        // Backslashes must be escaped first, otherwise the backslashes
+        // introduced by later replacements get double-escaped.
+        return input.Replace("\\", "\\\\")
+                    .Replace("$", "\\$")
                     .Replace("`", "\\`")
                     .Replace("\"", "\\\"")
-                    .Replace("'", "\\'")
-                    .Replace("\\", "\\\\");
+                    .Replace("'", "\\'");
     }
 }
