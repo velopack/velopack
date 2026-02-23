@@ -55,6 +55,7 @@ pub fn header_offset_and_length() -> (i64, i64) {
 
 fn main() -> Result<()> {
     windows::mitigate::pre_main_sideload_mitigation();
+    windows::splash::init_dpi_awareness();
     shared::cli_host::clap_run_main("Setup", main_inner)
 }
 

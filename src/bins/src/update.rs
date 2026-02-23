@@ -132,6 +132,8 @@ fn get_op_wait(matches: &ArgMatches) -> shared::OperationWait {
 fn main() -> Result<()> {
     #[cfg(windows)]
     windows::mitigate::pre_main_sideload_mitigation();
+    #[cfg(windows)]
+    windows::splash::init_dpi_awareness();
 
     #[cfg(windows)]
     let matches = try_parse_command_line_matches(env::args().collect())?;

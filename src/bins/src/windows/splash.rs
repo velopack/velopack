@@ -4,7 +4,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::{io::Cursor, thread};
 use velopack::wide_strings::string_to_wide;
 use windows::{
-    core::HRESULT,
+    core::{BOOL, HRESULT},
     Win32::{
         Foundation::{COLORREF, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, SIZE, S_OK, WPARAM},
         Graphics::Gdi::*,
@@ -72,6 +72,7 @@ struct SplashWindow {
     h: i32,              // original bitmap height
     scaled_w: i32,       // DPI-scaled window width
     scaled_h: i32,       // DPI-scaled window height
+    dpi_scale: f32,      // current DPI scale factor
     hdc_screen: HDC,
     no_progress_bar: bool,
     progress_bar_color: (u8, u8, u8),
@@ -83,14 +84,72 @@ fn average(numbers: &[u32]) -> u32 {
     sum / count
 }
 
-fn get_dpi_scale() -> f32 {
-    // Get system DPI - standard DPI is 96
+pub fn init_dpi_awareness() {
+    // Lazy-load DPI awareness functions to support older Windows versions.
+    // Fallback chain: V2 per-monitor (Win10 1607+) -> per-monitor (Win8.1+) -> system aware (Vista+)
     unsafe {
-        use windows::Win32::UI::HiDpi::{GetDpiForSystem, SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2};
-        // Ensure DPI awareness is set (in case manifest didn't work)
-        let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-        let dpi = GetDpiForSystem();
-        dpi as f32 / 96.0
+        // Try SetProcessDpiAwarenessContext (Win10 1607+, user32.dll)
+        type SetDpiAwarenessContextFn = unsafe extern "system" fn(value: isize) -> BOOL;
+        if let Ok(lib) = libloading::Library::new("user32.dll") {
+            if let Ok(func) = lib.get::<SetDpiAwarenessContextFn>(b"SetProcessDpiAwarenessContext") {
+                const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: isize = -4;
+                if func(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2).as_bool() {
+                    return;
+                }
+            }
+        }
+
+        // Try SetProcessDpiAwareness (Win8.1+, shcore.dll)
+        type SetDpiAwarenessFn = unsafe extern "system" fn(value: u32) -> HRESULT;
+        if let Ok(lib) = libloading::Library::new("shcore.dll") {
+            if let Ok(func) = lib.get::<SetDpiAwarenessFn>(b"SetProcessDpiAwareness") {
+                const PROCESS_PER_MONITOR_DPI_AWARE: u32 = 2;
+                if func(PROCESS_PER_MONITOR_DPI_AWARE) == S_OK {
+                    return;
+                }
+            }
+        }
+
+        // Fallback: SetProcessDPIAware (Vista+, user32.dll)
+        type SetDPIAwareFn = unsafe extern "system" fn() -> BOOL;
+        if let Ok(lib) = libloading::Library::new("user32.dll") {
+            if let Ok(func) = lib.get::<SetDPIAwareFn>(b"SetProcessDPIAware") {
+                let _ = func();
+            }
+        }
+    }
+}
+
+fn get_monitor_dpi_scale(h_monitor: HMONITOR) -> f32 {
+    // Lazy-load GetDpiForMonitor from shcore.dll (Win8.1+).
+    // Falls back to GetDpiForSystem (Vista+) if unavailable.
+    unsafe {
+        type GetDpiForMonitorFn =
+            unsafe extern "system" fn(hmonitor: HMONITOR, dpi_type: u32, dpi_x: *mut u32, dpi_y: *mut u32) -> HRESULT;
+        if let Ok(lib) = libloading::Library::new("shcore.dll") {
+            if let Ok(func) = lib.get::<GetDpiForMonitorFn>(b"GetDpiForMonitor") {
+                let mut dpi_x: u32 = 0;
+                let mut dpi_y: u32 = 0;
+                const MDT_EFFECTIVE_DPI: u32 = 0;
+                if func(h_monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y) == S_OK && dpi_x > 0 {
+                    return dpi_x as f32 / 96.0;
+                }
+            }
+        }
+        // Fallback to system DPI
+        use windows::Win32::UI::HiDpi::GetDpiForSystem;
+        GetDpiForSystem() as f32 / 96.0
+    }
+}
+
+fn clamp_to_monitor(scaled_w: i32, scaled_h: i32, monitor_rect: &RECT) -> (i32, i32) {
+    let max_w = ((monitor_rect.right - monitor_rect.left) as f32 * 0.7) as i32;
+    let max_h = ((monitor_rect.bottom - monitor_rect.top) as f32 * 0.7) as i32;
+    if scaled_w > max_w || scaled_h > max_h {
+        let ratio = (max_w as f32 / scaled_w as f32).min(max_h as f32 / scaled_h as f32);
+        ((scaled_w as f32 * ratio) as i32, (scaled_h as f32 * ratio) as i32)
+    } else {
+        (scaled_w, scaled_h)
     }
 }
 
@@ -196,10 +255,38 @@ impl SplashWindow {
         // support a variable frame delay in the future.
         let delay = average(&delays);
 
-        // Calculate DPI-scaled dimensions
-        let dpi_scale = get_dpi_scale();
+        // Find the monitor containing the cursor for per-monitor DPI
+        let mut lppoint = POINT::default();
+        GetCursorPos(&mut lppoint)?;
+        let h_monitor = MonitorFromPoint(lppoint, MONITOR_DEFAULTTONEAREST);
+
+        // Get per-monitor DPI scale and calculate scaled dimensions
+        let dpi_scale = get_monitor_dpi_scale(h_monitor);
         let scaled_w = (w as f32 * dpi_scale) as i32;
         let scaled_h = (h as f32 * dpi_scale) as i32;
+
+        // Clamp to 70% of monitor size and center
+        let mut mi: MONITORINFO = Default::default();
+        mi.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+        let (scaled_w, scaled_h) = if GetMonitorInfoW(h_monitor, &mut mi).as_bool() {
+            let (cw, ch) = clamp_to_monitor(scaled_w, scaled_h, &mi.rcMonitor);
+            let rc = mi.rcMonitor;
+            lppoint.x = (rc.left + rc.right - cw) / 2;
+            lppoint.y = (rc.top + rc.bottom - ch) / 2;
+            (cw, ch)
+        } else {
+            let mut rc_work_area: RECT = Default::default();
+            SystemParametersInfoW(
+                SPI_GETWORKAREA,
+                0,
+                Some(&mut rc_work_area as *mut RECT as *mut _),
+                SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
+            )?;
+            let (cw, ch) = clamp_to_monitor(scaled_w, scaled_h, &rc_work_area);
+            lppoint.x = (rc_work_area.left + rc_work_area.right - cw) / 2;
+            lppoint.y = (rc_work_area.top + rc_work_area.bottom - ch) / 2;
+            (cw, ch)
+        };
         info!("DPI scale: {}, window size: {}x{} -> {}x{}", dpi_scale, w, h, scaled_w, scaled_h);
 
         let class_name = string_to_wide("VelopackSetupSplashWindow");
@@ -225,33 +312,6 @@ impl SplashWindow {
             if err.raw_os_error() != Some(1410) {
                 bail!("Failed to register window class: {:?}", err);
             }
-        }
-
-        // center the window on the screen containing the cursor
-        let mut lppoint = POINT::default();
-        GetCursorPos(&mut lppoint)?;
-
-        let h_monitor = MonitorFromPoint(lppoint, MONITOR_DEFAULTTONEAREST);
-        let mut mi: MONITORINFO = Default::default();
-        mi.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
-        if GetMonitorInfoW(h_monitor, &mut mi).as_bool() {
-            // center the window in the monitor
-            let rc_monitor = mi.rcMonitor;
-            let left = (rc_monitor.left + rc_monitor.right - scaled_w) / 2;
-            let top = (rc_monitor.top + rc_monitor.bottom - scaled_h) / 2;
-            lppoint.x = left;
-            lppoint.y = top;
-        } else {
-            // fallback to work area if monitor info is not available
-            let mut rc_work_area: RECT = Default::default();
-            SystemParametersInfoW(
-                SPI_GETWORKAREA,
-                0,
-                Some(&mut rc_work_area as *mut RECT as *mut _),
-                SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
-            )?;
-            lppoint.x = (rc_work_area.left + rc_work_area.right - scaled_w) / 2;
-            lppoint.y = (rc_work_area.top + rc_work_area.bottom - scaled_h) / 2;
         }
 
         let hwnd = CreateWindowExW(
@@ -280,6 +340,7 @@ impl SplashWindow {
             h,
             scaled_w,
             scaled_h,
+            dpi_scale,
             progress: 0,
             hdc_screen,
             no_progress_bar,
@@ -315,6 +376,21 @@ impl SplashWindow {
         match msg {
             WM_NCHITTEST => {
                 return HTCAPTION as isize; // make the window draggable
+            }
+            WM_DPICHANGED => {
+                // Let Windows handle position and size — the suggested rect already
+                // has the correct DPI-scaled dimensions for the new monitor.
+                let suggested = &*(lparam.0 as *const RECT);
+                self.scaled_w = suggested.right - suggested.left;
+                self.scaled_h = suggested.bottom - suggested.top;
+                self.dpi_scale = (wparam.0 & 0xFFFF) as f32 / 96.0;
+
+                let _ = SetWindowPos(
+                    hwnd, None, suggested.left, suggested.top,
+                    self.scaled_w, self.scaled_h, SWP_NOZORDER | SWP_NOACTIVATE,
+                );
+                let _ = InvalidateRect(Some(hwnd), None, false);
+                return 0;
             }
             WM_TIMER => {
                 if wparam.0 as usize == TMR_GIF {
@@ -389,7 +465,7 @@ impl SplashWindow {
                 // UpdateLayeredWindow treats as fully transparent.
                 if !self.no_progress_bar {
                     let progress_width = (self.scaled_w as f32 * (self.progress as f32 / 100.0)) as i32;
-                    let progress_height = 10.max((self.scaled_h as f32 * 0.02) as i32);
+                    let progress_height = (12.0 * self.dpi_scale) as i32;
                     if progress_width > 0 {
                         let (r, g, b) = self.progress_bar_color;
                         // BGRA pixel with alpha=255 (little-endian u32: 0xAARRGGBB)
