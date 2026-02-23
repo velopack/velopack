@@ -203,14 +203,16 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
         string extraMetadata = "";
 
-        void addMetadata(string key, string value)
+        void addMetadata(string key, string value, bool cdata = false)
         {
             if (!String.IsNullOrEmpty(key) && !String.IsNullOrEmpty(value)) {
-                // Always use CDATA to preserve content exactly as-is (prevents double-escaping)
-                // and to avoid XML injection. Only need to handle ]]> which terminates CDATA.
-                // Standard approach: split ]]> into ]]]]><![CDATA[>
-                value = value.Replace("]]>", "]]]]><![CDATA[>");
-                value = $"""<![CDATA[{"\n"}{value}{"\n"}]]>""";
+                if (cdata) {
+                    // CDATA preserves content exactly as-is (prevents double-escaping).
+                    // Only need to handle ]]> which terminates CDATA sections.
+                    // Standard approach: split ]]> into ]]]]><![CDATA[>
+                    value = value.Replace("]]>", "]]]]><![CDATA[>");
+                    value = $"""<![CDATA[{"\n"}{value}{"\n"}]]>""";
+                }
 
                 extraMetadata += $"<{key}>{value}</{key}>{Environment.NewLine}";
             }
@@ -224,8 +226,8 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
         if (!String.IsNullOrEmpty(releaseNotes)) {
             var markdown = File.ReadAllText(releaseNotes);
-            addMetadata("releaseNotes", markdown);
-            addMetadata("releaseNotesHtml", Markdown.ToHtml(markdown));
+            addMetadata("releaseNotes", markdown, cdata: true);
+            addMetadata("releaseNotesHtml", Markdown.ToHtml(markdown), cdata: true);
         }
 
         if (rid?.HasVersion == true) {
