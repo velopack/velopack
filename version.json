@@ -4,5 +4,8 @@
   "gitCommitIdShortFixedLength": 7,
   "publicReleaseRefSpec": [
     "^refs/heads/master$"
-  ]
+  ],
+  "cloudBuild": {
+    "setVersionVariables": false
+  }
 }
