@@ -10,7 +10,7 @@ Velopack is an installation and auto-update framework for cross-platform desktop
 
 ## Build Commands
 
-All commands should be run directly from the repository root — do not `cd` into subdirectories.
+**IMPORTANT: Never `cd` before running commands.** All commands must be run from the repository root using the Bash tool directly. Do not use `cd /c/Source/velopack &&` or similar — the working directory is already set to the repo root.
 
 ```bash
 # .NET (main solution)
