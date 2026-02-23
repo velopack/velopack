@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 
 namespace Velopack.Util
 {
@@ -10,30 +11,20 @@ namespace Velopack.Util
             string tempDir;
 
             var velopackTemp = Environment.GetEnvironmentVariable("VELOPACK_TEMP");
+            var envTempDir = new[] { "TMPDIR", "TEMP", "TMP" }
+                .Select(Environment.GetEnvironmentVariable)
+                .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+
             if (!string.IsNullOrWhiteSpace(velopackTemp)) {
-                tempDir = velopackTemp;
+                tempDir = velopackTemp!;
+            } else if (!string.IsNullOrWhiteSpace(envTempDir)) {
+                tempDir = Path.Combine(envTempDir!, "velopack");
+            } else if (VelopackRuntimeInfo.IsWindows) {
+                tempDir = Path.Combine(Path.GetTempPath(), "Velopack");
+            } else if (VelopackRuntimeInfo.IsOSX || VelopackRuntimeInfo.IsLinux) {
+                tempDir = "/tmp/velopack";
             } else {
-                var tmpdir = Environment.GetEnvironmentVariable("TMPDIR");
-                var temp = Environment.GetEnvironmentVariable("TEMP");
-                var tmp = Environment.GetEnvironmentVariable("TMP");
-
-                string? baseEnv = !string.IsNullOrWhiteSpace(tmpdir)
-                    ? tmpdir
-                    : !string.IsNullOrWhiteSpace(temp)
-                        ? temp
-                        : !string.IsNullOrWhiteSpace(tmp)
-                            ? tmp
-                            : null;
-
-                if (!string.IsNullOrWhiteSpace(baseEnv)) {
-                    tempDir = Path.Combine(baseEnv!, "velopack");
-                } else if (VelopackRuntimeInfo.IsWindows) {
-                    tempDir = Path.Combine(Path.GetTempPath(), "Velopack");
-                } else if (VelopackRuntimeInfo.IsOSX || VelopackRuntimeInfo.IsLinux) {
-                    tempDir = "/tmp/velopack";
-                } else {
-                    throw new PlatformNotSupportedException();
-                }
+                throw new PlatformNotSupportedException();
             }
 
             var di = new DirectoryInfo(tempDir);
