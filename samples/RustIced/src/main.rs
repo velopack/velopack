@@ -3,7 +3,7 @@
 mod logger;
 
 use anyhow::Result;
-use iced::widget::{button, column, container, scrollable, text, vertical_space};
+use iced::widget::{button, column, container, scrollable, space, text};
 use iced::Task;
 use velopack::*;
 
@@ -71,13 +71,18 @@ fn main() -> Result<()> {
     
     info!("Finished hooks, starting Iced application...");
 
-    iced::application("Velopack Rust Sample", update, view)
+    iced::application(AppState::new, update, view)
+        .title(title)
         .window_size(iced::Size::new(600.0, 400.0))
         .centered()
         .subscription(logger::IcedLogger::subscription)
-        .run_with(|| AppState::new())?;
+        .run()?;
     
     Ok(())
+}
+
+fn title(_state: &AppState) -> String {
+    "Velopack Rust Sample".to_string()
 }
 
 fn update(state: &mut AppState, message: Message) -> Task<Message> {
@@ -132,7 +137,7 @@ fn update(state: &mut AppState, message: Message) -> Task<Message> {
     }
 }
 
-fn view(state: &AppState) -> iced::Element<Message> {
+fn view(state: &AppState) -> iced::Element<'_, Message> {
     let content = match state.status {
         AppStatus::NotInstalled =>
             column![text("Can't check for updates if not installed")],
@@ -177,7 +182,7 @@ fn view(state: &AppState) -> iced::Element<Message> {
 
     column![
         content,
-        vertical_space().height(20),
+        space().height(20),
         log_container,
     ].into()
 }

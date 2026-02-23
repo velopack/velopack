@@ -17,10 +17,10 @@ if errorlevel 1 exit /b 1
 echo.
 echo Building Velopack Release v%~1
 
-mkdir publish
+if not exist publish mkdir publish
 if errorlevel 1 exit /b 1
 
-move target\debug\velorusticedsample.exe publish\velorusticedsample.exe
+copy /y target\debug\velorusticedsample.exe publish\velorusticedsample.exe
 if errorlevel 1 exit /b 1
 
 vpk pack -u VeloRustIcedSample -o releases -p publish -v %*
