@@ -74,7 +74,7 @@ internal static class WindowsTestHelper
 
             using var fs = IoUtil.Retry(
                 () => File.Open(outputFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None),
-                10,
+                20,
                 1000,
                 logger.ToVelopackLogger());
 

@@ -105,6 +105,9 @@ pub extern "system" fn LaunchApplication(h_install: MSIHANDLE) -> c_uint {
 
 #[cfg(debug_assertions)]
 fn show_debug_message(fn_name: &str, message: String) {
+    if std::env::var("CI").is_ok() {
+        return;
+    }
     let message = format!("{}: {}", fn_name, message);
     dialogs::show_warn(fn_name, None, &message);
 }
