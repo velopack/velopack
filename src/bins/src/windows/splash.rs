@@ -19,18 +19,33 @@ const MSG_NOMESSAGE: i16 = -99;
 pub const MSG_CLOSE: i16 = -1;
 pub const MSG_INDEFINITE: i16 = -2;
 
+fn parse_hex_color(color_str: &str) -> (u8, u8, u8) {
+    let hex_str = color_str.trim_start_matches('#');
+    if hex_str.len() == 6 {
+        if let (Ok(r), Ok(g), Ok(b)) = (
+            u8::from_str_radix(&hex_str[0..2], 16),
+            u8::from_str_radix(&hex_str[2..4], 16),
+            u8::from_str_radix(&hex_str[4..6], 16),
+        ) {
+            return (r, g, b);
+        }
+    }
+    warn!("Invalid color format '{}', using default green", color_str);
+    (0, 255, 0)
+}
+
 #[derive(Default, Clone)]
 pub struct SplashOptions {
     pub splash_progress_color: Option<String>,
 }
 
 impl SplashOptions {
-    pub fn is_progress_bar_hidden(&self) -> bool {
-        self.splash_progress_color.as_ref().map_or(false, |c| c.eq_ignore_ascii_case("none"))
-    }
-
-    pub fn get_progress_bar_color(&self) -> &str {
-        self.splash_progress_color.as_deref().unwrap_or("")
+    pub fn get_progress_bar_color(&self) -> Option<(u8, u8, u8)> {
+        match self.splash_progress_color.as_deref() {
+            Some(c) if c.eq_ignore_ascii_case("none") => None,
+            Some(c) => Some(parse_hex_color(c)),
+            None => Some((0, 255, 0)),
+        }
     }
 }
 
@@ -49,9 +64,8 @@ pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>, options:
     thread::spawn(move || {
         info!("Showing splash screen immediately...");
         if imgstream.is_some() {
-            let no_progress_bar = options.is_progress_bar_hidden();
-            let progress_bar_color = parse_hex_color(options.get_progress_bar_color());
-            if let Err(e) = unsafe { SplashWindow::run(app_name, imgstream.unwrap(), rx, no_progress_bar, progress_bar_color) } {
+            let progress_bar_color = options.get_progress_bar_color();
+            if let Err(e) = unsafe { SplashWindow::run(app_name, imgstream.unwrap(), rx, progress_bar_color) } {
                 error!("Failed to show splash screen: {:?}", e);
             }
         } else {
@@ -74,8 +88,7 @@ struct SplashWindow {
     scaled_h: i32,       // DPI-scaled window height
     dpi_scale: f32,      // current DPI scale factor
     hdc_screen: HDC,
-    no_progress_bar: bool,
-    progress_bar_color: (u8, u8, u8),
+    progress_bar_color: Option<(u8, u8, u8)>,
 }
 
 fn average(numbers: &[u32]) -> u32 {
@@ -153,36 +166,6 @@ fn clamp_to_monitor(scaled_w: i32, scaled_h: i32, monitor_rect: &RECT) -> (i32, 
     }
 }
 
-fn parse_hex_color(color_str: &str) -> (u8, u8, u8) {
-    // Default to green if parsing fails
-    let default_color = (0, 255, 0);
-
-    if color_str.is_empty() {
-        return default_color;
-    }
-
-    // Remove leading # if present
-    let hex_str = color_str.trim_start_matches('#');
-
-    // Parse hex string (should be 6 characters: RRGGBB)
-    if hex_str.len() != 6 {
-        warn!("Invalid color format '{}', using default green", color_str);
-        return default_color;
-    }
-
-    match (
-        u8::from_str_radix(&hex_str[0..2], 16),
-        u8::from_str_radix(&hex_str[2..4], 16),
-        u8::from_str_radix(&hex_str[4..6], 16),
-    ) {
-        (Ok(r), Ok(g), Ok(b)) => (r, g, b),
-        _ => {
-            warn!("Failed to parse color '{}', using default green", color_str);
-            default_color
-        }
-    }
-}
-
 fn convert_rgba_to_bgra(image_data: &mut Vec<u8>) {
     for chunk in image_data.chunks_mut(4) {
         // Swap red and blue channels
@@ -210,8 +193,7 @@ impl SplashWindow {
         app_name: String,
         img_stream: Vec<u8>,
         rx: Receiver<i16>,
-        no_progress_bar: bool,
-        progress_bar_color: (u8, u8, u8),
+        progress_bar_color: Option<(u8, u8, u8)>,
     ) -> Result<()> {
         let mut delays = Vec::new();
         let mut frames = Vec::new();
@@ -343,7 +325,6 @@ impl SplashWindow {
             dpi_scale,
             progress: 0,
             hdc_screen,
-            no_progress_bar,
             progress_bar_color,
         }));
 
@@ -463,11 +444,10 @@ impl SplashWindow {
                 // Must use AlphaBlend with a 32-bit BGRA bitmap so the alpha channel
                 // is set to 255 (opaque). FillRect leaves alpha at 0, which
                 // UpdateLayeredWindow treats as fully transparent.
-                if !self.no_progress_bar {
+                if let Some((r, g, b)) = self.progress_bar_color {
                     let progress_width = (self.scaled_w as f32 * (self.progress as f32 / 100.0)) as i32;
                     let progress_height = (12.0 * self.dpi_scale) as i32;
                     if progress_width > 0 {
-                        let (r, g, b) = self.progress_bar_color;
                         // BGRA pixel with alpha=255 (little-endian u32: 0xAARRGGBB)
                         let pixel: u32 = (255u32 << 24) | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
                         let mut pixel_data = [pixel];
@@ -619,6 +599,23 @@ unsafe extern "system" fn task_dialog_callback(
     }
 
     return S_OK;
+}
+
+#[test]
+fn test_parse_hex_color_valid() {
+    assert_eq!(parse_hex_color("FF0000"), (255, 0, 0));
+    assert_eq!(parse_hex_color("#00FF00"), (0, 255, 0));
+    assert_eq!(parse_hex_color("#0000ff"), (0, 0, 255));
+    assert_eq!(parse_hex_color("AB12CD"), (0xAB, 0x12, 0xCD));
+}
+
+#[test]
+fn test_parse_hex_color_invalid_falls_back_to_green() {
+    assert_eq!(parse_hex_color(""), (0, 255, 0));
+    assert_eq!(parse_hex_color("FFF"), (0, 255, 0));
+    assert_eq!(parse_hex_color("#FFF"), (0, 255, 0));
+    assert_eq!(parse_hex_color("ZZZZZZ"), (0, 255, 0));
+    assert_eq!(parse_hex_color("not a color"), (0, 255, 0));
 }
 
 #[test]
