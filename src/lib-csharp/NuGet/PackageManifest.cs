@@ -143,6 +143,7 @@ namespace Velopack.NuGet
                 ShortcutLocations = getCommaDelimitedValue(value);
                 break;
             case "shortcutAumid":
+            case "shortcutAmuid": // legacy typo / backwards compatibility
                 ShortcutAumid = value;
                 break;
             }
