@@ -1,5 +1,6 @@
 #![allow(missing_docs)]
 
+use std::io::Cursor;
 use std::{
     cell::RefCell,
     fs::{self, File},
@@ -7,15 +8,14 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
-use std::io::Cursor;
 
 use regex::Regex;
 use semver::Version;
-use xml::EventReader;
 use xml::reader::XmlEvent;
+use xml::EventReader;
 use zip::ZipArchive;
 
-use crate::{Error, util};
+use crate::{misc, Error};
 
 #[cfg(target_os = "macos")]
 use std::os::unix::fs::PermissionsExt;
@@ -38,14 +38,14 @@ pub struct BundleZip<'a> {
 
 pub fn load_bundle_from_file<'a, P: AsRef<Path>>(file_name: P) -> Result<BundleZip<'a>, Error> {
     let file_name = file_name.as_ref();
-    debug!("Loading bundle from file '{}'...", file_name.to_string_lossy());
-    let file = util::retry_io(|| File::open(&file_name))?;
+    debug!("Loading bundle from file '{:?}'...", file_name);
+    let file = misc::retry_io(|| File::open(&file_name))?;
     let cursor: Box<dyn ReadSeek> = Box::new(file);
     let zip = ZipArchive::new(cursor)?;
-    Ok(BundleZip { 
-        zip: Rc::new(RefCell::new(zip)), 
-        zip_from_file: true, 
-        file_path: Some(file_name.to_owned()), 
+    Ok(BundleZip {
+        zip: Rc::new(RefCell::new(zip)),
+        zip_from_file: true,
+        file_path: Some(file_name.to_owned()),
         zip_range: None,
         manifest: None,
     })
@@ -55,13 +55,7 @@ pub fn load_bundle_from_memory<'a>(zip_range: &'a [u8]) -> Result<BundleZip<'a>,
     info!("Loading bundle from embedded zip...");
     let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(zip_range));
     let zip = ZipArchive::new(cursor)?;
-    Ok(BundleZip { 
-        zip: Rc::new(RefCell::new(zip)), 
-        zip_from_file: false, 
-        zip_range: Some(zip_range), 
-        file_path: None,
-        manifest: None,
-    })
+    Ok(BundleZip { zip: Rc::new(RefCell::new(zip)), zip_from_file: false, zip_range: Some(zip_range), file_path: None, manifest: None })
 }
 
 #[allow(dead_code)]
@@ -69,13 +63,13 @@ impl BundleZip<'_> {
     pub fn copy_bundle_to_file<T: AsRef<Path>>(&self, output_file_path: T) -> Result<(), Error> {
         let nupkg_path = output_file_path.as_ref();
         if self.zip_from_file {
-            util::retry_io(|| fs::copy(self.file_path.clone().unwrap(), nupkg_path))?;
+            misc::retry_io(|| fs::copy(self.file_path.clone().unwrap(), nupkg_path))?;
         } else {
-            util::retry_io(|| fs::write(nupkg_path, self.zip_range.unwrap()))?;
+            misc::retry_io(|| fs::write(nupkg_path, self.zip_range.unwrap()))?;
         }
         Ok(())
     }
-    
+
     pub fn calculate_size(&self) -> (u64, u64) {
         let mut total_uncompressed_size = 0u64;
         let mut total_compressed_size = 0u64;
@@ -140,18 +134,18 @@ impl BundleZip<'_> {
 
     pub fn extract_zip_idx_to_path<T: AsRef<Path>>(&self, index: usize, path: T) -> Result<(), Error> {
         let path = path.as_ref();
-        debug!("Extracting zip file to path: {}", path.to_string_lossy());
+        debug!("Extracting zip file to path: {:?}", path);
         let p = PathBuf::from(path);
         let parent = p.parent().unwrap();
 
         if !parent.exists() {
             debug!("Creating parent directory: {:?}", parent);
-            util::retry_io(|| fs::create_dir_all(parent))?;
+            misc::retry_io(|| fs::create_dir_all(parent))?;
         }
 
         let mut archive = self.zip.borrow_mut();
         let mut file = archive.by_index(index)?;
-        let mut outfile = util::retry_io(|| File::create(path))?;
+        let mut outfile = misc::retry_io(|| File::create(path))?;
         let mut buffer = [0; 64000]; // Use a 64KB buffer; good balance for large/small files.
 
         debug!("Writing file to disk with 64k buffer: {:?}", path);
@@ -172,7 +166,7 @@ impl BundleZip<'_> {
     {
         let idx = self.find_zip_file(predicate);
         if idx.is_none() {
-            return Err(Error::FileNotFound("(zip bundle predicate)".to_owned()));
+            return Err(Error::InvalidPackage("(zip bundle predicate not found)".to_owned()));
         }
         let idx = idx.unwrap();
         self.extract_zip_idx_to_path(idx, path)?;
@@ -183,15 +177,15 @@ impl BundleZip<'_> {
         if let Some(manifest) = &self.manifest {
             return Ok(manifest.clone());
         }
-        
-        let nuspec_idx = self.find_zip_file(|name| name.ends_with(".nuspec"))
-            .ok_or(Error::MissingNuspec)?;
+
+        let nuspec_idx =
+            self.find_zip_file(|name| name.ends_with(".nuspec")).ok_or(Error::InvalidPackage("No .nuspec manifest found".into()))?;
 
         let mut contents = String::new();
         let mut archive = self.zip.borrow_mut();
         archive.by_index(nuspec_idx)?.read_to_string(&mut contents)?;
         let app = read_manifest_from_string(&contents)?;
-        
+
         self.manifest = Some(app.clone());
         Ok(app)
     }
@@ -218,24 +212,56 @@ impl BundleZip<'_> {
         {
             let absolute_path = link_path.parent().unwrap().join(&target_path);
             trace!(
-                "Creating symlink '{}' -> '{}', target isfile={}, isdir={}, relative={}",
-                link_path.to_string_lossy(),
-                absolute_path.to_string_lossy(),
+                "Creating symlink '{:?}' -> '{:?}', target isfile={}, isdir={}, relative={:?}",
+                link_path,
+                absolute_path,
                 absolute_path.is_file(),
                 absolute_path.is_dir(),
-                target_path.to_string_lossy()
+                target_path
             );
             if absolute_path.is_file() {
                 std::os::windows::fs::symlink_file(target_path, link_path)?;
             } else if absolute_path.is_dir() {
                 std::os::windows::fs::symlink_dir(target_path, link_path)?;
             } else {
-                return Err(Error::Generic("Could not create symlink: target is not a file or directory.".to_owned()));
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    format!("Target path '{:?}' does not exist or is of an invalid type", absolute_path),
+                )
+                .into());
             }
         }
         #[cfg(not(target_os = "windows"))]
         {
             std::os::unix::fs::symlink(target_path, link_path)?;
+        }
+        Ok(())
+    }
+
+    /// Extracts all `_ExecutionStub.exe` files from the archive to the given directory,
+    /// renaming them by stripping the `_ExecutionStub` suffix (e.g. `Blah_ExecutionStub.exe` -> `Blah.exe`).
+    pub fn extract_stubs_to_dir<P: AsRef<Path>>(&self, dir: P) -> Result<(), Error> {
+        let dir = dir.as_ref();
+        let mut archive = self.zip.borrow_mut();
+        let stub_suffix = "_ExecutionStub.exe";
+        for i in 0..archive.len() {
+            let name = match archive.by_index(i) {
+                Ok(f) => f.name().to_string(),
+                Err(_) => continue,
+            };
+            let file_name = match name.rsplit(&['/', '\\']).next() {
+                Some(n) if n.ends_with(stub_suffix) => n.to_string(),
+                _ => continue,
+            };
+            let dest_name = file_name.replace(stub_suffix, ".exe");
+            let dest_path = dir.join(&dest_name);
+            drop(archive);
+            info!("Extracting stub '{}' to '{:?}'", file_name, dest_path);
+            match self.extract_zip_idx_to_path(i, &dest_path) {
+                Ok(_) => info!("Successfully extracted stub executable: {:?}", dest_path),
+                Err(e) => warn!("Failed to extract stub executable {:?}: {} (non-fatal)", dest_path, e),
+            }
+            archive = self.zip.borrow_mut();
         }
         Ok(())
     }
@@ -246,7 +272,7 @@ impl BundleZip<'_> {
         let files = self.get_file_names()?;
         let num_files = files.len();
 
-        info!("Extracting {} app files to '{}'...", num_files, current_path.to_string_lossy());
+        info!("Extracting {} app files to '{:?}'...", num_files, current_path);
         let re = Regex::new(r"lib[\\\/][^\\\/]*[\\\/]").unwrap();
         let stub_regex = Regex::new("_ExecutionStub.exe$").unwrap();
         let symlink_regex = Regex::new(".__symlink$").unwrap();
@@ -259,7 +285,7 @@ impl BundleZip<'_> {
             let nuspec_path = current_path.join("sq.version");
             let _ = self
                 .extract_zip_predicate_to_path(|name| name.ends_with(".nuspec"), nuspec_path)
-                .map_err(|_| Error::MissingNuspec)?;
+                .map_err(|_| Error::InvalidPackage("No .nuspec manifest found".into()))?;
         }
 
         // we extract the symlinks after, because the target must exist.
@@ -294,16 +320,16 @@ impl BundleZip<'_> {
             #[cfg(target_os = "windows")]
             let file_path_on_disk = file_path_on_disk.as_path();
 
-            debug!("    {} Extracting '{}' to '{}'", i, key, file_path_on_disk.to_string_lossy());
+            debug!("    {} Extracting '{}' to '{:?}'", i, key, file_path_on_disk);
             self.extract_zip_idx_to_path(i, &file_path_on_disk)?;
 
             // on macos, we need to chmod +x the executable files
-            // for now, we just chmod 755 every file we extract. this is not great, ideally we 
+            // for now, we just chmod 755 every file we extract. this is not great, ideally we
             // will preserve the mode as it was when packaging. This will come in a future release.
             #[cfg(target_os = "macos")]
             {
                 if let Err(e) = std::fs::set_permissions(&file_path_on_disk, std::fs::Permissions::from_mode(0o755)) {
-                    warn!("Failed to set mode 755 on '{}': {}", file_path_on_disk.to_string_lossy(), e);
+                    warn!("Failed to set mode 755 on '{:?}': {:?}", file_path_on_disk, e);
                 }
             }
 
@@ -316,7 +342,7 @@ impl BundleZip<'_> {
             let mut file = archive.by_index(i)?;
             let mut contents = String::new();
             file.read_to_string(&mut contents)?;
-            info!("    {} Creating symlink '{}' -> '{}'", i, link_path.to_string_lossy(), contents);
+            info!("    {} Creating symlink '{:?}' -> '{}'", i, link_path, contents);
 
             let contents = contents.trim_end_matches('/');
             #[cfg(target_os = "windows")]
@@ -326,9 +352,9 @@ impl BundleZip<'_> {
             let parent = link_path.parent().unwrap();
             if !parent.exists() {
                 debug!("Creating parent directory: {:?}", parent);
-                util::retry_io(|| fs::create_dir_all(parent))?;
+                misc::retry_io(|| fs::create_dir_all(parent))?;
             }
-            util::retry_io(|| Self::create_symlink(&link_path, &contents))?;
+            misc::retry_io(|| Self::create_symlink(&link_path, &contents))?;
         }
 
         Ok(())
@@ -369,7 +395,7 @@ pub fn read_manifest_from_string(xml: &str) -> Result<Manifest, Error> {
             Ok(XmlEvent::StartElement { name, .. }) => {
                 vec.push(name.local_name);
             }
-            Ok(XmlEvent::Characters(text)) => {
+            Ok(XmlEvent::Characters(text)) | Ok(XmlEvent::CData(text)) => {
                 if vec.is_empty() {
                     continue;
                 }
@@ -421,16 +447,16 @@ pub fn read_manifest_from_string(xml: &str) -> Result<Manifest, Error> {
     }
 
     if obj.id.is_empty() {
-        return Err(Error::MissingNuspecProperty("id".to_owned()));
+        return Err(Error::InvalidPackage("Missing required manifest property: id".into()));
     }
 
     if obj.version == Version::new(0, 0, 0) {
-        return Err(Error::MissingNuspecProperty("version".to_owned()));
+        return Err(Error::InvalidPackage("Missing required manifest property: version".into()));
     }
 
     #[cfg(target_os = "windows")]
     if obj.main_exe.is_empty() {
-        return Err(Error::MissingNuspecProperty("mainExe".to_owned()));
+        return Err(Error::InvalidPackage("Missing required manifest property: mainExe".into()));
     }
 
     if obj.title.is_empty() {
@@ -488,7 +514,11 @@ fn parse_package_file_name<T: AsRef<str>>(name: T) -> Option<EntryNameInfo> {
     let mut entry = EntryNameInfo::default();
     entry.is_delta = delta;
 
-    let name_and_ver = if full { ENTRY_SUFFIX_FULL.replace(name, "") } else { ENTRY_SUFFIX_DELTA.replace(name, "") };
+    let name_and_ver = if full {
+        ENTRY_SUFFIX_FULL.replace(name, "")
+    } else {
+        ENTRY_SUFFIX_DELTA.replace(name, "")
+    };
     let ver_idx = ENTRY_VERSION_START.find(&name_and_ver);
     if ver_idx.is_none() {
         return None;
@@ -531,4 +561,68 @@ fn test_parse_package_file_name() {
     assert!(parse_package_file_name("MyCoolApp-1.2.3-beta1-win7-x64-full.zip").is_none());
     assert!(parse_package_file_name("MyCoolApp-1.2.3.nupkg").is_none());
     assert!(parse_package_file_name("MyCoolApp-1.2-full.nupkg").is_none());
+}
+
+#[test]
+fn test_read_manifest_with_cdata_release_notes() {
+    let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+<metadata>
+<id>TestApp</id>
+<title>Test App</title>
+<description>Test App</description>
+<authors>test</authors>
+<version>1.0.0</version>
+<channel></channel>
+<mainExe>test.exe</mainExe>
+<os>win</os>
+<rid>win-x64</rid>
+<machineArchitecture>x64</machineArchitecture>
+<releaseNotes><![CDATA[
+Feature A&B: support for <configuration> files
+Fixed: paths with '&' and '<' characters
+Unicode: café 🎉
+]]></releaseNotes>
+</metadata>
+</package>"#;
+
+    let manifest = read_manifest_from_string(xml).unwrap();
+    assert_eq!(manifest.id, "TestApp");
+    assert_eq!(manifest.version, Version::parse("1.0.0").unwrap());
+    assert_eq!(manifest.machine_architecture, "x64");
+    assert!(manifest.release_notes.contains("Feature A&B"));
+    assert!(manifest.release_notes.contains("<configuration>"));
+    assert!(manifest.release_notes.contains("café 🎉"));
+}
+
+#[test]
+fn test_read_manifest_plain_and_cdata_mixed() {
+    // Verify that plain text elements still work alongside CDATA elements
+    let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+<metadata>
+<id>MixedApp</id>
+<title>Mixed App</title>
+<description>Mixed App</description>
+<authors>author</authors>
+<version>2.0.0</version>
+<channel>stable</channel>
+<mainExe>app.exe</mainExe>
+<os>win</os>
+<rid>win-x64</rid>
+<osMinVersion>10.0.19043</osMinVersion>
+<machineArchitecture>x64</machineArchitecture>
+<releaseNotes><![CDATA[
+Notes with special chars: & < > " '
+]]></releaseNotes>
+</metadata>
+</package>"#;
+
+    let manifest = read_manifest_from_string(xml).unwrap();
+    assert_eq!(manifest.id, "MixedApp");
+    assert_eq!(manifest.version, Version::parse("2.0.0").unwrap());
+    assert_eq!(manifest.os_min_version, "10.0.19043");
+    assert_eq!(manifest.machine_architecture, "x64");
+    assert_eq!(manifest.channel, "stable");
+    assert!(manifest.release_notes.contains("& < > \" '"));
 }

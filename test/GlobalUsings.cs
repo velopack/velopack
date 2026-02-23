@@ -6,4 +6,3 @@ global using System.Threading.Tasks;
 global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Logging.Abstractions;
 global using Xunit;
-global using Xunit.Abstractions;

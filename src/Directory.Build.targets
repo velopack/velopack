@@ -44,6 +44,9 @@
       <None Include="$(MSBuildThisFileDirectory)..\target\release\UpdateMac" Pack="true" PackagePath="vendor" />
       <None Include="$(MSBuildThisFileDirectory)..\target\release\UpdateNix_x64" Pack="true" PackagePath="vendor" />
       <None Include="$(MSBuildThisFileDirectory)..\target\release\UpdateNix_arm64" Pack="true" PackagePath="vendor" />
+      <None Include="$(MSBuildThisFileDirectory)..\target\release\velopack_wix_x86.dll" Pack="true" PackagePath="vendor" />
+      <None Include="$(MSBuildThisFileDirectory)..\target\release\velopack_wix_x64.dll" Pack="true" PackagePath="vendor" />
+      <None Include="$(MSBuildThisFileDirectory)..\target\release\velopack_wix_arm64.dll" Pack="true" PackagePath="vendor" />
     </ItemGroup>
   </Target>
 

@@ -31,10 +31,10 @@ public class DeploymentTests
         _output = output;
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task CanDeployToBackBlazeB2()
     {
-        Skip.If(String.IsNullOrWhiteSpace(B2_SECRET), "VELOPACK_B2_TEST_TOKEN is not set.");
+        Assert.SkipWhen(String.IsNullOrWhiteSpace(B2_SECRET), "VELOPACK_B2_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<DeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
 
@@ -53,10 +53,10 @@ public class DeploymentTests
         await Deploy<S3Repository, S3DownloadOptions, S3UploadOptions, S3BucketClient>("B2TestApp", repo, options, releaseDir, updateUrl, logger);
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task CanDeployToAzure()
     {
-        Skip.If(String.IsNullOrWhiteSpace(AZ_KEY), "VELOPACK_AZ_TEST_TOKEN is not set.");
+        Assert.SkipWhen(String.IsNullOrWhiteSpace(AZ_KEY), "VELOPACK_AZ_TEST_TOKEN is not set.");
         using var logger = _output.BuildLoggerFor<DeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
 

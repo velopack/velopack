@@ -16,6 +16,5 @@ namespace Velopack.Locators
         {
             return Path.Combine(locator.PackagesDir!, PathUtil.GetSafeFilename(velopackAsset.FileName));
         }
-
     }
 }

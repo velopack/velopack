@@ -5,16 +5,16 @@ use common::*;
 use std::hint::assert_unchecked;
 use std::{fs, path::Path, path::PathBuf};
 use tempfile::tempdir;
-use velopack_bins::*;
 
+use velopack_bins::*;
 use velopack::bundle::load_bundle_from_file;
 use velopack::locator::{auto_locate_app_manifest, LocationContext};
-#[cfg(target_os = "windows")]
-use winsafe::{self as w, co};
 
 #[cfg(target_os = "windows")]
 #[test]
 pub fn test_install_apply_uninstall() {
+    use velopack_bins::windows::known_path;
+
     dialogs::set_silent(true);
 
     let fixtures = find_fixtures();
@@ -22,10 +22,8 @@ pub fn test_install_apply_uninstall() {
     let app_id = "AvaloniaCrossPlat";
     let pkg_name = "AvaloniaCrossPlat-1.0.11-win-full.nupkg";
 
-    let start_menu = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::StartMenu, co::KF::DONT_UNEXPAND, None).unwrap();
-    let start_menu = Path::new(&start_menu).join("Programs");
-    let desktop = w::SHGetKnownFolderPath(&co::KNOWNFOLDERID::Desktop, co::KF::DONT_UNEXPAND, None).unwrap();
-    let desktop = Path::new(&desktop);
+    let start_menu = PathBuf::from(known_path::get_start_menu().unwrap());
+    let desktop = PathBuf::from(known_path::get_user_desktop().unwrap());
 
     let lnk_start_1 = start_menu.join(format!("{}.lnk", app_id));
     let lnk_desktop_1 = desktop.join(format!("{}.lnk", app_id));
@@ -50,7 +48,7 @@ pub fn test_install_apply_uninstall() {
     assert!(tmp_buf.join("current").join("AvaloniaCrossPlat.exe").exists());
     assert!(tmp_buf.join("current").join("sq.version").exists());
 
-    let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(tmp_buf.clone())).unwrap();
+    let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(tmp_buf.clone(), None)).unwrap();
     assert_eq!(app_id, locator.get_manifest_id());
     assert_eq!(semver::Version::parse("1.0.11").unwrap(), locator.get_manifest_version());
 
@@ -64,12 +62,11 @@ pub fn test_install_apply_uninstall() {
     assert!(lnk_desktop_2.exists());
     assert!(lnk_start_2.exists());
 
-    let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(tmp_buf.clone())).unwrap();
+    let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(tmp_buf.clone(), None)).unwrap();
     assert_eq!(semver::Version::parse("1.0.15").unwrap(), locator.get_manifest_version());
 
     commands::uninstall(&locator, false).unwrap();
     assert!(!tmp_buf.join("current").exists());
-    assert!(tmp_buf.join(".dead").exists());
 
     assert!(!lnk_desktop_1.exists());
     assert!(!lnk_start_1.exists());

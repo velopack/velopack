@@ -71,10 +71,9 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
-            6.0.x
             8.0.x
             9.0.x
-        if: ${{ startsWith(matrix.sample, 'CSharp') }}
+            10.0.x
       - name: Install VPK
         run: dotnet tool install -g vpk
       - name: Pack Sample (Windows)

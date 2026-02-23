@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Security.Extensions;
 using Velopack.Core;
+using Velopack.Core.Abstractions;
 using Velopack.Util;
 
 namespace Velopack.Packaging.Windows;
@@ -11,9 +12,12 @@ public class CodeSign
 {
     public ILogger Log { get; }
 
-    public CodeSign(ILogger logger)
+    private readonly IFancyConsole _console;
+
+    public CodeSign(ILogger logger, IFancyConsole console)
     {
         Log = logger;
+        _console = console;
     }
 
     private bool IsTrusted(string filePath)
@@ -84,7 +88,13 @@ public class CodeSign
                 filesToSign.Add(pendingSign.Dequeue());
             }
 
-            var filesToSignStr = String.Join(" ", filesToSign.Select(f => $"\"{f}\""));
+            string filesToSignStr;
+            if (VelopackRuntimeInfo.IsWindows) {
+                filesToSignStr = QuoteFileArgsWindows(filesToSign);
+            } else {
+                filesToSignStr = QuoteFileArgsBash(filesToSign);
+                signArguments = EscapeForBash(signArguments);
+            }
 
             string command;
             if (signAsTemplate) {
@@ -113,14 +123,7 @@ public class CodeSign
         // about how the dotnet tool host works prevents signtool from being able to open a token password
         // prompt, meaning signing fails for those with an HSM.
 
-        var fileName = "cmd.exe";
-        var args = $"/S /C \"{command} >> \"{signLogFile}\" 2>&1\"";
-
-        if (!VelopackRuntimeInfo.IsWindows) {
-            fileName = "/bin/bash";
-            string escapedCommand = command.Replace("'", "'\\''");
-            args = $"-c \"{escapedCommand} >> \\\"{signLogFile}\\\" 2>&1\"";
-        }
+        var (fileName, args) = BuildShellArgs(command, signLogFile);
 
         var psi = new ProcessStartInfo {
             FileName = fileName,
@@ -134,11 +137,41 @@ public class CodeSign
 
         if (process.ExitCode != 0) {
             var cmdWithPasswordHidden = fileName + " " + new Regex(@"\/p\s+?[^\s]+").Replace(args, "/p ********");
-            Log.Debug($"Signing command failed - {Environment.NewLine}    {cmdWithPasswordHidden}");
+            Log.Debug($"Signing command failed - {Environment.NewLine}    {_console.EscapeMarkup(cmdWithPasswordHidden)}");
             var output = File.Exists(signLogFile) ? File.ReadAllText(signLogFile).Trim() : "No output file was created.";
             throw new UserInfoException(
                 $"Signing command failed. Specify --verbose argument to print signing command." + Environment.NewLine +
                 $"Output was:" + Environment.NewLine + output);
         }
+    }
+
+    public static string QuoteFileArgsWindows(IEnumerable<string> filePaths)
+    {
+        return String.Join(" ", filePaths.Select(f => $"\"{f}\""));
+    }
+
+    public static string QuoteFileArgsBash(IEnumerable<string> filePaths)
+    {
+        return String.Join(" ", filePaths.Select(f => $"'{f}'"));
+    }
+
+    public static (string fileName, string args) BuildShellArgs(string command, string logFile)
+    {
+        if (VelopackRuntimeInfo.IsWindows) {
+            return ("cmd.exe", $"/S /C \"{command} >> \"{logFile}\" 2>&1\"");
+        } else {
+            return ("/bin/bash", $"-c \"{command} >> \\\"{logFile}\\\" 2>&1\"");
+        }
+    }
+
+    public static string EscapeForBash(string input)
+    {
+        // Backslashes must be escaped first, otherwise the backslashes
+        // introduced by later replacements get double-escaped.
+        return input.Replace("\\", "\\\\")
+                    .Replace("$", "\\$")
+                    .Replace("`", "\\`")
+                    .Replace("\"", "\\\"")
+                    .Replace("'", "\\'");
     }
 }

@@ -5,8 +5,8 @@ use std::time::Duration;
 use anyhow::{anyhow, bail, Result};
 use glob::glob;
 use same_file::is_same_file;
-use velopack::{locator::ShortcutLocationFlags, locator::VelopackLocator};
-use windows::core::{Interface, GUID, PCWSTR};
+use velopack::{locator::ShortcutLocationFlags, locator::VelopackLocator, wide_strings::*};
+use windows::core::{Interface, GUID};
 use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
 use windows::Win32::System::Com::{
     CoCreateInstance, CoInitializeEx, CoUninitialize, IPersistFile, StructuredStorage::InitPropVariantFromStringVector,
@@ -17,7 +17,7 @@ use windows::Win32::UI::Shell::{
 };
 
 use crate::shared as util;
-use crate::windows::{known_path as known, strings::*};
+use crate::windows::known_path as known;
 
 // https://github.com/vaginessa/PWAsForFirefox/blob/fba68dbcc7ca27b970dc5a278ebdad32e0ab3c83/native/src/integrations/implementation/windows.rs#L28
 
@@ -52,7 +52,11 @@ unsafe fn create_instance<T: Interface>(clsid: &GUID) -> Result<T> {
 }
 
 fn get_shortcut_filename(app_id: &str, app_title: &str) -> String {
-    let name = if app_title.is_empty() { app_id.to_owned() } else { app_title.to_owned() };
+    let name = if app_title.is_empty() {
+        app_id.to_owned()
+    } else {
+        app_title.to_owned()
+    };
     let shortcut_file_name = name + ".lnk";
     shortcut_file_name
 }
@@ -96,8 +100,8 @@ unsafe fn unsafe_update_app_manifest_lnks(next_app: &VelopackLocator, previous_a
     let app_title = next_app.get_manifest_title();
     let app_authors = next_app.get_manifest_authors();
     let app_model_id: Option<String> = next_app.get_manifest_shortcut_amuid();
-    let app_main_exe = next_app.get_main_exe_path_as_string();
-    let app_work_dir = next_app.get_current_bin_dir_as_string();
+    let app_main_exe = next_app.get_main_exe_path();
+    let app_work_dir = next_app.get_current_bin_dir();
 
     info!("App Model ID: {:?}", app_model_id);
     let mut current_shortcuts = unsafe_get_shortcuts_for_root_dir(root_path);
@@ -113,7 +117,7 @@ unsafe fn unsafe_update_app_manifest_lnks(next_app: &VelopackLocator, previous_a
 
         // set the target path to the main exe if it is missing or incorrect
         if target_option.is_none() || !PathBuf::from(target_option.unwrap()).exists() {
-            warn!("Shortcut {} target does not exist, updating to mainExe and setting workdir to current.", lnk.get_link_path());
+            warn!("Shortcut {:?} target does not exist, updating to mainExe and setting workdir to current.", lnk.get_link_path());
             if let Err(e) = lnk.set_target_path(&app_main_exe) {
                 warn!("Failed to update shortcut target: {}", e);
             }
@@ -213,7 +217,7 @@ unsafe fn unsafe_update_app_manifest_lnks(next_app: &VelopackLocator, previous_a
                     break;
                 }
 
-                if let Err(e) = lnk.save_as(&path.to_string_lossy()) {
+                if let Err(e) = lnk.save_as(&path) {
                     warn!("Failed to save shortcut: {}", e);
                     break;
                 }
@@ -280,33 +284,34 @@ unsafe fn unsafe_find_best_rename_candidates<P: AsRef<Path>>(
 
 unsafe fn unsafe_get_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Vec<(ShortcutLocationFlags, Lnk)> {
     let root_dir = root_dir.as_ref();
-    info!("Searching for shortcuts containing root: '{}'", root_dir.to_string_lossy());
+    info!("Searching for shortcuts containing root: '{:?}'", root_dir);
 
     let mut search_paths = Vec::new();
 
     match known::get_user_desktop() {
-        Ok(user_desktop) => search_paths.push((ShortcutLocationFlags::DESKTOP, format!("{}/*.lnk", user_desktop))),
+        Ok(user_desktop) => search_paths.push((ShortcutLocationFlags::DESKTOP, user_desktop, "/*.lnk")),
         Err(e) => error!("Failed to get user desktop directory, it will not be searched: {}", e),
     }
 
     match known::get_startup() {
-        Ok(startup) => search_paths.push((ShortcutLocationFlags::STARTUP, format!("{}/*.lnk", startup))),
+        Ok(startup) => search_paths.push((ShortcutLocationFlags::STARTUP, startup, "/*.lnk")),
         Err(e) => error!("Failed to get startup directory, it will not be searched: {}", e),
     }
 
     match known::get_start_menu() {
         // this handles START_MENU and START_MENU_ROOT
-        Ok(start_menu) => search_paths.push((ShortcutLocationFlags::START_MENU, format!("{}/**/*.lnk", start_menu))),
+        Ok(start_menu) => search_paths.push((ShortcutLocationFlags::START_MENU, start_menu, "/**/*.lnk")),
         Err(e) => error!("Failed to get start menu directory, it will not be searched: {}", e),
     }
 
     match known::get_user_pinned() {
-        Ok(user_pinned) => search_paths.push((ShortcutLocationFlags::USER_PINNED, format!("{}/**/*.lnk", user_pinned))),
+        Ok(user_pinned) => search_paths.push((ShortcutLocationFlags::USER_PINNED, user_pinned, "/**/*.lnk")),
         Err(e) => error!("Failed to get user pinned directory, it will not be searched: {}", e),
     }
 
     let mut paths: Vec<(ShortcutLocationFlags, Lnk)> = Vec::new();
-    for (flag, search_glob) in search_paths {
+    for (flag, folder_root, search_pattern) in search_paths {
+        let search_glob = folder_root.to_string_lossy().to_string() + search_pattern;
         info!("Searching for shortcuts in: {:?} ({})", flag, search_glob);
         if let Ok(glob_paths) = glob(&search_glob) {
             for path in glob_paths.filter_map(Result::ok) {
@@ -315,16 +320,16 @@ unsafe fn unsafe_get_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) -> Vec<
                     Ok(properties) => {
                         if let Ok(target) = properties.get_target_path() {
                             if super::is_sub_path(&target, root_dir).unwrap_or(false) {
-                                info!("Selected shortcut for update '{}' because target '{}' matched.", path.to_string_lossy(), target);
+                                info!("Selected shortcut for update '{:?}' because target '{:?}' matched.", path, target);
                                 paths.push((flag, properties));
                             }
                         } else if let Ok(work_dir) = properties.get_working_directory() {
                             if super::is_sub_path(&work_dir, root_dir).unwrap_or(false) {
-                                info!("Selected shortcut for update '{}' because work_dir '{}' matched.", path.to_string_lossy(), work_dir);
+                                info!("Selected shortcut for update '{:?}' because work_dir '{:?}' matched.", path, work_dir);
                                 paths.push((flag, properties));
                             }
                         } else {
-                            warn!("Could not resolve target or work_dir for shortcut '{}'.", path.to_string_lossy());
+                            warn!("Could not resolve target or work_dir for shortcut '{:?}'.", path);
                         }
                     }
                     Err(e) => {
@@ -341,7 +346,7 @@ unsafe fn unsafe_remove_all_shortcuts_for_root_dir<P: AsRef<Path>>(root_dir: P) 
     let shortcuts = unsafe_get_shortcuts_for_root_dir(root_dir);
     for (flag, properties) in shortcuts {
         let path = properties.get_link_path();
-        info!("Removing shortcut '{}' ({:?}).", path, flag);
+        info!("Removing shortcut '{:?}' ({:?}).", path, flag);
         let remove_parent_if_empty = flag == ShortcutLocationFlags::START_MENU;
         if let Err(e) = unsafe_delete_lnk_file(&path, remove_parent_if_empty) {
             warn!("Failed to remove shortcut: {}", e);
@@ -383,8 +388,8 @@ unsafe fn unsafe_unpin_lnk_from_start<P: AsRef<Path>>(path: P) -> Result<()> {
         return Ok(());
     }
 
-    let path = string_to_u16(path.to_string_lossy());
-    let item_result: IShellItem = SHCreateItemFromParsingName(PCWSTR(path.as_ptr()), None)?;
+    let path = string_to_wide(path);
+    let item_result: IShellItem = SHCreateItemFromParsingName(path.as_pcwstr(), None)?;
     let pinned_list: IStartMenuPinnedList = create_instance(&StartMenuPin)?;
     pinned_list.RemoveFromList(&item_result)?;
     Ok(())
@@ -422,89 +427,86 @@ where
 struct Lnk {
     me: IShellLinkW,
     pf: IPersistFile,
-    my_path: String,
+    my_path: PathBuf,
 }
 
 #[allow(dead_code)]
 impl Lnk {
-    pub unsafe fn get_link_path(&self) -> String {
+    pub unsafe fn get_link_path(&self) -> PathBuf {
         self.my_path.clone()
     }
 
     pub unsafe fn get_arguments(&self) -> Result<String> {
         let mut pszargs = [0u16; 1024];
         self.me.GetArguments(&mut pszargs)?;
-        let args = u16_to_string(pszargs)?;
+        let args = wide_to_string(pszargs)?;
         Ok(args)
     }
 
     pub unsafe fn get_description(&self) -> Result<String> {
         let mut pszdesc = [0u16; 1024];
         self.me.GetDescription(&mut pszdesc)?;
-        let desc = u16_to_string(pszdesc)?;
+        let desc = wide_to_string(pszdesc)?;
         Ok(desc)
     }
 
-    pub unsafe fn get_icon_location(&self) -> Result<(String, i32)> {
+    pub unsafe fn get_icon_location(&self) -> Result<(PathBuf, i32)> {
         let mut pszfile = [0u16; 1024];
         let mut pindex = 0;
         self.me.GetIconLocation(&mut pszfile, &mut pindex)?;
-        let icon = u16_to_string(pszfile)?;
+        let icon = wide_to_os_string(pszfile);
+        let icon = PathBuf::from(icon);
         Ok((icon, pindex))
     }
 
-    pub unsafe fn get_target_path(&self) -> Result<String> {
+    pub unsafe fn get_target_path(&self) -> Result<PathBuf> {
         let mut pszfile = [0u16; 1024];
         self.me.GetPath(&mut pszfile, std::ptr::null_mut(), 0)?;
-        let target = u16_to_string(pszfile)?;
+        let target = wide_to_os_string(pszfile);
+        let target = PathBuf::from(target);
         Ok(target)
     }
 
-    pub unsafe fn get_working_directory(&self) -> Result<String> {
+    pub unsafe fn get_working_directory(&self) -> Result<PathBuf> {
         let mut pszdir = [0u16; 1024];
         self.me.GetWorkingDirectory(&mut pszdir)?;
-        let work_dir = u16_to_string(pszdir)?;
+        let work_dir = wide_to_os_string(pszdir);
+        let work_dir = PathBuf::from(work_dir);
         Ok(work_dir)
     }
 
-    pub unsafe fn set_arguments(&mut self, path: &str) -> Result<()> {
-        let args = string_to_u16(path);
-        let args = PCWSTR(args.as_ptr());
-        Ok(self.me.SetArguments(args)?)
+    pub unsafe fn set_arguments<P: AsRef<str>>(&mut self, path: P) -> Result<()> {
+        let args = string_to_wide(path.as_ref());
+        Ok(self.me.SetArguments(args.as_pcwstr())?)
     }
 
-    pub unsafe fn set_description(&mut self, path: &str) -> Result<()> {
-        let desc = string_to_u16(path);
-        let desc = PCWSTR(desc.as_ptr());
-        Ok(self.me.SetDescription(desc)?)
+    pub unsafe fn set_description<P: AsRef<str>>(&mut self, path: P) -> Result<()> {
+        let desc = string_to_wide(path.as_ref());
+        Ok(self.me.SetDescription(desc.as_pcwstr())?)
     }
 
-    pub unsafe fn set_icon_location(&mut self, path: &str, index: i32) -> Result<()> {
-        let icon = string_to_u16(path);
-        let icon = PCWSTR(icon.as_ptr());
-        Ok(self.me.SetIconLocation(icon, index)?)
+    pub unsafe fn set_icon_location<P: AsRef<Path>>(&mut self, path: P, index: i32) -> Result<()> {
+        let icon = string_to_wide(path.as_ref());
+        Ok(self.me.SetIconLocation(icon.as_pcwstr(), index)?)
     }
 
-    pub unsafe fn set_target_path(&mut self, path: &str) -> Result<()> {
-        let target = string_to_u16(path);
-        let target = PCWSTR(target.as_ptr());
-        Ok(self.me.SetPath(target)?)
+    pub unsafe fn set_target_path<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        let target = string_to_wide(path.as_ref());
+        Ok(self.me.SetPath(target.as_pcwstr())?)
     }
 
-    pub unsafe fn set_working_directory(&mut self, path: &str) -> Result<()> {
-        let work_dir = string_to_u16(path);
-        let work_dir = PCWSTR(work_dir.as_ptr());
-        Ok(self.me.SetWorkingDirectory(work_dir)?)
+    pub unsafe fn set_working_directory<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        let work_dir = string_to_wide(path.as_ref());
+        Ok(self.me.SetWorkingDirectory(work_dir.as_pcwstr())?)
     }
 
-    pub unsafe fn set_aumid(&mut self, app_model_id: Option<&str>) -> Result<()> {
+    pub unsafe fn set_aumid<P: AsRef<str>>(&mut self, app_model_id: Option<P>) -> Result<()> {
         // Set app user model ID property
         // Docs: https://docs.microsoft.com/windows/win32/properties/props-system-appusermodel-id
         let store: IPropertyStore = self.me.cast()?;
         if let Some(app_model_id) = app_model_id {
-            let id = string_to_u16(app_model_id);
-            let id = PCWSTR(id.as_ptr());
-            let variant = InitPropVariantFromStringVector(Some(&[id]))?;
+            let id = string_to_wide(app_model_id.as_ref());
+            let variant = InitPropVariantFromStringVector(Some(&[id.as_pcwstr()]))?;
             store.SetValue(&PKEY_AppUserModel_ID, &variant)?;
         } else {
             let prop_variant = PROPVARIANT::default(); // defaults to VT_EMPTY
@@ -515,26 +517,26 @@ impl Lnk {
     }
 
     pub unsafe fn save(&mut self) -> Result<()> {
+        if self.my_path.as_os_str().is_empty() {
+            return Err(anyhow!("Cannot save shortcut without a path."));
+        }
         Ok(self.pf.Save(None, true)?)
     }
 
-    pub unsafe fn save_as(&mut self, path: &str) -> Result<()> {
-        let output = string_to_u16(path);
-        let output = PCWSTR(output.as_ptr());
-        self.my_path = path.to_string();
-        Ok(self.pf.Save(output, true)?)
+    pub unsafe fn save_as<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        let output = string_to_wide(path.as_ref());
+        self.my_path = path.as_ref().to_path_buf();
+        Ok(self.pf.Save(output.as_pcwstr(), true)?)
     }
 
     pub unsafe fn open_write<P: AsRef<Path>>(link_path: P) -> Result<Lnk> {
-        let link_path = link_path.as_ref().to_string_lossy().to_string();
+        let link_path = link_path.as_ref();
         let link: IShellLinkW = create_instance(&ShellLink)?;
         let persist: IPersistFile = link.cast()?;
-        debug!("Loading link: {}", link_path);
+        debug!("Loading link: {:?}", link_path);
 
-        let link_pcwstr = string_to_u16(&link_path);
-        let link_pcwstr = PCWSTR(link_pcwstr.as_ptr());
-
-        persist.Load(link_pcwstr, STGM_READWRITE)?;
+        let link_pcwstr = string_to_wide(link_path);
+        persist.Load(link_pcwstr.as_pcwstr(), STGM_READWRITE)?;
 
         // we don't really want to "resolve" the shortcut in the middle of an update operation
         // this can cause Windows to move the target path of a shortcut to one of our temp dirs etc
@@ -548,19 +550,19 @@ impl Lnk {
         //     warn!("Failed to resolve link {} ({:?})", link_path, e);
         // }
 
-        Ok(Lnk { me: link, pf: persist, my_path: link_path })
+        Ok(Lnk { me: link, pf: persist, my_path: link_path.to_path_buf() })
     }
 
     pub unsafe fn create_new() -> Result<Lnk> {
         let link: IShellLinkW = create_instance(&ShellLink)?;
         let persist: IPersistFile = link.cast()?;
-        Ok(Lnk { me: link, pf: persist, my_path: String::new() })
+        Ok(Lnk { me: link, pf: persist, my_path: PathBuf::new() })
     }
 }
 
 impl std::fmt::Debug for Lnk {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Lnk({})", self.my_path)
+        write!(f, "Lnk({:?})", self.my_path)
     }
 }
 
@@ -626,7 +628,7 @@ fn test_can_resolve_existing_shortcut() {
     unsafe {
         unsafe_run_delegate_in_com_context(move || {
             let l = Lnk::open_write(link_path).unwrap();
-            let target = l.get_target_path().unwrap();
+            let target = l.get_target_path().unwrap().to_string_lossy().to_string();
             assert_eq!(target, "C:\\Users\\Caelan\\AppData\\Local\\Discord\\Update.exe");
             Ok(())
         })
@@ -696,8 +698,8 @@ fn test_shortcut_full_integration() {
             assert_eq!(shortcuts[2].0, ShortcutLocationFlags::START_MENU);
             assert_eq!(PathBuf::from(&shortcuts[2].1.my_path), link2);
 
-            assert_eq!(shortcuts[0].1.get_target_path().unwrap(), target);
-            assert_eq!(shortcuts[0].1.get_working_directory().unwrap(), work);
+            assert_eq!(shortcuts[0].1.get_target_path().unwrap().to_string_lossy().to_string(), target);
+            assert_eq!(shortcuts[0].1.get_working_directory().unwrap().to_string_lossy().to_string(), work);
 
             unsafe_remove_all_shortcuts_for_root_dir(root);
             assert!(!link1.exists());

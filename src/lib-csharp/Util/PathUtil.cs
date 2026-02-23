@@ -82,7 +82,7 @@ namespace Velopack.Util
             return safeFileName;
         }
 
-        readonly static string[] peExtensions = new[] { ".exe", ".dll", ".node" };
+        private static readonly string[] peExtensions = new[] { ".exe", ".dll", ".node" };
 
         public static bool FileIsLikelyPEImage(string name)
         {
@@ -90,6 +90,17 @@ namespace Velopack.Util
             return peExtensions.Any(x => ext.Equals(x, StringComparison.OrdinalIgnoreCase));
         }
 
+        public static bool IsDirectoryWritable(string directoryPath)
+        {
+            try {
+                using var fs = File.Create(Path.Combine(directoryPath, ".velopack_dir_test"), 1, FileOptions.DeleteOnClose);
+                return true;
+            } catch {
+                return false;
+            }
+        }
+
+#if NETFRAMEWORK || NETSTANDARD
         private static string ToggleRelative(string basePath, string toggledPath)
         {
             // from https://github.com/RT-Projects/RT.Util/blob/master/RT.Util.Core/Paths/PathUtil.cs#L297
@@ -150,5 +161,6 @@ namespace Velopack.Util
             else
                 return path;
         }
+#endif
     }
 }

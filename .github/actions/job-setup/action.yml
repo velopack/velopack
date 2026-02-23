@@ -2,10 +2,6 @@ name: "Setup Job Environment"
 description: "Installs dependencies like dotnet, rust, etc."
 
 inputs:
-  update-dotnet:
-    description: 'Whether to run the setup-dotnet action'
-    required: false
-    default: 'false'
   rust-cache:
     description: 'Whether to run the rust-cache action'
     required: false
@@ -15,13 +11,12 @@ runs:
   using: "composite"
   steps:
     - name: Setup dotnet
-      if: inputs.update-dotnet == 'true'
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: |
-          6.0.x
           8.0.x
           9.0.x
+          10.0.x
     - name: Print dotnet version
       shell: pwsh
       run: dotnet --info

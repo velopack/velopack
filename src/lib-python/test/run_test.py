@@ -102,6 +102,11 @@ _run_cmd(_pyinstaller_command)
 _run_cmd(["vpk", "pack", "--packId", "test-app", "--packVersion", "1.0.1", "--packDir", "dist/app/", "--mainExe", "app.exe"])
 # check if the app version is correct
 _run_cmd(["output/test-app.exe"])
+
+# Wait for update to complete
+log("Waiting for update to complete...")
+time.sleep(6)
+
 new_version = read_app_version("output/current/version_result.txt")
 if new_version.strip() != "1.0.1":
     raise RuntimeError(f"Version mismatch: expected '1.0.1' after update, got '{new_version.strip()}'")

@@ -60,10 +60,7 @@ public static class Exe
             CreateNoWindow = true,
         };
 
-        using var process = Process.Start(psi);
-        if (process == null)
-            throw new Exception("Failed to start process");
-
+        using var process = Process.Start(psi) ?? throw new Exception("Failed to start process");
         process.WaitForExit();
 
         var stdout = IoUtil.Retry(() => File.ReadAllText(outputFile).Trim(), 10, 1000);

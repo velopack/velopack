@@ -96,8 +96,6 @@ jobs:
           fetch-depth: 0
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
-        with:
-          update-dotnet: true
       - name: Install FUSE
         run: |
           sudo add-apt-repository universe
@@ -116,7 +114,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           max_wait_seconds: 900
-          artifacts: rust-macos,rust-windows-bins,rust-ubuntu-bins-x64,rust-ubuntu-bins-arm64
+          artifacts: rust-macos,rust-windows-bins,rust-windows-libs-x64,rust-ubuntu-bins-x64,rust-ubuntu-bins-arm64
           verbose: true
       - name: Download Rust Artifacts
         uses: actions/download-artifact@v4

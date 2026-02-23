@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NuGet.Versioning;
@@ -19,7 +20,7 @@ namespace Velopack
     /// <summary>
     /// Provides functionality for checking for updates, downloading updates, and applying updates to the current application.
     /// </summary>
-    public partial class UpdateManager
+    public class UpdateManager
     {
         /// <summary> The currently installed application Id. This would be what you set when you create your release.</summary>
         public virtual string? AppId => Locator.AppId;
@@ -69,7 +70,7 @@ namespace Velopack
         /// <summary> If true, UpdateManager should return the latest asset in the feed, even if that version is lower than the current version. </summary>
         protected bool ShouldAllowVersionDowngrade { get; }
 
-        /// <summary>  Sets the maximum number of deltas to consider before falling back to a full update. </summary>
+        /// <summary>  The maximum number of deltas to consider before falling back to a full update. </summary>
         protected int MaximumDeltasBeforeFallback { get; }
 
         /// <summary>
@@ -183,7 +184,8 @@ namespace Velopack
             // if we have a local full release, we try to apply delta's from that version to target version.
             SemanticVersion deltaFromVer = latestLocalFull.Version;
 
-            var deltas = feed.Where(r => r.Type == VelopackAssetType.Delta && r.Version > deltaFromVer && r.Version <= latestRemoteFull.Version).ToArray();
+            var deltas = feed.Where(r => r.Type == VelopackAssetType.Delta && r.Version > deltaFromVer && r.Version <= latestRemoteFull.Version)
+                .ToArray();
             Log.Debug($"Found {deltas.Length} delta release(s) between {deltaFromVer} and {latestRemoteFull.Version}.");
             return new UpdateInfo(latestRemoteFull, false, latestLocalFull, deltas);
         }
@@ -221,13 +223,15 @@ namespace Velopack
                 }
             }
 
-            if (updates == null) {
+            if (updates is null) {
                 throw new ArgumentNullException(nameof(updates));
             }
 
             var targetRelease = updates.TargetFullRelease;
-            if (targetRelease == null) {
-                throw new ArgumentException("Must pass a valid UpdateInfo object with a non-null TargetFullRelease", nameof(updates));
+            if (targetRelease is null) {
+                throw new ArgumentException(
+                    $"Must pass a valid {nameof(UpdateInfo)} object with a non-null {nameof(UpdateInfo.TargetFullRelease)}",
+                    nameof(updates));
             }
 
             EnsureInstalled();
@@ -235,7 +239,7 @@ namespace Velopack
 
             var completeFile = Locator.GetLocalPackagePath(targetRelease);
             var incompleteFile = completeFile + ".partial";
-            
+
             // if the package already exists on disk, we can skip the download.
             if (File.Exists(completeFile)) {
                 Log.Info($"Package already exists on disk: '{completeFile}', nothing to do.");
@@ -275,19 +279,21 @@ namespace Velopack
             } finally {
                 if (VelopackRuntimeInfo.IsWindows && !cancelToken.IsCancellationRequested) {
                     try {
-                        var updateExe = Locator.UpdateExePath!;
+                        var updateExe = Locator.UpdateExePath;
+                        if (updateExe == null) {
+                            throw new InvalidOperationException("Update.exe path is null, cannot extract new Update.exe.");
+                        }
                         Log.Info("Extracting new Update.exe to " + updateExe);
                         var zip = new ZipPackage(completeFile, loadUpdateExe: true);
 
                         if (zip.UpdateExeBytes == null) {
                             Log.Error("Update.exe not found in package, skipping extraction.");
                         } else {
-                            await IoUtil.RetryAsync(
-                                async () => {
-                                    using var ms = new MemoryStream(zip.UpdateExeBytes);
-                                    using var fs = File.Create(updateExe);
-                                    await ms.CopyToAsync(fs).ConfigureAwait(false);
-                                }).ConfigureAwait(false);
+                            await IoUtil.RetryAsync(async () => {
+                                using var ms = new MemoryStream(zip.UpdateExeBytes);
+                                using var fs = File.Create(updateExe);
+                                await ms.CopyToAsync(fs).ConfigureAwait(false);
+                            }).ConfigureAwait(false);
                         }
                     } catch (Exception ex) {
                         Log.Error(ex, "Failed to extract new Update.exe");
@@ -296,6 +302,48 @@ namespace Velopack
 
                 CleanPackagesExcept(completeFile);
             }
+        }
+
+        /// <summary>
+        /// This will exit your app immediately, apply updates, and then optionally relaunch the app using the specified 
+        /// restart arguments. If you need to save state or clean up, you should do that before calling this method. 
+        /// The user may be prompted during the update, if the update requires additional frameworks to be installed etc.
+        /// You can check if there are pending updates by checking <see cref="UpdatePendingRestart"/>.
+        /// </summary>
+        /// <param name="toApply">The target release to apply. Can be left null to auto-apply the newest downloaded release.</param>
+        /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
+        public void ApplyUpdatesAndRestart(VelopackAsset? toApply, string[]? restartArgs = null)
+        {
+            WaitExitThenApplyUpdates(toApply, silent: false, restart: true, restartArgs);
+            Locator.Process.Exit(0);
+        }
+
+        /// <summary>
+        /// This will exit your app immediately, apply updates, and then optionally relaunch the app using the specified 
+        /// restart arguments. If you need to save state or clean up, you should do that before calling this method. 
+        /// The user may be prompted during the update, if the update requires additional frameworks to be installed etc.
+        /// You can check if there are pending updates by checking <see cref="UpdatePendingRestart"/>.
+        /// </summary>
+        /// <param name="toApply">The target release to apply. Can be left null to auto-apply the newest downloaded release.</param>
+        public void ApplyUpdatesAndExit(VelopackAsset? toApply)
+        {
+            WaitExitThenApplyUpdates(toApply, silent: true, restart: false);
+            Locator.Process.Exit(0);
+        }
+
+        /// <summary>
+        /// This will launch the Velopack updater and tell it to wait for this program to exit gracefully.
+        /// You should then clean up any state and exit your app. The updater will apply updates and then
+        /// optionally restart your app. The updater will only wait for 60 seconds before giving up.
+        /// You can check if there are pending updates by checking <see cref="UpdatePendingRestart"/>.
+        /// </summary>
+        /// <param name="toApply">The target release to apply. Can be left null to auto-apply the newest downloaded release.</param>
+        /// <param name="silent">Configure whether Velopack should show a progress window / dialogs during the updates or not.</param>
+        /// <param name="restart">Configure whether Velopack should restart the app after the updates have been applied.</param>
+        /// <param name="restartArgs">The arguments to pass to the application when it is restarted.</param>
+        public void WaitExitThenApplyUpdates(VelopackAsset? toApply, bool silent = false, bool restart = true, string[]? restartArgs = null)
+        {
+            UpdateExe.Apply(Locator, toApply, silent, Locator.Process.GetCurrentProcessId(), restart, restartArgs);
         }
 
         /// <summary>
@@ -310,33 +358,35 @@ namespace Velopack
             CancellationToken cancelToken)
         {
             var releasesToDownload = updates.DeltasToTarget.OrderBy(d => d.Version).ToArray();
-            var updateExe = Locator.UpdateExePath!;
+            var updateExe = Locator.UpdateExePath;
+            if (updateExe == null || !File.Exists(updateExe)) {
+                throw new FileNotFoundException("Update.exe path is null or does not exist, cannot apply delta updates.");
+            }
 
             // downloading accounts for 0%-70% of progress
             double current = 0;
-            double toIncrement = 100.0 / releasesToDownload.Count();
-            await releasesToDownload.ForEachAsync(
-                async x => {
-                    var targetFile = Locator.GetLocalPackagePath(x);
-                    double component = 0;
-                    Log.Info($"Downloading delta {x.Version}");
-                    await Source.DownloadReleaseEntry(
-                        Log,
-                        x,
-                        targetFile,
-                        p => {
-                            lock (progress) {
-                                current -= component;
-                                component = toIncrement / 100.0 * p;
-                                var progressOfStep = (int) Math.Round(current += component);
-                                progress(CoreUtil.CalculateProgress(progressOfStep, 0, 70));
-                            }
-                        },
-                        cancelToken).ConfigureAwait(false);
-                    VerifyPackageChecksum(x, targetFile);
-                    cancelToken.ThrowIfCancellationRequested();
-                    Log.Debug($"Download complete for delta version {x.Version}");
-                }).ConfigureAwait(false);
+            double toIncrement = 100.0 / releasesToDownload.Length;
+            await releasesToDownload.ForEachAsync(async x => {
+                var targetFile = Locator.GetLocalPackagePath(x);
+                double component = 0;
+                Log.Info($"Downloading delta {x.Version}");
+                await Source.DownloadReleaseEntry(
+                    Log,
+                    x,
+                    targetFile,
+                    p => {
+                        lock (progress) {
+                            current -= component;
+                            component = toIncrement / 100.0 * p;
+                            var progressOfStep = (int) Math.Round(current += component);
+                            progress(CoreUtil.CalculateProgress(progressOfStep, 0, 70));
+                        }
+                    },
+                    cancelToken).ConfigureAwait(false);
+                VerifyPackageChecksum(x, targetFile);
+                cancelToken.ThrowIfCancellationRequested();
+                Log.Debug($"Download complete for delta version {x.Version}");
+            }).ConfigureAwait(false);
 
             Log.Info("All delta packages downloaded and verified.");
             Log.Info($"Applying {releasesToDownload.Length} patches to {updates.BaseRelease?.FileName}.");
@@ -348,8 +398,13 @@ namespace Velopack
                 "--old",
                 baseFile,
                 "--output",
-                targetFile,
+                targetFile
             };
+
+            if (Locator.RootAppDir is { Length: > 0 }) {
+                args.Add("--root");
+                args.Add(Locator.RootAppDir);
+            }
 
             foreach (var x in releasesToDownload) {
                 args.Add("--delta");
@@ -357,6 +412,7 @@ namespace Velopack
             }
 
             var psi = new ProcessStartInfo(updateExe);
+            psi.UseShellExecute = true;
             psi.AppendArgumentListSafe(args, out _);
             psi.CreateNoWindow = true;
             var p = psi.StartRedirectOutputToILogger(Log, VelopackLogLevel.Debug);
@@ -452,6 +508,11 @@ namespace Velopack
         /// </summary>
         protected virtual async Task<IDisposable> AcquireUpdateLock()
         {
+            if (Locator.PackagesDir is null) {
+                throw new InvalidOperationException(
+                    $"Cannot acquire update lock, {nameof(IVelopackLocator)}.{nameof(IVelopackLocator.PackagesDir)} is not set.");
+            }
+
             var dir = Directory.CreateDirectory(Locator.PackagesDir!);
             var lockPath = Path.Combine(dir.FullName, ".velopack_lock");
             var fsLock = new LockFile(lockPath);
@@ -461,7 +522,7 @@ namespace Velopack
 
         private static IUpdateSource CreateSimpleSource(string urlOrPath)
         {
-            if (String.IsNullOrWhiteSpace(urlOrPath)) {
+            if (string.IsNullOrWhiteSpace(urlOrPath)) {
                 throw new ArgumentException("Must pass a valid URL or file path to UpdateManager", nameof(urlOrPath));
             }
 

@@ -16,10 +16,10 @@ public class ShortcutTests
         _output = output;
     }
 
-    [SkippableFact]
+    [Fact]
     public void CanCreateAndRemoveShortcuts()
     {
-        Skip.IfNot(VelopackRuntimeInfo.IsWindows);
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = _output.BuildLoggerFor<ShortcutTests>();
         string exeName = "NotSquirrelAwareApp.exe";
 
