@@ -165,7 +165,7 @@ static inline void free_c_VelopackLocatorConfig(vpkc_locator_config_t* obj) {
     free_c_string(obj->PackagesDir);
     free_c_string(obj->ManifestPath);
     free_c_string(obj->CurrentBinaryDir);
-
+    
     delete obj;
 }
 
@@ -268,7 +268,7 @@ static inline void free_c_VelopackAsset(vpkc_asset_t* obj) {
     free_c_string(obj->FileName);
     free_c_string(obj->SHA1);
     free_c_string(obj->SHA256);
-
+    
     free_c_string(obj->NotesMarkdown);
     free_c_string(obj->NotesHtml);
     delete obj;
@@ -354,7 +354,7 @@ static inline void free_c_UpdateInfo(vpkc_update_info_t* obj) {
     free_c_VelopackAsset(obj->TargetFullRelease);
     free_c_VelopackAsset(obj->BaseRelease);
     free_c_VelopackAsset_vec(obj->DeltasToTarget, obj->DeltasToTargetCount);
-
+    
     delete obj;
 }
 
@@ -443,9 +443,9 @@ static inline vpkc_update_options_t** alloc_c_UpdateOptions_vec(const std::vecto
 
 static inline void free_c_UpdateOptions(vpkc_update_options_t* obj) {
     if (obj == nullptr) { return; }
-
+    
     free_c_string(obj->ExplicitChannel);
-
+    
     delete obj;
 }
 

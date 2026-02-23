@@ -64,7 +64,7 @@ impl VelopackAppWrapper {
         slf
     }
 
-    /// Fast callback hook for after update (Windows only)  
+    /// Fast callback hook for after update (Windows only)
     pub fn on_after_update_fast_callback(mut slf: PyRefMut<Self>, callback: Py<PyCFunction>) -> PyRefMut<Self> {
         slf.update_hook = Some(callback);
         slf
@@ -96,7 +96,7 @@ impl VelopackAppWrapper {
         if let Some(ref hook) = self.firstrun_hook {
             let hook_clone = hook;
             app = app.on_first_run(move |version| {
-                Python::with_gil(|py| {
+                Python::try_attach(|py| {
                     let version_str = version.to_string();
                     if let Err(e) = hook_clone.call1(py, (version_str,)) {
                         eprintln!("Error calling first_run hook: {:?}", e);
@@ -108,7 +108,7 @@ impl VelopackAppWrapper {
         if let Some(ref hook) = self.restarted_hook {
             let hook_clone = hook;
             app = app.on_restarted(move |version| {
-                Python::with_gil(|py| {
+                Python::try_attach(|py| {
                     let version_str = version.to_string();
                     if let Err(e) = hook_clone.call1(py, (version_str,)) {
                         eprintln!("Error calling restarted hook: {:?}", e);
@@ -122,7 +122,7 @@ impl VelopackAppWrapper {
             if let Some(ref hook) = self.install_hook {
                 let hook_clone = hook;
                 app = app.on_after_install_fast_callback(move |version| {
-                    Python::with_gil(|py| {
+                    Python::try_attach(|py| {
                         let version_str = version.to_string();
                         if let Err(e) = hook_clone.call1(py, (version_str,)) {
                             eprintln!("Error calling install hook: {:?}", e);
@@ -134,7 +134,7 @@ impl VelopackAppWrapper {
             if let Some(ref hook) = self.update_hook {
                 let hook_clone = hook;
                 app = app.on_after_update_fast_callback(move |version| {
-                    Python::with_gil(|py| {
+                    Python::try_attach(|py| {
                         let version_str = version.to_string();
                         if let Err(e) = hook_clone.call1(py, (version_str,)) {
                             eprintln!("Error calling update hook: {:?}", e);
@@ -146,7 +146,7 @@ impl VelopackAppWrapper {
             if let Some(ref hook) = self.obsolete_hook {
                 let hook_clone = hook;
                 app = app.on_before_update_fast_callback(move |version| {
-                    Python::with_gil(|py| {
+                    Python::try_attach(|py| {
                         let version_str = version.to_string();
                         if let Err(e) = hook_clone.call1(py, (version_str,)) {
                             eprintln!("Error calling obsolete hook: {:?}", e);
@@ -158,7 +158,7 @@ impl VelopackAppWrapper {
             if let Some(ref hook) = self.uninstall_hook {
                 let hook_clone = hook;
                 app = app.on_before_uninstall_fast_callback(move |version| {
-                    Python::with_gil(|py| {
+                    Python::try_attach(|py| {
                         let version_str = version.to_string();
                         if let Err(e) = hook_clone.call1(py, (version_str,)) {
                             eprintln!("Error calling uninstall hook: {:?}", e);

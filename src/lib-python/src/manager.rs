@@ -42,7 +42,7 @@ impl UpdateManagerWrapper {
 
     pub fn check_for_updates(&mut self, py: Python) -> Result<Option<PyUpdateInfo>> {
         // Release GIL during network operation
-        let update_check = py.allow_threads(|| self.inner.check_for_updates())?;
+        let update_check = py.detach(|| self.inner.check_for_updates())?;
         match update_check {
             UpdateCheck::UpdateAvailable(updates) => {
                 let py_updates = PyUpdateInfo::from(updates);
@@ -54,7 +54,7 @@ impl UpdateManagerWrapper {
     }
 
     #[pyo3(signature = (update_info, progress_callback = None))]
-    pub fn download_updates(&mut self, py: Python, update_info: PyUpdateInfo, progress_callback: Option<PyObject>) -> Result<()> {
+    pub fn download_updates(&mut self, py: Python, update_info: PyUpdateInfo, progress_callback: Option<Py<PyAny>>) -> Result<()> {
         // Convert PyUpdateInfo back to rust UpdateInfo
         let rust_update_info: UpdateInfo = update_info.into();
 
@@ -64,14 +64,14 @@ impl UpdateManagerWrapper {
 
             // Clone the callback for the thread
             let callback_clone = callback.clone_ref(py);
-            
+
             // Release the GIL before starting the download
-            py.allow_threads(|| {
+            py.detach(|| {
                 // Spawn a thread to handle progress updates
                 let progress_thread = thread::spawn(move || {
                     while let Ok(progress) = receiver.recv() {
                         // Acquire GIL only when needed to call the callback
-                        Python::with_gil(|py| {
+                        Python::try_attach(|py| {
                             if let Err(e) = callback_clone.call1(py, (progress,)) {
                                 // Log error but continue - don't break the download
                                 eprintln!("Progress callback error: {}", e);
@@ -85,14 +85,14 @@ impl UpdateManagerWrapper {
 
                 // Wait for the progress thread to finish
                 let _ = progress_thread.join();
-                
+
                 result
             })?;
-            
+
             Ok(())
         } else {
             // No progress callback provided - still release GIL for the download
-            py.allow_threads(|| {
+            py.detach(|| {
                 self.inner.download_updates(&rust_update_info, None)
             })?;
             Ok(())
