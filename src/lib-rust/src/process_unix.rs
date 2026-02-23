@@ -176,7 +176,7 @@ mod tests {
 
     #[test]
     fn test_wait_for_pid_to_exit_success() {
-        let child = run_process("/bin/echo", vec![OsString::from("bye")], None::<PathBuf>, false, None).unwrap();
+        let child = run_process("/bin/sh", vec![OsString::from("-c"), OsString::from("sleep 1 && exit 0")], None::<PathBuf>, false, None).unwrap();
         let pid = child.id();
         let result = wait_for_pid_to_exit(pid, Some(Duration::from_secs(30))).unwrap();
         assert_eq!(result.code(), Some(0));
