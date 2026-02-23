@@ -13,9 +13,9 @@ module-name = "velopack"
 
 [dependency-groups]
 dev = [
-    "maturin>=1.8.6",
-    "pyinstaller>=6.13.0",
+    "maturin>=1.12.4",
+    "pyinstaller>=6.19.0",
 ]
 test = [
-    "pyinstaller>=6.13.0",
+    "pyinstaller>=6.19.0",
 ]
