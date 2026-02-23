@@ -29,7 +29,7 @@ impl IcedLogger {
     pub fn subscription(_: &AppState) -> Subscription<Message> {
         Subscription::run(|| {
             let mut log_receiver = Self::take_receiver();
-            stream::channel(100, |mut output| async move {
+            stream::channel(100, async move |mut output| {
                 loop {
                     let message = log_receiver.select_next_some().await;
                     let _ = output.send(Message::LogReceived(message)).await;
