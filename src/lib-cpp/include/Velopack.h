@@ -107,7 +107,7 @@ typedef struct vpkc_update_options_t {
    */
   bool AllowVersionDowngrade;
   /**
-   * **This option should usually be left None/NULL**.
+   * **This option should usually be left None**.
    * Overrides the default channel used to fetch updates.
    * The default channel will be whatever channel was specified on the command line when building this release.
    * For example, if the current release was packaged with '--channel beta', then the default channel will be 'beta'.
