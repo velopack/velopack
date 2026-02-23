@@ -384,19 +384,43 @@ impl SplashWindow {
                 }
 
                 // draw progress bar on top of the scaled bitmap (if enabled)
+                // Must use AlphaBlend with a 32-bit BGRA bitmap so the alpha channel
+                // is set to 255 (opaque). FillRect leaves alpha at 0, which
+                // UpdateLayeredWindow treats as fully transparent.
                 if !self.no_progress_bar {
-                    let (r, g, b) = self.progress_bar_color;
-                    let progress_brush = CreateSolidBrush(rgb(r, g, b));
                     let progress_width = (self.scaled_w as f32 * (self.progress as f32 / 100.0)) as i32;
                     let progress_height = 10.max((self.scaled_h as f32 * 0.02) as i32);
-                    let progress_rect = RECT {
-                        left: 0,
-                        bottom: self.scaled_h,
-                        right: progress_width,
-                        top: self.scaled_h - progress_height,
-                    };
-                    FillRect(hdc_dest, &progress_rect, progress_brush);
-                    let _ = DeleteObject(progress_brush.into());
+                    if progress_width > 0 {
+                        let (r, g, b) = self.progress_bar_color;
+                        // BGRA pixel with alpha=255 (little-endian u32: 0xAARRGGBB)
+                        let pixel: u32 = (255u32 << 24) | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
+                        let mut pixel_data = [pixel];
+                        let bar_bmp = CreateBitmap(1, 1, 1, 32, Some(pixel_data.as_mut_ptr() as *mut _));
+                        let hdc_bar = CreateCompatibleDC(Some(self.hdc_screen));
+                        let old_bar = SelectObject(hdc_bar, bar_bmp.into());
+                        let bar_blend = BLENDFUNCTION {
+                            BlendOp: AC_SRC_OVER as u8,
+                            BlendFlags: 0,
+                            SourceConstantAlpha: 255,
+                            AlphaFormat: AC_SRC_ALPHA as u8,
+                        };
+                        let _ = AlphaBlend(
+                            hdc_dest,
+                            0,
+                            self.scaled_h - progress_height,
+                            progress_width,
+                            progress_height,
+                            hdc_bar,
+                            0,
+                            0,
+                            1,
+                            1,
+                            bar_blend,
+                        );
+                        SelectObject(hdc_bar, old_bar);
+                        let _ = DeleteDC(hdc_bar);
+                        let _ = DeleteObject(bar_bmp.into());
+                    }
                 }
 
                 // Use UpdateLayeredWindow for true transparency with per-pixel alpha
@@ -523,8 +547,8 @@ unsafe extern "system" fn task_dialog_callback(
 
 #[test]
 #[ignore]
-fn show_test_gif() {
-    let rd = std::fs::read(r"C:\Source\Clowd\artwork\splash.gif").unwrap();
+fn show_splash_gif() {
+    let rd = std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures/splash-test.gif")).unwrap();
     let tx = show_splash_dialog("osu!".to_string(), Some(rd), SplashOptions::default());
     let _ = tx.send(25);
     std::thread::sleep(std::time::Duration::from_secs(1));
@@ -540,8 +564,22 @@ fn show_test_gif() {
 
 #[test]
 #[ignore]
-fn show_test_gif_without_progress_bar() {
-    let rd = std::fs::read(r"C:\Source\Clowd\artwork\splash.gif").unwrap();
+fn show_splash_png_transparency() {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures/splash-test.png");
+    let rd = std::fs::read(&fixture).unwrap();
+    let tx = show_splash_dialog("Beer App".to_string(), Some(rd), SplashOptions::default());
+    let _ = tx.send(50);
+    std::thread::sleep(std::time::Duration::from_secs(5));
+    let _ = tx.send(100);
+    std::thread::sleep(std::time::Duration::from_secs(3));
+    let _ = tx.send(MSG_CLOSE);
+    std::thread::sleep(std::time::Duration::from_secs(1));
+}
+
+#[test]
+#[ignore]
+fn show_splash_without_progress_bar() {
+    let rd = std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures/splash-test.gif")).unwrap();
     let tx = show_splash_dialog(
         "osu!".to_string(),
         Some(rd),
@@ -553,7 +591,7 @@ fn show_test_gif_without_progress_bar() {
 
 #[test]
 #[ignore]
-fn show_test_progress() {
+fn show_splash_progress() {
     let tx = show_progress_dialog("hello!", "this is some content");
     let _ = tx.send(25);
     std::thread::sleep(std::time::Duration::from_secs(1));

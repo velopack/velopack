@@ -59,7 +59,7 @@ public class WindowsPackCommand : PackCommand
             .MustExist();
 
         AddOption<string>((v) => SplashProgressColor = v, "--splashProgressColor")
-            .SetDescription("Color of the progress bar during installation (RGB hex: FF0000, or \"#FF0000\" with quotes). Use 'None' to hide the progress bar.")
+            .SetDescription("Progress bar color (e.g. #FF0000), or 'None' to hide.")
             .SetArgumentHelpName("COLOR");
 
         AddOption<bool>((v) => SkipVelopackAppCheck = v, "--skipVeloAppCheck")
