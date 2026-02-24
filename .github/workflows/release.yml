@@ -13,6 +13,7 @@ env:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   release:
@@ -234,10 +235,16 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./packages
 
+      - name: NuGet login (OIDC)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: caesay
+
       - name: Publish NuGet Packages
         run: |
           for f in packages/*.nupkg; do
-            dotnet nuget push "$f" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
+            dotnet nuget push "$f" -k ${{ steps.login.outputs.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json --skip-duplicate
           done
 
   publish-npm:
@@ -254,11 +261,13 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./lib-nodejs
 
+      - uses: actions/setup-node@v4
+        with:
+          registry-url: 'https://registry.npmjs.org'
+
       - name: Publish NPM Package
         working-directory: ./lib-nodejs
-        run: |
-          npm set "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}"
-          npm publish velopack-$PKG_VERSION.tgz --access public
+        run: npm publish velopack-$PKG_VERSION.tgz --access public --tag latest
 
   publish-crate:
     needs: release
@@ -274,6 +283,9 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./lib-rust
 
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+
       - name: Publish Rust Crate
         working-directory: ./lib-rust
         run: |
@@ -281,8 +293,9 @@ jobs:
           cd velopack-$PKG_VERSION
           rm Cargo.toml.orig
           rm .cargo_vcs_info.json
-          cargo login ${{ secrets.CARGO_TOKEN }}
           cargo publish --allow-dirty --no-verify
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
 
   publish-pypi:
     needs: release
@@ -299,6 +312,5 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
           packages-dir: lib-python-files/
           verbose: true
