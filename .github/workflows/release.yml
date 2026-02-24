@@ -261,13 +261,14 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./lib-nodejs
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
+          node-version: 24
           registry-url: 'https://registry.npmjs.org'
 
       - name: Publish NPM Package
         working-directory: ./lib-nodejs
-        run: npm publish velopack-$PKG_VERSION.tgz --access public --tag latest
+        run: npm publish velopack-$PKG_VERSION.tgz --access public --tag latest --provenance
 
   publish-crate:
     needs: release
