@@ -14,10 +14,6 @@
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</IsAotCompatible>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="NuGet.Versioning" Version="6.14.0" />
-  </ItemGroup>
-
   <ItemGroup Condition=" $(TargetFramework.StartsWith('net4')) ">
     <Reference Include="System.Web" />
     <Reference Include="System.Net.Http" />

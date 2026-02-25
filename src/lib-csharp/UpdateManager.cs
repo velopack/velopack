@@ -7,7 +7,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using NuGet.Versioning;
 using Velopack.Exceptions;
 using Velopack.Locators;
 using Velopack.Logging;
@@ -147,7 +146,7 @@ namespace Velopack
             // if the remote version is the same as current version, and downgrade is enabled,
             // and we're searching for a different channel than current
             if (ShouldAllowVersionDowngrade && IsNonDefaultChannel) {
-                if (VersionComparer.Compare(latestRemoteFull.Version, installedVer, VersionComparison.Version) == 0) {
+                if (SemanticVersion.CompareByVersion(latestRemoteFull.Version, installedVer) == 0) {
                     Log.Info(
                         $"Latest remote release is the same version of a different channel, and downgrade is enabled ({installedVer}: {DefaultChannel} -> {Channel}).");
                     return new UpdateInfo(latestRemoteFull, true);

@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using NuGet.Versioning;
 using Velopack.Locators;
 using Velopack.Logging;
 using Velopack.Util;

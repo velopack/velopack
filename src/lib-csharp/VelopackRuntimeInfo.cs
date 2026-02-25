@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using NuGet.Versioning;
 using Velopack.Util;
 
 #if !NETFRAMEWORK
@@ -85,10 +84,10 @@ namespace Velopack
         public static string VelopackDisplayVersion { get; }
 
         /// <summary> The current compiled Velopack NuGetVersion. </summary>
-        public static NuGetVersion VelopackNugetVersion { get; }
+        public static SemanticVersion VelopackNugetVersion { get; }
 
         /// <summary> The current compiled Velopack ProductVersion. </summary>
-        public static NuGetVersion VelopackProductVersion { get; }
+        public static SemanticVersion VelopackProductVersion { get; }
 
         /// <summary> The current machine architecture, ignoring the current process / pe architecture. </summary>
         public static RuntimeCpu SystemArch { get; private set; }
@@ -126,15 +125,15 @@ namespace Velopack
 #endif
 
             // get git/nuget version from nbgv metadata
-            VelopackProductVersion = NuGetVersion.Parse(ThisAssembly.AssemblyInformationalVersion);
+            VelopackProductVersion = SemanticVersion.Parse(ThisAssembly.AssemblyInformationalVersion);
 
 #pragma warning disable CS0162
             if (ThisAssembly.IsPublicRelease) {
-                VelopackNugetVersion = NuGetVersion.Parse(NuGetVersion.Parse(ThisAssembly.AssemblyInformationalVersion).ToNormalizedString());
+                VelopackNugetVersion = SemanticVersion.Parse(SemanticVersion.Parse(ThisAssembly.AssemblyInformationalVersion).ToNormalizedString());
             } else {
-                VelopackNugetVersion = NuGetVersion.Parse(ThisAssembly.AssemblyInformationalVersion);
+                VelopackNugetVersion = SemanticVersion.Parse(ThisAssembly.AssemblyInformationalVersion);
                 if (VelopackNugetVersion.HasMetadata) {
-                    VelopackNugetVersion = NuGetVersion.Parse(VelopackNugetVersion.ToNormalizedString() + "-g" + VelopackNugetVersion.Metadata);
+                    VelopackNugetVersion = SemanticVersion.Parse(VelopackNugetVersion.ToNormalizedString() + "-g" + VelopackNugetVersion.Metadata);
                 }
             }
 

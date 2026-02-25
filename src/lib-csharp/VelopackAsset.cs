@@ -1,7 +1,6 @@
 ﻿#nullable disable
 using System;
 using System.IO;
-using NuGet.Versioning;
 using Velopack.Util;
 using Velopack.NuGet;
 

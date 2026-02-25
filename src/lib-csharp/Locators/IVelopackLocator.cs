@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using NuGet.Versioning;
 using Velopack.Logging;
 
 namespace Velopack.Locators
