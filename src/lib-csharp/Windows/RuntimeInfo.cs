@@ -8,7 +8,6 @@ using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Win32;
-using NuGet.Versioning;
 using Velopack.Logging;
 using Velopack.Sources;
 using Velopack.Util;
@@ -174,7 +173,7 @@ namespace Velopack.Windows
                  $"{(MinVersion.Major >= 5 ? ".NET" : ".NET Core")} {TrimVersion(MinVersion)} {RuntimeType} ({CpuArchitecture.ToString().ToLower()})";
 
             /// <summary> The minimum compatible version that must be installed. </summary>
-            public NuGetVersion MinVersion { get; }
+            public Version MinVersion { get; }
 
             /// <summary> The CPU architecture of the runtime. This must match the RID of the app being deployed.
             /// For example, if the app was deployed with 'win-x64', this must be X64 also. </summary>
@@ -193,7 +192,7 @@ namespace Velopack.Windows
             /// <inheritdoc/>
             public DotnetInfo(Version minversion, RuntimeCpu architecture, DotnetRuntimeType runtimeType = DotnetRuntimeType.WindowsDesktop)
             {
-                MinVersion = new NuGetVersion(minversion);
+                MinVersion = minversion;
                 CpuArchitecture = architecture;
                 RuntimeType = runtimeType;
             }
@@ -216,8 +215,8 @@ namespace Velopack.Windows
 
                 var dirs = Directory.EnumerateDirectories(versionDir)
                     .Select(d => Path.GetFileName(d))
-                    .Where(d => NuGetVersion.TryParse(d, out var _))
-                    .Select(d => NuGetVersion.Parse(d));
+                    .Where(d => Version.TryParse(d, out var _))
+                    .Select(d => Version.Parse(d));
 
                 var foundCompatibleVer = dirs.Any(v => v.Major == MinVersion.Major && v.Minor == MinVersion.Minor && v >= MinVersion);
                 return Task.FromResult(foundCompatibleVer);
@@ -379,14 +378,14 @@ namespace Velopack.Windows
             /// <summary>
             /// Converts a version structure into the shortest string possible, by trimming trailing zeros.
             /// </summary>
-            protected static string TrimVersion(NuGetVersion ver)
+            protected static string TrimVersion(Version ver)
             {
                 string v = ver.Major.ToString();
-                if (ver.Minor > 0 || ver.Patch > 0 || ver.Revision > 0) {
+                if (ver.Minor > 0 || ver.Build > 0 || ver.Revision > 0) {
                     v += "." + ver.Minor;
                 }
-                if (ver.Patch > 0 || ver.Revision > 0) {
-                    v += "." + ver.Patch;
+                if (ver.Build > 0 || ver.Revision > 0) {
+                    v += "." + ver.Build;
                 }
                 if (ver.Revision > 0) {
                     v += "." + ver.Revision;
@@ -444,13 +443,13 @@ namespace Velopack.Windows
         public abstract class VCRedistInfo : RuntimeInfo
         {
             /// <summary> The minimum compatible version that must be installed. </summary>
-            public NuGetVersion MinVersion { get; }
+            public Version MinVersion { get; }
 
             /// <summary> The CPU architecture of the runtime. </summary>
             public RuntimeCpu CpuArchitecture { get; }
 
             /// <inheritdoc/>
-            public VCRedistInfo(string id, string displayName, NuGetVersion minVersion, RuntimeCpu cpuArchitecture) : base(id, displayName)
+            public VCRedistInfo(string id, string displayName, Version minVersion, RuntimeCpu cpuArchitecture) : base(id, displayName)
             {
                 MinVersion = minVersion;
                 CpuArchitecture = cpuArchitecture;
@@ -491,10 +490,10 @@ namespace Velopack.Windows
 
             private class VCVersion
             {
-                public SemanticVersion Ver { get; set; }
+                public Version Ver { get; set; }
                 public RuntimeCpu Cpu { get; set; }
 
-                public VCVersion(SemanticVersion ver, RuntimeCpu cpu)
+                public VCVersion(Version ver, RuntimeCpu cpu)
                 {
                     Ver = ver;
                     Cpu = cpu;
@@ -517,7 +516,7 @@ namespace Velopack.Windows
                         var name = subKey.GetValue("DisplayName") as string;
                         if (name != null && name.Contains("Microsoft Visual C++") && name.Contains("Redistributable")) {
                             var version = subKey.GetValue("DisplayVersion") as string;
-                            if (NuGetVersion.TryParse(version, out var v)) {
+                            if (Version.TryParse(version, out var v)) {
                                 if (name.IndexOf("arm64", StringComparison.InvariantCultureIgnoreCase) >= 0) {
                                     results.Add(new VCVersion(v, RuntimeCpu.arm64));
                                 } else if (name.IndexOf("x64", StringComparison.InvariantCultureIgnoreCase) >= 0) {
@@ -548,7 +547,7 @@ namespace Velopack.Windows
         public class VCRedist14 : VCRedistInfo
         {
             /// <inheritdoc/>
-            public VCRedist14(string id, string displayName, NuGetVersion minVersion, RuntimeCpu cpuArchitecture)
+            public VCRedist14(string id, string displayName, Version minVersion, RuntimeCpu cpuArchitecture)
                 : base(id, displayName, minVersion, cpuArchitecture)
             {
             }
@@ -575,7 +574,7 @@ namespace Velopack.Windows
             public string DownloadUrl { get; }
 
             /// <inheritdoc/>
-            public VCRedist00(string id, string displayName, NuGetVersion minVersion, RuntimeCpu cpuArchitecture, string downloadUrl)
+            public VCRedist00(string id, string displayName, Version minVersion, RuntimeCpu cpuArchitecture, string downloadUrl)
                 : base(id, displayName, minVersion, cpuArchitecture)
             {
                 DownloadUrl = downloadUrl;

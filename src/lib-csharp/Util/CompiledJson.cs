@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using NuGet.Versioning;
 using Velopack.Sources;
 
 #if NET8_0_OR_GREATER

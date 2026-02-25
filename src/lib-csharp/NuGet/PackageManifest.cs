@@ -4,8 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
-using NuGet.Versioning;
-
 namespace Velopack.NuGet
 {
     public class PackageManifest
@@ -94,7 +92,7 @@ namespace Velopack.NuGet
                 Id = value;
                 break;
             case "version":
-                Version = NuGetVersion.Parse(value);
+                Version = SemanticVersion.Parse(value);
                 break;
             case "authors":
                 Authors = getCommaDelimitedValue(value);

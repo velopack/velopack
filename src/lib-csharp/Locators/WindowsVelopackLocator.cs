@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Runtime.Versioning;
-using NuGet.Versioning;
 using Velopack.Logging;
 using Velopack.NuGet;
 using Velopack.Util;
@@ -80,7 +79,7 @@ namespace Velopack.Locators
                     UpdateExePath = possibleUpdateExe;
                     AppContentDir = myDirPath;
                     Channel = manifest.Channel;
-                } else if (PathUtil.PathPartStartsWith(myDirName, "app-") && NuGetVersion.TryParse(myDirName.Substring(4), out var version)) {
+                } else if (PathUtil.PathPartStartsWith(myDirName, "app-") && SemanticVersion.TryParse(myDirName.Substring(4), out var version)) {
                     // this is a legacy case, where we're running in an 'root/app-*/' directory, and there is no manifest.
                     initLog.Warn(
                         "Update.exe in parent dir, Legacy app-* directory detected, sq.version not found. Using directory name for AppId and Version.");
