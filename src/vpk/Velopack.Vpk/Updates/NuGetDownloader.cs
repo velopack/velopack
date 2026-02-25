@@ -1,11 +1,12 @@
 ﻿#nullable enable
+using System.Threading;
 using NuGet.Configuration;
 using NuGet.Packaging.Core;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 using NugetLogger = NuGet.Common.ILogger;
 
-namespace Velopack.Packaging.NuGet;
+namespace Velopack.Vpk.Updates;
 
 public class NuGetDownloader
 {

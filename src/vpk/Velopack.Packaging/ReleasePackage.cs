@@ -1,5 +1,4 @@
-﻿using NuGet.Versioning;
-using Velopack.NuGet;
+﻿using Velopack.NuGet;
 
 namespace Velopack.Packaging;
 

@@ -3,7 +3,6 @@
 extern alias HttpFormatting;
 using Microsoft.Identity.Client;
 using Microsoft.Identity.Client.Extensions.Msal;
-using NuGet.Versioning;
 using Microsoft.Extensions.Logging;
 using System.Text;
 using System.Net.Http.Headers;

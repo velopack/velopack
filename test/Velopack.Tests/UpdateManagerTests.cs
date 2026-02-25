@@ -1,5 +1,4 @@
 ﻿using System.Text;
-using NuGet.Versioning;
 using Velopack.Core;
 using Velopack.Exceptions;
 using Velopack.Locators;

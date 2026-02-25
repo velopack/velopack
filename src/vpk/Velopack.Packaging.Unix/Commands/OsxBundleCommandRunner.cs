@@ -1,7 +1,6 @@
 ﻿using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using NuGet.Versioning;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
 using Velopack.Util;
@@ -48,7 +47,7 @@ public class OsxBundleCommandRunner : ICommand<OsxBundleOptions>
 
         var appleId = $"com.{packAuthors ?? packId}.{packId}";
         var escapedAppleId = Regex.Replace(appleId, @"[^\w\.]", "_");
-        var appleSafeVersion = NuGetVersion.Parse(packVersion).Version.ToString();
+        var appleSafeVersion = SemanticVersion.Parse(packVersion).Version.ToString();
 
         var info = new OsxAppInfo {
             // SQPackId = packId,

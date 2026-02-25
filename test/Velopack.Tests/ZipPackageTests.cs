@@ -1,5 +1,4 @@
 ﻿using System.IO.Packaging;
-using NuGet.Versioning;
 using Velopack.Core;
 using Velopack.NuGet;
 using Velopack.Tests.TestHelpers;

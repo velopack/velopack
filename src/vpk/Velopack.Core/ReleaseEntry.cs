@@ -10,7 +10,6 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using NuGet.Versioning;
 using Velopack.Util;
 
 namespace Velopack.Core
@@ -79,7 +78,7 @@ namespace Velopack.Core
 
 
 
-            var semVer = NuGetVersion.Parse(version);
+            var semVer = SemanticVersion.Parse(version);
             return new ReleaseEntryName(name, semVer, delta);
         }
 
