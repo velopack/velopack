@@ -1,6 +1,5 @@
 ﻿#pragma warning disable CS0618 // Type or member is obsolete
 using System.Text;
-using NuGet.Versioning;
 using Velopack.Core;
 using OldReleaseEntry = Velopack.Tests.OldSquirrel.ReleaseEntry;
 using OldSemanticVersion = Velopack.Tests.OldSquirrel.SemanticVersion;
@@ -142,11 +141,11 @@ public class ReleaseEntryTests
     {
         var fixture = ReleaseEntry.ParseReleaseEntry(releaseEntry);
 
-        Assert.Equal(new NuGetVersion(major, minor, patch, revision, prerelease, null), fixture.Version);
+        Assert.Equal(new SemanticVersion(major, minor, patch, revision, prerelease, null), fixture.Version);
         Assert.Equal(isDelta, fixture.IsDelta);
 
         var old = OldReleaseEntry.ParseReleaseEntry(releaseEntry);
-        Assert.Equal(new NuGetVersion(major, minor, patch, revision, prerelease, null), new NuGetVersion(old.Version.ToString()));
+        Assert.Equal(new SemanticVersion(major, minor, patch, revision, prerelease, null), SemanticVersion.Parse(old.Version.ToString()));
         Assert.Equal(isDelta, old.IsDelta);
     } 
 
@@ -187,7 +186,7 @@ public class ReleaseEntryTests
     {
         var fixture = ReleaseEntry.ParseReleaseEntry(releaseEntry);
 
-        Assert.Equal(new NuGetVersion(major, minor, patch, revision, prerelease, null), fixture.Version);
+        Assert.Equal(new SemanticVersion(major, minor, patch, revision, prerelease, null), fixture.Version);
         Assert.Equal(isDelta, fixture.IsDelta);
 
         if (stagingPercentage.HasValue) {
@@ -198,7 +197,7 @@ public class ReleaseEntryTests
 
         var old = OldReleaseEntry.ParseReleaseEntry(releaseEntry);
         var legacyPre = !String.IsNullOrEmpty(prerelease) && !String.IsNullOrEmpty(rid) ? $"{prerelease}-{rid}" : String.IsNullOrEmpty(prerelease) ? rid : prerelease;
-        Assert.Equal(new NuGetVersion(major, minor, patch, revision, legacyPre, null), new NuGetVersion(old.Version.ToString()));
+        Assert.Equal(new SemanticVersion(major, minor, patch, revision, legacyPre, null), SemanticVersion.Parse(old.Version.ToString()));
         Assert.Equal(isDelta, old.IsDelta);
 
         if (stagingPercentage.HasValue) {

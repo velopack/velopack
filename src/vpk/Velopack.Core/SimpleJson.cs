@@ -1,6 +1,5 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
-using NuGet.Versioning;
 
 //NB: This is explicitly enabled because this file is linked into multiple projects
 #nullable enable 

@@ -22,6 +22,9 @@ namespace Velopack
         /// <summary> The optional fourth version component, or 0 if not specified. </summary>
         public int Revision { get; }
 
+        /// <summary> A basic four-part version ignoring release labels and metadata. </summary>
+        public Version Version => new(Major, Minor, Patch, Revision);
+
         /// <summary> The full pre-release label string (e.g. "beta.1"), or empty string if not a pre-release. </summary>
         public string Release { get; }
 
@@ -50,6 +53,17 @@ namespace Velopack
             : this(major, minor, patch, 0, prerelease, metadata)
         {
         }
+        
+        /// <summary>
+        /// Creates a new SemanticVersion from a traditional 4-part Version.
+        /// </summary>
+        /// <param name="version">The version containing major, minor, patch, and revision.</param>
+        /// <param name="prerelease">The pre-release label (e.g. "beta.1"), or empty/null for a stable release.</param>
+        /// <param name="metadata">The build metadata string, or empty/null for no metadata.</param>
+        public SemanticVersion(Version version, string prerelease = "", string metadata = "")
+            : this(version.Major, version.Minor, version.Build, version.Revision, prerelease, metadata)
+        {
+        }
 
         /// <summary>
         /// Creates a new SemanticVersion with a revision component.
@@ -73,7 +87,7 @@ namespace Velopack
             Release = prerelease ?? "";
             Metadata = metadata ?? "";
         }
-
+        
         /// <summary>
         /// Parse a version string into a SemanticVersion. Throws <see cref="ArgumentException"/> on invalid input.
         /// </summary>
@@ -262,6 +276,7 @@ namespace Velopack
                 if (IsPrerelease) {
                     hash = hash * 31 + StringComparer.OrdinalIgnoreCase.GetHashCode(Release);
                 }
+
                 return hash;
             }
         }

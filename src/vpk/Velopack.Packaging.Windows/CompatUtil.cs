@@ -5,7 +5,6 @@ using AsmResolver.PE;
 using AsmResolver.PE.DotNet.Cil;
 using AsmResolver.PE.Win32Resources.Version;
 using Microsoft.Extensions.Logging;
-using NuGet.Versioning;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
 using Velopack.Util;
@@ -23,7 +22,7 @@ public class CompatUtil
         _console = console;
     }
 
-    public NuGetVersion Verify(string exeFile)
+    public SemanticVersion Verify(string exeFile)
     {
         VerifyVelopackApp(exeFile);
         return VerifyVelopackVersion(exeFile);
@@ -56,17 +55,17 @@ public class CompatUtil
         }
     }
 
-    public NuGetVersion VerifyVelopackVersion(string exeFile)
+    public SemanticVersion VerifyVelopackVersion(string exeFile)
     {
         var rawVersion = GetVelopackVersion(exeFile);
         if (rawVersion == null) {
             return null;
         }
 
-        var dllVersion = new Version(rawVersion.ToString("V", VersionFormatter.Instance));
-        var myVersion = new Version(VelopackRuntimeInfo.VelopackNugetVersion.ToString("V", VersionFormatter.Instance));
+        var dllVersion = rawVersion.Version;
+        var myVersion = VelopackRuntimeInfo.VelopackNugetVersion.Version;
         if (dllVersion == myVersion) {
-            return new NuGetVersion(dllVersion);
+            return rawVersion;
         }
 
         if (dllVersion > myVersion) {
@@ -76,7 +75,7 @@ public class CompatUtil
         } else {
             _log.Warn($"Velopack library version is lower than vpk version ({dllVersion} < {myVersion}). This can occasionally cause compatibility issues.");
         }
-        return new NuGetVersion(dllVersion);
+        return rawVersion;
     }
 
     private static bool TrySearchAssemblyForVelopackApp(ModuleDefinition mainModule, out string velopackAppLocation)
@@ -140,7 +139,7 @@ public class CompatUtil
         return false;
     }
 
-    public NuGetVersion GetVelopackVersion(string exeFile)
+    public SemanticVersion GetVelopackVersion(string exeFile)
     {
         try {
             var velopackDll = FindVelopackDll(exeFile);
@@ -152,7 +151,7 @@ public class CompatUtil
             var actualInfo = versionInfo.GetChild<StringFileInfo>(StringFileInfo.StringFileInfoKey);
             var versionTable = actualInfo.Tables[0];
             var productVersion = versionTable.Where(v => v.Key == StringTable.ProductVersionKey).FirstOrDefault();
-            return NuGetVersion.Parse(productVersion.Value);
+            return SemanticVersion.Parse(productVersion.Value);
         } catch (Exception ex) {
             // don't really care
             _log.Debug(ex, "Unable to read Velopack.dll version info.");

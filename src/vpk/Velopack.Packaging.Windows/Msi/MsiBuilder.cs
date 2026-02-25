@@ -7,7 +7,6 @@ using System.Xml;
 using HandlebarsDotNet;
 using Markdig;
 using Microsoft.Extensions.Logging;
-using NuGet.Versioning;
 using Velopack.Core;
 using Velopack.Packaging.Rtf;
 using Velopack.Packaging.Windows.Commands;

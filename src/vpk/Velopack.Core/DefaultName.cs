@@ -1,6 +1,4 @@
-﻿using NuGet.Versioning;
-
-namespace Velopack.Core;
+﻿namespace Velopack.Core;
 
 public static class DefaultName
 {

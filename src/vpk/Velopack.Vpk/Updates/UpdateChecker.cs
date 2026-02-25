@@ -1,8 +1,7 @@
 ﻿using System.Threading;
 using NuGet.Protocol.Core.Types;
+using NuGet.Versioning;
 using Velopack.Core;
-using Velopack.Packaging.NuGet;
-using Velopack.Util;
 
 namespace Velopack.Vpk.Updates;
 
@@ -22,7 +21,7 @@ public class UpdateChecker
     {
         if (_defaults.SkipUpdates) return false;
         try {
-            var myVer = VelopackRuntimeInfo.VelopackNugetVersion;
+            var myVer = ToNuGetVersion(VelopackRuntimeInfo.VelopackNugetVersion);
             var isPre = myVer.IsPrerelease || myVer.HasMetadata;
 
             if (_cache == null) {
@@ -49,4 +48,7 @@ public class UpdateChecker
 
         return false;
     }
+
+    private NuGetVersion ToNuGetVersion(SemanticVersion semanticVersion)
+        => new(semanticVersion.Version, semanticVersion.Release, semanticVersion.Metadata);
 }

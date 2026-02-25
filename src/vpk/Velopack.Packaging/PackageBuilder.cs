@@ -2,7 +2,6 @@
 using System.Text.RegularExpressions;
 using Markdig;
 using Microsoft.Extensions.Logging;
-using NuGet.Versioning;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
 using Velopack.NuGet;
@@ -112,7 +111,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
                 await ctx.RunTask(
                     "Pre-process steps",
                     async (progress) => {
-                        prev = entryHelper.GetPreviousFullRelease(NuGetVersion.Parse(packVersion));
+                        prev = entryHelper.GetPreviousFullRelease(SemanticVersion.Parse(packVersion));
                         packDirectory = await PreprocessPackDir(progress, packDirectory);
                     });
 
