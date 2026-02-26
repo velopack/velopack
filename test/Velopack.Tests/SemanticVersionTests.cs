@@ -1,3 +1,4 @@
+#nullable enable
 using Velopack.NuGet;
 
 namespace Velopack.Tests;
@@ -396,8 +397,10 @@ public class SemanticVersionTests
         Assert.False(v <= n);
         Assert.True(v >= n);
 
+#pragma warning disable CS1718 // Comparison made to same variable — intentional null self-comparison test
         Assert.True(n <= n);
         Assert.True(n >= n);
+#pragma warning restore CS1718
     }
 
     // ── Sorting ────────────────────────────────────────────────────────
