@@ -20,7 +20,7 @@ namespace Velopack.Util
             } else if (!string.IsNullOrWhiteSpace(envTempDir)) {
                 tempDir = Path.Combine(envTempDir!, "velopack");
             } else if (VelopackRuntimeInfo.IsWindows) {
-                tempDir = Path.Combine(Path.GetTempPath(), "Velopack");
+                tempDir = Path.Combine(Path.GetTempPath(), "velopack");
             } else if (VelopackRuntimeInfo.IsOSX || VelopackRuntimeInfo.IsLinux) {
                 tempDir = "/tmp/velopack";
             } else {
