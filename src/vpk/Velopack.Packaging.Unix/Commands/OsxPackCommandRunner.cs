@@ -100,7 +100,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
                 Log.Info("Code signing Velopack binaries...");
                 var structure = new OsxStructureBuilder(packDir);
                 var updateMacPath = Path.Combine(structure.MacosDirectory, "UpdateMac");
-                helper.CodeSign(Options.SignAppIdentity, entitlements, updateMacPath, false, keychainPath);
+                helper.CodeSign(Options.SignAppIdentity, HelperFile.VelopackEntitlements, updateMacPath, false, keychainPath);
                 signProgress(50);
                 
                 Log.Info("Code signing application bundle...");
