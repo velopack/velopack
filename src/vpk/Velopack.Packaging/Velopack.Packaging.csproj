@@ -25,8 +25,4 @@
     <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="6.0.0" Aliases="HttpFormatting" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="NuGet\" />
-  </ItemGroup>
-
 </Project>
