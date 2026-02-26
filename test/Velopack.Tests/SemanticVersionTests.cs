@@ -528,4 +528,195 @@ public class SemanticVersionTests
         // metadata ignored, so these are the same version
         Assert.Single(set);
     }
+
+    // ── Additional parsing: large version numbers ────────────────────
+
+    [Theory]
+    [InlineData("234.234234.1111", 234, 234234, 1111, 0)]
+    [InlineData("2147483647.0.0", 2147483647, 0, 0, 0)]
+    [InlineData("0.2147483647.0", 0, 2147483647, 0, 0)]
+    [InlineData("0.0.2147483647", 0, 0, 2147483647, 0)]
+    [InlineData("0.0.0.2147483647", 0, 0, 0, 2147483647)]
+    public void ParsesLargeVersionNumbers(string input, int major, int minor, int patch, int revision)
+    {
+        var v = SemanticVersion.Parse(input);
+        Assert.Equal(major, v.Major);
+        Assert.Equal(minor, v.Minor);
+        Assert.Equal(patch, v.Patch);
+        Assert.Equal(revision, v.Revision);
+    }
+
+    // ── Additional parsing: complex prerelease labels ────────────────
+
+    [Theory]
+    [InlineData("1.2.3-X.yZ.3.234.243.32423423.4.23423", new[] { "X", "yZ", "3", "234", "243", "32423423", "4", "23423" })]
+    [InlineData("1.0.0-RC.X.35.A.3455", new[] { "RC", "X", "35", "A", "3455" })]
+    [InlineData("1.0.0-0", new[] { "0" })]
+    [InlineData("1.0.0-RC-2", new[] { "RC-2" })]
+    public void ParsesComplexReleaseLabels(string input, string[] expectedLabels)
+    {
+        var v = SemanticVersion.Parse(input);
+        Assert.Equal(expectedLabels, v.ReleaseLabels);
+    }
+
+    [Theory]
+    [InlineData("1.2.3-RC.X.35.A.3455+Meta-A-B-C", "RC.X.35.A.3455", "Meta-A-B-C")]
+    [InlineData("1.0.0-beta.x.y.5.79.0+aa", "beta.x.y.5.79.0", "aa")]
+    public void ParsesComplexPrereleaseAndMetadata(string input, string expectedRelease, string expectedMeta)
+    {
+        var v = SemanticVersion.Parse(input);
+        Assert.Equal(expectedRelease, v.Release);
+        Assert.Equal(expectedMeta, v.Metadata);
+        Assert.True(v.IsPrerelease);
+        Assert.True(v.HasMetadata);
+    }
+
+    // ── Additional parsing: invalid inputs ───────────────────────────
+
+    [Theory]
+    [InlineData("2147483648.0.0")]      // Int32 overflow in major
+    [InlineData("0.2147483648.0")]      // Int32 overflow in minor
+    [InlineData("0.0.2147483648")]      // Int32 overflow in patch
+    [InlineData("0.0.0.2147483648")]    // Int32 overflow in revision
+    [InlineData("1..2.3")]              // Double dot
+    [InlineData("1.2..3")]              // Double dot
+    [InlineData("..1.2")]               // Leading double dot
+    [InlineData(".1.2.3")]              // Leading dot
+    [InlineData("1.2.3.")]             // Trailing dot (5 parts)
+    [InlineData("1.2.")]               // Trailing dot
+    [InlineData("1.")]                 // Trailing dot
+    [InlineData("....")]               // All dots
+    [InlineData("1.2.3.4This is not a version")]
+    [InlineData("1.34.2Alpha")]
+    [InlineData("So.is.this")]
+    [InlineData("1beta")]
+    [InlineData("1.2Av^c")]
+    public void TryParseRejectsOverflowAndMalformed(string input)
+    {
+        Assert.False(SemanticVersion.TryParse(input, out var result));
+        Assert.Null(result);
+    }
+
+    // ── Additional parsing: leading zeros accepted ───────────────────
+
+    [Theory]
+    [InlineData("01.2.3", 1, 2, 3)]
+    [InlineData("1.02.3", 1, 2, 3)]
+    [InlineData("1.2.03", 1, 2, 3)]
+    public void ParseAcceptsLeadingZerosInVersionParts(string input, int major, int minor, int patch)
+    {
+        var v = SemanticVersion.Parse(input);
+        Assert.Equal(major, v.Major);
+        Assert.Equal(minor, v.Minor);
+        Assert.Equal(patch, v.Patch);
+    }
+
+    // ── Version property ─────────────────────────────────────────────
+
+    [Theory]
+    [InlineData("1.0.0", "1.0.0.0")]
+    [InlineData("2.3.0-alpha", "2.3.0.0")]
+    [InlineData("3.4.0.3-RC-3", "3.4.0.3")]
+    [InlineData("1.0.0-beta.x.y.5.79.0+aa", "1.0.0.0")]
+    public void VersionPropertyReturnsCorrectSystemVersion(string input, string expectedVersionString)
+    {
+        var v = SemanticVersion.Parse(input);
+        var expected = new Version(expectedVersionString);
+        Assert.Equal(expected, v.Version);
+    }
+
+    // ── Additional comparison edge cases ─────────────────────────────
+
+    [Theory]
+    [InlineData("9.9.9", "10.1.1")]                                    // Multi-digit boundary
+    [InlineData("1.999.9999", "2.1.1")]                                // Major version trumps all
+    [InlineData("1.0.0-1.9", "1.0.0-1.50")]                           // Numeric prerelease: 9 < 50
+    [InlineData("1.0.0-999999", "1.0.0-Z")]                           // Numeric always < non-numeric
+    [InlineData("1.0.0-A.999999", "1.0.0-A.Z")]                       // Numeric < non-numeric in second label
+    [InlineData("1.0.0-a.2.3.4", "1.0.0-a.2.3.4.5")]                 // More labels = higher precedence
+    [InlineData("1.0.0-beta", "1.0.0-beta.1")]                        // Subset < superset
+    [InlineData("1.0.0-2", "1.0.0-3")]                                // Simple numeric comparison
+    [InlineData("1.0.0-BETA.X.y.5.77.0", "1.0.0-beta.x.y.5.79.0")]   // Case-insensitive with numeric diff
+    [InlineData("1.0.0-BETA.X.y.5.79.0", "1.0.0-beta.x.y.5.790.0")]  // Numeric: 79 < 790
+    public void AdditionalLessThanComparisons(string lower, string higher)
+    {
+        var a = SemanticVersion.Parse(lower);
+        var b = SemanticVersion.Parse(higher);
+        Assert.True(a < b, $"Expected {lower} < {higher}");
+        Assert.True(b > a, $"Expected {higher} > {lower}");
+        Assert.True(a.CompareTo(b) < 0);
+    }
+
+    // ── Complex equality ─────────────────────────────────────────────
+
+    [Theory]
+    [InlineData("1.0.0-BETA.X.y.5.77.0+AA", "1.0.0-beta.x.y.5.77.0+aa")]
+    [InlineData("1.0.0-A-b2-C", "1.0.0-a-B2-c")]
+    [InlineData("1.0.0+0", "1.0.0+321")]
+    [InlineData("1.0.0+XYZ", "1.0.0")]
+    public void ComplexEqualityIgnoresMetadataAndCase(string a, string b)
+    {
+        var va = SemanticVersion.Parse(a);
+        var vb = SemanticVersion.Parse(b);
+        Assert.Equal(va, vb);
+        Assert.True(va == vb);
+        Assert.Equal(va.GetHashCode(), vb.GetHashCode());
+    }
+
+    // ── SemVer 2.0.0 spec precedence example (Section 11) ───────────
+
+    [Fact]
+    public void SemVerSpecPrecedenceExample()
+    {
+        // From SemVer 2.0.0 spec section 11:
+        // 1.0.0-alpha < 1.0.0-alpha.1 < 1.0.0-alpha.beta
+        //   < 1.0.0-beta < 1.0.0-beta.2 < 1.0.0-beta.11
+        //   < 1.0.0-rc.1 < 1.0.0
+        var versions = new[] {
+            SemanticVersion.Parse("1.0.0"),
+            SemanticVersion.Parse("1.0.0-rc.1"),
+            SemanticVersion.Parse("1.0.0-beta.11"),
+            SemanticVersion.Parse("1.0.0-beta.2"),
+            SemanticVersion.Parse("1.0.0-beta"),
+            SemanticVersion.Parse("1.0.0-alpha.beta"),
+            SemanticVersion.Parse("1.0.0-alpha.1"),
+            SemanticVersion.Parse("1.0.0-alpha"),
+        };
+
+        var sorted = versions.OrderBy(v => v).Select(v => v.ToString()).ToArray();
+
+        Assert.Equal(new[] {
+            "1.0.0-alpha",
+            "1.0.0-alpha.1",
+            "1.0.0-alpha.beta",
+            "1.0.0-beta",
+            "1.0.0-beta.2",
+            "1.0.0-beta.11",
+            "1.0.0-rc.1",
+            "1.0.0",
+        }, sorted);
+    }
+
+    // ── Equals returns false for non-SemanticVersion types ───────────
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData("1.0.0")]
+    public void EqualsReturnsFalseForNonSemanticVersionType(object other)
+    {
+        var v = SemanticVersion.Parse("1.0.0");
+        Assert.False(v.Equals(other));
+    }
+
+    // ── Full round-trip with complex versions ────────────────────────
+
+    [Theory]
+    [InlineData("1.2.3-X.yZ.3.234.243.32423423.4.23423+METADATA")]
+    [InlineData("1.0.0-RC.X.35.A.3455+Meta-A-B-C")]
+    [InlineData("1.2.3-0+build")]
+    public void ComplexVersionRoundTrips(string input)
+    {
+        var v = SemanticVersion.Parse(input);
+        Assert.Equal(input, v.ToFullString());
+    }
 }
