@@ -44,7 +44,7 @@
     "lib/**/*.node"
   ],
   "devDependencies": {
-    "@tsconfig/node20": "^20.1.9",
+    "@tsconfig/node22": "^22.0.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^25.3.0",
     "cross-env": "^10.1.0",
