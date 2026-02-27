@@ -26,7 +26,11 @@ pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
 pub fn force_stop_package<P: AsRef<Path>>(root_dir: P) -> Result<()> {
     let root_dir = root_dir.as_ref();
     let command = format!("quit app \"{}\"", root_dir.to_string_lossy().to_string());
-    Process::new("/usr/bin/osascript").arg("-e").arg(command).spawn().map_err(|z| anyhow!("Failed to stop application ({}).", z))?;
+    Process::new("/usr/bin/osascript")
+        .arg("-e")
+        .arg(command)
+        .spawn()
+        .map_err(|z| anyhow!("Failed to stop application ({}).", z))?;
     Ok(())
 }
 
@@ -54,7 +58,7 @@ fn test_start_and_stop_package() {
     let mut paths = velopack::locator::VelopackLocatorConfig::default();
     paths.RootAppDir = std::path::PathBuf::from("/Applications/Calcbot.app");
     let locator = VelopackLocator::new_with_manifest(paths, mani);
-    
+
     let _ = force_stop_package(locator.get_root_dir());
 
     fn is_running() -> bool {

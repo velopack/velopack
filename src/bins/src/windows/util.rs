@@ -82,8 +82,12 @@ pub fn expand_environment_strings<P: AsRef<OsStr>>(input: P) -> Result<OsString>
 #[test]
 fn test_expand_environment_strings() {
     assert!(expand_environment_strings("%windir%").unwrap().eq_ignore_ascii_case("C:\\Windows"));
-    assert!(expand_environment_strings("%windir%\\system32").unwrap().eq_ignore_ascii_case("C:\\Windows\\system32"));
-    assert!(expand_environment_strings("%windir%\\system32\\").unwrap().eq_ignore_ascii_case("C:\\Windows\\system32\\"));
+    assert!(expand_environment_strings("%windir%\\system32")
+        .unwrap()
+        .eq_ignore_ascii_case("C:\\Windows\\system32"));
+    assert!(expand_environment_strings("%windir%\\system32\\")
+        .unwrap()
+        .eq_ignore_ascii_case("C:\\Windows\\system32\\"));
 }
 
 pub fn get_long_path<P: AsRef<OsStr>>(str: P) -> Result<OsString> {
@@ -310,7 +314,12 @@ pub fn is_os_version_or_greater(version: &str) -> Result<bool> {
         minor = 0;
     }
 
-    Ok(is_os_version_or_greater_internal(major.try_into()?, minor.try_into()?, build.try_into()?, 0))
+    Ok(is_os_version_or_greater_internal(
+        major.try_into()?,
+        minor.try_into()?,
+        build.try_into()?,
+        0,
+    ))
 }
 
 #[test]

@@ -50,15 +50,26 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
             info!("Re-launching as administrator to update in {:?}", root_path);
 
             let packages_dir = old_locator.get_packages_dir();
-            let args: Vec<OsString> =
-                vec!["apply".into(), "--norestart".into(), "--package".into(), package.into(), "--rootDir".into(), root_path.into(), "--packageDir".into(), packages_dir.into()];
+            let args: Vec<OsString> = vec![
+                "apply".into(),
+                "--norestart".into(),
+                "--package".into(),
+                package.into(),
+                "--rootDir".into(),
+                root_path.into(),
+                "--packageDir".into(),
+                packages_dir.into(),
+            ];
             let exe_path = std::env::current_exe()?;
             let work_dir: Option<String> = None; // same as this process
                                                  // NB: show_window must be true for dialogs to be shown
                                                  // https://learn.microsoft.com/en-us/windows/win32/api/commctrl/nf-commctrl-taskdialogindirect#remarks
             let process_handle = process::run_process_as_admin(&exe_path, args, work_dir, true)?;
 
-            info!("Waiting (up to 10 minutes) for elevated process (pid: {}) to exit...", process_handle.pid());
+            info!(
+                "Waiting (up to 10 minutes) for elevated process (pid: {}) to exit...",
+                process_handle.pid()
+            );
             let result = process::wait_for_process_to_exit(process_handle, Some(Duration::from_secs(10 * 60)))?;
 
             match result {
@@ -215,12 +226,18 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
             return Ok(());
         }
 
-        match (default_update_exe.exists(), same_file::is_same_file(&default_update_exe, &current_update_exe)) {
+        match (
+            default_update_exe.exists(),
+            same_file::is_same_file(&default_update_exe, &current_update_exe),
+        ) {
             (true, Ok(true)) => {
                 info!("Update.exe is already in the correct location: {:?}", &current_update_exe);
             }
             (false, _) | (_, Ok(false)) => {
-                info!("Running from non-default location. Attempting to update default Update.exe at: {:?}", default_update_exe);
+                info!(
+                    "Running from non-default location. Attempting to update default Update.exe at: {:?}",
+                    default_update_exe
+                );
                 match std::fs::copy(&current_update_exe, &default_update_exe) {
                     Ok(_) => info!("Successfully updated default Update.exe"),
                     Err(e) => warn!("Failed to update default Update.exe: {} (non-fatal)", e),

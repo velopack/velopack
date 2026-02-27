@@ -6,9 +6,9 @@ use std::hint::assert_unchecked;
 use std::{fs, path::Path, path::PathBuf};
 use tempfile::tempdir;
 
-use velopack_bins::*;
 use velopack::bundle::load_bundle_from_file;
 use velopack::locator::{auto_locate_app_manifest, LocationContext};
+use velopack_bins::*;
 
 #[cfg(target_os = "windows")]
 #[test]
@@ -93,8 +93,14 @@ pub fn test_install_preserve_symlinks() {
     assert!(tmp_buf.join("current").join("other").join("sym.txt").exists());
     assert!(tmp_buf.join("current").join("other").join("syml").join("file.txt").exists());
 
-    assert_eq!("hello", fs::read_to_string(tmp_buf.join("current").join("actual").join("file.txt")).unwrap());
-    assert_eq!("hello", fs::read_to_string(tmp_buf.join("current").join("other").join("sym.txt")).unwrap());
+    assert_eq!(
+        "hello",
+        fs::read_to_string(tmp_buf.join("current").join("actual").join("file.txt")).unwrap()
+    );
+    assert_eq!(
+        "hello",
+        fs::read_to_string(tmp_buf.join("current").join("other").join("sym.txt")).unwrap()
+    );
 }
 
 #[test]

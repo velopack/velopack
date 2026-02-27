@@ -110,12 +110,7 @@ pub fn start_impl(
     }
 }
 
-fn start_regular(
-    locator: LocatorResult,
-    exe_name: Option<&OsString>,
-    exe_args: Option<Vec<OsString>>,
-    legacy_args: Option<&OsString>,
-) -> Result<()> {
+fn start_regular(locator: LocatorResult, exe_name: Option<&OsString>, exe_args: Option<Vec<OsString>>, legacy_args: Option<&OsString>) -> Result<()> {
     // we can't just run the normal start_package command, because legacy squirrel might provide
     // an "exe name" to restart which no longer exists in the package
     let exe_to_execute = locator.get_exe_to_start(exe_name)?;
@@ -147,8 +142,7 @@ fn try_legacy_migration(root_dir: &PathBuf, manifest: &Manifest) -> Result<Velop
     // meaning we can not clean up properly.
     std::env::set_current_dir(&root_dir)?;
     let path_config = locator::create_config_from_root_dir(root_dir);
-    let package =
-        locator::find_latest_full_package(&path_config.PackagesDir).ok_or_else(|| anyhow!("Unable to find latest full package."))?;
+    let package = locator::find_latest_full_package(&path_config.PackagesDir).ok_or_else(|| anyhow!("Unable to find latest full package."))?;
 
     warn!("This application is installed in a folder prefixed with 'app-'. Attempting to migrate...");
     let _ = shared::force_stop_package(&root_dir);

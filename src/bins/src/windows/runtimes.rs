@@ -111,7 +111,11 @@ pub struct FullFrameworkInfo {
 
 impl FullFrameworkInfo {
     pub fn new(display_name: &str, download_url: &str, release_version: u32) -> Self {
-        FullFrameworkInfo { display_name: display_name.to_string(), download_url: download_url.to_string(), release_version }
+        FullFrameworkInfo {
+            display_name: display_name.to_string(),
+            download_url: download_url.to_string(),
+            release_version,
+        }
     }
 }
 
@@ -421,13 +425,22 @@ impl RuntimeInfo for DotnetInfo {
 
         let download_url = match self.runtime_type {
             DotnetRuntimeType::Runtime => {
-                format!("{}/Runtime/{}/dotnet-runtime-{}-win-{}.exe", DOTNET_CDN_FEED, version, version, cpu_arch_str)
+                format!(
+                    "{}/Runtime/{}/dotnet-runtime-{}-win-{}.exe",
+                    DOTNET_CDN_FEED, version, version, cpu_arch_str
+                )
             }
             DotnetRuntimeType::AspNetCore => {
-                format!("{}/aspnetcore/Runtime/{}/aspnetcore-runtime-{}-win-{}.exe", DOTNET_CDN_FEED, version, version, cpu_arch_str)
+                format!(
+                    "{}/aspnetcore/Runtime/{}/aspnetcore-runtime-{}-win-{}.exe",
+                    DOTNET_CDN_FEED, version, version, cpu_arch_str
+                )
             }
             DotnetRuntimeType::WindowsDesktop => {
-                format!("{}/WindowsDesktop/{}/windowsdesktop-runtime-{}-win-{}.exe", DOTNET_CDN_FEED, version, version, cpu_arch_str)
+                format!(
+                    "{}/WindowsDesktop/{}/windowsdesktop-runtime-{}-win-{}.exe",
+                    DOTNET_CDN_FEED, version, version, cpu_arch_str
+                )
             }
             DotnetRuntimeType::Sdk => {
                 format!("{}/Sdk/{}/dotnet-sdk-{}-win-{}.exe", DOTNET_CDN_FEED, version, version, cpu_arch_str)
@@ -496,14 +509,20 @@ fn test_dotnet_detects_installed_versions() {
 }
 
 lazy_static! {
-    static ref REGEX_DOTNET: Regex =
-        Regex::new(r"^net(?:coreapp)?(?<version>(?P<major>\d+)(\.(?P<minor>\d+))?(\.(?P<build>\d+))?)(?:-(?<arch>[a-zA-Z]+\d\d))?(?:-(?<type>[a-zA-Z]+))?$")
-            .unwrap();
+    static ref REGEX_DOTNET: Regex = Regex::new(
+        r"^net(?:coreapp)?(?<version>(?P<major>\d+)(\.(?P<minor>\d+))?(\.(?P<build>\d+))?)(?:-(?<arch>[a-zA-Z]+\d\d))?(?:-(?<type>[a-zA-Z]+))?$"
+    )
+    .unwrap();
 }
 
 fn parse_dotnet_version(version: &str) -> Result<DotnetInfo> {
-    let caps = REGEX_DOTNET.captures(version).ok_or_else(|| anyhow!("Invalid dotnet version string: '{}'", version))?;
-    let version_str = caps.name("version").ok_or_else(|| anyhow!("Invalid dotnet version string: '{}'", version))?.as_str();
+    let caps = REGEX_DOTNET
+        .captures(version)
+        .ok_or_else(|| anyhow!("Invalid dotnet version string: '{}'", version))?;
+    let version_str = caps
+        .name("version")
+        .ok_or_else(|| anyhow!("Invalid dotnet version string: '{}'", version))?
+        .as_str();
     let architecture_str = caps.name("arch").map(|m| m.as_str()).unwrap_or("x64");
     let runtime_type_str = caps.name("type").map(|m| m.as_str()).unwrap_or("desktop");
 
@@ -516,11 +535,15 @@ fn parse_dotnet_version(version: &str) -> Result<DotnetInfo> {
     }
 
     let architecture = RuntimeArch::from_str(architecture_str).ok_or_else(|| anyhow!("Invalid dotnet version string: '{}'", version))?;
-    let runtime_type =
-        DotnetRuntimeType::from_str(runtime_type_str).ok_or_else(|| anyhow!("Invalid dotnet version string: '{}'", version))?;
+    let runtime_type = DotnetRuntimeType::from_str(runtime_type_str).ok_or_else(|| anyhow!("Invalid dotnet version string: '{}'", version))?;
     let version_str = format!("{}.{}.{}", major, minor, build);
     let display_name = format!(".NET {} {:?} {:?}", version_str, architecture, runtime_type);
-    Ok(DotnetInfo { display_name, version: version_str, architecture, runtime_type })
+    Ok(DotnetInfo {
+        display_name,
+        version: version_str,
+        architecture,
+        runtime_type,
+    })
 }
 
 #[derive(Clone, Debug)]

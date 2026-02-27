@@ -81,10 +81,20 @@ fn get_path_for_shortcut_location(app_id: &str, app_title: &str, app_author: &st
 
 unsafe fn unsafe_update_app_manifest_lnks(next_app: &VelopackLocator, previous_app: Option<&VelopackLocator>) {
     let next_locations = next_app.get_manifest_shortcut_locations();
-    let prev_locations = previous_app.map(|a| a.get_manifest_shortcut_locations()).unwrap_or(ShortcutLocationFlags::NONE);
+    let prev_locations = previous_app
+        .map(|a| a.get_manifest_shortcut_locations())
+        .unwrap_or(ShortcutLocationFlags::NONE);
 
-    info!("Shortcut Previous Locations: {:?} ({:?})", prev_locations, previous_app.map(|a| a.get_manifest_version_full_string()));
-    info!("Shortcut Next Locations: {:?} ({:?})", next_locations, next_app.get_manifest_version_full_string());
+    info!(
+        "Shortcut Previous Locations: {:?} ({:?})",
+        prev_locations,
+        previous_app.map(|a| a.get_manifest_version_full_string())
+    );
+    info!(
+        "Shortcut Next Locations: {:?} ({:?})",
+        next_locations,
+        next_app.get_manifest_version_full_string()
+    );
 
     // we must end with shortcuts which exist in the next app but not the previous app.
     // any shortcuts which exist in both are optional - they could have been deleted by the user,
@@ -117,7 +127,10 @@ unsafe fn unsafe_update_app_manifest_lnks(next_app: &VelopackLocator, previous_a
 
         // set the target path to the main exe if it is missing or incorrect
         if target_option.is_none() || !PathBuf::from(target_option.unwrap()).exists() {
-            warn!("Shortcut {:?} target does not exist, updating to mainExe and setting workdir to current.", lnk.get_link_path());
+            warn!(
+                "Shortcut {:?} target does not exist, updating to mainExe and setting workdir to current.",
+                lnk.get_link_path()
+            );
             if let Err(e) = lnk.set_target_path(&app_main_exe) {
                 warn!("Failed to update shortcut target: {}", e);
             }
@@ -550,13 +563,21 @@ impl Lnk {
         //     warn!("Failed to resolve link {} ({:?})", link_path, e);
         // }
 
-        Ok(Lnk { me: link, pf: persist, my_path: link_path.to_path_buf() })
+        Ok(Lnk {
+            me: link,
+            pf: persist,
+            my_path: link_path.to_path_buf(),
+        })
     }
 
     pub unsafe fn create_new() -> Result<Lnk> {
         let link: IShellLinkW = create_instance(&ShellLink)?;
         let persist: IPersistFile = link.cast()?;
-        Ok(Lnk { me: link, pf: persist, my_path: PathBuf::new() })
+        Ok(Lnk {
+            me: link,
+            pf: persist,
+            my_path: PathBuf::new(),
+        })
     }
 }
 
