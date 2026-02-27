@@ -73,8 +73,8 @@ impl ProgressReporter for NoopProgressReporter {
     fn close(&self) {}
 }
 
-pub fn show_progress_dialog(title: &str, body: &str) -> Box<dyn ProgressReporter> {
-    match xdialog::show_progress(title, body, "", xdialog::XDialogIcon::Information) {
+pub fn show_progress_dialog(title: &str, header: &str, body: &str) -> Box<dyn ProgressReporter> {
+    match xdialog::show_progress(title, header, body, xdialog::XDialogIcon::Information) {
         Ok(proxy) => Box::new(XDialogProgressReporter::new(proxy)),
         Err(e) => {
             warn!("Failed to show progress dialog: {:?}", e);
@@ -87,10 +87,8 @@ pub fn show_apply_progress(app_name: &str, version: &str) -> Box<dyn ProgressRep
     if crate::dialogs::get_silent() {
         return Box::new(NoopProgressReporter);
     }
-    let mut args = fluent::FluentArgs::new();
-    args.set("app", app_name.to_string());
-    args.set("version", version.to_string());
-    let title = crate::localization::t("title-update", Some(&args));
-    let body = crate::localization::t("apply-body", Some(&args));
-    show_progress_dialog(&title, &body)
+    let title = crate::locale_strings::title_update(app_name);
+    let header = crate::locale_strings::apply_header();
+    let body = crate::locale_strings::apply_body(version);
+    show_progress_dialog(&title, &header, &body)
 }

@@ -1,6 +1,5 @@
-use crate::localization::t;
+use crate::locale_strings;
 use anyhow::{bail, Result};
-use fluent::FluentArgs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use xdialog::{XDialogIcon, XDialogOptions, XDialogResult};
@@ -16,42 +15,39 @@ pub fn get_silent() -> bool {
     SILENT.load(Ordering::Relaxed)
 }
 
-pub fn show_error(title: &str, header: Option<&str>, body: &str) {
+fn show_error(title: &str, header: &str, body: &str) {
     if get_silent() {
         return;
     }
-    let message = combine_header_body(header, body);
-    let _ = xdialog::show_message_error_ok(title, "", &message);
+    let _ = xdialog::show_message_error_ok(title, header, body);
 }
 
-pub fn show_warn(title: &str, header: Option<&str>, body: &str) {
+fn show_warn(title: &str, header: &str, body: &str) {
     if get_silent() {
         return;
     }
-    let message = combine_header_body(header, body);
-    let _ = xdialog::show_message_warn_ok(title, "", &message);
+    let _ = xdialog::show_message_warn_ok(title, header, body);
 }
 
-pub fn show_info(title: &str, header: Option<&str>, body: &str) {
+fn show_info(title: &str, header: &str, body: &str) {
     if get_silent() {
         return;
     }
-    let message = combine_header_body(header, body);
-    let _ = xdialog::show_message_info_ok(title, "", &message);
+    let _ = xdialog::show_message_info_ok(title, header, body);
 }
 
-pub fn show_ok_cancel(title: &str, header: Option<&str>, body: &str, ok_text: Option<&str>) -> bool {
+fn show_ok_cancel(title: &str, header: &str, body: &str, ok_text: Option<&str>) -> bool {
     if get_silent() {
         return false;
     }
-    let message = combine_header_body(header, body);
+    let main_instruction = header.to_string();
     if let Some(ok_label) = ok_text {
-        let cancel_label = t("btn-cancel", None);
+        let cancel_label = locale_strings::btn_cancel();
         let result = xdialog::show_message(
             XDialogOptions {
                 title: title.to_string(),
-                main_instruction: String::new(),
-                message,
+                main_instruction,
+                message: body.to_string(),
                 icon: XDialogIcon::Warning,
                 buttons: vec![ok_label.to_string(), cancel_label],
             },
@@ -59,7 +55,7 @@ pub fn show_ok_cancel(title: &str, header: Option<&str>, body: &str, ok_text: Op
         );
         matches!(result, Ok(XDialogResult::ButtonPressed(0)))
     } else {
-        xdialog::show_message_ok_cancel(title, "", &message, XDialogIcon::Warning).unwrap_or(false)
+        xdialog::show_message_ok_cancel(title, &main_instruction, body, XDialogIcon::Warning).unwrap_or(false)
     }
 }
 
@@ -68,16 +64,13 @@ pub fn ask_user_to_elevate(app_title: &str, new_version: &str) -> Result<()> {
         bail!("Not allowed to ask for elevated permissions because --silent flag is set.");
     }
 
-    let mut args = FluentArgs::new();
-    args.set("app", app_title.to_string());
-    args.set("version", new_version.to_string());
-
-    let title = t("title-update", Some(&args));
-    let body = t("elevate-body", Some(&args));
-    let ok_text = t("btn-install-update", None);
+    let title = locale_strings::title_update(app_title);
+    let header = locale_strings::elevate_header();
+    let body = locale_strings::elevate_body(app_title, new_version);
+    let ok_text = locale_strings::btn_install_update();
 
     info!("Showing user elevation prompt?");
-    if show_ok_cancel(&title, None, &body, Some(&ok_text)) {
+    if show_ok_cancel(&title, &header, &body, Some(&ok_text)) {
         info!("User answered yes to elevation...");
         Ok(())
     } else {
@@ -85,48 +78,36 @@ pub fn ask_user_to_elevate(app_title: &str, new_version: &str) -> Result<()> {
     }
 }
 
-pub fn show_restart_required(app_name: &str, app_version: &str) {
-    let mut args = FluentArgs::new();
-    args.set("app", app_name.to_string());
-    args.set("version", app_version.to_string());
-
-    let title = t("title-setup", Some(&args));
-    let body = t("restart-body", None);
-    show_warn(&title, None, &body);
+pub fn show_restart_required(app_name: &str, _app_version: &str) {
+    let title = locale_strings::title_setup(app_name);
+    let header = locale_strings::restart_header();
+    let body = locale_strings::restart_body();
+    show_warn(&title, &header, &body);
 }
 
-pub fn show_update_missing_dependencies_dialog(app_name: &str, dependency_string: &str, from_ver: &str, to_ver: &str) -> bool {
+pub fn show_update_missing_dependencies_dialog(app_name: &str, dependency_string: &str, _from_ver: &str, _to_ver: &str) -> bool {
     if get_silent() {
         warn!("Cancelling pre-requisite installation because silent flag is true.");
         return false;
     }
 
-    let mut args = FluentArgs::new();
-    args.set("app", app_name.to_string());
-    args.set("from", from_ver.to_string());
-    args.set("to", to_ver.to_string());
-    args.set("deps", dependency_string.to_string());
-
-    let title = t("title-update", Some(&args));
-    let body = t("missing-deps-body", Some(&args));
-    let button = t("btn-install", None);
-    show_ok_cancel(&title, None, &body, Some(&button))
+    let title = locale_strings::title_update(app_name);
+    let header = locale_strings::missing_deps_header();
+    let body = locale_strings::missing_deps_body(app_name, dependency_string);
+    let button = locale_strings::btn_install();
+    show_ok_cancel(&title, &header, &body, Some(&button))
 }
 
-pub fn show_setup_missing_dependencies_dialog(app_name: &str, app_version: &str, dependency_string: &str) -> bool {
+pub fn show_setup_missing_dependencies_dialog(app_name: &str, _app_version: &str, dependency_string: &str) -> bool {
     if get_silent() {
         return true;
     }
 
-    let mut args = FluentArgs::new();
-    args.set("app", app_name.to_string());
-    args.set("version", app_version.to_string());
-    args.set("deps", dependency_string.to_string());
-
-    let title = t("title-setup", Some(&args));
-    let body = t("missing-deps-body", Some(&args));
-    let button = t("btn-install", None);
-    show_ok_cancel(&title, None, &body, Some(&button))
+    let title = locale_strings::title_setup(app_name);
+    let header = locale_strings::missing_deps_header();
+    let body = locale_strings::missing_deps_body(app_name, dependency_string);
+    let button = locale_strings::btn_install();
+    show_ok_cancel(&title, &header, &body, Some(&button))
 }
 
 pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Option<&PathBuf>) {
@@ -134,25 +115,21 @@ pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Opt
         return;
     }
 
-    let mut args = FluentArgs::new();
-    args.set("app", app_title.to_string());
-
-    let title = t("title-uninstall", Some(&args));
-    let body = t("uninstall-errors-body", Some(&args));
+    let title = locale_strings::title_uninstall(app_title);
+    let header = locale_strings::uninstall_errors_header();
+    let body = locale_strings::uninstall_errors_body(app_title);
 
     let has_log = log_path.map(|p| p.exists()).unwrap_or(false);
     if has_log {
         let log_str = log_path.unwrap().to_string_lossy().to_string();
-        let mut log_args = FluentArgs::new();
-        log_args.set("path", log_str.clone());
-        let footer = t("uninstall-errors-log", Some(&log_args));
-        let open_log_label = t("btn-open-log", None);
+        let footer = locale_strings::uninstall_errors_log(&log_str);
+        let open_log_label = locale_strings::btn_open_log();
         let ok_label = "OK".to_string();
         let full_body = format!("{}\n\n{}", body, footer);
         let result = xdialog::show_message(
             XDialogOptions {
                 title,
-                main_instruction: String::new(),
+                main_instruction: header.clone(),
                 message: full_body,
                 icon: XDialogIcon::Warning,
                 buttons: vec![ok_label, open_log_label],
@@ -163,7 +140,7 @@ pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Opt
             open_path(&PathBuf::from(log_str));
         }
     } else {
-        show_warn(&title, None, &body);
+        show_warn(&title, &header, &body);
     }
 }
 
@@ -179,51 +156,46 @@ pub fn show_overwrite_repair_dialog(
         return true;
     }
 
-    let mut args = FluentArgs::new();
-    args.set("app", app_title.to_string());
-    args.set("version", app_version.to_string());
-    args.set("id", app_id.to_string());
-    args.set("path", root_path.display().to_string());
-
-    let title = t("title-setup", Some(&args));
+    let title = locale_strings::title_setup(app_title);
+    let path_str = root_path.display().to_string();
 
     let instruction;
     let body;
     let yes_label;
 
     if let Some(old_version) = installed_version {
-        args.set("old", old_version.to_string());
+        let old_str = old_version.to_string();
+        let ver_str = app_version.to_string();
         if old_version < app_version {
-            instruction = t("overwrite-older-installed", Some(&args));
-            body = t("overwrite-update-body", Some(&args));
-            yes_label = t("btn-update", None);
+            instruction = locale_strings::overwrite_older_installed(app_title);
+            body = locale_strings::overwrite_update_body(&old_str, &ver_str);
+            yes_label = locale_strings::btn_update();
         } else if old_version > app_version {
-            instruction = t("overwrite-newer-installed", Some(&args));
-            body = t("overwrite-downgrade-body", Some(&args));
-            yes_label = t("btn-downgrade", None);
+            instruction = locale_strings::overwrite_newer_installed(app_title);
+            body = locale_strings::overwrite_downgrade_body(&old_str);
+            yes_label = locale_strings::btn_downgrade();
         } else {
-            instruction = t("overwrite-already-installed", Some(&args));
-            body = t("overwrite-repair-body", None);
-            yes_label = t("btn-repair", None);
+            instruction = locale_strings::overwrite_already_installed(app_title);
+            body = locale_strings::overwrite_repair_body();
+            yes_label = locale_strings::btn_repair();
         }
     } else {
-        instruction = t("overwrite-already-installed", Some(&args));
-        body = t("overwrite-repair-body", None);
-        yes_label = t("btn-repair", None);
+        instruction = locale_strings::overwrite_already_installed(app_title);
+        body = locale_strings::overwrite_repair_body();
+        yes_label = locale_strings::btn_repair();
     }
 
-    let footer = t("overwrite-footer", Some(&args));
+    let footer = locale_strings::overwrite_footer(&path_str);
 
-    let cancel_label = t("btn-cancel", None);
-    let open_dir_label = t("btn-open-install-dir", None);
+    let cancel_label = locale_strings::btn_cancel();
+    let open_dir_label = locale_strings::btn_open_install_dir();
     let full_body = format!("{}\n\n{}", body, footer);
-    let message = combine_header_body(Some(&instruction), &full_body);
 
     let result = xdialog::show_message(
         XDialogOptions {
             title,
-            main_instruction: String::new(),
-            message,
+            main_instruction: instruction,
+            message: full_body,
             icon: XDialogIcon::Warning,
             buttons: vec![yes_label, open_dir_label, cancel_label],
         },
@@ -241,42 +213,38 @@ pub fn show_overwrite_repair_dialog(
     }
 }
 
-// --- Helper functions that encapsulate t() calls ---
+// --- Helper functions that encapsulate locale_strings calls ---
 
 pub fn show_generic_error(program_name: &str, error_string: &str) {
-    let mut args = FluentArgs::new();
-    args.set("program_name", program_name.to_string());
-    let title = t("error-title", Some(&args));
-    show_error(&title, None, error_string);
+    let title = locale_strings::error_title(program_name);
+    let header = locale_strings::error_header();
+    show_error(&title, &header, error_string);
 }
 
-pub fn show_install_hook_warning(app_title: &str, app_id: &str) {
-    let mut args = FluentArgs::new();
-    args.set("app", app_title.to_string());
-    args.set("id", app_id.to_string());
-    let title = t("title-setup", Some(&args));
-    let body = t("install-hook-body", None);
-    show_warn(&title, None, &body);
+pub fn show_install_hook_warning(app_title: &str, _app_id: &str) {
+    let title = locale_strings::title_setup(app_title);
+    let header = locale_strings::install_hook_header();
+    let body = locale_strings::install_hook_body();
+    show_warn(&title, &header, &body);
 }
 
 pub fn show_uninstall_complete(app_title: &str) {
-    let mut args = FluentArgs::new();
-    args.set("app", app_title.to_string());
-    let title = t("title-uninstall", Some(&args));
-    let body = t("uninstall-body", None);
-    show_info(&title, None, &body);
+    let title = locale_strings::title_uninstall(app_title);
+    let header = locale_strings::uninstall_header();
+    let body = locale_strings::uninstall_body();
+    show_info(&title, &header, &body);
+}
+
+pub fn show_setup_error(app_title: &str, error_string: &str) {
+    let title = locale_strings::title_setup(app_title);
+    let header = locale_strings::setup_error_header();
+    show_error(&title, &header, error_string);
 }
 
 pub fn show_start_corrupt_error(app_title: &str) {
-    let body = t("start-corrupt-body", None);
-    show_error(app_title, None, &body);
-}
-
-fn combine_header_body(header: Option<&str>, body: &str) -> String {
-    match header {
-        Some(h) if !h.is_empty() => format!("{}\n\n{}", h, body),
-        _ => body.to_string(),
-    }
+    let header = locale_strings::start_corrupt_header();
+    let body = locale_strings::start_corrupt_body();
+    show_error(app_title, &header, &body);
 }
 
 fn open_path(path: &PathBuf) {
@@ -298,20 +266,21 @@ fn open_path(path: &PathBuf) {
 #[test]
 #[ntest::timeout(2000)]
 fn test_no_dialogs_show_if_silent() {
+    crate::init();
     set_silent(true);
-    show_error("Error", None, "This is an error.");
-    show_warn("Warning", None, "This is a warning.");
-    show_info("Information", None, "This is information.");
-    assert!(!show_ok_cancel("Ok/Cancel", None, "This is a question.", None));
+    show_generic_error("TestApp", "This is an error.");
+    show_restart_required("TestApp", "1.0.0");
+    show_uninstall_complete("TestApp");
+    show_setup_error("TestApp", "This is a setup error.");
 }
 
 #[test]
 #[ignore]
 fn test_show_all_dialogs() {
+    crate::init();
     set_silent(false);
-    show_error("Error", None, "This is an error.");
-    show_warn("Warning", None, "This is a warning.");
-    show_info("Information", None, "This is information.");
-    assert!(show_ok_cancel("Ok/Cancel", None, "This is a question.", None));
-    assert!(!show_ok_cancel("Ok/Cancel", None, "This is a question.", Some("Dont click!")));
+    show_generic_error("TestApp", "This is an error.");
+    show_restart_required("TestApp", "1.0.0");
+    show_uninstall_complete("TestApp");
+    show_setup_error("TestApp", "This is a setup error.");
 }

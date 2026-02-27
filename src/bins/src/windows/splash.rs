@@ -65,7 +65,7 @@ pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>, options:
         thread::spawn(move || {
             info!("No splash image, using progress dialog...");
             use crate::dialogs::progress::show_progress_dialog;
-            let reporter = show_progress_dialog(&setup_name, &content);
+            let reporter = show_progress_dialog(&setup_name, &content, "");
             loop {
                 let next = drain_and_get_next_message(&rx);
                 if next == MSG_CLOSE {

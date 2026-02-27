@@ -1,12 +1,10 @@
+use crate::locale_constants::{EN_US_FTL, RU_FTL};
 use fluent::FluentArgs;
 use fluent_bundle::concurrent::FluentBundle;
 use fluent_bundle::FluentResource;
 use std::sync::OnceLock;
 
 static BUNDLE: OnceLock<FluentBundle<FluentResource>> = OnceLock::new();
-
-const EN_US_FTL: &str = include_str!("../../../locales/en-US.ftl");
-const RU_FTL: &str = include_str!("../../../locales/ru.ftl");
 
 /// Detect the system locale and pick the best available .ftl resource.
 /// Falls back to en-US if no match.
@@ -36,7 +34,7 @@ pub fn init_localization() {
     let _ = get_bundle();
 }
 
-pub fn t(id: &str, args: Option<&FluentArgs>) -> String {
+pub(crate) fn format_message(id: &str, args: Option<&FluentArgs>) -> String {
     let bundle = get_bundle();
     let msg = match bundle.get_message(id) {
         Some(m) => m,
