@@ -5,7 +5,8 @@ use msi::*;
 
 use std::{ffi::c_uint, path::PathBuf};
 use velopack::process;
-use velopack_bins::{dialogs, windows::prerequisite};
+use velopack_bins::windows::prerequisite;
+use win_task_dialog::{show_msg_dialog, TD_ERROR_ICON, TD_WARNING_ICON};
 use windows::Win32::{
     Foundation::{ERROR_INSTALL_USEREXIT, ERROR_SUCCESS},
     System::ApplicationInstallationAndServicing::MSIHANDLE,
@@ -31,7 +32,7 @@ pub extern "system" fn EarlyBootstrap(h_install: MSIHANDLE) -> c_uint {
             Err(e) => {
                 let title = format!("{} Setup", app_name);
                 let err = format!("An error occurred: {}", e);
-                dialogs::show_error(&title, Some("Setup can not continue"), &err);
+                show_msg_dialog(&title, "Setup Cannot Continue", &err, TD_ERROR_ICON);
                 ERROR_INSTALL_USEREXIT.0
             }
         }
@@ -109,7 +110,7 @@ fn show_debug_message(fn_name: &str, message: String) {
         return;
     }
     let message = format!("{}: {}", fn_name, message);
-    dialogs::show_warn(fn_name, None, &message);
+    show_msg_dialog(fn_name, "", &message, TD_WARNING_ICON);
 }
 
 #[cfg(not(debug_assertions))]
