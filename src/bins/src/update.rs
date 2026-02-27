@@ -11,7 +11,6 @@ use std::{env, path::PathBuf};
 use velopack::locator::{auto_locate_app_manifest, LocationContext};
 use velopack::logging::*;
 use velopack_bins::{shared::OperationWait, *};
-use xdialog;
 
 #[rustfmt::skip]
 fn root_command() -> Command {
@@ -132,12 +131,12 @@ fn main() {
     #[cfg(windows)]
     windows::splash::init_dpi_awareness();
 
-    let result = xdialog::XDialogBuilder::new().run_result(real_main);
+    let result = dialogs::XDialogBuilder::new().run_result(real_main);
     std::process::exit(if result.is_ok() { 0 } else { 1 });
 }
 
 fn real_main() -> Result<()> {
-    shared::localization::init_localization();
+    dialogs::init();
     main_inner()
 }
 

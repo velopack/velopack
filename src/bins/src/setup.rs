@@ -11,7 +11,6 @@ use std::ffi::OsString;
 use std::fs::File;
 use std::{env, path::PathBuf};
 use velopack_bins::*;
-use xdialog;
 
 #[used]
 #[no_mangle]
@@ -57,12 +56,12 @@ pub fn header_offset_and_length() -> (i64, i64) {
 fn main() {
     windows::mitigate::pre_main_sideload_mitigation();
     windows::splash::init_dpi_awareness();
-    let result = xdialog::XDialogBuilder::new().run_result(real_main);
+    let result = dialogs::XDialogBuilder::new().run_result(real_main);
     std::process::exit(if result.is_ok() { 0 } else { 1 });
 }
 
 fn real_main() -> Result<()> {
-    shared::localization::init_localization();
+    dialogs::init();
     shared::cli_host::clap_run_main("Setup", main_inner)
 }
 

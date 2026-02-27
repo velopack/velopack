@@ -1,14 +1,8 @@
-use crate::{
-    dialogs,
-    shared::{self},
-    windows,
-};
-use fluent::FluentArgs;
+use crate::{dialogs, shared, windows};
 use velopack::constants;
 use velopack::locator::*;
 use velopack::{bundle::BundleZip, wide_strings::string_to_wide};
 
-use ::windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 use anyhow::{anyhow, bail, Result};
 use pretty_bytes_rust::pretty_bytes;
 use std::{
@@ -16,6 +10,7 @@ use std::{
     fs::{self},
     path::{Path, PathBuf},
 };
+use ::windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 
 pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Option<Vec<OsString>>) -> Result<()> {
     // find and parse nuspec
@@ -87,7 +82,10 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     // does the target directory exist and have files? (eg. already installed)
     if !shared::is_dir_empty(&root_path) {
         // the target directory is not empty, and not dead
-        if !dialogs::show_overwrite_repair_dialog(&app, &root_path, root_is_default) {
+        let installed_version = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(root_path.clone(), None))
+            .ok()
+            .map(|loc| loc.get_manifest_version().clone());
+        if !dialogs::show_overwrite_repair_dialog(&app.title, &app.version, &app.id, &root_path, root_is_default, installed_version.as_ref()) {
             // user cancelled overwrite prompt
             error!("Directory already exists, and user cancelled overwrite.");
             return Ok(());
@@ -200,12 +198,7 @@ fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &std::sync::
 
     info!("Starting process install hook");
     if !windows::run_hook(&locator, constants::HOOK_CLI_INSTALL, 30) {
-        let mut args = FluentArgs::new();
-        args.set("app", locator.get_manifest_title());
-        args.set("id", locator.get_manifest_id());
-        let title = shared::localization::t("install-hook-title", Some(&args));
-        let body = shared::localization::t("install-hook-body", None);
-        dialogs::show_warn(&title, None, &body);
+        dialogs::show_install_hook_warning(&locator.get_manifest_title(), &locator.get_manifest_id());
     }
 
     let _ = tx.send(100);

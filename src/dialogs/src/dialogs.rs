@@ -1,11 +1,9 @@
-use super::dialogs_const::*;
-use super::localization::t;
+use crate::localization::t;
+use crate::types::*;
 use anyhow::{bail, Result};
 use fluent::FluentArgs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use velopack::bundle::Manifest;
-use velopack::locator::{auto_locate_app_manifest, LocationContext};
 use xdialog::{XDialogIcon, XDialogOptions, XDialogResult};
 
 static SILENT: AtomicBool = AtomicBool::new(false);
@@ -210,15 +208,22 @@ pub fn show_processes_locking_folder_dialog(app_title: &str, app_version: &str, 
     }
 }
 
-pub fn show_overwrite_repair_dialog(app: &Manifest, root_path: &PathBuf, root_is_default: bool) -> bool {
+pub fn show_overwrite_repair_dialog(
+    app_title: &str,
+    app_version: &semver::Version,
+    app_id: &str,
+    root_path: &PathBuf,
+    root_is_default: bool,
+    installed_version: Option<&semver::Version>,
+) -> bool {
     if get_silent() {
         return true;
     }
 
     let mut args = FluentArgs::new();
-    args.set("app", app.title.clone());
-    args.set("version", app.version.to_string());
-    args.set("id", app.id.clone());
+    args.set("app", app_title.to_string());
+    args.set("version", app_version.to_string());
+    args.set("id", app_id.to_string());
     args.set("path", root_path.display().to_string());
 
     let title = t("overwrite-title", Some(&args));
@@ -227,16 +232,13 @@ pub fn show_overwrite_repair_dialog(app: &Manifest, root_path: &PathBuf, root_is
     let body;
     let yes_label;
 
-    // detect current app version to determine repair/update/downgrade
-    let old_app = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(root_path.to_owned(), None));
-    if let Ok(old) = old_app {
-        let old_version = old.get_manifest_version();
+    if let Some(old_version) = installed_version {
         args.set("old", old_version.to_string());
-        if old_version < app.version {
+        if old_version < app_version {
             instruction = t("overwrite-older-installed", Some(&args));
             body = t("overwrite-update-body", Some(&args));
             yes_label = t("overwrite-update-button", None);
-        } else if old_version > app.version {
+        } else if old_version > app_version {
             instruction = t("overwrite-newer-installed", Some(&args));
             body = t("overwrite-downgrade-body", Some(&args));
             yes_label = t("overwrite-downgrade-button", None);
@@ -278,10 +280,42 @@ pub fn show_overwrite_repair_dialog(app: &Manifest, root_path: &PathBuf, root_is
         Ok(XDialogResult::ButtonPressed(1)) => {
             open_path(root_path);
             // after opening the directory, re-show the dialog
-            show_overwrite_repair_dialog(app, root_path, root_is_default)
+            show_overwrite_repair_dialog(app_title, app_version, app_id, root_path, root_is_default, installed_version)
         }
         _ => false,
     }
+}
+
+// --- Helper functions that encapsulate t() calls ---
+
+pub fn show_generic_error(program_name: &str, error_string: &str) {
+    let mut args = FluentArgs::new();
+    args.set("program_name", program_name.to_string());
+    let title = t("error-title", Some(&args));
+    show_error(&title, None, error_string);
+}
+
+pub fn show_install_hook_warning(app_title: &str, app_id: &str) {
+    let mut args = FluentArgs::new();
+    args.set("app", app_title.to_string());
+    args.set("id", app_id.to_string());
+    let title = t("install-hook-title", Some(&args));
+    let body = t("install-hook-body", None);
+    show_warn(&title, None, &body);
+}
+
+pub fn show_uninstall_complete(app_title: &str) {
+    let mut args = FluentArgs::new();
+    args.set("app", app_title.to_string());
+    let title = t("uninstall-title", Some(&args));
+    let body = t("uninstall-body", None);
+    show_info(&title, None, &body);
+}
+
+pub fn show_start_corrupt_error(app_title: &str) {
+    let header = t("start-corrupt-header", None);
+    let body = t("start-corrupt-body", None);
+    show_error(app_title, Some(&header), &body);
 }
 
 fn combine_header_body(header: Option<&str>, body: &str) -> String {

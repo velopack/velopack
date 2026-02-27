@@ -16,8 +16,7 @@ use windows::{
 const TMR_GIF: usize = 1;
 const MSG_NOMESSAGE: i16 = -99;
 
-pub const MSG_CLOSE: i16 = -1;
-pub const MSG_INDEFINITE: i16 = -2;
+pub use crate::dialogs::{MSG_CLOSE, MSG_INDEFINITE};
 
 fn parse_hex_color(color_str: &str) -> (u8, u8, u8) {
     let hex_str = color_str.trim_start_matches('#');
@@ -64,26 +63,20 @@ pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>, options:
         let setup_name = format!("{} Setup", app_name);
         let content = format!("Installing {}...", app_name);
         thread::spawn(move || {
-            info!("No splash image, using xdialog progress dialog...");
-            match xdialog::show_progress(&setup_name, &content, "", xdialog::XDialogIcon::Information) {
-                Ok(proxy) => {
-                    use crate::shared::dialogs::{MSG_CLOSE, MSG_INDEFINITE};
-                    loop {
-                        let next = drain_and_get_next_message(&rx);
-                        if next == MSG_CLOSE {
-                            let _ = proxy.close();
-                            break;
-                        } else if next == MSG_INDEFINITE {
-                            let _ = proxy.set_indeterminate();
-                        } else if next >= 0 {
-                            let _ = proxy.set_value(next as f32 / 100.0);
-                        }
-                        std::thread::sleep(std::time::Duration::from_millis(50));
-                    }
+            info!("No splash image, using progress dialog...");
+            use crate::dialogs::progress::show_progress_dialog;
+            let reporter = show_progress_dialog(&setup_name, &content);
+            loop {
+                let next = drain_and_get_next_message(&rx);
+                if next == MSG_CLOSE {
+                    reporter.close();
+                    break;
+                } else if next == MSG_INDEFINITE {
+                    reporter.set_indeterminate();
+                } else if next >= 0 {
+                    reporter.set_progress(next);
                 }
-                Err(e) => {
-                    error!("Failed to show xdialog progress: {:?}", e);
-                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
             }
         });
     }

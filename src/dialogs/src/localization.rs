@@ -7,7 +7,7 @@ static BUNDLE: OnceLock<FluentBundle<FluentResource>> = OnceLock::new();
 
 fn get_bundle() -> &'static FluentBundle<FluentResource> {
     BUNDLE.get_or_init(|| {
-        let ftl = include_str!("../../../../locales/en-US.ftl");
+        let ftl = include_str!("../../../locales/en-US.ftl");
         let resource = FluentResource::try_new(ftl.to_string()).expect("Failed to parse Fluent resource");
         let lang_id: unic_langid::LanguageIdentifier = "en-US".parse().expect("Failed to parse language identifier");
         let mut bundle = FluentBundle::new_concurrent(vec![lang_id]);

@@ -3285,8 +3285,6 @@ dependencies = [
  "chrono",
  "clap",
  "derivative",
- "fluent",
- "fluent-bundle",
  "fs_extra",
  "glob",
  "image",
@@ -3315,8 +3313,8 @@ dependencies = [
  "strum",
  "tempfile",
  "time 0.3.47",
- "unic-langid",
  "velopack",
+ "velopack_dialogs",
  "wait-timeout",
  "waitpid-any",
  "walkdir",
@@ -3324,9 +3322,22 @@ dependencies = [
  "windows 0.62.2",
  "winreg 0.55.0",
  "winres",
- "xdialog",
  "zip",
  "zstd",
+]
+
+[[package]]
+name = "velopack_dialogs"
+version = "0.0.0-local"
+dependencies = [
+ "anyhow",
+ "fluent",
+ "fluent-bundle",
+ "log",
+ "ntest",
+ "semver",
+ "unic-langid",
+ "xdialog",
 ]
 
 [[package]]

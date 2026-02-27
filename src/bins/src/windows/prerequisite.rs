@@ -1,5 +1,5 @@
 use super::runtimes;
-use crate::shared::{self, dialogs};
+use crate::dialogs;
 use anyhow::Result;
 use velopack::download;
 
@@ -60,7 +60,7 @@ pub fn prompt_and_install_all_missing(
                 let content = format!("Downloading {}...", dep.display_name());
                 info!("    {}", content);
 
-                let reporter = shared::progress::show_progress_dialog(&window_title, &content);
+                let reporter = dialogs::progress::show_progress_dialog(&window_title, &content);
                 let result = download::download_url_to_file(&url, &exe_path, |p| {
                     reporter.set_progress(p);
                 });

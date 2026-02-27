@@ -1,0 +1,19 @@
+[package]
+name = "velopack_dialogs"
+publish = false
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+log.workspace = true
+anyhow.workspace = true
+semver.workspace = true
+xdialog.workspace = true
+fluent-bundle.workspace = true
+fluent.workspace = true
+unic-langid.workspace = true
+
+[dev-dependencies]
+ntest.workspace = true

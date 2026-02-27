@@ -1,7 +1,4 @@
-use crate::{
-    shared::{self},
-    windows::{self},
-};
+use crate::{dialogs, shared, windows};
 use anyhow::{bail, Context, Result};
 use std::{ffi::OsString, fs, path::PathBuf, time::Duration};
 use velopack::{bundle::load_bundle_from_file, constants, locator::VelopackLocator, process};
@@ -115,7 +112,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
     let temp_path_old = old_locator.get_temp_dir_rand16();
 
     // open a dialog showing progress...
-    let reporter = shared::progress::show_apply_progress(&new_locator.get_manifest_title(), &new_locator.get_manifest_version_full_string());
+    let reporter = dialogs::progress::show_apply_progress(&new_locator.get_manifest_title(), &new_locator.get_manifest_version_full_string());
 
     let action: Result<()> = (|| {
         // first, extract the update to temp_path_new

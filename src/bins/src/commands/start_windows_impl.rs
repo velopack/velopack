@@ -98,9 +98,7 @@ pub fn start_impl(
             }
             Err(e) => {
                 warn!("Failed to migrate legacy app ({}).", e);
-                let header = crate::shared::localization::t("start-corrupt-header", None);
-                let body = crate::shared::localization::t("start-corrupt-body", None);
-                dialogs::show_error(&manifest.title, Some(&header), &body);
+                dialogs::show_start_corrupt_error(&manifest.title);
                 Err(e)
             }
         }

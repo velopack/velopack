@@ -1,4 +1,4 @@
-use crate::shared::{self, dialogs};
+use crate::{dialogs, shared};
 use anyhow::{bail, Result};
 use std::os::unix::fs::PermissionsExt;
 use std::{fs, path::PathBuf, process::Command};
@@ -16,7 +16,7 @@ pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _runhook
     let new_locator = locator.clone_self_with_new_manifest(&manifest);
 
     // show progress dialog
-    let reporter = shared::progress::show_apply_progress(&manifest.title, &manifest.version.to_string());
+    let reporter = dialogs::progress::show_apply_progress(&manifest.title, &manifest.version.to_string());
 
     let action: Result<()> = (|| {
         info!("Extracting bundle to temp file: {}", temp_path);
