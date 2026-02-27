@@ -132,10 +132,6 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
 
         // third, we try _REALLY HARD_ to stop the package
         let _ = shared::force_stop_package(&root_path);
-        // if winsafe::IsWindows10OrGreater() == Ok(true) && !locksmith::close_processes_locking_dir(&old_locator) {
-        //     bail!("Failed to close processes locking directory / user cancelled.");
-        // }
-
         // fourth, we make as backup of the current dir to temp_path_old
         info!("Backing up current dir to {:?}", &temp_path_old);
         shared::retry_io_ex(|| fs::rename(&current_dir, &temp_path_old), 1000, 10)

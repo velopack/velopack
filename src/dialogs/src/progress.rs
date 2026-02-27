@@ -90,7 +90,7 @@ pub fn show_apply_progress(app_name: &str, version: &str) -> Box<dyn ProgressRep
     let mut args = fluent::FluentArgs::new();
     args.set("app", app_name.to_string());
     args.set("version", version.to_string());
-    let title = crate::localization::t("apply-title", Some(&args));
+    let title = crate::localization::t("title-update", Some(&args));
     let body = crate::localization::t("apply-body", Some(&args));
     show_progress_dialog(&title, &body)
 }

@@ -2,8 +2,6 @@
 pub enum DialogResult {
     Ok,
     Cancel,
-    Retry,
-    Continue,
 }
 
 pub const MSG_CLOSE: i16 = -1;

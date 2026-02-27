@@ -1,5 +1,4 @@
 use crate::localization::t;
-use crate::types::*;
 use anyhow::{bail, Result};
 use fluent::FluentArgs;
 use std::path::PathBuf;
@@ -73,7 +72,7 @@ pub fn ask_user_to_elevate(app_title: &str, new_version: &str) -> Result<()> {
     args.set("app", app_title.to_string());
     args.set("version", new_version.to_string());
 
-    let title = t("elevate-title", Some(&args));
+    let title = t("title-update", Some(&args));
     let body = t("elevate-body", Some(&args));
     let ok_text = t("btn-install-update", None);
 
@@ -91,10 +90,9 @@ pub fn show_restart_required(app_name: &str, app_version: &str) {
     args.set("app", app_name.to_string());
     args.set("version", app_version.to_string());
 
-    let title = t("restart-title", Some(&args));
-    let header = t("restart-header", None);
+    let title = t("title-setup", Some(&args));
     let body = t("restart-body", None);
-    show_warn(&title, Some(&header), &body);
+    show_warn(&title, None, &body);
 }
 
 pub fn show_update_missing_dependencies_dialog(app_name: &str, dependency_string: &str, from_ver: &str, to_ver: &str) -> bool {
@@ -109,11 +107,10 @@ pub fn show_update_missing_dependencies_dialog(app_name: &str, dependency_string
     args.set("to", to_ver.to_string());
     args.set("deps", dependency_string.to_string());
 
-    let title = t("update-deps-title", Some(&args));
-    let header = t("update-deps-header", Some(&args));
-    let body = t("update-deps-body", Some(&args));
-    let button = t("update-deps-button", None);
-    show_ok_cancel(&title, Some(&header), &body, Some(&button))
+    let title = t("title-update", Some(&args));
+    let body = t("missing-deps-body", Some(&args));
+    let button = t("btn-install", None);
+    show_ok_cancel(&title, None, &body, Some(&button))
 }
 
 pub fn show_setup_missing_dependencies_dialog(app_name: &str, app_version: &str, dependency_string: &str) -> bool {
@@ -126,11 +123,10 @@ pub fn show_setup_missing_dependencies_dialog(app_name: &str, app_version: &str,
     args.set("version", app_version.to_string());
     args.set("deps", dependency_string.to_string());
 
-    let title = t("setup-deps-title", Some(&args));
-    let header = t("setup-deps-header", Some(&args));
-    let body = t("setup-deps-body", Some(&args));
-    let button = t("setup-deps-button", None);
-    show_ok_cancel(&title, Some(&header), &body, Some(&button))
+    let title = t("title-setup", Some(&args));
+    let body = t("missing-deps-body", Some(&args));
+    let button = t("btn-install", None);
+    show_ok_cancel(&title, None, &body, Some(&button))
 }
 
 pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Option<&PathBuf>) {
@@ -141,9 +137,8 @@ pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Opt
     let mut args = FluentArgs::new();
     args.set("app", app_title.to_string());
 
-    let title = t("uninstall-errors-title", Some(&args));
-    let header = t("uninstall-errors-header", Some(&args));
-    let body = t("uninstall-errors-body", None);
+    let title = t("title-uninstall", Some(&args));
+    let body = t("uninstall-errors-body", Some(&args));
 
     let has_log = log_path.map(|p| p.exists()).unwrap_or(false);
     if has_log {
@@ -157,7 +152,7 @@ pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Opt
         let result = xdialog::show_message(
             XDialogOptions {
                 title,
-                main_instruction: header,
+                main_instruction: String::new(),
                 message: full_body,
                 icon: XDialogIcon::Warning,
                 buttons: vec![ok_label, open_log_label],
@@ -168,43 +163,7 @@ pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Opt
             open_path(&PathBuf::from(log_str));
         }
     } else {
-        show_warn(&title, Some(&header), &body);
-    }
-}
-
-pub fn show_processes_locking_folder_dialog(app_title: &str, app_version: &str, process_names: &str) -> DialogResult {
-    if get_silent() {
-        return DialogResult::Cancel;
-    }
-
-    let mut args = FluentArgs::new();
-    args.set("app", app_title.to_string());
-    args.set("version", app_version.to_string());
-    args.set("processes", process_names.to_string());
-
-    let title = t("locking-title", Some(&args));
-    let header = t("locking-header", Some(&args));
-    let body = t("locking-body", Some(&args));
-    let retry_label = t("locking-retry", None);
-    let continue_label = t("locking-continue", None);
-    let cancel_label = t("locking-cancel", None);
-
-    let message = combine_header_body(Some(&header), &body);
-    let result = xdialog::show_message(
-        XDialogOptions {
-            title,
-            main_instruction: String::new(),
-            message,
-            icon: XDialogIcon::Information,
-            buttons: vec![retry_label, continue_label, cancel_label],
-        },
-        None,
-    );
-
-    match result {
-        Ok(XDialogResult::ButtonPressed(0)) => DialogResult::Retry,
-        Ok(XDialogResult::ButtonPressed(1)) => DialogResult::Continue,
-        _ => DialogResult::Cancel,
+        show_warn(&title, None, &body);
     }
 }
 
@@ -213,7 +172,7 @@ pub fn show_overwrite_repair_dialog(
     app_version: &semver::Version,
     app_id: &str,
     root_path: &PathBuf,
-    root_is_default: bool,
+    _root_is_default: bool,
     installed_version: Option<&semver::Version>,
 ) -> bool {
     if get_silent() {
@@ -226,7 +185,7 @@ pub fn show_overwrite_repair_dialog(
     args.set("id", app_id.to_string());
     args.set("path", root_path.display().to_string());
 
-    let title = t("overwrite-title", Some(&args));
+    let title = t("title-setup", Some(&args));
 
     let instruction;
     let body;
@@ -237,27 +196,23 @@ pub fn show_overwrite_repair_dialog(
         if old_version < app_version {
             instruction = t("overwrite-older-installed", Some(&args));
             body = t("overwrite-update-body", Some(&args));
-            yes_label = t("overwrite-update-button", None);
+            yes_label = t("btn-update", None);
         } else if old_version > app_version {
             instruction = t("overwrite-newer-installed", Some(&args));
             body = t("overwrite-downgrade-body", Some(&args));
-            yes_label = t("overwrite-downgrade-button", None);
+            yes_label = t("btn-downgrade", None);
         } else {
             instruction = t("overwrite-already-installed", Some(&args));
             body = t("overwrite-repair-body", None);
-            yes_label = t("overwrite-repair-button", None);
+            yes_label = t("btn-repair", None);
         }
     } else {
         instruction = t("overwrite-already-installed", Some(&args));
         body = t("overwrite-repair-body", None);
-        yes_label = t("overwrite-repair-button", None);
+        yes_label = t("btn-repair", None);
     }
 
-    let footer = if root_is_default {
-        t("overwrite-footer-default", Some(&args))
-    } else {
-        t("overwrite-footer-custom", Some(&args))
-    };
+    let footer = t("overwrite-footer", Some(&args));
 
     let cancel_label = t("btn-cancel", None);
     let open_dir_label = t("btn-open-install-dir", None);
@@ -280,7 +235,7 @@ pub fn show_overwrite_repair_dialog(
         Ok(XDialogResult::ButtonPressed(1)) => {
             open_path(root_path);
             // after opening the directory, re-show the dialog
-            show_overwrite_repair_dialog(app_title, app_version, app_id, root_path, root_is_default, installed_version)
+            show_overwrite_repair_dialog(app_title, app_version, app_id, root_path, _root_is_default, installed_version)
         }
         _ => false,
     }
@@ -299,7 +254,7 @@ pub fn show_install_hook_warning(app_title: &str, app_id: &str) {
     let mut args = FluentArgs::new();
     args.set("app", app_title.to_string());
     args.set("id", app_id.to_string());
-    let title = t("install-hook-title", Some(&args));
+    let title = t("title-setup", Some(&args));
     let body = t("install-hook-body", None);
     show_warn(&title, None, &body);
 }
@@ -307,15 +262,14 @@ pub fn show_install_hook_warning(app_title: &str, app_id: &str) {
 pub fn show_uninstall_complete(app_title: &str) {
     let mut args = FluentArgs::new();
     args.set("app", app_title.to_string());
-    let title = t("uninstall-title", Some(&args));
+    let title = t("title-uninstall", Some(&args));
     let body = t("uninstall-body", None);
     show_info(&title, None, &body);
 }
 
 pub fn show_start_corrupt_error(app_title: &str) {
-    let header = t("start-corrupt-header", None);
     let body = t("start-corrupt-body", None);
-    show_error(app_title, Some(&header), &body);
+    show_error(app_title, None, &body);
 }
 
 fn combine_header_body(header: Option<&str>, body: &str) -> String {
