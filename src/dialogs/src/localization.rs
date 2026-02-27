@@ -5,11 +5,27 @@ use std::sync::OnceLock;
 
 static BUNDLE: OnceLock<FluentBundle<FluentResource>> = OnceLock::new();
 
+const EN_US_FTL: &str = include_str!("../../../locales/en-US.ftl");
+const RU_FTL: &str = include_str!("../../../locales/ru.ftl");
+
+/// Detect the system locale and pick the best available .ftl resource.
+/// Falls back to en-US if no match.
+fn select_locale() -> (&'static str, &'static str) {
+    if let Some(locale_str) = sys_locale::get_locale() {
+        let lower = locale_str.to_lowercase();
+        if lower.starts_with("ru") {
+            return ("ru", RU_FTL);
+        }
+    }
+    ("en-US", EN_US_FTL)
+}
+
 fn get_bundle() -> &'static FluentBundle<FluentResource> {
     BUNDLE.get_or_init(|| {
-        let ftl = include_str!("../../../locales/en-US.ftl");
-        let resource = FluentResource::try_new(ftl.to_string()).expect("Failed to parse Fluent resource");
-        let lang_id: unic_langid::LanguageIdentifier = "en-US".parse().expect("Failed to parse language identifier");
+        let (lang_tag, ftl_source) = select_locale();
+        info!("Locale selected: {}", lang_tag);
+        let resource = FluentResource::try_new(ftl_source.to_string()).expect("Failed to parse Fluent resource");
+        let lang_id: unic_langid::LanguageIdentifier = lang_tag.parse().expect("Failed to parse language identifier");
         let mut bundle = FluentBundle::new_concurrent(vec![lang_id]);
         bundle.add_resource(resource).expect("Failed to add Fluent resource");
         bundle
