@@ -1,11 +1,9 @@
 use crate::{
-    dialogs,
     shared::{self},
-    windows::{self, splash},
+    windows::{self},
 };
 use anyhow::{bail, Context, Result};
-use std::{ffi::OsString, fs, path::PathBuf};
-use std::{sync::mpsc, time::Duration};
+use std::{ffi::OsString, fs, path::PathBuf, time::Duration};
 use velopack::{bundle::load_bundle_from_file, constants, locator::VelopackLocator, process};
 
 // fn ropycopy<P1: AsRef<Path>, P2: AsRef<Path>>(source: &P1, dest: &P2) -> Result<()> {
@@ -106,21 +104,16 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
     let temp_path_old = old_locator.get_temp_dir_rand16();
 
     // open a dialog showing progress...
-    let (mut tx, _) = mpsc::channel::<i16>();
-    if !dialogs::get_silent() {
-        let title = format!("{} Update", new_locator.get_manifest_title());
-        let message = format!("Installing update {}...", new_locator.get_manifest_version_full_string());
-        tx = splash::show_progress_dialog(title, message);
-    }
+    let reporter = shared::progress::show_apply_progress(&new_locator.get_manifest_title(), &new_locator.get_manifest_version_full_string());
 
     let action: Result<()> = (|| {
         // first, extract the update to temp_path_new
         fs::create_dir_all(&temp_path_new)?;
         bundle.extract_lib_contents_to_path(&temp_path_new, |p| {
-            let _ = tx.send(p);
+            reporter.set_progress(p);
         })?;
 
-        let _ = tx.send(splash::MSG_INDEFINITE);
+        reporter.set_indeterminate();
 
         // second, run application hooks (but don't care if it fails)
         if run_hooks {
@@ -244,7 +237,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
         Ok(())
     })();
 
-    let _ = tx.send(splash::MSG_CLOSE);
+    reporter.close();
     let _ = remove_dir_all::remove_dir_all(&temp_path_new);
     let _ = remove_dir_all::remove_dir_all(&temp_path_old);
     action?;

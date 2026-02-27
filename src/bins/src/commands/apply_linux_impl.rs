@@ -1,4 +1,4 @@
-use crate::shared::dialogs;
+use crate::shared::{self, dialogs};
 use anyhow::{bail, Result};
 use std::os::unix::fs::PermissionsExt;
 use std::{fs, path::PathBuf, process::Command};
@@ -15,13 +15,17 @@ pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _runhook
     let script_path = format!("/var/tmp/velopack_update_{}.sh", manifest.id);
     let new_locator = locator.clone_self_with_new_manifest(&manifest);
 
+    // show progress dialog
+    let reporter = shared::progress::show_apply_progress(&manifest.title, &manifest.version.to_string());
+
     let action: Result<()> = (|| {
         info!("Extracting bundle to temp file: {}", temp_path);
-        bundle.extract_zip_predicate_to_path(|z| z.ends_with(".AppImage"), &temp_path)?;
+        bundle.extract_zip_predicate_to_path_with_progress(|z| z.ends_with(".AppImage"), &temp_path, |p| reporter.set_progress(p))?;
 
         info!("Chmod as executable");
         std::fs::set_permissions(&temp_path, fs::Permissions::from_mode(0o755))?;
 
+        reporter.set_indeterminate();
         info!("Moving temp file to target: {}", &root_path);
         // we use mv instead of fs::rename / fs::copy because rename fails cross-device
         // and copy fails if the process is running (presumably because rust opens the file for writing)
@@ -51,6 +55,7 @@ pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _runhook
             bail!("pkexec failed with status: {:?}", elev_output);
         }
     })();
+    reporter.close();
     let _ = fs::remove_file(&script_path);
     let _ = fs::remove_file(&temp_path);
     action?;

@@ -1,6 +1,12 @@
+use super::localization::t;
+use fluent::FluentArgs;
+
 pub fn clap_run_main(program_name: &str, main_inner: fn() -> anyhow::Result<()>) -> anyhow::Result<()> {
     if let Err(e) = main_inner() {
         let error_string = format!("An error has occurred: {:?}", e);
+        let mut args = FluentArgs::new();
+        args.set("program_name", program_name.to_string());
+        let title = t("error-title", Some(&args));
         match e.downcast::<clap::Error>() {
             Ok(downcast) => {
                 let output_string = downcast.to_string();
@@ -19,14 +25,14 @@ pub fn clap_run_main(program_name: &str, main_inner: fn() -> anyhow::Result<()>)
                     }
                     _ => {
                         error!("{}", error_string);
-                        crate::dialogs::show_error(format!("{program_name} Error").as_str(), None, &error_string);
+                        crate::dialogs::show_error(&title, None, &error_string);
                         return Err(anyhow::Error::from(downcast));
                     }
                 }
             }
             Err(e) => {
                 error!("{}", error_string);
-                crate::dialogs::show_error(format!("{program_name} Error").as_str(), None, &error_string);
+                crate::dialogs::show_error(&title, None, &error_string);
                 return Err(e);
             }
         }

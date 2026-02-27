@@ -11,6 +11,7 @@ use std::{env, path::PathBuf};
 use velopack::locator::{auto_locate_app_manifest, LocationContext};
 use velopack::logging::*;
 use velopack_bins::{shared::OperationWait, *};
+use xdialog;
 
 #[rustfmt::skip]
 fn root_command() -> Command {
@@ -125,16 +126,22 @@ fn get_op_wait(matches: &ArgMatches) -> shared::OperationWait {
     }
 }
 
-// fn main() -> Result<()> {
-//     shared::cli_host::clap_run_main("Update", main_inner)
-// }
-
-fn main() -> Result<()> {
+fn main() {
     #[cfg(windows)]
     windows::mitigate::pre_main_sideload_mitigation();
     #[cfg(windows)]
     windows::splash::init_dpi_awareness();
 
+    let result = xdialog::XDialogBuilder::new().run_result(real_main);
+    std::process::exit(if result.is_ok() { 0 } else { 1 });
+}
+
+fn real_main() -> Result<()> {
+    shared::localization::init_localization();
+    main_inner()
+}
+
+fn main_inner() -> Result<()> {
     #[cfg(windows)]
     let matches = try_parse_command_line_matches(env::args().collect())?;
     #[cfg(unix)]
@@ -171,8 +178,9 @@ fn main() -> Result<()> {
     info!("    Log File: {:?}", desired_log_file);
     info!("    Context: {:?}", &location_context);
 
-    let (subcommand, subcommand_matches) =
-        matches.subcommand().ok_or_else(|| anyhow!("No known subcommand was used. Try `--help` for more information."))?;
+    let (subcommand, subcommand_matches) = matches
+        .subcommand()
+        .ok_or_else(|| anyhow!("No known subcommand was used. Try `--help` for more information."))?;
 
     let result = match subcommand {
         #[cfg(target_os = "windows")]
@@ -328,7 +336,12 @@ fn update_self(context: LocationContext, _matches: &ArgMatches) -> Result<()> {
 #[cfg(target_os = "windows")]
 #[test]
 fn test_cli_parse_handles_equals_spaces() {
-    let command = vec!["C:\\Some Path\\With = Spaces\\Update.exe", "apply", "--package", "C:\\Some Path\\With = Spaces\\Package.zip"];
+    let command = vec![
+        "C:\\Some Path\\With = Spaces\\Update.exe",
+        "apply",
+        "--package",
+        "C:\\Some Path\\With = Spaces\\Package.zip",
+    ];
     let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
     let (wait, restart, package, exe_args) = get_apply_args(matches.subcommand_matches("apply").unwrap());
 
@@ -341,7 +354,14 @@ fn test_cli_parse_handles_equals_spaces() {
 #[cfg(target_os = "windows")]
 #[test]
 fn test_cli_handles_root_dir_at_end() {
-    let command = vec!["C:\\Some Path\\With = Spaces\\Update.exe", "apply", "--package", "C:\\Package.zip", "--rootDir", "C:\\Some Path"];
+    let command = vec![
+        "C:\\Some Path\\With = Spaces\\Update.exe",
+        "apply",
+        "--package",
+        "C:\\Package.zip",
+        "--rootDir",
+        "C:\\Some Path",
+    ];
     let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
     let root = matches.get_one::<PathBuf>("rootDir");
     assert_eq!(root, Some(&PathBuf::from("C:\\Some Path")));
@@ -359,7 +379,16 @@ fn test_cli_handles_root_alias() {
 #[cfg(target_os = "windows")]
 #[test]
 fn test_cli_handles_package_dir() {
-    let command = vec!["Update.exe", "apply", "--package", "C:\\Package.zip", "--rootDir", "C:\\Root", "--packageDir", "C:\\Custom\\Packages"];
+    let command = vec![
+        "Update.exe",
+        "apply",
+        "--package",
+        "C:\\Package.zip",
+        "--rootDir",
+        "C:\\Root",
+        "--packageDir",
+        "C:\\Custom\\Packages",
+    ];
     let matches = try_parse_command_line_matches(command.iter().map(|s| s.to_string()).collect()).unwrap();
     let root = matches.get_one::<PathBuf>("rootDir");
     let pkg_dir = matches.get_one::<PathBuf>("packageDir");

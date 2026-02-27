@@ -15,13 +15,17 @@ pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _runhook
     let manifest = bundle.read_manifest()?;
     let new_locator = locator.clone_self_with_new_manifest(&manifest);
 
+    // show progress dialog
+    let reporter = shared::progress::show_apply_progress(&manifest.title, &manifest.version.to_string());
+
     let action: Result<()> = (|| {
         // 1. extract the bundle to a temp dir
         fs::create_dir_all(&tmp_path_new)?;
         info!("Extracting bundle to {:?}", &tmp_path_new);
-        bundle.extract_lib_contents_to_path(&tmp_path_new, |_| {})?;
+        bundle.extract_lib_contents_to_path(&tmp_path_new, |p| reporter.set_progress(p))?;
 
         // 2. attempt to replace the current bundle with the new one
+        reporter.set_indeterminate();
         let result: Result<()> = (|| {
             info!("Replacing bundle at {:?}", &root_path);
             fs::rename(&root_path, &tmp_path_old)?;
@@ -61,6 +65,7 @@ pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _runhook
             }
         }
     })();
+    reporter.close();
     let _ = fs::remove_dir_all(&tmp_path_new);
     let _ = fs::remove_dir_all(&tmp_path_old);
     action?;

@@ -3,6 +3,7 @@ use crate::{
     shared::{self},
     windows,
 };
+use fluent::FluentArgs;
 use velopack::constants;
 use velopack::locator::*;
 use velopack::{bundle::BundleZip, wide_strings::string_to_wide};
@@ -201,12 +202,12 @@ fn install_impl(
 
     info!("Starting process install hook");
     if !windows::run_hook(&locator, constants::HOOK_CLI_INSTALL, 30) {
-        let setup_name = format!("{} Setup {}", locator.get_manifest_title(), locator.get_manifest_id());
-        dialogs::show_warn(
-            &setup_name,
-            None,
-            "Installation has completed, but the application install hook failed. It may not have installed correctly.",
-        );
+        let mut args = FluentArgs::new();
+        args.set("app", locator.get_manifest_title());
+        args.set("id", locator.get_manifest_id());
+        let title = shared::localization::t("install-hook-title", Some(&args));
+        let body = shared::localization::t("install-hook-body", None);
+        dialogs::show_warn(&title, None, &body);
     }
 
     let _ = tx.send(100);

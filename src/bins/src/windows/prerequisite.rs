@@ -1,5 +1,5 @@
-use super::{runtimes, splash};
-use crate::shared::dialogs;
+use super::runtimes;
+use crate::shared::{self, dialogs};
 use anyhow::Result;
 use velopack::download;
 
@@ -60,12 +60,12 @@ pub fn prompt_and_install_all_missing(
                 let content = format!("Downloading {}...", dep.display_name());
                 info!("    {}", content);
 
-                let tx = splash::show_progress_dialog(window_title, content);
+                let reporter = shared::progress::show_progress_dialog(&window_title, &content);
                 let result = download::download_url_to_file(&url, &exe_path, |p| {
-                    let _ = tx.send(p);
+                    reporter.set_progress(p);
                 });
 
-                let _ = tx.send(splash::MSG_CLOSE);
+                reporter.close();
                 result?;
             }
 

@@ -11,6 +11,7 @@ use std::ffi::OsString;
 use std::fs::File;
 use std::{env, path::PathBuf};
 use velopack_bins::*;
+use xdialog;
 
 #[used]
 #[no_mangle]
@@ -53,9 +54,15 @@ pub fn header_offset_and_length() -> (i64, i64) {
     }
 }
 
-fn main() -> Result<()> {
+fn main() {
     windows::mitigate::pre_main_sideload_mitigation();
     windows::splash::init_dpi_awareness();
+    let result = xdialog::XDialogBuilder::new().run_result(real_main);
+    std::process::exit(if result.is_ok() { 0 } else { 1 });
+}
+
+fn real_main() -> Result<()> {
+    shared::localization::init_localization();
     shared::cli_host::clap_run_main("Setup", main_inner)
 }
 
@@ -70,8 +77,11 @@ fn main_inner() -> Result<()> {
         .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceded by '--'.").required(false).last(true).num_args(0..));
 
     if cfg!(debug_assertions) {
-        arg_config = arg_config
-            .arg(arg!(-d --debug <FILE> "Debug mode, install from a nupkg file").required(false).value_parser(value_parser!(PathBuf)));
+        arg_config = arg_config.arg(
+            arg!(-d --debug <FILE> "Debug mode, install from a nupkg file")
+                .required(false)
+                .value_parser(value_parser!(PathBuf)),
+        );
     }
 
     let matches = arg_config.try_get_matches()?;
@@ -81,7 +91,9 @@ fn main_inner() -> Result<()> {
 
     let verbose = matches.get_flag("verbose");
     let logfile = matches.get_one::<PathBuf>("log");
-    let desired_log_file = logfile.cloned().unwrap_or(velopack::logging::default_logfile_path(velopack::logging::NoLocator));
+    let desired_log_file = logfile
+        .cloned()
+        .unwrap_or(velopack::logging::default_logfile_path(velopack::logging::NoLocator));
     velopack::logging::init_logging("setup", Some(&desired_log_file), true, verbose, None);
 
     let debug = matches.get_one::<PathBuf>("debug");

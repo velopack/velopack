@@ -55,7 +55,13 @@ pub fn load_bundle_from_memory<'a>(zip_range: &'a [u8]) -> Result<BundleZip<'a>,
     info!("Loading bundle from embedded zip...");
     let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(zip_range));
     let zip = ZipArchive::new(cursor)?;
-    Ok(BundleZip { zip: Rc::new(RefCell::new(zip)), zip_from_file: false, zip_range: Some(zip_range), file_path: None, manifest: None })
+    Ok(BundleZip {
+        zip: Rc::new(RefCell::new(zip)),
+        zip_from_file: false,
+        zip_range: Some(zip_range),
+        file_path: None,
+        manifest: None,
+    })
 }
 
 #[allow(dead_code)]
@@ -133,6 +139,10 @@ impl BundleZip<'_> {
     }
 
     pub fn extract_zip_idx_to_path<T: AsRef<Path>>(&self, index: usize, path: T) -> Result<(), Error> {
+        self.extract_zip_idx_to_path_with_progress(index, path, |_| {})
+    }
+
+    pub fn extract_zip_idx_to_path_with_progress<T: AsRef<Path>, P: Fn(i16)>(&self, index: usize, path: T, progress: P) -> Result<(), Error> {
         let path = path.as_ref();
         debug!("Extracting zip file to path: {:?}", path);
         let p = PathBuf::from(path);
@@ -145,8 +155,10 @@ impl BundleZip<'_> {
 
         let mut archive = self.zip.borrow_mut();
         let mut file = archive.by_index(index)?;
+        let total_size = file.size();
         let mut outfile = misc::retry_io(|| File::create(path))?;
         let mut buffer = [0; 64000]; // Use a 64KB buffer; good balance for large/small files.
+        let mut bytes_written: u64 = 0;
 
         debug!("Writing file to disk with 64k buffer: {:?}", path);
         loop {
@@ -155,6 +167,10 @@ impl BundleZip<'_> {
                 break; // End of file
             }
             outfile.write_all(&buffer[..len])?;
+            bytes_written += len as u64;
+            if total_size > 0 {
+                progress(((bytes_written as f64 / total_size as f64) * 100.0) as i16);
+            }
         }
 
         Ok(())
@@ -164,12 +180,24 @@ impl BundleZip<'_> {
     where
         F: Fn(&str) -> bool,
     {
+        self.extract_zip_predicate_to_path_with_progress(predicate, path, |_| {})
+    }
+
+    pub fn extract_zip_predicate_to_path_with_progress<F, T: AsRef<Path>, P: Fn(i16)>(
+        &self,
+        predicate: F,
+        path: T,
+        progress: P,
+    ) -> Result<usize, Error>
+    where
+        F: Fn(&str) -> bool,
+    {
         let idx = self.find_zip_file(predicate);
         if idx.is_none() {
             return Err(Error::InvalidPackage("(zip bundle predicate not found)".to_owned()));
         }
         let idx = idx.unwrap();
-        self.extract_zip_idx_to_path(idx, path)?;
+        self.extract_zip_idx_to_path_with_progress(idx, path, progress)?;
         Ok(idx)
     }
 
@@ -178,8 +206,9 @@ impl BundleZip<'_> {
             return Ok(manifest.clone());
         }
 
-        let nuspec_idx =
-            self.find_zip_file(|name| name.ends_with(".nuspec")).ok_or(Error::InvalidPackage("No .nuspec manifest found".into()))?;
+        let nuspec_idx = self
+            .find_zip_file(|name| name.ends_with(".nuspec"))
+            .ok_or(Error::InvalidPackage("No .nuspec manifest found".into()))?;
 
         let mut contents = String::new();
         let mut archive = self.zip.borrow_mut();
@@ -426,7 +455,8 @@ pub fn read_manifest_from_string(xml: &str) -> Result<Manifest, Error> {
                     obj.shortcut_locations = text;
                 } else if el_name == "shortcutAumid" {
                     obj.shortcut_aumid = text;
-                } else if el_name == "shortcutAmuid" { // legacy typo / backwards compatibility
+                } else if el_name == "shortcutAmuid" {
+                    // legacy typo / backwards compatibility
                     obj.shortcut_aumid = text;
                 } else if el_name == "releaseNotes" {
                     obj.release_notes = text;

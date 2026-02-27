@@ -38,7 +38,11 @@ pub fn uninstall(locator: &VelopackLocator, delete_self: bool) -> Result<()> {
     let app_title = locator.get_manifest_title();
 
     info!("Finished successfully.");
-    shared::dialogs::show_info(format!("{} Uninstall", app_title).as_str(), None, "The application was successfully uninstalled.");
+    let mut args = fluent::FluentArgs::new();
+    args.set("app", app_title.clone());
+    let title = shared::localization::t("uninstall-title", Some(&args));
+    let body = shared::localization::t("uninstall-body", None);
+    shared::dialogs::show_info(&title, None, &body);
 
     if delete_self {
         if let Err(e) = windows::register_intent_to_delete_self(3, &root_path) {
