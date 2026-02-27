@@ -185,10 +185,27 @@ pub fn overwrite_footer(path: &str) -> String {
     format_message(OVERWRITE_FOOTER, Some(&args))
 }
 
-pub fn splash_body(app: &str) -> String {
+pub fn splash_header(app: &str) -> String {
     let mut args = FluentArgs::new();
     args.set("app_title", app.to_string());
+    format_message(SPLASH_HEADER, Some(&args))
+}
+
+pub fn splash_body(app: &str, version: &str) -> String {
+    let mut args = FluentArgs::new();
+    args.set("app_title", app.to_string());
+    args.set("app_version", version.to_string());
     format_message(SPLASH_BODY, Some(&args))
+}
+
+pub fn deps_download_header() -> String {
+    format_message(DEPS_DOWNLOAD_HEADER, None)
+}
+
+pub fn deps_download_body(dep_name: &str) -> String {
+    let mut args = FluentArgs::new();
+    args.set("dep_name", dep_name.to_string());
+    format_message(DEPS_DOWNLOAD_BODY, Some(&args))
 }
 
 pub fn apply_body(version: &str) -> String {

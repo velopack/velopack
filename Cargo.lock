@@ -3397,7 +3397,7 @@ dependencies = [
  "remove_dir_all",
  "velopack",
  "velopack_bins",
- "win-task-dialog",
+ "velopack_dialogs",
  "windows 0.62.2",
 ]
 
@@ -3600,16 +3600,6 @@ name = "widestring"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72069c3113ab32ab29e5584db3c6ec55d416895e60715417b5b883a357c3e471"
-
-[[package]]
-name = "win-task-dialog"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa26b34abda792048a2fff823800db20928812d9dd3e5fdf41614e4234caa24c"
-dependencies = [
- "widestring",
- "windows 0.62.2",
-]
 
 [[package]]
 name = "winapi"
@@ -4141,9 +4131,9 @@ checksum = "9edde0db4769d2dc68579893f2306b26c6ecfbe0ef499b013d731b7b9247e0b9"
 
 [[package]]
 name = "xdialog"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "908f6b0742e9e900913c557327f568d0b6459e293c61cb3154180dbe3124bdc6"
+checksum = "ca48b586471f8743ae95b89cde4622ea4f73ae781feb5f5820b3428c4e61022b"
 dependencies = [
  "dark-light",
  "enum-map",

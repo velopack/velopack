@@ -21,6 +21,6 @@ crate-type = ["cdylib"]
 anyhow.workspace = true
 velopack.workspace = true
 velopack_bins.workspace = true
+velopack_dialogs.workspace = true
 remove_dir_all.workspace = true
-windows = { workspace = true, features = ["Win32_Foundation"] }
-win-task-dialog.workspace = true
+windows = { workspace = true, features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }

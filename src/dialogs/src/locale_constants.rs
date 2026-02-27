@@ -1,6 +1,7 @@
 macro_rules! define_locale_keys {
     ($($const_name:ident = $key:literal),* $(,)?) => {
         $(pub const $const_name: &str = $key;)*
+        #[allow(dead_code)]
         pub const ALL_KEYS: &[&str] = &[$($key),*];
     }
 }
@@ -8,6 +9,7 @@ macro_rules! define_locale_keys {
 macro_rules! define_locales {
     ($($const_name:ident = $tag:literal => $path:literal),* $(,)?) => {
         $(pub(crate) const $const_name: &str = include_str!($path);)*
+        #[allow(dead_code)]
         pub(crate) const LOCALE_SOURCES: &[(&str, &str)] = &[$(($tag, $const_name)),*];
     }
 }
@@ -53,7 +55,10 @@ define_locale_keys! {
     UNINSTALL_BODY = "uninstall-body",
     INSTALL_HOOK_HEADER = "install-hook-header",
     INSTALL_HOOK_BODY = "install-hook-body",
+    SPLASH_HEADER = "splash-header",
     SPLASH_BODY = "splash-body",
+    DEPS_DOWNLOAD_HEADER = "deps-download-header",
+    DEPS_DOWNLOAD_BODY = "deps-download-body",
     APPLY_HEADER = "apply-header",
     APPLY_BODY = "apply-body",
     START_CORRUPT_HEADER = "start-corrupt-header",

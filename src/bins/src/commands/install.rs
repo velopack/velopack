@@ -130,6 +130,7 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
         let splash_bytes = pkg.get_splash_bytes();
         windows::splash::show_splash_dialog(
             manifest.title,
+            manifest.version.to_string(),
             splash_bytes,
             windows::splash::SplashOptions {
                 splash_progress_color: Some(manifest.splash_progress_color),

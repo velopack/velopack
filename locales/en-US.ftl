@@ -49,7 +49,12 @@ install-hook-header = Install Hook Failed
 install-hook-body = Installation has completed, but the application install hook failed. It may not have installed correctly.
 
 # Splash fallback (splash.rs)
-splash-body = Installing { $app_title }...
+splash-header = Installing { $app_title }
+splash-body = Installing { $app_title } { $app_version }...
+
+# Dependency download (prerequisite.rs)
+deps-download-header = Downloading Dependency
+deps-download-body = { $dep_name }...
 
 # Apply progress (apply_*_impl.rs)
 apply-header = Installing Update

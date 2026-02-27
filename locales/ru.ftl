@@ -49,7 +49,12 @@ install-hook-header = Ошибка хука установки
 install-hook-body = Установка завершена, но хук установки приложения завершился с ошибкой. Возможно, приложение установлено некорректно.
 
 # Splash fallback (splash.rs)
-splash-body = Установка { $app_title }...
+splash-header = Установка { $app_title }
+splash-body = Установка { $app_title } { $app_version }...
+
+# Dependency download (prerequisite.rs)
+deps-download-header = Загрузка зависимости
+deps-download-body = { $dep_name }...
 
 # Apply progress (apply_*_impl.rs)
 apply-header = Установка обновления

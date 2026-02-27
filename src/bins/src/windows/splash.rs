@@ -48,7 +48,7 @@ impl SplashOptions {
     }
 }
 
-pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>, options: SplashOptions) -> Sender<i16> {
+pub fn show_splash_dialog(app_name: String, app_version: String, imgstream: Option<Vec<u8>>, options: SplashOptions) -> Sender<i16> {
     let (tx, rx) = mpsc::channel::<i16>();
     if let Some(img) = imgstream {
         thread::spawn(move || {
@@ -60,12 +60,9 @@ pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>, options:
         });
     } else {
         // No image: use xdialog progress dialog and bridge it via channel
-        let setup_name = format!("{} Setup", app_name);
-        let content = format!("Installing {}...", app_name);
         thread::spawn(move || {
             info!("No splash image, using progress dialog...");
-            use crate::dialogs::progress::show_progress_dialog;
-            let reporter = show_progress_dialog(&setup_name, &content, "");
+            let reporter = crate::dialogs::progress::show_splash_progress(&app_name, &app_version);
             loop {
                 let next = drain_and_get_next_message(&rx);
                 if next == MSG_CLOSE {
@@ -546,7 +543,7 @@ fn test_parse_hex_color_invalid_falls_back_to_green() {
 #[ignore]
 fn show_splash_gif() {
     let rd = std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures/splash-test.gif")).unwrap();
-    let tx = show_splash_dialog("osu!".to_string(), Some(rd), SplashOptions::default());
+    let tx = show_splash_dialog("osu!".to_string(), "1.0.0".to_string(), Some(rd), SplashOptions::default());
     let _ = tx.send(25);
     std::thread::sleep(std::time::Duration::from_secs(1));
     let _ = tx.send(50);
@@ -564,7 +561,7 @@ fn show_splash_gif() {
 fn show_splash_png_transparency() {
     let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures/splash-test.png");
     let rd = std::fs::read(&fixture).unwrap();
-    let tx = show_splash_dialog("Beer App".to_string(), Some(rd), SplashOptions::default());
+    let tx = show_splash_dialog("Beer App".to_string(), "1.0.0".to_string(), Some(rd), SplashOptions::default());
     let _ = tx.send(50);
     std::thread::sleep(std::time::Duration::from_secs(5));
     let _ = tx.send(100);
@@ -579,6 +576,7 @@ fn show_splash_without_progress_bar() {
     let rd = std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures/splash-test.gif")).unwrap();
     let tx = show_splash_dialog(
         "osu!".to_string(),
+        "1.0.0".to_string(),
         Some(rd),
         SplashOptions {
             splash_progress_color: Some("None".to_string()),

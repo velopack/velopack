@@ -6,14 +6,15 @@ use msi::*;
 use std::{ffi::c_uint, path::PathBuf};
 use velopack::process;
 use velopack_bins::windows::prerequisite;
-use win_task_dialog::{show_msg_dialog, TD_ERROR_ICON, TD_WARNING_ICON};
 use windows::Win32::{
     Foundation::{ERROR_INSTALL_USEREXIT, ERROR_SUCCESS},
     System::ApplicationInstallationAndServicing::MSIHANDLE,
+    UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_ICONWARNING, MB_OK, MESSAGEBOX_STYLE},
 };
 
 #[no_mangle]
 pub extern "system" fn EarlyBootstrap(h_install: MSIHANDLE) -> c_uint {
+    velopack_dialogs::init();
     let dependencies = msi_get_property(h_install, "RustRuntimeDependencies");
     let app_name = msi_get_property(h_install, "RustAppTitle");
     let app_version = msi_get_property(h_install, "RustAppVersion");
@@ -30,9 +31,10 @@ pub extern "system" fn EarlyBootstrap(h_install: MSIHANDLE) -> c_uint {
             Ok(true) => ERROR_SUCCESS.0,
             Ok(false) => ERROR_INSTALL_USEREXIT.0,
             Err(e) => {
-                let title = format!("{} Setup", app_name);
-                let err = format!("An error occurred: {}", e);
-                show_msg_dialog(&title, "Setup Cannot Continue", &err, TD_ERROR_ICON);
+                let title = velopack_dialogs::locale_strings::title_setup(&app_name);
+                let header = velopack_dialogs::locale_strings::setup_error_header();
+                let err = format!("{}\n\n{}", header, e);
+                show_messagebox(&title, &err, MB_ICONERROR);
                 ERROR_INSTALL_USEREXIT.0
             }
         }
@@ -104,13 +106,22 @@ pub extern "system" fn LaunchApplication(h_install: MSIHANDLE) -> c_uint {
     ERROR_SUCCESS.0
 }
 
+fn show_messagebox(title: &str, message: &str, icon: MESSAGEBOX_STYLE) {
+    use velopack::wide_strings::string_to_wide;
+    let title_w = string_to_wide(title);
+    let message_w = string_to_wide(message);
+    unsafe {
+        let _ = MessageBoxW(None, message_w.as_pcwstr(), title_w.as_pcwstr(), MB_OK | icon);
+    }
+}
+
 #[cfg(debug_assertions)]
 fn show_debug_message(fn_name: &str, message: String) {
     if std::env::var("CI").is_ok() {
         return;
     }
     let message = format!("{}: {}", fn_name, message);
-    show_msg_dialog(fn_name, "", &message, TD_WARNING_ICON);
+    show_messagebox(fn_name, &message, MB_ICONWARNING);
 }
 
 #[cfg(not(debug_assertions))]

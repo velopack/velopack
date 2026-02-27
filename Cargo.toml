@@ -69,7 +69,7 @@ tempfile = "3.25"
 ntest = "0.9"
 pretty_assertions = "1.4"
 waitpid-any = "0.3"
-xdialog = "0.2.2"
+xdialog = "0.2.3"
 fluent-bundle = "0.16"
 fluent = "0.17"
 unic-langid = "0.9"
@@ -94,7 +94,6 @@ pyo3-build-config = "0.28"
 pyo3-log = "0.13"
 winreg = "0.55"
 sys-locale = "0.3"
-win-task-dialog = "1.0"
 
 # default to small, optimized workspace release binaries
 [profile.release]
