@@ -23,4 +23,4 @@ velopack.workspace = true
 velopack_bins.workspace = true
 remove_dir_all.workspace = true
 windows = { workspace = true, features = ["Win32_Foundation"] }
-win-task-dialog = "0.1"
+win-task-dialog.workspace = true

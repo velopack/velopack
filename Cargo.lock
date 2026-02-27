@@ -3603,12 +3603,12 @@ checksum = "72069c3113ab32ab29e5584db3c6ec55d416895e60715417b5b883a357c3e471"
 
 [[package]]
 name = "win-task-dialog"
-version = "0.1.8"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70350ede57238da6c65ee7d6bf7d67a0d96d2f393a8b77b8afd74b02f3782b13"
+checksum = "aa26b34abda792048a2fff823800db20928812d9dd3e5fdf41614e4234caa24c"
 dependencies = [
  "widestring",
- "winapi",
+ "windows 0.62.2",
 ]
 
 [[package]]
