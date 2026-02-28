@@ -142,9 +142,10 @@ impl<'a> VelopackApp<'a> {
         let restarted = env::var(HOOK_ENV_RESTART).is_ok();
         env::remove_var(HOOK_ENV_RESTART);
         
-        // if auto apply is true, we should check for a local package downloaded with a version
-        // greater than ours. If it exists, we should quit and apply it now.
-        if self.auto_apply {
+        // if auto apply is true and we haven't just been restarted via Velopack apply,
+        // we should check for a local package downloaded with a version greater than ours.
+        // If it exists, we should quit and apply it now.
+        if self.auto_apply && !restarted {
             if let Some(asset) = manager.get_update_pending_restart() {
                 match Version::parse(&asset.Version) {
                     Ok(asset_version) => {
