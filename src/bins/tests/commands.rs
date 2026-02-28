@@ -3,6 +3,7 @@
 mod common;
 use common::*;
 use std::hint::assert_unchecked;
+use std::sync::Mutex;
 use std::{fs, path::Path, path::PathBuf};
 use tempfile::tempdir;
 
@@ -10,11 +11,17 @@ use velopack_bins::*;
 use velopack::bundle::load_bundle_from_file;
 use velopack::locator::{auto_locate_app_manifest, LocationContext};
 
+// Tests that call commands::install create shortcuts in shared OS directories (Start Menu, Desktop).
+// This mutex prevents them from running in parallel and interfering with each other.
+#[cfg(target_os = "windows")]
+static SHORTCUT_MUTEX: Mutex<()> = Mutex::new(());
+
 #[cfg(target_os = "windows")]
 #[test]
 pub fn test_install_apply_uninstall() {
     use velopack_bins::windows::known_path;
 
+    let _lock = SHORTCUT_MUTEX.lock().unwrap();
     dialogs::set_silent(true);
 
     let fixtures = find_fixtures();
@@ -77,6 +84,7 @@ pub fn test_install_apply_uninstall() {
 #[cfg(target_os = "windows")]
 #[test]
 pub fn test_install_preserve_symlinks() {
+    let _lock = SHORTCUT_MUTEX.lock().unwrap();
     dialogs::set_silent(true);
     let fixtures = find_fixtures();
     let pkg_name = "Test.Squirrel-App-1.0.0-symlinks-full.nupkg";
@@ -131,6 +139,7 @@ pub fn test_patch_apply() {
 #[cfg(target_os = "windows")]
 #[test]
 pub fn test_apply_corrupt_package_is_deleted() {
+    let _lock = SHORTCUT_MUTEX.lock().unwrap();
     dialogs::set_silent(true);
     let fixtures = find_fixtures();
 
@@ -160,6 +169,7 @@ pub fn test_apply_corrupt_package_is_deleted() {
 #[cfg(target_os = "windows")]
 #[test]
 pub fn test_apply_locked_dir_does_not_delete_package() {
+    let _lock = SHORTCUT_MUTEX.lock().unwrap();
     dialogs::set_silent(true);
     let fixtures = find_fixtures();
 
