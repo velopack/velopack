@@ -234,8 +234,10 @@ impl UpdateManager {
     /// VelopackAsset can be applied by calling apply_updates_and_restart or wait_exit_then_apply_updates.
     pub fn get_update_pending_restart(&self) -> Option<VelopackAsset> {
         let packages_dir = self.locator.get_packages_dir();
-        if let Some((_, manifest)) = locator::find_latest_full_package(&packages_dir) {
-            if manifest.version > self.locator.get_manifest_version() {}
+        if let Some((path, manifest)) = locator::find_latest_full_package(&packages_dir) {
+            if manifest.version > self.locator.get_manifest_version() {
+                return Some(self.local_manifest_to_asset(&manifest, &path));
+            }
         }
         None
     }
