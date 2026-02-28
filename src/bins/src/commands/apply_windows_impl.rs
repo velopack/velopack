@@ -41,8 +41,16 @@ use velopack::{bundle::load_bundle_from_file, constants, locator::VelopackLocato
 pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_hooks: bool) -> Result<VelopackLocator> {
     let root_path = old_locator.get_root_dir();
 
-    let mut bundle = load_bundle_from_file(package)?;
-    let new_app_manifest = bundle.read_manifest()?;
+    let mut bundle = load_bundle_from_file(package).map_err(|e| {
+        warn!("Deleting package {:?} to prevent update loop: {}", package, e);
+        let _ = fs::remove_file(package);
+        e
+    })?;
+    let new_app_manifest = bundle.read_manifest().map_err(|e| {
+        warn!("Deleting package {:?} to prevent update loop: {}", package, e);
+        let _ = fs::remove_file(package);
+        e
+    })?;
     let new_locator = old_locator.clone_self_with_new_manifest(&new_app_manifest);
 
     if !windows::is_directory_writable(&root_path) {
@@ -118,6 +126,10 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
         fs::create_dir_all(&temp_path_new)?;
         bundle.extract_lib_contents_to_path(&temp_path_new, |p| {
             let _ = tx.send(p);
+        }).map_err(|e| {
+            warn!("Deleting package {:?} to prevent update loop: {}", package, e);
+            let _ = fs::remove_file(package);
+            e
         })?;
 
         let _ = tx.send(splash::MSG_INDEFINITE);

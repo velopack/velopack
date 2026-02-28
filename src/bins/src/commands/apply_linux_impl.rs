@@ -8,8 +8,16 @@ pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _runhook
     let _mutex = locator.try_get_exclusive_lock()?;
     // on linux, the current "dir" is actually an AppImage file which we need to replace.
     info!("Loading bundle from {:?}", pkg);
-    let mut bundle = bundle::load_bundle_from_file(pkg)?;
-    let manifest = bundle.read_manifest()?;
+    let mut bundle = bundle::load_bundle_from_file(pkg).map_err(|e| {
+        warn!("Deleting package {:?} to prevent update loop: {}", pkg, e);
+        let _ = fs::remove_file(pkg);
+        e
+    })?;
+    let manifest = bundle.read_manifest().map_err(|e| {
+        warn!("Deleting package {:?} to prevent update loop: {}", pkg, e);
+        let _ = fs::remove_file(pkg);
+        e
+    })?;
     let temp_path = locator.get_temp_dir_rand16().to_string_lossy().to_string();
     let root_path = locator.get_root_dir().to_string_lossy().to_string();
     let script_path = format!("/var/tmp/velopack_update_{}.sh", manifest.id);
@@ -17,7 +25,11 @@ pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _runhook
 
     let action: Result<()> = (|| {
         info!("Extracting bundle to temp file: {}", temp_path);
-        bundle.extract_zip_predicate_to_path(|z| z.ends_with(".AppImage"), &temp_path)?;
+        bundle.extract_zip_predicate_to_path(|z| z.ends_with(".AppImage"), &temp_path).map_err(|e| {
+            warn!("Deleting package {:?} to prevent update loop: {}", pkg, e);
+            let _ = fs::remove_file(pkg);
+            e
+        })?;
 
         info!("Chmod as executable");
         std::fs::set_permissions(&temp_path, fs::Permissions::from_mode(0o755))?;
