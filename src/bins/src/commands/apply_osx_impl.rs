@@ -11,15 +11,27 @@ pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _runhook
     let root_path = locator.get_root_dir();
     let tmp_path_new = locator.get_temp_dir_rand16();
     let tmp_path_old = locator.get_temp_dir_rand16();
-    let mut bundle = bundle::load_bundle_from_file(pkg)?;
-    let manifest = bundle.read_manifest()?;
+    let mut bundle = bundle::load_bundle_from_file(pkg).map_err(|e| {
+        warn!("Deleting package {:?} to prevent update loop: {}", pkg, e);
+        let _ = fs::remove_file(pkg);
+        e
+    })?;
+    let manifest = bundle.read_manifest().map_err(|e| {
+        warn!("Deleting package {:?} to prevent update loop: {}", pkg, e);
+        let _ = fs::remove_file(pkg);
+        e
+    })?;
     let new_locator = locator.clone_self_with_new_manifest(&manifest);
 
     let action: Result<()> = (|| {
         // 1. extract the bundle to a temp dir
         fs::create_dir_all(&tmp_path_new)?;
         info!("Extracting bundle to {:?}", &tmp_path_new);
-        bundle.extract_lib_contents_to_path(&tmp_path_new, |_| {})?;
+        bundle.extract_lib_contents_to_path(&tmp_path_new, |_| {}).map_err(|e| {
+            warn!("Deleting package {:?} to prevent update loop: {}", pkg, e);
+            let _ = fs::remove_file(pkg);
+            e
+        })?;
 
         // 2. attempt to replace the current bundle with the new one
         let result: Result<()> = (|| {
