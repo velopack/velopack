@@ -10,6 +10,11 @@ pub fn register_intent_to_delete_self(delay_seconds: usize, root_dir: &Path) -> 
     let parent_dir = root_dir.parent().unwrap_or(root_dir);
 
     const CREATE_NO_WINDOW: u32 = 0x08000000;
-    Process::new("cmd.exe").arg("/C").raw_arg(command).current_dir(parent_dir).creation_flags(CREATE_NO_WINDOW).spawn()?;
+    Process::new("cmd.exe")
+        .arg("/C")
+        .raw_arg(command)
+        .current_dir(parent_dir)
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()?;
     Ok(())
 }

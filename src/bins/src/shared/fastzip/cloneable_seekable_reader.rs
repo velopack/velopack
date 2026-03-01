@@ -66,7 +66,10 @@ pub(crate) struct CloneableSeekableReader<R: Read + Seek> {
 
 impl<R: Read + Seek> Clone for CloneableSeekableReader<R> {
     fn clone(&self) -> Self {
-        Self { inner: self.inner.clone(), pos: self.pos }
+        Self {
+            inner: self.inner.clone(),
+            pos: self.pos,
+        }
     }
 }
 
@@ -77,7 +80,10 @@ impl<R: Read + Seek> CloneableSeekableReader<R> {
     /// of the stream changes; any subsequent seeks will not take account
     /// of the changed stream length.
     pub(crate) fn new(r: R) -> Self {
-        Self { inner: Arc::new(Mutex::new(Inner::new(r))), pos: 0u64 }
+        Self {
+            inner: Arc::new(Mutex::new(Inner::new(r))),
+            pos: 0u64,
+        }
     }
 }
 
@@ -108,10 +114,10 @@ impl<R: Read + Seek> Seek for CloneableSeekableReader<R> {
                     .checked_add_signed(offset_from_end)
                     .ok_or(std::io::Error::new(std::io::ErrorKind::InvalidInput, "Seek too far backward from end"))?
             }
-            SeekFrom::Current(offset_from_pos) => self
-                .pos
-                .checked_add_signed(offset_from_pos)
-                .ok_or(std::io::Error::new(std::io::ErrorKind::InvalidInput, "Seek too far forward from current pos"))?,
+            SeekFrom::Current(offset_from_pos) => self.pos.checked_add_signed(offset_from_pos).ok_or(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Seek too far forward from current pos",
+            ))?,
         };
         self.pos = new_pos;
         Ok(new_pos)

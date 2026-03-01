@@ -77,15 +77,32 @@ lazy_static! {
 }
 
 pub fn parse_version(version: &str) -> Result<(u32, u32, u32, u32)> {
-    let caps = REGEX_VERSION.captures(version).ok_or_else(|| anyhow!("Invalid version string: '{}'", version))?;
-    let major_str = caps.name("major").ok_or_else(|| anyhow!("Invalid version string: '{}'", version))?.as_str();
+    let caps = REGEX_VERSION
+        .captures(version)
+        .ok_or_else(|| anyhow!("Invalid version string: '{}'", version))?;
+    let major_str = caps
+        .name("major")
+        .ok_or_else(|| anyhow!("Invalid version string: '{}'", version))?
+        .as_str();
     let minor_str = caps.name("minor");
     let build_str = caps.name("build");
     let revision_str = caps.name("revision");
     let major = major_str.parse::<u32>()?;
-    let minor = if minor_str.is_some() { minor_str.unwrap().as_str().parse::<u32>()? } else { 0 };
-    let build = if build_str.is_some() { build_str.unwrap().as_str().parse::<u32>()? } else { 0 };
-    let revision = if revision_str.is_some() { revision_str.unwrap().as_str().parse::<u32>()? } else { 0 };
+    let minor = if minor_str.is_some() {
+        minor_str.unwrap().as_str().parse::<u32>()?
+    } else {
+        0
+    };
+    let build = if build_str.is_some() {
+        build_str.unwrap().as_str().parse::<u32>()?
+    } else {
+        0
+    };
+    let revision = if revision_str.is_some() {
+        revision_str.unwrap().as_str().parse::<u32>()?
+    } else {
+        0
+    };
     Ok((major, minor, build, revision))
 }
 

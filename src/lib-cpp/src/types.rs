@@ -41,12 +41,7 @@ pub type vpkc_free_release_feed_t = Option<extern "C" fn(p_user_data: *mut c_voi
 /// The function should return true if the download was successful, false otherwise.
 /// Progress
 pub type vpkc_download_asset_delegate_t = Option<
-    extern "C" fn(
-        p_user_data: *mut c_void,
-        p_asset: *const vpkc_asset_t,
-        psz_local_path: *const c_char,
-        progress_callback_id: size_t,
-    ) -> bool,
+    extern "C" fn(p_user_data: *mut c_void, p_asset: *const vpkc_asset_t, psz_local_path: *const c_char, progress_callback_id: size_t) -> bool,
 >;
 
 pub fn c_to_String(psz: *const c_char) -> Result<String> {

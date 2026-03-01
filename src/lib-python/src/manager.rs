@@ -92,9 +92,7 @@ impl UpdateManagerWrapper {
             Ok(())
         } else {
             // No progress callback provided - still release GIL for the download
-            py.detach(|| {
-                self.inner.download_updates(&rust_update_info, None)
-            })?;
+            py.detach(|| self.inner.download_updates(&rust_update_info, None))?;
             Ok(())
         }
     }

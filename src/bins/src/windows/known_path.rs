@@ -63,6 +63,10 @@ pub fn get_program_files_x86() -> Result<PathBuf> {
 
 pub fn get_user_pinned() -> Result<PathBuf> {
     let pinned_str = get_roaming_app_data()?;
-    let pinned_path = pinned_str.join("Microsoft").join("Internet Explorer").join("Quick Launch").join("User Pinned");
+    let pinned_path = pinned_str
+        .join("Microsoft")
+        .join("Internet Explorer")
+        .join("Quick Launch")
+        .join("User Pinned");
     Ok(pinned_path)
 }

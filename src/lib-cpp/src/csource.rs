@@ -43,9 +43,8 @@ impl UpdateSource for CCallbackUpdateSource {
 
         if let Some(cb_get_release_feed) = self.cb_get_release_feed {
             let json_cstr_ptr = (cb_get_release_feed)(self.p_user_data, releases_name_cstr.as_ptr());
-            let json = c_to_String(json_cstr_ptr).map_err(|_| {
-                Error::Other("User vpkc_release_feed_delegate_t returned a null pointer instead of an asset feed".to_string())
-            })?;
+            let json = c_to_String(json_cstr_ptr)
+                .map_err(|_| Error::Other("User vpkc_release_feed_delegate_t returned a null pointer instead of an asset feed".to_string()))?;
             if let Some(cb_free_release_feed) = self.cb_free_release_feed {
                 (cb_free_release_feed)(self.p_user_data, json_cstr_ptr); // Free the C string returned by the callback
             } else {
@@ -78,7 +77,9 @@ impl UpdateSource for CCallbackUpdateSource {
             }
 
             if !success {
-                return Err(Error::Other("User vpkc_download_asset_delegate_t returned false to indicate download failed".to_owned()));
+                return Err(Error::Other(
+                    "User vpkc_download_asset_delegate_t returned false to indicate download failed".to_owned(),
+                ));
             }
 
             Ok(())

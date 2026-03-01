@@ -90,11 +90,21 @@ pub struct UpdateInfo {
 
 impl UpdateInfo {
     pub(crate) fn new_full(target: VelopackAsset, is_downgrade: bool) -> UpdateInfo {
-        UpdateInfo { TargetFullRelease: target, BaseRelease: None, DeltasToTarget: Vec::new(), IsDowngrade: is_downgrade }
+        UpdateInfo {
+            TargetFullRelease: target,
+            BaseRelease: None,
+            DeltasToTarget: Vec::new(),
+            IsDowngrade: is_downgrade,
+        }
     }
 
     pub(crate) fn new_delta(target: VelopackAsset, base: VelopackAsset, deltas: Vec<VelopackAsset>) -> UpdateInfo {
-        UpdateInfo { TargetFullRelease: target, BaseRelease: Some(base), DeltasToTarget: deltas, IsDowngrade: false }
+        UpdateInfo {
+            TargetFullRelease: target,
+            BaseRelease: Some(base),
+            DeltasToTarget: deltas,
+            IsDowngrade: false,
+        }
     }
 }
 
@@ -161,11 +171,7 @@ impl UpdateManager {
     /// let source = sources::HttpSource::new("https://the.place/you-host/updates");
     /// let um = UpdateManager::new(source, None, None);
     /// ```
-    pub fn new<T: UpdateSource>(
-        source: T,
-        options: Option<UpdateOptions>,
-        locator: Option<VelopackLocatorConfig>,
-    ) -> Result<UpdateManager, Error> {
+    pub fn new<T: UpdateSource>(source: T, options: Option<UpdateOptions>, locator: Option<VelopackLocatorConfig>) -> Result<UpdateManager, Error> {
         UpdateManager::new_boxed(source.clone_boxed(), options, locator)
     }
 
@@ -204,7 +210,10 @@ impl UpdateManager {
             warn!("Channel is empty, using default.");
             channel = constants::DEFAULT_CHANNEL_NAME.to_owned();
         }
-        info!("Chosen channel for updates: {:?} (explicit={:?}, memorized={:?})", channel, options_channel, app_channel);
+        info!(
+            "Chosen channel for updates: {:?} (explicit={:?}, memorized={:?})",
+            channel, options_channel, app_channel
+        );
         channel
     }
 
@@ -261,7 +270,9 @@ impl UpdateManager {
     pub fn get_release_feed(&self) -> Result<VelopackAssetFeed, Error> {
         let channel = self.get_practical_channel();
         let staged_user_id = self.locator.get_staged_user_id();
-        return self.source.get_release_feed(&channel, &self.locator.get_manifest(), staged_user_id.as_str());
+        return self
+            .source
+            .get_release_feed(&channel, &self.locator.get_manifest(), staged_user_id.as_str());
     }
 
     /// Get a list of available remote releases from the package source.
@@ -312,9 +323,14 @@ impl UpdateManager {
 
         if remote_version > app_version {
             info!("Found newer remote release available ({} -> {}).", app_version, remote_version);
-            Ok(UpdateCheck::UpdateAvailable(self.create_delta_update_strategy(&assets, (remote_asset, remote_version))))
+            Ok(UpdateCheck::UpdateAvailable(
+                self.create_delta_update_strategy(&assets, (remote_asset, remote_version)),
+            ))
         } else if remote_version < app_version && allow_downgrade {
-            info!("Found older remote release available and downgrade is enabled ({} -> {}).", app_version, remote_version);
+            info!(
+                "Found older remote release available and downgrade is enabled ({} -> {}).",
+                app_version, remote_version
+            );
             Ok(UpdateCheck::UpdateAvailable(UpdateInfo::new_full(remote_asset.clone(), true)))
         } else if remote_version == app_version && allow_downgrade && is_non_default_channel {
             info!(
@@ -327,11 +343,7 @@ impl UpdateManager {
         }
     }
 
-    fn create_delta_update_strategy(
-        &self,
-        velopack_asset_feed: &Vec<VelopackAsset>,
-        latest_remote: (&VelopackAsset, Version),
-    ) -> UpdateInfo {
+    fn create_delta_update_strategy(&self, velopack_asset_feed: &Vec<VelopackAsset>, latest_remote: (&VelopackAsset, Version)) -> UpdateInfo {
         let packages_dir = self.locator.get_packages_dir();
         let latest_local = locator::find_latest_full_package(&packages_dir);
 
@@ -343,14 +355,20 @@ impl UpdateManager {
         let (latest_local_path, latest_local_manifest) = latest_local.unwrap();
         let local_asset = self.local_manifest_to_asset(&latest_local_manifest, &latest_local_path);
 
-        let assets_and_versions: Vec<(&VelopackAsset, Version)> =
-            velopack_asset_feed.iter().filter_map(|asset| Version::parse(&asset.Version).ok().map(|ver| (asset, ver))).collect();
+        let assets_and_versions: Vec<(&VelopackAsset, Version)> = velopack_asset_feed
+            .iter()
+            .filter_map(|asset| Version::parse(&asset.Version).ok().map(|ver| (asset, ver)))
+            .collect();
 
-        let matching_latest_delta =
-            assets_and_versions.iter().find(|(asset, version)| asset.Type.eq_ignore_ascii_case("Delta") && version == &latest_remote.1);
+        let matching_latest_delta = assets_and_versions
+            .iter()
+            .find(|(asset, version)| asset.Type.eq_ignore_ascii_case("Delta") && version == &latest_remote.1);
 
         if matching_latest_delta.is_none() {
-            info!("No matching delta update found for release {}, so deltas will be disabled.", latest_remote.1);
+            info!(
+                "No matching delta update found for release {}, so deltas will be disabled.",
+                latest_remote.1
+            );
             return UpdateInfo::new_full(latest_remote.0.clone(), false);
         }
 
@@ -463,17 +481,17 @@ impl UpdateManager {
         Ok(())
     }
 
-    fn download_and_apply_delta_updates(
-        &self,
-        update: &UpdateInfo,
-        output_file: &PathBuf,
-        progress: Option<Sender<i16>>,
-    ) -> Result<(), Error> {
+    fn download_and_apply_delta_updates(&self, update: &UpdateInfo, output_file: &PathBuf, progress: Option<Sender<i16>>) -> Result<(), Error> {
         let packages_dir = self.locator.get_packages_dir();
         let base_release_path = packages_dir.join(&update.BaseRelease.as_ref().unwrap().FileName);
 
-        let mut args: Vec<OsString> =
-            vec!["patch".into(), "--old".into(), base_release_path.clone().into(), "--output".into(), output_file.clone().into()];
+        let mut args: Vec<OsString> = vec![
+            "patch".into(),
+            "--old".into(),
+            base_release_path.clone().into(),
+            "--output".into(),
+            output_file.clone().into(),
+        ];
 
         for (i, delta) in update.DeltasToTarget.iter().enumerate() {
             let delta_file = packages_dir.join(&delta.FileName);
@@ -505,7 +523,10 @@ impl UpdateManager {
         } else {
             let error_message = String::from_utf8_lossy(&output.stderr);
             error!("Error applying delta updates: {}", error_message);
-            return Err(Error::Io(std::io::Error::new(std::io::ErrorKind::Other, "Process exited with non-zero status")));
+            return Err(Error::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Process exited with non-zero status",
+            )));
         }
 
         if let Some(progress) = &progress {

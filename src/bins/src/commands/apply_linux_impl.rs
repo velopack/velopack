@@ -25,11 +25,13 @@ pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _hook_mo
 
     let action: Result<()> = (|| {
         info!("Extracting bundle to temp file: {}", temp_path);
-        bundle.extract_zip_predicate_to_path(|z| z.ends_with(".AppImage"), &temp_path).map_err(|e| {
-            warn!("Deleting package {:?} to prevent update loop: {}", pkg, e);
-            let _ = fs::remove_file(pkg);
-            e
-        })?;
+        bundle
+            .extract_zip_predicate_to_path(|z| z.ends_with(".AppImage"), &temp_path)
+            .map_err(|e| {
+                warn!("Deleting package {:?} to prevent update loop: {}", pkg, e);
+                let _ = fs::remove_file(pkg);
+                e
+            })?;
 
         info!("Chmod as executable");
         std::fs::set_permissions(&temp_path, fs::Permissions::from_mode(0o755))?;
@@ -47,12 +49,18 @@ pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _hook_mo
         }
 
         // if the operation failed, let's try again elevated with pkexec
-        error!("An error occurred ({:?}), will attempt to elevate permissions and try again...", mv_output);
+        error!(
+            "An error occurred ({:?}), will attempt to elevate permissions and try again...",
+            mv_output
+        );
         dialogs::ask_user_to_elevate(&manifest.title, &manifest.version.to_string())?;
         let script = format!("#!/bin/sh\nmv -f '{}' '{}'", temp_path, &root_path);
         info!("Writing script for elevation: \n{}", script);
         fs::write(&script_path, script)?;
-        std::fs::set_permissions(&script_path, <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o755))?;
+        std::fs::set_permissions(
+            &script_path,
+            <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o755),
+        )?;
         let args = vec![&script_path];
         info!("Attempting to elevate: pkexec {:?}", args);
         let elev_output = Command::new("pkexec").args(args).output()?;

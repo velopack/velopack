@@ -16,7 +16,12 @@ impl FileRotate {
     pub fn new<P: AsRef<Path>>(path: P, max_size: u64) -> Self {
         let path = path.as_ref();
 
-        let mut me = Self { file: None, path: path.to_path_buf(), max_size, current_size: 0 };
+        let mut me = Self {
+            file: None,
+            path: path.to_path_buf(),
+            max_size,
+            current_size: 0,
+        };
 
         me.ensure_log_dir_exists();
 
