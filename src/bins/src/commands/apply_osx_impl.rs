@@ -6,7 +6,7 @@ use anyhow::{bail, Result};
 use std::{fs, path::PathBuf, process::Command};
 use velopack::{bundle, locator::VelopackLocator};
 
-pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _runhooks: bool) -> Result<VelopackLocator> {
+pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _hook_mode: super::HookRunMode) -> Result<VelopackLocator> {
     let _mutex = locator.try_get_exclusive_lock()?;
     let root_path = locator.get_root_dir();
     let tmp_path_new = locator.get_temp_dir_rand16();

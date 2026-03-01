@@ -61,7 +61,7 @@ pub fn test_install_apply_uninstall() {
 
     let pkg_name_apply = "AvaloniaCrossPlat-1.0.15-win-full.nupkg";
     let nupkg_apply = fixtures.join(pkg_name_apply);
-    commands::apply(&locator, false, shared::OperationWait::NoWait, Some(&nupkg_apply), None, false).unwrap();
+    commands::apply(&locator, false, shared::OperationWait::NoWait, Some(&nupkg_apply), None, commands::HookRunMode::None).unwrap();
 
     // shortcuts are renamed, and desktop is created
     assert!(!lnk_desktop_1.exists());
@@ -159,7 +159,7 @@ pub fn test_apply_corrupt_package_is_deleted() {
     assert!(corrupt_pkg.exists());
 
     // 3. Apply should fail because the package is corrupt
-    let result = commands::apply(&locator, false, shared::OperationWait::NoWait, Some(&corrupt_pkg), None, false);
+    let result = commands::apply(&locator, false, shared::OperationWait::NoWait, Some(&corrupt_pkg), None, commands::HookRunMode::None);
     assert!(result.is_err(), "Apply should fail with a corrupt package");
 
     // 4. The corrupt package should have been deleted to prevent an update loop
@@ -194,7 +194,7 @@ pub fn test_apply_locked_dir_does_not_delete_package() {
     let _handle = fs::File::open(&locked_file).expect("should be able to open file to lock it");
 
     // 4. Apply should fail because the directory rename is blocked by the locked file
-    let result = commands::apply(&locator, false, shared::OperationWait::NoWait, Some(&update_pkg), None, false);
+    let result = commands::apply(&locator, false, shared::OperationWait::NoWait, Some(&update_pkg), None, commands::HookRunMode::None);
     assert!(result.is_err(), "Apply should fail when current dir is locked");
 
     // 5. The package should NOT be deleted — the failure was in the install phase, not staging

@@ -10,13 +10,24 @@ use super::apply_osx_impl::apply_package_impl;
 #[cfg(target_os = "windows")]
 use super::apply_windows_impl::apply_package_impl;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum HookRunMode {
+    /// Do not run any hooks.
+    None,
+    /// Run all hooks (pre and post).
+    All,
+    /// Only run post-apply hooks (e.g. --veloapp-updated). Used during legacy migration
+    /// where the obsolete hook is irrelevant but the app needs to know it was updated.
+    PostOnly,
+}
+
 pub fn apply<'a>(
     locator: &VelopackLocator,
     restart: bool,
     wait: OperationWait,
     package: Option<&PathBuf>,
     exe_args: Option<Vec<OsString>>,
-    run_hooks: bool,
+    hook_mode: HookRunMode,
 ) -> Result<VelopackLocator> {
     shared::operation_wait(wait);
 
@@ -31,7 +42,7 @@ pub fn apply<'a>(
                 locator.get_manifest_version_full_string(),
                 package
             );
-            match apply_package_impl(&locator, &package, run_hooks) {
+            match apply_package_impl(&locator, &package, hook_mode) {
                 Ok(applied_locator) => {
                     info!("Package version {} applied successfully.", applied_locator.get_manifest_version_full_string());
                     // if successful, we want to restart the new version of the app, which could have different metadata
