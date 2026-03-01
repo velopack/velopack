@@ -66,7 +66,7 @@ public class GiteaRepository : SourceRepository<GiteaDownloadOptions, GiteaSourc
     public async Task UploadMissingAssetsAsync(GiteaUploadOptions options)
     {
         var (repoOwner, repoName) = GetOwnerAndRepo(options.RepoUrl);
-        var helper = new ReleaseEntryHelper(options.ReleaseDir.FullName, options.Channel, Log, options.TargetOs);
+        var helper = await ReleaseEntryHelper.CreateAsync(options.ReleaseDir.FullName, options.Channel, Log, options.TargetOs).ConfigureAwait(false);
         var build = BuildAssets.Read(options.ReleaseDir.FullName, options.Channel);
         var latest = helper.GetLatestFullRelease();
         var latestPath = Path.Combine(options.ReleaseDir.FullName, latest.FileName);
@@ -144,7 +144,7 @@ public class GiteaRepository : SourceRepository<GiteaDownloadOptions, GiteaSourc
         }
 
         var feed = new VelopackAssetFeed {
-            Assets = build.GetReleaseEntries().ToArray(),
+            Assets = (await build.GetReleaseEntriesAsync().ConfigureAwait(false)).ToArray(),
         };
         var json = ReleaseEntryHelper.GetAssetFeedJson(feed);
 

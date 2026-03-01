@@ -15,12 +15,13 @@ public class BuildAssets(string outputDir, string channel)
 
     private ConcurrentBag<Asset> Assets { get; set; } = [];
 
-    public List<VelopackAsset> GetReleaseEntries()
+    public async Task<List<VelopackAsset>> GetReleaseEntriesAsync()
     {
-        return GetAssets()
-            .Where(x => x.Type is VelopackAssetType.Delta or VelopackAssetType.Full)
-            .Select(x => VelopackAsset.FromNupkg(x.Path, computeChecksums: true))
-            .ToList();
+        var entries = new List<VelopackAsset>();
+        foreach (var x in GetAssets().Where(x => x.Type is VelopackAssetType.Delta or VelopackAssetType.Full)) {
+            entries.Add(await VelopackAsset.FromNupkgGenerateChecksumAsync(x.Path).ConfigureAwait(false));
+        }
+        return entries;
     }
 
     public IEnumerable<(string Path, VelopackAssetType Type)> GetAssets()
