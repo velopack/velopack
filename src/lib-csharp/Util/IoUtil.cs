@@ -42,6 +42,26 @@ namespace Velopack.Util
             }
         }
 
+        public static (string SHA1, string SHA256) CalculateFileSHA1AndSHA256(string filePath)
+        {
+            var bufferSize = 1000000; // 1mb
+            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize);
+            using var sha1 = SHA1.Create();
+            using var sha256 = SHA256.Create();
+            var buffer = new byte[bufferSize];
+            int bytesRead;
+            while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0) {
+                sha1.TransformBlock(buffer, 0, bytesRead, null, 0);
+                sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
+            }
+            sha1.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+            sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+            return (
+                BitConverter.ToString(sha1.Hash!).Replace("-", String.Empty),
+                BitConverter.ToString(sha256.Hash!).Replace("-", String.Empty)
+            );
+        }
+
         /// <summary>
         /// Get SHA256 hash of the specified file and returns the result as a base64 encoded string (with length 44)
         /// </summary>

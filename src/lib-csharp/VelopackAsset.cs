@@ -77,17 +77,22 @@ namespace Velopack
         /// <summary>
         /// Convert a <see cref="ZipPackage"/> to a <see cref="VelopackAsset"/>.
         /// </summary>
-        public static VelopackAsset FromZipPackage(ZipPackage zip)
+        public static VelopackAsset FromZipPackage(ZipPackage zip, bool computeChecksums)
         {
             var filePath = zip.LoadedFromPath;
+            string sha1 = null;
+            string sha256 = null;
+            if (computeChecksums) {
+                (sha1, sha256) = IoUtil.CalculateFileSHA1AndSHA256(filePath);
+            }
             return new VelopackAsset {
                 PackageId = zip.Id,
                 Version = zip.Version,
                 NotesMarkdown = zip.ReleaseNotes,
                 NotesHTML = zip.ReleaseNotesHtml,
                 Size = new FileInfo(filePath).Length,
-                SHA1 = IoUtil.CalculateFileSHA1(filePath),
-                SHA256 = IoUtil.CalculateFileSHA256(filePath),
+                SHA1 = sha1,
+                SHA256 = sha256,
                 FileName = Path.GetFileName(filePath),
                 Type = IsDeltaFile(filePath) ? VelopackAssetType.Delta : VelopackAssetType.Full,
             };
@@ -96,11 +101,11 @@ namespace Velopack
         /// <summary>
         /// Load a <see cref="VelopackAsset"/> from a .nupkg file on disk.
         /// </summary>
-        public static VelopackAsset FromNupkg(string filePath)
+        public static VelopackAsset FromNupkg(string filePath, bool computeChecksums)
         {
             if (!File.Exists(filePath)) throw new FileNotFoundException(filePath);
             if (!filePath.EndsWith(NugetUtil.PackageExtension)) throw new ArgumentException("Must be a .nupkg file", nameof(filePath));
-            return FromZipPackage(new ZipPackage(filePath));
+            return FromZipPackage(new ZipPackage(filePath), computeChecksums);
         }
 
         internal static bool IsDeltaFile(string filePath)
