@@ -29,7 +29,7 @@ public class ReleaseEntryHelper
             var ch = zip.Channel ?? DefaultName.GetDefaultChannel(VelopackRuntimeInfo.SystemOs);
             if (!rel.ContainsKey(ch))
                 rel[ch] = new List<VelopackAsset>();
-            rel[ch].Add(VelopackAsset.FromZipPackage(zip));
+            rel[ch].Add(VelopackAsset.FromZipPackage(zip, computeChecksums: true));
         }
 
         return rel;

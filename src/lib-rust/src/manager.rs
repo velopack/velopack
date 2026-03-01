@@ -245,14 +245,18 @@ impl UpdateManager {
         let packages_dir = self.locator.get_packages_dir();
         if let Some((path, manifest)) = locator::find_latest_full_package(&packages_dir) {
             if manifest.version > self.locator.get_manifest_version() {
-                return Some(self.local_manifest_to_asset(&manifest, &path));
+                return Some(self.local_manifest_to_asset(&manifest, &path, false));
             }
         }
         None
     }
 
-    fn local_manifest_to_asset(&self, manifest: &Manifest, path: &PathBuf) -> VelopackAsset {
-        let (sha1, sha256) = misc::calculate_sha1_sha256(path).unwrap_or_default();
+    fn local_manifest_to_asset(&self, manifest: &Manifest, path: &PathBuf, compute_checksums: bool) -> VelopackAsset {
+        let (sha1, sha256) = if compute_checksums {
+            misc::calculate_sha1_sha256(path).unwrap_or_default()
+        } else {
+            (String::new(), String::new())
+        };
         VelopackAsset {
             PackageId: manifest.id.clone(),
             Version: manifest.version.to_string(),
@@ -353,7 +357,7 @@ impl UpdateManager {
         }
 
         let (latest_local_path, latest_local_manifest) = latest_local.unwrap();
-        let local_asset = self.local_manifest_to_asset(&latest_local_manifest, &latest_local_path);
+        let local_asset = self.local_manifest_to_asset(&latest_local_manifest, &latest_local_path, false);
 
         let assets_and_versions: Vec<(&VelopackAsset, Version)> = velopack_asset_feed
             .iter()
@@ -542,8 +546,16 @@ impl UpdateManager {
             return Err(Error::SizeInvalid(file.to_path_buf(), asset.Size, file_size));
         }
 
-        let (sha1, _) = misc::calculate_sha1_sha256(file)?;
-        if !sha1.eq_ignore_ascii_case(&asset.SHA1) {
+        // SHA1 is required and should always be present in the remote feed.
+        // SHA256 is optional and only supported by newer clients, so if it's
+        // missing from the remote asset we fall back to verifying SHA1 only.
+        let (sha1, sha256) = misc::calculate_sha1_sha256(file)?;
+        if !asset.SHA256.is_empty() {
+            if !sha256.eq_ignore_ascii_case(&asset.SHA256) {
+                error!("SHA256 checksum mismatch for file '{:?}': expected '{}', got '{}'", file, asset.SHA256, sha256);
+                return Err(Error::ChecksumInvalid(file.to_path_buf(), asset.SHA256.clone(), sha256));
+            }
+        } else if !sha1.eq_ignore_ascii_case(&asset.SHA1) {
             error!("SHA1 checksum mismatch for file '{:?}': expected '{}', got '{}'", file, asset.SHA1, sha1);
             return Err(Error::ChecksumInvalid(file.to_path_buf(), asset.SHA1.clone(), sha1));
         }

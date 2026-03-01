@@ -48,7 +48,7 @@ namespace Velopack.Sources
                 foreach (var pkg in Directory.EnumerateFiles(BaseDirectory.FullName, "*.nupkg")) {
                     try {
                         var zip = new ZipPackage(pkg);
-                        var asset = VelopackAsset.FromZipPackage(zip);
+                        var asset = VelopackAsset.FromZipPackage(zip, computeChecksums: true);
                         if (asset?.Version != null) {
                             if (channel == null || zip?.Channel == null || zip?.Channel == channel) {
                                 logger.Debug($"Read package '{pkg}' with version '{asset.Version}' in channel '{zip?.Channel}'.");

@@ -19,7 +19,7 @@ public class BuildAssets(string outputDir, string channel)
     {
         return GetAssets()
             .Where(x => x.Type is VelopackAssetType.Delta or VelopackAssetType.Full)
-            .Select(x => VelopackAsset.FromNupkg(x.Path))
+            .Select(x => VelopackAsset.FromNupkg(x.Path, computeChecksums: true))
             .ToList();
     }
 
