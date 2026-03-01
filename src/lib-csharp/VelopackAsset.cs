@@ -1,6 +1,7 @@
 ﻿#nullable disable
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using Velopack.Util;
 using Velopack.NuGet;
 
@@ -75,37 +76,50 @@ namespace Velopack
         public string NotesHTML { get; set; }
 
         /// <summary>
-        /// Convert a <see cref="ZipPackage"/> to a <see cref="VelopackAsset"/>.
+        /// Convert a <see cref="ZipPackage"/> to a <see cref="VelopackAsset"/> without computing checksums.
         /// </summary>
-        public static VelopackAsset FromZipPackage(ZipPackage zip, bool computeChecksums)
+        public static VelopackAsset FromZipPackageNoChecksum(ZipPackage zip)
         {
             var filePath = zip.LoadedFromPath;
-            string sha1 = null;
-            string sha256 = null;
-            if (computeChecksums) {
-                (sha1, sha256) = IoUtil.CalculateFileSHA1AndSHA256(filePath);
-            }
             return new VelopackAsset {
                 PackageId = zip.Id,
                 Version = zip.Version,
                 NotesMarkdown = zip.ReleaseNotes,
                 NotesHTML = zip.ReleaseNotesHtml,
                 Size = new FileInfo(filePath).Length,
-                SHA1 = sha1,
-                SHA256 = sha256,
                 FileName = Path.GetFileName(filePath),
                 Type = IsDeltaFile(filePath) ? VelopackAssetType.Delta : VelopackAssetType.Full,
             };
         }
 
         /// <summary>
-        /// Load a <see cref="VelopackAsset"/> from a .nupkg file on disk.
+        /// Convert a <see cref="ZipPackage"/> to a <see cref="VelopackAsset"/>, computing SHA1 and SHA256 checksums asynchronously.
         /// </summary>
-        public static VelopackAsset FromNupkg(string filePath, bool computeChecksums)
+        public static async Task<VelopackAsset> FromZipPackageGenerateChecksumAsync(ZipPackage zip)
+        {
+            var asset = FromZipPackageNoChecksum(zip);
+            var (sha1, sha256) = await IoUtil.CalculateFileSHA1AndSHA256Async(zip.LoadedFromPath).ConfigureAwait(false);
+            return asset with { SHA1 = sha1, SHA256 = sha256 };
+        }
+
+        /// <summary>
+        /// Load a <see cref="VelopackAsset"/> from a .nupkg file on disk without computing checksums.
+        /// </summary>
+        public static VelopackAsset FromNupkgNoChecksum(string filePath)
         {
             if (!File.Exists(filePath)) throw new FileNotFoundException(filePath);
             if (!filePath.EndsWith(NugetUtil.PackageExtension)) throw new ArgumentException("Must be a .nupkg file", nameof(filePath));
-            return FromZipPackage(new ZipPackage(filePath), computeChecksums);
+            return FromZipPackageNoChecksum(new ZipPackage(filePath));
+        }
+
+        /// <summary>
+        /// Load a <see cref="VelopackAsset"/> from a .nupkg file on disk, computing SHA1 and SHA256 checksums asynchronously.
+        /// </summary>
+        public static async Task<VelopackAsset> FromNupkgGenerateChecksumAsync(string filePath)
+        {
+            if (!File.Exists(filePath)) throw new FileNotFoundException(filePath);
+            if (!filePath.EndsWith(NugetUtil.PackageExtension)) throw new ArgumentException("Must be a .nupkg file", nameof(filePath));
+            return await FromZipPackageGenerateChecksumAsync(new ZipPackage(filePath)).ConfigureAwait(false);
         }
 
         internal static bool IsDeltaFile(string filePath)

@@ -131,7 +131,7 @@ public class VelopackFlowServiceClient(
 
         channel ??= DefaultName.GetDefaultChannel(os);
         BuildAssets assets = BuildAssets.Read(releaseDirectory, channel);
-        var fullAsset = assets.GetReleaseEntries().SingleOrDefault(a => a.Type == Velopack.VelopackAssetType.Full);
+        var fullAsset = (await assets.GetReleaseEntriesAsync().ConfigureAwait(false)).SingleOrDefault(a => a.Type == Velopack.VelopackAssetType.Full);
 
         if (fullAsset is null) {
             Logger.LogError("No full asset found in release directory {ReleaseDirectory} (or it's missing from assets file)", releaseDirectory);

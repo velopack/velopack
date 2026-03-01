@@ -130,7 +130,7 @@ namespace Velopack.Locators
                 if (PackagesDir is { } packagesDir) {
                     foreach (var pkg in Directory.EnumerateFiles(packagesDir, "*.nupkg")) {
                         try {
-                            var asset = VelopackAsset.FromNupkg(pkg, computeChecksums: false);
+                            var asset = VelopackAsset.FromNupkgNoChecksum(pkg);
                             if (asset?.Version != null) {
                                 list.Add(asset);
                             }

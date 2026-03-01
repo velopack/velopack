@@ -58,7 +58,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
         var channel = options.Channel?.ToLower() ?? DefaultName.GetDefaultChannel(TargetOs);
         options.Channel = channel;
 
-        var entryHelper = new ReleaseEntryHelper(releaseDir.FullName, channel, Log, TargetOs);
+        var entryHelper = await ReleaseEntryHelper.CreateAsync(releaseDir.FullName, channel, Log, TargetOs).ConfigureAwait(false);
         if (entryHelper.DoesSimilarVersionExist(SemanticVersion.Parse(options.PackVersion))) {
             if (await Console.PromptYesNo(
                     "A release in this channel with the same or greater version already exists. Do you want to continue and potentially overwrite files?") !=
@@ -177,12 +177,11 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
                 await ctx.RunTask(
                     "Post-process steps",
-                    (progress) => {
+                    async (progress) => {
                         assetCache.MoveBagTo(releaseDir.FullName);
                         assetCache.Write();
-                        ReleaseEntryHelper.UpdateReleaseFiles(releaseDir.FullName, Log);
+                        await ReleaseEntryHelper.UpdateReleaseFilesAsync(releaseDir.FullName, Log).ConfigureAwait(false);
                         progress(100);
-                        return Task.CompletedTask;
                     });
             });
     }

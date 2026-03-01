@@ -53,17 +53,17 @@ public class LocalRepository(ILogger logger) : ObjectRepository<LocalDownloadOpt
         return Task.CompletedTask;
     }
 
-    public override Task UploadMissingAssetsAsync(LocalUploadOptions options)
+    public override async Task UploadMissingAssetsAsync(LocalUploadOptions options)
     {
         // create directory if it doesn't exist
         Directory.CreateDirectory(options.TargetPath.FullName);
 
         if (options.ForceRegenerate) {
             Log.Info("Force regenerating release index files...");
-            ReleaseEntryHelper.UpdateReleaseFiles(options.TargetPath.FullName, Log);
+            await ReleaseEntryHelper.UpdateReleaseFilesAsync(options.TargetPath.FullName, Log).ConfigureAwait(false);
         }
 
-        return base.UploadMissingAssetsAsync(options);
+        await base.UploadMissingAssetsAsync(options).ConfigureAwait(false);
     }
 
     protected override Task SaveEntryToFileAsync(LocalDownloadOptions options, VelopackAsset entry, string filePath)
