@@ -2,12 +2,7 @@ use semver::Version;
 use std::env;
 use std::process::exit;
 
-use crate::{
-    locator::VelopackLocatorConfig, 
-    constants::*,
-    manager,
-    sources,
-};
+use crate::{constants::*, locator::VelopackLocatorConfig, manager, sources};
 
 /// VelopackApp helps you to handle app activation events correctly.
 /// This should be used as early as possible in your application startup code.
@@ -127,7 +122,7 @@ impl<'a> VelopackApp<'a> {
             }
         }
 
-        let manager = manager::UpdateManager::new(sources::NoneSource{}, None, self.locator.clone());
+        let manager = manager::UpdateManager::new(sources::NoneSource {}, None, self.locator.clone());
         if let Err(e) = manager {
             error!("VelopackApp: Error loading manager/locator: {:?}", e);
             return;
@@ -138,10 +133,10 @@ impl<'a> VelopackApp<'a> {
 
         let firstrun = env::var(HOOK_ENV_FIRSTRUN).is_ok();
         env::remove_var(HOOK_ENV_FIRSTRUN);
-        
+
         let restarted = env::var(HOOK_ENV_RESTART).is_ok();
         env::remove_var(HOOK_ENV_RESTART);
-        
+
         // if auto apply is true and we haven't just been restarted via Velopack apply,
         // we should check for a local package downloaded with a version greater than ours.
         // If it exists, we should quit and apply it now.
@@ -154,7 +149,7 @@ impl<'a> VelopackApp<'a> {
                                 error!("VelopackApp: Error applying pending updates on startup: {:?}", e);
                             }
                         }
-                    },
+                    }
                     Err(e) => {
                         error!("VelopackApp: Error parsing asset version: {:?}", e);
                     }

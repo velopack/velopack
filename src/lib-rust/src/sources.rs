@@ -33,12 +33,7 @@ impl UpdateSource for NoneSource {
     fn get_release_feed(&self, _channel: &str, _app: &Manifest, _staged_user_id: &str) -> Result<VelopackAssetFeed, Error> {
         Err(Error::NotSupported("None source does not checking release feed".to_owned()))
     }
-    fn download_release_entry(
-        &self,
-        _asset: &VelopackAsset,
-        _local_file: &Path,
-        _progress_sender: Option<Sender<i16>>,
-    ) -> Result<(), Error> {
+    fn download_release_entry(&self, _asset: &VelopackAsset, _local_file: &Path, _progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
         Err(Error::NotSupported("None source does not support downloads".to_owned()))
     }
     fn clone_boxed(&self) -> Box<dyn UpdateSource> {
@@ -97,7 +92,9 @@ pub struct HttpSource {
 impl HttpSource {
     /// Create a new HttpSource with the specified base URL.
     pub fn new<S: AsRef<str>>(url: S) -> HttpSource {
-        HttpSource { url: url.as_ref().to_owned() }
+        HttpSource {
+            url: url.as_ref().to_owned(),
+        }
     }
 }
 
@@ -108,7 +105,9 @@ impl UpdateSource for HttpSource {
         let path = self.url.trim_end_matches('/').to_owned() + "/";
         let url = url::Url::parse(&path)?;
         let mut releases_url = url.join(&releases_name)?;
-        releases_url.set_query(Some(format!("localVersion={}&id={}&stagingId={}", app.version, app.id, staged_user_id).as_str()));
+        releases_url.set_query(Some(
+            format!("localVersion={}&id={}&stagingId={}", app.version, app.id, staged_user_id).as_str(),
+        ));
 
         info!("Downloading releases for channel {} from: {}", channel, releases_url.to_string());
         let json = download::download_url_as_string(releases_url.as_str())?;

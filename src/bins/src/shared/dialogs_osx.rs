@@ -13,14 +13,7 @@ fn get_dialog_icon(ico: DialogIcon) -> usize {
     }
 }
 
-pub fn generate_alert(
-    title: &str,
-    header: Option<&str>,
-    body: &str,
-    _ok_text: Option<&str>,
-    _btns: DialogButton,
-    ico: DialogIcon,
-) -> Result<()> {
+pub fn generate_alert(title: &str, header: Option<&str>, body: &str, _ok_text: Option<&str>, _btns: DialogButton, ico: DialogIcon) -> Result<()> {
     let mut body = body.to_string();
     if let Some(h) = header {
         body = format!("{}\n{}", h, body);

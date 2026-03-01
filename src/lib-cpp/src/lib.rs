@@ -244,10 +244,7 @@ pub extern "C" fn vpkc_update_pending_restart(p_manager: *mut vpkc_update_manage
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
-pub extern "C" fn vpkc_check_for_updates(
-    p_manager: *mut vpkc_update_manager_t,
-    p_update: *mut *mut vpkc_update_info_t,
-) -> vpkc_update_check_t {
+pub extern "C" fn vpkc_check_for_updates(p_manager: *mut vpkc_update_manager_t, p_update: *mut *mut vpkc_update_info_t) -> vpkc_update_check_t {
     match p_manager.to_opaque_ref() {
         Some(manager) => match manager.check_for_updates() {
             Ok(UpdateCheck::UpdateAvailable(info)) => {
@@ -405,7 +402,11 @@ pub extern "C" fn vpkc_unsafe_apply_updates(
         let manager = p_manager.to_opaque_ref().ok_or(anyhow!("pManager must not be null"))?;
         let asset = c_to_VelopackAsset(p_asset)?;
         let restart_args = c_to_String_vec(p_restart_args, c_restart_args)?;
-        let wait_mode = if dw_wait_pid > 0 { ApplyWaitMode::WaitPid(dw_wait_pid) } else { ApplyWaitMode::NoWait };
+        let wait_mode = if dw_wait_pid > 0 {
+            ApplyWaitMode::WaitPid(dw_wait_pid)
+        } else {
+            ApplyWaitMode::NoWait
+        };
         manager.unsafe_apply_updates(&asset, b_silent, wait_mode, b_restart, &restart_args)?;
         Ok(())
     })

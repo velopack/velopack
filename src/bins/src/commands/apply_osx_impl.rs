@@ -1,7 +1,4 @@
-use crate::shared::{
-    self,
-    dialogs,
-};
+use crate::shared::{self, dialogs};
 use anyhow::{bail, Result};
 use std::{fs, path::PathBuf, process::Command};
 use velopack::{bundle, locator::VelopackLocator};
@@ -49,7 +46,10 @@ pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _hook_mo
             Err(e) => {
                 // 3. if fails for permission error, try again escalated via osascript
                 if shared::is_error_permission_denied(&e) {
-                    error!("A permissions error occurred ({}), will attempt to elevate permissions and try again...", e);
+                    error!(
+                        "A permissions error occurred ({}), will attempt to elevate permissions and try again...",
+                        e
+                    );
                     dialogs::ask_user_to_elevate(&manifest.title, &manifest.version.to_string())?;
                     let script = format!(
                         "do shell script \"mv -f '{}' '{}' && mv -f '{}' '{}' && rm -rf '{}'\" with administrator privileges",

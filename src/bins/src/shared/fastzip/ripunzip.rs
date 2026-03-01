@@ -247,7 +247,12 @@ fn extract_file<R: Read>(
     progress_reporter: &dyn UnzipProgressReporter,
     directory_creator: &DirectoryCreator,
 ) -> Result<(), anyhow::Error> {
-    let name = file.enclosed_name().as_deref().map(Path::to_string_lossy).unwrap_or_else(|| Cow::Borrowed("<unprintable>")).to_string();
+    let name = file
+        .enclosed_name()
+        .as_deref()
+        .map(Path::to_string_lossy)
+        .unwrap_or_else(|| Cow::Borrowed("<unprintable>"))
+        .to_string();
     extract_file_inner(file, output_directory, progress_reporter, directory_creator).with_context(|| format!("Failed to extract {name}"))
 }
 
@@ -258,14 +263,21 @@ fn extract_file_inner<R: Read>(
     progress_reporter: &dyn UnzipProgressReporter,
     directory_creator: &DirectoryCreator,
 ) -> Result<()> {
-    let name = file.enclosed_name().ok_or_else(|| std::io::Error::new(ErrorKind::Unsupported, "path not safe to extract"))?;
+    let name = file
+        .enclosed_name()
+        .ok_or_else(|| std::io::Error::new(ErrorKind::Unsupported, "path not safe to extract"))?;
     let display_name = name.display().to_string();
     let out_path = match output_directory {
         Some(output_directory) => output_directory.join(name),
         None => name,
     };
     progress_reporter.extraction_starting(&display_name);
-    log::debug!("Start extract of file at {:x}, length {:x}, name {}", file.data_start(), file.compressed_size(), display_name);
+    log::debug!(
+        "Start extract of file at {:x}, length {:x}, name {}",
+        file.data_start(),
+        file.compressed_size(),
+        display_name
+    );
     if file.name().ends_with('/') {
         directory_creator.create_dir_all(&out_path)?;
     } else {
@@ -302,7 +314,12 @@ fn extract_file_inner<R: Read>(
             std::fs::set_permissions(&out_path, std::fs::Permissions::from_mode(mode)).with_context(|| "Failed to set permissions")?;
         }
     }
-    log::debug!("Finished extract of file at {:x}, length {:x}, name {}", file.data_start(), file.compressed_size(), display_name);
+    log::debug!(
+        "Finished extract of file at {:x}, length {:x}, name {}",
+        file.data_start(),
+        file.compressed_size(),
+        display_name
+    );
     progress_reporter.extraction_finished(&display_name);
     Ok(())
 }

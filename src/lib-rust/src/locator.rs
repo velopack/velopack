@@ -8,9 +8,7 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 #[cfg(windows)]
-use crate:: {
-    known_path::get_local_app_data
-};
+use crate::known_path::get_local_app_data;
 
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -114,10 +112,16 @@ impl VelopackLocator {
     /// Creates a new VelopackLocator from the given paths, trying to auto-detect the manifest.
     pub fn new(config: &VelopackLocatorConfig) -> Result<VelopackLocator, Error> {
         if !config.UpdateExePath.exists() {
-            return Err(Error::NotInstalled(format!("Update.exe does not exist in the expected path ({})", config.UpdateExePath.display())));
+            return Err(Error::NotInstalled(format!(
+                "Update.exe does not exist in the expected path ({})",
+                config.UpdateExePath.display()
+            )));
         }
         if !config.ManifestPath.exists() {
-            return Err(Error::NotInstalled(format!("Manifest file does not exist in the expected path ({})", config.ManifestPath.display())));
+            return Err(Error::NotInstalled(format!(
+                "Manifest file does not exist in the expected path ({})",
+                config.ManifestPath.display()
+            )));
         }
 
         let manifest = read_current_manifest(&config.ManifestPath)?;
@@ -136,7 +140,10 @@ impl VelopackLocator {
             if misc::is_directory_writable(&paths.PackagesDir) {
                 info!("Using custom packages directory (writable): {}", paths.PackagesDir.display());
             } else {
-                warn!("Custom packages directory is not writable, falling through to standard logic: {}", paths.PackagesDir.display());
+                warn!(
+                    "Custom packages directory is not writable, falling through to standard logic: {}",
+                    paths.PackagesDir.display()
+                );
                 // Fall through to standard logic below
                 paths.PackagesDir = default_packages_dir.clone();
             }
@@ -293,7 +300,10 @@ impl VelopackLocator {
 
     /// Returns a copy of the current VelopackLocator with the manifest field set to the given manifest.
     pub fn clone_self_with_new_manifest(&self, manifest: &Manifest) -> VelopackLocator {
-        VelopackLocator { paths: self.paths.clone(), manifest: manifest.clone() }
+        VelopackLocator {
+            paths: self.paths.clone(),
+            manifest: manifest.clone(),
+        }
     }
 
     /// Returns whether the app is portable or installed.
@@ -412,7 +422,10 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
                 let maybe_root = &path[..i];
                 let maybe_root = PathBuf::from(maybe_root);
                 if maybe_root.join("Update.exe").exists() {
-                    info!("Found Update.exe by current path pattern search in directory: {}", maybe_root.to_string_lossy());
+                    info!(
+                        "Found Update.exe by current path pattern search in directory: {}",
+                        maybe_root.to_string_lossy()
+                    );
                     let config = create_config_from_root_dir(&maybe_root);
                     let locator = VelopackLocator::new(&config)?;
                     return Ok(locator);
@@ -445,7 +458,10 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
     let search_string = search_path.to_string_lossy();
     let idx = search_string.rfind("/usr/bin/");
     if idx.is_none() {
-        return Err(Error::NotInstalled(format!("Could not locate '/usr/bin/' in executable path {}", search_string)));
+        return Err(Error::NotInstalled(format!(
+            "Could not locate '/usr/bin/' in executable path {}",
+            search_string
+        )));
     }
     let idx = idx.unwrap();
     let root_app_dir = PathBuf::from(search_string[..idx].to_string());
@@ -468,7 +484,9 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
             }
         }
         Err(_) => {
-            return Err(Error::NotInstalled("The 'APPIMAGE' environment variable should point to the current AppImage path.".to_string()));
+            return Err(Error::NotInstalled(
+                "The 'APPIMAGE' environment variable should point to the current AppImage path.".to_string(),
+            ));
         }
     };
 
@@ -500,7 +518,10 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
     let search_string = search_path.to_string_lossy();
     let idx = search_string.rfind(".app/");
     if idx.is_none() {
-        return Err(Error::NotInstalled(format!("Could not locate '.app' in executable path {}", search_string)));
+        return Err(Error::NotInstalled(format!(
+            "Could not locate '.app' in executable path {}",
+            search_string
+        )));
     }
     let idx = idx.unwrap();
     let path = search_string[..(idx + 4)].to_string();
@@ -542,7 +563,10 @@ fn read_current_manifest(nuspec_path: &PathBuf) -> Result<Manifest, Error> {
             return bundle::read_manifest_from_string(&nuspec);
         }
     }
-    Err(Error::NotInstalled(format!("Manifest file does not exist or is not readable: {:?}", nuspec_path)))
+    Err(Error::NotInstalled(format!(
+        "Manifest file does not exist or is not readable: {:?}",
+        nuspec_path
+    )))
 }
 
 /// Returns the path and manifest of the latest full package in the given directory.

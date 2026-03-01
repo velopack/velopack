@@ -1,25 +1,25 @@
-pub mod runtime_arch;
 pub mod cli_host;
 pub mod fastzip;
+pub mod runtime_arch;
 
-mod dialogs_const;
 mod dialogs_common;
-#[cfg(target_os = "windows")]
-mod dialogs_windows;
-#[cfg(target_os = "macos")]
-mod dialogs_osx;
+mod dialogs_const;
 #[cfg(target_os = "linux")]
 mod dialogs_linux;
+#[cfg(target_os = "macos")]
+mod dialogs_osx;
+#[cfg(target_os = "windows")]
+mod dialogs_windows;
 
 pub mod dialogs {
-    pub use super::dialogs_const::*;
     pub use super::dialogs_common::*;
-    #[cfg(target_os = "windows")]
-    pub use super::dialogs_windows::*;
-    #[cfg(target_os = "macos")]
-    pub use super::dialogs_osx::*;
+    pub use super::dialogs_const::*;
     #[cfg(target_os = "linux")]
     pub use super::dialogs_linux::*;
+    #[cfg(target_os = "macos")]
+    pub use super::dialogs_osx::*;
+    #[cfg(target_os = "windows")]
+    pub use super::dialogs_windows::*;
 }
 
 mod util_common;

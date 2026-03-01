@@ -1,6 +1,6 @@
 use windows::core::BOOL;
-use windows::Win32::System::LibraryLoader::LOAD_LIBRARY_SEARCH_SYSTEM32;
 use windows::Win32::System::LibraryLoader::LOAD_LIBRARY_FLAGS;
+use windows::Win32::System::LibraryLoader::LOAD_LIBRARY_SEARCH_SYSTEM32;
 
 #[cfg(target_os = "windows")]
 type SetDefaultDllDirectoriesFn = unsafe extern "system" fn(directory_flags: u32) -> BOOL;

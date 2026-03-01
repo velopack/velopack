@@ -44,7 +44,10 @@ pub fn apply<'a>(
             );
             match apply_package_impl(&locator, &package, hook_mode) {
                 Ok(applied_locator) => {
-                    info!("Package version {} applied successfully.", applied_locator.get_manifest_version_full_string());
+                    info!(
+                        "Package version {} applied successfully.",
+                        applied_locator.get_manifest_version_full_string()
+                    );
                     // if successful, we want to restart the new version of the app, which could have different metadata
                     if restart {
                         shared::start_package(&applied_locator, exe_args, Some(constants::HOOK_ENV_RESTART))?;

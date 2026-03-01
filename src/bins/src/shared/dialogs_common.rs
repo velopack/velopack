@@ -1,7 +1,7 @@
 use super::dialogs::{generate_alert, generate_confirm};
 use super::dialogs_const::*;
+use anyhow::{bail, Result};
 use std::sync::atomic::{AtomicBool, Ordering};
-use anyhow::{Result, bail};
 
 static SILENT: AtomicBool = AtomicBool::new(false);
 
@@ -40,7 +40,9 @@ pub fn show_ok_cancel(title: &str, header: Option<&str>, body: &str, ok_text: Op
     if ok_text.is_none() {
         btns |= DialogButton::Ok;
     }
-    generate_confirm(title, header, body, ok_text, btns, DialogIcon::Warning).map(|dlg_id| dlg_id == DialogResult::Ok).unwrap_or(false)
+    generate_confirm(title, header, body, ok_text, btns, DialogIcon::Warning)
+        .map(|dlg_id| dlg_id == DialogResult::Ok)
+        .unwrap_or(false)
 }
 
 pub fn ask_user_to_elevate(app_title: &str, new_version: &str) -> Result<()> {
@@ -49,8 +51,10 @@ pub fn ask_user_to_elevate(app_title: &str, new_version: &str) -> Result<()> {
     }
 
     let title = format!("{} Update", app_title);
-    let body =
-        format!("{} would like to update to version {}, but requires elevated permissions to do so. Would you like to proceed?", app_title, new_version);
+    let body = format!(
+        "{} would like to update to version {}, but requires elevated permissions to do so. Would you like to proceed?",
+        app_title, new_version
+    );
 
     info!("Showing user elevation prompt?");
     if show_ok_cancel(title.as_str(), None, body.as_str(), Some("Install Update")) {

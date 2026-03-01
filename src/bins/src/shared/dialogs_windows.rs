@@ -38,8 +38,11 @@ pub fn show_update_missing_dependencies_dialog(app_name: &str, depedency_string:
     show_ok_cancel(
         format!("{} Update", app_name).as_str(),
         Some(format!("{} would like to update from {} to {}", app_name, from_ver, to_ver).as_str()),
-        format!("{} {to_ver} has missing dependencies which need to be installed: {}, would you like to continue?", app_name, depedency_string)
-            .as_str(),
+        format!(
+            "{} {to_ver} has missing dependencies which need to be installed: {}, would you like to continue?",
+            app_name, depedency_string
+        )
+        .as_str(),
         Some("Install & Update"),
     )
 }
@@ -52,7 +55,11 @@ pub fn show_setup_missing_dependencies_dialog(app_name: &str, app_version: &str,
     show_ok_cancel(
         format!("{} Setup {}", app_name, app_version).as_str(),
         Some(format!("{} has missing system dependencies.", app_name).as_str()),
-        format!("{} requires the following packages to be installed: {}, would you like to continue?", app_name, depedency_string).as_str(),
+        format!(
+            "{} requires the following packages to be installed: {}, would you like to continue?",
+            app_name, depedency_string
+        )
+        .as_str(),
         Some("Install"),
     )
 }
@@ -110,9 +117,18 @@ pub fn show_processes_locking_folder_dialog(app_title: &str, app_version: &str, 
     let btn_retry_txt = string_to_wide("Retry\nTry again if you've closed the program(s)");
     let btn_continue_txt = string_to_wide("Continue\nAttempt to close the program(s) automatically");
     let btn_cancel_txt = string_to_wide("Cancel\nThe update will not continue");
-    let btn_retry = TASKDIALOG_BUTTON { nButtonID: IDRETRY.0, pszButtonText: btn_retry_txt.as_pcwstr() };
-    let btn_continue = TASKDIALOG_BUTTON { nButtonID: IDCONTINUE.0, pszButtonText: btn_continue_txt.as_pcwstr() };
-    let btn_cancel = TASKDIALOG_BUTTON { nButtonID: IDCANCEL.0, pszButtonText: btn_cancel_txt.as_pcwstr() };
+    let btn_retry = TASKDIALOG_BUTTON {
+        nButtonID: IDRETRY.0,
+        pszButtonText: btn_retry_txt.as_pcwstr(),
+    };
+    let btn_continue = TASKDIALOG_BUTTON {
+        nButtonID: IDCONTINUE.0,
+        pszButtonText: btn_continue_txt.as_pcwstr(),
+    };
+    let btn_cancel = TASKDIALOG_BUTTON {
+        nButtonID: IDCANCEL.0,
+        pszButtonText: btn_cancel_txt.as_pcwstr(),
+    };
     let custom_btns = vec![btn_retry, btn_continue, btn_cancel];
 
     config.dwFlags = TDF_USE_COMMAND_LINKS;
@@ -126,7 +142,15 @@ pub fn show_processes_locking_folder_dialog(app_title: &str, app_version: &str, 
     let mut pnradiobutton = 0;
     let mut pfverificationflagchecked = FALSE;
 
-    unsafe { TaskDialogIndirect(&config, Some(&mut pnbutton), Some(&mut pnradiobutton), Some(&mut pfverificationflagchecked)).ok() };
+    unsafe {
+        TaskDialogIndirect(
+            &config,
+            Some(&mut pnbutton),
+            Some(&mut pnradiobutton),
+            Some(&mut pfverificationflagchecked),
+        )
+        .ok()
+    };
     DialogResult::from_win(pnbutton)
 }
 
@@ -171,8 +195,14 @@ pub fn show_overwrite_repair_dialog(app: &Manifest, root_path: &PathBuf, root_is
         string_to_wide(format!("The install directory is '<A HREF=\"na\">{}</A>'", root_path.display()))
     };
 
-    let btn_yes = TASKDIALOG_BUTTON { nButtonID: IDYES.0, pszButtonText: btn_yes_txt.as_pcwstr() };
-    let btn_cancel = TASKDIALOG_BUTTON { nButtonID: IDCANCEL.0, pszButtonText: btn_cancel_txt.as_pcwstr() };
+    let btn_yes = TASKDIALOG_BUTTON {
+        nButtonID: IDYES.0,
+        pszButtonText: btn_yes_txt.as_pcwstr(),
+    };
+    let btn_cancel = TASKDIALOG_BUTTON {
+        nButtonID: IDCANCEL.0,
+        pszButtonText: btn_cancel_txt.as_pcwstr(),
+    };
     let custom_btns = vec![btn_yes, btn_cancel];
 
     config.dwFlags = TDF_ENABLE_HYPERLINKS | TDF_USE_COMMAND_LINKS;
@@ -190,7 +220,15 @@ pub fn show_overwrite_repair_dialog(app: &Manifest, root_path: &PathBuf, root_is
     let mut pnbutton = 0;
     let mut pnradiobutton = 0;
     let mut pfverificationflagchecked = FALSE;
-    unsafe { TaskDialogIndirect(&config, Some(&mut pnbutton), Some(&mut pnradiobutton), Some(&mut pfverificationflagchecked)).ok() };
+    unsafe {
+        TaskDialogIndirect(
+            &config,
+            Some(&mut pnbutton),
+            Some(&mut pnradiobutton),
+            Some(&mut pfverificationflagchecked),
+        )
+        .ok()
+    };
     pnbutton == IDYES.0
 }
 
@@ -217,13 +255,19 @@ pub fn generate_confirm(
     let hparent = unsafe { GetDesktopWindow() };
     let mut ok_text_buf = string_to_wide_opt(ok_text);
     let mut custom_btns = if let Some(ok_text_buf) = ok_text_buf.as_mut() {
-        let td_btn = TASKDIALOG_BUTTON { nButtonID: IDOK.0, pszButtonText: ok_text_buf.as_pcwstr() };
+        let td_btn = TASKDIALOG_BUTTON {
+            nButtonID: IDOK.0,
+            pszButtonText: ok_text_buf.as_pcwstr(),
+        };
         vec![td_btn]
     } else {
         Vec::new()
     };
 
-    let mut tdc = TASKDIALOGCONFIG { hwndParent: hparent, ..Default::default() };
+    let mut tdc = TASKDIALOGCONFIG {
+        hwndParent: hparent,
+        ..Default::default()
+    };
     tdc.cbSize = std::mem::size_of::<TASKDIALOGCONFIG>() as u32;
     tdc.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION | TDF_POSITION_RELATIVE_TO_WINDOW;
     tdc.dwCommonButtons = btns.to_win();

@@ -97,7 +97,11 @@ pub struct ProgressContext {
 impl ProgressContext {
     pub fn new(h_install: MSIHANDLE, jobs: usize) -> Self {
         let jobs = jobs as i32; // Convert job index to i32 for calculations
-        Self { h_install, current_ticks: 0, total_ticks: 100 * jobs }
+        Self {
+            h_install,
+            current_ticks: 0,
+            total_ticks: 100 * jobs,
+        }
     }
 
     pub fn reset(&mut self) {
