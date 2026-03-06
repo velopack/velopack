@@ -21,7 +21,7 @@ jobs:
             rust_flags: "--features windows"
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Setup Job Environment
@@ -44,7 +44,7 @@ jobs:
         os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Setup Job Environment
@@ -64,7 +64,7 @@ jobs:
     # runs-on: ${{ matrix.os }}
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Setup Job Environment
@@ -91,7 +91,7 @@ jobs:
       VELOPACK_B2_TEST_TOKEN: ${{ secrets.VELOPACK_B2_TEST_TOKEN }}
       VELOPACK_AZ_TEST_TOKEN: ${{ secrets.VELOPACK_AZ_TEST_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Setup Job Environment

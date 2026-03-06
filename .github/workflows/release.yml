@@ -88,7 +88,7 @@ jobs:
           mkdir -p ../lib-python
           zip -r ../lib-python/velopack_libpython_$PKG_VERSION.zip .
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           path: ./repo
           fetch-depth: 0
