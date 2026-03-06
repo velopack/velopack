@@ -1,28 +1,28 @@
-﻿using Microsoft.Build.Framework;
-using Velopack.Packaging.Compression;
+﻿using System.Diagnostics.CodeAnalysis;
+using Microsoft.Build.Framework;
+using Velopack.Packaging;
 
 namespace Velopack.Build;
 
 public class PackTask : VpkTask
 {
-    public bool SelfContained { get; set; }
-
     public string? TargetRuntime { get; set; }
 
     [Required]
-    public string TargetFramework { get; set; } = null!;
+    [NotNull]
+    public string? PackVersion { get; set; }
 
     [Required]
-    public string PackVersion { get; set; } = "";
+    [NotNull]
+    public string? PackId { get; set; }
 
     [Required]
-    public string PackId { get; set; } = "";
+    [NotNull]
+    public string? PackDirectory { get; set; }
 
     [Required]
-    public string PackDirectory { get; set; } = null!;
-
-    [Required]
-    public string ReleaseDir { get; set; } = null!;
+    [NotNull]
+    public string? ReleaseDir { get; set; }
 
     public string? Runtimes { get; set; }
 
@@ -65,7 +65,7 @@ public class PackTask : VpkTask
     public string? SignInstallIdentity { get; set; }
 
     public string? SignEntitlements { get; set; }
-    
+
     public bool SignDisableDeep { get; set; }
 
     public string? NotaryProfile { get; set; }
@@ -83,7 +83,7 @@ public class PackTask : VpkTask
     public bool SkipVelopackAppCheck { get; set; }
 
     public string? SignParameters { get; set; }
-    
+
     public string? AzureTrustedSignFile { get; set; }
 
     public string? SignExclude { get; set; }
@@ -95,7 +95,7 @@ public class PackTask : VpkTask
     public string? Categories { get; set; }
 
     public string? Shortcuts { get; set; }
-    
+
     public string? Compression { get; set; }
 
     public bool BuildMsi { get; set; }
@@ -108,8 +108,7 @@ public class PackTask : VpkTask
 
     protected override async Task<bool> PreExecuteAsync(VpkToolRunner toolRunner, CancellationToken cancellationToken)
     {
-        if (DeltaMode == nameof(Velopack.Packaging.Compression.DeltaMode.None))
-        {
+        if (DeltaMode == nameof(Packaging.Compression.DeltaMode.None)) {
             return true;
         }
 
@@ -129,14 +128,12 @@ public class PackTask : VpkTask
             Timeout.ToString()
         };
 
-        if (!string.IsNullOrWhiteSpace(Channel))
-        {
+        if (!string.IsNullOrWhiteSpace(Channel)) {
             args.Add("--channel");
             args.Add(Channel!);
         }
 
-        if (!string.IsNullOrWhiteSpace(VelopackBaseUrl))
-        {
+        if (!string.IsNullOrWhiteSpace(VelopackBaseUrl)) {
             args.Add("--baseUrl");
             args.Add(VelopackBaseUrl!);
         }
@@ -145,8 +142,7 @@ public class PackTask : VpkTask
 
         var exitCode = await toolRunner.RunVpk(args, [], cancellationToken).ConfigureAwait(false);
 
-        if (exitCode != 0)
-        {
+        if (exitCode != 0) {
             Log.LogWarning($"Failed to download latest release from Velopack Flow (exit code {exitCode}). Delta generation may not work correctly.");
         }
 
@@ -164,236 +160,197 @@ public class PackTask : VpkTask
             yield return "--legacyConsole";
             yield return "--yes";
 
-            if (!string.IsNullOrWhiteSpace(PackId))
-            {
+            if (!string.IsNullOrWhiteSpace(PackId)) {
                 yield return "--packId";
                 yield return PackId;
             }
 
-            if (!string.IsNullOrWhiteSpace(PackVersion))
-            {
+            if (!string.IsNullOrWhiteSpace(PackVersion)) {
                 yield return "--packVersion";
                 yield return PackVersion;
             }
 
-            if (!string.IsNullOrWhiteSpace(PackDirectory))
-            {
+            if (!string.IsNullOrWhiteSpace(PackDirectory)) {
                 yield return "--packDir";
                 yield return PackDirectory;
             }
 
-            if (!string.IsNullOrWhiteSpace(ReleaseDir))
-            {
+            if (!string.IsNullOrWhiteSpace(ReleaseDir)) {
                 yield return "--outputDir";
                 yield return ReleaseDir;
             }
 
-            if (!string.IsNullOrWhiteSpace(EntryExecutableName))
-            {
+            if (!string.IsNullOrWhiteSpace(EntryExecutableName)) {
                 yield return "--mainExe";
                 yield return EntryExecutableName!;
             }
 
-            if (!string.IsNullOrWhiteSpace(PackAuthors))
-            {
+            if (!string.IsNullOrWhiteSpace(PackAuthors)) {
                 yield return "--packAuthors";
                 yield return PackAuthors!;
             }
 
-            if (!string.IsNullOrWhiteSpace(PackTitle))
-            {
+            if (!string.IsNullOrWhiteSpace(PackTitle)) {
                 yield return "--packTitle";
                 yield return PackTitle!;
             }
 
-            if (!string.IsNullOrWhiteSpace(Icon))
-            {
+            if (!string.IsNullOrWhiteSpace(Icon)) {
                 yield return "--icon";
                 yield return Icon!;
             }
 
-            if (!string.IsNullOrWhiteSpace(ReleaseNotes))
-            {
+            if (!string.IsNullOrWhiteSpace(ReleaseNotes)) {
                 yield return "--releaseNotes";
                 yield return ReleaseNotes!;
             }
 
-            if (!string.IsNullOrEmpty(DeltaMode))
-            {
+            if (!string.IsNullOrEmpty(DeltaMode)) {
                 yield return "--delta";
-                yield return DeltaMode;
+                yield return DeltaMode!;
             }
 
-            if (!string.IsNullOrWhiteSpace(Channel))
-            {
+            if (!string.IsNullOrWhiteSpace(Channel)) {
                 yield return "--channel";
                 yield return Channel!;
             }
 
-            if (!string.IsNullOrWhiteSpace(Exclude))
-            {
+            if (!string.IsNullOrWhiteSpace(Exclude)) {
                 yield return "--exclude";
                 yield return Exclude!;
             }
 
-            if (!string.IsNullOrWhiteSpace(Runtimes))
-            {
+            if (!string.IsNullOrWhiteSpace(Runtimes)) {
                 yield return "--framework";
                 yield return Runtimes!;
             }
 
-            if (!string.IsNullOrWhiteSpace(SplashImage))
-            {
+            if (!string.IsNullOrWhiteSpace(SplashImage)) {
                 yield return "--splashImage";
                 yield return SplashImage!;
             }
 
-            if (!string.IsNullOrWhiteSpace(SignParameters))
-            {
+            if (!string.IsNullOrWhiteSpace(SignParameters)) {
                 yield return "--signParams";
                 yield return SignParameters!;
             }
 
-            if (!string.IsNullOrWhiteSpace(SignTemplate))
-            {
+            if (!string.IsNullOrWhiteSpace(SignTemplate)) {
                 yield return "--signTemplate";
                 yield return SignTemplate!;
             }
 
-            if (!string.IsNullOrWhiteSpace(SignExclude))
-            {
+            if (!string.IsNullOrWhiteSpace(SignExclude)) {
                 yield return "--signExclude";
                 yield return SignExclude!;
             }
 
-            if (SignParallel is { } signParallel)
-            {
+            if (SignParallel is { } signParallel) {
                 yield return "--signParallel";
                 yield return signParallel.ToString();
             }
 
-            if (!string.IsNullOrWhiteSpace(Shortcuts))
-            {
+            if (!string.IsNullOrWhiteSpace(Shortcuts)) {
                 yield return "--shortcuts";
                 yield return Shortcuts!;
             }
 
-            if (!string.IsNullOrWhiteSpace(Categories))
-            {
+            if (!string.IsNullOrWhiteSpace(Categories)) {
                 yield return "--categories";
                 yield return Categories!;
             }
 
-            if (!string.IsNullOrWhiteSpace(Compression))
-            {
+            if (!string.IsNullOrWhiteSpace(Compression)) {
                 yield return "--compression";
                 yield return Compression!;
             }
 
-            if (!string.IsNullOrWhiteSpace(SignAppIdentity))
-            {
+            if (!string.IsNullOrWhiteSpace(SignAppIdentity)) {
                 yield return "--signAppIdentity";
                 yield return SignAppIdentity!;
             }
 
-            if (!string.IsNullOrWhiteSpace(SignInstallIdentity))
-            {
+            if (!string.IsNullOrWhiteSpace(SignInstallIdentity)) {
                 yield return "--signInstallIdentity";
                 yield return SignInstallIdentity!;
             }
 
-            if (!string.IsNullOrWhiteSpace(SignEntitlements))
-            {
+            if (!string.IsNullOrWhiteSpace(SignEntitlements)) {
                 yield return "--signEntitlements";
                 yield return SignEntitlements!;
             }
 
-            if (!string.IsNullOrWhiteSpace(NotaryProfile))
-            {
+            if (!string.IsNullOrWhiteSpace(NotaryProfile)) {
                 yield return "--notaryProfile";
                 yield return NotaryProfile!;
             }
 
-            if (!string.IsNullOrWhiteSpace(Keychain))
-            {
+            if (!string.IsNullOrWhiteSpace(Keychain)) {
                 yield return "--keychain";
                 yield return Keychain!;
             }
 
-            if (!string.IsNullOrWhiteSpace(BundleId))
-            {
+            if (!string.IsNullOrWhiteSpace(BundleId)) {
                 yield return "--bundleId";
                 yield return BundleId!;
             }
 
-            if (!string.IsNullOrWhiteSpace(InfoPlistPath))
-            {
+            if (!string.IsNullOrWhiteSpace(InfoPlistPath)) {
                 yield return "--infoPlist";
                 yield return InfoPlistPath!;
             }
 
-            if (!string.IsNullOrWhiteSpace(AzureTrustedSignFile))
-            {
+            if (!string.IsNullOrWhiteSpace(AzureTrustedSignFile)) {
                 yield return "--azureTrustedSignFile";
                 yield return AzureTrustedSignFile!;
             }
 
-            if (!string.IsNullOrWhiteSpace(InstWelcome))
-            {
+            if (!string.IsNullOrWhiteSpace(InstWelcome)) {
                 yield return "--instWelcome";
                 yield return InstWelcome!;
             }
 
-            if (!string.IsNullOrWhiteSpace(InstReadme))
-            {
+            if (!string.IsNullOrWhiteSpace(InstReadme)) {
                 yield return "--instReadme";
                 yield return InstReadme!;
             }
 
-            if (!string.IsNullOrWhiteSpace(InstLicense))
-            {
+            if (!string.IsNullOrWhiteSpace(InstLicense)) {
                 yield return "--instLicense";
                 yield return InstLicense!;
             }
 
-            if (!string.IsNullOrWhiteSpace(InstConclusion))
-            {
+            if (!string.IsNullOrWhiteSpace(InstConclusion)) {
                 yield return "--instConclusion";
                 yield return InstConclusion!;
             }
 
-            if (!string.IsNullOrWhiteSpace(MsiVersionOverride))
-            {
+            if (!string.IsNullOrWhiteSpace(MsiVersionOverride)) {
                 yield return "--msiVersionOverride";
                 yield return MsiVersionOverride!;
             }
 
-            if (SkipVelopackAppCheck)
-            {
+            if (SkipVelopackAppCheck) {
                 yield return "--skipVeloAppCheck";
             }
 
-            if (NoPortable)
-            {
+            if (NoPortable) {
                 yield return "--noPortable";
             }
 
-            if (NoInst)
-            {
+            if (NoInst) {
                 yield return "--noInst";
             }
 
-            if (BuildMsi)
-            {
+            if (BuildMsi) {
                 yield return "--msi";
             }
 
-            if (SignDisableDeep)
-            {
+            if (SignDisableDeep) {
                 yield return "--signDisableDeep";
             }
         }
 
-        return [..GetArguments()];
+        return [.. GetArguments()];
     }
 }

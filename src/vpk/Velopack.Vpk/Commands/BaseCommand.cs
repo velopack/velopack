@@ -8,9 +8,9 @@ public class BaseCommand : CliCommand
 {
     public RuntimeOs TargetOs { get; private set; }
 
-    private readonly Dictionary<CliOption, Action<ParseResult, IConfiguration>> _setters = new();
+    private readonly Dictionary<CliOption, Action<ParseResult, IConfiguration>> _setters = [];
 
-    private readonly Dictionary<CliOption, string> _envHelp = new();
+    private readonly Dictionary<CliOption, string> _envHelp = [];
 
     protected BaseCommand(string name, string description)
         : base(name, description)
