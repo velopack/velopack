@@ -27,7 +27,7 @@
     <PackageReference Include="NuGet.Protocol" Version="7.3.0" />
     <PackageReference Include="Spectre.Console" Version="0.54.0" />
     <PackageReference Include="Riok.Mapperly" Version="4.3.1" />
-    <PackageReference Include="Humanizer.Core" Version="3.0.1" />
+    <PackageReference Include="Humanizer.Core" Version="3.0.8" />
     <PackageReference Include="System.Formats.Asn1" Version="10.0.3" />
     <PackageReference Include="System.Text.Json" Version="10.0.3" />
   </ItemGroup>
