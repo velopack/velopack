@@ -20,10 +20,10 @@ public class FlowDeploymentTests
         _output = output;
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task CanDownloadFromFlow()
     {
-        Skip.If(string.IsNullOrWhiteSpace(FLOW_PACKAGE_ID), "VELOPACK_FLOW_TEST_PACKAGE_ID is not set.");
+        Assert.SkipWhen(string.IsNullOrWhiteSpace(FLOW_PACKAGE_ID), "VELOPACK_FLOW_TEST_PACKAGE_ID is not set.");
         using var logger = _output.BuildLoggerFor<FlowDeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
 

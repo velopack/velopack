@@ -11,7 +11,7 @@
     <PackageTags>windows;macos;osx;updater;dotnet;installer;desktop;squirrel;velopack;autoupdate;automatic-updates</PackageTags>
     <PackageIcon>Velopack_200.png</PackageIcon>
     <PackageReadmeFile>README_NUGET.md</PackageReadmeFile>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <GeneratePackageOnBuild Condition="'$(BuildingInsideVisualStudio)' != 'true'">true</GeneratePackageOnBuild>
     <Title>$(VelopackPackageId)</Title>
     <Product>$(VelopackPackageId)</Product>
     <PackageId>$(VelopackPackageId)</PackageId>

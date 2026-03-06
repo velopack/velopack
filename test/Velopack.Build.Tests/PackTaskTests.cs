@@ -1,6 +1,4 @@
-﻿using Velopack.Packaging.Compression;
-
-namespace Velopack.Build.Tests;
+﻿namespace Velopack.Build.Tests;
 
 public class PackTaskTests
 {
@@ -12,8 +10,7 @@ public class PackTaskTests
         var task = CreatePackTask(packId, packVersion, packDirectory, releaseDir);
         var args = task.BuildPackArguments();
 
-        foreach (var expectedArg in expectedArgs)
-        {
+        foreach (var expectedArg in expectedArgs) {
             Assert.Contains(expectedArg, args);
         }
     }
@@ -96,19 +93,17 @@ public class PackTaskTests
     [Fact]
     public void BuildArguments_IncludesAllArguments_InComplexScenario()
     {
-        var task = new PackTask
-        {
+        var task = new PackTask {
             PackId = "ComplexApp",
             PackVersion = "3.2.1",
             PackDirectory = "C:\\ComplexApp",
             ReleaseDir = "C:\\Releases",
-            TargetFramework = "net8.0",
             EntryExecutableName = "ComplexApp.exe",
             PackAuthors = "Complex Authors Inc.",
             PackTitle = "Complex Application Title",
             Icon = "app.ico",
             ReleaseNotes = "release-notes.md",
-            DeltaMode = nameof(DeltaMode.BestSize),
+            DeltaMode = "BestSize",
             Channel = "stable",
             Exclude = @".*\.(pdb|xml)",
             Runtimes = "net8-x64-desktop",
@@ -148,8 +143,7 @@ public class PackTaskTests
             "--msi"
         };
 
-        foreach (var expectedArg in expectedArgs)
-        {
+        foreach (var expectedArg in expectedArgs) {
             Assert.Contains(expectedArg, args);
         }
     }
@@ -179,8 +173,7 @@ public class PackTaskTests
     {
         var args = task.BuildPackArguments();
 
-        foreach (var expectedArg in expectedArgs)
-        {
+        foreach (var expectedArg in expectedArgs) {
             Assert.Contains(expectedArg, args);
         }
     }
@@ -194,7 +187,6 @@ public class PackTaskTests
                     PackVersion = "1.0.0",
                     PackDirectory = "/Users/app",
                     ReleaseDir = "/Users/releases",
-                    TargetFramework = "net8.0",
                     SignAppIdentity = "Developer ID Application: Company (TEAM123)",
                     SignInstallIdentity = "Developer ID Installer: Company (TEAM123)",
                     NotaryProfile = "AC_PASSWORD",
@@ -208,7 +200,6 @@ public class PackTaskTests
                     PackVersion = "2.0.0",
                     PackDirectory = "/Users/app2",
                     ReleaseDir = "/Users/releases2",
-                    TargetFramework = "net8.0",
                     SignEntitlements = "entitlements.plist",
                     Keychain = "login.keychain",
                     InfoPlistPath = "Info.plist",
@@ -226,8 +217,7 @@ public class PackTaskTests
     {
         var args = task.BuildPackArguments();
 
-        foreach (var expectedArg in expectedArgs)
-        {
+        foreach (var expectedArg in expectedArgs) {
             Assert.Contains(expectedArg, args);
         }
     }
@@ -241,7 +231,6 @@ public class PackTaskTests
                     PackVersion = "1.0.0",
                     PackDirectory = "C:\\WinApp",
                     ReleaseDir = "C:\\Release",
-                    TargetFramework = "net8.0",
                     SplashImage = "splash.bmp",
                     InstWelcome = "welcome.rtf",
                     InstReadme = "readme.rtf",
@@ -256,13 +245,12 @@ public class PackTaskTests
                     PackVersion = "2.0.0",
                     PackDirectory = "C:\\WinApp2",
                     ReleaseDir = "C:\\Release2",
-                    TargetFramework = "net8.0",
                     BuildMsi = true,
                     MsiVersionOverride = "2.0.0.0",
                     SignParameters = "/a /fd SHA256 /tr http://timestamp.digicert.com",
                     AzureTrustedSignFile = "azure-config.json"
                 },
-                new[] { "--msi", "--msiVersionOverride", "2.0.0.0", "--signParams", "/a /fd SHA256 /tr http://timestamp.digicert.com", "--azureTrustedSignFile", "azure-config.json" }
+                [ "--msi", "--msiVersionOverride", "2.0.0.0", "--signParams", "/a /fd SHA256 /tr http://timestamp.digicert.com", "--azureTrustedSignFile", "azure-config.json" ]
             }
         };
         return data;
@@ -271,26 +259,22 @@ public class PackTaskTests
 
     private static PackTask CreateMinimalPackTask()
     {
-        return new PackTask
-        {
+        return new PackTask {
             PackId = "TestApp",
             PackVersion = "1.0.0",
             PackDirectory = "C:\\TestApp",
-            ReleaseDir = "C:\\Release",
-            TargetFramework = "net8.0"
+            ReleaseDir = "C:\\Release"
         };
     }
 
     private static PackTask CreatePackTask(
         string packId, string packVersion, string packDirectory, string releaseDir)
     {
-        return new PackTask
-        {
+        return new PackTask {
             PackId = packId,
             PackVersion = packVersion,
             PackDirectory = packDirectory,
-            ReleaseDir = releaseDir,
-            TargetFramework = "net8.0"
+            ReleaseDir = releaseDir
         };
     }
 

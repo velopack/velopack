@@ -92,7 +92,6 @@
       SignTemplate="$(VelopackSignTemplate)"
       SkipVelopackAppCheck="$(VelopackSkipVelopackAppCheck)"
       SplashImage="$(VelopackSplashImage)"
-      TargetFramework="$(TargetFramework)"
       TargetRuntime="$(VelopackTargetRuntime)"
     />
   </Target>
