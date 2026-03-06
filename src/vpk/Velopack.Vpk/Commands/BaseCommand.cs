@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Humanizer;
 using Microsoft.Extensions.Configuration;
@@ -11,9 +11,9 @@ public class BaseCommand : Command
 {
     public RuntimeOs TargetOs { get; private set; }
 
-    private readonly Dictionary<Option, Action<ParseResult, IConfiguration>> _setters = new();
+    private readonly Dictionary<CliOption, Action<ParseResult, IConfiguration>> _setters = [];
 
-    private readonly Dictionary<Option, string> _envHelp = new();
+    private readonly Dictionary<CliOption, string> _envHelp = [];
 
     private readonly Dictionary<Option, string> _targetProperties = new();
 
