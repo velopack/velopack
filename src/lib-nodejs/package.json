@@ -56,6 +56,6 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@neon-rs/load": "^0.1.82"
+    "@neon-rs/load": "^0.2.0"
   }
 }
