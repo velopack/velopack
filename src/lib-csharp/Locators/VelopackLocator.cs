@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Velopack.Logging;
+using Velopack.Util;
 
 namespace Velopack.Locators
 {
@@ -85,6 +86,9 @@ namespace Velopack.Locators
 
         /// <inheritdoc/>
         public abstract string? Channel { get; }
+
+        /// <inheritdoc/>
+        public virtual string? AppUserModelId => AppId != null ? CoreUtil.GetAppUserModelId(AppId) : null;
 
         /// <inheritdoc/>
         public virtual IVelopackLogger Log => ((IVelopackLogger?) CombinedLogger) ?? new NullVelopackLogger();

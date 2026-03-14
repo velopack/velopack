@@ -217,6 +217,11 @@ impl UpdateManager {
         channel
     }
 
+    /// Returns a reference to the current VelopackLocator.
+    pub(crate) fn get_locator(&self) -> &VelopackLocator {
+        &self.locator
+    }
+
     /// The currently installed app version as a string.
     pub fn get_current_version_as_string(&self) -> String {
         self.locator.get_manifest_version_full_string()

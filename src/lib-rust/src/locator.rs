@@ -298,6 +298,14 @@ impl VelopackLocator {
         Some(self.manifest.shortcut_aumid.clone())
     }
 
+    /// Returns the Application User Model ID for this app.
+    /// If a custom AUMID was specified during packaging, it will be returned.
+    /// Otherwise, falls back to "velopack.{AppId}".
+    pub fn get_app_user_model_id(&self) -> String {
+        self.get_manifest_shortcut_aumid()
+            .unwrap_or_else(|| format!("velopack.{}", self.manifest.id))
+    }
+
     /// Returns a copy of the current VelopackLocator with the manifest field set to the given manifest.
     pub fn clone_self_with_new_manifest(&self, manifest: &Manifest) -> VelopackLocator {
         VelopackLocator {
