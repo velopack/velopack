@@ -38,6 +38,9 @@ namespace Velopack.Locators
 
         /// <summary> The release channel this package was built for. </summary>
         string? Channel { get; }
+
+        /// <summary> The Application User Model ID for this app, used for taskbar grouping and toast notifications on Windows. </summary>
+        string? AppUserModelId { get; }
         
         /// <summary> The logging interface to use for Velopack diagnostic messages. </summary>
         IVelopackLogger Log { get; }

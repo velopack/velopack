@@ -15,6 +15,7 @@ pub struct VelopackApp<'a> {
     firstrun_hook: Option<Box<dyn FnOnce(Version) + 'a>>,
     restarted_hook: Option<Box<dyn FnOnce(Version) + 'a>>,
     auto_apply: bool,
+    custom_aumid: Option<String>,
     args: Vec<String>,
     locator: Option<VelopackLocatorConfig>,
 }
@@ -30,6 +31,7 @@ impl<'a> VelopackApp<'a> {
             firstrun_hook: None,
             restarted_hook: None,
             auto_apply: true, // Default to true
+            custom_aumid: None,
             args: env::args().skip(1).collect(),
             locator: None,
         }
@@ -44,6 +46,14 @@ impl<'a> VelopackApp<'a> {
     /// Set whether to automatically apply downloaded updates on startup. This is ON by default.
     pub fn set_auto_apply_on_startup(mut self, apply: bool) -> Self {
         self.auto_apply = apply;
+        self
+    }
+
+    /// Override the Application User Model ID (AUMID) set for this process on Windows.
+    /// By default, the AUMID is read from the package manifest (shortcutAumid), falling back to "velopack.{AppId}".
+    #[cfg(target_os = "windows")]
+    pub fn set_app_user_model_id(mut self, aumid: &str) -> Self {
+        self.custom_aumid = Some(aumid.to_string());
         self
     }
 
@@ -128,6 +138,20 @@ impl<'a> VelopackApp<'a> {
             return;
         }
         let manager = manager.unwrap();
+
+        #[cfg(target_os = "windows")]
+        {
+            let aumid = self
+                .custom_aumid
+                .as_deref()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| manager.get_locator().get_app_user_model_id());
+            info!("Setting current process explicit AppUserModelID to '{}'", aumid);
+            unsafe {
+                let wide = crate::wide_strings::string_to_wide(&aumid);
+                let _ = windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID(wide.as_pcwstr());
+            }
+        }
 
         let my_version = manager.get_current_version();
 
