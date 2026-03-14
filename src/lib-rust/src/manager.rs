@@ -250,24 +250,10 @@ impl UpdateManager {
         let packages_dir = self.locator.get_packages_dir();
         if let Some((path, manifest)) = locator::find_latest_full_package(&packages_dir) {
             if manifest.version > self.locator.get_manifest_version() {
-                return Some(self.local_manifest_to_asset(&manifest, &path));
+                return Some(local_path_to_asset(&manifest, &path));
             }
         }
         None
-    }
-
-    fn local_manifest_to_asset(&self, manifest: &Manifest, path: &PathBuf) -> VelopackAsset {
-        VelopackAsset {
-            PackageId: manifest.id.clone(),
-            Version: manifest.version.to_string(),
-            Type: "Full".to_string(),
-            FileName: path.file_name().unwrap().to_string_lossy().to_string(),
-            SHA1: String::new(),
-            SHA256: String::new(),
-            Size: path.metadata().map(|m| m.len()).unwrap_or(0),
-            NotesMarkdown: manifest.release_notes.clone(),
-            NotesHtml: manifest.release_notes_html.clone(),
-        }
     }
 
     /// Get a list of available remote releases from the package source.
@@ -357,7 +343,7 @@ impl UpdateManager {
         }
 
         let (latest_local_path, latest_local_manifest) = latest_local.unwrap();
-        let local_asset = self.local_manifest_to_asset(&latest_local_manifest, &latest_local_path);
+        let local_asset = local_path_to_asset(&latest_local_manifest, &latest_local_path);
 
         let assets_and_versions: Vec<(&VelopackAsset, Version)> = velopack_asset_feed
             .iter()
@@ -552,7 +538,10 @@ impl UpdateManager {
         let (sha1, sha256) = misc::calculate_sha1_sha256(file)?;
         if !asset.SHA256.is_empty() {
             if !sha256.eq_ignore_ascii_case(&asset.SHA256) {
-                error!("SHA256 checksum mismatch for file '{:?}': expected '{}', got '{}'", file, asset.SHA256, sha256);
+                error!(
+                    "SHA256 checksum mismatch for file '{:?}': expected '{}', got '{}'",
+                    file, asset.SHA256, sha256
+                );
                 return Err(Error::ChecksumInvalid(file.to_path_buf(), asset.SHA256.clone(), sha256));
             }
         } else if !sha1.eq_ignore_ascii_case(&asset.SHA1) {
@@ -703,5 +692,20 @@ impl UpdateManager {
         let update_path = self.locator.get_update_path();
         crate::process::run_process(&update_path, args, update_path.parent(), false, None)?;
         Ok(())
+    }
+}
+
+/// Converts a local manifest and path into a VelopackAsset.
+pub(crate) fn local_path_to_asset(manifest: &Manifest, path: &Path) -> VelopackAsset {
+    VelopackAsset {
+        PackageId: manifest.id.clone(),
+        Version: manifest.version.to_string(),
+        Type: "Full".to_string(),
+        FileName: path.file_name().unwrap().to_string_lossy().to_string(),
+        SHA1: String::new(),
+        SHA256: String::new(),
+        Size: path.metadata().map(|m| m.len()).unwrap_or(0),
+        NotesMarkdown: manifest.release_notes.clone(),
+        NotesHtml: manifest.release_notes_html.clone(),
     }
 }

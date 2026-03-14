@@ -2,7 +2,11 @@ use semver::Version;
 use std::env;
 use std::process::exit;
 
-use crate::{constants::*, locator::VelopackLocatorConfig, manager, sources};
+use crate::{
+    constants::*,
+    locator::{self, VelopackLocatorConfig},
+    manager, sources,
+};
 
 /// VelopackApp helps you to handle app activation events correctly.
 /// This should be used as early as possible in your application startup code.
@@ -154,6 +158,14 @@ impl<'a> VelopackApp<'a> {
         }
 
         let my_version = manager.get_current_version();
+        let packages_dir = manager.get_locator().get_packages_dir();
+
+        // Load all local packages once — used for both auto-apply and cleanup.
+        let local_packages = locator::find_local_full_packages(&packages_dir);
+        let latest_full = local_packages
+            .iter()
+            .filter(|(_, m)| m.version > my_version)
+            .max_by(|(_, a), (_, b)| a.version.cmp(&b.version));
 
         let firstrun = env::var(HOOK_ENV_FIRSTRUN).is_ok();
         env::remove_var(HOOK_ENV_FIRSTRUN);
@@ -164,22 +176,21 @@ impl<'a> VelopackApp<'a> {
         // if auto apply is true and we haven't just been restarted via Velopack apply,
         // we should check for a local package downloaded with a version greater than ours.
         // If it exists, we should quit and apply it now.
-        if self.auto_apply && !restarted {
-            if let Some(asset) = manager.get_update_pending_restart() {
-                match Version::parse(&asset.Version) {
-                    Ok(asset_version) => {
-                        if asset_version > my_version {
-                            if let Err(e) = manager.apply_updates_and_restart_with_args(&asset, &args) {
-                                error!("VelopackApp: Error applying pending updates on startup: {:?}", e);
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        error!("VelopackApp: Error parsing asset version: {:?}", e);
-                    }
+        let pending_version = if let Some((path, manifest)) = latest_full {
+            let pending_ver = manifest.version.clone();
+            if self.auto_apply && !restarted {
+                let asset = manager::local_path_to_asset(manifest, path);
+                if let Err(e) = manager.apply_updates_and_restart_with_args(&asset, &args) {
+                    error!("VelopackApp: Error applying pending updates on startup: {:?}", e);
                 }
             }
-        }
+            Some(pending_ver)
+        } else {
+            None
+        };
+
+        // clean up old packages
+        cleanup_old_packages_from_list(local_packages, &my_version, pending_version.as_ref());
 
         if firstrun {
             Self::call_hook(&mut self.firstrun_hook, &my_version);
@@ -210,5 +221,116 @@ impl<'a> VelopackApp<'a> {
         } else {
             exit(0);
         }
+    }
+}
+
+fn cleanup_old_packages_from_list(
+    packages: Vec<(std::path::PathBuf, crate::bundle::Manifest)>,
+    current_version: &Version,
+    pending_version: Option<&Version>,
+) {
+    for (path, manifest) in &packages {
+        if manifest.version == *current_version {
+            continue;
+        }
+        if let Some(pv) = pending_version {
+            if &manifest.version == pv {
+                continue;
+            }
+        }
+        info!("Removing old package: {:?}", path);
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use zip::write::SimpleFileOptions;
+
+    /// Creates a minimal .nupkg (zip with a .nuspec) in the given directory.
+    fn create_test_nupkg(dir: &std::path::Path, id: &str, version: &str) -> std::path::PathBuf {
+        let filename = format!("{}-{}-full.nupkg", id, version);
+        let path = dir.join(&filename);
+        let file = std::fs::File::create(&path).unwrap();
+        let mut zip = zip::ZipWriter::new(file);
+        let nuspec = format!(
+            r#"<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>{}</id>
+    <version>{}</version>
+    <title>{}</title>
+    <authors>test</authors>
+    <description>test</description>
+    <mainExe>test.exe</mainExe>
+  </metadata>
+</package>"#,
+            id, version, id
+        );
+        zip.start_file(format!("{}.nuspec", id), SimpleFileOptions::default()).unwrap();
+        zip.write_all(nuspec.as_bytes()).unwrap();
+        zip.finish().unwrap();
+        path
+    }
+
+    #[test]
+    fn test_cleanup_old_packages_removes_old_keeps_current_and_pending() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let packages_dir = tmp_dir.path();
+
+        let current = Version::parse("2.0.0").unwrap();
+        let pending = Version::parse("3.0.0").unwrap();
+
+        // old version — should be deleted
+        let old_pkg = create_test_nupkg(packages_dir, "TestApp", "1.0.0");
+        // current version — should be kept
+        let current_pkg = create_test_nupkg(packages_dir, "TestApp", "2.0.0");
+        // pending version — should be kept
+        let pending_pkg = create_test_nupkg(packages_dir, "TestApp", "3.0.0");
+
+        let packages = locator::find_local_full_packages(&packages_dir.to_path_buf());
+        cleanup_old_packages_from_list(packages, &current, Some(&pending));
+
+        assert!(!old_pkg.exists(), "Old package should have been deleted");
+        assert!(current_pkg.exists(), "Current version package should be kept");
+        assert!(pending_pkg.exists(), "Pending version package should be kept");
+    }
+
+    #[test]
+    fn test_cleanup_old_packages_no_pending() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let packages_dir = tmp_dir.path();
+
+        let current = Version::parse("2.0.0").unwrap();
+
+        let old_pkg = create_test_nupkg(packages_dir, "TestApp", "1.0.0");
+        let current_pkg = create_test_nupkg(packages_dir, "TestApp", "2.0.0");
+        let newer_pkg = create_test_nupkg(packages_dir, "TestApp", "3.0.0");
+
+        let packages = locator::find_local_full_packages(&packages_dir.to_path_buf());
+        cleanup_old_packages_from_list(packages, &current, None);
+
+        assert!(!old_pkg.exists(), "Old package should have been deleted");
+        assert!(current_pkg.exists(), "Current version package should be kept");
+        assert!(!newer_pkg.exists(), "Newer package with no pending should be deleted");
+    }
+
+    #[test]
+    fn test_cleanup_old_packages_invalid_nupkg_not_loaded() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let packages_dir = tmp_dir.path();
+
+        // Write a corrupt nupkg (not a valid zip) — load_local_packages skips it
+        let bad_path = packages_dir.join("garbage-1.0.0-full.nupkg");
+        std::fs::write(&bad_path, b"not a zip file").unwrap();
+
+        let current_pkg = create_test_nupkg(packages_dir, "TestApp", "1.0.0");
+
+        let packages = locator::find_local_full_packages(&packages_dir.to_path_buf());
+        assert_eq!(packages.len(), 1, "Only valid packages should be loaded");
+        assert!(current_pkg.exists());
+        assert!(bad_path.exists(), "Invalid nupkg is not in the loaded list, so not touched by cleanup");
     }
 }
