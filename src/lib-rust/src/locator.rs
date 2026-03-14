@@ -577,28 +577,31 @@ fn read_current_manifest(nuspec_path: &PathBuf) -> Result<Manifest, Error> {
     )))
 }
 
-/// Returns the path and manifest of the latest full package in the given directory.
-pub fn find_latest_full_package(packages_dir: &PathBuf) -> Option<(PathBuf, Manifest)> {
-    let packages_dir = packages_dir.to_string_lossy();
-
-    info!("Attempting to auto-detect package in: {:?}", packages_dir);
-    let mut package: Option<(PathBuf, Manifest)> = None;
-
-    let search_glob = format!("{}/*-full.nupkg", packages_dir);
+/// Returns all full packages (path + manifest) found in the given directory.
+pub fn find_local_full_packages(packages_dir: &PathBuf) -> Vec<(PathBuf, Manifest)> {
+    let packages_dir_str = packages_dir.to_string_lossy();
+    info!("Searching for local packages in: {:?}", packages_dir_str);
+    let mut results = Vec::new();
+    let search_glob = format!("{}/*-full.nupkg", packages_dir_str);
     if let Ok(paths) = glob::glob(search_glob.as_str()) {
         for path in paths.into_iter().flatten() {
             trace!("Checking package: '{:?}'", path);
             if let Ok(mut bun) = bundle::load_bundle_from_file(&path) {
                 if let Ok(mani) = bun.read_manifest() {
-                    if package.is_none() || mani.version > package.clone()?.1.version {
-                        info!("Found {}: '{:?}'", mani.version, path);
-                        package = Some((path, mani));
-                    }
+                    info!("Found {}: '{:?}'", mani.version, path);
+                    results.push((path, mani));
                 }
             }
         }
     }
-    package
+    results
+}
+
+/// Returns the path and manifest of the latest full package in the given directory.
+pub fn find_latest_full_package(packages_dir: &PathBuf) -> Option<(PathBuf, Manifest)> {
+    find_local_full_packages(packages_dir)
+        .into_iter()
+        .max_by(|(_, a), (_, b)| a.version.cmp(&b.version))
 }
 
 #[test]
