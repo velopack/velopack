@@ -183,11 +183,11 @@ jobs:
           rustup target add x86_64-apple-darwin 
       - name: Build Rust (x64)
         run: |
-          cargo build --release --target x86_64-apple-darwin
+          cargo build --release --target x86_64-apple-darwin -p velopack_bins -p velopack_nodeffi -p velopack_libc
           otool -L ./target/x86_64-apple-darwin/release/update
       - name: Build Rust (arm64)
         run: |
-          cargo build --release --target aarch64-apple-darwin
+          cargo build --release --target aarch64-apple-darwin -p velopack_bins -p velopack_nodeffi -p velopack_libc
           otool -L ./target/aarch64-apple-darwin/release/update
       - name: Create Universal Binary
         run: |

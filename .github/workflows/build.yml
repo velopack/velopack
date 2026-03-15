@@ -11,15 +11,27 @@ jobs:
   build-rust:
     uses: ./.github/workflows/build-rust.yml
 
+  delay-1: # this delay allows build-rust to secure a priority queue slot for a macos runner (limited to 5 concurrent)
+    runs-on: ubuntu-latest
+    steps:
+      - run: sleep 10
+
   build-python:
+    needs: [delay-1]
     uses: ./.github/workflows/build-python.yml
     
   build-tests:
+    needs: [delay-1]
     uses: ./.github/workflows/build-tests.yml
     secrets: inherit # tests need secrets to run
 
+  delay-2: # this delay allows build-python and build-tests to secure queue slots for a macos runner (limited to 5 concurrent)
+    runs-on: ubuntu-latest
+    steps:
+      - run: sleep 30
+
   build-samples:
-    needs: [build-rust]
+    needs: [delay-2]
     uses: ./.github/workflows/build-samples.yml
 
   build-packages:
