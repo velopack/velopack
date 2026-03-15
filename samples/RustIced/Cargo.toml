@@ -12,5 +12,5 @@ serde_json = "1.0"
 uuid = { version = "1.21", features = ["v4", "fast-rng", "serde"] }
 directories-next = "2.0"
 tracing-subscriber = "0.3"
-velopack = { path = "../../src/lib-rust", features = ["async"] }
+velopack = { path = "../../src/lib-rust" }
 log = "0.4"
