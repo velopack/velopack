@@ -31,21 +31,24 @@ jobs:
           retention-days: 1
 
   windows:
-    runs-on: blacksmith-4vcpu-windows-2025
     strategy:
       fail-fast: false
       matrix:
         target: [x86, x64, arm64]
         include:
           - target: x86
+            runner: blacksmith-2vcpu-windows-2025
             rust_flags: --release -Z build-std="core,alloc,std,panic_abort"
             rust_target: i686-win7-windows-msvc
           - target: x64
+            runner: blacksmith-4vcpu-windows-2025
             rust_flags: --release -Z build-std="core,alloc,std,panic_abort"
             rust_target: x86_64-win7-windows-msvc
           - target: arm64
+            runner: blacksmith-2vcpu-windows-2025
             rust_flags: --release
             rust_target: aarch64-pc-windows-msvc
+    runs-on: ${{ matrix.runner }}
     env:
       RUSTFLAGS: -C target-feature=+crt-static
     steps:
@@ -57,6 +60,11 @@ jobs:
         with:
           dotnet: false
           rust-cache: true
+      - name: Install LLVM
+        if: ${{ matrix.target == 'arm64' }}
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: 18
       - name: Install Dependencies
         run: |
           rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
