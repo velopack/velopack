@@ -22,6 +22,12 @@ runs:
           8.0.x
           9.0.x
           10.0.x
+    - name: Set DOTNET_ROOT
+      if: inputs.dotnet != 'true'
+      shell: bash
+      run: |
+        DOTNET_PATH="$(dirname "$(readlink -f "$(which dotnet)" 2>/dev/null || realpath "$(which dotnet)")")"
+        echo "DOTNET_ROOT=$DOTNET_PATH" >> "$GITHUB_ENV"
     - name: Print dotnet version
       shell: pwsh
       run: dotnet --info
