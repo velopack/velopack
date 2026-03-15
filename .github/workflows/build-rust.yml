@@ -28,6 +28,9 @@ jobs:
             target\i686-win7-windows-msvc\release\*.exe
             target\i686-win7-windows-msvc\release\*.pdb
           retention-days: 1
+      - name: Cancel workflow if failed
+        if: ${{ failure() }}
+        uses: ./.github/actions/cancel-workflow
 
   windows:
     strategy:
@@ -80,8 +83,8 @@ jobs:
             target\*.lib
           retention-days: 1
       - name: Cancel workflow if failed
-        uses: andymckay/cancel-action@0.5
         if: ${{ failure() }}
+        uses: ./.github/actions/cancel-workflow
 
   linux-bins:
     strategy:
@@ -117,9 +120,9 @@ jobs:
           path: |
             artifacts/UpdateNix_${{ matrix.target }}
           retention-days: 1
-      # - name: Cancel workflow if failed
-      #   uses: andymckay/cancel-action@0.5
-      #   if: ${{ failure() }}
+      - name: Cancel workflow if failed
+        if: ${{ failure() }}
+        uses: ./.github/actions/cancel-workflow
 
   linux:
     strategy:
@@ -161,9 +164,9 @@ jobs:
             artifacts/*.node
             artifacts/*.a
           retention-days: 1
-      # - name: Cancel workflow if failed
-      #   uses: andymckay/cancel-action@0.5
-      #   if: ${{ failure() }}
+      - name: Cancel workflow if failed
+        if: ${{ failure() }}
+        uses: ./.github/actions/cancel-workflow
 
   macos:
     runs-on: macos-latest
@@ -207,5 +210,5 @@ jobs:
             target/*.a
           retention-days: 1
       - name: Cancel workflow if failed
-        uses: andymckay/cancel-action@0.5
         if: ${{ failure() }}
+        uses: ./.github/actions/cancel-workflow
