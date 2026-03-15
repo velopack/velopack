@@ -31,11 +31,11 @@ jobs:
       - name: Check lib-rust
         run: cargo check -p velopack
       - name: Test Rust
-        run: cargo llvm-cov ${{ matrix.rust_flags }} --cobertura --output-path ./test/coverage.rust.${{ matrix.os }}.xml
+        run: cargo llvm-cov ${{ matrix.rust_flags }} --cobertura --output-path ./test/coverage/rust.${{ matrix.os }}.xml
       - name: Upload Coverage
         uses: codecov/codecov-action@v5
         with:
-          files: ./test/coverage.rust.${{ matrix.os }}.xml
+          files: ./test/coverage/rust.${{ matrix.os }}.xml
 
   nodejs:
     strategy:
@@ -62,7 +62,7 @@ jobs:
           npm run test
       - name: Generate Node.js Rust Coverage
         shell: bash
-        run: cargo llvm-cov report --cobertura --output-path ./test/coverage.rust-nodejs.${{ matrix.os }}.xml
+        run: cargo llvm-cov report --cobertura --output-path ./test/coverage/rust-nodejs.${{ matrix.os }}.xml
       - name: Upload Coverage
         uses: codecov/codecov-action@v5
         with:
@@ -71,7 +71,7 @@ jobs:
       - name: Upload Rust Coverage
         uses: codecov/codecov-action@v5
         with:
-          files: ./test/coverage.rust-nodejs.${{ matrix.os }}.xml
+          files: ./test/coverage/rust-nodejs.${{ matrix.os }}.xml
 
   python:
     # strategy:
@@ -165,7 +165,7 @@ jobs:
       - name: Upload Coverage
         uses: codecov/codecov-action@v5
         with:
-          directory: ./test
+          directory: ./test/coverage
       - name: Wait for Artifacts
         uses: ./.github/actions/wait-artifact
         if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
@@ -190,7 +190,7 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
         uses: codecov/codecov-action@v5
         with:
-          directory: ./test
+          directory: ./test/coverage
           flags: cross-compiled
 
   vpk-coverage:
@@ -224,9 +224,9 @@ jobs:
         run: dotnet test test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -- RunConfiguration.CollectSourceInformation=true
       - name: Generate Rust Integration Coverage
         shell: bash
-        run: cargo llvm-cov report --cobertura --output-path ./test/coverage.rust-integration.${{ matrix.os }}.xml
+        run: cargo llvm-cov report --cobertura --output-path ./test/coverage/rust-integration.${{ matrix.os }}.xml
       - name: Upload Coverage
         uses: codecov/codecov-action@v5
         with:
-          directory: ./test
+          directory: ./test/coverage
       
