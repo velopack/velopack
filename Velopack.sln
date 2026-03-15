@@ -25,7 +25,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Velopack.Vpk", "src\vpk\Vel
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Velopack.CommandLine.Tests", "test\Velopack.CommandLine.Tests\Velopack.CommandLine.Tests.csproj", "{519EAB50-47B8-425F-8B20-AB9548F220B4}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{7AC3A776-B582-4B65-9D03-BD52332B5CA3}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{7AC3A776-B582-4B65-9D03-BD52332B5CA3}"
 	ProjectSection(SolutionItems) = preProject
 		test\Directory.Build.props = test\Directory.Build.props
 	EndProjectSection
