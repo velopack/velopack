@@ -45,7 +45,7 @@ jobs:
             rust_flags: --release -Z build-std="core,alloc,std,panic_abort"
             rust_target: x86_64-win7-windows-msvc
           - target: arm64
-            runner: blacksmith-2vcpu-windows-2025
+            runner: windows-latest
             rust_flags: --release
             rust_target: aarch64-pc-windows-msvc
     runs-on: ${{ matrix.runner }}
@@ -60,11 +60,6 @@ jobs:
         with:
           dotnet: false
           rust-cache: true
-      - name: Install LLVM
-        if: ${{ matrix.target == 'arm64' }}
-        uses: KyleMayes/install-llvm-action@v2
-        with:
-          version: 18
       - name: Install Dependencies
         run: |
           rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
