@@ -1,8 +1,11 @@
 ﻿using Velopack.Core;
+using Velopack.Packaging;
 using Velopack.Packaging.Unix;
 using Velopack.Util;
 
-namespace Velopack.Packaging.Tests;
+using Velopack.TestCommon;
+
+namespace Velopack.CrossCompile.Tests;
 
 public class CrossCompile
 {

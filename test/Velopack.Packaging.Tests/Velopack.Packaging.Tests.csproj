@@ -5,6 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Velopack.TestCommon\Velopack.TestCommon.csproj" />
     <ProjectReference Include="..\..\src\vpk\Velopack.Vpk\Velopack.Vpk.csproj" />
   </ItemGroup>
 

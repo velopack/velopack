@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Velopack.TestCommon\Velopack.TestCommon.csproj" />
+    <ProjectReference Include="..\..\src\vpk\Velopack.Vpk\Velopack.Vpk.csproj" />
+  </ItemGroup>
+</Project>

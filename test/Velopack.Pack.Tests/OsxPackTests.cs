@@ -2,7 +2,9 @@ using System.Runtime.Versioning;
 using Velopack.Core;
 using Velopack.Util;
 
-namespace Velopack.Packaging.Tests;
+using Velopack.TestCommon;
+
+namespace Velopack.Pack.Tests;
 
 [SupportedOSPlatform("osx")]
 public class OsxPackTests

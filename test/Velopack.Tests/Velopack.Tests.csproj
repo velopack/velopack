@@ -20,6 +20,10 @@
   </Choose>
 
   <ItemGroup>
+    <Compile Include="..\Velopack.TestCommon\PathHelper.cs" Link="PathHelper.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="System.IO.Packaging" Version="10.0.5"/>
   </ItemGroup>
 

@@ -7,7 +7,7 @@ using Velopack.Util;
 using Velopack.Vpk;
 using Velopack.Vpk.Logging;
 
-namespace Velopack.Packaging.Tests;
+namespace Velopack.TestCommon;
 
 public static class TestApp
 {

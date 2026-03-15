@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using Velopack.TestCommon;
 
-namespace Velopack.Packaging.Tests;
+namespace Velopack.Pack.Tests;
 
 internal static class Init
 {
