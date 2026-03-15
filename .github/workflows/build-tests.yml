@@ -49,12 +49,29 @@ jobs:
           fetch-depth: 0
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Setup Rust Coverage Instrumentation
+        shell: bash
+        run: cargo llvm-cov show-env >> "$GITHUB_ENV"
       - name: Check lib-nodejs
         working-directory: src/lib-nodejs
         run: |
           npm install
           npm run build
           npm run test
+      - name: Generate Node.js Rust Coverage
+        shell: bash
+        run: cargo llvm-cov report --cobertura --output-path ./test/coverage.rust-nodejs.${{ matrix.os }}.xml
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v5
+        with:
+          directory: src/lib-nodejs/coverage
+          flags: nodejs
+      - name: Upload Rust Coverage
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./test/coverage.rust-nodejs.${{ matrix.os }}.xml
 
   python:
     # strategy:
@@ -69,6 +86,11 @@ jobs:
           fetch-depth: 0
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Setup Rust Coverage Instrumentation
+        shell: bash
+        run: cargo llvm-cov show-env >> "$GITHUB_ENV"
       - name: Install Dependencies
         working-directory: src/lib-python
         run: |
@@ -78,6 +100,13 @@ jobs:
       - name: Check lib-python
         working-directory: src/lib-python/test
         run: uv run python run_test.py
+      - name: Generate Python Rust Coverage
+        shell: bash
+        run: cargo llvm-cov report --cobertura --output-path ./test/coverage.rust-python.xml
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./test/coverage.rust-python.xml
 
   vpk:
     strategy:
@@ -122,6 +151,14 @@ jobs:
           path: target/release
           pattern: rust-*
           merge-multiple: true
+      - name: Build Cross-Compile Artifacts
+        run: dotnet test test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj --no-build -c Release --filter "FullyQualifiedName~PackCrossApp" -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+      - name: Upload Cross-Compile Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-${{ matrix.os }}
+          path: test/artifacts/*
+          retention-days: 1
       - name: Azure login
         uses: azure/login@v2
         if: github.event.pull_request.head.repo.full_name == github.repository
@@ -135,12 +172,8 @@ jobs:
         run: dotnet test test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
       - name: Test Velopack.CommandLine.Tests
         run: dotnet test test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
-      - name: Upload Cross-Compile Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: cross-${{ matrix.os }}
-          path: test/artifacts/*
-          retention-days: 1
+      - name: Test Velopack.Pack.Tests
+        run: dotnet test test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
       - name: Upload Coverage
         uses: codecov/codecov-action@v5
         with:
@@ -164,5 +197,59 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
         env:
           VELOPACK_CROSS_ARTIFACTS: true
-        run: dotnet test test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj --no-build -c Release --filter "FullyQualifiedName~RunCrossApp" -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+        run: dotnet test test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj --no-build -c Release --filter "FullyQualifiedName~RunCrossApp" -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+      - name: Upload Cross-Compiled Coverage
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
+        uses: codecov/codecov-action@v5
+        with:
+          directory: ./test
+          flags: cross-compiled
+
+  vpk-coverage:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        include:
+          - os: windows-latest
+            rust_flags: "--features windows"
+    runs-on: ${{ matrix.os }}
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
+      - name: Install FUSE
+        run: |
+          sudo add-apt-repository universe
+          sudo apt update
+          sudo apt install libfuse2
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+      - name: Install squashfs-tools
+        run: brew install squashfs
+        if: ${{ matrix.os == 'macos-latest' }}
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Setup Rust Coverage Instrumentation
+        shell: bash
+        run: cargo llvm-cov show-env >> "$GITHUB_ENV"
+      - name: Build Instrumented Rust Binaries
+        run: cargo build --release -p velopack_bins ${{ matrix.rust_flags }}
+        env:
+          CARGO_PROFILE_RELEASE_DEBUG: 2
+          CARGO_PROFILE_RELEASE_LTO: "false"
+      - name: Build .NET
+        run: dotnet build -c Release
+      - name: Test Velopack.Pack.Tests
+        run: dotnet test test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -- RunConfiguration.CollectSourceInformation=true
+      - name: Generate Rust Integration Coverage
+        shell: bash
+        run: cargo llvm-cov report --cobertura --output-path ./test/coverage.rust-integration.${{ matrix.os }}.xml
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v5
+        with:
+          directory: ./test
       

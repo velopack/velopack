@@ -7,6 +7,13 @@ const config: Config = {
     "^.+.ts$": ["ts-jest", {}],
   },
   reporters: ["default", ["github-actions", { silent: true }], "summary"],
+  collectCoverage: !!process.env.CI,
+  coverageDirectory: "coverage",
+  coverageReporters: ["cobertura", "text-summary"],
+  collectCoverageFrom: [
+    "src/**/*.ts",
+    "!src/types.ts",
+  ],
 };
 
 export default config;
