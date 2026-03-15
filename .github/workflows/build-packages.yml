@@ -61,6 +61,8 @@ jobs:
           mkdir lib-c/lib-static
           mkdir lib-c/include
 
+          rm -f target/release/velopack_wix_*
+
           mv target/release/*.so lib-c/lib/
           mv target/release/*.dylib lib-c/lib/
           mv target/release/*.dll lib-c/lib/
