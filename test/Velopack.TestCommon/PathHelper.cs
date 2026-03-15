@@ -98,6 +98,6 @@ public static class PathHelper
 #pragma warning disable CS8604 // Possible null reference argument.
         var di = new DirectoryInfo(Path.Combine(Path.GetDirectoryName(st.GetFileName())));
 #pragma warning restore CS8604 // Possible null reference argument.
-        return di.FullName;
+        return di.Parent!.FullName;
     }
 }
