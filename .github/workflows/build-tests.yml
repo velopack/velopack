@@ -28,14 +28,25 @@ jobs:
         uses: ./.github/actions/job-setup
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@cargo-nextest
       - name: Check lib-rust
         run: cargo check -p velopack
       - name: Test Rust
-        run: cargo llvm-cov ${{ matrix.rust_flags }} --cobertura --output-path ./test/coverage/coverage.rust.${{ matrix.os }}.xml
+        run: >-
+          cargo llvm-cov nextest --profile ci
+          ${{ matrix.rust_flags }}
+          --cobertura --output-path ./test/coverage/coverage.rust.${{ matrix.os }}.xml
       - name: Upload Coverage
         uses: codecov/codecov-action@v5
         with:
           files: ./test/coverage/coverage.rust.${{ matrix.os }}.xml
+          flags: rust
+      - name: Upload Test Results
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          files: ./test/coverage/junit.*.xml
           flags: rust
 
   nodejs:
@@ -63,12 +74,20 @@ jobs:
           npm run test
       - name: Generate Node.js Rust Coverage
         shell: bash
-        run: cargo llvm-cov report --cobertura --output-path ./test/coverage/coverage.rust-nodejs.${{ matrix.os }}.xml
+        run: >-
+          cargo llvm-cov report
+          --cobertura --output-path ./test/coverage/coverage.rust-nodejs.${{ matrix.os }}.xml
       - name: Upload Coverage
         uses: codecov/codecov-action@v5
         with:
           directory: src/lib-nodejs/coverage
           files: ./test/coverage/coverage.rust-nodejs.${{ matrix.os }}.xml
+          flags: nodejs
+      - name: Upload Test Results
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          files: ./test/coverage/junit.*.xml
           flags: nodejs
 
   python:
@@ -145,17 +164,47 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: Test Velopack.Tests
-        run: dotnet test test/Velopack.Tests/Velopack.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+        run: >-
+          dotnet test test/Velopack.Tests/Velopack.Tests.csproj
+          --no-build -c Release
+          -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
+          -l GithubActions
+          -l "junit;LogFilePath=./test/coverage/junit.Velopack.Tests.xml"
+          -- RunConfiguration.CollectSourceInformation=true
       - name: Test Velopack.Packaging.Tests
-        run: dotnet test test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+        run: >-
+          dotnet test test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj
+          --no-build -c Release
+          -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
+          -l GithubActions
+          -l "junit;LogFilePath=./test/coverage/junit.Velopack.Packaging.Tests.xml"
+          -- RunConfiguration.CollectSourceInformation=true
       - name: Test Velopack.CommandLine.Tests
-        run: dotnet test test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+        run: >-
+          dotnet test test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj
+          --no-build -c Release
+          -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
+          -l GithubActions
+          -l "junit;LogFilePath=./test/coverage/junit.Velopack.CommandLine.Tests.xml"
+          -- RunConfiguration.CollectSourceInformation=true
       - name: Test Velopack.Pack.Tests
-        run: dotnet test test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+        run: >-
+          dotnet test test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj
+          --no-build -c Release
+          -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
+          -l GithubActions
+          -l "junit;LogFilePath=./test/coverage/junit.Velopack.Pack.Tests.xml"
+          -- RunConfiguration.CollectSourceInformation=true
       - name: Upload Coverage
         uses: codecov/codecov-action@v5
         with:
           directory: ./test/coverage
+          flags: vpk
+      - name: Upload Test Results
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          files: ./test/coverage/junit.*.xml
           flags: vpk
 
   vpk-crosscompile:
@@ -199,7 +248,14 @@ jobs:
           pattern: rust-*
           merge-multiple: true
       - name: Build Cross-Compile Artifacts
-        run: dotnet test test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj --no-build -c Release --filter "FullyQualifiedName~PackCrossApp" -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+        run: >-
+          dotnet test test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj
+          --no-build -c Release
+          --filter "FullyQualifiedName~PackCrossApp"
+          -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
+          -l GithubActions
+          -l "junit;LogFilePath=./test/coverage/junit.CrossCompile.Pack.xml"
+          -- RunConfiguration.CollectSourceInformation=true
       - name: Upload Cross-Compile Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -225,11 +281,24 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'warp-windows-latest-x64-4x' }}
         env:
           VELOPACK_CROSS_ARTIFACTS: true
-        run: dotnet test test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj --no-build -c Release --filter "FullyQualifiedName~RunCrossApp" -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+        run: >-
+          dotnet test test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj
+          --no-build -c Release
+          --filter "FullyQualifiedName~RunCrossApp"
+          -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
+          -l GithubActions
+          -l "junit;LogFilePath=./test/coverage/junit.CrossCompile.Run.xml"
+          -- RunConfiguration.CollectSourceInformation=true
       - name: Upload Coverage
         uses: codecov/codecov-action@v5
         with:
           directory: ./test/coverage
+          flags: cross-compile
+      - name: Upload Test Results
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          files: ./test/coverage/junit.*.xml
           flags: cross-compile
 
   vpk-coverage:
@@ -262,12 +331,24 @@ jobs:
       - name: Build Instrumented Rust Binaries
         run: cargo build -p velopack_bins ${{ matrix.rust_flags }}
       - name: Test Velopack.Pack.Tests
-        run: dotnet test test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -- RunConfiguration.CollectSourceInformation=true
+        run: >-
+          dotnet test test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj
+          -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
+          -l "junit;LogFilePath=./test/coverage/junit.Velopack.Pack.Tests.xml"
+          -- RunConfiguration.CollectSourceInformation=true
       - name: Generate Rust Integration Coverage
         shell: bash
-        run: cargo llvm-cov report --cobertura --output-path ./test/coverage/coverage.rust-integration.${{ matrix.os }}.xml
+        run: >-
+          cargo llvm-cov report
+          --cobertura --output-path ./test/coverage/coverage.rust-integration.${{ matrix.os }}.xml
       - name: Upload Coverage
         uses: codecov/codecov-action@v5
         with:
           directory: ./test/coverage
+          flags: vpk-coverage
+      - name: Upload Test Results
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          files: ./test/coverage/junit.*.xml
           flags: vpk-coverage
