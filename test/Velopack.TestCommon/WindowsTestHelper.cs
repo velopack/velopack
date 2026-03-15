@@ -107,7 +107,7 @@ public static class WindowsTestHelper
 
     public static string RunCoveredDotnet(string exe, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
     {
-        var outputfile = PathHelper.GetTestRootPath($"coverage.rundotnet.{RandomString(8)}.xml");
+        var outputfile = PathHelper.GetTestRootPath("coverage", $"rundotnet.{RandomString(8)}.xml");
 
         if (!File.Exists(exe))
             throw new Exception($"File {exe} does not exist.");
