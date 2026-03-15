@@ -52,8 +52,4 @@ impl UpdateSource for HttpSource {
         })?;
         Ok(())
     }
-
-    fn clone_boxed(&self) -> Box<dyn UpdateSource> {
-        Box::new(self.clone())
-    }
 }

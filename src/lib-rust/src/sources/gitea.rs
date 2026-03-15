@@ -121,8 +121,4 @@ impl UpdateSource for GiteaSource {
         }
         Err(Error::Other(format!("Could not find asset '{}' in any Gitea release.", asset.FileName)))
     }
-
-    fn clone_boxed(&self) -> Box<dyn UpdateSource> {
-        Box::new(self.clone())
-    }
 }

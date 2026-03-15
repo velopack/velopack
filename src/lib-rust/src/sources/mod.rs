@@ -1,4 +1,7 @@
-use std::{path::Path, sync::mpsc::Sender};
+use std::{
+    path::Path,
+    sync::{mpsc::Sender, Arc},
+};
 
 use crate::bundle::Manifest;
 use crate::*;
@@ -26,14 +29,6 @@ pub trait UpdateSource: Send + Sync {
     fn get_release_feed(&self, channel: &str, app: &bundle::Manifest, staged_user_id: &str) -> Result<VelopackAssetFeed, Error>;
     /// Download the specified VelopackAsset to the provided local file path.
     fn download_release_entry(&self, asset: &VelopackAsset, local_file: &Path, progress_sender: Option<Sender<i16>>) -> Result<(), Error>;
-    /// Clone the source to create a new lifetime.
-    fn clone_boxed(&self) -> Box<dyn UpdateSource>;
-}
-
-impl Clone for Box<dyn UpdateSource> {
-    fn clone(&self) -> Self {
-        self.clone_boxed()
-    }
 }
 
 /// A source that does not provide any update capability.
@@ -47,42 +42,46 @@ impl UpdateSource for NoneSource {
     fn download_release_entry(&self, _asset: &VelopackAsset, _local_file: &Path, _progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
         Err(Error::NotSupported("None source does not support downloads".to_owned()))
     }
-    fn clone_boxed(&self) -> Box<dyn UpdateSource> {
-        Box::new(self.clone())
-    }
 }
 
-#[derive(Clone)]
 /// Automatically delegates to the appropriate source based on the provided input string. If the input is a local path,
 /// it will use a FileSource. If the input is a URL, it will detect GitHub, GitLab, or Gitea by domain and use the
 /// appropriate source, otherwise it will use an HttpSource.
 pub struct AutoSource {
-    source: Box<dyn UpdateSource>,
+    source: Arc<dyn UpdateSource>,
+}
+
+impl Clone for AutoSource {
+    fn clone(&self) -> Self {
+        AutoSource {
+            source: Arc::clone(&self.source),
+        }
+    }
 }
 
 impl AutoSource {
     /// Create a new AutoSource with the specified input string.
     pub fn new(input: &str) -> AutoSource {
-        let source: Box<dyn UpdateSource> = if Self::is_http_url(input) {
+        let source: Arc<dyn UpdateSource> = if Self::is_http_url(input) {
             if let Ok(url) = url::Url::parse(input) {
                 if let Some(host) = url.host_str() {
                     if host.eq_ignore_ascii_case("github.com") {
-                        Box::new(GithubSource::new(input, None, false))
+                        Arc::new(GithubSource::new(input, None, false))
                     } else if host.eq_ignore_ascii_case("gitlab.com") {
-                        Box::new(GitlabSource::new(input, None, false))
+                        Arc::new(GitlabSource::new(input, None, false))
                     } else if host.eq_ignore_ascii_case("gitea.com") {
-                        Box::new(GiteaSource::new(input, None, false))
+                        Arc::new(GiteaSource::new(input, None, false))
                     } else {
-                        Box::new(HttpSource::new(input))
+                        Arc::new(HttpSource::new(input))
                     }
                 } else {
-                    Box::new(HttpSource::new(input))
+                    Arc::new(HttpSource::new(input))
                 }
             } else {
-                Box::new(HttpSource::new(input))
+                Arc::new(HttpSource::new(input))
             }
         } else {
-            Box::new(FileSource::new(input))
+            Arc::new(FileSource::new(input))
         };
         AutoSource { source }
     }
@@ -102,10 +101,6 @@ impl UpdateSource for AutoSource {
 
     fn download_release_entry(&self, asset: &VelopackAsset, local_file: &Path, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
         self.source.download_release_entry(asset, local_file, progress_sender)
-    }
-
-    fn clone_boxed(&self) -> Box<dyn UpdateSource> {
-        self.source.clone_boxed()
     }
 }
 
