@@ -29,7 +29,7 @@
 
   <PropertyGroup Condition=" $(MSBuildProjectName.EndsWith('Tests')) and $(CI) != '' ">
     <CoverletOutputFormat>cobertura</CoverletOutputFormat>
-    <CoverletOutput>..\coverage.$(CurrentOsName).$(MSBuildProjectName).xml</CoverletOutput>
+    <CoverletOutput>..\coverage\$(CurrentOsName).$(MSBuildProjectName).xml</CoverletOutput>
     <Include>[Velopack*]*,[vpk*]*</Include>
     <Exclude>[Velopack.*.Tests]*,[*]Microsoft*</Exclude>
     <CollectCoverage>true</CollectCoverage>
