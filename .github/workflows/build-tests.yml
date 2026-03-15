@@ -120,7 +120,7 @@ jobs:
         os: [windows, ubuntu, macos]
         include:
           - os: windows
-            runner: blacksmith-8vcpu-windows-2025
+            runner: blacksmith-4vcpu-windows-2025
           - os: ubuntu
             runner: ubuntu-latest
           - os: macos
