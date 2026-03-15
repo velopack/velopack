@@ -34,9 +34,9 @@ runs:
     - name: Install NBGV CLI
       shell: pwsh
       run: dotnet tool update -g nbgv
-    - uses: dotnet/nbgv@master
-      with:
-        setAllVars: true
+    - name: Set NBGV Variables
+      shell: pwsh
+      run: nbgv cloud -a -s GitHubActions
     - name: Update Project Version
       shell: pwsh
       run: ./.github/set-nbgv-version.ps1
