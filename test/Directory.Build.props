@@ -31,7 +31,7 @@
     <CoverletOutputFormat>cobertura</CoverletOutputFormat>
     <CoverletOutput>..\coverage\coverage.$(CurrentOsName).$(MSBuildProjectName).xml</CoverletOutput>
     <Include>[Velopack*]*,[vpk*]*</Include>
-    <Exclude>[Velopack.*.Tests]*,[*]Microsoft*</Exclude>
+    <Exclude>[Velopack.*.Tests]*,[Velopack.TestCommon]*,[*]Microsoft*</Exclude>
     <CollectCoverage>true</CollectCoverage>
     <ExcludeByAttribute>ExcludeFromCodeCoverage,GeneratedCode</ExcludeByAttribute>
   </PropertyGroup>
