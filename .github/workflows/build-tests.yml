@@ -213,6 +213,8 @@ jobs:
       - name: Install squashfs-tools
         run: brew install squashfs
         if: ${{ matrix.os == 'macos-latest' }}
+      - name: Install dotnet-coverage
+        run: dotnet tool install -g dotnet-coverage
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Setup Rust Coverage Instrumentation
