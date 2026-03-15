@@ -27,7 +27,7 @@ jobs:
           fetch-depth: 0
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: 3.x
       - name: Build wheels
@@ -73,7 +73,7 @@ jobs:
           fetch-depth: 0
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: 3.x
       - name: Build wheels
@@ -122,7 +122,7 @@ jobs:
           fetch-depth: 0
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: 3.x
           architecture: ${{ matrix.platform.target }}
@@ -163,7 +163,7 @@ jobs:
           fetch-depth: 0
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: 3.x
       - name: Build wheels
