@@ -19,6 +19,7 @@ jobs:
     secrets: inherit # tests need secrets to run
 
   build-samples:
+    needs: [build-rust]
     uses: ./.github/workflows/build-samples.yml
 
   build-packages:

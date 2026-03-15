@@ -14,6 +14,7 @@ jobs:
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
         with:
+          dotnet: false
           rust-cache: true
       - name: Install Dependencies
         run: |
@@ -30,7 +31,7 @@ jobs:
           retention-days: 1
 
   windows:
-    runs-on: windows-latest
+    runs-on: blacksmith-4vcpu-windows-2025
     strategy:
       fail-fast: false
       matrix:
@@ -54,6 +55,7 @@ jobs:
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
         with:
+          dotnet: false
           rust-cache: true
       - name: Install Dependencies
         run: |
@@ -97,6 +99,8 @@ jobs:
           fetch-depth: 0
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
+        with:
+          dotnet: false
       - name: Install Dependencies
         run: |
           curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
@@ -135,6 +139,8 @@ jobs:
           fetch-depth: 0
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
+        with:
+          dotnet: false
       - name: Install Dependencies
         run: |
           rustup target add aarch64-unknown-linux-gnu
@@ -171,6 +177,7 @@ jobs:
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
         with:
+          dotnet: false
           rust-cache: true
       - name: Install Dependencies
         run: |
