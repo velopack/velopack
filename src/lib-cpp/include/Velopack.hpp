@@ -611,30 +611,49 @@ public:
 typedef std::function<void(int16_t)> vpkc_progress_send_t;
 
 /**
- * Abstract class for retrieving release feeds and downloading assets. You should subclass this and
- * implement/override the GetReleaseFeed and DownloadReleaseEntry methods.
- * This class is used by the UpdateManager to fetch release feeds and download assets in a custom way.
+ * Base class for all update sources. Holds a pointer to a Rust-side update source.
+ * All built-in sources (FileSource, HttpSource, GithubSource, etc.) inherit from this directly.
+ * For custom sources with user-provided callbacks, inherit from IUpdateSource instead.
+ */
+class IUpdateSourcePointer {
+    friend class UpdateManager;
+protected:
+    vpkc_update_source_t* m_pSource = nullptr;
+    explicit IUpdateSourcePointer(vpkc_update_source_t* pSource) : m_pSource(pSource) { }
+public:
+    virtual ~IUpdateSourcePointer() {
+        if (m_pSource) vpkc_free_source(m_pSource);
+    }
+    // Non-copyable, movable
+    IUpdateSourcePointer(const IUpdateSourcePointer&) = delete;
+    IUpdateSourcePointer& operator=(const IUpdateSourcePointer&) = delete;
+    IUpdateSourcePointer(IUpdateSourcePointer&& other) noexcept : m_pSource(other.m_pSource) { other.m_pSource = nullptr; }
+    IUpdateSourcePointer& operator=(IUpdateSourcePointer&& other) noexcept {
+        if (this != &other) {
+            if (m_pSource) vpkc_free_source(m_pSource);
+            m_pSource = other.m_pSource;
+            other.m_pSource = nullptr;
+        }
+        return *this;
+    }
+};
+
+/**
+ * Abstract class for custom update sources. Subclass this and implement GetReleaseFeed and
+ * DownloadReleaseEntry to provide a custom way of fetching releases and downloading assets.
  * SAFETY: It is your responsibility to ensure that a derived class instance is thread-safe,
  * as Velopack may call methods on this class from multiple threads.
  */
-class IUpdateSource {
-    friend class UpdateManager;
-    friend class FileSource;
-    friend class HttpSource;
-private:
-    IUpdateSource(vpkc_update_source_t* pSource) : m_pSource(pSource) {}
-    vpkc_update_source_t* m_pSource = 0;
+class IUpdateSource : public IUpdateSourcePointer {
 public:
     /**
      * Destructor for IUpdateSource.
      */
-    virtual ~IUpdateSource() {
-        vpkc_free_source(m_pSource);
-    }
+    virtual ~IUpdateSource() = default;
     /**
      * Default constructor for IUpdateSource. This will create a new custom source that calls back into the virtual methods of this class.
      */
-    IUpdateSource() {
+    IUpdateSource() : IUpdateSourcePointer(nullptr) {
         m_pSource = vpkc_new_source_custom_callback(
             [](void* userData, const char* releasesName) {
                 IUpdateSource* source = reinterpret_cast<IUpdateSource*>(userData);
@@ -671,39 +690,85 @@ public:
 };
 
 /**
- * A simple update source that reads release feeds and downloads assets from a local file path.
+ * A built-in update source that reads release feeds and downloads assets from a local file path.
  */
-class FileSource : public IUpdateSource {
+class FileSource : public IUpdateSourcePointer {
 public:
     /**
      * Creates a new FileSource.
      * @param filePath The path to the directory containing the releases.
      */
-    FileSource(const std::string& filePath) : IUpdateSource(vpkc_new_source_file(filePath.c_str())) { }
-    const std::string GetReleaseFeed(const std::string releasesName) override {
-        throw std::runtime_error("Not implemented");
-    }
-    bool DownloadReleaseEntry(const VelopackAsset& asset, const std::string localFilePath, vpkc_progress_send_t progress) override {
-        throw std::runtime_error("Not implemented");
-    }
+    FileSource(const std::string& filePath) : IUpdateSourcePointer(vpkc_new_source_file(filePath.c_str())) { }
 };
 
 /**
- * A simple update source that reads release feeds and downloads assets from an remote http url.
+ * A built-in update source that reads release feeds and downloads assets from a remote HTTP URL.
  */
-class HttpSource : public IUpdateSource {
+class HttpSource : public IUpdateSourcePointer {
 public:
     /**
      * Creates a new HttpSource.
      * @param httpUrl The URL to the releases feed.
      */
-    HttpSource(const std::string& httpUrl) : IUpdateSource(vpkc_new_source_http_url(httpUrl.c_str())) { }
-    const std::string GetReleaseFeed(const std::string releasesName) override {
-        throw std::runtime_error("Not implemented");
-    }
-    bool DownloadReleaseEntry(const VelopackAsset& asset, const std::string localFilePath, vpkc_progress_send_t progress) override {
-        throw std::runtime_error("Not implemented");
-    }
+    HttpSource(const std::string& httpUrl) : IUpdateSourcePointer(vpkc_new_source_http_url(httpUrl.c_str())) { }
+};
+
+/**
+ * A built-in update source that reads release feeds and downloads assets from a GitHub repository.
+ */
+class GithubSource : public IUpdateSourcePointer {
+public:
+    /**
+     * Creates a new GithubSource.
+     * @param repoUrl The GitHub repository URL (e.g. "https://github.com/user/repo").
+     * @param accessToken Optional access token for private repositories.
+     * @param prerelease Whether to include pre-release versions.
+     */
+    GithubSource(const std::string& repoUrl, const std::string& accessToken = "", bool prerelease = false)
+        : IUpdateSourcePointer(vpkc_new_source_github(repoUrl.c_str(), accessToken.empty() ? nullptr : accessToken.c_str(), prerelease)) { }
+};
+
+/**
+ * A built-in update source that reads release feeds and downloads assets from a GitLab repository.
+ */
+class GitlabSource : public IUpdateSourcePointer {
+public:
+    /**
+     * Creates a new GitlabSource.
+     * @param repoUrl The GitLab repository URL (e.g. "https://gitlab.com/user/repo").
+     * @param accessToken Optional access token for private repositories.
+     * @param prerelease Whether to include pre-release versions.
+     */
+    GitlabSource(const std::string& repoUrl, const std::string& accessToken = "", bool prerelease = false)
+        : IUpdateSourcePointer(vpkc_new_source_gitlab(repoUrl.c_str(), accessToken.empty() ? nullptr : accessToken.c_str(), prerelease)) { }
+};
+
+/**
+ * A built-in update source that reads release feeds and downloads assets from a Gitea repository.
+ */
+class GiteaSource : public IUpdateSourcePointer {
+public:
+    /**
+     * Creates a new GiteaSource.
+     * @param repoUrl The Gitea repository URL (e.g. "https://gitea.example.com/user/repo").
+     * @param accessToken Optional access token for private repositories.
+     * @param prerelease Whether to include pre-release versions.
+     */
+    GiteaSource(const std::string& repoUrl, const std::string& accessToken = "", bool prerelease = false)
+        : IUpdateSourcePointer(vpkc_new_source_gitea(repoUrl.c_str(), accessToken.empty() ? nullptr : accessToken.c_str(), prerelease)) { }
+};
+
+/**
+ * A built-in update source that reads release feeds and downloads assets from Velopack Flow.
+ */
+class VelopackFlowSource : public IUpdateSourcePointer {
+public:
+    /**
+     * Creates a new VelopackFlowSource.
+     * @param baseUri Optional base URI for the Velopack Flow API. If empty, the default URI is used.
+     */
+    VelopackFlowSource(const std::string& baseUri = "")
+        : IUpdateSourcePointer(vpkc_new_source_velopack_flow(baseUri.empty() ? nullptr : baseUri.c_str())) { }
 };
 
 /**
@@ -713,7 +778,7 @@ public:
 class UpdateManager {
 private:
     vpkc_update_manager_t* m_pManager = 0;
-    std::unique_ptr<IUpdateSource> m_pUpdateSource;
+    std::unique_ptr<IUpdateSourcePointer> m_pUpdateSource;
 
 public:
     /**
@@ -734,16 +799,17 @@ public:
     };
 
     /**
-     * Create a new UpdateManager instance with a custom update source.
-     * @param updateSource The source to use for retrieving feed and downloading assets.
+     * Create a new UpdateManager instance with any update source (built-in or custom).
+     * The UpdateManager takes ownership of the source.
+     * @param pUpdateSource The source to use for retrieving feed and downloading assets.
      * @param options Optional extra configuration for update manager.
      * @param locator Override the default locator configuration (usually used for testing / mocks).
      */
-    template <typename T, typename = std::enable_if_t<std::is_base_of_v<IUpdateSource, T>>>
+    template <typename T, typename = std::enable_if_t<std::is_base_of_v<IUpdateSourcePointer, T>>>
     UpdateManager(std::unique_ptr<T> pUpdateSource, const UpdateOptions* options = nullptr, const VelopackLocatorConfig* locator = nullptr) {
         vpkc_update_options_t* pOptions = alloc_c_UpdateOptions_ptr(options);
         vpkc_locator_config_t* pLocator = alloc_c_VelopackLocatorConfig_ptr(locator);
-        m_pUpdateSource = std::unique_ptr<IUpdateSource>(static_cast<IUpdateSource*>(pUpdateSource.release()));
+        m_pUpdateSource = std::unique_ptr<IUpdateSourcePointer>(static_cast<IUpdateSourcePointer*>(pUpdateSource.release()));
         vpkc_update_source_t* pSource = m_pUpdateSource->m_pSource;
         bool result = vpkc_new_update_manager_with_source(pSource, pOptions, pLocator, &m_pManager);
         free_c_UpdateOptions(pOptions);

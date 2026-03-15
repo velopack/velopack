@@ -5,6 +5,8 @@ use std::sync::mpsc;
 use velopack::sources::{UpdateSource, VelopackFlowSource};
 
 fn flow_feed_json() -> String {
+    // Matches the VelopackAsset schema from the Velopack Flow API swagger spec.
+    // The API also returns "isComplete" (boolean) which our struct ignores via #[serde(default)].
     serde_json::json!([{
         "Id": "release-id-123",
         "PackageId": "TestApp",
@@ -15,7 +17,8 @@ fn flow_feed_json() -> String {
         "SHA256": "def456",
         "Size": 1048576,
         "NotesMarkdown": "# v2",
-        "NotesHtml": "<h1>v2</h1>"
+        "NotesHtml": "<h1>v2</h1>",
+        "isComplete": true
     }])
     .to_string()
 }
