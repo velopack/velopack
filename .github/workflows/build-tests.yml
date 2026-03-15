@@ -15,9 +15,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [warp-windows-latest-x64-4x, ubuntu-latest, macos-latest]
+        os: [blacksmith-4vcpu-windows-2025, ubuntu-latest, macos-latest]
         include:
-          - os: warp-windows-latest-x64-4x
+          - os: blacksmith-4vcpu-windows-2025
             rust_flags: "--features windows"
     runs-on: ${{ matrix.os }}
     steps:
@@ -53,7 +53,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [warp-windows-latest-x64-4x, ubuntu-latest, macos-latest]
+        os: [blacksmith-4vcpu-windows-2025, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
@@ -94,9 +94,9 @@ jobs:
     # strategy:
     #   fail-fast: false
     #   matrix:
-    #     os: [warp-windows-latest-x64-4x, ubuntu-latest, macos-latest]
+    #     os: [blacksmith-4vcpu-windows-2025, ubuntu-latest, macos-latest]
     # runs-on: ${{ matrix.os }}
-    runs-on: warp-windows-latest-x64-4x
+    runs-on: blacksmith-4vcpu-windows-2025
     steps:
       - uses: actions/checkout@v6
         with:
@@ -117,7 +117,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [warp-windows-latest-x64-4x, ubuntu-latest, macos-latest]
+        os: [blacksmith-4vcpu-windows-2025, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
@@ -211,7 +211,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [warp-windows-latest-x64-4x, ubuntu-latest, macos-latest]
+        os: [blacksmith-4vcpu-windows-2025, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
@@ -264,21 +264,21 @@ jobs:
           retention-days: 1
       - name: Wait for Artifacts
         uses: ./.github/actions/wait-artifact
-        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'warp-windows-latest-x64-4x' }}
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'blacksmith-4vcpu-windows-2025' }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           max_wait_seconds: 900
-          artifacts: cross-macos-latest,cross-ubuntu-latest,cross-warp-windows-latest-x64-4x
+          artifacts: cross-macos-latest,cross-ubuntu-latest,cross-blacksmith-4vcpu-windows-2025
           verbose: true
       - name: Download Cross Artifacts
-        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'warp-windows-latest-x64-4x' }}
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'blacksmith-4vcpu-windows-2025' }}
         uses: actions/download-artifact@v4
         with:
           path: test/artifacts
           pattern: cross-*
           merge-multiple: true
       - name: Test Cross-Compiled Apps
-        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'warp-windows-latest-x64-4x' }}
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'blacksmith-4vcpu-windows-2025' }}
         env:
           VELOPACK_CROSS_ARTIFACTS: true
         run: >-
@@ -305,9 +305,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [warp-windows-latest-x64-4x, macos-latest]
+        os: [blacksmith-4vcpu-windows-2025, macos-latest]
         include:
-          - os: warp-windows-latest-x64-4x
+          - os: blacksmith-4vcpu-windows-2025
             rust_flags: "--features windows"
     runs-on: ${{ matrix.os }}
     env:
