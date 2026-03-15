@@ -15,9 +15,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [blacksmith-4vcpu-windows-2025, ubuntu-latest, macos-latest]
+        os: [windows-latest, ubuntu-latest, macos-latest]
         include:
-          - os: blacksmith-4vcpu-windows-2025
+          - os: windows-latest
             rust_flags: "--features windows"
     runs-on: ${{ matrix.os }}
     steps:
@@ -53,7 +53,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [blacksmith-4vcpu-windows-2025, ubuntu-latest, macos-latest]
+        os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
@@ -94,9 +94,9 @@ jobs:
     # strategy:
     #   fail-fast: false
     #   matrix:
-    #     os: [blacksmith-4vcpu-windows-2025, ubuntu-latest, macos-latest]
+    #     os: [windows-latest, ubuntu-latest, macos-latest]
     # runs-on: ${{ matrix.os }}
-    runs-on: blacksmith-4vcpu-windows-2025
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
         with:
@@ -117,8 +117,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [blacksmith-4vcpu-windows-2025, ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+        os: [windows, ubuntu, macos]
+        include:
+          - os: windows
+            runner: blacksmith-8vcpu-windows-2025
+          - os: ubuntu
+            runner: ubuntu-latest
+          - os: macos
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
       VELOPACK_GITHUB_TEST_TOKEN: ${{ secrets.VELOPACK_GITHUB_TEST_TOKEN }}
@@ -135,10 +142,10 @@ jobs:
           sudo add-apt-repository universe
           sudo apt update
           sudo apt install libfuse2
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.os == 'ubuntu' }}
       - name: Install squashfs-tools
         run: brew install squashfs
-        if: ${{ matrix.os == 'macos-latest' }}
+        if: ${{ matrix.os == 'macos' }}
       - name: Install dotnet-coverage
         run: dotnet tool install -g dotnet-coverage
       - name: Build .NET
@@ -156,6 +163,21 @@ jobs:
           path: target/release
           pattern: rust-*
           merge-multiple: true
+      - name: Build Cross-Compile Artifacts
+        run: >-
+          dotnet test test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj
+          --no-build -c Release
+          --filter "FullyQualifiedName~PackCrossApp"
+          -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
+          -l GithubActions
+          -l "junit;LogFilePath=./test/coverage/junit.CrossCompile.Pack.xml"
+          -- RunConfiguration.CollectSourceInformation=true
+      - name: Upload Cross-Compile Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-${{ matrix.os }}
+          path: test/artifacts/*
+          retention-days: 1
       - name: Azure login
         uses: azure/login@v2
         if: github.event.pull_request.head.repo.full_name == github.repository
@@ -195,90 +217,23 @@ jobs:
           -l GithubActions
           -l "junit;LogFilePath=./test/coverage/junit.Velopack.Pack.Tests.xml"
           -- RunConfiguration.CollectSourceInformation=true
-      - name: Upload Coverage
-        uses: codecov/codecov-action@v5
-        with:
-          directory: ./test/coverage
-          flags: vpk
-      - name: Upload Test Results
-        if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
-        with:
-          files: ./test/coverage/junit.*.xml
-          flags: vpk
-
-  vpk-crosscompile:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [blacksmith-4vcpu-windows-2025, ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    env:
-      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Setup Job Environment
-        uses: ./.github/actions/job-setup
-      - name: Install FUSE
-        run: |
-          sudo add-apt-repository universe
-          sudo apt update
-          sudo apt install libfuse2
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-      - name: Install squashfs-tools
-        run: brew install squashfs
-        if: ${{ matrix.os == 'macos-latest' }}
-      - name: Install dotnet-coverage
-        run: dotnet tool install -g dotnet-coverage
-      - name: Build .NET
-        run: dotnet build -c Release
       - name: Wait for Artifacts
         uses: ./.github/actions/wait-artifact
+        if: ${{ matrix.os == 'ubuntu' || matrix.os == 'windows' }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           max_wait_seconds: 900
-          artifacts: rust-macos,rust-windows-bins,rust-windows-libs-x64,rust-ubuntu-bins-x64,rust-ubuntu-bins-arm64
-          verbose: true
-      - name: Download Rust Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: target/release
-          pattern: rust-*
-          merge-multiple: true
-      - name: Build Cross-Compile Artifacts
-        run: >-
-          dotnet test test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj
-          --no-build -c Release
-          --filter "FullyQualifiedName~PackCrossApp"
-          -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
-          -l GithubActions
-          -l "junit;LogFilePath=./test/coverage/junit.CrossCompile.Pack.xml"
-          -- RunConfiguration.CollectSourceInformation=true
-      - name: Upload Cross-Compile Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: cross-${{ matrix.os }}
-          path: test/artifacts/*
-          retention-days: 1
-      - name: Wait for Artifacts
-        uses: ./.github/actions/wait-artifact
-        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'blacksmith-4vcpu-windows-2025' }}
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          max_wait_seconds: 900
-          artifacts: cross-macos-latest,cross-ubuntu-latest,cross-blacksmith-4vcpu-windows-2025
+          artifacts: cross-macos,cross-ubuntu,cross-windows
           verbose: true
       - name: Download Cross Artifacts
-        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'blacksmith-4vcpu-windows-2025' }}
+        if: ${{ matrix.os == 'ubuntu' || matrix.os == 'windows' }}
         uses: actions/download-artifact@v4
         with:
           path: test/artifacts
           pattern: cross-*
           merge-multiple: true
       - name: Test Cross-Compiled Apps
-        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'blacksmith-4vcpu-windows-2025' }}
+        if: ${{ matrix.os == 'ubuntu' || matrix.os == 'windows' }}
         env:
           VELOPACK_CROSS_ARTIFACTS: true
         run: >-
@@ -293,23 +248,26 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           directory: ./test/coverage
-          flags: cross-compile
+          flags: vpk
       - name: Upload Test Results
         if: ${{ !cancelled() }}
         uses: codecov/test-results-action@v1
         with:
           files: ./test/coverage/junit.*.xml
-          flags: cross-compile
+          flags: vpk
 
   vpk-coverage:
     strategy:
       fail-fast: false
       matrix:
-        os: [blacksmith-4vcpu-windows-2025, macos-latest]
+        os: [windows, macos]
         include:
-          - os: blacksmith-4vcpu-windows-2025
+          - os: windows
+            runner: blacksmith-4vcpu-windows-2025
             rust_flags: "--features windows"
-    runs-on: ${{ matrix.os }}
+          - os: macos
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
     steps:
@@ -320,7 +278,7 @@ jobs:
         uses: ./.github/actions/job-setup
       - name: Install squashfs-tools
         run: brew install squashfs
-        if: ${{ matrix.os == 'macos-latest' }}
+        if: ${{ matrix.os == 'macos' }}
       - name: Install dotnet-coverage
         run: dotnet tool install -g dotnet-coverage
       - name: Install cargo-llvm-cov
@@ -334,7 +292,6 @@ jobs:
         run: >-
           dotnet test test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj
           -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
-          -l "junit;LogFilePath=./test/coverage/junit.Velopack.Pack.Tests.xml"
           -- RunConfiguration.CollectSourceInformation=true
       - name: Generate Rust Integration Coverage
         shell: bash
@@ -345,10 +302,4 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           directory: ./test/coverage
-          flags: vpk-coverage
-      - name: Upload Test Results
-        if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
-        with:
-          files: ./test/coverage/junit.*.xml
           flags: vpk-coverage

@@ -30,24 +30,21 @@ jobs:
           retention-days: 1
 
   windows:
+    runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
         target: [x86, x64, arm64]
         include:
           - target: x86
-            os: blacksmith-4vcpu-windows-2025
             rust_flags: --release -Z build-std="core,alloc,std,panic_abort"
             rust_target: i686-win7-windows-msvc
           - target: x64
-            os: blacksmith-4vcpu-windows-2025
             rust_flags: --release -Z build-std="core,alloc,std,panic_abort"
             rust_target: x86_64-win7-windows-msvc
           - target: arm64
-            os: windows-latest
             rust_flags: --release
             rust_target: aarch64-pc-windows-msvc
-    runs-on: ${{ matrix.os }}
     env:
       RUSTFLAGS: -C target-feature=+crt-static
     steps:
