@@ -64,7 +64,7 @@ namespace Velopack.Locators
             string myDirPath = Path.GetDirectoryName(ourPath)!;
             var myDirName = Path.GetFileName(myDirPath);
             var possibleUpdateExe = Path.GetFullPath(Path.Combine(myDirPath, "..", "Update.exe"));
-            var ixCurrent = ourPath.LastIndexOf("/current/", StringComparison.InvariantCultureIgnoreCase);
+            var ixCurrent = ourPath.LastIndexOf("\\current\\", StringComparison.OrdinalIgnoreCase);
 
             if (File.Exists(possibleUpdateExe)) {
                 // we're running in a directory with an Update.exe in the parent directory
