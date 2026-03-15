@@ -13,7 +13,9 @@ using Velopack.Vpk;
 using Velopack.Vpk.Logging;
 using Velopack.Windows;
 
-namespace Velopack.Packaging.Tests;
+using Velopack.TestCommon;
+
+namespace Velopack.Pack.Tests;
 
 [SupportedOSPlatform("windows")]
 public class WindowsPackTests

@@ -4,6 +4,7 @@ using Octokit;
 using Velopack.Core;
 using Velopack.Locators;
 using Velopack.Packaging.Exceptions;
+using Velopack.TestCommon;
 using Velopack.Util;
 
 namespace Velopack.Packaging.Tests;

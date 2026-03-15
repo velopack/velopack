@@ -6,27 +6,27 @@ using Velopack.Util;
 using Velopack.Vpk;
 using Velopack.Vpk.Logging;
 
-namespace Velopack.Packaging.Tests;
+namespace Velopack.TestCommon;
 
 [SupportedOSPlatform("windows")]
-internal static class WindowsTestHelper
+public static class WindowsTestHelper
 {
     private static readonly Random _random = Random.Shared;
 
-    internal static string RandomString(int length)
+    public static string RandomString(int length)
     {
         string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".ToLower();
         return new string(
             [.. Enumerable.Repeat(chars, length).Select(s => s[_random.Next(s.Length)])]);
     }
 
-    internal static WindowsPackCommandRunner GetPackRunner(ILogger logger)
+    public static WindowsPackCommandRunner GetPackRunner(ILogger logger)
     {
         var console = new BasicConsole(logger, new VelopackDefaults(false));
         return new WindowsPackCommandRunner(logger, console);
     }
 
-    internal static string GetLogFilePath(string appId)
+    public static string GetLogFilePath(string appId)
     {
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -34,7 +34,7 @@ internal static class WindowsTestHelper
             $"velopack_{appId}.log");
     }
 
-    internal static string ReadFileWithRetry(string path, ILogger logger)
+    public static string ReadFileWithRetry(string path, ILogger logger)
     {
         return IoUtil.Retry(
             () => File.ReadAllText(path),
@@ -43,7 +43,7 @@ internal static class WindowsTestHelper
             retryDelay: 1000);
     }
 
-    internal static string RunImpl(ProcessStartInfo psi, ILogger logger, int? exitCode = 0)
+    public static string RunImpl(ProcessStartInfo psi, ILogger logger, int? exitCode = 0)
     {
         var outputFile = PathHelper.GetTestRootPath($"run.{RandomString(8)}.log");
 
@@ -105,7 +105,7 @@ internal static class WindowsTestHelper
         }
     }
 
-    internal static string RunCoveredDotnet(string exe, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
+    public static string RunCoveredDotnet(string exe, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
     {
         var outputfile = PathHelper.GetTestRootPath($"coverage.rundotnet.{RandomString(8)}.xml");
 
@@ -129,7 +129,7 @@ internal static class WindowsTestHelper
         return RunImpl(psi, logger, exitCode);
     }
 
-    internal static string RunNoCoverage(string exe, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
+    public static string RunNoCoverage(string exe, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
     {
         if (!File.Exists(exe))
             throw new Exception($"File {exe} does not exist.");

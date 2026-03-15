@@ -7,6 +7,7 @@ using Velopack.Packaging.Windows.Commands;
 using Velopack.Util;
 using Velopack.Vpk;
 using Velopack.Vpk.Logging;
+using Velopack.TestCommon;
 using WixToolset.Dtf.WindowsInstaller;
 
 namespace Velopack.Packaging.Tests;
