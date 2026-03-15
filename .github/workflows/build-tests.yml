@@ -44,8 +44,9 @@ jobs:
           flags: rust
       - name: Upload Test Results
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v5
         with:
+          report-type: test_results
           files: ./test/coverage/junit.*.xml
           flags: rust
 
@@ -85,8 +86,9 @@ jobs:
           flags: nodejs
       - name: Upload Test Results
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v5
         with:
+          report-type: test_results
           files: ./test/coverage/junit.*.xml
           flags: nodejs
 
@@ -160,7 +162,7 @@ jobs:
           artifacts: rust-macos,rust-windows-bins,rust-windows-libs-x64,rust-ubuntu-bins-x64,rust-ubuntu-bins-arm64
           verbose: true
       - name: Download Rust Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: target/release
           pattern: rust-*
@@ -175,7 +177,7 @@ jobs:
           -l "junit;LogFilePath=./test/coverage/junit.CrossCompile.Pack.xml"
           -- RunConfiguration.CollectSourceInformation=true
       - name: Upload Cross-Compile Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cross-${{ matrix.os }}
           path: test/artifacts/*
@@ -229,7 +231,7 @@ jobs:
           verbose: true
       - name: Download Cross Artifacts
         if: ${{ matrix.os == 'ubuntu' || matrix.os == 'windows' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: test/artifacts
           pattern: cross-*
@@ -253,8 +255,9 @@ jobs:
           flags: vpk
       - name: Upload Test Results
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v5
         with:
+          report-type: test_results
           files: ./test/coverage/junit.*.xml
           flags: vpk
 
