@@ -4,7 +4,7 @@ on:
 
 jobs:
   windows-bins:
-    runs-on: windows-latest
+    runs-on: warp-windows-latest-x64-4x
     env:
       RUSTFLAGS: -C target-feature=+crt-static
     steps:
@@ -30,7 +30,7 @@ jobs:
           retention-days: 1
 
   windows:
-    runs-on: windows-latest
+    runs-on: warp-windows-latest-x64-4x
     strategy:
       fail-fast: false
       matrix:

@@ -15,9 +15,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        os: [warp-windows-latest-x64-4x, ubuntu-latest, macos-latest]
         include:
-          - os: windows-latest
+          - os: warp-windows-latest-x64-4x
             rust_flags: "--features windows"
     runs-on: ${{ matrix.os }}
     steps:
@@ -42,7 +42,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        os: [warp-windows-latest-x64-4x, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
@@ -75,9 +75,9 @@ jobs:
     # strategy:
     #   fail-fast: false
     #   matrix:
-    #     os: [windows-latest, ubuntu-latest, macos-latest]
+    #     os: [warp-windows-latest-x64-4x, ubuntu-latest, macos-latest]
     # runs-on: ${{ matrix.os }}
-    runs-on: windows-latest
+    runs-on: warp-windows-latest-x64-4x
     steps:
       - uses: actions/checkout@v6
         with:
@@ -98,13 +98,74 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        os: [warp-windows-latest-x64-4x, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
       VELOPACK_GITHUB_TEST_TOKEN: ${{ secrets.VELOPACK_GITHUB_TEST_TOKEN }}
       VELOPACK_B2_TEST_TOKEN: ${{ secrets.VELOPACK_B2_TEST_TOKEN }}
       VELOPACK_AZ_TEST_TOKEN: ${{ secrets.VELOPACK_AZ_TEST_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
+      - name: Install FUSE
+        run: |
+          sudo add-apt-repository universe
+          sudo apt update
+          sudo apt install libfuse2
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+      - name: Install squashfs-tools
+        run: brew install squashfs
+        if: ${{ matrix.os == 'macos-latest' }}
+      - name: Install dotnet-coverage
+        run: dotnet tool install -g dotnet-coverage
+      - name: Build .NET
+        run: dotnet build -c Release
+      - name: Wait for Artifacts
+        uses: ./.github/actions/wait-artifact
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max_wait_seconds: 900
+          artifacts: rust-macos,rust-windows-bins,rust-windows-libs-x64,rust-ubuntu-bins-x64,rust-ubuntu-bins-arm64
+          verbose: true
+      - name: Download Rust Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: target/release
+          pattern: rust-*
+          merge-multiple: true
+      - name: Azure login
+        uses: azure/login@v2
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Test Velopack.Tests
+        run: dotnet test test/Velopack.Tests/Velopack.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+      - name: Test Velopack.Packaging.Tests
+        run: dotnet test test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+      - name: Test Velopack.CommandLine.Tests
+        run: dotnet test test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+      - name: Test Velopack.Pack.Tests
+        run: dotnet test test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v5
+        with:
+          directory: ./test/coverage
+          flags: vpk
+
+  vpk-crosscompile:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [warp-windows-latest-x64-4x, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
     steps:
       - uses: actions/checkout@v6
         with:
@@ -145,38 +206,23 @@ jobs:
           name: cross-${{ matrix.os }}
           path: test/artifacts/*
           retention-days: 1
-      - name: Azure login
-        uses: azure/login@v2
-        if: github.event.pull_request.head.repo.full_name == github.repository
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: Test Velopack.Tests
-        run: dotnet test test/Velopack.Tests/Velopack.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
-      - name: Test Velopack.Packaging.Tests
-        run: dotnet test test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
-      - name: Test Velopack.CommandLine.Tests
-        run: dotnet test test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
-      - name: Test Velopack.Pack.Tests
-        run: dotnet test test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
       - name: Wait for Artifacts
         uses: ./.github/actions/wait-artifact
-        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'warp-windows-latest-x64-4x' }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           max_wait_seconds: 900
-          artifacts: cross-macos-latest,cross-ubuntu-latest,cross-windows-latest
+          artifacts: cross-macos-latest,cross-ubuntu-latest,cross-warp-windows-latest-x64-4x
           verbose: true
       - name: Download Cross Artifacts
-        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'warp-windows-latest-x64-4x' }}
         uses: actions/download-artifact@v4
         with:
           path: test/artifacts
           pattern: cross-*
           merge-multiple: true
       - name: Test Cross-Compiled Apps
-        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'warp-windows-latest-x64-4x' }}
         env:
           VELOPACK_CROSS_ARTIFACTS: true
         run: dotnet test test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj --no-build -c Release --filter "FullyQualifiedName~RunCrossApp" -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
@@ -184,15 +230,15 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           directory: ./test/coverage
-          flags: vpk
+          flags: cross-compile
 
   vpk-coverage:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
+        os: [warp-windows-latest-x64-4x, macos-latest]
         include:
-          - os: windows-latest
+          - os: warp-windows-latest-x64-4x
             rust_flags: "--features windows"
     runs-on: ${{ matrix.os }}
     env:
