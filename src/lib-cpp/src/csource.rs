@@ -88,3 +88,205 @@ impl UpdateSource for CCallbackUpdateSource {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use libc::{c_char, c_void, size_t};
+    use std::ffi::CString;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::mpsc;
+    use velopack::sources::UpdateSource;
+
+    fn test_manifest() -> Manifest {
+        Manifest {
+            id: "TestApp".to_string(),
+            version: semver::Version::new(1, 0, 0),
+            ..Default::default()
+        }
+    }
+
+    fn test_asset() -> VelopackAsset {
+        VelopackAsset {
+            PackageId: "TestApp".to_string(),
+            Version: "2.0.0".to_string(),
+            Type: "Full".to_string(),
+            FileName: "TestApp-2.0.0-full.nupkg".to_string(),
+            SHA1: "abc123".to_string(),
+            SHA256: "def456".to_string(),
+            Size: 1048576,
+            NotesMarkdown: String::new(),
+            NotesHtml: String::new(),
+        }
+    }
+
+    fn sample_feed_json_cstr() -> CString {
+        CString::new(
+            r#"{"Assets":[{"PackageId":"TestApp","Version":"2.0.0","Type":"Full","FileName":"TestApp-2.0.0-full.nupkg","SHA1":"abc123","SHA256":"def456","Size":1048576}]}"#,
+        )
+        .unwrap()
+    }
+
+    extern "C" fn mock_get_feed(_user_data: *mut c_void, _releases_name: *const c_char) -> *mut c_char {
+        let json = sample_feed_json_cstr();
+        json.into_raw()
+    }
+
+    extern "C" fn mock_free_feed(_user_data: *mut c_void, psz_feed: *mut c_char) {
+        if !psz_feed.is_null() {
+            unsafe {
+                drop(CString::from_raw(psz_feed));
+            }
+        }
+    }
+
+    extern "C" fn mock_download_success(
+        _user_data: *mut c_void,
+        _asset: *const vpkc_asset_t,
+        psz_local_path: *const c_char,
+        _progress_callback_id: size_t,
+    ) -> bool {
+        let path = c_to_String(psz_local_path).unwrap();
+        std::fs::write(&path, b"downloaded content").unwrap();
+        true
+    }
+
+    extern "C" fn mock_download_failure(
+        _user_data: *mut c_void,
+        _asset: *const vpkc_asset_t,
+        _psz_local_path: *const c_char,
+        _progress_callback_id: size_t,
+    ) -> bool {
+        false
+    }
+
+    #[test]
+    fn feed_success() {
+        let source = CCallbackUpdateSource {
+            p_user_data: std::ptr::null_mut(),
+            cb_get_release_feed: Some(mock_get_feed),
+            cb_free_release_feed: Some(mock_free_feed),
+            cb_download_release_entry: None,
+        };
+
+        let manifest = test_manifest();
+        let feed = source.get_release_feed("stable", &manifest, "").unwrap();
+        assert_eq!(feed.Assets.len(), 1);
+        assert_eq!(feed.Assets[0].PackageId, "TestApp");
+        assert_eq!(feed.Assets[0].Version, "2.0.0");
+    }
+
+    #[test]
+    fn feed_null_callback() {
+        let source = CCallbackUpdateSource {
+            p_user_data: std::ptr::null_mut(),
+            cb_get_release_feed: None,
+            cb_free_release_feed: None,
+            cb_download_release_entry: None,
+        };
+
+        let manifest = test_manifest();
+        let result = source.get_release_feed("stable", &manifest, "");
+        assert!(result.is_err());
+        let err = format!("{}", result.unwrap_err());
+        assert!(err.contains("null"), "Unexpected error: {}", err);
+    }
+
+    #[test]
+    fn free_callback_is_called() {
+        static FREE_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+        extern "C" fn counting_free(_user_data: *mut c_void, psz_feed: *mut c_char) {
+            FREE_COUNT.fetch_add(1, Ordering::SeqCst);
+            if !psz_feed.is_null() {
+                unsafe {
+                    drop(CString::from_raw(psz_feed));
+                }
+            }
+        }
+
+        FREE_COUNT.store(0, Ordering::SeqCst);
+
+        let source = CCallbackUpdateSource {
+            p_user_data: std::ptr::null_mut(),
+            cb_get_release_feed: Some(mock_get_feed),
+            cb_free_release_feed: Some(counting_free),
+            cb_download_release_entry: None,
+        };
+
+        let manifest = test_manifest();
+        let _ = source.get_release_feed("stable", &manifest, "").unwrap();
+        assert_eq!(FREE_COUNT.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn download_success() {
+        let source = CCallbackUpdateSource {
+            p_user_data: std::ptr::null_mut(),
+            cb_get_release_feed: None,
+            cb_free_release_feed: None,
+            cb_download_release_entry: Some(mock_download_success),
+        };
+
+        let asset = test_asset();
+        let dir = tempfile::tempdir().unwrap();
+        let dest = dir.path().join("downloaded.nupkg");
+        source.download_release_entry(&asset, &dest, None).unwrap();
+
+        let content = std::fs::read(&dest).unwrap();
+        assert_eq!(content, b"downloaded content");
+    }
+
+    #[test]
+    fn download_failure() {
+        let source = CCallbackUpdateSource {
+            p_user_data: std::ptr::null_mut(),
+            cb_get_release_feed: None,
+            cb_free_release_feed: None,
+            cb_download_release_entry: Some(mock_download_failure),
+        };
+
+        let asset = test_asset();
+        let dir = tempfile::tempdir().unwrap();
+        let dest = dir.path().join("downloaded.nupkg");
+        let result = source.download_release_entry(&asset, &dest, None);
+        assert!(result.is_err());
+        let err = format!("{}", result.unwrap_err());
+        assert!(err.contains("false") || err.contains("failed"), "Unexpected error: {}", err);
+    }
+
+    #[test]
+    fn progress_reporting() {
+        extern "C" fn download_with_progress(
+            _user_data: *mut c_void,
+            _asset: *const vpkc_asset_t,
+            psz_local_path: *const c_char,
+            progress_callback_id: size_t,
+        ) -> bool {
+            let path = c_to_String(psz_local_path).unwrap();
+            // Report progress via the csource progress mechanism
+            report_csource_progress(progress_callback_id, 50);
+            std::fs::write(&path, b"data").unwrap();
+            true
+        }
+
+        let source = CCallbackUpdateSource {
+            p_user_data: std::ptr::null_mut(),
+            cb_get_release_feed: None,
+            cb_free_release_feed: None,
+            cb_download_release_entry: Some(download_with_progress),
+        };
+
+        let asset = test_asset();
+        let dir = tempfile::tempdir().unwrap();
+        let dest = dir.path().join("downloaded.nupkg");
+        let (tx, rx) = mpsc::channel();
+        source.download_release_entry(&asset, &dest, Some(tx)).unwrap();
+
+        let progress: Vec<i16> = rx.try_iter().collect();
+        // Should have received: 0 (initial), 50 (from callback), 100 (final)
+        assert!(progress.contains(&0), "Should contain initial 0 progress");
+        assert!(progress.contains(&50), "Should contain 50 progress from callback");
+        assert!(progress.contains(&100), "Should contain final 100 progress");
+    }
+}

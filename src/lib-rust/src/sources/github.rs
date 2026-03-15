@@ -50,7 +50,10 @@ impl GithubSource {
         if host.eq_ignore_ascii_case("github.com") {
             "https://api.github.com/".to_string()
         } else {
-            format!("{}://{}/api/v3/", self.repo_url.scheme(), host)
+            match self.repo_url.port() {
+                Some(port) => format!("{}://{}:{}/api/v3/", self.repo_url.scheme(), host, port),
+                None => format!("{}://{}/api/v3/", self.repo_url.scheme(), host),
+            }
         }
     }
 
