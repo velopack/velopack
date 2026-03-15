@@ -127,8 +127,4 @@ impl UpdateSource for GithubSource {
         }
         Err(Error::Other(format!("Could not find asset '{}' in any GitHub release.", asset.FileName)))
     }
-
-    fn clone_boxed(&self) -> Box<dyn UpdateSource> {
-        Box::new(self.clone())
-    }
 }

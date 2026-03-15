@@ -87,8 +87,4 @@ impl UpdateSource for CCallbackUpdateSource {
             Err(Error::Other("User vpkc_download_asset_delegate_t is null".to_string()))
         }
     }
-
-    fn clone_boxed(&self) -> Box<dyn UpdateSource> {
-        Box::new(self.clone())
-    }
 }

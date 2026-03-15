@@ -2,6 +2,7 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::{fs, process::exit, sync::mpsc::Sender};
 
 use crate::{
@@ -138,12 +139,16 @@ pub struct UpdateOptions {
     pub MaximumDeltasBeforeFallback: i32,
 }
 
-/// Provides functionality for checking for updates, downloading updates, and applying updates to the current application.
-#[derive(Clone)]
-pub struct UpdateManager {
+struct UpdateManagerInner {
     options: UpdateOptions,
     source: Box<dyn UpdateSource>,
     locator: VelopackLocator,
+}
+
+/// Provides functionality for checking for updates, downloading updates, and applying updates to the current application.
+#[derive(Clone)]
+pub struct UpdateManager {
+    inner: Arc<UpdateManagerInner>,
 }
 
 /// Represents the result of a call to check for updates.
@@ -166,8 +171,12 @@ impl UpdateManager {
     /// let source = sources::HttpSource::new("https://the.place/you-host/updates");
     /// let um = UpdateManager::new(source, None, None);
     /// ```
-    pub fn new<T: UpdateSource>(source: T, options: Option<UpdateOptions>, locator: Option<VelopackLocatorConfig>) -> Result<UpdateManager, Error> {
-        UpdateManager::new_boxed(source.clone_boxed(), options, locator)
+    pub fn new<T: UpdateSource + 'static>(
+        source: T,
+        options: Option<UpdateOptions>,
+        locator: Option<VelopackLocatorConfig>,
+    ) -> Result<UpdateManager, Error> {
+        UpdateManager::new_boxed(Box::new(source), options, locator)
     }
 
     /// Create a new UpdateManager instance using the specified UpdateSource.
@@ -194,12 +203,14 @@ impl UpdateManager {
         if options.MaximumDeltasBeforeFallback == 0 {
             options.MaximumDeltasBeforeFallback = 10;
         }
-        Ok(UpdateManager { options, source, locator })
+        Ok(UpdateManager {
+            inner: Arc::new(UpdateManagerInner { options, source, locator }),
+        })
     }
 
     fn get_practical_channel(&self) -> String {
-        let options_channel = self.options.ExplicitChannel.as_deref();
-        let app_channel = self.locator.get_manifest_channel();
+        let options_channel = self.inner.options.ExplicitChannel.as_deref();
+        let app_channel = self.inner.locator.get_manifest_channel();
         let mut channel = options_channel.unwrap_or(&app_channel).to_string();
         if channel.is_empty() {
             warn!("Channel is empty, using default.");
@@ -214,37 +225,37 @@ impl UpdateManager {
 
     /// Returns a reference to the current VelopackLocator.
     pub(crate) fn get_locator(&self) -> &VelopackLocator {
-        &self.locator
+        &self.inner.locator
     }
 
     /// The currently installed app version as a string.
     pub fn get_current_version_as_string(&self) -> String {
-        self.locator.get_manifest_version_full_string()
+        self.inner.locator.get_manifest_version_full_string()
     }
 
     /// The currently installed app version as a semver Version.
     pub fn get_current_version(&self) -> Version {
-        self.locator.get_manifest_version()
+        self.inner.locator.get_manifest_version()
     }
 
     /// The currently installed app id.
     pub fn get_app_id(&self) -> String {
-        self.locator.get_manifest_id()
+        self.inner.locator.get_manifest_id()
     }
 
     /// Check if the app is in portable mode. This can be true or false on Windows.
     /// On Linux and MacOS, this will always return true.
     pub fn get_is_portable(&self) -> bool {
-        self.locator.get_is_portable()
+        self.inner.locator.get_is_portable()
     }
 
     /// Returns None if there is no local package waiting to be applied. Returns a VelopackAsset
     /// if there is an update downloaded which has not yet been applied. In that case, the
     /// VelopackAsset can be applied by calling apply_updates_and_restart or wait_exit_then_apply_updates.
     pub fn get_update_pending_restart(&self) -> Option<VelopackAsset> {
-        let packages_dir = self.locator.get_packages_dir();
+        let packages_dir = self.inner.locator.get_packages_dir();
         if let Some((path, manifest)) = locator::find_latest_full_package(&packages_dir) {
-            if manifest.version > self.locator.get_manifest_version() {
+            if manifest.version > self.inner.locator.get_manifest_version() {
                 return Some(local_path_to_asset(&manifest, &path));
             }
         }
@@ -254,18 +265,19 @@ impl UpdateManager {
     /// Get a list of available remote releases from the package source.
     pub fn get_release_feed(&self) -> Result<VelopackAssetFeed, Error> {
         let channel = self.get_practical_channel();
-        let staged_user_id = self.locator.get_staged_user_id();
+        let staged_user_id = self.inner.locator.get_staged_user_id();
         return self
+            .inner
             .source
-            .get_release_feed(&channel, &self.locator.get_manifest(), staged_user_id.as_str());
+            .get_release_feed(&channel, &self.inner.locator.get_manifest(), staged_user_id.as_str());
     }
 
     /// Checks for updates, returning None if there are none available. If there are updates available, this method will return an
     /// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
     pub fn check_for_updates(&self) -> Result<UpdateCheck, Error> {
-        let allow_downgrade = self.options.AllowVersionDowngrade;
-        let app_channel = self.locator.get_manifest_channel();
-        let app_version = self.locator.get_manifest_version();
+        let allow_downgrade = self.inner.options.AllowVersionDowngrade;
+        let app_channel = self.inner.locator.get_manifest_channel();
+        let app_version = self.inner.locator.get_manifest_version();
         let feed = self.get_release_feed()?;
         let assets = feed.Assets;
 
@@ -322,7 +334,7 @@ impl UpdateManager {
     }
 
     fn create_delta_update_strategy(&self, velopack_asset_feed: &Vec<VelopackAsset>, latest_remote: (&VelopackAsset, Version)) -> UpdateInfo {
-        let packages_dir = self.locator.get_packages_dir();
+        let packages_dir = self.inner.locator.get_packages_dir();
         let latest_local = locator::find_latest_full_package(&packages_dir);
 
         if latest_local.is_none() {
@@ -375,9 +387,9 @@ impl UpdateManager {
     /// - If there is no delta update available, or there is an error preparing delta
     ///   packages, this method will fall back to downloading the full version of the update.
     pub fn download_updates(&self, update: &UpdateInfo, progress: Option<Sender<i16>>) -> Result<(), Error> {
-        let _mutex = &self.locator.try_get_exclusive_lock()?;
+        let _mutex = &self.inner.locator.try_get_exclusive_lock()?;
         let name = &update.TargetFullRelease.FileName;
-        let packages_dir = &self.locator.get_packages_dir();
+        let packages_dir = &self.inner.locator.get_packages_dir();
 
         fs::create_dir_all(packages_dir)?;
         let final_target_file = packages_dir.join(name);
@@ -413,12 +425,16 @@ impl UpdateManager {
             info!("Beginning delta update process.");
             if self.download_and_apply_delta_updates(update, &partial_file, progress.clone()).is_err() {
                 info!("Falling back to full update...");
-                self.source.download_release_entry(&update.TargetFullRelease, &partial_file, progress)?;
+                self.inner
+                    .source
+                    .download_release_entry(&update.TargetFullRelease, &partial_file, progress)?;
                 self.verify_package_checksum(&partial_file, &update.TargetFullRelease)?;
                 info!("Successfully downloaded file: '{:?}'", partial_file);
             }
         } else {
-            self.source.download_release_entry(&update.TargetFullRelease, &partial_file, progress)?;
+            self.inner
+                .source
+                .download_release_entry(&update.TargetFullRelease, &partial_file, progress)?;
             self.verify_package_checksum(&partial_file, &update.TargetFullRelease)?;
             info!("Successfully downloaded file: '{:?}'", partial_file);
         }
@@ -433,7 +449,7 @@ impl UpdateManager {
         match crate::bundle::load_bundle_from_file(&final_target_file) {
             Ok(bundle) => {
                 info!("Bundle loaded successfully.");
-                let update_exe_path = self.locator.get_update_path();
+                let update_exe_path = self.inner.locator.get_update_path();
                 if let Err(e) = bundle.extract_zip_predicate_to_path(|f| f.ends_with("Squirrel.exe"), update_exe_path) {
                     error!("Error extracting Update.exe from bundle: {}", e);
                 }
@@ -452,7 +468,7 @@ impl UpdateManager {
     }
 
     fn download_and_apply_delta_updates(&self, update: &UpdateInfo, output_file: &PathBuf, progress: Option<Sender<i16>>) -> Result<(), Error> {
-        let packages_dir = self.locator.get_packages_dir();
+        let packages_dir = self.inner.locator.get_packages_dir();
         let base_release_path = packages_dir.join(&update.BaseRelease.as_ref().unwrap().FileName);
 
         let mut args: Vec<OsString> = vec![
@@ -468,7 +484,7 @@ impl UpdateManager {
             let partial_file = delta_file.with_extension("partial");
 
             info!("Downloading delta package: '{}'", &delta.FileName);
-            self.source.download_release_entry(&delta, &partial_file, None)?;
+            self.inner.source.download_release_entry(&delta, &partial_file, None)?;
             self.verify_package_checksum(&partial_file, delta)?;
 
             fs::rename(&partial_file, &delta_file)?;
@@ -487,7 +503,7 @@ impl UpdateManager {
             let _ = progress.send(70);
         }
 
-        let output = std::process::Command::new(self.locator.get_update_path()).args(args).output()?;
+        let output = std::process::Command::new(self.inner.locator.get_update_path()).args(args).output()?;
         if output.status.success() {
             info!("Successfully applied delta updates.");
         } else {
@@ -597,7 +613,7 @@ impl UpdateManager {
         C: IntoIterator<Item = S>,
     {
         let to_apply = to_apply.as_ref();
-        let pkg_path = self.locator.get_packages_dir().join(&to_apply.FileName);
+        let pkg_path = self.inner.locator.get_packages_dir().join(&to_apply.FileName);
 
         if !pkg_path.exists() {
             error!("Package does not exist on disk: '{:?}'", &pkg_path);
@@ -631,7 +647,7 @@ impl UpdateManager {
         }
 
         args.push("--root".into());
-        args.push(self.locator.get_root_dir().into());
+        args.push(self.inner.locator.get_root_dir().into());
 
         let restart_args: Vec<OsString> = restart_args.into_iter().map(|item| item.as_ref().to_os_string()).collect();
         if !restart_args.is_empty() {
@@ -641,7 +657,7 @@ impl UpdateManager {
             }
         }
 
-        let update_path = self.locator.get_update_path();
+        let update_path = self.inner.locator.get_update_path();
         crate::process::run_process(&update_path, args, update_path.parent(), false, None)?;
         Ok(())
     }

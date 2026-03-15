@@ -133,8 +133,4 @@ impl UpdateSource for VelopackFlowSource {
         })?;
         Ok(())
     }
-
-    fn clone_boxed(&self) -> Box<dyn UpdateSource> {
-        Box::new(self.clone())
-    }
 }

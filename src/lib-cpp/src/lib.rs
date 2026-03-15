@@ -156,7 +156,7 @@ pub extern "C" fn vpkc_new_update_manager_with_source(
     p_manager: *mut *mut vpkc_update_manager_t,
 ) -> bool {
     wrap_error(|| {
-        let source = UpdateSourceRawPtr::get_source_clone(p_source).ok_or(anyhow!("pSource must not be null"))?;
+        let source = UpdateSourceRawPtr::get_source_boxed(p_source).ok_or(anyhow!("pSource must not be null"))?;
         let options = c_to_UpdateOptions(p_options).ok();
         let locator = c_to_VelopackLocatorConfig(p_locator).ok();
         let manager = UpdateManager::new_boxed(source, options, locator)?;
