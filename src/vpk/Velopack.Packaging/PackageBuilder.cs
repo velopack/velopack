@@ -100,7 +100,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
         }
 
         MainExePath = mainExePath;
-        options.EntryExecutableName = Path.GetFileName(mainExePath);
+        options.EntryExecutableName = Path.GetRelativePath(packDirectory, mainExePath).Replace('\\', '/');
         Options = options;
 
         var assetCache = new BuildAssets(pkgTempDir, channel);
