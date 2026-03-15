@@ -29,7 +29,7 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Check lib-rust
-        run: cargo check -p velopack -F async
+        run: cargo check -p velopack
       - name: Test Rust
         run: cargo llvm-cov ${{ matrix.rust_flags }} --cobertura --output-path ./test/coverage.rust.${{ matrix.os }}.xml
       - name: Upload Coverage

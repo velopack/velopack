@@ -15,12 +15,8 @@ rust-version.workspace = true
 
 [features]
 default = []
-async = ["async-std"]
 file-logging = ["log-panics", "simplelog", "time"]
 public-utils = []
-
-[package.metadata.docs.rs]
-features = ["async"]
 
 [lib]
 name = "velopack"
@@ -50,9 +46,6 @@ rand.workspace = true
 sha1.workspace = true
 sha2.workspace = true
 uuid.workspace = true
-
-# async
-async-std = { workspace = true, optional = true }
 
 # file logging
 log-panics = { workspace = true, optional = true }

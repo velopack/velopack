@@ -4,11 +4,6 @@ use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::{fs, process::exit, sync::mpsc::Sender};
 
-#[cfg(feature = "async")]
-use async_std::channel::Sender as AsyncSender;
-#[cfg(feature = "async")]
-use async_std::task::JoinHandle;
-
 use crate::{
     bundle::Manifest,
     constants,
@@ -265,13 +260,6 @@ impl UpdateManager {
             .get_release_feed(&channel, &self.locator.get_manifest(), staged_user_id.as_str());
     }
 
-    /// Get a list of available remote releases from the package source.
-    #[cfg(feature = "async")]
-    pub fn get_release_feed_async(&self) -> JoinHandle<Result<VelopackAssetFeed, Error>> {
-        let self_clone = self.clone();
-        async_std::task::spawn_blocking(move || self_clone.get_release_feed())
-    }
-
     /// Checks for updates, returning None if there are none available. If there are updates available, this method will return an
     /// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
     pub fn check_for_updates(&self) -> Result<UpdateCheck, Error> {
@@ -378,14 +366,6 @@ impl UpdateManager {
             latest_remote.1
         );
         UpdateInfo::new_delta(latest_remote.0.clone(), local_asset, remotes_greater_than_local)
-    }
-
-    /// Checks for updates, returning None if there are none available. If there are updates available, this method will return an
-    /// UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
-    #[cfg(feature = "async")]
-    pub fn check_for_updates_async(&self) -> JoinHandle<Result<UpdateCheck, Error>> {
-        let self_clone = self.clone();
-        async_std::task::spawn_blocking(move || self_clone.check_for_updates())
     }
 
     /// Downloads the specified updates to the local app packages directory. Progress is reported back to the caller via an optional Sender.
@@ -549,34 +529,6 @@ impl UpdateManager {
             return Err(Error::ChecksumInvalid(file.to_path_buf(), asset.SHA1.clone(), sha1));
         }
         Ok(())
-    }
-
-    /// Downloads the specified updates to the local app packages directory. Progress is reported back to the caller via an optional Sender.
-    /// This function will acquire a global update lock so may fail if there is already another update operation in progress.
-    /// - If the update contains delta packages and the delta feature is enabled
-    ///   this method will attempt to unpack and prepare them.
-    /// - If there is no delta update available, or there is an error preparing delta
-    ///   packages, this method will fall back to downloading the full version of the update.
-    #[cfg(feature = "async")]
-    pub fn download_updates_async(&self, update: &UpdateInfo, progress: Option<AsyncSender<i16>>) -> JoinHandle<Result<(), Error>> {
-        let mut sync_progress: Option<Sender<i16>> = None;
-
-        if let Some(async_sender) = progress {
-            let (sync_sender, sync_receiver) = std::sync::mpsc::channel::<i16>();
-            sync_progress = Some(sync_sender);
-
-            // Spawn an async task to bridge from sync to async
-            async_std::task::spawn(async move {
-                for progress_value in sync_receiver {
-                    // Send to the async_std channel, ignore errors (e.g., receiver dropped)
-                    let _ = async_sender.send(progress_value).await;
-                }
-            });
-        }
-
-        let self_clone = self.clone();
-        let update_clone = update.clone();
-        async_std::task::spawn_blocking(move || self_clone.download_updates(&update_clone, sync_progress))
     }
 
     /// This will exit your app immediately, apply updates, and then relaunch the app.
