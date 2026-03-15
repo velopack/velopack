@@ -227,8 +227,11 @@ jobs:
       - name: Generate Rust Integration Coverage
         shell: bash
         run: cargo llvm-cov report --cobertura --output-path ./test/coverage/rust-integration.${{ matrix.os }}.xml
+      - name: List Coverage Files
+        shell: bash
+        run: find ./test/coverage -type f 2>/dev/null || echo "No coverage directory found"
       - name: Upload Coverage
         uses: codecov/codecov-action@v5
         with:
-          directory: ./test/coverage
-      
+          directory: ./test
+          verbose: true
