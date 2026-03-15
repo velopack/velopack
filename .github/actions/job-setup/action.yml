@@ -2,6 +2,10 @@ name: "Setup Job Environment"
 description: "Installs dependencies like dotnet, rust, etc."
 
 inputs:
+  dotnet:
+    description: 'Whether to install all dotnet versions'
+    required: false
+    default: 'true'
   rust-cache:
     description: 'Whether to run the rust-cache action'
     required: false
@@ -11,6 +15,7 @@ runs:
   using: "composite"
   steps:
     - name: Setup dotnet
+      if: inputs.dotnet == 'true'
       uses: actions/setup-dotnet@v5
       with:
         dotnet-version: |
