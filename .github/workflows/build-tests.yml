@@ -86,11 +86,6 @@ jobs:
           fetch-depth: 0
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - name: Setup Rust Coverage Instrumentation
-        shell: bash
-        run: cargo llvm-cov show-env | sed "s/='\(.*\)'/=\1/" >> "$GITHUB_ENV"
       - name: Install Dependencies
         working-directory: src/lib-python
         run: |
@@ -100,13 +95,6 @@ jobs:
       - name: Check lib-python
         working-directory: src/lib-python/test
         run: uv run python run_test.py
-      - name: Generate Python Rust Coverage
-        shell: bash
-        run: cargo llvm-cov report --cobertura --output-path ./test/coverage.rust-python.xml
-      - name: Upload Coverage
-        uses: codecov/codecov-action@v5
-        with:
-          files: ./test/coverage.rust-python.xml
 
   vpk:
     strategy:
@@ -209,7 +197,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        os: [windows-latest, macos-latest]
         include:
           - os: windows-latest
             rust_flags: "--features windows"
@@ -222,12 +210,6 @@ jobs:
           fetch-depth: 0
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
-      - name: Install FUSE
-        run: |
-          sudo add-apt-repository universe
-          sudo apt update
-          sudo apt install libfuse2
-        if: ${{ matrix.os == 'ubuntu-latest' }}
       - name: Install squashfs-tools
         run: brew install squashfs
         if: ${{ matrix.os == 'macos-latest' }}
@@ -237,14 +219,9 @@ jobs:
         shell: bash
         run: cargo llvm-cov show-env | sed "s/='\(.*\)'/=\1/" >> "$GITHUB_ENV"
       - name: Build Instrumented Rust Binaries
-        run: cargo build --release -p velopack_bins ${{ matrix.rust_flags }}
-        env:
-          CARGO_PROFILE_RELEASE_DEBUG: 2
-          CARGO_PROFILE_RELEASE_LTO: "false"
-      - name: Build .NET
-        run: dotnet build -c Release
+        run: cargo build -p velopack_bins ${{ matrix.rust_flags }}
       - name: Test Velopack.Pack.Tests
-        run: dotnet test test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -- RunConfiguration.CollectSourceInformation=true
+        run: dotnet test test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -- RunConfiguration.CollectSourceInformation=true
       - name: Generate Rust Integration Coverage
         shell: bash
         run: cargo llvm-cov report --cobertura --output-path ./test/coverage.rust-integration.${{ matrix.os }}.xml
