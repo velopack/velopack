@@ -15,24 +15,8 @@ use super::UpdateSource;
 struct FlowReleaseAsset {
     #[serde(rename = "Id")]
     id: Option<String>,
-    #[serde(rename = "PackageId")]
-    package_id: String,
-    #[serde(rename = "Version")]
-    version: String,
-    #[serde(rename = "Type")]
-    asset_type: String,
-    #[serde(rename = "FileName")]
-    file_name: String,
-    #[serde(rename = "SHA1")]
-    sha1: String,
-    #[serde(rename = "SHA256")]
-    sha256: String,
-    #[serde(rename = "Size")]
-    size: u64,
-    #[serde(rename = "NotesMarkdown", default)]
-    notes_markdown: String,
-    #[serde(rename = "NotesHtml", default)]
-    notes_html: String,
+    #[serde(flatten)]
+    asset: VelopackAsset,
 }
 
 /// Retrieves updates from the hosted Velopack service.
@@ -97,19 +81,9 @@ impl UpdateSource for VelopackFlowSource {
         let mut assets = Vec::new();
         for fa in flow_assets {
             if let Some(ref id) = fa.id {
-                ids.insert(fa.file_name.clone(), id.clone());
+                ids.insert(fa.asset.FileName.clone(), id.clone());
             }
-            assets.push(VelopackAsset {
-                PackageId: fa.package_id,
-                Version: fa.version,
-                Type: fa.asset_type,
-                FileName: fa.file_name,
-                SHA1: fa.sha1,
-                SHA256: fa.sha256,
-                Size: fa.size,
-                NotesMarkdown: fa.notes_markdown,
-                NotesHtml: fa.notes_html,
-            });
+            assets.push(fa.asset);
         }
 
         Ok(VelopackAssetFeed { Assets: assets })
