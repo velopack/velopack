@@ -19,6 +19,7 @@ pub struct VelopackApp<'a> {
     firstrun_hook: Option<Box<dyn FnOnce(Version) + 'a>>,
     restarted_hook: Option<Box<dyn FnOnce(Version) + 'a>>,
     auto_apply: bool,
+    #[cfg(target_os = "windows")]
     custom_aumid: Option<String>,
     args: Vec<String>,
     locator: Option<VelopackLocatorConfig>,
