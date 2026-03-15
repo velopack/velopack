@@ -53,7 +53,7 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Setup Rust Coverage Instrumentation
         shell: bash
-        run: cargo llvm-cov show-env >> "$GITHUB_ENV"
+        run: cargo llvm-cov show-env | sed "s/='\(.*\)'/=\1/" >> "$GITHUB_ENV"
       - name: Check lib-nodejs
         working-directory: src/lib-nodejs
         run: |
@@ -90,7 +90,7 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Setup Rust Coverage Instrumentation
         shell: bash
-        run: cargo llvm-cov show-env >> "$GITHUB_ENV"
+        run: cargo llvm-cov show-env | sed "s/='\(.*\)'/=\1/" >> "$GITHUB_ENV"
       - name: Install Dependencies
         working-directory: src/lib-python
         run: |
@@ -235,7 +235,7 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Setup Rust Coverage Instrumentation
         shell: bash
-        run: cargo llvm-cov show-env >> "$GITHUB_ENV"
+        run: cargo llvm-cov show-env | sed "s/='\(.*\)'/=\1/" >> "$GITHUB_ENV"
       - name: Build Instrumented Rust Binaries
         run: cargo build --release -p velopack_bins ${{ matrix.rust_flags }}
         env:
