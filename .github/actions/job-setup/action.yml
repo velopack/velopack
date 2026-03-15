@@ -5,7 +5,7 @@ inputs:
   dotnet:
     description: 'Whether to install all dotnet versions'
     required: false
-    default: 'true'
+    default: 'false'
   rust-cache:
     description: 'Whether to run the rust-cache action'
     required: false

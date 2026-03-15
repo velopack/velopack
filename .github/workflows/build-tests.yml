@@ -137,6 +137,8 @@ jobs:
           fetch-depth: 0
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
+        with:
+          dotnet: true
       - name: Install FUSE
         run: |
           sudo add-apt-repository universe
@@ -276,6 +278,8 @@ jobs:
           fetch-depth: 0
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
+        with:
+          dotnet: true
       - name: Install squashfs-tools
         run: brew install squashfs
         if: ${{ matrix.os == 'macos' }}

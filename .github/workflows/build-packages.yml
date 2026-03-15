@@ -26,6 +26,8 @@ jobs:
           fetch-depth: 0
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
+        with:
+          dotnet: true
       - name: Download Rust Artifacts
         uses: actions/download-artifact@v4
         with:
