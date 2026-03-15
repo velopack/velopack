@@ -11,7 +11,7 @@ const config: Config = {
     ["github-actions", { silent: true }],
     "summary",
     ...(process.env.CI
-      ? [["jest-junit", { outputDirectory: "../../test/coverage", outputName: "junit.nodejs.xml" }] as const]
+      ? [["jest-junit", { outputDirectory: "../../test/coverage", outputName: "junit.nodejs.xml" }] as [string, Record<string, unknown>]]
       : []),
   ],
   collectCoverage: !!process.env.CI,
