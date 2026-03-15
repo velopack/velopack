@@ -2351,8 +2351,10 @@ dependencies = [
  "libc",
  "log",
  "log-derive",
+ "semver",
  "serde_json",
  "simplelog",
+ "tempfile",
  "velopack",
 ]
 
