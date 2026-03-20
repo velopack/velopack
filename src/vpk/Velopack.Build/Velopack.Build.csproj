@@ -1,7 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net472;net8.0</TargetFrameworks>
+    <TargetFrameworks>net8.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>14</LangVersion>
@@ -22,7 +22,7 @@
     <Compile Include="..\..\lib-csharp\Util\ProcessExtensions.Shared.cs" Link="ProcessExtensions.Shared.cs" />
     <Compile
       Include="..\Velopack.Packaging\InstallLocation.cs" Link="InstallLocation.cs" />
-    <Compile 
+    <Compile
       Include="..\Velopack.Packaging\Compression\DeltaMode.cs" Link="DeltaMode.cs" />
   </ItemGroup>
 
@@ -31,16 +31,20 @@
     <PackageReference Include="Riok.Mapperly" Version="4.3.1" PrivateAssets="All" />
   </ItemGroup>
 
-  <!--<ItemGroup>
-    <ProjectReference Include="..\..\lib-csharp\Velopack.csproj">
-      <PrivateAssets>none</PrivateAssets>
-    </ProjectReference>
-  </ItemGroup>-->
-
   <ItemGroup>
     <None Include="Velopack.Build.targets" Pack="true" PackagePath="build/Velopack.Build.targets" />
     <None Include="Velopack.Build.props" Pack="true" PackagePath="build/Velopack.Build.props" />
   </ItemGroup>
+
+
+  <Target Name="SetVelopackNuGetVersion" AfterTargets="GetBuildVersion">
+    <ItemGroup>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>VelopackNugetVersion</_Parameter1>
+        <_Parameter2>$(NuGetPackageVersion)</_Parameter2>
+      </AssemblyAttribute>
+    </ItemGroup>
+  </Target>
 
   <Target Name="IncludeTfmDependenciesInPackage">
     <ItemGroup>
