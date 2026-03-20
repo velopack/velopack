@@ -183,7 +183,7 @@ jobs:
           path: test/artifacts/*
           retention-days: 1
       - name: Azure login
-        uses: azure/login@v2
+        uses: azure/login@v3
         if: github.event.pull_request.head.repo.full_name == github.repository
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
