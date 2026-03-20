@@ -162,7 +162,7 @@ jobs:
           artifacts: rust-macos,rust-windows-bins,rust-windows-libs-x64,rust-ubuntu-bins-x64,rust-ubuntu-bins-arm64
           verbose: true
       - name: Download Rust Artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: target/release
           pattern: rust-*
@@ -231,7 +231,7 @@ jobs:
           verbose: true
       - name: Download Cross Artifacts
         if: ${{ matrix.os == 'ubuntu' || matrix.os == 'windows' }}
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: test/artifacts
           pattern: cross-*

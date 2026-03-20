@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Python Artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: pythondl
           pattern: wheels-*
@@ -29,7 +29,7 @@ jobs:
         with:
           dotnet: true
       - name: Download Rust Artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: target/release
           pattern: rust-*
