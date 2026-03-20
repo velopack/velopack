@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using Microsoft.Build.Framework;
-using Velopack.Packaging;
 
 namespace Velopack.Build;
 
@@ -55,7 +54,7 @@ public class PackTask : VpkTask
 
     public string? InstConclusion { get; set; }
 
-    public InstallLocation InstLocation { get; set; } = InstallLocation.Either;
+    //public InstallLocation InstLocation { get; set; } = InstallLocation.Either;
 
     public string? MsiBanner { get; set; }
     public string? MsiLogo { get; set; }

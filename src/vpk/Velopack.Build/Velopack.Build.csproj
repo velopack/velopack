@@ -78,7 +78,7 @@
   <Target Name="IncludeTfmDependenciesInPackage">
     <ItemGroup>
       <!-- Exclude the publish folder, runtimes, and vpk files as vpk is packaged separately in tools folder -->
-      <TfmSpecificPackageFile Include="$(TargetDir)*.*" Exclude="$(TargetDir)vpk.*;$(TargetDir)Velopack.Core.*;$(TargetDir)Velopack.Packaging.*;$(TargetDir)Velopack.Deployment.*;$(TargetDir)Velopack.Flow.*;$(TargetDir)Velopack.IcoLib.*;$(TargetDir)Velopack.Packaging.Unix.*;$(TargetDir)Velopack.Packaging.Windows.*">
+      <TfmSpecificPackageFile Include="$(TargetDir)*.*">
         <PackagePath>build\$(TargetFramework)</PackagePath>
       </TfmSpecificPackageFile>
     </ItemGroup>
