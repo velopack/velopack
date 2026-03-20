@@ -13,6 +13,9 @@
 
   <Target Name="_VelopackResolveProperties" AfterTargets="Publish" BeforeTargets="VelopackBuildRelease">
     <PropertyGroup>
+      <_VelopackVpkVersion Condition="'$(VelopackVpkVersion)' == ''"></_VelopackVpkVersion>
+      <_VelopackVpkNugetSource Condition="'$(VelopackVpkNugetSource)' == ''"></_VelopackVpkNugetSource>
+      
       <VelopackExeExtension Condition="'$(VelopackExeExtension)' == '' and ('$(OutputType)' == 'Exe' or '$(OutputType)' == 'WinExe')">.exe</VelopackExeExtension>
       <VelopackPackVersion Condition="'$(VelopackPackVersion)' == ''">$(Version)</VelopackPackVersion>
       <VelopackImplicitPackId Condition="'$(VelopackPackId)' == ''">true</VelopackImplicitPackId>
@@ -92,6 +95,8 @@
       SkipVelopackAppCheck="$(VelopackSkipVelopackAppCheck)"
       SplashImage="$(VelopackSplashImage)"
       TargetRuntime="$(VelopackTargetRuntime)"
+      VpkNugetSource="$(_VelopackVpkNugetSource)"
+      VpkVersion="$(_VelopackVpkVersion)"
     />
   </Target>
 
@@ -103,6 +108,8 @@
       ApiKey="$(VelopackFlowApiKey)"
       Channel="$(VelopackChannel)"
       Timeout="$(VelopackHttpTimeout)"
+      VpkNugetSource="$(_VelopackVpkNugetSource)"
+      VpkVersion="$(_VelopackVpkVersion)"
       WaitForLive="$(VelopackWaitForLive)"
     />
   </Target>
