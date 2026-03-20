@@ -8,8 +8,8 @@
     <VelopackBuildDll>$(MSBuildThisFileDirectory)$(VelopackStronglyTyped_TFM)\Velopack.Build.dll</VelopackBuildDll>
   </PropertyGroup>
 
-  <UsingTask TaskName="Velopack.Build.PackTask" AssemblyFile="$(VelopackBuildDll)"/>
-  <UsingTask TaskName="Velopack.Build.PublishTask" AssemblyFile="$(VelopackBuildDll)"/>
+  <UsingTask TaskName="Velopack.Build.PackTask" Architecture="x64" Runtime="NET" AssemblyFile="$(VelopackBuildDll)"/>
+  <UsingTask TaskName="Velopack.Build.PublishTask" Architecture="x64" Runtime="NET" AssemblyFile="$(VelopackBuildDll)"/>
 
   <Target Name="_VelopackResolveProperties" AfterTargets="Publish" BeforeTargets="VelopackBuildRelease">
     <PropertyGroup>
@@ -80,7 +80,6 @@
       ReleaseDir="$(VelopackReleaseDirectory)"
       ReleaseNotes="$(VelopackReleaseNotes)"
       Runtimes="$(VelopackRuntimes)"
-      SelfContained="$(SelfContained)"
       Shortcuts="$(VelopackShortcuts)"
       SignAppIdentity="$(VelopackSignAppIdentity)"
       SignDisableDeep="$(VelopackSignDisableDeep)"
