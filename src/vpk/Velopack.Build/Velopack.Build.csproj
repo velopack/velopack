@@ -1,34 +1,58 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net472;net6.0</TargetFrameworks>
+    <TargetFrameworks>net8.0</TargetFrameworks>
     <Nullable>enable</Nullable>
-    <LangVersion>12</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>14</LangVersion>
     <SignAssembly>false</SignAssembly>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);IncludeTfmDependenciesInPackage</TargetsForTfmSpecificContentInPackage>
   </PropertyGroup>
 
   <PropertyGroup>
     <VelopackPackageId>Velopack.Build</VelopackPackageId>
     <VelopackPackageVendorLibs>true</VelopackPackageVendorLibs>
-    <VelopackPackageSelfContained>true</VelopackPackageSelfContained>
-    <DevelopmentDependency>true</DevelopmentDependency>
+    <PackRustAssets>false</PackRustAssets>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <VelopackPackageSelfContained>false</VelopackPackageSelfContained>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Velopack.Flow\Velopack.Flow.csproj" />
-    <ProjectReference Include="..\Velopack.Packaging.Unix\Velopack.Packaging.Unix.csproj" />
-    <ProjectReference Include="..\Velopack.Packaging.Windows\Velopack.Packaging.Windows.csproj" />
+    <Compile Include="..\..\lib-csharp\Util\ProcessExtensions.Shared.cs" Link="ProcessExtensions.Shared.cs" />
+    <Compile
+      Include="..\Velopack.Packaging\InstallLocation.cs" Link="InstallLocation.cs" />
+    <Compile
+      Include="..\Velopack.Packaging\Compression\DeltaMode.cs" Link="DeltaMode.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.14.28" />
-    <PackageReference Include="Microsoft.IO.Redist" Version="6.1.3" Condition="'$(TargetFramework)' == 'net472'" />
-    <PackageReference Include="Riok.Mapperly" Version="4.3.1" />
+    <PackageReference Include="Riok.Mapperly" Version="4.3.1" PrivateAssets="All" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="Velopack.Build.targets" Pack="true" PackagePath="build/Velopack.Build.targets" />
+    <None Include="Velopack.Build.props" Pack="true" PackagePath="build/Velopack.Build.props" />
   </ItemGroup>
+
+
+  <Target Name="SetVelopackNuGetVersion" AfterTargets="GetBuildVersion">
+    <ItemGroup>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>VelopackNugetVersion</_Parameter1>
+        <_Parameter2>$(NuGetPackageVersion)</_Parameter2>
+      </AssemblyAttribute>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="IncludeTfmDependenciesInPackage">
+    <ItemGroup>
+      <!-- Exclude the publish folder, runtimes, and vpk files as vpk is packaged separately in tools folder -->
+      <TfmSpecificPackageFile Include="$(TargetDir)*.*">
+        <PackagePath>build\$(TargetFramework)</PackagePath>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
+  </Target>
 
 </Project>

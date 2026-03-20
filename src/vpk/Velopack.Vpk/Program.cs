@@ -8,13 +8,11 @@ using Serilog.Events;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
 using Velopack.Deployment;
-using Velopack.Flow;
 using Velopack.Flow.Commands;
 using Velopack.Packaging.Commands;
 using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
-using Velopack.Util;
 using Velopack.Vpk.Commands;
 using Velopack.Vpk.Commands.Deployment;
 using Velopack.Vpk.Commands.Flow;
@@ -148,6 +146,7 @@ public class Program
         downloadCommand.AddRepositoryDownload<AzureDownloadCommand, AzureRepository, AzureDownloadOptions>(provider);
         downloadCommand.AddRepositoryDownload<LocalDownloadCommand, LocalRepository, LocalDownloadOptions>(provider);
         downloadCommand.AddRepositoryDownload<HttpDownloadCommand, HttpRepository, HttpDownloadOptions>(provider);
+        HideCommand(downloadCommand.AddRepositoryDownload<FlowDownloadCommand, FlowRepository, FlowDownloadOptions>(provider));
         rootCommand.Add(downloadCommand);
 
         var uploadCommand = new CliCommand("upload", "Upload local package(s) to a remote update source.");

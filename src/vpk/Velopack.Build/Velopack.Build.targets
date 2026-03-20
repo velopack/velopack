@@ -3,20 +3,24 @@
     <VelopackPackOnPublish Condition="$(VelopackPackOnPublish) == ''">true</VelopackPackOnPublish>
     <VelopackPushOnPublish Condition="$(VelopackPushOnPublish) == ''">false</VelopackPushOnPublish>
     <!-- https://learn.microsoft.com/visualstudio/msbuild/tutorial-custom-task-code-generation?view=vs-2022&WT.mc_id=DT-MVP-5003472#changes-required-to-multitarget -->
-    <VelopackStronglyTyped_TFM Condition=" '$(MSBuildRuntimeType)' != 'Core' ">net472</VelopackStronglyTyped_TFM>
-    <VelopackStronglyTyped_TFM Condition=" '$(MSBuildRuntimeType)' == 'Core' ">net6.0</VelopackStronglyTyped_TFM>
+    <VelopackStronglyTyped_TFM Condition="'$(MSBuildRuntimeType)' != 'Core'">net472</VelopackStronglyTyped_TFM>
+    <VelopackStronglyTyped_TFM Condition="'$(MSBuildRuntimeType)' == 'Core'">net8.0</VelopackStronglyTyped_TFM>
     <VelopackBuildDll>$(MSBuildThisFileDirectory)$(VelopackStronglyTyped_TFM)\Velopack.Build.dll</VelopackBuildDll>
   </PropertyGroup>
 
-  <UsingTask TaskName="Velopack.Build.PackTask" AssemblyFile="$(VelopackBuildDll)"/>
-  <UsingTask TaskName="Velopack.Build.PublishTask" AssemblyFile="$(VelopackBuildDll)"/>
+  <UsingTask TaskName="Velopack.Build.PackTask" Architecture="x64" Runtime="NET" AssemblyFile="$(VelopackBuildDll)"/>
+  <UsingTask TaskName="Velopack.Build.PublishTask" Architecture="x64" Runtime="NET" AssemblyFile="$(VelopackBuildDll)"/>
 
   <Target Name="_VelopackResolveProperties" AfterTargets="Publish" BeforeTargets="VelopackBuildRelease">
     <PropertyGroup>
+      <_VelopackVpkVersion Condition="'$(VelopackVpkVersion)' == ''"></_VelopackVpkVersion>
+      <_VelopackVpkNugetSource Condition="'$(VelopackVpkNugetSource)' == ''"></_VelopackVpkNugetSource>
+      
+      <VelopackExeExtension Condition="'$(VelopackExeExtension)' == '' and ('$(OutputType)' == 'Exe' or '$(OutputType)' == 'WinExe')">.exe</VelopackExeExtension>
       <VelopackPackVersion Condition="'$(VelopackPackVersion)' == ''">$(Version)</VelopackPackVersion>
       <VelopackImplicitPackId Condition="'$(VelopackPackId)' == ''">true</VelopackImplicitPackId>
       <VelopackPackId Condition="'$(VelopackPackId)' == ''">$(AssemblyName)</VelopackPackId>
-      <VelopackEntryExecutableName Condition="'$(VelopackEntryExecutableName)' == ''">$(AssemblyName)</VelopackEntryExecutableName>
+      <VelopackEntryExecutableName Condition="'$(VelopackEntryExecutableName)' == ''">$(AssemblyName)$(VelopackExeExtension)</VelopackEntryExecutableName>
       <VelopackPackDirectory Condition="'$(VelopackPackDirectory)' == ''">$(PublishDir)</VelopackPackDirectory>
       <VelopackReleaseDirectory Condition="'$(VelopackReleaseDirectory)' == ''">Releases</VelopackReleaseDirectory>
       <VelopackPackTitle Condition="'$(VelopackPackTitle)' == ''">$(Product)</VelopackPackTitle>
@@ -42,7 +46,7 @@
       <Output TaskParameter="AbsolutePaths" PropertyName="VelopackPackDirectory"/>
     </ConvertToAbsolutePath>
 
-    <ConvertToAbsolutePath Paths="$(VelopackIcon)">
+    <ConvertToAbsolutePath Paths="$(VelopackIcon)" Condition="'$(VelopackIcon)' != ''">
       <Output TaskParameter="AbsolutePaths" PropertyName="VelopackIcon"/>
     </ConvertToAbsolutePath>
   </Target>
@@ -54,45 +58,45 @@
            Text="Only SelfContained=true releases are supported on Linux. Please dotnet publish with the --self-contained option." />
 
     <PackTask
-      SelfContained="$(SelfContained)"
-      TargetFramework="$(TargetFramework)"
-      TargetRuntime="$(VelopackTargetRuntime)"
-      PackVersion="$(VelopackPackVersion)"
-      Runtimes="$(VelopackRuntimes)"
-      PackId="$(VelopackPackId)"
-      PackDirectory="$(VelopackPackDirectory)"
-      ReleaseDir="$(VelopackReleaseDirectory)"
-      PackAuthors="$(VelopackPackAuthors)"
-      PackTitle="$(VelopackPackTitle)"
-      EntryExecutableName="$(VelopackEntryExecutableName)"
-      Icon="$(VelopackIcon)"
-      ReleaseNotes="$(VelopackReleaseNotes)"
-      DeltaMode="$(VelopackDeltaMode)"
-      Channel="$(VelopackChannel)"
-      Exclude="$(VelopackExclude)"
-      NoPortable="$(VelopackNoPortable)"
-      NoInst="$(VelopackNoInst)"
-      InstWelcome="$(VelopackInstWelcome)"
-      InstReadme="$(VelopackInstReadme)"
-      InstLicense="$(VelopackInstLicense)"
-      InstConclusion="$(VelopackInstConclusion)"
-      SignAppIdentity="$(VelopackSignAppIdentity)"
-      SignInstallIdentity="$(VelopackSignInstallIdentity)"
-      SignEntitlements="$(VelopackSignEntitlements)"
-      SignDisableDeep="$(VelopackSignDisableDeep)"
-      NotaryProfile="$(VelopackNotaryProfile)"
-      Keychain="$(VelopackKeychain)"
       BundleId="$(VelopackBundleId)"
-      InfoPlistPath="$(VelopackInfoPlistPath)"
-      SplashImage="$(VelopackSplashImage)"
-      SkipVelopackAppCheck="$(VelopackSkipVelopackAppCheck)"
-      SignParameters="$(VelopackSignParameters)"
-      SignExclude="$(VelopackSignExclude)"
-      SignParallel="$(VelopackSignParallel)"
-      SignTemplate="$(VelopackSignTemplate)"
       Categories="$(VelopackCategories)"
-      Shortcuts="$(VelopackShortcuts)"
+      Channel="$(VelopackChannel)"
       Compression="$(VelopackAppImageCompression)"
+      DeltaMode="$(VelopackDeltaMode)"
+      EntryExecutableName="$(VelopackEntryExecutableName)"
+      Exclude="$(VelopackExclude)"
+      Icon="$(VelopackIcon)"
+      InfoPlistPath="$(VelopackInfoPlistPath)"
+      InstConclusion="$(VelopackInstConclusion)"
+      InstLicense="$(VelopackInstLicense)"
+      InstReadme="$(VelopackInstReadme)"
+      InstWelcome="$(VelopackInstWelcome)"
+      Keychain="$(VelopackKeychain)"
+      NoInst="$(VelopackNoInst)"
+      NoPortable="$(VelopackNoPortable)"
+      NotaryProfile="$(VelopackNotaryProfile)"
+      PackAuthors="$(VelopackPackAuthors)"
+      PackDirectory="$(VelopackPackDirectory)"
+      PackId="$(VelopackPackId)"
+      PackTitle="$(VelopackPackTitle)"
+      PackVersion="$(VelopackPackVersion)"
+      ReleaseDir="$(VelopackReleaseDirectory)"
+      ReleaseNotes="$(VelopackReleaseNotes)"
+      Runtimes="$(VelopackRuntimes)"
+      Shortcuts="$(VelopackShortcuts)"
+      SignAppIdentity="$(VelopackSignAppIdentity)"
+      SignDisableDeep="$(VelopackSignDisableDeep)"
+      SignEntitlements="$(VelopackSignEntitlements)"
+      SignExclude="$(VelopackSignExclude)"
+      SignInstallIdentity="$(VelopackSignInstallIdentity)"
+      SignParallel="$(VelopackSignParallel)"
+      SignParameters="$(VelopackSignParameters)"
+      SignTemplate="$(VelopackSignTemplate)"
+      SkipVelopackAppCheck="$(VelopackSkipVelopackAppCheck)"
+      SplashImage="$(VelopackSplashImage)"
+      TargetRuntime="$(VelopackTargetRuntime)"
+      VpkNugetSource="$(_VelopackVpkNugetSource)"
+      VpkVersion="$(_VelopackVpkVersion)"
     />
   </Target>
 
@@ -104,6 +108,8 @@
       ApiKey="$(VelopackFlowApiKey)"
       Channel="$(VelopackChannel)"
       Timeout="$(VelopackHttpTimeout)"
+      VpkNugetSource="$(_VelopackVpkNugetSource)"
+      VpkVersion="$(_VelopackVpkVersion)"
       WaitForLive="$(VelopackWaitForLive)"
     />
   </Target>

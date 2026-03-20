@@ -1,38 +1,29 @@
-﻿using System;
-using System.IO;
-using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Diagnostics.CodeAnalysis;
 using Microsoft.Build.Framework;
-using Velopack.Core;
-using Velopack.Packaging;
-using Velopack.Packaging.Unix.Commands;
-using Velopack.Packaging.Windows.Commands;
 
 namespace Velopack.Build;
 
-public class PackTask : MSBuildAsyncTask
+public class PackTask : VpkTask
 {
-    public bool SelfContained { get; set; }
-
     public string? TargetRuntime { get; set; }
 
     [Required]
-    public string TargetFramework { get; set; } = null!;
+    [NotNull]
+    public string? PackVersion { get; set; }
 
     [Required]
-    public string PackVersion { get; set; } = "";
+    [NotNull]
+    public string? PackId { get; set; }
 
     [Required]
-    public string PackId { get; set; } = "";
+    [NotNull]
+    public string? PackDirectory { get; set; }
 
     [Required]
-    public string PackDirectory { get; set; } = null!;
+    [NotNull]
+    public string? ReleaseDir { get; set; }
 
-    [Required]
-    public string ReleaseDir { get; set; } = null!;
-
-    public string Runtimes { get; set; } = "";
+    public string? Runtimes { get; set; }
 
     public string? PackAuthors { get; set; }
 
@@ -44,15 +35,15 @@ public class PackTask : MSBuildAsyncTask
 
     public string? ReleaseNotes { get; set; }
 
-    public string? DeltaMode { get; set; } = "BestSpeed";
+    public string? DeltaMode { get; set; }
 
     public string? Channel { get; set; }
 
     public string? Exclude { get; set; }
 
-    public bool NoPortable { get; private set; }
+    public bool NoPortable { get; set; }
 
-    public bool NoInst { get; private set; }
+    public bool NoInst { get; set; }
 
     public string? InstWelcome { get; set; }
 
@@ -63,7 +54,7 @@ public class PackTask : MSBuildAsyncTask
 
     public string? InstConclusion { get; set; }
 
-    public InstallLocation InstLocation { get; set; } = InstallLocation.Either;
+    //public InstallLocation InstLocation { get; set; } = InstallLocation.Either;
 
     public string? MsiBanner { get; set; }
     public string? MsiLogo { get; set; }
@@ -73,7 +64,7 @@ public class PackTask : MSBuildAsyncTask
     public string? SignInstallIdentity { get; set; }
 
     public string? SignEntitlements { get; set; }
-    
+
     public bool SignDisableDeep { get; set; }
 
     public string? NotaryProfile { get; set; }
@@ -91,76 +82,274 @@ public class PackTask : MSBuildAsyncTask
     public bool SkipVelopackAppCheck { get; set; }
 
     public string? SignParameters { get; set; }
-    
+
     public string? AzureTrustedSignFile { get; set; }
 
     public string? SignExclude { get; set; }
 
-    public int SignParallel { get; set; } = 10;
+    public int? SignParallel { get; set; }
 
     public string? SignTemplate { get; set; }
 
     public string? Categories { get; set; }
 
     public string? Shortcuts { get; set; }
-    
+
     public string? Compression { get; set; }
 
     public bool BuildMsi { get; set; }
 
     public string? MsiVersionOverride { get; set; }
 
-    protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
+    public string? VelopackBaseUrl { get; set; }
+
+    public double Timeout { get; set; } = 30d;
+
+    protected override async Task<bool> PreExecuteAsync(VpkToolRunner toolRunner, CancellationToken cancellationToken)
     {
-        //System.Diagnostics.Debugger.Launch();
-        try {
-            var console = new LoggerConsole(Logger);
-            HelperFile.ClearSearchPaths();
-            var searchPath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "..", "..", "vendor"));
-            HelperFile.AddSearchPath(searchPath);
+        if (DeltaMode == nameof(Packaging.Compression.DeltaMode.None)) {
+            return true;
+        }
 
-            if (VelopackRuntimeInfo.IsWindows) {
-                var options = this.ToWinPackOptions();
+        Log.LogMessage(MessageImportance.High, "DeltaMode is enabled, downloading latest release from Velopack Flow...");
 
-                // we can auto-compute the requires runtimes on Windows from the TFM/RID
-                if (!SelfContained && String.IsNullOrEmpty(options.Runtimes)) {
-#pragma warning disable CS0618 // Type or member is obsolete
-                    if (TargetFramework.Contains("-")) {
-                        TargetFramework = TargetFramework.Substring(0, TargetFramework.IndexOf('-'));
-                    }
-                    var runtime = Windows.Runtimes.GetRuntimeByName(TargetFramework);
-                    if (runtime is Windows.Runtimes.FrameworkInfo) {
-                        options.Runtimes = runtime.Id;
-                        Log.LogMessage(MessageImportance.High, $"Setup.exe will automatically bootstrap {runtime.DisplayName}.");
-                    } else if (!SelfContained && runtime is Windows.Runtimes.DotnetInfo dni && options.TargetRuntime?.HasArchitecture == true) {
-                        var rt = new Windows.Runtimes.DotnetInfo(dni.MinVersion.Version, options.TargetRuntime.Architecture);
-                        options.Runtimes = rt.Id;
-                        Log.LogMessage(MessageImportance.High, $"Setup.exe will automatically bootstrap {rt.DisplayName}.");
-                    } else {
-                        Log.LogWarning($"No runtime specified and no default runtime found for TFM '{TargetFramework}', please specify runtimes via VelopackRuntimes property in your csproj.");
-                    }
-#pragma warning restore CS0618 // Type or member is obsolete
-                }
+        var args = new List<string>
+        {
+            "download",
+            "flow",
+            "--legacyConsole",
+            "--yes",
+            "--packageId",
+            PackId,
+            "--outputDir",
+            ReleaseDir,
+            "--timeout",
+            Timeout.ToString()
+        };
 
-                var runner = new WindowsPackCommandRunner(Logger, console);
-                await runner.Run(options).ConfigureAwait(false);
-            } else if (VelopackRuntimeInfo.IsOSX) {
-                var options = this.ToOsxPackOptions();
-                var runner = new OsxPackCommandRunner(Logger, console);
-                await runner.Run(options).ConfigureAwait(false);
-            } else if (VelopackRuntimeInfo.IsLinux) {
-                var options = this.ToLinuxPackOptions();
-                var runner = new LinuxPackCommandRunner(Logger, console);
-                await runner.Run(options).ConfigureAwait(false);
-            } else {
-                throw new NotSupportedException("Unsupported OS platform: " + VelopackRuntimeInfo.SystemOs.GetOsLongName());
+        if (!string.IsNullOrWhiteSpace(Channel)) {
+            args.Add("--channel");
+            args.Add(Channel!);
+        }
+
+        if (!string.IsNullOrWhiteSpace(VelopackBaseUrl)) {
+            args.Add("--baseUrl");
+            args.Add(VelopackBaseUrl!);
+        }
+
+        Log.LogMessage(MessageImportance.High, $"Executing: vpk {string.Join(" ", args)}");
+
+        var exitCode = await toolRunner.RunVpk(args, [], cancellationToken).ConfigureAwait(false);
+
+        if (exitCode != 0) {
+            Log.LogWarning($"Failed to download latest release from Velopack Flow (exit code {exitCode}). Delta generation may not work correctly.");
+        }
+
+        return true;
+    }
+
+    protected override string GetSuccesMessage()
+        => $"{PackId} ({PackVersion}) created in {ReleaseDir}";
+
+    protected override string[] BuildArguments()
+    {
+        IEnumerable<string> GetArguments()
+        {
+            yield return "pack";
+            yield return "--legacyConsole";
+            yield return "--yes";
+
+            if (!string.IsNullOrWhiteSpace(PackId)) {
+                yield return "--packId";
+                yield return PackId;
             }
 
-            Log.LogMessage(MessageImportance.High, $"{PackId} ({PackVersion}) created in {Path.GetFullPath(ReleaseDir)}");
-            return true;
-        } catch (Exception ex) {
-            Log.LogErrorFromException(ex, true, true, null);
-            return false;
+            if (!string.IsNullOrWhiteSpace(PackVersion)) {
+                yield return "--packVersion";
+                yield return PackVersion;
+            }
+
+            if (!string.IsNullOrWhiteSpace(PackDirectory)) {
+                yield return "--packDir";
+                yield return PackDirectory;
+            }
+
+            if (!string.IsNullOrWhiteSpace(ReleaseDir)) {
+                yield return "--outputDir";
+                yield return ReleaseDir;
+            }
+
+            if (!string.IsNullOrWhiteSpace(EntryExecutableName)) {
+                yield return "--mainExe";
+                yield return EntryExecutableName!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(PackAuthors)) {
+                yield return "--packAuthors";
+                yield return PackAuthors!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(PackTitle)) {
+                yield return "--packTitle";
+                yield return PackTitle!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(Icon)) {
+                yield return "--icon";
+                yield return Icon!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(ReleaseNotes)) {
+                yield return "--releaseNotes";
+                yield return ReleaseNotes!;
+            }
+
+            if (!string.IsNullOrEmpty(DeltaMode)) {
+                yield return "--delta";
+                yield return DeltaMode!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(Channel)) {
+                yield return "--channel";
+                yield return Channel!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(Exclude)) {
+                yield return "--exclude";
+                yield return Exclude!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(Runtimes)) {
+                yield return "--framework";
+                yield return Runtimes!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(SplashImage)) {
+                yield return "--splashImage";
+                yield return SplashImage!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(SignParameters)) {
+                yield return "--signParams";
+                yield return SignParameters!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(SignTemplate)) {
+                yield return "--signTemplate";
+                yield return SignTemplate!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(SignExclude)) {
+                yield return "--signExclude";
+                yield return SignExclude!;
+            }
+
+            if (SignParallel is { } signParallel) {
+                yield return "--signParallel";
+                yield return signParallel.ToString();
+            }
+
+            if (!string.IsNullOrWhiteSpace(Shortcuts)) {
+                yield return "--shortcuts";
+                yield return Shortcuts!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(Categories)) {
+                yield return "--categories";
+                yield return Categories!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(Compression)) {
+                yield return "--compression";
+                yield return Compression!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(SignAppIdentity)) {
+                yield return "--signAppIdentity";
+                yield return SignAppIdentity!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(SignInstallIdentity)) {
+                yield return "--signInstallIdentity";
+                yield return SignInstallIdentity!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(SignEntitlements)) {
+                yield return "--signEntitlements";
+                yield return SignEntitlements!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(NotaryProfile)) {
+                yield return "--notaryProfile";
+                yield return NotaryProfile!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(Keychain)) {
+                yield return "--keychain";
+                yield return Keychain!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(BundleId)) {
+                yield return "--bundleId";
+                yield return BundleId!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(InfoPlistPath)) {
+                yield return "--infoPlist";
+                yield return InfoPlistPath!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(AzureTrustedSignFile)) {
+                yield return "--azureTrustedSignFile";
+                yield return AzureTrustedSignFile!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(InstWelcome)) {
+                yield return "--instWelcome";
+                yield return InstWelcome!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(InstReadme)) {
+                yield return "--instReadme";
+                yield return InstReadme!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(InstLicense)) {
+                yield return "--instLicense";
+                yield return InstLicense!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(InstConclusion)) {
+                yield return "--instConclusion";
+                yield return InstConclusion!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(MsiVersionOverride)) {
+                yield return "--msiVersionOverride";
+                yield return MsiVersionOverride!;
+            }
+
+            if (SkipVelopackAppCheck) {
+                yield return "--skipVeloAppCheck";
+            }
+
+            if (NoPortable) {
+                yield return "--noPortable";
+            }
+
+            if (NoInst) {
+                yield return "--noInst";
+            }
+
+            if (BuildMsi) {
+                yield return "--msi";
+            }
+
+            if (SignDisableDeep) {
+                yield return "--signDisableDeep";
+            }
         }
+
+        return [.. GetArguments()];
     }
 }

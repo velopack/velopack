@@ -11,7 +11,7 @@ public abstract class VelopackServiceCommand : BaseCommand
     protected VelopackServiceCommand(string name, string description)
         : base(name, description)
     {
-        AddOption<string>(v => VelopackBaseUrl = v, "--baseUrl")
+        AddOption<string>(v => VelopackBaseUrl = v, "--base-url")
             .SetDescription("The base Uri for the Velopack API service.")
             .SetArgumentHelpName("URI");
 

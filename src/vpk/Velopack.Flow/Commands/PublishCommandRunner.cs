@@ -25,6 +25,7 @@ public class PublishCommandRunner(ILogger logger, IFancyConsole console) : IComm
             options.TargetOs,
             options.WaitForLive,
             options.TieredRolloutPercentage,
+            options.SkipDuplicate,
             token);
     }
 }

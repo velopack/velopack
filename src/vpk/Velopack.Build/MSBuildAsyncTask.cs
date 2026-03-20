@@ -1,21 +1,11 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Build.Framework;
+﻿using Microsoft.Build.Framework;
 using MSBuildTask = Microsoft.Build.Utilities.Task;
 
 namespace Velopack.Build;
 
 public abstract class MSBuildAsyncTask : MSBuildTask, ICancelableTask
 {
-    protected MSBuildLogger Logger { get; }
-
     private CancellationTokenSource CancellationTokenSource { get; } = new();
-
-    protected MSBuildAsyncTask()
-    {
-        Logger = new MSBuildLogger(Log);
-    }
 
     public sealed override bool Execute()
     {

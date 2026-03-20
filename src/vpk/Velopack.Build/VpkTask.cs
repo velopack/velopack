@@ -1,0 +1,65 @@
+﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
+using Microsoft.Build.Framework;
+
+namespace Velopack.Build;
+
+public abstract class VpkTask : MSBuildAsyncTask
+{
+    public string? VpkVersion { get; set; }
+
+    public string? VpkNugetSource { get; set; }
+
+    protected sealed override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
+    {
+        try {
+            var vpkVersion = VpkVersion;
+            if (string.IsNullOrWhiteSpace(vpkVersion)) {
+                vpkVersion = Assembly.GetExecutingAssembly()
+                    .GetCustomAttributes<AssemblyMetadataAttribute>()
+                    .Single(x => x.Key == "VelopackNugetVersion").Value;
+            }
+
+            var toolRunner = new VpkToolRunner(vpkVersion!, VpkNugetSource, Log);
+            
+            if (!await PreExecuteAsync(toolRunner, cancellationToken).ConfigureAwait(false)) {
+                return false;
+            }
+            
+            var args = BuildArguments();
+
+            Dictionary<string, string> envVars = BuildEnvironmentVariables();
+
+            Log.LogMessage(MessageImportance.High, $"Executing: vpk {string.Join(" ", args)}");
+
+            var exitCode = await toolRunner.RunVpk(args, envVars, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (exitCode == 0) {
+                Log.LogMessage(MessageImportance.High, GetSuccesMessage());
+                return true;
+            } else {
+                Log.LogError($"VPK tool exited with code {exitCode}");
+                return false;
+            }
+        } catch (Exception ex) {
+            Log.LogErrorFromException(ex, true, true, null);
+            return false;
+        }
+    }
+
+    protected virtual Task<bool> PreExecuteAsync(VpkToolRunner toolRunner, CancellationToken cancellationToken)
+    {
+        return Task.FromResult(true);
+    }
+
+    protected abstract string GetSuccesMessage();
+
+    protected abstract string[] BuildArguments();
+
+    protected virtual Dictionary<string, string> BuildEnvironmentVariables()
+    {
+        return [];
+    }
+}

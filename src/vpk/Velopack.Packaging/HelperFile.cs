@@ -134,8 +134,7 @@ public static class HelperFile
 
     public static void AddSearchPath(string path)
     {
-        if (Directory.Exists(path))
-            _searchPaths.Insert(0, path);
+        _searchPaths.Insert(0, path);
     }
 
     public static string FindHelperFile(string toFind, Func<string, bool> predicate = null, bool throwWhenNotFound = true)
@@ -148,6 +147,7 @@ public static class HelperFile
 
         var files = _searchPaths
             .Where(d => !String.IsNullOrEmpty(d))
+            .Where(Directory.Exists)
             .Distinct()
             .Select(d => Path.Combine(d, toFind))
             .Where(d => File.Exists(d))
@@ -161,8 +161,13 @@ public static class HelperFile
             StringBuilder msg = new();
             msg.AppendLine($"HelperFile could not find '{toFind}'.");
             msg.AppendLine("Search paths:");
-            foreach (var path in _searchPaths)
-                msg.AppendLine($"  {Path.GetFullPath(path)}");
+            foreach (var path in _searchPaths) {
+                msg.Append($"  {Path.GetFullPath(path)}");
+                if (!Directory.Exists(path)) {
+                    msg.Append(" [NOT FOUND]");
+                }
+                msg.AppendLine();
+            }
             throw new Exception(msg.ToString());
         }
 

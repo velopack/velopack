@@ -11,4 +11,6 @@ public sealed class PublishOptions : VelopackFlowServiceOptions
     public bool WaitForLive { get; set; }
 
     public int TieredRolloutPercentage { get; set; }
+
+    public bool SkipDuplicate { get; set; }
 }
