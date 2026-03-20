@@ -7,8 +7,7 @@
     <LangVersion>14</LangVersion>
     <SignAssembly>false</SignAssembly>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
-    <GenerateNuspecDependsOn>$(GenerateNuspecDependsOn);PublishVpkForPackage</GenerateNuspecDependsOn>
-    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);IncludeTfmDependenciesInPackage;IncludeVpkInPackage</TargetsForTfmSpecificContentInPackage>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);IncludeTfmDependenciesInPackage</TargetsForTfmSpecificContentInPackage>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -16,18 +15,14 @@
     <VelopackPackageVendorLibs>true</VelopackPackageVendorLibs>
     <PackRustAssets>false</PackRustAssets>
     <IncludeBuildOutput>false</IncludeBuildOutput>
-    <!-- TODO: we might be able to remove the entire SelfContained.targets file now -->
     <VelopackPackageSelfContained>false</VelopackPackageSelfContained>
-    <_VelopackVpkPackLocation>tools\net8.0\any\</_VelopackVpkPackLocation>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="..\..\lib-csharp\Util\ProcessExtensions.Shared.cs" Link="ProcessExtensions.Shared.cs" />
     <Compile
-      Condition="'$(TargetFramework)' == 'net472'"
       Include="..\Velopack.Packaging\InstallLocation.cs" Link="InstallLocation.cs" />
     <Compile 
-      Condition="'$(TargetFramework)' == 'net472'"
       Include="..\Velopack.Packaging\Compression\DeltaMode.cs" Link="DeltaMode.cs" />
   </ItemGroup>
 
@@ -36,44 +31,16 @@
     <PackageReference Include="Riok.Mapperly" Version="4.3.1" PrivateAssets="All" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
-    <ProjectReference Include="..\Velopack.Vpk\Velopack.Vpk.csproj">
-      <PrivateAssets>all</PrivateAssets>
-    </ProjectReference>
-  </ItemGroup>
-
-  <ItemGroup>
+  <!--<ItemGroup>
     <ProjectReference Include="..\..\lib-csharp\Velopack.csproj">
       <PrivateAssets>none</PrivateAssets>
     </ProjectReference>
-  </ItemGroup>
+  </ItemGroup>-->
 
   <ItemGroup>
     <None Include="Velopack.Build.targets" Pack="true" PackagePath="build/Velopack.Build.targets" />
     <None Include="Velopack.Build.props" Pack="true" PackagePath="build/Velopack.Build.props" />
   </ItemGroup>
-
-
-  <ItemGroup>
-    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
-      <_Parameter1>VelopackVpkPackLocation</_Parameter1>
-      <_Parameter2>$(_VelopackVpkPackLocation)</_Parameter2>
-    </AssemblyAttribute>
-  </ItemGroup>
-
-  <!-- Publish Velopack.Vpk and include output in the tools directory -->
-  <Target Name="PublishVpkForPackage" BeforeTargets="IncludeVpkInPackage" Condition="'$(TargetFramework)' == 'net8.0'">
-    <MSBuild Projects="$(MSBuildThisFileDirectory)..\Velopack.Vpk\Velopack.Vpk.csproj" Targets="Publish" Properties="Configuration=$(Configuration);TargetFramework=net8.0;PublishDir=$(MSBuildThisFileDirectory)..\..\..\build\$(Configuration)\net8.0\publish\" />
-  </Target>
-
-  <Target Name="IncludeVpkInPackage" Condition="'$(TargetFramework)' == 'net8.0'">
-    <ItemGroup>
-      <_VpkPublishFiles Include="$(MSBuildThisFileDirectory)..\..\..\build\$(Configuration)\net8.0\publish\**\*.*" />
-      <TfmSpecificPackageFile Include="@(_VpkPublishFiles)">
-        <PackagePath>$(_VelopackVpkPackLocation)%(RecursiveDir)</PackagePath>
-      </TfmSpecificPackageFile>
-    </ItemGroup>
-  </Target>
 
   <Target Name="IncludeTfmDependenciesInPackage">
     <ItemGroup>
