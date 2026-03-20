@@ -1,5 +1,4 @@
-using System.Diagnostics;
-using System.Reflection;
+﻿using System.Diagnostics;
 using System.Text;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
@@ -10,27 +9,8 @@ namespace Velopack.Build;
 /// <summary>
 /// Executes dotnet CLI commands for tool management
 /// </summary>
-public class VpkToolRunner(TaskLoggingHelper log)
+public class VpkToolRunner(string vpkVersion, string? vpkNugetSource, TaskLoggingHelper log)
 {
-    private static string FindVpk()
-    {
-        Assembly assembly = Assembly.GetExecutingAssembly();
-        string vpkPackLocation = assembly
-            .GetCustomAttributes<AssemblyMetadataAttribute>()
-            .Single(x => x.Key == "VelopackVpkPackLocation")
-            .Value ?? throw new InvalidOperationException("Could not find VPK pack location");
-
-        string assemblyDirectory = Path.GetDirectoryName(assembly.Location)!;
-        string vpkPath = Path.GetFullPath(Path.Combine(assemblyDirectory, "..", "..", vpkPackLocation, "vpk.dll"));
-
-        if (!File.Exists(vpkPath)) {
-            throw new FileNotFoundException("vpk tool not found at expected path.", vpkPath);
-        }
-
-        return vpkPath;
-    }
-
-
     /// <summary>
     /// Run a dotnet CLI command
     /// </summary>
@@ -39,7 +19,15 @@ public class VpkToolRunner(TaskLoggingHelper log)
         Dictionary<string, string>? environmentVariables,
         CancellationToken cancellationToken)
     {
-        arguments = [FindVpk(), .. arguments];
+        //NB: dotnet tool exec, is the alias for dnx
+        string[] processArguments = ["tool", "exec", "vpk", "-y", "--version", vpkVersion];
+        
+        if (!string.IsNullOrWhiteSpace(vpkNugetSource)) {
+            processArguments = [.. processArguments, "--add-source", vpkNugetSource!];
+        }
+
+        processArguments = [.. processArguments, "--", .. arguments];
+
         ProcessStartInfo startInfo = new() {
             FileName = "dotnet",
             UseShellExecute = false,
@@ -47,7 +35,7 @@ public class VpkToolRunner(TaskLoggingHelper log)
             RedirectStandardError = true,
             CreateNoWindow = true
         };
-        startInfo.AppendArgumentListSafe(arguments, out _);
+        startInfo.AppendArgumentListSafe(processArguments, out _);
         using var process = new Process {
             StartInfo = startInfo
         };
@@ -87,7 +75,10 @@ public class VpkToolRunner(TaskLoggingHelper log)
 #endif
 
         if (process.ExitCode != 0) {
-            log.LogWarning($"dotnet {string.Join(" ", arguments)} exited with code {process.ExitCode}");
+            log.LogWarning($"dotnet {string.Join(" ", processArguments)} exited with code {process.ExitCode}");
+            if (output.Length > 0) {
+                log.LogWarning(output.ToString());
+            }
             if (error.Length > 0) {
                 log.LogWarning(error.ToString());
             }
