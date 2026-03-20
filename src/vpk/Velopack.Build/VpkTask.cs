@@ -1,13 +1,21 @@
-﻿using Microsoft.Build.Framework;
+﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using Microsoft.Build.Framework;
 
 namespace Velopack.Build;
 
 public abstract class VpkTask : MSBuildAsyncTask
 {
+    [Required]
+    [NotNull]
+    public string? VpkVersion { get; set; }
+
+    public string? VpkNugetSource { get; set; }
+
     protected sealed override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
     {
         try {
-            var toolRunner = new VpkToolRunner(Log);
+            var toolRunner = new VpkToolRunner(VpkVersion, VpkNugetSource, Log);
             
             if (!await PreExecuteAsync(toolRunner, cancellationToken).ConfigureAwait(false)) {
                 return false;

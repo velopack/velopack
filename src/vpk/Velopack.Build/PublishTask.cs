@@ -1,11 +1,13 @@
-﻿using Microsoft.Build.Framework;
+﻿using System.Diagnostics.CodeAnalysis;
+using Microsoft.Build.Framework;
 
 namespace Velopack.Build;
 
 public class PublishTask : VpkTask
 {
     [Required]
-    public string ReleaseDirectory { get; set; } = "";
+    [NotNull]
+    public string? ReleaseDirectory { get; set; }
 
     public string? ServiceUrl { get; set; }
 
