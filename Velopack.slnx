@@ -1,0 +1,73 @@
+<Solution>
+  <Folder Name="/samples/">
+    <File Path="samples/Directory.Build.targets" />
+    <Project Path="samples/CSharpAvalonia/CSharpAvalonia.csproj" />
+    <Project Path="samples/CSharpWpf/CSharpWpf.csproj" />
+  </Folder>
+  <Folder Name="/SolutionLevel/">
+    <File Path=".editorconfig" />
+    <File Path=".github/workflows/build.yml" />
+    <File Path=".gitignore" />
+    <File Path="nuget.config" />
+    <File Path="README.md" />
+    <File Path="src/Directory.Build.props" />
+    <File Path="src/Directory.Build.targets" />
+    <File Path="src/SelfContained.targets" />
+    <File Path="version.json" />
+  </Folder>
+  <Folder Name="/test/">
+    <File Path="test/Directory.Build.props" />
+    <Project Path="test/LegacyTestApp/LegacyTestApp.csproj" />
+    <Project Path="test/TestApp/TestApp.csproj" />
+    <Project Path="test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj" />
+    <Project Path="test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj" />
+    <Project Path="test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj" />
+    <Project Path="test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj" />
+    <Project Path="test/Velopack.TestCommon/Velopack.TestCommon.csproj" />
+    <Project Path="test/Velopack.Tests/Velopack.Tests.csproj" />
+  </Folder>
+  <Project Path="src/lib-csharp/Velopack.csproj" />
+  <Project Path="src/vpk/Velopack.Core/Velopack.Core.csproj" />
+  <Project Path="src/vpk/Velopack.Deployment/Velopack.Deployment.csproj" />
+  <Project Path="src/vpk/Velopack.Flow/Velopack.Flow.csproj" />
+  <Project Path="src/vpk/Velopack.IcoLib/Velopack.IcoLib.csproj" />
+  <Project Path="src/vpk/Velopack.Packaging.Unix/Velopack.Packaging.Unix.csproj" />
+  <Project Path="src/vpk/Velopack.Packaging.Windows/Velopack.Packaging.Windows.csproj" />
+  <Project Path="src/vpk/Velopack.Packaging/Velopack.Packaging.csproj" />
+  <Project Path="src/vpk/Velopack.Vpk/Velopack.Vpk.csproj" />
+  <Properties Name="MonoDevelopProperties">
+    <Property Name="$0.CSharpFormattingPolicy" Value="$2" />
+    <Property Name="$0.TextStylePolicy" Value="$1" />
+    <Property Name="$1.inheritsScope" Value="text/plain" />
+    <Property Name="$1.inheritsSet" Value="VisualStudio" />
+    <Property Name="$1.scope" Value="text/plain" />
+    <Property Name="$2.AnonymousMethodBraceStyle" Value="NextLine" />
+    <Property Name="$2.ArrayInitializerBraceStyle" Value="NextLine" />
+    <Property Name="$2.ArrayInitializerWrapping" Value="DoNotChange" />
+    <Property Name="$2.BeforeConstructorDeclarationParentheses" Value="False" />
+    <Property Name="$2.BeforeDelegateDeclarationParentheses" Value="False" />
+    <Property Name="$2.BeforeMethodCallParentheses" Value="False" />
+    <Property Name="$2.BeforeMethodDeclarationParentheses" Value="False" />
+    <Property Name="$2.CatchNewLinePlacement" Value="NewLine" />
+    <Property Name="$2.ElseNewLinePlacement" Value="NewLine" />
+    <Property Name="$2.EventAddBraceStyle" Value="NextLine" />
+    <Property Name="$2.EventBraceStyle" Value="NextLine" />
+    <Property Name="$2.EventRemoveBraceStyle" Value="NextLine" />
+    <Property Name="$2.FinallyNewLinePlacement" Value="NewLine" />
+    <Property Name="$2.IndentBlocksInsideExpressions" Value="True" />
+    <Property Name="$2.IndentSwitchBody" Value="True" />
+    <Property Name="$2.inheritsScope" Value="text/x-csharp" />
+    <Property Name="$2.inheritsSet" Value="Mono" />
+    <Property Name="$2.NewLineAfterConstructorInitializerColon" Value="SameLine" />
+    <Property Name="$2.NewLineBeforeConstructorInitializerColon" Value="NewLine" />
+    <Property Name="$2.NewParentheses" Value="False" />
+    <Property Name="$2.PropertyBraceStyle" Value="NextLine" />
+    <Property Name="$2.PropertyGetBraceStyle" Value="NextLine" />
+    <Property Name="$2.PropertySetBraceStyle" Value="NextLine" />
+    <Property Name="$2.scope" Value="text/x-csharp" />
+    <Property Name="$2.SpacesBeforeBrackets" Value="False" />
+    <Property Name="$2.StatementBraceStyle" Value="NextLine" />
+    <Property Name="$2.WhileNewLinePlacement" Value="DoNotCare" />
+    <Property Name="Policies" Value="$0" />
+  </Properties>
+</Solution>
