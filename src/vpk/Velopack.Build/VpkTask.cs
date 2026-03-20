@@ -1,13 +1,12 @@
 ﻿using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using Microsoft.Build.Framework;
 
 namespace Velopack.Build;
 
 public abstract class VpkTask : MSBuildAsyncTask
 {
-    [Required]
-    [NotNull]
     public string? VpkVersion { get; set; }
 
     public string? VpkNugetSource { get; set; }
@@ -15,7 +14,14 @@ public abstract class VpkTask : MSBuildAsyncTask
     protected sealed override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
     {
         try {
-            var toolRunner = new VpkToolRunner(VpkVersion, VpkNugetSource, Log);
+            var vpkVersion = VpkVersion;
+            if (string.IsNullOrWhiteSpace(vpkVersion)) {
+                vpkVersion = Assembly.GetExecutingAssembly()
+                    .GetCustomAttributes<AssemblyMetadataAttribute>()
+                    .Single(x => x.Key == "VelopackNugetVersion").Value;
+            }
+
+            var toolRunner = new VpkToolRunner(vpkVersion!, VpkNugetSource, Log);
             
             if (!await PreExecuteAsync(toolRunner, cancellationToken).ConfigureAwait(false)) {
                 return false;
