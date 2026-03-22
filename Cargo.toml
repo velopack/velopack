@@ -89,7 +89,8 @@ progress-streams = "1.1"
 pyo3 = { version = "0.28", features = ["extension-module", "macros", "abi3", "abi3-py37", "anyhow"] }
 pyo3-build-config = "0.28"
 pyo3-log = "0.13"
-winreg = "0.55"
+winreg = "0.56"
+serial_test = { version = "3", features = ["file_locks"] }
 
 # default to small, optimized workspace release binaries
 [profile.release]

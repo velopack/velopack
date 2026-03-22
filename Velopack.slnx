@@ -1,0 +1,38 @@
+<Solution>
+  <Folder Name="/samples/">
+    <File Path="samples/Directory.Build.targets" />
+    <Project Path="samples/CSharpAvalonia/CSharpAvalonia.csproj" />
+    <Project Path="samples/CSharpWpf/CSharpWpf.csproj" />
+  </Folder>
+  <Folder Name="/SolutionLevel/">
+    <File Path=".editorconfig" />
+    <File Path=".github/workflows/build.yml" />
+    <File Path=".gitignore" />
+    <File Path="nuget.config" />
+    <File Path="README.md" />
+    <File Path="src/Directory.Build.props" />
+    <File Path="src/Directory.Build.targets" />
+    <File Path="src/SelfContained.targets" />
+    <File Path="version.json" />
+  </Folder>
+  <Folder Name="/test/">
+    <File Path="test/Directory.Build.props" />
+    <Project Path="test/LegacyTestApp/LegacyTestApp.csproj" />
+    <Project Path="test/TestApp/TestApp.csproj" />
+    <Project Path="test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj" />
+    <Project Path="test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj" />
+    <Project Path="test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj" />
+    <Project Path="test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj" />
+    <Project Path="test/Velopack.TestCommon/Velopack.TestCommon.csproj" />
+    <Project Path="test/Velopack.Tests/Velopack.Tests.csproj" />
+  </Folder>
+  <Project Path="src/lib-csharp/Velopack.csproj" />
+  <Project Path="src/vpk/Velopack.Core/Velopack.Core.csproj" />
+  <Project Path="src/vpk/Velopack.Deployment/Velopack.Deployment.csproj" />
+  <Project Path="src/vpk/Velopack.Flow/Velopack.Flow.csproj" />
+  <Project Path="src/vpk/Velopack.IcoLib/Velopack.IcoLib.csproj" />
+  <Project Path="src/vpk/Velopack.Packaging.Unix/Velopack.Packaging.Unix.csproj" />
+  <Project Path="src/vpk/Velopack.Packaging.Windows/Velopack.Packaging.Windows.csproj" />
+  <Project Path="src/vpk/Velopack.Packaging/Velopack.Packaging.csproj" />
+  <Project Path="src/vpk/Velopack.Vpk/Velopack.Vpk.csproj" />
+</Solution>
