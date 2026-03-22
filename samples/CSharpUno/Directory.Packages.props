@@ -6,6 +6,6 @@
     See https://aka.platform.uno/using-uno-sdk#implicit-packages for more information regarding the Implicit Packages.
   -->
   <ItemGroup>
-    <PackageVersion Include="Velopack" Version="0.0.1053" />
+    <PackageVersion Include="Velopack" Version="0.0.1298" />
   </ItemGroup>
 </Project>
