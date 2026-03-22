@@ -126,7 +126,7 @@ jobs:
           - os: ubuntu
             runner: ubuntu-latest
           - os: macos
-            runner: warp-macos-26-arm64-6x
+            runner: namespace-profile-velopack-macos
     runs-on: ${{ matrix.runner }}
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
@@ -271,7 +271,7 @@ jobs:
             runner: warp-windows-2025-x64-4x
             rust_flags: "--features windows"
           - os: macos
-            runner: warp-macos-26-arm64-6x
+            runner: namespace-profile-velopack-macos
     runs-on: ${{ matrix.runner }}
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
