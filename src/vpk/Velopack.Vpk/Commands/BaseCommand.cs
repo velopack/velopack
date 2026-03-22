@@ -4,25 +4,25 @@ using Serilog.Core;
 
 namespace Velopack.Vpk.Commands;
 
-public class BaseCommand : CliCommand
+public class BaseCommand : Command
 {
     public RuntimeOs TargetOs { get; private set; }
 
-    private readonly Dictionary<CliOption, Action<ParseResult, IConfiguration>> _setters = new();
+    private readonly Dictionary<Option, Action<ParseResult, IConfiguration>> _setters = new();
 
-    private readonly Dictionary<CliOption, string> _envHelp = new();
+    private readonly Dictionary<Option, string> _envHelp = new();
 
     protected BaseCommand(string name, string description)
         : base(name, description)
     {
     }
 
-    protected CliOption<T> AddOption<T>(Action<T> setValue, params string[] aliases)
+    protected Option<T> AddOption<T>(Action<T> setValue, params string[] aliases)
     {
-        return AddOption(setValue, new CliOption<T>(aliases.OrderByDescending(a => a.Length).First(), aliases));
+        return AddOption(setValue, new Option<T>(aliases.OrderByDescending(a => a.Length).First(), aliases));
     }
 
-    private CliOption<T> AddOption<T>(Action<T> setValue, CliOption<T> opt)
+    private Option<T> AddOption<T>(Action<T> setValue, Option<T> opt)
     {
         string optionName = opt.Name.TrimStart('-');
         string titleCase = String.Join("_", optionName.Humanize(LetterCasing.AllCaps).Split(' '));
@@ -54,14 +54,14 @@ public class BaseCommand : CliCommand
         return opt;
     }
 
-    protected void RemoveOption(CliOption option)
+    protected void RemoveOption(Option option)
     {
         _setters.Remove(option);
         _envHelp.Remove(option);
         Options.Remove(option);
     }
 
-    public string GetEnvVariableName(CliOption option) => _envHelp.TryGetValue(option, out string value) ? value : null;
+    public string GetEnvVariableName(Option option) => _envHelp.TryGetValue(option, out string value) ? value : null;
 
     public void SetProperties(ParseResult context, IConfiguration config, RuntimeOs targetOs)
     {

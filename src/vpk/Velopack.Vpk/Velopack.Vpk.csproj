@@ -23,7 +23,7 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
     <PackageReference Include="Serilog.Expressions" Version="5.0.0" />
-    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.23407.1" />
+    <PackageReference Include="System.CommandLine" Version="2.0.5" />
     <PackageReference Include="NuGet.Protocol" Version="7.3.0" />
     <PackageReference Include="Spectre.Console" Version="0.54.0" />
     <PackageReference Include="Riok.Mapperly" Version="4.3.1" />

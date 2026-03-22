@@ -1,17 +1,14 @@
-﻿using System.CommandLine.Help;
-using System.CommandLine.Invocation;
-using System.Reflection;
+﻿using System.CommandLine.Invocation;
 using System.Text;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 using Velopack.Vpk.Logging;
-using static System.CommandLine.Help.HelpBuilder;
 
 namespace Velopack.Vpk.Commands;
 
-public class LongHelpCommand : CliOption<bool>
+public class LongHelpCommand : Option<bool>
 {
-    private CliAction _action;
+    private CommandLineAction _action;
 
     public LongHelpCommand() : this("--help", ["-h", "-H", "--vhelp"])
     {
@@ -25,12 +22,12 @@ public class LongHelpCommand : CliOption<bool>
         Arity = ArgumentArity.Zero;
     }
 
-    public override CliAction Action {
+    public override CommandLineAction Action {
         get => _action ??= new LongHelpAction();
         set => _action = value ?? throw new ArgumentNullException(nameof(value));
     }
 
-    public sealed class LongHelpAction : SynchronousCliAction
+    public sealed class LongHelpAction : SynchronousCommandLineAction
     {
         public override int Invoke(ParseResult parseResult)
         {
@@ -64,7 +61,7 @@ public class LongHelpCommand : CliOption<bool>
 
             int hiddenOptions = 0;
 
-            void AddOptionRows(Table table, IEnumerable<CliOption> options)
+            void AddOptionRows(Table table, IEnumerable<Option> options)
             {
                 foreach (var argument in options) {
                     if (argument.Hidden && !longHelpMode) {
@@ -94,10 +91,10 @@ public class LongHelpCommand : CliOption<bool>
             }
 
             // look for global options (only rendered if long mode)
-            //var globalOptions = new List<CliOption>();
+            //var globalOptions = new List<Option>();
             //foreach (var p in command.Parents) {
-            //    CliCommand parentCommand = null;
-            //    if ((parentCommand = p as CliCommand) is not null) {
+            //    Command parentCommand = null;
+            //    if ((parentCommand = p as Command) is not null) {
             //        if (parentCommand.HasOptions()) {
             //            foreach (var option in parentCommand.Options) {
             //                if (option is { Recursive: true, Hidden: false }) {
@@ -154,40 +151,58 @@ public class LongHelpCommand : CliOption<bool>
             return 0;
         }
 
-        public static TwoColumnHelpRow GetTwoColumnRowCommand(CliCommand command)
+        public static (string FirstColumnText, string SecondColumnText) GetTwoColumnRowCommand(Command command)
         {
             if (command is null) {
                 throw new ArgumentNullException(nameof(command));
             }
-            var firstColumnText = Default.GetCommandUsageLabel(command);
-            var symbolDescription = command.Description ?? string.Empty;
-            var secondColumnText = symbolDescription.Trim();
-            return new TwoColumnHelpRow(firstColumnText, secondColumnText);
+            var firstColumnText = command.Name;
+            var secondColumnText = (command.Description ?? string.Empty).Trim();
+            return (firstColumnText, secondColumnText);
         }
 
-        public static TwoColumnHelpRow GetTwoColumnRowOption(CliOption symbol)
+        public static (string FirstColumnText, string SecondColumnText) GetTwoColumnRowOption(Option symbol)
         {
             if (symbol is null) {
                 throw new ArgumentNullException(nameof(symbol));
             }
 
-            var firstColumnText = Default.GetOptionUsageLabel(symbol);
+            var firstColumnText = GetOptionUsageLabel(symbol);
             var symbolDescription = symbol.Description ?? string.Empty;
 
             var defaultValueDescription = "";
             if (symbol.HasDefaultValue) {
-                // TODO: this is a hack, but the property is internal. what do you want me to do?
-                var argument = symbol.GetType()?.GetProperty("Argument", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(symbol) as CliArgument;
-                if (argument is not null) {
-                    defaultValueDescription = $"[default: {Default.GetArgumentDefaultValue(argument)}]";
+                var defaultValue = symbol.GetDefaultValue();
+                if (defaultValue is not null) {
+                    defaultValueDescription = $"[default: {defaultValue}]";
                 }
             }
 
             var secondColumnText = $"{symbolDescription} {defaultValueDescription}".Trim();
-            return new TwoColumnHelpRow(firstColumnText, secondColumnText);
+            return (firstColumnText, secondColumnText);
         }
 
-        private static string GetUsage(CliCommand command)
+        private static string GetOptionUsageLabel(Option symbol)
+        {
+            var sb = new StringBuilder();
+            var allIdentifiers = new List<string> { symbol.Name };
+            allIdentifiers.AddRange(symbol.Aliases);
+
+            sb.Append(string.Join(", ", allIdentifiers));
+
+            if (symbol.Arity.MaximumNumberOfValues > 0) {
+                var helpName = symbol.HelpName ?? symbol.Name.TrimStart('-');
+                sb.Append($" <{helpName}>");
+            }
+
+            if (symbol.Required) {
+                sb.Append(" (REQUIRED)");
+            }
+
+            return sb.ToString();
+        }
+
+        private static string GetUsage(Command command)
         {
             return string.Join(" ", GetUsageParts().Where(x => !string.IsNullOrWhiteSpace(x)));
 
@@ -195,9 +210,9 @@ public class LongHelpCommand : CliOption<bool>
             {
                 bool displayOptionTitle = false;
 
-                IEnumerable<CliCommand> parentCommands =
+                IEnumerable<Command> parentCommands =
                     command
-                        .RecurseWhileNotNull(c => c.Parents.OfType<CliCommand>().FirstOrDefault())
+                        .RecurseWhileNotNull(c => c.Parents.OfType<Command>().FirstOrDefault())
                         .Reverse();
 
                 foreach (var parentCommand in parentCommands) {
@@ -230,7 +245,7 @@ public class LongHelpCommand : CliOption<bool>
             }
         }
 
-        private static string FormatArgumentUsage(IList<CliArgument> arguments)
+        private static string FormatArgumentUsage(IList<Argument> arguments)
         {
             var sb = new StringBuilder(arguments.Count * 100);
 
@@ -272,7 +287,7 @@ public class LongHelpCommand : CliOption<bool>
 
             return sb.ToString();
 
-            bool IsOptional(CliArgument argument) =>
+            bool IsOptional(Argument argument) =>
                 argument.Arity.MinimumNumberOfValues == 0;
         }
     }
@@ -280,9 +295,9 @@ public class LongHelpCommand : CliOption<bool>
 
 public static class HelpExtensions
 {
-    public static bool HasArguments(this CliCommand command) => command.Arguments?.Count > 0;
-    public static bool HasSubcommands(this CliCommand command) => command.Subcommands?.Where(x => !x.Hidden).Any() == true;
-    public static bool HasOptions(this CliCommand command) => command.Options?.Count > 0;
+    public static bool HasArguments(this Command command) => command.Arguments?.Count > 0;
+    public static bool HasSubcommands(this Command command) => command.Subcommands?.Where(x => !x.Hidden).Any() == true;
+    public static bool HasOptions(this Command command) => command.Options?.Count > 0;
 
     internal static IEnumerable<T> RecurseWhileNotNull<T>(
         this T source,

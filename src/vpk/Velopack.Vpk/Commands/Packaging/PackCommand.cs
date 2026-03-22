@@ -8,51 +8,51 @@ public abstract class PackCommand : PlatformCommand
 {
     public string PackId { get; private set; }
 
-    protected CliOption<string> PackIdOption { get; private set; }
+    protected Option<string> PackIdOption { get; private set; }
 
     public string PackVersion { get; private set; }
 
-    protected CliOption<string> PackVersionOption { get; private set; }
+    protected Option<string> PackVersionOption { get; private set; }
 
     public string PackDirectory { get; private set; }
 
-    protected CliOption<FileSystemInfo> PackDirectoryOption { get; private set; }
+    protected Option<FileSystemInfo> PackDirectoryOption { get; private set; }
 
     public string PackAuthors { get; private set; }
 
-    protected CliOption<string> PackAuthorsOption { get; private set; }
+    protected Option<string> PackAuthorsOption { get; private set; }
 
     public string PackTitle { get; private set; }
 
-    protected CliOption<string> PackTitleOption { get; private set; }
+    protected Option<string> PackTitleOption { get; private set; }
 
     public string EntryExecutableName { get; private set; }
 
-    protected CliOption<string> EntryExecutableNameOption { get; private set; }
+    protected Option<string> EntryExecutableNameOption { get; private set; }
 
     public string Icon { get; private set; }
 
-    protected CliOption<FileInfo> IconOption { get; private set; }
+    protected Option<FileInfo> IconOption { get; private set; }
 
     public string ReleaseNotes { get; private set; }
 
-    protected CliOption<FileInfo> ReleaseNotesOption { get; private set; }
+    protected Option<FileInfo> ReleaseNotesOption { get; private set; }
 
     public DeltaMode DeltaMode { get; private set; }
 
-    protected CliOption<DeltaMode> DeltaModeOption { get; private set; }
+    protected Option<DeltaMode> DeltaModeOption { get; private set; }
 
     public string Exclude { get; private set; }
 
-    protected CliOption<string> ExcludeOption { get; private set; }
+    protected Option<string> ExcludeOption { get; private set; }
 
     public bool NoPortable { get; private set; }
 
-    protected CliOption<bool> NoPortableOption { get; private set; }
+    protected Option<bool> NoPortableOption { get; private set; }
 
     public bool NoInst { get; private set; }
 
-    protected CliOption<bool> NoInstOption { get; private set; }
+    protected Option<bool> NoInstOption { get; private set; }
 
     public PackCommand(string name, string description, RuntimeOs targetOs = RuntimeOs.Unknown)
         : base(name, description, targetOs)
