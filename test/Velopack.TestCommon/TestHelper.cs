@@ -44,7 +44,10 @@ public static class TestHelper
                 fix = new ProcessStartInfo("/bin/bash");
                 fix.CreateNoWindow = true;
                 fix.WorkingDirectory = psi.WorkingDirectory;
-                fix.Arguments = $"-c '\"{psi.FileName}\" {debug} > \"{outputFile}\" 2>&1'";
+                // Use ArgumentList so .NET passes each item as a discrete argv entry
+                // instead of re-tokenizing a single Arguments string.
+                fix.ArgumentList.Add("-c");
+                fix.ArgumentList.Add($"\"{psi.FileName}\" {debug} > \"{outputFile}\" 2>&1");
             }
 
             // Copy environment variables from the original PSI
@@ -55,7 +58,9 @@ public static class TestHelper
             Stopwatch sw = new Stopwatch();
             sw.Start();
 
-            logger.Info($"TEST: Running {fix.FileName} {fix.Arguments}");
+            new ProcessStartInfo().AppendArgumentListSafe(
+                [.. fix.ArgumentList], out var fixDebug);
+            logger.Info($"TEST: Running {fix.FileName} {fix.Arguments}{fixDebug}");
             using var p = Process.Start(fix)!;
 
             var timeout = TimeSpan.FromMinutes(3);

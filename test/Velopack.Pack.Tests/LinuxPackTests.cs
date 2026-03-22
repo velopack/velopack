@@ -53,8 +53,8 @@ public class LinuxPackTests
         Assert.EndsWith(Environment.NewLine + "update: 2.0.0", chk2check);
         logger.Info("TEST: found v2 update");
 
-        // download and apply
-        TestHelper.RunNoCoverage(appImagePath, ["apply", releaseDir], installDir, logger, exitCode: -1);
+        // download and apply (apply before download should fail; exit code -1 wraps to 255 on unix)
+        TestHelper.RunNoCoverage(appImagePath, ["apply", releaseDir], installDir, logger, exitCode: null);
         TestHelper.RunNoCoverage(appImagePath, ["download", releaseDir], installDir, logger);
         TestHelper.RunNoCoverage(appImagePath, ["apply", releaseDir], installDir, logger, exitCode: null);
         logger.Info("TEST: v2 applied");

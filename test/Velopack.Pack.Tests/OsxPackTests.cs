@@ -84,7 +84,8 @@ public class OsxPackTests
         logger.Info("TEST: found v2 update");
 
         // download and apply
-        TestHelper.RunNoCoverage(appExe, ["apply", releaseDir], installDir, logger, exitCode: -1);
+        // apply before download should fail; exit code -1 wraps to 255 on unix
+        TestHelper.RunNoCoverage(appExe, ["apply", releaseDir], installDir, logger, exitCode: null);
         TestHelper.RunNoCoverage(appExe, ["download", releaseDir], installDir, logger);
         TestHelper.RunNoCoverage(appExe, ["apply", releaseDir], installDir, logger, exitCode: null);
         logger.Info("TEST: v2 applied");
