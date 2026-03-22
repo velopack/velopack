@@ -109,6 +109,13 @@ return -1;
 
 static void debugFile(string name, string message, string hook)
 {
-    var path = Path.Combine(AppContext.BaseDirectory, "..", name);
+    string dir;
+    var appImage = Environment.GetEnvironmentVariable("APPIMAGE");
+    if (!string.IsNullOrEmpty(appImage) && File.Exists(appImage)) {
+        dir = Path.GetDirectoryName(appImage)!;
+    } else {
+        dir = Path.Combine(AppContext.BaseDirectory, "..");
+    }
+    var path = Path.Combine(dir, name);
     File.AppendAllText(path, $"{hook}: {message}{Environment.NewLine}");
 }
