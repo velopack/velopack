@@ -122,11 +122,11 @@ jobs:
         os: [windows, ubuntu, macos]
         include:
           - os: windows
-            runner: blacksmith-4vcpu-windows-2025
+            runner: warp-windows-2025-x64-4x
           - os: ubuntu
             runner: ubuntu-latest
           - os: macos
-            runner: macos-latest
+            runner: warp-macos-26-arm64-6x
     runs-on: ${{ matrix.runner }}
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
@@ -268,10 +268,10 @@ jobs:
         os: [windows, macos]
         include:
           - os: windows
-            runner: blacksmith-4vcpu-windows-2025
+            runner: warp-windows-2025-x64-4x
             rust_flags: "--features windows"
           - os: macos
-            runner: macos-latest
+            runner: warp-macos-26-arm64-6x
     runs-on: ${{ matrix.runner }}
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
