@@ -169,7 +169,7 @@ jobs:
         uses: ./.github/actions/cancel-workflow
 
   macos:
-    runs-on: macos-latest
+    runs-on: warp-macos-26-arm64-6x
     steps:
       - uses: actions/checkout@v6
         with:
