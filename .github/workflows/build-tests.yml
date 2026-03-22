@@ -173,7 +173,7 @@ jobs:
           --no-build -c Release
           --filter "FullyQualifiedName~PackCrossApp"
           -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
-          -l GithubActions
+          --report-github
           -l "junit;LogFilePath=./test/coverage/junit.CrossCompile.Pack.xml"
           -- RunConfiguration.CollectSourceInformation=true
       - name: Upload Cross-Compile Artifacts
@@ -194,7 +194,7 @@ jobs:
           dotnet test test/Velopack.Tests/Velopack.Tests.csproj
           --no-build -c Release
           -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
-          -l GithubActions
+          --report-github
           -l "junit;LogFilePath=./test/coverage/junit.Velopack.Tests.xml"
           -- RunConfiguration.CollectSourceInformation=true
       - name: Test Velopack.Packaging.Tests
@@ -202,7 +202,7 @@ jobs:
           dotnet test test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj
           --no-build -c Release
           -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
-          -l GithubActions
+          --report-github
           -l "junit;LogFilePath=./test/coverage/junit.Velopack.Packaging.Tests.xml"
           -- RunConfiguration.CollectSourceInformation=true
       - name: Test Velopack.CommandLine.Tests
@@ -210,7 +210,7 @@ jobs:
           dotnet test test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj
           --no-build -c Release
           -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
-          -l GithubActions
+          --report-github
           -l "junit;LogFilePath=./test/coverage/junit.Velopack.CommandLine.Tests.xml"
           -- RunConfiguration.CollectSourceInformation=true
       - name: Test Velopack.Pack.Tests
@@ -218,7 +218,7 @@ jobs:
           dotnet test test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj
           --no-build -c Release
           -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
-          -l GithubActions
+          --report-github
           -l "junit;LogFilePath=./test/coverage/junit.Velopack.Pack.Tests.xml"
           -- RunConfiguration.CollectSourceInformation=true
       - name: Wait for Artifacts
@@ -245,7 +245,7 @@ jobs:
           --no-build -c Release
           --filter "FullyQualifiedName~RunCrossApp"
           -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
-          -l GithubActions
+          --report-github
           -l "junit;LogFilePath=./test/coverage/junit.CrossCompile.Run.xml"
           -- RunConfiguration.CollectSourceInformation=true
       - name: Upload Coverage
