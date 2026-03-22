@@ -169,13 +169,11 @@ jobs:
           merge-multiple: true
       - name: Build Cross-Compile Artifacts
         run: >-
-          dotnet test test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj
+          dotnet test --project test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj
           --no-build -c Release
-          --filter "FullyQualifiedName~PackCrossApp"
-          -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
+          --filter-method '*PackCrossApp*'
           --report-github
-          -l "junit;LogFilePath=./test/coverage/junit.CrossCompile.Pack.xml"
-          -- RunConfiguration.CollectSourceInformation=true
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.CrossCompile.Pack.xml
       - name: Upload Cross-Compile Artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -191,36 +189,28 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: Test Velopack.Tests
         run: >-
-          dotnet test test/Velopack.Tests/Velopack.Tests.csproj
+          dotnet test --project test/Velopack.Tests/Velopack.Tests.csproj
           --no-build -c Release
-          -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
           --report-github
-          -l "junit;LogFilePath=./test/coverage/junit.Velopack.Tests.xml"
-          -- RunConfiguration.CollectSourceInformation=true
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Tests.xml
       - name: Test Velopack.Packaging.Tests
         run: >-
-          dotnet test test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj
+          dotnet test --project test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj
           --no-build -c Release
-          -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
           --report-github
-          -l "junit;LogFilePath=./test/coverage/junit.Velopack.Packaging.Tests.xml"
-          -- RunConfiguration.CollectSourceInformation=true
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Packaging.Tests.xml
       - name: Test Velopack.CommandLine.Tests
         run: >-
-          dotnet test test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj
+          dotnet test --project test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj
           --no-build -c Release
-          -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
           --report-github
-          -l "junit;LogFilePath=./test/coverage/junit.Velopack.CommandLine.Tests.xml"
-          -- RunConfiguration.CollectSourceInformation=true
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.CommandLine.Tests.xml
       - name: Test Velopack.Pack.Tests
         run: >-
-          dotnet test test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj
+          dotnet test --project test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj
           --no-build -c Release
-          -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
           --report-github
-          -l "junit;LogFilePath=./test/coverage/junit.Velopack.Pack.Tests.xml"
-          -- RunConfiguration.CollectSourceInformation=true
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Pack.Tests.xml
       - name: Wait for Artifacts
         uses: ./.github/actions/wait-artifact
         if: ${{ matrix.os == 'ubuntu' || matrix.os == 'windows' }}
@@ -241,13 +231,11 @@ jobs:
         env:
           VELOPACK_CROSS_ARTIFACTS: true
         run: >-
-          dotnet test test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj
+          dotnet test --project test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj
           --no-build -c Release
-          --filter "FullyQualifiedName~RunCrossApp"
-          -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
+          --filter-method '*RunCrossApp*'
           --report-github
-          -l "junit;LogFilePath=./test/coverage/junit.CrossCompile.Run.xml"
-          -- RunConfiguration.CollectSourceInformation=true
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.CrossCompile.Run.xml
       - name: Upload Coverage
         uses: codecov/codecov-action@v5
         with:
@@ -297,9 +285,7 @@ jobs:
         run: cargo build -p velopack_bins ${{ matrix.rust_flags }}
       - name: Test Velopack.Pack.Tests
         run: >-
-          dotnet test test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj
-          -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly"
-          -- RunConfiguration.CollectSourceInformation=true
+          dotnet test --project test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj
       - name: Generate Rust Integration Coverage
         shell: bash
         run: >-
