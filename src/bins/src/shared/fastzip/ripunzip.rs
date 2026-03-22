@@ -274,7 +274,7 @@ fn extract_file_inner<R: Read>(
     progress_reporter.extraction_starting(&display_name);
     log::debug!(
         "Start extract of file at {:x}, length {:x}, name {}",
-        file.data_start(),
+        file.data_start().unwrap_or(0),
         file.compressed_size(),
         display_name
     );
@@ -316,7 +316,7 @@ fn extract_file_inner<R: Read>(
     }
     log::debug!(
         "Finished extract of file at {:x}, length {:x}, name {}",
-        file.data_start(),
+        file.data_start().unwrap_or(0),
         file.compressed_size(),
         display_name
     );
