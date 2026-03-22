@@ -93,7 +93,9 @@ public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
 
         // velopack required files
         File.WriteAllText(Path.Combine(bin.FullName, CoreUtil.SpecVersionFileName), GenerateNuspecContent());
-        File.Copy(HelperFile.GetUpdatePath(Options.TargetRuntime, Log), Path.Combine(bin.FullName, "UpdateNix"), true);
+        var updateNixPath = Path.Combine(bin.FullName, "UpdateNix");
+        File.Copy(HelperFile.GetUpdatePath(Options.TargetRuntime, Log), updateNixPath, true);
+        Chmod.ChmodFileAsExecutable(updateNixPath);
         progress(100);
         return Task.FromResult(dir.FullName);
     }
