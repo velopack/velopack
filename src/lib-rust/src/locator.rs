@@ -458,7 +458,7 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
 pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLocator, Error> {
     let mut search_path = std::env::current_exe()?;
     match context {
-        LocationContext::FromSpecifiedRootDir(dir, _) => search_path = dir.join("dummy"),
+        LocationContext::FromSpecifiedRootDir(dir, _) => search_path = dir.join("usr").join("bin").join("dummy"),
         LocationContext::FromSpecifiedAppExecutable(exe) => search_path = exe,
         _ => {}
     }
