@@ -1,5 +1,6 @@
 using System.Runtime.Versioning;
 using Velopack.Core;
+using Velopack.Packaging;
 using Velopack.Util;
 
 using Velopack.TestCommon;
@@ -34,7 +35,7 @@ public class OsxPackTests
         TestApp.PackTestApp(id, "0.0.1", string.Empty, tmpReleaseDir, logger, channel: channel, packTitle: title);
 
         var portablePath = Path.Combine(tmpReleaseDir, $"{id}-{channel}-Portable.zip");
-        EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), portablePath, unzipDir);
+        ExtractDittoZip(portablePath, unzipDir);
 
         var bundlePath = Path.Combine(unzipDir, $"{title}.app");
         Assert.True(Directory.Exists(bundlePath));
@@ -54,16 +55,11 @@ public class OsxPackTests
         // pack v1
         await PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
 
-        // "install" by extracting portable zip
+        // "install" by extracting portable ditto zip (preserves symlinks and permissions)
         var portablePath = Path.Combine(releaseDir, $"{id}-osx-Portable.zip");
         Assert.True(File.Exists(portablePath), $"Expected {portablePath} to exist");
-        EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), portablePath, installDir);
+        ExtractDittoZip(portablePath, installDir);
         Assert.True(Directory.Exists(bundlePath), $"Expected {bundlePath} to exist");
-        Chmod.ChmodFileAsExecutable(appExe);
-        // also chmod the update binary
-        var updateExe = Path.Combine(bundlePath, "Contents", "MacOS", "UpdateMac");
-        if (File.Exists(updateExe))
-            Chmod.ChmodFileAsExecutable(updateExe);
         logger.Info("TEST: v1 installed");
 
         // check app output
@@ -83,8 +79,7 @@ public class OsxPackTests
         Assert.EndsWith(Environment.NewLine + "update: 2.0.0", chk2check);
         logger.Info("TEST: found v2 update");
 
-        // download and apply
-        // apply before download should fail; exit code -1 wraps to 255 on unix
+        // download and apply (apply before download should fail; exit code -1 wraps to 255 on unix)
         TestHelper.RunNoCoverage(appExe, ["apply", releaseDir], installDir, logger, exitCode: null);
         TestHelper.RunNoCoverage(appExe, ["download", releaseDir], installDir, logger);
         TestHelper.RunNoCoverage(appExe, ["apply", releaseDir], installDir, logger, exitCode: null);
@@ -125,13 +120,9 @@ public class OsxPackTests
         // pack v1
         await PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
 
-        // "install" by extracting portable zip
+        // "install" by extracting portable ditto zip (preserves symlinks and permissions)
         var portablePath = Path.Combine(releaseDir, $"{id}-osx-Portable.zip");
-        EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), portablePath, installDir);
-        Chmod.ChmodFileAsExecutable(appExe);
-        var updateExe = Path.Combine(bundlePath, "Contents", "MacOS", "UpdateMac");
-        if (File.Exists(updateExe))
-            Chmod.ChmodFileAsExecutable(updateExe);
+        ExtractDittoZip(portablePath, installDir);
 
         // pack v2
         await PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
@@ -162,6 +153,15 @@ public class OsxPackTests
             if (Directory.Exists(cacheDir))
                 Directory.Delete(cacheDir, true);
         } catch { }
+    }
+
+    /// <summary>
+    /// Extract a ditto zip using macOS ditto command, which preserves symlinks and permissions.
+    /// System.IO.Compression cannot handle symlinks in ditto zips.
+    /// </summary>
+    private static void ExtractDittoZip(string zipPath, string destDir)
+    {
+        Exe.InvokeAndThrowIfNonZero("ditto", ["-xk", zipPath, destDir], null);
     }
 
     private static async Task PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger)
