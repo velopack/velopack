@@ -26,13 +26,14 @@ pub enum ApplyWaitMode {
     WaitPid(u32),
 }
 
-/// A feed of Velopack assets, usually retrieved from a remote location.
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-#[serde(default)]
-pub struct VelopackAssetFeed {
-    /// The list of assets in the (probably remote) update feed.
-    pub Assets: Vec<VelopackAsset>,
+define_struct_case_insensitive! {
+    /// A feed of Velopack assets, usually retrieved from a remote location.
+    #[allow(non_snake_case)]
+    #[derive(Serialize, Debug, Clone, Default)]
+    pub struct VelopackAssetFeed {
+        /// The list of assets in the (probably remote) update feed.
+        pub Assets: Vec<VelopackAsset>,
+    }
 }
 
 impl VelopackAssetFeed {
@@ -42,29 +43,30 @@ impl VelopackAssetFeed {
     }
 }
 
-/// An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-#[serde(default)]
-pub struct VelopackAsset {
-    /// The name or Id of the package containing this release.
-    pub PackageId: String,
-    /// The version of this release.
-    pub Version: String,
-    /// The type of asset (eg. "Full" or "Delta").
-    pub Type: String,
-    /// The filename of the update package containing this release.
-    pub FileName: String,
-    /// The SHA1 checksum of the update package containing this release.
-    pub SHA1: String,
-    /// The SHA256 checksum of the update package containing this release.
-    pub SHA256: String,
-    /// The size in bytes of the update package containing this release.
-    pub Size: u64,
-    /// The release notes in markdown format, as passed to Velopack when packaging the release. This may be an empty string.
-    pub NotesMarkdown: String,
-    /// The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
-    pub NotesHtml: String,
+define_struct_case_insensitive! {
+    /// An individual Velopack asset, could refer to an asset on-disk or in a remote package feed.
+    #[allow(non_snake_case)]
+    #[derive(Serialize, Debug, Clone, Default)]
+    pub struct VelopackAsset {
+        /// The name or Id of the package containing this release.
+        pub PackageId: String,
+        /// The version of this release.
+        pub Version: String,
+        /// The type of asset (eg. "Full" or "Delta").
+        pub Type: String,
+        /// The filename of the update package containing this release.
+        pub FileName: String,
+        /// The SHA1 checksum of the update package containing this release.
+        pub SHA1: String,
+        /// The SHA256 checksum of the update package containing this release.
+        pub SHA256: String,
+        /// The size in bytes of the update package containing this release.
+        pub Size: u64,
+        /// The release notes in markdown format, as passed to Velopack when packaging the release. This may be an empty string.
+        pub NotesMarkdown: String,
+        /// The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
+        pub NotesHtml: String,
+    }
 }
 
 /// Holds information about the current version and pending updates, such as how many there are, and access to release notes.

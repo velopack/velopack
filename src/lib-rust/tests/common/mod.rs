@@ -29,7 +29,7 @@ pub fn sample_feed_json() -> String {
             "SHA256": "def456",
             "Size": 1048576,
             "NotesMarkdown": "# v2",
-            "NotesHtml": "<h1>v2</h1>"
+            "NotesHTML": "<h1>v2</h1>"
         }]
     })
     .to_string()

@@ -75,45 +75,10 @@
 
 #![warn(missing_docs)]
 
-macro_rules! maybe_pub {
-    ($($mod:ident),*) => {
-        $(
-            #[cfg(feature = "public-utils")]
-            #[allow(missing_docs)]
-            pub mod $mod;
-
-            #[cfg(not(feature = "public-utils"))]
-            #[allow(unused)]
-            mod $mod;
-        )*
-    };
-}
-
-macro_rules! maybe_pub_os {
-    ($mod:ident, $win_path:expr, $unix_path:expr) => {
-        #[cfg(all(windows, feature = "public-utils"))]
-        #[path = $win_path]
-        #[allow(missing_docs)]
-        pub mod $mod;
-
-        #[cfg(all(windows, not(feature = "public-utils")))]
-        #[path = $win_path]
-        #[allow(unused)]
-        mod $mod;
-
-        #[cfg(all(not(windows), feature = "public-utils"))]
-        #[path = $unix_path]
-        #[allow(missing_docs)]
-        pub mod $mod;
-
-        #[cfg(all(not(windows), not(feature = "public-utils")))]
-        #[path = $unix_path]
-        #[allow(unused)]
-        mod $mod;
-    };
-}
-
 use std::path::PathBuf;
+
+#[macro_use]
+mod macros;
 
 #[cfg(feature = "file-logging")]
 mod file_rotate;
