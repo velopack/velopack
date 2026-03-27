@@ -38,13 +38,13 @@ jobs:
           ${{ matrix.rust_flags }}
           --cobertura --output-path ./test/coverage/coverage.rust.${{ matrix.os }}.xml
       - name: Upload Coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           files: ./test/coverage/coverage.rust.${{ matrix.os }}.xml
           flags: rust
       - name: Upload Test Results
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           report_type: test_results
           files: ./test/coverage/junit.*.xml
@@ -79,14 +79,14 @@ jobs:
           cargo llvm-cov report
           --cobertura --output-path ./test/coverage/coverage.rust-nodejs.${{ matrix.os }}.xml
       - name: Upload Coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           directory: src/lib-nodejs/coverage
           files: ./test/coverage/coverage.rust-nodejs.${{ matrix.os }}.xml
           flags: nodejs
       - name: Upload Test Results
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           report_type: test_results
           files: ./test/coverage/junit.*.xml
@@ -237,13 +237,13 @@ jobs:
           --report-github
           --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.CrossCompile.Run.xml
       - name: Upload Coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           directory: ./test/coverage
           flags: vpk
       - name: Upload Test Results
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           report_type: test_results
           files: ./test/coverage/junit.*.xml
@@ -292,7 +292,7 @@ jobs:
           cargo llvm-cov report
           --cobertura --output-path ./test/coverage/coverage.rust-integration.${{ matrix.os }}.xml
       - name: Upload Coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           directory: ./test/coverage
           flags: vpk-coverage
