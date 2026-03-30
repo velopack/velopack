@@ -4,7 +4,7 @@ const config: Config = {
   verbose: true,
   testEnvironment: "node",
   transform: {
-    "^.+.ts$": ["ts-jest", {}],
+    "^.+.ts$": "@swc/jest",
   },
   reporters: [
     "default",
@@ -25,10 +25,3 @@ const config: Config = {
 
 export default config;
 
-// /** @type {import('ts-jest').JestConfigWithTsJest} **/
-// module.exports = {
-//     testEnvironment: "node",
-//     transform: {
-//       "^.+.ts$": ["ts-jest", {}],
-//     },
-//   };

@@ -44,17 +44,18 @@
     "lib/**/*.node"
   ],
   "devDependencies": {
+    "@swc/core": "^1.15.21",
+    "@swc/jest": "^0.2.39",
     "@tsconfig/node24": "^24.0.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^25.3.0",
     "cross-env": "^10.1.0",
     "del-cli": "^7.0.0",
     "jest": "^29.7.0",
-    "prettier": "3.8.1",
-    "ts-jest": "^29.4.6",
-    "ts-node": "^10.9.2",
     "jest-junit": "^16.0.0",
-    "typescript": "^5.9.3"
+    "prettier": "3.8.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.0"
   },
   "dependencies": {
     "@neon-rs/load": "^0.2.0"

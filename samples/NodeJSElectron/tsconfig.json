@@ -7,13 +7,9 @@
     "esModuleInterop": true,
     "noImplicitAny": true,
     "sourceMap": true,
-    "baseUrl": ".",
     "outDir": "dist",
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "paths": {
-      "*": ["node_modules/*"]
-    }
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true
   },
   "include": ["src/**/*"]
 }
