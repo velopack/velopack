@@ -4,7 +4,7 @@ on:
 
 jobs:
   windows-bins:
-    runs-on: blacksmith-4vcpu-windows-2025
+    runs-on: windows-latest-l
     env:
       RUSTFLAGS: -C target-feature=+crt-static
     steps:
@@ -39,11 +39,11 @@ jobs:
         target: [x86, x64, arm64]
         include:
           - target: x86
-            runner: blacksmith-2vcpu-windows-2025
+            runner: windows-latest-l
             rust_flags: --release -Z build-std="core,alloc,std,panic_abort"
             rust_target: i686-win7-windows-msvc
           - target: x64
-            runner: blacksmith-4vcpu-windows-2025
+            runner: windows-latest-l
             rust_flags: --release -Z build-std="core,alloc,std,panic_abort"
             rust_target: x86_64-win7-windows-msvc
           - target: arm64

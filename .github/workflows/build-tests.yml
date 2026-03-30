@@ -122,7 +122,7 @@ jobs:
         os: [windows, ubuntu, macos]
         include:
           - os: windows
-            runner: blacksmith-4vcpu-windows-2025
+            runner: windows-latest-l
           - os: ubuntu
             runner: ubuntu-latest
           - os: macos
@@ -256,7 +256,7 @@ jobs:
         os: [windows, macos]
         include:
           - os: windows
-            runner: blacksmith-4vcpu-windows-2025
+            runner: windows-latest-l
             rust_flags: "--features windows"
           - os: macos
             runner: macos-latest
