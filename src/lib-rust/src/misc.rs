@@ -43,6 +43,14 @@ pub fn random_string(len: usize) -> String {
     Alphanumeric.sample_string(&mut rand::rng(), len)
 }
 
+fn to_hex(bytes: &[u8]) -> String {
+    bytes.iter().fold(String::with_capacity(bytes.len() * 2), |mut s, b| {
+        use std::fmt::Write;
+        write!(s, "{:02x}", b).unwrap();
+        s
+    })
+}
+
 pub fn calculate_sha1_sha256<P: AsRef<Path>>(file: P) -> Result<(String, String), Error> {
     let file = File::open(file)?;
     let mut reader = BufReader::new(file);
@@ -61,8 +69,8 @@ pub fn calculate_sha1_sha256<P: AsRef<Path>>(file: P) -> Result<(String, String)
         sha1.update(&buffer[..bytes_read]);
     }
 
-    let sha256_hash = format!("{:x}", sha256.finalize());
-    let sha1_hash = format!("{:x}", sha1.finalize());
+    let sha256_hash = to_hex(&sha256.finalize());
+    let sha1_hash = to_hex(&sha1.finalize());
 
     Ok((sha1_hash, sha256_hash))
 }
