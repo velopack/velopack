@@ -36,7 +36,12 @@
     {
       "groupName": "dotnet packages",
       "matchDatasources": "nuget",
-      "matchFileNames": ["src/**", "test/**"]
+      "matchFileNames": ["src/**"]
+    },
+    {
+      "groupName": "dotnet test packages",
+      "matchDatasources": "nuget",
+      "matchFileNames": ["test/**"]
     },
     // samples
     {
