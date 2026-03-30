@@ -117,3 +117,36 @@ pub fn is_sub_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, parent: P2) -> bo
 
     path.starts_with(&parent)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn test_to_hex() {
+        assert_eq!(to_hex(&[]), "");
+        assert_eq!(to_hex(&[0x00]), "00");
+        assert_eq!(to_hex(&[0xff]), "ff");
+        assert_eq!(to_hex(&[0xde, 0xad, 0xbe, 0xef]), "deadbeef");
+    }
+
+    #[test]
+    fn test_calculate_sha1_sha256() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.txt");
+        let mut f = File::create(&path).unwrap();
+        f.write_all(b"hello world").unwrap();
+        drop(f);
+
+        let (sha1, sha256) = calculate_sha1_sha256(&path).unwrap();
+
+        // known hashes for "hello world"
+        assert_eq!(sha1, "2aae6c35c94fcfb415dbe95f408b9ce91ee846ed");
+        assert_eq!(sha256, "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9");
+
+        // verify they are lowercase hex
+        assert!(sha1.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+        assert!(sha256.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+    }
+}
