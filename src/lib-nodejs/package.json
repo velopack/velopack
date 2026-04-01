@@ -54,7 +54,7 @@
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "jest-junit": "^16.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.0"
   },
   "dependencies": {
     "@neon-rs/load": "^0.2.0"
