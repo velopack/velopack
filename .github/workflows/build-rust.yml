@@ -4,7 +4,7 @@ on:
 
 jobs:
   windows-bins:
-    runs-on: runs-on=${{ github.run_id }}/runner=ro-windows-25-medium
+    runs-on: blacksmith-4vcpu-windows-2025
     env:
       RUSTFLAGS: -C target-feature=+crt-static
     steps:
@@ -39,11 +39,11 @@ jobs:
         target: [x86, x64, arm64]
         include:
           - target: x86
-            runner: runs-on=${{ github.run_id }}/runner=ro-windows-25-medium
+            runner: blacksmith-4vcpu-windows-2025
             rust_flags: --release -Z build-std="core,alloc,std,panic_abort"
             rust_target: i686-win7-windows-msvc
           - target: x64
-            runner: runs-on=${{ github.run_id }}/runner=ro-windows-25-medium
+            runner: blacksmith-4vcpu-windows-2025
             rust_flags: --release -Z build-std="core,alloc,std,panic_abort"
             rust_target: x86_64-win7-windows-msvc
           - target: arm64
