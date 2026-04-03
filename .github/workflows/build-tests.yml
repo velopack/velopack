@@ -137,6 +137,8 @@ jobs:
         uses: ./.github/actions/job-setup
         with:
           dotnet: true
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
       - name: Install FUSE
         run: |
           sudo add-apt-repository universe
@@ -213,8 +215,6 @@ jobs:
       ## START COVERAGE TESTING  
       - name: Clean Rust Build
         run: cargo clean
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
       - name: Setup Rust Coverage Instrumentation
         shell: bash
         run: cargo llvm-cov show-env | sed "s/='\(.*\)'/=\1/" >> "$GITHUB_ENV"
