@@ -134,6 +134,7 @@ jobs:
       VELOPACK_B2_TEST_TOKEN: ${{ secrets.VELOPACK_B2_TEST_TOKEN }}
       VELOPACK_AZ_TEST_TOKEN: ${{ secrets.VELOPACK_AZ_TEST_TOKEN }}
     steps:
+      ## JOB SETUP
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
@@ -152,6 +153,14 @@ jobs:
         if: ${{ matrix.os == 'macos' }}
       - name: Install dotnet-coverage
         run: dotnet tool install -g dotnet-coverage
+      - name: Azure login
+        uses: azure/login@v3
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ## BUILD C# TESTS
       - name: Build .NET
         run: dotnet build -c Release
       - name: Wait for Artifacts
@@ -161,6 +170,7 @@ jobs:
           max_wait_seconds: 900
           artifacts: rust-macos,rust-windows-bins,rust-windows-libs-x64,rust-ubuntu-bins-x64,rust-ubuntu-bins-arm64
           verbose: true
+      ## BUILD AND UPLOAD CROSS COMPILE ARTIFACTS
       - name: Download Rust Artifacts
         uses: actions/download-artifact@v8
         with:
@@ -180,13 +190,7 @@ jobs:
           name: cross-${{ matrix.os }}
           path: test/artifacts/*
           retention-days: 1
-      - name: Azure login
-        uses: azure/login@v3
-        if: github.event.pull_request.head.repo.full_name == github.repository
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ## START PRIMARY RELEASETESTING  
       - name: Test Velopack.Tests
         run: >-
           dotnet test --project test/Velopack.Tests/Velopack.Tests.csproj
@@ -211,6 +215,27 @@ jobs:
           --no-build -c Release
           --report-github
           --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Pack.Tests.xml
+      ## START COVERAGE TESTING  
+      - name: Clean Rust Build
+        run: cargo clean
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Setup Rust Coverage Instrumentation
+        shell: bash
+        run: cargo llvm-cov show-env | sed "s/='\(.*\)'/=\1/" >> "$GITHUB_ENV"
+      - name: Build Instrumented Rust Binaries
+        run: cargo build -p velopack_bins ${{ matrix.rust_flags }}
+      - name: Test Velopack.Pack.Tests
+        run: >-
+          dotnet test --project test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj
+      - name: Generate Rust Integration Coverage
+        shell: bash
+        run: >-
+          cargo llvm-cov report
+          --cobertura --output-path ./test/coverage/coverage.rust-integration.${{ matrix.os }}.xml
+      ## START CROSS-COMPILATION TESTING  
+      - name: Clean Rust Build
+        run: cargo clean
       - name: Wait for Artifacts
         uses: ./.github/actions/wait-artifact
         if: ${{ matrix.os == 'ubuntu' || matrix.os == 'windows' }}
@@ -248,51 +273,3 @@ jobs:
           report_type: test_results
           files: ./test/coverage/junit.*.xml
           flags: vpk
-
-  vpk-coverage:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows, macos]
-        include:
-          - os: windows
-            runner: blacksmith-4vcpu-windows-2025
-            rust_flags: "--features windows"
-          - os: macos
-            runner: macos-latest
-    runs-on: ${{ matrix.runner }}
-    env:
-      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Setup Job Environment
-        uses: ./.github/actions/job-setup
-        with:
-          dotnet: true
-      - name: Install squashfs-tools
-        run: brew install squashfs
-        if: ${{ matrix.os == 'macos' }}
-      - name: Install dotnet-coverage
-        run: dotnet tool install -g dotnet-coverage
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - name: Setup Rust Coverage Instrumentation
-        shell: bash
-        run: cargo llvm-cov show-env | sed "s/='\(.*\)'/=\1/" >> "$GITHUB_ENV"
-      - name: Build Instrumented Rust Binaries
-        run: cargo build -p velopack_bins ${{ matrix.rust_flags }}
-      - name: Test Velopack.Pack.Tests
-        run: >-
-          dotnet test --project test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj
-      - name: Generate Rust Integration Coverage
-        shell: bash
-        run: >-
-          cargo llvm-cov report
-          --cobertura --output-path ./test/coverage/coverage.rust-integration.${{ matrix.os }}.xml
-      - name: Upload Coverage
-        uses: codecov/codecov-action@v6
-        with:
-          directory: ./test/coverage
-          flags: vpk-coverage
