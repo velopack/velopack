@@ -1,0 +1,35 @@
+# https://runs-on.com/configuration/repo-config/#runners
+
+runners:
+  ro-windows-25-small:
+    image: windows25-full-x64
+    cpu: 2
+    family: c7i
+    extras: s3-cache
+    spot: capacity-optimized
+  ro-windows-25-medium:
+    image: windows25-full-x64
+    cpu: 4
+    family: c7i
+    extras: s3-cache
+    spot: capacity-optimized
+  ro-windows-25-large:
+    image: windows25-full-x64
+    cpu: 8
+    family: c7i
+    extras: s3-cache
+    spot: capacity-optimized
+  ro-windows-25-xlarge:
+    image: windows25-full-x64
+    cpu: 16
+    family: c7i
+    extras: s3-cache
+    spot: capacity-optimized
+
+# pools:
+#   ro-windows-25-small:
+#     runner: ro-windows-25-small
+#     schedule:
+#       - name: default
+#         stopped: 4
+        
