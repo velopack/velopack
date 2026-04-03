@@ -20,7 +20,7 @@ jobs:
           rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
       - name: Build Rust (x86)
         run: |
-          cargo +nightly build --target i686-win7-windows-msvc --features windows --release -Z build-std="core,alloc,std,panic_abort"
+          cargo +nightly build --target i686-win7-windows-msvc --features windows --release -Z build-std="core,alloc,std,panic_abort" --exclude velopack_python
           move target\i686-win7-windows-msvc\release\velopack_nodeffi.dll target\velopack_nodeffi_win_x86_msvc.node
           move target\i686-win7-windows-msvc\release\velopack_libc.dll target\velopack_libc_win_x86_msvc.dll
           move target\i686-win7-windows-msvc\release\velopack_libc.dll.lib target\velopack_libc_win_x86_msvc.dll.lib
@@ -32,7 +32,7 @@ jobs:
           copy target\i686-win7-windows-msvc\release\testapp.exe target\testapp.exe
       - name: Build Rust (x64)
         run: |
-          cargo +nightly build --target x86_64-win7-windows-msvc --features windows --release -Z build-std="core,alloc,std,panic_abort"
+          cargo +nightly build --target x86_64-win7-windows-msvc --features windows --release -Z build-std="core,alloc,std,panic_abort" --exclude velopack_python
           move target\x86_64-win7-windows-msvc\release\velopack_nodeffi.dll target\velopack_nodeffi_win_x64_msvc.node
           move target\x86_64-win7-windows-msvc\release\velopack_libc.dll target\velopack_libc_win_x64_msvc.dll
           move target\x86_64-win7-windows-msvc\release\velopack_libc.dll.lib target\velopack_libc_win_x64_msvc.dll.lib
@@ -73,7 +73,7 @@ jobs:
           rustup target add aarch64-pc-windows-msvc --toolchain nightly-x86_64-pc-windows-msvc
       - name: Build Rust (arm64)
         run: |
-          cargo +nightly build --target aarch64-pc-windows-msvc --features windows --release
+          cargo +nightly build --target aarch64-pc-windows-msvc --features windows --release --exclude velopack_python
           move target\aarch64-pc-windows-msvc\release\velopack_nodeffi.dll target\velopack_nodeffi_win_arm64_msvc.node
           move target\aarch64-pc-windows-msvc\release\velopack_libc.dll target\velopack_libc_win_arm64_msvc.dll
           move target\aarch64-pc-windows-msvc\release\velopack_libc.dll.lib target\velopack_libc_win_arm64_msvc.dll.lib
