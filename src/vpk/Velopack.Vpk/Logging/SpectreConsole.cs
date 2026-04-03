@@ -74,7 +74,6 @@ public class SpectreConsole : IFancyConsole
         var table = new Table();
         table.Title($"[bold underline]{tableName}[/]");
         table.Expand();
-        table.LeftAligned();
 
         // Add some columns
         if (hasHeaderRow) {
