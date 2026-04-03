@@ -18,7 +18,7 @@ jobs:
         os: [windows, ubuntu, macos]
         include:
           - os: windows
-            runner: windows-latest
+            runner: blacksmith-4vcpu-windows-2025
             rust_flags: "--features windows"
           - os: ubuntu
             runner: ubuntu-latest
@@ -35,6 +35,7 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Install cargo-nextest
         uses: taiki-e/install-action@cargo-nextest
+      ## RUST TESTS
       - name: Check lib-rust
         run: cargo check -p velopack
       - name: Test Rust
@@ -42,40 +43,21 @@ jobs:
           cargo llvm-cov nextest --profile ci
           ${{ matrix.rust_flags }}
           --cobertura --output-path ./test/coverage/coverage.rust.${{ matrix.os }}.xml
-      - name: Upload Coverage
+      - name: Upload Rust Coverage
         uses: codecov/codecov-action@v6
         with:
           files: ./test/coverage/coverage.rust.${{ matrix.os }}.xml
           flags: rust
-      - name: Upload Test Results
+      - name: Upload Rust Test Results
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v6
         with:
           report_type: test_results
           files: ./test/coverage/junit.*.xml
           flags: rust
-
-  nodejs:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows, ubuntu, macos]
-        include:
-          - os: windows
-            runner: windows-latest
-          - os: ubuntu
-            runner: ubuntu-latest
-          - os: macos
-            runner: macos-latest
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Setup Job Environment
-        uses: ./.github/actions/job-setup
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
+      ## NODEJS TESTS
+      - name: Clean Rust Build
+        run: cargo clean
       - name: Setup Rust Coverage Instrumentation
         shell: bash
         run: cargo llvm-cov show-env | sed "s/='\(.*\)'/=\1/" >> "$GITHUB_ENV"
@@ -90,13 +72,13 @@ jobs:
         run: >-
           cargo llvm-cov report
           --cobertura --output-path ./test/coverage/coverage.rust-nodejs.${{ matrix.os }}.xml
-      - name: Upload Coverage
+      - name: Upload Node.js Coverage
         uses: codecov/codecov-action@v6
         with:
           directory: src/lib-nodejs/coverage
           files: ./test/coverage/coverage.rust-nodejs.${{ matrix.os }}.xml
           flags: nodejs
-      - name: Upload Test Results
+      - name: Upload Node.js Test Results
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v6
         with:
@@ -134,7 +116,7 @@ jobs:
         os: [windows, ubuntu, macos]
         include:
           - os: windows
-            runner: blacksmith-32vcpu-windows-2025
+            runner: blacksmith-8vcpu-windows-2025
             rust_flags: "--features windows"
           - os: ubuntu
             runner: ubuntu-latest
