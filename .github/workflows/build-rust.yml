@@ -17,9 +17,7 @@ jobs:
           rust-cache: true
       - name: Install Dependencies
         run: |
-          choco install llvm -y
           rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
-          rustup target add aarch64-pc-windows-msvc --toolchain nightly-x86_64-pc-windows-msvc
       - name: Build Rust (x86)
         run: |
           cargo +nightly build --target i686-win7-windows-msvc --features windows --release -Z build-std="core,alloc,std,panic_abort"
@@ -44,6 +42,35 @@ jobs:
           copy target\x86_64-win7-windows-msvc\release\setup.exe target\setup_x64.exe
           copy target\x86_64-win7-windows-msvc\release\stub.exe target\stub_x64.exe
           copy target\x86_64-win7-windows-msvc\release\testapp.exe target\testapp_x64.exe
+      - name: Upload Rust Build Artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: rust-windows
+          path: |
+            target\*.node
+            target\*.dll
+            target\*.lib
+            target\*.exe
+          retention-days: 1
+      - name: Cancel workflow if failed
+        if: ${{ failure() }}
+        uses: ./.github/actions/cancel-workflow
+
+  windows-arm64:
+    runs-on: windows-latest
+    env:
+      RUSTFLAGS: -C target-feature=+crt-static
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
+        with:
+          rust-cache: true
+      - name: Install Dependencies
+        run: |
+          rustup target add aarch64-pc-windows-msvc --toolchain nightly-x86_64-pc-windows-msvc
       - name: Build Rust (arm64)
         run: |
           cargo +nightly build --target aarch64-pc-windows-msvc --features windows --release
@@ -59,7 +86,7 @@ jobs:
       - name: Upload Rust Build Artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: rust-windows
+          name: rust-windows-arm64
           path: |
             target\*.node
             target\*.dll
