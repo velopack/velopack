@@ -45,3 +45,5 @@ runs:
       uses: Swatinem/rust-cache@v2
       with:
         key: "${{ github.workflow }}"
+    - name: Configure runs-on
+      uses: runs-on/action@v2

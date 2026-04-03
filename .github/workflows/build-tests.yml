@@ -134,7 +134,7 @@ jobs:
         os: [windows, ubuntu, macos]
         include:
           - os: windows
-            runner: blacksmith-4vcpu-windows-2025
+            runner: runs-on=${{ github.run_id }}/runner=ro-windows-25-xlarge
             rust_flags: "--features windows"
           - os: ubuntu
             runner: ubuntu-latest
