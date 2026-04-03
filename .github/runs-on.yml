@@ -1,28 +1,22 @@
 # https://runs-on.com/configuration/repo-config/#runners
 
 runners:
-  ro-windows-25-small:
-    image: windows25-full-x64
-    cpu: 2
-    family: c7i
-    extras: s3-cache
-    spot: capacity-optimized
   ro-windows-25-medium:
     image: windows25-full-x64
-    cpu: 4
-    family: c7i
+    cpu: [4, 8]
+    family: ["c7i", "c7a", "m7a", "m7i", "r7i", "r7a", "t3", "t3a"]
     extras: s3-cache
     spot: capacity-optimized
   ro-windows-25-large:
     image: windows25-full-x64
-    cpu: 8
-    family: c7i
+    cpu: [8, 16]
+    family: ["c7i", "c7a", "m7a", "m7i", "r7i", "r7a", "t3", "t3a"]
     extras: s3-cache
     spot: capacity-optimized
   ro-windows-25-xlarge:
     image: windows25-full-x64
-    cpu: 16
-    family: c7i
+    cpu: [16, 32]
+    family: ["c7i", "c7a", "m7a", "m7i", "r7i", "r7a", "t3", "t3a"]
     extras: s3-cache
     spot: capacity-optimized
 
