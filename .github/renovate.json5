@@ -93,6 +93,10 @@
     {
       "matchPackageNames": "coverlet.msbuild",
       "allowedVersions": "< 7.0.0"                   // 8.x breaks instrumentation on net8.0 targets
+    },
+    {
+      "matchPackageNames": "typescript",
+      "allowedVersions": "< 6.0.0"                   // 6.x breaks jest
     }
   ]
 }
