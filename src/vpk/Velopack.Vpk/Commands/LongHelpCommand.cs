@@ -51,7 +51,6 @@ public class LongHelpCommand : Option<bool>
             {
                 var t = new Table();
                 t.NoBorder();
-                t.LeftAligned();
                 t.HideHeaders();
                 t.Collapse();
                 t.AddColumn(new TableColumn("Name") { Padding = pad });
