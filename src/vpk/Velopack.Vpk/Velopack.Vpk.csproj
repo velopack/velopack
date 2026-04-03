@@ -25,7 +25,7 @@
     <PackageReference Include="Serilog.Expressions" Version="5.0.0" />
     <PackageReference Include="System.CommandLine" Version="2.0.5" />
     <PackageReference Include="NuGet.Protocol" Version="7.3.0" />
-    <PackageReference Include="Spectre.Console" Version="0.54.0" />
+    <PackageReference Include="Spectre.Console" Version="0.55.0" />
     <PackageReference Include="Riok.Mapperly" Version="4.3.1" />
     <PackageReference Include="Humanizer.Core" Version="3.0.10" />
     <PackageReference Include="System.Formats.Asn1" Version="10.0.5" />
