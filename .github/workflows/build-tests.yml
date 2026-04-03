@@ -135,6 +135,7 @@ jobs:
         include:
           - os: windows
             runner: blacksmith-4vcpu-windows-2025
+            rust_flags: "--features windows"
           - os: ubuntu
             runner: ubuntu-latest
           - os: macos
