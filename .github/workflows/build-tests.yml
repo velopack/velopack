@@ -163,7 +163,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           max_wait_seconds: 900
-          artifacts: rust-macos,rust-windows-bins,rust-windows-libs,rust-ubuntu-bins-x64,rust-ubuntu-bins-arm64
+          artifacts: rust-macos,rust-windows,rust-ubuntu-bins-x64,rust-ubuntu-bins-arm64
           verbose: true
       ## BUILD AND UPLOAD CROSS COMPILE ARTIFACTS
       - name: Download Rust Artifacts
