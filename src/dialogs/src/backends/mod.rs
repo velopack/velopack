@@ -66,6 +66,8 @@ pub trait DialogProxy {
     fn close(&self);
     /// Set the progress bar value (0.0 to 1.0) for this dialog.
     fn set_progress_value(&self, progress: f32);
+    /// Set the progress bar value (0 to 100) for this dialog.
+    fn set_progress_value_i16(&self, progress: i16);
     /// Set the progress body text for this dialog.
     fn set_progress_text(&self, text: &str);
     /// Set the progress bar to indeterminate (marquee) mode.

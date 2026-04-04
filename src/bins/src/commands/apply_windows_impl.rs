@@ -127,7 +127,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
         fs::create_dir_all(&temp_path_new)?;
         bundle
             .extract_lib_contents_to_path(&temp_path_new, |p| {
-                reporter.set_progress(p);
+                reporter.set_progress_value_i16(p);
             })
             .map_err(|e| {
                 warn!("Deleting package {:?} to prevent update loop: {}", package, e);
@@ -135,7 +135,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
                 e
             })?;
 
-        reporter.set_indeterminate();
+        reporter.set_progress_indeterminate();
 
         // second, run application hooks (but don't care if it fails)
         if hook_mode == super::HookRunMode::All {

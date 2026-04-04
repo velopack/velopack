@@ -3,6 +3,7 @@ use velopack::constants;
 use velopack::locator::*;
 use velopack::{bundle::BundleZip, wide_strings::string_to_wide};
 
+use ::windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 use anyhow::{anyhow, bail, Result};
 use pretty_bytes_rust::pretty_bytes;
 use std::{
@@ -10,7 +11,7 @@ use std::{
     fs::{self},
     path::{Path, PathBuf},
 };
-use ::windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
+use velopack_dialogs::DialogProxy;
 
 pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Option<Vec<OsString>>) -> Result<()> {
     // find and parse nuspec
@@ -120,26 +121,20 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     let locator = VelopackLocator::new_with_manifest(paths, app);
     let _mutex = locator.try_get_exclusive_lock()?;
 
-    let tx = if dialogs::get_silent() {
-        info!("Will not show splash because silent mode is on.");
-        let (tx, _) = std::sync::mpsc::channel::<i16>();
-        tx
-    } else {
-        info!("Reading splash image...");
-        let manifest = locator.get_manifest();
-        let splash_bytes = pkg.get_splash_bytes();
-        windows::splash::show_splash_dialog(
-            manifest.title,
-            manifest.version.to_string(),
-            splash_bytes,
-            windows::splash::SplashOptions {
-                splash_progress_color: Some(manifest.splash_progress_color),
-            },
-        )
-    };
+    info!("Reading splash image...");
+    let manifest = locator.get_manifest();
+    let splash_bytes = pkg.get_splash_bytes();
+    let splash = dialogs::splash::show_splash_dialog(
+        manifest.title,
+        manifest.version.to_string(),
+        splash_bytes,
+        dialogs::splash::SplashOptions {
+            splash_progress_color: Some(manifest.splash_progress_color),
+        },
+    );
 
-    let install_result = install_impl(pkg, &locator, &tx, start_args);
-    let _ = tx.send(windows::splash::MSG_CLOSE);
+    let install_result = install_impl(pkg, &locator, &splash, start_args);
+    splash.close();
 
     if install_result.is_ok() {
         info!("Installation completed successfully!");
@@ -161,7 +156,7 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     Ok(())
 }
 
-fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &std::sync::mpsc::Sender<i16>, start_args: Option<Vec<OsString>>) -> Result<()> {
+fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &Box<dyn DialogProxy>, start_args: Option<Vec<OsString>>) -> Result<()> {
     info!("Starting installation!");
 
     // all application paths
@@ -177,15 +172,15 @@ fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &std::sync::
         .map_err(|_| anyhow!("This installer is missing a critical binary (Update.exe). Please contact the application author."))?;
 
     let _ = pkg.extract_stubs_to_dir(locator.get_root_dir());
-    let _ = tx.send(5);
+    let _ = tx.set_progress_value_i16(5);
 
     info!("Copying nupkg to packages directory...");
     shared::retry_io(|| fs::create_dir_all(&packages_path))?;
     pkg.copy_bundle_to_file(&nupkg_path)?;
-    let _ = tx.send(10);
+    let _ = tx.set_progress_value_i16(10);
 
     pkg.extract_lib_contents_to_path(&current_path, |p| {
-        let _ = tx.send(((p as f32) / 100.0 * 80.0 + 10.0) as i16);
+        let _ = tx.set_progress_value_i16(((p as f32) / 100.0 * 80.0 + 10.0) as i16);
     })?;
 
     if !main_exe_path.exists() {
@@ -202,7 +197,7 @@ fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &std::sync::
         dialogs::show_install_hook_warning(&locator.get_manifest_title(), &locator.get_manifest_id());
     }
 
-    let _ = tx.send(100);
+    let _ = tx.set_progress_value_i16(100);
     windows::registry::write_uninstall_entry(&locator)?;
 
     if !dialogs::get_silent() {

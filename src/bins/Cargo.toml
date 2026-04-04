@@ -79,7 +79,6 @@ waitpid-any.workspace = true
 [target.'cfg(windows)'.dependencies]
 fs_extra.workspace = true
 memmap2.workspace = true
-image.workspace = true
 windows = { workspace = true, features = [
     "Win32_Foundation",
     "Win32_Security",
@@ -116,7 +115,6 @@ libloading.workspace = true
 strsim.workspace = true
 same-file.workspace = true
 winreg.workspace = true
-# filelocksmith.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -9,7 +9,7 @@ use velopack_bins::windows::prerequisite;
 use windows::Win32::{
     Foundation::{ERROR_INSTALL_USEREXIT, ERROR_SUCCESS},
     System::ApplicationInstallationAndServicing::MSIHANDLE,
-    UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_ICONWARNING, MB_OK, MESSAGEBOX_STYLE},
+    UI::WindowsAndMessaging::{MessageBoxW, MB_ICONWARNING, MB_OK, MESSAGEBOX_STYLE},
 };
 
 #[no_mangle]
@@ -34,10 +34,7 @@ pub extern "system" fn EarlyBootstrap(h_install: MSIHANDLE) -> c_uint {
             Ok(true) => ERROR_SUCCESS.0,
             Ok(false) => ERROR_INSTALL_USEREXIT.0,
             Err(e) => {
-                let title = velopack_dialogs::locale_strings::title_setup(&app_name);
-                let header = velopack_dialogs::locale_strings::setup_error_header();
-                let err = format!("{}\n\n{}", header, e);
-                show_messagebox(&title, &err, MB_ICONERROR);
+                velopack_dialogs::show_setup_error(&app_name, &e.to_string());
                 ERROR_INSTALL_USEREXIT.0
             }
         }
@@ -118,17 +115,17 @@ pub extern "system" fn LaunchApplication(h_install: MSIHANDLE) -> c_uint {
     ERROR_SUCCESS.0
 }
 
-fn show_messagebox(title: &str, message: &str, icon: MESSAGEBOX_STYLE) {
-    use velopack::wide_strings::string_to_wide;
-    let title_w = string_to_wide(title);
-    let message_w = string_to_wide(message);
-    unsafe {
-        let _ = MessageBoxW(None, message_w.as_pcwstr(), title_w.as_pcwstr(), MB_OK | icon);
-    }
-}
-
 #[cfg(debug_assertions)]
 fn show_debug_message(fn_name: &str, message: String) {
+    fn show_messagebox(title: &str, message: &str, icon: MESSAGEBOX_STYLE) {
+        use velopack::wide_strings::string_to_wide;
+        let title_w = string_to_wide(title);
+        let message_w = string_to_wide(message);
+        unsafe {
+            let _ = MessageBoxW(None, message_w.as_pcwstr(), title_w.as_pcwstr(), MB_OK | icon);
+        }
+    }
+
     if std::env::var("CI").is_ok() {
         return;
     }

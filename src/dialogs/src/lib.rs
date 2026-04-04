@@ -1,12 +1,15 @@
 #[macro_use]
 extern crate log;
 
-pub mod backends;
+mod backends;
 mod dialogs;
-pub mod locale;
+mod locale;
 mod types;
 
 pub mod progress;
+
+#[cfg(windows)]
+pub mod splash;
 
 pub use backends::{DialogManager, DialogProxy, XDialogError, XDialogIcon, XDialogOptions, XDialogResult};
 pub use dialogs::*;
@@ -29,6 +32,10 @@ pub fn get_silent() -> bool {
 /// Initialize the localization system and dialog backend. Call once at startup.
 pub fn init() {
     locale::init_localization();
+
+    #[cfg(windows)]
+    splash::init_dpi_awareness();
+
     #[cfg(windows)]
     DIALOG_MANAGER.get_or_init(|| Mutex::new(Box::new(backends::taskdialog::TaskDialogManager::new())));
 }

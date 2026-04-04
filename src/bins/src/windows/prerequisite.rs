@@ -59,7 +59,7 @@ pub fn prompt_and_install_all_missing(
                     updating_from.is_some(),
                 );
                 let result = download::download_url_to_file(&url, &exe_path, |p| {
-                    reporter.set_progress(p);
+                    reporter.set_progress_value_i16(p);
                 });
 
                 reporter.close();

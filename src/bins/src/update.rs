@@ -128,16 +128,9 @@ fn get_op_wait(matches: &ArgMatches) -> shared::OperationWait {
 fn main() {
     #[cfg(windows)]
     windows::mitigate::pre_main_sideload_mitigation();
-    #[cfg(windows)]
-    windows::splash::init_dpi_awareness();
-
-    let result = dialogs::XDialogBuilder::new().run_result(real_main);
-    std::process::exit(if result.is_ok() { 0 } else { 1 });
-}
-
-fn real_main() -> Result<()> {
     dialogs::init();
-    main_inner()
+    let result = main_inner();
+    std::process::exit(if result.is_ok() { 0 } else { 1 });
 }
 
 fn main_inner() -> Result<()> {

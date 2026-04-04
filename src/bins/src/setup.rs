@@ -55,14 +55,9 @@ pub fn header_offset_and_length() -> (i64, i64) {
 
 fn main() {
     windows::mitigate::pre_main_sideload_mitigation();
-    windows::splash::init_dpi_awareness();
-    let result = dialogs::XDialogBuilder::new().run_result(real_main);
-    std::process::exit(if result.is_ok() { 0 } else { 1 });
-}
-
-fn real_main() -> Result<()> {
     dialogs::init();
-    shared::cli_host::clap_run_main("Setup", main_inner)
+    let result = shared::cli_host::clap_run_main("Setup", main_inner);
+    std::process::exit(if result.is_ok() { 0 } else { 1 });
 }
 
 fn main_inner() -> Result<()> {

@@ -2,9 +2,9 @@ use anyhow::{bail, Result};
 use image::{codecs::gif::GifDecoder, AnimationDecoder, DynamicImage, ImageFormat, ImageReader};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::{io::Cursor, thread};
-use velopack::wide_strings::string_to_wide;
+use widestring::U16CString;
 use windows::{
-    core::{BOOL, HRESULT},
+    core::{BOOL, HRESULT, PCWSTR},
     Win32::{
         Foundation::{COLORREF, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, SIZE, S_OK, WPARAM},
         Graphics::Gdi::*,
@@ -13,10 +13,11 @@ use windows::{
     },
 };
 
+use crate::backends::{DialogProxy, XDialogError, XDialogResult};
+use crate::{MSG_CLOSE, MSG_INDEFINITE};
+
 const TMR_GIF: usize = 1;
 const MSG_NOMESSAGE: i16 = -99;
-
-pub use crate::dialogs::{MSG_CLOSE, MSG_INDEFINITE};
 
 fn parse_hex_color(color_str: &str) -> (u8, u8, u8) {
     let hex_str = color_str.trim_start_matches('#');
@@ -48,9 +49,41 @@ impl SplashOptions {
     }
 }
 
-pub fn show_splash_dialog(app_name: String, app_version: String, imgstream: Option<Vec<u8>>, options: SplashOptions) -> Sender<i16> {
-    let (tx, rx) = mpsc::channel::<i16>();
+struct SplashDialogProxy {
+    tx: Sender<i16>,
+}
+
+impl DialogProxy for SplashDialogProxy {
+    fn close(&self) {
+        let _ = self.tx.send(MSG_CLOSE);
+    }
+    fn set_progress_value(&self, progress: f32) {
+        let _ = self.tx.send((progress * 100.0) as i16);
+    }
+    fn set_progress_value_i16(&self, progress: i16) {
+        let _ = self.tx.send(progress);
+    }
+    fn set_progress_text(&self, _: &str) {}
+    fn set_progress_indeterminate(&self) {
+        let _ = self.tx.send(MSG_INDEFINITE);
+    }
+    fn get_result(&self, _: Option<std::time::Duration>) -> Result<XDialogResult, XDialogError> {
+        Ok(XDialogResult::WindowClosed)
+    }
+}
+
+impl Drop for SplashDialogProxy {
+    fn drop(&mut self) {
+        let _ = self.tx.send(MSG_CLOSE);
+    }
+}
+
+pub fn show_splash_dialog(app_name: String, app_version: String, imgstream: Option<Vec<u8>>, options: SplashOptions) -> Box<dyn DialogProxy> {
+    if crate::get_silent() {
+        return Box::new(crate::progress::NoopDialogProxy);
+    }
     if let Some(img) = imgstream {
+        let (tx, rx) = mpsc::channel::<i16>();
         thread::spawn(move || {
             info!("Showing splash screen immediately...");
             let progress_bar_color = options.get_progress_bar_color();
@@ -58,26 +91,11 @@ pub fn show_splash_dialog(app_name: String, app_version: String, imgstream: Opti
                 error!("Failed to show splash screen: {:?}", e);
             }
         });
+        Box::new(SplashDialogProxy { tx })
     } else {
-        // No image: use xdialog progress dialog and bridge it via channel
-        thread::spawn(move || {
-            info!("No splash image, using progress dialog...");
-            let reporter = crate::dialogs::progress::show_splash_progress(&app_name, &app_version);
-            loop {
-                let next = drain_and_get_next_message(&rx);
-                if next == MSG_CLOSE {
-                    reporter.close();
-                    break;
-                } else if next == MSG_INDEFINITE {
-                    reporter.set_indeterminate();
-                } else if next >= 0 {
-                    reporter.set_progress(next);
-                }
-                std::thread::sleep(std::time::Duration::from_millis(50));
-            }
-        });
+        info!("No splash image, using progress dialog...");
+        crate::progress::show_splash_progress(&app_name, &app_version)
     }
-    tx
 }
 
 struct SplashWindow {
@@ -100,7 +118,7 @@ fn average(numbers: &[u32]) -> u32 {
     sum / count
 }
 
-pub fn init_dpi_awareness() {
+pub(crate) fn init_dpi_awareness() {
     // Lazy-load DPI awareness functions to support older Windows versions.
     // Fallback chain: V2 per-monitor (Win10 1607+) -> per-monitor (Win8.1+) -> system aware (Vista+)
     unsafe {
@@ -272,8 +290,8 @@ impl SplashWindow {
         };
         info!("DPI scale: {}, window size: {}x{} -> {}x{}", dpi_scale, w, h, scaled_w, scaled_h);
 
-        let class_name = string_to_wide("VelopackSetupSplashWindow");
-        let app_name = string_to_wide(&app_name);
+        let class_name = U16CString::from_str_unchecked("VelopackSetupSplashWindow");
+        let app_name = U16CString::from_str_unchecked(&app_name);
 
         let h_instance: HINSTANCE = GetModuleHandleW(None)?.into();
 
@@ -284,7 +302,7 @@ impl SplashWindow {
             hInstance: h_instance,
             hCursor: LoadCursorW(None, IDC_APPSTARTING)?,
             hbrBackground: CreateSolidBrush(rgb(0, 0, 0)),
-            lpszClassName: class_name.as_pcwstr(),
+            lpszClassName: PCWSTR(class_name.as_ptr()),
             ..Default::default()
         };
 
@@ -299,8 +317,8 @@ impl SplashWindow {
 
         let hwnd = CreateWindowExW(
             WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
-            class_name.as_pcwstr(),
-            app_name.as_pcwstr(),
+            PCWSTR(class_name.as_ptr()),
+            PCWSTR(app_name.as_ptr()),
             WS_CLIPCHILDREN | WS_POPUP,
             lppoint.x,
             lppoint.y,
@@ -537,51 +555,4 @@ fn test_parse_hex_color_invalid_falls_back_to_green() {
     assert_eq!(parse_hex_color("#FFF"), (0, 255, 0));
     assert_eq!(parse_hex_color("ZZZZZZ"), (0, 255, 0));
     assert_eq!(parse_hex_color("not a color"), (0, 255, 0));
-}
-
-#[test]
-#[ignore]
-fn show_splash_gif() {
-    let rd = std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures/splash-test.gif")).unwrap();
-    let tx = show_splash_dialog("osu!".to_string(), "1.0.0".to_string(), Some(rd), SplashOptions::default());
-    let _ = tx.send(25);
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    let _ = tx.send(50);
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    let _ = tx.send(75);
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    let _ = tx.send(100);
-    std::thread::sleep(std::time::Duration::from_secs(3));
-    let _ = tx.send(MSG_CLOSE);
-    std::thread::sleep(std::time::Duration::from_secs(3));
-}
-
-#[test]
-#[ignore]
-fn show_splash_png_transparency() {
-    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures/splash-test.png");
-    let rd = std::fs::read(&fixture).unwrap();
-    let tx = show_splash_dialog("Beer App".to_string(), "1.0.0".to_string(), Some(rd), SplashOptions::default());
-    let _ = tx.send(50);
-    std::thread::sleep(std::time::Duration::from_secs(5));
-    let _ = tx.send(100);
-    std::thread::sleep(std::time::Duration::from_secs(3));
-    let _ = tx.send(MSG_CLOSE);
-    std::thread::sleep(std::time::Duration::from_secs(1));
-}
-
-#[test]
-#[ignore]
-fn show_splash_without_progress_bar() {
-    let rd = std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures/splash-test.gif")).unwrap();
-    let tx = show_splash_dialog(
-        "osu!".to_string(),
-        "1.0.0".to_string(),
-        Some(rd),
-        SplashOptions {
-            splash_progress_color: Some("None".to_string()),
-        },
-    );
-    let _ = tx.send(80);
-    std::thread::sleep(std::time::Duration::from_secs(6));
 }

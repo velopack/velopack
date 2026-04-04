@@ -182,6 +182,11 @@ impl DialogProxy for TaskDialogProxy {
     fn get_result(&self, timeout: Option<Duration>) -> Result<XDialogResult, XDialogError> {
         self.resolve(timeout)
     }
+
+    fn set_progress_value_i16(&self, progress: i16) {
+        let progress_f32 = (progress as f32) / 100f32;
+        self.set_progress_value(progress_f32);
+    }
 }
 
 impl Drop for TaskDialogProxy {
