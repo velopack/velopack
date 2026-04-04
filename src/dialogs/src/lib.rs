@@ -38,6 +38,9 @@ pub fn init() {
 
     #[cfg(windows)]
     DIALOG_MANAGER.get_or_init(|| Mutex::new(Box::new(backends::taskdialog::TaskDialogManager::new())));
+
+    #[cfg(target_os = "linux")]
+    DIALOG_MANAGER.get_or_init(|| Mutex::new(Box::new(backends::gtkdialog::GtkDialogManager::new())));
 }
 
 pub(crate) fn with_manager<F, R>(f: F) -> Result<R, XDialogError>

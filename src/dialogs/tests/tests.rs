@@ -1,4 +1,6 @@
 use serial_test::serial;
+use velopack_dialogs::progress::show_apply_progress;
+#[cfg(windows)]
 use velopack_dialogs::splash::{show_splash_dialog, SplashOptions};
 
 #[test]
@@ -25,10 +27,32 @@ fn test_show_all_dialogs() {
     velopack_dialogs::show_setup_error("TestApp", "This is a setup error.");
 }
 
+#[cfg(windows)]
 fn fixtures_dir() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures")
 }
 
+#[test]
+#[serial(dialogs)]
+#[ignore]
+fn show_progress_window() {
+    velopack_dialogs::init();
+    let proxy = show_apply_progress("hello! app name", "1.2.3");
+    proxy.set_progress_value_i16(25);
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    proxy.set_progress_value_i16(50);
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    proxy.set_progress_value_i16(75);
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    proxy.set_progress_value_i16(100);
+    std::thread::sleep(std::time::Duration::from_secs(3));
+    proxy.set_progress_indeterminate();
+    std::thread::sleep(std::time::Duration::from_secs(5));
+    proxy.close();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+}
+
+#[cfg(windows)]
 #[test]
 #[serial(dialogs)]
 #[ignore]
@@ -48,6 +72,7 @@ fn show_splash_gif() {
     std::thread::sleep(std::time::Duration::from_secs(3));
 }
 
+#[cfg(windows)]
 #[test]
 #[serial(dialogs)]
 #[ignore]
@@ -63,6 +88,7 @@ fn show_splash_png_transparency() {
     std::thread::sleep(std::time::Duration::from_secs(1));
 }
 
+#[cfg(windows)]
 #[test]
 #[serial(dialogs)]
 #[ignore]

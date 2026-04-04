@@ -31,6 +31,10 @@ widestring = "1.2"
 libloading.workspace = true
 image.workspace = true
 
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "0.18"
+glib = "0.18"
+
 [[test]]
 name = "dialogs_tests"
 path = "tests/tests.rs"

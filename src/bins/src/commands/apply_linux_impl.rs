@@ -29,7 +29,7 @@ pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _hook_mo
     let action: Result<()> = (|| {
         info!("Extracting bundle to temp file: {}", temp_path);
         bundle
-            .extract_zip_predicate_to_path_with_progress(|z| z.ends_with(".AppImage"), &temp_path, |p| reporter.set_progress(p))
+            .extract_zip_predicate_to_path_with_progress(|z| z.ends_with(".AppImage"), &temp_path, |p| reporter.set_progress_value_i16(p))
             .map_err(|e| {
                 warn!("Deleting package {:?} to prevent update loop: {}", pkg, e);
                 let _ = fs::remove_file(pkg);
@@ -39,7 +39,7 @@ pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _hook_mo
         info!("Chmod as executable");
         std::fs::set_permissions(&temp_path, fs::Permissions::from_mode(0o755))?;
 
-        reporter.set_indeterminate();
+        reporter.set_progress_indeterminate();
         info!("Moving temp file to target: {}", &root_path);
         // we use mv instead of fs::rename / fs::copy because rename fails cross-device
         // and copy fails if the process is running (presumably because rust opens the file for writing)

@@ -1,4 +1,8 @@
+#[cfg(windows)]
 pub mod taskdialog;
+
+#[cfg(target_os = "linux")]
+pub mod gtkdialog;
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 /// The icon to display in the dialog, or None for no icon.
