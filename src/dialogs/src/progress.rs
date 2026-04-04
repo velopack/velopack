@@ -166,7 +166,10 @@ pub fn show_deps_download_progress(dep_name: &str, is_update: bool) -> Box<dyn P
     };
 
     match manager.show(id, options, true) {
-        Ok(()) => Box::new(TaskDialogProgressReporter { manager: std::sync::Mutex::new(manager), id }),
+        Ok(()) => Box::new(TaskDialogProgressReporter {
+            manager: std::sync::Mutex::new(manager),
+            id,
+        }),
         Err(e) => {
             warn!("Failed to show deps download progress dialog: {:?}", e);
             Box::new(NoopProgressReporter)

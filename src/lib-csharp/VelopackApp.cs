@@ -33,6 +33,7 @@ namespace Velopack
         private VelopackHook? _restarted;
         private string[]? _args;
         private bool _autoApply = true;
+        private string? _customAumid;
         private IVelopackLocator? _customLocator;
         private IVelopackLogger? _customLogger;
 
@@ -61,6 +62,16 @@ namespace Velopack
         public VelopackApp SetAutoApplyOnStartup(bool autoApply)
         {
             _autoApply = autoApply;
+            return this;
+        }
+
+        /// <summary>
+        /// Override the Application User Model ID (AUMID) set for this process on Windows.
+        /// By default, the AUMID is read from the package manifest (shortcutAumid), falling back to "velopack.{AppId}".
+        /// </summary>
+        public VelopackApp SetAppUserModelId(string aumid)
+        {
+            _customAumid = aumid;
             return this;
         }
 
@@ -176,10 +187,12 @@ namespace Velopack
 
             log.Info($"Starting VelopackApp.Run (library version {VelopackRuntimeInfo.VelopackNugetVersion}).");
 
-            if (VelopackRuntimeInfo.IsWindows && locator.AppId != null) {
-                var appUserModelId = CoreUtil.GetAppUserModelId(locator.AppId);
-                log.Info($"Setting current process explicit AppUserModelID to '{appUserModelId}'");
-                SetCurrentProcessExplicitAppUserModelID(appUserModelId);
+            if (VelopackRuntimeInfo.IsWindows) {
+                var appUserModelId = _customAumid ?? locator.AppUserModelId;
+                if (appUserModelId != null) {
+                    log.Info($"Setting current process explicit AppUserModelID to '{appUserModelId}'");
+                    SetCurrentProcessExplicitAppUserModelID(appUserModelId);
+                }
             }
 
             // first, we run any fast exit hooks

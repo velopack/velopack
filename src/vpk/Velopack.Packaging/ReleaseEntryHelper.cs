@@ -13,15 +13,22 @@ public class ReleaseEntryHelper
     private readonly string _channel;
     private Dictionary<string, List<VelopackAsset>> _releases;
 
-    public ReleaseEntryHelper(string outputDir, string channel, ILogger logger, RuntimeOs os)
+    private ReleaseEntryHelper(string outputDir, string channel, ILogger logger, Dictionary<string, List<VelopackAsset>> releases)
     {
         _outputDir = outputDir;
         _logger = logger;
-        _channel = channel ?? DefaultName.GetDefaultChannel(os);
-        _releases = GetReleasesFromDir(outputDir);
+        _channel = channel;
+        _releases = releases;
     }
 
-    private static Dictionary<string, List<VelopackAsset>> GetReleasesFromDir(string dir)
+    public static async Task<ReleaseEntryHelper> CreateAsync(string outputDir, string channel, ILogger logger, RuntimeOs os)
+    {
+        channel ??= DefaultName.GetDefaultChannel(os);
+        var releases = await GetReleasesFromDirAsync(outputDir).ConfigureAwait(false);
+        return new ReleaseEntryHelper(outputDir, channel, logger, releases);
+    }
+
+    private static async Task<Dictionary<string, List<VelopackAsset>>> GetReleasesFromDirAsync(string dir)
     {
         var rel = new Dictionary<string, List<VelopackAsset>>(StringComparer.OrdinalIgnoreCase);
         foreach (var releaseFile in Directory.EnumerateFiles(dir, "*.nupkg")) {
@@ -29,7 +36,7 @@ public class ReleaseEntryHelper
             var ch = zip.Channel ?? DefaultName.GetDefaultChannel(VelopackRuntimeInfo.SystemOs);
             if (!rel.ContainsKey(ch))
                 rel[ch] = new List<VelopackAsset>();
-            rel[ch].Add(VelopackAsset.FromZipPackage(zip));
+            rel[ch].Add(await VelopackAsset.FromZipPackageGenerateChecksumAsync(zip).ConfigureAwait(false));
         }
 
         return rel;
@@ -90,9 +97,9 @@ public class ReleaseEntryHelper
         return assets;
     }
 
-    public static void UpdateReleaseFiles(string outputDir, ILogger log)
+    public static async Task UpdateReleaseFilesAsync(string outputDir, ILogger log)
     {
-        var releases = GetReleasesFromDir(outputDir);
+        var releases = await GetReleasesFromDirAsync(outputDir).ConfigureAwait(false);
         foreach (var releaseFile in Directory.EnumerateFiles(outputDir, "RELEASES*")) {
             File.Delete(releaseFile);
         }

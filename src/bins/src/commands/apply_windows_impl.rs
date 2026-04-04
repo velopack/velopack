@@ -33,11 +33,19 @@ use velopack::{bundle::load_bundle_from_file, constants, locator::VelopackLocato
 //     Ok(())
 // }
 
-pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_hooks: bool) -> Result<VelopackLocator> {
+pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook_mode: super::HookRunMode) -> Result<VelopackLocator> {
     let root_path = old_locator.get_root_dir();
 
-    let mut bundle = load_bundle_from_file(package)?;
-    let new_app_manifest = bundle.read_manifest()?;
+    let mut bundle = load_bundle_from_file(package).map_err(|e| {
+        warn!("Deleting package {:?} to prevent update loop: {}", package, e);
+        let _ = fs::remove_file(package);
+        e
+    })?;
+    let new_app_manifest = bundle.read_manifest().map_err(|e| {
+        warn!("Deleting package {:?} to prevent update loop: {}", package, e);
+        let _ = fs::remove_file(package);
+        e
+    })?;
     let new_locator = old_locator.clone_self_with_new_manifest(&new_app_manifest);
 
     if !windows::is_directory_writable(&root_path) {
@@ -117,14 +125,20 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
     let action: Result<()> = (|| {
         // first, extract the update to temp_path_new
         fs::create_dir_all(&temp_path_new)?;
-        bundle.extract_lib_contents_to_path(&temp_path_new, |p| {
-            reporter.set_progress(p);
-        })?;
+        bundle
+            .extract_lib_contents_to_path(&temp_path_new, |p| {
+                reporter.set_progress(p);
+            })
+            .map_err(|e| {
+                warn!("Deleting package {:?} to prevent update loop: {}", package, e);
+                let _ = fs::remove_file(package);
+                e
+            })?;
 
         reporter.set_indeterminate();
 
         // second, run application hooks (but don't care if it fails)
-        if run_hooks {
+        if hook_mode == super::HookRunMode::All {
             crate::windows::run_hook(old_locator, constants::HOOK_CLI_OBSOLETE, 15);
         } else {
             info!("Skipping --veloapp-obsolete hook.");
@@ -190,7 +204,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, run_
         }
 
         // seventh, we run the post-install hooks
-        if run_hooks {
+        if hook_mode == super::HookRunMode::All || hook_mode == super::HookRunMode::PostOnly {
             crate::windows::run_hook(&new_locator, constants::HOOK_CLI_UPDATED, 15);
         } else {
             info!("Skipping --veloapp-updated hook.");

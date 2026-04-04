@@ -169,7 +169,7 @@ fn try_legacy_migration(root_dir: &PathBuf, manifest: &Manifest) -> Result<Velop
 
     info!("Applying latest full package...");
     let buf = Path::new(&package.0).to_path_buf();
-    let new_locator = super::apply(&locator, false, OperationWait::NoWait, Some(&buf), None, false)?;
+    let new_locator = super::apply(&locator, false, OperationWait::NoWait, Some(&buf), None, super::HookRunMode::PostOnly)?;
 
     info!("Removing old app-* folders...");
     shared::delete_app_prefixed_folders(&root_dir);

@@ -6,7 +6,21 @@ const config: Config = {
   transform: {
     "^.+.ts$": ["ts-jest", {}],
   },
-  reporters: ["default", ["github-actions", { silent: true }], "summary"],
+  reporters: [
+    "default",
+    ["github-actions", { silent: true }],
+    "summary",
+    ...(process.env.CI
+      ? [["jest-junit", { outputDirectory: "../../test/coverage", outputName: "junit.nodejs.xml" }] as [string, Record<string, unknown>]]
+      : []),
+  ],
+  collectCoverage: !!process.env.CI,
+  coverageDirectory: "coverage",
+  coverageReporters: ["cobertura", "text-summary"],
+  collectCoverageFrom: [
+    "src/**/*.ts",
+    "!src/types.ts",
+  ],
 };
 
 export default config;

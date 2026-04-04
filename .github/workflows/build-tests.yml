@@ -15,46 +15,76 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        os: [windows, ubuntu, macos]
         include:
-          - os: windows-latest
+          - os: windows
+            runner: blacksmith-4vcpu-windows-2025
             rust_flags: "--features windows"
-    runs-on: ${{ matrix.os }}
+          - os: ubuntu
+            runner: ubuntu-latest
+          - os: macos
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@cargo-nextest
+      ## RUST TESTS
       - name: Check lib-rust
-        run: cargo check -p velopack -F async
+        run: cargo check -p velopack
       - name: Test Rust
-        run: cargo llvm-cov ${{ matrix.rust_flags }} --cobertura --output-path ./test/coverage.rust.${{ matrix.os }}.xml
-      - name: Upload Coverage
-        uses: codecov/codecov-action@v5
+        run: >-
+          cargo llvm-cov nextest --profile ci
+          ${{ matrix.rust_flags }}
+          --cobertura --output-path ./test/coverage/coverage.rust.${{ matrix.os }}.xml
+      - name: Upload Rust Coverage
+        uses: codecov/codecov-action@v6
         with:
-          files: ./test/coverage.rust.${{ matrix.os }}.xml
-
-  nodejs:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
+          files: ./test/coverage/coverage.rust.${{ matrix.os }}.xml
+          flags: rust
+      - name: Upload Rust Test Results
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v6
         with:
-          fetch-depth: 0
-      - name: Setup Job Environment
-        uses: ./.github/actions/job-setup
+          report_type: test_results
+          files: ./test/coverage/junit.*.xml
+          flags: rust
+      ## NODEJS TESTS
+      - name: Clean Rust Build
+        run: cargo clean
+      - name: Setup Rust Coverage Instrumentation
+        shell: bash
+        run: cargo llvm-cov show-env | sed "s/='\(.*\)'/=\1/" >> "$GITHUB_ENV"
       - name: Check lib-nodejs
         working-directory: src/lib-nodejs
         run: |
           npm install
           npm run build
           npm run test
+      - name: Generate Node.js Rust Coverage
+        shell: bash
+        run: >-
+          cargo llvm-cov report
+          --cobertura --output-path ./test/coverage/coverage.rust-nodejs.${{ matrix.os }}.xml
+      - name: Upload Node.js Coverage
+        uses: codecov/codecov-action@v6
+        with:
+          directory: src/lib-nodejs/coverage
+          files: ./test/coverage/coverage.rust-nodejs.${{ matrix.os }}.xml
+          flags: nodejs
+      - name: Upload Node.js Test Results
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v6
+        with:
+          report_type: test_results
+          files: ./test/coverage/junit.*.xml
+          flags: nodejs
 
   python:
     # strategy:
@@ -64,7 +94,7 @@ jobs:
     # runs-on: ${{ matrix.os }}
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Setup Job Environment
@@ -83,30 +113,51 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+        os: [windows, ubuntu, macos]
+        include:
+          - os: windows
+            runner: blacksmith-8vcpu-windows-2025
+            rust_flags: "--features windows"
+          - os: ubuntu
+            runner: ubuntu-latest
+          - os: macos
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
       VELOPACK_GITHUB_TEST_TOKEN: ${{ secrets.VELOPACK_GITHUB_TEST_TOKEN }}
       VELOPACK_B2_TEST_TOKEN: ${{ secrets.VELOPACK_B2_TEST_TOKEN }}
       VELOPACK_AZ_TEST_TOKEN: ${{ secrets.VELOPACK_AZ_TEST_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      ## JOB SETUP
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
+        with:
+          dotnet: true
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
       - name: Install FUSE
         run: |
           sudo add-apt-repository universe
           sudo apt update
           sudo apt install libfuse2
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.os == 'ubuntu' }}
       - name: Install squashfs-tools
         run: brew install squashfs
-        if: ${{ matrix.os == 'macos-latest' }}
+        if: ${{ matrix.os == 'macos' }}
       - name: Install dotnet-coverage
         run: dotnet tool install -g dotnet-coverage
+      - name: Azure login
+        uses: azure/login@v3
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ## BUILD C# TESTS
       - name: Build .NET
         run: dotnet build -c Release
       - name: Wait for Artifacts
@@ -114,55 +165,106 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           max_wait_seconds: 900
-          artifacts: rust-macos,rust-windows-bins,rust-windows-libs-x64,rust-ubuntu-bins-x64,rust-ubuntu-bins-arm64
+          artifacts: rust-macos,rust-windows,rust-ubuntu-bins-x64,rust-ubuntu-bins-arm64
           verbose: true
+      ## BUILD AND UPLOAD CROSS COMPILE ARTIFACTS
       - name: Download Rust Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: target/release
           pattern: rust-*
           merge-multiple: true
-      - name: Azure login
-        uses: azure/login@v2
-        if: github.event.pull_request.head.repo.full_name == github.repository
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: Test Velopack.Tests
-        run: dotnet test test/Velopack.Tests/Velopack.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
-      - name: Test Velopack.Packaging.Tests
-        run: dotnet test test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
-      - name: Test Velopack.CommandLine.Tests
-        run: dotnet test test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj --no-build -c Release -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
+      - name: Build Cross-Compile Artifacts
+        run: >-
+          dotnet test --project test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj
+          --no-build -c Release
+          --filter-method '*PackCrossApp*'
+          --report-github
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.CrossCompile.Pack.xml
       - name: Upload Cross-Compile Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cross-${{ matrix.os }}
           path: test/artifacts/*
           retention-days: 1
-      - name: Upload Coverage
-        uses: codecov/codecov-action@v5
-        with:
-          directory: ./test
+      ## START PRIMARY RELEASETESTING  
+      - name: Test Velopack.Tests
+        run: >-
+          dotnet test --project test/Velopack.Tests/Velopack.Tests.csproj
+          --no-build -c Release
+          --report-github
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Tests.xml
+      - name: Test Velopack.Packaging.Tests
+        run: >-
+          dotnet test --project test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj
+          --no-build -c Release
+          --report-github
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Packaging.Tests.xml
+      - name: Test Velopack.CommandLine.Tests
+        run: >-
+          dotnet test --project test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj
+          --no-build -c Release
+          --report-github
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.CommandLine.Tests.xml
+      - name: Test Velopack.Pack.Tests
+        run: >-
+          dotnet test --project test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj
+          --no-build -c Release
+          --report-github
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Pack.Tests.xml
+      ## START COVERAGE TESTING  
+      - name: Clean Rust Build
+        run: cargo clean
+      - name: Setup Rust Coverage Instrumentation
+        shell: bash
+        run: cargo llvm-cov show-env | sed "s/='\(.*\)'/=\1/" >> "$GITHUB_ENV"
+      - name: Build Instrumented Rust Binaries
+        run: cargo build -p velopack_bins ${{ matrix.rust_flags }}
+      - name: Test Velopack.Pack.Tests
+        run: >-
+          dotnet test --project test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj
+      - name: Generate Rust Integration Coverage
+        shell: bash
+        run: >-
+          cargo llvm-cov report
+          --cobertura --output-path ./test/coverage/coverage.rust-integration.${{ matrix.os }}.xml
+      ## START CROSS-COMPILATION TESTING  
+      - name: Clean Rust Build
+        run: cargo clean
       - name: Wait for Artifacts
         uses: ./.github/actions/wait-artifact
-        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
+        if: ${{ matrix.os == 'ubuntu' || matrix.os == 'windows' }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           max_wait_seconds: 900
-          artifacts: cross-macos-latest,cross-ubuntu-latest,cross-windows-latest
+          artifacts: cross-macos,cross-ubuntu,cross-windows
           verbose: true
       - name: Download Cross Artifacts
-        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
-        uses: actions/download-artifact@v4
+        if: ${{ matrix.os == 'ubuntu' || matrix.os == 'windows' }}
+        uses: actions/download-artifact@v8
         with:
           path: test/artifacts
           pattern: cross-*
           merge-multiple: true
       - name: Test Cross-Compiled Apps
-        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest' }}
+        if: ${{ matrix.os == 'ubuntu' || matrix.os == 'windows' }}
         env:
           VELOPACK_CROSS_ARTIFACTS: true
-        run: dotnet test test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj --no-build -c Release --filter "FullyQualifiedName~RunCrossApp" -l "console;verbosity=detailed;consoleLoggerParameters=ErrorsOnly" -l GithubActions -- RunConfiguration.CollectSourceInformation=true
-      
+        run: >-
+          dotnet test --project test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj
+          --no-build -c Release
+          --filter-method '*RunCrossApp*'
+          --report-github
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.CrossCompile.Run.xml
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v6
+        with:
+          directory: ./test/coverage
+          flags: vpk
+      - name: Upload Test Results
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v6
+        with:
+          report_type: test_results
+          files: ./test/coverage/junit.*.xml
+          flags: vpk

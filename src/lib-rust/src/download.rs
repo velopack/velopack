@@ -5,13 +5,25 @@ use std::path::Path;
 use crate::{misc, Error};
 
 /// Downloads a file from a URL and writes it to a file while reporting progress from 0-100.
-pub fn download_url_to_file<A, S: AsRef<Path>>(url: &str, file_path: S, mut progress: A) -> Result<(), Error>
+pub fn download_url_to_file<A, S: AsRef<Path>>(url: &str, file_path: S, progress: A) -> Result<(), Error>
+where
+    A: FnMut(i16),
+{
+    download_url_to_file_with_headers(url, file_path, &[], progress)
+}
+
+/// Downloads a file from a URL with custom headers and writes it to a file while reporting progress from 0-100.
+pub fn download_url_to_file_with_headers<A, S: AsRef<Path>>(url: &str, file_path: S, headers: &[(&str, &str)], mut progress: A) -> Result<(), Error>
 where
     A: FnMut(i16),
 {
     let file_path = file_path.as_ref();
     let agent = get_download_agent()?;
-    let (head, body) = agent.get(url).call()?.into_parts();
+    let mut req = agent.get(url);
+    for &(name, value) in headers {
+        req = req.header(name, value);
+    }
+    let (head, body) = req.call()?.into_parts();
 
     let total_size = head.headers.get("Content-Length").and_then(|s| s.to_str().ok()).and_then(|s| s.parse::<u64>().ok());
     let mut file = misc::retry_io(|| File::create(file_path))?;
@@ -46,8 +58,17 @@ where
 
 /// Downloads a file from a URL and returns it as a string.
 pub fn download_url_as_string(url: &str) -> Result<String, Error> {
+    download_url_as_string_with_headers(url, &[])
+}
+
+/// Downloads a file from a URL with custom headers and returns it as a string.
+pub fn download_url_as_string_with_headers(url: &str, headers: &[(&str, &str)]) -> Result<String, Error> {
     let agent = get_download_agent()?;
-    let r = agent.get(url).call()?.body_mut().read_to_string()?;
+    let mut req = agent.get(url);
+    for &(name, value) in headers {
+        req = req.header(name, value);
+    }
+    let r = req.call()?.body_mut().read_to_string()?;
     Ok(r)
 }
 

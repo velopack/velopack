@@ -1,0 +1,25 @@
+name: 'Cancel Workflow'
+description: 'Cancels the current workflow run and annotates which job triggered it'
+runs:
+  using: 'composite'
+  steps:
+    - name: Cancel workflow run
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        echo "::error title=Workflow Cancelled::The job '${{ github.job }}' failed and cancelled the workflow run."
+        {
+          echo "## :no_entry_sign: Workflow Cancelled"
+          echo ""
+          echo "A job failure triggered cancellation of this workflow run."
+          echo ""
+          echo "| | |"
+          echo "|---|---|"
+          echo "| **Workflow** | \`${{ github.workflow }}\` |"
+          echo "| **Failed Job** | \`${{ github.job }}\` |"
+          echo "| **Run** | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
+          echo "| **Commit** | \`${GITHUB_SHA::8}\` |"
+          echo "| **Branch** | \`${{ github.ref_name }}\` |"
+        } >> "$GITHUB_STEP_SUMMARY"
+        gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}

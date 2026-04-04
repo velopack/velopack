@@ -21,7 +21,10 @@ pub extern "system" fn EarlyBootstrap(h_install: MSIHANDLE) -> c_uint {
 
     show_debug_message(
         "EarlyBootstrap",
-        format!("RustRuntimeDependencies={:?} RustAppTitle={:?} RustAppVersion={:?}", dependencies, app_name, app_version),
+        format!(
+            "RustRuntimeDependencies={:?} RustAppTitle={:?} RustAppVersion={:?}",
+            dependencies, app_name, app_version
+        ),
     );
 
     if let Some(dependencies) = dependencies {
@@ -55,7 +58,10 @@ pub extern "system" fn CleanupDeferred(h_install: MSIHANDLE) -> c_uint {
         let app_id = custom_data.next();
         let temp_dir = custom_data.next();
 
-        show_debug_message("CleanupDeferred", format!("install_dir={:?}, app_id={:?}, temp_dir={:?}", install_dir, app_id, temp_dir));
+        show_debug_message(
+            "CleanupDeferred",
+            format!("install_dir={:?}, app_id={:?}, temp_dir={:?}", install_dir, app_id, temp_dir),
+        );
 
         if let Some(install_dir) = install_dir {
             if let Err(e) = remove_dir_all::remove_dir_all(install_dir) {
@@ -67,7 +73,10 @@ pub extern "system" fn CleanupDeferred(h_install: MSIHANDLE) -> c_uint {
             if let Ok(appdata) = std::env::var("LOCALAPPDATA") {
                 let velopack_app_dir = PathBuf::from(appdata).join(app_id);
                 if let Err(e) = remove_dir_all::remove_dir_all(&velopack_app_dir) {
-                    show_debug_message("CleanupDeferred", format!("Failed to remove local app data directory: {:?} {}", velopack_app_dir, e));
+                    show_debug_message(
+                        "CleanupDeferred",
+                        format!("Failed to remove local app data directory: {:?} {}", velopack_app_dir, e),
+                    );
                 }
             }
 
@@ -94,8 +103,11 @@ pub extern "system" fn LaunchApplication(h_install: MSIHANDLE) -> c_uint {
     if let Some(install_dir) = install_dir {
         if let Some(stub_file) = stub_file {
             let stub_path = PathBuf::from(&install_dir).join(stub_file);
-            show_debug_message("LaunchApplication", format!("INSTALLFOLDER={:?}, RustStubFileName={:?}", install_dir, stub_path));
-            
+            show_debug_message(
+                "LaunchApplication",
+                format!("INSTALLFOLDER={:?}, RustStubFileName={:?}", install_dir, stub_path),
+            );
+
             //NB: Need to start the process because the MSI starting a child process won't have any environment variables set.
             if let Err(e) = process::start_process(stub_path, vec![], Some(&install_dir), false) {
                 show_debug_message("LaunchApplication", format!("Failed to launch application: {}", e));

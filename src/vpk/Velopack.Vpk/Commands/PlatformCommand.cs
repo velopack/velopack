@@ -4,7 +4,7 @@ public abstract class PlatformCommand : OutputCommand
 {
     public string TargetRuntime { get; private set; }
 
-    protected CliOption<string> TargetRuntimeOption { get; private set; }
+    protected Option<string> TargetRuntimeOption { get; private set; }
 
     protected PlatformCommand(string name, string description, RuntimeOs targetOs = RuntimeOs.Unknown) : base(name, description, targetOs)
     {

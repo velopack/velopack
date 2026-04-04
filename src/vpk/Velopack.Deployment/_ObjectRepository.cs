@@ -58,7 +58,7 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
         var remoteReleases = await GetReleasesAsync(options);
         Log.Info($"There are {remoteReleases.Assets.Length} asset(s) in remote releases file.");
 
-        var localEntries = build.GetReleaseEntries();
+        var localEntries = await build.GetReleaseEntriesAsync().ConfigureAwait(false);
         var releaseEntries = ReleaseEntryHelper.MergeAssets(localEntries, remoteReleases.Assets).ToArray();
 
         Log.Info($"{releaseEntries.Length} merged local/remote release(s).");

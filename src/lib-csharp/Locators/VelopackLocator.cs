@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Velopack.Logging;
+using Velopack.Util;
 
 namespace Velopack.Locators
 {
@@ -87,6 +88,9 @@ namespace Velopack.Locators
         public abstract string? Channel { get; }
 
         /// <inheritdoc/>
+        public virtual string? AppUserModelId => AppId != null ? CoreUtil.GetAppUserModelId(AppId) : null;
+
+        /// <inheritdoc/>
         public virtual IVelopackLogger Log => ((IVelopackLogger?) CombinedLogger) ?? new NullVelopackLogger();
 
         /// <inheritdoc/>
@@ -130,7 +134,7 @@ namespace Velopack.Locators
                 if (PackagesDir is { } packagesDir) {
                     foreach (var pkg in Directory.EnumerateFiles(packagesDir, "*.nupkg")) {
                         try {
-                            var asset = VelopackAsset.FromNupkg(pkg);
+                            var asset = VelopackAsset.FromNupkgNoChecksum(pkg);
                             if (asset?.Version != null) {
                                 list.Add(asset);
                             }

@@ -4,6 +4,7 @@ using Velopack.Core;
 using Velopack.Deployment;
 using Velopack.Locators;
 using Velopack.Sources;
+using Velopack.TestCommon;
 using Velopack.Util;
 
 namespace Velopack.Packaging.Tests;

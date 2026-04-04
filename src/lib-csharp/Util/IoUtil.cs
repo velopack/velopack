@@ -18,38 +18,24 @@ namespace Velopack.Util
             return rootPath.EnumerateFiles("*", SearchOption.AllDirectories);
         }
 
-        public static string CalculateFileSHA1(string filePath)
+        public static async Task<(string SHA1, string SHA256)> CalculateFileSHA1AndSHA256Async(string filePath)
         {
             var bufferSize = 1000000; // 1mb
-            using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize)) {
-                return CalculateStreamSHA1(stream);
+            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, useAsync: true);
+            using var sha1 = SHA1.Create();
+            using var sha256 = SHA256.Create();
+            var buffer = new byte[bufferSize];
+            int bytesRead;
+            while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false)) > 0) {
+                sha1.TransformBlock(buffer, 0, bytesRead, null, 0);
+                sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
             }
-        }
-
-        public static string CalculateStreamSHA1(Stream file)
-        {
-            using (var sha1 = SHA1.Create()) {
-                return BitConverter.ToString(sha1.ComputeHash(file)).Replace("-", String.Empty);
-            }
-        }
-
-        /// <inheritdoc cref="CalculateStreamSHA256"/>
-        public static string CalculateFileSHA256(string filePath)
-        {
-            var bufferSize = 1000000; // 1mb
-            using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize)) {
-                return CalculateStreamSHA256(stream);
-            }
-        }
-
-        /// <summary>
-        /// Get SHA256 hash of the specified file and returns the result as a base64 encoded string (with length 44)
-        /// </summary>
-        public static string CalculateStreamSHA256(Stream file)
-        {
-            using (var sha256 = SHA256.Create()) {
-                return BitConverter.ToString(sha256.ComputeHash(file)).Replace("-", String.Empty);
-            }
+            sha1.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+            sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+            return (
+                BitConverter.ToString(sha1.Hash!).Replace("-", String.Empty),
+                BitConverter.ToString(sha256.Hash!).Replace("-", String.Empty)
+            );
         }
 
         public static void MoveFile(string source, string dest, bool overwrite)

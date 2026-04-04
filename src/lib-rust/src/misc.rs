@@ -43,6 +43,14 @@ pub fn random_string(len: usize) -> String {
     Alphanumeric.sample_string(&mut rand::rng(), len)
 }
 
+fn to_hex(bytes: &[u8]) -> String {
+    bytes.iter().fold(String::with_capacity(bytes.len() * 2), |mut s, b| {
+        use std::fmt::Write;
+        write!(s, "{:02X}", b).unwrap();
+        s
+    })
+}
+
 pub fn calculate_sha1_sha256<P: AsRef<Path>>(file: P) -> Result<(String, String), Error> {
     let file = File::open(file)?;
     let mut reader = BufReader::new(file);
@@ -61,8 +69,8 @@ pub fn calculate_sha1_sha256<P: AsRef<Path>>(file: P) -> Result<(String, String)
         sha1.update(&buffer[..bytes_read]);
     }
 
-    let sha256_hash = format!("{:x}", sha256.finalize());
-    let sha1_hash = format!("{:x}", sha1.finalize());
+    let sha256_hash = to_hex(&sha256.finalize());
+    let sha1_hash = to_hex(&sha1.finalize());
 
     Ok((sha1_hash, sha256_hash))
 }
@@ -108,4 +116,37 @@ pub fn is_sub_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, parent: P2) -> bo
     }
 
     path.starts_with(&parent)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn test_to_hex() {
+        assert_eq!(to_hex(&[]), "");
+        assert_eq!(to_hex(&[0x00]), "00");
+        assert_eq!(to_hex(&[0xff]), "FF");
+        assert_eq!(to_hex(&[0xde, 0xad, 0xbe, 0xef]), "DEADBEEF");
+    }
+
+    #[test]
+    fn test_calculate_sha1_sha256() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.txt");
+        let mut f = File::create(&path).unwrap();
+        f.write_all(b"hello world").unwrap();
+        drop(f);
+
+        let (sha1, sha256) = calculate_sha1_sha256(&path).unwrap();
+
+        // known hashes for "hello world"
+        assert_eq!(sha1, "2AAE6C35C94FCFB415DBE95F408B9CE91EE846ED");
+        assert_eq!(sha256, "B94D27B9934D3E08A52E52D7DA7DABFAC484EFE37A5380EE9088F7ACE2EFCDE9");
+
+        // verify they are uppercase hex (consistent with C# BitConverter.ToString)
+        assert!(sha1.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_lowercase()));
+        assert!(sha256.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_lowercase()));
+    }
 }

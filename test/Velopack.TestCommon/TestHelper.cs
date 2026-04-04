@@ -1,40 +1,22 @@
+#nullable enable
 using System.Diagnostics;
-using System.Runtime.Versioning;
 using Velopack.Core;
-using Velopack.Packaging.Windows.Commands;
 using Velopack.Util;
-using Velopack.Vpk;
-using Velopack.Vpk.Logging;
 
-namespace Velopack.Packaging.Tests;
+namespace Velopack.TestCommon;
 
-[SupportedOSPlatform("windows")]
-internal static class WindowsTestHelper
+public static class TestHelper
 {
     private static readonly Random _random = Random.Shared;
 
-    internal static string RandomString(int length)
+    public static string RandomString(int length)
     {
-        string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".ToLower();
+        string chars = "abcdefghijklmnopqrstuvwxyz0123456789";
         return new string(
             [.. Enumerable.Repeat(chars, length).Select(s => s[_random.Next(s.Length)])]);
     }
 
-    internal static WindowsPackCommandRunner GetPackRunner(ILogger logger)
-    {
-        var console = new BasicConsole(logger, new VelopackDefaults(false));
-        return new WindowsPackCommandRunner(logger, console);
-    }
-
-    internal static string GetLogFilePath(string appId)
-    {
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "velopack",
-            $"velopack_{appId}.log");
-    }
-
-    internal static string ReadFileWithRetry(string path, ILogger logger)
+    public static string ReadFileWithRetry(string path, ILogger logger)
     {
         return IoUtil.Retry(
             () => File.ReadAllText(path),
@@ -43,7 +25,7 @@ internal static class WindowsTestHelper
             retryDelay: 1000);
     }
 
-    internal static string RunImpl(ProcessStartInfo psi, ILogger logger, int? exitCode = 0)
+    public static string RunImpl(ProcessStartInfo psi, ILogger logger, int? exitCode = 0)
     {
         var outputFile = PathHelper.GetTestRootPath($"run.{RandomString(8)}.log");
 
@@ -52,16 +34,34 @@ internal static class WindowsTestHelper
             psi.ArgumentList.CopyTo(args, 0);
             new ProcessStartInfo().AppendArgumentListSafe(args, out var debug);
 
-            var fix = new ProcessStartInfo("cmd.exe");
-            fix.CreateNoWindow = true;
-            fix.WorkingDirectory = psi.WorkingDirectory;
-            fix.Arguments = $"/s /c \"\"{psi.FileName}\" {debug} > \"{outputFile}\" 2>&1\"";
+            ProcessStartInfo fix;
+            if (VelopackRuntimeInfo.IsWindows) {
+                fix = new ProcessStartInfo("cmd.exe");
+                fix.CreateNoWindow = true;
+                fix.WorkingDirectory = psi.WorkingDirectory;
+                fix.Arguments = $"/s /c \"\"{psi.FileName}\" {debug} > \"{outputFile}\" 2>&1\"";
+            } else {
+                fix = new ProcessStartInfo("/bin/bash");
+                fix.CreateNoWindow = true;
+                fix.WorkingDirectory = psi.WorkingDirectory;
+                // Use ArgumentList so .NET passes each item as a discrete argv entry
+                // instead of re-tokenizing a single Arguments string.
+                fix.ArgumentList.Add("-c");
+                fix.ArgumentList.Add($"\"{psi.FileName}\" {debug} > \"{outputFile}\" 2>&1");
+            }
+
+            // Copy environment variables from the original PSI
+            foreach (string key in psi.EnvironmentVariables.Keys) {
+                fix.EnvironmentVariables[key] = psi.EnvironmentVariables[key];
+            }
 
             Stopwatch sw = new Stopwatch();
             sw.Start();
 
-            logger.Info($"TEST: Running {fix.FileName} {fix.Arguments}");
-            using var p = Process.Start(fix);
+            new ProcessStartInfo().AppendArgumentListSafe(
+                [.. fix.ArgumentList], out var fixDebug);
+            logger.Info($"TEST: Running {fix.FileName} {fix.Arguments}{fixDebug}");
+            using var p = Process.Start(fix)!;
 
             var timeout = TimeSpan.FromMinutes(3);
             if (!p.WaitForExit(timeout))
@@ -105,31 +105,8 @@ internal static class WindowsTestHelper
         }
     }
 
-    internal static string RunCoveredDotnet(string exe, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
-    {
-        var outputfile = PathHelper.GetTestRootPath($"coverage.rundotnet.{RandomString(8)}.xml");
-
-        if (!File.Exists(exe))
-            throw new Exception($"File {exe} does not exist.");
-
-        var psi = new ProcessStartInfo("dotnet-coverage");
-        psi.WorkingDirectory = workingDir;
-        psi.CreateNoWindow = true;
-        psi.RedirectStandardOutput = true;
-        psi.RedirectStandardError = true;
-
-        psi.ArgumentList.Add("collect");
-        psi.ArgumentList.Add("-o");
-        psi.ArgumentList.Add(outputfile);
-        psi.ArgumentList.Add("-f");
-        psi.ArgumentList.Add("cobertura");
-        psi.ArgumentList.Add(exe);
-        foreach (var arg in args) psi.ArgumentList.Add(arg);
-
-        return RunImpl(psi, logger, exitCode);
-    }
-
-    internal static string RunNoCoverage(string exe, string[] args, string workingDir, ILogger logger, int? exitCode = 0)
+    public static string RunNoCoverage(string exe, string[] args, string workingDir, ILogger logger,
+        int? exitCode = 0, IDictionary<string, string>? envVars = null)
     {
         if (!File.Exists(exe))
             throw new Exception($"File {exe} does not exist.");
@@ -140,6 +117,13 @@ internal static class WindowsTestHelper
         psi.RedirectStandardOutput = true;
         psi.RedirectStandardError = true;
         foreach (var arg in args) psi.ArgumentList.Add(arg);
+
+        if (envVars != null) {
+            foreach (var kvp in envVars) {
+                psi.EnvironmentVariables[kvp.Key] = kvp.Value;
+            }
+        }
+
         return RunImpl(psi, logger, exitCode);
     }
 }

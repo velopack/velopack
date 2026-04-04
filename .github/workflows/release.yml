@@ -22,7 +22,7 @@ jobs:
       pkg_version: ${{ steps.version.outputs.pkg_version }}
     steps:
       - name: Download build version
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: build-version
           run-id: ${{ github.event.inputs.workflow_run_id }}
@@ -37,7 +37,7 @@ jobs:
           echo "pkg_version=$version" >> $GITHUB_OUTPUT
 
       - name: Download vpk
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: packages
           run-id: ${{ github.event.inputs.workflow_run_id }}
@@ -45,7 +45,7 @@ jobs:
           path: ./packages
 
       - name: Download lib-nodejs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: lib-nodejs
           run-id: ${{ github.event.inputs.workflow_run_id }}
@@ -53,7 +53,7 @@ jobs:
           path: ./lib-nodejs
 
       - name: Download lib-rust
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: lib-rust
           run-id: ${{ github.event.inputs.workflow_run_id }}
@@ -61,7 +61,7 @@ jobs:
           path: ./lib-rust
 
       - name: Download lib-c
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: lib-c
           run-id: ${{ github.event.inputs.workflow_run_id }}
@@ -75,7 +75,7 @@ jobs:
           zip -r ../lib-c/velopack_libc_$PKG_VERSION.zip .
 
       - name: Download lib-python
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: lib-python
           run-id: ${{ github.event.inputs.workflow_run_id }}
@@ -88,7 +88,7 @@ jobs:
           mkdir -p ../lib-python
           zip -r ../lib-python/velopack_libpython_$PKG_VERSION.zip .
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           path: ./repo
           fetch-depth: 0
@@ -228,7 +228,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download NuGet packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: packages
           run-id: ${{ github.event.inputs.workflow_run_id }}
@@ -254,7 +254,7 @@ jobs:
       PKG_VERSION: ${{ needs.release.outputs.pkg_version }}
     steps:
       - name: Download NPM package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: lib-nodejs
           run-id: ${{ github.event.inputs.workflow_run_id }}
@@ -277,7 +277,7 @@ jobs:
       PKG_VERSION: ${{ needs.release.outputs.pkg_version }}
     steps:
       - name: Download Rust crate
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: lib-rust
           run-id: ${{ github.event.inputs.workflow_run_id }}
@@ -303,7 +303,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Python package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: lib-python
           run-id: ${{ github.event.inputs.workflow_run_id }}

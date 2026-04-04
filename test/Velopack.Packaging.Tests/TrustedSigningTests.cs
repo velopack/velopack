@@ -2,6 +2,7 @@
 using Azure.Identity;
 using Microsoft.Security.Extensions;
 using Velopack.Packaging.Windows;
+using Velopack.TestCommon;
 using Velopack.Util;
 
 namespace Velopack.Packaging.Tests;

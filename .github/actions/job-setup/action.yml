@@ -2,6 +2,10 @@ name: "Setup Job Environment"
 description: "Installs dependencies like dotnet, rust, etc."
 
 inputs:
+  dotnet:
+    description: 'Whether to install all dotnet versions'
+    required: false
+    default: 'false'
   rust-cache:
     description: 'Whether to run the rust-cache action'
     required: false
@@ -11,21 +15,28 @@ runs:
   using: "composite"
   steps:
     - name: Setup dotnet
-      uses: actions/setup-dotnet@v4
+      if: inputs.dotnet == 'true'
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: |
           8.0.x
           9.0.x
           10.0.x
+    - name: Set DOTNET_ROOT
+      if: inputs.dotnet != 'true'
+      shell: bash
+      run: |
+        DOTNET_PATH="$(dirname "$(readlink -f "$(which dotnet)" 2>/dev/null || realpath "$(which dotnet)")")"
+        echo "DOTNET_ROOT=$DOTNET_PATH" >> "$GITHUB_ENV"
     - name: Print dotnet version
       shell: pwsh
       run: dotnet --info
     - name: Install NBGV CLI
       shell: pwsh
       run: dotnet tool update -g nbgv
-    - uses: dotnet/nbgv@master
-      with:
-        setAllVars: true
+    - name: Set NBGV Variables
+      shell: pwsh
+      run: nbgv cloud -a -s GitHubActions
     - name: Update Project Version
       shell: pwsh
       run: ./.github/set-nbgv-version.ps1

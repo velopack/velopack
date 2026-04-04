@@ -13,7 +13,9 @@ using Velopack.Vpk;
 using Velopack.Vpk.Logging;
 using Velopack.Windows;
 
-namespace Velopack.Packaging.Tests;
+using Velopack.TestCommon;
+
+namespace Velopack.Pack.Tests;
 
 [SupportedOSPlatform("windows")]
 public class WindowsPackTests
@@ -92,6 +94,79 @@ public class WindowsPackTests
         // check for other files
         Assert.True(File.Exists(Path.Combine(unzipDir, "lib", "app", Path.GetFileName(exe))));
         Assert.False(File.Exists(Path.Combine(unzipDir, "lib", "app", Path.GetFileName(pdb))));
+    }
+
+    [Fact]
+    public async Task PackBuildMainExeInSubfolder()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+
+        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+        using var _2 = TempUtil.GetTempDirectory(out var installDir);
+        using var _3 = TempUtil.GetTempDirectory(out var unzipDir);
+        string id = "SquirrelSubfolderTest";
+        string subfolder = "Folder1";
+
+        // pack v1 with mainExe in a subfolder
+        await PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger, mainExeSubfolder: subfolder);
+
+        // verify the nupkg has correct nuspec mainExe and file layout
+        var nupkgPath = Path.Combine(releaseDir, $"{id}-1.0.0-full.nupkg");
+        Assert.True(File.Exists(nupkgPath));
+        EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), nupkgPath, unzipDir);
+
+        var nuspecPath = Path.Combine(unzipDir, $"{id}.nuspec");
+        var xml = XDocument.Load(nuspecPath);
+        var mainExeValue = xml.Root.ElementsNoNamespace("metadata").Single().ElementsNoNamespace("mainExe").Single().Value;
+        Assert.Equal($"{subfolder}/TestApp.exe", mainExeValue);
+        Assert.True(File.Exists(Path.Combine(unzipDir, "lib", "app", subfolder, "TestApp.exe")));
+        logger.Info("TEST: v1 nupkg verified");
+
+        // install app
+        var setupPath = Path.Combine(releaseDir, $"{id}-win-Setup.exe");
+        WindowsTestHelper.RunNoCoverage(
+            setupPath,
+            ["--silent", "--installto", installDir],
+            Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+            logger);
+
+        // check app installed correctly — exe should be in current/subfolder/
+        var appPath = Path.Combine(installDir, "current", subfolder, "TestApp.exe");
+        Assert.True(File.Exists(appPath));
+        logger.Info("TEST: v1 installed");
+
+        // check app runs correctly
+        var chk1version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "1.0.0", chk1version);
+        var chk1test = WindowsTestHelper.RunCoveredDotnet(appPath, ["test"], installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "version 1 test", chk1test);
+        logger.Info("TEST: v1 output verified");
+
+        // pack v2 with mainExe in same subfolder
+        await PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger, mainExeSubfolder: subfolder);
+
+        // check can find v2 update
+        var chk2check = WindowsTestHelper.RunCoveredDotnet(appPath, ["check", releaseDir], installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "update: 2.0.0", chk2check);
+        logger.Info("TEST: found v2 update");
+
+        // download and apply update
+        WindowsTestHelper.RunCoveredDotnet(appPath, ["download", releaseDir], installDir, logger);
+        WindowsTestHelper.RunCoveredDotnet(appPath, ["apply", releaseDir], installDir, logger, exitCode: null);
+        logger.Info("TEST: v2 applied");
+
+        // check v2 is running
+        var chk2version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        var chk2test = WindowsTestHelper.RunCoveredDotnet(appPath, ["test"], installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "version 2 test", chk2test);
+        logger.Info("TEST: v2 output verified");
+
+        // uninstall
+        var updatePath = Path.Combine(installDir, "Update.exe");
+        WindowsTestHelper.RunNoCoverage(updatePath, ["--silent", "--uninstall"], Environment.CurrentDirectory, logger);
+        logger.Info("TEST: uninstalled / complete");
     }
 
     [Fact]
@@ -636,7 +711,7 @@ public class WindowsPackTests
     }
 
     private static async Task PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
-        bool addNewFile = false, string assemblyNameOverride = null)
+        bool addNewFile = false, string assemblyNameOverride = null, string mainExeSubfolder = null)
     {
         var projDir = PathHelper.GetTestRootPath("TestApp");
         var testStringFile = Path.Combine(projDir, "Const.cs");
@@ -684,8 +759,19 @@ public class WindowsPackTests
                 File.Move(Path.Combine(publishDir, "TestApp.exe"), targetExe);
             }
 
+            var exeName = (assemblyNameOverride ?? "TestApp") + ".exe";
+
+            if (mainExeSubfolder != null) {
+                var subDir = Path.Combine(publishDir, mainExeSubfolder);
+                Directory.CreateDirectory(subDir);
+                foreach (var file in Directory.GetFiles(publishDir)) {
+                    File.Move(file, Path.Combine(subDir, Path.GetFileName(file)), true);
+                }
+                exeName = Path.Combine(mainExeSubfolder, exeName);
+            }
+
             var options = new WindowsPackOptions {
-                EntryExecutableName = (assemblyNameOverride ?? "TestApp") + ".exe",
+                EntryExecutableName = exeName,
                 ReleaseDir = new DirectoryInfo(releaseDir),
                 PackId = id,
                 PackVersion = version,

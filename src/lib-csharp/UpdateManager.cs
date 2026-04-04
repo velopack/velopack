@@ -270,7 +270,7 @@ namespace Velopack
                 File.Delete(incompleteFile);
                 await Source.DownloadReleaseEntry(Log, targetRelease, incompleteFile, reportProgress, cancelToken).ConfigureAwait(false);
                 Log.Info("Verifying package checksum...");
-                VerifyPackageChecksum(targetRelease, incompleteFile);
+                await VerifyPackageChecksumAsync(targetRelease, incompleteFile).ConfigureAwait(false);
 
                 IoUtil.MoveFile(incompleteFile, completeFile, true);
                 Log.Info("Full release download complete. Package moved to: " + completeFile);
@@ -382,7 +382,7 @@ namespace Velopack
                         }
                     },
                     cancelToken).ConfigureAwait(false);
-                VerifyPackageChecksum(x, targetFile);
+                await VerifyPackageChecksumAsync(x, targetFile).ConfigureAwait(false);
                 cancelToken.ThrowIfCancellationRequested();
                 Log.Debug($"Download complete for delta version {x.Version}");
             }).ConfigureAwait(false);
@@ -468,7 +468,7 @@ namespace Velopack
         /// </summary>
         /// <param name="release">The entry to check</param>
         /// <param name="filePathOverride">Optional file path, if not specified the package will be loaded from %pkgdir%/release.OriginalFilename.</param>
-        protected internal virtual void VerifyPackageChecksum(VelopackAsset release, string? filePathOverride = null)
+        protected internal virtual async Task VerifyPackageChecksumAsync(VelopackAsset release, string? filePathOverride = null)
         {
             var targetPackage = new FileInfo(filePathOverride ?? Locator.GetLocalPackagePath(release));
 
@@ -480,15 +480,17 @@ namespace Velopack
                 throw new ChecksumFailedException(targetPackage.FullName, $"Size doesn't match ({targetPackage.Length} != {release.Size}).");
             }
 
+            // SHA1 is required and should always be present in the remote feed.
+            // SHA256 is optional and only supported by newer clients, so if it's
+            // missing from the remote asset we fall back to verifying SHA1 only.
+            var (sha1, sha256) = await IoUtil.CalculateFileSHA1AndSHA256Async(targetPackage.FullName).ConfigureAwait(false);
             if (!string.IsNullOrEmpty(release.SHA256)) {
-                var hash = IoUtil.CalculateFileSHA256(targetPackage.FullName);
-                if (!hash.Equals(release.SHA256, StringComparison.Ordinal)) {
-                    throw new ChecksumFailedException(targetPackage.FullName, $"SHA256 doesn't match ({release.SHA256} != {hash}).");
+                if (!sha256.Equals(release.SHA256, StringComparison.Ordinal)) {
+                    throw new ChecksumFailedException(targetPackage.FullName, $"SHA256 doesn't match ({release.SHA256} != {sha256}).");
                 }
             } else {
-                var hash = IoUtil.CalculateFileSHA1(targetPackage.FullName);
-                if (!hash.Equals(release.SHA1, StringComparison.OrdinalIgnoreCase)) {
-                    throw new ChecksumFailedException(targetPackage.FullName, $"SHA1 doesn't match ({release.SHA1} != {hash}).");
+                if (!sha1.Equals(release.SHA1, StringComparison.OrdinalIgnoreCase)) {
+                    throw new ChecksumFailedException(targetPackage.FullName, $"SHA1 doesn't match ({release.SHA1} != {sha1}).");
                 }
             }
         }

@@ -1,14 +1,10 @@
 using System.Runtime.CompilerServices;
+using Velopack.TestCommon;
 
 namespace Velopack.Packaging.Tests;
 
-internal static class TestsInit
+internal static class Init
 {
     [ModuleInitializer]
-    internal static void Init()
-    {
-        HelperFile.AddSearchPath(PathHelper.GetRustBuildOutputDir());
-        HelperFile.AddSearchPath(PathHelper.GetVendorLibDir());
-        HelperFile.AddSearchPath(PathHelper.GetArtworkDir());
-    }
+    internal static void Initialize() => TestsInit.Init();
 }

@@ -5,6 +5,7 @@ using Velopack.Core;
 using Velopack.Deployment;
 using Velopack.Packaging.Exceptions;
 using Velopack.Sources;
+using Velopack.TestCommon;
 using Velopack.Util;
 
 namespace Velopack.Packaging.Tests;

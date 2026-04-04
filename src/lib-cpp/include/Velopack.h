@@ -222,6 +222,46 @@ vpkc_update_source_t *vpkc_new_source_file(const char *psz_file_path);
 vpkc_update_source_t *vpkc_new_source_http_url(const char *psz_http_url);
 
 /**
+ * Create a new GithubSource update source for a GitHub repository.
+ * @param psz_repo_url The GitHub repository URL (e.g. "https://github.com/user/repo").
+ * @param psz_access_token Optional access token for private repositories (can be null).
+ * @param b_prerelease Whether to include pre-release versions.
+ * @returns A new vpkc_update_source_t instance, or null on error.
+ */
+vpkc_update_source_t *vpkc_new_source_github(const char *psz_repo_url,
+                                             const char *psz_access_token,
+                                             bool b_prerelease);
+
+/**
+ * Create a new GitlabSource update source for a GitLab repository.
+ * @param psz_repo_url The GitLab repository URL (e.g. "https://gitlab.com/user/repo").
+ * @param psz_access_token Optional access token for private repositories (can be null).
+ * @param b_prerelease Whether to include pre-release versions.
+ * @returns A new vpkc_update_source_t instance, or null on error.
+ */
+vpkc_update_source_t *vpkc_new_source_gitlab(const char *psz_repo_url,
+                                             const char *psz_access_token,
+                                             bool b_prerelease);
+
+/**
+ * Create a new GiteaSource update source for a Gitea repository.
+ * @param psz_repo_url The Gitea repository URL (e.g. "https://gitea.example.com/user/repo").
+ * @param psz_access_token Optional access token for private repositories (can be null).
+ * @param b_prerelease Whether to include pre-release versions.
+ * @returns A new vpkc_update_source_t instance, or null on error.
+ */
+vpkc_update_source_t *vpkc_new_source_gitea(const char *psz_repo_url,
+                                            const char *psz_access_token,
+                                            bool b_prerelease);
+
+/**
+ * Create a new VelopackFlowSource update source for Velopack Flow.
+ * @param psz_base_uri Optional base URI for the Velopack Flow API (can be null for default).
+ * @returns A new vpkc_update_source_t instance, or null on error.
+ */
+vpkc_update_source_t *vpkc_new_source_velopack_flow(const char *psz_base_uri);
+
+/**
  * Create a new _CUSTOM_ update source with user-provided callbacks to fetch release feeds and download assets.
  * You can report download progress using `vpkc_source_report_progress`. Note that the callbacks must be valid
  * for the lifetime of any UpdateManager's that use this source. You should call `vpkc_free_source` to free the source,

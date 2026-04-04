@@ -1,15 +1,23 @@
-use crate::{dialogs, shared};
+use crate::shared::{
 use anyhow::{bail, Result};
 use std::{fs, path::PathBuf, process::Command};
 use velopack::{bundle, locator::VelopackLocator};
 
-pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _runhooks: bool) -> Result<VelopackLocator> {
+pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _hook_mode: super::HookRunMode) -> Result<VelopackLocator> {
     let _mutex = locator.try_get_exclusive_lock()?;
     let root_path = locator.get_root_dir();
     let tmp_path_new = locator.get_temp_dir_rand16();
     let tmp_path_old = locator.get_temp_dir_rand16();
-    let mut bundle = bundle::load_bundle_from_file(pkg)?;
-    let manifest = bundle.read_manifest()?;
+    let mut bundle = bundle::load_bundle_from_file(pkg).map_err(|e| {
+        warn!("Deleting package {:?} to prevent update loop: {}", pkg, e);
+        let _ = fs::remove_file(pkg);
+        e
+    })?;
+    let manifest = bundle.read_manifest().map_err(|e| {
+        warn!("Deleting package {:?} to prevent update loop: {}", pkg, e);
+        let _ = fs::remove_file(pkg);
+        e
+    })?;
     let new_locator = locator.clone_self_with_new_manifest(&manifest);
 
     // show progress dialog

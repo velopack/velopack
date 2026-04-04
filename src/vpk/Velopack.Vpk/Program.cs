@@ -27,35 +27,35 @@ namespace Velopack.Vpk;
 
 public class Program
 {
-    public static CliOption<bool> VerboseOption { get; }
-        = new CliOption<bool>("--verbose")
+    public static Option<bool> VerboseOption { get; }
+        = new Option<bool>("--verbose")
         .SetRecursive(true)
         .SetDescription("Print diagnostic messages.");
 
-    public static CliOption<bool> LegacyConsoleOption { get; }
-        = new CliOption<bool>("--legacyConsole", "-x")
+    public static Option<bool> LegacyConsoleOption { get; }
+        = new Option<bool>("--legacyConsole", "-x")
         .SetRecursive(true)
         .SetDescription("Disable console colors and interactive components.");
 
-    public static CliOption<bool> YesOption { get; }
-        = new CliOption<bool>("--yes", "-y")
+    public static Option<bool> YesOption { get; }
+        = new Option<bool>("--yes", "-y")
         .SetRecursive(true)
         .SetDescription("'yes' by instead of 'no' in non-interactive prompts.");
 
-    public static CliOption<bool> SkipUpdatesOption { get; }
-        = new CliOption<bool>("--skip-updates")
+    public static Option<bool> SkipUpdatesOption { get; }
+        = new Option<bool>("--skip-updates")
         .SetRecursive(true)
         .SetDescription("Skip update checks");
 
-    public static CliDirective WindowsDirective { get; } = new CliDirective("win") {
+    public static Directive WindowsDirective { get; } = new Directive("win") {
         Description = "Show and run Windows specific commands."
     };
 
-    public static CliDirective LinuxDirective { get; } = new CliDirective("linux") {
+    public static Directive LinuxDirective { get; } = new Directive("linux") {
         Description = "Show and run Linux specific commands."
     };
 
-    public static CliDirective OsxDirective { get; } = new CliDirective("osx") {
+    public static Directive OsxDirective { get; } = new Directive("osx") {
         Description = "Show and run MacOS specific commands."
     };
 
@@ -64,7 +64,7 @@ public class Program
 
     public static async Task<int> Main(string[] args)
     {
-        CliRootCommand rootCommand = new CliRootCommand(INTRO);
+        RootCommand rootCommand = new RootCommand(INTRO);
         rootCommand.Options.Clear(); // remove the default help option
         rootCommand.Options.Add(new LongHelpCommand());
         rootCommand.Options.Add(LegacyConsoleOption);
@@ -141,7 +141,7 @@ public class Program
             throw new NotSupportedException("Unsupported OS platform: " + VelopackRuntimeInfo.SystemOs.GetOsLongName());
         }
 
-        var downloadCommand = new CliCommand("download", "Download's the latest release from a remote update source.");
+        var downloadCommand = new Command("download", "Download's the latest release from a remote update source.");
         downloadCommand.AddRepositoryDownload<GitHubDownloadCommand, GitHubRepository, GitHubDownloadOptions>(provider);
         downloadCommand.AddRepositoryDownload<GiteaDownloadCommand, GiteaRepository, GiteaDownloadOptions>(provider);
         downloadCommand.AddRepositoryDownload<S3DownloadCommand, S3Repository, S3DownloadOptions>(provider);
@@ -150,7 +150,7 @@ public class Program
         downloadCommand.AddRepositoryDownload<HttpDownloadCommand, HttpRepository, HttpDownloadOptions>(provider);
         rootCommand.Add(downloadCommand);
 
-        var uploadCommand = new CliCommand("upload", "Upload local package(s) to a remote update source.");
+        var uploadCommand = new Command("upload", "Upload local package(s) to a remote update source.");
         uploadCommand.AddRepositoryUpload<GitHubUploadCommand, GitHubRepository, GitHubUploadOptions>(provider);
         uploadCommand.AddRepositoryUpload<GiteaUploadCommand, GiteaRepository, GiteaUploadOptions>(provider);
         uploadCommand.AddRepositoryUpload<S3UploadCommand, S3Repository, S3UploadOptions>(provider);
@@ -158,7 +158,7 @@ public class Program
         uploadCommand.AddRepositoryUpload<LocalUploadCommand, LocalRepository, LocalUploadOptions>(provider);
         rootCommand.Add(uploadCommand);
 
-        var deltaCommand = new CliCommand("delta", "Utilities for creating or applying delta packages.");
+        var deltaCommand = new Command("delta", "Utilities for creating or applying delta packages.");
         deltaCommand.AddCommand<DeltaGenCommand, DeltaGenCommandRunner, DeltaGenOptions>(provider);
         deltaCommand.AddCommand<DeltaPatchCommand, DeltaPatchCommandRunner, DeltaPatchOptions>(provider);
         rootCommand.Add(deltaCommand);
@@ -167,14 +167,13 @@ public class Program
         HideCommand(rootCommand.AddCommand<LogoutCommand, LogoutCommandRunner, LogoutOptions>(provider));
         HideCommand(rootCommand.AddCommand<PublishCommand, PublishCommandRunner, PublishOptions>(provider));
 
-        var flowCommand = new CliCommand("flow", "Commands for interacting with Velopack Flow.") { Hidden = true };
+        var flowCommand = new Command("flow", "Commands for interacting with Velopack Flow.") { Hidden = true };
         HideCommand(flowCommand.AddCommand<ApiCommand, ApiCommandRunner, ApiOptions>(provider));
         rootCommand.Add(flowCommand); 
 
-        var cli = new CliConfiguration(rootCommand);
-        return await cli.InvokeAsync(args); 
+        return await rootCommand.Parse(args).InvokeAsync();
 
-        static void HideCommand(CliCommand command) => command.Hidden = true;
+        static void HideCommand(Command command) => command.Hidden = true;
     }
 
     private static void SetupConfig(HostApplicationBuilder builder)
@@ -214,7 +213,7 @@ public class Program
 
 public static class ProgramCommandExtensions
 {
-    public static CliCommand AddCommand<TCli, TCmd, TOpt>(this CliCommand parent, IServiceProvider provider)
+    public static Command AddCommand<TCli, TCmd, TOpt>(this Command parent, IServiceProvider provider)
         where TCli : BaseCommand, new()
         where TCmd : ICommand<TOpt>
         where TOpt : class, new()
@@ -225,7 +224,7 @@ public static class ProgramCommandExtensions
         });
     }
 
-    public static CliCommand AddRepositoryDownload<TCli, TCmd, TOpt>(this CliCommand parent, IServiceProvider provider)
+    public static Command AddRepositoryDownload<TCli, TCmd, TOpt>(this Command parent, IServiceProvider provider)
         where TCli : BaseCommand, new()
         where TCmd : IRepositoryCanDownload<TOpt>
         where TOpt : RepositoryOptions, new()
@@ -236,7 +235,7 @@ public static class ProgramCommandExtensions
         });
     }
 
-    public static CliCommand AddRepositoryUpload<TCli, TCmd, TOpt>(this CliCommand parent, IServiceProvider provider)
+    public static Command AddRepositoryUpload<TCli, TCmd, TOpt>(this Command parent, IServiceProvider provider)
         where TCli : BaseCommand, new()
         where TCmd : IRepositoryCanUpload<TOpt>
         where TOpt : RepositoryOptions, new()
@@ -247,7 +246,7 @@ public static class ProgramCommandExtensions
         });
     }
 
-    private static CliCommand Add<TCli, TOpt>(this CliCommand parent, IServiceProvider provider, Func<TOpt, Task> fn)
+    private static Command Add<TCli, TOpt>(this Command parent, IServiceProvider provider, Func<TOpt, Task> fn)
         where TCli : BaseCommand, new()
         where TOpt : class, new()
     {

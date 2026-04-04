@@ -40,6 +40,9 @@ namespace Velopack.Locators
         /// <inheritdoc />
         public override string? Channel { get; }
 
+        /// <inheritdoc />
+        public override string? AppUserModelId { get; }
+
         /// <inheritdoc cref="WindowsVelopackLocator" />
         public WindowsVelopackLocator(IProcessImpl? processImpl, IVelopackLogger? customLog)
         {
@@ -64,7 +67,7 @@ namespace Velopack.Locators
             string myDirPath = Path.GetDirectoryName(ourPath)!;
             var myDirName = Path.GetFileName(myDirPath);
             var possibleUpdateExe = Path.GetFullPath(Path.Combine(myDirPath, "..", "Update.exe"));
-            var ixCurrent = ourPath.LastIndexOf("/current/", StringComparison.InvariantCultureIgnoreCase);
+            var ixCurrent = ourPath.LastIndexOf("\\current\\", StringComparison.OrdinalIgnoreCase);
 
             if (File.Exists(possibleUpdateExe)) {
                 // we're running in a directory with an Update.exe in the parent directory
@@ -79,6 +82,9 @@ namespace Velopack.Locators
                     UpdateExePath = possibleUpdateExe;
                     AppContentDir = myDirPath;
                     Channel = manifest.Channel;
+                    AppUserModelId = !string.IsNullOrEmpty(manifest.ShortcutAumid)
+                        ? manifest.ShortcutAumid
+                        : CoreUtil.GetAppUserModelId(manifest.Id!);
                 } else if (PathUtil.PathPartStartsWith(myDirName, "app-") && SemanticVersion.TryParse(myDirName.Substring(4), out var version)) {
                     // this is a legacy case, where we're running in an 'root/app-*/' directory, and there is no manifest.
                     initLog.Warn(
@@ -107,6 +113,9 @@ namespace Velopack.Locators
                     CurrentlyInstalledVersion = manifest.Version;
                     AppContentDir = currentDir;
                     Channel = manifest.Channel;
+                    AppUserModelId = !string.IsNullOrEmpty(manifest.ShortcutAumid)
+                        ? manifest.ShortcutAumid
+                        : CoreUtil.GetAppUserModelId(manifest.Id!);
                 }
             }
 

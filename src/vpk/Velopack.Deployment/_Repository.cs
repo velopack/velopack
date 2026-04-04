@@ -80,9 +80,10 @@ public abstract class DownRepository<TDown> : IRepositoryCanDownload<TDown>
         if (File.Exists(path)) {
             Log.Warn($"File '{path}' already exists on disk. Verifying checksum...");
 
+            var (existingSha1, existingSha256) = await IoUtil.CalculateFileSHA1AndSHA256Async(path).ConfigureAwait(false);
             bool hashMatch = (latest.SHA256 != null)
-                ? latest.SHA256 == IoUtil.CalculateFileSHA256(path)
-                : latest.SHA1 == IoUtil.CalculateFileSHA1(path);
+                ? latest.SHA256 == existingSha256
+                : latest.SHA1 == existingSha1;
 
             if (hashMatch) {
                 Log.Info("Checksum matches. Finished.");
@@ -95,14 +96,14 @@ public abstract class DownRepository<TDown> : IRepositoryCanDownload<TDown>
         await RetryAsync(() => SaveEntryToFileAsync(options, latest, incomplete), $"Downloading {latest.FileName}...");
 
         Log.Info("Verifying checksum...");
-        string newHash;
+        var (dlSha1, dlSha256) = await IoUtil.CalculateFileSHA1AndSHA256Async(incomplete).ConfigureAwait(false);
         if (!string.IsNullOrEmpty(latest.SHA256)) {
-            if (latest.SHA256 != (newHash = IoUtil.CalculateFileSHA256(incomplete))) {
-                Log.Error($"Checksum mismatch, expected {latest.SHA256}, got {newHash}");
+            if (latest.SHA256 != dlSha256) {
+                Log.Error($"Checksum mismatch, expected {latest.SHA256}, got {dlSha256}");
                 return;
             }
-        } else if (latest.SHA1 != (newHash = IoUtil.CalculateFileSHA1(incomplete))) {
-            Log.Error($"Checksum mismatch, expected {latest.SHA1}, got {newHash}");
+        } else if (latest.SHA1 != dlSha1) {
+            Log.Error($"Checksum mismatch, expected {latest.SHA1}, got {dlSha1}");
             return;
         }
 

@@ -5,15 +5,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Velopack.TestCommon\Velopack.TestCommon.csproj" />
     <ProjectReference Include="..\..\src\vpk\Velopack.Vpk\Velopack.Vpk.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Azure.Identity" Version="1.18.0" />
+    <PackageReference Include="Azure.Identity" Version="1.20.0" />
     <PackageReference Include="Octokit" Version="14.0.0" />
     <PackageReference Include="WixToolset.Dtf.WindowsInstaller" Version="6.0.2" />
     <PackageReference Include="NuGet.Packaging" Version="7.3.0" />
-    <PackageReference Include="System.Formats.Asn1" Version="10.0.3" />
+    <PackageReference Include="System.Formats.Asn1" Version="10.0.5" />
   </ItemGroup>
 
 </Project>
