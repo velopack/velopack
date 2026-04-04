@@ -4,6 +4,9 @@ pub mod taskdialog;
 #[cfg(target_os = "linux")]
 pub mod gtkdialog;
 
+#[cfg(target_os = "macos")]
+pub mod cfdialog;
+
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 /// The icon to display in the dialog, or None for no icon.
 pub enum XDialogIcon {

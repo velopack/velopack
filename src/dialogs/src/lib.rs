@@ -41,6 +41,9 @@ pub fn init() {
 
     #[cfg(target_os = "linux")]
     DIALOG_MANAGER.get_or_init(|| Mutex::new(Box::new(backends::gtkdialog::GtkDialogManager::new())));
+
+    #[cfg(target_os = "macos")]
+    DIALOG_MANAGER.get_or_init(|| Mutex::new(Box::new(backends::cfdialog::CfDialogManager::new())));
 }
 
 pub(crate) fn with_manager<F, R>(f: F) -> Result<R, XDialogError>
