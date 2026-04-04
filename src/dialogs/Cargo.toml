@@ -33,3 +33,4 @@ path = "tests/tests.rs"
 
 [dev-dependencies]
 ntest.workspace = true
+serial_test.workspace = true

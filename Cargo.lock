@@ -2479,6 +2479,7 @@ dependencies = [
  "ntest",
  "oneshot",
  "semver",
+ "serial_test",
  "sys-locale",
  "thiserror",
  "unic-langid",

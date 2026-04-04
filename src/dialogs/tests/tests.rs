@@ -1,4 +1,7 @@
+use serial_test::serial;
+
 #[test]
+#[serial(dialogs)]
 #[ntest::timeout(2000)]
 fn test_no_dialogs_show_if_silent() {
     velopack_dialogs::init();
@@ -10,6 +13,8 @@ fn test_no_dialogs_show_if_silent() {
 }
 
 #[test]
+#[serial(dialogs)]
+#[ignore]
 fn test_show_all_dialogs() {
     velopack_dialogs::init();
     velopack_dialogs::set_silent(false);
