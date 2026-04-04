@@ -15,8 +15,8 @@ macro_rules! define_locales {
 }
 
 define_locales! {
-    EN_US_FTL = "en-US" => "../../../locales/en-US.ftl",
-    RU_FTL    = "ru"    => "../../../locales/ru.ftl",
+    EN_US_FTL = "en-US" => "../../../../locales/en-US.ftl",
+    RU_FTL    = "ru"    => "../../../../locales/ru.ftl",
 }
 
 define_locale_keys! {

@@ -1,5 +1,5 @@
-use crate::locale_constants::*;
-use crate::localization::format_message;
+use super::constants::*;
+use super::format_message;
 use fluent::FluentArgs;
 
 // --- No-arg functions ---

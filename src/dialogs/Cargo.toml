@@ -10,11 +10,26 @@ rust-version.workspace = true
 log.workspace = true
 anyhow.workspace = true
 semver.workspace = true
-xdialog = { workspace = true, features = ["public-backends"] }
 fluent-bundle.workspace = true
 fluent.workspace = true
 unic-langid.workspace = true
 sys-locale.workspace = true
+thiserror = "2.0"
+oneshot = { version = "0.2", features = ["std"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = [
+    "Win32_System",
+    "Win32_Foundation",
+    "Win32_UI_Controls",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_LibraryLoader",
+] }
+widestring = "1.2"
+
+[[test]]
+name = "dialogs_tests"
+path = "tests/tests.rs"
 
 [dev-dependencies]
 ntest.workspace = true

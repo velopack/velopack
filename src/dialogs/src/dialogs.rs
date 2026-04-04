@@ -1,66 +1,53 @@
-use crate::locale_strings;
+use crate::backends::{XDialogIcon, XDialogOptions, XDialogResult};
+use crate::locale::strings as locale_strings;
 use anyhow::{bail, Result};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
-use xdialog::{XDialogIcon, XDialogOptions, XDialogResult};
 
-static SILENT: AtomicBool = AtomicBool::new(false);
-
-pub fn set_silent(silent: bool) {
-    SILENT.store(silent, Ordering::Relaxed);
-    xdialog::set_silent_mode(silent);
-}
-
-pub fn get_silent() -> bool {
-    SILENT.load(Ordering::Relaxed)
+fn show_dialog(title: &str, header: &str, body: &str, icon: XDialogIcon, buttons: Vec<String>) -> Option<XDialogResult> {
+    if crate::get_silent() {
+        return Some(XDialogResult::SilentMode);
+    }
+    let result = crate::with_manager(|mgr| {
+        let proxy = mgr.show(XDialogOptions {
+            title: title.to_string(),
+            main_instruction: header.to_string(),
+            message: body.to_string(),
+            icon,
+            buttons,
+            has_progress: false,
+        })?;
+        proxy.get_result(None)
+    });
+    match result {
+        Ok(r) => Some(r),
+        Err(e) => {
+            warn!("Failed to show dialog: {:?}", e);
+            None
+        }
+    }
 }
 
 fn show_error(title: &str, header: &str, body: &str) {
-    if get_silent() {
-        return;
-    }
-    let _ = xdialog::show_message_error_ok(title, header, body);
+    show_dialog(title, header, body, XDialogIcon::Error, vec!["OK".to_string()]);
 }
 
 fn show_warn(title: &str, header: &str, body: &str) {
-    if get_silent() {
-        return;
-    }
-    let _ = xdialog::show_message_warn_ok(title, header, body);
+    show_dialog(title, header, body, XDialogIcon::Warning, vec!["OK".to_string()]);
 }
 
 fn show_info(title: &str, header: &str, body: &str) {
-    if get_silent() {
-        return;
-    }
-    let _ = xdialog::show_message_info_ok(title, header, body);
+    show_dialog(title, header, body, XDialogIcon::Information, vec!["OK".to_string()]);
 }
 
 fn show_ok_cancel(title: &str, header: &str, body: &str, ok_text: Option<&str>) -> bool {
-    if get_silent() {
-        return false;
-    }
-    let main_instruction = header.to_string();
-    if let Some(ok_label) = ok_text {
-        let cancel_label = locale_strings::btn_cancel();
-        let result = xdialog::show_message(
-            XDialogOptions {
-                title: title.to_string(),
-                main_instruction,
-                message: body.to_string(),
-                icon: XDialogIcon::Warning,
-                buttons: vec![ok_label.to_string(), cancel_label],
-            },
-            None,
-        );
-        matches!(result, Ok(XDialogResult::ButtonPressed(0)))
-    } else {
-        xdialog::show_message_ok_cancel(title, &main_instruction, body, XDialogIcon::Warning).unwrap_or(false)
-    }
+    let ok_label = ok_text.unwrap_or("OK").to_string();
+    let cancel_label = locale_strings::btn_cancel();
+    let result = show_dialog(title, header, body, XDialogIcon::Warning, vec![ok_label, cancel_label]);
+    matches!(result, Some(XDialogResult::ButtonPressed(0)))
 }
 
 pub fn ask_user_to_elevate(app_title: &str, new_version: &str) -> Result<()> {
-    if get_silent() {
+    if crate::get_silent() {
         bail!("Not allowed to ask for elevated permissions because --silent flag is set.");
     }
 
@@ -86,7 +73,7 @@ pub fn show_restart_required(app_name: &str, _app_version: &str) {
 }
 
 pub fn show_update_missing_dependencies_dialog(app_name: &str, dependency_string: &str, _from_ver: &str, _to_ver: &str) -> bool {
-    if get_silent() {
+    if crate::get_silent() {
         warn!("Cancelling pre-requisite installation because silent flag is true.");
         return false;
     }
@@ -99,7 +86,7 @@ pub fn show_update_missing_dependencies_dialog(app_name: &str, dependency_string
 }
 
 pub fn show_setup_missing_dependencies_dialog(app_name: &str, _app_version: &str, dependency_string: &str) -> bool {
-    if get_silent() {
+    if crate::get_silent() {
         return true;
     }
 
@@ -111,10 +98,6 @@ pub fn show_setup_missing_dependencies_dialog(app_name: &str, _app_version: &str
 }
 
 pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Option<&PathBuf>) {
-    if get_silent() {
-        return;
-    }
-
     let title = locale_strings::title_uninstall(app_title);
     let header = locale_strings::uninstall_errors_header();
     let body = locale_strings::uninstall_errors_body(app_title);
@@ -126,17 +109,8 @@ pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Opt
         let open_log_label = locale_strings::btn_open_log();
         let ok_label = "OK".to_string();
         let full_body = format!("{}\n\n{}", body, footer);
-        let result = xdialog::show_message(
-            XDialogOptions {
-                title,
-                main_instruction: header.clone(),
-                message: full_body,
-                icon: XDialogIcon::Warning,
-                buttons: vec![ok_label, open_log_label],
-            },
-            None,
-        );
-        if matches!(result, Ok(XDialogResult::ButtonPressed(1))) {
+        let result = show_dialog(&title, &header, &full_body, XDialogIcon::Warning, vec![ok_label, open_log_label]);
+        if matches!(result, Some(XDialogResult::ButtonPressed(1))) {
             open_path(&PathBuf::from(log_str));
         }
     } else {
@@ -152,7 +126,7 @@ pub fn show_overwrite_repair_dialog(
     _root_is_default: bool,
     installed_version: Option<&semver::Version>,
 ) -> bool {
-    if get_silent() {
+    if crate::get_silent() {
         return true;
     }
 
@@ -191,29 +165,23 @@ pub fn show_overwrite_repair_dialog(
     let open_dir_label = locale_strings::btn_open_install_dir();
     let full_body = format!("{}\n\n{}", body, footer);
 
-    let result = xdialog::show_message(
-        XDialogOptions {
-            title,
-            main_instruction: instruction,
-            message: full_body,
-            icon: XDialogIcon::Warning,
-            buttons: vec![yes_label, open_dir_label, cancel_label],
-        },
-        None,
+    let result = show_dialog(
+        &title,
+        &instruction,
+        &full_body,
+        XDialogIcon::Warning,
+        vec![yes_label, open_dir_label, cancel_label],
     );
 
     match result {
-        Ok(XDialogResult::ButtonPressed(0)) => true,
-        Ok(XDialogResult::ButtonPressed(1)) => {
+        Some(XDialogResult::ButtonPressed(0)) => true,
+        Some(XDialogResult::ButtonPressed(1)) => {
             open_path(root_path);
-            // after opening the directory, re-show the dialog
             show_overwrite_repair_dialog(app_title, app_version, app_id, root_path, _root_is_default, installed_version)
         }
         _ => false,
     }
 }
-
-// --- Helper functions that encapsulate locale_strings calls ---
 
 pub fn show_generic_error(program_name: &str, error_string: &str) {
     let title = locale_strings::error_title(program_name);
@@ -261,26 +229,4 @@ fn open_path(path: &PathBuf) {
     {
         let _ = std::process::Command::new("xdg-open").arg(&path_str).spawn();
     }
-}
-
-#[test]
-#[ntest::timeout(2000)]
-fn test_no_dialogs_show_if_silent() {
-    crate::init();
-    set_silent(true);
-    show_generic_error("TestApp", "This is an error.");
-    show_restart_required("TestApp", "1.0.0");
-    show_uninstall_complete("TestApp");
-    show_setup_error("TestApp", "This is a setup error.");
-}
-
-#[test]
-#[ignore]
-fn test_show_all_dialogs() {
-    crate::init();
-    set_silent(false);
-    show_generic_error("TestApp", "This is an error.");
-    show_restart_required("TestApp", "1.0.0");
-    show_uninstall_complete("TestApp");
-    show_setup_error("TestApp", "This is a setup error.");
 }

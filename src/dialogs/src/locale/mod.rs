@@ -1,4 +1,7 @@
-use crate::locale_constants::{EN_US_FTL, RU_FTL};
+mod constants;
+pub mod strings;
+
+use constants::{EN_US_FTL, RU_FTL};
 use fluent::FluentArgs;
 use fluent_bundle::concurrent::FluentBundle;
 use fluent_bundle::FluentResource;
