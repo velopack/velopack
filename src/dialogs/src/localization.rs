@@ -25,6 +25,9 @@ fn get_bundle() -> &'static FluentBundle<FluentResource> {
         let resource = FluentResource::try_new(ftl_source.to_string()).expect("Failed to parse Fluent resource");
         let lang_id: unic_langid::LanguageIdentifier = lang_tag.parse().expect("Failed to parse language identifier");
         let mut bundle = FluentBundle::new_concurrent(vec![lang_id]);
+        // Disable Unicode bidi isolation characters (U+2068/U+2069) around placeables.
+        // Native OS dialog APIs (e.g. TaskDialog) render these as visible characters.
+        bundle.set_use_isolating(false);
         bundle.add_resource(resource).expect("Failed to add Fluent resource");
         bundle
     })
