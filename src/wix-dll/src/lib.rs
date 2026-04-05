@@ -9,7 +9,7 @@ use velopack_bins::windows::prerequisite;
 use windows::Win32::{
     Foundation::{ERROR_INSTALL_USEREXIT, ERROR_SUCCESS},
     System::ApplicationInstallationAndServicing::MSIHANDLE,
-    UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_ICONWARNING, MB_OK, MESSAGEBOX_STYLE},
+    UI::WindowsAndMessaging::{MessageBoxW, MB_ICONWARNING, MB_OK, MESSAGEBOX_STYLE},
 };
 
 #[no_mangle]
@@ -34,10 +34,7 @@ pub extern "system" fn EarlyBootstrap(h_install: MSIHANDLE) -> c_uint {
             Ok(true) => ERROR_SUCCESS.0,
             Ok(false) => ERROR_INSTALL_USEREXIT.0,
             Err(e) => {
-                let title = velopack_dialogs::locale_strings::title_setup(&app_name);
-                let header = velopack_dialogs::locale_strings::setup_error_header();
-                let err = format!("{}\n\n{}", header, e);
-                show_messagebox(&title, &err, MB_ICONERROR);
+                velopack_dialogs::show_setup_error(&app_name, &e.to_string());
                 ERROR_INSTALL_USEREXIT.0
             }
         }

@@ -3,7 +3,7 @@ extern crate log;
 
 mod dialogs;
 mod locale_constants;
-pub mod locale_strings;
+mod locale_strings;
 mod localization;
 mod types;
 
