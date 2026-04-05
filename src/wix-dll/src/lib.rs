@@ -15,6 +15,8 @@ use windows::Win32::{
 #[no_mangle]
 pub extern "system" fn EarlyBootstrap(h_install: MSIHANDLE) -> c_uint {
     velopack_dialogs::init();
+    velopack_dialogs::init_win32_direct(); // bypass xdialog message loop and use taskdialog directly
+    
     let dependencies = msi_get_property(h_install, "RustRuntimeDependencies");
     let app_name = msi_get_property(h_install, "RustAppTitle");
     let app_version = msi_get_property(h_install, "RustAppVersion");
