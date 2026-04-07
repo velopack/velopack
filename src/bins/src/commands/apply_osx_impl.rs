@@ -1,4 +1,4 @@
-use crate::shared::{
+use crate::{dialogs, shared};
 use anyhow::{bail, Result};
 use std::{fs, path::PathBuf, process::Command};
 use velopack::{bundle, locator::VelopackLocator};
