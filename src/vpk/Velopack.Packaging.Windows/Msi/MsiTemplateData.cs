@@ -23,6 +23,7 @@ public class MsiTemplateData
     public string AppVersion;
 
     public string StubFileName;
+    public string MainExeFileName;
     public bool DesktopShortcut;
     public bool StartMenuShortcut;
     public bool StartMenuRootShortcut;

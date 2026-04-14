@@ -118,4 +118,14 @@ static void debugFile(string name, string message, string hook)
     }
     var path = Path.Combine(dir, name);
     File.AppendAllText(path, $"{hook}: {message}{Environment.NewLine}");
+
+    // Also write to temp so hook output survives MSI uninstall (which deletes the install dir)
+    try {
+        var resolvedDir = new DirectoryInfo(dir).Name;
+        var tempDir = Path.Combine(Path.GetTempPath(), $"velopack_hooks_{resolvedDir}");
+        Directory.CreateDirectory(tempDir);
+        File.AppendAllText(Path.Combine(tempDir, name), $"{hook}: {message}{Environment.NewLine}");
+    } catch {
+        // best effort
+    }
 }

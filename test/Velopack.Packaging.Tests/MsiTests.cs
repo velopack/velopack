@@ -273,22 +273,40 @@ public class MsiTests
         var installDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), id);
         var msiPath = Path.Combine(releaseDir, $"{id}-win.msi");
+        // save v1 MSI path separately — packing v2 overwrites msiPath, and users typically
+        // uninstall using the same MSI file they installed with (Windows caches it too).
+        var v1MsiPath = Path.Combine(releaseDir, $"{id}-v1.msi");
         var appPath = Path.Combine(installDir, "current", "TestApp.exe");
+        var hookTempDir = Path.Combine(Path.GetTempPath(), $"velopack_hooks_{id}");
 
         try {
+            // clean up any leftover hook files from previous runs
+            if (Directory.Exists(hookTempDir))
+                IoUtil.DeleteFileOrDirectoryHard(hookTempDir);
+
             // pack v1
             await PackTestAppWithMsi(id, "1.0.0", "version 1 test", releaseDir, logger, InstallLocation.PerUser);
             Assert.True(File.Exists(msiPath), $"MSI not found at {msiPath}");
 
+            // save a copy before packing v2 overwrites msiPath
+            File.Copy(msiPath, v1MsiPath, true);
+
             // install via msiexec per-user (must pass INSTALLFOLDER for silent installs since UI events don't fire)
             logger.Info("TEST: Installing MSI per-user...");
-            RunMsiExec($"/i \"{msiPath}\" /qn INSTALLFOLDER=\"{installDir}\"", logger);
+            RunMsiExec($"/i \"{v1MsiPath}\" /qn INSTALLFOLDER=\"{installDir}\"", logger);
 
             // verify install
             Assert.True(File.Exists(appPath), $"TestApp.exe not found at {appPath}");
             var chk1version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
             Assert.EndsWith(Environment.NewLine + "1.0.0", chk1version);
             logger.Info("TEST: v1 installed and verified");
+
+            // verify install hook was executed
+            var installHookFile = Path.Combine(installDir, "args.txt");
+            Assert.True(File.Exists(installHookFile), $"Install hook file not found at {installHookFile}");
+            var installHookContent = File.ReadAllText(installHookFile).Trim();
+            Assert.Contains("OnAfterInstallFastCallback: --veloapp-install 1.0.0", installHookContent);
+            logger.Info("TEST: install hook verified");
 
             // verify uninstall registry is in HKCU (not HKLM) for per-user install
             var (hkcuFound, hkcuVersion) = FindUninstallEntry(Registry.CurrentUser, id);
@@ -339,10 +357,28 @@ public class MsiTests
             Assert.True(hkcuFound2, "Uninstall entry should still exist in HKCU after update");
             Assert.Equal("2.0.0", hkcuVersion2);
             logger.Info("TEST: registry entry verified in HKCU with version 2.0.0");
+
+            // uninstall using the same MSI that was used to install.
+            // (msiexec /x requires the MSI's ProductCode to match a registered product.)
+            logger.Info("TEST: Uninstalling MSI...");
+            RunMsiExec($"/x \"{v1MsiPath}\" /qn", logger);
+
+            // verify uninstall hook was executed (check temp dir since install dir is deleted by MSI)
+            var uninstallHookFile = Path.Combine(hookTempDir, "args.txt");
+            Assert.True(File.Exists(uninstallHookFile), $"Uninstall hook file not found at {uninstallHookFile}");
+            var uninstallHookContent = File.ReadAllText(uninstallHookFile).Trim();
+            Assert.Contains("OnBeforeUninstallFastCallback: --veloapp-uninstall", uninstallHookContent);
+            logger.Info("TEST: uninstall hook verified");
+
+            // verify install dir was cleaned up
+            Assert.False(Directory.Exists(installDir), $"Install directory should have been removed: {installDir}");
+            logger.Info("TEST: install directory cleaned up");
         } finally {
-            // cleanup: uninstall MSI
+            // cleanup: uninstall MSI (best effort, may already be uninstalled)
             try {
-                RunMsiExec($"/x \"{msiPath}\" /qn", logger, exitCode: null);
+                if (File.Exists(v1MsiPath)) {
+                    RunMsiExec($"/x \"{v1MsiPath}\" /qn", logger, exitCode: null);
+                }
             } catch {
                 // best effort cleanup
             }
@@ -350,6 +386,14 @@ public class MsiTests
             try {
                 if (Directory.Exists(installDir)) {
                     IoUtil.Retry(() => IoUtil.DeleteFileOrDirectoryHard(installDir), 10, 1000);
+                }
+            } catch {
+                // best effort cleanup
+            }
+
+            try {
+                if (Directory.Exists(hookTempDir)) {
+                    IoUtil.DeleteFileOrDirectoryHard(hookTempDir);
                 }
             } catch {
                 // best effort cleanup
