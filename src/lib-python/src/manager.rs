@@ -3,10 +3,9 @@ use pyo3::prelude::*;
 use std::sync::mpsc;
 use std::thread;
 
-use velopack::sources::AutoSource;
 use velopack::{UpdateCheck, UpdateInfo, UpdateManager as VelopackUpdateManagerRust, VelopackAsset};
 
-use crate::{types::*, PyUpdateInfoOrAsset};
+use crate::{sources::PySourceArg, types::*, PyUpdateInfoOrAsset};
 
 #[pyclass(name = "UpdateManager")]
 pub struct UpdateManagerWrapper {
@@ -17,9 +16,9 @@ pub struct UpdateManagerWrapper {
 impl UpdateManagerWrapper {
     #[new]
     #[pyo3(signature = (source, options = None, locator = None))]
-    pub fn new(source: String, options: Option<PyUpdateOptions>, locator: Option<PyVelopackLocatorConfig>) -> Result<Self> {
-        let source = AutoSource::new(&source);
-        let inner = VelopackUpdateManagerRust::new(source, options.map(Into::into), locator.map(Into::into))?;
+    pub fn new(source: PySourceArg, options: Option<PyUpdateOptions>, locator: Option<PyVelopackLocatorConfig>) -> Result<Self> {
+        let source = source.into_source();
+        let inner = VelopackUpdateManagerRust::new_boxed(source, options.map(Into::into), locator.map(Into::into))?;
         Ok(UpdateManagerWrapper { inner })
     }
 
