@@ -159,10 +159,11 @@
             <Property Id="RustRuntimeDependencies" Value="{{RuntimeDependencies}}"/>
         {{/if}}
         <Property Id="RustStubFileName" Value="{{StubFileName}}"/>
+        <Property Id="RustMainExeFileName" Value="{{MainExeFileName}}"/>
 
         <CustomAction Id="RustEarlyBootstrap" BinaryRef="RustDll" DllEntry="EarlyBootstrap" Execute="immediate" Return="check"/>
 
-        <!-- deferred actions do not have access to msi properties and read all data from "CustomActionData" which is a string, 
+        <!-- deferred actions do not have access to msi properties and read all data from "CustomActionData" which is a string,
              so we delimit with &quot; which is unlikely (or disallowed) from to appearing in filenames / paths.-->
         <CustomAction Id="SetRustCleanupData" Property="RustCleanup" Value="[INSTALLFOLDER]&quot;[RustAppId]&quot;[TempFolder]" Execute="immediate"
                       Return="check"/>
@@ -170,11 +171,25 @@
         <CustomAction Id="RustLaunchApplication" BinaryRef="RustDll" DllEntry="LaunchApplication" Impersonate="yes" Execute="immediate"
                       Return="ignore"/>
 
+        <!-- Install/uninstall hooks: run app exe with lifecycle flags -->
+        <CustomAction Id="SetInstallHookData" Property="InstallHookDeferred"
+                      Value="[INSTALLFOLDER]&quot;[RustMainExeFileName]&quot;[RustAppVersion]" Execute="immediate" Return="check"/>
+        <CustomAction Id="InstallHookDeferred" BinaryRef="RustDll" DllEntry="InstallHookDeferred" Execute="deferred"
+                      Impersonate="yes" Return="ignore"/>
+        <CustomAction Id="SetUninstallHookData" Property="UninstallHookDeferred"
+                      Value="[INSTALLFOLDER]&quot;[RustMainExeFileName]&quot;[RustAppVersion]" Execute="immediate" Return="check"/>
+        <CustomAction Id="UninstallHookDeferred" BinaryRef="RustDll" DllEntry="UninstallHookDeferred" Execute="deferred"
+                      Impersonate="yes" Return="ignore"/>
+
         <InstallUISequence>
             <Custom Action="RustEarlyBootstrap" Before="AppSearch" Condition="NOT REMOVE AND RustRuntimeDependencies"/>
         </InstallUISequence>
 
         <InstallExecuteSequence>
+            <Custom Action="SetInstallHookData" Before="InstallHookDeferred" Condition="NOT REMOVE"/>
+            <Custom Action="InstallHookDeferred" After="InstallFiles" Condition="NOT REMOVE"/>
+            <Custom Action="SetUninstallHookData" Before="UninstallHookDeferred" Condition="(REMOVE=&quot;ALL&quot;)"/>
+            <Custom Action="UninstallHookDeferred" Before="RemoveFiles" Condition="(REMOVE=&quot;ALL&quot;)"/>
             <Custom Action="SetRustCleanupData" Before="RustCleanup" Condition="(REMOVE=&quot;ALL&quot;)"/>
             <Custom Action="RustCleanup" Before="RemoveFolders" Condition="(REMOVE=&quot;ALL&quot;)"/>
         </InstallExecuteSequence>

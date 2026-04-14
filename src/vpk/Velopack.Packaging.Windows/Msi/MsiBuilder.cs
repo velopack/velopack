@@ -135,6 +135,7 @@ public static class MsiBuilder
             ComponentGenerationSeedGuid = GuidUtil.CreateGuidFromHash($"{options.PackId}:INSTALLFOLDER").ToString(),
             IconPath = options.Icon,
             StubFileName = (options.PackTitle ?? options.PackId) + ".exe",
+            MainExeFileName = options.EntryExecutableName,
             DesktopShortcut = shortcuts.HasFlag(ShortcutLocation.Desktop),
             StartMenuShortcut = shortcuts.HasFlag(ShortcutLocation.StartMenu),
             StartMenuRootShortcut = shortcuts.HasFlag(ShortcutLocation.StartMenuRoot),
