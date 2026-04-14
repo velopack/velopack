@@ -27,7 +27,7 @@
                     <Shortcut Id="ApplicationDesktopShortcut" Name="{{AppTitle}}" Description="Desktop shortcut for {{AppTitle}}"
                               Target="[INSTALLFOLDER]{{StubFileName}}" WorkingDirectory="INSTALLFOLDER"/>
                     <RemoveFolder Id="CleanUpDesktopShortcut" Directory="INSTALLFOLDER" On="uninstall"/>
-                    <RegistryValue Root="HKCU" Key="Software&#92;{{AppPublisherSanitized}}&#92;{{AppId}}.DesktopShortcut"
+                    <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitized}}&#92;{{AppId}}.DesktopShortcut"
                                    Name="installed" Type="integer" Value="1" KeyPath="yes"/>
                 </Component>
             </StandardDirectory>
@@ -68,6 +68,19 @@
                 </Component>
             </StandardDirectory>
 
+        {{/if}}
+
+        {{#if StartupShortcut}}
+            <StandardDirectory Id="StartupFolder">
+                <Component Id="ApplicationStartupShortcut">
+                    <Shortcut Id="ApplicationStartupShortcut" Name="{{AppTitle}}"
+                              Description="Startup shortcut for {{AppTitle}}"
+                              Target="[INSTALLFOLDER]{{StubFileName}}"
+                              WorkingDirectory="INSTALLFOLDER"/>
+                    <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitized}}&#92;{{AppId}}.StartupShortcut"
+                                   Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+                </Component>
+            </StandardDirectory>
         {{/if}}
 
         {{#if HasIcon}}

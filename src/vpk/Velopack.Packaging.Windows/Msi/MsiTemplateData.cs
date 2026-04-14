@@ -26,6 +26,7 @@ public class MsiTemplateData
     public bool DesktopShortcut;
     public bool StartMenuShortcut;
     public bool StartMenuRootShortcut;
+    public bool StartupShortcut;
 
     public string RuntimeDependencies;
     public bool HasRuntimeDependencies => !string.IsNullOrWhiteSpace(RuntimeDependencies);

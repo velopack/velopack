@@ -138,6 +138,7 @@ public static class MsiBuilder
             DesktopShortcut = shortcuts.HasFlag(ShortcutLocation.Desktop),
             StartMenuShortcut = shortcuts.HasFlag(ShortcutLocation.StartMenu),
             StartMenuRootShortcut = shortcuts.HasFlag(ShortcutLocation.StartMenuRoot),
+            StartupShortcut = shortcuts.HasFlag(ShortcutLocation.Startup),
             RustNativeModulePath = HelperFile.GetWixNativeModulePath(options.TargetRuntime),
             SideBannerImagePath = options.MsiBanner,
             TopBannerImagePath = options.MsiLogo,
