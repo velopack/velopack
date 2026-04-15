@@ -13,7 +13,7 @@ use manager::UpdateManagerWrapper;
 mod sources;
 use sources::{PyGiteaSource, PyGithubSource, PyGitlabSource, PyHttpSource};
 
-use velopack::VelopackAsset;
+use ::velopack::VelopackAsset;
 
 #[derive(FromPyObject)]
 pub enum PyUpdateInfoOrAsset {
