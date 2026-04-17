@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use image::{codecs::gif::GifDecoder, AnimationDecoder, DynamicImage, ImageFormat, ImageReader};
+use image::{codecs::gif::GifDecoder, imageops::FilterType, AnimationDecoder, DynamicImage, ImageFormat, ImageReader};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::{io::Cursor, thread};
 use velopack::wide_strings::string_to_wide;
@@ -82,8 +82,8 @@ struct SplashWindow {
     rx: Receiver<i16>,
     progress: i16,
     frame_idx: usize,
-    w: i32,         // original bitmap width
-    h: i32,         // original bitmap height
+    w: i32,         // current bitmap width (pre-scaled to match window)
+    h: i32,         // current bitmap height (pre-scaled to match window)
     scaled_w: i32,  // DPI-scaled window width
     scaled_h: i32,  // DPI-scaled window height
     dpi_scale: f32, // current DPI scale factor
@@ -194,7 +194,7 @@ const ALPHA_BLEND_FN: BLENDFUNCTION = BLENDFUNCTION {
 impl SplashWindow {
     pub unsafe fn run(app_name: String, img_stream: Vec<u8>, rx: Receiver<i16>, progress_bar_color: Option<(u8, u8, u8)>) -> Result<()> {
         let mut delays = Vec::new();
-        let mut frames = Vec::new();
+        let mut decoded_images = Vec::new();
 
         let fmt_cursor = Cursor::new(&img_stream);
         let fmt_reader = ImageReader::new(fmt_cursor).with_guessed_format()?;
@@ -213,21 +213,15 @@ impl SplashWindow {
                 let (num, dem) = frame.delay().numer_denom_ms();
                 delays.push((num / dem) as u32);
                 let dynamic = DynamicImage::from(frame.buffer().to_owned());
-                let mut vec = dynamic.to_rgba8().to_vec();
-                convert_rgba_to_bgra(&mut vec);
-                let bitmap = CreateBitmap(w, h, 1, 32, Some(vec.as_mut_ptr() as *mut _));
-                frames.push(bitmap);
+                decoded_images.push(dynamic);
             }
-            info!("Successfully loaded {} frames.", frames.len());
+            info!("Successfully loaded {} frames.", decoded_images.len());
         } else {
             info!("Loading static image (detected {:?})...", fmt);
             delays.push(16u32); // 60 fps
             let img_cursor = Cursor::new(&img_stream);
             let img_decoder = ImageReader::new(img_cursor).with_guessed_format()?.decode()?;
-            let mut vec = img_decoder.to_rgba8().to_vec();
-            convert_rgba_to_bgra(&mut vec);
-            let bitmap = CreateBitmap(w, h, 1, 32, Some(vec.as_mut_ptr() as *mut _));
-            frames.push(bitmap);
+            decoded_images.push(img_decoder);
             info!("Successfully loaded.");
         }
 
@@ -268,6 +262,21 @@ impl SplashWindow {
             (cw, ch)
         };
         info!("DPI scale: {}, window size: {}x{} -> {}x{}", dpi_scale, w, h, scaled_w, scaled_h);
+
+        // Pre-scale frames using high-quality Lanczos3 resampling so the bitmaps
+        // match the window size. This avoids blurry GDI stretching at high DPI.
+        let mut frames = Vec::new();
+        for img in &decoded_images {
+            let scaled_img = if scaled_w != w || scaled_h != h {
+                img.resize_exact(scaled_w as u32, scaled_h as u32, FilterType::Lanczos3)
+            } else {
+                img.clone()
+            };
+            let mut vec = scaled_img.to_rgba8().into_vec();
+            convert_rgba_to_bgra(&mut vec);
+            let bitmap = CreateBitmap(scaled_w, scaled_h, 1, 32, Some(vec.as_mut_ptr() as *mut _));
+            frames.push(bitmap);
+        }
 
         let class_name = string_to_wide("VelopackSetupSplashWindow");
         let app_name = string_to_wide(&app_name);
@@ -316,8 +325,8 @@ impl SplashWindow {
             frames,
             rx,
             frame_idx: 0,
-            w,
-            h,
+            w: scaled_w,
+            h: scaled_h,
             scaled_w,
             scaled_h,
             dpi_scale,
