@@ -126,6 +126,21 @@ fn start_regular(locator: LocatorResult, exe_name: Option<&OsString>, exe_args: 
     let mut cmd = Process::new(&exe_to_execute);
     cmd.current_dir(&current);
 
+    let root_dir = locator.get_root_dir();
+    let packages_dir = root_dir.join("packages");
+    let portable_marker = root_dir.join(".portable");
+    let should_set_first_run_env = portable_marker.exists() && !packages_dir.exists();
+    if should_set_first_run_env {
+        if let Err(e) = fs::create_dir_all(&packages_dir) {
+            warn!(
+                "Failed to create packages directory for portable first run ({}): {}",
+                packages_dir.display(),
+                e
+            );
+        }
+        cmd.env(constants::HOOK_ENV_FIRSTRUN, "true");
+    }
+
     if let Some(args) = exe_args {
         cmd.args(args);
     } else if let Some(args) = legacy_args {
