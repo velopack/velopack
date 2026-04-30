@@ -82,6 +82,7 @@ waitpid-any.workspace = true
 [target.'cfg(windows)'.dependencies]
 fs_extra.workspace = true
 memmap2.workspace = true
+fast_image_resize.workspace = true
 image.workspace = true
 windows = { workspace = true, features = [
     "Win32_Foundation",

@@ -1,5 +1,7 @@
 use anyhow::{bail, Result};
-use image::{codecs::gif::GifDecoder, imageops::FilterType, AnimationDecoder, DynamicImage, ImageFormat, ImageReader};
+use fast_image_resize as fr;
+use image::{codecs::gif::GifDecoder, AnimationDecoder, ImageFormat, ImageReader};
+use rayon::prelude::*;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::{io::Cursor, thread};
 use velopack::wide_strings::string_to_wide;
@@ -78,15 +80,16 @@ pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>, options:
 }
 
 struct SplashWindow {
-    frames: Vec<HBITMAP>,
+    frames: Vec<OwnedBitmap>,
+    decoded_images: Vec<Vec<u8>>,
+    orig_w: u32,
+    orig_h: u32,
     rx: Receiver<i16>,
     progress: i16,
     frame_idx: usize,
-    w: i32,         // current bitmap width (pre-scaled to match window)
-    h: i32,         // current bitmap height (pre-scaled to match window)
-    scaled_w: i32,  // DPI-scaled window width
-    scaled_h: i32,  // DPI-scaled window height
-    dpi_scale: f32, // current DPI scale factor
+    scaled_w: i32,
+    scaled_h: i32,
+    dpi_scale: f32,
     hdc_screen: HDC,
     progress_bar_color: Option<(u8, u8, u8)>,
 }
@@ -165,9 +168,37 @@ fn clamp_to_monitor(scaled_w: i32, scaled_h: i32, monitor_rect: &RECT) -> (i32, 
     }
 }
 
-fn convert_rgba_to_bgra(image_data: &mut [u8]) {
-    for chunk in image_data.chunks_mut(4) {
-        chunk.swap(0, 2);
+// Lanczos3 ringing can produce pixels where RGB > A (invalid premultiplied state),
+// which appear as bright garbage pixels at alpha edges.
+// LLVM auto-vectorizes this to SSE4.1 pminud, processing 8 pixels per iteration.
+// https://rust.godbolt.org/z/W7jPEsxTz
+fn clamp_premultiplied(pixels: &mut [u8]) {
+    for chunk in pixels.chunks_exact_mut(4) {
+        let p = u32::from_ne_bytes(chunk.try_into().unwrap());
+        let a = (p >> 24) & 0xFF;
+        let r = (p & 0xFF).min(a);
+        let g = ((p >> 8) & 0xFF).min(a);
+        let b = ((p >> 16) & 0xFF).min(a);
+        chunk.copy_from_slice(&(r | (g << 8) | (b << 16) | (a << 24)).to_ne_bytes());
+    }
+}
+
+// Swaps R/B channels and premultiplies RGB by alpha in a single pass using SWAR
+// (SIMD Within A Register). Processes R+B in parallel within a u32 by exploiting
+// the fact that their products (max 255*256) can't overflow 16-bit lanes.
+// LLVM auto-vectorizes this to SSE4.1 (pshufb + pmulld), processing 4 pixels per iteration.
+// UpdateLayeredWindow with AC_SRC_ALPHA expects premultiplied BGRA.
+// See: https://users.rust-lang.org/t/the-fastest-way-to-copy-a-buffer-bgra-to-rgba/126651
+// https://rust.godbolt.org/z/W7jPEsxTz
+fn convert_rgba_to_premultiplied_bgra(pixels: &mut [u8]) {
+    for chunk in pixels.chunks_exact_mut(4) {
+        let p = u32::from_ne_bytes(chunk.try_into().unwrap());
+        let a = p >> 24;
+        let a1 = a + 1;
+        let rb_swapped = (p >> 16 & 0xFF) | ((p & 0xFF) << 16);
+        let rb = (rb_swapped.wrapping_mul(a1) >> 8) & 0x00FF00FF;
+        let g = ((p & 0x0000FF00).wrapping_mul(a1) >> 8) & 0x0000FF00;
+        chunk.copy_from_slice(&(rb | g | (a << 24)).to_ne_bytes());
     }
 }
 
@@ -184,6 +215,43 @@ fn rgb(red: u8, green: u8, blue: u8) -> COLORREF {
     COLORREF((red as u32) | ((green as u32) << 8) | ((blue as u32) << 16))
 }
 
+struct OwnedBitmap(HBITMAP);
+unsafe impl Send for OwnedBitmap {}
+
+impl Drop for OwnedBitmap {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = DeleteObject(self.0.into());
+        }
+    }
+}
+
+fn scale_frames(images: &[Vec<u8>], src_w: u32, src_h: u32, dst_w: u32, dst_h: u32) -> Vec<OwnedBitmap> {
+    let need_scale = src_w != dst_w || src_h != dst_h;
+    images
+        .par_iter()
+        .map(|bgra| {
+            if need_scale {
+                let src_image = fr::images::ImageRef::new(src_w, src_h, bgra, fr::PixelType::U8x4).unwrap();
+                let mut dst_image = fr::images::Image::new(dst_w, dst_h, fr::PixelType::U8x4);
+                let mut resizer = fr::Resizer::new();
+                resizer
+                    .resize(
+                        &src_image,
+                        &mut dst_image,
+                        &fr::ResizeOptions::new().resize_alg(fr::ResizeAlg::Convolution(fr::FilterType::Lanczos3)),
+                    )
+                    .unwrap();
+                let mut vec = dst_image.into_vec();
+                clamp_premultiplied(&mut vec);
+                OwnedBitmap(unsafe { CreateBitmap(dst_w as i32, dst_h as i32, 1, 32, Some(vec.as_mut_ptr() as *mut _)) })
+            } else {
+                OwnedBitmap(unsafe { CreateBitmap(dst_w as i32, dst_h as i32, 1, 32, Some(bgra.as_ptr() as *const _)) })
+            }
+        })
+        .collect()
+}
+
 const ALPHA_BLEND_FN: BLENDFUNCTION = BLENDFUNCTION {
     BlendOp: AC_SRC_OVER as u8,
     BlendFlags: 0,
@@ -194,7 +262,7 @@ const ALPHA_BLEND_FN: BLENDFUNCTION = BLENDFUNCTION {
 impl SplashWindow {
     pub unsafe fn run(app_name: String, img_stream: Vec<u8>, rx: Receiver<i16>, progress_bar_color: Option<(u8, u8, u8)>) -> Result<()> {
         let mut delays = Vec::new();
-        let mut decoded_images = Vec::new();
+        let mut decoded_images: Vec<Vec<u8>> = Vec::new();
 
         let fmt_cursor = Cursor::new(&img_stream);
         let fmt_reader = ImageReader::new(fmt_cursor).with_guessed_format()?;
@@ -207,21 +275,22 @@ impl SplashWindow {
             info!("Image is animated GIF ({}x{}), loading frames...", w, h);
             let gif_cursor = Cursor::new(&img_stream);
             let decoder = GifDecoder::new(gif_cursor)?;
-            let dec_frames = decoder.into_frames();
-            for frame in dec_frames.into_iter() {
+            for frame in decoder.into_frames() {
                 let frame = frame?;
                 let (num, dem) = frame.delay().numer_denom_ms();
                 delays.push((num / dem) as u32);
-                let dynamic = DynamicImage::from(frame.buffer().to_owned());
-                decoded_images.push(dynamic);
+                let mut buf = frame.into_buffer().into_vec();
+                convert_rgba_to_premultiplied_bgra(&mut buf);
+                decoded_images.push(buf);
             }
             info!("Successfully loaded {} frames.", decoded_images.len());
         } else {
             info!("Loading static image (detected {:?})...", fmt);
-            delays.push(16u32); // 60 fps
+            delays.push(16u32);
             let img_cursor = Cursor::new(&img_stream);
-            let img_decoder = ImageReader::new(img_cursor).with_guessed_format()?.decode()?;
-            decoded_images.push(img_decoder);
+            let mut buf = ImageReader::new(img_cursor).with_guessed_format()?.decode()?.into_rgba8().into_vec();
+            convert_rgba_to_premultiplied_bgra(&mut buf);
+            decoded_images.push(buf);
             info!("Successfully loaded.");
         }
 
@@ -263,20 +332,7 @@ impl SplashWindow {
         };
         info!("DPI scale: {}, window size: {}x{} -> {}x{}", dpi_scale, w, h, scaled_w, scaled_h);
 
-        // Pre-scale frames using high-quality Lanczos3 resampling so the bitmaps
-        // match the window size. This avoids blurry GDI stretching at high DPI.
-        let mut frames = Vec::new();
-        for img in &decoded_images {
-            let scaled_img = if scaled_w != w || scaled_h != h {
-                img.resize_exact(scaled_w as u32, scaled_h as u32, FilterType::Lanczos3)
-            } else {
-                img.clone()
-            };
-            let mut vec = scaled_img.to_rgba8().into_vec();
-            convert_rgba_to_bgra(&mut vec);
-            let bitmap = CreateBitmap(scaled_w, scaled_h, 1, 32, Some(vec.as_mut_ptr() as *mut _));
-            frames.push(bitmap);
-        }
+        let frames = scale_frames(&decoded_images, w as u32, h as u32, scaled_w as u32, scaled_h as u32);
 
         let class_name = string_to_wide("VelopackSetupSplashWindow");
         let app_name = string_to_wide(&app_name);
@@ -323,10 +379,11 @@ impl SplashWindow {
 
         let data_ptr = Box::into_raw(Box::new(Self {
             frames,
+            decoded_images,
+            orig_w: w as u32,
+            orig_h: h as u32,
             rx,
             frame_idx: 0,
-            w: scaled_w,
-            h: scaled_h,
             scaled_w,
             scaled_h,
             dpi_scale,
@@ -352,9 +409,7 @@ impl SplashWindow {
 
         let data = Box::from_raw(data_ptr);
         ReleaseDC(Some(hwnd_desktop), data.hdc_screen);
-        for h_bitmap in &data.frames {
-            let _ = DeleteObject((*h_bitmap).into());
-        }
+        drop(data);
 
         let _ = DestroyWindow(hwnd);
         Ok(())
@@ -366,12 +421,13 @@ impl SplashWindow {
                 return HTCAPTION as isize; // make the window draggable
             }
             WM_DPICHANGED => {
-                // Let Windows handle position and size — the suggested rect already
-                // has the correct DPI-scaled dimensions for the new monitor.
                 let suggested = &*(lparam.0 as *const RECT);
                 self.scaled_w = suggested.right - suggested.left;
                 self.scaled_h = suggested.bottom - suggested.top;
                 self.dpi_scale = (wparam.0 & 0xFFFF) as f32 / 96.0;
+
+                self.frames = scale_frames(&self.decoded_images, self.orig_w, self.orig_h, self.scaled_w as u32, self.scaled_h as u32);
+                self.frame_idx = 0;
 
                 let _ = SetWindowPos(
                     hwnd,
@@ -414,10 +470,8 @@ impl SplashWindow {
                     return 0;
                 }
 
-                // get the bitmap for the current frame
-                let h_bitmap = self.frames[self.frame_idx];
+                let h_bitmap = self.frames[self.frame_idx].0;
 
-                // create memory DC with the original frame bitmap
                 let hdc_src = CreateCompatibleDC(Some(self.hdc_screen));
                 let src_old = SelectObject(hdc_src, h_bitmap.into());
 
@@ -426,9 +480,6 @@ impl SplashWindow {
                 let scaled_bitmap = CreateCompatibleBitmap(self.hdc_screen, self.scaled_w, self.scaled_h);
                 let dest_old = SelectObject(hdc_dest, scaled_bitmap.into());
 
-                // stretch the original bitmap to the scaled size using AlphaBlend
-                // to preserve alpha channel during scaling
-                SetStretchBltMode(hdc_dest, STRETCH_HALFTONE);
                 let result = AlphaBlend(
                     hdc_dest,
                     0,
@@ -438,8 +489,8 @@ impl SplashWindow {
                     hdc_src,
                     0,
                     0,
-                    self.w,
-                    self.h,
+                    self.scaled_w,
+                    self.scaled_h,
                     ALPHA_BLEND_FN,
                 );
                 if !result.as_bool() {
@@ -625,6 +676,7 @@ fn test_parse_hex_color_invalid_falls_back_to_green() {
 fn show_splash_gif() {
     let rd = std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures/splash-test.gif")).unwrap();
     let tx = show_splash_dialog("osu!".to_string(), Some(rd), SplashOptions::default());
+    std::thread::sleep(std::time::Duration::from_secs(1));
     let _ = tx.send(25);
     std::thread::sleep(std::time::Duration::from_secs(1));
     let _ = tx.send(50);
@@ -670,6 +722,7 @@ fn show_splash_without_progress_bar() {
 #[ignore]
 fn show_splash_progress() {
     let tx = show_progress_dialog("hello!", "this is some content");
+    std::thread::sleep(std::time::Duration::from_secs(1));
     let _ = tx.send(25);
     std::thread::sleep(std::time::Duration::from_secs(1));
     let _ = tx.send(50);
