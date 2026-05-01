@@ -686,12 +686,9 @@ version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12dd43e5011e8d8411a3215a0d57a2ec5c68282fb90eb5d7221fab0113442174"
 dependencies = [
- "bytemuck",
  "cfg-if 1.0.4",
  "document-features",
- "image",
  "num-traits",
- "rayon",
  "thiserror 2.0.18",
 ]
 
