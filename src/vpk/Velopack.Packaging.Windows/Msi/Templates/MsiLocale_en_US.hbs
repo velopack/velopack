@@ -1,6 +1,8 @@
 <!--suppress CheckEmptyScriptTag -->
 <WixLocalization Culture="en-US" Language="1033" Codepage="65001" SummaryInformationCodepage="0" xmlns="http://wixtoolset.org/schemas/v4/wxl">
-    <String Id="ConclusionLaunchCheckboxText" Value="Launch"/>
+    <String Id="ConclusionLaunchCheckboxText" Value="Launch {{AppTitle}}"/>
+    <String Id="DesktopShortcutDescription" Value="Desktop shortcut for {{AppTitle}}"/>
+    <String Id="StartMenuShortcutDescription" Value="Start Menu shortcut for {{AppTitle}}"/>
 
     <!-- Message on first welcome dialog; covers both initial install and update -->
     {{#if HasWelcomeMessage}}
