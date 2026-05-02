@@ -54,10 +54,7 @@ pub fn prompt_and_install_all_missing(
             if !exe_path.exists() {
                 info!("    Downloading {}...", dep.display_name());
 
-                let reporter = dialogs::progress::show_deps_download_progress(
-                    dep.display_name(),
-                    updating_from.is_some(),
-                );
+                let reporter = dialogs::progress::show_deps_download_progress(dep.display_name(), updating_from.is_some());
                 let result = download::download_url_to_file(&url, &exe_path, |p| {
                     reporter.set_progress(p);
                 });

@@ -1,5 +1,5 @@
 [package]
-name = "velopack_dialogs"
+name = "velopack_l18n"
 publish = false
 version.workspace = true
 authors.workspace = true

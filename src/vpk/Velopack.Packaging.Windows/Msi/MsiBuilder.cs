@@ -17,18 +17,23 @@ namespace Velopack.Packaging.Windows.Msi;
 
 public static class MsiBuilder
 {
-    public static (string mainTemplate, string enLocale) GenerateWixTemplate(MsiTemplateData data)
+    private static readonly string[] DialogFiles = [
+        "WelcomeDlg.wxs", "ExitDialog.wxs", "VerifyReadyDlg.wxs", "ProgressDlg.wxs",
+        "PrepareDlg.wxs", "LicenseAgreementDlg.wxs", "InstallScopeDlg.wxs",
+        "MaintenanceWelcomeDlg.wxs", "MaintenanceTypeDlg.wxs", "BrowseDlg.wxs",
+        "InvalidDirDlg.wxs", "DiskCostDlg.wxs", "ErrorDlg.wxs", "FatalError.wxs",
+        "UserExit.wxs", "FilesInUse.wxs", "MsiRMFilesInUse.wxs", "ResumeDlg.wxs",
+        "CancelDlg.wxs", "OutOfRbDiskDlg.wxs", "OutOfDiskDlg.wxs",
+    ];
+
+    public static string GenerateWixTemplate(MsiTemplateData data)
     {
         if (data is null)
             throw new ArgumentNullException(nameof(data));
 
         var templateContent = GetResourceContent("MsiTemplate.hbs");
-        var localeContent = GetResourceContent("MsiLocale_en_US.hbs");
-
         var template = Handlebars.Compile(templateContent);
-        var locale = Handlebars.Compile(localeContent);
-
-        return (template(data), locale(data));
+        return template(data);
     }
 
     private static string GetPlainTextMessage(string filePath)
@@ -158,29 +163,51 @@ public static class MsiBuilder
         using var _1 = TempUtil.GetTempDirectory(out var outputDir);
         var wixId = data.WixId;
         var wxsPath = Path.Combine(outputDir, wixId + ".wxs");
-        var localizationPath = Path.Combine(outputDir, wixId + "_en-US.wxs");
 
-        var (wxsContent, localizationContent) = GenerateWixTemplate(data);
+        data.BannerBmpPath = data.HasTopBannerImage ? data.TopBannerImagePath : ExtractResource("banner.bmp", outputDir);
+        data.DialogBmpPath = data.HasSideBannerImage ? data.SideBannerImagePath : ExtractResource("dialog.bmp", outputDir);
+        data.ExclamIcoPath = ExtractResource("exclam.ico", outputDir);
+        data.UpIcoPath = ExtractResource("up.ico", outputDir);
+        data.NewIcoPath = ExtractResource("new.ico", outputDir);
 
-        // File.WriteAllText(@"C:\Source\velopack\samples\CSharpAvalonia\releases\test.wxs", wxsContent, Encoding.UTF8);
+        var wxsContent = GenerateWixTemplate(data);
         File.WriteAllText(wxsPath, wxsContent, Encoding.UTF8);
-        File.WriteAllText(localizationPath, localizationContent, Encoding.UTF8);
+
+        var dialogPaths = new List<string>();
+        foreach (var dialogFile in DialogFiles) {
+            var content = GetResourceContent(dialogFile);
+            var dialogPath = Path.Combine(outputDir, dialogFile);
+            File.WriteAllText(dialogPath, content, Encoding.UTF8);
+            dialogPaths.Add(dialogPath);
+        }
 
         progress(30);
 
         Log.Info("Compiling WiX Template");
 
-        List<string> wixExtensions = [HelperFile.WixUiExtPath];
-
-        //When localization is supported in Velopack, we will need to add -culture here:
-        //https://docs.firegiant.com/wix/tools/wixext/wixui/
+        var allSources = $"\"{wxsPath}\" {string.Join(" ", dialogPaths.Select(p => $"\"{p}\""))}";
         var buildCommand =
             $"\"{HelperFile.WixPath}\" build -arch {wixArch} -outputType Package " +
-            $"-pdbType none {string.Join(" ", wixExtensions.Select(x => $"-ext \"{x}\""))} -loc \"{localizationPath}\" -out \"{outputFilePath}\" \"{wxsPath}\"";
+            $"-pdbType none -out \"{outputFilePath}\" {allSources}";
 
         _ = Exe.RunHostedCommand(buildCommand);
 
         progress(100);
+    }
+
+    private static string ExtractResource(string resourceName, string outputDir)
+    {
+        var assy = Assembly.GetExecutingAssembly();
+        var suffix = "." + resourceName;
+        var resourceNameFull = assy.GetManifestResourceNames().SingleOrDefault(name => name.EndsWith(suffix) || name == resourceName);
+        if (string.IsNullOrEmpty(resourceNameFull))
+            throw new InvalidOperationException($"Resource '{resourceName}' not found in assembly.");
+
+        var outputPath = Path.Combine(outputDir, resourceName);
+        using var stream = assy.GetManifestResourceStream(resourceNameFull)!;
+        using var fs = File.Create(outputPath);
+        stream.CopyTo(fs);
+        return outputPath;
     }
 
     private static string GetResourceContent(string resourceName)
@@ -188,7 +215,8 @@ public static class MsiBuilder
         var assy = Assembly.GetExecutingAssembly();
 
         string[] manifestResourceNames = assy.GetManifestResourceNames();
-        string resourceNameFull = manifestResourceNames.SingleOrDefault(name => name.EndsWith(resourceName));
+        var suffix = "." + resourceName;
+        string resourceNameFull = manifestResourceNames.SingleOrDefault(name => name.EndsWith(suffix) || name == resourceName);
         if (string.IsNullOrEmpty(resourceNameFull))
             throw new InvalidOperationException(
                 $"Resource '{resourceName}' not found in assembly. Available resources: {string.Join(", ", manifestResourceNames)}");

@@ -1,6 +1,7 @@
 #![cfg(windows)]
 
 mod msi;
+mod validate_path;
 use msi::*;
 
 use std::{ffi::c_uint, path::PathBuf};
@@ -13,10 +14,30 @@ use windows::Win32::{
 };
 
 #[no_mangle]
+pub extern "system" fn RustSetLocaleStrings(h_install: MSIHANDLE) -> c_uint {
+    velopack_l18n::init();
+
+    let app_title = msi_get_property(h_install, "RustAppTitle").unwrap_or_default();
+
+    show_debug_message("RustSetLocaleStrings", format!("RustAppTitle={:?}", app_title));
+
+    for (property_name, value) in velopack_l18n::msi_strings::locale_strings(&app_title) {
+        msi_set_property_string(h_install, property_name, &value);
+    }
+
+    ERROR_SUCCESS.0
+}
+
+#[no_mangle]
+pub extern "system" fn ValidatePath(h_install: MSIHANDLE) -> c_uint {
+    validate_path::validate_path(h_install)
+}
+
+#[no_mangle]
 pub extern "system" fn EarlyBootstrap(h_install: MSIHANDLE) -> c_uint {
-    velopack_dialogs::init();
-    velopack_dialogs::init_win32_direct(); // bypass xdialog message loop and use taskdialog directly
-    
+    velopack_l18n::init();
+    velopack_l18n::init_win32_direct(); // bypass xdialog message loop and use taskdialog directly
+
     let dependencies = msi_get_property(h_install, "RustRuntimeDependencies");
     let app_name = msi_get_property(h_install, "RustAppTitle");
     let app_version = msi_get_property(h_install, "RustAppVersion");
@@ -36,7 +57,7 @@ pub extern "system" fn EarlyBootstrap(h_install: MSIHANDLE) -> c_uint {
             Ok(true) => ERROR_SUCCESS.0,
             Ok(false) => ERROR_INSTALL_USEREXIT.0,
             Err(e) => {
-                velopack_dialogs::show_setup_error(&app_name, &e.to_string());
+                velopack_l18n::show_setup_error(&app_name, &e.to_string());
                 ERROR_INSTALL_USEREXIT.0
             }
         }

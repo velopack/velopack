@@ -3577,7 +3577,7 @@ dependencies = [
  "tempfile",
  "time 0.3.47",
  "velopack",
- "velopack_dialogs",
+ "velopack_l18n",
  "wait-timeout",
  "waitpid-any",
  "walkdir",
@@ -3590,7 +3590,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "velopack_dialogs"
+name = "velopack_l18n"
 version = "0.0.0-local"
 dependencies = [
  "anyhow",
@@ -3653,7 +3653,7 @@ dependencies = [
  "remove_dir_all",
  "velopack",
  "velopack_bins",
- "velopack_dialogs",
+ "velopack_l18n",
  "windows",
 ]
 

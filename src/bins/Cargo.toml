@@ -67,7 +67,7 @@ walkdir.workspace = true
 sha1_smol.workspace = true
 rayon.workspace = true
 progress-streams.workspace = true
-velopack_dialogs.workspace = true
+velopack_l18n.workspace = true
 
 [target.'cfg(target_os="linux")'.dependencies]
 waitpid-any.workspace = true

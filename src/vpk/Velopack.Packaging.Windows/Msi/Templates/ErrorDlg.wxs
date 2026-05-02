@@ -1,0 +1,36 @@
+﻿<!-- Copyright (c) .NET Foundation and contributors. All rights reserved. Licensed under the Microsoft Reciprocal License. See LICENSE.TXT file in the project root for full license information. -->
+
+
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+    <Fragment>
+        <UI>
+            <Dialog Id="ErrorDlg" Width="270" Height="105" Title="[MsiErrorDlgTitle]" ErrorDialog="yes">
+                <Control Id="ErrorText" Type="Text" X="48" Y="15" Width="205" Height="60" TabSkip="no" NoPrefix="yes" />
+                <Control Id="Y" Type="PushButton" X="100" Y="80" Width="56" Height="17" TabSkip="yes" Text="[MsiBtnYes]">
+                    <Publish Event="EndDialog" Value="ErrorYes" />
+                </Control>
+                <Control Id="A" Type="PushButton" X="100" Y="80" Width="56" Height="17" TabSkip="yes" Text="[MsiBtnCancel]">
+                    <Publish Event="EndDialog" Value="ErrorAbort" />
+                </Control>
+                <Control Id="C" Type="PushButton" X="100" Y="80" Width="56" Height="17" TabSkip="yes" Text="[MsiBtnCancel]">
+                    <Publish Event="EndDialog" Value="ErrorCancel" />
+                </Control>
+                <Control Id="ErrorIcon" Type="Icon" X="15" Y="15" Width="24" Height="24" ToolTip="Error icon" FixedSize="yes" IconSize="32" Text="WixUI_Ico_Exclam" />
+                <Control Id="I" Type="PushButton" X="100" Y="80" Width="56" Height="17" TabSkip="yes" Text="[MsiBtnIgnore]">
+                    <Publish Event="EndDialog" Value="ErrorIgnore" />
+                </Control>
+                <Control Id="N" Type="PushButton" X="100" Y="80" Width="56" Height="17" TabSkip="yes" Text="[MsiBtnNo]">
+                    <Publish Event="EndDialog" Value="ErrorNo" />
+                </Control>
+                <Control Id="O" Type="PushButton" X="100" Y="80" Width="56" Height="17" TabSkip="yes" Text="[MsiBtnOk]">
+                    <Publish Event="EndDialog" Value="ErrorOk" />
+                </Control>
+                <Control Id="R" Type="PushButton" X="100" Y="80" Width="56" Height="17" TabSkip="yes" Text="[MsiBtnRetry]">
+                    <Publish Event="EndDialog" Value="ErrorRetry" />
+                </Control>
+            </Dialog>
+
+            <Property Id="ErrorDialog" Value="ErrorDlg" />
+        </UI>
+    </Fragment>
+</Wix>

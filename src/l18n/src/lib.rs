@@ -5,6 +5,7 @@ mod dialogs;
 mod locale_constants;
 mod locale_strings;
 mod localization;
+pub mod msi_strings;
 mod types;
 
 pub mod progress;

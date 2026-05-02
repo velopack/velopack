@@ -57,4 +57,10 @@ public class MsiTemplateData
 
     public bool HasSideBannerImage => !string.IsNullOrWhiteSpace(SideBannerImagePath) && File.Exists(SideBannerImagePath);
     public string SideBannerImagePath;
+
+    public string BannerBmpPath;
+    public string DialogBmpPath;
+    public string ExclamIcoPath;
+    public string UpIcoPath;
+    public string NewIcoPath;
 }
