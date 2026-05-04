@@ -16,6 +16,20 @@ struct UpdateManagerWrapper {
 impl Finalize for UpdateManagerWrapper {}
 type BoxedUpdateManager = JsBox<RefCell<UpdateManagerWrapper>>;
 
+fn args_get_source(cx: &mut FunctionContext, i: usize) -> NeonResult<Option<String>> {
+    let arg_source = cx.argument_opt(i);
+    if let Some(js_value) = arg_source {
+        if let Ok(js_string) = js_value.downcast::<JsString, _>(cx) {
+            let arg_source = js_string.value(cx);
+            if !arg_source.is_empty() {
+                return Ok(Some(arg_source));
+            }
+        }
+    }
+
+    Ok(None)
+}
+
 fn args_get_locator(cx: &mut FunctionContext, i: usize) -> NeonResult<Option<VelopackLocatorConfig>> {
     let arg_locator = cx.argument_opt(i);
     if let Some(js_value) = arg_locator {
@@ -48,7 +62,7 @@ fn args_array_to_vec_string(cx: &mut FunctionContext, arg: Handle<JsArray>) -> N
 }
 
 fn js_new_update_manager(mut cx: FunctionContext) -> JsResult<BoxedUpdateManager> {
-    let arg_source = cx.argument::<JsString>(0)?.value(&mut cx);
+    let arg_source = args_get_source(&mut cx, 0)?;
     let arg_options = cx.argument::<JsString>(1)?.value(&mut cx);
 
     let mut options: Option<UpdateOptions> = None;
@@ -59,8 +73,14 @@ fn js_new_update_manager(mut cx: FunctionContext) -> JsResult<BoxedUpdateManager
         options = Some(new_opt);
     }
 
-    let source = AutoSource::new(&arg_source);
-    let manager = UpdateManager::new(source, options, locator).or_else(|e| cx.throw_error(e.to_string()))?;
+    let manager = if let Some(arg_source) = arg_source {
+        let source = AutoSource::new(&arg_source);
+        UpdateManager::new(source, options, locator)
+    } else {
+        UpdateManager::new_default(options, locator)
+    }
+    .or_else(|e| cx.throw_error(e.to_string()))?;
+
     let wrapper = UpdateManagerWrapper { manager };
     Ok(cx.boxed(RefCell::new(wrapper)))
 }

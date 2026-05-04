@@ -16,10 +16,17 @@ pub struct UpdateManagerWrapper {
 #[pymethods]
 impl UpdateManagerWrapper {
     #[new]
-    #[pyo3(signature = (source, options = None, locator = None))]
-    pub fn new(source: String, options: Option<PyUpdateOptions>, locator: Option<PyVelopackLocatorConfig>) -> Result<Self> {
-        let source = AutoSource::new(&source);
-        let inner = VelopackUpdateManagerRust::new(source, options.map(Into::into), locator.map(Into::into))?;
+    #[pyo3(signature = (source = None, options = None, locator = None))]
+    pub fn new(source: Option<String>, options: Option<PyUpdateOptions>, locator: Option<PyVelopackLocatorConfig>) -> Result<Self> {
+        let options = options.map(Into::into);
+        let locator = locator.map(Into::into);
+        let inner = if let Some(source) = source {
+            let source = AutoSource::new(&source);
+            VelopackUpdateManagerRust::new(source, options, locator)?
+        } else {
+            VelopackUpdateManagerRust::new_default(options, locator)?
+        };
+
         Ok(UpdateManagerWrapper { inner })
     }
 

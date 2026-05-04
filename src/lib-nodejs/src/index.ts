@@ -6,7 +6,7 @@ export { UpdateInfo, UpdateOptions, VelopackLocatorConfig, VelopackAsset };
 type UpdateManagerOpaque = {};
 declare module "./load" {
   function js_new_update_manager(
-    urlOrPath: string,
+    urlOrPath: string | null,
     options: string | null,
     locator: string | null,
   ): UpdateManagerOpaque;
@@ -62,6 +62,27 @@ type VelopackHookType =
 type VelopackHook = (version: string) => void;
 
 type LogLevel = "info" | "warn" | "error" | "debug" | "trace";
+
+function isUpdateOptions(value: unknown): value is UpdateOptions {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    ("ExplicitChannel" in value || "AllowVersionDowngrade" in value || "MaximumDeltasBeforeFallback" in value)
+  );
+}
+
+function isLocatorConfig(value: unknown): value is VelopackLocatorConfig {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    ("ManifestPath" in value ||
+      "PackagesDir" in value ||
+      "RootAppDir" in value ||
+      "UpdateExePath" in value ||
+      "CurrentBinaryDir" in value ||
+      "IsPortable" in value)
+  );
+}
 
 /** 
  * VelopackApp helps you to handle app activation events correctly.
@@ -199,20 +220,51 @@ export class UpdateManager {
   private readonly opaque: UpdateManagerOpaque;
 
   /**
+   * Create a new UpdateManager instance. Omit the source to use the default Velopack Flow source.
+   */
+  constructor();
+
+  /**
+   * Create a new UpdateManager instance using the default Velopack Flow source.
+   * @param options Optional extra configuration for update manager.
+   * @param locator Override the default locator configuration (usually used for testing / mocks).
+   */
+  constructor(options?: UpdateOptions, locator?: VelopackLocatorConfig);
+
+  /**
    * Create a new UpdateManager instance.
    * @param urlOrPath Location of the update server or path to the local update directory.
    * @param options Optional extra configuration for update manager.
    * @param locator Override the default locator configuration (usually used for testing / mocks).
    */
+  constructor(urlOrPath: string, options?: UpdateOptions, locator?: VelopackLocatorConfig);
+
   constructor(
-    urlOrPath: string,
-    options?: UpdateOptions,
+    urlOrPathOrOptions?: string | UpdateOptions,
+    optionsOrLocator?: UpdateOptions | VelopackLocatorConfig,
     locator?: VelopackLocatorConfig,
   ) {
+    let urlOrPath: string | null = null;
+    let options: UpdateOptions | undefined;
+    let resolvedLocator: VelopackLocatorConfig | undefined;
+
+    if (typeof urlOrPathOrOptions === "string") {
+      urlOrPath = urlOrPathOrOptions;
+      if (isUpdateOptions(optionsOrLocator)) {
+        options = optionsOrLocator;
+        resolvedLocator = locator;
+      } else {
+        resolvedLocator = isLocatorConfig(optionsOrLocator) ? optionsOrLocator : locator;
+      }
+    } else {
+      options = isUpdateOptions(urlOrPathOrOptions) ? urlOrPathOrOptions : undefined;
+      resolvedLocator = isLocatorConfig(optionsOrLocator) ? optionsOrLocator : locator;
+    }
+
     this.opaque = addon.js_new_update_manager(
       urlOrPath,
       options ? JSON.stringify(options) : "",
-      locator ? JSON.stringify(locator) : null,
+      resolvedLocator ? JSON.stringify(resolvedLocator) : null,
     );
   }
 

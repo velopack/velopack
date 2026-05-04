@@ -10,7 +10,7 @@ use crate::{
     constants,
     locator::{self, LocationContext, VelopackLocator, VelopackLocatorConfig},
     misc,
-    sources::UpdateSource,
+    sources::{UpdateSource, VelopackFlowSource},
     Error,
 };
 
@@ -164,6 +164,18 @@ pub enum UpdateCheck {
 }
 
 impl UpdateManager {
+    /// Create a new UpdateManager instance using the default `VelopackFlowSource`.
+    /// This will return an error if the application is not yet installed.
+    /// ## Example:
+    /// ```rust
+    /// use velopack::*;
+    ///
+    /// let um = UpdateManager::new_default(None, None).unwrap();
+    /// ```
+    pub fn new_default(options: Option<UpdateOptions>, locator: Option<VelopackLocatorConfig>) -> Result<UpdateManager, Error> {
+        UpdateManager::new(VelopackFlowSource::new(None), options, locator)
+    }
+
     /// Create a new UpdateManager instance using the specified UpdateSource.
     /// This will return an error if the application is not yet installed.
     /// ## Example:
