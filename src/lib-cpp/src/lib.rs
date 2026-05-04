@@ -217,6 +217,28 @@ pub extern "C" fn vpkc_new_update_manager(
     })
 }
 
+/// Create a new UpdateManager instance using the default VelopackFlowSource.
+/// @param p_options Optional extra configuration for update manager.
+/// @param p_locator Optional explicit path configuration for Velopack. If null, the default locator will be used.
+/// @param p_manager A pointer to where the new vpkc_update_manager_t* instance will be stored.
+/// @returns True if the update manager was created successfully, false otherwise. If false, the error will be available via `vpkc_get_last_error`.
+#[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
+pub extern "C" fn vpkc_new_update_manager_default(
+    p_options: *mut vpkc_update_options_t,
+    p_locator: *mut vpkc_locator_config_t,
+    p_manager: *mut *mut vpkc_update_manager_t,
+) -> bool {
+    wrap_error(|| {
+        let options = c_to_UpdateOptions(p_options).ok();
+        let locator = c_to_VelopackLocatorConfig(p_locator).ok();
+        let manager = UpdateManager::new_default(options, locator)?;
+        unsafe { *p_manager = UpdateManagerRawPtr::new(manager) };
+        Ok(())
+    })
+}
+
 /// Create a new UpdateManager instance with a custom UpdateSource.
 /// @param p_source A pointer to a custom UpdateSource.
 /// @param p_options Optional extra configuration for update manager.
@@ -711,4 +733,66 @@ pub extern "C" fn vpkc_get_last_error(psz_error: *mut c_char, c_error: size_t) -
 #[no_mangle]
 pub extern "C" fn vpkc_set_logger(cb_log: vpkc_log_callback_t, p_user_data: *mut c_void) {
     set_log_callback(cb_log, p_user_data);
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{ffi::CStr, fs, path::PathBuf, ptr};
+
+    use super::*;
+    use crate::types::{allocate_VelopackLocatorConfig, free_VelopackLocatorConfig};
+    use tempfile::tempdir;
+    use velopack::locator::VelopackLocatorConfig;
+
+    fn test_manifest_path() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("test")
+            .join("fixtures")
+            .join("Test.Squirrel-App.nuspec")
+    }
+
+    fn test_locator_config() -> VelopackLocatorConfig {
+        let temp_dir = tempdir().unwrap();
+        let root_dir = temp_dir.into_path();
+        let packages_dir = root_dir.join("packages");
+        let current_binary_dir = root_dir.join("current");
+        let update_exe_path = root_dir.join("Update.exe");
+
+        fs::create_dir_all(&packages_dir).unwrap();
+        fs::create_dir_all(&current_binary_dir).unwrap();
+        fs::write(&update_exe_path, []).unwrap();
+
+        VelopackLocatorConfig {
+            RootAppDir: root_dir,
+            UpdateExePath: update_exe_path,
+            PackagesDir: packages_dir,
+            ManifestPath: test_manifest_path(),
+            CurrentBinaryDir: current_binary_dir,
+            IsPortable: true,
+        }
+    }
+
+    #[test]
+    fn new_update_manager_default_uses_flow_source() {
+        let locator = test_locator_config();
+        let mut manager = ptr::null_mut();
+        let mut app_id = vec![0 as c_char; 128];
+
+        let locator_ptr = unsafe { allocate_VelopackLocatorConfig(&locator) };
+        let ok = vpkc_new_update_manager_default(ptr::null_mut(), locator_ptr, &mut manager);
+
+        assert!(ok);
+        assert!(!manager.is_null());
+
+        let written = vpkc_get_app_id(manager, app_id.as_mut_ptr(), app_id.len());
+        assert!(written > 0);
+
+        let app_id = unsafe { CStr::from_ptr(app_id.as_ptr()) }.to_string_lossy().to_string();
+        assert_eq!(app_id, "Test.Squirrel-App");
+
+        vpkc_free_update_manager(manager);
+        unsafe { free_VelopackLocatorConfig(locator_ptr) };
+    }
 }

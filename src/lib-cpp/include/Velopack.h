@@ -306,6 +306,17 @@ bool vpkc_new_update_manager(const char *psz_url_or_path,
                              vpkc_update_manager_t **p_manager);
 
 /**
+ * Create a new UpdateManager instance using the default VelopackFlowSource.
+ * @param p_options Optional extra configuration for update manager.
+ * @param p_locator Optional explicit path configuration for Velopack. If null, the default locator will be used.
+ * @param p_manager A pointer to where the new vpkc_update_manager_t* instance will be stored.
+ * @returns True if the update manager was created successfully, false otherwise. If false, the error will be available via `vpkc_get_last_error`.
+ */
+bool vpkc_new_update_manager_default(struct vpkc_update_options_t *p_options,
+                                     struct vpkc_locator_config_t *p_locator,
+                                     vpkc_update_manager_t **p_manager);
+
+/**
  * Create a new UpdateManager instance with a custom UpdateSource.
  * @param p_source A pointer to a custom UpdateSource.
  * @param p_options Optional extra configuration for update manager.
