@@ -1,5 +1,7 @@
 use anyhow::{bail, Result};
-use image::{codecs::gif::GifDecoder, AnimationDecoder, DynamicImage, ImageFormat, ImageReader};
+use fast_image_resize as fr;
+use image::{codecs::gif::GifDecoder, AnimationDecoder, ImageFormat, ImageReader};
+use rayon::prelude::*;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::{io::Cursor, thread};
 use velopack::wide_strings::string_to_wide;
@@ -77,18 +79,49 @@ pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>, options:
     tx
 }
 
+struct ProgressBar {
+    hdc: OwnedCompatibleDC,
+    _bmp: OwnedBitmap,
+}
+
+impl ProgressBar {
+    fn new(color: (u8, u8, u8), screen: &OwnedDC) -> Self {
+        let (r, g, b) = color;
+        let pixel: u32 = (255u32 << 24) | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
+        let pixel_bytes = pixel.to_ne_bytes();
+        let bmp = OwnedBitmap::from_bgra8_pixels(1, 1, &pixel_bytes);
+        let hdc = OwnedCompatibleDC::new(screen);
+        unsafe { SelectObject(hdc.0, bmp.0.into()) };
+        Self { hdc, _bmp: bmp }
+    }
+
+    fn draw(&self, dest: &OwnedCompatibleDC, scaled_w: i32, scaled_h: i32, dpi_scale: f32, progress: i16) {
+        let progress_width = (scaled_w as f32 * (progress as f32 / 100.0)) as i32;
+        let progress_height = (12.0 * dpi_scale) as i32;
+        if progress_width > 0 {
+            unsafe {
+                let _ = StretchBlt(dest.0, 0, scaled_h - progress_height, progress_width, progress_height, Some(self.hdc.0), 0, 0, 1, 1, SRCCOPY);
+            }
+        }
+    }
+}
+
 struct SplashWindow {
-    frames: Vec<HBITMAP>,
+    frames: Vec<OwnedBitmap>,
+    decoded_images: Vec<Vec<u8>>,
+    orig_w: u32,
+    orig_h: u32,
     rx: Receiver<i16>,
     progress: i16,
     frame_idx: usize,
-    w: i32,         // original bitmap width
-    h: i32,         // original bitmap height
-    scaled_w: i32,  // DPI-scaled window width
-    scaled_h: i32,  // DPI-scaled window height
-    dpi_scale: f32, // current DPI scale factor
-    hdc_screen: HDC,
-    progress_bar_color: Option<(u8, u8, u8)>,
+    scaled_w: i32,
+    scaled_h: i32,
+    dpi_scale: f32,
+    hdc_screen: OwnedDC,
+    hdc_src: OwnedCompatibleDC,
+    hdc_mem: OwnedCompatibleDC,
+    bmp_mem: OwnedBitmap,
+    bar: Option<ProgressBar>,
 }
 
 fn average(numbers: &[u32]) -> u32 {
@@ -165,9 +198,37 @@ fn clamp_to_monitor(scaled_w: i32, scaled_h: i32, monitor_rect: &RECT) -> (i32, 
     }
 }
 
-fn convert_rgba_to_bgra(image_data: &mut [u8]) {
-    for chunk in image_data.chunks_mut(4) {
-        chunk.swap(0, 2);
+// Lanczos3 ringing can produce pixels where RGB > A (invalid premultiplied state),
+// which appear as bright garbage pixels at alpha edges.
+// LLVM auto-vectorizes this to SSE2 or SSE4.1 pminud, depending on compiler flags.
+// https://rust.godbolt.org/z/W7jPEsxTz
+fn clamp_premultiplied(pixels: &mut [u8]) {
+    for chunk in pixels.chunks_exact_mut(4) {
+        let p = u32::from_ne_bytes(chunk.try_into().unwrap());
+        let a = (p >> 24) & 0xFF;
+        let r = (p & 0xFF).min(a);
+        let g = ((p >> 8) & 0xFF).min(a);
+        let b = ((p >> 16) & 0xFF).min(a);
+        chunk.copy_from_slice(&(r | (g << 8) | (b << 16) | (a << 24)).to_ne_bytes());
+    }
+}
+
+// Swaps R/B channels and premultiplies RGB by alpha in a single pass using SWAR
+// (SIMD Within A Register). Processes R+B in parallel within a u32 by exploiting
+// the fact that their products (max 255*256) can't overflow 16-bit lanes.
+// LLVM auto-vectorizes this to SSE2 or SSE4.1 (pshufb + pmulld), depending on compiler flags.
+// UpdateLayeredWindow with AC_SRC_ALPHA expects premultiplied BGRA.
+// See: https://users.rust-lang.org/t/the-fastest-way-to-copy-a-buffer-bgra-to-rgba/126651
+// https://rust.godbolt.org/z/W7jPEsxTz
+fn convert_rgba_to_premultiplied_bgra(pixels: &mut [u8]) {
+    for chunk in pixels.chunks_exact_mut(4) {
+        let p = u32::from_ne_bytes(chunk.try_into().unwrap());
+        let a = p >> 24;
+        let a1 = a + 1;
+        let rb_swapped = (p >> 16 & 0xFF) | ((p & 0xFF) << 16);
+        let rb = (rb_swapped.wrapping_mul(a1) >> 8) & 0x00FF00FF;
+        let g = ((p & 0x0000FF00).wrapping_mul(a1) >> 8) & 0x0000FF00;
+        chunk.copy_from_slice(&(rb | g | (a << 24)).to_ne_bytes());
     }
 }
 
@@ -184,6 +245,116 @@ fn rgb(red: u8, green: u8, blue: u8) -> COLORREF {
     COLORREF((red as u32) | ((green as u32) << 8) | ((blue as u32) << 16))
 }
 
+struct OwnedBitmap(HBITMAP);
+unsafe impl Send for OwnedBitmap {}
+
+impl OwnedBitmap {
+    fn from_bgra8_pixels(w: i32, h: i32, pixels: &[u8]) -> Self {
+        Self(unsafe { CreateBitmap(w, h, 1, 32, Some(pixels.as_ptr() as *const _)) })
+    }
+}
+
+impl Drop for OwnedBitmap {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = DeleteObject(self.0.into());
+        }
+    }
+}
+
+struct OwnedDC {
+    hdc: HDC,
+    hwnd: HWND,
+}
+
+impl OwnedDC {
+    fn from_desktop() -> Self {
+        unsafe {
+            let hwnd = GetDesktopWindow();
+            Self { hdc: GetDC(Some(hwnd)), hwnd }
+        }
+    }
+}
+
+impl Drop for OwnedDC {
+    fn drop(&mut self) {
+        unsafe { ReleaseDC(Some(self.hwnd), self.hdc) };
+    }
+}
+
+struct BitmapGuard {
+    hdc: HDC,
+    old: HGDIOBJ,
+}
+
+impl Drop for BitmapGuard {
+    fn drop(&mut self) {
+        unsafe { SelectObject(self.hdc, self.old) };
+    }
+}
+
+struct OwnedCompatibleDC(HDC);
+
+impl OwnedCompatibleDC {
+    fn new(screen: &OwnedDC) -> Self {
+        Self(unsafe { CreateCompatibleDC(Some(screen.hdc)) })
+    }
+
+    fn hdc(&self) -> HDC {
+        self.0
+    }
+
+    fn use_bitmap(&self, bmp: HBITMAP) -> BitmapGuard {
+        let old = unsafe { SelectObject(self.0, bmp.into()) };
+        BitmapGuard { hdc: self.0, old }
+    }
+
+    fn blit_from(&self, src: &Self, w: i32, h: i32) {
+        unsafe {
+            let _ = BitBlt(self.0, 0, 0, w, h, Some(src.0), 0, 0, SRCCOPY);
+        }
+    }
+
+    fn create_surface(&self, screen: &OwnedDC, w: i32, h: i32) -> OwnedBitmap {
+        unsafe {
+            let bmp = CreateCompatibleBitmap(screen.hdc, w, h);
+            SelectObject(self.0, bmp.into());
+            OwnedBitmap(bmp)
+        }
+    }
+}
+
+impl Drop for OwnedCompatibleDC {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = DeleteDC(self.0);
+        }
+    }
+}
+
+fn scale_frames(images: &[Vec<u8>], src_w: u32, src_h: u32, dst_w: u32, dst_h: u32) -> Vec<OwnedBitmap> {
+    let need_scale = src_w != dst_w || src_h != dst_h;
+    let resize_opts = fr::ResizeOptions::new().resize_alg(fr::ResizeAlg::Convolution(fr::FilterType::Lanczos3));
+    let (dw, dh) = (dst_w as i32, dst_h as i32);
+    images
+        .par_iter()
+        .map_init(
+            || (fr::Resizer::new(), fr::images::Image::new(dst_w, dst_h, fr::PixelType::U8x4)),
+            |(resizer, dst_image), bgra| {
+                if need_scale {
+                    let src_image = fr::images::ImageRef::new(src_w, src_h, bgra, fr::PixelType::U8x4).unwrap();
+                    resizer.resize(&src_image, dst_image, &resize_opts).unwrap();
+                    let buf = dst_image.buffer_mut();
+                    clamp_premultiplied(buf);
+                    OwnedBitmap::from_bgra8_pixels(dw, dh, buf)
+                } else {
+                    OwnedBitmap::from_bgra8_pixels(dw, dh, bgra)
+                }
+            },
+        )
+        .collect()
+}
+
 const ALPHA_BLEND_FN: BLENDFUNCTION = BLENDFUNCTION {
     BlendOp: AC_SRC_OVER as u8,
     BlendFlags: 0,
@@ -194,7 +365,7 @@ const ALPHA_BLEND_FN: BLENDFUNCTION = BLENDFUNCTION {
 impl SplashWindow {
     pub unsafe fn run(app_name: String, img_stream: Vec<u8>, rx: Receiver<i16>, progress_bar_color: Option<(u8, u8, u8)>) -> Result<()> {
         let mut delays = Vec::new();
-        let mut frames = Vec::new();
+        let mut decoded_images: Vec<Vec<u8>> = Vec::new();
 
         let fmt_cursor = Cursor::new(&img_stream);
         let fmt_reader = ImageReader::new(fmt_cursor).with_guessed_format()?;
@@ -207,27 +378,22 @@ impl SplashWindow {
             info!("Image is animated GIF ({}x{}), loading frames...", w, h);
             let gif_cursor = Cursor::new(&img_stream);
             let decoder = GifDecoder::new(gif_cursor)?;
-            let dec_frames = decoder.into_frames();
-            for frame in dec_frames.into_iter() {
+            for frame in decoder.into_frames() {
                 let frame = frame?;
                 let (num, dem) = frame.delay().numer_denom_ms();
                 delays.push((num / dem) as u32);
-                let dynamic = DynamicImage::from(frame.buffer().to_owned());
-                let mut vec = dynamic.to_rgba8().to_vec();
-                convert_rgba_to_bgra(&mut vec);
-                let bitmap = CreateBitmap(w, h, 1, 32, Some(vec.as_mut_ptr() as *mut _));
-                frames.push(bitmap);
+                let mut buf = frame.into_buffer().into_vec();
+                convert_rgba_to_premultiplied_bgra(&mut buf);
+                decoded_images.push(buf);
             }
-            info!("Successfully loaded {} frames.", frames.len());
+            info!("Successfully loaded {} frames.", decoded_images.len());
         } else {
             info!("Loading static image (detected {:?})...", fmt);
-            delays.push(16u32); // 60 fps
+            delays.push(16u32);
             let img_cursor = Cursor::new(&img_stream);
-            let img_decoder = ImageReader::new(img_cursor).with_guessed_format()?.decode()?;
-            let mut vec = img_decoder.to_rgba8().to_vec();
-            convert_rgba_to_bgra(&mut vec);
-            let bitmap = CreateBitmap(w, h, 1, 32, Some(vec.as_mut_ptr() as *mut _));
-            frames.push(bitmap);
+            let mut buf = ImageReader::new(img_cursor).with_guessed_format()?.decode()?.into_rgba8().into_vec();
+            convert_rgba_to_premultiplied_bgra(&mut buf);
+            decoded_images.push(buf);
             info!("Successfully loaded.");
         }
 
@@ -269,6 +435,8 @@ impl SplashWindow {
         };
         info!("DPI scale: {}, window size: {}x{} -> {}x{}", dpi_scale, w, h, scaled_w, scaled_h);
 
+        let frames = scale_frames(&decoded_images, w as u32, h as u32, scaled_w as u32, scaled_h as u32);
+
         let class_name = string_to_wide("VelopackSetupSplashWindow");
         let app_name = string_to_wide(&app_name);
 
@@ -309,21 +477,28 @@ impl SplashWindow {
             None,
         )?;
 
-        let hwnd_desktop = unsafe { GetDesktopWindow() };
-        let hdc_screen = unsafe { GetDC(Some(hwnd_desktop)) };
+        let hdc_screen = OwnedDC::from_desktop();
+        let hdc_src = OwnedCompatibleDC::new(&hdc_screen);
+        let hdc_mem = OwnedCompatibleDC::new(&hdc_screen);
+        let bmp_mem = hdc_mem.create_surface(&hdc_screen, scaled_w, scaled_h);
+        let bar = progress_bar_color.map(|c| ProgressBar::new(c, &hdc_screen));
 
         let data_ptr = Box::into_raw(Box::new(Self {
             frames,
+            decoded_images,
+            orig_w: w as u32,
+            orig_h: h as u32,
             rx,
             frame_idx: 0,
-            w,
-            h,
             scaled_w,
             scaled_h,
             dpi_scale,
             progress: 0,
             hdc_screen,
-            progress_bar_color,
+            hdc_src,
+            hdc_mem,
+            bmp_mem,
+            bar,
         }));
 
         SetWindowLongPtrW(hwnd, GWL_USERDATA, (data_ptr as isize).try_into()?);
@@ -341,11 +516,7 @@ impl SplashWindow {
             DispatchMessageW(&msg);
         }
 
-        let data = Box::from_raw(data_ptr);
-        ReleaseDC(Some(hwnd_desktop), data.hdc_screen);
-        for h_bitmap in &data.frames {
-            let _ = DeleteObject((*h_bitmap).into());
-        }
+        drop(Box::from_raw(data_ptr));
 
         let _ = DestroyWindow(hwnd);
         Ok(())
@@ -357,12 +528,15 @@ impl SplashWindow {
                 return HTCAPTION as isize; // make the window draggable
             }
             WM_DPICHANGED => {
-                // Let Windows handle position and size — the suggested rect already
-                // has the correct DPI-scaled dimensions for the new monitor.
                 let suggested = &*(lparam.0 as *const RECT);
                 self.scaled_w = suggested.right - suggested.left;
                 self.scaled_h = suggested.bottom - suggested.top;
                 self.dpi_scale = (wparam.0 & 0xFFFF) as f32 / 96.0;
+
+                self.frames = scale_frames(&self.decoded_images, self.orig_w, self.orig_h, self.scaled_w as u32, self.scaled_h as u32);
+                self.frame_idx = 0;
+
+                self.bmp_mem = self.hdc_mem.create_surface(&self.hdc_screen, self.scaled_w, self.scaled_h);
 
                 let _ = SetWindowPos(
                     hwnd,
@@ -405,95 +579,27 @@ impl SplashWindow {
                     return 0;
                 }
 
-                // get the bitmap for the current frame
-                let h_bitmap = self.frames[self.frame_idx];
+                let _guard = self.hdc_src.use_bitmap(self.frames[self.frame_idx].0);
+                self.hdc_mem.blit_from(&self.hdc_src, self.scaled_w, self.scaled_h);
+                drop(_guard);
 
-                // create memory DC with the original frame bitmap
-                let hdc_src = CreateCompatibleDC(Some(self.hdc_screen));
-                let src_old = SelectObject(hdc_src, h_bitmap.into());
-
-                // create a scaled bitmap for the output
-                let hdc_dest = CreateCompatibleDC(Some(self.hdc_screen));
-                let scaled_bitmap = CreateCompatibleBitmap(self.hdc_screen, self.scaled_w, self.scaled_h);
-                let dest_old = SelectObject(hdc_dest, scaled_bitmap.into());
-
-                // stretch the original bitmap to the scaled size using AlphaBlend
-                // to preserve alpha channel during scaling
-                SetStretchBltMode(hdc_dest, STRETCH_HALFTONE);
-                let result = AlphaBlend(
-                    hdc_dest,
-                    0,
-                    0,
-                    self.scaled_w,
-                    self.scaled_h,
-                    hdc_src,
-                    0,
-                    0,
-                    self.w,
-                    self.h,
-                    ALPHA_BLEND_FN,
-                );
-                if !result.as_bool() {
-                    warn!("AlphaBlend failed");
+                if let Some(bar) = &self.bar {
+                    bar.draw(&self.hdc_mem, self.scaled_w, self.scaled_h, self.dpi_scale, self.progress);
                 }
 
-                // draw progress bar on top of the scaled bitmap (if enabled)
-                // Must use AlphaBlend with a 32-bit BGRA bitmap so the alpha channel
-                // is set to 255 (opaque). FillRect leaves alpha at 0, which
-                // UpdateLayeredWindow treats as fully transparent.
-                if let Some((r, g, b)) = self.progress_bar_color {
-                    let progress_width = (self.scaled_w as f32 * (self.progress as f32 / 100.0)) as i32;
-                    let progress_height = (12.0 * self.dpi_scale) as i32;
-                    if progress_width > 0 {
-                        // BGRA pixel with alpha=255 (little-endian u32: 0xAARRGGBB)
-                        let pixel: u32 = (255u32 << 24) | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
-                        let mut pixel_data = [pixel];
-                        let bar_bmp = CreateBitmap(1, 1, 1, 32, Some(pixel_data.as_mut_ptr() as *mut _));
-                        let hdc_bar = CreateCompatibleDC(Some(self.hdc_screen));
-                        let old_bar = SelectObject(hdc_bar, bar_bmp.into());
-                        let _ = AlphaBlend(
-                            hdc_dest,
-                            0,
-                            self.scaled_h - progress_height,
-                            progress_width,
-                            progress_height,
-                            hdc_bar,
-                            0,
-                            0,
-                            1,
-                            1,
-                            ALPHA_BLEND_FN,
-                        );
-                        SelectObject(hdc_bar, old_bar);
-                        let _ = DeleteDC(hdc_bar);
-                        let _ = DeleteObject(bar_bmp.into());
-                    }
-                }
-
-                // Use UpdateLayeredWindow for true transparency with per-pixel alpha
-                let size = SIZE {
-                    cx: self.scaled_w,
-                    cy: self.scaled_h,
-                };
+                let size = SIZE { cx: self.scaled_w, cy: self.scaled_h };
                 let pt_src = POINT { x: 0, y: 0 };
                 let _ = UpdateLayeredWindow(
                     hwnd,
                     None,
                     None,
                     Some(&size),
-                    Some(hdc_dest),
+                    Some(self.hdc_mem.hdc()),
                     Some(&pt_src),
                     COLORREF(0),
                     Some(&ALPHA_BLEND_FN),
                     ULW_ALPHA,
                 );
-
-                // clean up
-                SelectObject(hdc_dest, dest_old);
-                SelectObject(hdc_src, src_old);
-                let _ = DeleteDC(hdc_dest);
-                let _ = DeleteDC(hdc_src);
-                let _ = DeleteObject(scaled_bitmap.into());
 
                 let _ = EndPaint(hwnd, &ps);
                 return 0;
@@ -616,16 +722,17 @@ fn test_parse_hex_color_invalid_falls_back_to_green() {
 fn show_splash_gif() {
     let rd = std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures/splash-test.gif")).unwrap();
     let tx = show_splash_dialog("osu!".to_string(), Some(rd), SplashOptions::default());
-    let _ = tx.send(25);
+    let duration = std::time::Duration::from_secs(10);
+    let interval = std::time::Duration::from_millis(16);
+    let steps = (duration.as_millis() / interval.as_millis()) as i16;
+    for i in 1..=steps {
+        std::thread::sleep(interval);
+        let progress = (i as f32 / steps as f32 * 100.0) as i16;
+        let _ = tx.send(progress);
+    }
     std::thread::sleep(std::time::Duration::from_secs(1));
-    let _ = tx.send(50);
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    let _ = tx.send(75);
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    let _ = tx.send(100);
-    std::thread::sleep(std::time::Duration::from_secs(3));
     let _ = tx.send(MSG_CLOSE);
-    std::thread::sleep(std::time::Duration::from_secs(3));
+    std::thread::sleep(std::time::Duration::from_secs(1));
 }
 
 #[test]
@@ -661,6 +768,7 @@ fn show_splash_without_progress_bar() {
 #[ignore]
 fn show_splash_progress() {
     let tx = show_progress_dialog("hello!", "this is some content");
+    std::thread::sleep(std::time::Duration::from_secs(1));
     let _ = tx.send(25);
     std::thread::sleep(std::time::Duration::from_secs(1));
     let _ = tx.send(50);
