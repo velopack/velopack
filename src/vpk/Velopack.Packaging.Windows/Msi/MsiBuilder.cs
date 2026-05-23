@@ -19,10 +19,11 @@ public static class MsiBuilder
 {
     private static readonly string[] DialogFiles = [
         "WelcomeDlg.wxs", "ExitDialog.wxs", "VerifyReadyDlg.wxs", "ProgressDlg.wxs",
-        "LicenseAgreementDlg.wxs", "InstallScopeDlg.wxs",
-        "MaintenanceTypeDlg.wxs", "ErrorDlg.wxs", "FatalError.wxs",
-        "UserExit.wxs", "FilesInUse.wxs", "MsiRMFilesInUse.wxs",
-        "CancelDlg.wxs", "OutOfDiskDlg.wxs",
+        "PrepareDlg.wxs", "LicenseAgreementDlg.wxs", "InstallScopeDlg.wxs",
+        "MaintenanceWelcomeDlg.wxs", "MaintenanceTypeDlg.wxs", "BrowseDlg.wxs",
+        "InvalidDirDlg.wxs", "DiskCostDlg.wxs", "ErrorDlg.wxs", "FatalError.wxs",
+        "UserExit.wxs", "FilesInUse.wxs", "MsiRMFilesInUse.wxs", "ResumeDlg.wxs",
+        "CancelDlg.wxs", "OutOfRbDiskDlg.wxs", "OutOfDiskDlg.wxs",
     ];
 
     public static string GenerateWixTemplate(MsiTemplateData data)
@@ -168,6 +169,8 @@ public static class MsiBuilder
         data.BannerBmpPath = data.HasTopBannerImage ? data.TopBannerImagePath : ExtractResource("banner.bmp", outputDir);
         data.DialogBmpPath = data.HasSideBannerImage ? data.SideBannerImagePath : ExtractResource("dialog.bmp", outputDir);
         data.ExclamIcoPath = ExtractResource("exclam.ico", outputDir);
+        data.UpIcoPath = ExtractResource("up.ico", outputDir);
+        data.NewIcoPath = ExtractResource("new.ico", outputDir);
 
         var wxsContent = GenerateWixTemplate(data);
         File.WriteAllText(wxsPath, wxsContent, Encoding.UTF8);

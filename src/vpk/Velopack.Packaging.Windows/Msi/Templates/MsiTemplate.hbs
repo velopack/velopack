@@ -142,6 +142,8 @@
         <Binary Id="WixUI_Bmp_Banner" SourceFile="{{BannerBmpPath}}"/>
         <Binary Id="WixUI_Bmp_Dialog" SourceFile="{{DialogBmpPath}}"/>
         <Binary Id="WixUI_Ico_Exclam" SourceFile="{{ExclamIcoPath}}"/>
+        <Binary Id="WixUI_Bmp_Up" SourceFile="{{UpIcoPath}}"/>
+        <Binary Id="WixUI_Bmp_New" SourceFile="{{NewIcoPath}}"/>
 
         <!-- MSI properties for app metadata (used by Rust custom actions) -->
         <Property Id="RustAppId" Value="{{AppTitle}}"/>
@@ -195,16 +197,25 @@
 
             <Property Id="DefaultUIFont" Value="WixUI_Font_Normal"/>
 
+            <DialogRef Id="BrowseDlg"/>
+            <DialogRef Id="DiskCostDlg"/>
             <DialogRef Id="ErrorDlg"/>
             <DialogRef Id="FatalError"/>
             <DialogRef Id="FilesInUse"/>
             <DialogRef Id="MsiRMFilesInUse"/>
+            <DialogRef Id="PrepareDlg"/>
             <DialogRef Id="ProgressDlg"/>
+            <DialogRef Id="ResumeDlg"/>
             <DialogRef Id="UserExit"/>
             <DialogRef Id="CancelDlg"/>
 
+            <!-- ValidatePath actions for BrowseDlg and InstallScopeDlg -->
+            <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="RustValidatePath" Order="3"
+                     Condition="NOT WIXUI_DONTVALIDATEPATH"/>
+            <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4"
+                     Condition="NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID&lt;&gt;&quot;1&quot;"/>
+
             {{#if InstallLocationEither}}
-            <!-- ValidatePath action for InstallScopeDlg -->
                 <Publish Dialog="InstallScopeDlg" Control="Next" Event="DoAction" Value="RustValidatePath"
                          Order="7" Condition="NOT WIXUI_DONTVALIDATEPATH"/>
             {{/if}}
@@ -297,8 +308,10 @@
             <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2"
                      Condition="Installed AND PATCH"/>
 
+            <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg"/>
             <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg"/>
             <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg"/>
+            <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg"/>
 
             <Property Id="ARPNOMODIFY" Value="1"/>
         </UI>

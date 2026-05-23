@@ -10,28 +10,39 @@
 
             <Dialog Id="MaintenanceTypeDlg" Width="370" Height="270" Title="[MsiDlgTitle]">
 
-                <Control Id="RepairButton" Type="PushButton" X="40" Y="65" Width="80" Height="17" ToolTip="[MsiMaintRepairTooltip]" Default="yes" Text="[MsiMaintRepairButton]"
+                <Control Id="ChangeButton" Type="PushButton" X="40" Y="65" Width="80" Height="17" ToolTip="[MsiMaintChangeTooltip]" Default="yes" Text="[MsiMaintChangeButton]" 
+                    DisableCondition="ARPNOMODIFY OR BURNMSIREPAIR OR BURNMSIUNINSTALL">
+                    <Publish Property="WixUI_InstallMode" Value="Change" />
+                </Control>
+                <Control Id="ChangeText" Type="Text" X="60" Y="85" Width="280" Height="20" Text="[MsiMaintChangeText]" 
+                    HideCondition="ARPNOMODIFY OR BURNMSIREPAIR OR BURNMSIUNINSTALL" 
+                    />
+                <Control Id="ChangeDisabledText" Type="Text" X="60" Y="85" Width="280" Height="20" NoPrefix="yes" Text="[MsiMaintChangeDisabled]" 
+                    Hidden="yes" ShowCondition="ARPNOMODIFY OR BURNMSIREPAIR OR BURNMSIUNINSTALL" 
+                    />
+
+                <Control Id="RepairButton" Type="PushButton" X="40" Y="118" Width="80" Height="17" ToolTip="[MsiMaintRepairTooltip]" Text="[MsiMaintRepairButton]"
                     DisableCondition="ARPNOREPAIR OR BURNMSIMODIFY OR BURNMSIUNINSTALL">
                     <Publish Property="WixUI_InstallMode" Value="Repair" />
                 </Control>
-                <Control Id="RepairText" Type="Text" X="60" Y="85" Width="280" Height="30" Text="[MsiMaintRepairText]"
-                    HideCondition="ARPNOREPAIR OR BURNMSIMODIFY OR BURNMSIUNINSTALL"
+                <Control Id="RepairText" Type="Text" X="60" Y="138" Width="280" Height="30" Text="[MsiMaintRepairText]" 
+                    HideCondition="ARPNOREPAIR OR BURNMSIMODIFY OR BURNMSIUNINSTALL" 
                     />
-                <Control Id="RepairDisabledText" Type="Text" X="60" Y="85" Width="280" Height="30" NoPrefix="yes" Text="[MsiMaintRepairDisabled]"
+                <Control Id="RepairDisabledText" Type="Text" X="60" Y="138" Width="280" Height="30" NoPrefix="yes" Text="[MsiMaintRepairDisabled]" 
                     Hidden="yes" ShowCondition="ARPNOREPAIR OR BURNMSIMODIFY OR BURNMSIUNINSTALL" />
 
-                <Control Id="RemoveButton" Type="PushButton" X="40" Y="118" Width="80" Height="17" ToolTip="[MsiMaintRemoveTooltip]" Text="[MsiMaintRemoveButton]"
+                <Control Id="RemoveButton" Type="PushButton" X="40" Y="171" Width="80" Height="17" ToolTip="[MsiMaintRemoveTooltip]" Text="[MsiMaintRemoveButton]" 
                     DisableCondition="ARPNOREMOVE OR BURNMSIREPAIR OR BURNMSIMODIFY">
                     <Publish Property="WixUI_InstallMode" Value="Remove" />
                 </Control>
-                <Control Id="RemoveText" Type="Text" X="60" Y="138" Width="280" Height="20" NoPrefix="yes" Text="[MsiMaintRemoveText]"
+                <Control Id="RemoveText" Type="Text" X="60" Y="191" Width="280" Height="20" NoPrefix="yes" Text="[MsiMaintRemoveText]" 
                     HideCondition="ARPNOREMOVE OR BURNMSIREPAIR OR BURNMSIMODIFY"
                     />
-                <Control Id="RemoveDisabledText" Type="Text" X="60" Y="138" Width="280" Height="20" NoPrefix="yes" Text="[MsiMaintRemoveDisabled]" Hidden="yes"
-                    ShowCondition="ARPNOREMOVE OR BURNMSIREPAIR OR BURNMSIMODIFY"
+                <Control Id="RemoveDisabledText" Type="Text" X="60" Y="191" Width="280" Height="20" NoPrefix="yes" Text="[MsiMaintRemoveDisabled]" Hidden="yes" 
+                    ShowCondition="ARPNOREMOVE OR BURNMSIREPAIR OR BURNMSIMODIFY" 
                     />
 
-                <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Disabled="yes" Text="[MsiBtnBack]" />
+                <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="[MsiBtnBack]" />
                 <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Disabled="yes" Text="[MsiBtnNext]" />
                 <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="[MsiBtnCancel]">
                     <Publish Event="SpawnDialog" Value="CancelDlg" />
@@ -42,11 +53,6 @@
                 <Control Id="Title" Type="Text" X="15" Y="6" Width="340" Height="15" Transparent="yes" NoPrefix="yes" Text="[MsiMaintTypeTitle]" />
                 <Control Id="Description" Type="Text" X="25" Y="23" Width="340" Height="20" Transparent="yes" NoPrefix="yes" Text="[MsiMaintTypeDescription]" />
             </Dialog>
-
-            <InstallUISequence>
-                <Show Dialog="MaintenanceTypeDlg" Before="ProgressDlg"
-                      Condition="Installed AND NOT RESUME AND NOT Preselected AND NOT PATCH"/>
-            </InstallUISequence>
         </UI>
     </Fragment>
 </Wix>

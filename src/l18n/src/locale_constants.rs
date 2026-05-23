@@ -84,6 +84,9 @@ define_locale_keys! {
     MSI_EXIT_TITLE = "msi-exit-title",
     MSI_EXIT_DESCRIPTION = "msi-exit-description",
     MSI_EXIT_LAUNCH_CHECKBOX = "msi-exit-launch-checkbox",
+    // MSI Installer UI - Prepare
+    MSI_PREPARE_TITLE = "msi-prepare-title",
+    MSI_PREPARE_DESCRIPTION = "msi-prepare-description",
     // MSI Installer UI - License
     MSI_LICENSE_TITLE = "msi-license-title",
     MSI_LICENSE_DESCRIPTION = "msi-license-description",
@@ -99,6 +102,8 @@ define_locale_keys! {
     // MSI Installer UI - Verify Ready
     MSI_READY_INSTALL_TITLE = "msi-ready-install-title",
     MSI_READY_INSTALL_TEXT = "msi-ready-install-text",
+    MSI_READY_CHANGE_TITLE = "msi-ready-change-title",
+    MSI_READY_CHANGE_TEXT = "msi-ready-change-text",
     MSI_READY_REPAIR_TITLE = "msi-ready-repair-title",
     MSI_READY_REPAIR_TEXT = "msi-ready-repair-text",
     MSI_READY_REMOVE_TITLE = "msi-ready-remove-title",
@@ -106,12 +111,15 @@ define_locale_keys! {
     MSI_READY_UPDATE_TITLE = "msi-ready-update-title",
     MSI_READY_UPDATE_TEXT = "msi-ready-update-text",
     MSI_READY_BTN_INSTALL = "msi-ready-btn-install",
+    MSI_READY_BTN_CHANGE = "msi-ready-btn-change",
     MSI_READY_BTN_REPAIR = "msi-ready-btn-repair",
     MSI_READY_BTN_REMOVE = "msi-ready-btn-remove",
     MSI_READY_BTN_UPDATE = "msi-ready-btn-update",
     // MSI Installer UI - Progress
     MSI_PROGRESS_INSTALLING_TITLE = "msi-progress-installing-title",
     MSI_PROGRESS_INSTALLING_TEXT = "msi-progress-installing-text",
+    MSI_PROGRESS_CHANGING_TITLE = "msi-progress-changing-title",
+    MSI_PROGRESS_CHANGING_TEXT = "msi-progress-changing-text",
     MSI_PROGRESS_REPAIRING_TITLE = "msi-progress-repairing-title",
     MSI_PROGRESS_REPAIRING_TEXT = "msi-progress-repairing-text",
     MSI_PROGRESS_REMOVING_TITLE = "msi-progress-removing-title",
@@ -119,9 +127,16 @@ define_locale_keys! {
     MSI_PROGRESS_UPDATING_TITLE = "msi-progress-updating-title",
     MSI_PROGRESS_UPDATING_TEXT = "msi-progress-updating-text",
     MSI_PROGRESS_STATUS = "msi-progress-status",
+    // MSI Installer UI - Maintenance Welcome
+    MSI_MAINT_WELCOME_TITLE = "msi-maint-welcome-title",
+    MSI_MAINT_WELCOME_DESCRIPTION = "msi-maint-welcome-description",
     // MSI Installer UI - Maintenance Type
     MSI_MAINT_TYPE_TITLE = "msi-maint-type-title",
     MSI_MAINT_TYPE_DESCRIPTION = "msi-maint-type-description",
+    MSI_MAINT_CHANGE_BUTTON = "msi-maint-change-button",
+    MSI_MAINT_CHANGE_TOOLTIP = "msi-maint-change-tooltip",
+    MSI_MAINT_CHANGE_TEXT = "msi-maint-change-text",
+    MSI_MAINT_CHANGE_DISABLED = "msi-maint-change-disabled",
     MSI_MAINT_REPAIR_BUTTON = "msi-maint-repair-button",
     MSI_MAINT_REPAIR_TOOLTIP = "msi-maint-repair-tooltip",
     MSI_MAINT_REPAIR_TEXT = "msi-maint-repair-text",
@@ -132,7 +147,16 @@ define_locale_keys! {
     MSI_MAINT_REMOVE_DISABLED = "msi-maint-remove-disabled",
     // MSI Installer UI - Cancel
     MSI_CANCEL_TEXT = "msi-cancel-text",
-    // MSI Installer UI - Disk Cost (used by OutOfDiskDlg)
+    // MSI Installer UI - Browse
+    MSI_BROWSE_TITLE = "msi-browse-title",
+    MSI_BROWSE_DESCRIPTION = "msi-browse-description",
+    MSI_BROWSE_COMBO_LABEL = "msi-browse-combo-label",
+    MSI_BROWSE_PATH_LABEL = "msi-browse-path-label",
+    MSI_BROWSE_UP_TOOLTIP = "msi-browse-up-tooltip",
+    MSI_BROWSE_NEW_FOLDER_TOOLTIP = "msi-browse-new-folder-tooltip",
+    // MSI Installer UI - Invalid Directory
+    MSI_INVALID_DIR_TEXT = "msi-invalid-dir-text",
+    // MSI Installer UI - Disk Cost
     MSI_DISK_COST_TITLE = "msi-disk-cost-title",
     MSI_DISK_COST_DESCRIPTION = "msi-disk-cost-description",
     MSI_DISK_COST_TEXT = "msi-disk-cost-text",
@@ -157,6 +181,10 @@ define_locale_keys! {
     MSI_RM_FILES_IN_USE_TEXT = "msi-rm-files-in-use-text",
     MSI_RM_FILES_IN_USE_USE_RM = "msi-rm-files-in-use-use-rm",
     MSI_RM_FILES_IN_USE_DONT_USE_RM = "msi-rm-files-in-use-dont-use-rm",
+    // MSI Installer UI - Resume
+    MSI_RESUME_TITLE = "msi-resume-title",
+    MSI_RESUME_DESCRIPTION = "msi-resume-description",
+    MSI_RESUME_BTN_INSTALL = "msi-resume-btn-install",
     // MSI Installer UI - Shortcut Descriptions
     MSI_DESKTOP_SHORTCUT_DESCRIPTION = "msi-desktop-shortcut-description",
     MSI_START_MENU_SHORTCUT_DESCRIPTION = "msi-start-menu-shortcut-description",
