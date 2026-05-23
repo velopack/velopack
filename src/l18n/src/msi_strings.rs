@@ -58,8 +58,6 @@ pub fn locale_strings(app_title: &str) -> Vec<(&'static str, String)> {
         // Verify ready dialog
         ("MsiReadyInstallTitle", MSI_READY_INSTALL_TITLE, true, Title),
         ("MsiReadyInstallText", MSI_READY_INSTALL_TEXT, false, Normal),
-        ("MsiReadyChangeTitle", MSI_READY_CHANGE_TITLE, true, Title),
-        ("MsiReadyChangeText", MSI_READY_CHANGE_TEXT, false, Normal),
         ("MsiReadyRepairTitle", MSI_READY_REPAIR_TITLE, true, Title),
         ("MsiReadyRepairText", MSI_READY_REPAIR_TEXT, false, Normal),
         ("MsiReadyRemoveTitle", MSI_READY_REMOVE_TITLE, true, Title),
@@ -67,15 +65,12 @@ pub fn locale_strings(app_title: &str) -> Vec<(&'static str, String)> {
         ("MsiReadyUpdateTitle", MSI_READY_UPDATE_TITLE, true, Title),
         ("MsiReadyUpdateText", MSI_READY_UPDATE_TEXT, false, Normal),
         ("MsiReadyBtnInstall", MSI_READY_BTN_INSTALL, false, Normal),
-        ("MsiReadyBtnChange", MSI_READY_BTN_CHANGE, false, Normal),
         ("MsiReadyBtnRepair", MSI_READY_BTN_REPAIR, false, Normal),
         ("MsiReadyBtnRemove", MSI_READY_BTN_REMOVE, false, Normal),
         ("MsiReadyBtnUpdate", MSI_READY_BTN_UPDATE, false, Normal),
         // Progress dialog
         ("MsiProgressInstallingTitle", MSI_PROGRESS_INSTALLING_TITLE, true, Title),
         ("MsiProgressInstallingText", MSI_PROGRESS_INSTALLING_TEXT, true, Normal),
-        ("MsiProgressChangingTitle", MSI_PROGRESS_CHANGING_TITLE, true, Title),
-        ("MsiProgressChangingText", MSI_PROGRESS_CHANGING_TEXT, true, Normal),
         ("MsiProgressRepairingTitle", MSI_PROGRESS_REPAIRING_TITLE, true, Title),
         ("MsiProgressRepairingText", MSI_PROGRESS_REPAIRING_TEXT, true, Normal),
         ("MsiProgressRemovingTitle", MSI_PROGRESS_REMOVING_TITLE, true, Title),
@@ -86,10 +81,6 @@ pub fn locale_strings(app_title: &str) -> Vec<(&'static str, String)> {
         // Maintenance type dialog
         ("MsiMaintTypeTitle", MSI_MAINT_TYPE_TITLE, false, Title),
         ("MsiMaintTypeDescription", MSI_MAINT_TYPE_DESCRIPTION, false, Normal),
-        ("MsiMaintChangeButton", MSI_MAINT_CHANGE_BUTTON, false, Normal),
-        ("MsiMaintChangeTooltip", MSI_MAINT_CHANGE_TOOLTIP, false, Normal),
-        ("MsiMaintChangeText", MSI_MAINT_CHANGE_TEXT, false, Normal),
-        ("MsiMaintChangeDisabled", MSI_MAINT_CHANGE_DISABLED, false, Normal),
         ("MsiMaintRepairButton", MSI_MAINT_REPAIR_BUTTON, false, Normal),
         ("MsiMaintRepairTooltip", MSI_MAINT_REPAIR_TOOLTIP, false, Normal),
         ("MsiMaintRepairText", MSI_MAINT_REPAIR_TEXT, false, Normal),
@@ -98,18 +89,7 @@ pub fn locale_strings(app_title: &str) -> Vec<(&'static str, String)> {
         ("MsiMaintRemoveTooltip", MSI_MAINT_REMOVE_TOOLTIP, false, Normal),
         ("MsiMaintRemoveText", MSI_MAINT_REMOVE_TEXT, true, Normal),
         ("MsiMaintRemoveDisabled", MSI_MAINT_REMOVE_DISABLED, false, Normal),
-        // Maintenance welcome dialog (full-page, uses Bigger)
-        ("MsiMaintWelcomeTitle", MSI_MAINT_WELCOME_TITLE, true, Bigger),
-        ("MsiMaintWelcomeDescription", MSI_MAINT_WELCOME_DESCRIPTION, true, Normal),
-        // Browse dialog
-        ("MsiBrowseTitle", MSI_BROWSE_TITLE, false, Title),
-        ("MsiBrowseDescription", MSI_BROWSE_DESCRIPTION, false, Normal),
-        ("MsiBrowseComboLabel", MSI_BROWSE_COMBO_LABEL, false, Normal),
-        ("MsiBrowsePathLabel", MSI_BROWSE_PATH_LABEL, false, Normal),
-        ("MsiBrowseUpTooltip", MSI_BROWSE_UP_TOOLTIP, false, Normal),
-        ("MsiBrowseNewFolderTooltip", MSI_BROWSE_NEW_FOLDER_TOOLTIP, false, Normal),
-        ("MsiInvalidDirText", MSI_INVALID_DIR_TEXT, false, Normal),
-        // Disk cost dialog
+        // Disk cost strings (used by OutOfDiskDlg)
         ("MsiDiskCostTitle", MSI_DISK_COST_TITLE, false, Title),
         ("MsiDiskCostDescription", MSI_DISK_COST_DESCRIPTION, false, Normal),
         ("MsiDiskCostText", MSI_DISK_COST_TEXT, false, Normal),
@@ -121,13 +101,6 @@ pub fn locale_strings(app_title: &str) -> Vec<(&'static str, String)> {
         ("MsiExitTitle", MSI_EXIT_TITLE, true, Bigger),
         ("MsiExitDescription", MSI_EXIT_DESCRIPTION, false, Normal),
         ("WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT", MSI_EXIT_LAUNCH_CHECKBOX, true, Normal),
-        // Prepare dialog (full-page, uses Bigger)
-        ("MsiPrepareTitle", MSI_PREPARE_TITLE, true, Bigger),
-        ("MsiPrepareDescription", MSI_PREPARE_DESCRIPTION, false, Normal),
-        // Resume dialog (full-page, uses Bigger)
-        ("MsiResumeTitle", MSI_RESUME_TITLE, true, Bigger),
-        ("MsiResumeDescription", MSI_RESUME_DESCRIPTION, true, Normal),
-        ("MsiResumeBtnInstall", MSI_RESUME_BTN_INSTALL, false, Normal),
         // Fatal error dialog (full-page, uses Bigger)
         ("MsiFatalTitle", MSI_FATAL_TITLE, true, Bigger),
         ("MsiFatalDescription1", MSI_FATAL_DESCRIPTION1, true, Normal),

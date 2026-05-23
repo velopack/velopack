@@ -63,6 +63,4 @@ public class MsiTemplateData
     public string BannerBmpPath;
     public string DialogBmpPath;
     public string ExclamIcoPath;
-    public string UpIcoPath;
-    public string NewIcoPath;
 }

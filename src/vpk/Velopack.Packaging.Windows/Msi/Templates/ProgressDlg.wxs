@@ -16,8 +16,6 @@
                 <!-- mutually exclusive title and description strings overlap  -->
                 <Control Id="TextInstalling" Type="Text" X="20" Y="65" Width="330" Height="35" Hidden="yes" NoPrefix="yes" Text="[MsiProgressInstallingText]" ShowCondition="NOT Installed OR (Installed AND (RESUME OR Preselected) AND NOT PATCH)" />
                 <Control Id="TitleInstalling" Type="Text" X="20" Y="15" Width="330" Height="15" Transparent="yes" NoPrefix="yes" Hidden="yes" Text="[MsiProgressInstallingTitle]" ShowCondition="NOT Installed OR (Installed AND (RESUME OR Preselected) AND NOT PATCH)" />
-                <Control Id="TextChanging" Type="Text" X="20" Y="65" Width="330" Height="35" Hidden="yes" NoPrefix="yes" Text="[MsiProgressChangingText]" ShowCondition="WixUI_InstallMode = &quot;Change&quot;" />
-                <Control Id="TitleChanging" Type="Text" X="20" Y="15" Width="330" Height="15" Transparent="yes" NoPrefix="yes" Hidden="yes" Text="[MsiProgressChangingTitle]" ShowCondition="WixUI_InstallMode = &quot;Change&quot;" />
                 <Control Id="TextRepairing" Type="Text" X="20" Y="65" Width="330" Height="35" Hidden="yes" NoPrefix="yes" Text="[MsiProgressRepairingText]" ShowCondition="WixUI_InstallMode = &quot;Repair&quot;" />
                 <Control Id="TitleRepairing" Type="Text" X="20" Y="15" Width="330" Height="15" Transparent="yes" NoPrefix="yes" Hidden="yes" Text="[MsiProgressRepairingTitle]" ShowCondition="WixUI_InstallMode = &quot;Repair&quot;" />
                 <Control Id="TextRemoving" Type="Text" X="20" Y="65" Width="330" Height="35" Hidden="yes" NoPrefix="yes" Text="[MsiProgressRemovingText]" ShowCondition="WixUI_InstallMode = &quot;Remove&quot;" />
