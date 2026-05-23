@@ -34,5 +34,5 @@ if errorlevel 1 exit /b 1
 
 echo.
 echo Building Velopack Release v%version%
-%~dp0..\..\..\build\Debug\net8.0\vpk pack -u VelopackCSharpAvalonia -o releases -p publish --msi -v %*
+%~dp0..\..\..\build\Debug\net8.0\vpk pack -u VelopackCSharpAvalonia -o releases -p publish --msi --instWelcome %~dp0installer-welcome.txt --instReadme %~dp0installer-readme.txt --instLicense %~dp0installer-license.md --instConclusion %~dp0installer-conclusion.txt -v %*
 if errorlevel 1 exit /b 1

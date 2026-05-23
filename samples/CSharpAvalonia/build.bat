@@ -16,5 +16,5 @@ if errorlevel 1 exit /b 1
 
 echo.
 echo Building Velopack Release v%version%
-vpk pack -u VelopackCSharpAvalonia -o %~dp0releases -p %~dp0publish -f net8-x64-desktop -v %*
+vpk pack -u VelopackCSharpAvalonia -o %~dp0releases -p %~dp0publish -f net8-x64-desktop --msi -v %*
 if errorlevel 1 exit /b 1
