@@ -27,7 +27,7 @@
                     <Shortcut Id="ApplicationDesktopShortcut" Name="{{AppTitle}}" Description="[MsiDesktopShortcutDescription]"
                               Target="[INSTALLFOLDER]{{StubFileName}}" WorkingDirectory="INSTALLFOLDER"/>
                     <RemoveFolder Id="CleanUpDesktopShortcut" Directory="INSTALLFOLDER" On="uninstall"/>
-                    <RegistryValue Root="HKCU" Key="Software&#92;{{AppPublisherSanitized}}&#92;{{AppId}}.DesktopShortcut"
+                    <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitized}}&#92;{{AppId}}.DesktopShortcut"
                                    Name="installed" Type="integer" Value="1" KeyPath="yes"/>
                 </Component>
             </StandardDirectory>
@@ -64,6 +64,19 @@
                             Target="[INSTALLFOLDER]{{StubFileName}}"
                             WorkingDirectory="INSTALLFOLDER"/>
                     <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitized}}&#92;{{AppId}}.StartMenuRootShortcut"
+                                   Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+                </Component>
+            </StandardDirectory>
+        {{/if}}
+
+        {{#if StartupShortcut}}
+            <StandardDirectory Id="StartupFolder">
+                <Component Id="ApplicationStartupShortcut">
+                    <Shortcut Id="ApplicationStartupShortcut" Name="{{AppTitle}}"
+                              Description="Startup shortcut for {{AppTitle}}"
+                              Target="[INSTALLFOLDER]{{StubFileName}}"
+                              WorkingDirectory="INSTALLFOLDER"/>
+                    <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitized}}&#92;{{AppId}}.StartupShortcut"
                                    Name="installed" Type="integer" Value="1" KeyPath="yes"/>
                 </Component>
             </StandardDirectory>
@@ -140,6 +153,7 @@
             <Property Id="RustRuntimeDependencies" Value="{{RuntimeDependencies}}"/>
         {{/if}}
         <Property Id="RustStubFileName" Value="{{StubFileName}}"/>
+        <Property Id="RustMainExeFileName" Value="{{MainExeFileName}}"/>
 
         <!-- Custom actions -->
         <CustomAction Id="RustSetLocaleStrings" BinaryRef="RustDll" DllEntry="RustSetLocaleStrings" Execute="immediate" Return="check"/>
@@ -151,12 +165,26 @@
         <CustomAction Id="RustLaunchApplication" BinaryRef="RustDll" DllEntry="LaunchApplication" Impersonate="yes" Execute="immediate"
                       Return="ignore"/>
 
+        <!-- Install/uninstall hooks: run app exe with lifecycle flags -->
+        <CustomAction Id="SetInstallHookData" Property="InstallHookDeferred"
+                      Value="[INSTALLFOLDER]&quot;[RustMainExeFileName]&quot;[RustAppVersion]" Execute="immediate" Return="check"/>
+        <CustomAction Id="InstallHookDeferred" BinaryRef="RustDll" DllEntry="InstallHookDeferred" Execute="deferred"
+                      Impersonate="yes" Return="ignore"/>
+        <CustomAction Id="SetUninstallHookData" Property="UninstallHookDeferred"
+                      Value="[INSTALLFOLDER]&quot;[RustMainExeFileName]&quot;[RustAppVersion]" Execute="immediate" Return="check"/>
+        <CustomAction Id="UninstallHookDeferred" BinaryRef="RustDll" DllEntry="UninstallHookDeferred" Execute="deferred"
+                      Impersonate="yes" Return="ignore"/>
+
         <InstallUISequence>
             <Custom Action="RustSetLocaleStrings" Before="AppSearch"/>
             <Custom Action="RustEarlyBootstrap" After="RustSetLocaleStrings" Condition="NOT REMOVE AND RustRuntimeDependencies"/>
         </InstallUISequence>
 
         <InstallExecuteSequence>
+            <Custom Action="SetInstallHookData" Before="InstallHookDeferred" Condition="NOT REMOVE"/>
+            <Custom Action="InstallHookDeferred" After="InstallFiles" Condition="NOT REMOVE"/>
+            <Custom Action="SetUninstallHookData" Before="UninstallHookDeferred" Condition="(REMOVE=&quot;ALL&quot;)"/>
+            <Custom Action="UninstallHookDeferred" Before="RemoveFiles" Condition="(REMOVE=&quot;ALL&quot;)"/>
             <Custom Action="SetRustCleanupData" Before="RustCleanup" Condition="(REMOVE=&quot;ALL&quot;)"/>
             <Custom Action="RustCleanup" Before="RemoveFolders" Condition="(REMOVE=&quot;ALL&quot;)"/>
         </InstallExecuteSequence>
