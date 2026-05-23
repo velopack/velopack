@@ -4061,11 +4061,11 @@ dependencies = [
  "anyhow",
  "fluent",
  "fluent-bundle",
+ "fluent-langneg",
  "log",
  "ntest",
  "semver",
  "sys-locale",
- "unic-langid",
  "xdialog",
 ]
 

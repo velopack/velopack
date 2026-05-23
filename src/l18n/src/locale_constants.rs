@@ -200,8 +200,8 @@ mod tests {
     fn all_locale_keys_present_in_all_locales() {
         for (lang_tag, ftl_source) in LOCALE_SOURCES {
             let resource = FluentResource::try_new(ftl_source.to_string()).unwrap_or_else(|_| panic!("Failed to parse {lang_tag} FTL"));
-            let lang_id: unic_langid::LanguageIdentifier = lang_tag.parse().unwrap();
-            let mut bundle = FluentBundle::new_concurrent(vec![lang_id]);
+            let lang_ids = fluent_langneg::convert_vec_str_to_langids(&[*lang_tag]).unwrap();
+            let mut bundle = FluentBundle::new_concurrent(lang_ids);
             bundle.add_resource(resource).unwrap();
 
             for key in ALL_KEYS {

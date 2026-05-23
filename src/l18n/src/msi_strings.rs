@@ -166,7 +166,11 @@ pub fn locale_strings(app_title: &str) -> Vec<(&'static str, String)> {
             format_message(key, None)
         };
         let prefix = font.prefix();
-        let value = if prefix.is_empty() { text } else { format!("{}{}", prefix, text) };
+        let value = if prefix.is_empty() {
+            text
+        } else {
+            format!("{}{}", prefix, text)
+        };
         result.push((prop, value));
     }
 

@@ -71,7 +71,7 @@ waitpid-any = "0.3"
 xdialog = { version = "2.0", features = ["win32-direct"] }
 fluent-bundle = "0.16"
 fluent = "0.17"
-unic-langid = "0.9"
+fluent-langneg = "0.13"
 libc = "0.2"
 libloading = "0.9"
 strsim = "0.11"

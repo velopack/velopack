@@ -13,7 +13,7 @@ semver.workspace = true
 xdialog.workspace = true
 fluent-bundle.workspace = true
 fluent.workspace = true
-unic-langid.workspace = true
+fluent-langneg.workspace = true
 sys-locale.workspace = true
 
 [dev-dependencies]
