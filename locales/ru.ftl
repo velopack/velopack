@@ -15,60 +15,60 @@ btn-open-log = Открыть журнал
 btn-open-install-dir = Открыть папку установки
 
 # Elevation (dialogs_common.rs)
-elevate-header = Требуются повышенные права
-elevate-body = { $app_title } хочет обновиться до версии { $app_version }, но для этого требуются повышенные права. Продолжить?
+elevate-header = Требуются права администратора
+elevate-body = Для установки версии { $app_version } приложению { $app_title } требуются права администратора. Разрешить продолжить обновление?
 
 # Restart required (prerequisite.rs)
 restart-header = Требуется перезагрузка
-restart-body = Для продолжения установки требуется перезагрузка компьютера. Пожалуйста, перезагрузите компьютер и попробуйте снова.
+restart-body = Для продолжения установки необходимо перезагрузить компьютер. Перезагрузите компьютер и запустите установку снова.
 
 # Missing dependencies (prerequisite.rs)
-missing-deps-header = Отсутствуют зависимости
-missing-deps-body = Для работы { $app_title } необходимо установить следующие пакеты: { $deps }. Продолжить?
+missing-deps-header = Требуются дополнительные компоненты
+missing-deps-body = Для работы { $app_title } сначала нужно установить: { $deps }. Загрузить и установить их сейчас?
 
 # Uninstall with errors (uninstall)
-uninstall-errors-header = Удаление завершено с ошибками
-uninstall-errors-body = Удаление { $app_title } завершилось с ошибками. В системе могли остаться файлы или папки. Вы можете попробовать удалить их вручную или переустановить приложение и повторить попытку.
-uninstall-errors-log = Файл журнала: { $path }
+uninstall-errors-header = Удаление завершено с предупреждениями
+uninstall-errors-body = Приложение { $app_title } удалено, но некоторые файлы или папки удалить не удалось. Вы можете удалить их вручную или переустановить приложение и попробовать удалить его снова.
+uninstall-errors-log = Подробности сохранены в: { $path }
 
 # Overwrite/repair dialog (install.rs)
-overwrite-already-installed = { $app_title } уже установлено.
-overwrite-repair-body = Это приложение установлено на вашем компьютере. Если оно работает некорректно, вы можете попробовать восстановить его.
-overwrite-older-installed = Установлена более старая версия { $app_title }.
-overwrite-update-body = Хотите обновить с { $old_version } до { $app_version }?
-overwrite-newer-installed = Установлена более новая версия { $app_title }.
-overwrite-downgrade-body = У вас уже установлена версия { $old_version }. Хотите понизить версию приложения?
+overwrite-already-installed = { $app_title } уже установлено
+overwrite-repair-body = Это приложение уже установлено на вашем компьютере. Если оно работает неправильно, его можно попробовать восстановить, выполнив переустановку.
+overwrite-older-installed = { $app_title } уже установлено
+overwrite-update-body = Сейчас установлена версия { $old_version }. Обновить до версии { $app_version }?
+overwrite-newer-installed = Установлена более новая версия { $app_title }
+overwrite-downgrade-body = Сейчас установлена версия { $old_version }, которая новее, чем эта. Понижать версию не рекомендуется, это может вызвать проблемы. Всё равно продолжить?
 overwrite-footer = Папка установки: { $path }
 
 # Uninstall complete (uninstall.rs)
 uninstall-header = Удаление завершено
-uninstall-body = Приложение было успешно удалено.
+uninstall-body = Приложение успешно удалено с вашего компьютера.
 
 # Install hook failed (install.rs)
-install-hook-header = Ошибка хука установки
-install-hook-body = Установка завершена, но хук установки приложения завершился с ошибкой. Возможно, приложение установлено некорректно.
+install-hook-header = Установка завершена частично
+install-hook-body = Установка завершена, но некоторые шаги могли быть выполнены с ошибками. Если приложение работает неправильно, попробуйте переустановить его или обратитесь к разработчику.
 
 # Splash fallback (splash.rs)
 splash-header = Установка { $app_title }
-splash-body = Установка { $app_title } { $app_version }...
+splash-body = Установка { $app_title } { $app_version }, пожалуйста, подождите…
 
 # Dependency download (prerequisite.rs)
-deps-download-header = Загрузка зависимости
-deps-download-body = { $dep_name }...
+deps-download-header = Загрузка необходимого компонента
+deps-download-body = Загрузка { $dep_name }, пожалуйста, подождите…
 
 # Apply progress (apply_*_impl.rs)
 apply-header = Установка обновления
-apply-body = Установка обновления { $app_version }...
+apply-body = Обновление до версии { $app_version }, пожалуйста, подождите…
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Установка повреждена
-start-corrupt-body = Установка этого приложения повреждена и не может быть запущена. Пожалуйста, переустановите приложение.
+start-corrupt-body = Приложение не может быть запущено, так как некоторые из его файлов отсутствуют или повреждены. Переустановите приложение, чтобы решить эту проблему.
 
 # Generic error
-error-header = Произошла ошибка
+error-header = Что-то пошло не так
 
 # Setup error (wix msi)
-setup-error-header = Установка не может быть продолжена
+setup-error-header = Не удалось продолжить установку
 
 # MSI Installer UI - Common
 msi-dlg-title = Установка { $app_title }

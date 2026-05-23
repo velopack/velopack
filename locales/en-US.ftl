@@ -15,60 +15,60 @@ btn-open-log = Open Log
 btn-open-install-dir = Open Install Directory
 
 # Elevation (dialogs_common.rs)
-elevate-header = Elevated Permissions Required
-elevate-body = { $app_title } would like to update to version { $app_version }, but requires elevated permissions to do so. Would you like to proceed?
+elevate-header = Administrator Permission Required
+elevate-body = { $app_title } needs administrator permission to install version { $app_version }. Allow this update to continue?
 
 # Restart required (prerequisite.rs)
 restart-header = Restart Required
-restart-body = A restart is required before Setup can continue. Please restart your computer and try again.
+restart-body = Your computer needs to restart before setup can continue. Please restart your computer and run setup again.
 
 # Missing dependencies (prerequisite.rs)
-missing-deps-header = Missing Dependencies
-missing-deps-body = { $app_title } requires the following packages to be installed: { $deps }. Would you like to continue?
+missing-deps-header = Additional Components Required
+missing-deps-body = { $app_title } needs the following to be installed first: { $deps }. Would you like to download and install them now?
 
 # Uninstall with errors (uninstall)
-uninstall-errors-header = Uninstall Completed with Errors
-uninstall-errors-body = { $app_title } uninstall has completed with errors. There may be left-over files or directories on your system. You can attempt to remove these manually or re-install the application and try again.
-uninstall-errors-log = Log file: { $path }
+uninstall-errors-header = Uninstall Finished with Problems
+uninstall-errors-body = { $app_title } was uninstalled, but some files or folders could not be removed. You can delete them manually, or reinstall the application and try uninstalling again.
+uninstall-errors-log = Details were saved to: { $path }
 
 # Overwrite/repair dialog (install.rs)
-overwrite-already-installed = { $app_title } is already installed.
-overwrite-repair-body = This application is installed on your computer. If it is not functioning correctly, you can attempt to repair it.
-overwrite-older-installed = An older version of { $app_title } is installed.
-overwrite-update-body = Would you like to update from { $old_version } to { $app_version }?
-overwrite-newer-installed = A newer version of { $app_title } is installed.
-overwrite-downgrade-body = You already have { $old_version } installed. Would you like to downgrade this application to an older version?
-overwrite-footer = The install directory is { $path }
+overwrite-already-installed = { $app_title } is already installed
+overwrite-repair-body = This application is already installed on your computer. If it is not working correctly, you can try repairing it by reinstalling.
+overwrite-older-installed = { $app_title } is already installed
+overwrite-update-body = Version { $old_version } is currently installed. Would you like to update to version { $app_version }?
+overwrite-newer-installed = A newer version of { $app_title } is already installed
+overwrite-downgrade-body = Version { $old_version } is currently installed, which is newer than this installer. Downgrading is not recommended and may cause problems. Continue anyway?
+overwrite-footer = Installed at: { $path }
 
 # Uninstall complete (uninstall.rs)
 uninstall-header = Uninstall Complete
-uninstall-body = The application was successfully uninstalled.
+uninstall-body = The application has been successfully removed from your computer.
 
 # Install hook failed (install.rs)
-install-hook-header = Install Hook Failed
-install-hook-body = Installation has completed, but the application install hook failed. It may not have installed correctly.
+install-hook-header = Install Partially Succeeded
+install-hook-body = Installation has completed, but some steps may have failed. If the application does not work correctly you can try re-installing or contacting the application author.
 
 # Splash fallback (splash.rs)
 splash-header = Installing { $app_title }
-splash-body = Installing { $app_title } { $app_version }...
+splash-body = Setting up { $app_title } { $app_version }, please wait...
 
 # Dependency download (prerequisite.rs)
-deps-download-header = Downloading Dependency
-deps-download-body = { $dep_name }...
+deps-download-header = Downloading Required Component
+deps-download-body = Downloading { $dep_name }, please wait...
 
 # Apply progress (apply_*_impl.rs)
 apply-header = Installing Update
-apply-body = Installing update { $app_version }...
+apply-body = Updating to version { $app_version }, please wait...
 
 # Start error (start_windows_impl.rs)
-start-corrupt-header = Installation Corrupted
-start-corrupt-body = This app installation has been corrupted and cannot be started. Please re-install the app.
+start-corrupt-header = Installation Damaged
+start-corrupt-body = This application cannot start because some of its files are missing or damaged. Please reinstall the application to fix this.
 
 # Generic error
-error-header = An Error Has Occurred
+error-header = Something Went Wrong
 
 # Setup error (wix msi)
-setup-error-header = Setup Cannot Continue
+setup-error-header = Setup Could Not Continue
 
 # MSI Installer UI - Common
 msi-dlg-title = { $app_title } Setup
