@@ -20,3 +20,10 @@ This folder contains pre-compiled binaries from a variety of sources. These shou
 - Squashfs utilities for Windows
 - Can be found at https://github.com/AgentD/squashfs-tools-ng
 - License is GPL-3 https://github.com/AgentD/squashfs-tools-ng/blob/master/COPYING.md
+
+### WiX Toolset Code v7.0.0 (fork)
+- Utility to create MSI installers on Windows
+- Can be found at https://github.com/velopack/wix
+- License is MS-RL https://github.com/velopack/wix/blob/v7/LICENSE.TXT
+- This project is a fork and modification of the original WiX source code at https://github.com/wixtoolset/wix
+- We rely on no binaries from the wixtoolset project, therefore the the wix OSMF EULA does not apply.

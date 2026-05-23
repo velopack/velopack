@@ -84,13 +84,7 @@ public static class HelperFile
     public static string StubExecutablePath => FindHelperFile("stub.exe");
 
     [SupportedOSPlatform("windows")]
-    public static string WixPath => FindHelperFile($"wix\\{WixVersion}\\wix.exe");
-
-    [SupportedOSPlatform("windows")]
-    public static string WixUiExtPath => FindHelperFile($"wix\\{WixVersion}\\WixToolset.UI.wixext.dll");
-
-    [SupportedOSPlatform("windows")]
-    public const string WixVersion = "5.0.2";
+    public static string WixPath => FindHelperFile($"wix\\wixc7.exe");
 
     [SupportedOSPlatform("windows")]
     public static string SignToolPath => FindHelperFile("signing\\signtool.exe");
