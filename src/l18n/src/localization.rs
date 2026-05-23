@@ -134,4 +134,10 @@ mod tests {
         assert_eq!(negotiate_locale("en", TEST_LOCALES, TEST_DEFAULT), ("en-US", "english"));
         assert_eq!(negotiate_locale("ru", TEST_LOCALES, TEST_DEFAULT), ("ru", "russian"));
     }
+
+    #[test]
+    fn zh_hk_falls_back_to_zh_tw() {
+        let locales: &[(&str, &str)] = &[("en-US", "english"), ("zh-CN", "simplified"), ("zh-TW", "traditional")];
+        assert_eq!(negotiate_locale("zh-HK", locales, ("en-US", "english")), ("zh-TW", "traditional"));
+    }
 }
