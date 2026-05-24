@@ -63,16 +63,20 @@ jobs:
         run: |
           pip install uv
         if: ${{ matrix.sample == 'PythonWXPython' }}
-      - name: Install wxPython
+      - name: Install wxPython (macOS)
         working-directory: samples/${{ matrix.sample }}
         run: |
           pip install -U wxPython
         if: ${{ matrix.sample == 'PythonWXPython' && matrix.os == 'macos' }}
-      - name: Refresh uv.lock for wxPython
+      - name: Install wxPython (Linux)
+        run: |
+          sudo apt update
+          sudo apt install -y python3-wxgtk4.0
+        if: ${{ matrix.sample == 'PythonWXPython' && matrix.os == 'ubuntu' }}
+      - name: Setup uv venv for wxPython (Linux)
         working-directory: samples/${{ matrix.sample }}
         run: |
-          rm uv.lock
-          uv sync --find-links https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-24.04
+          uv venv --system-site-packages
         if: ${{ matrix.sample == 'PythonWXPython' && matrix.os == 'ubuntu' }}
       - name: Setup dotnet
         uses: actions/setup-dotnet@v5
