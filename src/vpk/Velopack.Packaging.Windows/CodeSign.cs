@@ -160,7 +160,8 @@ public class CodeSign
         if (VelopackRuntimeInfo.IsWindows) {
             return ("cmd.exe", $"/S /C \"{command} >> \"{logFile}\" 2>&1\"");
         } else {
-            return ("/bin/bash", $"-c \"{command} >> \\\"{logFile}\\\" 2>&1\"");
+            // /usr/bin/env is FHS-guaranteed even on distros like NixOS where /bin/bash doesn't exist
+            return ("/usr/bin/env", $"bash -c \"{command} >> \\\"{logFile}\\\" 2>&1\"");
         }
     }
 

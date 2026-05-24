@@ -47,9 +47,10 @@ public static class Exe
         var args = $"/S /C \"{command} >> \"{outputFile}\" 2>&1\"";
 
         if (!VelopackRuntimeInfo.IsWindows) {
-            fileName = "/bin/bash";
+            // /usr/bin/env is FHS-guaranteed even on distros like NixOS where /bin/bash doesn't exist
+            fileName = "/usr/bin/env";
             string escapedCommand = command.Replace("'", "'\\''");
-            args = $"-c '{escapedCommand} >> \"{outputFile}\" 2>&1'";
+            args = $"bash -c '{escapedCommand} >> \"{outputFile}\" 2>&1'";
         }
 
         var psi = new ProcessStartInfo {
@@ -78,9 +79,10 @@ public static class Exe
         var args = $"/S /C \"{command} >> \"{outputFile}\" 2>&1\"";
 
         if (!VelopackRuntimeInfo.IsWindows) {
-            fileName = "/bin/bash";
+            // /usr/bin/env is FHS-guaranteed even on distros like NixOS where /bin/bash doesn't exist
+            fileName = "/usr/bin/env";
             string escapedCommand = command.Replace("'", "'\\''");
-            args = $"-c '{escapedCommand} >> \"{outputFile}\" 2>&1'";
+            args = $"bash -c '{escapedCommand} >> \"{outputFile}\" 2>&1'";
         }
 
         var psi = new ProcessStartInfo {
