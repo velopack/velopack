@@ -1,0 +1,10 @@
+[project]
+name = "harness-python"
+version = "0.0.0"
+requires-python = ">=3.8"
+dependencies = [
+    "velopack",
+]
+
+[tool.uv.sources]
+velopack = { path = "../../../src/lib-python", editable = true }
