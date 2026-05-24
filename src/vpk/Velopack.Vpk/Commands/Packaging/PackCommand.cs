@@ -46,6 +46,10 @@ public abstract class PackCommand : PlatformCommand
 
     protected Option<string> ExcludeOption { get; private set; }
 
+    public bool NoDefaultExclude { get; private set; }
+
+    protected Option<bool> NoDefaultExcludeOption { get; private set; }
+
     public bool NoPortable { get; private set; }
 
     protected Option<bool> NoPortableOption { get; private set; }
@@ -102,9 +106,13 @@ public abstract class PackCommand : PlatformCommand
             .SetArgumentHelpName("NAME");
 
         ExcludeOption = AddOption<string>((v) => Exclude = v, "--exclude")
-            .SetDescription("A regex which excludes matched files from the package.")
+            .SetDescription("A regex which excludes matched files from the package (in addition to built-in defaults).")
             .SetArgumentHelpName("REGEX")
             .SetDefault(@".*\.pdb");
+
+        NoDefaultExcludeOption = AddOption<bool>((v) => NoDefaultExclude = v, "--noDefaultExclude")
+            .SetDescription("Do not exclude built-in default file patterns (eg. .nupkg, createdump, .vshost.).")
+            .SetHidden(true);
 
         NoPortableOption = AddOption<bool>((v) => NoPortable = v, "--noPortable")
             .SetDescription("Skip generating a portable bundle.")

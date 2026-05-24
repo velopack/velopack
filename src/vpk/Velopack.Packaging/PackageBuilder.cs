@@ -312,6 +312,8 @@ public abstract class PackageBuilder<T> : ICommand<T>
             manualExclude = new Regex(Options.Exclude, RegexOptions.Compiled);
         }
 
+        var defaultExclude = Options.NoDefaultExclude ? null : REGEX_EXCLUDES;
+
         if (!source.Exists) {
             throw new ArgumentException("Source directory does not exist: " + source.FullName);
         }
@@ -327,7 +329,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
                     var path = Path.Combine(target.FullName, fileInfo.Name);
                     currentFile++;
                     progress((int) ((double) currentFile / numFiles * 100));
-                    if (excludeAnnoyances && (REGEX_EXCLUDES.IsMatch(path) || manualExclude?.IsMatch(path) == true)) {
+                    if (excludeAnnoyances && (defaultExclude?.IsMatch(path) == true || manualExclude?.IsMatch(path) == true)) {
                         Log.Debug("Skipping because matched exclude pattern: " + path);
                         continue;
                     }
@@ -351,7 +353,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
 
             if (excludeAnnoyances) {
                 foreach (var f in target.EnumerateFiles("*", SearchOption.AllDirectories)) {
-                    if (excludeAnnoyances && (REGEX_EXCLUDES.IsMatch(f.FullName) || manualExclude?.IsMatch(f.FullName) == true)) {
+                    if (defaultExclude?.IsMatch(f.FullName) == true || manualExclude?.IsMatch(f.FullName) == true) {
                         Log.Debug("Deleting because matched exclude pattern: " + f.FullName);
                         f.Delete();
                     }
