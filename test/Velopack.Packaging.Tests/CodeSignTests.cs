@@ -574,4 +574,176 @@ public class CodeSignTests
         Assert.NotNull(signOutput);
         return signOutput;
     }
+
+    // ── --signTemplate end-to-end tests ──────────────────────────────
+    // These tests exercise the same code path as `vpk pack --signTemplate ...`:
+    // CodeSign.Sign -> BuildShellArgs -> Process.Start. The template actually
+    // copies {{file}} to a destination path and the test reads that file back,
+    // which proves the file argument made it through the shell unmolested.
+
+    [Fact]
+    public void Sign_Template_CopiesFileToDestination_CrossPlatform()
+    {
+        using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
+        var console = new BasicConsole(logger, new VelopackDefaults(true));
+        var signer = new CodeSign(logger, console);
+
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+
+        var srcFile = Path.Combine(dir, "App With Spaces.exe");
+        File.WriteAllText(srcFile, "binary contents");
+        var destFile = Path.Combine(dir, "destination.bin");
+
+        var template = VelopackRuntimeInfo.IsWindows
+            ? $"copy /Y {{{{file}}}} \"{destFile}\""
+            : $"cp {{{{file}}}} \"{destFile}\"";
+
+        signer.Sign([srcFile], template, 1, _ => { }, true);
+
+        Assert.True(File.Exists(destFile), $"Expected destination file at {destFile} (signTemplate should have copied the file).");
+        Assert.Equal("binary contents", File.ReadAllText(destFile));
+    }
+
+    [Fact]
+    public void Sign_Template_BashDollarSignInTemplate_NotExpanded()
+    {
+        // Regression coverage for shell escaping in the --signTemplate flow.
+        // If EscapeForBash is bypassed, $HOME gets expanded by bash and the
+        // file is written to the wrong path (or fails outright).
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "bash-only test");
+
+        using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
+        var console = new BasicConsole(logger, new VelopackDefaults(true));
+        var signer = new CodeSign(logger, console);
+
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+
+        var srcFile = Path.Combine(dir, "app.exe");
+        File.WriteAllText(srcFile, "data");
+        var destFile = Path.Combine(dir, "with_$HOME_literal.bin");
+
+        var template = $"cp {{{{file}}}} \"{destFile}\"";
+        signer.Sign([srcFile], template, 1, _ => { }, true);
+
+        Assert.True(File.Exists(destFile), "Destination must exist literally; if $HOME was expanded the file is elsewhere.");
+    }
+
+    [Fact]
+    public void Sign_Template_BashBacktickInTemplate_NotExpanded()
+    {
+        // If the backtick weren't escaped, bash would run `whoami` and substitute
+        // its output into the destination path.
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "bash-only test");
+
+        using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
+        var console = new BasicConsole(logger, new VelopackDefaults(true));
+        var signer = new CodeSign(logger, console);
+
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+
+        var srcFile = Path.Combine(dir, "app.exe");
+        File.WriteAllText(srcFile, "data");
+        var destFile = Path.Combine(dir, "with_`whoami`_literal.bin");
+
+        var template = $"cp {{{{file}}}} \"{destFile}\"";
+        signer.Sign([srcFile], template, 1, _ => { }, true);
+
+        Assert.True(File.Exists(destFile), "Destination must exist literally; if `whoami` was expanded the file is elsewhere.");
+    }
+
+    [Fact]
+    public void Sign_Template_BashSemicolonAndAmpersand_DoNotChainCommands()
+    {
+        // If template escaping is broken, ";rm -rf ..." or "&& rm ..." could
+        // execute. Putting these chars inside a quoted dest path proves the
+        // template is passed as one unit and not re-interpreted by the shell.
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "bash-only test");
+
+        using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
+        var console = new BasicConsole(logger, new VelopackDefaults(true));
+        var signer = new CodeSign(logger, console);
+
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+
+        var srcFile = Path.Combine(dir, "app.exe");
+        File.WriteAllText(srcFile, "data");
+        var destFile = Path.Combine(dir, "name;with&meta.bin");
+
+        var template = $"cp {{{{file}}}} \"{destFile}\"";
+        signer.Sign([srcFile], template, 1, _ => { }, true);
+
+        Assert.True(File.Exists(destFile));
+    }
+
+    [Fact]
+    public void Sign_Template_BashSourceFileWithDollarSign_IsPassedLiterally()
+    {
+        // Bash uses single-quoted file paths via QuoteFileArgsBash, so $ in
+        // the file name itself must not be expanded either.
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "bash-only test");
+
+        using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
+        var console = new BasicConsole(logger, new VelopackDefaults(true));
+        var signer = new CodeSign(logger, console);
+
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+
+        var srcFile = Path.Combine(dir, "name with $HOME spaces.exe");
+        File.WriteAllText(srcFile, "data");
+        var destFile = Path.Combine(dir, "dest.bin");
+
+        var template = $"cp {{{{file}}}} \"{destFile}\"";
+        signer.Sign([srcFile], template, 1, _ => { }, true);
+
+        Assert.True(File.Exists(destFile));
+        Assert.Equal("data", File.ReadAllText(destFile));
+    }
+
+    [Fact]
+    public void Sign_Template_WindowsCmdMetacharactersInDestination_Work()
+    {
+        // Windows: cmd-meaningful chars (parens, &, %) inside the quoted dest
+        // path should pass through correctly.
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+
+        using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
+        var console = new BasicConsole(logger, new VelopackDefaults(true));
+        var signer = new CodeSign(logger, console);
+
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+
+        var srcFile = Path.Combine(dir, "Bus Monitor.exe");
+        File.WriteAllText(srcFile, "data");
+        var destFile = Path.Combine(dir, "name (x64) and amp.bin");
+
+        var template = $"copy /Y {{{{file}}}} \"{destFile}\"";
+        signer.Sign([srcFile], template, 1, _ => { }, true);
+
+        Assert.True(File.Exists(destFile));
+        Assert.Equal("data", File.ReadAllText(destFile));
+    }
+
+    [Fact]
+    public void Sign_Template_WindowsSourceFileWithParensAndAmpersand_PassedCorrectly()
+    {
+        // Windows: file paths get wrapped in double quotes by QuoteFileArgsWindows,
+        // so parens, &, etc in source filenames must pass through to cmd.exe intact.
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+
+        using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
+        var console = new BasicConsole(logger, new VelopackDefaults(true));
+        var signer = new CodeSign(logger, console);
+
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+
+        var srcFile = Path.Combine(dir, "Tom & Jerry (x64).exe");
+        File.WriteAllText(srcFile, "data");
+        var destFile = Path.Combine(dir, "dest.bin");
+
+        var template = $"copy /Y {{{{file}}}} \"{destFile}\"";
+        signer.Sign([srcFile], template, 1, _ => { }, true);
+
+        Assert.True(File.Exists(destFile));
+        Assert.Equal("data", File.ReadAllText(destFile));
+    }
 }
