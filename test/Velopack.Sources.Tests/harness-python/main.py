@@ -14,6 +14,8 @@ def asset_to_dict(asset):
         "SHA1": asset.SHA1,
         "SHA256": asset.SHA256,
         "Size": asset.Size,
+        "NotesMarkdown": asset.NotesMarkdown,
+        "NotesHtml": asset.NotesHtml,
     }
 
 
@@ -42,8 +44,6 @@ def main():
     elif args.source_type == "http":
         source = velopack.HttpSource(args.url_or_path)
     elif args.source_type == "file":
-        # Python doesn't expose FileSource directly - pass path string to
-        # UpdateManager which auto-detects it as FileSource via AutoSource
         source = args.url_or_path
 
     locator = velopack.VelopackLocatorConfig(
@@ -66,11 +66,17 @@ def main():
 
     if info is not None:
         target = asset_to_dict(info.TargetFullRelease)
+        deltas = [asset_to_dict(d) for d in info.DeltasToTarget] if info.DeltasToTarget else None
+        is_downgrade = info.IsDowngrade
     else:
         target = None
+        deltas = None
+        is_downgrade = False
 
     output = {
         "target": target,
+        "deltas": deltas,
+        "isDowngrade": is_downgrade,
         "feed": None,
     }
 

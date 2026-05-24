@@ -35,6 +35,8 @@ struct Cli {
 #[derive(Serialize)]
 struct HarnessOutput {
     target: Option<VelopackAsset>,
+    deltas: Option<Vec<VelopackAsset>>,
+    isDowngrade: bool,
     feed: Option<Vec<VelopackAsset>>,
 }
 
@@ -81,13 +83,18 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     let check_result = um.check_for_updates()?;
     let feed_result = um.get_release_feed()?;
 
-    let target = match check_result {
-        UpdateCheck::UpdateAvailable(info) => Some(info.TargetFullRelease),
-        UpdateCheck::NoUpdateAvailable | UpdateCheck::RemoteIsEmpty => None,
+    let (target, deltas, is_downgrade) = match check_result {
+        UpdateCheck::UpdateAvailable(info) => {
+            let deltas = if info.DeltasToTarget.is_empty() { None } else { Some(info.DeltasToTarget) };
+            (Some(info.TargetFullRelease), deltas, info.IsDowngrade)
+        }
+        UpdateCheck::NoUpdateAvailable | UpdateCheck::RemoteIsEmpty => (None, None, false),
     };
 
     let output = HarnessOutput {
         target,
+        deltas,
+        isDowngrade: is_downgrade,
         feed: Some(feed_result.Assets),
     };
 

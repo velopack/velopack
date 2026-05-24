@@ -41,8 +41,20 @@ static std::string asset_to_json(const Velopack::VelopackAsset& a) {
     json += "      \"Type\": \"" + escape_json(a.Type) + "\",\n";
     json += "      \"SHA1\": \"" + escape_json(a.SHA1) + "\",\n";
     json += "      \"SHA256\": \"" + escape_json(a.SHA256) + "\",\n";
-    json += "      \"Size\": " + std::to_string(a.Size) + "\n";
+    json += "      \"Size\": " + std::to_string(a.Size) + ",\n";
+    json += "      \"NotesMarkdown\": \"" + escape_json(a.NotesMarkdown) + "\",\n";
+    json += "      \"NotesHtml\": \"" + escape_json(a.NotesHtml) + "\"\n";
     json += "    }";
+    return json;
+}
+
+static std::string assets_to_json_array(const std::vector<Velopack::VelopackAsset>& assets) {
+    std::string json = "[";
+    for (size_t i = 0; i < assets.size(); i++) {
+        if (i > 0) json += ", ";
+        json += asset_to_json(assets[i]);
+    }
+    json += "]";
     return json;
 }
 
@@ -50,6 +62,7 @@ static void print_usage(const char* argv0) {
     std::cerr << "Usage: " << argv0
               << " <source_type> <url_or_path> <token>"
               << " --channel <channel> --manifest <path> --packages-dir <path>"
+              << " [--download]"
               << std::endl;
 }
 
@@ -67,6 +80,7 @@ int main(int argc, char* argv[]) {
         std::string channel;
         std::string manifestPath;
         std::string packagesDir;
+        bool doDownload = false;
 
         for (int i = 4; i < argc; i++) {
             std::string arg = argv[i];
@@ -76,6 +90,8 @@ int main(int argc, char* argv[]) {
                 manifestPath = argv[++i];
             } else if (arg == "--packages-dir" && i + 1 < argc) {
                 packagesDir = argv[++i];
+            } else if (arg == "--download") {
+                doDownload = true;
             } else {
                 std::cerr << "Unknown argument: " << arg << std::endl;
                 print_usage(argv[0]);
@@ -89,7 +105,6 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        // Create the appropriate source
         std::unique_ptr<Velopack::IUpdateSourcePointer> source;
         if (sourceType == "gitea") {
             source = std::make_unique<Velopack::GiteaSource>(url, token, false);
@@ -104,32 +119,36 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        // Configure locator
         Velopack::VelopackLocatorConfig locator;
         locator.ManifestPath = manifestPath;
         locator.PackagesDir = packagesDir;
-        locator.UpdateExePath = argv[0]; // use self as dummy
-        locator.RootAppDir = packagesDir; // dummy
-        locator.CurrentBinaryDir = packagesDir; // dummy
+        locator.UpdateExePath = argv[0];
+        locator.RootAppDir = packagesDir;
+        locator.CurrentBinaryDir = packagesDir;
         locator.IsPortable = true;
 
-        // Configure update options
         Velopack::UpdateOptions opts;
         opts.AllowVersionDowngrade = false;
         opts.ExplicitChannel = channel.empty() ? std::optional<std::string>(std::nullopt) : std::optional<std::string>(channel);
         opts.MaximumDeltasBeforeFallback = 10;
 
-        // Create UpdateManager and check for updates
         Velopack::UpdateManager manager(std::move(source), &opts, &locator);
         auto updateInfo = manager.CheckForUpdates();
 
-        // Output JSON
+        if (doDownload && updateInfo.has_value()) {
+            manager.DownloadUpdates(updateInfo.value());
+        }
+
         std::string json;
         json += "{\n";
         if (updateInfo.has_value()) {
             json += "  \"target\": " + asset_to_json(updateInfo->TargetFullRelease) + ",\n";
+            json += "  \"deltas\": " + assets_to_json_array(updateInfo->DeltasToTarget) + ",\n";
+            json += "  \"isDowngrade\": " + std::string(updateInfo->IsDowngrade ? "true" : "false") + ",\n";
         } else {
             json += "  \"target\": null,\n";
+            json += "  \"deltas\": null,\n";
+            json += "  \"isDowngrade\": false,\n";
         }
         json += "  \"feed\": null\n";
         json += "}\n";

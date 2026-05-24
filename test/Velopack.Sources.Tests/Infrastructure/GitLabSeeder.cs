@@ -13,15 +13,14 @@ public static class GitLabSeeder
 {
     private const string BaseUrl = "http://localhost:8929";
     private const string RepoName = "testrepo";
-    private const string TagName = "v2.0.0";
     private const string TokenName = "velopack-test-token";
+
+    private static readonly string[] TagNames = ["v1.0.1", "v1.0.2", "v1.0.3"];
 
     public static async Task<(string apiUrl, string token)> SeedAsync(IMessageSink sink)
     {
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
 
-        // Step 1: Create a PAT via gitlab-rails runner (works with all GitLab versions,
-        // avoids the removed OAuth password grant)
         var pat = await CreatePatViaRailsRunner(sink);
 
         // Verify the token works
@@ -31,17 +30,14 @@ public static class GitLabSeeder
         verifyResponse.EnsureSuccessStatusCode();
         Log(sink, "PAT verified successfully.");
 
-        // Step 2: Create project (repo)
         var projectId = await CreateProject(client, pat, sink);
-
-        // Step 3: Upload feed file via generic packages API
-        await UploadFeedPackage(client, pat, projectId, sink);
-
-        // Step 4: Create tag
-        await CreateTag(client, pat, projectId, sink);
-
-        // Step 5: Create release with link to the feed file
-        await CreateReleaseWithLink(client, pat, projectId, sink);
+        await DeleteStaleReleases(client, pat, projectId, sink);
+        foreach (var tag in TagNames) {
+            var version = tag[1..]; // strip 'v' prefix
+            await UploadFeedPackage(client, pat, projectId, version, sink);
+            await CreateTag(client, pat, projectId, tag, sink);
+            await CreateRelease(client, pat, projectId, tag, version, sink);
+        }
 
         var apiUrl = $"{BaseUrl}/api/v4/projects/{projectId}";
         return (apiUrl, pat);
@@ -49,12 +45,8 @@ public static class GitLabSeeder
 
     private static async Task<string> CreatePatViaRailsRunner(IMessageSink sink)
     {
-        // Find the GitLab container name
         var containerName = await FindGitLabContainerName(sink);
 
-        // Ruby script to revoke any existing PAT with this name and create a fresh one.
-        // We must always create a new token because the plaintext value is only available
-        // at creation time (existing tokens only have the hashed value).
         var rubyScript =
             "u=User.find(1); "
             + "u.personal_access_tokens.active.where(name: 'velopack-test-token').each{|t| t.revoke!}; "
@@ -83,7 +75,6 @@ public static class GitLabSeeder
 
     private static async Task<string> FindGitLabContainerName(IMessageSink sink)
     {
-        // Use docker ps to find the GitLab container
         var (exitCode, stdout, stderr) = await RunProcessAsync(
             "docker", "ps --format {{.Names}} --filter ancestor=gitlab/gitlab-ce:latest",
             workingDir: null, timeoutSeconds: 10);
@@ -101,7 +92,6 @@ public static class GitLabSeeder
 
     private static async Task<int> CreateProject(HttpClient client, string token, IMessageSink sink)
     {
-        // Check if project already exists
         var searchRequest = new HttpRequestMessage(HttpMethod.Get,
             $"{BaseUrl}/api/v4/projects?search={RepoName}&owned=true");
         searchRequest.Headers.Add("PRIVATE-TOKEN", token);
@@ -119,7 +109,6 @@ public static class GitLabSeeder
             }
         }
 
-        // Create project
         var createBody = JsonSerializer.Serialize(new {
             name = RepoName,
             initialize_with_readme = true,
@@ -140,13 +129,14 @@ public static class GitLabSeeder
         return id;
     }
 
-    private static async Task UploadFeedPackage(HttpClient client, string token, int projectId, IMessageSink sink)
+    private static async Task UploadFeedPackage(
+        HttpClient client, string token, int projectId, string version, IMessageSink sink)
     {
         var feedFileName = $"releases.{TestFeedData.Channel}.json";
-        var feedContent = Encoding.UTF8.GetBytes(TestFeedData.FeedJson);
+        var feedContent = Encoding.UTF8.GetBytes(TestFeedData.FeedJsonForVersion(version));
 
         var uploadRequest = new HttpRequestMessage(HttpMethod.Put,
-            $"{BaseUrl}/api/v4/projects/{projectId}/packages/generic/releases/1.0.0/{feedFileName}") {
+            $"{BaseUrl}/api/v4/projects/{projectId}/packages/generic/releases/{version}/{feedFileName}") {
             Content = new ByteArrayContent(feedContent),
         };
         uploadRequest.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
@@ -154,7 +144,6 @@ public static class GitLabSeeder
 
         var response = await client.SendAsync(uploadRequest);
 
-        // 201 = created, 200 = already exists (idempotent)
         if (response.StatusCode == HttpStatusCode.Created || response.IsSuccessStatusCode) {
             Log(sink, $"Feed package '{feedFileName}' uploaded.");
         } else {
@@ -164,22 +153,44 @@ public static class GitLabSeeder
         }
     }
 
-    private static async Task CreateTag(HttpClient client, string token, int projectId, IMessageSink sink)
+    private static async Task DeleteStaleReleases(HttpClient client, string token, int projectId, IMessageSink sink)
     {
-        // Check if tag exists
+        var listRequest = new HttpRequestMessage(HttpMethod.Get,
+            $"{BaseUrl}/api/v4/projects/{projectId}/releases?per_page=100");
+        listRequest.Headers.Add("PRIVATE-TOKEN", token);
+
+        var listResponse = await client.SendAsync(listRequest);
+        if (!listResponse.IsSuccessStatusCode) return;
+
+        var body = await listResponse.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(body);
+        foreach (var release in doc.RootElement.EnumerateArray()) {
+            var tag = release.GetProperty("tag_name").GetString();
+            if (tag != null && !TagNames.Contains(tag)) {
+                var deleteRequest = new HttpRequestMessage(HttpMethod.Delete,
+                    $"{BaseUrl}/api/v4/projects/{projectId}/releases/{tag}");
+                deleteRequest.Headers.Add("PRIVATE-TOKEN", token);
+                await client.SendAsync(deleteRequest);
+                Log(sink, $"Deleted stale release '{tag}'.");
+            }
+        }
+    }
+
+    private static async Task CreateTag(
+        HttpClient client, string token, int projectId, string tagName, IMessageSink sink)
+    {
         var checkRequest = new HttpRequestMessage(HttpMethod.Get,
-            $"{BaseUrl}/api/v4/projects/{projectId}/repository/tags/{TagName}");
+            $"{BaseUrl}/api/v4/projects/{projectId}/repository/tags/{tagName}");
         checkRequest.Headers.Add("PRIVATE-TOKEN", token);
 
         var checkResponse = await client.SendAsync(checkRequest);
         if (checkResponse.IsSuccessStatusCode) {
-            Log(sink, $"Tag '{TagName}' already exists.");
+            Log(sink, $"Tag '{tagName}' already exists.");
             return;
         }
 
-        // Create tag
         var tagBody = JsonSerializer.Serialize(new {
-            tag_name = TagName,
+            tag_name = tagName,
             @ref = "main",
         });
 
@@ -191,13 +202,12 @@ public static class GitLabSeeder
 
         var createResponse = await client.SendAsync(createRequest);
 
-        // GitLab may return 400 if the tag already exists
         if (createResponse.IsSuccessStatusCode) {
-            Log(sink, $"Tag '{TagName}' created.");
+            Log(sink, $"Tag '{tagName}' created.");
         } else {
             var body = await createResponse.Content.ReadAsStringAsync();
             if (body.Contains("already exists")) {
-                Log(sink, $"Tag '{TagName}' already exists.");
+                Log(sink, $"Tag '{tagName}' already exists.");
             } else {
                 Log(sink, $"Tag creation returned {createResponse.StatusCode}: {body}");
                 createResponse.EnsureSuccessStatusCode();
@@ -205,28 +215,24 @@ public static class GitLabSeeder
         }
     }
 
-    private static async Task CreateReleaseWithLink(
-        HttpClient client, string token, int projectId, IMessageSink sink)
+    private static async Task CreateRelease(
+        HttpClient client, string token, int projectId, string tagName, string version, IMessageSink sink)
     {
-        // Check if release exists
         var checkRequest = new HttpRequestMessage(HttpMethod.Get,
-            $"{BaseUrl}/api/v4/projects/{projectId}/releases/{TagName}");
+            $"{BaseUrl}/api/v4/projects/{projectId}/releases/{tagName}");
         checkRequest.Headers.Add("PRIVATE-TOKEN", token);
 
         var checkResponse = await client.SendAsync(checkRequest);
         if (checkResponse.IsSuccessStatusCode) {
-            Log(sink, $"Release '{TagName}' already exists.");
-
-            // Ensure the asset link exists even if release was already created
-            await EnsureReleaseLink(client, token, projectId, sink);
+            Log(sink, $"Release '{tagName}' already exists.");
+            await EnsureReleaseLink(client, token, projectId, tagName, version, sink);
             return;
         }
 
-        // Create release
         var releaseBody = JsonSerializer.Serialize(new {
-            tag_name = TagName,
-            name = TagName,
-            description = "Test release",
+            tag_name = tagName,
+            name = tagName,
+            description = $"Test release {tagName}",
         });
 
         var createRequest = new HttpRequestMessage(HttpMethod.Post,
@@ -237,21 +243,19 @@ public static class GitLabSeeder
 
         var createResponse = await client.SendAsync(createRequest);
         createResponse.EnsureSuccessStatusCode();
-        Log(sink, $"Release '{TagName}' created.");
+        Log(sink, $"Release '{tagName}' created.");
 
-        // Create release link to the generic package
-        await EnsureReleaseLink(client, token, projectId, sink);
+        await EnsureReleaseLink(client, token, projectId, tagName, version, sink);
     }
 
     private static async Task EnsureReleaseLink(
-        HttpClient client, string token, int projectId, IMessageSink sink)
+        HttpClient client, string token, int projectId, string tagName, string version, IMessageSink sink)
     {
         var feedFileName = $"releases.{TestFeedData.Channel}.json";
-        var packageUrl = $"{BaseUrl}/api/v4/projects/{projectId}/packages/generic/releases/1.0.0/{feedFileName}";
+        var packageUrl = $"{BaseUrl}/api/v4/projects/{projectId}/packages/generic/releases/{version}/{feedFileName}";
 
-        // Check if link already exists
         var listRequest = new HttpRequestMessage(HttpMethod.Get,
-            $"{BaseUrl}/api/v4/projects/{projectId}/releases/{TagName}/assets/links");
+            $"{BaseUrl}/api/v4/projects/{projectId}/releases/{tagName}/assets/links");
         listRequest.Headers.Add("PRIVATE-TOKEN", token);
 
         var listResponse = await client.SendAsync(listRequest);
@@ -260,13 +264,12 @@ public static class GitLabSeeder
             using var listDoc = JsonDocument.Parse(listBody);
             foreach (var link in listDoc.RootElement.EnumerateArray()) {
                 if (link.TryGetProperty("name", out var nameEl) && nameEl.GetString() == feedFileName) {
-                    Log(sink, $"Release link for '{feedFileName}' already exists.");
+                    Log(sink, $"Release link for '{feedFileName}' already exists on '{tagName}'.");
                     return;
                 }
             }
         }
 
-        // Create release link
         var linkBody = JsonSerializer.Serialize(new {
             name = feedFileName,
             url = packageUrl,
@@ -274,14 +277,14 @@ public static class GitLabSeeder
         });
 
         var linkRequest = new HttpRequestMessage(HttpMethod.Post,
-            $"{BaseUrl}/api/v4/projects/{projectId}/releases/{TagName}/assets/links") {
+            $"{BaseUrl}/api/v4/projects/{projectId}/releases/{tagName}/assets/links") {
             Content = new StringContent(linkBody, Encoding.UTF8, "application/json"),
         };
         linkRequest.Headers.Add("PRIVATE-TOKEN", token);
 
         var linkResponse = await client.SendAsync(linkRequest);
         linkResponse.EnsureSuccessStatusCode();
-        Log(sink, $"Release link for '{feedFileName}' created.");
+        Log(sink, $"Release link for '{feedFileName}' created on '{tagName}'.");
     }
 
     private static async Task<(int exitCode, string stdout, string stderr)> RunProcessAsync(

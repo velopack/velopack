@@ -19,7 +19,8 @@ public static class HarnessRunner
     }
 
     public static HarnessResult RunCpp(
-        DockerFixture f, string sourceType, string urlOrPath, string? token, ITestOutputHelper output)
+        DockerFixture f, string sourceType, string urlOrPath, string? token, ITestOutputHelper output,
+        bool download = false)
     {
         if (string.IsNullOrEmpty(f.CppHarnessPath) || !File.Exists(f.CppHarnessPath)) {
             throw new InvalidOperationException(
@@ -27,6 +28,7 @@ public static class HarnessRunner
         }
 
         var args = BuildArgs(f, sourceType, urlOrPath, token);
+        if (download) args += " --download";
 
         // Set library path for dynamic linking
         var env = new Dictionary<string, string>();

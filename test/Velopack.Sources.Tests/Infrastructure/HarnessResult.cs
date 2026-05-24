@@ -7,6 +7,12 @@ public class HarnessResult
     [JsonPropertyName("target")]
     public HarnessAsset? Target { get; set; }
 
+    [JsonPropertyName("deltas")]
+    public HarnessAsset[]? Deltas { get; set; }
+
+    [JsonPropertyName("isDowngrade")]
+    public bool IsDowngrade { get; set; }
+
     [JsonPropertyName("feed")]
     public HarnessAsset[]? Feed { get; set; }
 }
@@ -33,4 +39,10 @@ public class HarnessAsset
 
     [JsonPropertyName("Size")]
     public long Size { get; set; }
+
+    [JsonPropertyName("NotesMarkdown")]
+    public string? NotesMarkdown { get; set; }
+
+    [JsonPropertyName("NotesHtml")]
+    public string? NotesHtml { get; set; }
 }
