@@ -160,7 +160,7 @@ public class CompatUtil
         return null;
     }
 
-    private IPEImage FindVelopackDll(string exeFile)
+    private PEImage FindVelopackDll(string exeFile)
     {
         var versionFile = Path.Combine(Path.GetDirectoryName(exeFile), "Velopack.dll");
         if (File.Exists(versionFile)) {

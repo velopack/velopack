@@ -1,6 +1,6 @@
-﻿using AsmResolver.PE;
+﻿using AsmResolver;
+using AsmResolver.PE;
 using AsmResolver.PE.File;
-using AsmResolver.PE.File.Headers;
 using AsmResolver.PE.Win32Resources;
 using AsmResolver.PE.Win32Resources.Builder;
 using AsmResolver.PE.Win32Resources.Icon;
@@ -21,7 +21,7 @@ public class ResourceEdit
     private readonly PEFile _file;
     private readonly ushort _langId = kLangNeutral;
 
-    IResourceDirectory _resources;
+    ResourceDirectory _resources;
     private bool _disposed;
 
     public ResourceEdit(string exeFile, ILogger logger)
@@ -30,7 +30,7 @@ public class ResourceEdit
         _logger = logger;
         _file = PEFile.FromBytes(File.ReadAllBytes(exeFile));
         var image = PEImage.FromFile(_file);
-        _resources = image.Resources ?? new ResourceDirectory((uint) 0);
+        _resources = image.Resources ?? new ResourceDirectory(0u);
 
         // if there is already a manifest, we want to keep the existing language ID
         try {
@@ -45,16 +45,10 @@ public class ResourceEdit
     {
         ThrowIfDisposed();
 
-        // should use this commented code once these issues are fixed in AsmResolver 
-        // https://github.com/Washi1337/AsmResolver/issues/532
-        // https://github.com/Washi1337/AsmResolver/issues/533
-        // var iconResource = new IconResource();
-        // var group = new IconGroupDirectory();
-        // iconResource.AddEntry(1, group);
-        // iconResource.WriteToDirectory(_resources);
+        var iconResource = new IconResource(IconType.Icon);
 
-        var group = new IconGroupDirectory() {
-            Type = 1,
+        var group = new IconGroup(1, _langId) {
+            Type = IconType.Icon,
         };
 
         var extractor = new IcoExtract(_logger);
@@ -63,50 +57,21 @@ public class ResourceEdit
         for (var p = 0; p < frames.Count; p++) {
             var f = frames[p];
 
-            var dictEntry = new IconGroupDirectoryEntry() {
-                BytesInRes = (uint) f.RawData.Length,
-                Height = (byte) f.CookedData.Height,
+            var iconEntry = new IconEntry((ushort) (p + 1), _langId) {
                 Width = (byte) f.CookedData.Width,
-                Id = (ushort) (p + 1),
-                Reserved = 0,
-                PixelBitCount = (ushort) f.CookedData.PixelType.BitsPerPixel,
+                Height = (byte) f.CookedData.Height,
                 ColorCount = (byte) f.Encoding.PaletteSize,
-                ColorPlanes = 1,
+                Reserved = 0,
+                Planes = 1,
+                BitsPerPixel = (ushort) f.CookedData.PixelType.BitsPerPixel,
+                PixelData = new DataSegment(f.RawData),
             };
 
-            var iconEntry = new IconEntry() {
-                RawIcon = f.RawData,
-            };
-
-            group.AddEntry(dictEntry, iconEntry);
-            group.Count++;
+            group.Icons.Add(iconEntry);
         }
 
-        WriteToDirectory(_resources, new Dictionary<uint, IconGroupDirectory> { { 1, group } });
-    }
-
-    private void WriteToDirectory(IResourceDirectory rootDirectory, Dictionary<uint, IconGroupDirectory> _entries)
-    {
-        ThrowIfDisposed();
-
-        // this function can be removed once these issues are fixed in AsmResolver 
-        // https://github.com/Washi1337/AsmResolver/issues/532
-        // https://github.com/Washi1337/AsmResolver/issues/533
-
-        var newIconDirectory = new ResourceDirectory(ResourceType.Icon);
-        foreach (var entry in _entries) {
-            foreach (var (groupEntry, iconEntry) in entry.Value.GetIconEntries()) {
-                newIconDirectory.Entries.Add(new ResourceDirectory(groupEntry.Id) { Entries = { new ResourceData(_langId, iconEntry) } });
-            }
-        }
-
-        var newGroupIconDirectory = new ResourceDirectory(ResourceType.GroupIcon);
-        foreach (var entry in _entries) {
-            newGroupIconDirectory.Entries.Add(new ResourceDirectory(entry.Key) { Entries = { new ResourceData(_langId, entry.Value) } });
-        }
-
-        rootDirectory.AddOrReplaceEntry(newIconDirectory);
-        rootDirectory.AddOrReplaceEntry(newGroupIconDirectory);
+        iconResource.Groups.Add(group);
+        iconResource.InsertIntoDirectory(_resources);
     }
 
     public void SetVersionInfo(PackageManifest package)
@@ -143,7 +108,7 @@ public class ResourceEdit
         varTable.Values.Add(((uint) kCodePageUtf16 << 16) | _langId);
         varInfo.Tables.Add(varTable);
 
-        versionInfo.WriteToDirectory(_resources);
+        versionInfo.InsertIntoDirectory(_resources);
     }
 
     public void CopyResourcesFrom(string otherExeFile)
@@ -152,7 +117,7 @@ public class ResourceEdit
 
         var file = PEFile.FromBytes(File.ReadAllBytes(otherExeFile));
         var image = PEImage.FromFile(file);
-        _resources = image.Resources ?? new ResourceDirectory((uint) 0);
+        _resources = image.Resources ?? new ResourceDirectory(0u);
     }
 
     public void Commit()
