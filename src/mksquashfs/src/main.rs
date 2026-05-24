@@ -26,7 +26,7 @@ struct Args {
     block_size: u32,
 }
 
-fn is_elf(path: &Path) -> bool {
+fn is_executable(path: &Path) -> bool {
     let Ok(mut file) = File::open(path) else {
         return false;
     };
@@ -34,7 +34,15 @@ fn is_elf(path: &Path) -> bool {
     if file.read_exact(&mut magic).is_err() {
         return false;
     }
-    magic == [0x7f, b'E', b'L', b'F']
+    // ELF binaries
+    if magic == [0x7f, b'E', b'L', b'F'] {
+        return true;
+    }
+    // Scripts with shebang (e.g. #!/bin/sh)
+    if magic[0] == b'#' && magic[1] == b'!' {
+        return true;
+    }
+    false
 }
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -79,7 +87,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let header = NodeHeader::new(0o777, 0, 0, 0);
             fs.push_symlink(link_str, &squashfs_path, header)?;
         } else if file_type.is_file() {
-            let mode = if is_elf(full_path) { 0o755 } else { 0o644 };
+            let mode = if is_executable(full_path) { 0o755 } else { 0o644 };
             let header = NodeHeader::new(mode, 0, 0, 0);
             let file = File::open(full_path)?;
             fs.push_file(file, &squashfs_path, header)?;
