@@ -13,8 +13,6 @@
     <PackageReference Include="Azure.Identity" Version="1.20.0" />
     <PackageReference Include="Octokit" Version="14.0.0" />
     <PackageReference Include="WixToolset.Dtf.WindowsInstaller" Version="6.0.2" />
-    <PackageReference Include="NuGet.Packaging" Version="7.6.0" />
-    <PackageReference Include="System.Formats.Asn1" Version="10.0.8" />
   </ItemGroup>
 
 </Project>
