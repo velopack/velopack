@@ -16,10 +16,10 @@ This folder contains pre-compiled binaries from a variety of sources. These shou
 - Can be found at https://github.com/AppImage/AppImageKit
 - License is MIT https://github.com/AppImage/AppImageKit/blob/master/LICENSE
 
-### squashfs-tools-ng v1.3.0
-- Squashfs utilities for Windows
-- Can be found at https://github.com/AgentD/squashfs-tools-ng
-- License is GPL-3 https://github.com/AgentD/squashfs-tools-ng/blob/master/COPYING.md
+### mksquashfs.exe (backhand v0.25.1)
+- Creates squashfs filesystems on Windows for AppImage packaging
+- Built on the backhand library: https://github.com/wcampbell0x2a/backhand
+- License is MIT / Apache-2.0: https://github.com/wcampbell0x2a/backhand/blob/main/LICENSE-MIT
 
 ### WiX Toolset Code v7.0.0 (fork)
 - Utility to create MSI installers on Windows

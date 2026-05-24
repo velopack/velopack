@@ -65,7 +65,7 @@ public static class HelperFile
     public static string GetMkSquashFsPath()
     {
         if (VelopackRuntimeInfo.IsWindows)
-            return FindHelperFile("squashfs-tools\\gensquashfs.exe");
+            return FindHelperFile("mksquashfs.exe");
         Exe.AssertSystemBinaryExists("mksquashfs", "sudo apt install squashfs-tools", "brew install squashfs");
         return "mksquashfs";
     }
