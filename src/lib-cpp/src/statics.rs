@@ -53,14 +53,28 @@ pub fn wrap_error<F>(op: F) -> bool
 where
     F: FnOnce() -> Result<()>,
 {
-    let mut last_error = LAST_ERROR.write().unwrap();
-    last_error.clear();
+    clear_last_error();
 
-    match op() {
-        Ok(_) => true,
-        Err(e) => {
-            *last_error = format!("{:?}", e);
-            log::error!("{:?}", e);
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(op));
+
+    match result {
+        Ok(Ok(_)) => true,
+        Ok(Err(e)) => {
+            let msg = format!("{:?}", e);
+            log::error!("{}", msg);
+            set_last_error(&msg);
+            false
+        }
+        Err(panic_info) => {
+            let msg = if let Some(s) = panic_info.downcast_ref::<&str>() {
+                format!("Internal error (panic): {}", s)
+            } else if let Some(s) = panic_info.downcast_ref::<String>() {
+                format!("Internal error (panic): {}", s)
+            } else {
+                "Internal error (panic): unknown".to_string()
+            };
+            log::error!("{}", msg);
+            set_last_error(&msg);
             false
         }
     }
@@ -75,8 +89,17 @@ pub fn log_message(level: &str, message: &str) {
     let log_callback = LOG_CALLBACK.lock().unwrap();
     let (callback, user_data) = *log_callback;
     if let Some(callback) = callback {
-        let c_level = CString::new(level).unwrap();
-        let c_message = CString::new(message).unwrap();
+        let c_level = match CString::new(level) {
+            Ok(s) => s,
+            Err(_) => return,
+        };
+        let c_message = match CString::new(message) {
+            Ok(s) => s,
+            Err(_) => match CString::new(message.replace('\0', "\\0")) {
+                Ok(s) => s,
+                Err(_) => return,
+            },
+        };
         callback(user_data as *mut c_void, c_level.as_ptr(), c_message.as_ptr());
     }
 }

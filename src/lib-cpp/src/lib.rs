@@ -712,3 +712,78 @@ pub extern "C" fn vpkc_get_last_error(psz_error: *mut c_char, c_error: size_t) -
 pub extern "C" fn vpkc_set_logger(cb_log: vpkc_log_callback_t, p_user_data: *mut c_void) {
     set_log_callback(cb_log, p_user_data);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn noteshtml_roundtrip_through_c_structs() {
+        let asset = velopack::VelopackAsset {
+            PackageId: "TestApp".to_string(),
+            Version: "2.0.0".to_string(),
+            Type: "Full".to_string(),
+            FileName: "TestApp-2.0.0-full.nupkg".to_string(),
+            SHA1: "abc123".to_string(),
+            SHA256: "def456".to_string(),
+            Size: 1048576,
+            NotesMarkdown: "# Release v2".to_string(),
+            NotesHtml: "<h1>Release v2</h1>".to_string(),
+        };
+
+        let c_asset = unsafe { allocate_VelopackAsset(&asset) };
+        assert!(!c_asset.is_null());
+        unsafe {
+            assert!(!(*c_asset).NotesMarkdown.is_null());
+            assert!(!(*c_asset).NotesHtml.is_null());
+        }
+
+        let roundtripped = c_to_VelopackAsset(c_asset).unwrap();
+        assert_eq!(roundtripped.NotesMarkdown, "# Release v2");
+        assert_eq!(roundtripped.NotesHtml, "<h1>Release v2</h1>");
+
+        unsafe { free_VelopackAsset(c_asset) };
+    }
+
+
+    #[test]
+    fn wrap_error_catches_panic_without_crashing() {
+        let result = wrap_error(|| {
+            panic!("test panic");
+        });
+        assert!(!result);
+        let error = get_last_error();
+        assert!(error.contains("panic"), "Error should mention panic: {}", error);
+    }
+
+    #[test]
+    fn update_info_roundtrip_with_notes() {
+        let update = velopack::UpdateInfo {
+            TargetFullRelease: velopack::VelopackAsset {
+                PackageId: "App".to_string(),
+                Version: "3.0.0".to_string(),
+                Type: "Full".to_string(),
+                FileName: "App-3.0.0-full.nupkg".to_string(),
+                SHA1: "sha1".to_string(),
+                SHA256: "sha256".to_string(),
+                Size: 5000,
+                NotesMarkdown: "## v3 notes".to_string(),
+                NotesHtml: "<h2>v3 notes</h2>".to_string(),
+            },
+            BaseRelease: None,
+            DeltasToTarget: Vec::new(),
+            IsDowngrade: false,
+        };
+
+        let c_update = unsafe { allocate_UpdateInfo(&update) };
+        assert!(!c_update.is_null());
+
+        let roundtripped = c_to_UpdateInfo(c_update).unwrap();
+        assert_eq!(roundtripped.TargetFullRelease.NotesMarkdown, "## v3 notes");
+        assert_eq!(roundtripped.TargetFullRelease.NotesHtml, "<h2>v3 notes</h2>");
+        assert!(roundtripped.BaseRelease.is_none());
+        assert!(roundtripped.DeltasToTarget.is_empty());
+
+        unsafe { free_UpdateInfo(c_update) };
+    }
+}
