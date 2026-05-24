@@ -4153,6 +4153,7 @@ dependencies = [
  "ntest",
  "semver",
  "sys-locale",
+ "unic-langid",
  "xdialog",
 ]
 

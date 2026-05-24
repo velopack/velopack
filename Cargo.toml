@@ -94,6 +94,7 @@ pyo3-log = "0.13"
 winreg = "0.56"
 serial_test = { version = "3", features = ["file_locks"] }
 sys-locale = "0.3"
+unic-langid = "0.9"
 
 # default to small, optimized workspace release binaries
 [profile.release]
