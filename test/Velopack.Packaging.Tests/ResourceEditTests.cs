@@ -105,9 +105,9 @@ public class ResourceEditTests
 
         var beforeRsrc = PEImage.FromFile(PEFile.FromFile(tempFile)).Resources;
         Assert.NotNull(beforeRsrc);
-        var beforeIcon = IconResource.FromDirectory(beforeRsrc);
-        Assert.Single(beforeIcon.GetIconGroups());
-        Assert.Equal(6, beforeIcon.GetIconGroups().ToList()[0].GetIconEntries().Count());
+        var beforeIcon = IconResource.FromDirectory(beforeRsrc, IconType.Icon);
+        Assert.Single(beforeIcon.Groups);
+        Assert.Equal(6, beforeIcon.Groups.ToList()[0].Icons.Count());
 
         var edit = new ResourceEdit(tempFile, logger);
         edit.SetExeIcon(PathHelper.GetFixture("clowd.ico"));
@@ -115,10 +115,10 @@ public class ResourceEditTests
 
         var afterRsrc = PEImage.FromFile(PEFile.FromFile(tempFile)).Resources;
         Assert.NotNull(afterRsrc);
-        var afterIcon = IconResource.FromDirectory(afterRsrc);
-        Assert.Single(afterIcon.GetIconGroups());
-        Assert.Equal(1, afterIcon.GetIconGroups().Single().Type);
-        Assert.Equal(7, afterIcon.GetIconGroups().ToList()[0].GetIconEntries().Count());
+        var afterIcon = IconResource.FromDirectory(afterRsrc, IconType.Icon);
+        Assert.Single(afterIcon.Groups);
+        Assert.Equal(IconType.Icon, afterIcon.Groups.Single().Type);
+        Assert.Equal(7, afterIcon.Groups.ToList()[0].Icons.Count());
     }
 
     [Fact]
@@ -138,9 +138,9 @@ public class ResourceEditTests
 
         var afterRsrc = PEImage.FromFile(PEFile.FromFile(tempFile)).Resources;
         Assert.NotNull(afterRsrc);
-        var afterIcon = IconResource.FromDirectory(afterRsrc);
-        Assert.Single(afterIcon.GetIconGroups());
-        Assert.Equal(7, afterIcon.GetIconGroups().ToList()[0].GetIconEntries().Count());
+        var afterIcon = IconResource.FromDirectory(afterRsrc, IconType.Icon);
+        Assert.Single(afterIcon.Groups);
+        Assert.Equal(7, afterIcon.Groups.ToList()[0].Icons.Count());
     }
 
     [Fact]

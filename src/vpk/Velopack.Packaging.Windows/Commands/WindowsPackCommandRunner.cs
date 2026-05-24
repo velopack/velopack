@@ -356,10 +356,10 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
     {
         var image = PEImage.FromFile(path);
 
-        if (image.MachineType.HasFlag(AsmResolver.PE.File.Headers.MachineType.Amd64))
+        if (image.MachineType.HasFlag(AsmResolver.PE.File.MachineType.Amd64))
             return RuntimeCpu.x64;
 
-        if (image.MachineType.HasFlag(AsmResolver.PE.File.Headers.MachineType.Arm64))
+        if (image.MachineType.HasFlag(AsmResolver.PE.File.MachineType.Arm64))
             return RuntimeCpu.arm64;
 
         return RuntimeCpu.x86;
