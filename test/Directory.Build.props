@@ -41,8 +41,8 @@
   </ItemGroup>
 
   <ItemGroup Condition=" $(MSBuildProjectName.EndsWith('Tests')) ">
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
-    <PackageReference Include="Microsoft.Testing.Platform" Version="2.1.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />
+    <PackageReference Include="Microsoft.Testing.Platform" Version="2.2.3" />
     <PackageReference Include="Neovolve.Logging.Xunit.Signed.v3" Version="7.2.0" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="xunit.v3.mtp-v2" Version="3.2.2" />
@@ -51,7 +51,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="GitHubActionsTestLogger" Version="3.0.3">
+    <PackageReference Include="GitHubActionsTestLogger" Version="3.0.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>compile; runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
