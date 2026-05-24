@@ -2,3 +2,5 @@ Thank you for installing VelopackCSharpAvalonia!
 
 The application has been successfully installed on your computer.
 You can launch it from the Start Menu or Desktop shortcut.
+
+Special chars: !@#$%^&*()_+<>?:"{}~-=\|[];',./'
