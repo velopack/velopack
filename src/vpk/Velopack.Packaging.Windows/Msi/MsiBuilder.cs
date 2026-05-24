@@ -105,7 +105,8 @@ public static class MsiBuilder
         writer.WriteString(message);
         writer.Flush();
         var rv = sb.ToString();
-        rv = rv.Replace("\r", "&#10;").Replace("\n", "&#13;");
+        rv = rv.Replace("\"", "&quot;");
+        rv = rv.Replace("\r\n", "&#xD;&#xA;").Replace("\r", "&#xD;").Replace("\n", "&#xA;");
         return rv;
     }
 

@@ -109,19 +109,16 @@
             <WixVariable Id="WixUILicenseRtf" Value="{{LicenseRtfFilePath}}"/>
         {{/if}}
 
-        <!-- Custom welcome description from instWelcome. RustSetLocaleStrings preserves
-             properties that already have a value, so this overrides the default localized text. -->
         {{#if HasWelcomeMessage}}
-            <Property Id="MsiWelcomeDescription" Value="{{WelcomeMessage}}"/>
+            <Property Id="MsiWelcomeDescription" Value="{{{WelcomeMessage}}}"/>
         {{/if}}
 
         {{#if HasReadme}}
             <WixVariable Id="WixUIReadmeRtf" Value="{{ReadmeRtfFilePath}}"/>
         {{/if}}
 
-        <!-- Message on last screen after install -->
         {{#if HasConclusionMessage}}
-            <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="{{ConclusionMessage}}"/>
+            <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="{{{ConclusionMessage}}}"/>
         {{/if}}
 
         <!-- Default checked state of launch app check box to true -->
