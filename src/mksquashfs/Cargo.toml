@@ -1,0 +1,28 @@
+[package]
+name = "velopack_mksquashfs"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT"
+description = "Creates squashfs filesystems from directories for Velopack AppImage packaging"
+
+[workspace]
+
+[[bin]]
+name = "mksquashfs"
+path = "src/main.rs"
+
+[dependencies]
+backhand = { version = "0.25.1", default-features = false, features = ["xz", "gzip", "zstd"] }
+clap = { version = "4", features = ["derive"] }
+walkdir = "2"
+
+[profile.release]
+opt-level = "z"
+lto = true
+debug = false
+debug-assertions = false
+overflow-checks = false
+panic = "abort"
+codegen-units = 1
+strip = true
