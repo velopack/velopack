@@ -50,6 +50,8 @@ public class PackTask : MSBuildAsyncTask
 
     public string? Exclude { get; set; }
 
+    public bool NoDefaultExclude { get; set; }
+
     public bool NoPortable { get; private set; }
 
     public bool NoInst { get; private set; }

@@ -9,6 +9,7 @@ public interface IPackOptions : INugetPackCommand, IPlatformOptions
     string EntryExecutableName { get; set; }
     string Icon { get; set; }
     string Exclude { get; set; }
+    bool NoDefaultExclude { get; set; }
     bool NoPortable { get; set; }
     bool NoInst { get; set; }
 }

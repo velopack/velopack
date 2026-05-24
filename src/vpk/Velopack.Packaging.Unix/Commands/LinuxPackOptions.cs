@@ -31,6 +31,8 @@ public class LinuxPackOptions : IPackOptions
 
     public string Exclude { get; set; }
 
+    public bool NoDefaultExclude { get; set; }
+
     public bool NoPortable { get; set; }
 
     public bool NoInst { get; set; }
