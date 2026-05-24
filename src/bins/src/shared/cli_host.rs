@@ -19,14 +19,14 @@ pub fn clap_run_main(program_name: &str, main_inner: fn() -> anyhow::Result<()>)
                     }
                     _ => {
                         error!("{}", error_string);
-                        crate::dialogs::show_error(format!("{program_name} Error").as_str(), None, &error_string);
+                        crate::dialogs::show_generic_error(program_name, &error_string);
                         return Err(anyhow::Error::from(downcast));
                     }
                 }
             }
             Err(e) => {
                 error!("{}", error_string);
-                crate::dialogs::show_error(format!("{program_name} Error").as_str(), None, &error_string);
+                crate::dialogs::show_generic_error(program_name, &error_string);
                 return Err(e);
             }
         }

@@ -98,11 +98,7 @@ pub fn start_impl(
             }
             Err(e) => {
                 warn!("Failed to migrate legacy app ({}).", e);
-                dialogs::show_error(
-                    &manifest.title,
-                    Some("Unable to start app"),
-                    "This app installation has been corrupted and cannot be started. Please re-install the app.",
-                );
+                dialogs::show_start_corrupt_error(&manifest.title);
                 Err(e)
             }
         }

@@ -1,0 +1,30 @@
+﻿<!-- Copyright (c) .NET Foundation and contributors. All rights reserved. Licensed under the Microsoft Reciprocal License. See LICENSE.TXT file in the project root for full license information. -->
+
+
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+    <Fragment>
+        <UI>
+            <Dialog Id="InstallScopeDlg" Width="370" Height="270" Title="[MsiDlgTitle]" KeepModeless="yes">
+                <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+                <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+                <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+                <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="20" Transparent="yes" NoPrefix="yes" Text="[MsiScopeDescription]" />
+                <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes" Text="[MsiScopeTitle]" />
+                <Control Id="BothScopes" Type="RadioButtonGroup" X="20" Y="55" Width="330" Height="120" Property="WixAppFolder" Hidden="yes" ShowCondition="Privileged AND (!(wix.WixUISupportPerUser) AND !(wix.WixUISupportPerMachine))">
+                    <RadioButtonGroup Property="WixAppFolder">
+                        <RadioButton Value="WixPerUserFolder" X="0" Y="0" Width="295" Height="16" Text="[MsiScopePerUser]" />
+                        <RadioButton Value="WixPerMachineFolder" X="0" Y="60" Width="295" Height="16" Text="[MsiScopePerMachine]" />
+                    </RadioButtonGroup>
+                </Control>
+                <Control Id="PerUserDescription" Type="Text" X="33" Y="70" Width="300" Height="36" Hidden="yes" NoPrefix="yes" Text="[MsiScopePerUserDescription]" ShowCondition="!(wix.WixUISupportPerUser)" />
+                <Control Id="NoPerUserDescription" Type="Text" X="33" Y="70" Width="300" Height="36" Hidden="yes" NoPrefix="yes" Text="[MsiScopeNoPerUserDescription]" ShowCondition="NOT !(wix.WixUISupportPerUser)" />
+                <Control Id="PerMachineDescription" Type="Text" X="33" Y="131" Width="300" Height="36" Hidden="yes" NoPrefix="yes" Text="[MsiScopePerMachineDescription]" ShowCondition="Privileged" />
+                <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="[MsiBtnBack]" />
+                <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="[MsiBtnNext]" />
+                <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="[MsiBtnCancel]">
+                    <Publish Event="SpawnDialog" Value="CancelDlg" />
+                </Control>
+            </Dialog>
+        </UI>
+    </Fragment>
+</Wix>

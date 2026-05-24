@@ -60,7 +60,6 @@ normpath.workspace = true
 simple-stopwatch.workspace = true
 wait-timeout.workspace = true
 pretty-bytes-rust.workspace = true
-enum-flags.workspace = true
 log-panics.workspace = true
 zstd.workspace = true
 zip.workspace = true
@@ -68,15 +67,13 @@ walkdir.workspace = true
 sha1_smol.workspace = true
 rayon.workspace = true
 progress-streams.workspace = true
+velopack_l18n.workspace = true
 
 [target.'cfg(target_os="linux")'.dependencies]
 waitpid-any.workspace = true
-dialog.workspace = true
 libc.workspace = true
 
 [target.'cfg(target_os="macos")'.dependencies]
-core-foundation.workspace = true
-core-foundation-sys.workspace = true
 waitpid-any.workspace = true
 
 [target.'cfg(windows)'.dependencies]
@@ -85,36 +82,18 @@ memmap2.workspace = true
 fast_image_resize.workspace = true
 image.workspace = true
 windows = { workspace = true, features = [
-    "Win32_Foundation",
-    "Win32_Security",
-    "Win32_System_Com",
-    "Win32_Globalization",
-    "Win32_UI",
-    "Win32_UI_Shell",
-    "Win32_UI_Shell_Common",
+    "Win32_Graphics_Gdi",
+    "Win32_UI_HiDpi",
     "Win32_UI_Shell_PropertiesSystem",
     "Win32_UI_WindowsAndMessaging",
-    "Win32_UI_Controls",
-    "Win32_UI_HiDpi",
-    "Win32_Graphics",
-    "Win32_Graphics_Gdi",
     "Win32_System_Threading",
     "Win32_System_SystemInformation",
-    "Win32_System_Variant",
     "Win32_System_Environment",
     "Win32_System_Com_StructuredStorage",
-    "Win32_System_Registry",
-    "Win32_System_Threading",
     "Win32_System_ProcessStatus",
-    "Win32_System_WindowsProgramming",
-    "Win32_System_LibraryLoader",
     "Win32_System_ApplicationInstallationAndServicing",
-    "Win32_System_Kernel",
     "Win32_Storage_EnhancedStorage",
     "Win32_Storage_FileSystem",
-    "Wdk",
-    "Wdk_System",
-    "Wdk_System_Threading",
 ] }
 webview2-com-sys.workspace = true
 libloading.workspace = true

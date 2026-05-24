@@ -122,6 +122,8 @@ jobs:
         uses: ./.github/actions/job-setup
       - name: Install Dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libx11-dev libxext-dev libxft-dev libxinerama-dev libxcursor-dev libxrender-dev libxfixes-dev libpango1.0-dev libgl1-mesa-dev libglu1-mesa-dev libpipewire-0.3-dev libclang-dev libgbm-dev libegl-dev libwayland-dev
           curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
           cargo binstall cross
           mkdir ./artifacts
@@ -160,9 +162,10 @@ jobs:
         uses: ./.github/actions/job-setup
       - name: Install Dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libx11-dev libxext-dev libxft-dev libxinerama-dev libxcursor-dev libxrender-dev libxfixes-dev libpango1.0-dev libgl1-mesa-dev libglu1-mesa-dev libpipewire-0.3-dev libclang-dev libgbm-dev libegl-dev libwayland-dev
+          sudo apt-get install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
           rustup target add aarch64-unknown-linux-gnu
-          sudo apt update
-          sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
           mkdir ./artifacts
       - name: Build Rust (${{ matrix.target }})
         env:

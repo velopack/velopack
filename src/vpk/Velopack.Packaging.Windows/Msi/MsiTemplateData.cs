@@ -51,12 +51,18 @@ public class MsiTemplateData
     public bool HasWelcomeMessage => !string.IsNullOrWhiteSpace(WelcomeMessage);
     public string WelcomeMessage;
 
-    public bool HasReadmeMessage => !string.IsNullOrWhiteSpace(ReadmeMessage);
-    public string ReadmeMessage;
+    public bool HasReadme => !string.IsNullOrWhiteSpace(ReadmeRtfFilePath);
+    public string ReadmeRtfFilePath;
 
     public bool HasTopBannerImage => !string.IsNullOrWhiteSpace(TopBannerImagePath) && File.Exists(TopBannerImagePath);
     public string TopBannerImagePath;
 
     public bool HasSideBannerImage => !string.IsNullOrWhiteSpace(SideBannerImagePath) && File.Exists(SideBannerImagePath);
     public string SideBannerImagePath;
+
+    public string BannerBmpPath;
+    public string DialogBmpPath;
+    public string ExclamIcoPath;
+    public string UpIcoPath;
+    public string NewIcoPath;
 }

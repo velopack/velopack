@@ -1,7 +1,6 @@
-use crate::shared::{self};
+use crate::{dialogs, shared, windows};
 use velopack::{constants, locator::VelopackLocator};
 
-use crate::windows;
 use anyhow::{bail, Result};
 
 pub fn uninstall(locator: &VelopackLocator, delete_self: bool) -> Result<()> {
@@ -38,11 +37,7 @@ pub fn uninstall(locator: &VelopackLocator, delete_self: bool) -> Result<()> {
     let app_title = locator.get_manifest_title();
 
     info!("Finished successfully.");
-    shared::dialogs::show_info(
-        format!("{} Uninstall", app_title).as_str(),
-        None,
-        "The application was successfully uninstalled.",
-    );
+    dialogs::show_uninstall_complete(&app_title);
 
     if delete_self {
         if let Err(e) = windows::register_intent_to_delete_self(3, &root_path) {

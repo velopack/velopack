@@ -125,16 +125,22 @@ fn get_op_wait(matches: &ArgMatches) -> shared::OperationWait {
     }
 }
 
-// fn main() -> Result<()> {
-//     shared::cli_host::clap_run_main("Update", main_inner)
-// }
-
-fn main() -> Result<()> {
+fn main() {
     #[cfg(windows)]
     windows::mitigate::pre_main_sideload_mitigation();
     #[cfg(windows)]
     windows::splash::init_dpi_awareness();
 
+    let result = dialogs::XDialogBuilder::new().run_result(real_main);
+    std::process::exit(if result.is_ok() { 0 } else { 1 });
+}
+
+fn real_main() -> Result<()> {
+    dialogs::init();
+    main_inner()
+}
+
+fn main_inner() -> Result<()> {
     #[cfg(windows)]
     let matches = try_parse_command_line_matches(env::args().collect())?;
     #[cfg(unix)]

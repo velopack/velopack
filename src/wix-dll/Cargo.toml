@@ -21,5 +21,6 @@ crate-type = ["cdylib"]
 anyhow.workspace = true
 velopack.workspace = true
 velopack_bins.workspace = true
+velopack_l18n.workspace = true
 remove_dir_all.workspace = true
-windows = { workspace = true, features = ["Win32_Foundation"] }
+windows = { workspace = true, features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_UI_WindowsAndMessaging"] }
