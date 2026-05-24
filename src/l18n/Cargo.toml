@@ -15,6 +15,7 @@ fluent-bundle.workspace = true
 fluent.workspace = true
 fluent-langneg.workspace = true
 sys-locale.workspace = true
+unic-langid.workspace = true
 
 [dev-dependencies]
 ntest.workspace = true
