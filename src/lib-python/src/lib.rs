@@ -10,6 +10,9 @@ use app::VelopackAppWrapper;
 mod manager;
 use manager::UpdateManagerWrapper;
 
+mod sources;
+use sources::{PyGiteaSource, PyGithubSource, PyGitlabSource, PyHttpSource};
+
 use ::velopack::VelopackAsset;
 
 #[derive(FromPyObject)]
@@ -37,6 +40,12 @@ fn velopack(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyUpdateInfo>()?;
     m.add_class::<PyUpdateOptions>()?;
     m.add_class::<PyVelopackLocatorConfig>()?;
+
+    // update sources
+    m.add_class::<PyGithubSource>()?;
+    m.add_class::<PyGitlabSource>()?;
+    m.add_class::<PyGiteaSource>()?;
+    m.add_class::<PyHttpSource>()?;
 
     // concrete classes
     m.add_class::<VelopackAppWrapper>()?;
