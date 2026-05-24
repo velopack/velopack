@@ -8,6 +8,7 @@ Velopack is an installation and auto-update framework for cross-platform applica
 - 🚀 **Automatic migrations** - If you are coming from other popular frameworks (eg. [Squirrel](https://github.com/Squirrel/Squirrel.Windows)), Velopack can automatically migrate your application.
 - ⚡️ **Lightning fast** – Velopack is written in Rust for native performance. Delta packages mean your user only downloads what's changed between versions.
 - 📔 **Language agnostic** - With support for C#, C++, JS, Rust and more. Use a familiar API for updates no matter what language your project is.
+- 🌍 **Localized** – Translated into 39 languages across 6 continents, so your users feel at home no matter where they are.
 
 ## Documentation
 - 📖 [Read the docs](https://docs.velopack.io/)
