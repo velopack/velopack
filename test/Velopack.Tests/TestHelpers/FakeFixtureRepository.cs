@@ -92,6 +92,10 @@ internal class FakeFixtureRepository : IFileDownloader
         }
 
         File.Copy(filePath, targetFile);
+        // fsync to ensure data is flushed to disk before UpdateMac reads the file in a separate process.
+        using (var fs = new FileStream(targetFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) {
+            fs.Flush(true);
+        }
         progress(25);
         progress(50);
         progress(75);
