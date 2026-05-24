@@ -268,3 +268,66 @@ jobs:
           report_type: test_results
           files: ./test/coverage/junit.*.xml
           flags: vpk
+
+  sources:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows, ubuntu, macos]
+        include:
+          - os: windows
+            runner: blacksmith-8vcpu-windows-2025
+          - os: ubuntu
+            runner: blacksmith-8vcpu-ubuntu-2404
+          - os: macos
+            runner: blacksmith-6vcpu-macos-latest
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
+        with:
+          dotnet: true
+      - name: Install Docker (macOS)
+        if: matrix.os == 'macos'
+        run: |
+          brew install docker docker-compose colima
+          colima start
+      - name: Install uv
+        run: pip install uv
+      - name: Start Docker Compose
+        working-directory: test/Velopack.Sources.Tests
+        run: docker compose up -d
+      - name: Build .NET
+        run: dotnet build -c Release
+      - name: Wait for GitLab
+        shell: bash
+        run: |
+          echo "Waiting for GitLab to be ready..."
+          for i in $(seq 1 60); do
+            STATUS=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8929/users/sign_in || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "GitLab is ready!"
+              exit 0
+            fi
+            echo "Attempt $i/60 - GitLab returned $STATUS, waiting 10s..."
+            sleep 10
+          done
+          echo "GitLab did not become ready in time"
+          exit 1
+      - name: Test Velopack.Sources.Tests
+        run: >-
+          dotnet test --project test/Velopack.Sources.Tests/Velopack.Sources.Tests.csproj
+          --no-build -c Release
+          --report-github
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Sources.Tests.xml
+      - name: Docker Compose Logs
+        if: failure()
+        working-directory: test/Velopack.Sources.Tests
+        run: docker compose logs
+      - name: Stop Docker Compose
+        if: always()
+        working-directory: test/Velopack.Sources.Tests
+        run: docker compose down
