@@ -69,22 +69,13 @@
     {
       "groupName": "frozen",
       "matchPackageNames": [
-        "System.CommandLine",                         // too many breaking changes too frequently
         "@vercel/webpack-asset-relocator-loader",
       ],
       "dependencyDashboardApproval": true
     },
     {
-      "matchPackageNames": ["jest", "ts-jest", "@types/jest"],
-      "allowedVersions": "< 30.0.0"                  // ts-jest doesn't support jest 30 yet
-    },
-    {
       "matchPackageNames": "SixLabors.ImageSharp",
       "allowedVersions": "< 3.0.0"
-    },
-    {
-      "matchPackageNames": "NuGet.Versioning",
-      "allowedVersions": "< 7.0.0"                   // 7.x drops netstandard2.0 support
     },
     {
       "matchPackageNames": "@electron/fuses",
@@ -93,6 +84,10 @@
     {
       "matchPackageNames": "coverlet.msbuild",
       "allowedVersions": "< 7.0.0"                   // 8.x breaks instrumentation on net8.0 targets
+    },
+    {
+      "matchPackageNames": ["jest", "ts-jest", "@types/jest"],
+      "allowedVersions": "< 30.0.0"                  // ts-jest doesn't support jest 30 yet
     },
     {
       "matchPackageNames": "typescript",
