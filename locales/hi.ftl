@@ -213,3 +213,6 @@ msi-resume-btn-install = &स्थापित करें
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = { $app_title } के लिए डेस्कटॉप शॉर्टकट
 msi-start-menu-shortcut-description = { $app_title } के लिए प्रारंभ मेनू शॉर्टकट
+# MSI Installer UI - Readme Dialog
+msi-readme-title = महत्वपूर्ण जानकारी
+msi-readme-description = कृपया आगे बढ़ने से पहले निम्नलिखित जानकारी पढ़ें।

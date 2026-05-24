@@ -24,6 +24,7 @@ public static class MsiBuilder
         "InvalidDirDlg.wxs", "DiskCostDlg.wxs", "ErrorDlg.wxs", "FatalError.wxs",
         "UserExit.wxs", "FilesInUse.wxs", "MsiRMFilesInUse.wxs", "ResumeDlg.wxs",
         "CancelDlg.wxs", "OutOfRbDiskDlg.wxs", "OutOfDiskDlg.wxs",
+        "ReadmeDlg.wxs",
     ];
 
     public static string GenerateWixTemplate(MsiTemplateData data)
@@ -59,22 +60,21 @@ public static class MsiBuilder
         return FormatXmlMessage(content);
     }
 
-    private static string GetLicenseRtfPath(string licensePath, DirectoryInfo tempDir)
+    private static string GetRtfPath(string filePath, string outputFileName, DirectoryInfo tempDir)
     {
-        if (string.IsNullOrWhiteSpace(licensePath))
+        if (string.IsNullOrWhiteSpace(filePath))
             return "";
 
-        if (!File.Exists(licensePath))
-            throw new FileNotFoundException("File not found", licensePath);
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException("File not found", filePath);
 
-        var extension = Path.GetExtension(licensePath);
-        var content = File.ReadAllText(licensePath, Encoding.UTF8);
+        var extension = Path.GetExtension(filePath);
+        var content = File.ReadAllText(filePath, Encoding.UTF8);
 
-        // if extension is .md, render it to rtf
         if (extension.Equals(".md", StringComparison.OrdinalIgnoreCase)
             || extension.Equals(".txt", StringComparison.OrdinalIgnoreCase)) {
-            licensePath = Path.Combine(tempDir.FullName, "rendered_license.rtf");
-            using var writer = new StreamWriter(licensePath);
+            filePath = Path.Combine(tempDir.FullName, outputFileName);
+            using var writer = new StreamWriter(filePath);
             var renderer = new RtfRenderer(writer);
             renderer.WriteRtfStart();
             _ = Markdown.Convert(content, renderer);
@@ -82,10 +82,10 @@ public static class MsiBuilder
         } else if (extension.Equals(".rtf", StringComparison.OrdinalIgnoreCase)) {
             // do nothing but it's valid
         } else {
-            throw new ArgumentException("Installer license must be .txt, .md, or .rtf", nameof(licensePath));
+            throw new ArgumentException("Installer rich-text content must be .txt, .md, or .rtf", nameof(filePath));
         }
 
-        return licensePath;
+        return filePath;
     }
 
     public static string SanitizeDirectoryString(string name)
@@ -150,9 +150,9 @@ public static class MsiBuilder
             TopBannerImagePath = options.MsiLogo,
             RuntimeDependencies = runtimeDeps,
             ConclusionMessage = GetPlainTextMessage(options.InstConclusion),
-            ReadmeMessage = GetPlainTextMessage(options.InstReadme),
+            ReadmeRtfFilePath = GetRtfPath(options.InstReadme, "rendered_readme.rtf", portableDir.Parent),
             WelcomeMessage = GetPlainTextMessage(options.InstWelcome),
-            LicenseRtfFilePath = GetLicenseRtfPath(options.InstLicense, portableDir.Parent),
+            LicenseRtfFilePath = GetRtfPath(options.InstLicense, "rendered_license.rtf", portableDir.Parent),
         };
     }
 

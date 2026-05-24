@@ -213,3 +213,6 @@ msi-resume-btn-install = &Installeren
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = Bureaubladsnelkoppeling voor { $app_title }
 msi-start-menu-shortcut-description = Startmenu-snelkoppeling voor { $app_title }
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Belangrijke informatie
+msi-readme-description = Lees de volgende informatie voordat u verdergaat.

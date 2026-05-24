@@ -213,3 +213,6 @@ msi-resume-btn-install = &Telepítés
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = Asztali parancsikon a(z) { $app_title } alkalmazáshoz
 msi-start-menu-shortcut-description = Start menü parancsikon a(z) { $app_title } alkalmazáshoz
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Fontos információk
+msi-readme-description = Kérjük, olvassa el az alábbi információkat a folytatás előtt.

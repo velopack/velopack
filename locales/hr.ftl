@@ -213,3 +213,6 @@ msi-resume-btn-install = &Instaliraj
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = Prečac na radnoj površini za { $app_title }
 msi-start-menu-shortcut-description = Prečac u izborniku Start za { $app_title }
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Važne informacije
+msi-readme-description = Molimo pročitajte sljedeće informacije prije nastavka.

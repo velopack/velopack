@@ -213,3 +213,6 @@ msi-resume-btn-install = &Installer
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = Skrivebordssnarvei for { $app_title }
 msi-start-menu-shortcut-description = Startmeny-snarvei for { $app_title }
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Viktig informasjon
+msi-readme-description = Vennligst les følgende informasjon før du fortsetter.

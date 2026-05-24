@@ -213,3 +213,6 @@ msi-resume-btn-install = &Instalare
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = Comandă rapidă pe desktop pentru { $app_title }
 msi-start-menu-shortcut-description = Comandă rapidă în meniul Start pentru { $app_title }
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Informații importante
+msi-readme-description = Vă rugăm să citiți următoarele informații înainte de a continua.

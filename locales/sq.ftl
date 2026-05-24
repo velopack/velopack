@@ -213,3 +213,6 @@ msi-resume-btn-install = &Instaloje
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = Shkurtore për { $app_title } në desktop
 msi-start-menu-shortcut-description = Shkurtore për { $app_title } në menynë Fillim
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Informacion i rëndësishëm
+msi-readme-description = Ju lutemi lexoni informacionin e mëposhtëm përpara se të vazhdoni.

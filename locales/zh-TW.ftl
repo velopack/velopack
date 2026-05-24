@@ -213,3 +213,6 @@ msi-resume-btn-install = 安裝(&I)
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = { $app_title } 桌面捷徑
 msi-start-menu-shortcut-description = { $app_title } 開始功能表捷徑
+# MSI Installer UI - Readme Dialog
+msi-readme-title = 讀我資訊
+msi-readme-description = 請在繼續之前閱讀以下資訊。

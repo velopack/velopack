@@ -213,3 +213,6 @@ msi-resume-btn-install = ה&תקן
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = קיצור דרך לשולחן העבודה עבור { $app_title }
 msi-start-menu-shortcut-description = קיצור דרך לתפריט התחלה עבור { $app_title }
+# MSI Installer UI - Readme Dialog
+msi-readme-title = מידע חשוב
+msi-readme-description = אנא קראו את המידע הבא לפני שתמשיכו.

@@ -213,3 +213,6 @@ msi-resume-btn-install = &Орнату
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = { $app_title } үшін жұмыс үстелі таңбашасы
 msi-start-menu-shortcut-description = { $app_title } үшін Бастау мәзірі таңбашасы
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Маңызды ақпарат
+msi-readme-description = Жалғастырмас бұрын келесі ақпаратты оқыңыз.

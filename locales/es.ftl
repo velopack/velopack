@@ -213,3 +213,6 @@ msi-resume-btn-install = &Instalar
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = Acceso directo de escritorio para { $app_title }
 msi-start-menu-shortcut-description = Acceso directo del menú Inicio para { $app_title }
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Información importante
+msi-readme-description = Lea la siguiente información antes de continuar.

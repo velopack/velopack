@@ -213,3 +213,6 @@ msi-resume-btn-install = &ติดตั้ง
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = ทางลัดเดสก์ท็อปสำหรับ { $app_title }
 msi-start-menu-shortcut-description = ทางลัดเมนูเริ่มสำหรับ { $app_title }
+# MSI Installer UI - Readme Dialog
+msi-readme-title = ข้อมูลสำคัญ
+msi-readme-description = โปรดอ่านข้อมูลต่อไปนี้ก่อนดำเนินการต่อ

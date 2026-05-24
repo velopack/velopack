@@ -213,3 +213,6 @@ msi-resume-btn-install = Yü&kle
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = { $app_title } için masaüstü kısayolu
 msi-start-menu-shortcut-description = { $app_title } için Başlat Menüsü kısayolu
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Önemli Bilgiler
+msi-readme-description = Devam etmeden önce lütfen aşağıdaki bilgileri okuyun.

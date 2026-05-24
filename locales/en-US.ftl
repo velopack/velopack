@@ -101,6 +101,10 @@ msi-license-title = End-User License Agreement
 msi-license-description = Please read the following license agreement carefully.
 msi-license-checkbox = I &accept the terms in the License Agreement
 
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Readme Information
+msi-readme-description = Please read the following information before continuing.
+
 # MSI Installer UI - Install Scope Dialog
 msi-scope-title = Installation Scope
 msi-scope-description = Select the installation scope.

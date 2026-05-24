@@ -213,3 +213,6 @@ msi-resume-btn-install = &Diegti
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = { $app_title } darbalaukio sparčioji nuoroda
 msi-start-menu-shortcut-description = { $app_title } meniu Pradžia sparčioji nuoroda
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Svarbi informacija
+msi-readme-description = Prieš tęsdami perskaitykite šią informaciją.

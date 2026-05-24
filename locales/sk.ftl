@@ -213,3 +213,6 @@ msi-resume-btn-install = I&nštalovať
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = Odkaz na pracovnej ploche pre { $app_title }
 msi-start-menu-shortcut-description = Odkaz v ponuke Štart pre { $app_title }
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Dôležité informácie
+msi-readme-description = Pred pokračovaním si prečítajte nasledujúce informácie.

@@ -213,3 +213,6 @@ msi-resume-btn-install = &Instalēt
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = { $app_title } darbvirsmas saīsne
 msi-start-menu-shortcut-description = { $app_title } izvēlnes Sākt saīsne
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Svarīga informācija
+msi-readme-description = Lūdzu, izlasiet šo informāciju pirms turpināšanas.

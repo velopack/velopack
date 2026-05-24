@@ -213,3 +213,6 @@ msi-resume-btn-install = &Εγκατάσταση
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = Συντόμευση του { $app_title } στην επιφάνεια εργασίας
 msi-start-menu-shortcut-description = Συντόμευση του { $app_title } στο μενού Έναρξη
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Πληροφορίες
+msi-readme-description = Παρακαλούμε διαβάστε τις ακόλουθες πληροφορίες πριν συνεχίσετε.

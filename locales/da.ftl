@@ -213,3 +213,6 @@ msi-resume-btn-install = &Installer
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = Skrivebordsgenvej til { $app_title }
 msi-start-menu-shortcut-description = Genvej til { $app_title } i menuen Start
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Vigtig information
+msi-readme-description = Læs venligst følgende oplysninger, før du fortsætter.

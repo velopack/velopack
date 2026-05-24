@@ -47,6 +47,9 @@ pub fn locale_strings(app_title: &str) -> Vec<(&'static str, String)> {
         ("MsiLicenseTitle", MSI_LICENSE_TITLE, false, Title),
         ("MsiLicenseDescription", MSI_LICENSE_DESCRIPTION, false, Normal),
         ("MsiLicenseCheckbox", MSI_LICENSE_CHECKBOX, false, Normal),
+        // Readme dialog
+        ("MsiReadmeTitle", MSI_README_TITLE, false, Title),
+        ("MsiReadmeDescription", MSI_README_DESCRIPTION, false, Normal),
         // Install scope dialog
         ("MsiScopeTitle", MSI_SCOPE_TITLE, false, Title),
         ("MsiScopeDescription", MSI_SCOPE_DESCRIPTION, false, Normal),

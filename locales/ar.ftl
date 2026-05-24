@@ -213,3 +213,6 @@ msi-resume-btn-install = ت&ثبيت
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = اختصار سطح المكتب لـ { $app_title }
 msi-start-menu-shortcut-description = اختصار قائمة ابدأ لـ { $app_title }
+# MSI Installer UI - Readme Dialog
+msi-readme-title = معلومات الملف التمهيدي
+msi-readme-description = يرجى قراءة المعلومات التالية قبل المتابعة.

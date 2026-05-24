@@ -213,3 +213,6 @@ msi-resume-btn-install = インストール(&I)
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = { $app_title } のデスクトップ ショートカット
 msi-start-menu-shortcut-description = { $app_title } のスタート メニュー ショートカット
+# MSI Installer UI - Readme Dialog
+msi-readme-title = お読みください
+msi-readme-description = 続行する前に、以下の情報をお読みください。

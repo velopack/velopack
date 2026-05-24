@@ -213,3 +213,6 @@ msi-resume-btn-install = &Інсталювати
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = Ярлик { $app_title } на робочому столі
 msi-start-menu-shortcut-description = Ярлик { $app_title } у меню «Пуск»
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Важлива інформація
+msi-readme-description = Будь ласка, прочитайте наступну інформацію перед продовженням.

@@ -213,3 +213,6 @@ msi-resume-btn-install = &Instalar
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = Atalho na Área de Trabalho para o { $app_title }
 msi-start-menu-shortcut-description = Atalho no Menu Iniciar para o { $app_title }
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Informações importantes
+msi-readme-description = Leia as informações a seguir antes de continuar.

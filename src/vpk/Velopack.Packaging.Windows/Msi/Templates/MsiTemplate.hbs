@@ -109,6 +109,16 @@
             <WixVariable Id="WixUILicenseRtf" Value="{{LicenseRtfFilePath}}"/>
         {{/if}}
 
+        <!-- Custom welcome description from instWelcome. RustSetLocaleStrings preserves
+             properties that already have a value, so this overrides the default localized text. -->
+        {{#if HasWelcomeMessage}}
+            <Property Id="MsiWelcomeDescription" Value="{{WelcomeMessage}}"/>
+        {{/if}}
+
+        {{#if HasReadme}}
+            <WixVariable Id="WixUIReadmeRtf" Value="{{ReadmeRtfFilePath}}"/>
+        {{/if}}
+
         <!-- Message on last screen after install -->
         {{#if HasConclusionMessage}}
             <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="{{ConclusionMessage}}"/>
@@ -208,6 +218,9 @@
             <DialogRef Id="ResumeDlg"/>
             <DialogRef Id="UserExit"/>
             <DialogRef Id="CancelDlg"/>
+            {{#if HasReadme}}
+                <DialogRef Id="ReadmeDlg"/>
+            {{/if}}
 
             <!-- ValidatePath actions for BrowseDlg and InstallScopeDlg -->
             <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="RustValidatePath" Order="3"
@@ -224,20 +237,36 @@
             <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="RustLaunchApplication"
                      Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed"/>
 
-            {{#if HasLicense}}
+            {{!-- Welcome -> (Readme | License | InstallScope | VerifyReady) --}}
+            {{#if HasReadme}}
+                <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="ReadmeDlg" Condition="NOT Installed"/>
+            {{else if HasLicense}}
                 <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg" Condition="NOT Installed"/>
+            {{else if InstallLocationEither}}
+                <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallScopeDlg" Condition="NOT Installed"/>
             {{else}}
-                {{#if InstallLocationEither}}
-                    <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallScopeDlg" Condition="NOT Installed"/>
-                {{else}}
-                    <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="NOT Installed"/>
-                {{/if}}
+                <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="NOT Installed"/>
             {{/if}}
 
             <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="Installed AND PATCH"/>
 
+            {{#if HasReadme}}
+                <Publish Dialog="ReadmeDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg"/>
+                {{#if HasLicense}}
+                    <Publish Dialog="ReadmeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg"/>
+                {{else if InstallLocationEither}}
+                    <Publish Dialog="ReadmeDlg" Control="Next" Event="NewDialog" Value="InstallScopeDlg"/>
+                {{else}}
+                    <Publish Dialog="ReadmeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg"/>
+                {{/if}}
+            {{/if}}
+
             {{#if HasLicense}}
-                <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg"/>
+                {{#if HasReadme}}
+                    <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="ReadmeDlg"/>
+                {{else}}
+                    <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg"/>
+                {{/if}}
                 {{#if InstallLocationEither}}
                     <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallScopeDlg"
                              Condition="LicenseAccepted = &quot;1&quot;"/>
@@ -250,6 +279,8 @@
             {{#if InstallLocationEither}}
                 {{#if HasLicense}}
                     <Publish Dialog="InstallScopeDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg"/>
+                {{else if HasReadme}}
+                    <Publish Dialog="InstallScopeDlg" Control="Back" Event="NewDialog" Value="ReadmeDlg"/>
                 {{else}}
                     <Publish Dialog="InstallScopeDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg"/>
                 {{/if}}
@@ -293,14 +324,15 @@
             {{#if InstallLocationEither}}
                 <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="InstallScopeDlg" Order="1"
                          Condition="NOT Installed"/>
+            {{else if HasLicense}}
+                <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg" Order="1"
+                         Condition="NOT Installed"/>
+            {{else if HasReadme}}
+                <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ReadmeDlg" Order="1"
+                         Condition="NOT Installed"/>
             {{else}}
-                {{#if HasLicense}}
-                    <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg" Order="1"
-                             Condition="NOT Installed"/>
-                {{else}}
-                    <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="1"
-                             Condition="NOT Installed"/>
-                {{/if}}
+                <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="1"
+                         Condition="NOT Installed"/>
             {{/if}}
 
             <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2"

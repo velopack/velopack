@@ -213,3 +213,6 @@ msi-resume-btn-install = &Nainstalovat
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = Zástupce { $app_title } na ploše
 msi-start-menu-shortcut-description = Zástupce { $app_title } v nabídce Start
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Důležité informace
+msi-readme-description = Před pokračováním si prosím přečtěte následující informace.

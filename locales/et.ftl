@@ -213,3 +213,6 @@ msi-resume-btn-install = &Installi
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = Toote { $app_title } töölaua otsetee
 msi-start-menu-shortcut-description = Toote { $app_title } menüü Start otsetee
+# MSI Installer UI - Readme Dialog
+msi-readme-title = Oluline teave
+msi-readme-description = Palun lugege enne jätkamist järgmist teavet.

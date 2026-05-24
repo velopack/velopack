@@ -128,6 +128,9 @@ define_locale_keys! {
     MSI_LICENSE_TITLE = "msi-license-title",
     MSI_LICENSE_DESCRIPTION = "msi-license-description",
     MSI_LICENSE_CHECKBOX = "msi-license-checkbox",
+    // MSI Installer UI - Readme
+    MSI_README_TITLE = "msi-readme-title",
+    MSI_README_DESCRIPTION = "msi-readme-description",
     // MSI Installer UI - Scope
     MSI_SCOPE_TITLE = "msi-scope-title",
     MSI_SCOPE_DESCRIPTION = "msi-scope-description",
