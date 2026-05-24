@@ -1,5 +1,10 @@
-import {VelopackApp, VelopackLocatorConfig} from "../src";
-import {isWindows, updateExe} from "./helper";
+import { test, expect, beforeAll } from "vitest";
+import {VelopackApp, VelopackLocatorConfig, loadVelopack} from "../src/index.js";
+import {isWindows, updateExe} from "./helper.js";
+
+beforeAll(async () => {
+  await loadVelopack();
+});
 
 class HookTester {
   public afterInstall = false;

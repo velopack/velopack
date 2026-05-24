@@ -1,54 +1,35 @@
-import * as addon from "./load";
+import { resolve } from "node:path";
+import { getWasm, setProgressCallback, setLoggerCallback, loadVelopack } from "./host/wasm-loader.js";
 
-import type { UpdateInfo, UpdateOptions, VelopackLocatorConfig, VelopackAsset } from "./types";
+import type { UpdateInfo, UpdateOptions, VelopackLocatorConfig, VelopackAsset } from "./types.js";
 export { UpdateInfo, UpdateOptions, VelopackLocatorConfig, VelopackAsset };
+export { loadVelopack };
 
-type UpdateManagerOpaque = {};
-declare module "./load" {
-  function js_new_update_manager(
-    urlOrPath: string,
-    options: string | null,
-    locator: string | null,
-  ): UpdateManagerOpaque;
+function toWasiPath(p: string): string {
+  let result = resolve(p).replace(/\\/g, "/");
+  // Strip Windows drive letter for WASI (e.g. "C:/Users/..." -> "/Users/...")
+  if (/^[A-Za-z]:\//.test(result)) {
+    result = result.slice(2);
+  }
+  return result;
+}
 
-  function js_get_current_version(um: UpdateManagerOpaque): string;
+function resolveLocatorPaths(locator: VelopackLocatorConfig): VelopackLocatorConfig {
+  return {
+    RootAppDir: locator.RootAppDir ? toWasiPath(locator.RootAppDir) : "",
+    UpdateExePath: locator.UpdateExePath ? toWasiPath(locator.UpdateExePath) : "",
+    PackagesDir: locator.PackagesDir ? toWasiPath(locator.PackagesDir) : "",
+    ManifestPath: locator.ManifestPath ? toWasiPath(locator.ManifestPath) : "",
+    CurrentBinaryDir: locator.CurrentBinaryDir ? toWasiPath(locator.CurrentBinaryDir) : "",
+    IsPortable: locator.IsPortable,
+  };
+}
 
-  function js_get_app_id(um: UpdateManagerOpaque): string;
-
-  function js_is_portable(um: UpdateManagerOpaque): boolean;
-
-  function js_update_pending_restart(
-    um: UpdateManagerOpaque,
-  ): string | null;
-
-  function js_check_for_updates_async(
-    um: UpdateManagerOpaque,
-  ): Promise<string | null>;
-
-  function js_download_update_async(
-    um: UpdateManagerOpaque,
-    update: string,
-    progress: (perc: number) => void,
-  ): Promise<void>;
-
-  function js_wait_exit_then_apply_update(
-    um: UpdateManagerOpaque,
-    update: string,
-    silent?: boolean,
-    restart?: boolean,
-    restartArgs?: string[],
-  ): void;
-
-  function js_appbuilder_run(
-    cb: (hook_name: string, current_version: string) => void,
-    customArgs: string[] | null,
-    locator: string | null,
-    autoApply: boolean,
-  ): void;
-
-  function js_set_logger_callback(
-    cb: (loglevel: LogLevel, msg: string) => void,
-  ): void;
+function resolveSourcePath(urlOrPath: string): string {
+  if (urlOrPath.startsWith("http://") || urlOrPath.startsWith("https://")) {
+    return urlOrPath;
+  }
+  return toWasiPath(urlOrPath);
 }
 
 type VelopackHookType =
@@ -63,7 +44,7 @@ type VelopackHook = (version: string) => void;
 
 type LogLevel = "info" | "warn" | "error" | "debug" | "trace";
 
-/** 
+/**
  * VelopackApp helps you to handle app activation events correctly.
  * This should be used as early as possible in your application startup code.
  * (eg. the beginning of main() or wherever your entry point is)
@@ -161,7 +142,7 @@ export class VelopackApp {
    * Set a callback to receive log messages from VelopackApp.
    */
   setLogger(callback: (loglevel: LogLevel, msg: string) => void): VelopackApp {
-    addon.js_set_logger_callback(callback);
+    setLoggerCallback(callback as (level: string, msg: string) => void);
     return this;
   }
 
@@ -178,17 +159,45 @@ export class VelopackApp {
    * In some circumstances it may terminate/restart the process to perform tasks.
    */
   run(): void {
-    addon.js_appbuilder_run(
-      (hook_name: string, current_version: string) => {
-        let hook = this._hooks.get(hook_name as VelopackHookType);
+    const wasm = getWasm();
+    const args = this._customArgs ?? [];
+    const resolvedLocator = this._customLocator
+      ? resolveLocatorPaths(this._customLocator)
+      : null;
+    const locatorJson = resolvedLocator
+      ? JSON.stringify(resolvedLocator)
+      : null;
+
+    const resultJson = wasm.appRun(args, locatorJson, this._autoApply);
+
+    if (resultJson) {
+      const result = JSON.parse(resultJson);
+
+      // Handle fast hooks
+      if (result.hook) {
+        const [hookName, version] = result.hook;
+        const hook = this._hooks.get(hookName as VelopackHookType);
         if (hook) {
-          hook(current_version);
+          hook(version);
         }
-      },
-      this._customArgs,
-      this._customLocator ? JSON.stringify(this._customLocator) : null,
-      this._autoApply,
-    );
+      }
+
+      // Handle first run
+      if (result.firstRun) {
+        const hook = this._hooks.get("first-run");
+        if (hook) {
+          hook(result.firstRun);
+        }
+      }
+
+      // Handle restarted
+      if (result.restarted) {
+        const hook = this._hooks.get("restarted");
+        if (hook) {
+          hook(result.restarted);
+        }
+      }
+    }
   }
 }
 
@@ -196,7 +205,7 @@ export class VelopackApp {
  * Provides functionality for checking for updates, downloading updates, and applying updates to the current application.
  */
 export class UpdateManager {
-  private readonly opaque: UpdateManagerOpaque;
+  private readonly _token: string;
 
   /**
    * Create a new UpdateManager instance.
@@ -209,10 +218,12 @@ export class UpdateManager {
     options?: UpdateOptions,
     locator?: VelopackLocatorConfig,
   ) {
-    this.opaque = addon.js_new_update_manager(
-      urlOrPath,
-      options ? JSON.stringify(options) : "",
-      locator ? JSON.stringify(locator) : null,
+    const wasm = getWasm();
+    const resolvedLocator = locator ? resolveLocatorPaths(locator) : undefined;
+    this._token = wasm.createUpdateManager(
+      resolveSourcePath(urlOrPath),
+      options ? JSON.stringify(options) : null,
+      resolvedLocator ? JSON.stringify(resolvedLocator) : null,
     );
   }
 
@@ -220,14 +231,16 @@ export class UpdateManager {
    * Returns the currently installed version of the app.
    */
   getCurrentVersion(): string {
-    return addon.js_get_current_version(this.opaque);
+    const wasm = getWasm();
+    return wasm.getCurrentVersion(this._token);
   }
 
   /**
    * Returns the currently installed app id.
    */
   getAppId(): string {
-    return addon.js_get_app_id(this.opaque);
+    const wasm = getWasm();
+    return wasm.getAppId(this._token);
   }
 
   /**
@@ -235,7 +248,8 @@ export class UpdateManager {
    * On MacOS and Linux this will always be true.
    */
   isPortable(): boolean {
-    return addon.js_is_portable(this.opaque);
+    const wasm = getWasm();
+    return wasm.getIsPortable(this._token);
   }
 
   /**
@@ -243,7 +257,8 @@ export class UpdateManager {
    * You can pass the VelopackAsset object to waitExitThenApplyUpdate to apply the update.
    */
   getUpdatePendingRestart(): VelopackAsset | null {
-    let json: string | null = addon.js_update_pending_restart(this.opaque);
+    const wasm = getWasm();
+    const json: string | undefined = wasm.getUpdatePendingRestart(this._token);
     if (json && json.length > 0) {
       return JSON.parse(json);
     }
@@ -254,16 +269,13 @@ export class UpdateManager {
    * Checks for updates, returning None if there are none available. If there are updates available, this method will return an
    * UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
    */
-  checkForUpdatesAsync(): Promise<UpdateInfo | null> {
-    let json: Promise<string | null> = addon.js_check_for_updates_async(
-      this.opaque,
-    );
-    return json.then((json) => {
-      if (json && json.length > 0) {
-        return JSON.parse(json);
-      }
-      return null;
-    });
+  async checkForUpdatesAsync(): Promise<UpdateInfo | null> {
+    const wasm = getWasm();
+    const json: string | undefined = wasm.checkForUpdates(this._token);
+    if (json && json.length > 0) {
+      return JSON.parse(json);
+    }
+    return null;
   }
 
   /**
@@ -274,18 +286,20 @@ export class UpdateManager {
    * - If there is no delta update available, or there is an error preparing delta
    *   packages, this method will fall back to downloading the full version of the update.
    */
-  downloadUpdateAsync(
+  async downloadUpdateAsync(
     update: UpdateInfo,
     progress?: (perc: number) => void,
   ): Promise<void> {
     if (!update) {
       throw new Error("update is required");
     }
-    return addon.js_download_update_async(
-      this.opaque,
-      JSON.stringify(update),
-      progress ?? (() => {}),
-    );
+    const wasm = getWasm();
+    setProgressCallback(progress ?? null);
+    try {
+      wasm.downloadUpdates(this._token, JSON.stringify(update));
+    } finally {
+      setProgressCallback(null);
+    }
   }
 
   /**
@@ -308,8 +322,9 @@ export class UpdateManager {
       update = update.TargetFullRelease;
     }
 
-    addon.js_wait_exit_then_apply_update(
-      this.opaque,
+    const wasm = getWasm();
+    wasm.waitExitThenApplyUpdate(
+      this._token,
       JSON.stringify(update),
       silent,
       restart,

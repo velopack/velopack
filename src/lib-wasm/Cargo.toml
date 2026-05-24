@@ -1,0 +1,35 @@
+[package]
+name = "velopack_wasm"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT"
+description = "Velopack update SDK compiled to WASM Component Model (wasm32-wasip2)"
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wstd = "0.5"
+wit-bindgen = "0.41"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+semver = "1.0"
+url = "2.5"
+xml = "1.2"
+sha1 = "0.11"
+sha2 = "0.11"
+thiserror = "2.0"
+log = "0.4"
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
+http = "1"
+
+[profile.release]
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+codegen-units = 1
+strip = true

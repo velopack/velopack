@@ -1,0 +1,29 @@
+package velopack:core@0.1.0;
+
+interface host-process {
+    launch-detached: func(path: string, args: list<string>, work-dir: option<string>) -> result<_, string>;
+}
+
+interface progress {
+    report: func(percent: u32);
+}
+
+interface host-logger {
+    log: func(level: u8, msg: string);
+}
+
+world velopack {
+    import host-process;
+    import progress;
+    import host-logger;
+
+    export create-update-manager: func(source-url: string, options-json: option<string>, locator-json: option<string>) -> result<string, string>;
+    export get-current-version: func(manager-token: string) -> result<string, string>;
+    export get-app-id: func(manager-token: string) -> result<string, string>;
+    export get-is-portable: func(manager-token: string) -> result<bool, string>;
+    export get-update-pending-restart: func(manager-token: string) -> result<option<string>, string>;
+    export check-for-updates: func(manager-token: string) -> result<option<string>, string>;
+    export download-updates: func(manager-token: string, update-json: string) -> result<_, string>;
+    export wait-exit-then-apply-update: func(manager-token: string, asset-json: string, silent: bool, restart: bool, restart-args: list<string>) -> result<_, string>;
+    export app-run: func(args: list<string>, locator-json: option<string>, auto-apply: bool) -> result<option<string>, string>;
+}

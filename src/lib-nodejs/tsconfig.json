@@ -1,9 +1,10 @@
 {
   "extends": "@tsconfig/node24/tsconfig.json",
   "compilerOptions": {
-    "module": "node16",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "declaration": true,
     "outDir": "lib"
   },
-  "exclude": ["lib"]
+  "exclude": ["lib", "src/wasm"]
 }

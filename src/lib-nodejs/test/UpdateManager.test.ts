@@ -1,12 +1,18 @@
+import { test, expect, beforeAll } from "vitest";
 import {copyFileSync, existsSync} from "fs";
 import {
   UpdateManager,
   UpdateOptions,
   VelopackApp,
   VelopackLocatorConfig,
-} from "../src";
+  loadVelopack,
+} from "../src/index.js";
 import path from "path";
-import {tempd3, fixture, updateExe} from "./helper";
+import {tempd3, fixture, updateExe} from "./helper.js";
+
+beforeAll(async () => {
+  await loadVelopack();
+});
 
 test("UpdateManager detects local update", async () => {
   await tempd3(async (tmpDir, packagesDir, rootDir) => {
