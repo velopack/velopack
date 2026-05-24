@@ -10,8 +10,9 @@ use velopack_bins::windows::prerequisite;
 use windows::Win32::{
     Foundation::{ERROR_INSTALL_USEREXIT, ERROR_SUCCESS},
     System::ApplicationInstallationAndServicing::MSIHANDLE,
-    UI::WindowsAndMessaging::{MessageBoxW, MB_ICONWARNING, MB_OK, MESSAGEBOX_STYLE},
 };
+#[cfg(debug_assertions)]
+use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONWARNING, MB_OK, MESSAGEBOX_STYLE};
 
 #[no_mangle]
 pub extern "system" fn RustSetLocaleStrings(h_install: MSIHANDLE) -> c_uint {
@@ -211,6 +212,7 @@ pub extern "system" fn UninstallHookDeferred(h_install: MSIHANDLE) -> c_uint {
     run_hook_deferred(h_install, "--veloapp-uninstall", 60)
 }
 
+#[cfg(debug_assertions)]
 fn show_messagebox(title: &str, message: &str, icon: MESSAGEBOX_STYLE) {
     use velopack::wide_strings::string_to_wide;
     let title_w = string_to_wide(title);
