@@ -1,0 +1,22 @@
+services:
+  gitea:
+    image: gitea/gitea:latest
+    environment:
+      - GITEA__security__INSTALL_LOCK=true
+    ports:
+      - "3000:3000"
+
+  gitlab:
+    image: gitlab/gitlab-ce:latest
+    environment:
+      - GITLAB_ROOT_PASSWORD=velopack_test_password
+    ports:
+      - "8929:80"
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8088:80"
+    volumes:
+      - ./testdata/http:/usr/share/nginx/html:ro
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro

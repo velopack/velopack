@@ -1,0 +1,6 @@
+testdata/
+harness-cpp/harness-cpp-bin
+harness-rust/target/
+harness-rust/Cargo.lock
+harness-python/.venv/
+harness-python/uv.lock
