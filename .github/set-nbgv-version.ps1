@@ -21,6 +21,10 @@ Write-Host "Setting version to $semverVersion"
     }
 } | Set-Content $path
 
+# update Cargo.lock to reflect the new workspace version (so --locked builds work)
+$lockPath = Join-Path $scriptDir "Cargo.lock"
+(Get-Content $lockPath -Raw) -replace '"0\.0\.0-local"', "`"$semverVersion`"" | Set-Content $lockPath -NoNewline
+
 # setting nodejs version
 Set-Location "$scriptDir/src/lib-nodejs"
 npm version $semverVersion --no-git-tag-version
