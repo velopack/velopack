@@ -19,6 +19,10 @@ jobs:
     
   build-tests:
     uses: ./.github/workflows/build-tests.yml
+    permissions:
+      contents: read
+      actions: write
+      id-token: write
     secrets: inherit # tests need secrets to run
 
   build-samples:
