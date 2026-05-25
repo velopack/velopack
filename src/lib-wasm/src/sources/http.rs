@@ -1,16 +1,15 @@
 use crate::bundle::Manifest;
+use crate::download::DownloadResult;
 use crate::errors::Error;
 use crate::types::{VelopackAsset, VelopackAssetFeed};
 
 use super::UpdateSource;
 
-/// An update source that fetches releases from an HTTP(S) URL.
 pub struct HttpSource {
     url: String,
 }
 
 impl HttpSource {
-    /// Creates a new `HttpSource` with the given base URL.
     pub fn new(url: &str) -> Self {
         HttpSource { url: url.to_string() }
     }
@@ -30,12 +29,11 @@ impl UpdateSource for HttpSource {
         Ok(feed)
     }
 
-    async fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress: &dyn Fn(i16)) -> Result<(), Error> {
+    async fn download_release_entry(&self, asset: &VelopackAsset, local_file: &str, progress: &dyn Fn(i16)) -> Result<DownloadResult, Error> {
         let base = self.url.trim_end_matches('/').to_owned() + "/";
         let base_url = url::Url::parse(&base).map_err(|e| Error::Network(e.to_string()))?;
         let asset_url = base_url.join(&asset.FileName).map_err(|e| Error::Network(e.to_string()))?;
 
-        crate::download::download_url_to_file(asset_url.as_str(), std::path::Path::new(local_file), |p| progress(p)).await?;
-        Ok(())
+        crate::download::download_url_to_file(asset_url.as_str(), local_file, |p| progress(p)).await
     }
 }

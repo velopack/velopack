@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as hostProcess from "./host-process.js";
+import * as hostFilesystem from "./host-filesystem.js";
+import * as hostLogger from "./host-logger.js";
 import * as progress from "./progress.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -29,42 +31,13 @@ async function doInit(): Promise<void> {
     return new (globalThis as any).WebAssembly.Module(bytes);
   }
 
-  const [cli, clocks, filesystem, http, io, random]: any[] = await Promise.all([
+  const [cli, clocks, http, io, random]: any[] = await Promise.all([
     import("@bytecodealliance/preview2-shim/cli"),
     import("@bytecodealliance/preview2-shim/clocks"),
-    import("@bytecodealliance/preview2-shim/filesystem"),
     import("@bytecodealliance/preview2-shim/http"),
     import("@bytecodealliance/preview2-shim/io"),
     import("@bytecodealliance/preview2-shim/random"),
   ]);
-
-  // Grant WASI full filesystem access
-  if (filesystem._setPreopens) {
-    if (process.platform === "win32") {
-      const drive = process.cwd().slice(0, 3); // e.g. "C:\"
-      filesystem._setPreopens({ "/": drive });
-    } else {
-      filesystem._setPreopens({ "/": "/" });
-    }
-  }
-
-  // Patch: preview2-shim throws "unsupported" for requestedWriteSync
-  // and mutateDirectory flags, but Rust's std::fs needs them for file
-  // creation. Monkey-patch the Descriptor.openAt to ignore these flags.
-  if (filesystem.types?.Descriptor?.prototype?.openAt) {
-    const origOpenAt = filesystem.types.Descriptor.prototype.openAt;
-    filesystem.types.Descriptor.prototype.openAt = function (
-      pathFlags: any,
-      path: any,
-      openFlags: any,
-      descriptorFlags: any,
-    ) {
-      const patchedFlags = { ...descriptorFlags };
-      delete patchedFlags.requestedWriteSync;
-      delete patchedFlags.mutateDirectory;
-      return origOpenAt.call(this, pathFlags, path, openFlags, patchedFlags);
-    };
-  }
 
   // Pass host environment variables through to WASI
   if (cli._setEnv) {
@@ -84,8 +57,6 @@ async function doInit(): Promise<void> {
     "wasi:cli/terminal-stdout": cli.terminalStdout,
     "wasi:clocks/monotonic-clock": clocks.monotonicClock,
     "wasi:clocks/wall-clock": clocks.wallClock,
-    "wasi:filesystem/preopens": filesystem.preopens,
-    "wasi:filesystem/types": filesystem.types,
     "wasi:http/outgoing-handler": http.outgoingHandler,
     "wasi:http/types": http.types,
     "wasi:io/error": io.error,
@@ -98,6 +69,8 @@ async function doInit(): Promise<void> {
   _instance = wasmModule.instantiate(compileCore, {
     ...wasiImports,
     "velopack:core/host-process": hostProcess,
+    "velopack:core/host-filesystem": hostFilesystem,
+    "velopack:core/host-logger": hostLogger,
     "velopack:core/progress": progress,
   });
 }

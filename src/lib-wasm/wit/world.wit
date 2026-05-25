@@ -2,6 +2,8 @@ package velopack:core@0.1.0;
 
 interface host-process {
     launch-detached: func(path: string, args: list<string>, work-dir: option<string>) -> result<_, string>;
+    get-process-id: func() -> u32;
+    remove-env: func(name: string);
 }
 
 interface progress {
@@ -12,12 +14,27 @@ interface host-logger {
     log: func(level: u8, msg: string);
 }
 
+interface host-filesystem {
+    open: func(path: string, writable: bool, create: bool) -> result<u32, string>;
+    read: func(handle: u32, length: u32) -> result<list<u8>, string>;
+    write: func(handle: u32, data: list<u8>) -> result<_, string>;
+    seek: func(handle: u32, pos: u64) -> result<_, string>;
+    close: func(handle: u32) -> result<_, string>;
+
+    list-dir: func(path: string) -> result<list<string>, string>;
+    delete-file: func(path: string) -> result<_, string>;
+    rename-file: func(old-path: string, new-path: string) -> result<_, string>;
+    get-file-size: func(path: string) -> result<option<u64>, string>;
+}
+
 world velopack {
     import host-process;
     import progress;
     import host-logger;
+    import host-filesystem;
 
     export create-update-manager: func(source-url: string, options-json: option<string>, locator-json: option<string>) -> result<string, string>;
+    export destroy-update-manager: func(manager-token: string);
     export get-current-version: func(manager-token: string) -> result<string, string>;
     export get-app-id: func(manager-token: string) -> result<string, string>;
     export get-is-portable: func(manager-token: string) -> result<bool, string>;

@@ -1,15 +1,11 @@
-use std::path::PathBuf;
-
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("File does not exist: {0}")]
-    FileNotFound(PathBuf),
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
+    FileNotFound(String),
     #[error("Checksum did not match for {0} (expected {1}, actual {2})")]
-    ChecksumInvalid(PathBuf, String, String),
+    ChecksumInvalid(String, String, String),
     #[error("Size did not match for {0} (expected {1}, actual {2})")]
-    SizeInvalid(PathBuf, u64, u64),
+    SizeInvalid(String, u64, u64),
     #[error("Network error: {0}")]
     Network(String),
     #[error("Json error: {0}")]
@@ -22,6 +18,14 @@ pub enum Error {
     NotInstalled(String),
     #[error("This is not supported: {0}")]
     NotSupported(String),
+    #[error("IO error: {0}")]
+    Io(String),
     #[error("{0}")]
     Other(String),
+}
+
+impl From<std::io::Error> for Error {
+    fn from(e: std::io::Error) -> Self {
+        Error::Io(e.to_string())
+    }
 }

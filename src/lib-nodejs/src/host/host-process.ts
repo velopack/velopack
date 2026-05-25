@@ -12,3 +12,11 @@ export function launchDetached(
   });
   child.unref();
 }
+
+export function getProcessId(): number {
+  return process.pid;
+}
+
+export function removeEnv(name: string): void {
+  delete process.env[name];
+}

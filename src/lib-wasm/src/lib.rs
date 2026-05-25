@@ -1,16 +1,17 @@
 #[macro_use]
 mod macros;
 
-pub mod constants;
-pub mod errors;
-pub mod types;
-pub mod misc;
-pub mod bundle;
-pub mod locator;
-pub mod download;
-pub mod sources;
-pub mod manager;
 pub mod app;
+pub mod bundle;
+pub mod constants;
+pub mod download;
+pub mod errors;
+pub mod host_fs;
+pub mod locator;
+pub mod manager;
+pub mod misc;
+pub mod sources;
+pub mod types;
 
 wit_bindgen::generate!({
     world: "velopack",
@@ -38,11 +39,7 @@ where
 struct VelopackComponent;
 
 impl Guest for VelopackComponent {
-    fn create_update_manager(
-        source_url: String,
-        options_json: Option<String>,
-        locator_json: Option<String>,
-    ) -> Result<String, String> {
+    fn create_update_manager(source_url: String, options_json: Option<String>, locator_json: Option<String>) -> Result<String, String> {
         let options: Option<types::UpdateOptions> = match options_json {
             Some(ref s) if !s.is_empty() => Some(serde_json::from_str(s).map_err(|e| e.to_string())?),
             _ => None,
@@ -53,17 +50,19 @@ impl Guest for VelopackComponent {
         };
 
         let source = sources::AutoSource::new(&source_url);
-        let mgr = manager::UpdateManager::new(
-            source,
-            options,
-            locator,
-        ).map_err(|e| e.to_string())?;
+        let mgr = manager::UpdateManager::new(source, options, locator).map_err(|e| e.to_string())?;
 
         let token = misc::random_string(16);
         MANAGERS.with(|m| {
             m.borrow_mut().insert(token.clone(), mgr);
         });
         Ok(token)
+    }
+
+    fn destroy_update_manager(manager_token: String) {
+        MANAGERS.with(|m| {
+            m.borrow_mut().remove(&manager_token);
+        });
     }
 
     fn get_current_version(manager_token: String) -> Result<String, String> {
@@ -79,14 +78,12 @@ impl Guest for VelopackComponent {
     }
 
     fn get_update_pending_restart(manager_token: String) -> Result<Option<String>, String> {
-        with_manager(&manager_token, |mgr| {
-            match mgr.get_update_pending_restart() {
-                Some(asset) => {
-                    let json = serde_json::to_string(&asset)?;
-                    Ok(Some(json))
-                }
-                None => Ok(None),
+        with_manager(&manager_token, |mgr| match mgr.get_update_pending_restart() {
+            Some(asset) => {
+                let json = serde_json::to_string(&asset)?;
+                Ok(Some(json))
             }
+            None => Ok(None),
         })
     }
 
@@ -94,7 +91,8 @@ impl Guest for VelopackComponent {
         wstd::runtime::block_on(async move {
             let ptr = MANAGERS.with(|m| {
                 let map = m.borrow();
-                let mgr = map.get(&manager_token)
+                let mgr = map
+                    .get(&manager_token)
                     .ok_or_else(|| format!("Invalid manager token: {}", manager_token))?;
                 Ok::<_, String>(mgr as *const manager::UpdateManager)
             })?;
@@ -110,22 +108,22 @@ impl Guest for VelopackComponent {
         })
     }
 
-    fn download_updates(
-        manager_token: String,
-        update_json: String,
-    ) -> Result<(), String> {
+    fn download_updates(manager_token: String, update_json: String) -> Result<(), String> {
         let update: types::UpdateInfo = serde_json::from_str(&update_json).map_err(|e| e.to_string())?;
         wstd::runtime::block_on(async move {
             let ptr = MANAGERS.with(|m| {
                 let map = m.borrow();
-                let mgr = map.get(&manager_token)
+                let mgr = map
+                    .get(&manager_token)
                     .ok_or_else(|| format!("Invalid manager token: {}", manager_token))?;
                 Ok::<_, String>(mgr as *const manager::UpdateManager)
             })?;
             let mgr = unsafe { &*ptr };
             mgr.download_updates(&update, &|p| {
                 crate::velopack::core::progress::report(p as u32);
-            }).await.map_err(|e| e.to_string())
+            })
+            .await
+            .map_err(|e| e.to_string())
         })
     }
 
@@ -142,11 +140,7 @@ impl Guest for VelopackComponent {
         })
     }
 
-    fn app_run(
-        args: Vec<String>,
-        locator_json: Option<String>,
-        auto_apply: bool,
-    ) -> Result<Option<String>, String> {
+    fn app_run(args: Vec<String>, locator_json: Option<String>, auto_apply: bool) -> Result<Option<String>, String> {
         let locator: Option<types::VelopackLocatorConfig> = match locator_json {
             Some(ref s) if !s.is_empty() => Some(serde_json::from_str(s).map_err(|e| e.to_string())?),
             _ => None,

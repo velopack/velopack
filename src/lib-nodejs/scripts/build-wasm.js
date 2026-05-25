@@ -28,12 +28,40 @@ if (!existsSync(libWasmTarget)) {
   process.exit(1);
 }
 
-console.log("Transpiling WASM component to JS...");
+const useJspi = process.argv.includes("--jspi");
+
+console.log(
+  `Transpiling WASM component to JS${useJspi ? " (with JSPI async)" : ""}...`,
+);
 try {
-  execSync(
-    `npx jco transpile "${libWasmTarget}" --out-dir "${wasmDir}" --name velopack --instantiation sync --no-typescript`,
-    { stdio: "inherit" },
-  );
+  const parts = [
+    `npx jco transpile "${libWasmTarget}"`,
+    `--out-dir "${wasmDir}"`,
+    `--name velopack`,
+    `--instantiation sync`,
+    `--no-typescript`,
+  ];
+
+  if (useJspi) {
+    const asyncImports = [
+      "velopack:core/host-filesystem#read",
+      "velopack:core/host-filesystem#write",
+    ];
+    const asyncExports = [
+      "create-update-manager",
+      "check-for-updates",
+      "download-updates",
+      "app-run",
+      "get-update-pending-restart",
+      "wait-exit-then-apply-update",
+    ];
+
+    parts.push(`--async-mode jspi`);
+    for (const i of asyncImports) parts.push(`--async-imports "${i}"`);
+    for (const e of asyncExports) parts.push(`--async-exports "${e}"`);
+  }
+
+  execSync(parts.join(" "), { stdio: "inherit" });
 } catch (e) {
   console.error("jco transpile failed.");
   process.exit(1);

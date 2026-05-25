@@ -25,14 +25,15 @@ macro_rules! define_struct_case_insensitive {
             where
                 D: serde::Deserializer<'de>,
             {
-                use std::collections::BTreeMap;
-                let map = BTreeMap::<String, serde_json::Value>::deserialize(deserializer)?;
-                let lower: serde_json::Map<String, serde_json::Value> =
-                    map.into_iter().map(|(k, v)| (k.to_lowercase(), v)).collect();
+                let map = std::collections::HashMap::<String, serde_json::Value>::deserialize(deserializer)?;
+                let mut lower = serde_json::Map::with_capacity(map.len());
+                for (k, v) in map {
+                    lower.insert(k.to_lowercase(), v);
+                }
                 let mut result = $name::default();
                 $(
-                    if let Some(v) = lower.get(&stringify!($field).to_lowercase()) {
-                        result.$field = serde_json::from_value(v.clone()).map_err(serde::de::Error::custom)?;
+                    if let Some(v) = lower.remove(&stringify!($field).to_lowercase()) {
+                        result.$field = serde_json::from_value(v).map_err(serde::de::Error::custom)?;
                     }
                 )*
                 Ok(result)

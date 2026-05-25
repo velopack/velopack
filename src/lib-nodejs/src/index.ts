@@ -1,26 +1,39 @@
 import { resolve } from "node:path";
-import { getWasm, setProgressCallback, setLoggerCallback, loadVelopack } from "./host/wasm-loader.js";
+import {
+  getWasm,
+  setProgressCallback,
+  setLoggerCallback,
+  loadVelopack,
+} from "./host/wasm-loader.js";
 
-import type { UpdateInfo, UpdateOptions, VelopackLocatorConfig, VelopackAsset } from "./types.js";
+import type {
+  UpdateInfo,
+  UpdateOptions,
+  VelopackLocatorConfig,
+  VelopackAsset,
+} from "./types.js";
 export { UpdateInfo, UpdateOptions, VelopackLocatorConfig, VelopackAsset };
 export { loadVelopack };
 
-function toWasiPath(p: string): string {
-  let result = resolve(p).replace(/\\/g, "/");
-  // Strip Windows drive letter for WASI (e.g. "C:/Users/..." -> "/Users/...")
-  if (/^[A-Za-z]:\//.test(result)) {
-    result = result.slice(2);
-  }
-  return result;
+function normalizePath(p: string): string {
+  return resolve(p).replace(/\\/g, "/");
 }
 
-function resolveLocatorPaths(locator: VelopackLocatorConfig): VelopackLocatorConfig {
+function resolveLocatorPaths(
+  locator: VelopackLocatorConfig,
+): VelopackLocatorConfig {
   return {
-    RootAppDir: locator.RootAppDir ? toWasiPath(locator.RootAppDir) : "",
-    UpdateExePath: locator.UpdateExePath ? toWasiPath(locator.UpdateExePath) : "",
-    PackagesDir: locator.PackagesDir ? toWasiPath(locator.PackagesDir) : "",
-    ManifestPath: locator.ManifestPath ? toWasiPath(locator.ManifestPath) : "",
-    CurrentBinaryDir: locator.CurrentBinaryDir ? toWasiPath(locator.CurrentBinaryDir) : "",
+    RootAppDir: locator.RootAppDir ? normalizePath(locator.RootAppDir) : "",
+    UpdateExePath: locator.UpdateExePath
+      ? normalizePath(locator.UpdateExePath)
+      : "",
+    PackagesDir: locator.PackagesDir ? normalizePath(locator.PackagesDir) : "",
+    ManifestPath: locator.ManifestPath
+      ? normalizePath(locator.ManifestPath)
+      : "",
+    CurrentBinaryDir: locator.CurrentBinaryDir
+      ? normalizePath(locator.CurrentBinaryDir)
+      : "",
     IsPortable: locator.IsPortable,
   };
 }
@@ -29,7 +42,7 @@ function resolveSourcePath(urlOrPath: string): string {
   if (urlOrPath.startsWith("http://") || urlOrPath.startsWith("https://")) {
     return urlOrPath;
   }
-  return toWasiPath(urlOrPath);
+  return normalizePath(urlOrPath);
 }
 
 type VelopackHookType =
@@ -141,7 +154,9 @@ export class VelopackApp {
   /**
    * Set a callback to receive log messages from VelopackApp.
    */
-  setLogger(callback: (loglevel: LogLevel, msg: string) => void): VelopackApp {
+  setLogger(
+    callback: (loglevel: LogLevel, msg: string) => void,
+  ): VelopackApp {
     setLoggerCallback(callback as (level: string, msg: string) => void);
     return this;
   }
@@ -173,7 +188,6 @@ export class VelopackApp {
     if (resultJson) {
       const result = JSON.parse(resultJson);
 
-      // Handle fast hooks
       if (result.hook) {
         const [hookName, version] = result.hook;
         const hook = this._hooks.get(hookName as VelopackHookType);
@@ -182,7 +196,6 @@ export class VelopackApp {
         }
       }
 
-      // Handle first run
       if (result.firstRun) {
         const hook = this._hooks.get("first-run");
         if (hook) {
@@ -190,7 +203,6 @@ export class VelopackApp {
         }
       }
 
-      // Handle restarted
       if (result.restarted) {
         const hook = this._hooks.get("restarted");
         if (hook) {
@@ -225,6 +237,14 @@ export class UpdateManager {
       options ? JSON.stringify(options) : null,
       resolvedLocator ? JSON.stringify(resolvedLocator) : null,
     );
+  }
+
+  /**
+   * Disposes of the update manager, freeing resources in the WASM module.
+   */
+  dispose(): void {
+    const wasm = getWasm();
+    wasm.destroyUpdateManager(this._token);
   }
 
   /**
@@ -270,6 +290,7 @@ export class UpdateManager {
    * UpdateInfo object containing the latest available release, and any delta updates that can be applied if they are available.
    */
   async checkForUpdatesAsync(): Promise<UpdateInfo | null> {
+    await new Promise(resolve => setTimeout(resolve, 0));
     const wasm = getWasm();
     const json: string | undefined = wasm.checkForUpdates(this._token);
     if (json && json.length > 0) {
@@ -293,6 +314,7 @@ export class UpdateManager {
     if (!update) {
       throw new Error("update is required");
     }
+    await new Promise(resolve => setTimeout(resolve, 0));
     const wasm = getWasm();
     setProgressCallback(progress ?? null);
     try {
@@ -317,8 +339,10 @@ export class UpdateManager {
       throw new Error("update is required");
     }
 
-    // the backend API only accepts VelopackAsset, so we need to extract it from UpdateInfo
-    if ("TargetFullRelease" in update && typeof update.TargetFullRelease === "object") {
+    if (
+      "TargetFullRelease" in update &&
+      typeof update.TargetFullRelease === "object"
+    ) {
       update = update.TargetFullRelease;
     }
 
