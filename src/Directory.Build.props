@@ -22,6 +22,11 @@
     <NuGetCache>$(UserProfile)\.nuget\packages</NuGetCache>
     <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
 
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>moderate</NuGetAuditLevel>
+    <WarningsAsErrors>$(WarningsAsErrors);NU1903;NU1904</WarningsAsErrors>
+
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)..\Velopack.snk</AssemblyOriginatorKeyFile>
     <LangVersion>latest</LangVersion>
@@ -29,7 +34,7 @@
   </PropertyGroup>
 
   <ItemGroup Condition=" '$(MSBuildProjectExtension)'=='.csproj' ">
-    <PackageReference Include="Nerdbank.GitVersioning" Version="3.9.*" PrivateAssets="All" />
+    <PackageReference Include="Nerdbank.GitVersioning" Version="3.9.50" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.300" PrivateAssets="All"/>
   </ItemGroup>
 

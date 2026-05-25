@@ -9,6 +9,7 @@ permissions:
 
 env:
   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  UV_FROZEN: "true"
 
 jobs:
   rust:
@@ -37,10 +38,10 @@ jobs:
         uses: taiki-e/install-action@cargo-nextest
       ## RUST TESTS
       - name: Check lib-rust
-        run: cargo check -p velopack
+        run: cargo check --locked -p velopack
       - name: Test Rust
         run: >-
-          cargo llvm-cov nextest --profile ci
+          cargo llvm-cov nextest --locked --profile ci
           ${{ matrix.rust_flags }}
           --cobertura --output-path ./test/coverage/coverage.rust.${{ matrix.os }}.xml
       - name: Upload Rust Coverage
@@ -64,7 +65,7 @@ jobs:
       - name: Check lib-nodejs
         working-directory: src/lib-nodejs
         run: |
-          npm install
+          npm ci
           npm run build
           npm run test
       - name: Generate Node.js Rust Coverage
@@ -219,7 +220,7 @@ jobs:
         shell: bash
         run: cargo llvm-cov show-env | sed "s/='\(.*\)'/=\1/" >> "$GITHUB_ENV"
       - name: Build Instrumented Rust Binaries
-        run: cargo build -p velopack_bins ${{ matrix.rust_flags }}
+        run: cargo build --locked -p velopack_bins ${{ matrix.rust_flags }}
       - name: Test Velopack.Pack.Tests
         run: >-
           dotnet test --project test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj
@@ -268,3 +269,31 @@ jobs:
           report_type: test_results
           files: ./test/coverage/junit.*.xml
           flags: vpk
+
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@cargo-deny
+      - name: Check supply chain (cargo-deny)
+        run: cargo deny check
+
+  clippy:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows, ubuntu, macos]
+        include:
+          - os: windows
+            runner: windows-latest
+            rust_flags: "--features windows"
+          - os: ubuntu
+            runner: ubuntu-latest
+          - os: macos
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Clippy
+        run: cargo clippy ${{ matrix.rust_flags }} -- -D warnings
