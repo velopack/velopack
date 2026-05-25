@@ -16,6 +16,7 @@ impl RuntimeArch {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(arch_str: &str) -> Option<Self> {
         match arch_str.to_lowercase().as_str() {
             "x86" => Some(RuntimeArch::X86),
@@ -36,11 +37,7 @@ impl RuntimeArch {
     #[cfg(not(target_os = "windows"))]
     pub fn from_current_system() -> Option<Self> {
         let info = os_info::get();
-        let machine = info.architecture();
-        if machine.is_none() {
-            return None;
-        }
-        let machine = machine.unwrap();
+        let machine = info.architecture()?;
         if machine.is_empty() {
             return None;
         }

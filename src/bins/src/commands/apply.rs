@@ -21,7 +21,7 @@ pub enum HookRunMode {
     PostOnly,
 }
 
-pub fn apply<'a>(
+pub fn apply(
     locator: &VelopackLocator,
     restart: bool,
     wait: OperationWait,
@@ -42,7 +42,7 @@ pub fn apply<'a>(
                 locator.get_manifest_version_full_string(),
                 package
             );
-            match apply_package_impl(&locator, &package, hook_mode) {
+            match apply_package_impl(locator, &package, hook_mode) {
                 Ok(applied_locator) => {
                     info!(
                         "Package version {} applied successfully.",
@@ -52,11 +52,11 @@ pub fn apply<'a>(
                     if restart {
                         shared::start_package(&applied_locator, exe_args, Some(constants::HOOK_ENV_RESTART))?;
                     }
-                    return Ok(applied_locator);
+                    Ok(applied_locator)
                 }
                 Err(e) => {
                     if restart {
-                        shared::start_package(&locator, exe_args, Some(constants::HOOK_ENV_RESTART))?;
+                        shared::start_package(locator, exe_args, Some(constants::HOOK_ENV_RESTART))?;
                     }
                     bail!("Error applying package: {}", e);
                 }
@@ -64,7 +64,7 @@ pub fn apply<'a>(
         }
         None => {
             if restart {
-                shared::start_package(&locator, exe_args, Some(constants::HOOK_ENV_RESTART))?;
+                shared::start_package(locator, exe_args, Some(constants::HOOK_ENV_RESTART))?;
             }
             bail!("Failed to locate full package to apply. Please provide with the --package {{path}} argument");
         }

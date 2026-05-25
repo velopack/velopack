@@ -1,6 +1,6 @@
 use crate::locale_strings;
 use anyhow::{bail, Result};
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use xdialog::{XDialogIcon, XDialogOptions, XDialogResult};
 
@@ -110,7 +110,7 @@ pub fn show_setup_missing_dependencies_dialog(app_name: &str, _app_version: &str
     show_ok_cancel(&title, &header, &body, Some(&button))
 }
 
-pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Option<&PathBuf>) {
+pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Option<&Path>) {
     if get_silent() {
         return;
     }
@@ -137,7 +137,7 @@ pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Opt
             None,
         );
         if matches!(result, Ok(XDialogResult::ButtonPressed(1))) {
-            open_path(&PathBuf::from(log_str));
+            open_path(Path::new(&log_str));
         }
     } else {
         show_warn(&title, &header, &body);
@@ -147,9 +147,7 @@ pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Opt
 pub fn show_overwrite_repair_dialog(
     app_title: &str,
     app_version: &semver::Version,
-    app_id: &str,
-    root_path: &PathBuf,
-    _root_is_default: bool,
+    root_path: &Path,
     installed_version: Option<&semver::Version>,
 ) -> bool {
     if get_silent() {
@@ -207,7 +205,7 @@ pub fn show_overwrite_repair_dialog(
         Ok(XDialogResult::ButtonPressed(1)) => {
             open_path(root_path);
             // after opening the directory, re-show the dialog
-            show_overwrite_repair_dialog(app_title, app_version, app_id, root_path, _root_is_default, installed_version)
+            show_overwrite_repair_dialog(app_title, app_version, root_path, installed_version)
         }
         _ => false,
     }
@@ -221,7 +219,7 @@ pub fn show_generic_error(program_name: &str, error_string: &str) {
     show_error(&title, &header, error_string);
 }
 
-pub fn show_install_hook_warning(app_title: &str, _app_id: &str) {
+pub fn show_install_hook_warning(app_title: &str) {
     let title = locale_strings::title_setup(app_title);
     let header = locale_strings::install_hook_header();
     let body = locale_strings::install_hook_body();
@@ -247,7 +245,7 @@ pub fn show_start_corrupt_error(app_title: &str) {
     show_error(app_title, &header, &body);
 }
 
-fn open_path(path: &PathBuf) {
+fn open_path(path: &Path) {
     let path_str = path.to_string_lossy().to_string();
     #[cfg(target_os = "windows")]
     {

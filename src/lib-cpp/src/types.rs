@@ -1,3 +1,5 @@
+#![allow(clippy::all)]
+
 use anyhow::{bail, Result};
 use libc::{c_char, c_void, size_t};
 use std::ffi::{CStr, CString};

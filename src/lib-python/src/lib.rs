@@ -16,6 +16,7 @@ use sources::{PyGiteaSource, PyGithubSource, PyGitlabSource, PyHttpSource};
 use ::velopack::VelopackAsset;
 
 #[derive(FromPyObject)]
+#[allow(clippy::large_enum_variant)]
 pub enum PyUpdateInfoOrAsset {
     UpdateInfo(PyUpdateInfo),
     Asset(PyVelopackAsset),
