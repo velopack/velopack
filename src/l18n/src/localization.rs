@@ -11,7 +11,7 @@ static BUNDLE: OnceLock<FluentBundle<FluentResource>> = OnceLock::new();
 const DEFAULT_LOCALE: (&str, &str) = ("en-US", EN_US_FTL);
 
 fn negotiate_locale<'a>(requested: &str, available: &'a [(&'a str, &'a str)], default: (&'a str, &'a str)) -> (&'a str, &'a str) {
-    let requested = convert_vec_str_to_langids_lossy(&[requested]);
+    let requested = convert_vec_str_to_langids_lossy([requested]);
     if requested.is_empty() {
         return default;
     }

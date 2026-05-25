@@ -40,8 +40,8 @@ where
 {
     let mut res = op();
     for _ in 0..count {
-        if res.is_ok() {
-            return Ok(res.unwrap());
+        if let Ok(val) = res {
+            return Ok(val);
         }
 
         warn!("Retrying operation in {}ms... (error was: {:?})", delay_ms, res.err());
@@ -69,7 +69,7 @@ pub fn is_dir_empty<P: AsRef<Path>>(path: P) -> bool {
     }
     let is_empty = path.read_dir().map(|mut i| i.next().is_none()).unwrap_or(false);
     let is_dead = path.join(".dead").exists();
-    return is_dead || is_empty;
+    is_dead || is_empty
 }
 
 lazy_static! {
@@ -88,18 +88,18 @@ pub fn parse_version(version: &str) -> Result<(u32, u32, u32, u32)> {
     let build_str = caps.name("build");
     let revision_str = caps.name("revision");
     let major = major_str.parse::<u32>()?;
-    let minor = if minor_str.is_some() {
-        minor_str.unwrap().as_str().parse::<u32>()?
+    let minor = if let Some(m) = minor_str {
+        m.as_str().parse::<u32>()?
     } else {
         0
     };
-    let build = if build_str.is_some() {
-        build_str.unwrap().as_str().parse::<u32>()?
+    let build = if let Some(b) = build_str {
+        b.as_str().parse::<u32>()?
     } else {
         0
     };
-    let revision = if revision_str.is_some() {
-        revision_str.unwrap().as_str().parse::<u32>()?
+    let revision = if let Some(r) = revision_str {
+        r.as_str().parse::<u32>()?
     } else {
         0
     };
@@ -131,7 +131,7 @@ fn test_parse_version_throws_with_invalid_version() {
 }
 
 pub fn utf8_safe_substring_len(s: &str, start_char_idx: usize, length: usize) -> Option<&str> {
-    if length <= 0 {
+    if length == 0 {
         return None;
     }
     let mut char_iter = s.char_indices();

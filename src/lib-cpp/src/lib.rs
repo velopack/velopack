@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
+#![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 mod statics;
 use statics::*;
@@ -26,7 +27,7 @@ use velopack::{sources, ApplyWaitMode, Error as VelopackError, UpdateCheck, Upda
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_new_source_file(psz_file_path: *const c_char) -> *mut vpkc_update_source_t {
-    if let Some(update_path) = c_to_String(psz_file_path).ok() {
+    if let Ok(update_path) = c_to_String(psz_file_path) {
         UpdateSourceRawPtr::new(Box::new(sources::FileSource::new(update_path)))
     } else {
         log::error!("psz_file_path is null");
@@ -41,7 +42,7 @@ pub extern "C" fn vpkc_new_source_file(psz_file_path: *const c_char) -> *mut vpk
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_new_source_http_url(psz_http_url: *const c_char) -> *mut vpkc_update_source_t {
-    if let Some(update_url) = c_to_String(psz_http_url).ok() {
+    if let Ok(update_url) = c_to_String(psz_http_url) {
         UpdateSourceRawPtr::new(Box::new(sources::HttpSource::new(update_url)))
     } else {
         log::error!("psz_http_url is null");
@@ -62,7 +63,7 @@ pub extern "C" fn vpkc_new_source_github(
     psz_access_token: *const c_char,
     b_prerelease: bool,
 ) -> *mut vpkc_update_source_t {
-    if let Some(repo_url) = c_to_String(psz_repo_url).ok() {
+    if let Ok(repo_url) = c_to_String(psz_repo_url) {
         let access_token = c_to_String(psz_access_token).ok();
         UpdateSourceRawPtr::new(Box::new(sources::GithubSource::new(&repo_url, access_token, b_prerelease)))
     } else {
@@ -84,7 +85,7 @@ pub extern "C" fn vpkc_new_source_gitlab(
     psz_access_token: *const c_char,
     b_prerelease: bool,
 ) -> *mut vpkc_update_source_t {
-    if let Some(repo_url) = c_to_String(psz_repo_url).ok() {
+    if let Ok(repo_url) = c_to_String(psz_repo_url) {
         let access_token = c_to_String(psz_access_token).ok();
         UpdateSourceRawPtr::new(Box::new(sources::GitlabSource::new(&repo_url, access_token, b_prerelease)))
     } else {
@@ -106,7 +107,7 @@ pub extern "C" fn vpkc_new_source_gitea(
     psz_access_token: *const c_char,
     b_prerelease: bool,
 ) -> *mut vpkc_update_source_t {
-    if let Some(repo_url) = c_to_String(psz_repo_url).ok() {
+    if let Ok(repo_url) = c_to_String(psz_repo_url) {
         let access_token = c_to_String(psz_access_token).ok();
         UpdateSourceRawPtr::new(Box::new(sources::GiteaSource::new(&repo_url, access_token, b_prerelease)))
     } else {
@@ -167,7 +168,7 @@ pub extern "C" fn vpkc_new_source_custom_callback(
         p_user_data,
         cb_get_release_feed: cb_release_feed,
         cb_download_release_entry: cb_download_entry,
-        cb_free_release_feed: cb_free_release_feed,
+        cb_free_release_feed,
     };
 
     UpdateSourceRawPtr::new(Box::new(source))
@@ -353,7 +354,6 @@ pub extern "C" fn vpkc_check_for_updates(p_manager: *mut vpkc_update_manager_t, 
 /// @param cb_progress An optional callback to report download progress (0-100).
 /// @param p_user_data Optional user data to be passed to the progress callback.
 /// @returns true on success, false on failure. If false, the error will be available via `vpkc_get_last_error`.
-
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]

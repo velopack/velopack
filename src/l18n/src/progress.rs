@@ -56,7 +56,7 @@ impl ProgressReporter for XDialogProgressReporter {
     }
 
     fn set_text(&self, text: &str) {
-        let _ = self.proxy.set_text(text.to_string());
+        let _ = self.proxy.set_text(text);
     }
 
     fn close(&self) {

@@ -48,7 +48,7 @@ fn fio_highbit64(v: u64) -> u32 {
         v >>= 1;
         count += 1;
     }
-    return count;
+    count
 }
 
 pub fn delta<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(
@@ -80,7 +80,7 @@ pub fn delta<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(
     info!("Extracting base package for delta patching: {:?}", temp_dir);
     let work_dir = temp_dir.join("_work");
     fs::create_dir_all(&work_dir)?;
-    fastzip::extract_to_directory(&old_file, &work_dir, None)?;
+    fastzip::extract_to_directory(old_file, &work_dir, None)?;
 
     info!("Base package extracted. {} delta packages to apply.", delta_files.len());
 
@@ -88,7 +88,7 @@ pub fn delta<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(
         info!("{}: extracting apply delta patch: {:?}", i, delta_file);
         let delta_dir = temp_dir.join(format!("delta_{}", i));
         fs::create_dir_all(&delta_dir)?;
-        fastzip::extract_to_directory(&delta_file, &delta_dir, None)?;
+        fastzip::extract_to_directory(delta_file, &delta_dir, None)?;
 
         let delta_relative_paths = fastzip::enumerate_files_relative(&delta_dir);
         let mut visited_paths = HashSet::new();
@@ -103,7 +103,7 @@ pub fn delta<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(
                     let file_without_extension = relative_path.with_extension("");
                     // let shasum_path = delta_dir.join(relative_path).with_extension("shasum");
                     let old_file_path = work_dir.join(&file_without_extension);
-                    let patch_file_path = delta_dir.join(&relative_path);
+                    let patch_file_path = delta_dir.join(relative_path);
                     let output_file_path = delta_dir.join(&file_without_extension);
 
                     visited_paths.insert(file_without_extension);

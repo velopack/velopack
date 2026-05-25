@@ -46,6 +46,7 @@ impl<'a> RawPtrExt<'a, UpdateManager> for *mut vpkc_update_manager_t {
 pub struct UpdateManagerRawPtr;
 
 impl UpdateManagerRawPtr {
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(obj: UpdateManager) -> *mut vpkc_update_manager_t {
         log::debug!("vpkc_update_manager_t allocated");
         let boxed = Box::new(obj);
@@ -70,6 +71,7 @@ pub struct UpdateSourceContainer {
 pub struct UpdateSourceRawPtr;
 
 impl UpdateSourceRawPtr {
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(source: Box<dyn UpdateSource>) -> *mut vpkc_update_source_t {
         log::debug!("vpkc_update_source_t allocated");
         let boxed = Box::new(UpdateSourceContainer { source: Arc::from(source) });
