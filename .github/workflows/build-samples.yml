@@ -2,6 +2,12 @@ name: Build Samples
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
+env:
+  UV_FROZEN: "true"
+
 jobs:
   samples:
     strategy:
