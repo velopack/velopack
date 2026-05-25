@@ -745,7 +745,6 @@ mod tests {
         unsafe { free_VelopackAsset(c_asset) };
     }
 
-
     #[test]
     fn wrap_error_catches_panic_without_crashing() {
         let result = wrap_error(|| {

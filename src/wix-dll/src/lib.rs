@@ -7,12 +7,12 @@ use msi::*;
 use std::{ffi::c_uint, ffi::OsString, path::PathBuf, time::Duration};
 use velopack::process::{self, WaitResult};
 use velopack_bins::windows::prerequisite;
+#[cfg(debug_assertions)]
+use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONWARNING, MB_OK, MESSAGEBOX_STYLE};
 use windows::Win32::{
     Foundation::{ERROR_INSTALL_USEREXIT, ERROR_SUCCESS},
     System::ApplicationInstallationAndServicing::MSIHANDLE,
 };
-#[cfg(debug_assertions)]
-use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONWARNING, MB_OK, MESSAGEBOX_STYLE};
 
 #[no_mangle]
 pub extern "system" fn RustSetLocaleStrings(h_install: MSIHANDLE) -> c_uint {

@@ -289,5 +289,4 @@ mod tests {
         assert!(progress.contains(&50), "Should contain 50 progress from callback");
         assert!(progress.contains(&100), "Should contain final 100 progress");
     }
-
 }

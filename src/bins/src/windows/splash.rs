@@ -103,7 +103,19 @@ impl ProgressBar {
         let progress_height = (12.0 * dpi_scale) as i32;
         if progress_width > 0 {
             unsafe {
-                let _ = StretchBlt(dest.0, 0, scaled_h - progress_height, progress_width, progress_height, Some(self.hdc.0), 0, 0, 1, 1, SRCCOPY);
+                let _ = StretchBlt(
+                    dest.0,
+                    0,
+                    scaled_h - progress_height,
+                    progress_width,
+                    progress_height,
+                    Some(self.hdc.0),
+                    0,
+                    0,
+                    1,
+                    1,
+                    SRCCOPY,
+                );
             }
         }
     }
@@ -274,7 +286,10 @@ impl OwnedDC {
     fn from_desktop() -> Self {
         unsafe {
             let hwnd = GetDesktopWindow();
-            Self { hdc: GetDC(Some(hwnd)), hwnd }
+            Self {
+                hdc: GetDC(Some(hwnd)),
+                hwnd,
+            }
         }
     }
 }
@@ -590,7 +605,10 @@ impl SplashWindow {
                     bar.draw(&self.hdc_mem, self.scaled_w, self.scaled_h, self.dpi_scale, self.progress);
                 }
 
-                let size = SIZE { cx: self.scaled_w, cy: self.scaled_h };
+                let size = SIZE {
+                    cx: self.scaled_w,
+                    cy: self.scaled_h,
+                };
                 let pt_src = POINT { x: 0, y: 0 };
                 let _ = UpdateLayeredWindow(
                     hwnd,
