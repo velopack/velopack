@@ -3,6 +3,7 @@ use velopack::constants;
 use velopack::locator::*;
 use velopack::{bundle::BundleZip, wide_strings::string_to_wide};
 
+use ::windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 use anyhow::{anyhow, bail, Result};
 use pretty_bytes_rust::pretty_bytes;
 use std::{
@@ -10,7 +11,6 @@ use std::{
     fs::{self},
     path::{Path, PathBuf},
 };
-use ::windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 
 pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Option<Vec<OsString>>) -> Result<()> {
     // find and parse nuspec
