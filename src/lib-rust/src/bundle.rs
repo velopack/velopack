@@ -39,7 +39,7 @@ pub struct BundleZip<'a> {
 pub fn load_bundle_from_file<'a, P: AsRef<Path>>(file_name: P) -> Result<BundleZip<'a>, Error> {
     let file_name = file_name.as_ref();
     debug!("Loading bundle from file '{:?}'...", file_name);
-    let file = misc::retry_io(|| File::open(&file_name))?;
+    let file = misc::retry_io(|| File::open(file_name))?;
     let cursor: Box<dyn ReadSeek> = Box::new(file);
     let zip = ZipArchive::new(cursor)?;
     Ok(BundleZip {
@@ -82,9 +82,7 @@ impl BundleZip<'_> {
         let mut archive = self.zip.borrow_mut();
 
         for i in 0..archive.len() {
-            let file = archive.by_index(i);
-            if file.is_ok() {
-                let file = file.unwrap();
+            if let Ok(file) = archive.by_index(i) {
                 total_uncompressed_size += file.size();
                 total_compressed_size += file.compressed_size();
             }
@@ -101,19 +99,20 @@ impl BundleZip<'_> {
         }
 
         let mut archive = self.zip.borrow_mut();
-        let sf = archive.by_index(splash_idx.unwrap());
-        if sf.is_err() {
+        let mut sf = match archive.by_index(splash_idx.unwrap()) {
+            Ok(f) => f,
+            Err(_) => {
+                warn!("Could not find splash image in bundle.");
+                return None;
+            }
+        };
+
+        let mut bytes = Vec::new();
+        if sf.read_to_end(&mut bytes).is_err() {
             warn!("Could not find splash image in bundle.");
             return None;
         }
 
-        let res: Result<Vec<u8>, _> = sf.unwrap().bytes().collect();
-        if res.is_err() {
-            warn!("Could not find splash image in bundle.");
-            return None;
-        }
-
-        let bytes = res.unwrap();
         if bytes.is_empty() {
             warn!("Could not find splash image in bundle.");
             return None;
@@ -222,6 +221,10 @@ impl BundleZip<'_> {
     pub fn len(&self) -> usize {
         let archive = self.zip.borrow();
         archive.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn get_file_names(&self) -> Result<Vec<String>, Error> {
@@ -526,13 +529,11 @@ lazy_static::lazy_static! {
 pub fn parse_package_file_path<P: AsRef<Path>>(path: P) -> Option<EntryNameInfo> {
     let path = path.as_ref();
     let name = path.file_name()?.to_string_lossy().to_string();
-    let m = parse_package_file_name(name);
-    if m.is_some() {
-        let mut m = m.unwrap();
+    if let Some(mut m) = parse_package_file_name(name) {
         m.file_path = path.to_string_lossy().to_string();
         return Some(m);
     }
-    m
+    None
 }
 
 fn parse_package_file_name<T: AsRef<str>>(name: T) -> Option<EntryNameInfo> {
@@ -543,23 +544,22 @@ fn parse_package_file_name<T: AsRef<str>>(name: T) -> Option<EntryNameInfo> {
         return None;
     }
 
-    let mut entry = EntryNameInfo::default();
-    entry.is_delta = delta;
+    let mut entry = EntryNameInfo {
+        is_delta: delta,
+        ..Default::default()
+    };
 
     let name_and_ver = if full {
         ENTRY_SUFFIX_FULL.replace(name, "")
     } else {
         ENTRY_SUFFIX_DELTA.replace(name, "")
     };
-    let ver_idx = ENTRY_VERSION_START.find(&name_and_ver);
-    if ver_idx.is_none() {
-        return None;
-    }
+    let ver_idx = ENTRY_VERSION_START.find(&name_and_ver)?;
 
-    let ver_idx = ver_idx.unwrap().start();
-    entry.name = name_and_ver[0..ver_idx].to_string();
-    let ver_idx = ver_idx + 1;
-    let version = name_and_ver[ver_idx..].to_string();
+    let ver_start = ver_idx.start();
+    entry.name = name_and_ver[0..ver_start].to_string();
+    let ver_start = ver_start + 1;
+    let version = name_and_ver[ver_start..].to_string();
 
     let sv = Version::parse(&version);
     if sv.is_err() {
@@ -567,7 +567,7 @@ fn parse_package_file_name<T: AsRef<str>>(name: T) -> Option<EntryNameInfo> {
     }
 
     entry.version = sv.unwrap();
-    return Some(entry);
+    Some(entry)
 }
 
 #[test]

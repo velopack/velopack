@@ -4,7 +4,7 @@ use crate::{
     misc, Error,
 };
 use semver::Version;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 #[cfg(windows)]
@@ -34,7 +34,7 @@ impl ShortcutLocationFlags {
     /// Parses a string containing comma or semicolon delimited shortcut flags.
     pub fn from_string(input: &str) -> ShortcutLocationFlags {
         let mut flags = ShortcutLocationFlags::NONE;
-        for part in input.split(|c| c == ',' || c == ';') {
+        for part in input.split([',', ';']) {
             match part.trim().to_lowercase().as_str() {
                 "none" => flags |= ShortcutLocationFlags::NONE,
                 "startmenu" => flags |= ShortcutLocationFlags::START_MENU,
@@ -284,7 +284,7 @@ impl VelopackLocator {
         if self.manifest.shortcut_locations.is_empty() {
             return ShortcutLocationFlags::NONE;
         }
-        if self.manifest.shortcut_locations.to_ascii_lowercase() == "none" {
+        if self.manifest.shortcut_locations.eq_ignore_ascii_case("none") {
             return ShortcutLocationFlags::NONE;
         }
         ShortcutLocationFlags::from_string(&self.manifest.shortcut_locations)
@@ -349,7 +349,7 @@ impl VelopackLocator {
         if let Err(_e) = std::fs::write(&beta_id_path, new_id.to_string()) {
             warn!("Couldn't write out staging userId.");
         } else {
-            info!("Generated new staging userId: {}", new_id.to_string());
+            info!("Generated new staging userId: {}", new_id);
         }
         new_id.to_string()
     }
@@ -565,7 +565,7 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
     Ok(VelopackLocator::new_with_manifest(config, app))
 }
 
-fn read_current_manifest(nuspec_path: &PathBuf) -> Result<Manifest, Error> {
+fn read_current_manifest(nuspec_path: &Path) -> Result<Manifest, Error> {
     if nuspec_path.exists() {
         if let Ok(nuspec) = misc::retry_io(|| std::fs::read_to_string(nuspec_path)) {
             return bundle::read_manifest_from_string(&nuspec);
@@ -578,7 +578,7 @@ fn read_current_manifest(nuspec_path: &PathBuf) -> Result<Manifest, Error> {
 }
 
 /// Returns all full packages (path + manifest) found in the given directory.
-pub fn find_local_full_packages(packages_dir: &PathBuf) -> Vec<(PathBuf, Manifest)> {
+pub fn find_local_full_packages(packages_dir: &Path) -> Vec<(PathBuf, Manifest)> {
     let packages_dir_str = packages_dir.to_string_lossy();
     info!("Searching for local packages in: {:?}", packages_dir_str);
     let mut results = Vec::new();
@@ -598,7 +598,7 @@ pub fn find_local_full_packages(packages_dir: &PathBuf) -> Vec<(PathBuf, Manifes
 }
 
 /// Returns the path and manifest of the latest full package in the given directory.
-pub fn find_latest_full_package(packages_dir: &PathBuf) -> Option<(PathBuf, Manifest)> {
+pub fn find_latest_full_package(packages_dir: &Path) -> Option<(PathBuf, Manifest)> {
     find_local_full_packages(packages_dir)
         .into_iter()
         .max_by(|(_, a), (_, b)| a.version.cmp(&b.version))

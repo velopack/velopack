@@ -44,7 +44,7 @@ impl UpdateManagerWrapper {
         let update_check = py.detach(|| self.inner.check_for_updates())?;
         match update_check {
             UpdateCheck::UpdateAvailable(updates) => {
-                let py_updates = PyUpdateInfo::from(updates);
+                let py_updates = PyUpdateInfo::from(*updates);
                 Ok(Some(py_updates))
             }
             UpdateCheck::NoUpdateAvailable => Ok(None),

@@ -79,7 +79,7 @@ pub fn wait_for_parent_to_exit(dur: Option<Duration>) -> IoResult<WaitResult> {
     let id = std::os::unix::process::parent_id();
     info!("Attempting to wait for parent process ({}) to exit.", id);
     if id > 1 {
-        return Ok(wait_for_pid_to_exit(id, dur)?);
+        return wait_for_pid_to_exit(id, dur);
     }
     Ok(WaitResult::NoWaitRequired)
 }
@@ -142,8 +142,7 @@ mod tests {
 
     #[test]
     fn test_kill_process_running() {
-        let child = run_process("/bin/sleep", vec![OsString::from("60")], None::<PathBuf>, false, None)
-            .expect("failed to run process");
+        let child = run_process("/bin/sleep", vec![OsString::from("60")], None::<PathBuf>, false, None).expect("failed to run process");
         kill_process(child).expect("failed to kill process");
     }
 
@@ -151,7 +150,14 @@ mod tests {
 
     #[test]
     fn test_wait_for_process_exit_no_timeout() {
-        let mut child = run_process("/bin/sh", vec![OsString::from("-c"), OsString::from("exit 0")], None::<PathBuf>, false, None).unwrap();
+        let mut child = run_process(
+            "/bin/sh",
+            vec![OsString::from("-c"), OsString::from("exit 0")],
+            None::<PathBuf>,
+            false,
+            None,
+        )
+        .unwrap();
         let result = wait_for_process_exit_with_timeout(&mut child, None).unwrap();
         assert_eq!(result.code(), Some(0));
     }
@@ -167,7 +173,14 @@ mod tests {
 
     #[test]
     fn test_wait_for_process_exit_nonzero_code() {
-        let mut child = run_process("/bin/sh", vec![OsString::from("-c"), OsString::from("exit 42")], None::<PathBuf>, false, None).unwrap();
+        let mut child = run_process(
+            "/bin/sh",
+            vec![OsString::from("-c"), OsString::from("exit 42")],
+            None::<PathBuf>,
+            false,
+            None,
+        )
+        .unwrap();
         let result = wait_for_process_exit_with_timeout(&mut child, Some(Duration::from_secs(10))).unwrap();
         assert_eq!(result.code(), Some(42));
     }
@@ -176,7 +189,14 @@ mod tests {
 
     #[test]
     fn test_wait_for_pid_to_exit_success() {
-        let child = run_process("/bin/sh", vec![OsString::from("-c"), OsString::from("sleep 1 && exit 0")], None::<PathBuf>, false, None).unwrap();
+        let child = run_process(
+            "/bin/sh",
+            vec![OsString::from("-c"), OsString::from("sleep 1 && exit 0")],
+            None::<PathBuf>,
+            false,
+            None,
+        )
+        .unwrap();
         let pid = child.id();
         let result = wait_for_pid_to_exit(pid, Some(Duration::from_secs(30))).unwrap();
         assert_eq!(result.code(), Some(0));

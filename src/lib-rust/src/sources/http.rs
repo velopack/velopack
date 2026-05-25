@@ -33,7 +33,7 @@ impl UpdateSource for HttpSource {
             format!("localVersion={}&id={}&stagingId={}", app.version, app.id, staged_user_id).as_str(),
         ));
 
-        info!("Downloading releases for channel {} from: {}", channel, releases_url.to_string());
+        info!("Downloading releases for channel {} from: {}", channel, releases_url);
         let json = download::download_url_as_string(releases_url.as_str())?;
         let feed: VelopackAssetFeed = serde_json::from_str(&json)?;
         Ok(feed)
