@@ -7,7 +7,7 @@ fn main() {
     delay_load();
 
     let version = env!("CARGO_PKG_VERSION");
-    let ver = semver::Version::parse(&version).expect("Unable to parse ngbv output as semver version");
+    let ver = semver::Version::parse(version).expect("Unable to parse ngbv output as semver version");
     let ver: u64 = ver.major << 48 | ver.minor << 32 | ver.patch << 16;
     let desc = format!("Velopack {}", version);
 
@@ -20,7 +20,7 @@ fn main() {
         .set_version_info(winres::VersionInfo::FILEVERSION, ver)
         .set("CompanyName", "Velopack")
         .set("ProductName", "Velopack")
-        .set("ProductVersion", &version)
+        .set("ProductVersion", version)
         .set("FileDescription", &desc)
         .set("LegalCopyright", "Caelan Sayler (c) 2023, Velopack Ltd. (c) 2024")
         .compile()

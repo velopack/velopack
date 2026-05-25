@@ -75,15 +75,15 @@ fn default_file_windows<L: TryInto<VelopackLocator>>(locator: L) -> PathBuf {
 pub fn default_logfile_path<L: TryInto<VelopackLocator>>(locator: L) -> PathBuf {
     #[cfg(target_os = "windows")]
     {
-        return default_file_windows(locator);
+        default_file_windows(locator)
     }
     #[cfg(target_os = "linux")]
     {
-        return default_file_linux(locator);
+        default_file_linux(locator)
     }
     #[cfg(target_os = "macos")]
     {
-        return default_file_macos(locator);
+        default_file_macos(locator)
     }
 }
 
@@ -91,13 +91,7 @@ pub fn default_logfile_path<L: TryInto<VelopackLocator>>(locator: L) -> PathBuf 
 /// It can only be called once per process, and should be called early in the process lifecycle.
 /// Future calls to this function will fail.
 #[cfg(feature = "file-logging")]
-pub fn init_logging(
-    process_name: &str,
-    file: Option<&PathBuf>,
-    console: bool,
-    verbose: bool,
-    custom_log_cb: Option<Box<dyn SharedLogger>>,
-) {
+pub fn init_logging(process_name: &str, file: Option<&PathBuf>, console: bool, verbose: bool, custom_log_cb: Option<Box<dyn SharedLogger>>) {
     let mut loggers: Vec<Box<dyn SharedLogger>> = Vec::new();
     if let Some(cb) = custom_log_cb {
         loggers.push(cb);
@@ -105,15 +99,23 @@ pub fn init_logging(
 
     let color_choice = ColorChoice::Never;
     if console {
-        let console_level = if verbose { LevelFilter::Debug } else { LevelFilter::Info };
+        let console_level = if verbose {
+            LevelFilter::Debug
+        } else {
+            LevelFilter::Info
+        };
         loggers.push(TermLogger::new(console_level, get_config(None), TerminalMode::Mixed, color_choice));
     }
 
     if let Some(f) = file {
-        let file_level = if verbose { LevelFilter::Trace } else { LevelFilter::Info };
+        let file_level = if verbose {
+            LevelFilter::Trace
+        } else {
+            LevelFilter::Info
+        };
         let writer = super::file_rotate::FileRotate::new(
             f.clone(),
-            1 * 1024 * 1024, // 1MB max log file size
+            1024 * 1024, // 1MB max log file size
         );
         loggers.push(WriteLogger::new(file_level, get_config(Some(process_name)), writer));
     }

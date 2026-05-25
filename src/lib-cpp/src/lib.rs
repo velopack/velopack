@@ -325,7 +325,7 @@ pub extern "C" fn vpkc_check_for_updates(p_manager: *mut vpkc_update_manager_t, 
     match p_manager.to_opaque_ref() {
         Some(manager) => match manager.check_for_updates() {
             Ok(UpdateCheck::UpdateAvailable(info)) => {
-                unsafe { *p_update = allocate_UpdateInfo(&info) };
+                unsafe { *p_update = allocate_UpdateInfo(&*info) };
                 vpkc_update_check_t::UPDATE_AVAILABLE
             }
             Ok(UpdateCheck::RemoteIsEmpty) => vpkc_update_check_t::REMOTE_IS_EMPTY,

@@ -114,7 +114,7 @@ impl AsRef<VelopackAsset> for UpdateInfo {
 
 impl AsRef<VelopackAsset> for VelopackAsset {
     fn as_ref(&self) -> &VelopackAsset {
-        &self
+        self
     }
 }
 
@@ -160,7 +160,7 @@ pub enum UpdateCheck {
     /// The remote feed had releases, but none were newer or more relevant than the current version
     NoUpdateAvailable,
     /// The remote feed had an update available
-    UpdateAvailable(UpdateInfo),
+    UpdateAvailable(Box<UpdateInfo>),
 }
 
 impl UpdateManager {
@@ -268,10 +268,9 @@ impl UpdateManager {
     pub fn get_release_feed(&self) -> Result<VelopackAssetFeed, Error> {
         let channel = self.get_practical_channel();
         let staged_user_id = self.inner.locator.get_staged_user_id();
-        return self
-            .inner
+        self.inner
             .source
-            .get_release_feed(&channel, &self.inner.locator.get_manifest(), staged_user_id.as_str());
+            .get_release_feed(&channel, &self.inner.locator.get_manifest(), staged_user_id.as_str())
     }
 
     /// Checks for updates, returning None if there are none available. If there are updates available, this method will return an
@@ -295,7 +294,7 @@ impl UpdateManager {
         for asset in &assets {
             if let Ok(sv) = Version::parse(&asset.Version) {
                 if asset.Type.eq_ignore_ascii_case("Full") {
-                    debug!("Found full release: {} ({}).", asset.FileName, sv.to_string());
+                    debug!("Found full release: {} ({}).", asset.FileName, sv);
                     if latest.is_none() || (sv > latest_version) {
                         latest = Some(asset);
                         latest_version = sv;
@@ -311,31 +310,31 @@ impl UpdateManager {
         let remote_version = latest_version;
         let remote_asset = latest.unwrap();
 
-        debug!("Latest remote release: {} ({}).", remote_asset.FileName, remote_version.to_string());
+        debug!("Latest remote release: {} ({}).", remote_asset.FileName, remote_version);
 
         if remote_version > app_version {
             info!("Found newer remote release available ({} -> {}).", app_version, remote_version);
-            Ok(UpdateCheck::UpdateAvailable(
+            Ok(UpdateCheck::UpdateAvailable(Box::new(
                 self.create_delta_update_strategy(&assets, (remote_asset, remote_version)),
-            ))
+            )))
         } else if remote_version < app_version && allow_downgrade {
             info!(
                 "Found older remote release available and downgrade is enabled ({} -> {}).",
                 app_version, remote_version
             );
-            Ok(UpdateCheck::UpdateAvailable(UpdateInfo::new_full(remote_asset.clone(), true)))
+            Ok(UpdateCheck::UpdateAvailable(Box::new(UpdateInfo::new_full(remote_asset.clone(), true))))
         } else if remote_version == app_version && allow_downgrade && is_non_default_channel {
             info!(
                 "Latest remote release is the same version of a different channel, and downgrade is enabled ({} -> {}, {} -> {}).",
                 app_version, remote_version, app_channel, practical_channel
             );
-            Ok(UpdateCheck::UpdateAvailable(UpdateInfo::new_full(remote_asset.clone(), true)))
+            Ok(UpdateCheck::UpdateAvailable(Box::new(UpdateInfo::new_full(remote_asset.clone(), true))))
         } else {
             Ok(UpdateCheck::NoUpdateAvailable)
         }
     }
 
-    fn create_delta_update_strategy(&self, velopack_asset_feed: &Vec<VelopackAsset>, latest_remote: (&VelopackAsset, Version)) -> UpdateInfo {
+    fn create_delta_update_strategy(&self, velopack_asset_feed: &[VelopackAsset], latest_remote: (&VelopackAsset, Version)) -> UpdateInfo {
         let packages_dir = self.inner.locator.get_packages_dir();
         let latest_local = locator::find_latest_full_package(&packages_dir);
 
@@ -486,7 +485,7 @@ impl UpdateManager {
             let partial_file = delta_file.with_extension("partial");
 
             info!("Downloading delta package: '{}'", &delta.FileName);
-            self.inner.source.download_release_entry(&delta, &partial_file, None)?;
+            self.inner.source.download_release_entry(delta, &partial_file, None)?;
             self.verify_package_checksum(&partial_file, delta)?;
 
             fs::rename(&partial_file, &delta_file)?;
@@ -511,10 +510,7 @@ impl UpdateManager {
         } else {
             let error_message = String::from_utf8_lossy(&output.stderr);
             error!("Error applying delta updates: {}", error_message);
-            return Err(Error::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Process exited with non-zero status",
-            )));
+            return Err(Error::Io(std::io::Error::other("Process exited with non-zero status")));
         }
 
         if let Some(progress) = &progress {
