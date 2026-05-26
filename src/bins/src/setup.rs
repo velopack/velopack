@@ -88,6 +88,9 @@ fn main_inner() -> Result<()> {
 
     let silent = matches.get_flag("silent");
     dialogs::set_silent(silent);
+    if !silent {
+        dialogs::set_dialog_timeout(Some(std::time::Duration::from_secs(300)));
+    }
 
     let verbose = matches.get_flag("verbose");
     let logfile = matches.get_one::<PathBuf>("log");

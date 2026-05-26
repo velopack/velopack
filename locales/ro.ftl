@@ -13,7 +13,7 @@ btn-downgrade = Retrogradare
 btn-repair = Reparare
 btn-open-log = Deschidere jurnal
 btn-open-install-dir = Deschide directorul de instalare
-
+btn-ok = OK
 # Elevation (dialogs_common.rs)
 elevate-header = Sunt necesare permisiuni de administrator
 elevate-body = { $app_title } necesită permisiuni de administrator pentru a instala versiunea { $app_version }. Permiteți continuarea acestei actualizări?

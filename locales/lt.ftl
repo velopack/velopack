@@ -13,7 +13,7 @@ btn-downgrade = Senesnė versija
 btn-repair = Taisyti
 btn-open-log = Atidaryti žurnalą
 btn-open-install-dir = Atidaryti diegimo aplanką
-
+btn-ok = Gerai
 # Elevation (dialogs_common.rs)
 elevate-header = Reikalingos administratoriaus teisės
 elevate-body = Programai { $app_title } reikia administratoriaus teisių, kad būtų galima įdiegti versiją { $app_version }. Ar leisti šiam naujinimui tęsti?

@@ -36,6 +36,10 @@ pub fn btn_open_install_dir() -> String {
     format_message(BTN_OPEN_INSTALL_DIR, None)
 }
 
+pub fn btn_ok() -> String {
+    format_message(BTN_OK, None)
+}
+
 pub fn elevate_header() -> String {
     format_message(ELEVATE_HEADER, None)
 }

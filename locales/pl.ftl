@@ -13,7 +13,7 @@ btn-downgrade = Obniż wersję
 btn-repair = Napraw
 btn-open-log = Otwórz dziennik
 btn-open-install-dir = Otwórz katalog instalacji
-
+btn-ok = OK
 # Elevation (dialogs_common.rs)
 elevate-header = Wymagane uprawnienia administratora
 elevate-body = { $app_title } wymaga uprawnień administratora do zainstalowania wersji { $app_version }. Zezwolić na kontynuowanie tej aktualizacji?

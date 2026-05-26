@@ -13,7 +13,7 @@ btn-downgrade = 다운그레이드
 btn-repair = 복구
 btn-open-log = 로그 열기
 btn-open-install-dir = 설치 폴더 열기
-
+btn-ok = 확인
 # Elevation (dialogs_common.rs)
 elevate-header = 관리자 권한이 필요합니다
 elevate-body = { $app_title } 버전 { $app_version }을(를) 설치하려면 관리자 권한이 필요합니다. 이 업데이트를 계속하도록 허용하시겠습니까?

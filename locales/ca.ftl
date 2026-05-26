@@ -13,7 +13,7 @@ btn-downgrade = Reverteix la versió
 btn-repair = Repara
 btn-open-log = Obre el registre
 btn-open-install-dir = Obre el directori d'instal·lació
-
+btn-ok = D'acord
 # Elevation (dialogs_common.rs)
 elevate-header = Cal permís d'administrador
 elevate-body = { $app_title } necessita permís d'administrador per instal·lar la versió { $app_version }. Voleu permetre que continuï aquesta actualització?

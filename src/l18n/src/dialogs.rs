@@ -1,10 +1,12 @@
 use crate::locale_strings;
 use anyhow::{bail, Result};
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::time::Duration;
 use xdialog::{XDialogIcon, XDialogOptions, XDialogResult};
 
 static SILENT: AtomicBool = AtomicBool::new(false);
+static DIALOG_TIMEOUT_MS: AtomicU64 = AtomicU64::new(0);
 
 pub fn set_silent(silent: bool) {
     SILENT.store(silent, Ordering::Relaxed);
@@ -15,48 +17,87 @@ pub fn get_silent() -> bool {
     SILENT.load(Ordering::Relaxed)
 }
 
+pub fn set_dialog_timeout(timeout: Option<Duration>) {
+    let ms = timeout.map(|d| d.as_millis() as u64).unwrap_or(0);
+    DIALOG_TIMEOUT_MS.store(ms, Ordering::Relaxed);
+}
+
+pub fn get_dialog_timeout() -> Option<Duration> {
+    match DIALOG_TIMEOUT_MS.load(Ordering::Relaxed) {
+        0 => None,
+        ms => Some(Duration::from_millis(ms)),
+    }
+}
+
 fn show_error(title: &str, header: &str, body: &str) {
     if get_silent() {
         return;
     }
-    let _ = xdialog::show_message_error_ok(title, header, body);
+    let _ = xdialog::show_message(
+        XDialogOptions {
+            title: title.to_string(),
+            main_instruction: header.to_string(),
+            message: body.to_string(),
+            icon: XDialogIcon::Error,
+            buttons: vec![locale_strings::btn_ok()],
+        },
+        get_dialog_timeout(),
+    );
 }
 
 fn show_warn(title: &str, header: &str, body: &str) {
     if get_silent() {
         return;
     }
-    let _ = xdialog::show_message_warn_ok(title, header, body);
+    let _ = xdialog::show_message(
+        XDialogOptions {
+            title: title.to_string(),
+            main_instruction: header.to_string(),
+            message: body.to_string(),
+            icon: XDialogIcon::Warning,
+            buttons: vec![locale_strings::btn_ok()],
+        },
+        get_dialog_timeout(),
+    );
 }
 
 fn show_info(title: &str, header: &str, body: &str) {
     if get_silent() {
         return;
     }
-    let _ = xdialog::show_message_info_ok(title, header, body);
+    let _ = xdialog::show_message(
+        XDialogOptions {
+            title: title.to_string(),
+            main_instruction: header.to_string(),
+            message: body.to_string(),
+            icon: XDialogIcon::Information,
+            buttons: vec![locale_strings::btn_ok()],
+        },
+        get_dialog_timeout(),
+    );
 }
 
 fn show_ok_cancel(title: &str, header: &str, body: &str, ok_text: Option<&str>) -> bool {
     if get_silent() {
         return false;
     }
-    let main_instruction = header.to_string();
-    if let Some(ok_label) = ok_text {
-        let cancel_label = locale_strings::btn_cancel();
-        let result = xdialog::show_message(
-            XDialogOptions {
-                title: title.to_string(),
-                main_instruction,
-                message: body.to_string(),
-                icon: XDialogIcon::Warning,
-                buttons: vec![ok_label.to_string(), cancel_label],
-            },
-            None,
-        );
-        matches!(result, Ok(XDialogResult::ButtonPressed(0)))
-    } else {
-        xdialog::show_message_ok_cancel(title, &main_instruction, body, XDialogIcon::Warning).unwrap_or(false)
+    let timeout = get_dialog_timeout();
+    let ok_label = ok_text.map(|s| s.to_string()).unwrap_or_else(locale_strings::btn_ok);
+    let cancel_label = locale_strings::btn_cancel();
+    let result = xdialog::show_message(
+        XDialogOptions {
+            title: title.to_string(),
+            main_instruction: header.to_string(),
+            message: body.to_string(),
+            icon: XDialogIcon::Warning,
+            buttons: vec![ok_label, cancel_label],
+        },
+        timeout,
+    );
+    if matches!(result, Ok(XDialogResult::TimeoutElapsed)) {
+        warn!("Dialog timed out, treating as cancel.");
     }
+    matches!(result, Ok(XDialogResult::ButtonPressed(0)))
 }
 
 pub fn ask_user_to_elevate(app_title: &str, new_version: &str) -> Result<()> {
@@ -124,7 +165,7 @@ pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Opt
         let log_str = log_path.unwrap().to_string_lossy().to_string();
         let footer = locale_strings::uninstall_errors_log(&log_str);
         let open_log_label = locale_strings::btn_open_log();
-        let ok_label = "OK".to_string();
+        let ok_label = locale_strings::btn_ok();
         let full_body = format!("{}\n\n{}", body, footer);
         let result = xdialog::show_message(
             XDialogOptions {
@@ -134,7 +175,7 @@ pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Opt
                 icon: XDialogIcon::Warning,
                 buttons: vec![ok_label, open_log_label],
             },
-            None,
+            get_dialog_timeout(),
         );
         if matches!(result, Ok(XDialogResult::ButtonPressed(1))) {
             open_path(Path::new(&log_str));
@@ -197,15 +238,18 @@ pub fn show_overwrite_repair_dialog(
             icon: XDialogIcon::Warning,
             buttons: vec![yes_label, open_dir_label, cancel_label],
         },
-        None,
+        get_dialog_timeout(),
     );
 
     match result {
         Ok(XDialogResult::ButtonPressed(0)) => true,
         Ok(XDialogResult::ButtonPressed(1)) => {
             open_path(root_path);
-            // after opening the directory, re-show the dialog
             show_overwrite_repair_dialog(app_title, app_version, root_path, installed_version)
+        }
+        Ok(XDialogResult::TimeoutElapsed) => {
+            warn!("Overwrite/repair dialog timed out, treating as cancel.");
+            false
         }
         _ => false,
     }
@@ -281,4 +325,19 @@ fn test_show_all_dialogs() {
     show_restart_required("TestApp", "1.0.0");
     show_uninstall_complete("TestApp");
     show_setup_error("TestApp", "This is a setup error.");
+}
+
+#[test]
+fn test_dialog_timeout_getter_setter() {
+    set_dialog_timeout(None);
+    assert_eq!(get_dialog_timeout(), None);
+
+    set_dialog_timeout(Some(Duration::from_secs(300)));
+    assert_eq!(get_dialog_timeout(), Some(Duration::from_secs(300)));
+
+    set_dialog_timeout(Some(Duration::from_millis(500)));
+    assert_eq!(get_dialog_timeout(), Some(Duration::from_millis(500)));
+
+    set_dialog_timeout(None);
+    assert_eq!(get_dialog_timeout(), None);
 }

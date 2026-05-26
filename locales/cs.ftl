@@ -13,7 +13,7 @@ btn-downgrade = Snížit verzi
 btn-repair = Opravit
 btn-open-log = Otevřít protokol
 btn-open-install-dir = Otevřít instalační adresář
-
+btn-ok = OK
 # Elevation (dialogs_common.rs)
 elevate-header = Vyžadováno oprávnění správce
 elevate-body = { $app_title } potřebuje oprávnění správce k instalaci verze { $app_version }. Povolit pokračování této aktualizace?

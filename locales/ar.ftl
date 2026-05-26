@@ -13,7 +13,7 @@ btn-downgrade = الرجوع إلى إصدار أقدم
 btn-repair = إصلاح
 btn-open-log = فتح السجل
 btn-open-install-dir = فتح دليل التثبيت
-
+btn-ok = موافق
 # Elevation (dialogs_common.rs)
 elevate-header = أذونات المسؤول مطلوبة
 elevate-body = يحتاج { $app_title } إلى أذونات المسؤول لتثبيت الإصدار { $app_version }. هل تسمح بمتابعة هذا التحديث؟

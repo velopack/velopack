@@ -13,7 +13,7 @@ btn-downgrade = הורד לגרסה קודמת
 btn-repair = תקן
 btn-open-log = פתח יומן
 btn-open-install-dir = פתח את ספריית ההתקנה
-
+btn-ok = אישור
 # Elevation (dialogs_common.rs)
 elevate-header = נדרשת הרשאת מנהל מערכת
 elevate-body = { $app_title } זקוק להרשאת מנהל מערכת כדי להתקין את גרסה { $app_version }. האם לאפשר את המשך העדכון?

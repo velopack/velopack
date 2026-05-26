@@ -13,7 +13,7 @@ btn-downgrade = Vrati na stariju verziju
 btn-repair = Popravi
 btn-open-log = Otvori dnevnik
 btn-open-install-dir = Otvori instalacioni direktorijum
-
+btn-ok = U redu
 # Elevation (dialogs_common.rs)
 elevate-header = Potrebne su administratorske dozvole
 elevate-body = { $app_title } zahteva administratorske dozvole za instalaciju verzije { $app_version }. Dozvoliti nastavak ažuriranja?

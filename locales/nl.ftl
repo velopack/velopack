@@ -13,7 +13,7 @@ btn-downgrade = Downgraden
 btn-repair = Herstellen
 btn-open-log = Logboek openen
 btn-open-install-dir = Installatiemap openen
-
+btn-ok = OK
 # Elevation (dialogs_common.rs)
 elevate-header = Beheerdersrechten vereist
 elevate-body = { $app_title } heeft beheerdersrechten nodig om versie { $app_version } te installeren. Toestaan dat deze update wordt voortgezet?
