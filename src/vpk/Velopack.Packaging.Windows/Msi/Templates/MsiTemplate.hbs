@@ -299,7 +299,7 @@
                          Value="[LocalAppDataFolder][ApplicationFolderName]" Order="4"
                          Condition="WixAppFolder = &quot;WixPerUserFolder&quot;"/>
                 <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLFOLDER"
-                         Value="{{ProgramFilesFolderName}}[ApplicationFolderName]" Order="5"
+                         Value="{{ProgramFilesFolderName}}{{AppPublisherSanitized}}&#92;{{AppTitleSanitized}}" Order="5"
                          Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;"/>
                 <Publish Dialog="InstallScopeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="6"/>
                 <Publish Dialog="InstallScopeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="8"/>
@@ -314,7 +314,7 @@
 
             {{#if InstallLocationAllUsersOnly}}
                 <Publish Dialog="WelcomeDlg" Control="Next" Property="INSTALLFOLDER"
-                         Value="{{ProgramFilesFolderName}}[ApplicationFolderName]" Order="1"/>
+                         Value="{{ProgramFilesFolderName}}{{AppPublisherSanitized}}&#92;{{AppTitleSanitized}}" Order="1"/>
                 <Publish Dialog="WelcomeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="2"/>
             {{/if}}
 
