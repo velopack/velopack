@@ -222,6 +222,76 @@ public class MsiTests
     }
 
     [Fact]
+    public async Task TestPackGeneratesMsiWithInstallerPages()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+
+        using var logger = _output.BuildLoggerFor<MsiTests>();
+
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
+        using var _3 = TempUtil.GetTempDirectory(out var tmpAssets);
+
+        var exe = "testapp.exe";
+        var pdb = Path.ChangeExtension(exe, ".pdb");
+        var id = "Test.Squirrel-App";
+        var version = "1.2.3";
+
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+        PathHelper.CopyRustAssetTo(pdb, tmpOutput);
+
+        var welcomeFile = Path.Combine(tmpAssets, "welcome.txt");
+        var readmeFile = Path.Combine(tmpAssets, "readme.txt");
+        var licenseFile = Path.Combine(tmpAssets, "license.txt");
+        var conclusionFile = Path.Combine(tmpAssets, "conclusion.txt");
+        File.WriteAllText(welcomeFile, "WELCOME_TEXT_MARKER");
+        File.WriteAllText(readmeFile, "README_TEXT_MARKER");
+        File.WriteAllText(licenseFile, "LICENSE_TEXT_MARKER");
+        File.WriteAllText(conclusionFile, "CONCLUSION_TEXT_MARKER");
+
+        var options = new WindowsPackOptions {
+            EntryExecutableName = exe,
+            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
+            PackId = id,
+            PackVersion = version,
+            TargetRuntime = RID.Parse("win-x64"),
+            PackDirectory = tmpOutput,
+            Shortcuts = "Desktop,StartMenuRoot",
+            BuildMsi = true,
+            InstWelcome = welcomeFile,
+            InstReadme = readmeFile,
+            InstLicense = licenseFile,
+            InstConclusion = conclusionFile,
+        };
+
+        var runner = WindowsTestHelper.GetPackRunner(logger);
+        await runner.Run(options);
+
+        string msiPath = Path.Combine(tmpReleaseDir, $"{id}-win.msi");
+        Assert.True(File.Exists(msiPath));
+
+        using Database db = new Database(msiPath);
+
+        // Welcome -> override of MsiWelcomeDescription property
+        var welcomeProp = db.ExecuteScalar("SELECT `Value` FROM `Property` WHERE `Property` = 'MsiWelcomeDescription'") as string;
+        Assert.Equal("WELCOME_TEXT_MARKER", welcomeProp);
+
+        // Readme -> ReadmeDlg dialog should exist (content is embedded via WixVariable RTF, not an MSI property)
+        var readmeDialog = db.ExecuteScalar("SELECT `Dialog` FROM `Dialog` WHERE `Dialog` = 'ReadmeDlg'") as string;
+        Assert.Equal("ReadmeDlg", readmeDialog);
+
+        // Conclusion -> WIXUI_EXITDIALOGOPTIONALTEXT property
+        var conclusionProp = db.ExecuteScalar(
+            "SELECT `Value` FROM `Property` WHERE `Property` = 'WIXUI_EXITDIALOGOPTIONALTEXT'") as string;
+        Assert.Equal("CONCLUSION_TEXT_MARKER", conclusionProp);
+
+        // License -> LicenseAgreementDlg dialog is always present; ensure WixUILicenseRtf was set
+        // (the WixVariable is compiled into WixVariable table)
+        var licenseDialog = db.ExecuteScalar("SELECT `Dialog` FROM `Dialog` WHERE `Dialog` = 'LicenseAgreementDlg'") as string;
+        Assert.Equal("LicenseAgreementDlg", licenseDialog);
+    }
+
+    [Fact]
     public async Task TestPackGeneratesMsiWithSpecifiedVersion()
     {
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");

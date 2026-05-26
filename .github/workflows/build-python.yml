@@ -2,6 +2,9 @@ name: Build Python
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   linux:
     runs-on: ${{ matrix.platform.runner }}

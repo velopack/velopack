@@ -2,6 +2,9 @@ name: Build Rust
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   windows:
     runs-on: blacksmith-8vcpu-windows-2025
@@ -20,7 +23,7 @@ jobs:
           rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
       - name: Build Rust (x86)
         run: |
-          cargo +nightly build --target i686-win7-windows-msvc --features windows --release -Z build-std="core,alloc,std,panic_abort" --workspace --exclude velopack_python
+          cargo +nightly build --locked --target i686-win7-windows-msvc --features windows --release -Z build-std="core,alloc,std,panic_abort" --workspace --exclude velopack_python
           mkdir artifacts
           move target\i686-win7-windows-msvc\release\velopack_nodeffi.dll artifacts\velopack_nodeffi_win_x86_msvc.node
           move target\i686-win7-windows-msvc\release\velopack_libc.dll artifacts\velopack_libc_win_x86_msvc.dll
@@ -37,7 +40,7 @@ jobs:
           copy target\i686-win7-windows-msvc\release\testapp.pdb artifacts\testapp.pdb
       - name: Build Rust (x64)
         run: |
-          cargo +nightly build --target x86_64-win7-windows-msvc --features windows --release -Z build-std="core,alloc,std,panic_abort" --workspace --exclude velopack_python
+          cargo +nightly build --locked --target x86_64-win7-windows-msvc --features windows --release -Z build-std="core,alloc,std,panic_abort" --workspace --exclude velopack_python
           move target\x86_64-win7-windows-msvc\release\velopack_nodeffi.dll artifacts\velopack_nodeffi_win_x64_msvc.node
           move target\x86_64-win7-windows-msvc\release\velopack_libc.dll artifacts\velopack_libc_win_x64_msvc.dll
           move target\x86_64-win7-windows-msvc\release\velopack_libc.dll.lib artifacts\velopack_libc_win_x64_msvc.dll.lib
@@ -78,7 +81,7 @@ jobs:
           rustup target add aarch64-pc-windows-msvc --toolchain nightly-x86_64-pc-windows-msvc
       - name: Build Rust (arm64)
         run: |
-          cargo +nightly build --target aarch64-pc-windows-msvc --features windows --release --workspace --exclude velopack_python
+          cargo +nightly build --locked --target aarch64-pc-windows-msvc --features windows --release --workspace --exclude velopack_python
           mkdir artifacts
           move target\aarch64-pc-windows-msvc\release\velopack_nodeffi.dll artifacts\velopack_nodeffi_win_arm64_msvc.node
           move target\aarch64-pc-windows-msvc\release\velopack_libc.dll artifacts\velopack_libc_win_arm64_msvc.dll
@@ -122,12 +125,14 @@ jobs:
         uses: ./.github/actions/job-setup
       - name: Install Dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libx11-dev libxext-dev libxft-dev libxinerama-dev libxcursor-dev libxrender-dev libxfixes-dev libpango1.0-dev libgl1-mesa-dev libglu1-mesa-dev libpipewire-0.3-dev libclang-dev libgbm-dev libegl-dev libwayland-dev
           curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
           cargo binstall cross
           mkdir ./artifacts
       - name: Build Rust Binaries (${{ matrix.target }})
         run: |
-          cross build --release --target ${{ matrix.rust_target }} -p velopack_bins
+          cross build --locked --release --target ${{ matrix.rust_target }} -p velopack_bins
           ldd ./target/${{ matrix.rust_target }}/release/update || true
           cp ./target/${{ matrix.rust_target }}/release/update ./artifacts/UpdateNix_${{ matrix.target }}
       - name: Upload Rust Build Artifacts
@@ -160,15 +165,16 @@ jobs:
         uses: ./.github/actions/job-setup
       - name: Install Dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libx11-dev libxext-dev libxft-dev libxinerama-dev libxcursor-dev libxrender-dev libxfixes-dev libpango1.0-dev libgl1-mesa-dev libglu1-mesa-dev libpipewire-0.3-dev libclang-dev libgbm-dev libegl-dev libwayland-dev
+          sudo apt-get install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
           rustup target add aarch64-unknown-linux-gnu
-          sudo apt update
-          sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
           mkdir ./artifacts
       - name: Build Rust (${{ matrix.target }})
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
         run: |
-          cargo build --release --target ${{ matrix.rust_target }} -p velopack_nodeffi -p velopack_libc
+          cargo build --locked --release --target ${{ matrix.rust_target }} -p velopack_nodeffi -p velopack_libc
           cp ./target/${{ matrix.rust_target }}/release/libvelopack_nodeffi.so ./artifacts/velopack_nodeffi_linux_${{ matrix.target }}_gnu.node
           cp ./target/${{ matrix.rust_target }}/release/libvelopack_libc.so ./artifacts/velopack_libc_linux_${{ matrix.target }}_gnu.so
           cp ./target/${{ matrix.rust_target }}/release/libvelopack_libc.a ./artifacts/velopack_libc_linux_${{ matrix.target }}_gnu.a
@@ -200,11 +206,11 @@ jobs:
           rustup target add x86_64-apple-darwin 
       - name: Build Rust (x64)
         run: |
-          cargo build --release --target x86_64-apple-darwin -p velopack_bins -p velopack_nodeffi -p velopack_libc
+          cargo build --locked --release --target x86_64-apple-darwin -p velopack_bins -p velopack_nodeffi -p velopack_libc
           otool -L ./target/x86_64-apple-darwin/release/update
       - name: Build Rust (arm64)
         run: |
-          cargo build --release --target aarch64-apple-darwin -p velopack_bins -p velopack_nodeffi -p velopack_libc
+          cargo build --locked --release --target aarch64-apple-darwin -p velopack_bins -p velopack_nodeffi -p velopack_libc
           otool -L ./target/aarch64-apple-darwin/release/update
       - name: Create Universal Binary
         run: |

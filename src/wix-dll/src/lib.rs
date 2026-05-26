@@ -1,18 +1,49 @@
 #![cfg(windows)]
 
 mod msi;
+mod validate_path;
 use msi::*;
 
 use std::{ffi::c_uint, ffi::OsString, path::PathBuf, time::Duration};
 use velopack::process::{self, WaitResult};
-use velopack_bins::{dialogs, windows::prerequisite};
+use velopack_bins::windows::prerequisite;
+#[cfg(debug_assertions)]
+use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONWARNING, MB_OK, MESSAGEBOX_STYLE};
 use windows::Win32::{
     Foundation::{ERROR_INSTALL_USEREXIT, ERROR_SUCCESS},
     System::ApplicationInstallationAndServicing::MSIHANDLE,
 };
 
 #[no_mangle]
+pub extern "system" fn RustSetLocaleStrings(h_install: MSIHANDLE) -> c_uint {
+    velopack_l18n::init();
+
+    let app_title = msi_get_property(h_install, "RustAppTitle").unwrap_or_default();
+
+    show_debug_message("RustSetLocaleStrings", format!("RustAppTitle={:?}", app_title));
+
+    for (property_name, value) in velopack_l18n::msi_strings::locale_strings(&app_title) {
+        // Don't overwrite properties that the WiX template already set explicitly
+        // (e.g. MsiWelcomeDescription when --instWelcome was provided at pack time).
+        if msi_get_property(h_install, property_name).is_some() {
+            continue;
+        }
+        msi_set_property_string(h_install, property_name, &value);
+    }
+
+    ERROR_SUCCESS.0
+}
+
+#[no_mangle]
+pub extern "system" fn ValidatePath(h_install: MSIHANDLE) -> c_uint {
+    validate_path::validate_path(h_install)
+}
+
+#[no_mangle]
 pub extern "system" fn EarlyBootstrap(h_install: MSIHANDLE) -> c_uint {
+    velopack_l18n::init();
+    velopack_l18n::init_win32_direct(); // bypass xdialog message loop and use taskdialog directly
+
     let dependencies = msi_get_property(h_install, "RustRuntimeDependencies");
     let app_name = msi_get_property(h_install, "RustAppTitle");
     let app_version = msi_get_property(h_install, "RustAppVersion");
@@ -32,9 +63,7 @@ pub extern "system" fn EarlyBootstrap(h_install: MSIHANDLE) -> c_uint {
             Ok(true) => ERROR_SUCCESS.0,
             Ok(false) => ERROR_INSTALL_USEREXIT.0,
             Err(e) => {
-                let title = format!("{} Setup", app_name);
-                let err = format!("An error occurred: {}", e);
-                dialogs::show_error(&title, Some("Setup can not continue"), &err);
+                velopack_l18n::show_setup_error(&app_name, &e.to_string());
                 ERROR_INSTALL_USEREXIT.0
             }
         }
@@ -184,12 +213,22 @@ pub extern "system" fn UninstallHookDeferred(h_install: MSIHANDLE) -> c_uint {
 }
 
 #[cfg(debug_assertions)]
+fn show_messagebox(title: &str, message: &str, icon: MESSAGEBOX_STYLE) {
+    use velopack::wide_strings::string_to_wide;
+    let title_w = string_to_wide(title);
+    let message_w = string_to_wide(message);
+    unsafe {
+        let _ = MessageBoxW(None, message_w.as_pcwstr(), title_w.as_pcwstr(), MB_OK | icon);
+    }
+}
+
+#[cfg(debug_assertions)]
 fn show_debug_message(fn_name: &str, message: String) {
     if std::env::var("CI").is_ok() {
         return;
     }
     let message = format!("{}: {}", fn_name, message);
-    dialogs::show_warn(fn_name, None, &message);
+    show_messagebox(fn_name, &message, MB_ICONWARNING);
 }
 
 #[cfg(not(debug_assertions))]

@@ -1,0 +1,8 @@
+This is the beginning of the custom welcome text.
+Welcome to the VelopackCSharpAvalonia installer!
+
+This wizard will guide you through the installation process.
+Please close any running instances of the application before continuing.
+
+Special chars: !@#$%^&*()_+<>?:"{}~-=\|[];',./'
+This is the end of the custom welcome text.

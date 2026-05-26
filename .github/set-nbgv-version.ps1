@@ -21,6 +21,10 @@ Write-Host "Setting version to $semverVersion"
     }
 } | Set-Content $path
 
+# update Cargo.lock to reflect the new workspace version (so --locked builds work)
+$lockPath = Join-Path $scriptDir "Cargo.lock"
+(Get-Content $lockPath -Raw) -replace '"0\.0\.0-local"', "`"$semverVersion`"" | Set-Content $lockPath -NoNewline
+
 # setting nodejs version
 Set-Location "$scriptDir/src/lib-nodejs"
 npm version $semverVersion --no-git-tag-version
@@ -44,9 +48,9 @@ Write-Host "Python version to $pythonVersion"
 } | Set-Content $pyprojectPath
 
 # copying README.md
-Copy-Item -Path "$scriptDir/README_NUGET.md" -Destination "$scriptDir/src/lib-nodejs/README.md" -Force
-Copy-Item -Path "$scriptDir/README_NUGET.md" -Destination "$scriptDir/src/lib-rust/README.md" -Force
-Copy-Item -Path "$scriptDir/README_NUGET.md" -Destination "$scriptDir/src/lib-python/README.md" -Force
+Copy-Item -Path "$scriptDir/src/README_NUGET.md" -Destination "$scriptDir/src/lib-nodejs/README.md" -Force
+Copy-Item -Path "$scriptDir/src/README_NUGET.md" -Destination "$scriptDir/src/lib-rust/README.md" -Force
+Copy-Item -Path "$scriptDir/src/README_NUGET.md" -Destination "$scriptDir/src/lib-python/README.md" -Force
 
 Set-Location $originalLocation
 

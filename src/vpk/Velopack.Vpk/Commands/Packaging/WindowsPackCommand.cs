@@ -121,7 +121,7 @@ public class WindowsPackCommand : PackCommand
                 .SetArgumentHelpName("PATH");
 
             AddOption<FileInfo>(v => InstReadme = v.ToFullNameOrNull(), "--instReadme")
-                .SetDescription("Set the plain-text installer package readme content.")
+                .SetDescription("Set the installer package readme content. Can be RTF, Markdown, or plain text.")
                 .SetArgumentHelpName("PATH");
 
             AddOption<FileInfo>(v => InstConclusion = v.ToFullNameOrNull(), "--instConclusion")

@@ -2,6 +2,9 @@ name: Build Packages
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   python: 
     runs-on: ubuntu-latest
@@ -39,7 +42,7 @@ jobs:
       - name: Build lib-nodejs
         working-directory: src/lib-nodejs
         run: |
-          npm install
+          npm ci
           npm run build
       - name: Write Version File
         run: echo $NBGV_NuGetPackageVersion > version.txt
@@ -90,7 +93,7 @@ jobs:
         working-directory: src/lib-nodejs
         run: npm pack
       - name: Pack lib-rust
-        run: cargo package -p velopack --allow-dirty
+        run: cargo package --locked -p velopack --allow-dirty
       - name: Upload lib-nodejs package
         uses: actions/upload-artifact@v7
         with:

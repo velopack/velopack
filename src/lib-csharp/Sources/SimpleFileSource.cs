@@ -49,11 +49,19 @@ namespace Velopack.Sources
                     var zip = new ZipPackage(pkg);
                     var asset = await VelopackAsset.FromZipPackageGenerateChecksumAsync(zip).ConfigureAwait(false);
                     if (asset?.Version != null) {
-                        if (channel == null || zip?.Channel == null || zip?.Channel == channel) {
+                        if (channel != null) {
+                            // If requesting a specific channel, only include packages explicitly in that channel.
+                            // Packages without channel metadata (e.g. legacy Squirrel releases) are excluded.
+                            if (zip?.Channel == channel) {
+                                logger.Debug($"Read package '{pkg}' with version '{asset.Version}' in channel '{zip?.Channel}'.");
+                                list.Add(asset);
+                            } else {
+                                logger.Warn($"Skipping local package '{pkg}' because it is not in the '{channel}' channel.");
+                            }
+                        } else {
+                            // If no specific channel requested, include all packages regardless of channel.
                             logger.Debug($"Read package '{pkg}' with version '{asset.Version}' in channel '{zip?.Channel}'.");
                             list.Add(asset);
-                        } else {
-                            logger.Warn($"Skipping local package '{pkg}' because it is not in the '{channel}' channel.");
                         }
                     }
                 } catch (Exception ex) {

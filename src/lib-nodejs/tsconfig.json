@@ -2,8 +2,10 @@
   "extends": "@tsconfig/node24/tsconfig.json",
   "compilerOptions": {
     "module": "node16",
+    "types": ["node"],
     "declaration": true,
-    "outDir": "lib"
+    "outDir": "lib",
+    "rootDir": "src"
   },
   "exclude": ["lib"]
 }

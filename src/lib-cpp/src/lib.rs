@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
+#![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 mod statics;
 use statics::*;
@@ -26,7 +27,7 @@ use velopack::{sources, ApplyWaitMode, Error as VelopackError, UpdateCheck, Upda
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_new_source_file(psz_file_path: *const c_char) -> *mut vpkc_update_source_t {
-    if let Some(update_path) = c_to_String(psz_file_path).ok() {
+    if let Ok(update_path) = c_to_String(psz_file_path) {
         UpdateSourceRawPtr::new(Box::new(sources::FileSource::new(update_path)))
     } else {
         log::error!("psz_file_path is null");
@@ -41,7 +42,7 @@ pub extern "C" fn vpkc_new_source_file(psz_file_path: *const c_char) -> *mut vpk
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_new_source_http_url(psz_http_url: *const c_char) -> *mut vpkc_update_source_t {
-    if let Some(update_url) = c_to_String(psz_http_url).ok() {
+    if let Ok(update_url) = c_to_String(psz_http_url) {
         UpdateSourceRawPtr::new(Box::new(sources::HttpSource::new(update_url)))
     } else {
         log::error!("psz_http_url is null");
@@ -62,7 +63,7 @@ pub extern "C" fn vpkc_new_source_github(
     psz_access_token: *const c_char,
     b_prerelease: bool,
 ) -> *mut vpkc_update_source_t {
-    if let Some(repo_url) = c_to_String(psz_repo_url).ok() {
+    if let Ok(repo_url) = c_to_String(psz_repo_url) {
         let access_token = c_to_String(psz_access_token).ok();
         UpdateSourceRawPtr::new(Box::new(sources::GithubSource::new(&repo_url, access_token, b_prerelease)))
     } else {
@@ -84,7 +85,7 @@ pub extern "C" fn vpkc_new_source_gitlab(
     psz_access_token: *const c_char,
     b_prerelease: bool,
 ) -> *mut vpkc_update_source_t {
-    if let Some(repo_url) = c_to_String(psz_repo_url).ok() {
+    if let Ok(repo_url) = c_to_String(psz_repo_url) {
         let access_token = c_to_String(psz_access_token).ok();
         UpdateSourceRawPtr::new(Box::new(sources::GitlabSource::new(&repo_url, access_token, b_prerelease)))
     } else {
@@ -106,7 +107,7 @@ pub extern "C" fn vpkc_new_source_gitea(
     psz_access_token: *const c_char,
     b_prerelease: bool,
 ) -> *mut vpkc_update_source_t {
-    if let Some(repo_url) = c_to_String(psz_repo_url).ok() {
+    if let Ok(repo_url) = c_to_String(psz_repo_url) {
         let access_token = c_to_String(psz_access_token).ok();
         UpdateSourceRawPtr::new(Box::new(sources::GiteaSource::new(&repo_url, access_token, b_prerelease)))
     } else {
@@ -167,7 +168,7 @@ pub extern "C" fn vpkc_new_source_custom_callback(
         p_user_data,
         cb_get_release_feed: cb_release_feed,
         cb_download_release_entry: cb_download_entry,
-        cb_free_release_feed: cb_free_release_feed,
+        cb_free_release_feed,
     };
 
     UpdateSourceRawPtr::new(Box::new(source))
@@ -325,7 +326,7 @@ pub extern "C" fn vpkc_check_for_updates(p_manager: *mut vpkc_update_manager_t, 
     match p_manager.to_opaque_ref() {
         Some(manager) => match manager.check_for_updates() {
             Ok(UpdateCheck::UpdateAvailable(info)) => {
-                unsafe { *p_update = allocate_UpdateInfo(&info) };
+                unsafe { *p_update = allocate_UpdateInfo(&*info) };
                 vpkc_update_check_t::UPDATE_AVAILABLE
             }
             Ok(UpdateCheck::RemoteIsEmpty) => vpkc_update_check_t::REMOTE_IS_EMPTY,
@@ -353,7 +354,6 @@ pub extern "C" fn vpkc_check_for_updates(p_manager: *mut vpkc_update_manager_t, 
 /// @param cb_progress An optional callback to report download progress (0-100).
 /// @param p_user_data Optional user data to be passed to the progress callback.
 /// @returns true on success, false on failure. If false, the error will be available via `vpkc_get_last_error`.
-
 #[no_mangle]
 #[logfn(Trace)]
 #[logfn_inputs(Trace)]
@@ -711,4 +711,78 @@ pub extern "C" fn vpkc_get_last_error(psz_error: *mut c_char, c_error: size_t) -
 #[no_mangle]
 pub extern "C" fn vpkc_set_logger(cb_log: vpkc_log_callback_t, p_user_data: *mut c_void) {
     set_log_callback(cb_log, p_user_data);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn noteshtml_roundtrip_through_c_structs() {
+        let asset = velopack::VelopackAsset {
+            PackageId: "TestApp".to_string(),
+            Version: "2.0.0".to_string(),
+            Type: "Full".to_string(),
+            FileName: "TestApp-2.0.0-full.nupkg".to_string(),
+            SHA1: "abc123".to_string(),
+            SHA256: "def456".to_string(),
+            Size: 1048576,
+            NotesMarkdown: "# Release v2".to_string(),
+            NotesHtml: "<h1>Release v2</h1>".to_string(),
+        };
+
+        let c_asset = unsafe { allocate_VelopackAsset(&asset) };
+        assert!(!c_asset.is_null());
+        unsafe {
+            assert!(!(*c_asset).NotesMarkdown.is_null());
+            assert!(!(*c_asset).NotesHtml.is_null());
+        }
+
+        let roundtripped = c_to_VelopackAsset(c_asset).unwrap();
+        assert_eq!(roundtripped.NotesMarkdown, "# Release v2");
+        assert_eq!(roundtripped.NotesHtml, "<h1>Release v2</h1>");
+
+        unsafe { free_VelopackAsset(c_asset) };
+    }
+
+    #[test]
+    fn wrap_error_catches_panic_without_crashing() {
+        let result = wrap_error(|| {
+            panic!("test panic");
+        });
+        assert!(!result);
+        let error = get_last_error();
+        assert!(error.contains("panic"), "Error should mention panic: {}", error);
+    }
+
+    #[test]
+    fn update_info_roundtrip_with_notes() {
+        let update = velopack::UpdateInfo {
+            TargetFullRelease: velopack::VelopackAsset {
+                PackageId: "App".to_string(),
+                Version: "3.0.0".to_string(),
+                Type: "Full".to_string(),
+                FileName: "App-3.0.0-full.nupkg".to_string(),
+                SHA1: "sha1".to_string(),
+                SHA256: "sha256".to_string(),
+                Size: 5000,
+                NotesMarkdown: "## v3 notes".to_string(),
+                NotesHtml: "<h2>v3 notes</h2>".to_string(),
+            },
+            BaseRelease: None,
+            DeltasToTarget: Vec::new(),
+            IsDowngrade: false,
+        };
+
+        let c_update = unsafe { allocate_UpdateInfo(&update) };
+        assert!(!c_update.is_null());
+
+        let roundtripped = c_to_UpdateInfo(c_update).unwrap();
+        assert_eq!(roundtripped.TargetFullRelease.NotesMarkdown, "## v3 notes");
+        assert_eq!(roundtripped.TargetFullRelease.NotesHtml, "<h2>v3 notes</h2>");
+        assert!(roundtripped.BaseRelease.is_none());
+        assert!(roundtripped.DeltasToTarget.is_empty());
+
+        unsafe { free_UpdateInfo(c_update) };
+    }
 }

@@ -25,7 +25,7 @@ pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
 
 pub fn force_stop_package<P: AsRef<Path>>(root_dir: P) -> Result<()> {
     let root_dir = root_dir.as_ref();
-    let command = format!("quit app \"{}\"", root_dir.to_string_lossy().to_string());
+    let command = format!("quit app \"{}\"", root_dir.to_string_lossy());
     Process::new("/usr/bin/osascript")
         .arg("-e")
         .arg(command)

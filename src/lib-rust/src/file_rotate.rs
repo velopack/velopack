@@ -47,7 +47,7 @@ impl FileRotate {
     }
 
     fn open_file(&mut self) {
-        if let Some(_) = &self.file {
+        if self.file.is_some() {
             return;
         }
 
@@ -94,7 +94,7 @@ impl Write for FileRotate {
             }
             Ok(written)
         } else {
-            Err(std::io::Error::new(std::io::ErrorKind::Other, "File not open"))
+            Err(std::io::Error::other("File not open"))
         }
     }
 
@@ -106,7 +106,7 @@ impl Write for FileRotate {
         if let Some(file) = &mut self.file {
             file.flush()
         } else {
-            Err(std::io::Error::new(std::io::ErrorKind::Other, "File not open"))
+            Err(std::io::Error::other("File not open"))
         }
     }
 }

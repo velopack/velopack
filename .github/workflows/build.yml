@@ -1,11 +1,14 @@
 name: Build
 
-on: 
+on:
   push:
     branches: [master, develop]
   pull_request:
     branches: [master, develop]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build-rust:
@@ -16,6 +19,10 @@ jobs:
     
   build-tests:
     uses: ./.github/workflows/build-tests.yml
+    permissions:
+      contents: read
+      actions: write
+      id-token: write
     secrets: inherit # tests need secrets to run
 
   build-samples:
@@ -29,9 +36,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-packages, build-tests, build-samples]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    permissions:
+      actions: write
     steps:
       - name: Invoke Release Workflow
-        uses: benc-uk/workflow-dispatch@v1
-        with:
-          workflow: release.yml
-          inputs: '{ "workflow_run_id": "${{ github.run_id }}" }'
+        run: gh workflow run release.yml -f workflow_run_id=${{ github.run_id }}
+        env:
+          GH_TOKEN: ${{ github.token }}

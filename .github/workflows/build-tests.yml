@@ -9,6 +9,7 @@ permissions:
 
 env:
   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  UV_FROZEN: "true"
 
 jobs:
   rust:
@@ -37,10 +38,10 @@ jobs:
         uses: taiki-e/install-action@cargo-nextest
       ## RUST TESTS
       - name: Check lib-rust
-        run: cargo check -p velopack
+        run: cargo check --locked -p velopack
       - name: Test Rust
         run: >-
-          cargo llvm-cov nextest --profile ci
+          cargo llvm-cov nextest --locked --profile ci
           ${{ matrix.rust_flags }}
           --cobertura --output-path ./test/coverage/coverage.rust.${{ matrix.os }}.xml
       - name: Upload Rust Coverage
@@ -64,7 +65,7 @@ jobs:
       - name: Check lib-nodejs
         working-directory: src/lib-nodejs
         run: |
-          npm install
+          npm ci
           npm run build
           npm run test
       - name: Generate Node.js Rust Coverage
@@ -187,7 +188,7 @@ jobs:
           name: cross-${{ matrix.os }}
           path: test/artifacts/*
           retention-days: 1
-      ## START PRIMARY RELEASETESTING  
+      ## START PRIMARY RELEASETESTING
       - name: Test Velopack.Tests
         run: >-
           dotnet test --project test/Velopack.Tests/Velopack.Tests.csproj
@@ -212,14 +213,14 @@ jobs:
           --no-build -c Release
           --report-github
           --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Pack.Tests.xml
-      ## START COVERAGE TESTING  
+      ## START COVERAGE TESTING
       - name: Clean Rust Build
         run: cargo clean
       - name: Setup Rust Coverage Instrumentation
         shell: bash
         run: cargo llvm-cov show-env | sed "s/='\(.*\)'/=\1/" >> "$GITHUB_ENV"
       - name: Build Instrumented Rust Binaries
-        run: cargo build -p velopack_bins ${{ matrix.rust_flags }}
+        run: cargo build --locked -p velopack_bins ${{ matrix.rust_flags }}
       - name: Test Velopack.Pack.Tests
         run: >-
           dotnet test --project test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj
@@ -228,7 +229,7 @@ jobs:
         run: >-
           cargo llvm-cov report
           --cobertura --output-path ./test/coverage/coverage.rust-integration.${{ matrix.os }}.xml
-      ## START CROSS-COMPILATION TESTING  
+      ## START CROSS-COMPILATION TESTING
       - name: Clean Rust Build
         run: cargo clean
       - name: Wait for Artifacts
@@ -268,3 +269,42 @@ jobs:
           report_type: test_results
           files: ./test/coverage/junit.*.xml
           flags: vpk
+
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@cargo-deny
+      - name: Audit Rust dependencies (cargo-deny)
+        run: cargo deny check
+
+      - name: Audit npm dependencies
+        run: cd src/lib-nodejs && npm audit
+
+      - uses: astral-sh/setup-uv@v6
+      - name: Audit Python dependencies
+        run: |
+          pip install pip-audit
+          uv export --frozen --no-hashes --no-emit-project --directory src/lib-python > /tmp/python-requirements.txt
+          pip-audit -r /tmp/python-requirements.txt
+
+  clippy:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows, ubuntu, macos]
+        include:
+          - os: windows
+            runner: windows-latest
+            rust_flags: "--features windows"
+          - os: ubuntu
+            runner: ubuntu-latest
+          - os: macos
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Clippy
+        run: cargo clippy ${{ matrix.rust_flags }} -- -D warnings

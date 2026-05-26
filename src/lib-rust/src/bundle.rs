@@ -39,7 +39,7 @@ pub struct BundleZip<'a> {
 pub fn load_bundle_from_file<'a, P: AsRef<Path>>(file_name: P) -> Result<BundleZip<'a>, Error> {
     let file_name = file_name.as_ref();
     debug!("Loading bundle from file '{:?}'...", file_name);
-    let file = misc::retry_io(|| File::open(&file_name))?;
+    let file = misc::retry_io(|| File::open(file_name))?;
     let cursor: Box<dyn ReadSeek> = Box::new(file);
     let zip = ZipArchive::new(cursor)?;
     Ok(BundleZip {
@@ -55,7 +55,13 @@ pub fn load_bundle_from_memory<'a>(zip_range: &'a [u8]) -> Result<BundleZip<'a>,
     info!("Loading bundle from embedded zip...");
     let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(zip_range));
     let zip = ZipArchive::new(cursor)?;
-    Ok(BundleZip { zip: Rc::new(RefCell::new(zip)), zip_from_file: false, zip_range: Some(zip_range), file_path: None, manifest: None })
+    Ok(BundleZip {
+        zip: Rc::new(RefCell::new(zip)),
+        zip_from_file: false,
+        zip_range: Some(zip_range),
+        file_path: None,
+        manifest: None,
+    })
 }
 
 #[allow(dead_code)]
@@ -76,9 +82,7 @@ impl BundleZip<'_> {
         let mut archive = self.zip.borrow_mut();
 
         for i in 0..archive.len() {
-            let file = archive.by_index(i);
-            if file.is_ok() {
-                let file = file.unwrap();
+            if let Ok(file) = archive.by_index(i) {
                 total_uncompressed_size += file.size();
                 total_compressed_size += file.compressed_size();
             }
@@ -95,19 +99,20 @@ impl BundleZip<'_> {
         }
 
         let mut archive = self.zip.borrow_mut();
-        let sf = archive.by_index(splash_idx.unwrap());
-        if sf.is_err() {
+        let mut sf = match archive.by_index(splash_idx.unwrap()) {
+            Ok(f) => f,
+            Err(_) => {
+                warn!("Could not find splash image in bundle.");
+                return None;
+            }
+        };
+
+        let mut bytes = Vec::new();
+        if sf.read_to_end(&mut bytes).is_err() {
             warn!("Could not find splash image in bundle.");
             return None;
         }
 
-        let res: Result<Vec<u8>, _> = sf.unwrap().bytes().collect();
-        if res.is_err() {
-            warn!("Could not find splash image in bundle.");
-            return None;
-        }
-
-        let bytes = res.unwrap();
         if bytes.is_empty() {
             warn!("Could not find splash image in bundle.");
             return None;
@@ -133,6 +138,10 @@ impl BundleZip<'_> {
     }
 
     pub fn extract_zip_idx_to_path<T: AsRef<Path>>(&self, index: usize, path: T) -> Result<(), Error> {
+        self.extract_zip_idx_to_path_with_progress(index, path, |_| {})
+    }
+
+    pub fn extract_zip_idx_to_path_with_progress<T: AsRef<Path>, P: Fn(i16)>(&self, index: usize, path: T, progress: P) -> Result<(), Error> {
         let path = path.as_ref();
         debug!("Extracting zip file to path: {:?}", path);
         let p = PathBuf::from(path);
@@ -145,8 +154,10 @@ impl BundleZip<'_> {
 
         let mut archive = self.zip.borrow_mut();
         let mut file = archive.by_index(index)?;
+        let total_size = file.size();
         let mut outfile = misc::retry_io(|| File::create(path))?;
         let mut buffer = [0; 64000]; // Use a 64KB buffer; good balance for large/small files.
+        let mut bytes_written: u64 = 0;
 
         debug!("Writing file to disk with 64k buffer: {:?}", path);
         loop {
@@ -155,6 +166,10 @@ impl BundleZip<'_> {
                 break; // End of file
             }
             outfile.write_all(&buffer[..len])?;
+            bytes_written += len as u64;
+            if total_size > 0 {
+                progress(((bytes_written as f64 / total_size as f64) * 100.0) as i16);
+            }
         }
 
         Ok(())
@@ -164,12 +179,24 @@ impl BundleZip<'_> {
     where
         F: Fn(&str) -> bool,
     {
+        self.extract_zip_predicate_to_path_with_progress(predicate, path, |_| {})
+    }
+
+    pub fn extract_zip_predicate_to_path_with_progress<F, T: AsRef<Path>, P: Fn(i16)>(
+        &self,
+        predicate: F,
+        path: T,
+        progress: P,
+    ) -> Result<usize, Error>
+    where
+        F: Fn(&str) -> bool,
+    {
         let idx = self.find_zip_file(predicate);
         if idx.is_none() {
             return Err(Error::InvalidPackage("(zip bundle predicate not found)".to_owned()));
         }
         let idx = idx.unwrap();
-        self.extract_zip_idx_to_path(idx, path)?;
+        self.extract_zip_idx_to_path_with_progress(idx, path, progress)?;
         Ok(idx)
     }
 
@@ -178,8 +205,9 @@ impl BundleZip<'_> {
             return Ok(manifest.clone());
         }
 
-        let nuspec_idx =
-            self.find_zip_file(|name| name.ends_with(".nuspec")).ok_or(Error::InvalidPackage("No .nuspec manifest found".into()))?;
+        let nuspec_idx = self
+            .find_zip_file(|name| name.ends_with(".nuspec"))
+            .ok_or(Error::InvalidPackage("No .nuspec manifest found".into()))?;
 
         let mut contents = String::new();
         let mut archive = self.zip.borrow_mut();
@@ -193,6 +221,10 @@ impl BundleZip<'_> {
     pub fn len(&self) -> usize {
         let archive = self.zip.borrow();
         archive.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn get_file_names(&self) -> Result<Vec<String>, Error> {
@@ -210,7 +242,7 @@ impl BundleZip<'_> {
     fn create_symlink(link_path: &PathBuf, target_path: &PathBuf) -> Result<(), Error> {
         #[cfg(target_os = "windows")]
         {
-            let absolute_path = link_path.parent().unwrap().join(&target_path);
+            let absolute_path = link_path.parent().unwrap().join(target_path);
             trace!(
                 "Creating symlink '{:?}' -> '{:?}', target isfile={}, isdir={}, relative={:?}",
                 link_path,
@@ -316,9 +348,7 @@ impl BundleZip<'_> {
 
             // on windows, the zip paths are / and should be \ instead
             #[cfg(target_os = "windows")]
-            let file_path_on_disk = file_path_on_disk.normalize_virtually()?;
-            #[cfg(target_os = "windows")]
-            let file_path_on_disk = file_path_on_disk.as_path();
+            let file_path_on_disk = file_path_on_disk.normalize_virtually()?.into_path_buf();
 
             debug!("    {} Extracting '{}' to '{:?}'", i, key, file_path_on_disk);
             self.extract_zip_idx_to_path(i, &file_path_on_disk)?;
@@ -426,7 +456,8 @@ pub fn read_manifest_from_string(xml: &str) -> Result<Manifest, Error> {
                     obj.shortcut_locations = text;
                 } else if el_name == "shortcutAumid" {
                     obj.shortcut_aumid = text;
-                } else if el_name == "shortcutAmuid" { // legacy typo / backwards compatibility
+                } else if el_name == "shortcutAmuid" {
+                    // legacy typo / backwards compatibility
                     obj.shortcut_aumid = text;
                 } else if el_name == "releaseNotes" {
                     obj.release_notes = text;
@@ -496,13 +527,11 @@ lazy_static::lazy_static! {
 pub fn parse_package_file_path<P: AsRef<Path>>(path: P) -> Option<EntryNameInfo> {
     let path = path.as_ref();
     let name = path.file_name()?.to_string_lossy().to_string();
-    let m = parse_package_file_name(name);
-    if m.is_some() {
-        let mut m = m.unwrap();
+    if let Some(mut m) = parse_package_file_name(name) {
         m.file_path = path.to_string_lossy().to_string();
         return Some(m);
     }
-    m
+    None
 }
 
 fn parse_package_file_name<T: AsRef<str>>(name: T) -> Option<EntryNameInfo> {
@@ -513,23 +542,22 @@ fn parse_package_file_name<T: AsRef<str>>(name: T) -> Option<EntryNameInfo> {
         return None;
     }
 
-    let mut entry = EntryNameInfo::default();
-    entry.is_delta = delta;
+    let mut entry = EntryNameInfo {
+        is_delta: delta,
+        ..Default::default()
+    };
 
     let name_and_ver = if full {
         ENTRY_SUFFIX_FULL.replace(name, "")
     } else {
         ENTRY_SUFFIX_DELTA.replace(name, "")
     };
-    let ver_idx = ENTRY_VERSION_START.find(&name_and_ver);
-    if ver_idx.is_none() {
-        return None;
-    }
+    let ver_idx = ENTRY_VERSION_START.find(&name_and_ver)?;
 
-    let ver_idx = ver_idx.unwrap().start();
-    entry.name = name_and_ver[0..ver_idx].to_string();
-    let ver_idx = ver_idx + 1;
-    let version = name_and_ver[ver_idx..].to_string();
+    let ver_start = ver_idx.start();
+    entry.name = name_and_ver[0..ver_start].to_string();
+    let ver_start = ver_start + 1;
+    let version = name_and_ver[ver_start..].to_string();
 
     let sv = Version::parse(&version);
     if sv.is_err() {
@@ -537,7 +565,7 @@ fn parse_package_file_name<T: AsRef<str>>(name: T) -> Option<EntryNameInfo> {
     }
 
     entry.version = sv.unwrap();
-    return Some(entry);
+    Some(entry)
 }
 
 #[test]

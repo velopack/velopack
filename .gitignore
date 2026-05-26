@@ -13,6 +13,7 @@ cross.log
 *.node
 out/
 .claude/
+xdialog-rs/
 
 #################
 ## Eclipse

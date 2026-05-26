@@ -11,15 +11,14 @@ use windows::{
         Foundation::{COLORREF, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, SIZE, S_OK, WPARAM},
         Graphics::Gdi::*,
         System::LibraryLoader::GetModuleHandleW,
-        UI::{Controls::*, WindowsAndMessaging::*},
+        UI::WindowsAndMessaging::*,
     },
 };
 
 const TMR_GIF: usize = 1;
 const MSG_NOMESSAGE: i16 = -99;
 
-pub const MSG_CLOSE: i16 = -1;
-pub const MSG_INDEFINITE: i16 = -2;
+pub use crate::dialogs::{MSG_CLOSE, MSG_INDEFINITE};
 
 fn parse_hex_color(color_str: &str) -> (u8, u8, u8) {
     let hex_str = color_str.trim_start_matches('#');
@@ -51,31 +50,35 @@ impl SplashOptions {
     }
 }
 
-pub fn show_progress_dialog<T1: AsRef<str>, T2: AsRef<str>>(window_title: T1, content: T2) -> Sender<i16> {
-    let window_title = window_title.as_ref().to_string();
-    let content = content.as_ref().to_string();
+pub fn show_splash_dialog(app_name: String, app_version: String, imgstream: Option<Vec<u8>>, options: SplashOptions) -> Sender<i16> {
     let (tx, rx) = mpsc::channel::<i16>();
-    thread::spawn(move || {
-        show_com_ctl_progress_dialog(rx, &window_title, &content);
-    });
-    tx
-}
-
-pub fn show_splash_dialog(app_name: String, imgstream: Option<Vec<u8>>, options: SplashOptions) -> Sender<i16> {
-    let (tx, rx) = mpsc::channel::<i16>();
-    thread::spawn(move || {
-        info!("Showing splash screen immediately...");
-        if let Some(img) = imgstream {
+    if let Some(img) = imgstream {
+        thread::spawn(move || {
+            info!("Showing splash screen immediately...");
             let progress_bar_color = options.get_progress_bar_color();
             if let Err(e) = unsafe { SplashWindow::run(app_name, img, rx, progress_bar_color) } {
                 error!("Failed to show splash screen: {:?}", e);
             }
-        } else {
-            let setup_name = format!("{} Setup", app_name);
-            let content = format!("Installing {}...", app_name);
-            show_com_ctl_progress_dialog(rx, setup_name.as_str(), content.as_str());
-        }
-    });
+        });
+    } else {
+        // No image: use xdialog progress dialog and bridge it via channel
+        thread::spawn(move || {
+            info!("No splash image, using progress dialog...");
+            let reporter = crate::dialogs::progress::show_splash_progress(&app_name, &app_version);
+            loop {
+                let next = drain_and_get_next_message(&rx);
+                if next == MSG_CLOSE {
+                    reporter.close();
+                    break;
+                } else if next == MSG_INDEFINITE {
+                    reporter.set_indeterminate();
+                } else if next >= 0 {
+                    reporter.set_progress(next);
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+        });
+    }
     tx
 }
 
@@ -100,7 +103,19 @@ impl ProgressBar {
         let progress_height = (12.0 * dpi_scale) as i32;
         if progress_width > 0 {
             unsafe {
-                let _ = StretchBlt(dest.0, 0, scaled_h - progress_height, progress_width, progress_height, Some(self.hdc.0), 0, 0, 1, 1, SRCCOPY);
+                let _ = StretchBlt(
+                    dest.0,
+                    0,
+                    scaled_h - progress_height,
+                    progress_width,
+                    progress_height,
+                    Some(self.hdc.0),
+                    0,
+                    0,
+                    1,
+                    1,
+                    SRCCOPY,
+                );
             }
         }
     }
@@ -271,7 +286,10 @@ impl OwnedDC {
     fn from_desktop() -> Self {
         unsafe {
             let hwnd = GetDesktopWindow();
-            Self { hdc: GetDC(Some(hwnd)), hwnd }
+            Self {
+                hdc: GetDC(Some(hwnd)),
+                hwnd,
+            }
         }
     }
 }
@@ -381,7 +399,7 @@ impl SplashWindow {
             for frame in decoder.into_frames() {
                 let frame = frame?;
                 let (num, dem) = frame.delay().numer_denom_ms();
-                delays.push((num / dem) as u32);
+                delays.push(num / dem);
                 let mut buf = frame.into_buffer().into_vec();
                 convert_rgba_to_premultiplied_bgra(&mut buf);
                 decoded_images.push(buf);
@@ -412,8 +430,10 @@ impl SplashWindow {
         let scaled_h = (h as f32 * dpi_scale) as i32;
 
         // Clamp to 70% of monitor size and center
-        let mut mi: MONITORINFO = Default::default();
-        mi.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+        let mut mi: MONITORINFO = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
         let (scaled_w, scaled_h) = if GetMonitorInfoW(h_monitor, &mut mi).as_bool() {
             let (cw, ch) = clamp_to_monitor(scaled_w, scaled_h, &mi.rcMonitor);
             let rc = mi.rcMonitor;
@@ -501,7 +521,7 @@ impl SplashWindow {
             bar,
         }));
 
-        SetWindowLongPtrW(hwnd, GWL_USERDATA, (data_ptr as isize).try_into()?);
+        SetWindowLongPtrW(hwnd, GWL_USERDATA, data_ptr as _);
         let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
         SetTimer(Some(hwnd), TMR_GIF, delay, None);
 
@@ -524,9 +544,7 @@ impl SplashWindow {
 
     pub unsafe fn handle_event(&mut self, hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> isize {
         match msg {
-            WM_NCHITTEST => {
-                return HTCAPTION as isize; // make the window draggable
-            }
+            WM_NCHITTEST => HTCAPTION as isize,
             WM_DPICHANGED => {
                 let suggested = &*(lparam.0 as *const RECT);
                 self.scaled_w = suggested.right - suggested.left;
@@ -548,11 +566,10 @@ impl SplashWindow {
                     SWP_NOZORDER | SWP_NOACTIVATE,
                 );
                 let _ = InvalidateRect(Some(hwnd), None, false);
-                return 0;
+                0
             }
             WM_TIMER => {
-                if wparam.0 as usize == TMR_GIF {
-                    // handle any incoming messages before painting
+                if wparam.0 == TMR_GIF {
                     let next_message = drain_and_get_next_message(&self.rx);
                     if next_message == MSG_CLOSE {
                         let _ = PostMessageW(Some(hwnd), WM_CLOSE, WPARAM(0), LPARAM(0));
@@ -561,16 +578,14 @@ impl SplashWindow {
                         self.progress = next_message;
                     }
 
-                    // advance the frame index
                     self.frame_idx += 1;
                     if self.frame_idx >= self.frames.len() {
-                        self.frame_idx = 0; // loop back to the first frame
+                        self.frame_idx = 0;
                     }
 
-                    // trigger a new WM_PAINT
                     let _ = InvalidateRect(Some(hwnd), None, false);
                 }
-                return 0;
+                0
             }
             WM_PAINT => {
                 let mut ps = PAINTSTRUCT::default();
@@ -587,7 +602,10 @@ impl SplashWindow {
                     bar.draw(&self.hdc_mem, self.scaled_w, self.scaled_h, self.dpi_scale, self.progress);
                 }
 
-                let size = SIZE { cx: self.scaled_w, cy: self.scaled_h };
+                let size = SIZE {
+                    cx: self.scaled_w,
+                    cy: self.scaled_h,
+                };
                 let pt_src = POINT { x: 0, y: 0 };
                 let _ = UpdateLayeredWindow(
                     hwnd,
@@ -602,52 +620,11 @@ impl SplashWindow {
                 );
 
                 let _ = EndPaint(hwnd, &ps);
-                return 0;
+                0
             }
-            _ => {
-                // handle other messages
-                return DefWindowProcW(hwnd, msg, wparam, lparam).0;
-            }
+            _ => DefWindowProcW(hwnd, msg, wparam, lparam).0,
         }
     }
-}
-
-struct ComCtlProgressWindow {
-    rx: Receiver<i16>,
-    last_progress: i16,
-}
-
-fn show_com_ctl_progress_dialog(rx: Receiver<i16>, window_title: &str, content: &str) {
-    let window_title = string_to_wide(window_title);
-    let content = string_to_wide(content);
-    let ok_text = string_to_wide("Hide");
-
-    let td_btn = TASKDIALOG_BUTTON {
-        nButtonID: 1, // OK button id
-        pszButtonText: ok_text.as_pcwstr(),
-    };
-    let custom_btns = vec![td_btn];
-
-    let mut config: TASKDIALOGCONFIG = Default::default();
-    config.cbSize = std::mem::size_of::<TASKDIALOGCONFIG>() as u32;
-    config.dwFlags = TDF_SIZE_TO_CONTENT | TDF_SHOW_PROGRESS_BAR | TDF_CALLBACK_TIMER;
-    config.pszWindowTitle = window_title.as_pcwstr();
-    config.pszMainInstruction = content.as_pcwstr();
-    config.pButtons = custom_btns.as_ptr();
-    config.cButtons = custom_btns.len() as u32;
-    config.nDefaultButton = 1;
-    config.Anonymous1.pszMainIcon = TD_INFORMATION_ICON;
-
-    let me = ComCtlProgressWindow { rx, last_progress: 0 };
-    let data_ptr = Box::into_raw(Box::new(me));
-    config.lpCallbackData = data_ptr as isize;
-    config.pfCallback = Some(task_dialog_callback);
-
-    unsafe {
-        let _ = TaskDialogIndirect(&config, None, None, None);
-    }
-
-    let _ = unsafe { Box::from_raw(data_ptr) }; // This will drop the ComCtlProgressWindow instance
 }
 
 fn drain_and_get_next_message(rx: &Receiver<i16>) -> i16 {
@@ -661,43 +638,6 @@ fn drain_and_get_next_message(rx: &Receiver<i16>) -> i16 {
         }
     }
     progress
-}
-
-unsafe extern "system" fn task_dialog_callback(
-    hwnd: HWND,
-    msg: TASKDIALOG_NOTIFICATIONS,
-    _wparam: WPARAM,
-    _lparam: LPARAM,
-    lp_ref_data: isize,
-) -> HRESULT {
-    let raw = lp_ref_data as *mut ComCtlProgressWindow;
-
-    if let Some(me) = raw.as_mut() {
-        if msg == TDN_TIMER {
-            let next_message = drain_and_get_next_message(&me.rx);
-            if next_message == MSG_CLOSE {
-                let _ = EndDialog(hwnd, 0);
-            } else if next_message == MSG_INDEFINITE {
-                SendMessageW(hwnd, TDM_SET_PROGRESS_BAR_MARQUEE.0 as u32, Some(WPARAM(1)), Some(LPARAM(0)));
-                SendMessageW(hwnd, TDM_SET_MARQUEE_PROGRESS_BAR.0 as u32, Some(WPARAM(1)), Some(LPARAM(0)));
-                me.last_progress = MSG_INDEFINITE;
-            } else if next_message >= 0 {
-                if me.last_progress < 0 {
-                    SendMessageW(hwnd, TDM_SET_PROGRESS_BAR_MARQUEE.0 as u32, Some(WPARAM(0)), Some(LPARAM(0)));
-                    SendMessageW(hwnd, TDM_SET_MARQUEE_PROGRESS_BAR.0 as u32, Some(WPARAM(0)), Some(LPARAM(0)));
-                }
-                SendMessageW(
-                    hwnd,
-                    TDM_SET_PROGRESS_BAR_POS.0 as u32,
-                    Some(WPARAM(next_message as usize)),
-                    Some(LPARAM(0)),
-                );
-                me.last_progress = next_message;
-            }
-        }
-    }
-
-    return S_OK;
 }
 
 #[test]
@@ -721,7 +661,7 @@ fn test_parse_hex_color_invalid_falls_back_to_green() {
 #[ignore]
 fn show_splash_gif() {
     let rd = std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures/splash-test.gif")).unwrap();
-    let tx = show_splash_dialog("osu!".to_string(), Some(rd), SplashOptions::default());
+    let tx = show_splash_dialog("osu!".to_string(), "1.0.0".to_string(), Some(rd), SplashOptions::default());
     let duration = std::time::Duration::from_secs(10);
     let interval = std::time::Duration::from_millis(16);
     let steps = (duration.as_millis() / interval.as_millis()) as i16;
@@ -740,7 +680,7 @@ fn show_splash_gif() {
 fn show_splash_png_transparency() {
     let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures/splash-test.png");
     let rd = std::fs::read(&fixture).unwrap();
-    let tx = show_splash_dialog("Beer App".to_string(), Some(rd), SplashOptions::default());
+    let tx = show_splash_dialog("Beer App".to_string(), "1.0.0".to_string(), Some(rd), SplashOptions::default());
     let _ = tx.send(50);
     std::thread::sleep(std::time::Duration::from_secs(5));
     let _ = tx.send(100);
@@ -755,6 +695,7 @@ fn show_splash_without_progress_bar() {
     let rd = std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures/splash-test.gif")).unwrap();
     let tx = show_splash_dialog(
         "osu!".to_string(),
+        "1.0.0".to_string(),
         Some(rd),
         SplashOptions {
             splash_progress_color: Some("None".to_string()),
@@ -762,28 +703,4 @@ fn show_splash_without_progress_bar() {
     );
     let _ = tx.send(80);
     std::thread::sleep(std::time::Duration::from_secs(6));
-}
-
-#[test]
-#[ignore]
-fn show_splash_progress() {
-    let tx = show_progress_dialog("hello!", "this is some content");
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    let _ = tx.send(25);
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    let _ = tx.send(50);
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    let _ = tx.send(75);
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    let _ = tx.send(100);
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
-    let _ = tx.send(MSG_INDEFINITE);
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
-    let _ = tx.send(50);
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
-    let _ = tx.send(MSG_CLOSE);
-    std::thread::sleep(std::time::Duration::from_secs(3));
 }

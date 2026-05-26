@@ -1,9 +1,9 @@
-use crate::shared::{self, dialogs};
+use crate::{dialogs, shared};
 use anyhow::{bail, Result};
 use std::{fs, path::PathBuf, process::Command};
 use velopack::{bundle, locator::VelopackLocator};
 
-pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _hook_mode: super::HookRunMode) -> Result<VelopackLocator> {
+pub fn apply_package_impl(locator: &VelopackLocator, pkg: &PathBuf, _hook_mode: super::HookRunMode) -> Result<VelopackLocator> {
     let _mutex = locator.try_get_exclusive_lock()?;
     let root_path = locator.get_root_dir();
     let tmp_path_new = locator.get_temp_dir_rand16();
@@ -20,17 +20,17 @@ pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _hook_mo
     })?;
     let new_locator = locator.clone_self_with_new_manifest(&manifest);
 
+    // show progress dialog
+    let reporter = dialogs::progress::show_apply_progress(&manifest.title, &manifest.version.to_string());
+
     let action: Result<()> = (|| {
         // 1. extract the bundle to a temp dir
         fs::create_dir_all(&tmp_path_new)?;
         info!("Extracting bundle to {:?}", &tmp_path_new);
-        bundle.extract_lib_contents_to_path(&tmp_path_new, |_| {}).map_err(|e| {
-            warn!("Deleting package {:?} to prevent update loop: {}", pkg, e);
-            let _ = fs::remove_file(pkg);
-            e
-        })?;
+        bundle.extract_lib_contents_to_path(&tmp_path_new, |p| reporter.set_progress(p))?;
 
         // 2. attempt to replace the current bundle with the new one
+        reporter.set_indeterminate();
         let result: Result<()> = (|| {
             info!("Replacing bundle at {:?}", &root_path);
             fs::rename(&root_path, &tmp_path_old)?;
@@ -73,6 +73,7 @@ pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _hook_mo
             }
         }
     })();
+    reporter.close();
     let _ = fs::remove_dir_all(&tmp_path_new);
     let _ = fs::remove_dir_all(&tmp_path_old);
     action?;

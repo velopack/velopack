@@ -4,7 +4,7 @@ use std::ffi::OsString;
 use velopack::locator::VelopackLocator;
 use winreg::{enums::*, RegKey};
 
-const UNINSTALL_REGISTRY_KEY: &'static str = "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
+const UNINSTALL_REGISTRY_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
 
 pub fn write_uninstall_entry(locator: &VelopackLocator) -> Result<()> {
     info!("Writing uninstall registry key...");

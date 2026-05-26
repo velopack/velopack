@@ -98,11 +98,7 @@ pub fn start_impl(
             }
             Err(e) => {
                 warn!("Failed to migrate legacy app ({}).", e);
-                dialogs::show_error(
-                    &manifest.title,
-                    Some("Unable to start app"),
-                    "This app installation has been corrupted and cannot be started. Please re-install the app.",
-                );
+                dialogs::show_start_corrupt_error(&manifest.title);
                 Err(e)
             }
         }
@@ -142,12 +138,12 @@ fn try_legacy_migration(root_dir: &PathBuf, manifest: &Manifest) -> Result<Velop
 
     // if started by legacy Squirrel, the working dir of Update.exe may be inside the app-* folder,
     // meaning we can not clean up properly.
-    std::env::set_current_dir(&root_dir)?;
+    std::env::set_current_dir(root_dir)?;
     let path_config = locator::create_config_from_root_dir(root_dir);
     let package = locator::find_latest_full_package(&path_config.PackagesDir).ok_or_else(|| anyhow!("Unable to find latest full package."))?;
 
     warn!("This application is installed in a folder prefixed with 'app-'. Attempting to migrate...");
-    let _ = shared::force_stop_package(&root_dir);
+    let _ = shared::force_stop_package(root_dir);
 
     // reset current manifest shortcuts, so when the new manifest is being read
     // new shortcuts will be force-created
@@ -162,13 +158,13 @@ fn try_legacy_migration(root_dir: &PathBuf, manifest: &Manifest) -> Result<Velop
 
         if !locator.get_current_bin_dir().exists() {
             info!("Renaming latest app-* folder to current.");
-            if let Some((latest_app_dir, _latest_ver)) = shared::get_latest_app_version_folder(&root_dir)? {
+            if let Some((latest_app_dir, _latest_ver)) = shared::get_latest_app_version_folder(root_dir)? {
                 fs::rename(latest_app_dir, locator.get_current_bin_dir())?;
             }
         }
 
         info!("Removing old shortcuts...");
-        win::remove_all_shortcuts_for_root_dir(&root_dir);
+        win::remove_all_shortcuts_for_root_dir(root_dir);
     }
 
     info!("Applying latest full package...");
@@ -176,7 +172,7 @@ fn try_legacy_migration(root_dir: &PathBuf, manifest: &Manifest) -> Result<Velop
     let new_locator = super::apply(&locator, false, OperationWait::NoWait, Some(&buf), None, super::HookRunMode::PostOnly)?;
 
     info!("Removing old app-* folders...");
-    shared::delete_app_prefixed_folders(&root_dir);
+    shared::delete_app_prefixed_folders(root_dir);
     let _ = remove_dir_all::remove_dir_all(root_dir.join("staging"));
     Ok(new_locator)
 }

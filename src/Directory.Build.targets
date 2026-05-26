@@ -28,7 +28,7 @@
 
   <ItemGroup Condition=" '$(VelopackPackageId)' != '' ">
     <None Include="$(MSBuildThisFileDirectory)..\artwork\Velopack_200.png" Pack="true" PackagePath="\" />
-    <None Include="$(MSBuildThisFileDirectory)..\README_NUGET.md" Pack="true" PackagePath="\" />
+    <None Include="$(MSBuildThisFileDirectory)README_NUGET.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <Target Name="AddNugetVendorLibs" BeforeTargets="Build" Condition=" '$(VelopackPackageVendorLibs)' == 'true' ">

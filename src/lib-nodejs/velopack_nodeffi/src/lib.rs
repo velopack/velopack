@@ -243,7 +243,7 @@ fn js_appbuilder_run(mut cx: FunctionContext) -> JsResult<JsUndefined> {
 
     let hook_handler = move |hook_name: &str, current_version: Version| {
         let mut cx = cx_ref.borrow_mut();
-        let hook_name = cx.string(hook_name.to_string());
+        let hook_name = cx.string(hook_name);
         let current_version = cx.string(current_version.to_string());
         let args = vec![hook_name.upcast(), current_version.upcast()];
         let this = cx.undefined();

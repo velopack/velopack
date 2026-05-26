@@ -1,11 +1,6 @@
-use crate::{
-    dialogs,
-    shared::{self},
-    windows::{self, splash},
-};
+use crate::{dialogs, shared, windows};
 use anyhow::{bail, Context, Result};
-use std::{ffi::OsString, fs, path::PathBuf};
-use std::{sync::mpsc, time::Duration};
+use std::{ffi::OsString, fs, path::PathBuf, time::Duration};
 use velopack::{bundle::load_bundle_from_file, constants, locator::VelopackLocator, process};
 
 // fn ropycopy<P1: AsRef<Path>, P2: AsRef<Path>>(source: &P1, dest: &P2) -> Result<()> {
@@ -125,19 +120,14 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
     let temp_path_old = old_locator.get_temp_dir_rand16();
 
     // open a dialog showing progress...
-    let (mut tx, _) = mpsc::channel::<i16>();
-    if !dialogs::get_silent() {
-        let title = format!("{} Update", new_locator.get_manifest_title());
-        let message = format!("Installing update {}...", new_locator.get_manifest_version_full_string());
-        tx = splash::show_progress_dialog(title, message);
-    }
+    let reporter = dialogs::progress::show_apply_progress(&new_locator.get_manifest_title(), &new_locator.get_manifest_version_full_string());
 
     let action: Result<()> = (|| {
         // first, extract the update to temp_path_new
         fs::create_dir_all(&temp_path_new)?;
         bundle
             .extract_lib_contents_to_path(&temp_path_new, |p| {
-                let _ = tx.send(p);
+                reporter.set_progress(p);
             })
             .map_err(|e| {
                 warn!("Deleting package {:?} to prevent update loop: {}", package, e);
@@ -145,7 +135,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
                 e
             })?;
 
-        let _ = tx.send(splash::MSG_INDEFINITE);
+        reporter.set_indeterminate();
 
         // second, run application hooks (but don't care if it fails)
         if hook_mode == super::HookRunMode::All {
@@ -156,10 +146,6 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
 
         // third, we try _REALLY HARD_ to stop the package
         let _ = shared::force_stop_package(&root_path);
-        // if winsafe::IsWindows10OrGreater() == Ok(true) && !locksmith::close_processes_locking_dir(&old_locator) {
-        //     bail!("Failed to close processes locking directory / user cancelled.");
-        // }
-
         // fourth, we make as backup of the current dir to temp_path_old
         info!("Backing up current dir to {:?}", &temp_path_old);
         shared::retry_io_ex(|| fs::rename(&current_dir, &temp_path_old), 1000, 10)
@@ -210,7 +196,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
         // from this point on, we're past the point of no return and should not bail
         // sixth, we write the uninstall entry
         if !old_locator.get_is_portable() {
-            if let Err(e) = crate::windows::registry::update_uninstall_entry(&old_locator, &new_locator) {
+            if let Err(e) = crate::windows::registry::update_uninstall_entry(old_locator, &new_locator) {
                 warn!("Failed to update uninstall entry ({}).", e);
             }
         } else {
@@ -242,14 +228,14 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
         let default_update_exe = &root_path.join("Update.exe");
         let current_update_exe = std::env::current_exe()?;
 
-        if (current_update_exe.exists()) == false {
+        if !current_update_exe.exists() {
             warn!("Current Update.exe path does not exist, skipping default path sync (this shouldn't happen)");
             return Ok(());
         }
 
         match (
             default_update_exe.exists(),
-            same_file::is_same_file(&default_update_exe, &current_update_exe),
+            same_file::is_same_file(default_update_exe, &current_update_exe),
         ) {
             (true, Ok(true)) => {
                 info!("Update.exe is already in the correct location: {:?}", &current_update_exe);
@@ -259,7 +245,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
                     "Running from non-default location. Attempting to update default Update.exe at: {:?}",
                     default_update_exe
                 );
-                match std::fs::copy(&current_update_exe, &default_update_exe) {
+                match std::fs::copy(&current_update_exe, default_update_exe) {
                     Ok(_) => info!("Successfully updated default Update.exe"),
                     Err(e) => warn!("Failed to update default Update.exe: {} (non-fatal)", e),
                 }
@@ -275,7 +261,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
         Ok(())
     })();
 
-    let _ = tx.send(splash::MSG_CLOSE);
+    reporter.close();
     let _ = remove_dir_all::remove_dir_all(&temp_path_new);
     let _ = remove_dir_all::remove_dir_all(&temp_path_old);
     action?;

@@ -1,8 +1,4 @@
-use crate::{
-    dialogs,
-    shared::{self},
-    windows,
-};
+use crate::{dialogs, shared, windows};
 use velopack::constants;
 use velopack::locator::*;
 use velopack::{bundle::BundleZip, wide_strings::string_to_wide};
@@ -36,8 +32,8 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     }
 
     info!("Determining install directory...");
-    let (root_path, root_is_default) = if install_to.is_some() {
-        (install_to.unwrap().clone(), false)
+    let (root_path, _root_is_default) = if let Some(path) = install_to {
+        (path.clone(), false)
     } else {
         let appdata = windows::known_path::get_local_app_data()?;
         (Path::new(&appdata).join(&app.id), true)
@@ -86,7 +82,10 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     // does the target directory exist and have files? (eg. already installed)
     if !shared::is_dir_empty(&root_path) {
         // the target directory is not empty, and not dead
-        if !dialogs::show_overwrite_repair_dialog(&app, &root_path, root_is_default) {
+        let installed_version = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(root_path.clone(), None))
+            .ok()
+            .map(|loc| loc.get_manifest_version().clone());
+        if !dialogs::show_overwrite_repair_dialog(&app.title, &app.version, &root_path, installed_version.as_ref()) {
             // user cancelled overwrite prompt
             error!("Directory already exists, and user cancelled overwrite.");
             return Ok(());
@@ -131,6 +130,7 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
         let splash_bytes = pkg.get_splash_bytes();
         windows::splash::show_splash_dialog(
             manifest.title,
+            manifest.version.to_string(),
             splash_bytes,
             windows::splash::SplashOptions {
                 splash_progress_color: Some(manifest.splash_progress_color),
@@ -194,25 +194,20 @@ fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &std::sync::
 
     if locator.get_manifest_shortcut_locations() != ShortcutLocationFlags::NONE {
         info!("Creating shortcuts...");
-        windows::create_or_update_manifest_lnks(&locator, None);
+        windows::create_or_update_manifest_lnks(locator, None);
     }
 
     info!("Starting process install hook");
-    if !windows::run_hook(&locator, constants::HOOK_CLI_INSTALL, 30) {
-        let setup_name = format!("{} Setup {}", locator.get_manifest_title(), locator.get_manifest_id());
-        dialogs::show_warn(
-            &setup_name,
-            None,
-            "Installation has completed, but the application install hook failed. It may not have installed correctly.",
-        );
+    if !windows::run_hook(locator, constants::HOOK_CLI_INSTALL, 30) {
+        dialogs::show_install_hook_warning(&locator.get_manifest_title());
     }
 
     let _ = tx.send(100);
-    windows::registry::write_uninstall_entry(&locator)?;
+    windows::registry::write_uninstall_entry(locator)?;
 
     if !dialogs::get_silent() {
         info!("Starting app...");
-        shared::start_package(&locator, start_args, Some(constants::HOOK_ENV_FIRSTRUN))?;
+        shared::start_package(locator, start_args, Some(constants::HOOK_ENV_FIRSTRUN))?;
     }
 
     Ok(())

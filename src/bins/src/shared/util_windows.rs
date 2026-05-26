@@ -1,10 +1,3 @@
-use ::windows::{
-    core::PWSTR,
-    Win32::{
-        System::ProcessStatus::EnumProcesses,
-        System::Threading::{QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_TERMINATE},
-    },
-};
 use anyhow::{bail, Result};
 use regex::Regex;
 use semver::Version;
@@ -15,6 +8,13 @@ use std::{
     path::{Path, PathBuf},
 };
 use velopack::{locator::VelopackLocator, process, wide_strings::wide_to_os_string};
+use windows::{
+    core::PWSTR,
+    Win32::{
+        System::ProcessStatus::EnumProcesses,
+        System::Threading::{QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_TERMINATE},
+    },
+};
 
 // https://github.com/nushell/nushell/blob/4458aae3d41517d74ce1507ad3e8cd94021feb16/crates/nu-system/src/windows.rs#L593
 fn get_pids() -> Result<Vec<u32>> {
@@ -24,12 +24,12 @@ fn get_pids() -> Result<Vec<u32>> {
 
     unsafe {
         pids.set_len(101920);
-        let _ = EnumProcesses(pids.as_mut_ptr(), (dword_size * pids.len()) as u32, &mut cb_needed)?;
+        EnumProcesses(pids.as_mut_ptr(), (dword_size * pids.len()) as u32, &mut cb_needed)?;
         let pids_len = cb_needed / dword_size as u32;
         pids.set_len(pids_len as usize);
     }
 
-    Ok(pids.iter().map(|x| *x as u32).collect())
+    Ok(pids.to_vec())
 }
 
 unsafe fn get_processes_running_in_directory<P: AsRef<Path>>(dir: P) -> Result<Vec<(u32, PathBuf, process::SafeProcessHandle)>> {

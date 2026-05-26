@@ -15,7 +15,7 @@ extern crate log;
 #[derive(Debug, Clone)]
 pub enum Message {
     CheckForUpdates,
-    UpdatesFound(Option<UpdateInfo>),
+    UpdatesFound(Option<Box<UpdateInfo>>),
     DownloadUpdates,
     DownloadProgress(i16),
     DownloadComplete,
@@ -27,7 +27,7 @@ pub struct AppState {
     update_manager: Option<UpdateManager>,
     status: AppStatus,
     current_version: Option<String>,
-    update_info: Option<UpdateInfo>,
+    update_info: Option<Box<UpdateInfo>>,
     download_progress: i16,
     logs: Vec<String>,
 }
@@ -145,7 +145,7 @@ fn update(state: &mut AppState, message: Message) -> Task<Message> {
         }
         Message::Restart => {
             let update_info = state.update_info.clone().unwrap();
-            state.update_manager.as_ref().unwrap().apply_updates_and_restart(update_info).unwrap();
+            state.update_manager.as_ref().unwrap().apply_updates_and_restart(*update_info).unwrap();
             Task::none()
         }
         Message::LogReceived(log) => {

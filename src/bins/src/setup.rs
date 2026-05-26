@@ -53,9 +53,15 @@ pub fn header_offset_and_length() -> (i64, i64) {
     }
 }
 
-fn main() -> Result<()> {
+fn main() {
     windows::mitigate::pre_main_sideload_mitigation();
     windows::splash::init_dpi_awareness();
+    let result = dialogs::XDialogBuilder::new().run_result(real_main);
+    std::process::exit(if result.is_ok() { 0 } else { 1 });
+}
+
+fn real_main() -> Result<()> {
+    dialogs::init();
     shared::cli_host::clap_run_main("Setup", main_inner)
 }
 
@@ -138,7 +144,7 @@ fn main_inner() -> Result<()> {
         let file = File::open(env::current_exe()?)?;
         let mmap = unsafe { Mmap::map(&file)? };
         let zip_range: &[u8] = &mmap[offset as usize..(offset + length) as usize];
-        let mut bundle = velopack::bundle::load_bundle_from_memory(&zip_range)?;
+        let mut bundle = velopack::bundle::load_bundle_from_memory(zip_range)?;
         commands::install(&mut bundle, install_to, exe_args)?;
         return Ok(());
     }

@@ -1,0 +1,41 @@
+﻿<!-- Copyright (c) .NET Foundation and contributors. All rights reserved. Licensed under the Microsoft Reciprocal License. See LICENSE.TXT file in the project root for full license information. -->
+
+
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+    <Fragment>
+        <UI>
+            <Dialog Id="ProgressDlg" Width="370" Height="270" Title="[MsiDlgTitle]" Modeless="yes">
+                <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Default="yes" Cancel="yes" Text="[MsiBtnCancel]">
+                    <Publish Event="SpawnDialog" Value="CancelDlg" />
+                </Control>
+                <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+                <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Disabled="yes" Text="[MsiBtnBack]" />
+                <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Disabled="yes" Text="[MsiBtnNext]" />
+                <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+                <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+                <!-- mutually exclusive title and description strings overlap  -->
+                <Control Id="TextInstalling" Type="Text" X="20" Y="65" Width="330" Height="35" Hidden="yes" NoPrefix="yes" Text="[MsiProgressInstallingText]" ShowCondition="NOT Installed OR (Installed AND (RESUME OR Preselected) AND NOT PATCH)" />
+                <Control Id="TitleInstalling" Type="Text" X="20" Y="15" Width="330" Height="15" Transparent="yes" NoPrefix="yes" Hidden="yes" Text="[MsiProgressInstallingTitle]" ShowCondition="NOT Installed OR (Installed AND (RESUME OR Preselected) AND NOT PATCH)" />
+                <Control Id="TextChanging" Type="Text" X="20" Y="65" Width="330" Height="35" Hidden="yes" NoPrefix="yes" Text="[MsiProgressChangingText]" ShowCondition="WixUI_InstallMode = &quot;Change&quot;" />
+                <Control Id="TitleChanging" Type="Text" X="20" Y="15" Width="330" Height="15" Transparent="yes" NoPrefix="yes" Hidden="yes" Text="[MsiProgressChangingTitle]" ShowCondition="WixUI_InstallMode = &quot;Change&quot;" />
+                <Control Id="TextRepairing" Type="Text" X="20" Y="65" Width="330" Height="35" Hidden="yes" NoPrefix="yes" Text="[MsiProgressRepairingText]" ShowCondition="WixUI_InstallMode = &quot;Repair&quot;" />
+                <Control Id="TitleRepairing" Type="Text" X="20" Y="15" Width="330" Height="15" Transparent="yes" NoPrefix="yes" Hidden="yes" Text="[MsiProgressRepairingTitle]" ShowCondition="WixUI_InstallMode = &quot;Repair&quot;" />
+                <Control Id="TextRemoving" Type="Text" X="20" Y="65" Width="330" Height="35" Hidden="yes" NoPrefix="yes" Text="[MsiProgressRemovingText]" ShowCondition="WixUI_InstallMode = &quot;Remove&quot;" />
+                <Control Id="TitleRemoving" Type="Text" X="20" Y="15" Width="330" Height="15" Transparent="yes" NoPrefix="yes" Hidden="yes" Text="[MsiProgressRemovingTitle]" ShowCondition="WixUI_InstallMode = &quot;Remove&quot;" />
+                <Control Id="TextUpdating" Type="Text" X="20" Y="65" Width="330" Height="35" Hidden="yes" NoPrefix="yes" Text="[MsiProgressUpdatingText]" ShowCondition="WixUI_InstallMode = &quot;Update&quot;" />
+                <Control Id="TitleUpdating" Type="Text" X="20" Y="15" Width="330" Height="15" Transparent="yes" NoPrefix="yes" Hidden="yes" Text="[MsiProgressUpdatingTitle]" ShowCondition="WixUI_InstallMode = &quot;Update&quot;" />
+                <Control Id="ActionText" Type="Text" X="70" Y="100" Width="285" Height="10">
+                    <Subscribe Event="ActionText" Attribute="Text" />
+                </Control>
+                <Control Id="ProgressBar" Type="ProgressBar" X="20" Y="115" Width="330" Height="10" ProgressBlocks="yes" Text="Progress">
+                    <Subscribe Event="SetProgress" Attribute="Progress" />
+                </Control>
+                <Control Id="StatusLabel" Type="Text" X="20" Y="100" Width="50" Height="10" Text="[MsiProgressStatus]" />
+            </Dialog>
+
+            <InstallUISequence>
+                <Show Dialog="virtual ProgressDlg" Before="ExecuteAction" />
+            </InstallUISequence>
+        </UI>
+    </Fragment>
+</Wix>

@@ -24,15 +24,10 @@ impl<F: Fn(u64)> ProgressUpdater<F> {
     /// Create a new progress updater, with a callback to be called periodically.
     pub fn new(callback: F, external_total: u64, internal_total: u64, per_update_internal: u64) -> Self {
         let per_update_internal = min(internal_total, per_update_internal);
-        let total_updates_expected = if per_update_internal == 0 {
-            0
-        } else {
-            internal_total / per_update_internal
-        };
-        let (update_external_amount, remainder_external) = if total_updates_expected == 0 {
-            (0, external_total)
-        } else {
-            (external_total / total_updates_expected, external_total % total_updates_expected)
+        let total_updates_expected = internal_total.checked_div(per_update_internal).unwrap_or(0);
+        let (update_external_amount, remainder_external) = match external_total.checked_div(total_updates_expected) {
+            Some(amount) => (amount, external_total % total_updates_expected),
+            None => (0, external_total),
         };
         Self {
             callback,
@@ -54,11 +49,7 @@ impl<F: Fn(u64)> ProgressUpdater<F> {
     }
 
     fn send_due_updates(&mut self) {
-        let updates_due = if self.per_update_internal == 0 {
-            0
-        } else {
-            self.internal_progress / self.per_update_internal
-        };
+        let updates_due = self.internal_progress.checked_div(self.per_update_internal).unwrap_or(0);
         while updates_due > self.external_updates_sent {
             (self.callback)(self.update_external_amount);
             self.external_updates_sent += 1;
