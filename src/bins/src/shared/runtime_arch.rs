@@ -31,7 +31,7 @@ impl RuntimeArch {
 
     #[cfg(target_os = "windows")]
     pub fn from_current_system() -> Option<Self> {
-        return check_arch_windows();
+        check_arch_windows()
     }
 
     #[cfg(not(target_os = "windows"))]

@@ -14,8 +14,7 @@ pub fn prompt_and_install_all_missing(
     let mut missing: Vec<&Box<dyn runtimes::RuntimeInfo>> = Vec::new();
     let mut missing_str = String::new();
 
-    for i in 0..dependencies.len() {
-        let dep = &dependencies[i];
+    for dep in &dependencies {
         if dep.is_installed() {
             info!("    {} is already installed.", dep.display_name());
             continue;
@@ -46,8 +45,7 @@ pub fn prompt_and_install_all_missing(
         info!("Downloading {} missing pre-requisites...", missing.len());
         let quiet = dialogs::get_silent();
 
-        for i in 0..missing.len() {
-            let dep = &missing[i];
+        for dep in &missing {
             let url = dep.get_download_url()?;
             let exe_path = downloads.join(dep.get_exe_name());
 
@@ -67,7 +65,7 @@ pub fn prompt_and_install_all_missing(
             let result = dep.install(&exe_path, quiet)?;
             if result == runtimes::RuntimeInstallResult::RestartRequired {
                 warn!("A restart is required to complete the installation of {}.", dep.display_name());
-                dialogs::show_restart_required(&app_name, app_version);
+                dialogs::show_restart_required(app_name, app_version);
                 return Ok(false);
             }
         }

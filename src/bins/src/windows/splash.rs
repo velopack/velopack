@@ -399,7 +399,7 @@ impl SplashWindow {
             for frame in decoder.into_frames() {
                 let frame = frame?;
                 let (num, dem) = frame.delay().numer_denom_ms();
-                delays.push((num / dem) as u32);
+                delays.push(num / dem);
                 let mut buf = frame.into_buffer().into_vec();
                 convert_rgba_to_premultiplied_bgra(&mut buf);
                 decoded_images.push(buf);
@@ -430,8 +430,10 @@ impl SplashWindow {
         let scaled_h = (h as f32 * dpi_scale) as i32;
 
         // Clamp to 70% of monitor size and center
-        let mut mi: MONITORINFO = Default::default();
-        mi.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+        let mut mi: MONITORINFO = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
         let (scaled_w, scaled_h) = if GetMonitorInfoW(h_monitor, &mut mi).as_bool() {
             let (cw, ch) = clamp_to_monitor(scaled_w, scaled_h, &mi.rcMonitor);
             let rc = mi.rcMonitor;
@@ -519,7 +521,7 @@ impl SplashWindow {
             bar,
         }));
 
-        SetWindowLongPtrW(hwnd, GWL_USERDATA, (data_ptr as isize).try_into()?);
+        SetWindowLongPtrW(hwnd, GWL_USERDATA, data_ptr as _);
         let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
         SetTimer(Some(hwnd), TMR_GIF, delay, None);
 
@@ -542,9 +544,7 @@ impl SplashWindow {
 
     pub unsafe fn handle_event(&mut self, hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> isize {
         match msg {
-            WM_NCHITTEST => {
-                return HTCAPTION as isize; // make the window draggable
-            }
+            WM_NCHITTEST => HTCAPTION as isize,
             WM_DPICHANGED => {
                 let suggested = &*(lparam.0 as *const RECT);
                 self.scaled_w = suggested.right - suggested.left;
@@ -566,11 +566,10 @@ impl SplashWindow {
                     SWP_NOZORDER | SWP_NOACTIVATE,
                 );
                 let _ = InvalidateRect(Some(hwnd), None, false);
-                return 0;
+                0
             }
             WM_TIMER => {
-                if wparam.0 as usize == TMR_GIF {
-                    // handle any incoming messages before painting
+                if wparam.0 == TMR_GIF {
                     let next_message = drain_and_get_next_message(&self.rx);
                     if next_message == MSG_CLOSE {
                         let _ = PostMessageW(Some(hwnd), WM_CLOSE, WPARAM(0), LPARAM(0));
@@ -579,16 +578,14 @@ impl SplashWindow {
                         self.progress = next_message;
                     }
 
-                    // advance the frame index
                     self.frame_idx += 1;
                     if self.frame_idx >= self.frames.len() {
-                        self.frame_idx = 0; // loop back to the first frame
+                        self.frame_idx = 0;
                     }
 
-                    // trigger a new WM_PAINT
                     let _ = InvalidateRect(Some(hwnd), None, false);
                 }
-                return 0;
+                0
             }
             WM_PAINT => {
                 let mut ps = PAINTSTRUCT::default();
@@ -623,12 +620,9 @@ impl SplashWindow {
                 );
 
                 let _ = EndPaint(hwnd, &ps);
-                return 0;
+                0
             }
-            _ => {
-                // handle other messages
-                return DefWindowProcW(hwnd, msg, wparam, lparam).0;
-            }
+            _ => DefWindowProcW(hwnd, msg, wparam, lparam).0,
         }
     }
 }

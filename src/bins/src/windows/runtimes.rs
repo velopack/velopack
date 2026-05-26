@@ -231,18 +231,14 @@ fn get_installed_programs(map: &mut HashMap<String, String>, access_rights: u32)
     let key = hklm.open_subkey_with_flags(UNINSTALL_REG_KEY, access_rights);
 
     if let Ok(view) = key {
-        for key_result in view.enum_keys() {
-            if let Ok(key_name) = key_result {
-                let subkey = view.open_subkey_with_flags(key_name, access_rights);
-                if subkey.is_err() {
-                    continue;
-                }
-                let subkey = subkey.unwrap();
-                let name: std::io::Result<String> = subkey.get_value("DisplayName");
-                let version: std::io::Result<String> = subkey.get_value("DisplayVersion");
-                if name.is_ok() && version.is_ok() {
-                    map.insert(name.unwrap(), version.unwrap());
-                }
+        for key_name in view.enum_keys().flatten() {
+            let Ok(subkey) = view.open_subkey_with_flags(key_name, access_rights) else {
+                continue;
+            };
+            let name: std::io::Result<String> = subkey.get_value("DisplayName");
+            let version: std::io::Result<String> = subkey.get_value("DisplayVersion");
+            if let (Ok(name), Ok(version)) = (name, version) {
+                map.insert(name, version);
             }
         }
     }
@@ -273,7 +269,7 @@ pub enum DotnetRuntimeType {
 }
 
 impl DotnetRuntimeType {
-    pub fn from_str(runtime_str: &str) -> Option<Self> {
+    pub fn parse(runtime_str: &str) -> Option<Self> {
         match runtime_str.to_lowercase().as_str() {
             "runtime" => Some(DotnetRuntimeType::Runtime),
             "aspnetcore" => Some(DotnetRuntimeType::AspNetCore),
@@ -289,21 +285,21 @@ impl DotnetRuntimeType {
 
 #[test]
 fn test_dotnet_runtime_type_from_str() {
-    assert_eq!(DotnetRuntimeType::from_str("runtime"), Some(DotnetRuntimeType::Runtime));
-    assert_eq!(DotnetRuntimeType::from_str("aspnetcore"), Some(DotnetRuntimeType::AspNetCore));
-    assert_eq!(DotnetRuntimeType::from_str("asp"), Some(DotnetRuntimeType::AspNetCore));
-    assert_eq!(DotnetRuntimeType::from_str("aspcore"), Some(DotnetRuntimeType::AspNetCore));
-    assert_eq!(DotnetRuntimeType::from_str("windowsdesktop"), Some(DotnetRuntimeType::WindowsDesktop));
-    assert_eq!(DotnetRuntimeType::from_str("desktop"), Some(DotnetRuntimeType::WindowsDesktop));
-    assert_eq!(DotnetRuntimeType::from_str("foo"), None);
-    assert_eq!(DotnetRuntimeType::from_str("RUNTIME"), Some(DotnetRuntimeType::Runtime));
-    assert_eq!(DotnetRuntimeType::from_str("ASPNETCORE"), Some(DotnetRuntimeType::AspNetCore));
-    assert_eq!(DotnetRuntimeType::from_str("ASP"), Some(DotnetRuntimeType::AspNetCore));
-    assert_eq!(DotnetRuntimeType::from_str("ASPCORE"), Some(DotnetRuntimeType::AspNetCore));
-    assert_eq!(DotnetRuntimeType::from_str("WINDOWSDESKTOP"), Some(DotnetRuntimeType::WindowsDesktop));
-    assert_eq!(DotnetRuntimeType::from_str("DESKTOP"), Some(DotnetRuntimeType::WindowsDesktop));
-    assert_eq!(DotnetRuntimeType::from_str("sdk"), Some(DotnetRuntimeType::Sdk));
-    assert_eq!(DotnetRuntimeType::from_str("SDk"), Some(DotnetRuntimeType::Sdk));
+    assert_eq!(DotnetRuntimeType::parse("runtime"), Some(DotnetRuntimeType::Runtime));
+    assert_eq!(DotnetRuntimeType::parse("aspnetcore"), Some(DotnetRuntimeType::AspNetCore));
+    assert_eq!(DotnetRuntimeType::parse("asp"), Some(DotnetRuntimeType::AspNetCore));
+    assert_eq!(DotnetRuntimeType::parse("aspcore"), Some(DotnetRuntimeType::AspNetCore));
+    assert_eq!(DotnetRuntimeType::parse("windowsdesktop"), Some(DotnetRuntimeType::WindowsDesktop));
+    assert_eq!(DotnetRuntimeType::parse("desktop"), Some(DotnetRuntimeType::WindowsDesktop));
+    assert_eq!(DotnetRuntimeType::parse("foo"), None);
+    assert_eq!(DotnetRuntimeType::parse("RUNTIME"), Some(DotnetRuntimeType::Runtime));
+    assert_eq!(DotnetRuntimeType::parse("ASPNETCORE"), Some(DotnetRuntimeType::AspNetCore));
+    assert_eq!(DotnetRuntimeType::parse("ASP"), Some(DotnetRuntimeType::AspNetCore));
+    assert_eq!(DotnetRuntimeType::parse("ASPCORE"), Some(DotnetRuntimeType::AspNetCore));
+    assert_eq!(DotnetRuntimeType::parse("WINDOWSDESKTOP"), Some(DotnetRuntimeType::WindowsDesktop));
+    assert_eq!(DotnetRuntimeType::parse("DESKTOP"), Some(DotnetRuntimeType::WindowsDesktop));
+    assert_eq!(DotnetRuntimeType::parse("sdk"), Some(DotnetRuntimeType::Sdk));
+    assert_eq!(DotnetRuntimeType::parse("SDk"), Some(DotnetRuntimeType::Sdk));
 }
 
 #[derive(Clone, Debug)]
@@ -360,20 +356,18 @@ fn get_dotnet_base_path(runtime_arch: RuntimeArch, runtime_type: DotnetRuntimeTy
     // which will always be in %pf%\dotnet
     let join = Path::new(&pf64).join("dotnet").join(dotnet_path);
     let result = join.to_str().ok_or_else(|| anyhow!("Unable to convert path to string."))?;
-    return Ok(result.to_string());
+    Ok(result.to_string())
 }
 
 fn list_subfolders(path: &str) -> Vec<String> {
     let mut folders = Vec::new();
     if let Ok(entries) = fs::read_dir(path) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                if let Ok(metadata) = entry.metadata() {
-                    if metadata.is_dir() {
-                        if let Some(folder_name) = entry.path().file_name() {
-                            if let Some(folder_name_str) = folder_name.to_str() {
-                                folders.push(folder_name_str.to_string());
-                            }
+        for entry in entries.flatten() {
+            if let Ok(metadata) = entry.metadata() {
+                if metadata.is_dir() {
+                    if let Some(folder_name) = entry.path().file_name() {
+                        if let Some(folder_name_str) = folder_name.to_str() {
+                            folders.push(folder_name_str.to_string());
                         }
                     }
                 }
@@ -547,7 +541,7 @@ fn parse_dotnet_version(version: &str) -> Result<DotnetInfo> {
     }
 
     let architecture = RuntimeArch::from_str(architecture_str).ok_or_else(|| anyhow!("Invalid dotnet version string: '{}'", version))?;
-    let runtime_type = DotnetRuntimeType::from_str(runtime_type_str).ok_or_else(|| anyhow!("Invalid dotnet version string: '{}'", version))?;
+    let runtime_type = DotnetRuntimeType::parse(runtime_type_str).ok_or_else(|| anyhow!("Invalid dotnet version string: '{}'", version))?;
     let version_str = format!("{}.{}.{}", major, minor, build);
     let display_name = format!(".NET {} {:?} {:?}", version_str, architecture, runtime_type);
     Ok(DotnetInfo {
