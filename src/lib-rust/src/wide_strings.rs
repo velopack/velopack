@@ -24,6 +24,10 @@ impl WideString {
         self.vec.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.vec.is_empty()
+    }
+
     pub fn as_os_str(&self) -> &OsStr {
         self.str.as_os_str()
     }
@@ -61,7 +65,10 @@ impl Debug for WideString {
 
 impl From<Vec<u16>> for WideString {
     fn from(inner: Vec<u16>) -> Self {
-        WideString { str: OsString::from_wide(&inner), vec: inner }
+        WideString {
+            str: OsString::from_wide(&inner),
+            vec: inner,
+        }
     }
 }
 
@@ -77,9 +84,9 @@ impl From<&str> for WideString {
     }
 }
 
-impl Into<Vec<u16>> for WideString {
-    fn into(self) -> Vec<u16> {
-        self.vec
+impl From<WideString> for Vec<u16> {
+    fn from(val: WideString) -> Self {
+        val.vec
     }
 }
 
@@ -171,7 +178,7 @@ pub fn wide_to_string<T: ToWideSlice>(input: T) -> Result<String, std::string::F
     let slice = input.to_wide_slice();
     let null_pos = slice.iter().position(|&x| x == 0).unwrap_or(slice.len());
     let trimmed_slice = &slice[..null_pos];
-    Ok(String::from_utf16(trimmed_slice)?)
+    String::from_utf16(trimmed_slice)
 }
 
 pub fn wide_to_string_opt<T: ToWideSlice>(input: Option<T>) -> Option<Result<String, std::string::FromUtf16Error>> {

@@ -116,6 +116,7 @@ impl LockFile {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             // .custom_flags(0x04000000) // FILE_FLAG_DELETE_ON_CLOSE
             .share_mode(0)
             .open(path.into())?;

@@ -127,7 +127,7 @@ fn make_command_line(argv0: Option<&OsStr>, args: &[Arg], force_quotes: bool) ->
 
     // Ensure null termination
     cmd.push(0);
-    
+
     let wide_string: WideString = cmd.into();
     Ok(wide_string)
 }
@@ -148,7 +148,7 @@ fn make_envp(maybe_env: Option<HashMap<String, String>>) -> IoResult<Option<Wide
         if key_str.starts_with("=") {
             continue;
         }
-        
+
         blk.extend(ensure_no_nuls(key)?.encode_wide());
         blk.push('=' as u16);
         blk.extend(ensure_no_nuls(value)?.encode_wide());
@@ -166,7 +166,7 @@ fn make_envp(maybe_env: Option<HashMap<String, String>>) -> IoResult<Option<Wide
         }
     }
 
-    if blk.len() == 0 {
+    if blk.is_empty() {
         Ok(None)
     } else {
         blk.push(0);
@@ -191,7 +191,15 @@ pub fn is_current_process_elevated() -> bool {
             let elevation_ptr: *mut core::ffi::c_void = &mut elevation as *mut _ as *mut _;
 
             // Query the token information to check if it is elevated
-            if GetTokenInformation(token, TokenElevation, Some(elevation_ptr), std::mem::size_of::<TOKEN_ELEVATION>() as u32, &mut size).is_ok() {
+            if GetTokenInformation(
+                token,
+                TokenElevation,
+                Some(elevation_ptr),
+                std::mem::size_of::<TOKEN_ELEVATION>() as u32,
+                &mut size,
+            )
+            .is_ok()
+            {
                 // Return whether the token is elevated
                 let _ = CloseHandle(token);
                 return elevation.TokenIsElevated != 0;
@@ -275,17 +283,23 @@ pub fn run_process_as_admin<P1: AsRef<Path>, P2: AsRef<Path>>(
         lpVerb: verb.as_pcwstr(),
         lpFile: exe.as_pcwstr(),
         lpParameters: params,
-        lpDirectory: work_dir.as_ref().map(|d| d.as_pcwstr()).unwrap_or(PCWSTR::default()),
+        lpDirectory: work_dir.as_ref().map(|d| d.as_pcwstr()).unwrap_or_default(),
         nShow: n_show,
         ..Default::default()
     };
 
     unsafe {
-        info!("About to launch [AS ADMIN]: '{:?}' in dir '{:?}' with arguments: {:?}", exe, work_dir, args);
+        info!(
+            "About to launch [AS ADMIN]: '{:?}' in dir '{:?}' with arguments: {:?}",
+            exe, work_dir, args
+        );
         ShellExecuteExW(&mut exe_info as *mut SHELLEXECUTEINFOW)?;
         let process_id = GetProcessId(exe_info.hProcess);
         let _ = AllowSetForegroundWindow(process_id);
-        Ok(SafeProcessHandle { handle: exe_info.hProcess, pid: process_id })
+        Ok(SafeProcessHandle {
+            handle: exe_info.hProcess,
+            pid: process_id,
+        })
     }
 }
 
@@ -297,7 +311,7 @@ pub fn start_process<P1: AsRef<Path>, P2: AsRef<Path>>(
 ) -> IoResult<SafeProcessHandle> {
     let exe = string_to_wide(exe_path.as_ref());
     let wrapped_args: Vec<Arg> = args.iter().map(|a| Arg::Regular(a.into())).collect();
-    let params = if args.len() > 0 {
+    let params = if !args.is_empty() {
         PCWSTR(make_command_line(Some(exe.as_os_str()), &wrapped_args, false)?.as_ptr())
     } else {
         PCWSTR::null()
@@ -316,7 +330,7 @@ pub fn start_process<P1: AsRef<Path>, P2: AsRef<Path>>(
         //lpVerb: PCWSTR::null(),
         lpFile: exe.as_pcwstr(),
         lpParameters: params,
-        lpDirectory: work_dir.as_ref().map(|d| d.as_pcwstr()).unwrap_or(PCWSTR::default()),
+        lpDirectory: work_dir.as_ref().map(|d| d.as_pcwstr()).unwrap_or_default(),
         nShow: n_show,
         ..Default::default()
     };
@@ -328,7 +342,10 @@ pub fn start_process<P1: AsRef<Path>, P2: AsRef<Path>>(
         if show_window {
             let _ = AllowSetForegroundWindow(process_id);
         }
-        Ok(SafeProcessHandle { handle: exe_info.hProcess, pid: process_id })
+        Ok(SafeProcessHandle {
+            handle: exe_info.hProcess,
+            pid: process_id,
+        })
     }
 }
 
@@ -376,7 +393,7 @@ pub fn run_process<P1: AsRef<Path>, P2: AsRef<Path>>(
 
     // Keep environment block alive for the duration of the CreateProcessW call
     let env_ptr = envp.as_ref().map(|e| e.as_cvoid());
-    let dir_ptr = dirp.as_ref().map(|d| d.as_pcwstr()).unwrap_or(PCWSTR::default());
+    let dir_ptr = dirp.as_ref().map(|d| d.as_pcwstr()).unwrap_or_default();
 
     unsafe {
         info!("About to launch: '{:?}' in dir '{:?}' with arguments: {:?}", exe_path, dirp, params);
@@ -388,17 +405,20 @@ pub fn run_process<P1: AsRef<Path>, P2: AsRef<Path>>(
         let _ = CloseHandle(pi.hThread);
     }
 
-    Ok(SafeProcessHandle { handle: pi.hProcess, pid: pi.dwProcessId })
+    Ok(SafeProcessHandle {
+        handle: pi.hProcess,
+        pid: pi.dwProcessId,
+    })
 }
 
 fn duration_to_ms(dur: Duration) -> u32 {
     let ms = dur
         .as_secs()
         .checked_mul(1000)
-        .and_then(|amt| amt.checked_add((dur.subsec_nanos() / 1_000_000) as u64))
+        .and_then(|amt| amt.checked_add(dur.subsec_millis() as u64))
         .expect("failed to convert duration to milliseconds");
-    if ms > (u32::max_value() as u64) {
-        u32::max_value()
+    if ms > (u32::MAX as u64) {
+        u32::MAX
     } else {
         ms as u32
     }
@@ -417,7 +437,7 @@ pub fn kill_process<T: AsRef<HANDLE>>(process: T) -> IoResult<()> {
 
 pub fn open_process(dwdesiredaccess: PROCESS_ACCESS_RIGHTS, binherithandle: bool, dwprocessid: u32) -> windows::core::Result<SafeProcessHandle> {
     let handle = unsafe { OpenProcess(dwdesiredaccess, binherithandle, dwprocessid)? };
-    return Ok(SafeProcessHandle { handle, pid: dwprocessid });
+    Ok(SafeProcessHandle { handle, pid: dwprocessid })
 }
 
 pub fn kill_pid(pid: u32) -> IoResult<()> {
@@ -497,7 +517,7 @@ pub fn wait_for_parent_to_exit(dur: Option<Duration>) -> IoResult<WaitResult> {
     let info_size = std::mem::size_of::<PROCESS_BASIC_INFORMATION>() as u32;
     let hres = unsafe { NtQueryInformationProcess(my_handle, basic_info, info_ptr, info_size, return_length_ptr) };
     if hres.is_err() {
-        return Err(IoError::new(IoErrorKind::Other, format!("NtQueryInformationProcess failed: {:?}", hres)));
+        return Err(IoError::other(format!("NtQueryInformationProcess failed: {:?}", hres)));
     }
 
     if info.InheritedFromUniqueProcessId <= 1 {
@@ -997,7 +1017,10 @@ mod tests {
     #[test]
     fn test_kill_process_invalid_handle() {
         // Create a SafeProcessHandle with an invalid handle
-        let invalid = SafeProcessHandle { handle: HANDLE::default(), pid: 0 };
+        let invalid = SafeProcessHandle {
+            handle: HANDLE::default(),
+            pid: 0,
+        };
         // Invalid handle should return Ok (early return)
         let result = kill_process(&invalid);
         assert!(result.is_ok());
@@ -1006,12 +1029,7 @@ mod tests {
     // ===== run_process tests =====
 
     /// Helper: write a batch file, run it via run_process, wait for completion, return output file contents.
-    fn run_bat(
-        script: &str,
-        out_file: &Path,
-        work_dir: Option<&Path>,
-        set_env: Option<HashMap<String, String>>,
-    ) -> (WaitResult, String) {
+    fn run_bat(script: &str, out_file: &Path, work_dir: Option<&Path>, set_env: Option<HashMap<String, String>>) -> (WaitResult, String) {
         let bat_dir = tempfile::tempdir().unwrap();
         let bat_path = bat_dir.path().join("test.cmd");
         std::fs::write(&bat_path, script).unwrap();
@@ -1074,13 +1092,7 @@ mod tests {
 
     #[test]
     fn test_run_process_nonexistent_exe() {
-        let result = run_process(
-            "this_exe_definitely_does_not_exist_12345.exe",
-            vec![],
-            None::<PathBuf>,
-            false,
-            None,
-        );
+        let result = run_process("this_exe_definitely_does_not_exist_12345.exe", vec![], None::<PathBuf>, false, None);
         assert!(result.is_err());
     }
 
@@ -1256,7 +1268,12 @@ mod tests {
     fn test_wait_for_process_to_exit_timeout_expires() {
         let handle = run_process(
             "cmd.exe",
-            vec![OsString::from("/C"), OsString::from("ping"), OsString::from("127.0.0.1"), OsString::from("-t")],
+            vec![
+                OsString::from("/C"),
+                OsString::from("ping"),
+                OsString::from("127.0.0.1"),
+                OsString::from("-t"),
+            ],
             None::<PathBuf>,
             false,
             None,
@@ -1276,7 +1293,10 @@ mod tests {
     #[test]
     fn test_wait_for_process_to_exit_invalid_handle() {
         // Create a SafeProcessHandle with an invalid handle
-        let invalid = SafeProcessHandle { handle: HANDLE::default(), pid: 0 };
+        let invalid = SafeProcessHandle {
+            handle: HANDLE::default(),
+            pid: 0,
+        };
         let result = wait_for_process_to_exit(&invalid, Some(Duration::from_secs(1))).unwrap();
         match result {
             WaitResult::NoWaitRequired => {} // expected for invalid handle
@@ -1337,7 +1357,7 @@ mod tests {
         // so this should timeout
         let result = wait_for_parent_to_exit(Some(Duration::from_millis(100))).unwrap();
         match result {
-            WaitResult::WaitTimeout => {} // expected - parent is still running
+            WaitResult::WaitTimeout => {}    // expected - parent is still running
             WaitResult::NoWaitRequired => {} // also valid if parent PID <= 1
             other => panic!("Expected WaitTimeout or NoWaitRequired, got {:?}", other),
         }
@@ -1349,7 +1369,12 @@ mod tests {
     fn test_run_and_kill_process() {
         let handle = run_process(
             "cmd.exe",
-            vec![OsString::from("/C"), OsString::from("ping"), OsString::from("127.0.0.1"), OsString::from("-t")],
+            vec![
+                OsString::from("/C"),
+                OsString::from("ping"),
+                OsString::from("127.0.0.1"),
+                OsString::from("-t"),
+            ],
             None::<PathBuf>,
             false,
             None,
@@ -1404,7 +1429,8 @@ mod tests {
         let cwd_file = temp_dir.path().join("cwd_check.txt");
         let script = format!(
             "@echo off\necho %VP_COMBO_VAR% > \"{}\"\ncd > \"{}\"\n",
-            env_file.display(), cwd_file.display()
+            env_file.display(),
+            cwd_file.display()
         );
 
         let mut env = HashMap::new();
@@ -1442,4 +1468,3 @@ mod tests {
         // If we get here without panicking, the Drop impl works correctly
     }
 }
-
