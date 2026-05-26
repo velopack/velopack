@@ -39,6 +39,9 @@ jobs:
     permissions:
       actions: write
     steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
       - name: Invoke Release Workflow
         run: gh workflow run release.yml -f workflow_run_id=${{ github.run_id }}
         env:
