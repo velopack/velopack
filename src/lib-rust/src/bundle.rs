@@ -242,7 +242,7 @@ impl BundleZip<'_> {
     fn create_symlink(link_path: &PathBuf, target_path: &PathBuf) -> Result<(), Error> {
         #[cfg(target_os = "windows")]
         {
-            let absolute_path = link_path.parent().unwrap().join(&target_path);
+            let absolute_path = link_path.parent().unwrap().join(target_path);
             trace!(
                 "Creating symlink '{:?}' -> '{:?}', target isfile={}, isdir={}, relative={:?}",
                 link_path,
@@ -348,9 +348,7 @@ impl BundleZip<'_> {
 
             // on windows, the zip paths are / and should be \ instead
             #[cfg(target_os = "windows")]
-            let file_path_on_disk = file_path_on_disk.normalize_virtually()?;
-            #[cfg(target_os = "windows")]
-            let file_path_on_disk = file_path_on_disk.as_path();
+            let file_path_on_disk = file_path_on_disk.normalize_virtually()?.into_path_buf();
 
             debug!("    {} Extracting '{}' to '{:?}'", i, key, file_path_on_disk);
             self.extract_zip_idx_to_path(i, &file_path_on_disk)?;

@@ -1,10 +1,10 @@
-use crate::{dialogs, shared};
+use crate::dialogs;
 use anyhow::{bail, Result};
 use std::os::unix::fs::PermissionsExt;
 use std::{fs, path::PathBuf, process::Command};
 use velopack::{bundle, locator::VelopackLocator};
 
-pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _hook_mode: super::HookRunMode) -> Result<VelopackLocator> {
+pub fn apply_package_impl(locator: &VelopackLocator, pkg: &PathBuf, _hook_mode: super::HookRunMode) -> Result<VelopackLocator> {
     let _mutex = locator.try_get_exclusive_lock()?;
     // on linux, the current "dir" is actually an AppImage file which we need to replace.
     info!("Loading bundle from {:?}", pkg);
@@ -70,11 +70,12 @@ pub fn apply_package_impl<'a>(locator: &VelopackLocator, pkg: &PathBuf, _hook_mo
         let elev_output = Command::new("pkexec").args(args).output()?;
         if elev_output.status.success() {
             info!("AppImage moved (elevated) to {}", &root_path);
-            return Ok(());
+            Ok(())
         } else {
             bail!("pkexec failed with status: {:?}", elev_output);
         }
     })();
+
     reporter.close();
     let _ = fs::remove_file(&script_path);
     let _ = fs::remove_file(&temp_path);

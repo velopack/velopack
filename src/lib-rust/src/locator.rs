@@ -157,7 +157,7 @@ impl VelopackLocator {
             if is_writable {
                 paths.PackagesDir = root.join("packages");
                 info!("Using root packages directory: {}", paths.PackagesDir.display());
-            } else if let Some(app_data) = get_local_app_data().ok() {
+            } else if let Ok(app_data) = get_local_app_data() {
                 let fallback_base = app_data.join(&manifest.id);
                 paths.PackagesDir = fallback_base.join("packages");
                 paths.UpdateExePath = fallback_base.join("Update.exe");
@@ -417,7 +417,7 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
             if let Some(parent_dir) = exe_path.parent() {
                 if parent_dir.join("Update.exe").exists() {
                     info!("Found Update.exe in parent directory: {}", parent_dir.to_string_lossy());
-                    let config = create_config_from_root_dir(&parent_dir);
+                    let config = create_config_from_root_dir(parent_dir);
                     let locator = VelopackLocator::new(&config)?;
                     return Ok(locator);
                 }
@@ -443,7 +443,7 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
         LocationContext::IAmUpdateExe => {
             let exe_path = std::env::current_exe()?;
             if let Some(parent_dir) = exe_path.parent() {
-                let config = create_config_from_root_dir(&parent_dir);
+                let config = create_config_from_root_dir(parent_dir);
                 let locator = VelopackLocator::new(&config)?;
                 return Ok(locator);
             }

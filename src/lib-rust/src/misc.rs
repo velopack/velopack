@@ -76,6 +76,7 @@ pub fn is_directory_writable<P1: AsRef<Path>>(path: P1) -> bool {
     let path = path.join(".velopack_dir_test");
     let result = std::fs::File::options()
         .create(true)
+        .truncate(true)
         .write(true)
         .custom_flags(0x04000000) // FILE_FLAG_DELETE_ON_CLOSE
         .open(&path);
