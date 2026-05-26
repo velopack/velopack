@@ -1,5 +1,6 @@
 ﻿using Velopack.Core;
 using Velopack.Packaging.Commands;
+using Velopack.Packaging.Compression;
 using Velopack.Util;
 
 namespace Velopack.Packaging.Tests;
@@ -94,6 +95,66 @@ public class ApplyDeltaPackageTests(ITestOutputHelper output)
         // var result = new ZipPackage(outFile);
         // result.Id.ShouldEqual("Clowd");
         // result.Version.ShouldEqual(SemanticVersion.Parse("3.4.292"));
+    }
+
+    [Fact]
+    public async Task AppliesDeltaForChangedFileWithSpacesInName()
+    {
+        using var _1 = TempUtil.GetTempDirectory(out var temp);
+        using var logger = output.BuildLoggerFor<ApplyDeltaPackageTests>();
+
+        var basePackage = Path.Combine(temp, "SpaceFileTest-1.0.0-full.nupkg");
+        var newPackage = Path.Combine(temp, "SpaceFileTest-2.0.0-full.nupkg");
+        var deltaPackage = Path.Combine(temp, "SpaceFileTest-2.0.0-delta.nupkg");
+        var outputPackage = Path.Combine(temp, "SpaceFileTest-2.0.0-patched.nupkg");
+
+        await CreateTestPackage(logger, basePackage, "SpaceFileTest", "1.0.0", "version one");
+        await CreateTestPackage(logger, newPackage, "SpaceFileTest", "2.0.0", "version two");
+
+        var deltaBuilder = new DeltaPackageBuilder(logger);
+        deltaBuilder.CreateDeltaPackage(
+            new ReleasePackage(basePackage),
+            new ReleasePackage(newPackage),
+            deltaPackage,
+            DeltaMode.BestSpeed,
+            _ => { });
+
+        var runner = new DeltaPatchCommandRunner(logger, new LoggerConsole(logger));
+        await runner.Run(
+            new DeltaPatchOptions {
+                BasePackage = basePackage,
+                OutputFile = outputPackage,
+                PatchFiles = [new FileInfo(deltaPackage)],
+            });
+
+        Assert.True(DeltaPackageBuilder.AreFilesEqualFast(outputPackage, newPackage));
+    }
+
+    private static async Task CreateTestPackage(ILogger logger, string packagePath, string id, string version, string fileContent)
+    {
+        using var _1 = TempUtil.GetTempDirectory(out var packageRoot);
+        var libDir = Path.Combine(packageRoot, "lib", "app");
+        Directory.CreateDirectory(libDir);
+
+        await File.WriteAllTextAsync(
+            Path.Combine(libDir, "File With Spaces.txt"),
+            fileContent);
+
+        await File.WriteAllTextAsync(
+            Path.Combine(packageRoot, $"{id}.nuspec"),
+            $"""
+            <?xml version="1.0" encoding="utf-8"?>
+            <package>
+              <metadata>
+                <id>{id}</id>
+                <version>{version}</version>
+                <authors>Velopack</authors>
+                <description>Delta regression test package.</description>
+              </metadata>
+            </package>
+            """);
+
+        await EasyZip.CreateZipFromDirectoryAsync(logger.ToVelopackLogger(), packagePath, packageRoot);
     }
 
     // [Fact(Skip = "Rewrite this test, the original uses too many heavyweight fixtures")]

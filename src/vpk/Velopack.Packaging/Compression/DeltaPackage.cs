@@ -173,8 +173,8 @@ namespace Velopack.Packaging.Compression
         void verifyPatchedFile(string relativeFilePath, string inputFile, string tempTargetFile)
         {
             var shaFile = DIFF_SUFFIX.Replace(inputFile, ".shasum");
+            var expectedReleaseEntry = ParseShasumEntry(File.ReadAllText(shaFile, Encoding.UTF8));
 #pragma warning disable CS0618 // Type or member is obsolete
-            var expectedReleaseEntry = ReleaseEntry.ParseReleaseEntry(File.ReadAllText(shaFile, Encoding.UTF8));
             var actualReleaseEntry = ReleaseEntry.GenerateFromFile(tempTargetFile);
 #pragma warning restore CS0618 // Type or member is obsolete
 
@@ -187,6 +187,33 @@ namespace Velopack.Packaging.Compression
                 Log.Error($"Patched file {relativeFilePath} has incorrect SHA1, expected {expectedReleaseEntry.SHA1}, got {actualReleaseEntry.SHA1}");
                 throw new ChecksumFailedException(relativeFilePath);
             }
+        }
+
+        static (string SHA1, long Filesize) ParseShasumEntry(string entry)
+        {
+            entry = CoreUtil.RemoveByteOrderMarkerIfPresent(entry).Trim();
+
+            var firstSeparator = entry.IndexOfAny([' ', '\t']);
+            var lastSeparator = entry.LastIndexOfAny([' ', '\t']);
+
+            if (firstSeparator <= 0 ||
+                lastSeparator <= firstSeparator ||
+                lastSeparator == entry.Length - 1) {
+                throw new InvalidDataException("Invalid shasum entry: " + entry);
+            }
+
+            var sha1 = entry[..firstSeparator];
+            var filename = entry[(firstSeparator + 1)..lastSeparator].Trim();
+            var filesizeText = entry[(lastSeparator + 1)..];
+
+            if (filename.Length == 0 ||
+                sha1.Length != 40 ||
+                sha1.Any(x => !Uri.IsHexDigit(x)) ||
+                !long.TryParse(filesizeText, out var filesize)) {
+                throw new InvalidDataException("Invalid shasum entry: " + entry);
+            }
+
+            return (sha1, filesize);
         }
     }
 }
