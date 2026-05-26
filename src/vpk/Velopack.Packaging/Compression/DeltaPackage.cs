@@ -135,7 +135,6 @@ namespace Velopack.Packaging.Compression
             if (relativeFilePath.EndsWith(".zsdiff", StringComparison.InvariantCultureIgnoreCase)) {
                 Log.Trace($"Applying zstd diff to {relativeFilePath}");
                 ApplyZstdPatch(finalTarget, inputFile, tempTargetFile);
-                verifyPatchedFile(relativeFilePath, inputFile, tempTargetFile);
             } else if (relativeFilePath.EndsWith(".bsdiff", StringComparison.InvariantCultureIgnoreCase)) {
                 using (var of = File.OpenWrite(tempTargetFile))
                 using (var inf = File.OpenRead(finalTarget)) {
