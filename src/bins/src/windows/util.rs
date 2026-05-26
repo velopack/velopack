@@ -115,6 +115,7 @@ pub fn is_directory_writable<P1: AsRef<Path>>(path: P1) -> bool {
     let path = path.join(".velopack_dir_test");
     let result = std::fs::File::options()
         .create(true)
+        .truncate(true)
         .write(true)
         .custom_flags(0x04000000) // FILE_FLAG_DELETE_ON_CLOSE
         .open(&path);
@@ -264,11 +265,13 @@ fn is_os_version_or_greater_internal(major: u16, minor: u16, build: u16, service
         mask = VerSetConditionMask(mask, VER_BUILDNUMBER, VER_GREATER_EQUAL);
         mask = VerSetConditionMask(mask, VER_SERVICEPACKMAJOR, VER_GREATER_EQUAL);
 
-        let mut osvi: OSVERSIONINFOEXW = Default::default();
-        osvi.dwMajorVersion = major.into();
-        osvi.dwMinorVersion = minor.into();
-        osvi.dwBuildNumber = build.into();
-        osvi.wServicePackMajor = service_pack.into();
+        let mut osvi = OSVERSIONINFOEXW {
+            dwMajorVersion: major.into(),
+            dwMinorVersion: minor.into(),
+            dwBuildNumber: build.into(),
+            wServicePackMajor: service_pack,
+            ..Default::default()
+        };
 
         VerifyVersionInfoW(&mut osvi, flags, mask).is_ok()
     }

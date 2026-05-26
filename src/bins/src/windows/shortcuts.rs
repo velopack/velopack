@@ -57,8 +57,7 @@ fn get_shortcut_filename(app_id: &str, app_title: &str) -> String {
     } else {
         app_title.to_owned()
     };
-    let shortcut_file_name = name + ".lnk";
-    shortcut_file_name
+    name + ".lnk"
 }
 
 fn get_path_for_shortcut_location(app_id: &str, app_title: &str, app_author: &str, flag: ShortcutLocationFlags) -> Result<PathBuf> {
@@ -126,7 +125,7 @@ unsafe fn unsafe_update_app_manifest_lnks(next_app: &VelopackLocator, previous_a
         let target_option = lnk.get_target_path().ok();
 
         // set the target path to the main exe if it is missing or incorrect
-        if target_option.is_none() || !PathBuf::from(target_option.unwrap()).exists() {
+        if !target_option.as_ref().is_some_and(|p| p.exists()) {
             warn!(
                 "Shortcut {:?} target does not exist, updating to mainExe and setting workdir to current.",
                 lnk.get_link_path()
@@ -199,7 +198,7 @@ unsafe fn unsafe_update_app_manifest_lnks(next_app: &VelopackLocator, previous_a
 
         if flag == ShortcutLocationFlags::START_MENU {
             if let Some(parent) = path.parent() {
-                if let Err(e) = std::fs::create_dir_all(&parent) {
+                if let Err(e) = std::fs::create_dir_all(parent) {
                     error!("Failed to create parent directory for shortcut: {}", e);
                     continue;
                 }
@@ -265,8 +264,8 @@ unsafe fn unsafe_find_best_rename_candidates<P: AsRef<Path>>(
         }
 
         // filter out shortcuts which do not point to our main_exe
-        if is_same_file(&target_path, PathBuf::from(link.get_target_path().unwrap_or_default())).unwrap_or(false) {
-            groups.entry(enum_val.to_owned()).or_insert_with(Vec::new).push(link.clone());
+        if is_same_file(&target_path, link.get_target_path().unwrap_or_default()).unwrap_or(false) {
+            groups.entry(enum_val.to_owned()).or_default().push(link.clone());
         }
     }
 
@@ -377,14 +376,14 @@ unsafe fn unsafe_delete_lnk_file<P: AsRef<Path>>(path: P, remove_parent_if_empty
         warn!("Failed to unpin lnk from start menu: {}", e);
     }
 
-    util::retry_io(|| std::fs::remove_file(&path))?;
+    util::retry_io(|| std::fs::remove_file(path))?;
 
     // if the parent directory is empty, remove it as well
     if remove_parent_if_empty {
         if let Some(parent_path) = path.parent() {
             if let Ok(entries) = parent_path.read_dir() {
                 if entries.count() == 0 {
-                    util::retry_io(|| std::fs::remove_dir(&parent_path))?;
+                    util::retry_io(|| std::fs::remove_dir(parent_path))?;
                 }
             }
         }

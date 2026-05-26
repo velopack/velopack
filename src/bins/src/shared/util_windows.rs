@@ -24,12 +24,12 @@ fn get_pids() -> Result<Vec<u32>> {
 
     unsafe {
         pids.set_len(101920);
-        let _ = EnumProcesses(pids.as_mut_ptr(), (dword_size * pids.len()) as u32, &mut cb_needed)?;
+        EnumProcesses(pids.as_mut_ptr(), (dword_size * pids.len()) as u32, &mut cb_needed)?;
         let pids_len = cb_needed / dword_size as u32;
         pids.set_len(pids_len as usize);
     }
 
-    Ok(pids.iter().map(|x| *x as u32).collect())
+    Ok(pids.to_vec())
 }
 
 unsafe fn get_processes_running_in_directory<P: AsRef<Path>>(dir: P) -> Result<Vec<(u32, PathBuf, process::SafeProcessHandle)>> {

@@ -144,7 +144,7 @@ fn main_inner() -> Result<()> {
         let file = File::open(env::current_exe()?)?;
         let mmap = unsafe { Mmap::map(&file)? };
         let zip_range: &[u8] = &mmap[offset as usize..(offset + length) as usize];
-        let mut bundle = velopack::bundle::load_bundle_from_memory(&zip_range)?;
+        let mut bundle = velopack::bundle::load_bundle_from_memory(zip_range)?;
         commands::install(&mut bundle, install_to, exe_args)?;
         return Ok(());
     }

@@ -196,7 +196,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
         // from this point on, we're past the point of no return and should not bail
         // sixth, we write the uninstall entry
         if !old_locator.get_is_portable() {
-            if let Err(e) = crate::windows::registry::update_uninstall_entry(&old_locator, &new_locator) {
+            if let Err(e) = crate::windows::registry::update_uninstall_entry(old_locator, &new_locator) {
                 warn!("Failed to update uninstall entry ({}).", e);
             }
         } else {
@@ -228,14 +228,14 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
         let default_update_exe = &root_path.join("Update.exe");
         let current_update_exe = std::env::current_exe()?;
 
-        if (current_update_exe.exists()) == false {
+        if !current_update_exe.exists() {
             warn!("Current Update.exe path does not exist, skipping default path sync (this shouldn't happen)");
             return Ok(());
         }
 
         match (
             default_update_exe.exists(),
-            same_file::is_same_file(&default_update_exe, &current_update_exe),
+            same_file::is_same_file(default_update_exe, &current_update_exe),
         ) {
             (true, Ok(true)) => {
                 info!("Update.exe is already in the correct location: {:?}", &current_update_exe);
@@ -245,7 +245,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
                     "Running from non-default location. Attempting to update default Update.exe at: {:?}",
                     default_update_exe
                 );
-                match std::fs::copy(&current_update_exe, &default_update_exe) {
+                match std::fs::copy(&current_update_exe, default_update_exe) {
                     Ok(_) => info!("Successfully updated default Update.exe"),
                     Err(e) => warn!("Failed to update default Update.exe: {} (non-fatal)", e),
                 }

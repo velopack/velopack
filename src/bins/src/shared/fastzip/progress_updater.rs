@@ -25,10 +25,9 @@ impl<F: Fn(u64)> ProgressUpdater<F> {
     pub fn new(callback: F, external_total: u64, internal_total: u64, per_update_internal: u64) -> Self {
         let per_update_internal = min(internal_total, per_update_internal);
         let total_updates_expected = internal_total.checked_div(per_update_internal).unwrap_or(0);
-        let (update_external_amount, remainder_external) = if total_updates_expected == 0 {
-            (0, external_total)
-        } else {
-            (external_total / total_updates_expected, external_total % total_updates_expected)
+        let (update_external_amount, remainder_external) = match external_total.checked_div(total_updates_expected) {
+            Some(amount) => (amount, external_total % total_updates_expected),
+            None => (0, external_total),
         };
         Self {
             callback,

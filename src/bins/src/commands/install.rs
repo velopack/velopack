@@ -32,8 +32,8 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     }
 
     info!("Determining install directory...");
-    let (root_path, root_is_default) = if install_to.is_some() {
-        (install_to.unwrap().clone(), false)
+    let (root_path, _root_is_default) = if let Some(path) = install_to {
+        (path.clone(), false)
     } else {
         let appdata = windows::known_path::get_local_app_data()?;
         (Path::new(&appdata).join(&app.id), true)
@@ -194,20 +194,20 @@ fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &std::sync::
 
     if locator.get_manifest_shortcut_locations() != ShortcutLocationFlags::NONE {
         info!("Creating shortcuts...");
-        windows::create_or_update_manifest_lnks(&locator, None);
+        windows::create_or_update_manifest_lnks(locator, None);
     }
 
     info!("Starting process install hook");
-    if !windows::run_hook(&locator, constants::HOOK_CLI_INSTALL, 30) {
+    if !windows::run_hook(locator, constants::HOOK_CLI_INSTALL, 30) {
         dialogs::show_install_hook_warning(&locator.get_manifest_title());
     }
 
     let _ = tx.send(100);
-    windows::registry::write_uninstall_entry(&locator)?;
+    windows::registry::write_uninstall_entry(locator)?;
 
     if !dialogs::get_silent() {
         info!("Starting app...");
-        shared::start_package(&locator, start_args, Some(constants::HOOK_ENV_FIRSTRUN))?;
+        shared::start_package(locator, start_args, Some(constants::HOOK_ENV_FIRSTRUN))?;
     }
 
     Ok(())
