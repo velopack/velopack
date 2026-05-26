@@ -496,6 +496,17 @@ public class ReleaseEntryTests
     //            Assert.Equal("MyApp-1.3-win.nupkg", e.OriginalFilename);
     //        }
 
+    [Theory]
+    [InlineData(@"94689fede03fed7ab59c24337673a27837f0c3ec  File With Spaces.txt.shasum  1004502", "File With Spaces.txt.shasum", 1004502)]
+    [InlineData(@"94689fede03fed7ab59c24337673a27837f0c3ec  My App Data.shasum  500", "My App Data.shasum", 500)]
+    [InlineData(@"94689fede03fed7ab59c24337673a27837f0c3ec  nospaceshere.shasum  999", "nospaceshere.shasum", 999)]
+    public void ParseReleaseEntryWithSpacesInFilename(string releaseEntry, string expectedFilename, long expectedSize)
+    {
+        var fixture = ReleaseEntry.ParseReleaseEntry(releaseEntry);
+        Assert.Equal(expectedFilename, fixture.OriginalFilename);
+        Assert.Equal(expectedSize, fixture.Filesize);
+    }
+
     static string MockReleaseEntry(string name, float? percentage = null)
     {
         if (percentage.HasValue) {
