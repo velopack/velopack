@@ -188,7 +188,7 @@ jobs:
           name: cross-${{ matrix.os }}
           path: test/artifacts/*
           retention-days: 1
-      ## START PRIMARY RELEASETESTING  
+      ## START PRIMARY RELEASETESTING
       - name: Test Velopack.Tests
         run: >-
           dotnet test --project test/Velopack.Tests/Velopack.Tests.csproj
@@ -213,7 +213,7 @@ jobs:
           --no-build -c Release
           --report-github
           --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Pack.Tests.xml
-      ## START COVERAGE TESTING  
+      ## START COVERAGE TESTING
       - name: Clean Rust Build
         run: cargo clean
       - name: Setup Rust Coverage Instrumentation
@@ -229,7 +229,7 @@ jobs:
         run: >-
           cargo llvm-cov report
           --cobertura --output-path ./test/coverage/coverage.rust-integration.${{ matrix.os }}.xml
-      ## START CROSS-COMPILATION TESTING  
+      ## START CROSS-COMPILATION TESTING
       - name: Clean Rust Build
         run: cargo clean
       - name: Wait for Artifacts
@@ -274,10 +274,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
       - name: Install cargo-deny
         uses: taiki-e/install-action@cargo-deny
-      - name: Check supply chain (cargo-deny)
+      - name: Audit Rust dependencies (cargo-deny)
         run: cargo deny check
+
+      - name: Audit npm dependencies
+        run: cd src/lib-nodejs && npm audit
+
+      - uses: astral-sh/setup-uv@v6
+      - name: Audit Python dependencies
+        run: |
+          pip install pip-audit
+          uv export --frozen --no-hashes --directory src/lib-python > /tmp/python-requirements.txt
+          pip-audit -r /tmp/python-requirements.txt
 
   clippy:
     strategy:
