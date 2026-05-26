@@ -12,9 +12,7 @@ const DRIVE_RAMDISK: u32 = 6;
 pub fn validate_path(h_install: MSIHANDLE) -> c_uint {
     let path = msi_get_property(h_install, "WIXUI_INSTALLDIR").unwrap_or_default();
 
-    let valid = if path.is_empty() {
-        false
-    } else if path.starts_with("\\\\") {
+    let valid = if path.is_empty() || path.starts_with("\\\\") {
         false
     } else {
         !is_invalid_drive(&path)
