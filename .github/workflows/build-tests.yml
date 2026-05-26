@@ -287,7 +287,7 @@ jobs:
       - name: Audit Python dependencies
         run: |
           pip install pip-audit
-          uv export --frozen --no-hashes --directory src/lib-python > /tmp/python-requirements.txt
+          uv export --frozen --no-hashes --no-emit-project --directory src/lib-python > /tmp/python-requirements.txt
           pip-audit -r /tmp/python-requirements.txt
 
   clippy:
