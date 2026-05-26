@@ -13,7 +13,7 @@ btn-downgrade = 降級
 btn-repair = 修復
 btn-open-log = 開啟記錄檔
 btn-open-install-dir = 開啟安裝目錄
-
+btn-ok = 確定
 # Elevation (dialogs_common.rs)
 elevate-header = 需要系統管理員權限
 elevate-body = 安裝 { $app_title } 版本 { $app_version } 需要系統管理員權限。是否允許繼續此更新?

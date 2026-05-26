@@ -13,7 +13,7 @@ btn-downgrade = Υποβάθμιση
 btn-repair = Επιδιόρθωση
 btn-open-log = Άνοιγμα αρχείου καταγραφής
 btn-open-install-dir = Άνοιγμα φακέλου εγκατάστασης
-
+btn-ok = ΟΚ
 # Elevation (dialogs_common.rs)
 elevate-header = Απαιτείται δικαίωμα διαχειριστή
 elevate-body = Το { $app_title } χρειάζεται δικαίωμα διαχειριστή για την εγκατάσταση της έκδοσης { $app_version }. Να επιτραπεί η συνέχιση αυτής της ενημέρωσης;

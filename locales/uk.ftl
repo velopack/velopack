@@ -13,7 +13,7 @@ btn-downgrade = Понизити версію
 btn-repair = Відновити
 btn-open-log = Відкрити журнал
 btn-open-install-dir = Відкрити папку інсталяції
-
+btn-ok = ОК
 # Elevation (dialogs_common.rs)
 elevate-header = Потрібен дозвіл адміністратора
 elevate-body = Для інсталяції версії { $app_version } програмі { $app_title } потрібен дозвіл адміністратора. Дозволити продовжити це оновлення?

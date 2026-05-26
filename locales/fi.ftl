@@ -13,7 +13,7 @@ btn-downgrade = Alenna versiota
 btn-repair = Korjaa
 btn-open-log = Avaa loki
 btn-open-install-dir = Avaa asennuskansio
-
+btn-ok = OK
 # Elevation (dialogs_common.rs)
 elevate-header = Järjestelmänvalvojan oikeudet vaaditaan
 elevate-body = { $app_title } tarvitsee järjestelmänvalvojan oikeudet versiota { $app_version } asennettaessa. Salli päivityksen jatkua?

@@ -13,7 +13,7 @@ btn-downgrade = Понижи версията
 btn-repair = Поправи
 btn-open-log = Отвори дневника
 btn-open-install-dir = Отвори инсталационната директория
-
+btn-ok = OK
 # Elevation (dialogs_common.rs)
 elevate-header = Изискват се администраторски разрешения
 elevate-body = { $app_title } се нуждае от администраторски разрешения, за да инсталира версия { $app_version }. Разрешавате ли тази актуализация да продължи?

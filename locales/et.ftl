@@ -13,7 +13,7 @@ btn-downgrade = Versiooni alandamine
 btn-repair = Paranda
 btn-open-log = Ava logi
 btn-open-install-dir = Ava installikaust
-
+btn-ok = OK
 # Elevation (dialogs_common.rs)
 elevate-header = Administraatori õigused on vajalikud
 elevate-body = { $app_title } vajab administraatori õigusi, et installida versioon { $app_version }. Kas lubada selle värskenduse jätkamine?

@@ -13,7 +13,7 @@ btn-downgrade = Downgrade
 btn-repair = Repair
 btn-open-log = Open Log
 btn-open-install-dir = Open Install Directory
-
+btn-ok = OK
 # Elevation (dialogs_common.rs)
 elevate-header = Administrator Permission Required
 elevate-body = { $app_title } needs administrator permission to install version { $app_version }. Allow this update to continue?

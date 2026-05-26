@@ -13,7 +13,7 @@ btn-downgrade = Nedgrader
 btn-repair = Reparer
 btn-open-log = Åbn log
 btn-open-install-dir = Åbn installationsmappe
-
+btn-ok = OK
 # Elevation (dialogs_common.rs)
 elevate-header = Administratortilladelse kræves
 elevate-body = { $app_title } har brug for administratortilladelse for at installere version { $app_version }. Tillad denne opdatering at fortsætte?

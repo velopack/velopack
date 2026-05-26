@@ -13,7 +13,7 @@ btn-downgrade = Downgrade
 btn-repair = Reparieren
 btn-open-log = Protokoll öffnen
 btn-open-install-dir = Installationsverzeichnis öffnen
-
+btn-ok = OK
 # Elevation (dialogs_common.rs)
 elevate-header = Administratorberechtigung erforderlich
 elevate-body = { $app_title } benötigt Administratorberechtigungen, um Version { $app_version } zu installieren. Möchten Sie das Update fortsetzen?

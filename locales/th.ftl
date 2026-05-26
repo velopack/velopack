@@ -13,7 +13,7 @@ btn-downgrade = ดาวน์เกรด
 btn-repair = ซ่อมแซม
 btn-open-log = เปิดบันทึก
 btn-open-install-dir = เปิดโฟลเดอร์การติดตั้ง
-
+btn-ok = ตกลง
 # Elevation (dialogs_common.rs)
 elevate-header = ต้องการสิทธิ์ผู้ดูแลระบบ
 elevate-body = { $app_title } จำเป็นต้องมีสิทธิ์ผู้ดูแลระบบเพื่อติดตั้งเวอร์ชัน { $app_version } อนุญาตให้การอัปเดตนี้ดำเนินการต่อหรือไม่?

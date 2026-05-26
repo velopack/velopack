@@ -148,6 +148,9 @@ fn main_inner() -> Result<()> {
 
     let silent = get_flag_or_false(&matches, "silent");
     dialogs::set_silent(silent);
+    if !silent {
+        dialogs::set_dialog_timeout(Some(std::time::Duration::from_secs(300)));
+    }
 
     let root_dir = matches.get_one::<PathBuf>("rootDir");
     let package_dir = matches.get_one::<PathBuf>("packageDir").cloned();

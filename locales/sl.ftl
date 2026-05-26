@@ -13,7 +13,7 @@ btn-downgrade = Znižaj različico
 btn-repair = Popravi
 btn-open-log = Odpri dnevnik
 btn-open-install-dir = Odpri namestitveno mapo
-
+btn-ok = V redu
 # Elevation (dialogs_common.rs)
 elevate-header = Zahtevana so skrbniška dovoljenja
 elevate-body = { $app_title } potrebuje skrbniška dovoljenja za namestitev različice { $app_version }. Ali dovolite, da se ta posodobitev nadaljuje?
