@@ -7,7 +7,7 @@ public class OsxBundleCommand : PackCommand
     public string InfoPlistPath { get; private set; }
 
     public OsxBundleCommand()
-        : this("bundle", "Create's an OSX .app bundle from a folder containing application files.")
+        : this("bundle", "Creates a macOS .app bundle from a folder containing application files.")
     {
         RemoveOption(NoPortableOption);
         RemoveOption(NoInstOption);

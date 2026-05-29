@@ -130,11 +130,9 @@ public class Program
             rootCommand.AddCommand<LinuxPackCommand, LinuxPackCommandRunner, LinuxPackOptions>(provider);
             break;
         case RuntimeOs.OSX:
+            rootCommand.AddCommand<OsxBundleCommand, OsxBundleCommandRunner, OsxBundleOptions>(provider);
             if (VelopackRuntimeInfo.IsOSX) {
-                rootCommand.AddCommand<OsxBundleCommand, OsxBundleCommandRunner, OsxBundleOptions>(provider);
                 rootCommand.AddCommand<OsxPackCommand, OsxPackCommandRunner, OsxPackOptions>(provider);
-            } else {
-                throw new NotSupportedException($"Cross-compiling from {VelopackRuntimeInfo.SystemOs} to MacOS is not supported.");
             }
             break;
         default:
