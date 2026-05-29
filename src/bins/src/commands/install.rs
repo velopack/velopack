@@ -186,6 +186,7 @@ fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &std::sync::
 
     pkg.extract_lib_contents_to_path(&current_path, |p| {
         let _ = tx.send(((p as f32) / 100.0 * 80.0 + 10.0) as i16);
+        true
     })?;
 
     if !main_exe_path.exists() {

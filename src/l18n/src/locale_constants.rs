@@ -100,6 +100,7 @@ define_locale_keys! {
     DEPS_DOWNLOAD_BODY = "deps-download-body",
     APPLY_HEADER = "apply-header",
     APPLY_BODY = "apply-body",
+    PROGRESS_CANCELLING = "progress-cancelling",
     START_CORRUPT_HEADER = "start-corrupt-header",
     START_CORRUPT_BODY = "start-corrupt-body",
     ERROR_HEADER = "error-header",

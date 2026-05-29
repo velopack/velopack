@@ -58,6 +58,12 @@ pub fn apply(
                     if restart {
                         shared::start_package(locator, exe_args, Some(constants::HOOK_ENV_RESTART))?;
                     }
+                    if e.downcast_ref::<velopack::Error>()
+                        .is_some_and(|ve| matches!(ve, velopack::Error::Cancelled))
+                    {
+                        info!("Update cancelled by user.");
+                        return Ok(locator.clone());
+                    }
                     bail!("Error applying package: {}", e);
                 }
             }

@@ -60,6 +60,7 @@ deps-download-body = { $dep_name } をダウンロードしています。しば
 # Apply progress (apply_*_impl.rs)
 apply-header = 更新をインストール中
 apply-body = バージョン { $app_version } に更新しています。しばらくお待ちください...
+progress-cancelling = キャンセル中...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = インストールが破損しています

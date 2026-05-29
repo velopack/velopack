@@ -1,6 +1,8 @@
 use super::runtimes;
 use crate::dialogs;
 use anyhow::Result;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use velopack::download;
 
 pub fn prompt_and_install_all_missing(
@@ -44,21 +46,41 @@ pub fn prompt_and_install_all_missing(
 
         info!("Downloading {} missing pre-requisites...", missing.len());
         let quiet = dialogs::get_silent();
+        let cancelled = Arc::new(AtomicBool::new(false));
 
         for dep in &missing {
+            if cancelled.load(Ordering::SeqCst) {
+                warn!("User cancelled dependency installation.");
+                return Ok(false);
+            }
+
             let url = dep.get_download_url()?;
             let exe_path = downloads.join(dep.get_exe_name());
 
             if !exe_path.exists() {
                 info!("    Downloading {}...", dep.display_name());
 
-                let reporter = dialogs::progress::show_deps_download_progress(dep.display_name(), updating_from.is_some());
+                let reporter =
+                    dialogs::progress::show_deps_download_progress(dep.display_name(), updating_from.is_some(), cancelled.clone());
                 let result = download::download_url_to_file(&url, &exe_path, |p| {
                     reporter.set_progress(p);
+                    !reporter.is_cancelled()
                 });
-
                 reporter.close();
+
+                if let Err(ref e) = result {
+                    if let Some(velopack::Error::Cancelled) = e.downcast_ref::<velopack::Error>() {
+                        warn!("User cancelled dependency download.");
+                        let _ = std::fs::remove_file(&exe_path);
+                        return Ok(false);
+                    }
+                }
                 result?;
+            }
+
+            if cancelled.load(Ordering::SeqCst) {
+                warn!("User cancelled before installing dependency.");
+                return Ok(false);
             }
 
             info!("    Installing {}...", dep.display_name());

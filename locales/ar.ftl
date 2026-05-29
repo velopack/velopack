@@ -60,6 +60,7 @@ deps-download-body = جاري تنزيل { $dep_name }، الرجاء الانت
 # Apply progress (apply_*_impl.rs)
 apply-header = جاري تثبيت التحديث
 apply-body = جاري التحديث إلى الإصدار { $app_version }، الرجاء الانتظار...
+progress-cancelling = جارٍ الإلغاء...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = التثبيت تالف

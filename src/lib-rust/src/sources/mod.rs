@@ -155,6 +155,7 @@ fn download_git_release_entry(
         if let Some(progress_sender) = &progress_sender {
             let _ = progress_sender.send(p);
         }
+        true
     })?;
     Ok(())
 }

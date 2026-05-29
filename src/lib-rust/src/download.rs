@@ -7,7 +7,7 @@ use crate::{misc, Error};
 /// Downloads a file from a URL and writes it to a file while reporting progress from 0-100.
 pub fn download_url_to_file<A, S: AsRef<Path>>(url: &str, file_path: S, progress: A) -> Result<(), Error>
 where
-    A: FnMut(i16),
+    A: FnMut(i16) -> bool,
 {
     download_url_to_file_with_headers(url, file_path, &[], progress)
 }
@@ -15,7 +15,7 @@ where
 /// Downloads a file from a URL with custom headers and writes it to a file while reporting progress from 0-100.
 pub fn download_url_to_file_with_headers<A, S: AsRef<Path>>(url: &str, file_path: S, headers: &[(&str, &str)], mut progress: A) -> Result<(), Error>
 where
-    A: FnMut(i16),
+    A: FnMut(i16) -> bool,
 {
     let file_path = file_path.as_ref();
     let agent = get_download_agent()?;
@@ -25,7 +25,11 @@ where
     }
     let (head, body) = req.call()?.into_parts();
 
-    let total_size = head.headers.get("Content-Length").and_then(|s| s.to_str().ok()).and_then(|s| s.parse::<u64>().ok());
+    let total_size = head
+        .headers
+        .get("Content-Length")
+        .and_then(|s| s.to_str().ok())
+        .and_then(|s| s.parse::<u64>().ok());
     let mut file = misc::retry_io(|| File::create(file_path))?;
 
     const CHUNK_SIZE: usize = 2 * 1024 * 1024; // 2MB
@@ -48,7 +52,9 @@ where
             let new_progress = (downloaded as f64 / total as f64 * 20.0).floor() as i16 * 5;
             if new_progress > last_progress {
                 last_progress = new_progress;
-                progress(last_progress);
+                if !progress(last_progress) {
+                    return Err(Error::Cancelled);
+                }
             }
         }
     }
@@ -102,6 +108,7 @@ fn test_download_file_reports_progress() {
         assert!(p >= last_prog);
         prog_count += 1;
         last_prog = p;
+        true
     })
     .unwrap();
 
@@ -141,7 +148,7 @@ fn test_interrupted_download() {
     });
 
     let tmpfile = tempfile::NamedTempFile::new().unwrap();
-    let result = download_url_to_file(&format!("http://{}", addr), tmpfile.path(), |_| {});
+    let result = download_url_to_file(&format!("http://{}", addr), tmpfile.path(), |_| true);
 
     assert!(result.is_err(), "Download should fail due to connection interruption");
 }
@@ -172,7 +179,7 @@ fn test_successful_download() {
     });
 
     let tmpfile = tempfile::NamedTempFile::new().unwrap();
-    let _ = download_url_to_file(&format!("http://{}", addr), tmpfile.path(), |_| {}).unwrap();
+    let _ = download_url_to_file(&format!("http://{}", addr), tmpfile.path(), |_| true).unwrap();
 
     // Verify that the downloaded file has the expected size
     let metadata = tmpfile.path().metadata().unwrap();

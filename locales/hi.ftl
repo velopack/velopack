@@ -60,6 +60,7 @@ deps-download-body = { $dep_name } डाउनलोड कर रहा है
 # Apply progress (apply_*_impl.rs)
 apply-header = अद्यतन स्थापित कर रहा है
 apply-body = संस्करण { $app_version } में अद्यतन कर रहा है, कृपया प्रतीक्षा करें...
+progress-cancelling = रद्द किया जा रहा है...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = स्थापना क्षतिग्रस्त है

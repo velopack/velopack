@@ -1,11 +1,14 @@
 use crate::types::{MSG_CLOSE, MSG_INDEFINITE};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 
 pub trait ProgressReporter: Send {
     fn set_progress(&self, value: i16);
     fn set_indeterminate(&self);
     fn set_text(&self, text: &str);
     fn close(&self);
+    fn is_cancelled(&self) -> bool;
 }
 
 pub struct ChannelProgressReporter {
@@ -27,22 +30,25 @@ impl ProgressReporter for ChannelProgressReporter {
         let _ = self.tx.send(MSG_INDEFINITE);
     }
 
-    fn set_text(&self, _text: &str) {
-        // Channel-based progress does not support changing text
-    }
+    fn set_text(&self, _text: &str) {}
 
     fn close(&self) {
         let _ = self.tx.send(MSG_CLOSE);
+    }
+
+    fn is_cancelled(&self) -> bool {
+        false
     }
 }
 
 struct XDialogProgressReporter {
     proxy: xdialog::ProgressDialogProxy,
+    cancelled: Arc<AtomicBool>,
 }
 
 impl XDialogProgressReporter {
-    fn new(proxy: xdialog::ProgressDialogProxy) -> Self {
-        Self { proxy }
+    fn new(proxy: xdialog::ProgressDialogProxy, cancelled: Arc<AtomicBool>) -> Self {
+        Self { proxy, cancelled }
     }
 }
 
@@ -62,6 +68,10 @@ impl ProgressReporter for XDialogProgressReporter {
     fn close(&self) {
         let _ = self.proxy.close();
     }
+
+    fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::SeqCst)
+    }
 }
 
 pub struct NoopProgressReporter;
@@ -71,6 +81,9 @@ impl ProgressReporter for NoopProgressReporter {
     fn set_indeterminate(&self) {}
     fn set_text(&self, _text: &str) {}
     fn close(&self) {}
+    fn is_cancelled(&self) -> bool {
+        false
+    }
 }
 
 fn show_progress_dialog(title: &str, header: &str, body: &str) -> Box<dyn ProgressReporter> {
@@ -89,8 +102,38 @@ fn show_progress_dialog(title: &str, header: &str, body: &str) -> Box<dyn Progre
         icon: xdialog::XDialogIcon::Information,
         buttons,
     };
+    let cancelled = Arc::new(AtomicBool::new(false));
     match xdialog::show_progress_ex(options) {
-        Ok(proxy) => Box::new(XDialogProgressReporter::new(proxy)),
+        Ok(proxy) => Box::new(XDialogProgressReporter::new(proxy, cancelled)),
+        Err(e) => {
+            warn!("Failed to show progress dialog: {:?}", e);
+            Box::new(NoopProgressReporter)
+        }
+    }
+}
+
+fn show_cancellable_progress_dialog(title: &str, header: &str, body: &str, cancelled: Arc<AtomicBool>) -> Box<dyn ProgressReporter> {
+    if crate::dialogs::get_silent() {
+        return Box::new(NoopProgressReporter);
+    }
+
+    let flag = cancelled.clone();
+    let cancelling_text = crate::locale_strings::progress_cancelling();
+
+    let options = xdialog::XDialogOptions {
+        title: title.to_string(),
+        main_instruction: header.to_string(),
+        message: body.to_string(),
+        icon: xdialog::XDialogIcon::Information,
+        buttons: vec![crate::locale_strings::btn_cancel()],
+    };
+
+    match xdialog::show_progress_with_callback(options, move |_button_index, proxy| {
+        flag.store(true, Ordering::SeqCst);
+        let _ = proxy.set_text(&cancelling_text);
+        true
+    }) {
+        Ok(proxy) => Box::new(XDialogProgressReporter::new(proxy, cancelled)),
         Err(e) => {
             warn!("Failed to show progress dialog: {:?}", e);
             Box::new(NoopProgressReporter)
@@ -102,7 +145,8 @@ pub fn show_apply_progress(app_name: &str, version: &str) -> Box<dyn ProgressRep
     let title = crate::locale_strings::title_update(app_name);
     let header = crate::locale_strings::apply_header();
     let body = crate::locale_strings::apply_body(version);
-    show_progress_dialog(&title, &header, &body)
+    let cancelled = Arc::new(AtomicBool::new(false));
+    show_cancellable_progress_dialog(&title, &header, &body, cancelled)
 }
 
 pub fn show_splash_progress(app_name: &str, app_version: &str) -> Box<dyn ProgressReporter> {
@@ -112,7 +156,7 @@ pub fn show_splash_progress(app_name: &str, app_version: &str) -> Box<dyn Progre
     show_progress_dialog(&title, &header, &body)
 }
 
-pub fn show_deps_download_progress(dep_name: &str, is_update: bool) -> Box<dyn ProgressReporter> {
+pub fn show_deps_download_progress(dep_name: &str, is_update: bool, cancelled: Arc<AtomicBool>) -> Box<dyn ProgressReporter> {
     let title = if is_update {
         crate::locale_strings::title_update(dep_name)
     } else {
@@ -120,5 +164,5 @@ pub fn show_deps_download_progress(dep_name: &str, is_update: bool) -> Box<dyn P
     };
     let header = crate::locale_strings::deps_download_header();
     let body = crate::locale_strings::deps_download_body(dep_name);
-    show_progress_dialog(&title, &header, &body)
+    show_cancellable_progress_dialog(&title, &header, &body, cancelled)
 }

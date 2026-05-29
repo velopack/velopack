@@ -60,6 +60,7 @@ deps-download-body = Изтегляне на { $dep_name }, моля, изчак
 # Apply progress (apply_*_impl.rs)
 apply-header = Инсталиране на актуализация
 apply-body = Актуализиране до версия { $app_version }, моля, изчакайте...
+progress-cancelling = Отмяна...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Инсталацията е повредена

@@ -140,6 +140,8 @@ pub enum Error {
     NotSupported(String),
     #[error("{0}")]
     Other(String),
+    #[error("Operation was cancelled by the user.")]
+    Cancelled,
     #[cfg(target_os = "windows")]
     #[error("Win32 error: {0}")]
     Win32(#[from] windows::core::Error),

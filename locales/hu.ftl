@@ -60,6 +60,7 @@ deps-download-body = A(z) { $dep_name } letöltése folyamatban, kérjük, várj
 # Apply progress (apply_*_impl.rs)
 apply-header = Frissítés telepítése
 apply-body = Frissítés a(z) { $app_version } verzióra, kérjük, várjon...
+progress-cancelling = Megszakítás...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = A telepítés sérült

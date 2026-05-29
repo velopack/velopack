@@ -221,3 +221,7 @@ pub fn apply_body(version: &str) -> String {
     args.set("app_version", version.to_string());
     format_message(APPLY_BODY, Some(&args))
 }
+
+pub fn progress_cancelling() -> String {
+    format_message(PROGRESS_CANCELLING, None)
+}
