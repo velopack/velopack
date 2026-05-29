@@ -16,7 +16,7 @@ runs:
   steps:
     - name: Setup dotnet
       if: inputs.dotnet == 'true'
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2 # v5
       with:
         dotnet-version: |
           8.0.x
@@ -42,6 +42,6 @@ runs:
       run: ./.github/set-nbgv-version.ps1
     - name: Rust Cache
       if: inputs.rust-cache == 'true'
-      uses: Swatinem/rust-cache@v2
+      uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       with:
         key: "${{ github.workflow }}"

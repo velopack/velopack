@@ -22,7 +22,7 @@ jobs:
       pkg_version: ${{ steps.version.outputs.pkg_version }}
     steps:
       - name: Download build version
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: build-version
           run-id: ${{ github.event.inputs.workflow_run_id }}
@@ -37,7 +37,7 @@ jobs:
           echo "pkg_version=$version" >> $GITHUB_OUTPUT
 
       - name: Download vpk
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: packages
           run-id: ${{ github.event.inputs.workflow_run_id }}
@@ -45,7 +45,7 @@ jobs:
           path: ./packages
 
       - name: Download lib-nodejs
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: lib-nodejs
           run-id: ${{ github.event.inputs.workflow_run_id }}
@@ -53,7 +53,7 @@ jobs:
           path: ./lib-nodejs
 
       - name: Download lib-rust
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: lib-rust
           run-id: ${{ github.event.inputs.workflow_run_id }}
@@ -61,7 +61,7 @@ jobs:
           path: ./lib-rust
 
       - name: Download lib-c
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: lib-c
           run-id: ${{ github.event.inputs.workflow_run_id }}
@@ -75,7 +75,7 @@ jobs:
           zip -r ../lib-c/velopack_libc_$PKG_VERSION.zip .
 
       - name: Download lib-python
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: lib-python
           run-id: ${{ github.event.inputs.workflow_run_id }}
@@ -88,7 +88,7 @@ jobs:
           mkdir -p ../lib-python
           zip -r ../lib-python/velopack_libpython_$PKG_VERSION.zip .
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           path: ./repo
           fetch-depth: 0
@@ -228,7 +228,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download NuGet packages
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: packages
           run-id: ${{ github.event.inputs.workflow_run_id }}
@@ -236,7 +236,7 @@ jobs:
           path: ./packages
 
       - name: NuGet login (OIDC)
-        uses: NuGet/login@v1
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
         id: login
         with:
           user: caesay
@@ -254,14 +254,14 @@ jobs:
       PKG_VERSION: ${{ needs.release.outputs.pkg_version }}
     steps:
       - name: Download NPM package
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: lib-nodejs
           run-id: ${{ github.event.inputs.workflow_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./lib-nodejs
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 24
           registry-url: 'https://registry.npmjs.org'
@@ -277,7 +277,7 @@ jobs:
       PKG_VERSION: ${{ needs.release.outputs.pkg_version }}
     steps:
       - name: Download Rust crate
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: lib-rust
           run-id: ${{ github.event.inputs.workflow_run_id }}
@@ -303,7 +303,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Python package
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: lib-python
           run-id: ${{ github.event.inputs.workflow_run_id }}
@@ -311,7 +311,7 @@ jobs:
           path: ./lib-python-files
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
         with:
           packages-dir: lib-python-files/
           verbose: true

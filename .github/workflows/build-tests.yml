@@ -27,15 +27,15 @@ jobs:
             runner: macos-latest
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
+        uses: taiki-e/install-action@c168eaa84116d2972ae181a91d867f1e849aafbf # cargo-llvm-cov
       - name: Install cargo-nextest
-        uses: taiki-e/install-action@cargo-nextest
+        uses: taiki-e/install-action@df4ce39a97285fff6e261807a1ac1a1f0d2ecff1 # cargo-nextest
       ## RUST TESTS
       - name: Check lib-rust
         run: cargo check --locked -p velopack
@@ -45,13 +45,13 @@ jobs:
           ${{ matrix.rust_flags }}
           --cobertura --output-path ./test/coverage/coverage.rust.${{ matrix.os }}.xml
       - name: Upload Rust Coverage
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6
         with:
           files: ./test/coverage/coverage.rust.${{ matrix.os }}.xml
           flags: rust
       - name: Upload Rust Test Results
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6
         with:
           report_type: test_results
           files: ./test/coverage/junit.*.xml
@@ -74,14 +74,14 @@ jobs:
           cargo llvm-cov report
           --cobertura --output-path ./test/coverage/coverage.rust-nodejs.${{ matrix.os }}.xml
       - name: Upload Node.js Coverage
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6
         with:
           directory: src/lib-nodejs/coverage
           files: ./test/coverage/coverage.rust-nodejs.${{ matrix.os }}.xml
           flags: nodejs
       - name: Upload Node.js Test Results
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6
         with:
           report_type: test_results
           files: ./test/coverage/junit.*.xml
@@ -95,7 +95,7 @@ jobs:
     # runs-on: ${{ matrix.os }}
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
       - name: Setup Job Environment
@@ -131,7 +131,7 @@ jobs:
       VELOPACK_AZ_TEST_TOKEN: ${{ secrets.VELOPACK_AZ_TEST_TOKEN }}
     steps:
       ## JOB SETUP
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
       - name: Setup Job Environment
@@ -139,7 +139,7 @@ jobs:
         with:
           dotnet: true
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
+        uses: taiki-e/install-action@c168eaa84116d2972ae181a91d867f1e849aafbf # cargo-llvm-cov
       - name: Install FUSE
         run: |
           sudo add-apt-repository universe
@@ -152,7 +152,7 @@ jobs:
       - name: Install dotnet-coverage
         run: dotnet tool install -g dotnet-coverage
       - name: Azure login
-        uses: azure/login@v3
+        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3
         if: github.event.pull_request.head.repo.full_name == github.repository
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -170,7 +170,7 @@ jobs:
           verbose: true
       ## BUILD AND UPLOAD CROSS COMPILE ARTIFACTS
       - name: Download Rust Artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: target/release
           pattern: rust-*
@@ -183,7 +183,7 @@ jobs:
           --report-github
           --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.CrossCompile.Pack.xml
       - name: Upload Cross-Compile Artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: cross-${{ matrix.os }}
           path: test/artifacts/*
@@ -242,7 +242,7 @@ jobs:
           verbose: true
       - name: Download Cross Artifacts
         if: ${{ matrix.os == 'ubuntu' || matrix.os == 'windows' }}
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: test/artifacts
           pattern: cross-*
@@ -258,13 +258,13 @@ jobs:
           --report-github
           --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.CrossCompile.Run.xml
       - name: Upload Coverage
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6
         with:
           directory: ./test/coverage
           flags: vpk
       - name: Upload Test Results
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6
         with:
           report_type: test_results
           files: ./test/coverage/junit.*.xml
@@ -273,17 +273,17 @@ jobs:
   supply-chain:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Install cargo-deny
-        uses: taiki-e/install-action@cargo-deny
+        uses: taiki-e/install-action@2ac6eb9188af492be09d9c8b37596649a8f473ed # cargo-deny
       - name: Audit Rust dependencies (cargo-deny)
         run: cargo deny check
 
       - name: Audit npm dependencies
         run: cd src/lib-nodejs && npm audit
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
       - name: Audit Python dependencies
         run: |
           pip install pip-audit
@@ -305,6 +305,6 @@ jobs:
             runner: macos-latest
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Clippy
         run: cargo clippy ${{ matrix.rust_flags }} -- -D warnings

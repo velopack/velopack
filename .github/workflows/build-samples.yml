@@ -41,7 +41,7 @@ jobs:
             sample: CSharpWpf
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
       - name: Install wxWidgets (Windows)
@@ -85,7 +85,7 @@ jobs:
           uv venv --system-site-packages
         if: ${{ matrix.sample == 'PythonWXPython' && matrix.os == 'ubuntu' }}
       - name: Setup dotnet
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2 # v5
         with:
           dotnet-version: |
             8.0.x

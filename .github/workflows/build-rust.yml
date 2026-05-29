@@ -11,7 +11,7 @@ jobs:
     env:
       RUSTFLAGS: -C target-feature=+crt-static
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
       - name: Setup Job Environment
@@ -55,7 +55,7 @@ jobs:
           copy target\x86_64-win7-windows-msvc\release\testapp.exe artifacts\testapp_x64.exe
           copy target\x86_64-win7-windows-msvc\release\testapp.pdb artifacts\testapp_x64.pdb
       - name: Upload Rust Build Artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: rust-windows
           path: artifacts\*
@@ -69,7 +69,7 @@ jobs:
     env:
       RUSTFLAGS: -C target-feature=+crt-static
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
       - name: Setup Job Environment
@@ -97,7 +97,7 @@ jobs:
           copy target\aarch64-pc-windows-msvc\release\testapp.exe artifacts\testapp_arm64.exe
           copy target\aarch64-pc-windows-msvc\release\testapp.pdb artifacts\testapp_arm64.pdb
       - name: Upload Rust Build Artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: rust-windows-arm64
           path: artifacts\*
@@ -118,7 +118,7 @@ jobs:
             rust_target: aarch64-unknown-linux-musl
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
       - name: Setup Job Environment
@@ -136,7 +136,7 @@ jobs:
           ldd ./target/${{ matrix.rust_target }}/release/update || true
           cp ./target/${{ matrix.rust_target }}/release/update ./artifacts/UpdateNix_${{ matrix.target }}
       - name: Upload Rust Build Artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: rust-ubuntu-bins-${{ matrix.target }}
           path: |
@@ -158,7 +158,7 @@ jobs:
             rust_target: aarch64-unknown-linux-gnu
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
       - name: Setup Job Environment
@@ -179,7 +179,7 @@ jobs:
           cp ./target/${{ matrix.rust_target }}/release/libvelopack_libc.so ./artifacts/velopack_libc_linux_${{ matrix.target }}_gnu.so
           cp ./target/${{ matrix.rust_target }}/release/libvelopack_libc.a ./artifacts/velopack_libc_linux_${{ matrix.target }}_gnu.a
       - name: Upload Rust Build Artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: rust-ubuntu-libs-${{ matrix.target }}
           path: |
@@ -194,7 +194,7 @@ jobs:
   macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
       - name: Setup Job Environment
@@ -224,37 +224,37 @@ jobs:
           cp ./target/x86_64-apple-darwin/release/libvelopack_libc.a ./artifacts/velopack_libc_osx_x64_gnu.a
           cp ./target/aarch64-apple-darwin/release/libvelopack_libc.a ./artifacts/velopack_libc_osx_arm64_gnu.a
       - name: Upload Rust Build Artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: rust-macos
           path: artifacts/*
           retention-days: 1
       ## PYTHON WHEELS (merged here due to macos concurrency limits in github actions)
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: 3.x
       - name: Build Python wheels (aarch64)
-        uses: PyO3/maturin-action@v1
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1
         with:
           working-directory: src/lib-python
           target: aarch64
           args: --release --out dist-aarch64
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
       - name: Build Python wheels (x86_64)
-        uses: PyO3/maturin-action@v1
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1
         with:
           working-directory: src/lib-python
           target: x86_64
           args: --release --out dist-x86_64
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
       - name: Upload Python wheels (aarch64)
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: wheels-macos-aarch64
           path: src/lib-python/dist-aarch64
           retention-days: 1
       - name: Upload Python wheels (x86_64)
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: wheels-macos-x86_64
           path: src/lib-python/dist-x86_64

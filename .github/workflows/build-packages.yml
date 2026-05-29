@@ -10,13 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Python Artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: pythondl
           pattern: wheels-*
           merge-multiple: true
       - name: Upload lib-python package
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: lib-python
           path: pythondl
@@ -24,7 +24,7 @@ jobs:
   rust:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
       - name: Setup Job Environment
@@ -32,7 +32,7 @@ jobs:
         with:
           dotnet: true
       - name: Download Rust Artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: target/release
           pattern: rust-*
@@ -47,12 +47,12 @@ jobs:
       - name: Write Version File
         run: echo $NBGV_NuGetPackageVersion > version.txt
       - name: Upload version file as artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: build-version
           path: version.txt
       - name: Upload Package Artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: packages
           path: build/Release/*nupkg
@@ -80,12 +80,12 @@ jobs:
           mkdir bin-core
           mv target/release/* bin-core/
       - name: Upload Core Bins
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: bin-core
           path: bin-core/*
       - name: Upload lib-c
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: lib-c
           path: lib-c/*
@@ -95,12 +95,12 @@ jobs:
       - name: Pack lib-rust
         run: cargo package --locked -p velopack --allow-dirty
       - name: Upload lib-nodejs package
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: lib-nodejs
           path: src/lib-nodejs/velopack-*.tgz
       - name: Upload lib-rust package
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: lib-rust
           path: target/package/velopack-*.crate
