@@ -14,6 +14,7 @@ btn-repair = Onar
 btn-open-log = Günlüğü Aç
 btn-open-install-dir = Yükleme Dizinini Aç
 btn-ok = Tamam
+btn-hide = Gizle
 # Elevation (dialogs_common.rs)
 elevate-header = Yönetici İzni Gerekli
 elevate-body = { $app_title }, { $app_version } sürümünü yüklemek için yönetici iznine ihtiyaç duyuyor. Bu güncellemenin devam etmesine izin verilsin mi?

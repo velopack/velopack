@@ -14,6 +14,7 @@ btn-repair = Қалпына келтіру
 btn-open-log = Журналды ашу
 btn-open-install-dir = Орнату қалтасын ашу
 btn-ok = OK
+btn-hide = Жасыру
 # Elevation (dialogs_common.rs)
 elevate-header = Әкімші рұқсаты қажет
 elevate-body = { $app_title } { $app_version } нұсқасын орнату үшін әкімші рұқсатын қажет етеді. Бұл жаңартуды жалғастыруға рұқсат бере ме?

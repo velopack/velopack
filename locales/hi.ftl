@@ -14,6 +14,7 @@ btn-repair = सुधारें
 btn-open-log = लॉग खोलें
 btn-open-install-dir = स्थापना निर्देशिका खोलें
 btn-ok = ठीक
+btn-hide = छुपाएँ
 # Elevation (dialogs_common.rs)
 elevate-header = व्यवस्थापक अनुमति आवश्यक है
 elevate-body = { $app_title } को संस्करण { $app_version } स्थापित करने के लिए व्यवस्थापक अनुमति की आवश्यकता है. क्या इस अद्यतन को जारी रखने की अनुमति दी जाए?

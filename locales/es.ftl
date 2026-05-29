@@ -14,6 +14,7 @@ btn-repair = Reparar
 btn-open-log = Abrir registro
 btn-open-install-dir = Abrir carpeta de instalación
 btn-ok = Aceptar
+btn-hide = Ocultar
 # Elevation (dialogs_common.rs)
 elevate-header = Se requieren permisos de administrador
 elevate-body = { $app_title } necesita permisos de administrador para instalar la versión { $app_version }. ¿Permitir que continúe esta actualización?

@@ -14,6 +14,7 @@ btn-repair = Labot
 btn-open-log = Atvērt žurnālu
 btn-open-install-dir = Atvērt instalācijas mapi
 btn-ok = Labi
+btn-hide = Paslēpt
 # Elevation (dialogs_common.rs)
 elevate-header = Nepieciešamas administratora atļaujas
 elevate-body = Lietojumprogrammai { $app_title } ir nepieciešamas administratora atļaujas, lai instalētu versiju { $app_version }. Vai atļaut šī atjauninājuma turpināšanu?

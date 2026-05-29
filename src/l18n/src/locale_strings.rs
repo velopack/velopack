@@ -40,6 +40,10 @@ pub fn btn_ok() -> String {
     format_message(BTN_OK, None)
 }
 
+pub fn btn_hide() -> String {
+    format_message(BTN_HIDE, None)
+}
+
 pub fn elevate_header() -> String {
     format_message(ELEVATE_HEADER, None)
 }

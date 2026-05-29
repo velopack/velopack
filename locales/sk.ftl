@@ -14,6 +14,7 @@ btn-repair = Opraviť
 btn-open-log = Otvoriť denník
 btn-open-install-dir = Otvoriť inštalačný adresár
 btn-ok = OK
+btn-hide = Skryť
 # Elevation (dialogs_common.rs)
 elevate-header = Vyžadované oprávnenia správcu
 elevate-body = { $app_title } potrebuje na inštaláciu verzie { $app_version } oprávnenia správcu. Povoliť pokračovanie tejto aktualizácie?

@@ -4989,9 +4989,9 @@ checksum = "bec9e4a500ca8864c5b47b8b482a73d62e4237670e5b5f1d6b9e3cae50f28f2b"
 
 [[package]]
 name = "xdialog"
-version = "2.1.1"
+version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2941029663fdd04046475aa22e0ab611c58453429e12927a8432f2a87b303b3b"
+checksum = "c4778a9b5a57f8a8d4059c46d84e47072e2be1aec964411fd0060fc6bf542535"
 dependencies = [
  "block2 0.6.2",
  "enum-map",

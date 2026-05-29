@@ -14,6 +14,7 @@ btn-repair = Восстановить
 btn-open-log = Открыть журнал
 btn-open-install-dir = Открыть папку установки
 btn-ok = ОК
+btn-hide = Скрыть
 # Elevation (dialogs_common.rs)
 elevate-header = Требуются права администратора
 elevate-body = Для установки версии { $app_version } приложению { $app_title } требуются права администратора. Разрешить продолжить обновление?

@@ -77,7 +77,19 @@ fn show_progress_dialog(title: &str, header: &str, body: &str) -> Box<dyn Progre
     if crate::dialogs::get_silent() {
         return Box::new(NoopProgressReporter);
     }
-    match xdialog::show_progress(title, header, body, xdialog::XDialogIcon::Information) {
+    let buttons = if cfg!(target_os = "windows") {
+        vec![crate::locale_strings::btn_hide()]
+    } else {
+        vec![]
+    };
+    let options = xdialog::XDialogOptions {
+        title: title.to_string(),
+        main_instruction: header.to_string(),
+        message: body.to_string(),
+        icon: xdialog::XDialogIcon::Information,
+        buttons,
+    };
+    match xdialog::show_progress_ex(options) {
         Ok(proxy) => Box::new(XDialogProgressReporter::new(proxy)),
         Err(e) => {
             warn!("Failed to show progress dialog: {:?}", e);

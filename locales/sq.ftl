@@ -14,6 +14,7 @@ btn-repair = Riparoje
 btn-open-log = Hap regjistrin
 btn-open-install-dir = Hap dosjen e instalimit
 btn-ok = OK
+btn-hide = Fshih
 # Elevation (dialogs_common.rs)
 elevate-header = Lypsen leje administratori
 elevate-body = Që të instalohet versioni { $app_version }, { $app_title } i lyp leje administratori. Lejoni vazhdimin e këtij përditësimi?

@@ -72,6 +72,7 @@ define_locale_keys! {
     BTN_OPEN_LOG = "btn-open-log",
     BTN_OPEN_INSTALL_DIR = "btn-open-install-dir",
     BTN_OK = "btn-ok",
+    BTN_HIDE = "btn-hide",
     // Bodies / messages (headers grouped with their body keys)
     ELEVATE_HEADER = "elevate-header",
     ELEVATE_BODY = "elevate-body",

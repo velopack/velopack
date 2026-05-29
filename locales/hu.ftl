@@ -14,6 +14,7 @@ btn-repair = Javítás
 btn-open-log = Napló megnyitása
 btn-open-install-dir = Telepítési mappa megnyitása
 btn-ok = OK
+btn-hide = Elrejtés
 # Elevation (dialogs_common.rs)
 elevate-header = Rendszergazdai engedély szükséges
 elevate-body = A(z) { $app_title } alkalmazásnak rendszergazdai engedélyre van szüksége a(z) { $app_version } verzió telepítéséhez. Engedélyezi a frissítés folytatását?

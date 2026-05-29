@@ -14,6 +14,7 @@ btn-repair = 修復
 btn-open-log = ログを開く
 btn-open-install-dir = インストール フォルダーを開く
 btn-ok = OK
+btn-hide = 非表示
 # Elevation (dialogs_common.rs)
 elevate-header = 管理者権限が必要です
 elevate-body = { $app_title } のバージョン { $app_version } をインストールするには管理者権限が必要です。この更新を続行することを許可しますか?

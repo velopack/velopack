@@ -14,6 +14,7 @@ btn-repair = Reparera
 btn-open-log = Öppna logg
 btn-open-install-dir = Öppna installationsmapp
 btn-ok = OK
+btn-hide = Dölj
 # Elevation (dialogs_common.rs)
 elevate-header = Administratörsbehörighet krävs
 elevate-body = { $app_title } behöver administratörsbehörighet för att installera version { $app_version }. Tillåt att denna uppdatering fortsätter?

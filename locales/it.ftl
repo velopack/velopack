@@ -14,6 +14,7 @@ btn-repair = Ripara
 btn-open-log = Apri registro
 btn-open-install-dir = Apri cartella di installazione
 btn-ok = OK
+btn-hide = Nascondi
 # Elevation (dialogs_common.rs)
 elevate-header = Autorizzazione amministratore richiesta
 elevate-body = { $app_title } richiede l'autorizzazione di amministratore per installare la versione { $app_version }. Consentire la continuazione dell'aggiornamento?
