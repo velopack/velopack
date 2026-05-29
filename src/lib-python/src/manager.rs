@@ -54,46 +54,35 @@ impl UpdateManagerWrapper {
 
     #[pyo3(signature = (update_info, progress_callback = None))]
     pub fn download_updates(&mut self, py: Python, update_info: PyUpdateInfo, progress_callback: Option<Py<PyAny>>) -> Result<()> {
-        // Convert PyUpdateInfo back to rust UpdateInfo
         let rust_update_info: UpdateInfo = update_info.into();
+        let inner = self.inner.clone();
 
-        if let Some(callback) = progress_callback {
-            // Create a channel for progress updates
-            let (sender, receiver) = mpsc::channel::<i16>();
-
-            // Clone the callback for the thread
-            let callback_clone = callback.clone_ref(py);
-
-            // Release the GIL before starting the download
-            py.detach(|| {
-                // Spawn a thread to handle progress updates
-                let progress_thread = thread::spawn(move || {
-                    while let Ok(progress) = receiver.recv() {
-                        // Acquire GIL only when needed to call the callback
-                        Python::try_attach(|py| {
-                            if let Err(e) = callback_clone.call1(py, (progress,)) {
-                                // Log error but continue - don't break the download
-                                eprintln!("Progress callback error: {}", e);
-                            }
-                        });
-                    }
-                });
-
-                // Call download with the sender
-                let result = self.inner.download_updates(&rust_update_info, Some(sender));
-
-                // Wait for the progress thread to finish
-                let _ = progress_thread.join();
-
-                result
-            })?;
-
-            Ok(())
+        let (sender, receiver) = if progress_callback.is_some() {
+            let (s, r) = mpsc::channel::<i16>();
+            (Some(s), Some(r))
         } else {
-            // No progress callback provided - still release GIL for the download
-            py.detach(|| self.inner.download_updates(&rust_update_info, None))?;
-            Ok(())
-        }
+            (None, None)
+        };
+
+        py.detach(|| {
+            let handle = thread::spawn(move || inner.download_updates(&rust_update_info, sender));
+
+            if let (Some(callback), Some(receiver)) = (progress_callback, receiver) {
+                while let Ok(progress) = receiver.recv() {
+                    Python::try_attach(|py| {
+                        if let Err(e) = callback.call1(py, (progress,)) {
+                            eprintln!("Progress callback error: {}", e);
+                        }
+                    });
+                }
+            }
+
+            handle
+                .join()
+                .unwrap_or_else(|_| Err(std::io::Error::other("Download thread panicked").into()))
+        })?;
+
+        Ok(())
     }
 
     pub fn apply_updates_and_restart(&mut self, update: PyUpdateInfoOrAsset) -> Result<()> {

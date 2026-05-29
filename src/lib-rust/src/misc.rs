@@ -52,7 +52,7 @@ pub fn calculate_sha1_sha256<P: AsRef<Path>>(file: P) -> Result<(String, String)
     let mut sha256 = sha2::Sha256::new();
     let mut sha1 = sha1::Sha1::new();
 
-    let mut buffer = [0u8; 1024 * 1024]; // 1MB buffer
+    let mut buffer = [0u8; 64 * 1024];
     loop {
         let bytes_read = reader.read(&mut buffer)?;
         if bytes_read == 0 {
