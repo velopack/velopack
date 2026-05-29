@@ -167,10 +167,8 @@ impl BundleZip<'_> {
             }
             outfile.write_all(&buffer[..len])?;
             bytes_written += len as u64;
-            if total_size > 0 {
-                if !progress(((bytes_written as f64 / total_size as f64) * 100.0) as i16) {
-                    return Err(Error::Cancelled);
-                }
+            if total_size > 0 && !progress(((bytes_written as f64 / total_size as f64) * 100.0) as i16) {
+                return Err(Error::Cancelled);
             }
         }
 

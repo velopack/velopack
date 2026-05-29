@@ -68,12 +68,10 @@ pub fn prompt_and_install_all_missing(
                 });
                 reporter.close();
 
-                if let Err(ref e) = result {
-                    if let Some(velopack::Error::Cancelled) = e.downcast_ref::<velopack::Error>() {
-                        warn!("User cancelled dependency download.");
-                        let _ = std::fs::remove_file(&exe_path);
-                        return Ok(false);
-                    }
+                if let Err(velopack::Error::Cancelled) = &result {
+                    warn!("User cancelled dependency download.");
+                    let _ = std::fs::remove_file(&exe_path);
+                    return Ok(false);
                 }
                 result?;
             }
