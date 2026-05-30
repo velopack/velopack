@@ -55,11 +55,16 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>compile; runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="StrongNamer" Version="0.2.5">
+    <PackageReference Include="JunitXml.TestLogger" Version="8.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="JunitXml.TestLogger" Version="8.0.0">
+  </ItemGroup>
+
+  <!-- StrongNamer re-signs unsigned third-party deps; only needed for net4x targets.
+       On net8.0 it breaks references to types deriving from unsigned packages (e.g. Markdig). -->
+  <ItemGroup Condition=" $(MSBuildProjectName.EndsWith('Tests')) and $(TargetFramework.StartsWith('net4')) ">
+    <PackageReference Include="StrongNamer" Version="0.2.5">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>

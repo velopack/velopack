@@ -99,7 +99,7 @@ public class RtfRenderer : TextRendererBase<RtfRenderer>
             else if (c <= 0x7F) // ASCII
                 Write(c);
             else // BMP Unicode
-                Write($"\\u{(int) c}{c}");
+                Write($"\\u{(int) c}?"); // RTF spec: '?' is the single ANSI fallback char (matches \uc1)
         }
     }
 
@@ -123,7 +123,7 @@ public class RtfRenderer : TextRendererBase<RtfRenderer>
             else if (c <= 0x7F) // ASCII
                 Write(c);
             else // BMP Unicode
-                Write($"\\u{(int) c}{c}");
+                Write($"\\u{(int) c}?"); // RTF spec: '?' is the single ANSI fallback char (matches \uc1)
         }
     }
 
