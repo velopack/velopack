@@ -102,7 +102,7 @@ namespace Velopack
         /// Try to parse a version string. Returns false if the string is not a valid semantic version.
         /// </summary>
         #if (NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_0_OR_GREATER)
-        public static bool TryParse(string? value, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out SemanticVersion version)
+        public static bool TryParse(string? value, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SemanticVersion? version)
         #else
         public static bool TryParse(string? value, out SemanticVersion? version)
         #endif
