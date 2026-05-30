@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.21.0" />
+    <PackageReference Include="Markdig" Version="1.2.0" />
     <PackageReference Include="Octokit" Version="14.0.0" />
     <PackageReference Include="WixToolset.Dtf.WindowsInstaller" Version="6.0.2" />
   </ItemGroup>
