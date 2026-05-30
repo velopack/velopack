@@ -39,6 +39,32 @@ namespace System.Runtime.CompilerServices
 }
 #endif
 
+#if !NETCOREAPP3_0_OR_GREATER && !NETSTANDARD2_1_OR_GREATER
+namespace System.Diagnostics.CodeAnalysis
+{
+    [AttributeUsage(AttributeTargets.Parameter)]
+    internal sealed class NotNullWhenAttribute : Attribute
+    {
+        public NotNullWhenAttribute(bool returnValue) => ReturnValue = returnValue;
+
+        public bool ReturnValue { get; }
+    }
+
+    [AttributeUsage(AttributeTargets.Parameter)]
+    internal sealed class MaybeNullWhenAttribute : Attribute
+    {
+        public MaybeNullWhenAttribute(bool returnValue) => ReturnValue = returnValue;
+
+        public bool ReturnValue { get; }
+    }
+
+    [AttributeUsage(AttributeTargets.Method, Inherited = false)]
+    internal sealed class DoesNotReturnAttribute : Attribute
+    {
+    }
+}
+#endif
+
 namespace Velopack
 {
     // constants from winnt.h

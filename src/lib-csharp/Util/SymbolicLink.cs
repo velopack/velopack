@@ -131,7 +131,7 @@ namespace Velopack.Util
             string target;
 
 #if NET6_0_OR_GREATER
-            target = fsi!.LinkTarget!;
+            target = fsi.LinkTarget!;
 #else
             if (VelopackRuntimeInfo.IsWindows) {
                 target = WindowsReadLink(linkPath);
@@ -148,7 +148,7 @@ namespace Velopack.Util
             return target;
         }
 
-        private static bool TryGetLinkFsi(string path, out FileSystemInfo? fsi)
+        private static bool TryGetLinkFsi(string path, [NotNullWhen(true)] out FileSystemInfo? fsi)
         {
             fsi = null;
             if (Directory.Exists(path)) {
@@ -164,9 +164,7 @@ namespace Velopack.Util
             return (fsi.Attributes & FileAttributes.ReparsePoint) != 0;
         }
 
-#if NET6_0_OR_GREATER
         [DoesNotReturn]
-#endif
         private static void ThrowPathNotASymlinkException(string path)
         {
             throw new IOException($"The path '{path}' is not a symbolic link or junction point.");

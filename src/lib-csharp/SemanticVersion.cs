@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace Velopack
@@ -94,18 +95,14 @@ namespace Velopack
         public static SemanticVersion Parse(string value)
         {
             if (TryParse(value, out var result))
-                return result!;
+                return result;
             throw new ArgumentException($"'{value}' is not a valid semantic version.", nameof(value));
         }
 
         /// <summary>
         /// Try to parse a version string. Returns false if the string is not a valid semantic version.
         /// </summary>
-        #if (NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_0_OR_GREATER)
-        public static bool TryParse(string? value, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SemanticVersion? version)
-        #else
-        public static bool TryParse(string? value, out SemanticVersion? version)
-        #endif
+        public static bool TryParse(string? value, [NotNullWhen(true)] out SemanticVersion? version)
         {
             version = null;
             if (string.IsNullOrWhiteSpace(value))

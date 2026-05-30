@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -119,7 +120,7 @@ namespace Velopack.Util
             task.ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
-        public static bool TryParseEnumU16<TEnum>(ushort enumValue, out TEnum? retVal)
+        public static bool TryParseEnumU16<TEnum>(ushort enumValue, [NotNullWhen(true)] out TEnum? retVal)
         {
             retVal = default;
             bool success = Enum.IsDefined(typeof(TEnum), enumValue);
