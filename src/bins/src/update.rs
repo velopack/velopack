@@ -137,7 +137,25 @@ fn main() {
 
 fn real_main() -> Result<()> {
     dialogs::init();
-    main_inner()
+    if let Err(e) = main_inner() {
+        // The command parser uses `ignore_errors(true)` so that unknown / legacy arguments don't
+        // abort the updater. A side effect is that clap no longer prints --help / --version itself;
+        // those requests arrive here as an error which we must render manually. Unlike Setup,
+        // Update.exe runs unattended, so we never surface a dialog for genuine errors.
+        if let Some(clap_err) = e.downcast_ref::<clap::Error>() {
+            use clap::error::ErrorKind;
+            if matches!(
+                clap_err.kind(),
+                ErrorKind::DisplayHelp | ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand | ErrorKind::DisplayVersion
+            ) {
+                println!("{clap_err}");
+                return Ok(());
+            }
+        }
+        error!("An error has occurred: {:?}", e);
+        return Err(e);
+    }
+    Ok(())
 }
 
 fn main_inner() -> Result<()> {
