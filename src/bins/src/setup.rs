@@ -62,7 +62,26 @@ fn main() {
 
 fn real_main() -> Result<()> {
     dialogs::init();
-    shared::cli_host::clap_run_main("Setup", main_inner)
+    if let Err(e) = main_inner() {
+        // The command parser uses `ignore_errors(true)`, so clap won't print --help / --version
+        // itself; those requests arrive here as an error which we render manually. Setup is
+        // user-facing, so genuine errors are also surfaced in a dialog.
+        if let Some(clap_err) = e.downcast_ref::<clap::Error>() {
+            use clap::error::ErrorKind;
+            if matches!(
+                clap_err.kind(),
+                ErrorKind::DisplayHelp | ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand | ErrorKind::DisplayVersion
+            ) {
+                println!("{clap_err}");
+                return Ok(());
+            }
+        }
+        let error_string = format!("An error has occurred: {:?}", e);
+        error!("{}", error_string);
+        dialogs::show_generic_error("Setup", &error_string);
+        return Err(e);
+    }
+    Ok(())
 }
 
 fn main_inner() -> Result<()> {
