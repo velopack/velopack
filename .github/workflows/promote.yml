@@ -2,6 +2,16 @@ name: Promote Release (stable)
 
 on:
   workflow_dispatch:
+    inputs:
+      bump:
+        description: "Bump version on develop before promoting (patch is always auto-incremented by nbgv)"
+        type: choice
+        required: true
+        default: none
+        options:
+          - none
+          - minor
+          - major
 
 permissions:
   contents: write
@@ -14,8 +24,37 @@ jobs:
         with:
           ssh-key: ${{ secrets.DEPLOY_KEY }}
           fetch-depth: 0
-      - name: Fast-forward master branch
+          ref: develop
+
+      - name: Bump version on develop
+        if: ${{ inputs.bump != 'none' }}
+        shell: pwsh
+        run: |
+          $json = Get-Content version.json -Raw | ConvertFrom-Json
+          $parts = $json.version.Split('.')
+          $major = [int]$parts[0]
+          $minor = [int]$parts[1]
+          if ('${{ inputs.bump }}' -eq 'major') {
+            $major++
+            $minor = 0
+          } else {
+            $minor++
+          }
+          $newVersion = "$major.$minor"
+
+          # Replace only the version field to preserve the file's formatting
+          $content = Get-Content version.json -Raw
+          $content = $content -replace '("version"\s*:\s*")[^"]*"', "`${1}$newVersion`""
+          Set-Content version.json -Value $content -NoNewline
+          Write-Host "Bumped version.json to $newVersion"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Bump version to $newVersion"
+          git push origin develop
+
+      - name: Fast-forward master to develop
         run: |
           git checkout master
           git merge develop --ff-only
-          git push
+          git push origin master
