@@ -3,6 +3,7 @@
   "version": "1.1",
   "gitCommitIdShortFixedLength": 7,
   "publicReleaseRefSpec": ["^refs/heads/master$"],
+  "versionHeightOffset": -1,
   "cloudBuild": {
     "setVersionVariables": false
   }
