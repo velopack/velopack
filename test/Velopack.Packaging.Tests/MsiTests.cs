@@ -471,6 +471,65 @@ public class MsiTests
         }
     }
 
+    [Fact]
+    public async Task TestMsiInstallToCustomDirViaVelopackInstallDir()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+        using var logger = _output.BuildLoggerFor<MsiTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+        using var _2 = TempUtil.GetTempDirectory(out var customParent);
+
+        string id = "MsiCustomDirTest";
+        // a custom install dir that is NOT the default %LocalAppData%\{id} location
+        var customDir = Path.Combine(customParent, "Custom", "WLYS");
+        var defaultDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), id);
+        var msiPath = Path.Combine(releaseDir, $"{id}-win.msi");
+        var appPath = Path.Combine(customDir, "current", "TestApp.exe");
+
+        try {
+            await PackTestAppWithMsi(id, "1.0.0", "custom dir test", releaseDir, logger, InstallLocation.PerUser);
+            Assert.True(File.Exists(msiPath), $"MSI not found at {msiPath}");
+
+            // install per-user, overriding the install dir via VELOPACK_INSTALLDIR
+            logger.Info($"TEST: Installing MSI to custom dir {customDir}...");
+            RunMsiExec($"/i \"{msiPath}\" /qn VELOPACK_INSTALLDIR=\"{customDir}\"", logger);
+
+            // app must land in the custom dir, NOT the default LocalAppData location
+            Assert.True(File.Exists(appPath), $"TestApp.exe not found at custom dir {appPath}");
+            Assert.False(Directory.Exists(defaultDir),
+                $"App should NOT have installed to the default dir {defaultDir}");
+
+            var chkVersion = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], customDir, logger);
+            Assert.EndsWith(Environment.NewLine + "1.0.0", chkVersion);
+            logger.Info("TEST: app installed to custom dir and verified");
+        } finally {
+            try {
+                if (File.Exists(msiPath)) {
+                    RunMsiExec($"/x \"{msiPath}\" /qn", logger, exitCode: null);
+                }
+            } catch {
+                // best effort cleanup
+            }
+
+            try {
+                if (Directory.Exists(customDir)) {
+                    IoUtil.Retry(() => IoUtil.DeleteFileOrDirectoryHard(customDir), 10, 1000);
+                }
+            } catch {
+                // best effort cleanup
+            }
+
+            try {
+                if (Directory.Exists(defaultDir)) {
+                    IoUtil.Retry(() => IoUtil.DeleteFileOrDirectoryHard(defaultDir), 10, 1000);
+                }
+            } catch {
+                // best effort cleanup
+            }
+        }
+    }
+
     // Requires elevation and UAC approval. To run from CLI:
     //   dotnet test test/Velopack.Packaging.Tests --filter TestMsiPerMachineInstallAndUpdate -- xUnit.Explicit=only
     [Fact(Explicit = true)]

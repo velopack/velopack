@@ -134,6 +134,13 @@
         <Property Id="ApplicationFolderName" Value="{{AppId}}"/>
         <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER"/>
 
+        <!-- Optional install-dir override for sysadmins, e.g. msiexec /i app.msi VELOPACK_INSTALLDIR="D:\App".
+             When set, the forced default path (LocalAppData/ProgramFiles) is skipped in both UI and silent
+             installs. Secure so it survives the UI -> execute sequence handoff for elevated per-machine installs. -->
+        <Property Id="VELOPACK_INSTALLDIR" Secure="yes"/>
+        <SetProperty Id="INSTALLFOLDER" Value="[VELOPACK_INSTALLDIR]" Before="CostFinalize" Sequence="execute"
+                     Condition="VELOPACK_INSTALLDIR"/>
+
         {{#if InstallLocationEither}}
             <WixVariable Id="WixUISupportPerUser" Value="1"/>
             <WixVariable Id="WixUISupportPerMachine" Value="1"/>
@@ -297,10 +304,12 @@
                          Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;"/>
                 <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLFOLDER"
                          Value="[LocalAppDataFolder][ApplicationFolderName]" Order="4"
-                         Condition="WixAppFolder = &quot;WixPerUserFolder&quot;"/>
+                         Condition="WixAppFolder = &quot;WixPerUserFolder&quot; AND NOT VELOPACK_INSTALLDIR"/>
                 <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLFOLDER"
                          Value="{{ProgramFilesFolderName}}[ApplicationFolderName]" Order="5"
-                         Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;"/>
+                         Condition="WixAppFolder = &quot;WixPerMachineFolder&quot; AND NOT VELOPACK_INSTALLDIR"/>
+                <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLFOLDER"
+                         Value="[VELOPACK_INSTALLDIR]" Order="5" Condition="VELOPACK_INSTALLDIR"/>
                 <Publish Dialog="InstallScopeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="6"/>
                 <Publish Dialog="InstallScopeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="8"/>
                 <Publish Dialog="InstallScopeDlg" Control="Next" Event="DoAction" Value="FindRelatedProducts" Order="9"/>
@@ -308,13 +317,19 @@
 
             {{#if InstallLocationCurrentUserOnly}}
                 <Publish Dialog="WelcomeDlg" Control="Next" Property="INSTALLFOLDER"
-                         Value="[LocalAppDataFolder][ApplicationFolderName]" Order="1"/>
+                         Value="[LocalAppDataFolder][ApplicationFolderName]" Order="1"
+                         Condition="NOT VELOPACK_INSTALLDIR"/>
+                <Publish Dialog="WelcomeDlg" Control="Next" Property="INSTALLFOLDER"
+                         Value="[VELOPACK_INSTALLDIR]" Order="1" Condition="VELOPACK_INSTALLDIR"/>
                 <Publish Dialog="WelcomeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="2"/>
             {{/if}}
 
             {{#if InstallLocationAllUsersOnly}}
                 <Publish Dialog="WelcomeDlg" Control="Next" Property="INSTALLFOLDER"
-                         Value="{{ProgramFilesFolderName}}[ApplicationFolderName]" Order="1"/>
+                         Value="{{ProgramFilesFolderName}}[ApplicationFolderName]" Order="1"
+                         Condition="NOT VELOPACK_INSTALLDIR"/>
+                <Publish Dialog="WelcomeDlg" Control="Next" Property="INSTALLFOLDER"
+                         Value="[VELOPACK_INSTALLDIR]" Order="1" Condition="VELOPACK_INSTALLDIR"/>
                 <Publish Dialog="WelcomeDlg" Control="Next" Event="SetTargetPath" Value="INSTALLFOLDER" Order="2"/>
             {{/if}}
 
