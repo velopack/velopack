@@ -1,6 +1,7 @@
 ﻿#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
@@ -43,13 +44,13 @@ namespace Velopack.NuGet
             return nu;
         }
 
-        public static bool TryParseFromFile(string filePath, out PackageManifest manifest)
+        public static bool TryParseFromFile(string filePath, [MaybeNullWhen(false)] out PackageManifest manifest)
         {
             try {
                 manifest = ParseFromFile(filePath);
                 return true;
             } catch {
-                manifest = null!;
+                manifest = null;
                 return false;
             }
         }
