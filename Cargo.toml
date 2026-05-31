@@ -88,9 +88,14 @@ uuid = { version = "1.21", features = ["v4", "fast-rng", "macro-diagnostics"] }
 walkdir = "2.5"
 rayon = "1.11"
 progress-streams = "1.1"
-pyo3 = { version = "0.28", features = ["extension-module", "macros", "abi3", "abi3-py37", "anyhow"] }
+# NB: extension-module + abi3 + abi3-py37 are intentionally NOT enabled here. They are pulled in by
+# lib-python's default `extension` feature so that the `stub_gen` binary can build them out
+# (via --no-default-features). Building without abi3 lets pyo3 target the real interpreter (>= 3.10),
+# which is required for pyo3-stub-gen to compile (it references Py_3_10-only exception types).
+pyo3 = { version = "0.28", features = ["macros", "anyhow"] }
 pyo3-build-config = "0.28"
 pyo3-log = "0.13"
+pyo3-stub-gen = "0.22"
 winreg = "0.56"
 serial_test = { version = "3", features = ["file_locks"] }
 sys-locale = "0.3"

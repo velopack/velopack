@@ -6,17 +6,19 @@ use velopack::{VelopackAsset, UpdateInfo, UpdateOptions, locator::VelopackLocato
 use std::path::PathBuf;
 
 {{#each this}}
+{{indent "rust_comment" ""}}#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(name = "{{struct_rust_name}}", from_py_object)]
 #[derive(Debug, Clone, Default)]
 pub struct Py{{struct_rust_name}} {
     {{#each fields}}
-    #[pyo3(get, set)]
+{{indent "rust_comment" "    "}}    #[pyo3(get, set)]
     pub {{field_name}}: {{#if field_vector}}Vec<{{/if}}{{#if field_optional}}Option<{{/if~}}
     {{~#unless field_primitive_or_system}}Py{{/unless}}{{field_rust_type}}
     {{~#if field_optional}}>{{/if}}{{#if field_vector}}>{{/if}},
     {{/each}}
 }
 
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl Py{{struct_rust_name}} {
     #[new]

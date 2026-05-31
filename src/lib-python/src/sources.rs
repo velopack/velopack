@@ -3,6 +3,7 @@ use velopack::sources::{AutoSource, GiteaSource, GithubSource, GitlabSource, Htt
 
 /// Retrieves available releases from a GitHub repository. Supports both github.com
 /// and GitHub Enterprise instances.
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(name = "GithubSource", from_py_object)]
 #[derive(Clone)]
 pub struct PyGithubSource {
@@ -11,6 +12,7 @@ pub struct PyGithubSource {
     pub prerelease: bool,
 }
 
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyGithubSource {
     /// Create a new GithubSource.
@@ -29,6 +31,7 @@ impl PyGithubSource {
 }
 
 /// Retrieves available releases from a GitLab repository.
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(name = "GitlabSource", from_py_object)]
 #[derive(Clone)]
 pub struct PyGitlabSource {
@@ -37,6 +40,7 @@ pub struct PyGitlabSource {
     pub prerelease: bool,
 }
 
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyGitlabSource {
     /// Create a new GitlabSource.
@@ -55,6 +59,7 @@ impl PyGitlabSource {
 }
 
 /// Retrieves available releases from a Gitea repository.
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(name = "GiteaSource", from_py_object)]
 #[derive(Clone)]
 pub struct PyGiteaSource {
@@ -63,6 +68,7 @@ pub struct PyGiteaSource {
     pub prerelease: bool,
 }
 
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyGiteaSource {
     /// Create a new GiteaSource.
@@ -81,12 +87,14 @@ impl PyGiteaSource {
 }
 
 /// Retrieves updates from a static file host or other web server.
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(name = "HttpSource", from_py_object)]
 #[derive(Clone)]
 pub struct PyHttpSource {
     pub url: String,
 }
 
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyHttpSource {
     /// Create a new HttpSource with the specified base URL.
@@ -118,3 +126,7 @@ impl PySourceArg {
         }
     }
 }
+
+// FromPyObject unions aren't pyclasses, so stub-gen can't derive their Python type. Describe it explicitly.
+#[cfg(feature = "stub-gen")]
+pyo3_stub_gen::impl_stub_type!(PySourceArg = PyGithubSource | PyGitlabSource | PyGiteaSource | PyHttpSource | String);

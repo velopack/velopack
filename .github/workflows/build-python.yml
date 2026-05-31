@@ -211,3 +211,24 @@ jobs:
           name: wheels-sdist
           path: src/lib-python/dist
           retention-days: 1
+
+  # Fails if velopack.pyi wasn't regenerated after a Rust API change. The --no-default-features build
+  # turns abi3/extension-module OFF, so pyo3 targets the real (>= 3.10) interpreter that pyo3-stub-gen
+  # requires and links libpython normally (so the standalone binary links fine even on Linux).
+  stub-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/setup-python@v6
+        with:
+          python-version: 3.x
+      - name: Regenerate velopack.pyi
+        working-directory: src/lib-python
+        run: cargo run --no-default-features --features stub-gen --bin stub_gen
+      - name: Verify velopack.pyi is up to date
+        run: git diff --exit-code src/lib-python/velopack.pyi

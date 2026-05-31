@@ -7,11 +7,13 @@ use velopack::{UpdateCheck, UpdateInfo, UpdateManager as VelopackUpdateManagerRu
 
 use crate::{sources::PySourceArg, types::*, PyUpdateInfoOrAsset};
 
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(name = "UpdateManager")]
 pub struct UpdateManagerWrapper {
     inner: VelopackUpdateManagerRust,
 }
 
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl UpdateManagerWrapper {
     #[new]
