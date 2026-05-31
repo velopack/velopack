@@ -12,13 +12,29 @@ edition.workspace = true
 rust-version.workspace = true
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 anyhow.workspace = true
 velopack.workspace = true
 pyo3.workspace = true
 pyo3-log.workspace = true
+pyo3-stub-gen = { workspace = true, optional = true }
+
+[features]
+# Enabled by default (and by maturin) to build the shipped abi3 extension module.
+# NB: not named "extension-module" on purpose — that name triggers maturin's deprecated feature auto-detection.
+default = ["extension"]
+extension = ["pyo3/extension-module", "pyo3/abi3", "pyo3/abi3-py37"]
+# Used only when generating velopack.pyi via `cargo run --no-default-features --features stub-gen --bin stub_gen`.
+# Must be built WITHOUT abi3 so pyo3 targets the real interpreter (pyo3-stub-gen needs Py_3_10 types).
+stub-gen = ["dep:pyo3-stub-gen"]
+
+# The stub generator only exists / compiles under the `stub-gen` feature, so a normal `cargo build`
+# (default features) skips it instead of failing on the missing `stub_info` symbol.
+[[bin]]
+name = "stub_gen"
+required-features = ["stub-gen"]
 
 [build-dependencies]
 pyo3-build-config.workspace = true
