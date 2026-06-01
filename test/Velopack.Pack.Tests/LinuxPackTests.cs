@@ -16,25 +16,27 @@ public class LinuxPackTests
         _output = output;
     }
 
-    [Fact]
-    public async Task TestPackedLinuxAppCanUpdateToLatest()
+    [Theory]
+    [InlineData("csharp")]
+    [InlineData("rust")]
+    public async Task TestPackedLinuxAppCanUpdateToLatest(string variant)
     {
         Assert.SkipUnless(VelopackRuntimeInfo.IsLinux, "Linux only");
         using var logger = _output.BuildLoggerFor<LinuxPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var _2 = TempUtil.GetTempDirectory(out var installDir);
-        string id = "LinuxIntegrationTest";
+        string id = $"LinuxIntTest-{variant}";
         var appImagePath = Path.Combine(installDir, $"{id}.AppImage");
 
         // pack v1
-        await PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
+        await PackTestAppVariant(variant, id, "1.0.0", "version 1 test", releaseDir, logger);
 
         // "install" by copying AppImage
         var srcAppImage = Path.Combine(releaseDir, $"{id}.AppImage");
         Assert.True(File.Exists(srcAppImage), $"Expected {srcAppImage} to exist");
         File.Copy(srcAppImage, appImagePath);
         Chmod.ChmodFileAsExecutable(appImagePath);
-        logger.Info("TEST: v1 installed");
+        logger.Info($"TEST ({variant}): v1 installed");
 
         // check app output
         var chk1test = TestHelper.RunNoCoverage(appImagePath, ["test"], installDir, logger);
@@ -43,21 +45,21 @@ public class LinuxPackTests
         Assert.EndsWith(Environment.NewLine + "1.0.0", chk1version);
         var chk1check = TestHelper.RunNoCoverage(appImagePath, ["check", releaseDir], installDir, logger);
         Assert.EndsWith(Environment.NewLine + "no updates", chk1check);
-        logger.Info("TEST: v1 output verified");
+        logger.Info($"TEST ({variant}): v1 output verified");
 
         // pack v2
-        await PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
+        await PackTestAppVariant(variant, id, "2.0.0", "version 2 test", releaseDir, logger);
 
         // check can find v2 update
         var chk2check = TestHelper.RunNoCoverage(appImagePath, ["check", releaseDir], installDir, logger);
         Assert.EndsWith(Environment.NewLine + "update: 2.0.0", chk2check);
-        logger.Info("TEST: found v2 update");
+        logger.Info($"TEST ({variant}): found v2 update");
 
         // download and apply (apply before download should fail; exit code -1 wraps to 255 on unix)
         TestHelper.RunNoCoverage(appImagePath, ["apply", releaseDir], installDir, logger, exitCode: null);
         TestHelper.RunNoCoverage(appImagePath, ["download", releaseDir], installDir, logger);
         TestHelper.RunNoCoverage(appImagePath, ["apply", releaseDir], installDir, logger, exitCode: null);
-        logger.Info("TEST: v2 applied");
+        logger.Info($"TEST ({variant}): v2 applied");
 
         Thread.Sleep(5000); // UpdateNix runs in separate process
 
@@ -68,7 +70,7 @@ public class LinuxPackTests
         Assert.EndsWith(Environment.NewLine + "version 2 test", chk2test);
         var chk2check2 = TestHelper.RunNoCoverage(appImagePath, ["check", releaseDir], installDir, logger);
         Assert.EndsWith(Environment.NewLine + "no updates", chk2check2);
-        logger.Info("TEST: v2 output verified / complete");
+        logger.Info($"TEST ({variant}): v2 output verified / complete");
 
         // cleanup packages dir
         try {
@@ -78,25 +80,27 @@ public class LinuxPackTests
         } catch { }
     }
 
-    [Fact]
-    public async Task TestLinuxAppAutoUpdatesWhenLocalIsAvailable()
+    [Theory]
+    [InlineData("csharp")]
+    [InlineData("rust")]
+    public async Task TestLinuxAppAutoUpdatesWhenLocalIsAvailable(string variant)
     {
         Assert.SkipUnless(VelopackRuntimeInfo.IsLinux, "Linux only");
         using var logger = _output.BuildLoggerFor<LinuxPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var _2 = TempUtil.GetTempDirectory(out var installDir);
-        string id = "LinuxAutoUpdateTest";
+        string id = $"LinuxAutoUpdate-{variant}";
         var appImagePath = Path.Combine(installDir, $"{id}.AppImage");
 
         // pack v1
-        await PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
+        await PackTestAppVariant(variant, id, "1.0.0", "version 1 test", releaseDir, logger);
 
         // "install" by copying AppImage
         File.Copy(Path.Combine(releaseDir, $"{id}.AppImage"), appImagePath);
         Chmod.ChmodFileAsExecutable(appImagePath);
 
         // pack v2
-        await PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
+        await PackTestAppVariant(variant, id, "2.0.0", "version 2 test", releaseDir, logger);
 
         // copy v2 nupkg into local packages dir
         var fileName = $"{id}-2.0.0-linux-full.nupkg";
@@ -112,7 +116,7 @@ public class LinuxPackTests
         // check version after auto-update
         var chk1version = TestHelper.RunNoCoverage(appImagePath, ["version"], installDir, logger);
         Assert.EndsWith(Environment.NewLine + "2.0.0", chk1version);
-        logger.Info("TEST: auto-update verified / complete");
+        logger.Info($"TEST ({variant}): auto-update verified / complete");
 
         // cleanup packages dir
         try {
@@ -122,7 +126,48 @@ public class LinuxPackTests
         } catch { }
     }
 
-    private static async Task PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger)
+    private async Task PackTestAppVariant(string variant, string id, string version, string testString, string releaseDir, ILogger logger)
+    {
+        if (variant == "csharp") {
+            await PackCSharpTestApp(id, version, testString, releaseDir, logger);
+        } else if (variant == "rust") {
+            await PackRustTestApp(id, version, testString, releaseDir, logger);
+        } else {
+            throw new ArgumentException($"Unknown variant: {variant}");
+        }
+    }
+
+    private static async Task PackRustTestApp(string id, string version, string testString, string releaseDir, ILogger logger)
+    {
+        using var _ = TempUtil.GetTempDirectory(out var packDir);
+
+        // copy pre-built Rust testapp binary
+        var rustBinary = PathHelper.GetRustAsset("testapp");
+        if (!File.Exists(rustBinary))
+            throw new FileNotFoundException($"Rust testapp not found at: {rustBinary}. Run 'cargo build -p velopack_bins' first.");
+        File.Copy(rustBinary, Path.Combine(packDir, "testapp"));
+        Chmod.ChmodFileAsExecutable(Path.Combine(packDir, "testapp"));
+
+        // write test_string.txt (read by testapp at runtime)
+        File.WriteAllText(Path.Combine(packDir, "test_string.txt"), testString);
+
+        logger.Info($"TEST: Packing Rust testapp v{version} with test string '{testString}'");
+
+        var console = new Velopack.Vpk.Logging.BasicConsole(logger, new Velopack.Vpk.VelopackDefaults(false));
+        var options = new Velopack.Packaging.Unix.Commands.LinuxPackOptions {
+            EntryExecutableName = "testapp",
+            ReleaseDir = new DirectoryInfo(releaseDir),
+            PackId = id,
+            PackVersion = version,
+            TargetRuntime = RID.Parse("linux-x64"),
+            PackDirectory = packDir,
+        };
+
+        var runner = new Velopack.Packaging.Unix.Commands.LinuxPackCommandRunner(logger, console);
+        await runner.Run(options);
+    }
+
+    private static async Task PackCSharpTestApp(string id, string version, string testString, string releaseDir, ILogger logger)
     {
         var projDir = PathHelper.GetTestRootPath("TestApp");
         var testStringFile = Path.Combine(projDir, "Const.cs");
