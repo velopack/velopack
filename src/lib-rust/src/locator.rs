@@ -457,8 +457,18 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
 /// Automatically locates the current app's important paths. If the app is not installed, it will return an error.
 pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLocator, Error> {
     let mut search_path = std::env::current_exe()?;
+    let mut package_dir_override: Option<PathBuf> = None;
     match context {
-        LocationContext::FromSpecifiedRootDir(dir, _) => search_path = dir.join("usr").join("bin").join("dummy"),
+        LocationContext::FromSpecifiedRootDir(ref dir, ref pkg_dir) => {
+            // On Linux, RootAppDir is the AppImage file path (not a directory).
+            // Only override search_path if the provided path is actually a directory
+            // (e.g., a mounted AppImage root). If it's a file, keep current_exe()
+            // which points into the mounted filesystem.
+            if dir.is_dir() {
+                search_path = dir.join("usr").join("bin").join("dummy");
+            }
+            package_dir_override = pkg_dir.clone();
+        }
         LocationContext::FromSpecifiedAppExecutable(exe) => search_path = exe,
         _ => {}
     }
@@ -478,7 +488,10 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
     let metadata_path = contents_dir.join("sq.version");
 
     if !update_exe_path.exists() {
-        return Err(Error::NotInstalled("Update.exe does not exist in the expected path".to_owned()));
+        return Err(Error::NotInstalled(format!(
+            "UpdateNix does not exist at the expected path: {}",
+            update_exe_path.to_string_lossy()
+        )));
     }
 
     let appimage_path = match std::env::var("APPIMAGE") {
@@ -499,7 +512,11 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
     };
 
     let app = read_current_manifest(&metadata_path)?;
-    let packages_dir = PathBuf::from("/var/tmp/velopack").join(&app.id).join("packages");
+    let packages_dir = if let Some(pkg_dir) = package_dir_override {
+        pkg_dir
+    } else {
+        PathBuf::from("/var/tmp/velopack").join(&app.id).join("packages")
+    };
 
     let config = VelopackLocatorConfig {
         RootAppDir: PathBuf::from(appimage_path),
