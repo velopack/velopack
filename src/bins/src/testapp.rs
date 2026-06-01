@@ -4,12 +4,28 @@ use std::{env, fs, fs::OpenOptions, io::Write, process};
 use velopack::{locator, sources, UpdateCheck, UpdateManager, VelopackApp};
 
 fn main() -> Result<()> {
-    let _ = TermLogger::init(LevelFilter::Info, Config::default(), TerminalMode::Stderr, ColorChoice::Never);
+    let _ = TermLogger::init(
+        LevelFilter::Info,
+        Config::default(),
+        TerminalMode::Stderr,
+        ColorChoice::Never,
+    );
     let args: Vec<String> = env::args().skip(1).collect();
+
+    // Log args to args.txt BEFORE VelopackApp::run(), which may exit on fast hooks.
+    // Existing Windows tests depend on this file being written during install hooks.
+    if !args.is_empty() {
+        let line = args.join(" ") + "\n";
+        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("args.txt") {
+            let _ = file.write_all(line.as_bytes());
+        }
+    }
 
     let should_auto_update = args.iter().any(|a| a.eq_ignore_ascii_case("--autoupdate"));
 
-    VelopackApp::build().set_auto_apply_on_startup(should_auto_update).run();
+    VelopackApp::build()
+        .set_auto_apply_on_startup(should_auto_update)
+        .run();
 
     if should_auto_update {
         process::exit(-1);
@@ -78,9 +94,5 @@ fn main() -> Result<()> {
         }
     }
 
-    // Fallback: original behavior (log args to args.txt)
-    let line = args.join(" ") + "\n";
-    let mut file = OpenOptions::new().create(true).append(true).open("args.txt")?;
-    file.write_all(line.as_bytes())?;
     Ok(())
 }

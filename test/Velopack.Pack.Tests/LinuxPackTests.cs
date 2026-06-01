@@ -141,7 +141,6 @@ public class LinuxPackTests
     {
         using var _ = TempUtil.GetTempDirectory(out var packDir);
 
-        // copy pre-built Rust testapp binary
         var rustBinary = PathHelper.GetRustAsset("testapp");
         if (!File.Exists(rustBinary))
             throw new FileNotFoundException($"Rust testapp not found at: {rustBinary}. Run 'cargo build -p velopack_bins' first.");
