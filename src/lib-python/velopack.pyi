@@ -398,5 +398,15 @@ class VelopackLocatorConfig:
         r"""
         Whether the current application is portable or installed.
         """
-    def __new__(cls, RootAppDir: builtins.str | os.PathLike | pathlib.Path, UpdateExePath: builtins.str | os.PathLike | pathlib.Path, PackagesDir: builtins.str | os.PathLike | pathlib.Path, ManifestPath: builtins.str | os.PathLike | pathlib.Path, CurrentBinaryDir: builtins.str | os.PathLike | pathlib.Path, IsPortable: builtins.bool) -> VelopackLocatorConfig: ...
+    @property
+    def AppImagePath(self) -> typing.Optional[pathlib.Path]:
+        r"""
+        On Linux, this is the path to the AppImage that launched this program.
+        """
+    @AppImagePath.setter
+    def AppImagePath(self, value: typing.Optional[builtins.str | os.PathLike | pathlib.Path]) -> None:
+        r"""
+        On Linux, this is the path to the AppImage that launched this program.
+        """
+    def __new__(cls, RootAppDir: builtins.str | os.PathLike | pathlib.Path, UpdateExePath: builtins.str | os.PathLike | pathlib.Path, PackagesDir: builtins.str | os.PathLike | pathlib.Path, ManifestPath: builtins.str | os.PathLike | pathlib.Path, CurrentBinaryDir: builtins.str | os.PathLike | pathlib.Path, IsPortable: builtins.bool, AppImagePath: typing.Optional[builtins.str | os.PathLike | pathlib.Path] = None) -> VelopackLocatorConfig: ...
 
