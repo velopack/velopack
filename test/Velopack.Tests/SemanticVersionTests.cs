@@ -28,6 +28,9 @@ public class SemanticVersionTests
     [InlineData("0.0.0.0")]
     [InlineData("0.0.0")]
     [InlineData("0.0")]
+    [InlineData("0.2")]
+    [InlineData("1.0")]
+    [InlineData("1.0-beta")]
     [InlineData("0.0.0-alpha")]
     public void SemanticVersionThrowsInvalidVersion(string ver)
     {
