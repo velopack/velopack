@@ -589,9 +589,10 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
         ManifestPath: metadata_path,
         CurrentBinaryDir: contents_dir,
         IsPortable: true,
+        AppImagePath: None,
     };
 
-    Ok(VelopackLocator::new_with_manifest(config, app, None))
+    Ok(VelopackLocator::new_with_manifest(config, app))
 }
 
 fn read_current_manifest(nuspec_path: &Path) -> Result<Manifest, Error> {
