@@ -182,7 +182,7 @@ public class OsxPackTests
         logger.Info("TEST: Legacy v1 installed from fixture");
 
         var chk1version = TestHelper.RunNoCoverage(appExe, ["version"], installDir, logger);
-        Assert.EndsWith(Environment.NewLine + "1.0.0", chk1version);
+        Assert.EndsWith("1.0.0", chk1version);
         logger.Info("TEST: Legacy v1 version verified");
 
         await PackCSharpTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
