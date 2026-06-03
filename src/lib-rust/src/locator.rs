@@ -465,9 +465,12 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
 pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLocator, Error> {
     let mut search_path = std::env::current_exe()?;
     let mut package_dir_override: Option<PathBuf> = None;
+    let mut appimage_path_override: Option<PathBuf> = None;
     match context {
         LocationContext::FromSpecifiedRootDir(dir, pkg_dir) => {
-            search_path = dir.join("usr").join("bin").join("dummy");
+            // dir is the AppImage file path on disk, not a directory we can search.
+            // Keep search_path as current_exe() (inside the mounted AppImage).
+            appimage_path_override = Some(dir);
             package_dir_override = pkg_dir;
         }
         LocationContext::FromSpecifiedAppExecutable(exe) => search_path = exe,
@@ -483,8 +486,8 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
         )));
     }
     let idx = idx.unwrap();
-    let root_app_dir = PathBuf::from(search_string[..idx].to_string());
-    let contents_dir = root_app_dir.join("usr").join("bin");
+    let mount_dir = PathBuf::from(search_string[..idx].to_string());
+    let contents_dir = mount_dir.join("usr").join("bin");
     let update_exe_path = contents_dir.join("UpdateNix");
     let metadata_path = contents_dir.join("sq.version");
 
@@ -495,20 +498,16 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
         )));
     }
 
-    let appimage_path = match std::env::var("APPIMAGE") {
-        Ok(v) => {
-            if v.is_empty() || !PathBuf::from(&v).exists() {
+    let appimage_path = if let Some(p) = appimage_path_override {
+        p
+    } else {
+        match std::env::var("APPIMAGE") {
+            Ok(v) if !v.is_empty() && PathBuf::from(&v).exists() => PathBuf::from(v),
+            _ => {
                 return Err(Error::NotInstalled(
                     "The 'APPIMAGE' environment variable should point to the current AppImage path.".to_string(),
                 ));
-            } else {
-                v
             }
-        }
-        Err(_) => {
-            return Err(Error::NotInstalled(
-                "The 'APPIMAGE' environment variable should point to the current AppImage path.".to_string(),
-            ));
         }
     };
 
@@ -520,7 +519,7 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
     };
 
     let config = VelopackLocatorConfig {
-        RootAppDir: PathBuf::from(appimage_path),
+        RootAppDir: appimage_path,
         UpdateExePath: update_exe_path,
         PackagesDir: packages_dir,
         ManifestPath: metadata_path,
