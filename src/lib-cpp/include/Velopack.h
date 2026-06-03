@@ -128,7 +128,7 @@ typedef struct vpkc_update_options_t {
  */
 typedef struct vpkc_locator_config_t {
   /**
-   * The root directory of the current app.
+   * The root directory of the current app, or the path to the AppImage file on Linux.
    */
   char *RootAppDir;
   /**
@@ -151,10 +151,6 @@ typedef struct vpkc_locator_config_t {
    * Whether the current application is portable or installed.
    */
   bool IsPortable;
-  /**
-   * On Linux, this is the path to the AppImage that launched this program.
-   */
-  char *AppImagePath;
 } vpkc_locator_config_t;
 
 /**

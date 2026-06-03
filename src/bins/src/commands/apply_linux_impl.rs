@@ -19,7 +19,7 @@ pub fn apply_package_impl(locator: &VelopackLocator, pkg: &PathBuf, _hook_mode: 
         e
     })?;
     let temp_path = locator.get_temp_dir_rand16().to_string_lossy().to_string();
-    let appimage_path = locator.get_appimage_path().expect("AppImagePath must be set on Linux").to_string_lossy().to_string();
+    let appimage_path = locator.get_appimage_path().to_string_lossy().to_string();
     let script_path = format!("/var/tmp/velopack_update_{}.sh", manifest.id);
     let new_locator = locator.clone_self_with_new_manifest(&manifest);
 

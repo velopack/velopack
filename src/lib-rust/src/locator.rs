@@ -52,7 +52,7 @@ impl ShortcutLocationFlags {
 #[allow(non_snake_case)]
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
 pub struct VelopackLocatorConfig {
-    /// The root directory of the current app.
+    /// The root directory of the current app, or the path to the AppImage file on Linux.
     pub RootAppDir: PathBuf,
     /// The path to the Update.exe binary.
     pub UpdateExePath: PathBuf,
@@ -64,8 +64,6 @@ pub struct VelopackLocatorConfig {
     pub CurrentBinaryDir: PathBuf,
     /// Whether the current application is portable or installed.
     pub IsPortable: bool,
-    /// On Linux, this is the path to the AppImage that launched this program.
-    pub AppImagePath: Option<PathBuf>,
 }
 
 impl VelopackLocatorConfig {
@@ -215,7 +213,14 @@ impl VelopackLocator {
     }
 
     /// Returns the root directory of the current app.
+    #[cfg(not(target_os = "linux"))]
     pub fn get_root_dir(&self) -> PathBuf {
+        self.paths.RootAppDir.clone()
+    }
+
+    /// Returns the path to the AppImage file on Linux.
+    #[cfg(target_os = "linux")]
+    pub fn get_appimage_path(&self) -> PathBuf {
         self.paths.RootAppDir.clone()
     }
 
@@ -321,11 +326,6 @@ impl VelopackLocator {
         self.paths.IsPortable
     }
 
-    /// Returns the AppImage file path on Linux, or None on other platforms.
-    pub fn get_appimage_path(&self) -> Option<PathBuf> {
-        self.paths.AppImagePath.clone()
-    }
-
     /// Returns whether the app was installed via MSI (indicated by a `.msi-installed` marker file).
     #[cfg(windows)]
     pub fn get_is_msi_install(&self) -> bool {
@@ -374,7 +374,6 @@ pub fn create_config_from_root_dir<P: AsRef<std::path::Path>>(root_dir: P) -> Ve
         ManifestPath: root_dir.join("current").join("sq.version"),
         CurrentBinaryDir: root_dir.join("current"),
         IsPortable: root_dir.join(".portable").exists(),
-        AppImagePath: None,
     }
 }
 
@@ -521,13 +520,12 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
     };
 
     let config = VelopackLocatorConfig {
-        RootAppDir: root_app_dir,
+        RootAppDir: PathBuf::from(appimage_path),
         UpdateExePath: update_exe_path,
         PackagesDir: packages_dir,
         ManifestPath: metadata_path,
         CurrentBinaryDir: contents_dir,
         IsPortable: true,
-        AppImagePath: Some(PathBuf::from(appimage_path)),
     };
 
     Ok(VelopackLocator::new_with_manifest(config, app))
@@ -589,7 +587,6 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
         ManifestPath: metadata_path,
         CurrentBinaryDir: contents_dir,
         IsPortable: true,
-        AppImagePath: None,
     };
 
     Ok(VelopackLocator::new_with_manifest(config, app))

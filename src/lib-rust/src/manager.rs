@@ -645,6 +645,9 @@ impl UpdateManager {
         }
 
         args.push("--root".into());
+        #[cfg(target_os = "linux")]
+        args.push(self.inner.locator.get_appimage_path().into());
+        #[cfg(not(target_os = "linux"))]
         args.push(self.inner.locator.get_root_dir().into());
         args.push("--packageDir".into());
         args.push(self.inner.locator.get_packages_dir().into());

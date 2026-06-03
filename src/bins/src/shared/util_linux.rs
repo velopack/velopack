@@ -24,7 +24,7 @@ pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
 }
 
 pub fn start_package(locator: &VelopackLocator, exe_args: Option<Vec<OsString>>, set_env: Option<&str>) -> Result<()> {
-    let appimage_path = locator.get_appimage_path().expect("AppImagePath must be set on Linux");
+    let appimage_path = locator.get_appimage_path();
     let mut cmd = Process::new(appimage_path);
     if let Some(args) = exe_args {
         cmd.args(args);
