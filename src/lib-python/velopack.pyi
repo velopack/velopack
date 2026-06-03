@@ -341,12 +341,12 @@ class VelopackLocatorConfig:
     @property
     def RootAppDir(self) -> pathlib.Path:
         r"""
-        The root directory of the current app.
+        The root directory of the current app, or the path to the AppImage file on Linux.
         """
     @RootAppDir.setter
     def RootAppDir(self, value: builtins.str | os.PathLike | pathlib.Path) -> None:
         r"""
-        The root directory of the current app.
+        The root directory of the current app, or the path to the AppImage file on Linux.
         """
     @property
     def UpdateExePath(self) -> pathlib.Path:

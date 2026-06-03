@@ -10,7 +10,7 @@ use std::path::PathBuf;
 #[pyclass(name = "VelopackLocatorConfig", from_py_object)]
 #[derive(Debug, Clone, Default)]
 pub struct PyVelopackLocatorConfig {
-    /// The root directory of the current app.
+    /// The root directory of the current app, or the path to the AppImage file on Linux.
     #[pyo3(get, set)]
     pub RootAppDir: PathBuf,
     /// The path to the Update.exe binary.

@@ -24,8 +24,8 @@ pub fn wait_for_parent_to_exit(ms_to_wait: u32) -> Result<()> {
 }
 
 pub fn start_package(locator: &VelopackLocator, exe_args: Option<Vec<OsString>>, set_env: Option<&str>) -> Result<()> {
-    let root_dir = locator.get_root_dir();
-    let mut cmd = Process::new(root_dir);
+    let appimage_path = locator.get_appimage_path();
+    let mut cmd = Process::new(appimage_path);
     if let Some(args) = exe_args {
         cmd.args(args);
     }

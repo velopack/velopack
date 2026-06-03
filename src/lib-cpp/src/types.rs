@@ -114,7 +114,7 @@ pub fn return_cstr(psz: *mut c_char, c: size_t, s: &str) -> size_t {
 #[repr(C)]
 /// VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
 pub struct vpkc_locator_config_t {
-    /// The root directory of the current app.
+    /// The root directory of the current app, or the path to the AppImage file on Linux.
     pub RootAppDir: *mut c_char,
     /// The path to the Update.exe binary.
     pub UpdateExePath: *mut c_char,

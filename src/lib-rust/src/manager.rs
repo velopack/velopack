@@ -645,7 +645,12 @@ impl UpdateManager {
         }
 
         args.push("--root".into());
+        #[cfg(target_os = "linux")]
+        args.push(self.inner.locator.get_appimage_path().into());
+        #[cfg(not(target_os = "linux"))]
         args.push(self.inner.locator.get_root_dir().into());
+        args.push("--packageDir".into());
+        args.push(self.inner.locator.get_packages_dir().into());
 
         let restart_args: Vec<OsString> = restart_args.into_iter().map(|item| item.as_ref().to_os_string()).collect();
         if !restart_args.is_empty() {

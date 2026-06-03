@@ -2,7 +2,7 @@
 
 /** VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth). */
 export type VelopackLocatorConfig = {
-    /** The root directory of the current app. */
+    /** The root directory of the current app, or the path to the AppImage file on Linux. */
     RootAppDir: string,
     /** The path to the Update.exe binary. */
     UpdateExePath: string,

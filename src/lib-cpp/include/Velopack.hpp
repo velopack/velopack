@@ -89,7 +89,7 @@ inline T unwrap(const std::optional<T>& opt, const std::string& message = "Expec
 
 /** VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth). */
 struct VelopackLocatorConfig {
-    /** The root directory of the current app. */
+    /** The root directory of the current app, or the path to the AppImage file on Linux. */
     std::string RootAppDir;
     /** The path to the Update.exe binary. */
     std::string UpdateExePath;

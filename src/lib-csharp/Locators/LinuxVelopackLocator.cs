@@ -36,6 +36,9 @@ namespace Velopack.Locators
         public override string? Channel { get; }
 
         /// <inheritdoc />
+        public override bool IsPortable => true;
+
+        /// <inheritdoc />
         public override string? AppTempDir => CreateSubDirIfDoesNotExist(TempUtil.GetDefaultTempBaseDirectory(), AppId);
 
         /// <inheritdoc />
@@ -81,7 +84,7 @@ namespace Velopack.Locators
                     if (File.Exists(updateExe) && PackageManifest.TryParseFromFile(metadataPath, out var manifest)) {
                         initLog.Info("Located valid manifest file at: " + metadataPath);
                         AppId = manifest.Id;
-                        RootAppDir = rootDir;
+                        RootAppDir = AppImagePath;
                         AppContentDir = contentsDir;
                         UpdateExePath = updateExe;
                         CurrentlyInstalledVersion = manifest.Version;

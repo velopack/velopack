@@ -122,6 +122,27 @@ var nodeTemplate = Handlebars.Compile(File.ReadAllText(Path.Combine(templatesDir
 var nodeData = nodeTemplate(handlebarData);
 File.WriteAllText(libnodeTypesFile, nodeData.ToString().ReplaceLineEndings("\n"));
 
+// --- python stubs generation ---
+try {
+    var libPythonDir = Path.GetFullPath(Path.Combine(scriptsDir, "..", "lib-python"));
+    Console.WriteLine("Regenerating velopack.pyi stubs...");
+    var psi = new System.Diagnostics.ProcessStartInfo("cargo", "run --no-default-features --features stub-gen --bin stub_gen") {
+        WorkingDirectory = libPythonDir,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+    };
+    var proc = System.Diagnostics.Process.Start(psi);
+    proc?.WaitForExit(60000);
+    if (proc?.ExitCode == 0) {
+        Console.WriteLine("velopack.pyi regenerated successfully.");
+    } else {
+        Console.WriteLine("velopack.pyi generation failed (exit code " + proc?.ExitCode + "). This requires Python >= 3.10 and is expected to fail on some platforms.");
+        Console.Error.WriteLine(proc?.StandardError.ReadToEnd());
+    }
+} catch (Exception ex) {
+    Console.WriteLine("velopack.pyi generation skipped: " + ex.Message);
+}
+
 return 0;
 
 class TypeMap

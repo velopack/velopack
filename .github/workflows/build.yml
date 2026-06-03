@@ -13,6 +13,9 @@ permissions:
 jobs:
   build-rust:
     uses: ./.github/workflows/build-rust.yml
+    permissions:
+      contents: read
+      actions: write
 
   build-python:
     uses: ./.github/workflows/build-python.yml

@@ -175,6 +175,8 @@ jobs:
           path: target/release
           pattern: rust-*
           merge-multiple: true
+      - name: Build Rust testapp
+        run: cargo build --locked --release -p velopack_bins --bin testapp ${{ matrix.rust_flags }}
       - name: Build Cross-Compile Artifacts
         run: >-
           dotnet test --project test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj
