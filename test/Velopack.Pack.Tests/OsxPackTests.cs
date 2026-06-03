@@ -162,6 +162,7 @@ public class OsxPackTests
     }
 
     [Theory]
+    [InlineData("LegacyTestApp-Velopack0359-osx-Portable.zip")]
     [InlineData("LegacyTestApp-Velopack1298-osx-Portable.zip")]
     public async Task LegacyOsxAppCanMigrate(string fixture)
     {

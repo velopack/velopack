@@ -81,6 +81,7 @@ public class LinuxPackTests
     }
 
     [Theory]
+    [InlineData("LegacyTestApp-Velopack0359-linux.AppImage")]
     [InlineData("LegacyTestApp-Velopack1298-linux.AppImage")]
     public async Task LegacyLinuxAppCanMigrate(string fixture)
     {
