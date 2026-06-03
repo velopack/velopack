@@ -87,8 +87,11 @@ namespace Velopack.Locators
                 var macosDir = Path.Combine(contentsDir, "MacOS");
                 var updateExe = Path.Combine(macosDir, "UpdateMac");
                 var metadataPath = Path.Combine(macosDir, CoreUtil.SpecVersionFileName);
+                var resourcesMetadataPath = Path.Combine(contentsDir, "Resources", CoreUtil.SpecVersionFileName);
 
-                if (File.Exists(updateExe) && PackageManifest.TryParseFromFile(metadataPath, out var manifest)) {
+                if (File.Exists(updateExe)
+                    && (PackageManifest.TryParseFromFile(metadataPath, out var manifest)
+                        || PackageManifest.TryParseFromFile(resourcesMetadataPath, out manifest))) {
                     initLog.Info("Located valid manifest file at: " + metadataPath);
                     AppId = manifest.Id;
                     RootAppDir = appPath;
