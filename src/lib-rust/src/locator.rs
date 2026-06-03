@@ -501,18 +501,38 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
         )));
     }
 
+    let appimage_from_env = std::env::var("APPIMAGE")
+        .ok()
+        .filter(|v| !v.is_empty() && PathBuf::from(v).exists())
+        .map(PathBuf::from);
+
     let appimage_path = if let Some(p) = appimage_path_override {
+        if p.exists() {
+            p
+        } else if let Some(fallback) = appimage_from_env.clone() {
+            error!(
+                "Specified AppImage path '{}' does not exist, falling back to $APPIMAGE='{}'",
+                p.to_string_lossy(),
+                fallback.to_string_lossy()
+            );
+            fallback
+        } else {
+            return Err(Error::NotInstalled(format!(
+                "The specified AppImage path does not exist: {}",
+                p.to_string_lossy()
+            )));
+        }
+    } else if let Some(p) = appimage_from_env {
         p
     } else {
-        match std::env::var("APPIMAGE") {
-            Ok(v) if !v.is_empty() && PathBuf::from(&v).exists() => PathBuf::from(v),
-            _ => {
-                return Err(Error::NotInstalled(
-                    "The 'APPIMAGE' environment variable should point to the current AppImage path.".to_string(),
-                ));
-            }
-        }
+        let env_val = std::env::var("APPIMAGE").unwrap_or_default();
+        return Err(Error::NotInstalled(if env_val.is_empty() {
+            "The $APPIMAGE environment variable is not set. Is this app running as an AppImage?".to_string()
+        } else {
+            format!("The $APPIMAGE environment variable points to a path that does not exist: {}", env_val)
+        }));
     };
+    info!("Resolved AppImage path: {}", appimage_path.to_string_lossy());
 
     let app = read_current_manifest(&metadata_path)?;
     let packages_dir = if let Some(pkg_dir) = package_dir_override {
