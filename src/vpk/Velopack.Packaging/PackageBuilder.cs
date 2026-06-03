@@ -51,6 +51,8 @@ public abstract class PackageBuilder<T> : ICommand<T>
                 $"should provide an OS directive: eg. 'vpk [{options.TargetRuntime?.BaseRID.GetOsShortName()}] pack ...'");
         }
 
+        NugetUtil.ThrowIfVersionNotSemverCompliant(options.PackVersion);
+
         Log.Info($"Beginning to package Velopack release {options.PackVersion}.");
         Log.Info("Releases Directory: " + options.ReleaseDir.FullName);
 

@@ -1,5 +1,4 @@
 ﻿using System.Text.RegularExpressions;
-using NuGet.Versioning;
 using Velopack.NuGet;
 
 namespace Velopack.Vpk.Commands;
@@ -312,19 +311,12 @@ internal static class SystemCommandLineExtensions
 
         public static void RequiresSemverCompliant(OptionResult result)
         {
-            string specifiedAlias = result.IdentifierToken.Value;
-
             for (int i = 0; i < result.Tokens.Count; i++) {
                 string version = result.Tokens[i].Value;
-                //TODO: This is duplicating NugetUtil.ThrowIfVersionNotSemverCompliant
-                if (SemanticVersion.TryParse(version, out var parsed)) {
-                    if (parsed < new SemanticVersion(0, 0, 1, parsed.Release)) {
-                        result.AddError($"{result.IdentifierToken.Value} contains an invalid package version '{version}', it must be >= 0.0.1.");
-                        break;
-                    }
-                } else {
-                    result.AddError(
-                        $"{result.IdentifierToken.Value} contains an invalid package version '{version}', it must be a 3-part SemVer2 compliant version string.");
+                try {
+                    NugetUtil.ThrowIfVersionNotSemverCompliant(version);
+                } catch (ArgumentException ex) {
+                    result.AddError($"{result.IdentifierToken.Value} contains an invalid package version '{version}': {ex.Message}");
                     break;
                 }
             }

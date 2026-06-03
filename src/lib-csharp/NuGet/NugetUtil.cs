@@ -39,9 +39,9 @@ namespace Velopack.NuGet
         public static void ThrowIfVersionNotSemverCompliant(string version)
         {
             if (SemanticVersion.TryParse(version, out var parsed)) {
-                // Reject 4-part version numbers (e.g. "1.2.3.4") - only 3-part semver is allowed for packages
+                // Reject version numbers that are not exactly 3-part (e.g. "0.2" or "1.2.3.4")
                 var versionPart = version.Split('-')[0].Split('+')[0];
-                if (versionPart.Split('.').Length > 3) {
+                if (versionPart.Split('.').Length != 3) {
                     throw new ArgumentException($"Invalid package version '{version}', it must be a 3-part SemVer2 compliant version string.");
                 }
                 if (parsed < new SemanticVersion(0, 0, 1, parsed.Release)) {
