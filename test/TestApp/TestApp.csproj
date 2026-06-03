@@ -10,12 +10,20 @@
     <DefineConstants>NO_VELO_BUILDER</DefineConstants>
   </PropertyGroup>
 
+  <PropertyGroup Condition=" $(LegacyVelopackApi) != '' ">
+    <DefineConstants>$(DefineConstants);LEGACY_VELOPACK_API</DefineConstants>
+  </PropertyGroup>
+
   <PropertyGroup Condition=" $(UseAsyncMain) != '' ">
     <DefineConstants>USE_ASYNC_MAIN</DefineConstants>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition=" '$(UseVelopackPkg)' == '' ">
     <ProjectReference Include="..\..\src\lib-csharp\Velopack.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(UseVelopackPkg)' != '' ">
+    <PackageReference Include="Velopack" Version="$(UseVelopackPkg)" />
   </ItemGroup>
 
   <ItemGroup>

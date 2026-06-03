@@ -582,12 +582,15 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
     let contents_dir = root_app_dir.join("Contents").join("MacOS");
     let update_exe_path = contents_dir.join("UpdateMac");
     let metadata_path = contents_dir.join("sq.version");
+    let resources_metadata_path = root_app_dir.join("Contents").join("Resources").join("sq.version");
 
     if !update_exe_path.exists() {
         return Err(Error::NotInstalled("UpdateMac does not exist in the expected path".to_owned()));
     }
 
-    let app = read_current_manifest(&metadata_path)?;
+    let (app, resolved_metadata_path) = read_current_manifest(&metadata_path)
+        .map(|m| (m, metadata_path))
+        .or_else(|_| read_current_manifest(&resources_metadata_path).map(|m| (m, resources_metadata_path)))?;
 
     let packages_dir = if let Some(pkg_dir) = package_dir_override {
         pkg_dir
@@ -606,7 +609,7 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
         RootAppDir: root_app_dir,
         UpdateExePath: update_exe_path,
         PackagesDir: packages_dir,
-        ManifestPath: metadata_path,
+        ManifestPath: resolved_metadata_path,
         CurrentBinaryDir: contents_dir,
         IsPortable: true,
     };

@@ -648,11 +648,12 @@ public class WindowsPackTests
     }
 
     [Theory]
-    [InlineData("LegacyTestApp-ClowdV2-Setup.exe", "app-1.0.0")]
-    [InlineData("LegacyTestApp-ClowdV3-Setup.exe", "current")]
-    [InlineData("LegacyTestApp-SquirrelWinV2-Setup.exe", "app-1.0.0")]
-    [InlineData("LegacyTestApp-Velopack0084-Setup.exe", "current")]
-    public async Task LegacyAppCanMigrate(string fixture, string origDirName)
+    [InlineData("LegacyTestApp-ClowdV2-Setup.exe", "app-1.0.0", "LegacyTestApp.exe")]
+    [InlineData("LegacyTestApp-ClowdV3-Setup.exe", "current", "LegacyTestApp.exe")]
+    [InlineData("LegacyTestApp-SquirrelWinV2-Setup.exe", "app-1.0.0", "LegacyTestApp.exe")]
+    [InlineData("LegacyTestApp-Velopack0084-Setup.exe", "current", "LegacyTestApp.exe")]
+    [InlineData("LegacyTestApp-Velopack1298-Setup.exe", "current", "TestApp.exe")]
+    public async Task LegacyAppCanMigrate(string fixture, string origDirName, string initialExeName)
     {
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
@@ -667,7 +668,7 @@ public class WindowsPackTests
         p!.WaitForExit();
 
         var currentDir = Path.Combine(rootDir, origDirName);
-        var appExe = Path.Combine(currentDir, "LegacyTestApp.exe");
+        var appExe = Path.Combine(currentDir, initialExeName);
         var updateExe = Path.Combine(rootDir, "Update.exe");
 
         var assertAppExe = appExe;

@@ -2,9 +2,15 @@
 using System.Diagnostics;
 using Velopack;
 using Velopack.Locators;
+#if !LEGACY_VELOPACK_API
 using Velopack.Logging;
+#endif
 
+#if LEGACY_VELOPACK_API
+var locator = VelopackLocator.GetDefault(null);
+#else
 var locator = VelopackLocator.CreateDefaultForPlatform(logger: new ConsoleVelopackLogger());
+#endif
 
 try {
     bool shouldExit = false;
@@ -15,6 +21,28 @@ try {
 #endif
 
 #if !NO_VELO_BUILDER
+#if LEGACY_VELOPACK_API
+    VelopackApp.Build()
+        .SetAutoApplyOnStartup(shouldAutoUpdate)
+        .WithFirstRun(
+            (v) => {
+                debugFile("firstrun", v.ToString(), "OnFirstRun");
+                Console.WriteLine("was first run");
+                shouldExit = true;
+            })
+        .WithRestarted(
+            (v) => {
+                debugFile("restarted", v.ToString() + "," + String.Join(",", args), "OnRestarted");
+                Console.WriteLine("app just restarted");
+                shouldExit = true;
+            })
+        .SetLocator(locator)
+        .WithAfterInstallFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnAfterInstallFastCallback"))
+        .WithBeforeUpdateFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnBeforeUpdateFastCallback"))
+        .WithAfterUpdateFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnAfterUpdateFastCallback"))
+        .WithBeforeUninstallFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnBeforeUninstallFastCallback"))
+        .Run();
+#else
     VelopackApp.Build()
         .SetAutoApplyOnStartup(shouldAutoUpdate)
         .OnFirstRun(
@@ -35,6 +63,7 @@ try {
         .OnAfterUpdateFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnAfterUpdateFastCallback"))
         .OnBeforeUninstallFastCallback((v) => debugFile("args.txt", String.Join(" ", args), "OnBeforeUninstallFastCallback"))
         .Run();
+#endif
 
     if (shouldAutoUpdate) {
         // this shouldn't be reached
@@ -63,7 +92,11 @@ try {
 
     if (args.Length == 2) {
         if (args[0] == "check") {
+#if LEGACY_VELOPACK_API
+            var um = new UpdateManager(args[1], null, null, locator);
+#else
             var um = new UpdateManager(args[1], null, locator);
+#endif
             var info = um.CheckForUpdates();
             if (info == null) {
                 Console.WriteLine("no updates");
@@ -75,18 +108,32 @@ try {
         }
 
         if (args[0] == "download") {
+#if LEGACY_VELOPACK_API
+            var um = new UpdateManager(args[1], null, null, locator);
+#else
             var um = new UpdateManager(args[1], null, locator);
+#endif
             var info = um.CheckForUpdates();
             if (info == null) {
                 Console.WriteLine("no updates");
                 return -1;
             }
 
-            um.DownloadUpdates(info, Console.WriteLine);
+            um.DownloadUpdates(info);
             return 0;
         }
 
         if (args[0] == "apply") {
+#if LEGACY_VELOPACK_API
+            var um = new UpdateManager(args[1], null, null, locator);
+            if (!um.IsUpdatePendingRestart) {
+                Console.WriteLine("not pending restart");
+                return -1;
+            }
+
+            Console.WriteLine("applying...");
+            Velopack.UpdateExe.Apply(locator, null, false, true, ["test", "args !!"]);
+#else
             var um = new UpdateManager(args[1], null, locator);
             if (um.UpdatePendingRestart == null) {
                 Console.WriteLine("not pending restart");
@@ -95,6 +142,7 @@ try {
 
             Console.WriteLine("applying...");
             um.ApplyUpdatesAndRestart(null, ["test", "args !!"]);
+#endif
             return 0;
         }
     }

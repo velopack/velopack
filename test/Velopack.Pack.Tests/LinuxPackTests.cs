@@ -81,6 +81,50 @@ public class LinuxPackTests
     }
 
     [Theory]
+    [InlineData("LegacyTestApp-Velopack0359-linux.AppImage")]
+    [InlineData("LegacyTestApp-Velopack1298-linux.AppImage")]
+    public async Task LegacyLinuxAppCanMigrate(string fixture)
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsLinux, "Linux only");
+        using var logger = _output.BuildLoggerFor<LinuxPackTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+        using var _2 = TempUtil.GetTempDirectory(out var installDir);
+
+        string id = "LegacyTestApp";
+        var appImagePath = Path.Combine(installDir, $"{id}.AppImage");
+
+        var fixturePath = PathHelper.GetFixture(fixture);
+        Assert.True(File.Exists(fixturePath), $"Expected fixture {fixturePath} to exist");
+        File.Copy(fixturePath, appImagePath);
+        Chmod.ChmodFileAsExecutable(appImagePath);
+        logger.Info("TEST: Legacy v1 installed from fixture");
+
+        var chk1version = TestHelper.RunNoCoverage(appImagePath, ["version"], installDir, logger);
+        Assert.EndsWith("1.0.0", chk1version);
+        logger.Info("TEST: Legacy v1 version verified");
+
+        await PackCSharpTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
+
+        TestHelper.RunNoCoverage(appImagePath, ["download", releaseDir], installDir, logger, exitCode: 0);
+        TestHelper.RunNoCoverage(appImagePath, ["apply", releaseDir], installDir, logger, exitCode: null);
+        logger.Info("TEST: v2 applied");
+
+        Thread.Sleep(5000);
+
+        var chk2version = TestHelper.RunNoCoverage(appImagePath, ["version"], installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        var chk2test = TestHelper.RunNoCoverage(appImagePath, ["test"], installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "version 2 test", chk2test);
+        logger.Info("TEST: v2 output verified / complete");
+
+        try {
+            var packagesDir = Path.Combine("/var/tmp/velopack", id);
+            if (Directory.Exists(packagesDir))
+                Directory.Delete(packagesDir, true);
+        } catch { }
+    }
+
+    [Theory]
     [InlineData("csharp")]
     [InlineData("rust")]
     public async Task TestLinuxAppAutoUpdatesWhenLocalIsAvailable(string variant)
