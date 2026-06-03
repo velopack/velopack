@@ -468,9 +468,12 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
     let mut appimage_path_override: Option<PathBuf> = None;
     match context {
         LocationContext::FromSpecifiedRootDir(dir, pkg_dir) => {
-            // dir is the AppImage file path on disk, not a directory we can search.
-            // Keep search_path as current_exe() (inside the mounted AppImage).
-            appimage_path_override = Some(dir);
+            if dir.is_file() {
+                // Newer libraries pass the AppImage file path directly.
+                appimage_path_override = Some(dir);
+            }
+            // If dir is a directory (older libraries pass the mounted root),
+            // ignore it — we derive paths from current_exe() and $APPIMAGE instead.
             package_dir_override = pkg_dir;
         }
         LocationContext::FromSpecifiedAppExecutable(exe) => search_path = exe,
