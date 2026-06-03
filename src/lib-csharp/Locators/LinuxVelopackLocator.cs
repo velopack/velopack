@@ -36,6 +36,9 @@ namespace Velopack.Locators
         public override string? Channel { get; }
 
         /// <inheritdoc />
+        public override bool IsPortable => true;
+
+        /// <inheritdoc />
         public override string? AppTempDir => CreateSubDirIfDoesNotExist(TempUtil.GetDefaultTempBaseDirectory(), AppId);
 
         /// <inheritdoc />

@@ -64,6 +64,8 @@ pub struct VelopackLocatorConfig {
     pub CurrentBinaryDir: PathBuf,
     /// Whether the current application is portable or installed.
     pub IsPortable: bool,
+    /// On Linux, this is the path to the AppImage that launched this program.
+    pub AppImagePath: Option<PathBuf>,
 }
 
 impl VelopackLocatorConfig {
@@ -319,6 +321,11 @@ impl VelopackLocator {
         self.paths.IsPortable
     }
 
+    /// Returns the AppImage file path on Linux, or None on other platforms.
+    pub fn get_appimage_path(&self) -> Option<PathBuf> {
+        self.paths.AppImagePath.clone()
+    }
+
     /// Returns whether the app was installed via MSI (indicated by a `.msi-installed` marker file).
     #[cfg(windows)]
     pub fn get_is_msi_install(&self) -> bool {
@@ -367,6 +374,7 @@ pub fn create_config_from_root_dir<P: AsRef<std::path::Path>>(root_dir: P) -> Ve
         ManifestPath: root_dir.join("current").join("sq.version"),
         CurrentBinaryDir: root_dir.join("current"),
         IsPortable: root_dir.join(".portable").exists(),
+        AppImagePath: None,
     }
 }
 
@@ -459,22 +467,16 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
     let mut search_path = std::env::current_exe()?;
     let mut package_dir_override: Option<PathBuf> = None;
     match context {
-        LocationContext::FromSpecifiedRootDir(ref dir, ref pkg_dir) => {
-            // On Linux, RootAppDir is the AppImage file path (not a directory).
-            // Only override search_path if the provided path is actually a directory
-            // (e.g., a mounted AppImage root). If it's a file, keep current_exe()
-            // which points into the mounted filesystem.
-            if dir.is_dir() {
-                search_path = dir.join("usr").join("bin").join("dummy");
-            }
-            package_dir_override = pkg_dir.clone();
+        LocationContext::FromSpecifiedRootDir(dir, pkg_dir) => {
+            search_path = dir.join("usr").join("bin").join("dummy");
+            package_dir_override = pkg_dir;
         }
         LocationContext::FromSpecifiedAppExecutable(exe) => search_path = exe,
         _ => {}
     }
 
     let search_string = search_path.to_string_lossy();
-    let idx = search_string.rfind("/usr/bin/");
+    let idx = search_string.find("/usr/bin/");
     if idx.is_none() {
         return Err(Error::NotInstalled(format!(
             "Could not locate '/usr/bin/' in executable path {}",
@@ -519,12 +521,13 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
     };
 
     let config = VelopackLocatorConfig {
-        RootAppDir: PathBuf::from(appimage_path),
+        RootAppDir: root_app_dir,
         UpdateExePath: update_exe_path,
         PackagesDir: packages_dir,
         ManifestPath: metadata_path,
         CurrentBinaryDir: contents_dir,
         IsPortable: true,
+        AppImagePath: Some(PathBuf::from(appimage_path)),
     };
 
     Ok(VelopackLocator::new_with_manifest(config, app))
@@ -534,14 +537,18 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
 /// Automatically locates the current app's important paths. If the app is not installed, it will return an error.
 pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLocator, Error> {
     let mut search_path = std::env::current_exe()?;
+    let mut package_dir_override: Option<PathBuf> = None;
     match context {
-        LocationContext::FromSpecifiedRootDir(dir, _) => search_path = dir.join("dummy"),
+        LocationContext::FromSpecifiedRootDir(dir, pkg_dir) => {
+            search_path = dir.join("dummy");
+            package_dir_override = pkg_dir;
+        }
         LocationContext::FromSpecifiedAppExecutable(exe) => search_path = exe,
         _ => {}
     }
 
     let search_string = search_path.to_string_lossy();
-    let idx = search_string.rfind(".app/");
+    let idx = search_string.find(".app/");
     if idx.is_none() {
         return Err(Error::NotInstalled(format!(
             "Could not locate '.app' in executable path {}",
@@ -562,13 +569,18 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
 
     let app = read_current_manifest(&metadata_path)?;
 
-    #[allow(deprecated)]
-    let mut packages_dir = std::env::home_dir().expect("Could not locate user home directory via $HOME or /etc/passwd");
-    packages_dir.push("Library");
-    packages_dir.push("Caches");
-    packages_dir.push("velopack");
-    packages_dir.push(&app.id);
-    packages_dir.push("packages");
+    let packages_dir = if let Some(pkg_dir) = package_dir_override {
+        pkg_dir
+    } else {
+        #[allow(deprecated)]
+        let mut dir = std::env::home_dir().expect("Could not locate user home directory via $HOME or /etc/passwd");
+        dir.push("Library");
+        dir.push("Caches");
+        dir.push("velopack");
+        dir.push(&app.id);
+        dir.push("packages");
+        dir
+    };
 
     let config = VelopackLocatorConfig {
         RootAppDir: root_app_dir,
@@ -579,7 +591,7 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
         IsPortable: true,
     };
 
-    Ok(VelopackLocator::new_with_manifest(config, app))
+    Ok(VelopackLocator::new_with_manifest(config, app, None))
 }
 
 fn read_current_manifest(nuspec_path: &Path) -> Result<Manifest, Error> {

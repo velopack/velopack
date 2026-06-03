@@ -101,6 +101,8 @@ struct VelopackLocatorConfig {
     std::string CurrentBinaryDir;
     /** Whether the current application is portable or installed. */
     bool IsPortable;
+    /** On Linux, this is the path to the AppImage that launched this program. */
+    std::optional<std::string> AppImagePath;
 };
 
 static inline std::optional<VelopackLocatorConfig> to_cpp_VelopackLocatorConfig(const vpkc_locator_config_t* dto) {
@@ -112,6 +114,7 @@ static inline std::optional<VelopackLocatorConfig> to_cpp_VelopackLocatorConfig(
         unwrap(to_cpp_string(dto->ManifestPath), "Required property ManifestPath was null"),
         unwrap(to_cpp_string(dto->CurrentBinaryDir), "Required property CurrentBinaryDir was null"),
         dto->IsPortable,
+        to_cpp_string(dto->AppImagePath),
     });
 }
 
@@ -136,6 +139,7 @@ static inline vpkc_locator_config_t* alloc_c_VelopackLocatorConfig_ptr(const Vel
     obj->ManifestPath = alloc_c_string(dto->ManifestPath);
     obj->CurrentBinaryDir = alloc_c_string(dto->CurrentBinaryDir);
     obj->IsPortable = dto->IsPortable;
+    obj->AppImagePath = alloc_c_string(dto->AppImagePath);
     return obj;
 }
 
@@ -166,6 +170,7 @@ static inline void free_c_VelopackLocatorConfig(vpkc_locator_config_t* obj) {
     free_c_string(obj->ManifestPath);
     free_c_string(obj->CurrentBinaryDir);
     
+    free_c_string(obj->AppImagePath);
     delete obj;
 }
 

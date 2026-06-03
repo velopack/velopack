@@ -646,6 +646,8 @@ impl UpdateManager {
 
         args.push("--root".into());
         args.push(self.inner.locator.get_root_dir().into());
+        args.push("--packageDir".into());
+        args.push(self.inner.locator.get_packages_dir().into());
 
         let restart_args: Vec<OsString> = restart_args.into_iter().map(|item| item.as_ref().to_os_string()).collect();
         if !restart_args.is_empty() {

@@ -14,6 +14,8 @@ export type VelopackLocatorConfig = {
     CurrentBinaryDir: string,
     /** Whether the current application is portable or installed. */
     IsPortable: boolean,
+    /** On Linux, this is the path to the AppImage that launched this program. */
+    AppImagePath?: string,
 }
 
 /** An individual Velopack asset, could refer to an asset on-disk or in a remote package feed. */

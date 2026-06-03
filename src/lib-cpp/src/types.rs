@@ -80,8 +80,13 @@ pub fn allocate_String<'a, T: Into<Option<&'a String>>>(s: T) -> *mut c_char {
     cstr.into_raw()
 }
 
-pub fn allocate_PathBuf(p: &PathBuf) -> *mut c_char {
-    let st = p.to_string_lossy().to_string();
+pub fn allocate_PathBuf<'a, T: Into<Option<&'a PathBuf>>>(s: T) -> *mut c_char {
+    let s = s.into();
+    if s.is_none() {
+        return std::ptr::null_mut();
+    }
+
+    let st = s.unwrap().to_string_lossy().to_string();
     allocate_String(&st)
 }
 
@@ -126,6 +131,8 @@ pub struct vpkc_locator_config_t {
     pub CurrentBinaryDir: *mut c_char,
     /// Whether the current application is portable or installed.
     pub IsPortable: bool,
+    /// On Linux, this is the path to the AppImage that launched this program.
+    pub AppImagePath: *mut c_char,
 }
 
 #[rustfmt::skip]
@@ -139,6 +146,7 @@ pub fn c_to_VelopackLocatorConfig(obj: *mut vpkc_locator_config_t) -> Result<Vel
         ManifestPath: c_to_PathBuf(obj.ManifestPath)?,
         CurrentBinaryDir: c_to_PathBuf(obj.CurrentBinaryDir)?,
         IsPortable: obj.IsPortable,
+        AppImagePath: c_to_PathBuf(obj.AppImagePath).ok(),
     };
     Ok(result)
 }
@@ -169,6 +177,7 @@ pub unsafe fn allocate_VelopackLocatorConfig<'a, T: Into<Option<&'a VelopackLoca
     (*obj).ManifestPath = allocate_PathBuf(&dto.ManifestPath);
     (*obj).CurrentBinaryDir = allocate_PathBuf(&dto.CurrentBinaryDir);
     (*obj).IsPortable = dto.IsPortable;
+    (*obj).AppImagePath = allocate_PathBuf(&dto.AppImagePath);
     obj
 }
 
@@ -200,6 +209,7 @@ pub unsafe fn free_VelopackLocatorConfig(obj: *mut vpkc_locator_config_t) {
     free_PathBuf((*obj).ManifestPath);
     free_PathBuf((*obj).CurrentBinaryDir);
     
+    free_PathBuf((*obj).AppImagePath);
     libc::free(obj as *mut c_void);
     log::debug!("vpkc_locator_config_t freed");
 }

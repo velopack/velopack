@@ -151,6 +151,10 @@ typedef struct vpkc_locator_config_t {
    * Whether the current application is portable or installed.
    */
   bool IsPortable;
+  /**
+   * On Linux, this is the path to the AppImage that launched this program.
+   */
+  char *AppImagePath;
 } vpkc_locator_config_t;
 
 /**

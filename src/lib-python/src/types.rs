@@ -28,13 +28,16 @@ pub struct PyVelopackLocatorConfig {
     /// Whether the current application is portable or installed.
     #[pyo3(get, set)]
     pub IsPortable: bool,
+    /// On Linux, this is the path to the AppImage that launched this program.
+    #[pyo3(get, set)]
+    pub AppImagePath: Option<PathBuf>,
 }
 
 #[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyVelopackLocatorConfig {
     #[new]
-    #[pyo3(signature = (RootAppDir, UpdateExePath, PackagesDir, ManifestPath, CurrentBinaryDir, IsPortable))]
+    #[pyo3(signature = (RootAppDir, UpdateExePath, PackagesDir, ManifestPath, CurrentBinaryDir, IsPortable, AppImagePath = None))]
     fn new(
         RootAppDir: PathBuf,
         UpdateExePath: PathBuf,
@@ -42,6 +45,7 @@ impl PyVelopackLocatorConfig {
         ManifestPath: PathBuf,
         CurrentBinaryDir: PathBuf,
         IsPortable: bool,
+        AppImagePath: Option<PathBuf>,
         ) -> Self {
         Self {
             RootAppDir: RootAppDir.into(),
@@ -50,6 +54,7 @@ impl PyVelopackLocatorConfig {
             ManifestPath: ManifestPath.into(),
             CurrentBinaryDir: CurrentBinaryDir.into(),
             IsPortable: IsPortable,
+            AppImagePath: AppImagePath.map(Into::into),
         }
     }
 }
@@ -63,6 +68,7 @@ impl From<VelopackLocatorConfig> for PyVelopackLocatorConfig {
             ManifestPath: value.ManifestPath.into(),
             CurrentBinaryDir: value.CurrentBinaryDir.into(),
             IsPortable: value.IsPortable,
+            AppImagePath: value.AppImagePath.map(Into::into),
         }
     }
 }
@@ -76,6 +82,7 @@ impl Into<VelopackLocatorConfig> for PyVelopackLocatorConfig {
             ManifestPath: self.ManifestPath.into(),
             CurrentBinaryDir: self.CurrentBinaryDir.into(),
             IsPortable: self.IsPortable,
+            AppImagePath: self.AppImagePath.map(Into::into),
         }
     }
 }
