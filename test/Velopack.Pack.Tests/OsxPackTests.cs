@@ -161,6 +161,52 @@ public class OsxPackTests
         } catch { }
     }
 
+    [Theory]
+    [InlineData("LegacyTestApp-Velopack1298-osx-Portable.zip")]
+    public async Task LegacyOsxAppCanMigrate(string fixture)
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsOSX, "macOS only");
+        using var logger = _output.BuildLoggerFor<OsxPackTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+        using var _2 = TempUtil.GetTempDirectory(out var installDir);
+
+        string id = "LegacyTestApp";
+        var bundlePath = Path.Combine(installDir, $"{id}.app");
+        var appExe = Path.Combine(bundlePath, "Contents", "MacOS", "TestApp");
+
+        var fixturePath = PathHelper.GetFixture(fixture);
+        Assert.True(File.Exists(fixturePath), $"Expected fixture {fixturePath} to exist");
+        ExtractDittoZip(fixturePath, installDir);
+        Assert.True(Directory.Exists(bundlePath), $"Expected {bundlePath} to exist");
+        logger.Info("TEST: Legacy v1 installed from fixture");
+
+        var chk1version = TestHelper.RunNoCoverage(appExe, ["version"], installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "1.0.0", chk1version);
+        logger.Info("TEST: Legacy v1 version verified");
+
+        await PackCSharpTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
+
+        TestHelper.RunNoCoverage(appExe, ["download", releaseDir], installDir, logger, exitCode: 0);
+        TestHelper.RunNoCoverage(appExe, ["apply", releaseDir], installDir, logger, exitCode: null);
+        logger.Info("TEST: v2 applied");
+
+        Thread.Sleep(5000);
+
+        var chk2version = TestHelper.RunNoCoverage(appExe, ["version"], installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        var chk2test = TestHelper.RunNoCoverage(appExe, ["test"], installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "version 2 test", chk2test);
+        logger.Info("TEST: v2 output verified / complete");
+
+        try {
+            var cacheDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Library", "Caches", "velopack", id);
+            if (Directory.Exists(cacheDir))
+                Directory.Delete(cacheDir, true);
+        } catch { }
+    }
+
     private async Task PackTestAppVariant(string variant, string id, string version, string testString, string releaseDir, ILogger logger)
     {
         if (variant == "csharp") {
@@ -244,10 +290,6 @@ public class OsxPackTests
         }
     }
 
-    /// <summary>
-    /// Extract a ditto zip using macOS ditto command, which preserves symlinks and permissions.
-    /// System.IO.Compression cannot handle symlinks in ditto zips.
-    /// </summary>
     private static void ExtractDittoZip(string zipPath, string destDir)
     {
         Exe.InvokeAndThrowIfNonZero("ditto", ["-xk", zipPath, destDir], null);
