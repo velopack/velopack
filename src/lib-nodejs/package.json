@@ -44,14 +44,14 @@
     "lib/**/*.node"
   ],
   "devDependencies": {
-    "@tsconfig/node24": "^24.0.0",
-    "@types/node": "^25.3.0",
-    "@vitest/coverage-v8": "^4.1.7",
-    "cross-env": "^10.1.0",
-    "del-cli": "^7.0.0",
-    "prettier": "3.8.1",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.7"
+    "@tsconfig/node24": "24.0.4",
+    "@types/node": "25.5.2",
+    "@vitest/coverage-v8": "4.1.7",
+    "cross-env": "10.1.0",
+    "del-cli": "7.0.0",
+    "prettier": "3.8.3",
+    "typescript": "6.0.3",
+    "vitest": "4.1.7"
   },
   "dependencies": {
     "@neon-rs/load": "^0.2.0"
