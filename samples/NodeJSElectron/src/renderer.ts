@@ -31,7 +31,7 @@ import './index.css';
 
 console.log('👋 This message is being logged by "renderer.js", included via webpack');
 
-const labelElement = document.getElementById("app-info");
+const labelElement = document.getElementById("app-info")!;
 function setLabel(text: string) {
     labelElement.innerHTML = text;
 }
@@ -54,7 +54,7 @@ async function updateBtnClicked() {
             setLabel("No update is available.");
         }
     } catch (e) {
-        setLabel(e);
+        setLabel(String(e));
     }
 }
 
@@ -67,7 +67,7 @@ async function downloadBtnClicked() {
         downloaded = await window.velopackApi.downloadUpdates(updateInfo);
         setLabel("Update is downloaded");
     } catch (e) {
-        setLabel(e);
+        setLabel(String(e));
     }
 }
 
@@ -80,7 +80,7 @@ async function applyBtnClicked() {
         await window.velopackApi.applyUpdates(updateInfo);
         setLabel("Update is applying...");
     } catch (e) {
-        setLabel(e);
+        setLabel(String(e));
     }
 }
 
