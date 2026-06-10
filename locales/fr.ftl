@@ -69,7 +69,7 @@ error-header = Une erreur s'est produite
 
 # Setup error (wix msi)
 setup-error-header = L'installation n'a pas pu continuer
-setup-disk-space-insufficient = { $app_title } nécessite au moins { $required_space } d'espace disque pour être installé. Il n'y a que { $available_space } disponible.
+setup-disk-space-insufficient = { $app_title } nécessite au moins { $required_space } d'espace disque pour être installé. Il n'y a que { $available_space } de disponible.
 setup-windows-version-unsupported = Cet installateur nécessite Windows 7 SP1 ou ultérieur et ne peut pas s'exécuter.
 setup-embedded-zip-missing = Impossible de trouver le fichier zip intégré. Veuillez contacter l'auteur de l'application.
 setup-os-version-required = Cette application nécessite Windows { $os_version } ou ultérieur.

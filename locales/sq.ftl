@@ -70,14 +70,14 @@ error-header = Diç shkoi ters
 # Setup error (wix msi)
 setup-error-header = Rregullimi s’u vazhdua dot
 setup-disk-space-insufficient = { $app_title } lyp të paktën { $required_space } hapësirë disku që të instalohet. Ka vetëm { $available_space } të lirë.
-setup-windows-version-unsupported = Ky instalues lyp Windows 7 SP1 ose më të ri dhe s'mund të xhirojë.
-setup-embedded-zip-missing = S'u gjet dot skedari zip i trupëzuar. Ju lutemi, lidhuni me autorin e aplikacionit.
+setup-windows-version-unsupported = Ky instalues lyp Windows 7 SP1 ose më të ri dhe s’mund të xhirojë.
+setup-embedded-zip-missing = S’u gjet dot skedari zip i trupëzuar. Ju lutemi, lidhuni me autorin e aplikacionit.
 setup-os-version-required = Ky aplikacion lyp Windows { $os_version } ose më të ri.
 setup-cpu-arch-unsupported = Ky aplikacion ({ $machine_arch }) nuk e mbulon arkitekturën e CPU-së suaj.
-setup-stop-app-failed = S'u arrit të ndalej aplikacioni ({ $error }), ju lutemi, mbylleni aplikacionin dhe provoni ta xhironi sërish instaluesin.
-setup-remove-dir-failed = S'u arrit të hiqej drejtoria ekzistuese e aplikacionit, ju lutemi, mbylleni aplikacionin dhe provoni ta xhironi sërish instaluesin. Nëse problemi vazhdon, provoni fillimisht ta çinstaloni përmes Programe dhe Veçori, ose rinisni kompjuterin tuaj.
+setup-stop-app-failed = S’u arrit të ndalej aplikacioni ({ $error }), ju lutemi, mbylleni aplikacionin dhe provoni ta xhironi sërish instaluesin.
+setup-remove-dir-failed = S’u arrit të hiqej drejtoria ekzistuese e aplikacionit, ju lutemi, mbylleni aplikacionin dhe provoni ta xhironi sërish instaluesin. Nëse problemi vazhdon, provoni fillimisht ta çinstaloni përmes «Programe dhe Veçori», ose rinisni kompjuterin tuaj.
 setup-update-exe-missing = Këtij instaluesi i mungon një skedar dyor kritik (Update.exe). Ju lutemi, lidhuni me autorin e aplikacionit.
-setup-main-exe-missing = I ekzekutueshmi kryesor s'u gjet dot te paketa. Ju lutemi, lidhuni me autorin e aplikacionit.
+setup-main-exe-missing = I ekzekutueshmi kryesor s’u gjet dot te paketa. Ju lutemi, lidhuni me autorin e aplikacionit.
 
 # MSI Installer UI - Common
 msi-dlg-title = Rregullim i { $app_title }

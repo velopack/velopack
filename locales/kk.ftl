@@ -69,7 +69,7 @@ error-header = Бірдеңе дұрыс болмады
 
 # Setup error (wix msi)
 setup-error-header = Орнату жалғастырыла алмады
-setup-disk-space-insufficient = { $app_title } орнату үшін кемінде { $required_space } диск кеңістігі қажет. Тек { $available_space } қолжетімді.
+setup-disk-space-insufficient = { $app_title } орнату үшін дискіде кемінде { $required_space } бос орын қажет. Тек { $available_space } қолжетімді.
 setup-windows-version-unsupported = Бұл орнатушыға Windows 7 SP1 немесе одан жаңарақ нұсқасы қажет, сондықтан іске қосылмайды.
 setup-embedded-zip-missing = Ендірілген zip файлы табылмады. Қолданба авторына хабарласыңыз.
 setup-os-version-required = Бұл қолданбаға Windows { $os_version } немесе одан жаңарақ нұсқасы қажет.
