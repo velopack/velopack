@@ -14,6 +14,7 @@ btn-repair = Popravi
 btn-open-log = Odpri dnevnik
 btn-open-install-dir = Odpri namestitveno mapo
 btn-ok = V redu
+btn-hide = Skrij
 # Elevation (dialogs_common.rs)
 elevate-header = Zahtevana so skrbniška dovoljenja
 elevate-body = { $app_title } potrebuje skrbniška dovoljenja za namestitev različice { $app_version }. Ali dovolite, da se ta posodobitev nadaljuje?
@@ -59,6 +60,7 @@ deps-download-body = Prenašanje { $dep_name }, počakajte...
 # Apply progress (apply_*_impl.rs)
 apply-header = Nameščanje posodobitve
 apply-body = Posodabljanje na različico { $app_version }, počakajte...
+progress-cancelling = Preklic...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Namestitev je poškodovana

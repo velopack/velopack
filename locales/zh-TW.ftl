@@ -14,6 +14,7 @@ btn-repair = 修復
 btn-open-log = 開啟記錄檔
 btn-open-install-dir = 開啟安裝目錄
 btn-ok = 確定
+btn-hide = 隱藏
 # Elevation (dialogs_common.rs)
 elevate-header = 需要系統管理員權限
 elevate-body = 安裝 { $app_title } 版本 { $app_version } 需要系統管理員權限。是否允許繼續此更新?
@@ -59,6 +60,7 @@ deps-download-body = 正在下載 { $dep_name }，請稍候...
 # Apply progress (apply_*_impl.rs)
 apply-header = 正在安裝更新
 apply-body = 正在更新到版本 { $app_version }，請稍候...
+progress-cancelling = 正在取消...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = 安裝已損毀

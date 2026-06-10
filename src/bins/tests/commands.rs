@@ -248,7 +248,7 @@ pub fn test_delta_apply_legacy() {
     #[cfg(not(target_os = "linux"))]
     {
         let extract_dir = tmp_dir.path().join("_extracted");
-        bundle.extract_lib_contents_to_path(&extract_dir, |_| {}).unwrap();
+        bundle.extract_lib_contents_to_path(&extract_dir, |_| true).unwrap();
 
         let extracted = extract_dir.join("Clowd.dll");
         assert!(extracted.exists());

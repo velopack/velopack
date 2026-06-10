@@ -14,6 +14,7 @@ btn-repair = Reparar
 btn-open-log = Abrir Registo
 btn-open-install-dir = Abrir Diretório de Instalação
 btn-ok = OK
+btn-hide = Ocultar
 # Elevation (dialogs_common.rs)
 elevate-header = Permissão de Administrador Necessária
 elevate-body = O { $app_title } necessita de permissão de administrador para instalar a versão { $app_version }. Permitir que esta atualização continue?
@@ -59,6 +60,7 @@ deps-download-body = A transferir { $dep_name }, aguarde...
 # Apply progress (apply_*_impl.rs)
 apply-header = A instalar a atualização
 apply-body = A atualizar para a versão { $app_version }, aguarde...
+progress-cancelling = A cancelar...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Instalação Danificada

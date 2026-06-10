@@ -14,6 +14,7 @@ btn-repair = Popravi
 btn-open-log = Otvori dnevnik
 btn-open-install-dir = Otvori instalacioni direktorijum
 btn-ok = U redu
+btn-hide = Sakrij
 # Elevation (dialogs_common.rs)
 elevate-header = Potrebne su administratorske dozvole
 elevate-body = { $app_title } zahteva administratorske dozvole za instalaciju verzije { $app_version }. Dozvoliti nastavak ažuriranja?
@@ -59,6 +60,7 @@ deps-download-body = Preuzimanje { $dep_name }, sačekajte...
 # Apply progress (apply_*_impl.rs)
 apply-header = Instaliranje ažuriranja
 apply-body = Ažuriranje na verziju { $app_version }, sačekajte...
+progress-cancelling = Otkazivanje...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Instalacija je oštećena

@@ -29,7 +29,14 @@ pub fn apply_package_impl(locator: &VelopackLocator, pkg: &PathBuf, _hook_mode: 
     let action: Result<()> = (|| {
         info!("Extracting bundle to temp file: {}", temp_path);
         bundle
-            .extract_zip_predicate_to_path_with_progress(|z| z.ends_with(".AppImage"), &temp_path, |p| reporter.set_progress(p))
+            .extract_zip_predicate_to_path_with_progress(
+                |z| z.ends_with(".AppImage"),
+                &temp_path,
+                |p| {
+                    reporter.set_progress(p);
+                    !reporter.is_cancelled()
+                },
+            )
             .map_err(|e| {
                 warn!("Deleting package {:?} to prevent update loop: {}", pkg, e);
                 let _ = fs::remove_file(pkg);

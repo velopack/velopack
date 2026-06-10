@@ -14,6 +14,7 @@ btn-repair = Taisyti
 btn-open-log = Atidaryti žurnalą
 btn-open-install-dir = Atidaryti diegimo aplanką
 btn-ok = Gerai
+btn-hide = Slėpti
 # Elevation (dialogs_common.rs)
 elevate-header = Reikalingos administratoriaus teisės
 elevate-body = Programai { $app_title } reikia administratoriaus teisių, kad būtų galima įdiegti versiją { $app_version }. Ar leisti šiam naujinimui tęsti?
@@ -59,6 +60,7 @@ deps-download-body = Atsisiunčiama { $dep_name }, palaukite...
 # Apply progress (apply_*_impl.rs)
 apply-header = Diegiamas naujinys
 apply-body = Naujinama į versiją { $app_version }, palaukite...
+progress-cancelling = Atšaukiama...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Diegimas pažeistas

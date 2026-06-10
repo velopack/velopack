@@ -14,6 +14,7 @@ btn-repair = Korjaa
 btn-open-log = Avaa loki
 btn-open-install-dir = Avaa asennuskansio
 btn-ok = OK
+btn-hide = Piilota
 # Elevation (dialogs_common.rs)
 elevate-header = Järjestelmänvalvojan oikeudet vaaditaan
 elevate-body = { $app_title } tarvitsee järjestelmänvalvojan oikeudet versiota { $app_version } asennettaessa. Salli päivityksen jatkua?
@@ -59,6 +60,7 @@ deps-download-body = Ladataan { $dep_name }, odota...
 # Apply progress (apply_*_impl.rs)
 apply-header = Asennetaan päivitystä
 apply-body = Päivitetään versioon { $app_version }, odota...
+progress-cancelling = Peruutetaan...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Asennus on vaurioitunut

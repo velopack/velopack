@@ -14,6 +14,7 @@ btn-repair = Opravit
 btn-open-log = Otevřít protokol
 btn-open-install-dir = Otevřít instalační adresář
 btn-ok = OK
+btn-hide = Skrýt
 # Elevation (dialogs_common.rs)
 elevate-header = Vyžadováno oprávnění správce
 elevate-body = { $app_title } potřebuje oprávnění správce k instalaci verze { $app_version }. Povolit pokračování této aktualizace?
@@ -59,6 +60,7 @@ deps-download-body = Probíhá stahování { $dep_name }, počkejte prosím...
 # Apply progress (apply_*_impl.rs)
 apply-header = Instalace aktualizace
 apply-body = Probíhá aktualizace na verzi { $app_version }, počkejte prosím...
+progress-cancelling = Rušení...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Instalace je poškozená

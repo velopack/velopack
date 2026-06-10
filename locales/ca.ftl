@@ -14,6 +14,7 @@ btn-repair = Repara
 btn-open-log = Obre el registre
 btn-open-install-dir = Obre el directori d'instal·lació
 btn-ok = D'acord
+btn-hide = Amaga
 # Elevation (dialogs_common.rs)
 elevate-header = Cal permís d'administrador
 elevate-body = { $app_title } necessita permís d'administrador per instal·lar la versió { $app_version }. Voleu permetre que continuï aquesta actualització?
@@ -59,6 +60,7 @@ deps-download-body = S'està baixant { $dep_name }, espereu...
 # Apply progress (apply_*_impl.rs)
 apply-header = S'està instal·lant l'actualització
 apply-body = S'està actualitzant a la versió { $app_version }, espereu...
+progress-cancelling = Cancel·lant...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Instal·lació malmesa

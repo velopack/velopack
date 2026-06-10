@@ -14,6 +14,7 @@ btn-repair = Herstellen
 btn-open-log = Logboek openen
 btn-open-install-dir = Installatiemap openen
 btn-ok = OK
+btn-hide = Verbergen
 # Elevation (dialogs_common.rs)
 elevate-header = Beheerdersrechten vereist
 elevate-body = { $app_title } heeft beheerdersrechten nodig om versie { $app_version } te installeren. Toestaan dat deze update wordt voortgezet?
@@ -59,6 +60,7 @@ deps-download-body = { $dep_name } wordt gedownload, een ogenblik geduld...
 # Apply progress (apply_*_impl.rs)
 apply-header = Update wordt geïnstalleerd
 apply-body = Bijwerken naar versie { $app_version }, een ogenblik geduld...
+progress-cancelling = Annuleren...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Installatie beschadigd

@@ -14,6 +14,7 @@ btn-repair = Поправи
 btn-open-log = Отвори дневника
 btn-open-install-dir = Отвори инсталационната директория
 btn-ok = OK
+btn-hide = Скриване
 # Elevation (dialogs_common.rs)
 elevate-header = Изискват се администраторски разрешения
 elevate-body = { $app_title } се нуждае от администраторски разрешения, за да инсталира версия { $app_version }. Разрешавате ли тази актуализация да продължи?
@@ -59,6 +60,7 @@ deps-download-body = Изтегляне на { $dep_name }, моля, изчак
 # Apply progress (apply_*_impl.rs)
 apply-header = Инсталиране на актуализация
 apply-body = Актуализиране до версия { $app_version }, моля, изчакайте...
+progress-cancelling = Отмяна...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Инсталацията е повредена

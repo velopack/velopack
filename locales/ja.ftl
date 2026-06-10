@@ -14,6 +14,7 @@ btn-repair = 修復
 btn-open-log = ログを開く
 btn-open-install-dir = インストール フォルダーを開く
 btn-ok = OK
+btn-hide = 非表示
 # Elevation (dialogs_common.rs)
 elevate-header = 管理者権限が必要です
 elevate-body = { $app_title } のバージョン { $app_version } をインストールするには管理者権限が必要です。この更新を続行することを許可しますか?
@@ -59,6 +60,7 @@ deps-download-body = { $dep_name } をダウンロードしています。しば
 # Apply progress (apply_*_impl.rs)
 apply-header = 更新をインストール中
 apply-body = バージョン { $app_version } に更新しています。しばらくお待ちください...
+progress-cancelling = キャンセル中...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = インストールが破損しています

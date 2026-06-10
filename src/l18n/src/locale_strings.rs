@@ -40,6 +40,10 @@ pub fn btn_ok() -> String {
     format_message(BTN_OK, None)
 }
 
+pub fn btn_hide() -> String {
+    format_message(BTN_HIDE, None)
+}
+
 pub fn elevate_header() -> String {
     format_message(ELEVATE_HEADER, None)
 }
@@ -216,4 +220,8 @@ pub fn apply_body(version: &str) -> String {
     let mut args = FluentArgs::new();
     args.set("app_version", version.to_string());
     format_message(APPLY_BODY, Some(&args))
+}
+
+pub fn progress_cancelling() -> String {
+    format_message(PROGRESS_CANCELLING, None)
 }

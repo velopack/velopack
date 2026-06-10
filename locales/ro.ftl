@@ -14,6 +14,7 @@ btn-repair = Reparare
 btn-open-log = Deschidere jurnal
 btn-open-install-dir = Deschide directorul de instalare
 btn-ok = OK
+btn-hide = Ascunde
 # Elevation (dialogs_common.rs)
 elevate-header = Sunt necesare permisiuni de administrator
 elevate-body = { $app_title } necesită permisiuni de administrator pentru a instala versiunea { $app_version }. Permiteți continuarea acestei actualizări?
@@ -59,6 +60,7 @@ deps-download-body = Se descarcă { $dep_name }, vă rugăm așteptați...
 # Apply progress (apply_*_impl.rs)
 apply-header = Se instalează actualizarea
 apply-body = Se actualizează la versiunea { $app_version }, vă rugăm așteptați...
+progress-cancelling = Se anulează...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Instalare deteriorată

@@ -14,6 +14,7 @@ btn-repair = תקן
 btn-open-log = פתח יומן
 btn-open-install-dir = פתח את ספריית ההתקנה
 btn-ok = אישור
+btn-hide = הסתר
 # Elevation (dialogs_common.rs)
 elevate-header = נדרשת הרשאת מנהל מערכת
 elevate-body = { $app_title } זקוק להרשאת מנהל מערכת כדי להתקין את גרסה { $app_version }. האם לאפשר את המשך העדכון?
@@ -59,6 +60,7 @@ deps-download-body = הורדת { $dep_name }, נא להמתין...
 # Apply progress (apply_*_impl.rs)
 apply-header = התקנת עדכון
 apply-body = מעדכן לגרסה { $app_version }, נא להמתין...
+progress-cancelling = מבטל...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = ההתקנה פגומה

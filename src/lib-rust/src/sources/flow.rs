@@ -104,6 +104,7 @@ impl UpdateSource for VelopackFlowSource {
             if let Some(progress_sender) = &progress_sender {
                 let _ = progress_sender.send(p);
             }
+            true
         })?;
         Ok(())
     }

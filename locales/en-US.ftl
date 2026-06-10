@@ -14,6 +14,7 @@ btn-repair = Repair
 btn-open-log = Open Log
 btn-open-install-dir = Open Install Directory
 btn-ok = OK
+btn-hide = Hide
 # Elevation (dialogs_common.rs)
 elevate-header = Administrator Permission Required
 elevate-body = { $app_title } needs administrator permission to install version { $app_version }. Allow this update to continue?
@@ -59,6 +60,7 @@ deps-download-body = Downloading { $dep_name }, please wait...
 # Apply progress (apply_*_impl.rs)
 apply-header = Installing Update
 apply-body = Updating to version { $app_version }, please wait...
+progress-cancelling = Cancelling...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Installation Damaged

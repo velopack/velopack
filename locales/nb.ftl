@@ -14,6 +14,7 @@ btn-repair = Reparer
 btn-open-log = Åpne logg
 btn-open-install-dir = Åpne installasjonsmappe
 btn-ok = OK
+btn-hide = Skjul
 # Elevation (dialogs_common.rs)
 elevate-header = Administratorrettigheter kreves
 elevate-body = { $app_title } trenger administratorrettigheter for å installere versjon { $app_version }. Tillate at denne oppdateringen fortsetter?
@@ -59,6 +60,7 @@ deps-download-body = Laster ned { $dep_name }, vennligst vent...
 # Apply progress (apply_*_impl.rs)
 apply-header = Installerer oppdatering
 apply-body = Oppdaterer til versjon { $app_version }, vennligst vent...
+progress-cancelling = Avbryter...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Installasjonen er skadet

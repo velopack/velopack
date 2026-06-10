@@ -14,6 +14,7 @@ btn-repair = Paranda
 btn-open-log = Ava logi
 btn-open-install-dir = Ava installikaust
 btn-ok = OK
+btn-hide = Peida
 # Elevation (dialogs_common.rs)
 elevate-header = Administraatori õigused on vajalikud
 elevate-body = { $app_title } vajab administraatori õigusi, et installida versioon { $app_version }. Kas lubada selle värskenduse jätkamine?
@@ -59,6 +60,7 @@ deps-download-body = Laadin alla { $dep_name }, palun oodake...
 # Apply progress (apply_*_impl.rs)
 apply-header = Värskenduse installimine
 apply-body = Värskendamine versioonile { $app_version }, palun oodake...
+progress-cancelling = Tühistamine...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Install on rikutud

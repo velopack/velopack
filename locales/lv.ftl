@@ -14,6 +14,7 @@ btn-repair = Labot
 btn-open-log = Atvērt žurnālu
 btn-open-install-dir = Atvērt instalācijas mapi
 btn-ok = Labi
+btn-hide = Paslēpt
 # Elevation (dialogs_common.rs)
 elevate-header = Nepieciešamas administratora atļaujas
 elevate-body = Lietojumprogrammai { $app_title } ir nepieciešamas administratora atļaujas, lai instalētu versiju { $app_version }. Vai atļaut šī atjauninājuma turpināšanu?
@@ -59,6 +60,7 @@ deps-download-body = Notiek { $dep_name } lejupielāde, lūdzu, uzgaidiet...
 # Apply progress (apply_*_impl.rs)
 apply-header = Notiek atjauninājuma instalēšana
 apply-body = Atjaunināšana uz versiju { $app_version }, lūdzu, uzgaidiet...
+progress-cancelling = Atcelšana...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Instalācija bojāta

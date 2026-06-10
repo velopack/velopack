@@ -14,6 +14,7 @@ btn-repair = Επιδιόρθωση
 btn-open-log = Άνοιγμα αρχείου καταγραφής
 btn-open-install-dir = Άνοιγμα φακέλου εγκατάστασης
 btn-ok = ΟΚ
+btn-hide = Απόκρυψη
 # Elevation (dialogs_common.rs)
 elevate-header = Απαιτείται δικαίωμα διαχειριστή
 elevate-body = Το { $app_title } χρειάζεται δικαίωμα διαχειριστή για την εγκατάσταση της έκδοσης { $app_version }. Να επιτραπεί η συνέχιση αυτής της ενημέρωσης;
@@ -59,6 +60,7 @@ deps-download-body = Λήψη του { $dep_name }, περιμένετε…
 # Apply progress (apply_*_impl.rs)
 apply-header = Εγκατάσταση της ενημέρωσης
 apply-body = Ενημέρωση στην έκδοση { $app_version }, περιμένετε…
+progress-cancelling = Ακύρωση...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Η εγκατάσταση είναι κατεστραμμένη

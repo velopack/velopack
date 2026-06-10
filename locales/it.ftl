@@ -14,6 +14,7 @@ btn-repair = Ripara
 btn-open-log = Apri registro
 btn-open-install-dir = Apri cartella di installazione
 btn-ok = OK
+btn-hide = Nascondi
 # Elevation (dialogs_common.rs)
 elevate-header = Autorizzazione amministratore richiesta
 elevate-body = { $app_title } richiede l'autorizzazione di amministratore per installare la versione { $app_version }. Consentire la continuazione dell'aggiornamento?
@@ -59,6 +60,7 @@ deps-download-body = Download di { $dep_name } in corso, attendere...
 # Apply progress (apply_*_impl.rs)
 apply-header = Installazione dell'aggiornamento in corso
 apply-body = Aggiornamento alla versione { $app_version }, attendere...
+progress-cancelling = Annullamento...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Installazione danneggiata

@@ -14,6 +14,7 @@ btn-repair = Riparoje
 btn-open-log = Hap regjistrin
 btn-open-install-dir = Hap dosjen e instalimit
 btn-ok = OK
+btn-hide = Fshih
 # Elevation (dialogs_common.rs)
 elevate-header = Lypsen leje administratori
 elevate-body = Që të instalohet versioni { $app_version }, { $app_title } i lyp leje administratori. Lejoni vazhdimin e këtij përditësimi?
@@ -59,6 +60,7 @@ deps-download-body = Po shkarkohet { $dep_name }, ju lutemi, pritni…
 # Apply progress (apply_*_impl.rs)
 apply-header = Po instalohet përditësimi
 apply-body = Po përditësohet në versionin { $app_version }, ju lutemi, pritni…
+progress-cancelling = Po anulohet...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = Instalim i dëmtuar

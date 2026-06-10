@@ -14,6 +14,7 @@ btn-repair = सुधारें
 btn-open-log = लॉग खोलें
 btn-open-install-dir = स्थापना निर्देशिका खोलें
 btn-ok = ठीक
+btn-hide = छुपाएँ
 # Elevation (dialogs_common.rs)
 elevate-header = व्यवस्थापक अनुमति आवश्यक है
 elevate-body = { $app_title } को संस्करण { $app_version } स्थापित करने के लिए व्यवस्थापक अनुमति की आवश्यकता है. क्या इस अद्यतन को जारी रखने की अनुमति दी जाए?
@@ -59,6 +60,7 @@ deps-download-body = { $dep_name } डाउनलोड कर रहा है
 # Apply progress (apply_*_impl.rs)
 apply-header = अद्यतन स्थापित कर रहा है
 apply-body = संस्करण { $app_version } में अद्यतन कर रहा है, कृपया प्रतीक्षा करें...
+progress-cancelling = रद्द किया जा रहा है...
 
 # Start error (start_windows_impl.rs)
 start-corrupt-header = स्थापना क्षतिग्रस्त है

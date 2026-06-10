@@ -128,6 +128,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
         bundle
             .extract_lib_contents_to_path(&temp_path_new, |p| {
                 reporter.set_progress(p);
+                !reporter.is_cancelled()
             })
             .map_err(|e| {
                 warn!("Deleting package {:?} to prevent update loop: {}", package, e);
