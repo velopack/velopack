@@ -77,7 +77,7 @@ setup-cpu-arch-unsupported = Deze toepassing ({ $machine_arch }) ondersteunt uw 
 setup-stop-app-failed = Kan de toepassing niet stoppen ({ $error }). Sluit de toepassing en probeer het installatieprogramma opnieuw uit te voeren.
 setup-remove-dir-failed = Kan de bestaande toepassingsmap niet verwijderen. Sluit de toepassing en probeer het installatieprogramma opnieuw uit te voeren. Als het probleem aanhoudt, probeer dan eerst de toepassing te verwijderen via Programma's en onderdelen, of start uw computer opnieuw op.
 setup-update-exe-missing = In dit installatieprogramma ontbreekt een essentieel binair bestand (Update.exe). Neem contact op met de auteur van de toepassing.
-setup-main-exe-missing = Het hoofduitvoerbestand is niet gevonden in het pakket. Neem contact op met de auteur van de toepassing.
+setup-main-exe-missing = Het uitvoerbare hoofdbestand is niet gevonden in het pakket. Neem contact op met de auteur van de toepassing.
 
 # MSI Installer UI - Common
 msi-dlg-title = { $app_title } Installatie
