@@ -217,3 +217,11 @@ pub fn apply_body(version: &str) -> String {
     args.set("app_version", version.to_string());
     format_message(APPLY_BODY, Some(&args))
 }
+
+pub fn setup_disk_space_insufficient(app: &str, required_space: &str, available_space: &str) -> String {
+    let mut args = FluentArgs::new();
+    args.set("app_title", app.to_string());
+    args.set("required_space", required_space.to_string());
+    args.set("available_space", available_space.to_string());
+    format_message(SETUP_DISK_SPACE_INSUFFICIENT, Some(&args))
+}

@@ -69,6 +69,7 @@ error-header = Diç shkoi ters
 
 # Setup error (wix msi)
 setup-error-header = Rregullimi s’u vazhdua dot
+setup-disk-space-insufficient = { $app_title } requires at least { $required_space } disk space to be installed. There is only { $available_space } available.
 
 # MSI Installer UI - Common
 msi-dlg-title = Rregullim i { $app_title }

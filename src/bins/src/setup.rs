@@ -76,8 +76,8 @@ fn real_main() -> Result<()> {
                 return Ok(());
             }
         }
-        let error_string = format!("An error has occurred: {:?}", e);
-        error!("{}", error_string);
+        let error_string = e.to_string();
+        error!("An error has occurred: {:?}", e);
         dialogs::show_generic_error("Setup", &error_string);
         return Err(e);
     }
