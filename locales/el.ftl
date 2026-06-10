@@ -69,7 +69,15 @@ error-header = Κάτι πήγε στραβά
 
 # Setup error (wix msi)
 setup-error-header = Η εγκατάσταση δεν ήταν δυνατό να συνεχιστεί
-setup-disk-space-insufficient = { $app_title } requires at least { $required_space } disk space to be installed. There is only { $available_space } available.
+setup-disk-space-insufficient = Το { $app_title } απαιτεί τουλάχιστον { $required_space } χώρο στον δίσκο για να εγκατασταθεί. Υπάρχουν μόνο { $available_space } διαθέσιμα.
+setup-windows-version-unsupported = Αυτό το πρόγραμμα εγκατάστασης απαιτεί Windows 7 SP1 ή νεότερη έκδοση και δεν μπορεί να εκτελεστεί.
+setup-embedded-zip-missing = Δεν ήταν δυνατή η εύρεση του ενσωματωμένου αρχείου zip. Επικοινωνήστε με τον δημιουργό της εφαρμογής.
+setup-os-version-required = Αυτή η εφαρμογή απαιτεί Windows { $os_version } ή νεότερη έκδοση.
+setup-cpu-arch-unsupported = Αυτή η εφαρμογή ({ $machine_arch }) δεν υποστηρίζει την αρχιτεκτονική του επεξεργαστή σας.
+setup-stop-app-failed = Δεν ήταν δυνατή η διακοπή της εφαρμογής ({ $error }). Κλείστε την εφαρμογή και δοκιμάστε να εκτελέσετε ξανά το πρόγραμμα εγκατάστασης.
+setup-remove-dir-failed = Δεν ήταν δυνατή η κατάργηση του υπάρχοντος καταλόγου της εφαρμογής. Κλείστε την εφαρμογή και δοκιμάστε να εκτελέσετε ξανά το πρόγραμμα εγκατάστασης. Εάν το πρόβλημα επιμένει, δοκιμάστε πρώτα να καταργήσετε την εγκατάσταση από τα Προγράμματα και δυνατότητες ή επανεκκινήστε τον υπολογιστή σας.
+setup-update-exe-missing = Από αυτό το πρόγραμμα εγκατάστασης λείπει ένα κρίσιμο δυαδικό αρχείο (Update.exe). Επικοινωνήστε με τον δημιουργό της εφαρμογής.
+setup-main-exe-missing = Το κύριο εκτελέσιμο αρχείο δεν βρέθηκε στο πακέτο. Επικοινωνήστε με τον δημιουργό της εφαρμογής.
 
 # MSI Installer UI - Common
 msi-dlg-title = Πρόγραμμα εγκατάστασης του { $app_title }

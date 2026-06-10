@@ -70,6 +70,14 @@ error-header = Something Went Wrong
 # Setup error (wix msi)
 setup-error-header = Setup Could Not Continue
 setup-disk-space-insufficient = { $app_title } requires at least { $required_space } disk space to be installed. There is only { $available_space } available.
+setup-windows-version-unsupported = This installer requires Windows 7 SP1 or later and cannot run.
+setup-embedded-zip-missing = Could not find embedded zip file. Please contact the application author.
+setup-os-version-required = This application requires Windows { $os_version } or later.
+setup-cpu-arch-unsupported = This application ({ $machine_arch }) does not support your CPU architecture.
+setup-stop-app-failed = Failed to stop application ({ $error }), please close the application and try running the installer again.
+setup-remove-dir-failed = Failed to remove existing application directory, please close the application and try running the installer again. If the issue persists, try uninstalling first via Programs & Features, or restarting your computer.
+setup-update-exe-missing = This installer is missing a critical binary (Update.exe). Please contact the application author.
+setup-main-exe-missing = The main executable could not be found in the package. Please contact the application author.
 
 # MSI Installer UI - Common
 msi-dlg-title = { $app_title } Setup

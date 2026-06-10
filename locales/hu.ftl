@@ -69,7 +69,15 @@ error-header = Hiba történt
 
 # Setup error (wix msi)
 setup-error-header = A telepítés nem folytatható
-setup-disk-space-insufficient = { $app_title } requires at least { $required_space } disk space to be installed. There is only { $available_space } available.
+setup-disk-space-insufficient = A(z) { $app_title } telepítéséhez legalább { $required_space } lemezterület szükséges. Csak { $available_space } érhető el.
+setup-windows-version-unsupported = Ez a telepítő Windows 7 SP1 vagy újabb rendszert igényel, és nem futtatható.
+setup-embedded-zip-missing = A beágyazott zip-fájl nem található. Kérjük, lépjen kapcsolatba az alkalmazás szerzőjével.
+setup-os-version-required = Ez az alkalmazás Windows { $os_version } vagy újabb rendszert igényel.
+setup-cpu-arch-unsupported = Ez az alkalmazás ({ $machine_arch }) nem támogatja az Ön processzorának architektúráját.
+setup-stop-app-failed = Az alkalmazás leállítása nem sikerült ({ $error }). Zárja be az alkalmazást, és próbálja meg újra futtatni a telepítőt.
+setup-remove-dir-failed = A meglévő alkalmazásmappa eltávolítása nem sikerült. Zárja be az alkalmazást, és próbálja meg újra futtatni a telepítőt. Ha a probléma továbbra is fennáll, próbálja meg először eltávolítani az alkalmazást a Programok és szolgáltatások részben, vagy indítsa újra a számítógépet.
+setup-update-exe-missing = Ebből a telepítőből hiányzik egy kritikus bináris fájl (Update.exe). Kérjük, lépjen kapcsolatba az alkalmazás szerzőjével.
+setup-main-exe-missing = A fő futtatható fájl nem található a csomagban. Kérjük, lépjen kapcsolatba az alkalmazás szerzőjével.
 
 # MSI Installer UI - Common
 msi-dlg-title = A(z) { $app_title } telepítése

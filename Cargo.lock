@@ -4523,6 +4523,7 @@ dependencies = [
  "strsim 0.11.1",
  "strum",
  "tempfile",
+ "thiserror 2.0.18",
  "time 0.3.47",
  "velopack",
  "velopack_l18n",

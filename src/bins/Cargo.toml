@@ -41,6 +41,7 @@ path = "src/testapp.rs"
 [dependencies]
 velopack.workspace = true
 anyhow.workspace = true
+thiserror.workspace = true
 rand.workspace = true
 log.workspace = true
 simplelog.workspace = true

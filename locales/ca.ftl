@@ -69,7 +69,15 @@ error-header = Alguna cosa ha anat malament
 
 # Setup error (wix msi)
 setup-error-header = La instal·lació no pot continuar
-setup-disk-space-insufficient = { $app_title } requires at least { $required_space } disk space to be installed. There is only { $available_space } available.
+setup-disk-space-insufficient = { $app_title } requereix com a mínim { $required_space } d'espai de disc per instal·lar-se. Només hi ha { $available_space } disponible.
+setup-windows-version-unsupported = Aquest instal·lador requereix Windows 7 SP1 o posterior i no es pot executar.
+setup-embedded-zip-missing = No s'ha pogut trobar el fitxer zip incrustat. Contacteu amb l'autor de l'aplicació.
+setup-os-version-required = Aquesta aplicació requereix Windows { $os_version } o posterior.
+setup-cpu-arch-unsupported = Aquesta aplicació ({ $machine_arch }) no és compatible amb l'arquitectura de la vostra CPU.
+setup-stop-app-failed = No s'ha pogut aturar l'aplicació ({ $error }). Tanqueu l'aplicació i torneu a executar l'instal·lador.
+setup-remove-dir-failed = No s'ha pogut suprimir el directori existent de l'aplicació. Tanqueu l'aplicació i torneu a executar l'instal·lador. Si el problema persisteix, proveu primer de desinstal·lar mitjançant Programes i característiques, o reinicieu l'ordinador.
+setup-update-exe-missing = A aquest instal·lador li falta un fitxer binari essencial (Update.exe). Contacteu amb l'autor de l'aplicació.
+setup-main-exe-missing = No s'ha pogut trobar l'executable principal al paquet. Contacteu amb l'autor de l'aplicació.
 
 # MSI Installer UI - Common
 msi-dlg-title = Instal·lació de { $app_title }

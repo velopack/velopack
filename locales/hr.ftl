@@ -69,7 +69,15 @@ error-header = Nešto je pošlo po krivu
 
 # Setup error (wix msi)
 setup-error-header = Instalaciju nije moguće nastaviti
-setup-disk-space-insufficient = { $app_title } requires at least { $required_space } disk space to be installed. There is only { $available_space } available.
+setup-disk-space-insufficient = { $app_title } zahtijeva najmanje { $required_space } prostora na disku za instalaciju. Dostupno je samo { $available_space }.
+setup-windows-version-unsupported = Ova instalacija zahtijeva Windows 7 SP1 ili noviji i ne može se pokrenuti.
+setup-embedded-zip-missing = Ugrađena zip datoteka nije pronađena. Obratite se autoru aplikacije.
+setup-os-version-required = Ova aplikacija zahtijeva Windows { $os_version } ili noviji.
+setup-cpu-arch-unsupported = Ova aplikacija ({ $machine_arch }) ne podržava arhitekturu vašeg procesora.
+setup-stop-app-failed = Zaustavljanje aplikacije nije uspjelo ({ $error }), zatvorite aplikaciju i pokušajte ponovno pokrenuti instalaciju.
+setup-remove-dir-failed = Uklanjanje postojeće mape aplikacije nije uspjelo, zatvorite aplikaciju i pokušajte ponovno pokrenuti instalaciju. Ako se problem nastavi, pokušajte prvo deinstalirati putem stavke Programi i značajke ili ponovno pokrenite računalo.
+setup-update-exe-missing = Ovoj instalaciji nedostaje ključna binarna datoteka (Update.exe). Obratite se autoru aplikacije.
+setup-main-exe-missing = Glavna izvršna datoteka nije pronađena u paketu. Obratite se autoru aplikacije.
 
 # MSI Installer UI - Common
 msi-dlg-title = Instalacija programa { $app_title }

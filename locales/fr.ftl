@@ -69,7 +69,15 @@ error-header = Une erreur s'est produite
 
 # Setup error (wix msi)
 setup-error-header = L'installation n'a pas pu continuer
-setup-disk-space-insufficient = { $app_title } requires at least { $required_space } disk space to be installed. There is only { $available_space } available.
+setup-disk-space-insufficient = { $app_title } nécessite au moins { $required_space } d'espace disque pour être installé. Il n'y a que { $available_space } disponible.
+setup-windows-version-unsupported = Cet installateur nécessite Windows 7 SP1 ou ultérieur et ne peut pas s'exécuter.
+setup-embedded-zip-missing = Impossible de trouver le fichier zip intégré. Veuillez contacter l'auteur de l'application.
+setup-os-version-required = Cette application nécessite Windows { $os_version } ou ultérieur.
+setup-cpu-arch-unsupported = Cette application ({ $machine_arch }) ne prend pas en charge l'architecture de votre processeur.
+setup-stop-app-failed = Impossible d'arrêter l'application ({ $error }), veuillez fermer l'application et réessayer d'exécuter l'installateur.
+setup-remove-dir-failed = Impossible de supprimer le répertoire existant de l'application, veuillez fermer l'application et réessayer d'exécuter l'installateur. Si le problème persiste, essayez d'abord de désinstaller via Programmes et fonctionnalités, ou de redémarrer votre ordinateur.
+setup-update-exe-missing = Il manque un fichier binaire essentiel (Update.exe) à cet installateur. Veuillez contacter l'auteur de l'application.
+setup-main-exe-missing = L'exécutable principal est introuvable dans le paquet. Veuillez contacter l'auteur de l'application.
 
 # MSI Installer UI - Common
 msi-dlg-title = Installation de { $app_title }

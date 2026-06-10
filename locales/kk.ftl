@@ -69,7 +69,15 @@ error-header = Бірдеңе дұрыс болмады
 
 # Setup error (wix msi)
 setup-error-header = Орнату жалғастырыла алмады
-setup-disk-space-insufficient = { $app_title } requires at least { $required_space } disk space to be installed. There is only { $available_space } available.
+setup-disk-space-insufficient = { $app_title } орнату үшін кемінде { $required_space } диск кеңістігі қажет. Тек { $available_space } қолжетімді.
+setup-windows-version-unsupported = Бұл орнатушыға Windows 7 SP1 немесе одан жаңарақ нұсқасы қажет, сондықтан іске қосылмайды.
+setup-embedded-zip-missing = Ендірілген zip файлы табылмады. Қолданба авторына хабарласыңыз.
+setup-os-version-required = Бұл қолданбаға Windows { $os_version } немесе одан жаңарақ нұсқасы қажет.
+setup-cpu-arch-unsupported = Бұл қолданба ({ $machine_arch }) процессорыңыздың архитектурасын қолдамайды.
+setup-stop-app-failed = Қолданбаны тоқтату сәтсіз аяқталды ({ $error }), қолданбаны жауып, орнатушыны қайтадан іске қосып көріңіз.
+setup-remove-dir-failed = Бар қолданба қалтасын жою сәтсіз аяқталды, қолданбаны жауып, орнатушыны қайтадан іске қосып көріңіз. Мәселе жалғаса берсе, алдымен «Бағдарламалар және мүмкіндіктер» арқылы жойып көріңіз немесе компьютерді қайта қотарыңыз.
+setup-update-exe-missing = Бұл орнатушыда маңызды екілік файл (Update.exe) жоқ. Қолданба авторына хабарласыңыз.
+setup-main-exe-missing = Бумадан негізгі орындалатын файл табылмады. Қолданба авторына хабарласыңыз.
 
 # MSI Installer UI - Common
 msi-dlg-title = { $app_title } бағдарламасын орнату

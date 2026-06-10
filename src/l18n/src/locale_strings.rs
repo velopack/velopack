@@ -225,3 +225,41 @@ pub fn setup_disk_space_insufficient(app: &str, required_space: &str, available_
     args.set("available_space", available_space.to_string());
     format_message(SETUP_DISK_SPACE_INSUFFICIENT, Some(&args))
 }
+
+pub fn setup_windows_version_unsupported() -> String {
+    format_message(SETUP_WINDOWS_VERSION_UNSUPPORTED, None)
+}
+
+pub fn setup_embedded_zip_missing() -> String {
+    format_message(SETUP_EMBEDDED_ZIP_MISSING, None)
+}
+
+pub fn setup_os_version_required(os_version: &str) -> String {
+    let mut args = FluentArgs::new();
+    args.set("os_version", os_version.to_string());
+    format_message(SETUP_OS_VERSION_REQUIRED, Some(&args))
+}
+
+pub fn setup_cpu_arch_unsupported(machine_arch: &str) -> String {
+    let mut args = FluentArgs::new();
+    args.set("machine_arch", machine_arch.to_string());
+    format_message(SETUP_CPU_ARCH_UNSUPPORTED, Some(&args))
+}
+
+pub fn setup_stop_app_failed(error: &str) -> String {
+    let mut args = FluentArgs::new();
+    args.set("error", error.to_string());
+    format_message(SETUP_STOP_APP_FAILED, Some(&args))
+}
+
+pub fn setup_remove_dir_failed() -> String {
+    format_message(SETUP_REMOVE_DIR_FAILED, None)
+}
+
+pub fn setup_update_exe_missing() -> String {
+    format_message(SETUP_UPDATE_EXE_MISSING, None)
+}
+
+pub fn setup_main_exe_missing() -> String {
+    format_message(SETUP_MAIN_EXE_MISSING, None)
+}

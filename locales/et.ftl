@@ -69,7 +69,15 @@ error-header = Midagi läks valesti
 
 # Setup error (wix msi)
 setup-error-header = Installi ei saanud jätkata
-setup-disk-space-insufficient = { $app_title } requires at least { $required_space } disk space to be installed. There is only { $available_space } available.
+setup-disk-space-insufficient = { $app_title } vajab installimiseks vähemalt { $required_space } kettaruumi. Saadaval on ainult { $available_space }.
+setup-windows-version-unsupported = See installer nõuab Windows 7 SP1 või uuemat versiooni ega saa käivituda.
+setup-embedded-zip-missing = Manustatud zip-faili ei leitud. Palun võtke ühendust rakenduse autoriga.
+setup-os-version-required = See rakendus nõuab Windows { $os_version } või uuemat versiooni.
+setup-cpu-arch-unsupported = See rakendus ({ $machine_arch }) ei toeta teie protsessori arhitektuuri.
+setup-stop-app-failed = Rakenduse peatamine ebaõnnestus ({ $error }). Palun sulgege rakendus ja proovige installerit uuesti käivitada.
+setup-remove-dir-failed = Olemasoleva rakendusekausta eemaldamine ebaõnnestus. Palun sulgege rakendus ja proovige installerit uuesti käivitada. Kui probleem püsib, proovige esmalt desinstallida jaotise „Programmid ja funktsioonid“ kaudu või taaskäivitage arvuti.
+setup-update-exe-missing = Sellel installeril puudub kriitiline kahendfail (Update.exe). Palun võtke ühendust rakenduse autoriga.
+setup-main-exe-missing = Peamist käivitusfaili ei leitud paketist. Palun võtke ühendust rakenduse autoriga.
 
 # MSI Installer UI - Common
 msi-dlg-title = { $app_title } installimine

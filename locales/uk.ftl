@@ -69,7 +69,15 @@ error-header = Щось пішло не так
 
 # Setup error (wix msi)
 setup-error-header = Не вдалося продовжити інсталяцію
-setup-disk-space-insufficient = { $app_title } requires at least { $required_space } disk space to be installed. There is only { $available_space } available.
+setup-disk-space-insufficient = Для встановлення { $app_title } потрібно щонайменше { $required_space } місця на диску. Доступно лише { $available_space }.
+setup-windows-version-unsupported = Цей інсталятор потребує Windows 7 SP1 або новішої версії та не може бути запущений.
+setup-embedded-zip-missing = Не вдалося знайти вбудований zip-файл. Зверніться до автора застосунку.
+setup-os-version-required = Цей застосунок потребує Windows { $os_version } або новішої версії.
+setup-cpu-arch-unsupported = Цей застосунок ({ $machine_arch }) не підтримує архітектуру вашого процесора.
+setup-stop-app-failed = Не вдалося зупинити застосунок ({ $error }). Закрийте застосунок і спробуйте запустити інсталятор знову.
+setup-remove-dir-failed = Не вдалося видалити наявну папку застосунку. Закрийте застосунок і спробуйте запустити інсталятор знову. Якщо проблема не зникає, спробуйте спочатку видалити застосунок через «Програми та засоби» або перезавантажити комп’ютер.
+setup-update-exe-missing = У цьому інсталяторі відсутній важливий виконуваний файл (Update.exe). Зверніться до автора застосунку.
+setup-main-exe-missing = Не вдалося знайти основний виконуваний файл у пакеті. Зверніться до автора застосунку.
 
 # MSI Installer UI - Common
 msi-dlg-title = Інсталяція { $app_title }
