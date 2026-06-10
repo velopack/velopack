@@ -69,7 +69,15 @@ error-header = Įvyko klaida
 
 # Setup error (wix msi)
 setup-error-header = Sąrankos tęsti nepavyko
-setup-disk-space-insufficient = { $app_title } requires at least { $required_space } disk space to be installed. There is only { $available_space } available.
+setup-disk-space-insufficient = { $app_title } diegimui reikia bent { $required_space } vietos diske. Laisvos vietos yra tik { $available_space }.
+setup-windows-version-unsupported = Šiai diegimo programai reikia Windows 7 SP1 arba naujesnės versijos ir jos negalima paleisti.
+setup-embedded-zip-missing = Nepavyko rasti įtaisytojo zip failo. Kreipkitės į programos kūrėją.
+setup-os-version-required = Šiai programai reikia Windows { $os_version } arba naujesnės versijos.
+setup-cpu-arch-unsupported = Ši programa ({ $machine_arch }) nepalaiko jūsų procesoriaus architektūros.
+setup-stop-app-failed = Nepavyko sustabdyti programos ({ $error }). Uždarykite programą ir bandykite paleisti diegimo programą iš naujo.
+setup-remove-dir-failed = Nepavyko pašalinti esamo programos katalogo. Uždarykite programą ir bandykite paleisti diegimo programą iš naujo. Jei problema kartojasi, pirmiausia pabandykite pašalinti programą per „Programos ir funkcijos“ arba paleiskite kompiuterį iš naujo.
+setup-update-exe-missing = Šioje diegimo programoje trūksta svarbaus dvejetainio failo (Update.exe). Kreipkitės į programos kūrėją.
+setup-main-exe-missing = Pakete nepavyko rasti pagrindinio vykdomojo failo. Kreipkitės į programos kūrėją.
 
 # MSI Installer UI - Common
 msi-dlg-title = { $app_title } sąranka

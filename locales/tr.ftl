@@ -69,7 +69,15 @@ error-header = Bir Sorun Oluştu
 
 # Setup error (wix msi)
 setup-error-header = Kurulum Devam Edemedi
-setup-disk-space-insufficient = { $app_title } requires at least { $required_space } disk space to be installed. There is only { $available_space } available.
+setup-disk-space-insufficient = { $app_title } uygulamasının yüklenebilmesi için en az { $required_space } disk alanı gerekiyor. Yalnızca { $available_space } kullanılabilir alan var.
+setup-windows-version-unsupported = Bu yükleyici Windows 7 SP1 veya üzerini gerektirir ve çalıştırılamaz.
+setup-embedded-zip-missing = Gömülü zip dosyası bulunamadı. Lütfen uygulama yazarıyla iletişime geçin.
+setup-os-version-required = Bu uygulama Windows { $os_version } veya üzerini gerektirir.
+setup-cpu-arch-unsupported = Bu uygulama ({ $machine_arch }) CPU mimarinizi desteklemiyor.
+setup-stop-app-failed = Uygulama durdurulamadı ({ $error }). Lütfen uygulamayı kapatıp yükleyiciyi tekrar çalıştırmayı deneyin.
+setup-remove-dir-failed = Mevcut uygulama dizini kaldırılamadı. Lütfen uygulamayı kapatıp yükleyiciyi tekrar çalıştırmayı deneyin. Sorun devam ederse önce Programlar ve Özellikler üzerinden kaldırmayı veya bilgisayarınızı yeniden başlatmayı deneyin.
+setup-update-exe-missing = Bu yükleyicide kritik bir ikili dosya (Update.exe) eksik. Lütfen uygulama yazarıyla iletişime geçin.
+setup-main-exe-missing = Ana yürütülebilir dosya pakette bulunamadı. Lütfen uygulama yazarıyla iletişime geçin.
 
 # MSI Installer UI - Common
 msi-dlg-title = { $app_title } Kurulumu

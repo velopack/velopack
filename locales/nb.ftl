@@ -69,7 +69,15 @@ error-header = Noe gikk galt
 
 # Setup error (wix msi)
 setup-error-header = Installasjonen kunne ikke fortsette
-setup-disk-space-insufficient = { $app_title } requires at least { $required_space } disk space to be installed. There is only { $available_space } available.
+setup-disk-space-insufficient = { $app_title } krever minst { $required_space } diskplass for å installeres. Det er bare { $available_space } tilgjengelig.
+setup-windows-version-unsupported = Denne installasjonen krever Windows 7 SP1 eller nyere og kan ikke kjøre.
+setup-embedded-zip-missing = Fant ikke den innebygde zip-filen. Kontakt programmets utgiver.
+setup-os-version-required = Dette programmet krever Windows { $os_version } eller nyere.
+setup-cpu-arch-unsupported = Dette programmet ({ $machine_arch }) støtter ikke CPU-arkitekturen din.
+setup-stop-app-failed = Kunne ikke stoppe programmet ({ $error }). Lukk programmet og prøv å kjøre installasjonen igjen.
+setup-remove-dir-failed = Kunne ikke fjerne den eksisterende programmappen. Lukk programmet og prøv å kjøre installasjonen igjen. Hvis problemet vedvarer, kan du prøve å avinstallere først via Programmer og funksjoner, eller starte datamaskinen på nytt.
+setup-update-exe-missing = Denne installasjonen mangler en kritisk binærfil (Update.exe). Kontakt programmets utgiver.
+setup-main-exe-missing = Fant ikke hovedprogramfilen i pakken. Kontakt programmets utgiver.
 
 # MSI Installer UI - Common
 msi-dlg-title = { $app_title } Installasjon

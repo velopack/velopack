@@ -69,7 +69,15 @@ error-header = Kaut kas nogāja greizi
 
 # Setup error (wix msi)
 setup-error-header = Uzstādīšanu nevarēja turpināt
-setup-disk-space-insufficient = { $app_title } requires at least { $required_space } disk space to be installed. There is only { $available_space } available.
+setup-disk-space-insufficient = { $app_title } instalēšanai ir nepieciešams vismaz { $required_space } diska vietas. Pieejams ir tikai { $available_space }.
+setup-windows-version-unsupported = Šim instalētājam ir nepieciešama Windows 7 SP1 vai jaunāka versija, un to nevar palaist.
+setup-embedded-zip-missing = Neizdevās atrast iegulto zip failu. Lūdzu, sazinieties ar lietojumprogrammas izstrādātāju.
+setup-os-version-required = Šai lietojumprogrammai ir nepieciešama Windows { $os_version } vai jaunāka versija.
+setup-cpu-arch-unsupported = Šī lietojumprogramma ({ $machine_arch }) neatbalsta jūsu procesora arhitektūru.
+setup-stop-app-failed = Neizdevās apturēt lietojumprogrammu ({ $error }). Lūdzu, aizveriet lietojumprogrammu un mēģiniet palaist instalētāju vēlreiz.
+setup-remove-dir-failed = Neizdevās noņemt esošo lietojumprogrammas mapi. Lūdzu, aizveriet lietojumprogrammu un mēģiniet palaist instalētāju vēlreiz. Ja problēma joprojām pastāv, vispirms mēģiniet atinstalēt, izmantojot sadaļu Programmas un līdzekļi, vai restartējiet datoru.
+setup-update-exe-missing = Šim instalētājam trūkst kritiski svarīga bināra faila (Update.exe). Lūdzu, sazinieties ar lietojumprogrammas izstrādātāju.
+setup-main-exe-missing = Pakotnē neizdevās atrast galveno izpildāmo failu. Lūdzu, sazinieties ar lietojumprogrammas izstrādātāju.
 
 # MSI Installer UI - Common
 msi-dlg-title = { $app_title } uzstādīšana

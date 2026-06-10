@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod setup_errors;
 pub mod shared;
 #[cfg(target_os = "windows")]
 pub mod windows;

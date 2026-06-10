@@ -69,7 +69,15 @@ error-header = Niečo sa pokazilo
 
 # Setup error (wix msi)
 setup-error-header = Inštaláciu nie je možné dokončiť
-setup-disk-space-insufficient = { $app_title } requires at least { $required_space } disk space to be installed. There is only { $available_space } available.
+setup-disk-space-insufficient = Aplikácia { $app_title } vyžaduje na inštaláciu aspoň { $required_space } miesta na disku. K dispozícii je iba { $available_space }.
+setup-windows-version-unsupported = Tento inštalátor vyžaduje Windows 7 SP1 alebo novší a nie je možné ho spustiť.
+setup-embedded-zip-missing = Vložený súbor zip sa nepodarilo nájsť. Kontaktujte prosím autora aplikácie.
+setup-os-version-required = Táto aplikácia vyžaduje Windows { $os_version } alebo novší.
+setup-cpu-arch-unsupported = Táto aplikácia ({ $machine_arch }) nepodporuje architektúru vášho procesora.
+setup-stop-app-failed = Aplikáciu sa nepodarilo ukončiť ({ $error }). Zatvorte prosím aplikáciu a skúste inštalátor spustiť znova.
+setup-remove-dir-failed = Existujúci priečinok aplikácie sa nepodarilo odstrániť. Zatvorte prosím aplikáciu a skúste inštalátor spustiť znova. Ak problém pretrváva, skúste aplikáciu najprv odinštalovať cez Programy a súčasti, alebo reštartujte počítač.
+setup-update-exe-missing = V tomto inštalátore chýba dôležitý binárny súbor (Update.exe). Kontaktujte prosím autora aplikácie.
+setup-main-exe-missing = Hlavný spustiteľný súbor sa v balíku nepodarilo nájsť. Kontaktujte prosím autora aplikácie.
 
 # MSI Installer UI - Common
 msi-dlg-title = { $app_title } – inštalácia

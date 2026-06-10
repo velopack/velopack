@@ -4,7 +4,7 @@
 #[macro_use]
 extern crate log;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use clap::{arg, value_parser, Command};
 use memmap2::Mmap;
 use std::ffi::OsString;
@@ -78,7 +78,15 @@ fn real_main() -> Result<()> {
         }
         let error_string = e.to_string();
         error!("An error has occurred: {:?}", e);
-        dialogs::show_generic_error("Setup", &error_string);
+        if let Some(setup_err) = e.downcast_ref::<setup_errors::SetupError>() {
+            let body = setup_err.localized_body();
+            match setup_err.app_title() {
+                Some(app_title) => dialogs::show_setup_error(app_title, &body),
+                None => dialogs::show_generic_error("Setup", &body),
+            }
+        } else {
+            dialogs::show_generic_error("Setup", &error_string);
+        }
         return Err(e);
     }
     Ok(())
@@ -143,7 +151,7 @@ fn main_inner() -> Result<()> {
     info!("OS: {osinfo}, Arch={osarch:#?}");
 
     if !windows::is_windows_7_sp1_or_greater() {
-        bail!("This installer requires Windows 7 SPA1 or later and cannot run.");
+        return Err(setup_errors::SetupError::WindowsVersionUnsupported.into());
     }
 
     // in debug mode only, allow a nupkg to be passed in as the first argument
@@ -171,5 +179,5 @@ fn main_inner() -> Result<()> {
         return Ok(());
     }
 
-    bail!("Could not find embedded zip file. Please contact the application author.");
+    Err(setup_errors::SetupError::EmbeddedZipMissing.into())
 }

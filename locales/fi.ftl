@@ -69,7 +69,15 @@ error-header = Jokin meni vikaan
 
 # Setup error (wix msi)
 setup-error-header = Asennusta ei voitu jatkaa
-setup-disk-space-insufficient = { $app_title } requires at least { $required_space } disk space to be installed. There is only { $available_space } available.
+setup-disk-space-insufficient = { $app_title } vaatii vähintään { $required_space } levytilaa asennusta varten. Vapaata tilaa on vain { $available_space }.
+setup-windows-version-unsupported = Tämä asennusohjelma vaatii Windows 7 SP1:n tai uudemman version, eikä sitä voi suorittaa.
+setup-embedded-zip-missing = Upotettua zip-tiedostoa ei löytynyt. Ota yhteyttä sovelluksen tekijään.
+setup-os-version-required = Tämä sovellus vaatii Windowsin version { $os_version } tai uudemman.
+setup-cpu-arch-unsupported = Tämä sovellus ({ $machine_arch }) ei tue suorittimesi arkkitehtuuria.
+setup-stop-app-failed = Sovelluksen pysäyttäminen epäonnistui ({ $error }). Sulje sovellus ja yritä suorittaa asennusohjelma uudelleen.
+setup-remove-dir-failed = Olemassa olevan sovelluskansion poistaminen epäonnistui. Sulje sovellus ja yritä suorittaa asennusohjelma uudelleen. Jos ongelma jatkuu, kokeile ensin poistaa asennus kohdasta Ohjelmat ja toiminnot tai käynnistää tietokone uudelleen.
+setup-update-exe-missing = Tästä asennusohjelmasta puuttuu kriittinen binääritiedosto (Update.exe). Ota yhteyttä sovelluksen tekijään.
+setup-main-exe-missing = Pääsuoritustiedostoa ei löytynyt paketista. Ota yhteyttä sovelluksen tekijään.
 
 # MSI Installer UI - Common
 msi-dlg-title = { $app_title } -asennus
