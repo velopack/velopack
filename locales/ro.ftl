@@ -69,6 +69,7 @@ error-header = Ceva nu a mers bine
 
 # Setup error (wix msi)
 setup-error-header = Instalarea nu poate continua
+setup-disk-space-insufficient = { $app_title } requires at least { $required_space } disk space to be installed. There is only { $available_space } available.
 
 # MSI Installer UI - Common
 msi-dlg-title = Programul de instalare { $app_title }

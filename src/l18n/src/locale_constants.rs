@@ -103,6 +103,7 @@ define_locale_keys! {
     START_CORRUPT_BODY = "start-corrupt-body",
     ERROR_HEADER = "error-header",
     SETUP_ERROR_HEADER = "setup-error-header",
+    SETUP_DISK_SPACE_INSUFFICIENT = "setup-disk-space-insufficient",
     // MSI Installer UI - Common
     MSI_DLG_TITLE = "msi-dlg-title",
     MSI_BTN_BACK = "msi-btn-back",

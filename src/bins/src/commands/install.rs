@@ -5,7 +5,7 @@ use velopack::{bundle::BundleZip, wide_strings::string_to_wide};
 
 use ::windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 use anyhow::{anyhow, bail, Result};
-use pretty_bytes_rust::pretty_bytes;
+use pretty_bytes_rust::{pretty_bytes, PrettyBytesOptions};
 use std::{
     ffi::OsString,
     fs::{self},
@@ -54,19 +54,19 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     let root_pcwstr = string_to_wide(&root_path);
     if let Ok(()) = unsafe { GetDiskFreeSpaceExW(root_pcwstr.as_pcwstr(), None, None, Some(&mut free_space)) } {
         if free_space < required_space {
+            let required_space = format_disk_space(required_space);
+            let available_space = format_disk_space(free_space);
             bail!(
-                "{} requires at least {} disk space to be installed. There is only {} available.",
-                &app.title,
-                pretty_bytes(required_space, None),
-                pretty_bytes(free_space, None)
+                "{}",
+                dialogs::setup_disk_space_insufficient(&app.title, &required_space, &available_space)
             );
         }
     }
 
     info!(
         "There is {} free space available at destination, this package requires {}.",
-        pretty_bytes(free_space, None),
-        pretty_bytes(required_space, None)
+        format_disk_space(free_space),
+        format_disk_space(required_space)
     );
 
     // does this app support this OS / architecture?
@@ -159,6 +159,25 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     }
 
     Ok(())
+}
+
+fn format_disk_space(bytes: u64) -> String {
+    pretty_bytes(
+        bytes,
+        Some(PrettyBytesOptions {
+            use_1024_instead_of_1000: Some(false),
+            number_of_decimal: Some(2),
+            remove_zero_decimal: Some(false),
+        }),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn format_disk_space_uses_byte_units() {
+        assert_eq!(super::format_disk_space(832_980_000), "832.98 MB");
+    }
 }
 
 fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &std::sync::mpsc::Sender<i16>, start_args: Option<Vec<OsString>>) -> Result<()> {

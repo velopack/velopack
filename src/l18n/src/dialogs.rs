@@ -283,6 +283,10 @@ pub fn show_setup_error(app_title: &str, error_string: &str) {
     show_error(&title, &header, error_string);
 }
 
+pub fn setup_disk_space_insufficient(app_title: &str, required_space: &str, available_space: &str) -> String {
+    locale_strings::setup_disk_space_insufficient(app_title, required_space, available_space)
+}
+
 pub fn show_start_corrupt_error(app_title: &str) {
     let header = locale_strings::start_corrupt_header();
     let body = locale_strings::start_corrupt_body();
