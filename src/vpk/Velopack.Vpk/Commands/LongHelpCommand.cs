@@ -189,7 +189,8 @@ public class LongHelpCommand : Option<bool>
 
             sb.Append(string.Join(", ", allIdentifiers));
 
-            if (symbol.Arity.MaximumNumberOfValues > 0) {
+            // boolean flags do not take a value, so a value hint would just be noise.
+            if (symbol.Arity.MaximumNumberOfValues > 0 && symbol.ValueType != typeof(bool)) {
                 var helpName = symbol.HelpName ?? symbol.Name.TrimStart('-');
                 sb.Append($" <{helpName}>");
             }
