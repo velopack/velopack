@@ -36,7 +36,8 @@ public class BaseCommand : Command
     protected Option<T> AddOption<T>(Action<T> setValue, string[] aliases,
         [CallerArgumentExpression(nameof(setValue))] string setterExpression = null)
     {
-        var opt = AddOption(setValue, new Option<T>(aliases.OrderByDescending(a => a.Length).First(), aliases));
+        var name = aliases.OrderByDescending(a => a.Length).First();
+        var opt = AddOption(setValue, new Option<T>(name, aliases.Where(a => a != name).ToArray()));
 
         // extract the assignment target from the setter lambda (eg. "(v) => PackId = v" -> "PackId"),
         // which is the property name the option maps to - used to match validator rules for help text.

@@ -86,7 +86,7 @@ public abstract class ReleaseCommandTests<T> : BaseCommandTests<T>
         var options = ParseAndMap(GetRequiredDefaultOptions() + $"--icon \"{fileInfo.FullName}\"");
         var result = Validate(options);
 
-        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("icon does not have an .ico extension"));
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("icon must have a '.ico' extension"));
     }
 
     [Fact]

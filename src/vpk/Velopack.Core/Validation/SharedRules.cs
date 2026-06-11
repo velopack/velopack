@@ -58,7 +58,20 @@ public static class SharedRules
     public static IRuleBuilderOptions<T, string?> MustHaveExtension<T>(this IRuleBuilder<T, string?> rule, string extension)
     {
         return rule.Must(v => string.IsNullOrEmpty(v) || string.Equals(Path.GetExtension(v), extension, StringComparison.OrdinalIgnoreCase))
-            .WithMessage($"{{PropertyName}} does not have an {extension} extension ('{{PropertyValue}}').");
+            .WithMessage($"{{PropertyName}} must have a '{extension}' extension ('{{PropertyValue}}').");
+    }
+
+    public static IRuleBuilderOptions<T, string?> MustBeValidRegex<T>(this IRuleBuilder<T, string?> rule)
+    {
+        return rule.Must(v => {
+            if (string.IsNullOrEmpty(v)) return true;
+            try {
+                _ = new System.Text.RegularExpressions.Regex(v!);
+                return true;
+            } catch (ArgumentException) {
+                return false;
+            }
+        }).WithMessage("{PropertyName} is not a valid regular expression ('{PropertyValue}').");
     }
 
     public static IRuleBuilderOptions<T, string?> MustBeValidMsiVersion<T>(this IRuleBuilder<T, string?> rule)
@@ -80,8 +93,14 @@ public static class SharedRules
 
     public static IRuleBuilderOptions<T, DirectoryInfo?> MustBeNonEmptyDirectory<T>(this IRuleBuilder<T, DirectoryInfo?> rule)
     {
-        return rule.Must(v => v == null || (Directory.Exists(v.FullName) && Directory.EnumerateFileSystemEntries(v.FullName).Any()))
-            .WithMessage("{PropertyName} must be a non-empty directory ('{PropertyValue}').");
+        return rule.Must(v => {
+            if (v == null) return true;
+            try {
+                return Directory.Exists(v.FullName) && Directory.EnumerateFileSystemEntries(v.FullName).Any();
+            } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) {
+                return false;
+            }
+        }).WithMessage("{PropertyName} must be a non-empty directory ('{PropertyValue}').");
     }
 
     public static IRuleBuilderOptions<T, RID?> MustBeSupportedRid<T>(this IRuleBuilder<T, RID?> rule)

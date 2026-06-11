@@ -112,10 +112,26 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
 
     protected string GetRuntimeDependencies()
     {
-        if (string.IsNullOrWhiteSpace(Options.Runtimes))
-            return "";
+        var validated = ParseRuntimeDependencies(Options.Runtimes);
 
-        var providedRuntimes = Options.Runtimes.ToLower()
+        foreach (var str in validated) {
+            Log.Info("Runtime Dependency: " + str);
+        }
+
+        return String.Join(",", validated);
+    }
+
+    /// <summary>
+    /// Parses and validates a comma/semicolon delimited list of runtime dependency names,
+    /// throwing a <see cref="UserInfoException"/> if any name is invalid. Also used by
+    /// <see cref="WindowsPackOptionsValidator"/> to validate the option up-front.
+    /// </summary>
+    public static List<string> ParseRuntimeDependencies(string runtimes)
+    {
+        if (string.IsNullOrWhiteSpace(runtimes))
+            return [];
+
+        var providedRuntimes = runtimes.ToLower()
             .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries);
 
         var valid = new string[] {
@@ -175,11 +191,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
                 $"The framework/runtime dependency '{str}' is not valid. See https://docs.velopack.io/packaging/bootstrapping");
         }
 
-        foreach (var str in validated) {
-            Log.Info("Runtime Dependency: " + str);
-        }
-
-        return String.Join(",", validated);
+        return validated;
     }
 
     protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe,
