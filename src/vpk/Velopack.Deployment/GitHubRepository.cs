@@ -1,7 +1,9 @@
 ﻿using System.Text;
+using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Octokit;
 using Velopack.Core;
+using Velopack.Core.Validation;
 using Velopack.NuGet;
 using Velopack.Packaging;
 using Velopack.Packaging.Exceptions;
@@ -32,7 +34,27 @@ public class GitHubUploadOptions : GitHubDownloadOptions
     public bool Merge { get; set; }
 }
 
-public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadOptions, GithubSource>(logger), IRepositoryCanUpload<GitHubUploadOptions>
+public class GitHubDownloadOptionsValidator<T> : RepositoryOptionsValidator<T> where T : GitHubDownloadOptions
+{
+    public GitHubDownloadOptionsValidator()
+    {
+        RuleFor(x => x.RepoUrl).NotEmpty().MustBeValidHttpUri();
+    }
+}
+
+public sealed class GitHubDownloadOptionsValidator : GitHubDownloadOptionsValidator<GitHubDownloadOptions>;
+
+public sealed class GitHubUploadOptionsValidator : GitHubDownloadOptionsValidator<GitHubUploadOptions>
+{
+    public GitHubUploadOptionsValidator()
+    {
+        AddReleaseDirRules();
+    }
+}
+
+public class GitHubRepository(ILogger logger)
+    : SourceRepository<GitHubDownloadOptions, GithubSource>(logger, new GitHubDownloadOptionsValidator()),
+        IRepositoryCanUpload<GitHubUploadOptions>
 {
     public override GithubSource CreateSource(GitHubDownloadOptions options)
     {
@@ -51,7 +73,15 @@ public class GitHubRepository(ILogger logger) : SourceRepository<GitHubDownloadO
         return (repoOwner, repoName);
     }
 
+    public IValidator<GitHubUploadOptions> UploadOptionsValidator { get; } = new GitHubUploadOptionsValidator();
+
     public async Task UploadMissingAssetsAsync(GitHubUploadOptions options)
+    {
+        UploadOptionsValidator.EnsureValidOptions(options);
+        await UploadMissingAssetsCoreAsync(options).ConfigureAwait(false);
+    }
+
+    private async Task UploadMissingAssetsCoreAsync(GitHubUploadOptions options)
     {
         var (repoOwner, repoName) = GetOwnerAndRepo(options.RepoUrl);
         var helper = await ReleaseEntryHelper.CreateAsync(options.ReleaseDir.FullName, options.Channel, Log, options.TargetOs).ConfigureAwait(false);

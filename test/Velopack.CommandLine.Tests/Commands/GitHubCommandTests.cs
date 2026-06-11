@@ -1,4 +1,6 @@
-﻿using System.CommandLine;
+using System.CommandLine;
+using Velopack.Deployment;
+using Velopack.Vpk;
 using Velopack.Vpk.Commands.Deployment;
 
 namespace Velopack.CommandLine.Tests.Commands;
@@ -14,31 +16,45 @@ public abstract class GitHubCommandTests<T> : BaseCommandTests<T>
         ParseResult parseResult = command.ParseAndApply($"--repoUrl \"http://clowd.squirrel.com\"");
 
         Assert.Empty(parseResult.Errors);
-        Assert.Equal("http://clowd.squirrel.com/", command.RepoUrl);
+        Assert.Equal("http://clowd.squirrel.com", command.RepoUrl);
     }
 
     [Fact]
-    public void RepoUrl_WithNonHttpValue_ShowsError()
+    public void RepoUrl_WithNonHttpValue_FailsValidation()
     {
         GitHubBaseCommand command = new T();
+        command.ParseAndApply($"--repoUrl \"file://clowd.squirrel.com\"");
+        var options = OptionMapper.Map<GitHubDownloadOptions>(command);
 
-        ParseResult parseResult = command.ParseAndApply($"--repoUrl \"file://clowd.squirrel.com\"");
+        var result = new GitHubDownloadOptionsValidator().Validate(options);
 
-        Assert.Equal(1, parseResult.Errors.Count);
-        //Assert.Equal(command.RepoUrl, parseResult.Errors[0].SymbolResult?.Symbol);
-        Assert.StartsWith("--repoUrl must contain a Uri with one of the following schems: http, https.", parseResult.Errors[0].Message);
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("repoUrl must contain an absolute http / https Uri"));
     }
 
     [Fact]
-    public void RepoUrl_WithRelativeUrl_ShowsError()
+    public void RepoUrl_WithRelativeUrl_FailsValidation()
     {
         GitHubBaseCommand command = new T();
+        command.ParseAndApply($"--repoUrl \"clowd.squirrel.com\"");
+        var options = OptionMapper.Map<GitHubDownloadOptions>(command);
 
-        ParseResult parseResult = command.ParseAndApply($"--repoUrl \"clowd.squirrel.com\"");
+        var result = new GitHubDownloadOptionsValidator().Validate(options);
 
-        Assert.Equal(1, parseResult.Errors.Count);
-        //Assert.Equal(command.RepoUrl, parseResult.Errors[0].SymbolResult?.Symbol);
-        Assert.StartsWith("--repoUrl must contain an absolute Uri.", parseResult.Errors[0].Message);
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("repoUrl must contain an absolute http / https Uri"));
+    }
+
+    [Fact]
+    public void RepoUrl_Missing_FailsValidation()
+    {
+        GitHubBaseCommand command = new T();
+        ParseResult parseResult = command.ParseAndApply("");
+
+        Assert.Empty(parseResult.Errors);
+
+        var options = OptionMapper.Map<GitHubDownloadOptions>(command);
+        var result = new GitHubDownloadOptionsValidator().Validate(options);
+
+        Assert.Contains(result.Errors, e => e.PropertyName == "RepoUrl");
     }
 
     [Fact]
@@ -118,5 +134,18 @@ public class GitHubUploadCommandTests : GitHubCommandTests<GitHubUploadCommand>
         ParseResult parseResult = command.ParseAndApply(cli);
 
         Assert.Equal("main", command.TargetCommitish);
+    }
+
+    [Fact]
+    public void ReleaseDir_Empty_FailsValidation()
+    {
+        var emptyDir = CreateTempDirectory();
+        var command = new GitHubUploadCommand();
+        command.ParseAndApply(GetRequiredDefaultOptions() + $"--outputDir \"{emptyDir.FullName}\"");
+        var options = OptionMapper.Map<GitHubUploadOptions>(command);
+
+        var result = new GitHubUploadOptionsValidator().Validate(options);
+
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("releaseDir must be a non-empty directory"));
     }
 }

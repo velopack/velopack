@@ -1,5 +1,6 @@
 ﻿using System.Security;
 using System.Text.RegularExpressions;
+using FluentValidation;
 using Markdig;
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
@@ -11,8 +12,9 @@ using Velopack.Util;
 
 namespace Velopack.Packaging;
 
-public abstract class PackageBuilder<T> : ICommand<T>
+public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValidator>
     where T : class, IPackOptions
+    where TValidator : IValidator<T>, new()
 {
     protected RuntimeOs TargetOs { get; }
 
@@ -37,7 +39,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
         Console = console;
     }
 
-    public async Task Run(T options)
+    protected override async Task RunCoreAsync(T options)
     {
         if (options.TargetRuntime == null) {
             options.TargetRuntime = RID.Parse(TargetOs.GetOsShortName());

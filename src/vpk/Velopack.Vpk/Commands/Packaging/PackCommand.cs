@@ -61,67 +61,58 @@ public abstract class PackCommand : PlatformCommand
     public PackCommand(string name, string description, RuntimeOs targetOs = RuntimeOs.Unknown)
         : base(name, description, targetOs)
     {
-        PackIdOption = AddOption<string>((v) => PackId = v, "--packId", "-u")
+        PackIdOption = AddOption<string>((v) => PackId = v, ["--packId", "-u"])
            .SetDescription("Unique Id for application bundle.")
-           .SetArgumentHelpName("ID")
-           .SetRequired()
-           .RequiresValidNuGetId();
+           .SetArgumentHelpName("ID");
 
         // TODO add parser straight to SemanticVersion
-        PackVersionOption = AddOption<string>((v) => PackVersion = v, "--packVersion", "-v")
+        PackVersionOption = AddOption<string>((v) => PackVersion = v, ["--packVersion", "-v"])
             .SetDescription("Current version for application bundle.")
-            .SetArgumentHelpName("VERSION")
-            .SetRequired()
-            .RequiresSemverCompliant();
+            .SetArgumentHelpName("VERSION");
 
-        PackDirectoryOption = AddOption<FileSystemInfo>((v) => PackDirectory = v.ToFullNameOrNull(), "--packDir", "-p")
+        PackDirectoryOption = AddOption<FileSystemInfo>((v) => PackDirectory = v.ToFullNameOrNull(), ["--packDir", "-p"])
             .SetDescription("Directory containing application files for release.")
-            .SetArgumentHelpName("DIR")
-            .SetRequired();
+            .SetArgumentHelpName("DIR");
 
-        PackAuthorsOption = AddOption<string>((v) => PackAuthors = v, "--packAuthors")
+        PackAuthorsOption = AddOption<string>((v) => PackAuthors = v, ["--packAuthors"])
             .SetDescription("Company name or comma-delimited list of authors.")
             .SetArgumentHelpName("AUTHORS");
 
-        PackTitleOption = AddOption<string>((v) => PackTitle = v, "--packTitle")
+        PackTitleOption = AddOption<string>((v) => PackTitle = v, ["--packTitle"])
             .SetDescription("Display/friendly name for application.")
             .SetArgumentHelpName("NAME");
 
-        ReleaseNotesOption = AddOption<FileInfo>((v) => ReleaseNotes = v.ToFullNameOrNull(), "--releaseNotes")
+        ReleaseNotesOption = AddOption<FileInfo>((v) => ReleaseNotes = v.ToFullNameOrNull(), ["--releaseNotes"])
             .SetDescription("File with markdown-formatted notes for this version.")
-            .SetArgumentHelpName("PATH")
-            .MustExist();
+            .SetArgumentHelpName("PATH");
 
-        DeltaModeOption = AddOption<DeltaMode>((v) => DeltaMode = v, "--delta")
+        DeltaModeOption = AddOption<DeltaMode>((v) => DeltaMode = v, ["--delta"])
             .SetDefault(DeltaMode.BestSpeed)
             .SetDescription("Disable or set the delta generation mode.");
 
-        IconOption = AddOption<FileInfo>((v) => Icon = v.ToFullNameOrNull(), "-i", "--icon")
+        IconOption = AddOption<FileInfo>((v) => Icon = v.ToFullNameOrNull(), ["-i", "--icon"])
             .SetDescription($"Path to icon file for package.")
-            .SetArgumentHelpName("PATH")
-            .MustExist();
+            .SetArgumentHelpName("PATH");
 
-        EntryExecutableNameOption = AddOption<string>((v) => EntryExecutableName = v, "-e", "--mainExe")
+        EntryExecutableNameOption = AddOption<string>((v) => EntryExecutableName = v, ["-e", "--mainExe"])
             .SetDescription("The file name (not path) of the main/entry executable.")
             .SetArgumentHelpName("NAME");
 
-        ExcludeOption = AddOption<string>((v) => Exclude = v, "--exclude")
+        ExcludeOption = AddOption<string>((v) => Exclude = v, ["--exclude"])
             .SetDescription("A regex which excludes matched files from the package (in addition to built-in defaults).")
             .SetArgumentHelpName("REGEX")
             .SetDefault(@".*\.pdb");
 
-        NoDefaultExcludeOption = AddOption<bool>((v) => NoDefaultExclude = v, "--noDefaultExclude")
+        NoDefaultExcludeOption = AddOption<bool>((v) => NoDefaultExclude = v, ["--noDefaultExclude"])
             .SetDescription("Do not exclude built-in default file patterns (eg. .nupkg, createdump, .vshost.).")
             .SetHidden(true);
 
-        NoPortableOption = AddOption<bool>((v) => NoPortable = v, "--noPortable")
+        NoPortableOption = AddOption<bool>((v) => NoPortable = v, ["--noPortable"])
             .SetDescription("Skip generating a portable bundle.")
             .SetHidden(true);
 
-        NoInstOption = AddOption<bool>((v) => NoInst = v, "--noInst")
+        NoInstOption = AddOption<bool>((v) => NoInst = v, ["--noInst"])
             .SetDescription("Skip generating an installer package.")
             .SetHidden(true);
-
-        this.AreMutuallyExclusive(NoPortableOption, NoInstOption);
     }
 }

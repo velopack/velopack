@@ -1,5 +1,8 @@
-﻿
+
 using System.CommandLine;
+using Velopack.Core.Validation;
+using Velopack.Packaging.Windows.Commands;
+using Velopack.Vpk;
 using Velopack.Vpk.Commands;
 using Velopack.Vpk.Commands.Packaging;
 
@@ -8,30 +11,16 @@ namespace Velopack.CommandLine.Tests.Commands;
 public abstract class ReleaseCommandTests<T> : BaseCommandTests<T>
     where T : WindowsPackCommand, new()
 {
-    //[Fact]
-    //public void BaseUrl_WithNonHttpValue_ShowsError()
-    //{
-    //    var command = new T();
+    protected WindowsPackOptions ParseAndMap(string cli)
+    {
+        var command = new T();
+        ParseResult parseResult = command.ParseAndApply(cli);
+        Assert.Empty(parseResult.Errors);
+        return OptionMapper.Map<WindowsPackOptions>(command);
+    }
 
-    //    string cli = GetRequiredDefaultOptions() + $"--baseUrl \"file://clowd.squirrel.com\"";
-    //    ParseResult parseResult = command.ParseAndApply(cli);
-
-    //    Assert.Equal(1, parseResult.Errors.Count);
-    //    //Assert.Equal(command.BaseUrl, parseResult.Errors[0].SymbolResult?.Symbol);
-    //    Assert.StartsWith("--baseUrl must contain a Uri with one of the following schems: http, https.", parseResult.Errors[0].Message);
-    //}
-
-    //[Fact]
-    //public void BaseUrl_WithRelativeUrl_ShowsError()
-    //{
-    //    var command = new T();
-    //    string cli = GetRequiredDefaultOptions() + $"--baseUrl \"clowd.squirrel.com\"";
-    //    ParseResult parseResult = command.ParseAndApply(cli);
-
-    //    Assert.Equal(1, parseResult.Errors.Count);
-    //    //Assert.Equal(command.BaseUrl, parseResult.Errors[0].SymbolResult?.Symbol);
-    //    Assert.StartsWith("--baseUrl must contain an absolute Uri.", parseResult.Errors[0].Message);
-    //}
+    protected static FluentValidation.Results.ValidationResult Validate(WindowsPackOptions options)
+        => new WindowsPackOptionsValidator().Validate(options);
 
     [Fact]
     public void NoDelta_BareOption_SetsFlag()
@@ -67,18 +56,14 @@ public abstract class ReleaseCommandTests<T> : BaseCommandTests<T>
     }
 
     [Fact]
-    public void SplashImage_WithoutFile_ShowsError()
+    public void SplashImage_WithoutFile_FailsValidation()
     {
         string file = Path.GetFullPath(Path.ChangeExtension(Path.GetRandomFileName(), ".ico"));
-        var command = new T();
 
-        string cli = GetRequiredDefaultOptions() + $"--splashImage \"{file}\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        var options = ParseAndMap(GetRequiredDefaultOptions() + $"--splashImage \"{file}\"");
+        var result = Validate(options);
 
-        //Assert.Equal(1, parseResult.Errors.Count);
-        Assert.Contains("file is not found", parseResult.Errors[0].Message);
-        //Assert.Equal(command.SplashImage, parseResult.Errors[0].SymbolResult?.Symbol.Parents.Single());
-        //Assert.Contains(file, parseResult.Errors[0].Message);
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("splashImage file is not found"));
     }
 
     [Fact]
@@ -94,31 +79,25 @@ public abstract class ReleaseCommandTests<T> : BaseCommandTests<T>
     }
 
     [Fact]
-    public void Icon_WithBadFileExtension_ShowsError()
+    public void Icon_WithBadFileExtension_FailsValidation()
     {
         FileInfo fileInfo = CreateTempFile(name: Path.ChangeExtension(Path.GetRandomFileName(), ".wrong"));
-        var command = new T();
 
-        string cli = GetRequiredDefaultOptions() + $"--icon \"{fileInfo.FullName}\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        var options = ParseAndMap(GetRequiredDefaultOptions() + $"--icon \"{fileInfo.FullName}\"");
+        var result = Validate(options);
 
-        //Assert.Equal(1, parseResult.Errors.Count);
-        Assert.Contains(parseResult.Errors, e => e.Message.Equals($"--icon does not have an .ico extension"));
-        //Assert.Equal($"--icon does not have an .ico extension", parseResult.Errors[0].Message);
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("icon does not have an .ico extension"));
     }
 
     [Fact]
-    public void Icon_WithoutFile_ShowsError()
+    public void Icon_WithoutFile_FailsValidation()
     {
         string file = Path.GetFullPath(Path.ChangeExtension(Path.GetRandomFileName(), ".ico"));
-        var command = new T();
 
-        string cli = GetRequiredDefaultOptions() + $"--icon \"{file}\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        var options = ParseAndMap(GetRequiredDefaultOptions() + $"--icon \"{file}\"");
+        var result = Validate(options);
 
-        //Assert.Equal(1, parseResult.Errors.Count);
-        //Assert.Equal(command.Icon, parseResult.Errors[0].SymbolResult?.Symbol.Parents.Single());
-        Assert.Contains("file is not found", parseResult.Errors[0].Message);
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("icon file is not found"));
     }
 }
 
@@ -140,17 +119,52 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
     }
 
     [Fact]
-    public void PackId_WithInvalidNuGetId_ShowsError()
+    public void Command_WithMissingRequiredArguments_FailsValidation()
+    {
+        // missing required options are no longer a parse error (they may be provided via
+        // env vars or json config), but they are rejected by the validator.
+        var command = new WindowsPackCommand();
+        ParseResult parseResult = command.ParseAndApply("");
+
+        Assert.Empty(parseResult.Errors);
+
+        var options = OptionMapper.Map<WindowsPackOptions>(command);
+        var result = Validate(options);
+
+        Assert.Contains(result.Errors, e => e.PropertyName == "PackId");
+        Assert.Contains(result.Errors, e => e.PropertyName == "PackVersion");
+        Assert.Contains(result.Errors, e => e.PropertyName == "PackDirectory");
+    }
+
+    [Fact]
+    public void RequiredOptions_AreMarkedRequiredInHelp()
+    {
+        var command = new WindowsPackCommand();
+        command.ApplyRequiredHints(new WindowsPackOptionsValidator().GetRequiredProperties());
+
+        Option Find(string name) => command.Options.First(o => o.Name == name);
+
+        Assert.True(Find("--packId").IsRequiredHint());
+        Assert.True(Find("--packVersion").IsRequiredHint());
+        Assert.True(Find("--packDir").IsRequiredHint());
+        Assert.False(Find("--packAuthors").IsRequiredHint());
+
+        // Option.Required must remain false so env vars / json config can satisfy them after parsing
+        Assert.False(Find("--packId").Required);
+    }
+
+    [Fact]
+    public void PackId_WithInvalidNuGetId_FailsValidation()
     {
         DirectoryInfo packDir = CreateTempDirectory();
         CreateTempFile(packDir);
-        var command = new WindowsPackCommand();
 
-        ParseResult parseResult = command.ParseAndApply($"--packId $42@ -v 1.0.0 -p \"{packDir.FullName}\" -e main.exe");
+        var options = ParseAndMap($"--packId $42@ -v 1.0.0 -p \"{packDir.FullName}\" -e main.exe");
+        var result = Validate(options);
 
-        Assert.Equal(1, parseResult.Errors.Count);
-        Assert.StartsWith("--packId is an invalid NuGet package id.", parseResult.Errors[0].Message);
-        Assert.Contains("$42@", parseResult.Errors[0].Message);
+        var error = Assert.Single(result.Errors, e => e.PropertyName == "PackId");
+        Assert.StartsWith("packId is an invalid NuGet package id", error.ErrorMessage);
+        Assert.Contains("$42@", error.ErrorMessage);
     }
 
     [Fact]
@@ -166,17 +180,17 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
     }
 
     [Fact]
-    public void PackVersion_WithInvalidVersion_ShowsError()
+    public void PackVersion_WithInvalidVersion_FailsValidation()
     {
         DirectoryInfo packDir = CreateTempDirectory();
         CreateTempFile(packDir);
-        var command = new WindowsPackCommand();
 
-        ParseResult parseResult = command.ParseAndApply($"-u Clowd.Squirrel --packVersion 1.a.c -p \"{packDir.FullName}\" -e main.exe");
+        var options = ParseAndMap($"-u Clowd.Squirrel --packVersion 1.a.c -p \"{packDir.FullName}\" -e main.exe");
+        var result = Validate(options);
 
-        Assert.Equal(1, parseResult.Errors.Count);
-        Assert.StartsWith("--packVersion contains an invalid package version", parseResult.Errors[0].Message);
-        Assert.Contains("1.a.c", parseResult.Errors[0].Message);
+        var error = Assert.Single(result.Errors, e => e.PropertyName == "PackVersion");
+        Assert.StartsWith("packVersion contains an invalid package version", error.ErrorMessage);
+        Assert.Contains("1.a.c", error.ErrorMessage);
     }
 
     [Fact]
@@ -214,20 +228,15 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
     }
 
     [Fact]
-    public void ReleaseNotes_WithoutFile_ShowsError()
+    public void ReleaseNotes_WithoutFile_FailsValidation()
     {
         string releaseNotes = Path.GetFullPath(Path.GetRandomFileName());
-        var command = new WindowsPackCommand();
 
-        string cli = GetRequiredDefaultOptions() + $"--releaseNotes \"{releaseNotes}\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
+        var options = ParseAndMap(GetRequiredDefaultOptions() + $"--releaseNotes \"{releaseNotes}\"");
+        var result = Validate(options);
 
-        Assert.Equal(1, parseResult.Errors.Count);
-        Assert.Contains("file is not found", parseResult.Errors[0].Message);
-        //Assert.Equal(command.ReleaseNotes, parseResult.Errors[0].SymbolResult?.Symbol.Parents.Single());
-        //Assert.Contains(releaseNotes, parseResult.Errors[0].Message);
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("releaseNotes file is not found"));
     }
-
 
     [Fact]
     public void SignTemplate_WithTemplate_ParsesValue()
@@ -252,16 +261,12 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
     }
 
     [WindowsOnlyFact]
-    public void SignParameters_WithSignTemplate_ShowsError()
+    public void SignParameters_WithSignTemplate_FailsValidation()
     {
-        var command = new WindowsPackCommand();
+        var options = ParseAndMap(GetRequiredDefaultOptions() + "--signTemplate \"signtool {{file}}\" --signParams \"param1 param2\"");
+        var result = Validate(options);
 
-        string cli = GetRequiredDefaultOptions() + "--signTemplate \"signtool {{file}}\" --signParams \"param1 param2\"";
-        ParseResult parseResult = command.ParseAndApply(cli);
-
-        Assert.Equal(1, parseResult.Errors.Count);
-        Assert.Contains("Cannot use", parseResult.Errors[0].Message);
-        Assert.Contains("options together", parseResult.Errors[0].Message);
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("Cannot use more than one of 'signTemplate', 'signParams' and 'azureTrustedSignFile'"));
     }
 
     [WindowsOnlyFact]
@@ -290,30 +295,22 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
     [InlineData(-1)]
     [InlineData(0)]
     [InlineData(1001)]
-    public void SignParallel_WithBadNumericValue_ShowsError(int value)
+    public void SignParallel_WithBadNumericValue_FailsValidation(int value)
     {
-        var command = new WindowsPackCommand();
+        var options = ParseAndMap(GetRequiredDefaultOptions() + $"--signParallel {value}");
+        var result = Validate(options);
 
-        string cli = GetRequiredDefaultOptions() + $"--signParallel {value}";
-        ParseResult parseResult = command.ParseAndApply(cli);
-
-        Assert.Equal(1, parseResult.Errors.Count);
-        //Assert.Equal(command.SignParallel, parseResult.Errors[0].SymbolResult?.Symbol);
-        Assert.Equal($"The value for --signParallel must be greater than 1 and less than 1000", parseResult.Errors[0].Message);
+        Assert.Contains(result.Errors, e => e.PropertyName == "SignParallel");
     }
 
-    //[WindowsOnlyFact]
-    //public void SignParallel_WithNonNumericValue_ShowsError()
-    //{
-    //    var command = new WindowsPackCommand();
+    [WindowsOnlyFact]
+    public void MsiVersion_WithInvalidVersion_FailsValidation()
+    {
+        var options = ParseAndMap(GetRequiredDefaultOptions() + "--msiVersion 999.0.0");
+        var result = Validate(options);
 
-    //    string cli = GetRequiredDefaultOptions() + $"--signParallel abc";
-    //    ParseResult parseResult = command.ParseAndApply(cli);
-
-    //    Assert.Equal(1, parseResult.Errors.Count);
-    //    //Assert.Equal(command.SignParallel, parseResult.Errors[0].SymbolResult?.Symbol);
-    //    Assert.Equal($"abc is not a valid integer for --signParallel", parseResult.Errors[0].Message);
-    //}
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("invalid MSI ProductVersion"));
+    }
 
     protected override string GetRequiredDefaultOptions()
     {

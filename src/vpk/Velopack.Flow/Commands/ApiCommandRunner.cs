@@ -3,9 +3,9 @@ using Velopack.Core.Abstractions;
 
 namespace Velopack.Flow.Commands;
 
-public class ApiCommandRunner(ILogger logger, IFancyConsole console) : ICommand<ApiOptions>
+public class ApiCommandRunner(ILogger logger, IFancyConsole console) : ValidatedCommand<ApiOptions, ApiOptionsValidator>
 {
-    public async Task Run(ApiOptions options)
+    protected override async Task RunCoreAsync(ApiOptions options)
     {
         var loginOptions = new VelopackFlowLoginOptions() {
             AllowCacheCredentials = true,

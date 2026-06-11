@@ -194,7 +194,7 @@ public class LongHelpCommand : Option<bool>
                 sb.Append($" <{helpName}>");
             }
 
-            if (symbol.Required) {
+            if (symbol.Required || symbol.IsRequiredHint()) {
                 sb.Append(" (REQUIRED)");
             }
 

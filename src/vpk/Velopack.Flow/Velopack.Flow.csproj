@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
     <PackageReference Include="Microsoft.Identity.Client" Version="4.84.1" />
     <PackageReference Include="Microsoft.Identity.Client.Broker" Version="4.84.1" />
     <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.84.1" />

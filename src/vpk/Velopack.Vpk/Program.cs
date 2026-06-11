@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using FluentValidation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -7,6 +8,8 @@ using Serilog.Core;
 using Serilog.Events;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
+using Velopack.Core.Json;
+using Velopack.Core.Validation;
 using Velopack.Deployment;
 using Velopack.Flow;
 using Velopack.Flow.Commands;
@@ -59,6 +62,10 @@ public class Program
         Description = "Show and run MacOS specific commands."
     };
 
+    public static Directive JsonDirective { get; } = new Directive("json") {
+        Description = "Read command options from a JSON config file (eg. 'vpk [json] pack myconfig.json')."
+    };
+
     public static readonly string INTRO
         = $"Velopack CLI {VelopackRuntimeInfo.VelopackDisplayVersion}, for distributing applications.";
 
@@ -74,6 +81,7 @@ public class Program
         rootCommand.Directives.Add(WindowsDirective);
         rootCommand.Directives.Add(LinuxDirective);
         rootCommand.Directives.Add(OsxDirective);
+        rootCommand.Directives.Add(JsonDirective);
 
         rootCommand.TreatUnmatchedTokensAsErrors = false;
         ParseResult parseResult = rootCommand.Parse(args);
@@ -180,6 +188,7 @@ public class Program
         builder.Configuration.AddEnvironmentVariables("VPK_");
         TypeDescriptor.AddAttributes(typeof(FileInfo), new TypeConverterAttribute(typeof(FileInfoConverter)));
         TypeDescriptor.AddAttributes(typeof(DirectoryInfo), new TypeConverterAttribute(typeof(DirectoryInfoConverter)));
+        TypeDescriptor.AddAttributes(typeof(FileSystemInfo), new TypeConverterAttribute(typeof(FileSystemInfoConverter)));
         builder.Services.AddTransient(s => s.GetService<ILoggerFactory>().CreateLogger("vpk"));
     }
 
@@ -216,10 +225,9 @@ public static class ProgramCommandExtensions
         where TCmd : ICommand<TOpt>
         where TOpt : class, new()
     {
-        return parent.Add<TCli, TOpt>(provider, (options) => {
-            var runner = ActivatorUtilities.CreateInstance<TCmd>(provider);
-            return runner.Run(options);
-        });
+        var runner = ActivatorUtilities.CreateInstance<TCmd>(provider);
+        var validator = (runner as ValidatedCommand<TOpt>)?.Validator;
+        return parent.Add<TCli, TOpt>(provider, validator, runner.Run);
     }
 
     public static Command AddRepositoryDownload<TCli, TCmd, TOpt>(this Command parent, IServiceProvider provider)
@@ -227,10 +235,8 @@ public static class ProgramCommandExtensions
         where TCmd : IRepositoryCanDownload<TOpt>
         where TOpt : RepositoryOptions, new()
     {
-        return parent.Add<TCli, TOpt>(provider, (options) => {
-            var runner = ActivatorUtilities.CreateInstance<TCmd>(provider);
-            return runner.DownloadLatestFullPackageAsync(options);
-        });
+        var runner = ActivatorUtilities.CreateInstance<TCmd>(provider);
+        return parent.Add<TCli, TOpt>(provider, runner.DownloadOptionsValidator, runner.DownloadLatestFullPackageAsync);
     }
 
     public static Command AddRepositoryUpload<TCli, TCmd, TOpt>(this Command parent, IServiceProvider provider)
@@ -238,17 +244,21 @@ public static class ProgramCommandExtensions
         where TCmd : IRepositoryCanUpload<TOpt>
         where TOpt : RepositoryOptions, new()
     {
-        return parent.Add<TCli, TOpt>(provider, (options) => {
-            var runner = ActivatorUtilities.CreateInstance<TCmd>(provider);
-            return runner.UploadMissingAssetsAsync(options);
-        });
+        var runner = ActivatorUtilities.CreateInstance<TCmd>(provider);
+        return parent.Add<TCli, TOpt>(provider, runner.UploadOptionsValidator, runner.UploadMissingAssetsAsync);
     }
 
-    private static Command Add<TCli, TOpt>(this Command parent, IServiceProvider provider, Func<TOpt, Task> fn)
+    private static Command Add<TCli, TOpt>(this Command parent, IServiceProvider provider, IValidator<TOpt> validator, Func<TOpt, Task> fn)
         where TCli : BaseCommand, new()
         where TOpt : class, new()
     {
         var command = new TCli();
+
+        // mark options as required in the help text when the runner's validator
+        // has a NotNull/NotEmpty rule for the property the option maps to.
+        if (validator != null) {
+            command.ApplyRequiredHints(validator.GetRequiredProperties());
+        }
         command.SetAction(async (ctx, token) => {
             var logger = provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger>();
             var console = provider.GetRequiredService<IFancyConsole>();
@@ -262,10 +272,36 @@ public static class ProgramCommandExtensions
             var updateCheck = new UpdateChecker(logger, defaults);
             await updateCheck.CheckForUpdates();
 
-            command.SetProperties(ctx, config, defaults.TargetOs);
-            var options = OptionMapper.Map<TOpt>(command);
-
             try {
+                bool jsonMode = ctx.GetResult(Program.JsonDirective) != null;
+                string jsonFile = ctx.GetValue(command.JsonConfigArgument);
+
+                if (jsonMode) {
+                    if (jsonFile == null) {
+                        throw new UserInfoException(
+                            $"The [json] directive requires a path to a JSON config file. Eg. 'vpk [json] {command.Name} myconfig.json'.");
+                    }
+
+                    var explicitOptions = command.GetExplicitOptionNames(ctx);
+                    if (explicitOptions.Any()) {
+                        throw new UserInfoException(
+                            $"When using the [json] directive, all options must be provided in the JSON file. " +
+                            $"The following command line options are not allowed: {string.Join(", ", explicitOptions)}.");
+                    }
+                } else if (jsonFile != null) {
+                    throw new UserInfoException(
+                        $"Unexpected argument '{jsonFile}'. Did you mean 'vpk [json] {command.Name} {jsonFile}'?");
+                }
+
+                // hydrate the command from env vars and cli values/defaults, and map to options.
+                command.SetProperties(ctx, config, defaults.TargetOs);
+                var options = OptionMapper.Map<TOpt>(command);
+
+                if (jsonMode) {
+                    // overlay the json config on top, so precedence is json > env vars > defaults.
+                    JsonConfigLoader.Populate(jsonFile, options);
+                }
+
                 await fn(options);
                 // print the out of date warning again at the end as well.
                 await updateCheck.CheckForUpdates();

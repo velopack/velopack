@@ -1,5 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using FluentValidation;
+using Microsoft.Extensions.Logging;
 using Velopack.Core;
+using Velopack.Core.Validation;
 using Velopack.Packaging.Abstractions;
 using Velopack.Sources;
 using Velopack.Util;
@@ -24,15 +26,20 @@ public class RepositoryOptions : IOutputOptions
 
 public interface IRepositoryCanUpload<TUp> where TUp : RepositoryOptions
 {
+    IValidator<TUp> UploadOptionsValidator { get; }
+
     Task UploadMissingAssetsAsync(TUp options);
 }
 
 public interface IRepositoryCanDownload<TDown> where TDown : RepositoryOptions
 {
+    IValidator<TDown> DownloadOptionsValidator { get; }
+
     Task DownloadLatestFullPackageAsync(TDown options);
 }
 
-public abstract class SourceRepository<TDown, TSource>(ILogger logger) : DownRepository<TDown>(logger)
+public abstract class SourceRepository<TDown, TSource>(ILogger logger, IValidator<TDown> validator = null)
+    : DownRepository<TDown>(logger, validator)
     where TDown : RepositoryOptions
     where TSource : IUpdateSource
 {
@@ -56,12 +63,21 @@ public abstract class DownRepository<TDown> : IRepositoryCanDownload<TDown>
 {
     protected ILogger Log { get; }
 
-    public DownRepository(ILogger logger)
+    public IValidator<TDown> DownloadOptionsValidator { get; }
+
+    public DownRepository(ILogger logger, IValidator<TDown> validator = null)
     {
         Log = logger;
+        DownloadOptionsValidator = validator;
     }
 
-    public virtual async Task DownloadLatestFullPackageAsync(TDown options)
+    public async Task DownloadLatestFullPackageAsync(TDown options)
+    {
+        DownloadOptionsValidator?.EnsureValidOptions(options);
+        await DownloadLatestFullPackageCoreAsync(options).ConfigureAwait(false);
+    }
+
+    protected virtual async Task DownloadLatestFullPackageCoreAsync(TDown options)
     {
         VelopackAssetFeed feed = await RetryAsyncRet(() => GetReleasesAsync(options), $"Fetching releases for channel {options.Channel}...");
         var releases = feed.Assets;

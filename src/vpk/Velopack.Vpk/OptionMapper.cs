@@ -1,4 +1,5 @@
 ﻿using Riok.Mapperly.Abstractions;
+using Velopack.Core;
 using Velopack.Deployment;
 using Velopack.Flow.Commands;
 using Velopack.Packaging.Commands;
@@ -72,6 +73,10 @@ public static partial class OptionMapper
     private static RID StringToRID(string t)
     {
         if (t == null) return null;
-        return RID.Parse(t);
+        try {
+            return RID.Parse(t);
+        } catch (Exception ex) {
+            throw new UserInfoException($"Invalid runtime identifier '{t}': {ex.Message}");
+        }
     }
 }

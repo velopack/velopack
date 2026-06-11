@@ -8,9 +8,8 @@ public abstract class PlatformCommand : OutputCommand
 
     protected PlatformCommand(string name, string description, RuntimeOs targetOs = RuntimeOs.Unknown) : base(name, description, targetOs)
     {
-        TargetRuntimeOption = AddOption<string>((v) => TargetRuntime = v, "-r", "--runtime")
+        TargetRuntimeOption = AddOption<string>((v) => TargetRuntime = v, ["-r", "--runtime"])
             .SetDescription("The target runtime to build packages for.")
-            .SetArgumentHelpName("RID")
-            .MustBeSupportedRid();
+            .SetArgumentHelpName("RID");
     }
 }

@@ -9,9 +9,8 @@ public class LocalBaseCommand : OutputCommand
     public LocalBaseCommand(string command, string description)
         : base(command, description)
     {
-        TargetPathOption = AddOption<DirectoryInfo>((p) => TargetPath = p, "--path")
+        TargetPathOption = AddOption<DirectoryInfo>((p) => TargetPath = p, ["--path"])
             .SetDescription("Target file path to copy releases to/from.")
-            .SetArgumentHelpName("PATH")
-            .SetRequired();
+            .SetArgumentHelpName("PATH");
     }
 }

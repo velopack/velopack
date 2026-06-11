@@ -7,7 +7,7 @@ using Velopack.Util;
 namespace Velopack.Packaging.Unix.Commands;
 
 [SupportedOSPlatform("osx")]
-public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions>
+public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOptionsValidator>
 {
     public OsxPackCommandRunner(ILogger logger, IFancyConsole console)
         : base(RuntimeOs.OSX, logger, console)

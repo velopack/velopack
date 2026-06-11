@@ -6,7 +6,7 @@ using Velopack.Util;
 
 namespace Velopack.Packaging.Unix.Commands;
 
-public class OsxBundleCommandRunner : ICommand<OsxBundleOptions>
+public class OsxBundleCommandRunner : ValidatedCommand<OsxBundleOptions, OsxBundleOptionsValidator>
 {
     private readonly ILogger _logger;
 
@@ -15,7 +15,7 @@ public class OsxBundleCommandRunner : ICommand<OsxBundleOptions>
         _logger = logger;
     }
 
-    public Task Run(OsxBundleOptions options)
+    protected override Task RunCoreAsync(OsxBundleOptions options)
     {
         Bundle(options);
         return Task.CompletedTask;

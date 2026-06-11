@@ -1,10 +1,12 @@
 ﻿using System.Net;
 using System.Text;
+using FluentValidation;
 using Gitea.Net.Api;
 using Gitea.Net.Client;
 using Gitea.Net.Model;
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
+using Velopack.Core.Validation;
 using Velopack.NuGet;
 using Velopack.Packaging;
 using Velopack.Sources;
@@ -41,9 +43,27 @@ public class GiteaUploadOptions : GiteaDownloadOptions
     public bool Merge { get; set; }
 }
 
+public class GiteaDownloadOptionsValidator<T> : RepositoryOptionsValidator<T> where T : GiteaDownloadOptions
+{
+    public GiteaDownloadOptionsValidator()
+    {
+        RuleFor(x => x.RepoUrl).NotEmpty().MustBeValidHttpUri();
+    }
+}
+
+public sealed class GiteaDownloadOptionsValidator : GiteaDownloadOptionsValidator<GiteaDownloadOptions>;
+
+public sealed class GiteaUploadOptionsValidator : GiteaDownloadOptionsValidator<GiteaUploadOptions>
+{
+    public GiteaUploadOptionsValidator()
+    {
+        AddReleaseDirRules();
+    }
+}
+
 public class GiteaRepository : SourceRepository<GiteaDownloadOptions, GiteaSource>, IRepositoryCanUpload<GiteaUploadOptions>
 {
-    public GiteaRepository(ILogger logger) : base(logger)
+    public GiteaRepository(ILogger logger) : base(logger, new GiteaDownloadOptionsValidator())
     {
     }
     public override GiteaSource CreateSource(GiteaDownloadOptions options)
@@ -63,7 +83,15 @@ public class GiteaRepository : SourceRepository<GiteaDownloadOptions, GiteaSourc
         return (repoOwner, repoName);
     }
 
+    public IValidator<GiteaUploadOptions> UploadOptionsValidator { get; } = new GiteaUploadOptionsValidator();
+
     public async Task UploadMissingAssetsAsync(GiteaUploadOptions options)
+    {
+        UploadOptionsValidator.EnsureValidOptions(options);
+        await UploadMissingAssetsCoreAsync(options).ConfigureAwait(false);
+    }
+
+    private async Task UploadMissingAssetsCoreAsync(GiteaUploadOptions options)
     {
         var (repoOwner, repoName) = GetOwnerAndRepo(options.RepoUrl);
         var helper = await ReleaseEntryHelper.CreateAsync(options.ReleaseDir.FullName, options.Channel, Log, options.TargetOs).ConfigureAwait(false);

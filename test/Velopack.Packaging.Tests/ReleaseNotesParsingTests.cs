@@ -12,7 +12,7 @@ namespace Velopack.Packaging.Tests;
 /// <summary>
 /// Test-only implementation of PackageBuilder that exposes GenerateNuspecContent for testing.
 /// </summary>
-internal class TestPackageBuilder : PackageBuilder<IPackOptions>
+internal class TestPackageBuilder : PackageBuilder<IPackOptions, PackOptionsValidator<IPackOptions>>
 {
     public TestPackageBuilder(ILogger logger)
         : base(RuntimeOs.Windows, logger, new BasicConsole(logger, new VelopackDefaults(false)))
@@ -74,7 +74,7 @@ public class ReleaseNotesParsingTests
         };
 
         // Use reflection or expose method to call Run with options to set them
-        typeof(PackageBuilder<IPackOptions>)
+        typeof(PackageBuilder<IPackOptions, PackOptionsValidator<IPackOptions>>)
             .GetProperty("Options", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
             .SetValue(builder, options);
 
