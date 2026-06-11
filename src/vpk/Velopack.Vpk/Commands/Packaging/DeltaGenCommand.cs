@@ -20,7 +20,8 @@ public class DeltaGenCommand : BaseCommand
     {
         AddOption<DeltaMode>((v) => DeltaMode = v, ["--mode"])
             .SetDefault(DeltaMode.BestSpeed)
-            .SetDescription("Set the delta generation mode.");
+            .SetDescription("Set the delta generation mode.")
+            .SetArgumentHelpName("MODE");
 
         AddOption<FileInfo>((v) => BasePackage = v.ToFullNameOrNull(), ["--base", "-b"])
             .SetDescription("The base package for the created patch.")

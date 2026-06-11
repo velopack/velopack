@@ -88,7 +88,8 @@ public abstract class PackCommand : PlatformCommand
 
         DeltaModeOption = AddOption<DeltaMode>((v) => DeltaMode = v, ["--delta"])
             .SetDefault(DeltaMode.BestSpeed)
-            .SetDescription("Disable or set the delta generation mode.");
+            .SetDescription("Disable or set the delta generation mode.")
+            .SetArgumentHelpName("MODE");
 
         IconOption = AddOption<FileInfo>((v) => Icon = v.ToFullNameOrNull(), ["-i", "--icon"])
             .SetDescription($"Path to icon file for package.")

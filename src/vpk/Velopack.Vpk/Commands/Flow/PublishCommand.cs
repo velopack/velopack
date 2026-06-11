@@ -27,6 +27,7 @@ public class PublishCommand : VelopackServiceCommand
 
         AddOption<int>(v => TieredRolloutPercentage = v, ["--rolloutPercentage"])
             .SetDescription("Set the starting percentage for this release when using a tiered rollout. Range 0 to 100")
+            .SetArgumentHelpName("PERCENT")
             .SetDefault(100);
     }
 }

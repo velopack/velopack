@@ -70,6 +70,7 @@ public class WindowsPackCommand : PackCommand
 
         AddOption<string>((v) => SignExclude = v, ["--signExclude"])
             .SetDescription("A regex which excludes matched files from signing.")
+            .SetArgumentHelpName("REGEX")
             .SetHidden();
 
         AddOption<int>((v) => SignParallel = v, ["--signParallel"])

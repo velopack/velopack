@@ -12,6 +12,7 @@ public class HttpDownloadCommand : OutputCommand
         : base("http", "Download latest release from a HTTP source.")
     {
         AddOption<string>((v) => Url = v, ["--url"])
+            .SetArgumentHelpName("URL")
             .SetDescription("Url to download remote releases from.");
 
         AddOption<double>((v) => Timeout = v, ["--timeout"])
