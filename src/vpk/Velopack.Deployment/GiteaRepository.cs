@@ -47,7 +47,13 @@ public class GiteaDownloadOptionsValidator<T> : RepositoryOptionsValidator<T> wh
 {
     public GiteaDownloadOptionsValidator()
     {
-        RuleFor(x => x.RepoUrl).NotEmpty().MustBeValidHttpUri();
+        RuleFor(x => x.RepoUrl).NotEmpty().MustBeValidHttpUri()
+            .Must(v => {
+                if (string.IsNullOrEmpty(v) || !Uri.TryCreate(v, UriKind.Absolute, out var uri)) return true;
+                var parts = uri.AbsolutePath.Trim('/').Split('/');
+                return parts.Length == 2 && parts.All(p => p.Length > 0);
+            })
+            .WithMessage("{PropertyName} must be in the format 'https://host/owner/repo' ('{PropertyValue}').");
     }
 }
 
@@ -58,6 +64,7 @@ public sealed class GiteaUploadOptionsValidator : GiteaDownloadOptionsValidator<
     public GiteaUploadOptionsValidator()
     {
         AddReleaseDirRules();
+        RuleFor(x => x.Token).NotEmpty().WithMessage("{PropertyName} is required when uploading to Gitea.");
     }
 }
 

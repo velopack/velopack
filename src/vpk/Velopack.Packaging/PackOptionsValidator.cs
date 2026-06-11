@@ -13,6 +13,7 @@ public class PackOptionsValidator<T> : OptionsValidator<T> where T : class, IPac
         RuleFor(x => x.PackDirectory).NotEmpty();
         RuleFor(x => x.ReleaseNotes).MustBeExistingFile();
         RuleFor(x => x.Icon).MustBeExistingFile();
+        RuleFor(x => x.Exclude).MustBeValidRegex();
         RuleFor(x => x.Channel).MustBeValidNuGetId();
         RuleFor(x => x.TargetRuntime).MustBeSupportedRid();
         RuleFor(x => x.NoPortable)

@@ -3,7 +3,7 @@ using Velopack.Core.Validation;
 
 namespace Velopack.Flow.Commands;
 
-public sealed class ApiOptionsValidator : OptionsValidator<ApiOptions>
+public sealed class ApiOptionsValidator : VelopackFlowServiceOptionsValidator<ApiOptions>
 {
     public ApiOptionsValidator()
     {

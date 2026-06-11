@@ -8,6 +8,8 @@ public class RepositoryOptionsValidator<T> : OptionsValidator<T> where T : Repos
 {
     public RepositoryOptionsValidator()
     {
+        RuleFor(x => x.Timeout).GreaterThan(0);
+
         // the Channel getter computes a default from TargetOs and can throw for RuntimeOs.Unknown,
         // so it must be read inside a guarded Custom rule rather than a RuleFor() expression.
         RuleFor(x => x).Custom((opt, context) => {

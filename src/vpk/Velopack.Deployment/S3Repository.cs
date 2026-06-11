@@ -108,6 +108,12 @@ public class S3DownloadOptionsValidator<T> : RepositoryOptionsValidator<T> where
             })
             .WithMessage("{PropertyName} '{PropertyValue}' lookup failed, is this a valid AWS region?");
         RuleFor(x => x.Endpoint).MustBeValidHttpUri();
+        RuleFor(x => x.KeyId)
+            .Must((opt, keyId) => string.IsNullOrEmpty(keyId) == string.IsNullOrEmpty(opt.Secret))
+            .WithMessage("'keyId' and 'secret' options must be provided together, or not at all.");
+        RuleFor(x => x.Session)
+            .Must((opt, session) => string.IsNullOrEmpty(session) || !string.IsNullOrEmpty(opt.KeyId))
+            .WithMessage("'session' option also requires 'keyId' and 'secret' to be provided.");
     }
 }
 

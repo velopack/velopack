@@ -3,7 +3,7 @@ using Velopack.Core.Abstractions;
 
 namespace Velopack.Flow.Commands;
 
-public class LoginCommandRunner(ILogger logger, IFancyConsole console) : ValidatedCommand<LoginOptions>
+public class LoginCommandRunner(ILogger logger, IFancyConsole console) : ValidatedCommand<LoginOptions, LoginOptionsValidator>
 {
     protected override async Task RunCoreAsync(LoginOptions options)
     {
