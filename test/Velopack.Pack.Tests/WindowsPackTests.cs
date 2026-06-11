@@ -193,7 +193,7 @@ public class WindowsPackTests
             PackId = id,
             PackVersion = version,
             PackDirectory = tmpOutput,
-            TargetRuntime = RID.Parse("win"),
+            TargetRuntime = RID.Parse("win-x64"),
         };
 
         var runner = WindowsTestHelper.GetPackRunner(logger);

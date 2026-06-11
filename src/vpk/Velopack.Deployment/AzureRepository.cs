@@ -3,8 +3,10 @@ using Azure;
 using Azure.Storage;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
+using Velopack.Core.Validation;
 using Velopack.Util;
 
 namespace Velopack.Deployment;
@@ -42,9 +44,34 @@ public class AzureBlobClient(BlobContainerClient client, string prefix)
     }
 }
 
+public class AzureDownloadOptionsValidator<T> : RepositoryOptionsValidator<T> where T : AzureDownloadOptions
+{
+    public AzureDownloadOptionsValidator()
+    {
+        RuleFor(x => x.Account).NotEmpty();
+        RuleFor(x => x.Container).NotEmpty();
+        RuleFor(x => x.Endpoint).MustBeValidHttpUri();
+        RuleFor(x => x.SasToken)
+            .Must((opt, sas) => !string.IsNullOrEmpty(sas) || !string.IsNullOrEmpty(opt.Key))
+            .WithMessage("At least one of 'sas' and 'key' options are required.")
+            .Must((opt, sas) => string.IsNullOrEmpty(sas) || string.IsNullOrEmpty(opt.Key))
+            .WithMessage("Cannot use 'sas' and 'key' options together, please choose one.");
+    }
+}
+
+public sealed class AzureDownloadOptionsValidator : AzureDownloadOptionsValidator<AzureDownloadOptions>;
+
+public sealed class AzureUploadOptionsValidator : AzureDownloadOptionsValidator<AzureUploadOptions>
+{
+    public AzureUploadOptionsValidator()
+    {
+        AddReleaseDirRules();
+    }
+}
+
 public class AzureRepository : ObjectRepository<AzureDownloadOptions, AzureUploadOptions, AzureBlobClient>
 {
-    public AzureRepository(ILogger logger) : base(logger)
+    public AzureRepository(ILogger logger) : base(logger, new AzureDownloadOptionsValidator(), new AzureUploadOptionsValidator())
     {
     }
 

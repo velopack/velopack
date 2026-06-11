@@ -11,7 +11,7 @@ using Velopack.Windows;
 
 namespace Velopack.Packaging.Windows.Commands;
 
-public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
+public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, WindowsPackOptionsValidator>
 {
     public WindowsPackCommandRunner(ILogger logger, IFancyConsole console)
         : base(RuntimeOs.Windows, logger, console)

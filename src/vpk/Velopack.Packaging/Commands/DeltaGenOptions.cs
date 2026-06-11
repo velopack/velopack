@@ -5,7 +5,7 @@ namespace Velopack.Packaging.Commands;
 
 public class DeltaGenOptions
 {
-    public DeltaMode DeltaMode { get; set; }
+    public DeltaMode DeltaMode { get; set; } = DeltaMode.BestSpeed;
 
     public string BasePackage { get; set; }
 

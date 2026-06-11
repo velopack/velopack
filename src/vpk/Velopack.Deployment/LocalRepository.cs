@@ -1,5 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using FluentValidation;
+using Microsoft.Extensions.Logging;
 using Velopack.Core;
+using Velopack.Core.Validation;
 using Velopack.Packaging;
 using Velopack.Sources;
 using Velopack.Util;
@@ -18,7 +20,33 @@ public class LocalUploadOptions : LocalDownloadOptions, IObjectUploadOptions
     public int KeepMaxReleases { get; set; }
 }
 
-public class LocalRepository(ILogger logger) : ObjectRepository<LocalDownloadOptions, LocalUploadOptions, DirectoryInfo>(logger)
+public class LocalDownloadOptionsValidator<T> : RepositoryOptionsValidator<T> where T : LocalDownloadOptions
+{
+    public LocalDownloadOptionsValidator()
+    {
+        RuleFor(x => x.TargetPath).NotNull();
+    }
+}
+
+public sealed class LocalDownloadOptionsValidator : LocalDownloadOptionsValidator<LocalDownloadOptions>
+{
+    public LocalDownloadOptionsValidator()
+    {
+        RuleFor(x => x.TargetPath).MustBeNonEmptyDirectory();
+    }
+}
+
+public sealed class LocalUploadOptionsValidator : LocalDownloadOptionsValidator<LocalUploadOptions>
+{
+    public LocalUploadOptionsValidator()
+    {
+        AddReleaseDirRules();
+    }
+}
+
+public class LocalRepository(ILogger logger)
+    : ObjectRepository<LocalDownloadOptions, LocalUploadOptions, DirectoryInfo>(
+        logger, new LocalDownloadOptionsValidator(), new LocalUploadOptionsValidator())
 {
     protected override DirectoryInfo CreateClient(LocalDownloadOptions options)
     {
@@ -53,7 +81,7 @@ public class LocalRepository(ILogger logger) : ObjectRepository<LocalDownloadOpt
         return Task.CompletedTask;
     }
 
-    public override async Task UploadMissingAssetsAsync(LocalUploadOptions options)
+    protected override async Task UploadMissingAssetsCoreAsync(LocalUploadOptions options)
     {
         // create directory if it doesn't exist
         Directory.CreateDirectory(options.TargetPath.FullName);
@@ -63,7 +91,7 @@ public class LocalRepository(ILogger logger) : ObjectRepository<LocalDownloadOpt
             await ReleaseEntryHelper.UpdateReleaseFilesAsync(options.TargetPath.FullName, Log).ConfigureAwait(false);
         }
 
-        await base.UploadMissingAssetsAsync(options).ConfigureAwait(false);
+        await base.UploadMissingAssetsCoreAsync(options).ConfigureAwait(false);
     }
 
     protected override Task SaveEntryToFileAsync(LocalDownloadOptions options, VelopackAsset entry, string filePath)

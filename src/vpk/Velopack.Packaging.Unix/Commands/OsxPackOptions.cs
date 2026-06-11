@@ -37,7 +37,7 @@ public class OsxPackOptions : OsxBundleOptions, IPackOptions
 
     public string Channel { get; set; }
 
-    public string Exclude { get; set; }
+    public string Exclude { get; set; } = @".*\.pdb";
 
     public bool NoDefaultExclude { get; set; }
 }

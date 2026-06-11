@@ -7,7 +7,7 @@ using Velopack.Util;
 
 namespace Velopack.Packaging.Unix.Commands;
 
-public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions>
+public class LinuxPackCommandRunner : PackageBuilder<LinuxPackOptions, LinuxPackOptionsValidator>
 {
     protected string PortablePackagePath { get; set; }
 

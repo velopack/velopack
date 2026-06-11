@@ -1,5 +1,7 @@
-﻿
+
 using System.CommandLine;
+using Velopack.Deployment;
+using Velopack.Vpk;
 using Velopack.Vpk.Commands.Deployment;
 
 namespace Velopack.CommandLine.Tests.Commands;
@@ -14,31 +16,31 @@ public class HttpDownloadCommandTests : BaseCommandTests<HttpDownloadCommand>
         ParseResult parseResult = command.ParseAndApply($"--url \"http://clowd.squirrel.com\"");
 
         Assert.Empty(parseResult.Errors);
-        Assert.Equal("http://clowd.squirrel.com/", command.Url);
+        Assert.Equal("http://clowd.squirrel.com", command.Url);
     }
 
     [Fact]
-    public void Url_WithNonHttpValue_ShowsError()
+    public void Url_WithNonHttpValue_FailsValidation()
     {
         var command = new HttpDownloadCommand();
+        command.ParseAndApply($"--url \"file://clowd.squirrel.com\"");
+        var options = OptionMapper.Map<HttpDownloadOptions>(command);
 
-        ParseResult parseResult = command.ParseAndApply($"--url \"file://clowd.squirrel.com\"");
+        var result = new HttpDownloadOptionsValidator().Validate(options);
 
-        Assert.Equal(1, parseResult.Errors.Count);
-        //Assert.Equal(command.Url, parseResult.Errors[0].SymbolResult?.Symbol);
-        Assert.StartsWith("--url must contain a Uri with one of the following schems: http, https.", parseResult.Errors[0].Message);
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("url must contain an absolute http / https Uri"));
     }
 
     [Fact]
-    public void Url_WithRelativeUrl_ShowsError()
+    public void Url_WithRelativeUrl_FailsValidation()
     {
         var command = new HttpDownloadCommand();
+        command.ParseAndApply($"--url \"clowd.squirrel.com\"");
+        var options = OptionMapper.Map<HttpDownloadOptions>(command);
 
-        ParseResult parseResult = command.ParseAndApply($"--url \"clowd.squirrel.com\"");
+        var result = new HttpDownloadOptionsValidator().Validate(options);
 
-        Assert.Equal(1, parseResult.Errors.Count);
-        //Assert.Equal(command.Url, parseResult.Errors[0].SymbolResult?.Symbol);
-        Assert.StartsWith("--url must contain an absolute Uri.", parseResult.Errors[0].Message);
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("url must contain an absolute http / https Uri"));
     }
 
     protected override string GetRequiredDefaultOptions()

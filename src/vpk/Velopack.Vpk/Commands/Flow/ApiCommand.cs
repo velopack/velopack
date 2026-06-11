@@ -15,18 +15,16 @@ public class ApiCommand : VelopackServiceCommand
     public ApiCommand()
         : base("api", "Invoke velopack flow API endpoints")
     {
-        AddOption<string>(v => Method = v, "--method", "-m")
+        AddOption<string>(v => Method = v, ["--method", "-m"])
             .SetDescription("The HTTP method for the endpoint")
             .SetArgumentHelpName("METHOD")
-            .SetRequired()
             .SetDefault(HttpMethod.Get.Method);
 
-        AddOption<string>(v => Endpoint = v, "--endpoint", "-e")
+        AddOption<string>(v => Endpoint = v, ["--endpoint", "-e"])
             .SetDescription("The relative URI for the endpoint")
-            .SetArgumentHelpName("URI")
-            .SetRequired();
+            .SetArgumentHelpName("URI");
 
-        AddOption<string>(v => Body = v, "--body", "-b")
+        AddOption<string>(v => Body = v, ["--body", "-b"])
             .SetDescription("The body of the HTTP message")
             .SetArgumentHelpName("BODY");
     }

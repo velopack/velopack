@@ -1,5 +1,7 @@
-﻿using System.CommandLine;
+using System.CommandLine;
+using Velopack.Deployment;
 using Velopack.Util;
+using Velopack.Vpk;
 using Velopack.Vpk.Commands.Deployment;
 
 namespace Velopack.CommandLine.Tests.Commands;
@@ -20,26 +22,44 @@ public class LocalDownloadCommandTests : BaseCommandTests<LocalDownloadCommand>
     }
 
     [Fact]
-    public void Path_WithEmptyPath_ParsesValue()
+    public void Path_WithEmptyPath_FailsValidation()
     {
         var command = new LocalDownloadCommand();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
 
-        ParseResult parseResult = command.ParseAndApply($"--path {releaseDir}");
+        command.ParseAndApply($"--path {releaseDir}");
+        var options = OptionMapper.Map<LocalDownloadOptions>(command);
 
-        Assert.True(parseResult.Errors.Count > 0);
-        Assert.Contains("must be a non-empty directory", parseResult.Errors[0].Message);
+        var result = new LocalDownloadOptionsValidator().Validate(options);
+
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("must be a non-empty directory"));
     }
 
     [Fact]
-    public void Path_WithNonExistingDirectory_ShowsError()
+    public void Path_WithNonExistingDirectory_FailsValidation()
     {
         var command = new LocalDownloadCommand();
 
         // Parse with a fake path
-        ParseResult parseResult = command.ParseAndApply($"--path \"E:\\releases\"");
+        command.ParseAndApply($"--path \"E:\\releases\"");
+        var options = OptionMapper.Map<LocalDownloadOptions>(command);
 
-        Assert.True(parseResult.Errors.Count > 0);
-        Assert.Contains("must be a non-empty directory", parseResult.Errors[0].Message);
+        var result = new LocalDownloadOptionsValidator().Validate(options);
+
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("must be a non-empty directory"));
+    }
+
+    [Fact]
+    public void Path_Missing_FailsValidation()
+    {
+        var command = new LocalDownloadCommand();
+        ParseResult parseResult = command.ParseAndApply("");
+
+        Assert.Empty(parseResult.Errors);
+
+        var options = OptionMapper.Map<LocalDownloadOptions>(command);
+        var result = new LocalDownloadOptionsValidator().Validate(options);
+
+        Assert.Contains(result.Errors, e => e.PropertyName == "TargetPath");
     }
 }

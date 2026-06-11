@@ -1,6 +1,8 @@
 using System.Text;
+using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
+using Velopack.Core.Validation;
 using Velopack.Packaging;
 using Velopack.Util;
 
@@ -19,8 +21,12 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
     where TDown : RepositoryOptions, IObjectDownloadOptions
     where TUp : IObjectUploadOptions, TDown
 {
-    protected ObjectRepository(ILogger logger) : base(logger)
+    public IValidator<TUp> UploadOptionsValidator { get; }
+
+    protected ObjectRepository(ILogger logger, IValidator<TDown> downloadValidator = null, IValidator<TUp> uploadValidator = null)
+        : base(logger, downloadValidator)
     {
+        UploadOptionsValidator = uploadValidator;
     }
 
     protected abstract Task UploadObject(TClient client, string key, FileInfo f, bool overwriteRemote, bool noCache);
@@ -48,7 +54,13 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
         return VelopackAssetFeed.FromJson(Encoding.UTF8.GetString(bytes));
     }
 
-    public virtual async Task UploadMissingAssetsAsync(TUp options)
+    public async Task UploadMissingAssetsAsync(TUp options)
+    {
+        UploadOptionsValidator?.EnsureValidOptions(options);
+        await UploadMissingAssetsCoreAsync(options).ConfigureAwait(false);
+    }
+
+    protected virtual async Task UploadMissingAssetsCoreAsync(TUp options)
     {
         var build = BuildAssets.Read(options.ReleaseDir.FullName, options.Channel);
         var client = CreateClient(options);

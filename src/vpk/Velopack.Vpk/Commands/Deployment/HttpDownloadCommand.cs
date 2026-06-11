@@ -11,12 +11,10 @@ public class HttpDownloadCommand : OutputCommand
     public HttpDownloadCommand()
         : base("http", "Download latest release from a HTTP source.")
     {
-        AddOption<Uri>((v) => Url = v.ToAbsoluteOrNull(), "--url")
-            .SetDescription("Url to download remote releases from.")
-            .MustBeValidHttpUri()
-            .SetRequired();
+        AddOption<string>((v) => Url = v, ["--url"])
+            .SetDescription("Url to download remote releases from.");
 
-        AddOption<double>((v) => Timeout = v, "--timeout")
+        AddOption<double>((v) => Timeout = v, ["--timeout"])
             .SetDescription("Network timeout in minutes.")
             .SetArgumentHelpName("MINUTES")
             .SetDefault(30);

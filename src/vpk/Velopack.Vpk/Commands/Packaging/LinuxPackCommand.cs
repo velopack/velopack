@@ -14,14 +14,13 @@ public class LinuxPackCommand : PackCommand
         this.RemoveOption(NoPortableOption);
         this.RemoveOption(NoInstOption);
 
-        AddOption<string>((v) => Categories = v, "--categories")
+        AddOption<string>((v) => Categories = v, ["--categories"])
             .SetDescription("Categories from the freedesktop.org Desktop Menu spec")
             .SetArgumentHelpName("NAMES");
 
-        AddOption<string>((v) => Compression = v, "--compression")
+        AddOption<string>((v) => Compression = v, ["--compression"])
             .SetDescription("Set the compression algorithm to use for the AppImage")
             .SetDefault(AppImageTool.DefaultCompressionAlgorithm)
-            .SetArgumentHelpName("ALGO")
-            .MustBeOneOfStringValues(["gzip", "xz"]);
+            .SetArgumentHelpName("ALGO");
     }
 }

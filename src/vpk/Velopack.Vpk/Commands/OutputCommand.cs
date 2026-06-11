@@ -16,14 +16,13 @@ public abstract class OutputCommand : BaseCommand
     protected OutputCommand(string name, string description, RuntimeOs targetOs = RuntimeOs.Unknown)
         : base(name, description)
     {
-        ReleaseDirectoryOption = AddOption<DirectoryInfo>((v) => ReleaseDir = v.ToFullNameOrNull(), "-o", "--outputDir")
+        ReleaseDirectoryOption = AddOption<DirectoryInfo>((v) => ReleaseDir = v.ToFullNameOrNull(), ["-o", "--outputDir"])
              .SetDescription("Output directory for created packages.")
              .SetArgumentHelpName("DIR")
              .SetDefault(new DirectoryInfo("Releases"));
 
-        ChannelOption = AddOption<string>((v) => Channel = v, "-c", "--channel")
+        ChannelOption = AddOption<string>((v) => Channel = v, ["-c", "--channel"])
             .SetDescription("The channel to use for this release.")
-            .RequiresValidNuGetId()
             .SetArgumentHelpName("NAME")
             .SetDefault(DefaultName.GetDefaultChannel(targetOs == RuntimeOs.Unknown ? VelopackRuntimeInfo.SystemOs : targetOs));
     }

@@ -2,8 +2,10 @@
 using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
+using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
+using Velopack.Core.Validation;
 using Velopack.Util;
 
 namespace Velopack.Deployment;
@@ -89,9 +91,39 @@ public class S3BucketClient(AmazonS3Client client, string bucket, string prefix,
     }
 }
 
+public class S3DownloadOptionsValidator<T> : RepositoryOptionsValidator<T> where T : S3DownloadOptions
+{
+    public S3DownloadOptionsValidator()
+    {
+        RuleFor(x => x.Bucket).NotEmpty();
+        RuleFor(x => x.Region)
+            .Must((opt, region) => !string.IsNullOrEmpty(region) || !string.IsNullOrEmpty(opt.Endpoint))
+            .WithMessage("At least one of 'region' and 'endpoint' options are required.")
+            .Must((opt, region) => string.IsNullOrEmpty(region) || string.IsNullOrEmpty(opt.Endpoint))
+            .WithMessage("Cannot use 'region' and 'endpoint' options together, please choose one.")
+            .Must(region => {
+                if (string.IsNullOrEmpty(region)) return true;
+                var r = RegionEndpoint.GetBySystemName(region);
+                return r is not null && r.DisplayName != "Unknown";
+            })
+            .WithMessage("{PropertyName} '{PropertyValue}' lookup failed, is this a valid AWS region?");
+        RuleFor(x => x.Endpoint).MustBeValidHttpUri();
+    }
+}
+
+public sealed class S3DownloadOptionsValidator : S3DownloadOptionsValidator<S3DownloadOptions>;
+
+public sealed class S3UploadOptionsValidator : S3DownloadOptionsValidator<S3UploadOptions>
+{
+    public S3UploadOptionsValidator()
+    {
+        AddReleaseDirRules();
+    }
+}
+
 public class S3Repository : ObjectRepository<S3DownloadOptions, S3UploadOptions, S3BucketClient>
 {
-    public S3Repository(ILogger logger) : base(logger)
+    public S3Repository(ILogger logger) : base(logger, new S3DownloadOptionsValidator(), new S3UploadOptionsValidator())
     {
     }
 

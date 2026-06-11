@@ -25,51 +25,44 @@ public class OsxPackCommand : OsxBundleCommand
     public OsxPackCommand()
         : base("pack", "Converts application files into a release and installer.")
     {
-        AddOption<FileInfo>((v) => InstWelcome = v.ToFullNameOrNull(), "--instWelcome")
+        AddOption<FileInfo>((v) => InstWelcome = v.ToFullNameOrNull(), ["--instWelcome"])
             .SetDescription("Set the installer package welcome content.")
-            .SetArgumentHelpName("PATH")
-            .MustExist();
+            .SetArgumentHelpName("PATH");
 
-        AddOption<FileInfo>((v) => InstReadme = v.ToFullNameOrNull(), "--instReadme")
+        AddOption<FileInfo>((v) => InstReadme = v.ToFullNameOrNull(), ["--instReadme"])
             .SetDescription("Set the installer package readme content.")
-            .SetArgumentHelpName("PATH")
-            .MustExist();
+            .SetArgumentHelpName("PATH");
 
-        AddOption<FileInfo>((v) => InstLicense = v.ToFullNameOrNull(), "--instLicense")
+        AddOption<FileInfo>((v) => InstLicense = v.ToFullNameOrNull(), ["--instLicense"])
             .SetDescription("Set the installer package license content.")
-            .SetArgumentHelpName("PATH")
-            .MustExist();
+            .SetArgumentHelpName("PATH");
 
-        AddOption<FileInfo>((v) => InstConclusion = v.ToFullNameOrNull(), "--instConclusion")
+        AddOption<FileInfo>((v) => InstConclusion = v.ToFullNameOrNull(), ["--instConclusion"])
             .SetDescription("Set the installer package conclusion content.")
-            .SetArgumentHelpName("PATH")
-            .MustExist();
+            .SetArgumentHelpName("PATH");
 
-        AddOption<string>((v) => SignAppIdentity = v, "--signAppIdentity")
+        AddOption<string>((v) => SignAppIdentity = v, ["--signAppIdentity"])
             .SetDescription("The subject name of the cert to use for app code signing.")
             .SetArgumentHelpName("SUBJECT");
 
-        AddOption<string>((v) => SignInstallIdentity = v, "--signInstallIdentity")
+        AddOption<string>((v) => SignInstallIdentity = v, ["--signInstallIdentity"])
             .SetDescription("The subject name of the cert to use for installation packages.")
             .SetArgumentHelpName("SUBJECT");
 
-        AddOption<FileInfo>((v) => SignEntitlements = v.ToFullNameOrNull(), "--signEntitlements")
+        AddOption<FileInfo>((v) => SignEntitlements = v.ToFullNameOrNull(), ["--signEntitlements"])
             .SetDescription("Path to entitlements file for hardened runtime signing.")
-            .SetArgumentHelpName("PATH")
-            .MustExist()
-            .RequiresExtension(".entitlements");
+            .SetArgumentHelpName("PATH");
 
-        AddOption<bool>((v) => SignDisableDeep = v, "--signDisableDeep")
+        AddOption<bool>((v) => SignDisableDeep = v, ["--signDisableDeep"])
             .SetDescription("Disable deep signing, requires you to pre-sign your binaries.");
 
-        AddOption<string>((v) => NotaryProfile = v, "--notaryProfile")
+        AddOption<string>((v) => NotaryProfile = v, ["--notaryProfile"])
             .SetDescription("Name of profile containing Apple credentials stored with notarytool.")
             .SetArgumentHelpName("NAME");
 
-        AddOption<FileInfo>((v) => Keychain = v.ToFullNameOrNull(), "--keychain")
+        AddOption<FileInfo>((v) => Keychain = v.ToFullNameOrNull(), ["--keychain"])
             .SetDescription("Path to keychain file to use for codesign and notarytool.")
             .SetArgumentHelpName("PATH")
-            .MustExist()
             .SetHidden(true);
     }
 }

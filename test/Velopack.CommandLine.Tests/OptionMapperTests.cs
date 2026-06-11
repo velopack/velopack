@@ -24,7 +24,7 @@ public class OptionMapperTests
         Assert.Empty(parseResult.Errors);
         Assert.Equal("account-name", options.Account);
         Assert.Equal("shhhh", options.Key);
-        Assert.Equal("https://endpoint/", options.Endpoint);
+        Assert.Equal("https://endpoint", options.Endpoint);
         Assert.Equal("mycontainer", options.Container);
         Assert.Equal(45, options.Timeout);
     }
