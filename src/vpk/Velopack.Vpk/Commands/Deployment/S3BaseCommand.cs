@@ -52,8 +52,7 @@ public class S3BaseCommand : OutputCommand
             .SetArgumentHelpName("PREFIX");
 
         AddOption<bool>((v) => DisablePathStyle = v, ["--disablePathStyle"])
-            .SetDescription("Disable the default of path-style endpoint and use a subdomain endpoint instead.")
-            .SetArgumentHelpName("BOOL");
+            .SetDescription("Disable the default of path-style endpoint and use a subdomain endpoint instead.");
 
         AddOption<double>((v) => Timeout = v, ["--timeout"])
             .SetDescription("Network timeout in minutes.")
