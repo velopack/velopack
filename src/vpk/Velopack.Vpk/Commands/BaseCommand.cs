@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Humanizer;
 using Microsoft.Extensions.Configuration;
 using Serilog.Core;
+using Velopack.Core;
 
 namespace Velopack.Vpk.Commands;
 
@@ -53,8 +54,9 @@ public class BaseCommand : Command
     {
         string optionName = opt.Name.TrimStart('-');
         string titleCase = String.Join("_", optionName.Humanize(LetterCasing.AllCaps).Split(' '));
+        string envName = "VPK_" + titleCase;
 
-        _envHelp[opt] = "VPK_" + titleCase;
+        _envHelp[opt] = envName;
         _setters[opt] = (ctx, config) => {
             // 1. if the option was set explicitly on the command line, only use that value
             var optionResult = ctx.GetResult(opt);
@@ -66,7 +68,25 @@ public class BaseCommand : Command
             // 2. if the option was not set explicitly on the command line, try to get IConfiguration value
             var configSection = config.GetSection(titleCase);
             if (configSection.Exists()) {
-                setValue(config.GetValue<T>(titleCase));
+                try {
+                    if (typeof(T).IsArray) {
+                        // multi-value options can not be expressed as a single env value, they are
+                        // bound from indexed children (eg. VPK_HEADER__0, VPK_HEADER__1).
+                        if (!configSection.GetChildren().Any()) {
+                            throw new UserInfoException(
+                                $"{envName} is a multi-value option, so it must be provided as indexed variables: eg. {envName}__0, {envName}__1.");
+                        }
+
+                        setValue(configSection.Get<T>());
+                    } else {
+                        setValue(config.GetValue<T>(titleCase));
+                    }
+                } catch (UserInfoException) {
+                    throw;
+                } catch (Exception ex) {
+                    throw new UserInfoException($"Invalid value for environment variable {envName}: {ex.Message}");
+                }
+
                 return;
             }
 

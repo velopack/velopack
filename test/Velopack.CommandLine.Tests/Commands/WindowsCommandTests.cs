@@ -303,13 +303,25 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
         Assert.Contains(result.Errors, e => e.PropertyName == "SignParallel");
     }
 
-    [WindowsOnlyFact]
-    public void MsiVersion_WithInvalidVersion_FailsValidation()
+    [WindowsOnlyTheory]
+    [InlineData("999.0.0")] // major out of range
+    [InlineData("1.2.3.4")] // there is no fourth field in an MSI ProductVersion
+    public void MsiVersion_WithInvalidVersion_FailsValidation(string version)
     {
-        var options = ParseAndMap(GetRequiredDefaultOptions() + "--msiVersion 999.0.0");
+        var options = ParseAndMap(GetRequiredDefaultOptions() + $"--msiVersion {version}");
         var result = Validate(options);
 
         Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("invalid MSI ProductVersion"));
+    }
+
+    [WindowsOnlyFact]
+    public void MsiVersion_WithZeroRevision_PassesValidation()
+    {
+        // a zero revision is tolerated because the default msi version is generated as 'major.minor.patch.0'
+        var options = ParseAndMap(GetRequiredDefaultOptions() + "--msiVersion 1.2.3.0");
+        var result = Validate(options);
+
+        Assert.DoesNotContain(result.Errors, e => e.PropertyName == "MsiVersionOverride");
     }
 
     protected override string GetRequiredDefaultOptions()

@@ -10,6 +10,7 @@ public sealed class OsxPackOptionsValidator : OsxBundleOptionsValidator<OsxPackO
         RuleFor(x => x.Channel).MustBeValidNuGetId();
         RuleFor(x => x.TargetRuntime).MustBeSupportedRid();
         RuleFor(x => x.ReleaseNotes).MustBeExistingFile();
+        RuleFor(x => x.Exclude).MustBeValidRegex();
         RuleFor(x => x.NoPortable)
             .Must((opt, noPortable) => !(noPortable && opt.NoInst))
             .WithMessage("Cannot use 'noPortable' and 'noInst' options together, please choose one.");

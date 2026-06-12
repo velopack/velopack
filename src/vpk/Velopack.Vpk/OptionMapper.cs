@@ -71,10 +71,9 @@ public static partial class OptionMapper
 
     private static DirectoryInfo StringToDirectoryInfo(string t)
     {
-        if (t == null) return null;
-        var di = new DirectoryInfo(t);
-        if (!di.Exists) di.Create();
-        return di;
+        // deliberately not created here - output directories are created at point of use,
+        // after validation, so that a bad path does not leave stray directories behind.
+        return t == null ? null : new DirectoryInfo(t);
     }
 
     private static RID StringToRID(string t)

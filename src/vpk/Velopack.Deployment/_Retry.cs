@@ -5,7 +5,7 @@ namespace Velopack.Deployment;
 
 public static class Retry
 {
-    public static async Task<T> RetryAsyncRet<T>(ILogger log, Func<Task<T>> block, string message, int maxRetries = 1)
+    public static async Task<T> RetryAsyncRet<T>(ILogger log, Func<Task<T>> block, string message, int maxRetries = 2)
     {
         int ctry = 0;
         while (true) {
@@ -24,7 +24,7 @@ public static class Retry
         }
     }
 
-    public static Task RetryAsync(ILogger log, Func<Task> block, string message, int maxRetries = 1)
+    public static Task RetryAsync(ILogger log, Func<Task> block, string message, int maxRetries = 2)
     {
         return RetryAsyncRet<object>(
             log,

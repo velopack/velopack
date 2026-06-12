@@ -79,8 +79,9 @@ public static class SharedRules
         return rule.Must(v => {
             if (string.IsNullOrEmpty(v)) return true;
             if (!Version.TryParse(v, out var parsed)) return false;
-            // the fourth (revision) field is allowed but ignored by MSI
-            return parsed.Major <= 255 && parsed.Minor <= 255 && parsed.Build <= 65535;
+            // per the MSI ProductVersion docs there is no fourth field, but a zero revision
+            // is tolerated because the default version is generated as 'major.minor.patch.0'.
+            return parsed.Major <= 255 && parsed.Minor <= 255 && parsed.Build <= 65535 && parsed.Revision <= 0;
         }).WithMessage("{PropertyName} is an invalid MSI ProductVersion ('{PropertyValue}'). Valid range is [0-255].[0-255].[0-65535]");
     }
 

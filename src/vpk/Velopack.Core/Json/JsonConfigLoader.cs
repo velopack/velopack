@@ -31,12 +31,20 @@ public static class JsonConfigLoader
     public static void PopulateFromJson(string json, object target)
     {
         try {
-            var obj = JObject.Parse(json);
+            // DateParseHandling.None stops Json.NET from re-interpreting date-like string values,
+            // which would otherwise be mangled (eg. timezone shifted) before reaching a string property.
+            JObject obj;
+            using (var stringReader = new StringReader(json))
+            using (var jsonReader = new JsonTextReader(stringReader) { DateParseHandling = DateParseHandling.None }) {
+                obj = JObject.Load(jsonReader);
+            }
+
             obj.Remove("$schema");
 
             var settings = new JsonSerializerSettings {
                 // error on unknown keys so typos are caught instead of silently ignored
                 MissingMemberHandling = MissingMemberHandling.Error,
+                DateParseHandling = DateParseHandling.None,
                 Converters = {
                     new StringEnumConverter(),
                     new FileInfoJsonConverter(),
@@ -45,7 +53,8 @@ public static class JsonConfigLoader
                 },
             };
 
-            JsonConvert.PopulateObject(obj.ToString(), target, settings);
+            using var objReader = obj.CreateReader();
+            JsonSerializer.Create(settings).Populate(objReader, target);
         } catch (UserInfoException) {
             throw;
         } catch (JsonException ex) {
@@ -63,7 +72,11 @@ public class FileInfoJsonConverter : JsonConverter<FileInfo?>
             throw new JsonSerializationException($"Expected a string value for {reader.Path}.");
         }
 
-        return new FileInfo(s);
+        try {
+            return new FileInfo(s);
+        } catch (Exception ex) {
+            throw new JsonSerializationException($"Invalid file path '{s}' for {reader.Path}: {ex.Message}");
+        }
     }
 
     public override void WriteJson(JsonWriter writer, FileInfo? value, JsonSerializer serializer)
@@ -81,9 +94,11 @@ public class DirectoryInfoJsonConverter : JsonConverter<DirectoryInfo?>
             throw new JsonSerializationException($"Expected a string value for {reader.Path}.");
         }
 
-        var di = new DirectoryInfo(s);
-        if (!di.Exists) di.Create();
-        return di;
+        try {
+            return new DirectoryInfo(s);
+        } catch (Exception ex) {
+            throw new JsonSerializationException($"Invalid directory path '{s}' for {reader.Path}: {ex.Message}");
+        }
     }
 
     public override void WriteJson(JsonWriter writer, DirectoryInfo? value, JsonSerializer serializer)

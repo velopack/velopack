@@ -26,6 +26,7 @@ public abstract class DownloadCommandRunner<TOpt, TValidator>(ILogger logger) : 
             return;
         }
 
+        options.ReleaseDir.Create();
         var path = Path.Combine(options.ReleaseDir.FullName, latest.FileName);
         var incomplete = Path.Combine(options.ReleaseDir.FullName, latest.FileName + ".incomplete");
 
