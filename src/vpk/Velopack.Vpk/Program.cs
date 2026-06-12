@@ -148,20 +148,20 @@ public class Program
         }
 
         var downloadCommand = new Command("download", "Download's the latest release from a remote update source.");
-        downloadCommand.AddRepositoryDownload<GitHubDownloadCommand, GitHubRepository, GitHubDownloadOptions>(provider);
-        downloadCommand.AddRepositoryDownload<GiteaDownloadCommand, GiteaRepository, GiteaDownloadOptions>(provider);
-        downloadCommand.AddRepositoryDownload<S3DownloadCommand, S3Repository, S3DownloadOptions>(provider);
-        downloadCommand.AddRepositoryDownload<AzureDownloadCommand, AzureRepository, AzureDownloadOptions>(provider);
-        downloadCommand.AddRepositoryDownload<LocalDownloadCommand, LocalRepository, LocalDownloadOptions>(provider);
-        downloadCommand.AddRepositoryDownload<HttpDownloadCommand, HttpRepository, HttpDownloadOptions>(provider);
+        downloadCommand.AddCommand<GitHubDownloadCommand, GitHubDownloadCommandRunner, GitHubDownloadOptions>(provider);
+        downloadCommand.AddCommand<GiteaDownloadCommand, GiteaDownloadCommandRunner, GiteaDownloadOptions>(provider);
+        downloadCommand.AddCommand<S3DownloadCommand, S3DownloadCommandRunner, S3DownloadOptions>(provider);
+        downloadCommand.AddCommand<AzureDownloadCommand, AzureDownloadCommandRunner, AzureDownloadOptions>(provider);
+        downloadCommand.AddCommand<LocalDownloadCommand, LocalDownloadCommandRunner, LocalDownloadOptions>(provider);
+        downloadCommand.AddCommand<HttpDownloadCommand, HttpDownloadCommandRunner, HttpDownloadOptions>(provider);
         rootCommand.Add(downloadCommand);
 
         var uploadCommand = new Command("upload", "Upload local package(s) to a remote update source.");
-        uploadCommand.AddRepositoryUpload<GitHubUploadCommand, GitHubRepository, GitHubUploadOptions>(provider);
-        uploadCommand.AddRepositoryUpload<GiteaUploadCommand, GiteaRepository, GiteaUploadOptions>(provider);
-        uploadCommand.AddRepositoryUpload<S3UploadCommand, S3Repository, S3UploadOptions>(provider);
-        uploadCommand.AddRepositoryUpload<AzureUploadCommand, AzureRepository, AzureUploadOptions>(provider);
-        uploadCommand.AddRepositoryUpload<LocalUploadCommand, LocalRepository, LocalUploadOptions>(provider);
+        uploadCommand.AddCommand<GitHubUploadCommand, GitHubUploadCommandRunner, GitHubUploadOptions>(provider);
+        uploadCommand.AddCommand<GiteaUploadCommand, GiteaUploadCommandRunner, GiteaUploadOptions>(provider);
+        uploadCommand.AddCommand<S3UploadCommand, S3UploadCommandRunner, S3UploadOptions>(provider);
+        uploadCommand.AddCommand<AzureUploadCommand, AzureUploadCommandRunner, AzureUploadOptions>(provider);
+        uploadCommand.AddCommand<LocalUploadCommand, LocalUploadCommandRunner, LocalUploadOptions>(provider);
         rootCommand.Add(uploadCommand);
 
         var deltaCommand = new Command("delta", "Utilities for creating or applying delta packages.");
@@ -222,30 +222,11 @@ public static class ProgramCommandExtensions
 {
     public static Command AddCommand<TCli, TCmd, TOpt>(this Command parent, IServiceProvider provider)
         where TCli : BaseCommand, new()
-        where TCmd : ICommand<TOpt>
+        where TCmd : ValidatedCommand<TOpt>
         where TOpt : class, new()
     {
         var runner = ActivatorUtilities.CreateInstance<TCmd>(provider);
-        var validator = (runner as ValidatedCommand<TOpt>)?.Validator;
-        return parent.Add<TCli, TOpt>(provider, validator, runner.Run);
-    }
-
-    public static Command AddRepositoryDownload<TCli, TCmd, TOpt>(this Command parent, IServiceProvider provider)
-        where TCli : BaseCommand, new()
-        where TCmd : IRepositoryCanDownload<TOpt>
-        where TOpt : RepositoryOptions, new()
-    {
-        var runner = ActivatorUtilities.CreateInstance<TCmd>(provider);
-        return parent.Add<TCli, TOpt>(provider, runner.DownloadOptionsValidator, runner.DownloadLatestFullPackageAsync);
-    }
-
-    public static Command AddRepositoryUpload<TCli, TCmd, TOpt>(this Command parent, IServiceProvider provider)
-        where TCli : BaseCommand, new()
-        where TCmd : IRepositoryCanUpload<TOpt>
-        where TOpt : RepositoryOptions, new()
-    {
-        var runner = ActivatorUtilities.CreateInstance<TCmd>(provider);
-        return parent.Add<TCli, TOpt>(provider, runner.UploadOptionsValidator, runner.UploadMissingAssetsAsync);
+        return parent.Add<TCli, TOpt>(provider, runner.Validator, runner.Run);
     }
 
     private static Command Add<TCli, TOpt>(this Command parent, IServiceProvider provider, IValidator<TOpt> validator, Func<TOpt, Task> fn)

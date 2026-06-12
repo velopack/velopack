@@ -32,7 +32,7 @@ public class GiteaDeploymentTests
         var id = "GiteaUpdateTest";
         TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger);
 
-        var gh = new GiteaRepository(logger);
+        var gh = new GiteaUploadCommandRunner(logger);
         var options = new GiteaUploadOptions {
             ReleaseName = ghvar.ReleaseName,
             ReleaseDir = new DirectoryInfo(releaseDir),
@@ -43,12 +43,12 @@ public class GiteaDeploymentTests
             TargetOs = RuntimeOs.Windows,
         };
 
-        gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+        gh.Run(options).GetAwaiterResult();
 
         TestApp.PackTestApp(id, $"0.0.2-{ghvar.UniqueSuffix}", "t1", releaseDir2, logger);
         options.ReleaseDir = new DirectoryInfo(releaseDir2);
 
-        Assert.ThrowsAny<UserInfoException>(() => gh.UploadMissingAssetsAsync(options).GetAwaiterResult());
+        Assert.ThrowsAny<UserInfoException>(() => gh.Run(options).GetAwaiterResult());
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public class GiteaDeploymentTests
         var id = "GiteaUpdateTest";
         TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger);
 
-        var gh = new GiteaRepository(logger);
+        var gh = new GiteaUploadCommandRunner(logger);
         var options = new GiteaUploadOptions {
             ReleaseName = ghvar.ReleaseName,
             ReleaseDir = new DirectoryInfo(releaseDir),
@@ -74,12 +74,12 @@ public class GiteaDeploymentTests
             TargetOs = RuntimeOs.Windows,
         };
 
-        gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+        gh.Run(options).GetAwaiterResult();
 
         TestApp.PackTestApp(id, $"0.0.2-{ghvar.UniqueSuffix}", "t1", releaseDir2, logger);
         options.ReleaseDir = new DirectoryInfo(releaseDir2);
 
-        Assert.ThrowsAny<UserInfoException>(() => gh.UploadMissingAssetsAsync(options).GetAwaiterResult());
+        Assert.ThrowsAny<UserInfoException>(() => gh.Run(options).GetAwaiterResult());
     }
 
     [Fact]
@@ -93,7 +93,7 @@ public class GiteaDeploymentTests
         var id = "GiteaUpdateTest";
         TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger);
 
-        var gh = new GiteaRepository(logger);
+        var gh = new GiteaUploadCommandRunner(logger);
         var options = new GiteaUploadOptions {
             ReleaseName = ghvar.ReleaseName,
             ReleaseDir = new DirectoryInfo(releaseDir),
@@ -106,13 +106,13 @@ public class GiteaDeploymentTests
             TargetOs = RuntimeOs.Windows,
         };
 
-        gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+        gh.Run(options).GetAwaiterResult();
 
         TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir2, logger, channel: "experimental");
         options.ReleaseDir = new DirectoryInfo(releaseDir2);
         options.Channel = "experimental";
 
-        gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+        gh.Run(options).GetAwaiterResult();
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public class GiteaDeploymentTests
         using var logger = _output.BuildLoggerFor<GiteaDeploymentTests>();
         var id = "GiteaUpdateTest";
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
-        var (repoOwner, repoName) = GiteaRepository.GetOwnerAndRepo(GITEA_REPOURL);
+        var (repoOwner, repoName) = GitUrl.GetOwnerAndRepo(GITEA_REPOURL);
         using var ghvar = GiteaReleaseTest.Create("integration", logger);
         var releaseName = ghvar.ReleaseName;
         var uniqueSuffix = ghvar.UniqueSuffix;
@@ -154,7 +154,7 @@ This is just a _test_!
         TestApp.PackTestApp(id, newVer, "t2", releaseDir, logger, notesPath, channel: uniqueSuffix);
 
         // deploy
-        var gh = new GiteaRepository(logger);
+        var gh = new GiteaUploadCommandRunner(logger);
         var options = new GiteaUploadOptions {
             ReleaseName = releaseName,
             ReleaseDir = new DirectoryInfo(releaseDir),
@@ -164,7 +164,7 @@ This is just a _test_!
             Publish = true,
             Channel = uniqueSuffix,
         };
-        gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+        gh.Run(options).GetAwaiterResult();
 
         // check
         ApiResponse<Repository> repositoryInfo = apiInstance.RepoGetWithHttpInfoAsync(repoOwner, repoName).GetAwaiterResult();
@@ -191,7 +191,7 @@ This is just a _test_!
         }
 
         using var _2 = TempUtil.GetTempDirectory(out var releaseDirNew);
-        gh.DownloadLatestFullPackageAsync(new GiteaDownloadOptions {
+        new GiteaDownloadCommandRunner(logger).Run(new GiteaDownloadOptions {
             Token = GITEA_TOKEN,
             RepoUrl = GITEA_REPOURL,
             ReleaseDir = new DirectoryInfo(releaseDirNew),
@@ -209,7 +209,7 @@ This is just a _test_!
         using var logger = _output.BuildLoggerFor<GiteaDeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var ghvar = GiteaReleaseTest.Create("targetCommitish", logger, true);
-        var (repoOwner, repoName) = GiteaRepository.GetOwnerAndRepo(GITEA_REPOURL);
+        var (repoOwner, repoName) = GitUrl.GetOwnerAndRepo(GITEA_REPOURL);
         var id = "GiteaUpdateTest";
         var releaseName = ghvar.ReleaseName;
         var client = ghvar.Client;
@@ -227,7 +227,7 @@ This is just a _test_!
         config.BasePath = baseUri + "/api/v1";
         var apiInstance = new RepositoryApi(config);
 
-        var gh = new GiteaRepository(logger);
+        var gh = new GiteaUploadCommandRunner(logger);
         var options = new GiteaUploadOptions {
             ReleaseName = releaseName,
             ReleaseDir = new DirectoryInfo(releaseDir),
@@ -239,7 +239,7 @@ This is just a _test_!
             TagName = version
         };
 
-        gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+        gh.Run(options).GetAwaiterResult();
 
         var expected = "main"; //Default branch in VelopackGiteaUpdateTest repo
         ApiResponse<Repository> repositoryInfo = apiInstance.RepoGetWithHttpInfoAsync(repoOwner, repoName).GetAwaiterResult();
@@ -256,7 +256,7 @@ This is just a _test_!
         using var logger = _output.BuildLoggerFor<GiteaDeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var ghvar = GiteaReleaseTest.Create("targetCommitish", logger, true);
-        var (repoOwner, repoName) = GiteaRepository.GetOwnerAndRepo(GITEA_REPOURL);
+        var (repoOwner, repoName) = GitUrl.GetOwnerAndRepo(GITEA_REPOURL);
         var id = "GiteaUpdateTest";
         var releaseName = ghvar.ReleaseName;
         var client = ghvar.Client;
@@ -274,7 +274,7 @@ This is just a _test_!
         config.BasePath = baseUri + "/api/v1";
         var apiInstance = new RepositoryApi(config);
 
-        var gh = new GiteaRepository(logger);
+        var gh = new GiteaUploadCommandRunner(logger);
         var options = new GiteaUploadOptions {
             ReleaseName = releaseName,
             ReleaseDir = new DirectoryInfo(releaseDir),
@@ -287,7 +287,7 @@ This is just a _test_!
             TargetCommitish = targetCommitish
         };
 
-        gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+        gh.Run(options).GetAwaiterResult();
         ApiResponse<Repository> repositoryInfo = apiInstance.RepoGetWithHttpInfoAsync(repoOwner, repoName).GetAwaiterResult();
         var newRelease = apiInstance.RepoListReleasesWithHttpInfoAsync(repoOwner, repoName, page: 1, limit: (int) repositoryInfo.Data.ReleaseCounter).GetAwaiterResult().Data.Single(s => s.Name == releaseName);
         Assert.Equal(targetCommitish, newRelease.TargetCommitish);
@@ -316,7 +316,7 @@ This is just a _test_!
             var ci = !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI"));
             var uniqueSuffix = (ci ? "ci-" : "local-") + VelopackRuntimeInfo.SystemOs.GetOsShortName();
             var releaseName = $"{VelopackRuntimeInfo.VelopackNugetVersion}-{uniqueSuffix}-{method}";
-            var (repoOwner, repoName) = GiteaRepository.GetOwnerAndRepo(GITEA_REPOURL);
+            var (repoOwner, repoName) = GitUrl.GetOwnerAndRepo(GITEA_REPOURL);
 
             //Setup Gitea
             Configuration config = new Configuration();
@@ -345,7 +345,7 @@ This is just a _test_!
 
         public void Dispose()
         {
-            var (repoOwner, repoName) = GiteaRepository.GetOwnerAndRepo(GITEA_REPOURL);
+            var (repoOwner, repoName) = GitUrl.GetOwnerAndRepo(GITEA_REPOURL);
             var apiInstance = new RepositoryApi(Client);
             //Get repo info
             ApiResponse<Repository> repositoryInfo = apiInstance.RepoGetWithHttpInfoAsync(repoOwner, repoName).GetAwaiterResult();

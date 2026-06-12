@@ -30,6 +30,13 @@ public static partial class OptionMapper
 
     public static partial GitHubUploadOptions ToOptions(this GitHubUploadCommand cmd);
 
+    // GitHubUploadOptions no longer derives from GitHubDownloadOptions (both derive from the
+    // shared GitRelease*Options bases), so the generic Map<TDest> needs an explicit mapping
+    // to convert an upload command to download options.
+    public static partial GitHubDownloadOptions ToDownloadOptions(this GitHubUploadCommand cmd);
+
+    public static partial GiteaDownloadOptions ToDownloadOptions(this GiteaUploadCommand cmd);
+
     public static partial GiteaDownloadOptions ToOptions(this GiteaDownloadCommand cmd);
 
     public static partial GiteaUploadOptions ToOptions(this GiteaUploadCommand cmd);

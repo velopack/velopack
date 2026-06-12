@@ -1,4 +1,4 @@
-﻿using FluentValidation;
+using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Velopack.Core.Validation;
 using Velopack.Sources;
@@ -18,13 +18,10 @@ public sealed class HttpDownloadOptionsValidator : RepositoryOptionsValidator<Ht
     }
 }
 
-public class HttpRepository : SourceRepository<HttpDownloadOptions, SimpleWebSource>
+public class HttpDownloadCommandRunner(ILogger logger)
+    : SourceDownloadCommandRunner<HttpDownloadOptions, HttpDownloadOptionsValidator>(logger)
 {
-    public HttpRepository(ILogger logger)
-        : base(logger, new HttpDownloadOptionsValidator())
-    { }
-
-    public override SimpleWebSource CreateSource(HttpDownloadOptions options)
+    protected override IUpdateSource CreateSource(HttpDownloadOptions options)
     {
         return new SimpleWebSource(options.Url, timeout: options.Timeout);
     }

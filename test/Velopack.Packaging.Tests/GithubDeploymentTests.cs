@@ -27,7 +27,7 @@ public class GithubDeploymentTests
         using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
 
-        var repo = new GitHubRepository(logger);
+        var repo = new GitHubDownloadCommandRunner(logger);
         var options = new GitHubDownloadOptions {
             TargetOs = RuntimeOs.Linux,
             Channel = "linux-x64",
@@ -38,7 +38,7 @@ public class GithubDeploymentTests
             Token = null,
         };
 
-        await repo.DownloadLatestFullPackageAsync(options);
+        await repo.Run(options);
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public class GithubDeploymentTests
 
         TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger, channel: uniqueSuffix);
 
-        var gh = new GitHubRepository(logger);
+        var gh = new GitHubUploadCommandRunner(logger);
         var options = new GitHubUploadOptions {
             ReleaseName = ghvar.ReleaseName,
             ReleaseDir = new DirectoryInfo(releaseDir),
@@ -65,12 +65,12 @@ public class GithubDeploymentTests
             Channel = uniqueSuffix,
         };
 
-        gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+        gh.Run(options).GetAwaiterResult();
 
         TestApp.PackTestApp(id, $"0.0.2-{ghvar.UniqueSuffix}", "t1", releaseDir2, logger);
         options.ReleaseDir = new DirectoryInfo(releaseDir2);
 
-        Assert.ThrowsAny<UserInfoException>(() => gh.UploadMissingAssetsAsync(options).GetAwaiterResult());
+        Assert.ThrowsAny<UserInfoException>(() => gh.Run(options).GetAwaiterResult());
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public class GithubDeploymentTests
         
         TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger, channel: uniqueSuffix);
 
-        var gh = new GitHubRepository(logger);
+        var gh = new GitHubUploadCommandRunner(logger);
         var options = new GitHubUploadOptions {
             Channel = uniqueSuffix,
             ReleaseName = ghvar.ReleaseName,
@@ -98,12 +98,12 @@ public class GithubDeploymentTests
             Merge = true,
         };
 
-        gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+        gh.Run(options).GetAwaiterResult();
 
         TestApp.PackTestApp(id, $"0.0.2-{ghvar.UniqueSuffix}", "t1", releaseDir2, logger);
         options.ReleaseDir = new DirectoryInfo(releaseDir2);
 
-        Assert.ThrowsAny<UserInfoException>(() => gh.UploadMissingAssetsAsync(options).GetAwaiterResult());
+        Assert.ThrowsAny<UserInfoException>(() => gh.Run(options).GetAwaiterResult());
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public class GithubDeploymentTests
 
         TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir, logger, channel: uniqueSuffix);
 
-        var gh = new GitHubRepository(logger);
+        var gh = new GitHubUploadCommandRunner(logger);
         var options = new GitHubUploadOptions {
             Channel = uniqueSuffix,
             ReleaseName = ghvar.ReleaseName,
@@ -132,13 +132,13 @@ public class GithubDeploymentTests
             Merge = true,
         };
 
-        gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+        gh.Run(options).GetAwaiterResult();
 
         TestApp.PackTestApp(id, $"0.0.1-{ghvar.UniqueSuffix}", "t1", releaseDir2, logger, channel: "experimental");
         options.ReleaseDir = new DirectoryInfo(releaseDir2);
         options.Channel = "experimental";
 
-        gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+        gh.Run(options).GetAwaiterResult();
     }
 
     [Fact]
@@ -148,7 +148,7 @@ public class GithubDeploymentTests
         using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
         var id = "GithubUpdateTest";
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
-        var (repoOwner, repoName) = GitHubRepository.GetOwnerAndRepo(GITHUB_REPOURL);
+        var (repoOwner, repoName) = GitUrl.GetOwnerAndRepo(GITHUB_REPOURL);
         using var ghvar = GitHubReleaseTest.Create("integration", logger);
         var releaseName = ghvar.ReleaseName;
         var uniqueSuffix = ghvar.UniqueSuffix;
@@ -170,7 +170,7 @@ public class GithubDeploymentTests
         TestApp.PackTestApp(id, newVer, "t2", releaseDir, logger, notesPath, channel: uniqueSuffix);
 
         // deploy
-        var gh = new GitHubRepository(logger);
+        var gh = new GitHubUploadCommandRunner(logger);
         var options = new GitHubUploadOptions {
             ReleaseName = releaseName,
             ReleaseDir = new DirectoryInfo(releaseDir),
@@ -180,7 +180,7 @@ public class GithubDeploymentTests
             Publish = true,
             Channel = uniqueSuffix,
         };
-        gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+        gh.Run(options).GetAwaiterResult();
 
         // check
         var newRelease = client.Repository.Release.GetAll(repoOwner, repoName).GetAwaiterResult().Single(s => s.Name == releaseName);
@@ -206,7 +206,7 @@ public class GithubDeploymentTests
         }
 
         using var _2 = TempUtil.GetTempDirectory(out var releaseDirNew);
-        gh.DownloadLatestFullPackageAsync(
+        new GitHubDownloadCommandRunner(logger).Run(
             new GitHubDownloadOptions {
                 Token = GITHUB_TOKEN,
                 RepoUrl = GITHUB_REPOURL,
@@ -225,7 +225,7 @@ public class GithubDeploymentTests
         using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var ghvar = GitHubReleaseTest.Create("targetCommitish", logger, true);
-        var (repoOwner, repoName) = GitHubRepository.GetOwnerAndRepo(GITHUB_REPOURL);
+        var (repoOwner, repoName) = GitUrl.GetOwnerAndRepo(GITHUB_REPOURL);
         var id = "GithubUpdateTest";
         var releaseName = ghvar.ReleaseName;
         var client = ghvar.Client;
@@ -233,7 +233,7 @@ public class GithubDeploymentTests
         var version = $"0.0.1-{uniqueSuffix}";
         TestApp.PackTestApp(id, version, "t1", releaseDir, logger, channel: uniqueSuffix);
 
-        var gh = new GitHubRepository(logger);
+        var gh = new GitHubUploadCommandRunner(logger);
         var options = new GitHubUploadOptions {
             ReleaseName = releaseName,
             ReleaseDir = new DirectoryInfo(releaseDir),
@@ -245,7 +245,7 @@ public class GithubDeploymentTests
             TagName = version
         };
 
-        gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+        gh.Run(options).GetAwaiterResult();
 
         var expected = "main"; //Default branch in VelopackGithubUpdateTest repo
         var newRelease = client.Repository.Release.GetAll(repoOwner, repoName).GetAwaiterResult().Single(s => s.Name == releaseName);
@@ -261,7 +261,7 @@ public class GithubDeploymentTests
         using var logger = _output.BuildLoggerFor<GithubDeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var ghvar = GitHubReleaseTest.Create("targetCommitish", logger, true);
-        var (repoOwner, repoName) = GitHubRepository.GetOwnerAndRepo(GITHUB_REPOURL);
+        var (repoOwner, repoName) = GitUrl.GetOwnerAndRepo(GITHUB_REPOURL);
         var id = "GithubUpdateTest";
         var releaseName = ghvar.ReleaseName;
         var client = ghvar.Client;
@@ -269,7 +269,7 @@ public class GithubDeploymentTests
         var version = $"0.0.1-{uniqueSuffix}";
         TestApp.PackTestApp(id, version, "t1", releaseDir, logger, channel: uniqueSuffix);
 
-        var gh = new GitHubRepository(logger);
+        var gh = new GitHubUploadCommandRunner(logger);
         var options = new GitHubUploadOptions {
             ReleaseName = releaseName,
             ReleaseDir = new DirectoryInfo(releaseDir),
@@ -282,7 +282,7 @@ public class GithubDeploymentTests
             TargetCommitish = targetCommitish
         };
 
-        gh.UploadMissingAssetsAsync(options).GetAwaiterResult();
+        gh.Run(options).GetAwaiterResult();
 
         var newRelease = client.Repository.Release.GetAll(repoOwner, repoName).GetAwaiterResult().Single(s => s.Name == releaseName);
         Assert.Equal(targetCommitish, newRelease.TargetCommitish);
@@ -311,7 +311,7 @@ public class GithubDeploymentTests
             var ci = !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI"));
             var uniqueSuffix = (ci ? "ci-" : "local-") + VelopackRuntimeInfo.SystemOs.GetOsShortName();
             var releaseName = $"{VelopackRuntimeInfo.VelopackNugetVersion}-{uniqueSuffix}-{method}";
-            var (repoOwner, repoName) = GitHubRepository.GetOwnerAndRepo(GITHUB_REPOURL);
+            var (repoOwner, repoName) = GitUrl.GetOwnerAndRepo(GITHUB_REPOURL);
 
             // delete release if already exists
             var client = new GitHubClient(new ProductHeaderValue("Velopack")) {
@@ -332,7 +332,7 @@ public class GithubDeploymentTests
 
         public void Dispose()
         {
-            var (repoOwner, repoName) = GitHubRepository.GetOwnerAndRepo(GITHUB_REPOURL);
+            var (repoOwner, repoName) = GitUrl.GetOwnerAndRepo(GITHUB_REPOURL);
             var finalRelease = Client.Repository.Release.GetAll(repoOwner, repoName).GetAwaiterResult().SingleOrDefault(s => s.Name == ReleaseName);
             if (finalRelease != null) {
                 Client.Repository.Release.Delete(repoOwner, repoName, finalRelease.Id).GetAwaiterResult();
