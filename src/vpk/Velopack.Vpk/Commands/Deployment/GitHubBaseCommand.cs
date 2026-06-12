@@ -13,7 +13,7 @@ public abstract class GitHubBaseCommand : OutputCommand
     {
         AddOption<string>((v) => RepoUrl = v, ["--repoUrl"])
             .SetArgumentHelpName("URL")
-            .SetDescription("Full url to the github repository (eg. 'https://github.com/myname/myrepo').");
+            .SetDescription("Repository url (eg. 'https://github.com/myname/myrepo').");
 
         AddOption<string>((v) => Token = v, ["--token"])
             .SetDescription("OAuth token to use as login credentials.")

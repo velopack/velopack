@@ -18,6 +18,8 @@ public class S3BaseCommand : OutputCommand
 
     public bool DisablePathStyle { get; private set; }
 
+    public bool DisableChecksumValidation { get; private set; }
+
     public double Timeout { get; private set; }
 
     protected S3BaseCommand(string name, string description)
@@ -52,7 +54,10 @@ public class S3BaseCommand : OutputCommand
             .SetArgumentHelpName("PREFIX");
 
         AddOption<bool>((v) => DisablePathStyle = v, ["--disablePathStyle"])
-            .SetDescription("Disable the default of path-style endpoint and use a subdomain endpoint instead.");
+            .SetDescription("Use a subdomain endpoint instead of the default path-style.");
+
+        AddOption<bool>((v) => DisableChecksumValidation = v, ["--disableChecksumValidation"])
+            .SetDescription("Disable checksum calculation and validation.");
 
         AddOption<double>((v) => Timeout = v, ["--timeout"])
             .SetDescription("Network timeout in minutes.")
