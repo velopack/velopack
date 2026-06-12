@@ -76,6 +76,22 @@ public abstract class S3CommandTests<T> : BaseCommandTests<T>
     }
 
     [Fact]
+    public void Command_WithDisableChecksumValidation_ParsesValue()
+    {
+        var options = ParseAndMap(GetRequiredDefaultOptions() + "--disableChecksumValidation");
+
+        Assert.True(options.DisableChecksumValidation);
+    }
+
+    [Fact]
+    public void Command_WithoutDisableChecksumValidation_DefaultsToFalse()
+    {
+        var options = ParseAndMap(GetRequiredDefaultOptions());
+
+        Assert.False(options.DisableChecksumValidation);
+    }
+
+    [Fact]
     public void Command_WithoutBucket_FailsValidation()
     {
         var options = ParseAndMap($"--keyId \"some key\" --secret \"shhhh\" --region \"us-west-1\"");

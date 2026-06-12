@@ -26,6 +26,8 @@ public class S3DownloadOptions : RepositoryOptions
     public string Prefix { get; set; }
 
     public bool DisablePathStyle { get; set; }
+
+    public bool DisableChecksumValidation { get; set; }
 }
 
 public class S3UploadOptions : S3DownloadOptions, IObjectUploadOptions
@@ -69,7 +71,7 @@ public sealed class S3UploadOptionsValidator : S3DownloadOptionsValidator<S3Uplo
     }
 }
 
-public class S3ObjectStoreClient(AmazonS3Client client, string bucket, string prefix, bool disableSigning, ILogger logger)
+public class S3ObjectStoreClient(AmazonS3Client client, string bucket, string prefix, bool disableSigning, bool disableChecksumValidation, ILogger logger)
     : ObjectStoreClient(logger)
 {
     public static S3ObjectStoreClient Create(S3DownloadOptions options, ILogger logger)
@@ -79,6 +81,11 @@ public class S3ObjectStoreClient(AmazonS3Client client, string bucket, string pr
             ForcePathStyle = !options.DisablePathStyle, // default is ForcePathStyle = true, as it's more widely supported
             Timeout = TimeSpan.FromMinutes(options.Timeout),
         };
+
+        if (options.DisableChecksumValidation) {
+            config.ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED;
+            config.RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED;
+        }
 
         if (options.Endpoint != null) {
             config.ServiceURL = options.Endpoint;
@@ -106,7 +113,7 @@ public class S3ObjectStoreClient(AmazonS3Client client, string bucket, string pr
             client = new AmazonS3Client(config);
         }
 
-        return new S3ObjectStoreClient(client, options.Bucket, ObjectStoreUtil.NormalizePrefix(options.Prefix), disableSigning, logger);
+        return new S3ObjectStoreClient(client, options.Bucket, ObjectStoreUtil.NormalizePrefix(options.Prefix), disableSigning, options.DisableChecksumValidation, logger);
     }
 
     protected override async Task<RemoteObjectInfo> GetRemoteObjectInfoAsync(string key)
@@ -185,6 +192,12 @@ public class S3ObjectStoreClient(AmazonS3Client client, string bucket, string pr
             // doesn't support Streaming SigV4 which is used in chunked uploading
             request.DisablePayloadSigning = true;
             request.DisableDefaultChecksumValidation = false;
+        }
+
+        if (disableChecksumValidation) {
+            // some S3-compatible providers (eg. RustFS) do not support the default
+            // checksums calculated by the AWS SDK, so the user can opt out entirely.
+            request.DisableDefaultChecksumValidation = true;
         }
 
         if (noCache) {
