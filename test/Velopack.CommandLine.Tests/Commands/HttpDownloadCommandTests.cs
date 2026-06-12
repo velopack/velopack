@@ -85,6 +85,32 @@ public class HttpDownloadCommandTests : BaseCommandTests<HttpDownloadCommand>
         Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("must be in the format 'Name: Value'"));
     }
 
+    [Fact]
+    public void AllowEmptyChannel_WithFlag_ParsesAndMaps()
+    {
+        var command = new HttpDownloadCommand();
+
+        ParseResult parseResult = command.ParseAndApply($"--url \"https://clowd.squirrel.com\" --allowEmptyChannel");
+        var options = OptionMapper.Map<HttpDownloadOptions>(command);
+
+        Assert.Empty(parseResult.Errors);
+        Assert.True(command.AllowEmptyChannel);
+        Assert.True(options.AllowEmptyChannel);
+    }
+
+    [Fact]
+    public void AllowEmptyChannel_Missing_DefaultsToFalse()
+    {
+        var command = new HttpDownloadCommand();
+
+        ParseResult parseResult = command.ParseAndApply($"--url \"https://clowd.squirrel.com\"");
+        var options = OptionMapper.Map<HttpDownloadOptions>(command);
+
+        Assert.Empty(parseResult.Errors);
+        Assert.False(command.AllowEmptyChannel);
+        Assert.False(options.AllowEmptyChannel);
+    }
+
     protected override string GetRequiredDefaultOptions()
     {
         return $"--url \"https://clowd.squirrel.com\" ";

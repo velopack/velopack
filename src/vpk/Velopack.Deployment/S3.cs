@@ -69,7 +69,8 @@ public sealed class S3UploadOptionsValidator : S3DownloadOptionsValidator<S3Uplo
     }
 }
 
-public class S3ObjectStoreClient(AmazonS3Client client, string bucket, string prefix, bool disableSigning, ILogger logger) : IObjectStoreClient
+public class S3ObjectStoreClient(AmazonS3Client client, string bucket, string prefix, bool disableSigning, ILogger logger)
+    : ObjectStoreClient(logger)
 {
     public static S3ObjectStoreClient Create(S3DownloadOptions options, ILogger logger)
     {
@@ -108,81 +109,59 @@ public class S3ObjectStoreClient(AmazonS3Client client, string bucket, string pr
         return new S3ObjectStoreClient(client, options.Bucket, ObjectStoreUtil.NormalizePrefix(options.Prefix), disableSigning, logger);
     }
 
-    public async Task UploadObject(string key, FileInfo f, bool overwriteRemote, bool noCache)
+    protected override async Task<RemoteObjectInfo> GetRemoteObjectInfoAsync(string key)
     {
-        string deleteOldVersionId = null;
-
-        // try to detect an existing remote file of the same name
-        try {
-            var metadata = await GetObjectMetadataAsync(key);
-            var md5bytes = ObjectStoreUtil.GetFileMD5Checksum(f.FullName);
-            var md5 = BitConverter.ToString(md5bytes).Replace("-", String.Empty);
-            var stored = metadata?.ETag?.Trim().Trim('"');
-
-            if (stored != null) {
-                if (stored.Equals(md5, StringComparison.InvariantCultureIgnoreCase)) {
-                    logger.Info($"Upload file '{key}' skipped (already exists in remote)");
-                    return;
-                } else if (overwriteRemote) {
-                    logger.Info($"File '{key}' exists in remote, replacing...");
-                    deleteOldVersionId = metadata.VersionId;
-                } else {
-                    logger.Warn($"File '{key}' exists in remote and checksum does not match local file. Use 'overwrite' argument to replace remote file.");
-                    return;
-                }
-            }
-        } catch {
-            // don't care if this check fails. worst case, we end up re-uploading a file that
-            // already exists. storage providers should prefer the newer file of the same name.
+        var metadata = await GetObjectMetadataAsync(key);
+        var stored = metadata?.ETag?.Trim().Trim('"').ToLowerInvariant();
+        if (stored == null) {
+            return null;
         }
 
-        await Retry.RetryAsync(logger, () => PutObjectAsync(key, f.FullName, noCache), "Uploading " + key + (noCache ? " (no-cache)" : ""));
+        // note: multipart upload ETags contain a '-' and are not an MD5 of the whole object,
+        // so they will simply fail the checksum compare and take the replace path.
+        return new RemoteObjectInfo { Md5Hex = stored, VersionId = metadata.VersionId };
+    }
 
-        if (deleteOldVersionId != null) {
-            try {
-                await Retry.RetryAsync(
-                    logger,
-                    () => DeleteObjectAsync(key, deleteOldVersionId),
-                    "Removing old version of " + key);
-            } catch { }
+    protected override Task UploadObjectCoreAsync(string key, FileInfo file, bool overwriteRemote, bool noCache)
+    {
+        return PutObjectAsync(key, file.FullName, noCache);
+    }
+
+    protected override Task AfterObjectReplacedAsync(string key, RemoteObjectInfo replaced)
+    {
+        if (replaced.VersionId == null) {
+            return Task.CompletedTask;
+        }
+
+        return Retry.RetryAsync(Log, () => DeleteObjectAsync(key, replaced.VersionId), "Removing old version of " + key);
+    }
+
+    protected override async Task<byte[]> GetObjectBytesCoreAsync(string key)
+    {
+        var ms = new MemoryStream();
+        using (var obj = await GetObjectAsync(key))
+        using (var stream = obj.ResponseStream) {
+            await stream.CopyToAsync(ms);
+        }
+
+        return ms.ToArray();
+    }
+
+    protected override async Task DownloadToFileCoreAsync(string key, string filePath)
+    {
+        using (var obj = await GetObjectAsync(key)) {
+            await obj.WriteResponseStreamToFileAsync(filePath, false, CancellationToken.None);
         }
     }
 
-    public async Task DeleteObject(string key)
+    protected override Task DeleteObjectCoreAsync(string key)
     {
-        await Retry.RetryAsync(logger, () => DeleteObjectAsync(key), "Deleting " + key);
+        return DeleteObjectAsync(key);
     }
 
-    public async Task<byte[]> GetObjectBytes(string key)
+    protected override bool IsNotFoundException(Exception ex)
     {
-        return await Retry.RetryAsyncRet(
-            logger,
-            async () => {
-                try {
-                    var ms = new MemoryStream();
-                    using (var obj = await GetObjectAsync(key))
-                    using (var stream = obj.ResponseStream) {
-                        await stream.CopyToAsync(ms);
-                    }
-
-                    return ms.ToArray();
-                } catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound) {
-                    return null;
-                }
-            },
-            $"Downloading {key}...");
-    }
-
-    public async Task DownloadToFile(string key, string filePath)
-    {
-        await Retry.RetryAsync(
-            logger,
-            async () => {
-                using (var obj = await GetObjectAsync(key)) {
-                    await obj.WriteResponseStreamToFileAsync(filePath, false, CancellationToken.None);
-                }
-            },
-            $"Downloading {key}...");
+        return ex is AmazonS3Exception { StatusCode: System.Net.HttpStatusCode.NotFound };
     }
 
     private Task<DeleteObjectResponse> DeleteObjectAsync(string key, string versionId = null, CancellationToken cancellationToken = default)

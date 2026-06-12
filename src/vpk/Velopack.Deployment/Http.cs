@@ -1,3 +1,4 @@
+using System.Net;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
@@ -11,6 +12,8 @@ public class HttpDownloadOptions : RepositoryOptions
     public string Url { get; set; }
 
     public string[] Headers { get; set; }
+
+    public bool AllowEmptyChannel { get; set; }
 }
 
 public sealed class HttpDownloadOptionsValidator : RepositoryOptionsValidator<HttpDownloadOptions>
@@ -48,6 +51,16 @@ public class HttpDownloadCommandRunner(ILogger logger)
         var headers = ParseHeaders(options.Headers);
         var downloader = headers.Count > 0 ? new StaticHeadersFileDownloader(headers) : null;
         return new SimpleWebSource(options.Url, downloader, timeout: options.Timeout);
+    }
+
+    protected override async Task<VelopackAssetFeed> GetReleasesAsync(HttpDownloadOptions options)
+    {
+        try {
+            return await base.GetReleasesAsync(options).ConfigureAwait(false);
+        } catch (HttpRequestException ex) when (options.AllowEmptyChannel && ex.StatusCode == HttpStatusCode.NotFound) {
+            Log.Warn($"No releases file found for channel '{options.Channel}' (HTTP 404), returning empty feed because 'allowEmptyChannel' is enabled.");
+            return new VelopackAssetFeed();
+        }
     }
 
     internal static Dictionary<string, string> ParseHeaders(string[] headers)

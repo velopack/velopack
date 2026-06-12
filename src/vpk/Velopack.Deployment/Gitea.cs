@@ -30,19 +30,15 @@ public class GiteaDownloadCommandRunner(ILogger logger)
     }
 }
 
-public class GiteaReleaseClient : IGitReleaseClient
+public class GiteaReleaseClient : GitReleaseClient<Release>
 {
     private readonly RepositoryApi _client;
-    private readonly string _repoOwner;
-    private readonly string _repoName;
-    private readonly Dictionary<long, Release> _nativeReleases = new();
 
-    public string ProviderName => "Gitea";
+    public override string ProviderName => "Gitea";
 
     public GiteaReleaseClient(string repoUrl, string token, double timeoutMinutes)
+        : base(repoUrl)
     {
-        (_repoOwner, _repoName) = GitUrl.GetOwnerAndRepo(repoUrl);
-
         // Setup Gitea config
         Configuration config = new Configuration();
         // Example: http://www.Gitea.com/api/v1
@@ -59,16 +55,16 @@ public class GiteaReleaseClient : IGitReleaseClient
         _client = new RepositoryApi(config);
     }
 
-    public async Task<IReadOnlyList<GitRelease>> GetReleasesAsync()
+    public override async Task<IReadOnlyList<GitRelease>> GetReleasesAsync()
     {
         // Get repository info for total releases
         List<Release> existingReleases;
-        ApiResponse<Repository> repositoryInfo = await _client.RepoGetWithHttpInfoAsync(_repoOwner, _repoName).ConfigureAwait(false);
+        ApiResponse<Repository> repositoryInfo = await _client.RepoGetWithHttpInfoAsync(RepoOwner, RepoName).ConfigureAwait(false);
         if (repositoryInfo != null && repositoryInfo.StatusCode == HttpStatusCode.OK) {
             // Get all releases
             var allReleases = await _client.RepoListReleasesWithHttpInfoAsync(
-                _repoOwner,
-                _repoName,
+                RepoOwner,
+                RepoName,
                 page: 1,
                 limit: (int) repositoryInfo.Data.ReleaseCounter).ConfigureAwait(false);
             existingReleases = allReleases.Data;
@@ -76,10 +72,10 @@ public class GiteaReleaseClient : IGitReleaseClient
             throw new UserInfoException("Could not get all releases from server");
         }
 
-        return existingReleases.Select(ToGitRelease).ToArray();
+        return existingReleases.Select(RegisterNativeRelease).ToArray();
     }
 
-    public async Task<GitRelease> CreateDraftReleaseAsync(string tagName, string name, string body, bool prerelease, string targetCommitish)
+    public override async Task<GitRelease> CreateDraftReleaseAsync(string tagName, string name, string body, bool prerelease, string targetCommitish)
     {
         var newReleaseReq = new CreateReleaseOption(
             body: body,
@@ -89,19 +85,19 @@ public class GiteaReleaseClient : IGitReleaseClient
             targetCommitish: targetCommitish,
             tagName: tagName
         );
-        var release = await _client.RepoCreateReleaseAsync(_repoOwner, _repoName, newReleaseReq).ConfigureAwait(false);
-        return ToGitRelease(release);
+        var release = await _client.RepoCreateReleaseAsync(RepoOwner, RepoName, newReleaseReq).ConfigureAwait(false);
+        return RegisterNativeRelease(release);
     }
 
-    public async Task UploadAssetAsync(GitRelease release, string assetName, Stream content, string contentType, TimeSpan? timeout = null)
+    public override async Task UploadAssetAsync(GitRelease release, string assetName, Stream content, string contentType, TimeSpan? timeout = null)
     {
-        await _client.RepoCreateReleaseAttachmentAsync(_repoOwner, _repoName, release.Id, assetName, content).ConfigureAwait(false);
+        await _client.RepoCreateReleaseAttachmentAsync(RepoOwner, RepoName, release.Id, assetName, content).ConfigureAwait(false);
     }
 
-    public async Task PublishReleaseAsync(GitRelease release)
+    public override async Task PublishReleaseAsync(GitRelease release)
     {
         // edit from the native release object so no other fields are cleared by the update
-        var native = _nativeReleases[release.Id];
+        var native = GetNativeRelease(release);
         var body = new EditReleaseOption(
             native.Body,
             false, // Draft
@@ -110,12 +106,11 @@ public class GiteaReleaseClient : IGitReleaseClient
             native.TagName,
             native.TargetCommitish
         );
-        await _client.RepoEditReleaseAsync(_repoOwner, _repoName, native.Id, body).ConfigureAwait(false);
+        await _client.RepoEditReleaseAsync(RepoOwner, RepoName, native.Id, body).ConfigureAwait(false);
     }
 
-    private GitRelease ToGitRelease(Release release)
+    protected override GitRelease ToGitRelease(Release release)
     {
-        _nativeReleases[release.Id] = release;
         return new GitRelease {
             Id = release.Id,
             Name = release.Name,
