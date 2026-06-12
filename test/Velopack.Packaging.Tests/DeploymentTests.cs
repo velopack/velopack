@@ -1,6 +1,6 @@
-using Azure.Storage.Blobs;
 using NuGet.Versioning;
 using Velopack.Core;
+using Velopack.Core.Abstractions;
 using Velopack.Deployment;
 using Velopack.Locators;
 using Velopack.Sources;
@@ -39,7 +39,8 @@ public class DeploymentTests
         using var logger = _output.BuildLoggerFor<DeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
 
-        var repo = new S3Repository(logger);
+        var download = new S3DownloadCommandRunner(logger);
+        var upload = new S3UploadCommandRunner(logger);
         var options = new S3UploadOptions {
             ReleaseDir = new DirectoryInfo(releaseDir),
             Bucket = B2_BUCKET,
@@ -51,7 +52,7 @@ public class DeploymentTests
         };
 
         var updateUrl = $"https://{B2_BUCKET}.{B2_ENDPOINT}/";
-        await Deploy<S3Repository, S3DownloadOptions, S3UploadOptions, S3BucketClient>("B2TestApp", repo, options, releaseDir, updateUrl, logger);
+        await Deploy("B2TestApp", download, upload, options, releaseDir, updateUrl, logger);
     }
 
     [Fact]
@@ -61,7 +62,8 @@ public class DeploymentTests
         using var logger = _output.BuildLoggerFor<DeploymentTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
 
-        var repo = new AzureRepository(logger);
+        var download = new AzureDownloadCommandRunner(logger);
+        var upload = new AzureUploadCommandRunner(logger);
         var options = new AzureUploadOptions {
             ReleaseDir = new DirectoryInfo(releaseDir),
             Container = AZ_CONTAINER,
@@ -72,7 +74,7 @@ public class DeploymentTests
         };
 
         var updateUrl = $"https://{AZ_ENDPOINT}/{AZ_CONTAINER}";
-        await Deploy<AzureRepository, AzureDownloadOptions, AzureUploadOptions, AzureBlobClient>("AZTestApp", repo, options, releaseDir, updateUrl, logger);
+        await Deploy("AZTestApp", download, upload, options, releaseDir, updateUrl, logger);
     }
 
     static SemanticVersion GenerateSemverFromDateTime()
@@ -84,10 +86,10 @@ public class DeploymentTests
         return new SemanticVersion(major, minor, patch);
     }
 
-    private async Task Deploy<TRepo, TDown, TUp, TClient>(string id, TRepo repo, TUp options, string releaseDir, string updateUrl, ILogger logger)
-        where TDown : RepositoryOptions, IObjectDownloadOptions
-        where TUp : IObjectUploadOptions, TDown
-        where TRepo : ObjectRepository<TDown, TUp, TClient>
+    private async Task Deploy<TDown, TUp>(string id, ICommand<TDown> download, ICommand<TUp> upload, TUp options, string releaseDir, string updateUrl,
+        ILogger logger)
+        where TDown : RepositoryOptions
+        where TUp : class, TDown, IObjectUploadOptions
     {
         var targetVer = GenerateSemverFromDateTime();
         logger.Info($"Target version: {targetVer}");
@@ -109,7 +111,7 @@ public class DeploymentTests
         }
 
         // download latest version and create delta
-        await repo.DownloadLatestFullPackageAsync(options);
+        await download.Run(options);
         TestApp.PackTestApp(id, targetVer.ToFullString(), $"b2-{DateTime.UtcNow.ToLongDateString()}", releaseDir, logger, channel: CHANNEL);
         if (latestOnline != null) {
             // check delta was created
@@ -117,7 +119,7 @@ public class DeploymentTests
         }
 
         // upload new files
-        await repo.UploadMissingAssetsAsync(options);
+        await upload.Run(options);
 
         // verify that new version has been uploaded
         feed = await source.GetReleaseFeed(logger.ToVelopackLogger(), null, CHANNEL);

@@ -2,7 +2,7 @@ using System.Text;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
-using Velopack.Core.Validation;
+using Velopack.Core.Abstractions;
 using Velopack.Packaging;
 using Velopack.Util;
 
@@ -13,54 +13,73 @@ public interface IObjectUploadOptions
     public int KeepMaxReleases { get; set; }
 }
 
-public interface IObjectDownloadOptions
+public interface IObjectStoreClient
 {
+    Task UploadObject(string key, FileInfo file, bool overwriteRemote, bool noCache);
+
+    Task DeleteObject(string key);
+
+    Task<byte[]> GetObjectBytes(string key);
+
+    Task DownloadToFile(string key, string filePath);
 }
 
-public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDown>, IRepositoryCanUpload<TUp>
-    where TDown : RepositoryOptions, IObjectDownloadOptions
-    where TUp : IObjectUploadOptions, TDown
+internal static class ObjectStoreUtil
 {
-    public IValidator<TUp> UploadOptionsValidator { get; }
-
-    protected ObjectRepository(ILogger logger, IValidator<TDown> downloadValidator = null, IValidator<TUp> uploadValidator = null)
-        : base(logger, downloadValidator)
+    public static string NormalizePrefix(string prefix)
     {
-        UploadOptionsValidator = uploadValidator;
+        prefix = prefix?.Trim() ?? "";
+        if (prefix.Length > 0 && !prefix.EndsWith("/")) {
+            prefix += "/";
+        }
+
+        return prefix;
     }
 
-    protected abstract Task UploadObject(TClient client, string key, FileInfo f, bool overwriteRemote, bool noCache);
-    protected abstract Task DeleteObject(TClient client, string key);
-    protected abstract Task<byte[]> GetObjectBytes(TClient client, string key);
-    protected abstract TClient CreateClient(TDown options);
-
-    protected byte[] GetFileMD5Checksum(string filePath)
+    public static byte[] GetFileMD5Checksum(string filePath)
     {
-        var sha = System.Security.Cryptography.MD5.Create();
-        byte[] checksum;
-        using (var fs = File.OpenRead(filePath))
-            checksum = sha.ComputeHash(fs);
-        return checksum;
+        using var md5 = System.Security.Cryptography.MD5.Create();
+        using var fs = File.OpenRead(filePath);
+        return md5.ComputeHash(fs);
     }
 
-    protected override async Task<VelopackAssetFeed> GetReleasesAsync(TDown options)
+    public static async Task<VelopackAssetFeed> GetReleaseFeedAsync(IObjectStoreClient client, string channel)
     {
-        var releasesName = CoreUtil.GetVeloReleaseIndexName(options.Channel);
-        var client = CreateClient(options);
-        var bytes = await GetObjectBytes(client, releasesName);
+        var releasesName = CoreUtil.GetVeloReleaseIndexName(channel);
+        var bytes = await client.GetObjectBytes(releasesName);
         if (bytes == null || bytes.Length == 0) {
             return new VelopackAssetFeed();
         }
         return VelopackAssetFeed.FromJson(Encoding.UTF8.GetString(bytes));
     }
+}
 
-    public async Task UploadMissingAssetsAsync(TUp options)
+public abstract class ObjectDownloadCommandRunner<TOpt, TValidator>(ILogger logger) : DownloadCommandRunner<TOpt, TValidator>(logger)
+    where TOpt : RepositoryOptions
+    where TValidator : IValidator<TOpt>, new()
+{
+    protected override Task<VelopackAssetFeed> GetReleasesAsync(TOpt options)
     {
-        UploadOptionsValidator?.EnsureValidOptions(options);
-        await UploadMissingAssetsCoreAsync(options).ConfigureAwait(false);
+        var client = CreateClient(options);
+        return ObjectStoreUtil.GetReleaseFeedAsync(client, options.Channel);
     }
 
-    protected virtual async Task UploadMissingAssetsCoreAsync(TUp options)
+    protected override Task SaveEntryToFileAsync(TOpt options, VelopackAsset entry, string filePath)
+    {
+        var client = CreateClient(options);
+        return client.DownloadToFile(entry.FileName, filePath);
+    }
+
+    protected abstract IObjectStoreClient CreateClient(TOpt options);
+}
+
+public abstract class ObjectUploadCommandRunner<TOpt, TValidator>(ILogger logger) : ValidatedCommand<TOpt, TValidator>
+    where TOpt : RepositoryOptions, IObjectUploadOptions
+    where TValidator : IValidator<TOpt>, new()
+{
+    protected ILogger Log { get; } = logger;
+
+    protected override async Task RunCoreAsync(TOpt options)
     {
         var build = BuildAssets.Read(options.ReleaseDir.FullName, options.Channel);
         var client = CreateClient(options);
@@ -95,7 +114,7 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
         }
 
         foreach (var asset in build.GetFilePaths()) {
-            await UploadObject(client, Path.GetFileName(asset), new FileInfo(asset), true, noCache: false);
+            await client.UploadObject(Path.GetFileName(asset), new FileInfo(asset), true, noCache: false);
         }
 
         var newReleaseFeed = new VelopackAssetFeed { Assets = releaseEntries };
@@ -103,22 +122,30 @@ public abstract class ObjectRepository<TDown, TUp, TClient> : DownRepository<TDo
         using var _1 = TempUtil.GetTempFileName(out var tmpReleases);
         File.WriteAllText(tmpReleases, ReleaseEntryHelper.GetAssetFeedJson(newReleaseFeed));
         var releasesName = CoreUtil.GetVeloReleaseIndexName(options.Channel);
-        await UploadObject(client, releasesName, new FileInfo(tmpReleases), true, noCache: true);
+        await client.UploadObject(releasesName, new FileInfo(tmpReleases), true, noCache: true);
 
 #pragma warning disable CS0612 // Type or member is obsolete
         var legacyKey = CoreUtil.GetReleasesFileName(options.Channel);
 #pragma warning restore CS0612 // Type or member is obsolete
         using var _2 = TempUtil.GetTempFileName(out var tmpReleases2);
         File.WriteAllText(tmpReleases2, ReleaseEntryHelper.GetLegacyMigrationReleaseFeedString(newReleaseFeed));
-        await UploadObject(client, legacyKey, new FileInfo(tmpReleases2), true, noCache: true);
+        await client.UploadObject(legacyKey, new FileInfo(tmpReleases2), true, noCache: true);
 
         if (toDelete.Length > 0) {
             Log.Info($"Retention policy about to delete {toDelete.Length} release(s)...");
             foreach (var del in toDelete) {
-                await DeleteObject(client, del.FileName);
+                await client.DeleteObject(del.FileName);
             }
         }
 
         Log.Info("Done.");
     }
+
+    protected virtual Task<VelopackAssetFeed> GetReleasesAsync(TOpt options)
+    {
+        var client = CreateClient(options);
+        return ObjectStoreUtil.GetReleaseFeedAsync(client, options.Channel);
+    }
+
+    protected abstract IObjectStoreClient CreateClient(TOpt options);
 }
