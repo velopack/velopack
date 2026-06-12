@@ -1,6 +1,8 @@
 use pyo3::prelude::*;
 use pyo3::types::PyModule;
 
+mod logger;
+
 mod types;
 use types::*;
 
@@ -38,7 +40,7 @@ pyo3_stub_gen::impl_stub_type!(PyUpdateInfoOrAsset = PyUpdateInfo | PyVelopackAs
 #[pymodule]
 #[pyo3(name = "velopack")]
 fn velopack(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    pyo3_log::init();
+    logger::init();
 
     // auto-generated DTO's
     m.add_class::<PyVelopackAsset>()?;

@@ -7,6 +7,13 @@ ignore = [
     { id = "RUSTSEC-2024-0388", reason = "no drop-in replacement yet" },
     # time segfault only affects Unix with specific env manipulation; not exploitable in our context
     { id = "RUSTSEC-2020-0071", reason = "only affects Unix setenv race; not exploitable in our usage" },
+    # pyo3 0.28 OOB read via Iterator::nth/nth_back on PyList/PyTuple iterators; velopack never
+    # calls nth/nth_back on Python sequence iterators. Fixed in pyo3 0.29, which we cannot take yet
+    # because pyo3-stub-gen fails to compile against it. Remove once pyo3 is bumped (see Cargo.toml).
+    { id = "RUSTSEC-2026-0176", reason = "affected iterator APIs not used; pyo3 0.29 blocked by pyo3-stub-gen" },
+    # pyo3 0.28 missing Sync bound on PyCFunction::new_closure; velopack never creates closure
+    # functions. Fixed in pyo3 0.29, blocked as above.
+    { id = "RUSTSEC-2026-0177", reason = "PyCFunction::new_closure not used; pyo3 0.29 blocked by pyo3-stub-gen" },
 ]
 
 [licenses]
