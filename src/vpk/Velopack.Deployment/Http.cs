@@ -21,9 +21,10 @@ public sealed class HttpDownloadOptionsValidator : RepositoryOptionsValidator<Ht
     public HttpDownloadOptionsValidator()
     {
         RuleFor(x => x.Url).NotEmpty().MustBeValidHttpUri();
+        // the header value is deliberately not echoed back in the message, because it may contain a secret
         RuleForEach(x => x.Headers)
             .Must(h => !string.IsNullOrWhiteSpace(h) && h.IndexOf(':') > 0 && !string.IsNullOrWhiteSpace(h.Substring(0, h.IndexOf(':'))))
-            .WithMessage("{PropertyName} must be in the format 'Name: Value' ('{PropertyValue}').");
+            .WithMessage("{PropertyName} must be in the format 'Name: Value'.");
     }
 }
 
@@ -69,7 +70,8 @@ public class HttpDownloadCommandRunner(ILogger logger)
         foreach (var header in headers ?? []) {
             var idx = header?.IndexOf(':') ?? -1;
             if (idx <= 0) {
-                throw new UserInfoException($"Invalid header '{header}', must be in the format 'Name: Value'.");
+                // do not include the header in the message, because it may contain a secret
+                throw new UserInfoException("Invalid header, must be in the format 'Name: Value'.");
             }
 
             result[header.Substring(0, idx).Trim()] = header.Substring(idx + 1).Trim();

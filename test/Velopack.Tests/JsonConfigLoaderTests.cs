@@ -116,7 +116,7 @@ public class JsonConfigLoaderTests
     }
 
     [Fact]
-    public void Populate_CreatesMissingDirectoryInfo()
+    public void Populate_DoesNotCreateMissingDirectory()
     {
         using var _1 = TempUtil.GetTempDirectory(out var tempDir);
         var newDir = Path.Combine(tempDir, "sub", "releases");
@@ -125,7 +125,18 @@ public class JsonConfigLoaderTests
         JsonConfigLoader.PopulateFromJson($$"""{ "releaseDir": {{System.Text.Json.JsonSerializer.Serialize(newDir)}} }""", options);
 
         Assert.Equal(newDir, options.ReleaseDir.FullName);
-        Assert.True(Directory.Exists(newDir));
+        // directories must be created at point of use after validation, not as a parsing side effect
+        Assert.False(Directory.Exists(newDir));
+    }
+
+    [Fact]
+    public void Populate_PreservesDateLikeStrings()
+    {
+        // Json.NET would normally re-interpret date-like strings (shifting timezones and dropping
+        // fractional seconds) - the loader must pass them through to string properties verbatim.
+        var options = new TestOptions();
+        JsonConfigLoader.PopulateFromJson("""{ "packId": "2023-11-23T08:00:00.0000000+03:00" }""", options);
+        Assert.Equal("2023-11-23T08:00:00.0000000+03:00", options.PackId);
     }
 
     [Fact]

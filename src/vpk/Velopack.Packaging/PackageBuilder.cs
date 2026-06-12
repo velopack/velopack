@@ -59,6 +59,7 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
         Log.Info("Releases Directory: " + options.ReleaseDir.FullName);
 
         var releaseDir = options.ReleaseDir;
+        releaseDir.Create();
         var channel = options.Channel?.ToLower() ?? DefaultName.GetDefaultChannel(TargetOs);
         options.Channel = channel;
 

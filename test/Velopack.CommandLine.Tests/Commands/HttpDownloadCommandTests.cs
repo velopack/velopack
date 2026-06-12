@@ -83,6 +83,8 @@ public class HttpDownloadCommandTests : BaseCommandTests<HttpDownloadCommand>
         var result = new HttpDownloadOptionsValidator().Validate(options);
 
         Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("must be in the format 'Name: Value'"));
+        // the header value may contain a secret, so it must never be echoed back in the error message
+        Assert.All(result.Errors, e => Assert.DoesNotContain(header, e.ErrorMessage));
     }
 
     [Fact]

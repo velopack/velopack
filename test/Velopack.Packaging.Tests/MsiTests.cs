@@ -318,7 +318,7 @@ public class MsiTests
             PackDirectory = tmpOutput,
             Shortcuts = "Desktop,StartMenuRoot",
             BuildMsi = true,
-            MsiVersionOverride = "4.5.6.1"
+            MsiVersionOverride = "4.5.6.0"
         };
 
         var runner = WindowsTestHelper.GetPackRunner(logger);
@@ -329,7 +329,7 @@ public class MsiTests
 
         using Database db = new Database(msiPath);
         var msiVersion = db.ExecuteScalar("SELECT `Value` FROM `Property` WHERE `Property` = 'ProductVersion'") as string;
-        Assert.Equal("4.5.6.1", msiVersion);
+        Assert.Equal("4.5.6.0", msiVersion);
     }
 
     [Fact]

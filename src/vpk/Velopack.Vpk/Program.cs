@@ -270,8 +270,14 @@ public static class ProgramCommandExtensions
                             $"The following command line options are not allowed: {string.Join(", ", explicitOptions)}.");
                     }
                 } else if (jsonFile != null) {
-                    throw new UserInfoException(
-                        $"Unexpected argument '{jsonFile}'. Did you mean 'vpk [json] {command.Name} {jsonFile}'?");
+                    // only suggest the [json] directive when the stray token plausibly is a config file,
+                    // otherwise it is more likely a mistyped option or argument.
+                    if (!jsonFile.StartsWith('-') && jsonFile.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) {
+                        throw new UserInfoException(
+                            $"Unexpected argument '{jsonFile}'. Did you mean 'vpk [json] {command.Name} {jsonFile}'?");
+                    }
+
+                    throw new UserInfoException($"Unrecognized command or argument '{jsonFile}'.");
                 }
 
                 // hydrate the command from env vars and cli values/defaults, and map to options.
