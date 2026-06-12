@@ -7,6 +7,10 @@ ignore = [
     { id = "RUSTSEC-2024-0388", reason = "no drop-in replacement yet" },
     # time segfault only affects Unix with specific env manipulation; not exploitable in our context
     { id = "RUSTSEC-2020-0071", reason = "only affects Unix setenv race; not exploitable in our usage" },
+    # pyo3 out-of-bounds read in Iterator::nth/nth_back for PyList/PyTuple iterators; fixed in 0.29
+    { id = "RUSTSEC-2026-0176", reason = "lib-python does not use nth/nth_back on PyList/PyTuple iterators" },
+    # pyo3 missing Sync bound on PyCFunction::new_closure closures; fixed in 0.29
+    { id = "RUSTSEC-2026-0177", reason = "lib-python does not use PyCFunction::new_closure" },
 ]
 
 [licenses]
