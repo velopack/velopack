@@ -9,14 +9,20 @@ public static class HelperFile
     private static string GetUpdateExeName(RID target, ILogger log)
     {
         switch (target.BaseRID) {
+#if DEBUG
         case RuntimeOs.Windows:
             return FindHelperFile("update.exe");
-#if DEBUG
         case RuntimeOs.Linux:
             return FindHelperFile("update");
         case RuntimeOs.OSX:
             return FindHelperFile("update");
 #else
+        case RuntimeOs.Windows:
+            return target.Architecture switch {
+                RuntimeCpu.arm64 => FindHelperFile("update_arm64.exe"),
+                RuntimeCpu.x64 => FindHelperFile("update_x64.exe"),
+                _ => FindHelperFile("update.exe"),
+            };
         case RuntimeOs.Linux:
             if (!target.HasArchitecture) {
                 log.LogWarning("No architecture specified with --runtime, defaulting to x64. If this was not intended please specify via the --runtime parameter");
@@ -79,9 +85,31 @@ public static class HelperFile
 
     public static string AppImageRuntimeX86 => FindHelperFile("appimagekit-runtime-i686");
 
-    public static string SetupPath => FindHelperFile("setup.exe");
+    public static string GetSetupPath(RID target)
+    {
+#if DEBUG
+        return FindHelperFile("setup.exe");
+#else
+        return target.Architecture switch {
+            RuntimeCpu.arm64 => FindHelperFile("setup_arm64.exe"),
+            RuntimeCpu.x64 => FindHelperFile("setup_x64.exe"),
+            _ => FindHelperFile("setup.exe"),
+        };
+#endif
+    }
 
-    public static string StubExecutablePath => FindHelperFile("stub.exe");
+    public static string GetStubExecutablePath(RID target)
+    {
+#if DEBUG
+        return FindHelperFile("stub.exe");
+#else
+        return target.Architecture switch {
+            RuntimeCpu.arm64 => FindHelperFile("stub_arm64.exe"),
+            RuntimeCpu.x64 => FindHelperFile("stub_x64.exe"),
+            _ => FindHelperFile("stub.exe"),
+        };
+#endif
+    }
 
     [SupportedOSPlatform("windows")]
     public static string WixPath => FindHelperFile($"wix\\wixc7.exe");
