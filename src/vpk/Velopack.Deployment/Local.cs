@@ -41,6 +41,9 @@ public sealed class LocalUploadOptionsValidator : LocalDownloadOptionsValidator<
     public LocalUploadOptionsValidator()
     {
         AddReleaseDirRules();
+        RuleFor(x => x.TargetPath)
+            .Must(v => v == null || !File.Exists(v.FullName))
+            .WithMessage("{PropertyName} must be a directory, but a file already exists at this location ('{PropertyValue}').");
     }
 }
 
@@ -106,8 +109,11 @@ public class LocalUploadCommandRunner(ILogger logger)
 
     protected override async Task RunCoreAsync(LocalUploadOptions options)
     {
-        // create directory if it doesn't exist
-        Directory.CreateDirectory(options.TargetPath.FullName);
+        // only attempt to create the directory when it does not already exist - CreateDirectory
+        // can throw 'already exists' for targets such as junctions or network share roots.
+        if (!Directory.Exists(options.TargetPath.FullName)) {
+            Directory.CreateDirectory(options.TargetPath.FullName);
+        }
 
         if (options.ForceRegenerate) {
             Log.Info("Force regenerating release index files...");

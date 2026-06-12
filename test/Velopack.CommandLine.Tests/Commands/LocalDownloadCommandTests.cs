@@ -63,3 +63,40 @@ public class LocalDownloadCommandTests : BaseCommandTests<LocalDownloadCommand>
         Assert.Contains(result.Errors, e => e.PropertyName == "TargetPath");
     }
 }
+
+public class LocalUploadCommandTests : BaseCommandTests<LocalUploadCommand>
+{
+    [Fact]
+    public void Path_WithExistingFile_FailsValidation()
+    {
+        var command = new LocalUploadCommand();
+
+        using var _1 = TempUtil.GetTempDirectory(out var tempDir);
+        var filePath = Path.Combine(tempDir, "shipPath");
+        File.Create(filePath).Close();
+
+        command.ParseAndApply($"--path \"{filePath}\"");
+        var options = OptionMapper.Map<LocalUploadOptions>(command);
+
+        var result = new LocalUploadOptionsValidator().Validate(options);
+
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("must be a directory, but a file already exists"));
+    }
+
+    [Fact]
+    public void Path_WithExistingDirectory_PassesValidation()
+    {
+        var command = new LocalUploadCommand();
+
+        using var _1 = TempUtil.GetTempDirectory(out var tempDir);
+        using var _2 = TempUtil.GetTempDirectory(out var releaseDir);
+        File.Create(Path.Combine(releaseDir, "test.txt")).Close();
+
+        command.ParseAndApply($"--path \"{tempDir}\" --outputDir \"{releaseDir}\"");
+        var options = OptionMapper.Map<LocalUploadOptions>(command);
+
+        var result = new LocalUploadOptionsValidator().Validate(options);
+
+        Assert.True(result.IsValid, string.Join(", ", result.Errors.Select(e => e.ErrorMessage)));
+    }
+}

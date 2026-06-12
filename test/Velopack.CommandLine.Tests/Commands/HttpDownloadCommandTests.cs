@@ -43,6 +43,48 @@ public class HttpDownloadCommandTests : BaseCommandTests<HttpDownloadCommand>
         Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("url must contain an absolute http / https Uri"));
     }
 
+    [Fact]
+    public void Header_WithMultipleValues_ParsesAndMaps()
+    {
+        var command = new HttpDownloadCommand();
+
+        ParseResult parseResult = command.ParseAndApply(
+            $"--url \"https://clowd.squirrel.com\" --header \"Authorization: Bearer test\" --header \"X-API-Key: Bleh\"");
+        var options = OptionMapper.Map<HttpDownloadOptions>(command);
+
+        Assert.Empty(parseResult.Errors);
+        Assert.Equal(new[] { "Authorization: Bearer test", "X-API-Key: Bleh" }, options.Headers);
+
+        var result = new HttpDownloadOptionsValidator().Validate(options);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Header_Missing_PassesValidation()
+    {
+        var command = new HttpDownloadCommand();
+        command.ParseAndApply($"--url \"https://clowd.squirrel.com\"");
+        var options = OptionMapper.Map<HttpDownloadOptions>(command);
+
+        var result = new HttpDownloadOptionsValidator().Validate(options);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Theory]
+    [InlineData("NoColonHere")]
+    [InlineData(": value-without-name")]
+    public void Header_WithInvalidFormat_FailsValidation(string header)
+    {
+        var command = new HttpDownloadCommand();
+        command.ParseAndApply($"--url \"https://clowd.squirrel.com\" --header \"{header}\"");
+        var options = OptionMapper.Map<HttpDownloadOptions>(command);
+
+        var result = new HttpDownloadOptionsValidator().Validate(options);
+
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("must be in the format 'Name: Value'"));
+    }
+
     protected override string GetRequiredDefaultOptions()
     {
         return $"--url \"https://clowd.squirrel.com\" ";

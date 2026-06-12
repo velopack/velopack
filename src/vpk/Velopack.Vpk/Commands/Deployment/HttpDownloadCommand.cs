@@ -8,6 +8,8 @@ public class HttpDownloadCommand : OutputCommand
 
     public double Timeout { get; private set; }
 
+    public string[] Headers { get; private set; }
+
     public HttpDownloadCommand()
         : base("http", "Download latest release from a HTTP source.")
     {
@@ -19,5 +21,9 @@ public class HttpDownloadCommand : OutputCommand
             .SetDescription("Network timeout in minutes.")
             .SetArgumentHelpName("MINUTES")
             .SetDefault(30);
+
+        AddOption<string[]>((v) => Headers = v, ["--header"])
+            .SetDescription("Add a custom header to all http requests (eg. 'Authorization: Bearer ...'). Can be used multiple times.")
+            .SetArgumentHelpName("NAME:VALUE");
     }
 }
