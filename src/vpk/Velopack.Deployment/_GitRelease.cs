@@ -96,6 +96,51 @@ public interface IGitReleaseClient
     Task PublishReleaseAsync(GitRelease release);
 }
 
+public abstract class GitReleaseClient<TNative> : IGitReleaseClient
+{
+    private readonly Dictionary<long, TNative> _nativeReleases = new();
+
+    protected string RepoOwner { get; }
+
+    protected string RepoName { get; }
+
+    public abstract string ProviderName { get; }
+
+    protected GitReleaseClient(string repoUrl)
+    {
+        (RepoOwner, RepoName) = GitUrl.GetOwnerAndRepo(repoUrl);
+    }
+
+    public abstract Task<IReadOnlyList<GitRelease>> GetReleasesAsync();
+
+    public abstract Task<GitRelease> CreateDraftReleaseAsync(string tagName, string name, string body, bool prerelease, string targetCommitish);
+
+    public abstract Task UploadAssetAsync(GitRelease release, string assetName, Stream content, string contentType, TimeSpan? timeout = null);
+
+    public abstract Task PublishReleaseAsync(GitRelease release);
+
+    /// <summary> Converts a provider-native release to a <see cref="GitRelease"/>. </summary>
+    protected abstract GitRelease ToGitRelease(TNative release);
+
+    /// <summary> Converts and caches a provider-native release, so it can later be retrieved via <see cref="GetNativeRelease"/>. </summary>
+    protected GitRelease RegisterNativeRelease(TNative native)
+    {
+        var release = ToGitRelease(native);
+        _nativeReleases[release.Id] = native;
+        return release;
+    }
+
+    /// <summary> Retrieves the provider-native release previously registered for this <see cref="GitRelease"/>. </summary>
+    protected TNative GetNativeRelease(GitRelease release)
+    {
+        if (!_nativeReleases.TryGetValue(release.Id, out var native)) {
+            throw new InvalidOperationException($"The release '{release.Name}' ({release.Id}) was not created by this client instance.");
+        }
+
+        return native;
+    }
+}
+
 public abstract class GitReleaseUploadCommandRunner<TOpt, TValidator>(ILogger logger) : ValidatedCommand<TOpt, TValidator>
     where TOpt : GitReleaseUploadOptions
     where TValidator : IValidator<TOpt>, new()

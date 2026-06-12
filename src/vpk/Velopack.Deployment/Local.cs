@@ -47,46 +47,50 @@ public sealed class LocalUploadOptionsValidator : LocalDownloadOptionsValidator<
     }
 }
 
-public class LocalObjectStoreClient(DirectoryInfo targetPath, ILogger logger) : IObjectStoreClient
+public class LocalObjectStoreClient(DirectoryInfo targetPath, ILogger logger)
+    : ObjectStoreClient(logger)
 {
-    public Task UploadObject(string key, FileInfo f, bool overwriteRemote, bool noCache)
+    protected override Task<RemoteObjectInfo> GetRemoteObjectInfoAsync(string key)
     {
         var target = Path.Combine(targetPath.FullName, key);
-        if (File.Exists(target) && !overwriteRemote) {
-            logger.Info($"Skipping upload of {key} as it already exists in the repository and overwrite=false.");
-            return Task.CompletedTask;
+        if (!File.Exists(target)) {
+            return Task.FromResult<RemoteObjectInfo>(null);
         }
 
-        logger.Info($"Uploading '{f.FullName}' to '{target}'.");
-        File.Copy(f.FullName, target, overwriteRemote);
+        var md5 = Convert.ToHexString(ObjectStoreUtil.GetFileMD5Checksum(target)).ToLowerInvariant();
+        return Task.FromResult(new RemoteObjectInfo { Md5Hex = md5 });
+    }
+
+    protected override Task UploadObjectCoreAsync(string key, FileInfo file, bool overwriteRemote, bool noCache)
+    {
+        var target = Path.Combine(targetPath.FullName, key);
+        File.Copy(file.FullName, target, overwriteRemote);
         return Task.CompletedTask;
     }
 
-    public Task DeleteObject(string key)
+    protected override Task<byte[]> GetObjectBytesCoreAsync(string key)
     {
         var target = Path.Combine(targetPath.FullName, key);
-        logger.Info("Deleting: " + target);
+        return File.ReadAllBytesAsync(target);
+    }
+
+    protected override Task DownloadToFileCoreAsync(string key, string filePath)
+    {
+        var target = Path.Combine(targetPath.FullName, key);
+        File.Copy(target, filePath, true);
+        return Task.CompletedTask;
+    }
+
+    protected override Task DeleteObjectCoreAsync(string key)
+    {
+        var target = Path.Combine(targetPath.FullName, key);
         IoUtil.DeleteFileOrDirectoryHard(target);
         return Task.CompletedTask;
     }
 
-    public Task<byte[]> GetObjectBytes(string key)
+    protected override bool IsNotFoundException(Exception ex)
     {
-        var target = Path.Combine(targetPath.FullName, key);
-        if (!File.Exists(target)) {
-            return Task.FromResult<byte[]>(null);
-        }
-
-        logger.Info("Reading: " + target);
-        return File.ReadAllBytesAsync(target);
-    }
-
-    public Task DownloadToFile(string key, string filePath)
-    {
-        var target = Path.Combine(targetPath.FullName, key);
-        logger.Info($"Copying '{target}' to '{filePath}'.");
-        File.Copy(target, filePath, true);
-        return Task.CompletedTask;
+        return ex is FileNotFoundException or DirectoryNotFoundException;
     }
 }
 
@@ -123,7 +127,7 @@ public class LocalUploadCommandRunner(ILogger logger)
         await base.RunCoreAsync(options).ConfigureAwait(false);
     }
 
-    protected override Task<VelopackAssetFeed> GetReleasesAsync(LocalUploadOptions options)
+    protected override Task<VelopackAssetFeed> GetReleasesAsync(LocalUploadOptions options, IObjectStoreClient client)
     {
         // read the feed via SimpleFileSource, which tolerates a missing releases file
         // and falls back to scanning *.nupkg in the target directory.

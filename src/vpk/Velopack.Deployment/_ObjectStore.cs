@@ -24,6 +24,105 @@ public interface IObjectStoreClient
     Task DownloadToFile(string key, string filePath);
 }
 
+public sealed class RemoteObjectInfo
+{
+    /// <summary> MD5 checksum of the remote object as a lowercase hex string. </summary>
+    public string Md5Hex { get; init; }
+
+    /// <summary> Provider-specific version identifier of the remote object (eg. S3 versioning), may be null. </summary>
+    public string VersionId { get; init; }
+}
+
+public abstract class ObjectStoreClient(ILogger logger) : IObjectStoreClient
+{
+    protected ILogger Log { get; } = logger;
+
+    public async Task UploadObject(string key, FileInfo file, bool overwriteRemote, bool noCache)
+    {
+        RemoteObjectInfo remote = null;
+
+        // try to detect an existing remote file of the same name
+        try {
+            remote = await GetRemoteObjectInfoAsync(key).ConfigureAwait(false);
+        } catch (Exception ex) when (IsNotFoundException(ex)) {
+            // remote object does not exist, so we can proceed with the upload
+        } catch (Exception ex) {
+            // worst case, we end up re-uploading a file that already exists. storage
+            // providers should prefer the newer file of the same name.
+            Log.Debug(ex, $"Failed to check for an existing remote object '{key}'.");
+        }
+
+        bool replacing = false;
+        if (remote != null) {
+            var localMd5 = Convert.ToHexString(ObjectStoreUtil.GetFileMD5Checksum(file.FullName)).ToLowerInvariant();
+            if (string.Equals(remote.Md5Hex, localMd5, StringComparison.OrdinalIgnoreCase)) {
+                Log.Info($"Upload file '{key}' skipped (already exists in remote)");
+                return;
+            } else if (overwriteRemote) {
+                Log.Info($"File '{key}' exists in remote, replacing...");
+                replacing = true;
+            } else {
+                Log.Warn($"File '{key}' exists in remote and checksum does not match local file. Use 'overwrite' argument to replace remote file.");
+                return;
+            }
+        }
+
+        await Retry.RetryAsync(
+            Log,
+            () => UploadObjectCoreAsync(key, file, overwriteRemote, noCache),
+            "Uploading " + key + (noCache ? " (no-cache)" : ""));
+
+        if (replacing) {
+            try {
+                await AfterObjectReplacedAsync(key, remote).ConfigureAwait(false);
+            } catch (Exception ex) {
+                Log.Warn(ex, $"Failed to clean up the replaced remote object '{key}'.");
+            }
+        }
+    }
+
+    public Task DeleteObject(string key)
+    {
+        return Retry.RetryAsync(Log, () => DeleteObjectCoreAsync(key), "Deleting " + key);
+    }
+
+    public async Task<byte[]> GetObjectBytes(string key)
+    {
+        return await Retry.RetryAsyncRet(
+            Log,
+            async () => {
+                try {
+                    return await GetObjectBytesCoreAsync(key).ConfigureAwait(false);
+                } catch (Exception ex) when (IsNotFoundException(ex)) {
+                    return null;
+                }
+            },
+            $"Downloading {key}...");
+    }
+
+    public Task DownloadToFile(string key, string filePath)
+    {
+        return Retry.RetryAsync(Log, () => DownloadToFileCoreAsync(key, filePath), $"Downloading {key}...");
+    }
+
+    /// <summary> Returns checksum info for the remote object, or null if it does not exist or has no checksum. May also throw a not-found exception. </summary>
+    protected abstract Task<RemoteObjectInfo> GetRemoteObjectInfoAsync(string key);
+
+    protected abstract Task UploadObjectCoreAsync(string key, FileInfo file, bool overwriteRemote, bool noCache);
+
+    protected abstract Task<byte[]> GetObjectBytesCoreAsync(string key);
+
+    protected abstract Task DownloadToFileCoreAsync(string key, string filePath);
+
+    protected abstract Task DeleteObjectCoreAsync(string key);
+
+    /// <summary> Returns true if the exception indicates that the requested object does not exist. </summary>
+    protected abstract bool IsNotFoundException(Exception ex);
+
+    /// <summary> Called after an existing remote object was overwritten, eg. to clean up an old object version. </summary>
+    protected virtual Task AfterObjectReplacedAsync(string key, RemoteObjectInfo replaced) => Task.CompletedTask;
+}
+
 internal static class ObjectStoreUtil
 {
     public static string NormalizePrefix(string prefix)
@@ -86,7 +185,7 @@ public abstract class ObjectUploadCommandRunner<TOpt, TValidator>(ILogger logger
 
         Log.Info($"Preparing to upload {build.Count} local asset(s).");
 
-        var remoteReleases = await GetReleasesAsync(options);
+        var remoteReleases = await GetReleasesAsync(options, client);
         Log.Info($"There are {remoteReleases.Assets.Length} asset(s) in remote releases file.");
 
         var localEntries = await build.GetReleaseEntriesAsync().ConfigureAwait(false);
@@ -141,9 +240,8 @@ public abstract class ObjectUploadCommandRunner<TOpt, TValidator>(ILogger logger
         Log.Info("Done.");
     }
 
-    protected virtual Task<VelopackAssetFeed> GetReleasesAsync(TOpt options)
+    protected virtual Task<VelopackAssetFeed> GetReleasesAsync(TOpt options, IObjectStoreClient client)
     {
-        var client = CreateClient(options);
         return ObjectStoreUtil.GetReleaseFeedAsync(client, options.Channel);
     }
 

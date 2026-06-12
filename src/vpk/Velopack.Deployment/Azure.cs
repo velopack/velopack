@@ -54,7 +54,8 @@ public sealed class AzureUploadOptionsValidator : AzureDownloadOptionsValidator<
     }
 }
 
-public class AzureObjectStoreClient(BlobContainerClient client, string prefix, ILogger logger) : IObjectStoreClient
+public class AzureObjectStoreClient(BlobContainerClient client, string prefix, ILogger logger)
+    : ObjectStoreClient(logger)
 {
     public static AzureObjectStoreClient Create(AzureDownloadOptions options, ILogger logger)
     {
@@ -80,30 +81,19 @@ public class AzureObjectStoreClient(BlobContainerClient client, string prefix, I
         return new AzureObjectStoreClient(containerClient, ObjectStoreUtil.NormalizePrefix(options.Prefix), logger);
     }
 
-    public async Task UploadObject(string key, FileInfo f, bool overwriteRemote, bool noCache)
+    protected override async Task<RemoteObjectInfo> GetRemoteObjectInfoAsync(string key)
     {
-        var blobClient = GetBlobClient(key);
-        try {
-            var properties = await blobClient.GetPropertiesAsync();
-            var md5 = ObjectStoreUtil.GetFileMD5Checksum(f.FullName);
-            var stored = properties.Value.ContentHash;
-
-            if (stored != null) {
-                if (Enumerable.SequenceEqual(md5, stored)) {
-                    logger.Info($"Upload file '{key}' skipped (already exists in remote)");
-                    return;
-                } else if (overwriteRemote) {
-                    logger.Info($"File '{key}' exists in remote, replacing...");
-                } else {
-                    logger.Warn($"File '{key}' exists in remote and checksum does not match local file. Use 'overwrite' argument to replace remote file.");
-                    return;
-                }
-            }
-        } catch {
-            // don't care if this check fails. worst case, we end up re-uploading a file that
-            // already exists. storage providers should prefer the newer file of the same name.
+        var properties = await GetBlobClient(key).GetPropertiesAsync();
+        var stored = properties.Value.ContentHash;
+        if (stored == null) {
+            return null;
         }
 
+        return new RemoteObjectInfo { Md5Hex = Convert.ToHexString(stored).ToLowerInvariant() };
+    }
+
+    protected override async Task UploadObjectCoreAsync(string key, FileInfo file, bool overwriteRemote, bool noCache)
+    {
         var options = new BlobUploadOptions {
             HttpHeaders = new BlobHttpHeaders(),
             Conditions = overwriteRemote ? null : new BlobRequestConditions { IfNoneMatch = new ETag("*") }
@@ -113,45 +103,31 @@ public class AzureObjectStoreClient(BlobContainerClient client, string prefix, I
             options.HttpHeaders.CacheControl = "no-cache";
         }
 
-        await Retry.RetryAsync(logger, () => blobClient.UploadAsync(f.FullName, options), "Uploading " + key);
+        await GetBlobClient(key).UploadAsync(file.FullName, options);
     }
 
-    public async Task DeleteObject(string key)
+    protected override async Task<byte[]> GetObjectBytesCoreAsync(string key)
     {
-        await Retry.RetryAsync(
-            logger,
-            async () => {
-                await client.DeleteBlobIfExistsAsync(prefix + key);
-            },
-            "Deleting " + key);
+        var obj = GetBlobClient(key);
+        var ms = new MemoryStream();
+        using var response = await obj.DownloadToAsync(ms, CancellationToken.None);
+        return ms.ToArray();
     }
 
-    public async Task<byte[]> GetObjectBytes(string key)
+    protected override async Task DownloadToFileCoreAsync(string key, string filePath)
     {
-        return await Retry.RetryAsyncRet(
-            logger,
-            async () => {
-                try {
-                    var obj = GetBlobClient(key);
-                    var ms = new MemoryStream();
-                    using var response = await obj.DownloadToAsync(ms, CancellationToken.None);
-                    return ms.ToArray();
-                } catch (Azure.RequestFailedException ex) when (ex.Status == 404) {
-                    return null;
-                }
-            },
-            $"Downloading {key}...");
+        var obj = GetBlobClient(key);
+        using var response = await obj.DownloadToAsync(filePath, CancellationToken.None);
     }
 
-    public async Task DownloadToFile(string key, string filePath)
+    protected override async Task DeleteObjectCoreAsync(string key)
     {
-        await Retry.RetryAsync(
-            logger,
-            async () => {
-                var obj = GetBlobClient(key);
-                using var response = await obj.DownloadToAsync(filePath, CancellationToken.None);
-            },
-            $"Downloading {key}...");
+        await client.DeleteBlobIfExistsAsync(prefix + key);
+    }
+
+    protected override bool IsNotFoundException(Exception ex)
+    {
+        return ex is RequestFailedException { Status: 404 };
     }
 
     private BlobClient GetBlobClient(string key)

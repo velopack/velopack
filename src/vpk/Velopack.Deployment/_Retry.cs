@@ -13,7 +13,7 @@ public static class Retry
                 log.Info((ctry > 0 ? $"(retry {ctry}) " : "") + message);
                 return await block().ConfigureAwait(false);
             } catch (Exception ex) {
-                if (ctry++ > maxRetries) {
+                if (ctry++ >= maxRetries) {
                     log.Error(ex.Message + ", will not try again.");
                     throw;
                 }

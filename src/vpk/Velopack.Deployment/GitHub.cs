@@ -26,31 +26,28 @@ public class GitHubDownloadCommandRunner(ILogger logger)
     }
 }
 
-public class GitHubReleaseClient : IGitReleaseClient
+public class GitHubReleaseClient : GitReleaseClient<Release>
 {
     private readonly GitHubClient _client;
-    private readonly string _repoOwner;
-    private readonly string _repoName;
-    private readonly Dictionary<long, Release> _nativeReleases = new();
 
-    public string ProviderName => "GitHub";
+    public override string ProviderName => "GitHub";
 
     public GitHubReleaseClient(string repoUrl, string token, double timeoutMinutes)
+        : base(repoUrl)
     {
-        (_repoOwner, _repoName) = GitUrl.GetOwnerAndRepo(repoUrl);
         var connection = new Connection(new ProductHeaderValue("Velopack"), new GitHubHttpClient(TimeSpan.FromMinutes(timeoutMinutes)));
         _client = new GitHubClient(connection) {
             Credentials = new Credentials(token)
         };
     }
 
-    public async Task<IReadOnlyList<GitRelease>> GetReleasesAsync()
+    public override async Task<IReadOnlyList<GitRelease>> GetReleasesAsync()
     {
-        var releases = await _client.Repository.Release.GetAll(_repoOwner, _repoName).ConfigureAwait(false);
-        return releases.Select(ToGitRelease).ToArray();
+        var releases = await _client.Repository.Release.GetAll(RepoOwner, RepoName).ConfigureAwait(false);
+        return releases.Select(RegisterNativeRelease).ToArray();
     }
 
-    public async Task<GitRelease> CreateDraftReleaseAsync(string tagName, string name, string body, bool prerelease, string targetCommitish)
+    public override async Task<GitRelease> CreateDraftReleaseAsync(string tagName, string name, string body, bool prerelease, string targetCommitish)
     {
         var newReleaseReq = new NewRelease(tagName) {
             Body = body,
@@ -59,29 +56,28 @@ public class GitHubReleaseClient : IGitReleaseClient
             Name = name,
             TargetCommitish = targetCommitish,
         };
-        var release = await _client.Repository.Release.Create(_repoOwner, _repoName, newReleaseReq).ConfigureAwait(false);
-        return ToGitRelease(release);
+        var release = await _client.Repository.Release.Create(RepoOwner, RepoName, newReleaseReq).ConfigureAwait(false);
+        return RegisterNativeRelease(release);
     }
 
-    public async Task UploadAssetAsync(GitRelease release, string assetName, Stream content, string contentType, TimeSpan? timeout = null)
+    public override async Task UploadAssetAsync(GitRelease release, string assetName, Stream content, string contentType, TimeSpan? timeout = null)
     {
-        var native = _nativeReleases[release.Id];
+        var native = GetNativeRelease(release);
         var data = new ReleaseAssetUpload(assetName, contentType, content, timeout);
         await _client.Repository.Release.UploadAsset(native, data, CancellationToken.None).ConfigureAwait(false);
     }
 
-    public async Task PublishReleaseAsync(GitRelease release)
+    public override async Task PublishReleaseAsync(GitRelease release)
     {
         // edit from the native release object so no other fields are cleared by the update
-        var native = _nativeReleases[release.Id];
+        var native = GetNativeRelease(release);
         var upd = native.ToUpdate();
         upd.Draft = false;
-        await _client.Repository.Release.Edit(_repoOwner, _repoName, native.Id, upd).ConfigureAwait(false);
+        await _client.Repository.Release.Edit(RepoOwner, RepoName, native.Id, upd).ConfigureAwait(false);
     }
 
-    private GitRelease ToGitRelease(Release release)
+    protected override GitRelease ToGitRelease(Release release)
     {
-        _nativeReleases[release.Id] = release;
         return new GitRelease {
             Id = release.Id,
             Name = release.Name,

@@ -10,6 +10,8 @@ public class HttpDownloadCommand : OutputCommand
 
     public string[] Headers { get; private set; }
 
+    public bool AllowEmptyChannel { get; private set; }
+
     public HttpDownloadCommand()
         : base("http", "Download latest release from a HTTP source.")
     {
@@ -25,5 +27,8 @@ public class HttpDownloadCommand : OutputCommand
         AddOption<string[]>((v) => Headers = v, ["--header"])
             .SetDescription("Add a custom header to all http requests (eg. 'Authorization: Bearer ...'). Can be used multiple times.")
             .SetArgumentHelpName("NAME:VALUE");
+
+        AddOption<bool>((v) => AllowEmptyChannel = v, ["--allowEmptyChannel"])
+            .SetDescription("Exit successfully with an empty result if the remote releases file for the channel does not exist.");
     }
 }
