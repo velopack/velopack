@@ -1,4 +1,4 @@
-use std::{path::Path, sync::mpsc::Sender};
+use std::{path::Path, sync::mpsc::Sender, time::Duration};
 
 use crate::bundle::Manifest;
 use crate::*;
@@ -11,6 +11,7 @@ use super::UpdateSource;
 /// and provides query parameters to specify the name of the requested package.
 pub struct HttpSource {
     url: String,
+    timeout: Option<Duration>,
 }
 
 impl HttpSource {
@@ -18,7 +19,19 @@ impl HttpSource {
     pub fn new<S: AsRef<str>>(url: S) -> HttpSource {
         HttpSource {
             url: url.as_ref().to_owned(),
+            timeout: None,
         }
+    }
+
+    /// Create a new HttpSource with the specified base URL and request timeout.
+    pub fn new_with_timeout<S: AsRef<str>>(url: S, timeout: Duration) -> HttpSource {
+        HttpSource::new(url).with_timeout(timeout)
+    }
+
+    /// Sets the request timeout used when fetching release feeds and downloading packages.
+    pub fn with_timeout(mut self, timeout: Duration) -> HttpSource {
+        self.timeout = Some(timeout);
+        self
     }
 }
 
@@ -34,7 +47,7 @@ impl UpdateSource for HttpSource {
         ));
 
         info!("Downloading releases for channel {} from: {}", channel, releases_url);
-        let json = download::download_url_as_string(releases_url.as_str())?;
+        let json = download::download_url_as_string_with_headers_and_timeout(releases_url.as_str(), &[], self.timeout)?;
         let feed: VelopackAssetFeed = serde_json::from_str(&json)?;
         Ok(feed)
     }
@@ -45,7 +58,7 @@ impl UpdateSource for HttpSource {
         let asset_url = url.join(&asset.FileName)?;
 
         info!("About to download from URL '{}' to file '{:?}'", asset_url, local_file);
-        download::download_url_to_file(asset_url.as_str(), local_file, move |p| {
+        download::download_url_to_file_with_headers_and_timeout(asset_url.as_str(), local_file, &[], self.timeout, move |p| {
             if let Some(progress_sender) = &progress_sender {
                 let _ = progress_sender.send(p);
             }

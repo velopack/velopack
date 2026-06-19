@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
+use std::time::Duration;
 
 use crate::{misc, Error};
 
@@ -13,12 +14,26 @@ where
 }
 
 /// Downloads a file from a URL with custom headers and writes it to a file while reporting progress from 0-100.
-pub fn download_url_to_file_with_headers<A, S: AsRef<Path>>(url: &str, file_path: S, headers: &[(&str, &str)], mut progress: A) -> Result<(), Error>
+pub fn download_url_to_file_with_headers<A, S: AsRef<Path>>(url: &str, file_path: S, headers: &[(&str, &str)], progress: A) -> Result<(), Error>
+where
+    A: FnMut(i16),
+{
+    download_url_to_file_with_headers_and_timeout(url, file_path, headers, None, progress)
+}
+
+/// Downloads a file from a URL with custom headers, an optional timeout, and progress reporting from 0-100.
+pub fn download_url_to_file_with_headers_and_timeout<A, S: AsRef<Path>>(
+    url: &str,
+    file_path: S,
+    headers: &[(&str, &str)],
+    timeout: Option<Duration>,
+    mut progress: A,
+) -> Result<(), Error>
 where
     A: FnMut(i16),
 {
     let file_path = file_path.as_ref();
-    let agent = get_download_agent()?;
+    let agent = get_download_agent(timeout)?;
     let mut req = agent.get(url);
     for &(name, value) in headers {
         req = req.header(name, value);
@@ -63,7 +78,12 @@ pub fn download_url_as_string(url: &str) -> Result<String, Error> {
 
 /// Downloads a file from a URL with custom headers and returns it as a string.
 pub fn download_url_as_string_with_headers(url: &str, headers: &[(&str, &str)]) -> Result<String, Error> {
-    let agent = get_download_agent()?;
+    download_url_as_string_with_headers_and_timeout(url, headers, None)
+}
+
+/// Downloads a file from a URL with custom headers and an optional timeout, and returns it as a string.
+pub fn download_url_as_string_with_headers_and_timeout(url: &str, headers: &[(&str, &str)], timeout: Option<Duration>) -> Result<String, Error> {
+    let agent = get_download_agent(timeout)?;
     let mut req = agent.get(url);
     for &(name, value) in headers {
         req = req.header(name, value);
@@ -72,11 +92,15 @@ pub fn download_url_as_string_with_headers(url: &str, headers: &[(&str, &str)]) 
     Ok(r)
 }
 
-fn get_download_agent() -> Result<ureq::Agent, Error> {
+fn get_download_agent(timeout: Option<Duration>) -> Result<ureq::Agent, Error> {
     // let tls_builder = native_tls::TlsConnector::builder();
     // let tls_connector = tls_builder.build()?;
     // Ok(ureq::AgentBuilder::new().tls_connector(tls_connector.into()).build())
-    Ok(ureq::Agent::config_builder().build().into())
+    let mut config = ureq::Agent::config_builder();
+    if let Some(timeout) = timeout {
+        config = config.timeout_global(Some(timeout));
+    }
+    Ok(config.build().into())
 }
 
 #[test]
