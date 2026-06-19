@@ -2,7 +2,27 @@ mod common;
 
 use common::*;
 use std::sync::mpsc;
+use std::time::{Duration, Instant};
 use velopack::sources::{HttpSource, UpdateSource};
+
+fn hanging_server_url(delay: Duration) -> String {
+    use std::io::Read;
+    use std::net::TcpListener;
+    use std::thread;
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+
+    thread::spawn(move || {
+        if let Ok((mut stream, _)) = listener.accept() {
+            let mut buffer = [0u8; 1024];
+            let _ = stream.read(&mut buffer);
+            thread::sleep(delay);
+        }
+    });
+
+    format!("http://{}", addr)
+}
 
 #[test]
 fn feed_success() {
@@ -36,6 +56,31 @@ fn feed_server_error() {
     let manifest = test_manifest();
     let result = source.get_release_feed("stable", &manifest, "");
     assert!(result.is_err());
+}
+
+#[test]
+fn feed_timeout_errors() {
+    let source = HttpSource::new_with_timeout(hanging_server_url(Duration::from_secs(2)), Duration::from_millis(100));
+    let manifest = test_manifest();
+    let started = Instant::now();
+    let result = source.get_release_feed("stable", &manifest, "");
+
+    assert!(result.is_err());
+    assert!(started.elapsed() < Duration::from_secs(2), "request did not respect configured timeout");
+}
+
+#[test]
+fn download_timeout_errors() {
+    let source = HttpSource::new_with_timeout(hanging_server_url(Duration::from_secs(2)), Duration::from_millis(100));
+    let asset = sample_asset();
+
+    let dir = tempfile::tempdir().unwrap();
+    let dest = dir.path().join("downloaded.nupkg");
+    let started = Instant::now();
+    let result = source.download_release_entry(&asset, &dest, None);
+
+    assert!(result.is_err());
+    assert!(started.elapsed() < Duration::from_secs(2), "download did not respect configured timeout");
 }
 
 #[test]

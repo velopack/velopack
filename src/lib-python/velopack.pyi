@@ -109,9 +109,9 @@ class HttpSource:
     r"""
     Retrieves updates from a static file host or other web server.
     """
-    def __new__(cls, url: builtins.str) -> HttpSource:
+    def __new__(cls, url: builtins.str, timeout_seconds: typing.Optional[builtins.int] = None) -> HttpSource:
         r"""
-        Create a new HttpSource with the specified base URL.
+        Create a new HttpSource with the specified base URL and optional request timeout.
         """
 
 @typing.final

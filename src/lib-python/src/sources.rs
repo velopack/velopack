@@ -1,4 +1,5 @@
 use pyo3::prelude::*;
+use std::time::Duration;
 use velopack::sources::{AutoSource, GiteaSource, GithubSource, GitlabSource, HttpSource, UpdateSource};
 
 /// Retrieves available releases from a GitHub repository. Supports both github.com
@@ -92,15 +93,17 @@ impl PyGiteaSource {
 #[derive(Clone)]
 pub struct PyHttpSource {
     pub url: String,
+    pub timeout_seconds: Option<u64>,
 }
 
 #[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyHttpSource {
-    /// Create a new HttpSource with the specified base URL.
+    /// Create a new HttpSource with the specified base URL and optional request timeout.
     #[new]
-    pub fn new(url: String) -> Self {
-        PyHttpSource { url }
+    #[pyo3(signature = (url, timeout_seconds = None))]
+    pub fn new(url: String, timeout_seconds: Option<u64>) -> Self {
+        PyHttpSource { url, timeout_seconds }
     }
 }
 
@@ -121,7 +124,14 @@ impl PySourceArg {
             PySourceArg::Github(s) => Box::new(GithubSource::new(&s.repo_url, s.access_token, s.prerelease)),
             PySourceArg::Gitlab(s) => Box::new(GitlabSource::new(&s.repo_url, s.access_token, s.prerelease)),
             PySourceArg::Gitea(s) => Box::new(GiteaSource::new(&s.repo_url, s.access_token, s.prerelease)),
-            PySourceArg::Http(s) => Box::new(HttpSource::new(&s.url)),
+            PySourceArg::Http(s) => {
+                let source = if let Some(timeout_seconds) = s.timeout_seconds {
+                    HttpSource::new_with_timeout(&s.url, Duration::from_secs(timeout_seconds))
+                } else {
+                    HttpSource::new(&s.url)
+                };
+                Box::new(source)
+            }
             PySourceArg::Auto(s) => Box::new(AutoSource::new(&s)),
         }
     }
