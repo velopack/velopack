@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
@@ -19,7 +19,7 @@ public interface IObjectStoreClient
 
     Task DeleteObject(string key);
 
-    Task<byte[]> GetObjectBytes(string key);
+    Task<byte[]?> GetObjectBytes(string key);
 
     Task DownloadToFile(string key, string filePath);
 }
@@ -27,10 +27,10 @@ public interface IObjectStoreClient
 public sealed class RemoteObjectInfo
 {
     /// <summary> MD5 checksum of the remote object as a lowercase hex string. </summary>
-    public string Md5Hex { get; init; }
+    public required string Md5Hex { get; init; }
 
     /// <summary> Provider-specific version identifier of the remote object (eg. S3 versioning), may be null. </summary>
-    public string VersionId { get; init; }
+    public string? VersionId { get; init; }
 }
 
 public abstract class ObjectStoreClient(ILogger logger) : IObjectStoreClient
@@ -39,7 +39,7 @@ public abstract class ObjectStoreClient(ILogger logger) : IObjectStoreClient
 
     public async Task UploadObject(string key, FileInfo file, bool overwriteRemote, bool noCache)
     {
-        RemoteObjectInfo remote = null;
+        RemoteObjectInfo? remote = null;
 
         // try to detect an existing remote file of the same name
         try {
@@ -86,7 +86,7 @@ public abstract class ObjectStoreClient(ILogger logger) : IObjectStoreClient
         return Retry.RetryAsync(Log, () => DeleteObjectCoreAsync(key), "Deleting " + key);
     }
 
-    public async Task<byte[]> GetObjectBytes(string key)
+    public async Task<byte[]?> GetObjectBytes(string key)
     {
         return await Retry.RetryAsyncRet(
             Log,
@@ -106,7 +106,7 @@ public abstract class ObjectStoreClient(ILogger logger) : IObjectStoreClient
     }
 
     /// <summary> Returns checksum info for the remote object, or null if it does not exist or has no checksum. May also throw a not-found exception. </summary>
-    protected abstract Task<RemoteObjectInfo> GetRemoteObjectInfoAsync(string key);
+    protected abstract Task<RemoteObjectInfo?> GetRemoteObjectInfoAsync(string key);
 
     protected abstract Task UploadObjectCoreAsync(string key, FileInfo file, bool overwriteRemote, bool noCache);
 
@@ -120,7 +120,7 @@ public abstract class ObjectStoreClient(ILogger logger) : IObjectStoreClient
     protected abstract bool IsNotFoundException(Exception ex);
 
     /// <summary> Called after an existing remote object was overwritten, eg. to clean up an old object version. </summary>
-    protected virtual Task AfterObjectReplacedAsync(string key, RemoteObjectInfo replaced) => Task.CompletedTask;
+    protected virtual Task AfterObjectReplacedAsync(string key, RemoteObjectInfo? replaced) => Task.CompletedTask;
 }
 
 internal static class ObjectStoreUtil
@@ -128,7 +128,7 @@ internal static class ObjectStoreUtil
     public static string NormalizePrefix(string prefix)
     {
         prefix = prefix?.Trim() ?? "";
-        if (prefix.Length > 0 && !prefix.EndsWith("/")) {
+        if (prefix.Length > 0 && !prefix.EndsWith('/')) {
             prefix += "/";
         }
 
@@ -193,7 +193,7 @@ public abstract class ObjectUploadCommandRunner<TOpt, TValidator>(ILogger logger
 
         Log.Info($"{releaseEntries.Length} merged local/remote release(s).");
 
-        var toDelete = new VelopackAsset[0];
+        var toDelete = Array.Empty<VelopackAsset>();
 
         if (options.KeepMaxReleases > 0) {
             var fullReleases = releaseEntries
@@ -202,10 +202,8 @@ public abstract class ObjectUploadCommandRunner<TOpt, TValidator>(ILogger logger
                 .ToArray();
             if (fullReleases.Length > options.KeepMaxReleases) {
                 var minVersion = fullReleases[options.KeepMaxReleases - 1].Version;
-                toDelete = releaseEntries
-                    .Where(x => x.Version < minVersion)
-                    .ToArray();
-                releaseEntries = releaseEntries.Except(toDelete).ToArray();
+                toDelete = [.. releaseEntries.Where(x => x.Version < minVersion)];
+                releaseEntries = [.. releaseEntries.Except(toDelete)];
                 Log.Info($"Retention policy (keepMaxReleases={options.KeepMaxReleases}) will delete {toDelete.Length} release(s).");
             } else {
                 Log.Info($"Retention policy (keepMaxReleases={options.KeepMaxReleases}) will not be applied, because there will only be {fullReleases.Length} full release(s) when this upload has completed.");

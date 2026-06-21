@@ -1,4 +1,4 @@
-using Amazon;
+﻿using Amazon;
 using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
@@ -11,28 +11,28 @@ namespace Velopack.Deployment;
 
 public class S3DownloadOptions : RepositoryOptions
 {
-    public string KeyId { get; set; }
+    public required string KeyId { get; set; }
 
-    public string Secret { get; set; }
+    public required string Secret { get; set; }
 
-    public string Session { get; set; }
+    public required string Session { get; set; }
 
-    public string Region { get; set; }
+    public required string Region { get; set; }
 
-    public string Endpoint { get; set; }
+    public required string Endpoint { get; set; }
 
-    public string Bucket { get; set; }
+    public required string Bucket { get; set; }
 
-    public string Prefix { get; set; }
+    public required string Prefix { get; set; }
 
-    public bool DisablePathStyle { get; set; }
+    public required bool DisablePathStyle { get; set; }
 
-    public bool DisableChecksumValidation { get; set; }
+    public required bool DisableChecksumValidation { get; set; }
 }
 
 public class S3UploadOptions : S3DownloadOptions, IObjectUploadOptions
 {
-    public int KeepMaxReleases { get; set; }
+    public required int KeepMaxReleases { get; set; }
 }
 
 public class S3DownloadOptionsValidator<T> : RepositoryOptionsValidator<T> where T : S3DownloadOptions
@@ -116,7 +116,7 @@ public class S3ObjectStoreClient(AmazonS3Client client, string bucket, string pr
         return new S3ObjectStoreClient(client, options.Bucket, ObjectStoreUtil.NormalizePrefix(options.Prefix), disableSigning, options.DisableChecksumValidation, logger);
     }
 
-    protected override async Task<RemoteObjectInfo> GetRemoteObjectInfoAsync(string key)
+    protected override async Task<RemoteObjectInfo?> GetRemoteObjectInfoAsync(string key)
     {
         var metadata = await GetObjectMetadataAsync(key);
         var stored = metadata?.ETag?.Trim().Trim('"').ToLowerInvariant();
@@ -126,7 +126,7 @@ public class S3ObjectStoreClient(AmazonS3Client client, string bucket, string pr
 
         // note: multipart upload ETags contain a '-' and are not an MD5 of the whole object,
         // so they will simply fail the checksum compare and take the replace path.
-        return new RemoteObjectInfo { Md5Hex = stored, VersionId = metadata.VersionId };
+        return new RemoteObjectInfo { Md5Hex = stored, VersionId = metadata!.VersionId };
     }
 
     protected override Task UploadObjectCoreAsync(string key, FileInfo file, bool overwriteRemote, bool noCache)
@@ -134,9 +134,9 @@ public class S3ObjectStoreClient(AmazonS3Client client, string bucket, string pr
         return PutObjectAsync(key, file.FullName, noCache);
     }
 
-    protected override Task AfterObjectReplacedAsync(string key, RemoteObjectInfo replaced)
+    protected override Task AfterObjectReplacedAsync(string key, RemoteObjectInfo? replaced)
     {
-        if (replaced.VersionId == null) {
+        if (replaced?.VersionId == null) {
             return Task.CompletedTask;
         }
 
@@ -156,9 +156,8 @@ public class S3ObjectStoreClient(AmazonS3Client client, string bucket, string pr
 
     protected override async Task DownloadToFileCoreAsync(string key, string filePath)
     {
-        using (var obj = await GetObjectAsync(key)) {
-            await obj.WriteResponseStreamToFileAsync(filePath, false, CancellationToken.None);
-        }
+        using var obj = await GetObjectAsync(key);
+        await obj.WriteResponseStreamToFileAsync(filePath, false, CancellationToken.None);
     }
 
     protected override Task DeleteObjectCoreAsync(string key)
@@ -171,21 +170,23 @@ public class S3ObjectStoreClient(AmazonS3Client client, string bucket, string pr
         return ex is AmazonS3Exception { StatusCode: System.Net.HttpStatusCode.NotFound };
     }
 
-    private Task<DeleteObjectResponse> DeleteObjectAsync(string key, string versionId = null, CancellationToken cancellationToken = default)
+    private Task<DeleteObjectResponse> DeleteObjectAsync(string key, string? versionId = null, CancellationToken cancellationToken = default)
     {
-        var request = new DeleteObjectRequest();
-        request.BucketName = bucket;
-        request.Key = prefix + key;
-        request.VersionId = versionId;
+        var request = new DeleteObjectRequest {
+            BucketName = bucket,
+            Key = prefix + key,
+            VersionId = versionId
+        };
         return client.DeleteObjectAsync(request, cancellationToken);
     }
 
     private Task<PutObjectResponse> PutObjectAsync(string key, string fullName, bool noCache, CancellationToken cancellationToken = default)
     {
-        var request = new PutObjectRequest();
-        request.BucketName = bucket;
-        request.FilePath = fullName;
-        request.Key = prefix + key;
+        var request = new PutObjectRequest {
+            BucketName = bucket,
+            FilePath = fullName,
+            Key = prefix + key
+        };
 
         if (disableSigning) {
             // due to compatibility reasons CloudFlare R2, Oracle Object storage (maybe some other providers)
@@ -209,17 +210,19 @@ public class S3ObjectStoreClient(AmazonS3Client client, string bucket, string pr
 
     private Task<GetObjectResponse> GetObjectAsync(string key, CancellationToken cancellationToken = default)
     {
-        var request = new GetObjectRequest();
-        request.BucketName = bucket;
-        request.Key = prefix + key;
+        var request = new GetObjectRequest {
+            BucketName = bucket,
+            Key = prefix + key
+        };
         return client.GetObjectAsync(request, cancellationToken);
     }
 
     private Task<GetObjectMetadataResponse> GetObjectMetadataAsync(string key, CancellationToken cancellationToken = default)
     {
-        var request = new GetObjectMetadataRequest();
-        request.BucketName = bucket;
-        request.Key = prefix + key;
+        var request = new GetObjectMetadataRequest {
+            BucketName = bucket,
+            Key = prefix + key
+        };
         return client.GetObjectMetadataAsync(request, cancellationToken);
     }
 }

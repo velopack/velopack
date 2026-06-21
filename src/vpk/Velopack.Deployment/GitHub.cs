@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Octokit;
 using Velopack.Sources;
 
@@ -44,10 +44,10 @@ public class GitHubReleaseClient : GitReleaseClient<Release>
     public override async Task<IReadOnlyList<GitRelease>> GetReleasesAsync()
     {
         var releases = await _client.Repository.Release.GetAll(RepoOwner, RepoName).ConfigureAwait(false);
-        return releases.Select(RegisterNativeRelease).ToArray();
+        return [.. releases.Select(RegisterNativeRelease)];
     }
 
-    public override async Task<GitRelease> CreateDraftReleaseAsync(string tagName, string name, string body, bool prerelease, string targetCommitish)
+    public override async Task<GitRelease> CreateDraftReleaseAsync(string tagName, string name, string body, bool prerelease, string? targetCommitish)
     {
         var newReleaseReq = new NewRelease(tagName) {
             Body = body,

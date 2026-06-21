@@ -16,7 +16,8 @@ public class PublishCommand : VelopackServiceCommand
     {
         AddOption<string>(v => ReleaseDirectory = v, ["-o", "--outputDir"])
             .SetDescription("The directory containing the Velopack release files.")
-            .SetArgumentHelpName("DIR");
+            .SetArgumentHelpName("DIR")
+;
 
         AddOption<string>(v => Channel = v, ["-c", "--channel"])
             .SetArgumentHelpName("NAME")

@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Velopack.Core;
 
 namespace Velopack.Deployment;
@@ -26,7 +26,7 @@ public static class Retry
 
     public static Task RetryAsync(ILogger log, Func<Task> block, string message, int maxRetries = 2)
     {
-        return RetryAsyncRet<object>(
+        return RetryAsyncRet<object?>(
             log,
             async () => {
                 await block().ConfigureAwait(false);

@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
@@ -14,20 +14,20 @@ public class GitReleaseDownloadOptions : RepositoryOptions
 {
     public bool Prerelease { get; set; }
 
-    public string RepoUrl { get; set; }
+    public string? RepoUrl { get; set; }
 
-    public string Token { get; set; }
+    public string? Token { get; set; }
 }
 
 public class GitReleaseUploadOptions : GitReleaseDownloadOptions
 {
     public bool Publish { get; set; }
 
-    public string ReleaseName { get; set; }
+    public required string ReleaseName { get; set; }
 
-    public string TagName { get; set; }
+    public string? TagName { get; set; }
 
-    public string TargetCommitish { get; set; }
+    public string? TargetCommitish { get; set; }
 
     public bool Merge { get; set; }
 }
@@ -74,13 +74,13 @@ public sealed class GitRelease
 {
     public long Id { get; init; }
 
-    public string Name { get; init; }
+    public required string Name { get; init; }
 
-    public string TagName { get; init; }
+    public required string TagName { get; init; }
 
     public bool Draft { get; init; }
 
-    public IReadOnlyList<string> AssetNames { get; init; }
+    public required IReadOnlyList<string> AssetNames { get; init; }
 }
 
 public interface IGitReleaseClient
@@ -89,7 +89,7 @@ public interface IGitReleaseClient
 
     Task<IReadOnlyList<GitRelease>> GetReleasesAsync();
 
-    Task<GitRelease> CreateDraftReleaseAsync(string tagName, string name, string body, bool prerelease, string targetCommitish);
+    Task<GitRelease> CreateDraftReleaseAsync(string tagName, string name, string body, bool prerelease, string? targetCommitish);
 
     Task UploadAssetAsync(GitRelease release, string assetName, Stream content, string contentType, TimeSpan? timeout = null);
 
@@ -98,7 +98,7 @@ public interface IGitReleaseClient
 
 public abstract class GitReleaseClient<TNative> : IGitReleaseClient
 {
-    private readonly Dictionary<long, TNative> _nativeReleases = new();
+    private readonly Dictionary<long, TNative> _nativeReleases = [];
 
     protected string RepoOwner { get; }
 
@@ -113,7 +113,7 @@ public abstract class GitReleaseClient<TNative> : IGitReleaseClient
 
     public abstract Task<IReadOnlyList<GitRelease>> GetReleasesAsync();
 
-    public abstract Task<GitRelease> CreateDraftReleaseAsync(string tagName, string name, string body, bool prerelease, string targetCommitish);
+    public abstract Task<GitRelease> CreateDraftReleaseAsync(string tagName, string name, string body, bool prerelease, string? targetCommitish);
 
     public abstract Task UploadAssetAsync(GitRelease release, string assetName, Stream content, string contentType, TimeSpan? timeout = null);
 
@@ -154,7 +154,7 @@ public abstract class GitReleaseUploadCommandRunner<TOpt, TValidator>(ILogger lo
         var build = BuildAssets.Read(options.ReleaseDir.FullName, options.Channel);
         var latest = helper.GetLatestFullRelease();
         var latestPath = Path.Combine(options.ReleaseDir.FullName, latest.FileName);
-        var releaseNotes = new ZipPackage(latestPath).ReleaseNotes;
+        var releaseNotes = new ZipPackage(latestPath).ReleaseNotes ?? "";
         var semVer = options.TagName ?? latest.Version.ToString();
         var releaseName = string.IsNullOrWhiteSpace(options.ReleaseName) ? semVer : options.ReleaseName;
 
@@ -206,7 +206,7 @@ public abstract class GitReleaseUploadCommandRunner<TOpt, TValidator>(ILogger lo
         }
 
         var feed = new VelopackAssetFeed {
-            Assets = (await build.GetReleaseEntriesAsync().ConfigureAwait(false)).ToArray(),
+            Assets = [.. (await build.GetReleaseEntriesAsync().ConfigureAwait(false))],
         };
         var json = ReleaseEntryHelper.GetAssetFeedJson(feed);
 

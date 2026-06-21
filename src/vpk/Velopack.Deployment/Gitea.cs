@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using Gitea.Net.Api;
 using Gitea.Net.Client;
 using Gitea.Net.Model;
@@ -72,17 +72,17 @@ public class GiteaReleaseClient : GitReleaseClient<Release>
             throw new UserInfoException("Could not get all releases from server");
         }
 
-        return existingReleases.Select(RegisterNativeRelease).ToArray();
+        return [.. existingReleases.Select(RegisterNativeRelease)];
     }
 
-    public override async Task<GitRelease> CreateDraftReleaseAsync(string tagName, string name, string body, bool prerelease, string targetCommitish)
+    public override async Task<GitRelease> CreateDraftReleaseAsync(string tagName, string name, string body, bool prerelease, string? targetCommitish)
     {
         var newReleaseReq = new CreateReleaseOption(
             body: body,
             draft: true,
             prerelease: prerelease,
             name: name,
-            targetCommitish: targetCommitish,
+            targetCommitish: targetCommitish ?? "",
             tagName: tagName
         );
         var release = await _client.RepoCreateReleaseAsync(RepoOwner, RepoName, newReleaseReq).ConfigureAwait(false);

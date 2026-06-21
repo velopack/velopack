@@ -1,4 +1,4 @@
-using Azure;
+﻿using Azure;
 using Azure.Storage;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -11,17 +11,17 @@ namespace Velopack.Deployment;
 
 public class AzureDownloadOptions : RepositoryOptions
 {
-    public string Account { get; set; }
+    public required string Account { get; set; }
 
-    public string Key { get; set; }
+    public required string Key { get; set; }
 
-    public string Endpoint { get; set; }
+    public required string Endpoint { get; set; }
 
-    public string Container { get; set; }
+    public required string Container { get; set; }
 
-    public string SasToken { get; set; }
+    public required string SasToken { get; set; }
 
-    public string Prefix { get; set; }
+    public required string Prefix { get; set; }
 }
 
 public class AzureUploadOptions : AzureDownloadOptions, IObjectUploadOptions
@@ -81,7 +81,7 @@ public class AzureObjectStoreClient(BlobContainerClient client, string prefix, I
         return new AzureObjectStoreClient(containerClient, ObjectStoreUtil.NormalizePrefix(options.Prefix), logger);
     }
 
-    protected override async Task<RemoteObjectInfo> GetRemoteObjectInfoAsync(string key)
+    protected override async Task<RemoteObjectInfo?> GetRemoteObjectInfoAsync(string key)
     {
         var properties = await GetBlobClient(key).GetPropertiesAsync();
         var stored = properties.Value.ContentHash;

@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
@@ -9,9 +9,9 @@ namespace Velopack.Deployment;
 
 public class HttpDownloadOptions : RepositoryOptions
 {
-    public string Url { get; set; }
+    public required string Url { get; set; }
 
-    public string[] Headers { get; set; }
+    public string?[]? Headers { get; set; }
 
     public bool AllowEmptyChannel { get; set; }
 }
@@ -23,7 +23,7 @@ public sealed class HttpDownloadOptionsValidator : RepositoryOptionsValidator<Ht
         RuleFor(x => x.Url).NotEmpty().MustBeValidHttpUri();
         // the header value is deliberately not echoed back in the message, because it may contain a secret
         RuleForEach(x => x.Headers)
-            .Must(h => !string.IsNullOrWhiteSpace(h) && h.IndexOf(':') > 0 && !string.IsNullOrWhiteSpace(h.Substring(0, h.IndexOf(':'))))
+            .Must(h => !string.IsNullOrWhiteSpace(h) && h.IndexOf(':') > 0 && !string.IsNullOrWhiteSpace(h[..h.IndexOf(':')]))
             .WithMessage("{PropertyName} must be in the format 'Name: Value'.");
     }
 }
@@ -33,7 +33,7 @@ public sealed class HttpDownloadOptionsValidator : RepositoryOptionsValidator<Ht
 /// </summary>
 public class StaticHeadersFileDownloader(IDictionary<string, string> customHeaders) : HttpClientFileDownloader
 {
-    protected override HttpClient CreateHttpClient(IDictionary<string, string> headers, double timeout)
+    protected override HttpClient CreateHttpClient(IDictionary<string, string>? headers, double timeout)
     {
         var client = base.CreateHttpClient(headers, timeout);
         foreach (var header in customHeaders) {
@@ -64,7 +64,7 @@ public class HttpDownloadCommandRunner(ILogger logger)
         }
     }
 
-    internal static Dictionary<string, string> ParseHeaders(string[] headers)
+    internal static Dictionary<string, string> ParseHeaders(string?[]? headers)
     {
         var result = new Dictionary<string, string>();
         foreach (var header in headers ?? []) {
@@ -74,7 +74,7 @@ public class HttpDownloadCommandRunner(ILogger logger)
                 throw new UserInfoException("Invalid header, must be in the format 'Name: Value'.");
             }
 
-            result[header.Substring(0, idx).Trim()] = header.Substring(idx + 1).Trim();
+            result[header![..idx].Trim()] = header[(idx + 1)..].Trim();
         }
 
         return result;

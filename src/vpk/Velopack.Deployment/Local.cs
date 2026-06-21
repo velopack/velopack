@@ -1,4 +1,4 @@
-using FluentValidation;
+﻿using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Velopack.Core;
 using Velopack.Core.Validation;
@@ -10,7 +10,7 @@ namespace Velopack.Deployment;
 
 public class LocalDownloadOptions : RepositoryOptions
 {
-    public DirectoryInfo TargetPath { get; set; }
+    public required DirectoryInfo TargetPath { get; set; }
 }
 
 public class LocalUploadOptions : LocalDownloadOptions, IObjectUploadOptions
@@ -50,15 +50,15 @@ public sealed class LocalUploadOptionsValidator : LocalDownloadOptionsValidator<
 public class LocalObjectStoreClient(DirectoryInfo targetPath, ILogger logger)
     : ObjectStoreClient(logger)
 {
-    protected override Task<RemoteObjectInfo> GetRemoteObjectInfoAsync(string key)
+    protected override Task<RemoteObjectInfo?> GetRemoteObjectInfoAsync(string key)
     {
         var target = Path.Combine(targetPath.FullName, key);
         if (!File.Exists(target)) {
-            return Task.FromResult<RemoteObjectInfo>(null);
+            return Task.FromResult<RemoteObjectInfo?>(null);
         }
 
         var md5 = Convert.ToHexString(ObjectStoreUtil.GetFileMD5Checksum(target)).ToLowerInvariant();
-        return Task.FromResult(new RemoteObjectInfo { Md5Hex = md5 });
+        return Task.FromResult<RemoteObjectInfo?>(new RemoteObjectInfo { Md5Hex = md5 });
     }
 
     protected override Task UploadObjectCoreAsync(string key, FileInfo file, bool overwriteRemote, bool noCache)

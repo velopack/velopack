@@ -43,11 +43,7 @@ public class GitHubHttpClient : IHttpClient
         if (_client == null) {
             throw new ObjectDisposedException(nameof(GitHubHttpClient));
         }
-
-        if (request == null) {
-            throw new ArgumentNullException(nameof(request));
-        }
-
+        ArgumentNullException.ThrowIfNull(request);
 
         using var requestMessage = BuildRequestMessage(request);
         var responseMessage = await SendAsync(requestMessage).ConfigureAwait(false);
@@ -196,7 +192,7 @@ public class GitHubHttpClient : IHttpClient
                 content.Dispose();
             }
 
-            if (!(preprocessResponseBody is null))
+            if (preprocessResponseBody is not null)
                 responseBody = preprocessResponseBody(responseBody);
         }
 
@@ -300,8 +296,8 @@ public class GitHubHttpClient : IHttpClient
 #endif
             RegexOptions.IgnoreCase;
 
-        static readonly Regex _linkRelRegex = new Regex("rel=\"(next|prev|first|last)\"", regexOptions);
-        static readonly Regex _linkUriRegex = new Regex("<(.+)>", regexOptions);
+        static readonly Regex _linkRelRegex = new("rel=\"(next|prev|first|last)\"", regexOptions);
+        static readonly Regex _linkUriRegex = new("<(.+)>", regexOptions);
 
         static KeyValuePair<string, string> LookupHeader(IDictionary<string, string> headers, string key)
         {
@@ -326,7 +322,7 @@ public class GitHubHttpClient : IHttpClient
             if (Exists(acceptedOauthScopesKey)) {
                 acceptedOauthScopes.AddRange(
                     acceptedOauthScopesKey.Value
-                        .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Split([','], StringSplitOptions.RemoveEmptyEntries)
                         .Select(x => x.Trim()));
             }
 
@@ -334,7 +330,7 @@ public class GitHubHttpClient : IHttpClient
             if (Exists(oauthScopesKey)) {
                 oauthScopes.AddRange(
                     oauthScopesKey.Value
-                        .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Split([','], StringSplitOptions.RemoveEmptyEntries)
                         .Select(x => x.Trim()));
             }
 
