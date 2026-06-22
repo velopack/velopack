@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
+using System.Threading;
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +25,7 @@ using Velopack.Vpk.Commands.Flow;
 using Velopack.Vpk.Commands.Packaging;
 using Velopack.Vpk.Converters;
 using Velopack.Vpk.Logging;
+using Velopack.Vpk.Telemetry;
 using Velopack.Vpk.Updates;
 
 namespace Velopack.Vpk;
@@ -49,6 +51,11 @@ public class Program
         = new Option<bool>("--skip-updates")
         .SetRecursive(true)
         .SetDescription("Skip update checks");
+
+    public static Option<bool> NoTelemetryOption { get; }
+        = new Option<bool>("--no-telemetry")
+        .SetRecursive(true)
+        .SetDescription("Disable telemetry for this invocation.");
 
     public static Directive WindowsDirective { get; } = new Directive("win") {
         Description = "Show and run Windows specific commands."
@@ -78,6 +85,7 @@ public class Program
         rootCommand.Options.Add(YesOption);
         rootCommand.Options.Add(VerboseOption);
         rootCommand.Options.Add(SkipUpdatesOption);
+        rootCommand.Options.Add(NoTelemetryOption);
         rootCommand.Directives.Add(WindowsDirective);
         rootCommand.Directives.Add(LinuxDirective);
         rootCommand.Directives.Add(OsxDirective);
@@ -94,6 +102,7 @@ public class Program
         bool directiveLinux = parseResult.GetResult(LinuxDirective) != null;
         bool directiveOsx = parseResult.GetResult(OsxDirective) != null;
         bool skipUpdates = parseResult.GetValue(SkipUpdatesOption);
+        bool noTelemetry = parseResult.GetValue(NoTelemetryOption);
         rootCommand.TreatUnmatchedTokensAsErrors = true;
 
         var builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings {
@@ -120,7 +129,7 @@ public class Program
             targetOs = RuntimeOs.OSX;
         }
 
-        builder.Services.AddSingleton(new VelopackDefaults(defaultYes, targetOs, skipUpdates));
+        builder.Services.AddSingleton(new VelopackDefaults(defaultYes, targetOs, skipUpdates, !noTelemetry));
 
         var host = builder.Build();
         var provider = host.Services;
@@ -190,6 +199,7 @@ public class Program
         TypeDescriptor.AddAttributes(typeof(DirectoryInfo), new TypeConverterAttribute(typeof(DirectoryInfoConverter)));
         TypeDescriptor.AddAttributes(typeof(FileSystemInfo), new TypeConverterAttribute(typeof(FileSystemInfoConverter)));
         builder.Services.AddTransient(s => s.GetService<ILoggerFactory>().CreateLogger("vpk"));
+        builder.Services.AddSingleton<VpkTelemetry>();
     }
 
     private static void SetupLogging(HostApplicationBuilder builder, bool verbose, bool legacyConsole)
@@ -246,10 +256,20 @@ public static class ProgramCommandExtensions
             var config = provider.GetRequiredService<IConfiguration>();
             var defaults = provider.GetRequiredService<VelopackDefaults>();
             var logLevelSwitch = provider.GetRequiredService<LoggingLevelSwitch>();
+            var telemetry = provider.GetRequiredService<VpkTelemetry>();
 
             command.Initialize(logLevelSwitch);
 
             logger.LogInformation($"[bold]{Program.INTRO}[/]");
+            if (defaults.TelemetryEnabled) {
+                logger.LogInformation("[grey]Telemetry is enabled for this invocation. Use --no-telemetry to opt out.[/]");
+                if (!telemetry.IsConfigured) {
+                    logger.LogInformation(
+                        $"[grey]Set VPK_{VpkTelemetry.VpkConnectionStringConfigKey} (or {VpkTelemetry.AppInsightsConnectionStringConfigKey}) to send telemetry to Application Insights.[/]");
+                }
+            } else {
+                logger.LogInformation("[grey]Telemetry is disabled for this invocation via --no-telemetry.[/]");
+            }
             var updateCheck = new UpdateChecker(logger, defaults);
             await updateCheck.CheckForUpdates();
 
@@ -290,6 +310,7 @@ public static class ProgramCommandExtensions
                 }
 
                 await fn(options);
+                succeeded = true;
                 // print the out of date warning again at the end as well.
                 await updateCheck.CheckForUpdates();
                 return 0;
@@ -300,6 +321,9 @@ public static class ProgramCommandExtensions
             } catch (Exception ex) {
                 logger.Fatal(ex);
                 return -1;
+            } finally {
+                telemetry.TrackCommandInvocation(ctx, defaults, options, succeeded);
+                await telemetry.FlushAsync(CancellationToken.None);
             }
         });
         parent.Subcommands.Add(command);
