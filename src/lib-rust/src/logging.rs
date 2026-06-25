@@ -142,14 +142,14 @@ fn get_config(process_name: Option<&str>) -> Config {
     let prefix_heaped = Box::leak(prefix.into_boxed_str());
 
     let time_format: &'static [FormatItem<'static>] = Box::leak(Box::new([
-        FormatItem::Literal(prefix_heaped.as_bytes()),
-        FormatItem::Literal(b"["),
-        FormatItem::Component(Component::Hour(modifier::Hour::default())),
-        FormatItem::Literal(b":"),
+        FormatItem::StringLiteral(prefix_heaped),
+        FormatItem::StringLiteral("["),
+        FormatItem::Component(Component::Hour24(modifier::Hour24::default())),
+        FormatItem::StringLiteral(":"),
         FormatItem::Component(Component::Minute(modifier::Minute::default())),
-        FormatItem::Literal(b":"),
+        FormatItem::StringLiteral(":"),
         FormatItem::Component(Component::Second(modifier::Second::default())),
-        FormatItem::Literal(b"]"),
+        FormatItem::StringLiteral("]"),
     ]));
 
     c.set_time_format_custom(time_format);
