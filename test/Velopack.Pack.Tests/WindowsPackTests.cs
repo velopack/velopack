@@ -834,11 +834,8 @@ public class WindowsPackTests
     public void PackIncludesCorrectArchitectureBinaries(string architecture, AsmResolver.PE.File.MachineType expectedMachineType)
     {
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
-#if DEBUG
-        // Architecture-specific binary selection only happens in Release builds; DEBUG always
-        // uses the single host-built update.exe/setup.exe/stub.exe regardless of target arch.
-        Assert.Skip("Architecture-specific binary selection only applies to Release builds.");
-#else
+        Assert.SkipWhen(IsDebugBuild(), "Architecture-specific binary selection only applies to Release builds.");
+
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
         using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
@@ -862,7 +859,6 @@ public class WindowsPackTests
         var runner = WindowsTestHelper.GetPackRunner(logger);
         runner.Run(options).GetAwaiterResult();
 
-        // The update binary is shipped as Squirrel.exe inside the package — it must match the target arch.
         var nupkgPath = Path.Combine(tmpReleaseDir, $"{id}-{version}-full.nupkg");
         Assert.True(File.Exists(nupkgPath));
         EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), nupkgPath, unzipDir);
@@ -871,21 +867,24 @@ public class WindowsPackTests
         Assert.True(File.Exists(squirrelExePath), "Expected Squirrel.exe (Update.exe) in the package");
         AssertMachineType(squirrelExePath, expectedMachineType);
 
-        // The Setup.exe bootstrapper must also match the target arch. A 32-bit Setup.exe memory-maps
-        // its embedded package on a process where isize caps at ~2 GiB, so installing a package larger
-        // than 2 GiB fails with "memory map length overflows isize". Shipping a 64-bit Setup.exe lifts that.
         var setupPath = Path.Combine(tmpReleaseDir, $"{id}-win-Setup.exe");
         Assert.True(File.Exists(setupPath), "Expected Setup.exe in the release dir");
         AssertMachineType(setupPath, expectedMachineType);
+    }
+
+    private static bool IsDebugBuild()
+    {
+#if DEBUG
+        return true;
+#else
+        return false;
 #endif
     }
 
-#if !DEBUG
     private void AssertMachineType(string pePath, AsmResolver.PE.File.MachineType expected)
     {
         var actual = AsmResolver.PE.PEImage.FromFile(pePath).MachineType;
         _output.WriteLine($"{Path.GetFileName(pePath)} machine type: {actual}, expected: {expected}");
         Assert.Equal(expected, actual);
     }
-#endif
 }
