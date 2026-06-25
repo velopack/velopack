@@ -43,10 +43,8 @@ public class S3DownloadOptionsValidator<T> : RepositoryOptionsValidator<T> where
         RuleFor(x => x.Region)
             .Must((opt, region) => !string.IsNullOrEmpty(region) || !string.IsNullOrEmpty(opt.Endpoint))
             .WithMessage("At least one of 'region' and 'endpoint' options are required.")
-            .Must((opt, region) => string.IsNullOrEmpty(region) || string.IsNullOrEmpty(opt.Endpoint))
-            .WithMessage("Cannot use 'region' and 'endpoint' options together, please choose one.")
-            .Must(region => {
-                if (string.IsNullOrEmpty(region)) return true;
+            .Must((opt, region) => {
+                if (string.IsNullOrEmpty(region) || !string.IsNullOrEmpty(opt.Endpoint)) return true;
                 var r = RegionEndpoint.GetBySystemName(region);
                 return r is not null && r.DisplayName != "Unknown";
             })
@@ -89,6 +87,9 @@ public class S3ObjectStoreClient(AmazonS3Client client, string bucket, string pr
 
         if (options.Endpoint != null) {
             config.ServiceURL = options.Endpoint;
+            if (options.Region != null) {
+                config.AuthenticationRegion = options.Region;
+            }
             // if the endpoint is using https, and is _not_ an AWS endpoint, we can disable signing
             // not all providers support the AWS signing mechanism. the AWS SDK will refuse to upload
             // something which is not signed to an http endpoint which is why this is only done for https.

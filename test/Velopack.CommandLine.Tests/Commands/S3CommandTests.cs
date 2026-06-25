@@ -66,13 +66,23 @@ public abstract class S3CommandTests<T> : BaseCommandTests<T>
     }
 
     [Fact]
-    public void Command_WithBothRegionAndEndpoint_FailsValidation()
+    public void Command_WithBothRegionAndEndpoint_PassesValidation()
     {
-        var options = ParseAndMap($"--keyId \"some key\" --secret \"shhhh\" --region \"us-west-1\" --endpoint \"http://endpoint\" --bucket \"a-bucket\"");
+        var options = ParseAndMap($"--keyId \"some key\" --secret \"shhhh\" --region \"custom-region\" --endpoint \"http://endpoint\" --bucket \"a-bucket\"");
 
         var result = new S3DownloadOptionsValidator().Validate(options);
 
-        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("Cannot use 'region' and 'endpoint' options together"));
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Command_WithCustomRegionAndEndpoint_SkipsAwsRegionValidation()
+    {
+        var options = ParseAndMap($"--keyId \"some key\" --secret \"shhhh\" --region \"garage\" --endpoint \"http://my-s3:3900\" --bucket \"a-bucket\"");
+
+        var result = new S3DownloadOptionsValidator().Validate(options);
+
+        Assert.True(result.IsValid);
     }
 
     [Fact]
