@@ -206,7 +206,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
         List<string> filesToSign = new();
 
         var bundledZip = new ZipPackage(releasePkg);
-        IoUtil.Retry(() => File.Copy(HelperFile.GetSetupPath(Options.TargetRuntime), targetSetupExe, true));
+        IoUtil.Retry(() => File.Copy(HelperFile.GetSetupPath(Options.TargetRuntime, Log), targetSetupExe, true));
         setupExeProgress(10);
 
         var editor = new ResourceEdit(targetSetupExe, Log);
@@ -297,7 +297,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
         }
 
         try {
-            IoUtil.Retry(() => File.Copy(HelperFile.GetStubExecutablePath(Options.TargetRuntime), targetStubPath, true));
+            IoUtil.Retry(() => File.Copy(HelperFile.GetStubExecutablePath(Options.TargetRuntime, Log), targetStubPath, true));
             var edit = new ResourceEdit(targetStubPath, Log);
             edit.CopyResourcesFrom(exeToCopy);
             edit.Commit();
