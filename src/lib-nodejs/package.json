@@ -45,7 +45,7 @@
   ],
   "devDependencies": {
     "@tsconfig/node24": "24.0.4",
-    "@types/node": "25.9.3",
+    "@types/node": "25.9.4",
     "@vitest/coverage-v8": "4.1.9",
     "cross-env": "10.1.0",
     "del-cli": "7.0.0",
