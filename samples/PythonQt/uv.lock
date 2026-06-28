@@ -20,7 +20,7 @@ name = "importlib-metadata"
 version = "8.7.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "zipp", marker = "python_full_version < '3.10'" },
+    { name = "zipp" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f3/49/3b30cad09e7771a4982d9975a8cbf64f00d4a1ececb53297f1d9a7be1b10/importlib_metadata-8.7.1.tar.gz", hash = "sha256:49fef1ae6440c182052f407c8d34a68f72efc36db9ca90dc0113398f2fdde8bb", size = 57107, upload-time = "2025-12-21T10:00:19.278Z" }
 wheels = [
@@ -107,9 +107,9 @@ resolution-markers = [
     "python_full_version < '3.10'",
 ]
 dependencies = [
-    { name = "pyside6-addons", version = "6.10.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "pyside6-essentials", version = "6.10.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "shiboken6", version = "6.10.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pyside6-addons", version = "6.10.3", source = { registry = "https://pypi.org/simple" } },
+    { name = "pyside6-essentials", version = "6.10.3", source = { registry = "https://pypi.org/simple" } },
+    { name = "shiboken6", version = "6.10.3", source = { registry = "https://pypi.org/simple" } },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/dc/7a/0423ed0ac2794ae082c2cb303490cde245c880df6d6e4bd2f42633cb97e7/pyside6-6.10.3-cp39-abi3-macosx_13_0_universal2.whl", hash = "sha256:2d31695fcce3c89ffc621011c6409c0ba1930000d7172dea48994a7744205deb", size = 563312, upload-time = "2026-04-02T08:51:11.566Z" },
@@ -127,10 +127,10 @@ resolution-markers = [
     "python_full_version >= '3.10'",
 ]
 dependencies = [
-    { name = "pyside6-addons", version = "6.11.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "pyside6-essentials", version = "6.11.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "shiboken6", version = "6.11.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "tomli", marker = "python_full_version == '3.10.*'" },
+    { name = "pyside6-addons", version = "6.11.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "pyside6-essentials", version = "6.11.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "shiboken6", version = "6.11.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/da/a6/27ba5947ed48918f7b74b7c43a1e280aac069e36f25adeb4c9adfac835c4/pyside6-6.11.1-cp310-abi3-macosx_13_0_universal2.whl", hash = "sha256:537682c3b7530817203e667c1f5a2f00486b37bf52c52eeab438544c7a0917f6", size = 571921, upload-time = "2026-05-13T09:47:36.402Z" },
@@ -148,8 +148,8 @@ resolution-markers = [
     "python_full_version < '3.10'",
 ]
 dependencies = [
-    { name = "pyside6-essentials", version = "6.10.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "shiboken6", version = "6.10.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pyside6-essentials", version = "6.10.3", source = { registry = "https://pypi.org/simple" } },
+    { name = "shiboken6", version = "6.10.3", source = { registry = "https://pypi.org/simple" } },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6b/ca/e898773690b41908d83b137e8ef08e3de7c6b22b5fdff3074bade12af2b3/pyside6_addons-6.10.3-cp39-abi3-macosx_13_0_universal2.whl", hash = "sha256:f2a2e3a7650cd1599996871da5bea76b7fb4b219bc2b4f7927739e86bc1fb9d9", size = 322840060, upload-time = "2026-04-02T08:47:23.58Z" },
@@ -167,8 +167,8 @@ resolution-markers = [
     "python_full_version >= '3.10'",
 ]
 dependencies = [
-    { name = "pyside6-essentials", version = "6.11.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "shiboken6", version = "6.11.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pyside6-essentials", version = "6.11.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "shiboken6", version = "6.11.1", source = { registry = "https://pypi.org/simple" } },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3f/6b/8bc94aff48b63f788f2d84e5467c12362d68906ba742c0942f46cb04c879/pyside6_addons-6.11.1-cp310-abi3-macosx_13_0_universal2.whl", hash = "sha256:54733c77f789bef5f03c6aff4ad3bec8b2eff021f0cfcbc53d5e6c250ded24f9", size = 331714589, upload-time = "2026-05-13T09:39:12.36Z" },
@@ -186,7 +186,7 @@ resolution-markers = [
     "python_full_version < '3.10'",
 ]
 dependencies = [
-    { name = "shiboken6", version = "6.10.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "shiboken6", version = "6.10.3", source = { registry = "https://pypi.org/simple" } },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/11/09/b14fae948aa38140079dd585c4c11fe42f12ef3be5a417603512547c232f/pyside6_essentials-6.10.3-cp39-abi3-macosx_13_0_universal2.whl", hash = "sha256:8d7e2b826ac7f043dbfff487552c220517003927f6cfa14ab6a4824e8623a686", size = 106014872, upload-time = "2026-04-02T08:48:41.107Z" },
@@ -204,7 +204,7 @@ resolution-markers = [
     "python_full_version >= '3.10'",
 ]
 dependencies = [
-    { name = "shiboken6", version = "6.11.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "shiboken6", version = "6.11.1", source = { registry = "https://pypi.org/simple" } },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/da/10d9197e7370eb4fed8df5fc547b7548dec88e5c5949e2d450db4ae96feb/pyside6_essentials-6.11.1-cp310-abi3-macosx_13_0_universal2.whl", hash = "sha256:228de53c2bc26b07e5021fbe3614fc44ca08e4dab9999af08c2b389d2c239957", size = 110352945, upload-time = "2026-05-13T09:43:08.006Z" },
