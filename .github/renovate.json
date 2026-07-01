@@ -48,6 +48,15 @@
       "matchFileNames": ["src/**"]
     },
     {
+      // Microsoft.* / System.* first-party packages get their own group (non-test).
+      // Placed after the catch-all above so it overrides the group for these packages;
+      // everything else remains in "dotnet packages".
+      "groupName": "dotnet microsoft packages",
+      "matchDatasources": "nuget",
+      "matchFileNames": ["src/**"],
+      "matchPackageNames": ["/^Microsoft\\./i", "/^System\\./i"]
+    },
+    {
       "groupName": "dotnet test packages",
       "matchDatasources": "nuget",
       "matchFileNames": ["test/**"]
