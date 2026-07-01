@@ -5,7 +5,7 @@ use libc::{c_char, c_void, size_t};
 use std::ffi::{CStr, CString};
 use std::mem::size_of;
 use std::path::PathBuf;
-use velopack::{locator::VelopackLocatorConfig, HttpOptions, UpdateInfo, UpdateOptions, VelopackAsset};
+use velopack::{locator::VelopackLocatorConfig, HttpHeader, HttpOptions, UpdateInfo, UpdateOptions, VelopackAsset};
 
 /// The result of a call to check for updates. This can indicate that an update is available, or that an error occurred.
 #[repr(i8)]
@@ -45,40 +45,6 @@ pub type vpkc_free_release_feed_t = Option<extern "C" fn(p_user_data: *mut c_voi
 pub type vpkc_download_asset_delegate_t = Option<
     extern "C" fn(p_user_data: *mut c_void, p_asset: *const vpkc_asset_t, psz_local_path: *const c_char, progress_callback_id: size_t) -> bool,
 >;
-
-/// Options to customize HTTP requests (custom headers, timeout, etc).
-#[repr(C)]
-pub struct vpkc_http_options_t {
-    /// Optional array of custom header names, parallel to HeaderValues. May be null if HeaderCount is 0.
-    pub HeaderNames: *mut *mut c_char,
-    /// Optional array of custom header values, parallel to HeaderNames. May be null if HeaderCount is 0.
-    pub HeaderValues: *mut *mut c_char,
-    /// The number of entries in HeaderNames / HeaderValues.
-    pub HeaderCount: size_t,
-    /// Request timeout in milliseconds. 0 means requests never time out.
-    pub TimeoutMilliseconds: u64,
-}
-
-pub fn c_to_HttpOptions(obj: *const vpkc_http_options_t) -> Result<HttpOptions> {
-    if obj.is_null() {
-        return Ok(HttpOptions::default());
-    }
-    let obj = unsafe { &*obj };
-    let names = c_to_String_vec(obj.HeaderNames, obj.HeaderCount)?;
-    let values = c_to_String_vec(obj.HeaderValues, obj.HeaderCount)?;
-    if names.len() != values.len() {
-        bail!("HeaderNames and HeaderValues must have the same number of entries.");
-    }
-    let timeout = if obj.TimeoutMilliseconds > 0 {
-        Some(std::time::Duration::from_millis(obj.TimeoutMilliseconds))
-    } else {
-        None
-    };
-    Ok(HttpOptions {
-        headers: names.into_iter().zip(values).collect(),
-        timeout,
-    })
-}
 
 pub fn c_to_String(psz: *const c_char) -> Result<String> {
     if psz.is_null() {
@@ -144,6 +110,179 @@ pub fn return_cstr(psz: *mut c_char, c: size_t, s: &str) -> size_t {
 }
 
 // !! AUTO-GENERATED-START RUST_TYPES
+#[rustfmt::skip]
+#[repr(C)]
+/// A single HTTP header (name and value pair) to be sent with a web request.
+pub struct vpkc_http_header_t {
+    /// The name of the HTTP header (eg. "Authorization").
+    pub Name: *mut c_char,
+    /// The value of the HTTP header.
+    pub Value: *mut c_char,
+}
+
+#[rustfmt::skip]
+pub fn c_to_HttpHeader(obj: *mut vpkc_http_header_t) -> Result<HttpHeader> {
+    if obj.is_null() { bail!("Null pointer: HttpHeader must be set."); }
+    let obj = unsafe { &*obj };
+    let result = HttpHeader {
+        Name: c_to_String(obj.Name)?,
+        Value: c_to_String(obj.Value)?,
+    };
+    Ok(result)
+}
+
+#[rustfmt::skip]
+pub fn c_to_HttpHeader_vec(obj: *mut *mut vpkc_http_header_t, count: size_t) -> Result<Vec<HttpHeader>> {
+    if obj.is_null() || count == 0 { return Ok(Vec::new()); }
+    let mut assets = Vec::with_capacity(count as usize);
+    for i in 0..count {
+        let ptr = unsafe { *obj.add(i as usize) };
+        assets.push(c_to_HttpHeader(ptr)?);
+    }
+    Ok(assets)
+}
+
+#[rustfmt::skip]
+pub unsafe fn allocate_HttpHeader<'a, T: Into<Option<&'a HttpHeader>>>(dto: T) -> *mut vpkc_http_header_t {
+    let dto = dto.into();
+    if dto.is_none() {
+        return std::ptr::null_mut();
+    }
+    log::debug!("vpkc_http_header_t allocated");
+    let dto = dto.unwrap();
+    let obj = libc::malloc(size_of::<vpkc_http_header_t>()) as *mut vpkc_http_header_t;
+    (*obj).Name = allocate_String(&dto.Name);
+    (*obj).Value = allocate_String(&dto.Value);
+    obj
+}
+
+#[rustfmt::skip]
+pub unsafe fn allocate_HttpHeader_vec(dto: &Vec<HttpHeader>, count: *mut size_t) -> *mut *mut vpkc_http_header_t {
+    if dto.is_empty() {
+        *count = 0;
+        return std::ptr::null_mut(); 
+    }
+    log::debug!("vpkc_http_header_t vector allocated");
+    let count_value = dto.len() as size_t;
+    *count = count_value;
+    let mut assets = Vec::with_capacity(count_value as usize);
+    for i in 0..count_value {
+        let ptr = allocate_HttpHeader(&dto[i as usize]);
+        assets.push(ptr);
+    }
+    let ptr = assets.as_mut_ptr();
+    std::mem::forget(assets);
+    ptr
+}
+
+#[rustfmt::skip]
+pub unsafe fn free_HttpHeader(obj: *mut vpkc_http_header_t) {
+    if obj.is_null() { return; }
+    free_String((*obj).Name);
+    free_String((*obj).Value);
+    libc::free(obj as *mut c_void);
+    log::debug!("vpkc_http_header_t freed");
+}
+
+#[rustfmt::skip]
+pub unsafe fn free_HttpHeader_vec(obj: *mut *mut vpkc_http_header_t, count: size_t) {
+    if obj.is_null() || count == 0 { return; }
+    let vec = Vec::from_raw_parts(obj, count as usize, count as usize);
+    for i in 0..count {
+        let ptr = *vec.get_unchecked(i as usize);
+        free_HttpHeader(ptr);
+    }
+    log::debug!("vpkc_http_header_t vector freed");
+}
+
+#[rustfmt::skip]
+#[repr(C)]
+/// Options to customize HTTP requests (custom headers, timeout, etc).
+pub struct vpkc_http_options_t {
+    /// Additional headers to send with each request.
+    pub Headers: *mut *mut vpkc_http_header_t,
+    /// The number of elements in the Headers array.
+    pub HeadersCount: size_t,
+    /// Timeout applied to the entire request (connection + transfer), in milliseconds.
+    /// The default of 0 means requests never time out.
+    pub TimeoutMilliseconds: u64,
+}
+
+#[rustfmt::skip]
+pub fn c_to_HttpOptions(obj: *mut vpkc_http_options_t) -> Result<HttpOptions> {
+    if obj.is_null() { bail!("Null pointer: HttpOptions must be set."); }
+    let obj = unsafe { &*obj };
+    let result = HttpOptions {
+        Headers: c_to_HttpHeader_vec(obj.Headers, obj.HeadersCount)?,
+        TimeoutMilliseconds: obj.TimeoutMilliseconds,
+    };
+    Ok(result)
+}
+
+#[rustfmt::skip]
+pub fn c_to_HttpOptions_vec(obj: *mut *mut vpkc_http_options_t, count: size_t) -> Result<Vec<HttpOptions>> {
+    if obj.is_null() || count == 0 { return Ok(Vec::new()); }
+    let mut assets = Vec::with_capacity(count as usize);
+    for i in 0..count {
+        let ptr = unsafe { *obj.add(i as usize) };
+        assets.push(c_to_HttpOptions(ptr)?);
+    }
+    Ok(assets)
+}
+
+#[rustfmt::skip]
+pub unsafe fn allocate_HttpOptions<'a, T: Into<Option<&'a HttpOptions>>>(dto: T) -> *mut vpkc_http_options_t {
+    let dto = dto.into();
+    if dto.is_none() {
+        return std::ptr::null_mut();
+    }
+    log::debug!("vpkc_http_options_t allocated");
+    let dto = dto.unwrap();
+    let obj = libc::malloc(size_of::<vpkc_http_options_t>()) as *mut vpkc_http_options_t;
+    (*obj).Headers = allocate_HttpHeader_vec(&dto.Headers, &mut (*obj).HeadersCount);
+    (*obj).TimeoutMilliseconds = dto.TimeoutMilliseconds;
+    obj
+}
+
+#[rustfmt::skip]
+pub unsafe fn allocate_HttpOptions_vec(dto: &Vec<HttpOptions>, count: *mut size_t) -> *mut *mut vpkc_http_options_t {
+    if dto.is_empty() {
+        *count = 0;
+        return std::ptr::null_mut(); 
+    }
+    log::debug!("vpkc_http_options_t vector allocated");
+    let count_value = dto.len() as size_t;
+    *count = count_value;
+    let mut assets = Vec::with_capacity(count_value as usize);
+    for i in 0..count_value {
+        let ptr = allocate_HttpOptions(&dto[i as usize]);
+        assets.push(ptr);
+    }
+    let ptr = assets.as_mut_ptr();
+    std::mem::forget(assets);
+    ptr
+}
+
+#[rustfmt::skip]
+pub unsafe fn free_HttpOptions(obj: *mut vpkc_http_options_t) {
+    if obj.is_null() { return; }
+    free_HttpHeader_vec((*obj).Headers, (*obj).HeadersCount);
+    
+    libc::free(obj as *mut c_void);
+    log::debug!("vpkc_http_options_t freed");
+}
+
+#[rustfmt::skip]
+pub unsafe fn free_HttpOptions_vec(obj: *mut *mut vpkc_http_options_t, count: size_t) {
+    if obj.is_null() || count == 0 { return; }
+    let vec = Vec::from_raw_parts(obj, count as usize, count as usize);
+    for i in 0..count {
+        let ptr = *vec.get_unchecked(i as usize);
+        free_HttpOptions(ptr);
+    }
+    log::debug!("vpkc_http_options_t vector freed");
+}
+
 #[rustfmt::skip]
 #[repr(C)]
 /// VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).

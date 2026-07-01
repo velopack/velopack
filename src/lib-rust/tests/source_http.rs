@@ -4,11 +4,11 @@ use common::*;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 use velopack::sources::{HttpSource, UpdateSource};
-use velopack::HttpOptions;
+use velopack::{HttpHeader, HttpOptions};
 
-fn timeout_options(timeout: Duration) -> HttpOptions {
+fn timeout_options(timeout_milliseconds: u64) -> HttpOptions {
     HttpOptions {
-        timeout: Some(timeout),
+        TimeoutMilliseconds: timeout_milliseconds,
         ..Default::default()
     }
 }
@@ -68,7 +68,7 @@ fn feed_server_error() {
 
 #[test]
 fn feed_timeout_errors() {
-    let source = HttpSource::new_with_options(hanging_server_url(Duration::from_secs(2)), timeout_options(Duration::from_millis(100)));
+    let source = HttpSource::new_with_options(hanging_server_url(Duration::from_secs(2)), timeout_options(100));
     let manifest = test_manifest();
     let started = Instant::now();
     let result = source.get_release_feed("stable", &manifest, "");
@@ -88,7 +88,10 @@ fn feed_sends_custom_headers() {
     });
 
     let options = HttpOptions {
-        headers: vec![("Authorization".to_string(), "Bearer token123".to_string())],
+        Headers: vec![HttpHeader {
+            Name: "Authorization".to_string(),
+            Value: "Bearer token123".to_string(),
+        }],
         ..Default::default()
     };
     let source = HttpSource::new_with_options(&server.url(), options);
@@ -99,7 +102,7 @@ fn feed_sends_custom_headers() {
 
 #[test]
 fn download_timeout_errors() {
-    let source = HttpSource::new_with_options(hanging_server_url(Duration::from_secs(2)), timeout_options(Duration::from_millis(100)));
+    let source = HttpSource::new_with_options(hanging_server_url(Duration::from_secs(2)), timeout_options(100));
     let asset = sample_asset();
 
     let dir = tempfile::tempdir().unwrap();

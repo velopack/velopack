@@ -5,14 +5,25 @@ use std::time::Duration;
 
 use crate::{misc, Error};
 
+/// A single HTTP header (name and value pair) to be sent with a web request.
+#[allow(non_snake_case)]
+#[derive(Debug, Clone, Default)]
+pub struct HttpHeader {
+    /// The name of the HTTP header (eg. "Authorization").
+    pub Name: String,
+    /// The value of the HTTP header.
+    pub Value: String,
+}
+
 /// Options to customize HTTP requests (custom headers, timeout, etc).
+#[allow(non_snake_case)]
 #[derive(Debug, Clone, Default)]
 pub struct HttpOptions {
-    /// Additional headers to send with each request, as (name, value) pairs.
-    pub headers: Vec<(String, String)>,
-    /// Optional timeout applied to the entire request (connection + transfer).
-    /// If None, requests never time out.
-    pub timeout: Option<Duration>,
+    /// Additional headers to send with each request.
+    pub Headers: Vec<HttpHeader>,
+    /// Timeout applied to the entire request (connection + transfer), in milliseconds.
+    /// The default of 0 means requests never time out.
+    pub TimeoutMilliseconds: u64,
 }
 
 /// Downloads a file from a URL and writes it to a file while reporting progress from 0-100.
@@ -24,8 +35,8 @@ where
     let agent = get_download_agent(options)?;
     let mut req = agent.get(url);
     if let Some(options) = options {
-        for (name, value) in &options.headers {
-            req = req.header(name, value);
+        for header in &options.Headers {
+            req = req.header(&header.Name, &header.Value);
         }
     }
     let (head, body) = req.call()?.into_parts();
@@ -70,8 +81,8 @@ pub fn download_url_as_string(url: &str, options: Option<&HttpOptions>) -> Resul
     let agent = get_download_agent(options)?;
     let mut req = agent.get(url);
     if let Some(options) = options {
-        for (name, value) in &options.headers {
-            req = req.header(name, value);
+        for header in &options.Headers {
+            req = req.header(&header.Name, &header.Value);
         }
     }
     let r = req.call()?.body_mut().read_to_string()?;
@@ -83,8 +94,9 @@ fn get_download_agent(options: Option<&HttpOptions>) -> Result<ureq::Agent, Erro
     // let tls_connector = tls_builder.build()?;
     // Ok(ureq::AgentBuilder::new().tls_connector(tls_connector.into()).build())
     let mut config = ureq::Agent::config_builder();
-    if let Some(timeout) = options.and_then(|o| o.timeout) {
-        config = config.timeout_global(Some(timeout));
+    let timeout_ms = options.map(|o| o.TimeoutMilliseconds).unwrap_or(0);
+    if timeout_ms > 0 {
+        config = config.timeout_global(Some(Duration::from_millis(timeout_ms)));
     }
     Ok(config.build().into())
 }
