@@ -422,7 +422,7 @@ impl RuntimeInfo for DotnetInfo {
         };
 
         let get_latest_url = format!("{DOTNET_UNCACHED_FEED}/{latest_runtime_str}/{major}.{minor}/latest.version");
-        let version = download::download_url_as_string(&get_latest_url)?;
+        let version = download::download_url_as_string(&get_latest_url, None)?;
         let version = version.trim();
         let cpu_arch_str = match self.architecture {
             RuntimeArch::X86 => "x86",

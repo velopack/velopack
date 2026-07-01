@@ -10,6 +10,7 @@ __all__ = [
     "GiteaSource",
     "GithubSource",
     "GitlabSource",
+    "HttpOptions",
     "HttpSource",
     "UpdateInfo",
     "UpdateManager",
@@ -105,13 +106,25 @@ class GitlabSource:
         """
 
 @typing.final
+class HttpOptions:
+    r"""
+    Options to customize HTTP requests (custom headers, timeout, etc).
+    """
+    def __new__(cls, headers: typing.Optional[typing.Mapping[builtins.str, builtins.str]] = None, timeout_seconds: typing.Optional[builtins.float] = None) -> HttpOptions:
+        r"""
+        Create a new HttpOptions.
+        - `headers`: Optional additional headers to send with each request.
+        - `timeout_seconds`: Optional request timeout. If None, requests never time out.
+        """
+
+@typing.final
 class HttpSource:
     r"""
     Retrieves updates from a static file host or other web server.
     """
-    def __new__(cls, url: builtins.str, timeout_seconds: typing.Optional[builtins.int] = None) -> HttpSource:
+    def __new__(cls, url: builtins.str, options: typing.Optional[HttpOptions] = None) -> HttpSource:
         r"""
-        Create a new HttpSource with the specified base URL and optional request timeout.
+        Create a new HttpSource with the specified base URL and optional HTTP options.
         """
 
 @typing.final

@@ -5,42 +5,36 @@ use std::time::Duration;
 
 use crate::{misc, Error};
 
+/// Options to customize HTTP requests (custom headers, timeout, etc).
+#[derive(Debug, Clone, Default)]
+pub struct HttpOptions {
+    /// Additional headers to send with each request, as (name, value) pairs.
+    pub headers: Vec<(String, String)>,
+    /// Optional timeout applied to the entire request (connection + transfer).
+    /// If None, requests never time out.
+    pub timeout: Option<Duration>,
+}
+
 /// Downloads a file from a URL and writes it to a file while reporting progress from 0-100.
-pub fn download_url_to_file<A, S: AsRef<Path>>(url: &str, file_path: S, progress: A) -> Result<(), Error>
-where
-    A: FnMut(i16),
-{
-    download_url_to_file_with_headers(url, file_path, &[], progress)
-}
-
-/// Downloads a file from a URL with custom headers and writes it to a file while reporting progress from 0-100.
-pub fn download_url_to_file_with_headers<A, S: AsRef<Path>>(url: &str, file_path: S, headers: &[(&str, &str)], progress: A) -> Result<(), Error>
-where
-    A: FnMut(i16),
-{
-    download_url_to_file_with_headers_and_timeout(url, file_path, headers, None, progress)
-}
-
-/// Downloads a file from a URL with custom headers, an optional timeout, and progress reporting from 0-100.
-pub fn download_url_to_file_with_headers_and_timeout<A, S: AsRef<Path>>(
-    url: &str,
-    file_path: S,
-    headers: &[(&str, &str)],
-    timeout: Option<Duration>,
-    mut progress: A,
-) -> Result<(), Error>
+pub fn download_url_to_file<A, S: AsRef<Path>>(url: &str, file_path: S, options: Option<&HttpOptions>, mut progress: A) -> Result<(), Error>
 where
     A: FnMut(i16),
 {
     let file_path = file_path.as_ref();
-    let agent = get_download_agent(timeout)?;
+    let agent = get_download_agent(options)?;
     let mut req = agent.get(url);
-    for &(name, value) in headers {
-        req = req.header(name, value);
+    if let Some(options) = options {
+        for (name, value) in &options.headers {
+            req = req.header(name, value);
+        }
     }
     let (head, body) = req.call()?.into_parts();
 
-    let total_size = head.headers.get("Content-Length").and_then(|s| s.to_str().ok()).and_then(|s| s.parse::<u64>().ok());
+    let total_size = head
+        .headers
+        .get("Content-Length")
+        .and_then(|s| s.to_str().ok())
+        .and_then(|s| s.parse::<u64>().ok());
     let mut file = misc::retry_io(|| File::create(file_path))?;
 
     const CHUNK_SIZE: usize = 2 * 1024 * 1024; // 2MB
@@ -72,32 +66,24 @@ where
 }
 
 /// Downloads a file from a URL and returns it as a string.
-pub fn download_url_as_string(url: &str) -> Result<String, Error> {
-    download_url_as_string_with_headers(url, &[])
-}
-
-/// Downloads a file from a URL with custom headers and returns it as a string.
-pub fn download_url_as_string_with_headers(url: &str, headers: &[(&str, &str)]) -> Result<String, Error> {
-    download_url_as_string_with_headers_and_timeout(url, headers, None)
-}
-
-/// Downloads a file from a URL with custom headers and an optional timeout, and returns it as a string.
-pub fn download_url_as_string_with_headers_and_timeout(url: &str, headers: &[(&str, &str)], timeout: Option<Duration>) -> Result<String, Error> {
-    let agent = get_download_agent(timeout)?;
+pub fn download_url_as_string(url: &str, options: Option<&HttpOptions>) -> Result<String, Error> {
+    let agent = get_download_agent(options)?;
     let mut req = agent.get(url);
-    for &(name, value) in headers {
-        req = req.header(name, value);
+    if let Some(options) = options {
+        for (name, value) in &options.headers {
+            req = req.header(name, value);
+        }
     }
     let r = req.call()?.body_mut().read_to_string()?;
     Ok(r)
 }
 
-fn get_download_agent(timeout: Option<Duration>) -> Result<ureq::Agent, Error> {
+fn get_download_agent(options: Option<&HttpOptions>) -> Result<ureq::Agent, Error> {
     // let tls_builder = native_tls::TlsConnector::builder();
     // let tls_connector = tls_builder.build()?;
     // Ok(ureq::AgentBuilder::new().tls_connector(tls_connector.into()).build())
     let mut config = ureq::Agent::config_builder();
-    if let Some(timeout) = timeout {
+    if let Some(timeout) = options.and_then(|o| o.timeout) {
         config = config.timeout_global(Some(timeout));
     }
     Ok(config.build().into())
@@ -106,7 +92,7 @@ fn get_download_agent(timeout: Option<Duration>) -> Result<ureq::Agent, Error> {
 #[test]
 fn test_download_uses_tls_and_encoding_correctly() {
     assert_eq!(
-        download_url_as_string("https://dotnetcli.blob.core.windows.net/dotnet/WindowsDesktop/5.0/latest.version").unwrap(),
+        download_url_as_string("https://dotnetcli.blob.core.windows.net/dotnet/WindowsDesktop/5.0/latest.version", None).unwrap(),
         "5.0.17"
     );
 }
@@ -122,7 +108,7 @@ fn test_download_file_reports_progress() {
     let tmpfile = tempfile::NamedTempFile::new().unwrap();
     let tmppath = tmpfile.path();
 
-    download_url_to_file(test_file, Path::new(tmppath), |p| {
+    download_url_to_file(test_file, Path::new(tmppath), None, |p| {
         assert!(p >= last_prog);
         prog_count += 1;
         last_prog = p;
@@ -165,7 +151,7 @@ fn test_interrupted_download() {
     });
 
     let tmpfile = tempfile::NamedTempFile::new().unwrap();
-    let result = download_url_to_file(&format!("http://{}", addr), tmpfile.path(), |_| {});
+    let result = download_url_to_file(&format!("http://{}", addr), tmpfile.path(), None, |_| {});
 
     assert!(result.is_err(), "Download should fail due to connection interruption");
 }
@@ -196,7 +182,7 @@ fn test_successful_download() {
     });
 
     let tmpfile = tempfile::NamedTempFile::new().unwrap();
-    let _ = download_url_to_file(&format!("http://{}", addr), tmpfile.path(), |_| {}).unwrap();
+    let _ = download_url_to_file(&format!("http://{}", addr), tmpfile.path(), None, |_| {}).unwrap();
 
     // Verify that the downloaded file has the expected size
     let metadata = tmpfile.path().metadata().unwrap();
