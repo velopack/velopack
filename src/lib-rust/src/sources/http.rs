@@ -1,6 +1,7 @@
-use std::{path::Path, sync::mpsc::Sender, time::Duration};
+use std::{path::Path, sync::mpsc::Sender};
 
 use crate::bundle::Manifest;
+use crate::download::HttpOptions;
 use crate::*;
 
 use super::UpdateSource;
@@ -11,7 +12,7 @@ use super::UpdateSource;
 /// and provides query parameters to specify the name of the requested package.
 pub struct HttpSource {
     url: String,
-    timeout: Option<Duration>,
+    options: Option<HttpOptions>,
 }
 
 impl HttpSource {
@@ -19,19 +20,17 @@ impl HttpSource {
     pub fn new<S: AsRef<str>>(url: S) -> HttpSource {
         HttpSource {
             url: url.as_ref().to_owned(),
-            timeout: None,
+            options: None,
         }
     }
 
-    /// Create a new HttpSource with the specified base URL and request timeout.
-    pub fn new_with_timeout<S: AsRef<str>>(url: S, timeout: Duration) -> HttpSource {
-        HttpSource::new(url).with_timeout(timeout)
-    }
-
-    /// Sets the request timeout used when fetching release feeds and downloading packages.
-    pub fn with_timeout(mut self, timeout: Duration) -> HttpSource {
-        self.timeout = Some(timeout);
-        self
+    /// Create a new HttpSource with the specified base URL and custom HTTP options
+    /// (eg. request headers, timeout).
+    pub fn new_with_options<S: AsRef<str>>(url: S, options: HttpOptions) -> HttpSource {
+        HttpSource {
+            url: url.as_ref().to_owned(),
+            options: Some(options),
+        }
     }
 }
 
@@ -47,7 +46,7 @@ impl UpdateSource for HttpSource {
         ));
 
         info!("Downloading releases for channel {} from: {}", channel, releases_url);
-        let json = download::download_url_as_string_with_headers_and_timeout(releases_url.as_str(), &[], self.timeout)?;
+        let json = download::download_url_as_string(releases_url.as_str(), self.options.as_ref())?;
         let feed: VelopackAssetFeed = serde_json::from_str(&json)?;
         Ok(feed)
     }
@@ -58,7 +57,7 @@ impl UpdateSource for HttpSource {
         let asset_url = url.join(&asset.FileName)?;
 
         info!("About to download from URL '{}' to file '{:?}'", asset_url, local_file);
-        download::download_url_to_file_with_headers_and_timeout(asset_url.as_str(), local_file, &[], self.timeout, move |p| {
+        download::download_url_to_file(asset_url.as_str(), local_file, self.options.as_ref(), move |p| {
             if let Some(progress_sender) = &progress_sender {
                 let _ = progress_sender.send(p);
             }

@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <memory>
 #include <functional>
+#include <utility>
 
 #include "Velopack.h"
 
@@ -702,6 +703,16 @@ public:
 };
 
 /**
+ * Options to customize HTTP requests (custom headers, timeout, etc).
+ */
+struct HttpOptions {
+    /** Additional headers to send with each request, as (name, value) pairs. */
+    std::vector<std::pair<std::string, std::string>> Headers;
+    /** Optional request timeout in milliseconds. If not set, requests never time out. */
+    std::optional<uint64_t> TimeoutMilliseconds;
+};
+
+/**
  * A built-in update source that reads release feeds and downloads assets from a remote HTTP URL.
  */
 class HttpSource : public IUpdateSourcePointer {
@@ -711,6 +722,28 @@ public:
      * @param httpUrl The URL to the releases feed.
      */
     HttpSource(const std::string& httpUrl) : IUpdateSourcePointer(vpkc_new_source_http_url(httpUrl.c_str())) { }
+
+    /**
+     * Creates a new HttpSource with custom HTTP options.
+     * @param httpUrl The URL to the releases feed.
+     * @param options HTTP options (custom headers, timeout) applied to all requests made by this source.
+     */
+    HttpSource(const std::string& httpUrl, const HttpOptions& options) : IUpdateSourcePointer(nullptr) {
+        std::vector<char*> headerNames;
+        std::vector<char*> headerValues;
+        headerNames.reserve(options.Headers.size());
+        headerValues.reserve(options.Headers.size());
+        for (const auto& header : options.Headers) {
+            headerNames.push_back(const_cast<char*>(header.first.c_str()));
+            headerValues.push_back(const_cast<char*>(header.second.c_str()));
+        }
+        vpkc_http_options_t cOptions{};
+        cOptions.HeaderNames = headerNames.empty() ? nullptr : headerNames.data();
+        cOptions.HeaderValues = headerValues.empty() ? nullptr : headerValues.data();
+        cOptions.HeaderCount = headerNames.size();
+        cOptions.TimeoutMilliseconds = options.TimeoutMilliseconds.value_or(0);
+        m_pSource = vpkc_new_source_http_url_with_options(httpUrl.c_str(), &cOptions);
+    }
 };
 
 /**

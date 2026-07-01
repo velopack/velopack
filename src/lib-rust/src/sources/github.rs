@@ -57,21 +57,23 @@ impl GithubSource {
         }
     }
 
-    fn get_headers(&self, accept: &str) -> Vec<(String, String)> {
+    fn get_http_options(&self, accept: &str) -> download::HttpOptions {
         let mut headers = vec![("Accept".to_string(), accept.to_string())];
         if let Some(ref token) = self.access_token {
             headers.push(("Authorization".to_string(), format!("Bearer {}", token)));
         }
-        headers
+        download::HttpOptions {
+            headers,
+            ..Default::default()
+        }
     }
 
     fn get_releases(&self) -> Result<Vec<GithubRelease>, Error> {
         let base = self.get_api_base_url();
         let path = self.repo_url.path();
         let url = format!("{}repos{}/releases?per_page=10&page=1", base, path);
-        let headers = self.get_headers("application/vnd.github.v3+json");
-        let header_refs: Vec<(&str, &str)> = headers.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
-        let json = download::download_url_as_string_with_headers(&url, &header_refs)?;
+        let options = self.get_http_options("application/vnd.github.v3+json");
+        let json = download::download_url_as_string(&url, Some(&options))?;
         let mut releases: Vec<GithubRelease> = serde_json::from_str(&json)?;
         releases.sort_by(|a, b| b.published_at.cmp(&a.published_at));
         if !self.prerelease {
@@ -112,20 +114,18 @@ impl GithubSource {
 impl UpdateSource for GithubSource {
     fn get_release_feed(&self, channel: &str, _app: &Manifest, _staged_user_id: &str) -> Result<VelopackAssetFeed, Error> {
         let releases = self.get_releases()?;
-        let headers = self.get_headers("application/octet-stream");
-        let header_refs: Vec<(&str, &str)> = headers.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
-        get_git_release_feed(channel, &header_refs, releases.len(), |i, name| {
+        let options = self.get_http_options("application/octet-stream");
+        get_git_release_feed(channel, &options, releases.len(), |i, name| {
             self.get_asset_url_from_name(&releases[i], name)
         })
     }
 
     fn download_release_entry(&self, asset: &VelopackAsset, local_file: &Path, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
         let releases = self.get_releases()?;
-        let headers = self.get_headers("application/octet-stream");
-        let header_refs: Vec<(&str, &str)> = headers.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+        let options = self.get_http_options("application/octet-stream");
         for release in &releases {
             if let Ok(url) = self.get_asset_url_from_name(release, &asset.FileName) {
-                return download_git_release_entry(&url, &header_refs, local_file, progress_sender);
+                return download_git_release_entry(&url, &options, local_file, progress_sender);
             }
         }
         Err(Error::Other(format!("Could not find asset '{}' in any GitHub release.", asset.FileName)))

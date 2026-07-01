@@ -11,7 +11,7 @@ mod manager;
 use manager::UpdateManagerWrapper;
 
 mod sources;
-use sources::{PyGiteaSource, PyGithubSource, PyGitlabSource, PyHttpSource};
+use sources::{PyGiteaSource, PyGithubSource, PyGitlabSource, PyHttpOptions, PyHttpSource};
 
 use ::velopack::VelopackAsset;
 
@@ -50,6 +50,7 @@ fn velopack(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyGithubSource>()?;
     m.add_class::<PyGitlabSource>()?;
     m.add_class::<PyGiteaSource>()?;
+    m.add_class::<PyHttpOptions>()?;
     m.add_class::<PyHttpSource>()?;
 
     // concrete classes

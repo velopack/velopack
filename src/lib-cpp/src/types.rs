@@ -5,7 +5,7 @@ use libc::{c_char, c_void, size_t};
 use std::ffi::{CStr, CString};
 use std::mem::size_of;
 use std::path::PathBuf;
-use velopack::{locator::VelopackLocatorConfig, UpdateInfo, UpdateOptions, VelopackAsset};
+use velopack::{locator::VelopackLocatorConfig, HttpOptions, UpdateInfo, UpdateOptions, VelopackAsset};
 
 /// The result of a call to check for updates. This can indicate that an update is available, or that an error occurred.
 #[repr(i8)]
@@ -45,6 +45,40 @@ pub type vpkc_free_release_feed_t = Option<extern "C" fn(p_user_data: *mut c_voi
 pub type vpkc_download_asset_delegate_t = Option<
     extern "C" fn(p_user_data: *mut c_void, p_asset: *const vpkc_asset_t, psz_local_path: *const c_char, progress_callback_id: size_t) -> bool,
 >;
+
+/// Options to customize HTTP requests (custom headers, timeout, etc).
+#[repr(C)]
+pub struct vpkc_http_options_t {
+    /// Optional array of custom header names, parallel to HeaderValues. May be null if HeaderCount is 0.
+    pub HeaderNames: *mut *mut c_char,
+    /// Optional array of custom header values, parallel to HeaderNames. May be null if HeaderCount is 0.
+    pub HeaderValues: *mut *mut c_char,
+    /// The number of entries in HeaderNames / HeaderValues.
+    pub HeaderCount: size_t,
+    /// Request timeout in milliseconds. 0 means requests never time out.
+    pub TimeoutMilliseconds: u64,
+}
+
+pub fn c_to_HttpOptions(obj: *const vpkc_http_options_t) -> Result<HttpOptions> {
+    if obj.is_null() {
+        return Ok(HttpOptions::default());
+    }
+    let obj = unsafe { &*obj };
+    let names = c_to_String_vec(obj.HeaderNames, obj.HeaderCount)?;
+    let values = c_to_String_vec(obj.HeaderValues, obj.HeaderCount)?;
+    if names.len() != values.len() {
+        bail!("HeaderNames and HeaderValues must have the same number of entries.");
+    }
+    let timeout = if obj.TimeoutMilliseconds > 0 {
+        Some(std::time::Duration::from_millis(obj.TimeoutMilliseconds))
+    } else {
+        None
+    };
+    Ok(HttpOptions {
+        headers: names.into_iter().zip(values).collect(),
+        timeout,
+    })
+}
 
 pub fn c_to_String(psz: *const c_char) -> Result<String> {
     if psz.is_null() {

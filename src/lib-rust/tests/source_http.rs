@@ -4,6 +4,14 @@ use common::*;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 use velopack::sources::{HttpSource, UpdateSource};
+use velopack::HttpOptions;
+
+fn timeout_options(timeout: Duration) -> HttpOptions {
+    HttpOptions {
+        timeout: Some(timeout),
+        ..Default::default()
+    }
+}
 
 fn hanging_server_url(delay: Duration) -> String {
     use std::io::Read;
@@ -60,7 +68,7 @@ fn feed_server_error() {
 
 #[test]
 fn feed_timeout_errors() {
-    let source = HttpSource::new_with_timeout(hanging_server_url(Duration::from_secs(2)), Duration::from_millis(100));
+    let source = HttpSource::new_with_options(hanging_server_url(Duration::from_secs(2)), timeout_options(Duration::from_millis(100)));
     let manifest = test_manifest();
     let started = Instant::now();
     let result = source.get_release_feed("stable", &manifest, "");
@@ -70,8 +78,28 @@ fn feed_timeout_errors() {
 }
 
 #[test]
+fn feed_sends_custom_headers() {
+    let server = MockHttpServer::empty();
+    server.add_route(MockRoute {
+        path_contains: "releases.stable.json".into(),
+        response_code: 200,
+        response_body: sample_feed_json().into_bytes(),
+        expected_headers: vec![("Authorization".to_string(), "Bearer token123".to_string())],
+    });
+
+    let options = HttpOptions {
+        headers: vec![("Authorization".to_string(), "Bearer token123".to_string())],
+        ..Default::default()
+    };
+    let source = HttpSource::new_with_options(&server.url(), options);
+    let manifest = test_manifest();
+    let feed = source.get_release_feed("stable", &manifest, "").unwrap();
+    assert_eq!(feed.Assets.len(), 1);
+}
+
+#[test]
 fn download_timeout_errors() {
-    let source = HttpSource::new_with_timeout(hanging_server_url(Duration::from_secs(2)), Duration::from_millis(100));
+    let source = HttpSource::new_with_options(hanging_server_url(Duration::from_secs(2)), timeout_options(Duration::from_millis(100)));
     let asset = sample_asset();
 
     let dir = tempfile::tempdir().unwrap();

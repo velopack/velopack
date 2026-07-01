@@ -37,6 +37,28 @@ typedef int8_t vpkc_update_check_t;
 typedef void vpkc_update_source_t;
 
 /**
+ * Options to customize HTTP requests (custom headers, timeout, etc).
+ */
+typedef struct vpkc_http_options_t {
+  /**
+   * Optional array of custom header names, parallel to HeaderValues. May be null if HeaderCount is 0.
+   */
+  char **HeaderNames;
+  /**
+   * Optional array of custom header values, parallel to HeaderNames. May be null if HeaderCount is 0.
+   */
+  char **HeaderValues;
+  /**
+   * The number of entries in HeaderNames / HeaderValues.
+   */
+  size_t HeaderCount;
+  /**
+   * Request timeout in milliseconds. 0 means requests never time out.
+   */
+  uint64_t TimeoutMilliseconds;
+} vpkc_http_options_t;
+
+/**
  * User delegate for to fetch a release feed. This function should return the raw JSON string of the release.json feed.
  */
 typedef char *(*vpkc_release_feed_delegate_t)(void *p_user_data, const char *psz_releases_name);
@@ -224,6 +246,15 @@ vpkc_update_source_t *vpkc_new_source_file(const char *psz_file_path);
  * @returns A new vpkc_update_source_t instance, or null on error.
  */
 vpkc_update_source_t *vpkc_new_source_http_url(const char *psz_http_url);
+
+/**
+ * Create a new HttpSource update source for a given HTTP URL, with custom HTTP options.
+ * @param psz_http_url The URL to a remote update server.
+ * @param p_options Optional HTTP options (custom headers, timeout). Can be null.
+ * @returns A new vpkc_update_source_t instance, or null on error.
+ */
+vpkc_update_source_t *vpkc_new_source_http_url_with_options(const char *psz_http_url,
+                                                            const struct vpkc_http_options_t *p_options);
 
 /**
  * Create a new GithubSource update source for a GitHub repository.

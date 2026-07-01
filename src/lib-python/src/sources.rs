@@ -1,6 +1,8 @@
 use pyo3::prelude::*;
+use std::collections::HashMap;
 use std::time::Duration;
 use velopack::sources::{AutoSource, GiteaSource, GithubSource, GitlabSource, HttpSource, UpdateSource};
+use velopack::HttpOptions;
 
 /// Retrieves available releases from a GitHub repository. Supports both github.com
 /// and GitHub Enterprise instances.
@@ -87,23 +89,54 @@ impl PyGiteaSource {
     }
 }
 
+/// Options to customize HTTP requests (custom headers, timeout, etc).
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pyclass)]
+#[pyclass(name = "HttpOptions", from_py_object)]
+#[derive(Clone, Default)]
+pub struct PyHttpOptions {
+    pub headers: Option<HashMap<String, String>>,
+    pub timeout_seconds: Option<f64>,
+}
+
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
+#[pymethods]
+impl PyHttpOptions {
+    /// Create a new HttpOptions.
+    /// - `headers`: Optional additional headers to send with each request.
+    /// - `timeout_seconds`: Optional request timeout. If None, requests never time out.
+    #[new]
+    #[pyo3(signature = (headers = None, timeout_seconds = None))]
+    pub fn new(headers: Option<HashMap<String, String>>, timeout_seconds: Option<f64>) -> Self {
+        PyHttpOptions { headers, timeout_seconds }
+    }
+}
+
+impl PyHttpOptions {
+    fn to_options(&self) -> HttpOptions {
+        HttpOptions {
+            headers: self.headers.clone().unwrap_or_default().into_iter().collect(),
+            timeout: self.timeout_seconds.and_then(|t| Duration::try_from_secs_f64(t).ok()),
+        }
+    }
+}
+
 /// Retrieves updates from a static file host or other web server.
 #[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(name = "HttpSource", from_py_object)]
 #[derive(Clone)]
 pub struct PyHttpSource {
     pub url: String,
-    pub timeout_seconds: Option<u64>,
+    pub options: Option<PyHttpOptions>,
 }
 
 #[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyHttpSource {
-    /// Create a new HttpSource with the specified base URL and optional request timeout.
+    /// Create a new HttpSource with the specified base URL and optional HTTP options.
     #[new]
-    #[pyo3(signature = (url, timeout_seconds = None))]
-    pub fn new(url: String, timeout_seconds: Option<u64>) -> Self {
-        PyHttpSource { url, timeout_seconds }
+    #[pyo3(signature = (url, options = None))]
+    pub fn new(url: String, options: Option<PyHttpOptions>) -> Self {
+        PyHttpSource { url, options }
     }
 }
 
@@ -124,14 +157,10 @@ impl PySourceArg {
             PySourceArg::Github(s) => Box::new(GithubSource::new(&s.repo_url, s.access_token, s.prerelease)),
             PySourceArg::Gitlab(s) => Box::new(GitlabSource::new(&s.repo_url, s.access_token, s.prerelease)),
             PySourceArg::Gitea(s) => Box::new(GiteaSource::new(&s.repo_url, s.access_token, s.prerelease)),
-            PySourceArg::Http(s) => {
-                let source = if let Some(timeout_seconds) = s.timeout_seconds {
-                    HttpSource::new_with_timeout(&s.url, Duration::from_secs(timeout_seconds))
-                } else {
-                    HttpSource::new(&s.url)
-                };
-                Box::new(source)
-            }
+            PySourceArg::Http(s) => match s.options {
+                Some(options) => Box::new(HttpSource::new_with_options(&s.url, options.to_options())),
+                None => Box::new(HttpSource::new(&s.url)),
+            },
             PySourceArg::Auto(s) => Box::new(AutoSource::new(&s)),
         }
     }

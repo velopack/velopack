@@ -109,7 +109,7 @@ impl UpdateSource for AutoSource {
 /// Given a list of releases (already fetched and filtered by the specific source),
 /// downloads the releases.{channel}.json asset from each release, parses it,
 /// and merges all assets into a single VelopackAssetFeed.
-fn get_git_release_feed<F>(channel: &str, headers: &[(&str, &str)], release_count: usize, get_asset_url: F) -> Result<VelopackAssetFeed, Error>
+fn get_git_release_feed<F>(channel: &str, options: &download::HttpOptions, release_count: usize, get_asset_url: F) -> Result<VelopackAssetFeed, Error>
 where
     F: Fn(usize, &str) -> Result<String, Error>,
 {
@@ -125,7 +125,7 @@ where
             }
         };
 
-        match download::download_url_as_string_with_headers(&asset_url, headers) {
+        match download::download_url_as_string(&asset_url, Some(options)) {
             Ok(json) => match serde_json::from_str::<VelopackAssetFeed>(&json) {
                 Ok(feed) => {
                     all_assets.extend(feed.Assets);
@@ -146,12 +146,12 @@ where
 /// Downloads an asset file from a git release.
 fn download_git_release_entry(
     asset_url: &str,
-    headers: &[(&str, &str)],
+    options: &download::HttpOptions,
     local_file: &Path,
     progress_sender: Option<Sender<i16>>,
 ) -> Result<(), Error> {
     info!("About to download from URL '{}' to file '{:?}'", asset_url, local_file);
-    download::download_url_to_file_with_headers(asset_url, local_file, headers, move |p| {
+    download::download_url_to_file(asset_url, local_file, Some(options), move |p| {
         if let Some(progress_sender) = &progress_sender {
             let _ = progress_sender.send(p);
         }
