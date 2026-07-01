@@ -224,7 +224,12 @@ fn show_messagebox(title: &str, message: &str, icon: MESSAGEBOX_STYLE) {
 
 #[cfg(debug_assertions)]
 fn show_debug_message(fn_name: &str, message: String) {
-    if std::env::var("CI").is_ok() {
+    // Debug dialogs are opt-in so that automated/local test runs are not interrupted.
+    // Deferred custom actions run in processes spawned by the Windows Installer service and do
+    // not inherit the msiexec client's environment, so to see their dialogs this variable must
+    // be set user-wide (`setx VELOPACK_WIX_DEBUG_DIALOGS 1`), or machine-wide
+    // (`setx /M VELOPACK_WIX_DEBUG_DIALOGS 1`) for non-impersonated actions like CleanupDeferred.
+    if std::env::var("VELOPACK_WIX_DEBUG_DIALOGS").is_err() {
         return;
     }
     let message = format!("{}: {}", fn_name, message);

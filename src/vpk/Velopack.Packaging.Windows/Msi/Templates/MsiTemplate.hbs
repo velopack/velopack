@@ -25,9 +25,9 @@
             <StandardDirectory Id="DesktopFolder">
                 <Component Id="ApplicationDesktopShortcut">
                     <Shortcut Id="ApplicationDesktopShortcut" Name="{{AppTitle}}" Description="[MsiDesktopShortcutDescription]"
-                              Target="[INSTALLFOLDER]{{StubFileName}}" WorkingDirectory="INSTALLFOLDER"/>
+                              Target="[INSTALLFOLDER]{{StubFileNameEscaped}}" WorkingDirectory="INSTALLFOLDER"/>
                     <RemoveFolder Id="CleanUpDesktopShortcut" Directory="INSTALLFOLDER" On="uninstall"/>
-                    <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitized}}&#92;{{AppId}}.DesktopShortcut"
+                    <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitizedEscaped}}&#92;{{AppId}}.DesktopShortcut"
                                    Name="installed" Type="integer" Value="1" KeyPath="yes"/>
                 </Component>
             </StandardDirectory>
@@ -44,10 +44,10 @@
                             Id="ApplicationStartMenuShortcut"
                             Name="{{AppTitle}}"
                             Description="[MsiStartMenuShortcutDescription]"
-                            Target="[INSTALLFOLDER]{{StubFileName}}"
+                            Target="[INSTALLFOLDER]{{StubFileNameEscaped}}"
                             WorkingDirectory="INSTALLFOLDER"/>
                     <RemoveFolder Id="CleanUpStartMenuShortcut" Directory="AppPublisherProgramMenuDir" On="uninstall"/>
-                    <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitized}}&#92;{{AppId}}.StartMenuShortcut"
+                    <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitizedEscaped}}&#92;{{AppId}}.StartMenuShortcut"
                                    Name="installed" Type="integer" Value="1" KeyPath="yes"/>
                 </Component>
             </DirectoryRef>
@@ -61,9 +61,9 @@
                             Id="ApplicationStartMenuRootShortcut"
                             Name="{{AppTitle}}"
                             Description="[MsiStartMenuShortcutDescription]"
-                            Target="[INSTALLFOLDER]{{StubFileName}}"
+                            Target="[INSTALLFOLDER]{{StubFileNameEscaped}}"
                             WorkingDirectory="INSTALLFOLDER"/>
-                    <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitized}}&#92;{{AppId}}.StartMenuRootShortcut"
+                    <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitizedEscaped}}&#92;{{AppId}}.StartMenuRootShortcut"
                                    Name="installed" Type="integer" Value="1" KeyPath="yes"/>
                 </Component>
             </StandardDirectory>
@@ -73,10 +73,10 @@
             <StandardDirectory Id="StartupFolder">
                 <Component Id="ApplicationStartupShortcut">
                     <Shortcut Id="ApplicationStartupShortcut" Name="{{AppTitle}}"
-                              Description="Startup shortcut for {{AppTitle}}"
-                              Target="[INSTALLFOLDER]{{StubFileName}}"
+                              Description="Startup shortcut for {{AppTitleEscaped}}"
+                              Target="[INSTALLFOLDER]{{StubFileNameEscaped}}"
                               WorkingDirectory="INSTALLFOLDER"/>
-                    <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitized}}&#92;{{AppId}}.StartupShortcut"
+                    <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitizedEscaped}}&#92;{{AppId}}.StartupShortcut"
                                    Name="installed" Type="integer" Value="1" KeyPath="yes"/>
                 </Component>
             </StandardDirectory>
@@ -92,10 +92,10 @@
         <DirectoryRef Id="INSTALLFOLDER">
             <Component Id="ArpRegistration">
                 <RegistryKey Root="HKMU" Key="Software&#92;Microsoft&#92;Windows&#92;CurrentVersion&#92;Uninstall&#92;MSI:{{AppId}}">
-                    <RegistryValue Name="DisplayName" Value="{{AppTitle}}" Type="string"/>
+                    <RegistryValue Name="DisplayName" Value="{{AppTitleEscaped}}" Type="string"/>
                     <RegistryValue Name="DisplayVersion" Value="{{AppVersion}}" Type="string"/>
-                    <RegistryValue Name="DisplayIcon" Value="[INSTALLFOLDER]{{StubFileName}}" Type="string"/>
-                    <RegistryValue Name="Publisher" Value="{{AppPublisher}}" Type="string"/>
+                    <RegistryValue Name="DisplayIcon" Value="[INSTALLFOLDER]{{StubFileNameEscaped}}" Type="string"/>
+                    <RegistryValue Name="Publisher" Value="{{AppPublisherEscaped}}" Type="string"/>
                     <RegistryValue Name="UninstallString" Value="msiexec.exe /x [ProductCode]" Type="string"/>
                     <RegistryValue Name="QuietUninstallString" Value="msiexec.exe /x [ProductCode] /qn" Type="string"/>
                     <RegistryValue Name="InstallLocation" Value="[INSTALLFOLDER]" Type="string"/>
@@ -140,6 +140,27 @@
         <Property Id="VELOPACK_INSTALLDIR" Secure="yes"/>
         <SetProperty Id="INSTALLFOLDER" Value="[VELOPACK_INSTALLDIR]" Before="CostFinalize" Sequence="execute"
                      Condition="VELOPACK_INSTALLDIR"/>
+
+        <!-- Quiet/passive/reduced installs (UILevel < 5) never run the UI publishes that set the
+             default INSTALLFOLDER, which would otherwise resolve to {ROOTDRIVE}\{AppTitle}. Apply
+             the same defaults here: the forced location for single-scope packages; per-user for
+             dual-scope packages unless installing per-machine (ALLUSERS=1). -->
+        {{#if InstallLocationCurrentUserOnly}}
+            <SetProperty Action="SetQuietDefaultInstallFolder" Id="INSTALLFOLDER"
+                         Value="[LocalAppDataFolder][ApplicationFolderName]" Before="CostFinalize" Sequence="execute"
+                         Condition="NOT Installed AND NOT VELOPACK_INSTALLDIR AND UILevel&lt;5"/>
+        {{else if InstallLocationAllUsersOnly}}
+            <SetProperty Action="SetQuietDefaultInstallFolder" Id="INSTALLFOLDER"
+                         Value="{{ProgramFilesFolderName}}[ApplicationFolderName]" Before="CostFinalize" Sequence="execute"
+                         Condition="NOT Installed AND NOT VELOPACK_INSTALLDIR AND UILevel&lt;5"/>
+        {{else}}
+            <SetProperty Action="SetQuietDefaultInstallFolderPerUser" Id="INSTALLFOLDER"
+                         Value="[LocalAppDataFolder][ApplicationFolderName]" Before="CostFinalize" Sequence="execute"
+                         Condition="NOT Installed AND NOT VELOPACK_INSTALLDIR AND UILevel&lt;5 AND NOT ALLUSERS=1"/>
+            <SetProperty Action="SetQuietDefaultInstallFolderPerMachine" Id="INSTALLFOLDER"
+                         Value="{{ProgramFilesFolderName}}[ApplicationFolderName]" Before="CostFinalize" Sequence="execute"
+                         Condition="NOT Installed AND NOT VELOPACK_INSTALLDIR AND UILevel&lt;5 AND ALLUSERS=1"/>
+        {{/if}}
 
         {{#if InstallLocationEither}}
             <WixVariable Id="WixUISupportPerUser" Value="1"/>
