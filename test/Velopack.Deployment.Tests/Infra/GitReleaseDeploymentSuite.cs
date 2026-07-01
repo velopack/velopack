@@ -232,12 +232,41 @@ public abstract class GitReleaseDeploymentSuite
     /// <summary> Creates a pristine repository scope for the current test. </summary>
     protected abstract Task<IGitReleaseScope> CreateScopeAsync(ILogger log);
 
+    /// <summary>
+    /// When true, every test passes an explicit per-run unique tag instead of relying on the default
+    /// (package version) tag. Required for providers with a shared repo pool (GitHub): recreating a
+    /// just-deleted tag name races GitHub's eventual consistency and fails with 'Validation Failed'.
+    /// The default-tag behavior stays covered by the local Gitea suites, which use a fresh repo per test.
+    /// </summary>
+    protected virtual bool UseUniqueTags => false;
+
     protected ICacheLogger<GitReleaseDeploymentSuite> CreateLogger()
         => Output.BuildLoggerFor<GitReleaseDeploymentSuite>();
 
+    /// <summary> The explicit tag for this test (unique per run), or null to use the provider default. </summary>
+    private string? MakeTag(string channel)
+        => UseUniqueTags ? $"1.0.0-{channel}-{Guid.NewGuid().ToString("N")[..6]}" : null;
+
+    /// <summary>
+    /// Polls the release listing until it reaches <paramref name="count"/> releases, tolerating the
+    /// provider's list-after-write lag (GitHub's Releases API is eventually consistent). On timeout the
+    /// latest listing is returned so the caller's assertion fails with the real state.
+    /// </summary>
+    private static async Task<IReadOnlyList<RemoteRelease>> WaitForReleaseCountAsync(IGitReleaseScope scope, int count)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(60);
+        var releases = await scope.ListReleasesAsync();
+        while (releases.Count != count && DateTime.UtcNow < deadline) {
+            await Task.Delay(2000);
+            releases = await scope.ListReleasesAsync();
+        }
+
+        return releases;
+    }
+
     private static async Task<RemoteRelease> GetSingleReleaseAsync(IGitReleaseScope scope)
     {
-        var releases = await scope.ListReleasesAsync();
+        var releases = await WaitForReleaseCountAsync(scope, 1);
         return Assert.Single(releases);
     }
 
@@ -253,17 +282,19 @@ public abstract class GitReleaseDeploymentSuite
         // "win" is the Windows default channel, set explicitly for determinism — it exercises the extra
         // legacy 'RELEASES' asset branch, which only runs for that exact channel name.
         var channel = "win";
+        var tag = MakeTag(channel);
         var pack = ReleaseFixtures.GetCachedPackWithNotes(AppId, channel, log, NotesContent, "1.0.0");
         try {
             await scope.UploadAsync(new GitReleaseUpload(pack.ReleaseDir, channel) {
                 ReleaseName = "GitRelApp v1.0.0",
+                TagName = tag,
                 Publish = true,
             }, log);
 
             var release = await GetSingleReleaseAsync(scope);
             Assert.False(release.Draft, "release should have been published (not left as a draft)");
             Assert.Equal("GitRelApp v1.0.0", release.Name);
-            Assert.Equal("1.0.0", release.TagName);
+            Assert.Equal(tag ?? "1.0.0", release.TagName);
             Assert.Equal(
                 NotesContent.Trim().ReplaceLineEndings("\n"),
                 release.Body.Trim().ReplaceLineEndings("\n"));
@@ -283,13 +314,14 @@ public abstract class GitReleaseDeploymentSuite
         await using var scope = await CreateScopeAsync(log);
 
         var channel = "draftup";
+        var tag = MakeTag(channel);
         var pack = ReleaseFixtures.GetCachedPack(AppId, channel, log, "1.0.0");
         try {
-            await scope.UploadAsync(new GitReleaseUpload(pack.ReleaseDir, channel) { Publish = false }, log);
+            await scope.UploadAsync(new GitReleaseUpload(pack.ReleaseDir, channel) { TagName = tag, Publish = false }, log);
 
             var release = await GetSingleReleaseAsync(scope);
             Assert.True(release.Draft, "release should have been left as a draft");
-            Assert.Equal("1.0.0", release.TagName);
+            Assert.Equal(tag ?? "1.0.0", release.TagName);
             Assert.Contains($"releases.{channel}.json", release.AssetNames);
             // the legacy RELEASES feed is only uploaded for the windows default channel
             Assert.DoesNotContain("RELEASES", release.AssetNames);
@@ -306,14 +338,18 @@ public abstract class GitReleaseDeploymentSuite
         await using var scope = await CreateScopeAsync(log);
 
         var channel = "nomerge";
+        var tag = MakeTag(channel);
         var p1 = ReleaseFixtures.GetCachedPack(AppId, channel, log, "1.0.0");
         var p2 = ReleaseFixtures.GetCachedPack(AppId, channel, log, "1.0.0");
         try {
-            await scope.UploadAsync(new GitReleaseUpload(p1.ReleaseDir, channel) { Publish = true }, log);
+            await scope.UploadAsync(new GitReleaseUpload(p1.ReleaseDir, channel) { TagName = tag, Publish = true }, log);
 
-            // same tag (1.0.0) again without --merge must refuse
+            // ensure the first release is visible to the runner's duplicate guard before the second upload
+            await WaitForReleaseCountAsync(scope, 1);
+
+            // same tag again without --merge must refuse
             await Assert.ThrowsAnyAsync<UserInfoException>(
-                () => scope.UploadAsync(new GitReleaseUpload(p2.ReleaseDir, channel) { Publish = true }, log));
+                () => scope.UploadAsync(new GitReleaseUpload(p2.ReleaseDir, channel) { TagName = tag, Publish = true }, log));
         } finally {
             TryDeleteDir(p1.ReleaseDir);
             TryDeleteDir(p2.ReleaseDir);
@@ -328,19 +364,26 @@ public abstract class GitReleaseDeploymentSuite
         await using var scope = await CreateScopeAsync(log);
 
         var channel = "mismatch";
+        var tag1 = MakeTag(channel);
+        var tag2 = UseUniqueTags ? MakeTag(channel) : null; // default tags differ too (1.0.0 vs 2.0.0)
         var p1 = ReleaseFixtures.GetCachedPack(AppId, channel, log, "1.0.0");
         var p2 = ReleaseFixtures.GetCachedPack(AppId, channel, log, "1.0.0", "2.0.0");
         try {
             await scope.UploadAsync(new GitReleaseUpload(p1.ReleaseDir, channel) {
                 ReleaseName = "mismatch-rel",
+                TagName = tag1,
                 Publish = true,
                 Merge = true,
             }, log);
 
-            // matched by release name, but the existing release is tagged 1.0.0 and this upload wants 2.0.0
+            // ensure the first release is visible to the runner's merge lookup before the second upload
+            await WaitForReleaseCountAsync(scope, 1);
+
+            // matched by release name, but the existing release carries a different tag than this upload wants
             var ex = await Assert.ThrowsAnyAsync<UserInfoException>(
                 () => scope.UploadAsync(new GitReleaseUpload(p2.ReleaseDir, channel) {
                     ReleaseName = "mismatch-rel",
+                    TagName = tag2,
                     Publish = true,
                     Merge = true,
                 }, log));
@@ -358,21 +401,26 @@ public abstract class GitReleaseDeploymentSuite
         using var log = CreateLogger();
         await using var scope = await CreateScopeAsync(log);
 
+        var tag = MakeTag("stablea") ?? "1.0.0";
         var pa = ReleaseFixtures.GetCachedPack(AppId, "stablea", log, "1.0.0");
         var pb = ReleaseFixtures.GetCachedPack(AppId, "stableb", log, "1.0.0");
         try {
             await scope.UploadAsync(new GitReleaseUpload(pa.ReleaseDir, "stablea") {
-                TagName = "1.0.0",
+                TagName = tag,
                 Publish = true,
             }, log);
+
+            // the second upload must find the first release by tag, so wait out any list lag
+            await WaitForReleaseCountAsync(scope, 1);
+
             await scope.UploadAsync(new GitReleaseUpload(pb.ReleaseDir, "stableb") {
-                TagName = "1.0.0",
+                TagName = tag,
                 Publish = true,
                 Merge = true,
             }, log);
 
             var release = await GetSingleReleaseAsync(scope);
-            Assert.Equal("1.0.0", release.TagName);
+            Assert.Equal(tag, release.TagName);
             Assert.Contains($"{AppId}-1.0.0-stablea-full.nupkg", release.AssetNames);
             Assert.Contains($"{AppId}-1.0.0-stableb-full.nupkg", release.AssetNames);
             Assert.Contains("releases.stablea.json", release.AssetNames);
@@ -391,19 +439,23 @@ public abstract class GitReleaseDeploymentSuite
         await using var scope = await CreateScopeAsync(log);
 
         var channel = "chidx";
+        var tag = MakeTag(channel) ?? "1.0.0";
         var p1 = ReleaseFixtures.GetCachedPack(AppId, channel, log, "1.0.0");
         var p2 = ReleaseFixtures.GetCachedPack(AppId, channel, log, "1.0.0");
         try {
             await scope.UploadAsync(new GitReleaseUpload(p1.ReleaseDir, channel) {
-                TagName = "1.0.0",
+                TagName = tag,
                 Publish = true,
                 Merge = true,
             }, log);
 
+            // ensure the first release (and its channel index asset) is visible before the second upload
+            await WaitForReleaseCountAsync(scope, 1);
+
             // merging into the same release is fine, but not when releases.{channel}.json is already there
             var ex = await Assert.ThrowsAnyAsync<UserInfoException>(
                 () => scope.UploadAsync(new GitReleaseUpload(p2.ReleaseDir, channel) {
-                    TagName = "1.0.0",
+                    TagName = tag,
                     Publish = true,
                     Merge = true,
                 }, log));
@@ -424,7 +476,7 @@ public abstract class GitReleaseDeploymentSuite
         var channel = "tagdef";
         var pack = ReleaseFixtures.GetCachedPack(AppId, channel, log, "1.0.0");
         try {
-            await scope.UploadAsync(new GitReleaseUpload(pack.ReleaseDir, channel) { Publish = true }, log);
+            await scope.UploadAsync(new GitReleaseUpload(pack.ReleaseDir, channel) { TagName = MakeTag(channel), Publish = true }, log);
 
             var defaultBranch = await scope.GetDefaultBranchNameAsync();
             var headSha = await scope.GetDefaultBranchHeadShaAsync();
@@ -456,6 +508,7 @@ public abstract class GitReleaseDeploymentSuite
                 ? await scope.GetDefaultBranchNameAsync()
                 : await scope.GetDefaultBranchHeadShaAsync();
             await scope.UploadAsync(new GitReleaseUpload(pack.ReleaseDir, channel) {
+                TagName = MakeTag(channel),
                 Publish = true,
                 TargetCommitish = commitish,
             }, log);
@@ -486,6 +539,7 @@ public abstract class GitReleaseDeploymentSuite
         var pack = ReleaseFixtures.GetCachedPack(AppId, channel, log, "1.0.0");
         try {
             await scope.UploadAsync(new GitReleaseUpload(pack.ReleaseDir, channel) {
+                TagName = MakeTag(channel),
                 Publish = true,
                 Prerelease = true,
             }, log);
@@ -497,9 +551,17 @@ public abstract class GitReleaseDeploymentSuite
                 .GetReleaseFeed(log.ToVelopackLogger(), null, channel);
             Assert.Empty(stableFeed.Assets);
 
-            var prereleaseFeed = await scope.CreateSource(prerelease: true)
-                .GetReleaseFeed(log.ToVelopackLogger(), null, channel);
-            var full = prereleaseFeed.Assets.Where(a => a.Type == VelopackAssetType.Full).ToArray();
+            // the source lists releases through the same eventually-consistent API — poll until it sees the asset
+            var prereleaseSource = scope.CreateSource(prerelease: true);
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(60);
+            var full = Array.Empty<VelopackAsset>();
+            while (full.Length == 0 && DateTime.UtcNow < deadline) {
+                var prereleaseFeed = await prereleaseSource.GetReleaseFeed(log.ToVelopackLogger(), null, channel);
+                full = prereleaseFeed.Assets.Where(a => a.Type == VelopackAssetType.Full).ToArray();
+                if (full.Length == 0)
+                    await Task.Delay(2000);
+            }
+
             Assert.Single(full);
             Assert.Equal("1.0.0", full[0].Version.ToString());
         } finally {
@@ -517,7 +579,10 @@ public abstract class GitReleaseDeploymentSuite
         var channel = "dlround";
         var pack = ReleaseFixtures.GetCachedPack(AppId, channel, log, "1.0.0");
         try {
-            await scope.UploadAsync(new GitReleaseUpload(pack.ReleaseDir, channel) { Publish = true }, log);
+            await scope.UploadAsync(new GitReleaseUpload(pack.ReleaseDir, channel) { TagName = MakeTag(channel), Publish = true }, log);
+
+            // the download runner lists releases through the same eventually-consistent API
+            await WaitForReleaseCountAsync(scope, 1);
 
             using var _1 = TempUtil.GetTempDirectory(out var downloadDir);
             await scope.DownloadAsync(downloadDir, channel, log);
