@@ -520,3 +520,5 @@ tests/Test.xml
 
 
 launchsettings.json
+# standalone rust test harness (excluded from workspace; its lock is throwaway)
+test/Velopack.Deployment.Tests/harnesses/rust/Cargo.lock

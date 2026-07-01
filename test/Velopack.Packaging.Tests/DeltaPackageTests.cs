@@ -73,7 +73,7 @@ public class ApplyDeltaPackageTests(ITestOutputHelper output)
         var deltaPackage3 = PathHelper.GetFixture("Clowd-3.4.292-delta.nupkg");
 
         using var t2 = TempUtil.GetTempDirectory(out var temp);
-        using var logger = output.BuildLoggerFor<GithubDeploymentTests>();
+        using var logger = output.BuildLoggerFor<ApplyDeltaPackageTests>();
         var console = new LoggerConsole(logger);
 
         var runner = new DeltaPatchCommandRunner(logger, console);

@@ -21,6 +21,7 @@
     <Project Path="test/TestApp/TestApp.csproj" />
     <Project Path="test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj" />
     <Project Path="test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj" />
+    <Project Path="test/Velopack.Deployment.Tests/Velopack.Deployment.Tests.csproj" />
     <Project Path="test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj" />
     <Project Path="test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj" />
     <Project Path="test/Velopack.TestCommon/Velopack.TestCommon.csproj" />
