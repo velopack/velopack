@@ -3,11 +3,13 @@ use std::io::{Read, Write};
 use std::path::Path;
 use std::time::Duration;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{misc, Error};
 
 /// A single HTTP header (name and value pair) to be sent with a web request.
 #[allow(non_snake_case)]
-#[derive(Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct HttpHeader {
     /// The name of the HTTP header (eg. "Authorization").
     pub Name: String,
@@ -17,7 +19,8 @@ pub struct HttpHeader {
 
 /// Options to customize HTTP requests (custom headers, timeout, etc).
 #[allow(non_snake_case)]
-#[derive(Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(default)]
 pub struct HttpOptions {
     /// Additional headers to send with each request.
     pub Headers: Vec<HttpHeader>,

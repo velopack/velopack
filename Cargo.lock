@@ -4579,6 +4579,7 @@ dependencies = [
  "log",
  "neon",
  "semver",
+ "serde",
  "serde_json",
  "simplelog",
  "velopack",
