@@ -17,6 +17,7 @@ jobs:
         with:
           drive-size: 20GB
           drive-path: ${{ runner.temp }}/dev_drive.vhdx
+          trusted-dev-drive: true
           env-mapping: |
             TMP,{{ DEV_DRIVE }}\temp
             TEMP,{{ DEV_DRIVE }}\temp
@@ -92,6 +93,7 @@ jobs:
         with:
           drive-size: 20GB
           drive-path: ${{ runner.temp }}/dev_drive.vhdx
+          trusted-dev-drive: true
           env-mapping: |
             TMP,{{ DEV_DRIVE }}\temp
             TEMP,{{ DEV_DRIVE }}\temp
