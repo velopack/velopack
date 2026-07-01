@@ -12,6 +12,23 @@ jobs:
     env:
       RUSTFLAGS: -C target-feature=+crt-static
     steps:
+      - name: Setup Dev Drive
+        uses: samypr100/setup-dev-drive@v4
+        with:
+          drive-size: 20GB
+          drive-path: ${{ runner.temp }}/dev_drive.vhdx
+          env-mapping: |
+            TMP,{{ DEV_DRIVE }}\temp
+            TEMP,{{ DEV_DRIVE }}\temp
+      ## replace the (empty) workspace directory with a junction onto the dev drive, so the
+      ## checkout and everything after it lands on the dev drive under the same canonical path
+      - name: Move Workspace to Dev Drive
+        shell: pwsh
+        working-directory: ${{ runner.temp }}
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:DEV_DRIVE\temp", "$env:DEV_DRIVE\workspace" | Out-Null
+          Remove-Item -LiteralPath $env:GITHUB_WORKSPACE -Recurse -Force
+          New-Item -ItemType Junction -Path $env:GITHUB_WORKSPACE -Target "$env:DEV_DRIVE\workspace" | Out-Null
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
@@ -70,6 +87,23 @@ jobs:
     env:
       RUSTFLAGS: -C target-feature=+crt-static
     steps:
+      - name: Setup Dev Drive
+        uses: samypr100/setup-dev-drive@v4
+        with:
+          drive-size: 20GB
+          drive-path: ${{ runner.temp }}/dev_drive.vhdx
+          env-mapping: |
+            TMP,{{ DEV_DRIVE }}\temp
+            TEMP,{{ DEV_DRIVE }}\temp
+      ## replace the (empty) workspace directory with a junction onto the dev drive, so the
+      ## checkout and everything after it lands on the dev drive under the same canonical path
+      - name: Move Workspace to Dev Drive
+        shell: pwsh
+        working-directory: ${{ runner.temp }}
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:DEV_DRIVE\temp", "$env:DEV_DRIVE\workspace" | Out-Null
+          Remove-Item -LiteralPath $env:GITHUB_WORKSPACE -Recurse -Force
+          New-Item -ItemType Junction -Path $env:GITHUB_WORKSPACE -Target "$env:DEV_DRIVE\workspace" | Out-Null
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
