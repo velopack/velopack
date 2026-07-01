@@ -139,12 +139,18 @@ public sealed class InstalledAppFixture
         using var archive = ZipFile.OpenRead(nupkgPath);
         // Prefer the canonical path; otherwise pick the largest "*/sq.version" so we don't pick up a tiny
         // symlink entry (e.g. the macOS Contents/MacOS -> ../Resources link) over the real manifest.
+        // On Linux the nupkg's lib/app contains only the packed .AppImage (sq.version lives inside its
+        // squashfs), so fall back to the root {PackId}.nuspec — packaging writes both files from the
+        // same GenerateNuspecContent(), so the content is identical.
         var entry = archive.GetEntry("lib/app/sq.version")
             ?? archive.Entries
                 .Where(e => e.FullName.Replace('\\', '/').EndsWith("/sq.version", StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(e => e.Length)
                 .FirstOrDefault()
-            ?? throw new FileNotFoundException($"sq.version not found inside {nupkgPath}");
+            ?? archive.Entries
+                .FirstOrDefault(e => !e.FullName.Replace('\\', '/').Contains('/') &&
+                    e.FullName.EndsWith(".nuspec", StringComparison.OrdinalIgnoreCase))
+            ?? throw new FileNotFoundException($"sq.version (or root .nuspec) not found inside {nupkgPath}");
         entry.ExtractToFile(destPath, overwrite: true);
     }
 

@@ -188,25 +188,49 @@ public sealed class GitHubRepoLease : IAsyncDisposable, IDisposable
     /// </summary>
     internal async Task ResetAsync()
     {
-        var releases = await Client.Repository.Release.GetAll(Owner, Name);
-        foreach (var r in releases) {
-            await Client.Repository.Release.Delete(Owner, Name, r.Id);
+        // The Releases API is eventually consistent: a single list-then-delete pass can miss releases
+        // created moments ago by the previous lease holder. Loop until a listing comes back empty.
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(60);
+        var deletedReleases = 0;
+        var deletedTags = 0;
+        while (true) {
+            var releases = await Client.Repository.Release.GetAll(Owner, Name);
+            foreach (var r in releases) {
+                try {
+                    await Client.Repository.Release.Delete(Owner, Name, r.Id);
+                } catch (NotFoundException) {
+                    // already gone — the release listing was stale
+                }
+
+                deletedReleases++;
+            }
+
+            IReadOnlyList<Reference> tags;
+            try {
+                tags = await Client.Git.Reference.GetAllForSubNamespace(Owner, Name, "tags");
+            } catch (NotFoundException) {
+                tags = Array.Empty<Reference>();
+            }
+
+            foreach (var tag in tags) {
+                // tag.Ref looks like "refs/tags/1.0.0"; the Delete API wants "tags/1.0.0".
+                var reference = tag.Ref.StartsWith("refs/", StringComparison.Ordinal) ? tag.Ref.Substring("refs/".Length) : tag.Ref;
+                try {
+                    await Client.Git.Reference.Delete(Owner, Name, reference);
+                } catch (NotFoundException) {
+                    // already gone — the ref listing was stale
+                }
+
+                deletedTags++;
+            }
+
+            if ((releases.Count == 0 && tags.Count == 0) || DateTime.UtcNow >= deadline)
+                break;
+
+            await Task.Delay(2000);
         }
 
-        IReadOnlyList<Reference> tags;
-        try {
-            tags = await Client.Git.Reference.GetAllForSubNamespace(Owner, Name, "tags");
-        } catch (NotFoundException) {
-            tags = Array.Empty<Reference>();
-        }
-
-        foreach (var tag in tags) {
-            // tag.Ref looks like "refs/tags/1.0.0"; the Delete API wants "tags/1.0.0".
-            var reference = tag.Ref.StartsWith("refs/", StringComparison.Ordinal) ? tag.Ref.Substring("refs/".Length) : tag.Ref;
-            await Client.Git.Reference.Delete(Owner, Name, reference);
-        }
-
-        _log.LogInformation("Reset repo {Repo}: deleted {Releases} releases and {Tags} tags", Name, releases.Count, tags.Count);
+        _log.LogInformation("Reset repo {Repo}: deleted {Releases} releases and {Tags} tags", Name, deletedReleases, deletedTags);
     }
 
     /// <inheritdoc />

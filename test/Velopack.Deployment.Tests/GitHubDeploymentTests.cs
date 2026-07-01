@@ -8,6 +8,10 @@ namespace Velopack.Deployment.Tests;
 /// </summary>
 public class GitHubDeploymentTests(ITestOutputHelper output) : GitReleaseDeploymentSuite(output)
 {
+    // The 5-repo pool is shared by all CI legs; recreating a just-deleted tag name (every test would
+    // otherwise tag '1.0.0') races GitHub's eventual consistency and fails with 'Validation Failed'.
+    protected override bool UseUniqueTags => true;
+
     protected override Task SkipUnlessReadyAsync()
     {
         Assert.SkipWhen(
