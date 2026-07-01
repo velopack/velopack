@@ -194,7 +194,6 @@ mod tests {
 
     #[test]
     fn downcast_roundtrip() {
-        use anyhow::Context;
         let err: anyhow::Error = SetupError::MainExeMissing {
             app_title: "MyApp".to_string(),
         }
