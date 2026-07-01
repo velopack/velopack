@@ -17,12 +17,16 @@ public class MsiTemplateData
     public string AppId;
     public string AppTitle;
     public string AppTitleSanitized => MsiBuilder.SanitizeDirectoryString(AppTitle);
+    public string AppTitleEscaped => MsiBuilder.EscapeMsiFormattedString(AppTitle);
     public string AppPublisher;
     public string AppPublisherSanitized => MsiBuilder.SanitizeDirectoryString(AppPublisher);
+    public string AppPublisherEscaped => MsiBuilder.EscapeMsiFormattedString(AppPublisher);
+    public string AppPublisherSanitizedEscaped => MsiBuilder.EscapeMsiFormattedString(AppPublisherSanitized);
     public string AppMsiVersion;
     public string AppVersion;
 
     public string StubFileName;
+    public string StubFileNameEscaped => MsiBuilder.EscapeMsiFormattedString(StubFileName);
     public string MainExeFileName;
     public bool DesktopShortcut;
     public bool StartMenuShortcut;

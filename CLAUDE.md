@@ -22,6 +22,8 @@ dotnet build -c Release               # Build all .NET projects (Release)
 # Rust
 cargo build                           # Build all Rust workspace members (Debug)
 cargo build --release                  # Build all Rust workspace members (Release)
+cargo bw                              # Alias for `cargo build --features windows` — required on Windows
+                                      # to also build stub.exe/setup.exe (needed by packaging tests)
 ```
 
 ## Test Commands
@@ -30,16 +32,17 @@ cargo build --release                  # Build all Rust workspace members (Relea
 # Run all .NET tests
 dotnet test
 
-# Run a specific test project
-dotnet test test/Velopack.Tests
-dotnet test test/Velopack.CommandLine.Tests
+# Run a specific test project (must use --project)
+dotnet test --project test/Velopack.Tests
+dotnet test --project test/Velopack.CommandLine.Tests
 # Do NOT run all of Velopack.Packaging.Tests — it takes far too long.
-# Instead, run targeted subsets with --filter:
-dotnet test test/Velopack.Packaging.Tests --filter "FullyQualifiedName~MsiTests"
-dotnet test test/Velopack.Packaging.Tests --filter "FullyQualifiedName~MySpecificTest"
+# Instead, run targeted subsets. Tests use xunit v3 on Microsoft.Testing.Platform,
+# so filters go after `--` and use --filter-class / --filter-method with * wildcards
+# (NOT the old VSTest --filter "FullyQualifiedName~..." syntax):
+dotnet test --project test/Velopack.Packaging.Tests -- --filter-class "*MsiTests"
 
 # Run a single test by name
-dotnet test test/Velopack.Tests --filter "FullyQualifiedName~TestMethodName"
+dotnet test --project test/Velopack.Tests -- --filter-method "*TestMethodName*"
 
 # Rust tests
 cargo test
