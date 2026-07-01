@@ -19,7 +19,7 @@ jobs:
         os: [windows, ubuntu, macos]
         include:
           - os: windows
-            runner: blacksmith-4vcpu-windows-2025
+            runner: windows-latest
             rust_flags: "--features windows"
           - os: ubuntu
             runner: ubuntu-latest
@@ -117,7 +117,7 @@ jobs:
         os: [windows, ubuntu, macos]
         include:
           - os: windows
-            runner: blacksmith-8vcpu-windows-2025
+            runner: windows-latest
             rust_flags: "--features windows"
           - os: ubuntu
             runner: ubuntu-latest
@@ -134,12 +134,22 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+      - name: Setup Dev Drive
+        if: ${{ matrix.os == 'windows' }}
+        uses: samypr100/setup-dev-drive@v4
+        with:
+          drive-size: 10GB
+          env-mapping: |
+            TMP,{{ DEV_DRIVE }}\temp
+            TEMP,{{ DEV_DRIVE }}\temp
+      - name: Create Dev Drive temp directory
+        if: ${{ matrix.os == 'windows' }}
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force -Path "$env:DEV_DRIVE\temp" | Out-Null
       - name: Setup Job Environment
         uses: ./.github/actions/job-setup
         with:
           dotnet: true
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
       - name: Install FUSE
         run: |
           sudo add-apt-repository universe
@@ -161,6 +171,112 @@ jobs:
       ## BUILD C# TESTS
       - name: Build .NET
         run: dotnet build -c Release
+      - name: Wait for Artifacts
+        uses: ./.github/actions/wait-artifact
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max_wait_seconds: 900
+          artifacts: rust-macos,rust-windows,rust-windows-arm64,rust-ubuntu-bins-x64,rust-ubuntu-bins-arm64
+          verbose: true
+      - name: Download Rust Artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: target/release
+          pattern: rust-*
+          merge-multiple: true
+      - name: Build Rust testapp
+        run: cargo build --locked --release -p velopack_bins --bin testapp ${{ matrix.rust_flags }}
+      ## START PRIMARY RELEASETESTING
+      - name: Test Velopack.Tests
+        run: >-
+          dotnet test --project test/Velopack.Tests/Velopack.Tests.csproj
+          --no-build -c Release
+          --report-github
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Tests.xml
+      - name: Test Velopack.Packaging.Tests
+        run: >-
+          dotnet test --project test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj
+          --no-build -c Release
+          --report-github
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Packaging.Tests.xml
+      - name: Test Velopack.CommandLine.Tests
+        run: >-
+          dotnet test --project test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj
+          --no-build -c Release
+          --report-github
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.CommandLine.Tests.xml
+      - name: Test Velopack.Pack.Tests
+        run: >-
+          dotnet test --project test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj
+          --no-build -c Release
+          --report-github
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Pack.Tests.xml
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v7
+        with:
+          directory: ./test/coverage
+          flags: vpk
+      - name: Upload Test Results
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: ./test/coverage/junit.*.xml
+          flags: vpk
+
+  vpk-cross:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows, ubuntu, macos]
+        include:
+          - os: windows
+            runner: windows-latest
+            rust_flags: "--features windows"
+          - os: ubuntu
+            runner: ubuntu-latest
+          - os: macos
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+    steps:
+      ## JOB SETUP
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Dev Drive
+        if: ${{ matrix.os == 'windows' }}
+        uses: samypr100/setup-dev-drive@v4
+        with:
+          drive-size: 10GB
+          env-mapping: |
+            TMP,{{ DEV_DRIVE }}\temp
+            TEMP,{{ DEV_DRIVE }}\temp
+      - name: Create Dev Drive temp directory
+        if: ${{ matrix.os == 'windows' }}
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force -Path "$env:DEV_DRIVE\temp" | Out-Null
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
+        with:
+          dotnet: true
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Install FUSE
+        run: |
+          sudo add-apt-repository universe
+          sudo apt update
+          sudo apt install libfuse2
+        if: ${{ matrix.os == 'ubuntu' }}
+      - name: Install squashfs-tools
+        run: brew install squashfs
+        if: ${{ matrix.os == 'macos' }}
+      - name: Install dotnet-coverage
+        run: dotnet tool install -g dotnet-coverage
+      ## BUILD C# TESTS
+      - name: Build .NET
+        run: dotnet build test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj -c Release
       - name: Wait for Artifacts
         uses: ./.github/actions/wait-artifact
         with:
@@ -190,37 +306,13 @@ jobs:
           name: cross-${{ matrix.os }}
           path: test/artifacts/*
           retention-days: 1
-      ## START PRIMARY RELEASETESTING
-      - name: Test Velopack.Tests
-        run: >-
-          dotnet test --project test/Velopack.Tests/Velopack.Tests.csproj
-          --no-build -c Release
-          --report-github
-          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Tests.xml
-      - name: Test Velopack.Packaging.Tests
-        run: >-
-          dotnet test --project test/Velopack.Packaging.Tests/Velopack.Packaging.Tests.csproj
-          --no-build -c Release
-          --report-github
-          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Packaging.Tests.xml
-      - name: Test Velopack.CommandLine.Tests
-        run: >-
-          dotnet test --project test/Velopack.CommandLine.Tests/Velopack.CommandLine.Tests.csproj
-          --no-build -c Release
-          --report-github
-          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.CommandLine.Tests.xml
-      - name: Test Velopack.Pack.Tests
-        run: >-
-          dotnet test --project test/Velopack.Pack.Tests/Velopack.Pack.Tests.csproj
-          --no-build -c Release
-          --report-github
-          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Pack.Tests.xml
       ## START COVERAGE TESTING
-      - name: Clean Rust Build
-        run: cargo clean
+      ## (no full cargo clean needed — this job has no prior debug-profile rust build)
       - name: Setup Rust Coverage Instrumentation
         shell: bash
         run: cargo llvm-cov show-env | sed "s/='\(.*\)'/=\1/" >> "$GITHUB_ENV"
+      - name: Clean Rust Coverage Artifacts
+        run: cargo llvm-cov clean --workspace
       - name: Build Instrumented Rust Binaries
         run: cargo build --locked -p velopack_bins ${{ matrix.rust_flags }}
       - name: Test Velopack.Pack.Tests
@@ -232,8 +324,6 @@ jobs:
           cargo llvm-cov report
           --cobertura --output-path ./test/coverage/coverage.rust-integration.${{ matrix.os }}.xml
       ## START CROSS-COMPILATION TESTING
-      - name: Clean Rust Build
-        run: cargo clean
       - name: Wait for Artifacts
         uses: ./.github/actions/wait-artifact
         if: ${{ matrix.os == 'ubuntu' || matrix.os == 'windows' }}
