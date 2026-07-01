@@ -76,6 +76,7 @@ libc.workspace = true
 
 [target.'cfg(target_os="macos")'.dependencies]
 waitpid-any.workspace = true
+libc.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 fs_extra.workspace = true
