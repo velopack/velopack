@@ -1,0 +1,11 @@
+{
+  "name": "velopack-deployment-test-harness",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Cross-language source-test harness for Velopack.Deployment.Tests (Node.js).",
+  "main": "harness.mjs",
+  "dependencies": {
+    "velopack": "file:../../../../src/lib-nodejs"
+  }
+}

@@ -127,8 +127,7 @@ jobs:
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
       VELOPACK_GITHUB_TEST_TOKEN: ${{ secrets.VELOPACK_GITHUB_TEST_TOKEN }}
-      VELOPACK_B2_TEST_TOKEN: ${{ secrets.VELOPACK_B2_TEST_TOKEN }}
-      VELOPACK_AZ_TEST_TOKEN: ${{ secrets.VELOPACK_AZ_TEST_TOKEN }}
+      VELOPACK_DEPLOYMENT_TEST_TOKEN: ${{ secrets.VELOPACK_DEPLOYMENT_TEST_TOKEN }}
     steps:
       ## JOB SETUP
       - uses: actions/checkout@v7
@@ -138,6 +137,10 @@ jobs:
         uses: ./.github/actions/job-setup
         with:
           dotnet: true
+      # gitlab needs several minutes to become healthy on first boot, so start the stack early
+      - name: Start Deployment Test Services
+        if: ${{ runner.os == 'Linux' }}
+        run: docker compose -f test/Velopack.Deployment.Tests/docker/docker-compose.yml up -d --wait --wait-timeout 900
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Install FUSE
@@ -215,6 +218,14 @@ jobs:
           --no-build -c Release
           --report-github
           --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Pack.Tests.xml
+      - name: Test Velopack.Deployment.Tests
+        run: >-
+          dotnet test --project test/Velopack.Deployment.Tests/Velopack.Deployment.Tests.csproj
+          --no-build -c Release
+          --report-github
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Deployment.Tests.xml
+          --coverage --coverage-output-format cobertura
+          --coverage-output ${{ github.workspace }}/test/coverage/coverage.${{ matrix.os }}.Velopack.Deployment.Tests.xml
       ## START COVERAGE TESTING
       - name: Clean Rust Build
         run: cargo clean

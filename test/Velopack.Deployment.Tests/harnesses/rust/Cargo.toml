@@ -1,0 +1,21 @@
+# Standalone crate, deliberately excluded from the root workspace (see root Cargo.toml `exclude`)
+# so the test harness never affects the workspace Cargo.lock or CI rust builds.
+# Built on demand by HarnessRunner via --manifest-path; outputs to its own target/ dir.
+[workspace]
+
+[package]
+name = "deployment-test-harness"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.75"
+publish = false
+
+[[bin]]
+name = "deployment-test-harness"
+path = "src/main.rs"
+
+[dependencies]
+velopack = { path = "../../../../src/lib-rust", features = ["file-logging", "public-utils"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.11"

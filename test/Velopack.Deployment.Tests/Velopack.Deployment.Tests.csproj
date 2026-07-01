@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Velopack.TestCommon\Velopack.TestCommon.csproj" />
+    <ProjectReference Include="..\..\src\vpk\Velopack.Vpk\Velopack.Vpk.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Octokit" Version="14.0.0" />
+    <!-- MTP-native code coverage: the coverlet.msbuild props injected by test/Directory.Build.props
+         only hook VSTest targets, which never run under the Microsoft.Testing.Platform runner. -->
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.8.0" />
+  </ItemGroup>
+
+</Project>

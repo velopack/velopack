@@ -1,0 +1,130 @@
+# Local service stack for Velopack.Deployment.Tests.
+#
+# Start once, then run the tests as many times as you like:
+#   docker compose -f test/Velopack.Deployment.Tests/docker/docker-compose.yml up -d
+#
+# Tests probe each service and skip (not fail) any test whose service is not running.
+# GitLab takes several minutes to become healthy on first boot; everything else is fast.
+# Fixed ports and credentials are mirrored in Infra/DockerServices.cs — keep them in sync.
+
+name: velopack-deployment-tests
+
+services:
+  # Multiple Gitea versions so we catch API back-compat breaks.
+  gitea-122:
+    image: gitea/gitea:1.22
+    container_name: velopack-test-gitea-122
+    environment:
+      - GITEA__security__INSTALL_LOCK=true
+      - GITEA__server__ROOT_URL=http://localhost:3122/
+      - GITEA__database__DB_TYPE=sqlite3
+      - GITEA__log__LEVEL=Warn
+      - GITEA__webhook__ALLOWED_HOST_LIST=*
+    ports:
+      - "3122:3000"
+    volumes:
+      - gitea122-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/api/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  gitea-124:
+    image: gitea/gitea:1.24
+    container_name: velopack-test-gitea-124
+    environment:
+      - GITEA__security__INSTALL_LOCK=true
+      - GITEA__server__ROOT_URL=http://localhost:3124/
+      - GITEA__database__DB_TYPE=sqlite3
+      - GITEA__log__LEVEL=Warn
+      - GITEA__webhook__ALLOWED_HOST_LIST=*
+    ports:
+      - "3124:3000"
+    volumes:
+      - gitea124-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/api/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  gitea-latest:
+    image: gitea/gitea:latest
+    container_name: velopack-test-gitea-latest
+    environment:
+      - GITEA__security__INSTALL_LOCK=true
+      - GITEA__server__ROOT_URL=http://localhost:3199/
+      - GITEA__database__DB_TYPE=sqlite3
+      - GITEA__log__LEVEL=Warn
+      - GITEA__webhook__ALLOWED_HOST_LIST=*
+    ports:
+      - "3199:3000"
+    volumes:
+      - gitea-latest-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/api/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # GitLab is used for update-source tests only (there is no vpk gitlab destination).
+  gitlab:
+    image: gitlab/gitlab-ce:latest
+    container_name: velopack-test-gitlab
+    hostname: localhost
+    environment:
+      GITLAB_ROOT_PASSWORD: "VelopackTest123!"
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://localhost:8929'
+        prometheus_monitoring['enable'] = false
+        gitlab_rails['usage_ping_enabled'] = false
+        gitlab_kas['enable'] = false
+        puma['worker_processes'] = 0
+        sidekiq['concurrency'] = 5
+    ports:
+      - "8929:8929"
+    shm_size: "256m"
+    volumes:
+      - gitlab-config:/etc/gitlab
+      - gitlab-data:/var/opt/gitlab
+      - gitlab-logs:/var/log/gitlab
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8929/-/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 60
+      start_period: 400s
+
+  # Azure Blob emulator (vpk upload/download az).
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    container_name: velopack-test-azurite
+    command: azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --skipApiVersionCheck --loose
+    ports:
+      - "10000:10000"
+    volumes:
+      - azurite-data:/data
+
+  # S3 emulator (vpk upload/download s3). Accepts any credentials; in-memory storage.
+  s3mock:
+    image: adobe/s3mock:latest
+    container_name: velopack-test-s3mock
+    environment:
+      - debug=false
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9090/"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  gitea122-data:
+  gitea124-data:
+  gitea-latest-data:
+  gitlab-config:
+  gitlab-data:
+  gitlab-logs:
+  azurite-data:

@@ -76,6 +76,7 @@ test/
 ├── Velopack.Tests/              # Core library unit tests
 ├── Velopack.Packaging.Tests/    # Packaging/CLI tests
 ├── Velopack.CommandLine.Tests/  # CLI command parsing tests
+├── Velopack.Deployment.Tests/   # vpk destination + cross-language update-source tests (docker stack)
 ├── TestApp/                     # Test application used by integration tests
 ├── fixtures/                    # Test fixture files
 ├── PathHelper.cs                # Shared test utilities (linked into all test projects)
@@ -155,6 +156,27 @@ Locators (`IVelopackLocator` in C#, `VelopackLocator` in Rust) resolve platform-
 - **Max line length**: 150 characters (C# and Rust).
 - **Indent**: 4 spaces for C#, 2 spaces for XML/csproj/props, spaces everywhere (no tabs).
 - **Rust formatting**: Always run `rustfmt` on Rust files after finishing edits.
+
+## Deployment Tests (test/Velopack.Deployment.Tests)
+
+Covers every `vpk` upload/download destination (local, S3, Azure, Gitea x3 versions, GitHub) and
+update-*source* tests run cross-language via small CLI harnesses in 5 languages (C# in-process,
+Rust, C++, Node.js, Python — see `harnesses/`). Destinations/sources run against a local docker
+stack (Gitea, GitLab, Azurite, S3Mock), except GitHub which is live and uses a 5-repo lock pool
+(`caesay/velopack-test-{1..5}`).
+
+- **Start the stack once**, then re-run tests freely (see `test/Velopack.Deployment.Tests/docker/README.md`):
+  ```bash
+  docker compose -f test/Velopack.Deployment.Tests/docker/docker-compose.yml up -d
+  ```
+  GitLab takes several minutes to become healthy on first boot; other services are up in seconds.
+- Tests **self-skip (never fail)** when a service, toolchain, or token is unavailable.
+- Live GitHub tests need the `VELOPACK_DEPLOYMENT_TEST_TOKEN` env var (on Windows a User-level
+  variable works — tests also read `EnvironmentVariableTarget.User`).
+- Language harnesses are built once per test session (cargo / npm / maturin venv / cmake); a
+  missing toolchain skips just that language's rows.
+- **Do not run this project's tests in parallel processes** — packing mutates
+  `test/TestApp/Const.cs`, so concurrent runs corrupt each other.
 
 ## Python type stubs (lib-python)
 

@@ -11,6 +11,7 @@ members = [
 ]
 exclude = [
     "samples/RustIced",
+    "test/Velopack.Deployment.Tests/harnesses/rust",
 ]
 
 [workspace.package]
