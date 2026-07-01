@@ -1,5 +1,24 @@
 // This file is auto-generated. Do not edit by hand.
 
+/** A single HTTP header (name and value pair) to be sent with a web request. */
+export type HttpHeader = {
+    /** The name of the HTTP header (eg. "Authorization"). */
+    Name: string,
+    /** The value of the HTTP header. */
+    Value: string,
+}
+
+/** Options to customize HTTP requests (custom headers, timeout, etc). */
+export type HttpOptions = {
+    /** Additional headers to send with each request. */
+    Headers: HttpHeader[],
+    /**
+     * Timeout applied to the entire request (connection + transfer), in milliseconds.
+     * The default of 0 means requests never time out.
+     */
+    TimeoutMilliseconds: number,
+}
+
 /** VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth). */
 export type VelopackLocatorConfig = {
     /** The root directory of the current app, or the path to the AppImage file on Linux. */

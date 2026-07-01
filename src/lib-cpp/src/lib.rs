@@ -59,7 +59,7 @@ pub extern "C" fn vpkc_new_source_http_url(psz_http_url: *const c_char) -> *mut 
 #[logfn_inputs(Trace)]
 pub extern "C" fn vpkc_new_source_http_url_with_options(
     psz_http_url: *const c_char,
-    p_options: *const vpkc_http_options_t,
+    p_options: *mut vpkc_http_options_t,
 ) -> *mut vpkc_update_source_t {
     let update_url = match c_to_String(psz_http_url) {
         Ok(url) => url,
@@ -68,7 +68,12 @@ pub extern "C" fn vpkc_new_source_http_url_with_options(
             return ptr::null_mut();
         }
     };
-    match c_to_HttpOptions(p_options) {
+    let options = if p_options.is_null() {
+        Ok(velopack::HttpOptions::default())
+    } else {
+        c_to_HttpOptions(p_options)
+    };
+    match options {
         Ok(options) => UpdateSourceRawPtr::new(Box::new(sources::HttpSource::new_with_options(update_url, options))),
         Err(e) => {
             log::error!("p_options is invalid: {}", e);

@@ -2,8 +2,103 @@
 #![allow(non_snake_case)]
 #![allow(clippy::all)]
 use pyo3::prelude::*;
-use velopack::{VelopackAsset, UpdateInfo, UpdateOptions, locator::VelopackLocatorConfig};
+use velopack::{HttpHeader, HttpOptions, VelopackAsset, UpdateInfo, UpdateOptions, locator::VelopackLocatorConfig};
 use std::path::PathBuf;
+
+/// A single HTTP header (name and value pair) to be sent with a web request.
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pyclass)]
+#[pyclass(name = "HttpHeader", from_py_object)]
+#[derive(Debug, Clone, Default)]
+pub struct PyHttpHeader {
+    /// The name of the HTTP header (eg. "Authorization").
+    #[pyo3(get, set)]
+    pub Name: String,
+    /// The value of the HTTP header.
+    #[pyo3(get, set)]
+    pub Value: String,
+}
+
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
+#[pymethods]
+impl PyHttpHeader {
+    #[new]
+    #[pyo3(signature = (Name, Value))]
+    fn new(
+        Name: String,
+        Value: String,
+        ) -> Self {
+        Self {
+            Name: Name.into(),
+            Value: Value.into(),
+        }
+    }
+}
+
+impl From<HttpHeader> for PyHttpHeader {
+    fn from(value: HttpHeader) -> Self {
+        PyHttpHeader {
+            Name: value.Name.into(),
+            Value: value.Value.into(),
+        }
+    }
+}
+
+impl Into<HttpHeader> for PyHttpHeader {
+    fn into(self) -> HttpHeader {
+        HttpHeader {
+            Name: self.Name.into(),
+            Value: self.Value.into(),
+        }
+    }
+}
+
+/// Options to customize HTTP requests (custom headers, timeout, etc).
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pyclass)]
+#[pyclass(name = "HttpOptions", from_py_object)]
+#[derive(Debug, Clone, Default)]
+pub struct PyHttpOptions {
+    /// Additional headers to send with each request.
+    #[pyo3(get, set)]
+    pub Headers: Vec<PyHttpHeader>,
+    /// Timeout applied to the entire request (connection + transfer), in milliseconds.
+    /// The default of 0 means requests never time out.
+    #[pyo3(get, set)]
+    pub TimeoutMilliseconds: u64,
+}
+
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
+#[pymethods]
+impl PyHttpOptions {
+    #[new]
+    #[pyo3(signature = (Headers, TimeoutMilliseconds))]
+    fn new(
+        Headers: Vec<PyHttpHeader>,
+        TimeoutMilliseconds: u64,
+        ) -> Self {
+        Self {
+            Headers: Headers.into_iter().map(Into::into).collect(),
+            TimeoutMilliseconds: TimeoutMilliseconds,
+        }
+    }
+}
+
+impl From<HttpOptions> for PyHttpOptions {
+    fn from(value: HttpOptions) -> Self {
+        PyHttpOptions {
+            Headers: value.Headers.into_iter().map(Into::into).collect(),
+            TimeoutMilliseconds: value.TimeoutMilliseconds,
+        }
+    }
+}
+
+impl Into<HttpOptions> for PyHttpOptions {
+    fn into(self) -> HttpOptions {
+        HttpOptions {
+            Headers: self.Headers.into_iter().map(Into::into).collect(),
+            TimeoutMilliseconds: self.TimeoutMilliseconds,
+        }
+    }
+}
 
 /// VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth).
 #[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pyclass)]

@@ -50,13 +50,19 @@ impl GitlabSource {
         }
     }
 
-    fn get_http_options(&self, accept: &str) -> download::HttpOptions {
-        let mut headers = vec![("Accept".to_string(), accept.to_string())];
+    fn get_http_options(&self, accept: &str) -> HttpOptions {
+        let mut headers = vec![HttpHeader {
+            Name: "Accept".to_string(),
+            Value: accept.to_string(),
+        }];
         if let Some(ref token) = self.access_token {
-            headers.push(("PRIVATE-TOKEN".to_string(), token.clone()));
+            headers.push(HttpHeader {
+                Name: "PRIVATE-TOKEN".to_string(),
+                Value: token.clone(),
+            });
         }
-        download::HttpOptions {
-            headers,
+        HttpOptions {
+            Headers: headers,
             ..Default::default()
         }
     }

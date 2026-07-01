@@ -10,6 +10,7 @@ __all__ = [
     "GiteaSource",
     "GithubSource",
     "GitlabSource",
+    "HttpHeader",
     "HttpOptions",
     "HttpSource",
     "UpdateInfo",
@@ -106,16 +107,60 @@ class GitlabSource:
         """
 
 @typing.final
+class HttpHeader:
+    r"""
+    A single HTTP header (name and value pair) to be sent with a web request.
+    """
+    @property
+    def Name(self) -> builtins.str:
+        r"""
+        The name of the HTTP header (eg. "Authorization").
+        """
+    @Name.setter
+    def Name(self, value: builtins.str) -> None:
+        r"""
+        The name of the HTTP header (eg. "Authorization").
+        """
+    @property
+    def Value(self) -> builtins.str:
+        r"""
+        The value of the HTTP header.
+        """
+    @Value.setter
+    def Value(self, value: builtins.str) -> None:
+        r"""
+        The value of the HTTP header.
+        """
+    def __new__(cls, Name: builtins.str, Value: builtins.str) -> HttpHeader: ...
+
+@typing.final
 class HttpOptions:
     r"""
     Options to customize HTTP requests (custom headers, timeout, etc).
     """
-    def __new__(cls, headers: typing.Optional[typing.Mapping[builtins.str, builtins.str]] = None, timeout_seconds: typing.Optional[builtins.float] = None) -> HttpOptions:
+    @property
+    def Headers(self) -> builtins.list[HttpHeader]:
         r"""
-        Create a new HttpOptions.
-        - `headers`: Optional additional headers to send with each request.
-        - `timeout_seconds`: Optional request timeout. If None, requests never time out.
+        Additional headers to send with each request.
         """
+    @Headers.setter
+    def Headers(self, value: typing.Sequence[HttpHeader]) -> None:
+        r"""
+        Additional headers to send with each request.
+        """
+    @property
+    def TimeoutMilliseconds(self) -> builtins.int:
+        r"""
+        Timeout applied to the entire request (connection + transfer), in milliseconds.
+        The default of 0 means requests never time out.
+        """
+    @TimeoutMilliseconds.setter
+    def TimeoutMilliseconds(self, value: builtins.int) -> None:
+        r"""
+        Timeout applied to the entire request (connection + transfer), in milliseconds.
+        The default of 0 means requests never time out.
+        """
+    def __new__(cls, Headers: typing.Sequence[HttpHeader], TimeoutMilliseconds: builtins.int) -> HttpOptions: ...
 
 @typing.final
 class HttpSource:

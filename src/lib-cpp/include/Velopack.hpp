@@ -9,7 +9,6 @@
 #include <stdexcept>
 #include <memory>
 #include <functional>
-#include <utility>
 
 #include "Velopack.h"
 
@@ -87,6 +86,149 @@ inline T unwrap(const std::optional<T>& opt, const std::string& message = "Expec
 }
 
 // !! AUTO-GENERATED-START CPP_TYPES
+
+/** A single HTTP header (name and value pair) to be sent with a web request. */
+struct HttpHeader {
+    /** The name of the HTTP header (eg. "Authorization"). */
+    std::string Name;
+    /** The value of the HTTP header. */
+    std::string Value;
+};
+
+static inline std::optional<HttpHeader> to_cpp_HttpHeader(const vpkc_http_header_t* dto) {
+    if (dto == nullptr) { return std::nullopt; }
+    return std::optional<HttpHeader>({
+        unwrap(to_cpp_string(dto->Name), "Required property Name was null"),
+        unwrap(to_cpp_string(dto->Value), "Required property Value was null"),
+    });
+}
+
+static inline std::vector<HttpHeader> to_cpp_HttpHeader_vec(const vpkc_http_header_t* const* arr, size_t c) {
+    if (arr == nullptr || c < 1) { return std::vector<HttpHeader>(); }
+    std::vector<HttpHeader> result;
+    result.reserve(c);
+    for (size_t i = 0; i < c; ++i) {
+        auto dto = arr[i];
+        if (dto == nullptr) { continue; }
+        result.push_back(unwrap(to_cpp_HttpHeader(dto)));
+    }
+    return result;
+}
+
+static inline vpkc_http_header_t* alloc_c_HttpHeader_ptr(const HttpHeader* dto) {
+    if (dto == nullptr) { return nullptr; }
+    vpkc_http_header_t* obj = new vpkc_http_header_t{};
+    obj->Name = alloc_c_string(dto->Name);
+    obj->Value = alloc_c_string(dto->Value);
+    return obj;
+}
+
+static inline vpkc_http_header_t* alloc_c_HttpHeader(const std::optional<HttpHeader>& dto) {
+    if (!dto.has_value()) { return nullptr; }
+    HttpHeader obj = unwrap(dto);
+    return alloc_c_HttpHeader_ptr(&obj);
+}
+
+static inline vpkc_http_header_t** alloc_c_HttpHeader_vec(const std::vector<HttpHeader>& dto, size_t* count) {
+    if (dto.empty()) {
+        *count = 0;
+        return nullptr;
+    }
+    *count = dto.size();
+    vpkc_http_header_t** arr = new vpkc_http_header_t*[*count];
+    for (size_t i = 0; i < *count; ++i) {
+        arr[i] = alloc_c_HttpHeader(dto[i]);
+    }
+    return arr;
+}
+
+static inline void free_c_HttpHeader(vpkc_http_header_t* obj) {
+    if (obj == nullptr) { return; }
+    free_c_string(obj->Name);
+    free_c_string(obj->Value);
+    delete obj;
+}
+
+static inline void free_c_HttpHeader_vec(vpkc_http_header_t** arr, size_t count) {
+    if (arr == nullptr || count < 1) { return; }
+    for (size_t i = 0; i < count; ++i) {
+        free_c_HttpHeader(arr[i]);
+    }
+    delete[] arr;
+}
+
+/** Options to customize HTTP requests (custom headers, timeout, etc). */
+struct HttpOptions {
+    /** Additional headers to send with each request. */
+    std::vector<HttpHeader> Headers;
+    /**
+     * Timeout applied to the entire request (connection + transfer), in milliseconds.
+     * The default of 0 means requests never time out.
+     */
+    uint64_t TimeoutMilliseconds;
+};
+
+static inline std::optional<HttpOptions> to_cpp_HttpOptions(const vpkc_http_options_t* dto) {
+    if (dto == nullptr) { return std::nullopt; }
+    return std::optional<HttpOptions>({
+        to_cpp_HttpHeader_vec(dto->Headers, dto->HeadersCount),
+        dto->TimeoutMilliseconds,
+    });
+}
+
+static inline std::vector<HttpOptions> to_cpp_HttpOptions_vec(const vpkc_http_options_t* const* arr, size_t c) {
+    if (arr == nullptr || c < 1) { return std::vector<HttpOptions>(); }
+    std::vector<HttpOptions> result;
+    result.reserve(c);
+    for (size_t i = 0; i < c; ++i) {
+        auto dto = arr[i];
+        if (dto == nullptr) { continue; }
+        result.push_back(unwrap(to_cpp_HttpOptions(dto)));
+    }
+    return result;
+}
+
+static inline vpkc_http_options_t* alloc_c_HttpOptions_ptr(const HttpOptions* dto) {
+    if (dto == nullptr) { return nullptr; }
+    vpkc_http_options_t* obj = new vpkc_http_options_t{};
+    obj->Headers = alloc_c_HttpHeader_vec(dto->Headers, &obj->HeadersCount);
+    obj->TimeoutMilliseconds = dto->TimeoutMilliseconds;
+    return obj;
+}
+
+static inline vpkc_http_options_t* alloc_c_HttpOptions(const std::optional<HttpOptions>& dto) {
+    if (!dto.has_value()) { return nullptr; }
+    HttpOptions obj = unwrap(dto);
+    return alloc_c_HttpOptions_ptr(&obj);
+}
+
+static inline vpkc_http_options_t** alloc_c_HttpOptions_vec(const std::vector<HttpOptions>& dto, size_t* count) {
+    if (dto.empty()) {
+        *count = 0;
+        return nullptr;
+    }
+    *count = dto.size();
+    vpkc_http_options_t** arr = new vpkc_http_options_t*[*count];
+    for (size_t i = 0; i < *count; ++i) {
+        arr[i] = alloc_c_HttpOptions(dto[i]);
+    }
+    return arr;
+}
+
+static inline void free_c_HttpOptions(vpkc_http_options_t* obj) {
+    if (obj == nullptr) { return; }
+    free_c_HttpHeader_vec(obj->Headers, obj->HeadersCount);
+    
+    delete obj;
+}
+
+static inline void free_c_HttpOptions_vec(vpkc_http_options_t** arr, size_t count) {
+    if (arr == nullptr || count < 1) { return; }
+    for (size_t i = 0; i < count; ++i) {
+        free_c_HttpOptions(arr[i]);
+    }
+    delete[] arr;
+}
 
 /** VelopackLocator provides some utility functions for locating the current app important paths (eg. path to packages, update binary, and so forth). */
 struct VelopackLocatorConfig {
@@ -703,16 +845,6 @@ public:
 };
 
 /**
- * Options to customize HTTP requests (custom headers, timeout, etc).
- */
-struct HttpOptions {
-    /** Additional headers to send with each request, as (name, value) pairs. */
-    std::vector<std::pair<std::string, std::string>> Headers;
-    /** Optional request timeout in milliseconds. If not set, requests never time out. */
-    std::optional<uint64_t> TimeoutMilliseconds;
-};
-
-/**
  * A built-in update source that reads release feeds and downloads assets from a remote HTTP URL.
  */
 class HttpSource : public IUpdateSourcePointer {
@@ -729,20 +861,9 @@ public:
      * @param options HTTP options (custom headers, timeout) applied to all requests made by this source.
      */
     HttpSource(const std::string& httpUrl, const HttpOptions& options) : IUpdateSourcePointer(nullptr) {
-        std::vector<char*> headerNames;
-        std::vector<char*> headerValues;
-        headerNames.reserve(options.Headers.size());
-        headerValues.reserve(options.Headers.size());
-        for (const auto& header : options.Headers) {
-            headerNames.push_back(const_cast<char*>(header.first.c_str()));
-            headerValues.push_back(const_cast<char*>(header.second.c_str()));
-        }
-        vpkc_http_options_t cOptions{};
-        cOptions.HeaderNames = headerNames.empty() ? nullptr : headerNames.data();
-        cOptions.HeaderValues = headerValues.empty() ? nullptr : headerValues.data();
-        cOptions.HeaderCount = headerNames.size();
-        cOptions.TimeoutMilliseconds = options.TimeoutMilliseconds.value_or(0);
-        m_pSource = vpkc_new_source_http_url_with_options(httpUrl.c_str(), &cOptions);
+        vpkc_http_options_t* pOptions = alloc_c_HttpOptions_ptr(&options);
+        m_pSource = vpkc_new_source_http_url_with_options(httpUrl.c_str(), pOptions);
+        free_c_HttpOptions(pOptions);
     }
 };
 
