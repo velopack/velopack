@@ -10,6 +10,7 @@ namespace Velopack.Deployment.Tests;
 /// Needs no external service, so it never skips. In addition to the inherited suite it covers the
 /// local-only <c>ForceRegenerate</c> flag, the nupkg-scan feed fallback, and TargetPath validation.
 /// </summary>
+[Collection("local")]
 public class LocalDeploymentTests(ITestOutputHelper output) : ObjectStoreDeploymentSuite(output)
 {
     private string _targetDir = "";

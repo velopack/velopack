@@ -10,6 +10,7 @@ namespace Velopack.Deployment.Tests;
 /// Tests for <c>vpk download http</c> (<see cref="HttpDownloadCommandRunner"/>) against an in-process
 /// <see cref="StaticFileServer"/>, which records every request so custom-header behavior can be asserted.
 /// </summary>
+[Collection("http")]
 public class HttpDownloadTests
 {
     // reuses the object-store suites' pack cache key (same id/channel/versions) so no extra packing occurs.

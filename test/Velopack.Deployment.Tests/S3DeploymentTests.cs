@@ -10,6 +10,7 @@ namespace Velopack.Deployment.Tests;
 /// created per test via the AWS SDK and deleted in the scope disposer. S3Mock serves unauthenticated HTTP
 /// GETs, so the public feed URL is just <c>{endpoint}/{bucket}</c> (no bucket policy needed).
 /// </summary>
+[Collection("s3mock")]
 public class S3DeploymentTests(ITestOutputHelper output) : ObjectStoreDeploymentSuite(output)
 {
     private const string Endpoint = DockerServices.S3MockEndpoint; // http://localhost:9090

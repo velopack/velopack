@@ -755,13 +755,12 @@ public class WindowsPackTests
         bool addNewFile = false, string assemblyNameOverride = null, string mainExeSubfolder = null)
     {
         var projDir = PathHelper.GetTestRootPath("TestApp");
-        var testStringFile = Path.Combine(projDir, "Const.cs");
-        var oldText = File.ReadAllText(testStringFile);
 
-        try {
-            File.WriteAllText(testStringFile, $"class Const {{ public const string TEST_STRING = \"{testString}\"; }}");
+        {
+            // the test string is injected as a compile-time constant via -p:TestAppTestString (see TestApp.csproj)
             var args = new List<string> {
-                "publish", "--no-self-contained", "-c", "Release", "-r", "win-x64", "-o", "publish", "--tl:off"
+                "publish", "--no-self-contained", "-c", "Release", "-r", "win-x64", "-o", "publish", "--tl:off",
+                $"-p:TestAppTestString={testString}",
             };
 
             if (assemblyNameOverride != null) {
@@ -822,8 +821,6 @@ public class WindowsPackTests
 
             var runner = WindowsTestHelper.GetPackRunner(logger);
             await runner.Run(options);
-        } finally {
-            File.WriteAllText(testStringFile, oldText);
         }
     }
 

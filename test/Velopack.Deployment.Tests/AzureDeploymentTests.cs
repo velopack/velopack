@@ -11,6 +11,7 @@ namespace Velopack.Deployment.Tests;
 /// per test with <see cref="PublicAccessType.Blob"/> so its blobs are readable over plain HTTP, letting the
 /// public feed URL be verified via <c>SimpleWebSource</c>. The container is deleted in the scope disposer.
 /// </summary>
+[Collection("azurite")]
 public class AzureDeploymentTests(ITestOutputHelper output) : ObjectStoreDeploymentSuite(output)
 {
     // Well-known Azurite dev account credentials.
