@@ -34,6 +34,39 @@ fn touch(path: &Path) -> io::Result<()> {
     Ok(())
 }
 
+/// Removes the `com.apple.quarantine` extended attribute from a single item (not following
+/// symlinks). Returns Ok if the item simply wasn't quarantined.
+fn remove_quarantine(path: &Path) -> io::Result<()> {
+    use std::os::unix::ffi::OsStrExt;
+    let path_c = std::ffi::CString::new(path.as_os_str().as_bytes())?;
+    let name = b"com.apple.quarantine\0";
+    if unsafe { libc::removexattr(path_c.as_ptr(), name.as_ptr() as *const std::os::raw::c_char, libc::XATTR_NOFOLLOW) } != 0 {
+        let e = io::Error::last_os_error();
+        // ENOATTR just means the attribute wasn't set, which is the common case
+        if e.raw_os_error() != Some(libc::ENOATTR) {
+            return Err(e);
+        }
+    }
+    Ok(())
+}
+
+/// Recursively strips `com.apple.quarantine` from the bundle so Gatekeeper doesn't re-prompt (or
+/// block) when the app relaunches after an update. Best-effort: extraction usually doesn't set it,
+/// but an archive or the download path could. Sparkle does the same before installing.
+fn remove_quarantine_recursive(path: &Path) {
+    if let Err(e) = remove_quarantine(path) {
+        debug!("Failed to remove quarantine attribute from {:?} ({})", path, e);
+    }
+    // symlink_metadata does not traverse the link, so symlinked directories are not descended into
+    if fs::symlink_metadata(path).map(|m| m.file_type().is_dir()).unwrap_or(false) {
+        if let Ok(entries) = fs::read_dir(path) {
+            for entry in entries.flatten() {
+                remove_quarantine_recursive(&entry.path());
+            }
+        }
+    }
+}
+
 /// Replaces the installed .app bundle with the newly extracted one, using the same strategy
 /// as the Sparkle updater: a single atomic swap syscall, so there is never a moment where the
 /// bundle is missing or incomplete. Replacing the bundle non-atomically lets the Dock observe
@@ -43,6 +76,12 @@ fn replace_bundle(root_path: &Path, tmp_path_old: &Path, tmp_path_new: &Path) ->
     match atomic_swap(root_path, tmp_path_new) {
         Ok(()) => return Ok(()), // the old bundle is now in tmp_path_new, deleted by the caller
         Err(e) if e.kind() == io::ErrorKind::PermissionDenied => return Err(e),
+        // the update was staged on a different volume than the app (e.g. app on an external disk,
+        // temp dir under the home volume), so no rename can move it into place
+        Err(e) if e.raw_os_error() == Some(libc::EXDEV) => {
+            warn!("Update is on a different volume than the app, copying it into place instead.");
+            return replace_bundle_across_volumes(root_path, tmp_path_new);
+        }
         Err(e) => warn!("Atomic bundle swap failed ({}), falling back to a non-atomic rename.", e),
     }
     fs::rename(root_path, tmp_path_old)?;
@@ -54,11 +93,103 @@ fn replace_bundle(root_path: &Path, tmp_path_old: &Path, tmp_path_new: &Path) ->
     Ok(())
 }
 
+/// Copies the staged bundle onto the destination volume and moves it into place. Used when the
+/// update was extracted on a different volume than the installed app, where rename fails with
+/// EXDEV. `ditto` is the right tool for relocating a bundle: it preserves symlinks, permissions,
+/// ACLs and extended attributes, which a naive recursive copy would drop.
+fn replace_bundle_across_volumes(root_path: &Path, tmp_path_new: &Path) -> io::Result<()> {
+    let file_name = root_path
+        .file_name()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "the app path has no file name"))?;
+    let sibling = |suffix: &str| root_path.with_file_name(format!(".{}.{}", file_name.to_string_lossy(), suffix));
+    let staged = sibling("velopack-new");
+    let backup = sibling("velopack-old");
+    let _ = fs::remove_dir_all(&staged);
+    let _ = fs::remove_dir_all(&backup);
+
+    // create the staging dir up front: it lives beside the app, so this both proves we can write to
+    // the destination directory (a PermissionDenied here propagates and triggers elevation) and
+    // guarantees the subsequent rename into place is same-volume
+    fs::create_dir(&staged)?;
+
+    let copy = Command::new("/usr/bin/ditto").arg(tmp_path_new).arg(&staged).status();
+    match copy {
+        Ok(status) if status.success() => {}
+        Ok(status) => {
+            let _ = fs::remove_dir_all(&staged);
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!("ditto failed to copy the update across volumes ({})", status),
+            ));
+        }
+        Err(e) => {
+            let _ = fs::remove_dir_all(&staged);
+            return Err(e);
+        }
+    }
+
+    // staged is now on the same volume as the app, so move the old app aside and the new one in,
+    // restoring the original on failure so the caller's cleanup can never delete the only copy
+    fs::rename(root_path, &backup)?;
+    if let Err(e) = fs::rename(&staged, root_path) {
+        let _ = fs::rename(&backup, root_path);
+        let _ = fs::remove_dir_all(&staged);
+        return Err(e);
+    }
+    let _ = fs::remove_dir_all(&backup);
+    Ok(())
+}
+
+/// Returns the owning uid/gid of `path` (of the symlink itself, not its target).
+fn owner_of(path: &Path) -> io::Result<(u32, u32)> {
+    use std::os::unix::fs::MetadataExt;
+    let meta = fs::symlink_metadata(path)?;
+    Ok((meta.uid(), meta.gid()))
+}
+
+/// Changes the owner/group of a single item without following symlinks (like `lchown`).
+fn lchown(path: &Path, uid: u32, gid: u32) -> io::Result<()> {
+    use std::os::unix::ffi::OsStrExt;
+    let path_c = std::ffi::CString::new(path.as_os_str().as_bytes())?;
+    if unsafe { libc::lchown(path_c.as_ptr(), uid, gid) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
+}
+
+/// Recursively changes the owner/group of `path` and everything under it, without following
+/// symlinks (bundles routinely contain symlinks, e.g. `Frameworks/Foo.framework/Versions/Current`).
+fn chown_recursive(path: &Path, uid: u32, gid: u32) -> io::Result<()> {
+    lchown(path, uid, gid)?;
+    // symlink_metadata does not traverse the link, so a symlinked directory is not descended into
+    if fs::symlink_metadata(path)?.file_type().is_dir() {
+        for entry in fs::read_dir(path)? {
+            chown_recursive(&entry?.path(), uid, gid)?;
+        }
+    }
+    Ok(())
+}
+
 /// Entry point for the elevated `swap` command. Replaces the bundle, then cleans up the
 /// temporary directories (the parent process cannot, because after an update of a bundle
 /// which required elevation they may contain root-owned files).
 pub fn swap_bundles(root_path: &Path, tmp_path_old: &Path, tmp_path_new: &Path) -> Result<()> {
+    // The new bundle was extracted by the unprivileged user, so it is user-owned. Capture the
+    // installed bundle's owner before the swap and restore it afterwards, otherwise the app (e.g.
+    // in /Applications) would silently become user-owned, lowering its tamper protection and
+    // making future updates skip elevation. Sparkle restores ownership for the same reason.
+    let original_owner = owner_of(root_path);
+
     replace_bundle(root_path, tmp_path_old, tmp_path_new)?;
+
+    match original_owner {
+        Ok((uid, gid)) => {
+            if let Err(e) = chown_recursive(root_path, uid, gid) {
+                warn!("Failed to restore bundle ownership to {}:{} ({})", uid, gid, e);
+            }
+        }
+        Err(e) => warn!("Could not determine original bundle owner, leaving ownership unchanged ({})", e),
+    }
     if let Err(e) = touch(root_path) {
         warn!("Failed to update bundle modification time ({})", e);
     }
@@ -134,9 +265,16 @@ mod authorization {
 }
 
 enum SwapAttempt {
+    /// The elevated child ran the swap and reported success.
     Success,
+    /// The user dismissed the authentication dialog. Do not fall back — they said no.
     Cancelled,
-    Failed(String),
+    /// Elevation could not be performed at all (auth failed, tool couldn't be launched, etc.),
+    /// so it is worth trying the osascript path, which prompts and elevates differently.
+    Unelevated(String),
+    /// The elevated child ran but the swap itself failed. Re-running it as root via osascript
+    /// would only fail again, so give up instead of prompting the user a second time.
+    ChildFailed(String),
 }
 
 /// Re-runs this executable as root to swap the bundle, and waits for it to complete. Elevation is
@@ -167,7 +305,10 @@ fn run_elevated_swap(app_title: &str, root_path: &Path, tmp_path_old: &Path, tmp
                 return Ok(());
             }
             SwapAttempt::Cancelled => bail!("The user declined the elevation request."),
-            SwapAttempt::Failed(reason) => {
+            // the child ran as root but the swap failed; osascript would run the same swap as root
+            // and fail identically, so don't prompt the user again — just surface the error
+            SwapAttempt::ChildFailed(reason) => bail!("The elevated update failed ({}).", reason),
+            SwapAttempt::Unelevated(reason) => {
                 warn!("Elevation via Authorization Services failed ({}), falling back to osascript.", reason);
             }
         }
@@ -193,18 +334,18 @@ fn run_swap_via_authorization(
     let to_cstring = |bytes: &[u8]| CString::new(bytes).map_err(|_| "path contains a NUL byte".to_string());
     let exe_c = match to_cstring(exe.as_os_str().as_bytes()) {
         Ok(c) => c,
-        Err(e) => return SwapAttempt::Failed(e),
+        Err(e) => return SwapAttempt::Unelevated(e),
     };
     let args_c = match args.iter().map(|a| to_cstring(a.as_bytes())).collect::<Result<Vec<_>, _>>() {
         Ok(c) => c,
-        Err(e) => return SwapAttempt::Failed(e),
+        Err(e) => return SwapAttempt::Unelevated(e),
     };
 
     // "prompt" is kAuthorizationEnvironmentPrompt; the text is shown in the system dialog above the
     // password field. Like Sparkle, we forgo localization (the rest of the dialog is localized by the OS).
     let prompt = match to_cstring(format!("{} wants to install an update.\n\n", app_title).as_bytes()) {
         Ok(c) => c,
-        Err(e) => return SwapAttempt::Failed(e),
+        Err(e) => return SwapAttempt::Unelevated(e),
     };
     let right = AuthorizationItem {
         name: b"system.privilege.admin\0".as_ptr() as *const c_char,
@@ -231,7 +372,7 @@ fn run_swap_via_authorization(
         return SwapAttempt::Cancelled;
     }
     if status != ERR_SUCCESS || auth.is_null() {
-        return SwapAttempt::Failed(format!("AuthorizationCreate returned {}", status));
+        return SwapAttempt::Unelevated(format!("AuthorizationCreate returned {}", status));
     }
     let _guard = Guard(auth);
 
@@ -243,7 +384,8 @@ fn run_swap_via_authorization(
     let mut pipe: *mut libc::FILE = std::ptr::null_mut();
     let status = unsafe { execute_with_privileges(auth, exe_c.as_ptr(), FLAG_DEFAULTS, argv.as_ptr(), &mut pipe) };
     if status != ERR_SUCCESS || pipe.is_null() {
-        return SwapAttempt::Failed(format!("AuthorizationExecuteWithPrivileges returned {}", status));
+        // the tool never launched, so falling back to osascript may still succeed
+        return SwapAttempt::Unelevated(format!("AuthorizationExecuteWithPrivileges returned {}", status));
     }
 
     // reading until EOF also waits for the elevated process to exit. taking ownership of the
@@ -259,7 +401,7 @@ fn run_swap_via_authorization(
     if output.contains(ELEVATED_SWAP_SUCCESS_MARKER) {
         SwapAttempt::Success
     } else {
-        SwapAttempt::Failed("the elevated process did not report success".to_string())
+        SwapAttempt::ChildFailed("the elevated process did not report success".to_string())
     }
 }
 
@@ -306,6 +448,10 @@ pub fn apply_package_impl(locator: &VelopackLocator, pkg: &PathBuf, _hook_mode: 
         fs::create_dir_all(&tmp_path_new)?;
         info!("Extracting bundle to {:?}", &tmp_path_new);
         bundle.extract_lib_contents_to_path(&tmp_path_new, |p| reporter.set_progress(p))?;
+
+        // strip quarantine on the staged copy (it is still user-owned here, so this works without
+        // elevation and carries through whichever swap path runs next)
+        remove_quarantine_recursive(&tmp_path_new);
 
         // 2. attempt to replace the current bundle with the new one
         reporter.set_indeterminate();
@@ -392,6 +538,66 @@ mod tests {
 
         assert!(replace_bundle(&root, &tmp_old, &tmp_new).is_err());
         assert_eq!(fs::read_to_string(root.join("Contents/Info.plist")).unwrap(), "old-plist");
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_chown_recursive_traverses_tree_without_following_symlinks() {
+        use std::os::unix::fs::MetadataExt;
+        let base = temp_base("chown");
+        let root = base.join("MyApp.app");
+        make_bundle(&root, "plist");
+        // a symlink pointing at a directory: chown_recursive must not descend through it
+        std::os::unix::fs::symlink("Contents/MacOS", root.join("linkdir")).unwrap();
+
+        // chowning to our own uid/gid is permitted without privileges, so this exercises the
+        // full recursion (owner_of + lchown on every entry, including the symlink) on any machine
+        let (uid, gid) = owner_of(&root).unwrap();
+        chown_recursive(&root, uid, gid).unwrap();
+
+        // the symlink itself was visited (still a symlink, not dereferenced) and its target intact
+        let link_meta = fs::symlink_metadata(root.join("linkdir")).unwrap();
+        assert!(link_meta.file_type().is_symlink());
+        assert_eq!(fs::read_to_string(root.join("Contents/Info.plist")).unwrap(), "plist");
+        assert_eq!(fs::symlink_metadata(root.join("Contents/Info.plist")).unwrap().uid(), uid);
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_remove_quarantine_recursive_strips_nested_and_tolerates_absent() {
+        let base = temp_base("quarantine");
+        let root = base.join("MyApp.app");
+        make_bundle(&root, "plist");
+        let quarantined = root.join("Contents/MacOS/binary");
+        fs::write(&quarantined, "exe").unwrap();
+
+        let set = |p: &Path| {
+            Command::new("xattr")
+                .args(["-w", "com.apple.quarantine", "0081;00000000;test;"])
+                .arg(p)
+                .status()
+                .unwrap()
+                .success()
+        };
+        // some CI filesystems don't support xattrs; only assert if we could set one in the first place
+        if !set(&quarantined) {
+            let _ = fs::remove_dir_all(&base);
+            return;
+        }
+        set(&root);
+
+        remove_quarantine_recursive(&root);
+
+        let has_quarantine = |p: &Path| {
+            let out = Command::new("xattr").arg("-p").arg("com.apple.quarantine").arg(p).output().unwrap();
+            out.status.success()
+        };
+        assert!(!has_quarantine(&root), "root bundle still quarantined");
+        assert!(!has_quarantine(&quarantined), "nested file still quarantined");
+        // a file that was never quarantined must not be treated as an error (ENOATTR path)
+        remove_quarantine(&root.join("Contents/Info.plist")).unwrap();
 
         let _ = fs::remove_dir_all(&base);
     }
