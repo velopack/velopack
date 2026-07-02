@@ -250,27 +250,12 @@ public class OsxPackTests
 
     private static async Task PackCSharpTestApp(string id, string version, string testString, string releaseDir, ILogger logger)
     {
-        var projDir = PathHelper.GetTestRootPath("TestApp");
+        using var _ = TempUtil.GetTempDirectory(out var workDir);
 
         {
-            // the test string is injected as a compile-time constant via -p:TestAppTestString (see TestApp.csproj)
             var rid = RID.Parse(VelopackRuntimeInfo.SystemRid);
-            var args = new List<string> {
-                "publish", "--no-self-contained", "-c", "Release", "-r", rid.ToString(), "-o", "publish", "--tl:off",
-                TestApp.TestStringMsBuildArg(testString),
-            };
-
-            var psi = new System.Diagnostics.ProcessStartInfo("dotnet");
-            psi.WorkingDirectory = projDir;
-            psi.AppendArgumentListSafe(args, out var debug);
-
-            logger.Info($"TEST: Running {psi.FileName} {debug}");
-
-            using var p = System.Diagnostics.Process.Start(psi);
-            p!.WaitForExit();
-
-            if (p.ExitCode != 0)
-                throw new Exception($"dotnet publish failed with exit code {p.ExitCode}");
+            var publishDir = Path.Combine(workDir, "publish");
+            TestApp.PreparePublishDir(rid, testString, publishDir, logger);
 
             var console = new Velopack.Vpk.Logging.BasicConsole(logger, new Velopack.Vpk.VelopackDefaults(false));
             var options = new Velopack.Packaging.Unix.Commands.OsxPackOptions {
@@ -279,7 +264,7 @@ public class OsxPackTests
                 PackId = id,
                 PackVersion = version,
                 TargetRuntime = rid,
-                PackDirectory = Path.Combine(projDir, "publish"),
+                PackDirectory = publishDir,
             };
 
             var runner = new Velopack.Packaging.Unix.Commands.OsxPackCommandRunner(logger, console);

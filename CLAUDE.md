@@ -175,8 +175,10 @@ stack (Gitea, GitLab, Azurite, S3Mock), except GitHub which is live and uses a 5
   variable works — tests also read `EnvironmentVariableTarget.User`).
 - Language harnesses are built once per test session (cargo / npm / maturin venv / cmake); a
   missing toolchain skips just that language's rows.
-- **Do not run this project's tests in parallel processes** — packing mutates
-  `test/TestApp/Const.cs`, so concurrent runs corrupt each other.
+- **Avoid running test projects in parallel processes** — the C# TestApp is published once per
+  test process (cached in `Velopack.TestCommon.TestApp`; the test string is injected via a
+  `test_string.txt` file at pack time, not compiled in), but that publish still writes referenced
+  projects' outputs to the shared `build/{Configuration}/` dir, so concurrent processes can race.
 
 ## Python type stubs (lib-python)
 

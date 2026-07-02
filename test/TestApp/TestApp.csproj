@@ -30,26 +30,4 @@
     <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage" />
   </ItemGroup>
 
-  <PropertyGroup>
-    <TestAppTestString Condition=" '$(TestAppTestString)' == '' ">Hello, World!</TestAppTestString>
-  </PropertyGroup>
-
-  <!-- The test string is compiled into the binary (so packed versions genuinely differ, keeping delta
-       packages realistic) and injected via `-p:TestAppTestString=...` — tests must not mutate source
-       files, or concurrent packs would race. %3B is an escaped ';' (WriteLinesToFile splits on them). -->
-  <Target Name="GenerateTestConst" BeforeTargets="CoreCompile">
-    <PropertyGroup>
-      <_TestConstFile>$(IntermediateOutputPath)Const.g.cs</_TestConstFile>
-    </PropertyGroup>
-    <WriteLinesToFile
-        File="$(_TestConstFile)"
-        Lines="class Const { public const string TEST_STRING = &quot;$(TestAppTestString)&quot;%3B }"
-        Overwrite="true"
-        WriteOnlyWhenDifferent="true" />
-    <ItemGroup>
-      <Compile Include="$(_TestConstFile)" />
-      <FileWrites Include="$(_TestConstFile)" />
-    </ItemGroup>
-  </Target>
-
 </Project>

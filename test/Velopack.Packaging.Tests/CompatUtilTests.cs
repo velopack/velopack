@@ -40,11 +40,11 @@ public class CompatUtilTests
         using var logger = GetCompat(out var compat);
         using var _1 = TempUtil.GetTempDirectory(out var dir);
         var sample = PathHelper.GetAvaloniaSample();
-        Exe.InvokeAndThrowIfNonZero(
+        TestApp.WithPublishLock(() => Exe.InvokeAndThrowIfNonZero(
             "dotnet",
             new string[] { "publish", "--no-self-contained", "-r", "win-x64", "-o", dir,
                 "-p:UseLocalVelopack=true", "-p:PublishSingleFile=true" },
-            sample);
+            sample));
 
         var path = Path.Combine(dir, "VelopackCSharpAvalonia.exe");
         Assert.Equal(VelopackRuntimeInfo.VelopackProductVersion, compat.Verify(path));
@@ -61,11 +61,11 @@ public class CompatUtilTests
         using var logger = GetCompat(out var compat);
         using var _1 = TempUtil.GetTempDirectory(out var dir);
         var sample = PathHelper.GetAvaloniaSample();
-        Exe.InvokeAndThrowIfNonZero(
+        TestApp.WithPublishLock(() => Exe.InvokeAndThrowIfNonZero(
             "dotnet",
             new string[] { "publish", "--no-self-contained", "-r", "win-x64", "-o", dir,
                 "-p:UseLocalVelopack=true" },
-            sample);
+            sample));
 
         var path = Path.Combine(dir, "VelopackCSharpAvalonia.exe");
         Assert.Equal(VelopackRuntimeInfo.VelopackProductVersion, compat.Verify(path));
@@ -82,10 +82,10 @@ public class CompatUtilTests
         using var logger = GetCompat(out var compat);
         using var _1 = TempUtil.GetTempDirectory(out var dir);
         var sample = PathHelper.GetWpfSample();
-        string stdOut = Exe.InvokeAndThrowIfNonZero(
+        TestApp.WithPublishLock(() => Exe.InvokeAndThrowIfNonZero(
             "dotnet",
             new string[] { "publish", "-o", dir },
-            sample);
+            sample));
 
         var path = Path.Combine(dir, "VelopackCSharpWpf.exe");
         Assert.NotNull(compat.Verify(path));
@@ -107,11 +107,11 @@ public class CompatUtilTests
         using var logger = GetCompat(out var compat);
         using var _1 = TempUtil.GetTempDirectory(out var dir);
         var sample = PathHelper.GetTestRootPath("TestApp");
-        Exe.InvokeAndThrowIfNonZero(
+        TestApp.WithPublishLock(() => Exe.InvokeAndThrowIfNonZero(
             "dotnet",
             new string[] { "publish", "--no-self-contained", "-r", "win-x64", "-o", dir,
                 "-p:NoVelopackApp=true" },
-            sample);
+            sample));
 
         var path = Path.Combine(dir, "TestApp.exe");
         Assert.Throws<UserInfoException>(() => compat.Verify(path));
@@ -124,11 +124,11 @@ public class CompatUtilTests
         using var logger = GetCompat(out var compat);
         using var _1 = TempUtil.GetTempDirectory(out var dir);
         var sample = PathHelper.GetTestRootPath("TestApp");
-        Exe.InvokeAndThrowIfNonZero(
+        TestApp.WithPublishLock(() => Exe.InvokeAndThrowIfNonZero(
             "dotnet",
             new string[] { "publish", "--no-self-contained", "-r", "win-x64", "-o", dir,
                 "-p:UseAsyncMain=true" },
-            sample);
+            sample));
 
         var path = Path.Combine(dir, "TestApp.exe");
         Assert.NotNull(compat.Verify(path));
