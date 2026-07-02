@@ -213,13 +213,12 @@ public class LinuxPackTests
     private static async Task PackCSharpTestApp(string id, string version, string testString, string releaseDir, ILogger logger)
     {
         var projDir = PathHelper.GetTestRootPath("TestApp");
-        var testStringFile = Path.Combine(projDir, "Const.cs");
-        var oldText = File.ReadAllText(testStringFile);
 
-        try {
-            File.WriteAllText(testStringFile, $"class Const {{ public const string TEST_STRING = \"{testString}\"; }}");
+        {
+            // the test string is injected as a compile-time constant via -p:TestAppTestString (see TestApp.csproj)
             var args = new List<string> {
-                "publish", "--no-self-contained", "-c", "Release", "-r", "linux-x64", "-o", "publish", "--tl:off"
+                "publish", "--no-self-contained", "-c", "Release", "-r", "linux-x64", "-o", "publish", "--tl:off",
+                $"-p:TestAppTestString={testString}",
             };
 
             var psi = new System.Diagnostics.ProcessStartInfo("dotnet");
@@ -246,8 +245,6 @@ public class LinuxPackTests
 
             var runner = new Velopack.Packaging.Unix.Commands.LinuxPackCommandRunner(logger, console);
             await runner.Run(options);
-        } finally {
-            File.WriteAllText(testStringFile, oldText);
         }
     }
 }

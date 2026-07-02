@@ -19,8 +19,11 @@ public abstract class GiteaDeploymentSuite : GitReleaseDeploymentSuite
         => new GiteaGitReleaseScope(await GiteaTestRepo.CreateAsync(_server, log, "gitrel"));
 }
 
+[Collection("gitea-1.22")]
 public class Gitea122DeploymentTests(ITestOutputHelper output) : GiteaDeploymentSuite(output, "gitea-1.22");
 
+[Collection("gitea-1.24")]
 public class Gitea124DeploymentTests(ITestOutputHelper output) : GiteaDeploymentSuite(output, "gitea-1.24");
 
+[Collection("gitea-latest")]
 public class GiteaLatestDeploymentTests(ITestOutputHelper output) : GiteaDeploymentSuite(output, "gitea-latest");

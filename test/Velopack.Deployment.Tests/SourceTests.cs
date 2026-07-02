@@ -8,160 +8,21 @@ using Velopack.Util;
 namespace Velopack.Deployment.Tests;
 
 /// <summary>
-/// Cross-language update-source tests: every source kind is exercised through every client library
-/// (C# in-process for coverage; Rust/C++/Python/Node.js via the external harnesses run by
-/// <see cref="HarnessRunner"/>). All rows share the same expectations: an installed 1.0.0 app sees a
-/// 2.0.0 update on the 'stable' channel, downloads it, and the SHA256 matches the packed nupkg.
-/// The destination (gitea repo / gitlab release / static server) is arranged fresh per test row.
+/// Shared plumbing for the cross-language update-source tests. Every source kind is exercised through every
+/// client library (C# in-process for coverage; Rust/C++/Python/Node.js via the external harnesses run by
+/// <see cref="HarnessRunner"/>). All rows share the same expectations: an installed 1.0.0 app sees a 2.0.0
+/// update on the 'stable' channel, downloads it, and the SHA256 matches the packed nupkg. The source-kind
+/// classes below are split by target so different backing services parallelize; tests hitting the same
+/// service share a [Collection] and stay serial. The destination (gitea repo / gitlab release / static
+/// server / github repo) is arranged fresh per test row.
 /// </summary>
-public class SourceTests
+internal static class SourceTestHelpers
 {
-    /// <summary> The gitea server used for source tests (API back-compat is covered by the destination suites). </summary>
-    private static GiteaServer SourceGitea => DockerServices.GiteaServers[^1]; // gitea-latest
-
-    private readonly ITestOutputHelper _output;
-
-    public SourceTests(ITestOutputHelper output)
-    {
-        _output = output;
-    }
-
-    [Theory]
-    [InlineData(HarnessLang.CSharp)]
-    [InlineData(HarnessLang.Rust)]
-    [InlineData(HarnessLang.Cpp)]
-    [InlineData(HarnessLang.Python)]
-    [InlineData(HarnessLang.NodeJs)]
-    public async Task FileSourceCheckAndDownload(HarnessLang lang)
-    {
-        using var logger = _output.BuildLoggerFor<SourceTests>();
-        await HarnessRunner.SkipUnlessAvailableAsync(lang, logger);
-        var fixture = InstalledAppFixture.GetOrCreate(logger);
-        await RunRowAsync(lang, "file", fixture.FeedDir, token: null, prerelease: false, fixture, logger);
-    }
-
-    [Theory]
-    [InlineData(HarnessLang.CSharp)]
-    [InlineData(HarnessLang.Rust)]
-    [InlineData(HarnessLang.Cpp)]
-    [InlineData(HarnessLang.Python)]
-    [InlineData(HarnessLang.NodeJs)]
-    public async Task HttpSourceCheckAndDownload(HarnessLang lang)
-    {
-        using var logger = _output.BuildLoggerFor<SourceTests>();
-        await HarnessRunner.SkipUnlessAvailableAsync(lang, logger);
-        var fixture = InstalledAppFixture.GetOrCreate(logger);
-        using var server = new StaticFileServer(fixture.FeedDir, logger);
-        await RunRowAsync(lang, "http", server.BaseUrl, token: null, prerelease: false, fixture, logger);
-    }
-
-    [Theory]
-    [InlineData(HarnessLang.CSharp)]
-    [InlineData(HarnessLang.Rust)]
-    [InlineData(HarnessLang.Cpp)]
-    [InlineData(HarnessLang.Python)]
-    [InlineData(HarnessLang.NodeJs)]
-    public async Task GiteaSourceCheckAndDownload(HarnessLang lang)
-    {
-        await DockerServices.SkipUnlessGiteaUpAsync(SourceGitea);
-        using var logger = _output.BuildLoggerFor<SourceTests>();
-        await HarnessRunner.SkipUnlessAvailableAsync(lang, logger);
-        var fixture = InstalledAppFixture.GetOrCreate(logger);
-
-        await using var repo = await GiteaTestRepo.CreateAsync(SourceGitea, logger, "src");
-        await UploadFeedToGiteaAsync(repo, fixture, logger, prerelease: false);
-        await RunRowAsync(lang, "gitea", repo.HttpUrl, repo.Token, prerelease: false, fixture, logger);
-    }
-
-    [Theory]
-    [InlineData(HarnessLang.CSharp)]
-    [InlineData(HarnessLang.Rust)]
-    [InlineData(HarnessLang.Cpp)]
-    [InlineData(HarnessLang.Python)]
-    [InlineData(HarnessLang.NodeJs)]
-    public async Task GitLabSourceCheckAndDownload(HarnessLang lang)
-    {
-        await DockerServices.SkipUnlessGitLabUpAsync();
-        using var logger = _output.BuildLoggerFor<SourceTests>();
-        await HarnessRunner.SkipUnlessAvailableAsync(lang, logger);
-        var fixture = InstalledAppFixture.GetOrCreate(logger);
-
-        await using var project = await GitLabTestProject.CreateAsync(logger, "src");
-        await CreateGitLabReleaseFromFeedAsync(project, fixture, logger, upcoming: false);
-        var apiUrl = $"{DockerServices.GitLabBaseUrl}/api/v4/projects/{project.Project.Id}";
-        await RunRowAsync(lang, "gitlab", apiUrl, project.Token, prerelease: false, fixture, logger);
-    }
-
-    /// <summary>
-    /// C#-only: a gitea release marked prerelease must be invisible to GiteaSource(prerelease: false)
-    /// and visible to GiteaSource(prerelease: true).
-    /// </summary>
-    [Fact]
-    public async Task GiteaSourcePrereleaseFiltering()
-    {
-        await DockerServices.SkipUnlessGiteaUpAsync(SourceGitea);
-        using var logger = _output.BuildLoggerFor<SourceTests>();
-        var fixture = InstalledAppFixture.GetOrCreate(logger);
-
-        await using var repo = await GiteaTestRepo.CreateAsync(SourceGitea, logger, "srcpre");
-        await UploadFeedToGiteaAsync(repo, fixture, logger, prerelease: true);
-
-        var locator = fixture.CreateCSharpLocator(out var rootDir, logger.ToVelopackLogger());
-        try {
-            var options = new UpdateOptions { ExplicitChannel = InstalledAppFixture.Channel, AllowVersionDowngrade = false };
-
-            var stableOnly = new GiteaSource(repo.HttpUrl, repo.Token, prerelease: false);
-            var hidden = await new UpdateManager(stableOnly, options, locator).CheckForUpdatesAsync();
-            Assert.Null(hidden);
-
-            var withPre = new GiteaSource(repo.HttpUrl, repo.Token, prerelease: true);
-            var visible = await new UpdateManager(withPre, options, locator).CheckForUpdatesAsync();
-            Assert.NotNull(visible);
-            Assert.Equal(InstalledAppFixture.LatestVersion, visible.TargetFullRelease.Version?.ToString());
-        } finally {
-            TryDelete(rootDir);
-        }
-    }
-
-    /// <summary>
-    /// C#-only: a gitlab 'upcoming' release (future released_at) must be invisible to
-    /// GitlabSource(upcomingRelease: false) and visible to GitlabSource(upcomingRelease: true).
-    /// </summary>
-    [Fact]
-    public async Task GitlabSourcePrereleaseFiltering()
-    {
-        await DockerServices.SkipUnlessGitLabUpAsync();
-        using var logger = _output.BuildLoggerFor<SourceTests>();
-        var fixture = InstalledAppFixture.GetOrCreate(logger);
-
-        await using var project = await GitLabTestProject.CreateAsync(logger, "srcpre");
-        await CreateGitLabReleaseFromFeedAsync(project, fixture, logger, upcoming: true);
-        var apiUrl = $"{DockerServices.GitLabBaseUrl}/api/v4/projects/{project.Project.Id}";
-
-        var locator = fixture.CreateCSharpLocator(out var rootDir, logger.ToVelopackLogger());
-        try {
-            var options = new UpdateOptions { ExplicitChannel = InstalledAppFixture.Channel, AllowVersionDowngrade = false };
-
-            var stableOnly = new GitlabSource(apiUrl, project.Token, upcomingRelease: false);
-            var hidden = await new UpdateManager(stableOnly, options, locator).CheckForUpdatesAsync();
-            Assert.Null(hidden);
-
-            var withPre = new GitlabSource(apiUrl, project.Token, upcomingRelease: true);
-            var visible = await new UpdateManager(withPre, options, locator).CheckForUpdatesAsync();
-            Assert.NotNull(visible);
-            Assert.Equal(InstalledAppFixture.LatestVersion, visible.TargetFullRelease.Version?.ToString());
-        } finally {
-            TryDelete(rootDir);
-        }
-    }
-
-    // ---- row execution ---------------------------------------------------------------------------
-
     /// <summary>
     /// Runs one (source kind × language) cell: check for updates, assert the 2.0.0 target, download,
-    /// and assert the SHA256 of the downloaded full package. Shared with <see cref="GithubSourceLiveTests"/>.
+    /// and assert the SHA256 of the downloaded full package.
     /// </summary>
-    internal static async Task RunRowAsync(
+    public static async Task RunRowAsync(
         HarnessLang lang, string kind, string url, string? token, bool prerelease, InstalledAppFixture fixture, ILogger logger)
     {
         if (lang == HarnessLang.CSharp) {
@@ -230,7 +91,131 @@ public class SourceTests
         };
     }
 
-    // ---- destination arrangement -----------------------------------------------------------------
+    public static string Sha256Upper(string filePath)
+    {
+        using var stream = File.OpenRead(filePath);
+        using var sha256 = SHA256.Create();
+        return BitConverter.ToString(sha256.ComputeHash(stream)).Replace("-", String.Empty);
+    }
+
+    public static void TryDelete(string dir)
+    {
+        try {
+            Directory.Delete(dir, true);
+        } catch { /* best effort */ }
+    }
+}
+
+/// <summary>
+/// File source (<see cref="SimpleFileSource"/>) across all five client languages. Uses only the shared
+/// in-process fixture feed and per-test temp install dirs, so it needs no external target and runs in its
+/// own (implicit per-class) collection.
+/// </summary>
+public class FileSourceTests(ITestOutputHelper output)
+{
+    private readonly ITestOutputHelper _output = output;
+
+    [Theory]
+    [InlineData(HarnessLang.CSharp)]
+    [InlineData(HarnessLang.Rust)]
+    [InlineData(HarnessLang.Cpp)]
+    [InlineData(HarnessLang.Python)]
+    [InlineData(HarnessLang.NodeJs)]
+    public async Task FileSourceCheckAndDownload(HarnessLang lang)
+    {
+        using var logger = _output.BuildLoggerFor<FileSourceTests>();
+        await HarnessRunner.SkipUnlessAvailableAsync(lang, logger);
+        var fixture = InstalledAppFixture.GetOrCreate(logger);
+        await SourceTestHelpers.RunRowAsync(lang, "file", fixture.FeedDir, token: null, prerelease: false, fixture, logger);
+    }
+}
+
+/// <summary>
+/// HTTP source (<see cref="SimpleWebSource"/>) across all five client languages. Each row spins up its own
+/// <see cref="StaticFileServer"/> on a random loopback port over the shared fixture feed, so it needs no
+/// external target and runs in its own (implicit per-class) collection.
+/// </summary>
+public class HttpSourceTests(ITestOutputHelper output)
+{
+    private readonly ITestOutputHelper _output = output;
+
+    [Theory]
+    [InlineData(HarnessLang.CSharp)]
+    [InlineData(HarnessLang.Rust)]
+    [InlineData(HarnessLang.Cpp)]
+    [InlineData(HarnessLang.Python)]
+    [InlineData(HarnessLang.NodeJs)]
+    public async Task HttpSourceCheckAndDownload(HarnessLang lang)
+    {
+        using var logger = _output.BuildLoggerFor<HttpSourceTests>();
+        await HarnessRunner.SkipUnlessAvailableAsync(lang, logger);
+        var fixture = InstalledAppFixture.GetOrCreate(logger);
+        using var server = new StaticFileServer(fixture.FeedDir, logger);
+        await SourceTestHelpers.RunRowAsync(lang, "http", server.BaseUrl, token: null, prerelease: false, fixture, logger);
+    }
+}
+
+/// <summary>
+/// Gitea source (<see cref="GiteaSource"/>) across all five client languages, plus C#-only prerelease
+/// filtering. Targets the <c>gitea-latest</c> server (API back-compat is covered by the destination suites),
+/// so it shares the <c>gitea-latest</c> collection with <c>GiteaLatestDeploymentTests</c>.
+/// </summary>
+[Collection("gitea-latest")]
+public class GiteaSourceTests(ITestOutputHelper output)
+{
+    /// <summary> The gitea server used for source tests. </summary>
+    private static GiteaServer SourceGitea => DockerServices.GiteaServers[^1]; // gitea-latest
+
+    private readonly ITestOutputHelper _output = output;
+
+    [Theory]
+    [InlineData(HarnessLang.CSharp)]
+    [InlineData(HarnessLang.Rust)]
+    [InlineData(HarnessLang.Cpp)]
+    [InlineData(HarnessLang.Python)]
+    [InlineData(HarnessLang.NodeJs)]
+    public async Task GiteaSourceCheckAndDownload(HarnessLang lang)
+    {
+        await DockerServices.SkipUnlessGiteaUpAsync(SourceGitea);
+        using var logger = _output.BuildLoggerFor<GiteaSourceTests>();
+        await HarnessRunner.SkipUnlessAvailableAsync(lang, logger);
+        var fixture = InstalledAppFixture.GetOrCreate(logger);
+
+        await using var repo = await GiteaTestRepo.CreateAsync(SourceGitea, logger, "src");
+        await UploadFeedToGiteaAsync(repo, fixture, logger, prerelease: false);
+        await SourceTestHelpers.RunRowAsync(lang, "gitea", repo.HttpUrl, repo.Token, prerelease: false, fixture, logger);
+    }
+
+    /// <summary>
+    /// C#-only: a gitea release marked prerelease must be invisible to GiteaSource(prerelease: false)
+    /// and visible to GiteaSource(prerelease: true).
+    /// </summary>
+    [Fact]
+    public async Task GiteaSourcePrereleaseFiltering()
+    {
+        await DockerServices.SkipUnlessGiteaUpAsync(SourceGitea);
+        using var logger = _output.BuildLoggerFor<GiteaSourceTests>();
+        var fixture = InstalledAppFixture.GetOrCreate(logger);
+
+        await using var repo = await GiteaTestRepo.CreateAsync(SourceGitea, logger, "srcpre");
+        await UploadFeedToGiteaAsync(repo, fixture, logger, prerelease: true);
+
+        var locator = fixture.CreateCSharpLocator(out var rootDir, logger.ToVelopackLogger());
+        try {
+            var options = new UpdateOptions { ExplicitChannel = InstalledAppFixture.Channel, AllowVersionDowngrade = false };
+
+            var stableOnly = new GiteaSource(repo.HttpUrl, repo.Token, prerelease: false);
+            var hidden = await new UpdateManager(stableOnly, options, locator).CheckForUpdatesAsync();
+            Assert.Null(hidden);
+
+            var withPre = new GiteaSource(repo.HttpUrl, repo.Token, prerelease: true);
+            var visible = await new UpdateManager(withPre, options, locator).CheckForUpdatesAsync();
+            Assert.NotNull(visible);
+            Assert.Equal(InstalledAppFixture.LatestVersion, visible.TargetFullRelease.Version?.ToString());
+        } finally {
+            SourceTestHelpers.TryDelete(rootDir);
+        }
+    }
 
     /// <summary> Uploads the fixture's packed feed to a gitea repo, in-process, as a published release. </summary>
     private static Task UploadFeedToGiteaAsync(GiteaTestRepo repo, InstalledAppFixture fixture, ILogger logger, bool prerelease)
@@ -243,6 +228,67 @@ public class SourceTests
             Publish = true,
             Prerelease = prerelease,
         });
+    }
+}
+
+/// <summary>
+/// GitLab source (<see cref="GitlabSource"/>) across all five client languages, plus C#-only upcoming-release
+/// filtering. Runs against the local GitLab container, so it owns the <c>gitlab</c> collection.
+/// </summary>
+[Collection("gitlab")]
+public class GitLabSourceTests(ITestOutputHelper output)
+{
+    private readonly ITestOutputHelper _output = output;
+
+    [Theory]
+    [InlineData(HarnessLang.CSharp)]
+    [InlineData(HarnessLang.Rust)]
+    [InlineData(HarnessLang.Cpp)]
+    [InlineData(HarnessLang.Python)]
+    [InlineData(HarnessLang.NodeJs)]
+    public async Task GitLabSourceCheckAndDownload(HarnessLang lang)
+    {
+        await DockerServices.SkipUnlessGitLabUpAsync();
+        using var logger = _output.BuildLoggerFor<GitLabSourceTests>();
+        await HarnessRunner.SkipUnlessAvailableAsync(lang, logger);
+        var fixture = InstalledAppFixture.GetOrCreate(logger);
+
+        await using var project = await GitLabTestProject.CreateAsync(logger, "src");
+        await CreateGitLabReleaseFromFeedAsync(project, fixture, logger, upcoming: false);
+        var apiUrl = $"{DockerServices.GitLabBaseUrl}/api/v4/projects/{project.Project.Id}";
+        await SourceTestHelpers.RunRowAsync(lang, "gitlab", apiUrl, project.Token, prerelease: false, fixture, logger);
+    }
+
+    /// <summary>
+    /// C#-only: a gitlab 'upcoming' release (future released_at) must be invisible to
+    /// GitlabSource(upcomingRelease: false) and visible to GitlabSource(upcomingRelease: true).
+    /// </summary>
+    [Fact]
+    public async Task GitlabSourcePrereleaseFiltering()
+    {
+        await DockerServices.SkipUnlessGitLabUpAsync();
+        using var logger = _output.BuildLoggerFor<GitLabSourceTests>();
+        var fixture = InstalledAppFixture.GetOrCreate(logger);
+
+        await using var project = await GitLabTestProject.CreateAsync(logger, "srcpre");
+        await CreateGitLabReleaseFromFeedAsync(project, fixture, logger, upcoming: true);
+        var apiUrl = $"{DockerServices.GitLabBaseUrl}/api/v4/projects/{project.Project.Id}";
+
+        var locator = fixture.CreateCSharpLocator(out var rootDir, logger.ToVelopackLogger());
+        try {
+            var options = new UpdateOptions { ExplicitChannel = InstalledAppFixture.Channel, AllowVersionDowngrade = false };
+
+            var stableOnly = new GitlabSource(apiUrl, project.Token, upcomingRelease: false);
+            var hidden = await new UpdateManager(stableOnly, options, locator).CheckForUpdatesAsync();
+            Assert.Null(hidden);
+
+            var withPre = new GitlabSource(apiUrl, project.Token, upcomingRelease: true);
+            var visible = await new UpdateManager(withPre, options, locator).CheckForUpdatesAsync();
+            Assert.NotNull(visible);
+            Assert.Equal(InstalledAppFixture.LatestVersion, visible.TargetFullRelease.Version?.ToString());
+        } finally {
+            SourceTestHelpers.TryDelete(rootDir);
+        }
     }
 
     /// <summary>
@@ -262,31 +308,16 @@ public class SourceTests
         var tag = "v" + InstalledAppFixture.LatestVersion;
         await GitLabAdmin.CreateReleaseWithAssetsAsync(project.Token, project.Project, tag, tag, assets, logger, upcomingRelease: upcoming);
     }
-
-    // ---- helpers ----------------------------------------------------------------------------------
-
-    private static string Sha256Upper(string filePath)
-    {
-        using var stream = File.OpenRead(filePath);
-        using var sha256 = SHA256.Create();
-        return BitConverter.ToString(sha256.ComputeHash(stream)).Replace("-", String.Empty);
-    }
-
-    private static void TryDelete(string dir)
-    {
-        try {
-            Directory.Delete(dir, true);
-        } catch { /* best effort */ }
-    }
 }
 
 /// <summary>
 /// Live GitHub source tests across all five client languages. All rows share ONE leased test repo
 /// (see <see cref="GithubLiveContext"/>): the lease is acquired lazily by the first row that runs, the
 /// fixture feed is published to it once, and xunit's class-fixture disposal releases the lease after
-/// the last row finishes — even when rows fail. The assembly is serialized, so the rows run
-/// contiguously and the lease is held only for the duration of this class.
+/// the last row finishes — even when rows fail. This class and <c>GitHubDeploymentTests</c> both consume
+/// the shared 5-repo pool, so they share the <c>github</c> collection and never run concurrently.
 /// </summary>
+[Collection("github")]
 public class GithubSourceLiveTests : IClassFixture<GithubLiveContext>
 {
     private readonly ITestOutputHelper _output;
@@ -314,7 +345,7 @@ public class GithubSourceLiveTests : IClassFixture<GithubLiveContext>
         var fixture = InstalledAppFixture.GetOrCreate(logger);
 
         var lease = await _context.GetOrCreateAsync(fixture, logger);
-        await SourceTests.RunRowAsync(lang, "github", lease.RepoUrl, lease.Token, prerelease: false, fixture, logger);
+        await SourceTestHelpers.RunRowAsync(lang, "github", lease.RepoUrl, lease.Token, prerelease: false, fixture, logger);
     }
 }
 

@@ -6,6 +6,7 @@ namespace Velopack.Deployment.Tests;
 /// parallelization disabled), which resets the repo to a pristine state on acquire and releases the lock on
 /// dispose. Tests skip when the token env var is not set.
 /// </summary>
+[Collection("github")]
 public class GitHubDeploymentTests(ITestOutputHelper output) : GitReleaseDeploymentSuite(output)
 {
     // The 5-repo pool is shared by all CI legs; recreating a just-deleted tag name (every test would

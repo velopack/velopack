@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System.Diagnostics;
 using Velopack.Core;
 using Velopack.Packaging.Unix.Commands;
@@ -17,13 +17,20 @@ public static class TestApp
         targetRid ??= RID.Parse(VelopackRuntimeInfo.SystemRid);
 
         var projDir = PathHelper.GetTestRootPath("TestApp");
-        var testStringFile = Path.Combine(projDir, "Const.cs");
-        var oldText = File.ReadAllText(testStringFile);
+
+        // The test string is injected as a compile-time constant via -p:TestAppTestString (see
+        // TestApp.csproj), and every invocation publishes into its own output + MSBuild artifacts
+        // dirs — no shared mutable state, so concurrent packs from parallel test collections are safe.
+        var workDir = Path.Combine(Path.GetTempPath(), "velopack-pack-" + Guid.NewGuid().ToString("N"));
+        var publishDir = Path.Combine(workDir, "publish");
+        var artifactsDir = Path.Combine(workDir, "artifacts");
+        Directory.CreateDirectory(publishDir);
 
         try {
-            File.WriteAllText(testStringFile, $"class Const {{ public const string TEST_STRING = \"{testString}\"; }}");
-
-            var args = new string[] { "publish", "--no-self-contained", "-c", "Release", "-r", targetRid.ToString(), "-o", "publish" };
+            var args = new string[] {
+                "publish", "--no-self-contained", "-c", "Release", "-r", targetRid.ToString(),
+                "-o", publishDir, "--artifacts-path", artifactsDir, $"-p:TestAppTestString={testString}",
+            };
 
             var psi = new ProcessStartInfo("dotnet");
             psi.WorkingDirectory = projDir;
@@ -47,7 +54,7 @@ public static class TestApp
                     PackId = id,
                     TargetRuntime = targetRid,
                     PackVersion = version,
-                    PackDirectory = Path.Combine(projDir, "publish"),
+                    PackDirectory = publishDir,
                     ReleaseNotes = releaseNotes,
                     Channel = channel,
                     AzureTrustedSignFile = azureTrustedSignFile
@@ -62,7 +69,7 @@ public static class TestApp
                     PackId = id,
                     TargetRuntime = targetRid,
                     PackVersion = version,
-                    PackDirectory = Path.Combine(projDir, "publish"),
+                    PackDirectory = publishDir,
                     ReleaseNotes = releaseNotes,
                     Channel = channel,
                 };
@@ -80,7 +87,7 @@ public static class TestApp
                     PackId = id,
                     TargetRuntime = targetRid,
                     PackVersion = version,
-                    PackDirectory = Path.Combine(projDir, "publish"),
+                    PackDirectory = publishDir,
                     ReleaseNotes = releaseNotes,
                     Channel = channel
                 };
@@ -90,7 +97,11 @@ public static class TestApp
                 throw new PlatformNotSupportedException();
             }
         } finally {
-            File.WriteAllText(testStringFile, oldText);
+            try {
+                Directory.Delete(workDir, true);
+            } catch {
+                // best effort — abandoned temp dirs are cleaned by the OS eventually
+            }
         }
     }
 }
