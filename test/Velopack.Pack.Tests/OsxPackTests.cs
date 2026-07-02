@@ -88,11 +88,11 @@ public class OsxPackTests
         TestHelper.RunNoCoverage(appExe, ["apply", releaseDir], installDir, logger, exitCode: null);
         logger.Info($"TEST ({variant}): v2 applied");
 
-        Thread.Sleep(5000); // UpdateMac runs in separate process
-
-        // check app output after update
-        var chk2version = TestHelper.RunNoCoverage(appExe, ["version"], installDir, logger);
-        Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        // UpdateMac swaps the app in a separate process; poll until the new version is live
+        TestHelper.WaitUntil(() => {
+            var chk2version = TestHelper.RunNoCoverage(appExe, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        }, pollDelayMs: 1000);
         var chk2test = TestHelper.RunNoCoverage(appExe, ["test"], installDir, logger);
         Assert.EndsWith(Environment.NewLine + "version 2 test", chk2test);
         var chk2check2 = TestHelper.RunNoCoverage(appExe, ["check", releaseDir], installDir, logger);
@@ -144,11 +144,11 @@ public class OsxPackTests
         // run with --autoupdate
         TestHelper.RunNoCoverage(appExe, ["--autoupdate"], installDir, logger, exitCode: null);
 
-        Thread.Sleep(5000); // UpdateMac runs in separate process
-
-        // check version after auto-update
-        var chk1version = TestHelper.RunNoCoverage(appExe, ["version"], installDir, logger);
-        Assert.EndsWith(Environment.NewLine + "2.0.0", chk1version);
+        // UpdateMac swaps the app in a separate process; poll until the new version is live
+        TestHelper.WaitUntil(() => {
+            var chk1version = TestHelper.RunNoCoverage(appExe, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "2.0.0", chk1version);
+        }, pollDelayMs: 1000);
         logger.Info($"TEST ({variant}): auto-update verified / complete");
 
         // cleanup packages dir
@@ -191,10 +191,11 @@ public class OsxPackTests
         TestHelper.RunNoCoverage(appExe, ["apply", releaseDir], installDir, logger, exitCode: null);
         logger.Info("TEST: v2 applied");
 
-        Thread.Sleep(5000);
-
-        var chk2version = TestHelper.RunNoCoverage(appExe, ["version"], installDir, logger);
-        Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        // UpdateMac swaps the app in a separate process; poll until the new version is live
+        TestHelper.WaitUntil(() => {
+            var chk2version = TestHelper.RunNoCoverage(appExe, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        }, pollDelayMs: 1000);
         var chk2test = TestHelper.RunNoCoverage(appExe, ["test"], installDir, logger);
         Assert.EndsWith(Environment.NewLine + "version 2 test", chk2test);
         logger.Info("TEST: v2 output verified / complete");

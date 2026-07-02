@@ -117,8 +117,9 @@ jobs:
         os: [windows, ubuntu, macos]
         include:
           - os: windows
-            # paid runner: the windows leg is the slowest in the workflow, so it gets faster hardware
-            runner: blacksmith-4vcpu-windows-2025
+            # free runner: with cached TestApp publishes + parallel test collections this leg fits
+            # under the vpk-deployment (ubuntu) critical path, so paid hardware buys no wall time
+            runner: windows-latest
           - os: ubuntu
             runner: ubuntu-latest
           - os: macos
@@ -235,8 +236,9 @@ jobs:
         os: [windows, ubuntu, macos]
         include:
           - os: windows
-            # paid runner: the windows leg is the slowest in the workflow, so it gets faster hardware
-            runner: blacksmith-4vcpu-windows-2025
+            # free runner: with cached TestApp publishes + parallel test collections this leg fits
+            # under the vpk-deployment (ubuntu) critical path, so paid hardware buys no wall time
+            runner: windows-latest
             rust_flags: "--features windows"
           - os: ubuntu
             runner: ubuntu-latest

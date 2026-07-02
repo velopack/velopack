@@ -515,13 +515,12 @@ public class MsiTests
                 $"Downloaded nupkg not found in expected packages dir: {packagesPath}");
             logger.Info("TEST: nupkg downloaded to correct packages dir");
 
-            // apply update
+            // apply update; update.exe swaps the app in a separate process, so poll for the new version
             WindowsTestHelper.RunCoveredDotnet(appPath, ["apply", releaseDir], installDir, logger, exitCode: null);
-            Thread.Sleep(3000);
-
-            // verify update
-            var chk2version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
-            Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+            TestHelper.WaitUntil(() => {
+                var chk2version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
+                Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+            }, pollDelayMs: 1000);
             logger.Info("TEST: v2 update verified");
 
             // verify registry was updated to v2
@@ -705,13 +704,14 @@ public class MsiTests
                 $"Update.exe not found in fallback dir: {fallbackUpdateExe}");
             logger.Info("TEST: Update.exe extracted to fallback dir");
 
-            // apply update as de-elevated user (Update.exe should self-elevate via UAC)
+            // apply update as de-elevated user (Update.exe should self-elevate via UAC); the UAC
+            // prompt + elevated apply + app restart happen in separate processes, so poll until the
+            // new version is observable (de-elevated to confirm the update was applied)
             RunCoveredDotnetDeelevated(appPath, ["apply", releaseDir], installDir, logger, exitCode: null);
-            Thread.Sleep(30000); // wait for UAC prompt + elevated apply + app restart
-
-            // verify update (de-elevated to confirm the update was applied)
-            var chk2version = RunCoveredDotnetDeelevated(appPath, ["version"], installDir, logger);
-            Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+            TestHelper.WaitUntil(() => {
+                var chk2version = RunCoveredDotnetDeelevated(appPath, ["version"], installDir, logger);
+                Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+            }, timeoutMs: 90_000, pollDelayMs: 2000);
             logger.Info("TEST: v2 update verified");
 
             // verify registry was updated to v2
