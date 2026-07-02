@@ -141,7 +141,7 @@ public class MsiTests
             // the test string is injected as a compile-time constant via -p:TestAppTestString (see TestApp.csproj)
             var args = new List<string> {
                 "publish", "--no-self-contained", "-c", "Release", "-r", "win-x64", "-o", "publish", "--tl:off",
-                $"-p:TestAppTestString={testString}",
+                TestApp.TestStringMsBuildArg(testString),
             };
 
             var psi = new ProcessStartInfo("dotnet");

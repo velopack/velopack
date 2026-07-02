@@ -11,6 +11,14 @@ namespace Velopack.TestCommon;
 
 public static class TestApp
 {
+    /// <summary>
+    /// Builds the `-p:TestAppTestString=...` publish argument. MSBuild splits CLI property values on
+    /// commas/semicolons even when the shell argument is quoted, so those (and the escape character
+    /// itself) must be %-escaped; MSBuild unescapes them again when the property is read.
+    /// </summary>
+    public static string TestStringMsBuildArg(string testString)
+        => "-p:TestAppTestString=" + testString.Replace("%", "%25").Replace(",", "%2C").Replace(";", "%3B");
+
     public static void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
         string? releaseNotes = null, string? channel = null, RID? targetRid = null, string? packTitle = null, string? azureTrustedSignFile = null)
     {
@@ -29,7 +37,7 @@ public static class TestApp
         try {
             var args = new string[] {
                 "publish", "--no-self-contained", "-c", "Release", "-r", targetRid.ToString(),
-                "-o", publishDir, "--artifacts-path", artifactsDir, $"-p:TestAppTestString={testString}",
+                "-o", publishDir, "--artifacts-path", artifactsDir, TestStringMsBuildArg(testString),
             };
 
             var psi = new ProcessStartInfo("dotnet");

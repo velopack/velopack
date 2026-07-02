@@ -257,7 +257,7 @@ public class OsxPackTests
             var rid = RID.Parse(VelopackRuntimeInfo.SystemRid);
             var args = new List<string> {
                 "publish", "--no-self-contained", "-c", "Release", "-r", rid.ToString(), "-o", "publish", "--tl:off",
-                $"-p:TestAppTestString={testString}",
+                TestApp.TestStringMsBuildArg(testString),
             };
 
             var psi = new System.Diagnostics.ProcessStartInfo("dotnet");
