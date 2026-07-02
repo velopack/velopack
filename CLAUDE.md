@@ -35,9 +35,10 @@ dotnet test
 # Run a specific test project (must use --project)
 dotnet test --project test/Velopack.Tests
 dotnet test --project test/Velopack.CommandLine.Tests
-# Do NOT run all of Velopack.Packaging.Tests — it takes far too long.
-# Instead, run targeted subsets. Tests use xunit v3 on Microsoft.Testing.Platform,
-# so filters go after `--` and use --filter-class / --filter-method with * wildcards
+# Velopack.Packaging.Tests runs in well under a minute since TestApp publishes are
+# cached per process and collections parallelize; running the whole project is fine.
+# Targeted subsets: tests use xunit v3 on Microsoft.Testing.Platform, so filters go
+# after `--` and use --filter-class / --filter-method with * wildcards
 # (NOT the old VSTest --filter "FullyQualifiedName~..." syntax):
 dotnet test --project test/Velopack.Packaging.Tests -- --filter-class "*MsiTests"
 
