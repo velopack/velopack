@@ -248,15 +248,17 @@ public abstract class GitReleaseDeploymentSuite
         => UseUniqueTags ? $"1.0.0-{channel}-{Guid.NewGuid().ToString("N")[..6]}" : null;
 
     /// <summary>
-    /// Polls the release listing until it reaches <paramref name="count"/> releases, tolerating the
-    /// provider's list-after-write lag (GitHub's Releases API is eventually consistent). On timeout the
-    /// latest listing is returned so the caller's assertion fails with the real state.
+    /// Polls the release listing until it reaches <paramref name="count"/> releases and every release
+    /// shows at least one asset, tolerating the provider's list-after-write lag (GitHub's Releases API
+    /// is eventually consistent, and a fresh listing can briefly show a release with an empty asset
+    /// list — every upload in this suite attaches assets, so an empty list is always staleness). On
+    /// timeout the latest listing is returned so the caller's assertion fails with the real state.
     /// </summary>
     private static async Task<IReadOnlyList<RemoteRelease>> WaitForReleaseCountAsync(IGitReleaseScope scope, int count)
     {
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(60);
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(120);
         var releases = await scope.ListReleasesAsync();
-        while (releases.Count != count && DateTime.UtcNow < deadline) {
+        while ((releases.Count != count || releases.Any(r => r.AssetNames.Length == 0)) && DateTime.UtcNow < deadline) {
             await Task.Delay(2000);
             releases = await scope.ListReleasesAsync();
         }
