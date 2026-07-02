@@ -81,7 +81,10 @@ try {
     }
 
     if (args.Length == 1 && args[0] == "test") {
-        Console.WriteLine(Const.TEST_STRING ?? "no_test_string");
+        // The test string is written to a file next to the exe at pack time (same convention as the
+        // rust testapp, see src/bins/src/testapp.rs), so tests never need to recompile this app.
+        var testStringFile = Path.Combine(AppContext.BaseDirectory, "test_string.txt");
+        Console.WriteLine(File.Exists(testStringFile) ? File.ReadAllText(testStringFile).Trim() : "no_test_string");
         return 0;
     }
 

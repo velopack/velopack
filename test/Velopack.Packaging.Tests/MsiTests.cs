@@ -135,26 +135,11 @@ public class MsiTests
     private static async Task PackTestAppWithMsi(string id, string version, string testString,
         string releaseDir, ILogger logger, InstallLocation instLocation)
     {
-        var projDir = PathHelper.GetTestRootPath("TestApp");
+        using var _ = TempUtil.GetTempDirectory(out var workDir);
 
         {
-            // the test string is injected as a compile-time constant via -p:TestAppTestString (see TestApp.csproj)
-            var args = new List<string> {
-                "publish", "--no-self-contained", "-c", "Release", "-r", "win-x64", "-o", "publish", "--tl:off",
-                TestApp.TestStringMsBuildArg(testString),
-            };
-
-            var psi = new ProcessStartInfo("dotnet");
-            psi.WorkingDirectory = projDir;
-            psi.AppendArgumentListSafe(args, out var debug);
-
-            logger.Info($"TEST: Running {psi.FileName} {debug}");
-
-            using var p = Process.Start(psi);
-            p.WaitForExit();
-
-            if (p.ExitCode != 0)
-                throw new Exception($"dotnet publish failed with exit code {p.ExitCode}");
+            var publishDir = Path.Combine(workDir, "publish");
+            TestApp.PreparePublishDir(RID.Parse("win-x64"), testString, publishDir, logger);
 
             var options = new WindowsPackOptions {
                 EntryExecutableName = "TestApp.exe",
@@ -162,7 +147,7 @@ public class MsiTests
                 PackId = id,
                 PackVersion = version,
                 TargetRuntime = RID.Parse("win-x64"),
-                PackDirectory = Path.Combine(projDir, "publish"),
+                PackDirectory = publishDir,
                 BuildMsi = true,
                 InstLocation = instLocation,
             };
