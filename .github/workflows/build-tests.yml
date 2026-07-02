@@ -138,6 +138,13 @@ jobs:
           dotnet: true
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
+      # still required to run old/legacy packages, whose AppImage runtime needs libfuse2
+      - name: Install FUSE
+        run: |
+          sudo add-apt-repository universe
+          sudo apt update
+          sudo apt install libfuse2
+        if: ${{ matrix.os == 'ubuntu' }}
       - name: Install squashfs-tools
         run: brew install squashfs
         if: ${{ matrix.os == 'macos' }}
