@@ -345,7 +345,19 @@ public class GithubSourceLiveTests : IClassFixture<GithubLiveContext>
         var fixture = InstalledAppFixture.GetOrCreate(logger);
 
         var lease = await _context.GetOrCreateAsync(fixture, logger);
-        await SourceTestHelpers.RunRowAsync(lang, "github", lease.RepoUrl, lease.Token, prerelease: false, fixture, logger);
+
+        // Live GitHub's list APIs are eventually consistent per-request: even after the shared context
+        // has confirmed the feed is visible, a row's own fresh API calls can hit a stale replica
+        // (observed as 404s and "asset not found in any release" from otherwise-correct clients).
+        for (var attempt = 1; ; attempt++) {
+            try {
+                await SourceTestHelpers.RunRowAsync(lang, "github", lease.RepoUrl, lease.Token, prerelease: false, fixture, logger);
+                break;
+            } catch (Exception ex) when (attempt < 3) {
+                logger.LogWarning(ex, "GitHub source row attempt {Attempt} failed (likely list-after-write lag), retrying in 15s", attempt);
+                await Task.Delay(TimeSpan.FromSeconds(15));
+            }
+        }
     }
 }
 

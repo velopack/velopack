@@ -148,6 +148,9 @@ jobs:
       - name: Install squashfs-tools
         run: brew install squashfs
         if: ${{ matrix.os == 'macos' }}
+      # WindowsTestHelper.RunCoveredDotnet shells out to the dotnet-coverage CLI
+      - name: Install dotnet-coverage
+        run: dotnet tool install -g dotnet-coverage
       - name: Azure login
         uses: azure/login@v3
         if: github.event.pull_request.head.repo.full_name == github.repository
