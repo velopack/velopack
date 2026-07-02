@@ -19,6 +19,13 @@ public static class TestApp
     public static string TestStringMsBuildArg(string testString)
         => "-p:TestAppTestString=" + testString.Replace("%", "%25").Replace(",", "%2C").Replace(";", "%3B");
 
+    // Serializes `dotnet publish` invocations: each publish gets isolated -o/--artifacts-path dirs,
+    // but referenced projects (e.g. Velopack.csproj) still build into the repo-shared
+    // build/{Configuration}/ output dir, and two concurrent publishes race on files there
+    // (observed in CI as GenerateDepsFile: "cannot access Velopack.deps.json ... used by another
+    // process" when parallel test collections packed at the same time).
+    private static readonly SemaphoreSlim PublishGate = new(1, 1);
+
     public static void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
         string? releaseNotes = null, string? channel = null, RID? targetRid = null, string? packTitle = null, string? azureTrustedSignFile = null)
     {
@@ -46,11 +53,16 @@ public static class TestApp
 
             logger.Info($"TEST: Running {psi.FileName} {debug}");
 
-            using var p = Process.Start(psi);
-            p!.WaitForExit();
+            PublishGate.Wait();
+            try {
+                using var p = Process.Start(psi);
+                p!.WaitForExit();
 
-            if (p.ExitCode != 0)
-                throw new Exception($"dotnet publish failed with exit code {p.ExitCode}");
+                if (p.ExitCode != 0)
+                    throw new Exception($"dotnet publish failed with exit code {p.ExitCode}");
+            } finally {
+                PublishGate.Release();
+            }
 
             var console = new BasicConsole(logger, new VelopackDefaults(false));
 
