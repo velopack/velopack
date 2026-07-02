@@ -416,7 +416,12 @@ public class WindowsLegacyMigrationTests
         }
 
         var setup = PathHelper.GetFixture(fixture);
-        var p = Process.Start(setup);
+        // The 0.0.84-era setup.exe predates app.manifest declaring asInvoker, so Win11 24H2+ UAC
+        // installer detection would demand elevation for it; RunAsInvoker disables that heuristic
+        // (a no-op for the fixtures that already declare asInvoker).
+        var setupPsi = new ProcessStartInfo(setup) { UseShellExecute = false };
+        setupPsi.Environment["__COMPAT_LAYER"] = "RunAsInvoker";
+        var p = Process.Start(setupPsi);
         p!.WaitForExit();
 
         var currentDir = Path.Combine(rootDir, origDirName);
@@ -481,7 +486,12 @@ public class WindowsLegacyMigrationTests
         }
 
         var setup = PathHelper.GetFixture(fixture);
-        var p = Process.Start(setup);
+        // The 0.0.84-era setup.exe predates app.manifest declaring asInvoker, so Win11 24H2+ UAC
+        // installer detection would demand elevation for it; RunAsInvoker disables that heuristic
+        // (a no-op for the fixtures that already declare asInvoker).
+        var setupPsi = new ProcessStartInfo(setup) { UseShellExecute = false };
+        setupPsi.Environment["__COMPAT_LAYER"] = "RunAsInvoker";
+        var p = Process.Start(setupPsi);
         p!.WaitForExit();
 
         var currentDir = Path.Combine(rootDir, origDirName);
