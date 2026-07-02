@@ -152,9 +152,18 @@ function Start-Azurite {
         Write-Host "Installing azurite via npm"
         npm install -g azurite | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "npm install -g azurite failed" }
-        $npmBin = (& npm prefix -g).Trim()
-        if (-not $onWindows) { $npmBin = Join-Path $npmBin "bin" }
-        $shim = Get-Command (Join-Path $npmBin $shimName) -ErrorAction SilentlyContinue
+        # the npm global bin dir is usually already on PATH, so try that first
+        $shim = Get-Command $shimName -ErrorAction SilentlyContinue
+        if (-not $shim) {
+            # `npm prefix -g` prints an empty string on some runner images (e.g. blacksmith
+            # windows), so fall back to `npm config get prefix`
+            $npmBin = "$(& npm prefix -g)".Trim()
+            if (-not $npmBin) { $npmBin = "$(& npm config get prefix)".Trim() }
+            if (-not $npmBin) { throw "could not determine the npm global prefix" }
+            Write-Host "npm global prefix: $npmBin"
+            if (-not $onWindows) { $npmBin = Join-Path $npmBin "bin" }
+            $shim = Get-Command (Join-Path $npmBin $shimName) -ErrorAction SilentlyContinue
+        }
         if (-not $shim) { throw "$shimName not found after npm install -g azurite" }
     }
 
