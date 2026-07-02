@@ -1,5 +1,6 @@
 #nullable enable
 using System.Diagnostics;
+using System.Threading;
 using Velopack.Core;
 using Velopack.Util;
 
@@ -7,6 +8,25 @@ namespace Velopack.TestCommon;
 
 public static class TestHelper
 {
+    /// <summary>
+    /// Repeatedly runs assertion until it stops throwing or timeoutMs elapses (the last attempt's
+    /// exception propagates). Use instead of a fixed Thread.Sleep when waiting on work that happens
+    /// in a separate process (e.g. update.exe applying an update) — the test continues as soon as
+    /// the expected state is observable.
+    /// </summary>
+    public static void WaitUntil(Action assertion, int timeoutMs = 30_000, int pollDelayMs = 500)
+    {
+        var sw = Stopwatch.StartNew();
+        while (true) {
+            try {
+                assertion();
+                return;
+            } catch when (sw.ElapsedMilliseconds < timeoutMs) {
+                Thread.Sleep(pollDelayMs);
+            }
+        }
+    }
+
     private static readonly Random _random = Random.Shared;
 
     public static string RandomString(int length)

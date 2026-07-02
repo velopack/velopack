@@ -61,11 +61,11 @@ public class LinuxPackTests
         TestHelper.RunNoCoverage(appImagePath, ["apply", releaseDir], installDir, logger, exitCode: null);
         logger.Info($"TEST ({variant}): v2 applied");
 
-        Thread.Sleep(5000); // UpdateNix runs in separate process
-
-        // check app output after update
-        var chk2version = TestHelper.RunNoCoverage(appImagePath, ["version"], installDir, logger);
-        Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        // UpdateNix swaps the app in a separate process; poll until the new version is live
+        TestHelper.WaitUntil(() => {
+            var chk2version = TestHelper.RunNoCoverage(appImagePath, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        }, pollDelayMs: 1000);
         var chk2test = TestHelper.RunNoCoverage(appImagePath, ["test"], installDir, logger);
         Assert.EndsWith(Environment.NewLine + "version 2 test", chk2test);
         var chk2check2 = TestHelper.RunNoCoverage(appImagePath, ["check", releaseDir], installDir, logger);
@@ -109,10 +109,11 @@ public class LinuxPackTests
         TestHelper.RunNoCoverage(appImagePath, ["apply", releaseDir], installDir, logger, exitCode: null);
         logger.Info("TEST: v2 applied");
 
-        Thread.Sleep(5000);
-
-        var chk2version = TestHelper.RunNoCoverage(appImagePath, ["version"], installDir, logger);
-        Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        // UpdateNix swaps the app in a separate process; poll until the new version is live
+        TestHelper.WaitUntil(() => {
+            var chk2version = TestHelper.RunNoCoverage(appImagePath, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        }, pollDelayMs: 1000);
         var chk2test = TestHelper.RunNoCoverage(appImagePath, ["test"], installDir, logger);
         Assert.EndsWith(Environment.NewLine + "version 2 test", chk2test);
         logger.Info("TEST: v2 output verified / complete");
@@ -155,11 +156,11 @@ public class LinuxPackTests
         // run with --autoupdate
         TestHelper.RunNoCoverage(appImagePath, ["--autoupdate"], installDir, logger, exitCode: null);
 
-        Thread.Sleep(5000); // UpdateNix runs in separate process
-
-        // check version after auto-update
-        var chk1version = TestHelper.RunNoCoverage(appImagePath, ["version"], installDir, logger);
-        Assert.EndsWith(Environment.NewLine + "2.0.0", chk1version);
+        // UpdateNix swaps the app in a separate process; poll until the new version is live
+        TestHelper.WaitUntil(() => {
+            var chk1version = TestHelper.RunNoCoverage(appImagePath, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "2.0.0", chk1version);
+        }, pollDelayMs: 1000);
         logger.Info($"TEST ({variant}): auto-update verified / complete");
 
         // cleanup packages dir

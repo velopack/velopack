@@ -118,8 +118,7 @@ public class CrossCompile
         var uninstallOutput = Exe.RunHostedCommand($"\"{appUpdate}\" --uninstall --silent");
         logger.LogInformation(uninstallOutput);
 
-        // wait for the scheduled rmdir to complete (3 second delay + margin)
-        Thread.Sleep(5000);
-        Assert.False(Directory.Exists(appRoot));
+        // the uninstaller schedules the rmdir of its own directory ~3s after it exits; poll for it
+        TestHelper.WaitUntil(() => Assert.False(Directory.Exists(appRoot)), timeoutMs: 15_000);
     }
 }

@@ -228,17 +228,18 @@ public class WindowsInstallTests
         WindowsTestHelper.RunCoveredDotnet(appPath, ["download", releaseDir], installDir, logger);
         WindowsTestHelper.RunCoveredDotnet(appPath, ["apply", releaseDir], installDir, logger, exitCode: null);
 
-        Thread.Sleep(2000);
+        // update.exe runs the hooks and relaunches the app in a separate process; the restarted
+        // file is written last, so poll until the full end state is observable
+        var restartedPath = Path.Combine(installDir, "restarted");
+        TestHelper.WaitUntil(() => {
+            Assert.Contains("--veloapp-obsolete 1.0.0", File.ReadAllText(argsPath).Trim());
+            Assert.Contains("--veloapp-updated 2.0.0", File.ReadAllText(argsPath).Trim());
+            Assert.True(File.Exists(restartedPath));
+            Assert.Equal("OnRestarted: 2.0.0,test,args !!", File.ReadAllText(restartedPath).Trim());
+        });
 
         var logFile = WindowsTestHelper.GetLogFilePath(id);
         logger.Info("TEST: update log output - " + Environment.NewLine + File.ReadAllText(logFile));
-
-        Assert.Contains("--veloapp-obsolete 1.0.0", File.ReadAllText(argsPath).Trim());
-        Assert.Contains("--veloapp-updated 2.0.0", File.ReadAllText(argsPath).Trim());
-
-        var restartedPath = Path.Combine(installDir, "restarted");
-        Assert.True(File.Exists(restartedPath));
-        Assert.Equal("OnRestarted: 2.0.0,test,args !!", File.ReadAllText(restartedPath).Trim());
 
         var updatePath = Path.Combine(installDir, "Update.exe");
         WindowsTestHelper.RunNoCoverage(updatePath, ["--silent", "--uninstall"], Environment.CurrentDirectory, logger);
@@ -293,10 +294,11 @@ public class WindowsUpdateTests
 
         WindowsTestHelper.RunNoCoverage(appPath, ["--autoupdate"], installDir, logger, exitCode: null);
 
-        Thread.Sleep(3000); // update.exe runs in separate process
-
-        var chk1version = WindowsTestHelper.RunNoCoverage(appPath, ["version"], installDir, logger);
-        Assert.EndsWith(Environment.NewLine + "2.0.0", chk1version);
+        // update.exe swaps the app in a separate process; poll until the new version is live
+        TestHelper.WaitUntil(() => {
+            var chk1version = WindowsTestHelper.RunNoCoverage(appPath, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "2.0.0", chk1version);
+        }, pollDelayMs: 1000);
     }
 
     [Fact]
@@ -445,25 +447,28 @@ public class WindowsLegacyMigrationTests
         Thread.Sleep(2000); // update.exe does a self update after
 
         WindowsTestHelper.RunNoCoverage(stubExe, [], currentDir, logger, exitCode: 0);
-        Thread.Sleep(8000); // update.exe will do migration here
+
+        // update.exe performs the migration in a separate process; the "restarted" file (written by
+        // the app when it detects the squirrel restart) is the last observable step, so poll for
+        // the full end state instead of sleeping a fixed amount
+        TestHelper.WaitUntil(
+            () => {
+                if (origDirName != "current") {
+                    Assert.False(Directory.Exists(Path.Combine(rootDir, origDirName)));
+                }
+
+                Assert.True(Directory.Exists(Path.Combine(rootDir, "current")));
+                Assert.True(File.Exists(Path.Combine(rootDir, "current", "LegacyTestApp.exe")));
+                Assert.False(Directory.EnumerateDirectories(rootDir, "app-*").Any());
+                Assert.False(Directory.Exists(Path.Combine(rootDir, "staging")));
+                Assert.True(File.Exists(Path.Combine(rootDir, "restarted")));
+            },
+            timeoutMs: 60_000);
+        currentDir = Path.Combine(rootDir, "current");
+        appExe = Path.Combine(currentDir, "LegacyTestApp.exe");
 
         string logContents = WindowsTestHelper.ReadFileWithRetry(WindowsTestHelper.GetLogFilePath("LegacyTestApp"), logger);
         logger.Info("Velopack.log:" + Environment.NewLine + logContents);
-
-        if (origDirName != "current") {
-            Assert.False(Directory.Exists(currentDir));
-            currentDir = Path.Combine(rootDir, "current");
-        }
-
-        Assert.True(Directory.Exists(currentDir));
-        appExe = Path.Combine(currentDir, "LegacyTestApp.exe");
-        Assert.True(File.Exists(appExe));
-
-        Assert.False(Directory.EnumerateDirectories(rootDir, "app-*").Any());
-        Assert.False(Directory.Exists(Path.Combine(rootDir, "staging")));
-
-        // this is the file written by TestApp when it's detected the squirrel restart. if this is here, everything went smoothly.
-        Assert.True(File.Exists(Path.Combine(rootDir, "restarted")));
 
         var chk3version = WindowsTestHelper.RunNoCoverage(appExe, ["version"], currentDir, logger);
         Assert.EndsWith(Environment.NewLine + "2.0.0", chk3version);
@@ -515,27 +520,29 @@ public class WindowsLegacyMigrationTests
 
         logger.Info("TEST: " + DateTime.Now.ToLongTimeString());
 
-        Thread.Sleep(10_000); // update.exe runs in a separate process here
+        // update.exe performs the migration in a separate process; the "restarted" file (written by
+        // the app when it detects the squirrel restart) is the last observable step, so poll for
+        // the full end state instead of sleeping a fixed amount
+        TestHelper.WaitUntil(
+            () => {
+                if (origDirName != "current") {
+                    Assert.False(Directory.Exists(Path.Combine(rootDir, origDirName)));
+                }
+
+                Assert.True(Directory.Exists(Path.Combine(rootDir, "current")));
+                Assert.True(File.Exists(Path.Combine(rootDir, "current", "TestApp.exe")));
+                Assert.False(Directory.EnumerateDirectories(rootDir, "app-*").Any());
+                Assert.False(Directory.Exists(Path.Combine(rootDir, "staging")));
+                Assert.True(File.Exists(Path.Combine(rootDir, "restarted")));
+            },
+            timeoutMs: 60_000);
+        currentDir = Path.Combine(rootDir, "current");
+        appExe = Path.Combine(currentDir, "TestApp.exe");
 
         var logPath = WindowsTestHelper.GetLogFilePath("LegacyTestApp");
         string logContents = WindowsTestHelper.ReadFileWithRetry(logPath, logger);
         logger.Info("Velopack.log:" + Environment.NewLine + logContents);
         logger.Info("TEST: " + DateTime.Now.ToLongTimeString());
-
-        if (origDirName != "current") {
-            Assert.False(Directory.Exists(currentDir));
-            currentDir = Path.Combine(rootDir, "current");
-        }
-
-        Assert.True(Directory.Exists(currentDir));
-        appExe = Path.Combine(currentDir, "TestApp.exe");
-        Assert.True(File.Exists(appExe));
-
-        Assert.False(Directory.EnumerateDirectories(rootDir, "app-*").Any());
-        Assert.False(Directory.Exists(Path.Combine(rootDir, "staging")));
-
-        // this is the file written by TestApp when it's detected the squirrel restart. if this is here, everything went smoothly.
-        Assert.True(File.Exists(Path.Combine(rootDir, "restarted")));
 
         var chk3version = WindowsTestHelper.RunNoCoverage(appExe, ["version"], currentDir, logger);
         Assert.EndsWith(Environment.NewLine + "2.0.0", chk3version);
