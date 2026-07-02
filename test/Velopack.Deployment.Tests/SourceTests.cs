@@ -389,12 +389,40 @@ public sealed class GithubLiveContext : IAsyncLifetime
                 Channel = InstalledAppFixture.Channel,
                 Publish = true,
             });
+            await WaitForFeedVisibleAsync(lease, log);
             return lease;
         } catch {
             // Don't hold the lock for the full stale window if the upload fails; every row will
             // observe this faulted init task and fail with the same underlying error.
             await lease.DisposeAsync();
             throw;
+        }
+    }
+
+    /// <summary>
+    /// GitHub's Releases API is eventually consistent (list-after-write lag): a release published a
+    /// moment ago can be missing from listings for several seconds, which made early theory rows fail
+    /// with "no update available". Poll the same feed the rows will query until the latest full asset
+    /// is visible; throw on timeout so every row fails with a diagnosable cause instead.
+    /// </summary>
+    private static async Task WaitForFeedVisibleAsync(GitHubRepoLease lease, ILogger log)
+    {
+        var source = new GithubSource(lease.RepoUrl, lease.Token, prerelease: false);
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(90);
+        while (true) {
+            var feed = await source.GetReleaseFeed(log.ToVelopackLogger(), null, InstalledAppFixture.Channel);
+            if (feed.Assets.Any(a => a.Type == VelopackAssetType.Full && a.Version?.ToString() == InstalledAppFixture.LatestVersion)) {
+                return;
+            }
+
+            if (DateTime.UtcNow >= deadline) {
+                var seen = String.Join(", ", feed.Assets.Select(a => $"{a.Type} {a.Version}"));
+                throw new TimeoutException(
+                    $"The {InstalledAppFixture.LatestVersion} full release did not become visible at {lease.RepoUrl} within 90s. Feed contains: [{seen}]");
+            }
+
+            log.LogInformation("Feed at {RepoUrl} does not show {Version} yet, waiting...", lease.RepoUrl, InstalledAppFixture.LatestVersion);
+            await Task.Delay(2000);
         }
     }
 
