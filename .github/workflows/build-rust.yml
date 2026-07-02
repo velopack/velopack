@@ -8,6 +8,29 @@ permissions:
 
 jobs:
   windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86, x64, arm64]
+        include:
+          # The win7 targets are not rustup-distributed, so std is built from source
+          # (rust-src + -Z build-std); arm64 uses the regular distributed target.
+          # bin_suffix must match what Velopack.Packaging expects in the vendor dir.
+          - target: x86
+            rust_target: i686-win7-windows-msvc
+            build_flags: -Z build-std="core,alloc,std,panic_abort"
+            toolchain_setup: rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
+            bin_suffix: ""
+          - target: x64
+            rust_target: x86_64-win7-windows-msvc
+            build_flags: -Z build-std="core,alloc,std,panic_abort"
+            toolchain_setup: rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
+            bin_suffix: "_x64"
+          - target: arm64
+            rust_target: aarch64-pc-windows-msvc
+            build_flags: ""
+            toolchain_setup: rustup target add aarch64-pc-windows-msvc --toolchain nightly-x86_64-pc-windows-msvc
+            bin_suffix: "_arm64"
     runs-on: blacksmith-8vcpu-windows-2025
     env:
       RUSTFLAGS: -C target-feature=+crt-static
@@ -20,98 +43,28 @@ jobs:
         with:
           rust-cache: true
       - name: Install Dependencies
+        run: ${{ matrix.toolchain_setup }}
+      - name: Build Rust (${{ matrix.target }})
         run: |
-          rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
-      - name: Build Rust (x86)
-        run: |
-          cargo +nightly build --locked --target i686-win7-windows-msvc --features windows --release -Z build-std="core,alloc,std,panic_abort" --workspace --exclude velopack_python
+          cargo +nightly build --locked --target ${{ matrix.rust_target }} --features windows --release ${{ matrix.build_flags }} --workspace --exclude velopack_python
           mkdir artifacts
-          move target\i686-win7-windows-msvc\release\velopack_nodeffi.dll artifacts\velopack_nodeffi_win_x86_msvc.node
-          move target\i686-win7-windows-msvc\release\velopack_libc.dll artifacts\velopack_libc_win_x86_msvc.dll
-          move target\i686-win7-windows-msvc\release\velopack_libc.dll.lib artifacts\velopack_libc_win_x86_msvc.dll.lib
-          move target\i686-win7-windows-msvc\release\velopack_libc.lib artifacts\velopack_libc_win_x86_msvc.lib
-          move target\i686-win7-windows-msvc\release\velopack_wix.dll artifacts\velopack_wix_x86.dll
-          copy target\i686-win7-windows-msvc\release\update.exe artifacts\update.exe
-          copy target\i686-win7-windows-msvc\release\update.pdb artifacts\update.pdb
-          copy target\i686-win7-windows-msvc\release\setup.exe artifacts\setup.exe
-          copy target\i686-win7-windows-msvc\release\setup.pdb artifacts\setup.pdb
-          copy target\i686-win7-windows-msvc\release\stub.exe artifacts\stub.exe
-          copy target\i686-win7-windows-msvc\release\stub.pdb artifacts\stub.pdb
-          copy target\i686-win7-windows-msvc\release\testapp.exe artifacts\testapp.exe
-          copy target\i686-win7-windows-msvc\release\testapp.pdb artifacts\testapp.pdb
-      - name: Build Rust (x64)
-        run: |
-          cargo +nightly build --locked --target x86_64-win7-windows-msvc --features windows --release -Z build-std="core,alloc,std,panic_abort" --workspace --exclude velopack_python
-          move target\x86_64-win7-windows-msvc\release\velopack_nodeffi.dll artifacts\velopack_nodeffi_win_x64_msvc.node
-          move target\x86_64-win7-windows-msvc\release\velopack_libc.dll artifacts\velopack_libc_win_x64_msvc.dll
-          move target\x86_64-win7-windows-msvc\release\velopack_libc.dll.lib artifacts\velopack_libc_win_x64_msvc.dll.lib
-          move target\x86_64-win7-windows-msvc\release\velopack_libc.lib artifacts\velopack_libc_win_x64_msvc.lib
-          move target\x86_64-win7-windows-msvc\release\velopack_wix.dll artifacts\velopack_wix_x64.dll
-          copy target\x86_64-win7-windows-msvc\release\update.exe artifacts\update_x64.exe
-          copy target\x86_64-win7-windows-msvc\release\update.pdb artifacts\update_x64.pdb
-          copy target\x86_64-win7-windows-msvc\release\setup.exe artifacts\setup_x64.exe
-          copy target\x86_64-win7-windows-msvc\release\setup.pdb artifacts\setup_x64.pdb
-          copy target\x86_64-win7-windows-msvc\release\stub.exe artifacts\stub_x64.exe
-          copy target\x86_64-win7-windows-msvc\release\stub.pdb artifacts\stub_x64.pdb
-          copy target\x86_64-win7-windows-msvc\release\testapp.exe artifacts\testapp_x64.exe
-          copy target\x86_64-win7-windows-msvc\release\testapp.pdb artifacts\testapp_x64.pdb
+          move target\${{ matrix.rust_target }}\release\velopack_nodeffi.dll artifacts\velopack_nodeffi_win_${{ matrix.target }}_msvc.node
+          move target\${{ matrix.rust_target }}\release\velopack_libc.dll artifacts\velopack_libc_win_${{ matrix.target }}_msvc.dll
+          move target\${{ matrix.rust_target }}\release\velopack_libc.dll.lib artifacts\velopack_libc_win_${{ matrix.target }}_msvc.dll.lib
+          move target\${{ matrix.rust_target }}\release\velopack_libc.lib artifacts\velopack_libc_win_${{ matrix.target }}_msvc.lib
+          move target\${{ matrix.rust_target }}\release\velopack_wix.dll artifacts\velopack_wix_${{ matrix.target }}.dll
+          copy target\${{ matrix.rust_target }}\release\update.exe artifacts\update${{ matrix.bin_suffix }}.exe
+          copy target\${{ matrix.rust_target }}\release\update.pdb artifacts\update${{ matrix.bin_suffix }}.pdb
+          copy target\${{ matrix.rust_target }}\release\setup.exe artifacts\setup${{ matrix.bin_suffix }}.exe
+          copy target\${{ matrix.rust_target }}\release\setup.pdb artifacts\setup${{ matrix.bin_suffix }}.pdb
+          copy target\${{ matrix.rust_target }}\release\stub.exe artifacts\stub${{ matrix.bin_suffix }}.exe
+          copy target\${{ matrix.rust_target }}\release\stub.pdb artifacts\stub${{ matrix.bin_suffix }}.pdb
+          copy target\${{ matrix.rust_target }}\release\testapp.exe artifacts\testapp${{ matrix.bin_suffix }}.exe
+          copy target\${{ matrix.rust_target }}\release\testapp.pdb artifacts\testapp${{ matrix.bin_suffix }}.pdb
       - name: Upload Rust Build Artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: rust-windows
-          path: artifacts\*
-          retention-days: 1
-      - name: Cancel workflow if failed
-        if: ${{ failure() }}
-        uses: ./.github/actions/cancel-workflow
-
-  windows-arm64:
-    # Native arm64 runner (free for public repos): compiles natively instead of cross-compiling
-    # from x64, which is both faster and avoids the arm64 cross-toolchain issues that blocked
-    # using blacksmith (x64-only) for this job.
-    runs-on: windows-11-arm
-    env:
-      RUSTFLAGS: -C target-feature=+crt-static
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - name: Setup Job Environment
-        uses: ./.github/actions/job-setup
-        with:
-          rust-cache: true
-      # The arm64 runner image may not ship rust; install a minimal stable toolchain if missing
-      # (no -Z flags are used here, so nightly is not needed).
-      - name: Install Dependencies
-        shell: pwsh
-        run: |
-          if (-not (Get-Command rustup -ErrorAction SilentlyContinue)) {
-            Invoke-WebRequest https://static.rust-lang.org/rustup/dist/aarch64-pc-windows-msvc/rustup-init.exe -OutFile rustup-init.exe
-            ./rustup-init.exe -y --default-toolchain stable --profile minimal
-            Add-Content $env:GITHUB_PATH "$env:USERPROFILE\.cargo\bin"
-          }
-          rustup target add aarch64-pc-windows-msvc
-      - name: Build Rust (arm64)
-        run: |
-          cargo build --locked --target aarch64-pc-windows-msvc --features windows --release --workspace --exclude velopack_python
-          mkdir artifacts
-          move target\aarch64-pc-windows-msvc\release\velopack_nodeffi.dll artifacts\velopack_nodeffi_win_arm64_msvc.node
-          move target\aarch64-pc-windows-msvc\release\velopack_libc.dll artifacts\velopack_libc_win_arm64_msvc.dll
-          move target\aarch64-pc-windows-msvc\release\velopack_libc.dll.lib artifacts\velopack_libc_win_arm64_msvc.dll.lib
-          move target\aarch64-pc-windows-msvc\release\velopack_libc.lib artifacts\velopack_libc_win_arm64_msvc.lib
-          move target\aarch64-pc-windows-msvc\release\velopack_wix.dll artifacts\velopack_wix_arm64.dll
-          copy target\aarch64-pc-windows-msvc\release\update.exe artifacts\update_arm64.exe
-          copy target\aarch64-pc-windows-msvc\release\update.pdb artifacts\update_arm64.pdb
-          copy target\aarch64-pc-windows-msvc\release\setup.exe artifacts\setup_arm64.exe
-          copy target\aarch64-pc-windows-msvc\release\setup.pdb artifacts\setup_arm64.pdb
-          copy target\aarch64-pc-windows-msvc\release\stub.exe artifacts\stub_arm64.exe
-          copy target\aarch64-pc-windows-msvc\release\stub.pdb artifacts\stub_arm64.pdb
-          copy target\aarch64-pc-windows-msvc\release\testapp.exe artifacts\testapp_arm64.exe
-          copy target\aarch64-pc-windows-msvc\release\testapp.pdb artifacts\testapp_arm64.pdb
-      - name: Upload Rust Build Artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: rust-windows-arm64
+          name: rust-windows-${{ matrix.target }}
           path: artifacts\*
           retention-days: 1
       - name: Cancel workflow if failed
