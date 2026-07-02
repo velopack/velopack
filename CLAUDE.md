@@ -49,6 +49,12 @@ dotnet test --project test/Velopack.Tests -- --filter-method "*TestMethodName*"
 cargo test
 ```
 
+**Run tests locally in Debug (the default), never `-c Release`.** In Debug, `HelperFile` and
+`PathHelper.GetRustBuildOutputDir()` resolve unsuffixed rust binaries from `target/debug`, so a plain
+`cargo build` (add `--features windows` on Windows) is all the setup needed. Release-mode tests
+expect CI's arch-suffixed vendored binaries (`update_x64.exe` etc.) — do not fake those locally by
+copying files into `target/release`.
+
 ## Repository Structure
 
 ```
