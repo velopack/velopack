@@ -46,7 +46,10 @@ public class BuildAssets(string outputDir, string channel)
         foreach (var asset in Assets) {
             var from = Path.Combine(outputDir, asset.RelativeFileName);
             var to = Path.Combine(newOutputDir, asset.RelativeFileName);
-            IoUtil.MoveFile(from, to, true);
+            // retried because the overwritten target can be transiently locked, e.g. a Setup.exe
+            // from a previous release that was executed moments ago and not yet fully released
+            // by the OS, or an asset still being scanned by AV.
+            IoUtil.Retry(() => IoUtil.MoveFile(from, to, true));
         }
 
         outputDir = newOutputDir;
