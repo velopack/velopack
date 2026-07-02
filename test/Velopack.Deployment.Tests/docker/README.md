@@ -62,23 +62,25 @@ docker compose -f test/Velopack.Deployment.Tests/docker/docker-compose.yml ps gi
 Until GitLab is healthy, GitLab-backed tests skip with an actionable message. The first GitLab test
 that runs also pays a one-time 30-60s cost for `gitlab-rails runner` PAT seeding.
 
-## Windows CI (native services, no docker)
+## Windows & macOS CI (native services, no docker)
 
-Windows CI runners cannot run Linux containers: the preinstalled docker daemon is Windows-containers
-only (`docker run alpine` fails with "no matching manifest for windows/amd64" — verified on
-windows-latest), and `wsl --install` hangs provisioning non-interactively. So on Windows CI,
-`start-windows-services.ps1` runs the same services **natively**: the Gitea Windows binaries (same
-three versions, same ports, admin pre-seeded), Azurite via `npm install -g azurite` (with
-`--skipApiVersionCheck --loose`, matching compose), and S3Mock's `-exec.jar` via `java`. GitLab has
-no Windows form, so GitLab-backed tests skip there. The script is idempotent (services already
-answering on their port are left alone), so it coexists with a running docker stack and works
-locally too — requires node/npm and java on PATH.
+Windows CI runners cannot run Linux containers (the preinstalled docker daemon is Windows-containers
+only — `docker run alpine` fails with "no matching manifest for windows/amd64", verified on
+windows-latest — and `wsl --install` hangs provisioning non-interactively), and macOS runners have
+no docker daemon at all. So on those runners, `start-native-services.ps1` runs the same services
+**natively**: the Gitea binaries for the host platform (same three versions, same ports, admin
+pre-seeded), Azurite via `npm install -g azurite` (with `--skipApiVersionCheck --loose`, matching
+compose), and S3Mock's `-exec.jar` via `java`. GitLab has no Windows/macOS form, so GitLab-backed
+tests skip there. The script is idempotent (services already answering on their port are left
+alone), so it coexists with a running docker stack and works locally too — requires node/npm and
+java on PATH (plus `xz` on macOS, brew-installed automatically if missing).
 
-Local Windows development doesn't need any of this: use Docker Desktop and the plain compose
+Local development doesn't need any of this: use Docker Desktop / Colima and the plain compose
 commands above.
 
 ```powershell
-./test/Velopack.Deployment.Tests/docker/start-windows-services.ps1
+# Windows PowerShell 5+ or pwsh 7+ (macOS)
+./test/Velopack.Deployment.Tests/docker/start-native-services.ps1
 ```
 
 ## Running the tests

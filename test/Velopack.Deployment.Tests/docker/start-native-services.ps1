@@ -1,19 +1,25 @@
-# Starts the deployment-test services natively on Windows, where Linux docker containers are not
-# available (Windows CI runners have no nested virtualization). Mirrors docker-compose.yml:
+# Starts the deployment-test services natively on Windows and macOS, where the Linux docker
+# containers in docker-compose.yml are not available (Windows CI runners cannot run Linux
+# containers, and macOS runners have no docker daemon). Mirrors docker-compose.yml:
 #   gitea 1.22 -> http://localhost:3122      azurite blob -> http://localhost:10000
 #   gitea 1.24 -> http://localhost:3124      s3mock       -> http://localhost:9090
-#   gitea latest -> http://localhost:3199    (gitlab has no Windows form and stays unavailable)
+#   gitea latest -> http://localhost:3199    (gitlab has no Windows/macOS form and stays unavailable)
 #
 # Idempotent: services already responding on their port are left alone, so this coexists with a
 # running docker compose stack and can be re-run freely. Ports/credentials must stay in sync with
 # docker-compose.yml and Infra/DockerServices.cs / Infra/GiteaAdmin.cs.
 #
-# Requires: PowerShell 5+, node/npm (azurite), java 17+ (s3mock).
+# Requires: PowerShell 5+ (Windows) or pwsh 7+ (macOS), node/npm (azurite), java 17+ (s3mock).
+# On macOS also xz (brew-installed automatically if missing) to unpack the gitea binaries.
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
-$cacheDir = Join-Path $PSScriptRoot "..\obj\native-services"
+# $IsWindows does not exist on Windows PowerShell 5.1 (which only runs on Windows).
+$onWindows = $PSVersionTable.PSVersion.Major -lt 6 -or $IsWindows
+
+# Forward slashes work on both Windows and macOS (backslashes are literal chars on unix).
+$cacheDir = Join-Path $PSScriptRoot "../obj/native-services"
 New-Item -ItemType Directory -Force $cacheDir | Out-Null
 $cacheDir = (Resolve-Path $cacheDir).Path
 
@@ -54,6 +60,34 @@ function Get-CachedFile([string]$url, [string]$destPath) {
     }
 }
 
+function Start-BackgroundProcess([string]$filePath, [object[]]$argumentList, [string]$workingDirectory) {
+    $params = @{ FilePath = $filePath; ArgumentList = $argumentList }
+    if ($workingDirectory) { $params.WorkingDirectory = $workingDirectory }
+    # -WindowStyle is Windows-only and throws on other platforms.
+    if ($onWindows) { $params.WindowStyle = "Hidden" }
+    Start-Process @params
+}
+
+function Get-GiteaBinary([string]$version) {
+    if ($onWindows) {
+        $exe = Join-Path $cacheDir "gitea-$version.exe"
+        Get-CachedFile "https://dl.gitea.com/gitea/$version/gitea-$version-windows-4.0-amd64.exe" $exe
+        return $exe
+    }
+
+    # macOS: gitea ships darwin binaries as bare .xz files; `xz -d` strips the suffix in place.
+    $exe = Join-Path $cacheDir "gitea-$version"
+    if (-not (Test-Path $exe)) {
+        $arch = if ((uname -m) -eq "arm64") { "arm64" } else { "amd64" }
+        Get-CachedFile "https://dl.gitea.com/gitea/$version/gitea-$version-darwin-10.12-$arch.xz" "$exe.xz"
+        if (-not (Get-Command xz -ErrorAction SilentlyContinue)) { brew install xz }
+        xz -d -f "$exe.xz"
+        if ($LASTEXITCODE -ne 0) { throw "xz failed to decompress gitea $version" }
+        chmod +x $exe
+    }
+    return $exe
+}
+
 function Start-Gitea([string]$version, [int]$port) {
     $health = "http://localhost:$port/api/healthz"
     if (Test-Endpoint $health) {
@@ -61,11 +95,10 @@ function Start-Gitea([string]$version, [int]$port) {
         return
     }
 
-    $exe = Join-Path $cacheDir "gitea-$version.exe"
-    Get-CachedFile "https://dl.gitea.com/gitea/$version/gitea-$version-windows-4.0-amd64.exe" $exe
+    $exe = Get-GiteaBinary $version
 
     $workDir = Join-Path $cacheDir "gitea-$version-data"
-    $confDir = Join-Path $workDir "custom\conf"
+    $confDir = Join-Path (Join-Path $workDir "custom") "conf"
     New-Item -ItemType Directory -Force $confDir | Out-Null
     $appIni = Join-Path $confDir "app.ini"
     if (-not (Test-Path $appIni)) {
@@ -98,7 +131,7 @@ LEVEL = Warn
         throw "gitea $version admin user create failed: $createOutput"
     }
 
-    Start-Process -FilePath $exe -ArgumentList "web", "--config", $appIni -WorkingDirectory $workDir -WindowStyle Hidden
+    Start-BackgroundProcess $exe @("web", "--config", $appIni) $workDir
     Remove-Item Env:GITEA_WORK_DIR
     Wait-Endpoint "gitea $version" $health
 }
@@ -111,24 +144,26 @@ function Start-Azurite {
         return
     }
 
-    # npm creates .ps1/.cmd/sh shims; Start-Process can only execute the .cmd one.
-    $shim = Get-Command azurite-blob.cmd -ErrorAction SilentlyContinue
+    # npm creates .ps1/.cmd/sh shims on Windows; Start-Process can only execute the .cmd one. On
+    # macOS the shim is a plain executable script under <npm prefix>/bin.
+    $shimName = if ($onWindows) { "azurite-blob.cmd" } else { "azurite-blob" }
+    $shim = Get-Command $shimName -ErrorAction SilentlyContinue
     if (-not $shim) {
         Write-Host "Installing azurite via npm"
         npm install -g azurite | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "npm install -g azurite failed" }
         $npmBin = (& npm prefix -g).Trim()
-        $shim = Get-Command (Join-Path $npmBin "azurite-blob.cmd") -ErrorAction SilentlyContinue
-        if (-not $shim) { throw "azurite-blob.cmd not found after npm install -g azurite" }
+        if (-not $onWindows) { $npmBin = Join-Path $npmBin "bin" }
+        $shim = Get-Command (Join-Path $npmBin $shimName) -ErrorAction SilentlyContinue
+        if (-not $shim) { throw "$shimName not found after npm install -g azurite" }
     }
 
     $dataDir = Join-Path $cacheDir "azurite-data"
     New-Item -ItemType Directory -Force $dataDir | Out-Null
     # --skipApiVersionCheck/--loose mirror docker-compose.yml (newer Azure SDKs send API versions
     # azurite does not know yet).
-    Start-Process -FilePath $shim.Source `
-        -ArgumentList "--blobHost", "127.0.0.1", "--blobPort", "10000", "--location", $dataDir, "--silent", "--skipApiVersionCheck", "--loose" `
-        -WindowStyle Hidden
+    Start-BackgroundProcess $shim.Source @(
+        "--blobHost", "127.0.0.1", "--blobPort", "10000", "--location", $dataDir, "--silent", "--skipApiVersionCheck", "--loose")
     Wait-Endpoint "azurite" $probe
 }
 
@@ -144,7 +179,7 @@ function Start-S3Mock {
 
     $jar = Join-Path $cacheDir "s3mock-$s3mockVersion-exec.jar"
     Get-CachedFile "https://repo1.maven.org/maven2/com/adobe/testing/s3mock/$s3mockVersion/s3mock-$s3mockVersion-exec.jar" $jar
-    Start-Process -FilePath $java.Source -ArgumentList "-jar", $jar -WindowStyle Hidden
+    Start-BackgroundProcess $java.Source @("-jar", $jar)
     Wait-Endpoint "s3mock" $probe -timeoutSec 120
 }
 
@@ -156,4 +191,4 @@ Start-Azurite
 Start-S3Mock
 
 Write-Host ""
-Write-Host "All native deployment-test services are up (gitlab is unavailable on Windows; its tests skip)."
+Write-Host "All native deployment-test services are up (gitlab is unavailable on Windows/macOS; its tests skip)."

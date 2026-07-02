@@ -19,7 +19,7 @@ jobs:
         os: [windows, ubuntu, macos]
         include:
           - os: windows
-            runner: blacksmith-4vcpu-windows-2025
+            runner: windows-latest
             rust_flags: "--features windows"
           - os: ubuntu
             runner: ubuntu-latest
@@ -117,8 +117,6 @@ jobs:
         os: [windows, ubuntu, macos]
         include:
           - os: windows
-            # GitHub-hosted runner: has the node + java toolchains that start-windows-services.ps1
-            # needs to host the deployment-test services natively.
             runner: windows-latest
             rust_flags: "--features windows"
           - os: ubuntu
@@ -129,7 +127,6 @@ jobs:
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
       VELOPACK_GITHUB_TEST_TOKEN: ${{ secrets.VELOPACK_GITHUB_TEST_TOKEN }}
-      VELOPACK_DEPLOYMENT_TEST_TOKEN: ${{ secrets.VELOPACK_DEPLOYMENT_TEST_TOKEN }}
     steps:
       ## JOB SETUP
       - uses: actions/checkout@v7
@@ -139,30 +136,11 @@ jobs:
         uses: ./.github/actions/job-setup
         with:
           dotnet: true
-      # gitlab needs several minutes to become healthy on first boot, so start the stack early
-      - name: Start Deployment Test Services
-        if: ${{ runner.os == 'Linux' }}
-        run: docker compose -f test/Velopack.Deployment.Tests/docker/docker-compose.yml up -d --wait --wait-timeout 900
-      # Windows runners cannot run Linux containers (the preinstalled docker is Windows-containers
-      # only, and `wsl --install` hangs provisioning non-interactively), so the same services run
-      # natively — minus gitlab, which has no Windows form and is covered by the Linux leg.
-      - name: Start Deployment Test Services (Windows)
-        if: ${{ runner.os == 'Windows' }}
-        shell: pwsh
-        run: ./test/Velopack.Deployment.Tests/docker/start-windows-services.ps1
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
-      - name: Install FUSE
-        run: |
-          sudo add-apt-repository universe
-          sudo apt update
-          sudo apt install libfuse2
-        if: ${{ matrix.os == 'ubuntu' }}
       - name: Install squashfs-tools
         run: brew install squashfs
         if: ${{ matrix.os == 'macos' }}
-      - name: Install dotnet-coverage
-        run: dotnet tool install -g dotnet-coverage
       - name: Azure login
         uses: azure/login@v3
         if: github.event.pull_request.head.repo.full_name == github.repository
@@ -187,8 +165,21 @@ jobs:
           path: target/release
           pattern: rust-*
           merge-multiple: true
-      - name: Build Rust testapp
-        run: cargo build --locked --release -p velopack_bins --bin testapp ${{ matrix.rust_flags }}
+      # The Rust testapp is built by the build-rust workflow and shipped inside the rust-* artifacts
+      # just downloaded; put the host-native copy where the tests expect it (target/release/testapp).
+      - name: Prepare Rust testapp
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
+            cp target/release/testapp_x64.exe target/release/testapp.exe
+            cp target/release/testapp_x64.pdb target/release/testapp.pdb
+          elif [[ "${{ matrix.os }}" == "ubuntu" ]]; then
+            cp target/release/testapp_linux_x64 target/release/testapp
+            chmod +x target/release/testapp
+          else
+            cp target/release/testapp_osx target/release/testapp
+            chmod +x target/release/testapp
+          fi
       - name: Build Cross-Compile Artifacts
         run: >-
           dotnet test --project test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj
@@ -227,14 +218,6 @@ jobs:
           --no-build -c Release
           --report-github
           --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Pack.Tests.xml
-      - name: Test Velopack.Deployment.Tests
-        run: >-
-          dotnet test --project test/Velopack.Deployment.Tests/Velopack.Deployment.Tests.csproj
-          --no-build -c Release
-          --report-github
-          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Deployment.Tests.xml
-          --coverage --coverage-output-format cobertura
-          --coverage-output ${{ github.workspace }}/test/coverage/coverage.${{ matrix.os }}.Velopack.Deployment.Tests.xml
       ## START COVERAGE TESTING
       - name: Clean Rust Build
         run: cargo clean
@@ -279,6 +262,89 @@ jobs:
           --filter-method '*RunCrossApp*'
           --report-github
           --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.CrossCompile.Run.xml
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v7
+        with:
+          directory: ./test/coverage
+          flags: vpk
+      - name: Upload Test Results
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: ./test/coverage/junit.*.xml
+          flags: vpk
+
+  vpk-deployment:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows, ubuntu, macos]
+        include:
+          - os: windows
+            # GitHub-hosted runner: has the node + java toolchains that start-native-services.ps1
+            # needs to host the deployment-test services natively.
+            runner: windows-latest
+          - os: ubuntu
+            runner: ubuntu-latest
+          - os: macos
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+      VELOPACK_DEPLOYMENT_TEST_TOKEN: ${{ secrets.VELOPACK_DEPLOYMENT_TEST_TOKEN }}
+    steps:
+      ## JOB SETUP
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
+        with:
+          dotnet: true
+      # start the stack detached and don't block on health: gitlab needs several minutes to boot,
+      # which overlaps with the .NET build below. The wait step before the tests picks up the slack.
+      - name: Start Deployment Test Services
+        if: ${{ runner.os == 'Linux' }}
+        run: docker compose -f test/Velopack.Deployment.Tests/docker/docker-compose.yml up -d
+      # Windows runners cannot run Linux containers (the preinstalled docker is Windows-containers
+      # only, and `wsl --install` hangs provisioning non-interactively) and macOS runners have no
+      # docker at all, so the same services run natively — minus gitlab, which has no Windows/macOS
+      # form and is covered by the Linux leg.
+      - name: Start Deployment Test Services (native)
+        if: ${{ runner.os != 'Linux' }}
+        shell: pwsh
+        run: ./test/Velopack.Deployment.Tests/docker/start-native-services.ps1
+      - name: Install dotnet-coverage
+        run: dotnet tool install -g dotnet-coverage
+      ## BUILD C# TESTS
+      - name: Build .NET
+        run: dotnet build -c Release
+      - name: Wait for Artifacts
+        uses: ./.github/actions/wait-artifact
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max_wait_seconds: 900
+          artifacts: rust-macos,rust-windows,rust-windows-arm64,rust-ubuntu-bins-x64,rust-ubuntu-bins-arm64
+          verbose: true
+      - name: Download Rust Artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: target/release
+          pattern: rust-*
+          merge-multiple: true
+      - name: Wait for Deployment Test Services
+        if: ${{ runner.os == 'Linux' }}
+        run: docker compose -f test/Velopack.Deployment.Tests/docker/docker-compose.yml up -d --wait --wait-timeout 900
+      ## RUN DEPLOYMENT TESTS
+      - name: Test Velopack.Deployment.Tests
+        run: >-
+          dotnet test --project test/Velopack.Deployment.Tests/Velopack.Deployment.Tests.csproj
+          --no-build -c Release
+          --report-github
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.Velopack.Deployment.Tests.xml
+          --coverage --coverage-output-format cobertura
+          --coverage-output ${{ github.workspace }}/test/coverage/coverage.${{ matrix.os }}.Velopack.Deployment.Tests.xml
       - name: Upload Coverage
         uses: codecov/codecov-action@v7
         with:
