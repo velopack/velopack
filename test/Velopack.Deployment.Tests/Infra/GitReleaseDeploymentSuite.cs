@@ -272,6 +272,25 @@ public abstract class GitReleaseDeploymentSuite
         return Assert.Single(releases);
     }
 
+    /// <summary>
+    /// Like GetSingleReleaseAsync, but additionally waits until the release's asset listing contains
+    /// every name in expectedAssets. A fresh listing can lag behind recent uploads (observed on
+    /// GitHub as a merged release temporarily missing its most recently uploaded assets), so tests
+    /// asserting on exact asset names must wait the lag out. On timeout the latest listing is
+    /// returned so the caller's assertion fails with the real state.
+    /// </summary>
+    private static async Task<RemoteRelease> GetSingleReleaseWithAssetsAsync(IGitReleaseScope scope, params string[] expectedAssets)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(120);
+        var release = await GetSingleReleaseAsync(scope);
+        while (expectedAssets.Any(a => !release.AssetNames.Contains(a)) && DateTime.UtcNow < deadline) {
+            await Task.Delay(2000);
+            release = await GetSingleReleaseAsync(scope);
+        }
+
+        return release;
+    }
+
     private static void TryDeleteDir(string dir) => ReleaseFixtures.TryDeleteDir(dir);
 
     [Fact]
@@ -293,7 +312,7 @@ public abstract class GitReleaseDeploymentSuite
                 Publish = true,
             }, log);
 
-            var release = await GetSingleReleaseAsync(scope);
+            var release = await GetSingleReleaseWithAssetsAsync(scope, $"releases.{channel}.json", "RELEASES");
             Assert.False(release.Draft, "release should have been published (not left as a draft)");
             Assert.Equal("GitRelApp v1.0.0", release.Name);
             Assert.Equal(tag ?? "1.0.0", release.TagName);
@@ -321,7 +340,7 @@ public abstract class GitReleaseDeploymentSuite
         try {
             await scope.UploadAsync(new GitReleaseUpload(pack.ReleaseDir, channel) { TagName = tag, Publish = false }, log);
 
-            var release = await GetSingleReleaseAsync(scope);
+            var release = await GetSingleReleaseWithAssetsAsync(scope, $"releases.{channel}.json");
             Assert.True(release.Draft, "release should have been left as a draft");
             Assert.Equal(tag ?? "1.0.0", release.TagName);
             Assert.Contains($"releases.{channel}.json", release.AssetNames);
@@ -421,7 +440,12 @@ public abstract class GitReleaseDeploymentSuite
                 Merge = true,
             }, log);
 
-            var release = await GetSingleReleaseAsync(scope);
+            var release = await GetSingleReleaseWithAssetsAsync(
+                scope,
+                $"{AppId}-1.0.0-stablea-full.nupkg",
+                $"{AppId}-1.0.0-stableb-full.nupkg",
+                "releases.stablea.json",
+                "releases.stableb.json");
             Assert.Equal(tag, release.TagName);
             Assert.Contains($"{AppId}-1.0.0-stablea-full.nupkg", release.AssetNames);
             Assert.Contains($"{AppId}-1.0.0-stableb-full.nupkg", release.AssetNames);
