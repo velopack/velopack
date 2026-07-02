@@ -14,24 +14,32 @@ jobs:
         target: [x86, x64, arm64]
         include:
           # The win7 targets are not rustup-distributed, so std is built from source
-          # (rust-src + -Z build-std); arm64 uses the regular distributed target.
+          # (rust-src + -Z build-std on nightly); arm64 uses the regular distributed target.
           # bin_suffix must match what Velopack.Packaging expects in the vendor dir.
           - target: x86
+            runner: blacksmith-4vcpu-windows-2025
             rust_target: i686-win7-windows-msvc
+            toolchain: "+nightly"
             build_flags: -Z build-std="core,alloc,std,panic_abort"
             toolchain_setup: rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
             bin_suffix: ""
           - target: x64
+            runner: blacksmith-4vcpu-windows-2025
             rust_target: x86_64-win7-windows-msvc
+            toolchain: "+nightly"
             build_flags: -Z build-std="core,alloc,std,panic_abort"
             toolchain_setup: rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
             bin_suffix: "_x64"
           - target: arm64
+            # Native arm64 GitHub runner (free for public repos): blacksmith is x64-only and its
+            # image lacks the arm64 cross toolchain (cc-rs finds neither cl nor clang for aarch64).
+            runner: windows-11-arm
             rust_target: aarch64-pc-windows-msvc
+            toolchain: ""
             build_flags: ""
-            toolchain_setup: rustup target add aarch64-pc-windows-msvc --toolchain nightly-x86_64-pc-windows-msvc
+            toolchain_setup: rustup target add aarch64-pc-windows-msvc
             bin_suffix: "_arm64"
-    runs-on: blacksmith-4vcpu-windows-2025
+    runs-on: ${{ matrix.runner }}
     env:
       RUSTFLAGS: -C target-feature=+crt-static
     steps:
@@ -46,7 +54,7 @@ jobs:
         run: ${{ matrix.toolchain_setup }}
       - name: Build Rust (${{ matrix.target }})
         run: |
-          cargo +nightly build --locked --target ${{ matrix.rust_target }} --features windows --release ${{ matrix.build_flags }} --workspace --exclude velopack_python
+          cargo ${{ matrix.toolchain }} build --locked --target ${{ matrix.rust_target }} --features windows --release ${{ matrix.build_flags }} --workspace --exclude velopack_python
           mkdir artifacts
           move target\${{ matrix.rust_target }}\release\velopack_nodeffi.dll artifacts\velopack_nodeffi_win_${{ matrix.target }}_msvc.node
           move target\${{ matrix.rust_target }}\release\velopack_libc.dll artifacts\velopack_libc_win_${{ matrix.target }}_msvc.dll
