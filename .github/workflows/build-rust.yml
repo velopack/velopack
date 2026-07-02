@@ -31,7 +31,7 @@ jobs:
             build_flags: ""
             toolchain_setup: rustup target add aarch64-pc-windows-msvc --toolchain nightly-x86_64-pc-windows-msvc
             bin_suffix: "_arm64"
-    runs-on: blacksmith-8vcpu-windows-2025
+    runs-on: blacksmith-4vcpu-windows-2025
     env:
       RUSTFLAGS: -C target-feature=+crt-static
     steps:
