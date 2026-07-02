@@ -66,7 +66,10 @@ jobs:
         uses: ./.github/actions/cancel-workflow
 
   windows-arm64:
-    runs-on: windows-latest
+    # Native arm64 runner (free for public repos): compiles natively instead of cross-compiling
+    # from x64, which is both faster and avoids the arm64 cross-toolchain issues that blocked
+    # using blacksmith (x64-only) for this job.
+    runs-on: windows-11-arm
     env:
       RUSTFLAGS: -C target-feature=+crt-static
     steps:
@@ -77,12 +80,20 @@ jobs:
         uses: ./.github/actions/job-setup
         with:
           rust-cache: true
+      # The arm64 runner image may not ship rust; install a minimal stable toolchain if missing
+      # (no -Z flags are used here, so nightly is not needed).
       - name: Install Dependencies
+        shell: pwsh
         run: |
-          rustup target add aarch64-pc-windows-msvc --toolchain nightly-x86_64-pc-windows-msvc
+          if (-not (Get-Command rustup -ErrorAction SilentlyContinue)) {
+            Invoke-WebRequest https://static.rust-lang.org/rustup/dist/aarch64-pc-windows-msvc/rustup-init.exe -OutFile rustup-init.exe
+            ./rustup-init.exe -y --default-toolchain stable --profile minimal
+            Add-Content $env:GITHUB_PATH "$env:USERPROFILE\.cargo\bin"
+          }
+          rustup target add aarch64-pc-windows-msvc
       - name: Build Rust (arm64)
         run: |
-          cargo +nightly build --locked --target aarch64-pc-windows-msvc --features windows --release --workspace --exclude velopack_python
+          cargo build --locked --target aarch64-pc-windows-msvc --features windows --release --workspace --exclude velopack_python
           mkdir artifacts
           move target\aarch64-pc-windows-msvc\release\velopack_nodeffi.dll artifacts\velopack_nodeffi_win_arm64_msvc.node
           move target\aarch64-pc-windows-msvc\release\velopack_libc.dll artifacts\velopack_libc_win_arm64_msvc.dll
@@ -195,7 +206,7 @@ jobs:
         uses: ./.github/actions/cancel-workflow
 
   macos:
-    runs-on: macos-latest
+    runs-on: blacksmith-6vcpu-macos-latest
     steps:
       - uses: actions/checkout@v7
         with:
@@ -233,7 +244,8 @@ jobs:
           name: rust-macos
           path: artifacts/*
           retention-days: 1
-      ## PYTHON WHEELS (merged here due to macos concurrency limits in github actions)
+      ## PYTHON WHEELS (historically merged here due to github-hosted macos concurrency limits;
+      ## could be split into a parallel job now that this runs on blacksmith)
       - uses: actions/setup-python@v6
         with:
           python-version: 3.x
