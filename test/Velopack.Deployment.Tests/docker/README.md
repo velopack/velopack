@@ -62,14 +62,18 @@ docker compose -f test/Velopack.Deployment.Tests/docker/docker-compose.yml ps gi
 Until GitLab is healthy, GitLab-backed tests skip with an actionable message. The first GitLab test
 that runs also pays a one-time 30-60s cost for `gitlab-rails runner` PAT seeding.
 
-## Windows without docker (native services)
+## Windows CI (docker via WSL2)
 
-Windows runners (GitHub-hosted and otherwise) cannot run Linux containers, so on Windows CI the same
-services run **natively** via `start-windows-services.ps1` in this directory: the Gitea Windows
-binaries (same three versions, same ports, admin user pre-seeded), Azurite via `npm install -g
-azurite`, and S3Mock's `-exec.jar` via `java`. GitLab has no Windows form, so GitLab-backed tests
-skip there. The script is idempotent (services already answering on their port are left alone), so
-it coexists with a running docker stack and works locally too — requires node/npm and java on PATH.
+On Windows CI runners (`windows-latest` = Windows Server 2025, where WSL2 works out of the box)
+`start-windows-services.ps1` runs the **same compose file inside WSL2 docker**: it installs the
+Ubuntu distro, installs docker in it, brings up every service except GitLab, and pre-seeds the
+gitea admin user (the tests' `docker exec` fallback can't reach the WSL dockerd from the Windows
+side; their probe-first REST path then just works). The Windows host reaches the containers through
+WSL2 localhost forwarding. GitLab is excluded there — it takes minutes to boot and is fully covered
+by the Linux leg — so GitLab-backed tests skip on Windows.
+
+Local Windows development doesn't need any of this: use Docker Desktop and the plain compose
+commands above.
 
 ```powershell
 ./test/Velopack.Deployment.Tests/docker/start-windows-services.ps1
