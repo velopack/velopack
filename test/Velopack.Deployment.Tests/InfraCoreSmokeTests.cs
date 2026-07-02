@@ -98,7 +98,20 @@ public class InfraCoreSmokeTests
         await using var lease = await GitHubRepoLock.AcquireAsync(logger, TimeSpan.FromMinutes(2));
         logger.LogInformation("Test acquired lock on repo {Repo}", lease.Name);
 
-        var contents = await lease.Client.Repository.Content.GetAllContents(lease.Owner, lease.Name, GitHubRepoLock.LockFileName);
+        // The Contents API is eventually consistent in both directions: a read straight after
+        // CreateFile can 404 on a stale replica (just as a read after DeleteFile can still return
+        // the deleted file below), so poll until the just-created lock file is visible.
+        IReadOnlyList<Octokit.RepositoryContent> contents;
+        var appearDeadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+        while (true) {
+            try {
+                contents = await lease.Client.Repository.Content.GetAllContents(lease.Owner, lease.Name, GitHubRepoLock.LockFileName);
+                break;
+            } catch (NotFoundException) when (DateTime.UtcNow < appearDeadline) {
+                await Task.Delay(TimeSpan.FromSeconds(1));
+            }
+        }
+
         Assert.Single(contents);
 
         await lease.DisposeAsync();
