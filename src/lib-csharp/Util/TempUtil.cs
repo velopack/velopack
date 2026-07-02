@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 
@@ -6,6 +6,13 @@ namespace Velopack.Util
 {
     internal static class TempUtil
     {
+        // Temp entries are named "temp.{guid}". The high-entropy random suffix guarantees that
+        // concurrent callers - whether threads in one process or separate processes sharing the
+        // same temp root - never derive the same candidate path. This replaces the old sequential
+        // "temp.N" scheme, where two callers each independently picking "the lowest free slot"
+        // could both choose e.g. "temp.1" and collide through a check-then-create TOCTOU window.
+        private const int MaxAllocationAttempts = 1000;
+
         public static string GetDefaultTempBaseDirectory()
         {
             string tempDir;
@@ -33,35 +40,6 @@ namespace Velopack.Util
             return di.FullName;
         }
 
-        private static string GetNextTempName(string tempDir)
-        {
-            for (int i = 1; i < 1000; i++) {
-                string name = "temp." + i;
-                var target = Path.Combine(tempDir, name);
-
-                FileSystemInfo? info = null;
-                if (Directory.Exists(target)) info = new DirectoryInfo(target);
-                else if (File.Exists(target)) info = new FileInfo(target);
-
-                // this dir/file does not exist, lets use it.
-                if (info == null) {
-                    return target;
-                }
-
-                // this dir/file exists, but it is old, let's re-use it.
-                // this shouldn't generally happen, but crashes do exist.
-                if (DateTime.UtcNow - info.LastWriteTimeUtc > TimeSpan.FromDays(1)) {
-                    if (IoUtil.DeleteFileOrDirectoryHard(target, false, true)) {
-                        // the dir/file was deleted successfully.
-                        return target;
-                    }
-                }
-            }
-
-            throw new Exception(
-                "Unable to find free temp path. Has the temp directory exceeded it's maximum number of items? (1000)");
-        }
-
         public static IDisposable GetTempDirectory(out string newTempDirectory)
         {
             return GetTempDirectory(out newTempDirectory, GetDefaultTempBaseDirectory());
@@ -69,9 +47,20 @@ namespace Velopack.Util
 
         public static IDisposable GetTempDirectory(out string newTempDirectory, string rootTempDir)
         {
-            var disp = GetTempFileName(out newTempDirectory, rootTempDir);
-            Directory.CreateDirectory(newTempDirectory);
-            return disp;
+            for (int i = 0; i < MaxAllocationAttempts; i++) {
+                var target = GetRandomTempPath(rootTempDir);
+                if (Directory.Exists(target) || File.Exists(target)) {
+                    // A leftover entry with this exact guid, e.g. from a crash. Astronomically
+                    // unlikely, but retrying with a fresh guid costs nothing.
+                    continue;
+                }
+
+                Directory.CreateDirectory(target);
+                newTempDirectory = target;
+                return CreateDeleter(target);
+            }
+
+            throw new Exception($"Unable to allocate a free temp directory after {MaxAllocationAttempts} attempts.");
         }
 
         public static IDisposable GetTempFileName(out string newTempFile)
@@ -81,8 +70,29 @@ namespace Velopack.Util
 
         public static IDisposable GetTempFileName(out string newTempFile, string rootTempDir)
         {
-            var path = GetNextTempName(rootTempDir);
-            newTempFile = path;
+            for (int i = 0; i < MaxAllocationAttempts; i++) {
+                var target = GetRandomTempPath(rootTempDir);
+                if (Directory.Exists(target) || File.Exists(target)) {
+                    continue;
+                }
+
+                // NB: the file itself is intentionally not created here. Several callers hand this
+                // path to external tools (zstd, msdelta), P/Invoke, or File.Move that expect it to
+                // not exist yet. The random name is what makes allocation collision-free.
+                newTempFile = target;
+                return CreateDeleter(target);
+            }
+
+            throw new Exception($"Unable to allocate a free temp file name after {MaxAllocationAttempts} attempts.");
+        }
+
+        private static string GetRandomTempPath(string rootTempDir)
+        {
+            return Path.Combine(rootTempDir, "temp." + Guid.NewGuid().ToString("N"));
+        }
+
+        private static IDisposable CreateDeleter(string path)
+        {
             return Disposable.Create(() => IoUtil.DeleteFileOrDirectoryHard(path, throwOnFailure: false));
         }
     }

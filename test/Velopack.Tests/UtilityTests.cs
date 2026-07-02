@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text;
@@ -141,6 +142,47 @@ public class UtilityTests
             logger.Info($"Delete took {sw.ElapsedMilliseconds}ms");
 
             Assert.False(Directory.Exists(tempDir));
+        }
+    }
+
+    [Fact]
+    public void TempAllocationIsCollisionFreeUnderConcurrency()
+    {
+        using var _root = TempUtil.GetTempDirectory(out var root);
+
+        const int threadCount = 8;
+        const int perThread = 50;
+
+        var directories = new ConcurrentBag<string>();
+        var files = new ConcurrentBag<string>();
+        var handles = new ConcurrentBag<IDisposable>();
+
+        Parallel.For(0, threadCount, new ParallelOptions { MaxDegreeOfParallelism = threadCount }, _ => {
+            for (int i = 0; i < perThread; i++) {
+                var dirHandle = TempUtil.GetTempDirectory(out var dir, root);
+                handles.Add(dirHandle);
+                directories.Add(dir);
+                Assert.True(Directory.Exists(dir), $"temp directory was not created: {dir}");
+
+                var fileHandle = TempUtil.GetTempFileName(out var file, root);
+                handles.Add(fileHandle);
+                files.Add(file);
+            }
+        });
+
+        var allDirs = directories.ToArray();
+        var allFiles = files.ToArray();
+        var expected = threadCount * perThread;
+
+        Assert.Equal(expected, allDirs.Length);
+        Assert.Equal(expected, allFiles.Length);
+
+        // every allocated path (across both kinds) must be unique
+        var everyPath = allDirs.Concat(allFiles).ToArray();
+        Assert.Equal(everyPath.Length, everyPath.Distinct().Count());
+
+        foreach (var handle in handles) {
+            handle.Dispose();
         }
     }
 
