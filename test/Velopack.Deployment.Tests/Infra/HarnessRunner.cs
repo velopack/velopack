@@ -289,13 +289,19 @@ public static class HarnessRunner
             await ExecCheckedAsync(python, new[] { "-m", "venv", venvDir }, RepoRoot, null, log, BuildTimeout, "python-venv");
         }
 
-        // Let pip drive the build (PEP 517 with maturin as the pyproject build backend) instead of the
-        // maturin CLI: `maturin develop` shells out to `pip install --group`, which older pips (e.g. the
-        // stock pip in CI runner venvs) reject with a usage error. Upgrade pip first for the same reason.
+        // maturin develop shells out to `pip install --group`, which needs pip >= 25.1 — stock venv pips
+        // (e.g. on CI runners) are older, so always upgrade pip before installing/running maturin.
         var libPythonDir = Path.Combine(RepoRoot, "src", "lib-python");
+        var manifest = Path.Combine(libPythonDir, "Cargo.toml");
         await ExecCheckedAsync(venvPython, new[] { "-m", "pip", "install", "--quiet", "--upgrade", "pip" }, RepoRoot, null, log, BuildTimeout, "pip-upgrade");
+        await ExecCheckedAsync(venvPython, new[] { "-m", "pip", "install", "--quiet", "maturin" }, RepoRoot, null, log, BuildTimeout, "pip-maturin");
+
+        // maturin develop installs the freshly-built extension module into the venv given by VIRTUAL_ENV.
+        // It must run from src/lib-python: pip resolves dependency groups against the pyproject.toml in
+        // the CURRENT directory.
+        var env = new Dictionary<string, string> { ["VIRTUAL_ENV"] = venvDir };
         await ExecCheckedAsync(
-            venvPython, new[] { "-m", "pip", "install", "--force-reinstall", libPythonDir }, libPythonDir, null, log, BuildTimeout, "pip-install-velopack");
+            venvPython, new[] { "-m", "maturin", "develop", "--manifest-path", manifest }, libPythonDir, env, log, BuildTimeout, "maturin-develop");
 
         state.LaunchFile = venvPython;
         state.LaunchPrefixArgs = new[] { "harness.py" };
