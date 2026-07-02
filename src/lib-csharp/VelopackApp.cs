@@ -268,6 +268,11 @@ namespace Velopack
                 }
             }
 
+            // clean up abandoned temp entries, e.g. left behind by a crashed process. only the
+            // C# library writes to the velopack temp dir, so this cleanup runs here on end-user
+            // machines (and from the vpk entry point on build machines).
+            TempUtil.CleanupAbandonedTempEntries(log);
+
             // run non-exiting user hooks
             if (firstrun) {
                 try {

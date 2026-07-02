@@ -186,6 +186,82 @@ public class UtilityTests
         }
     }
 
+    [Fact]
+    public void CleanupAbandonedTempEntriesRespectsAgeAndLocks()
+    {
+        using var _root = TempUtil.GetTempDirectory(out var root);
+        var oldTimestamp = DateTime.UtcNow - TimeSpan.FromDays(2);
+
+        // in use by this process but old — must survive
+        var inUseHandle = TempUtil.GetTempDirectory(out var inUseDir, root);
+        Directory.SetLastWriteTimeUtc(inUseDir, oldTimestamp);
+
+        // old dir without a sidecar (as created by older library versions) — must be deleted
+        var legacyDir = Path.Combine(root, "temp.legacy");
+        Directory.CreateDirectory(legacyDir);
+        File.WriteAllText(Path.Combine(legacyDir, "junk.txt"), "junk");
+        Directory.SetLastWriteTimeUtc(legacyDir, oldTimestamp);
+
+        // old dir whose sidecar is unlocked (owner crashed) — must be deleted with its sidecar
+        var crashedDir = Path.Combine(root, "temp.crashed");
+        Directory.CreateDirectory(crashedDir);
+        Directory.SetLastWriteTimeUtc(crashedDir, oldTimestamp);
+        var crashedSidecar = crashedDir + ".lock";
+        File.WriteAllText(crashedSidecar, "");
+
+        // old abandoned temp file — must be deleted
+        var abandonedFile = Path.Combine(root, "temp.oldfile");
+        File.WriteAllText(abandonedFile, "junk");
+        File.SetLastWriteTimeUtc(abandonedFile, oldTimestamp);
+
+        // orphaned unlocked sidecar with no matching entry — must be deleted
+        var orphanSidecar = Path.Combine(root, "temp.orphan.lock");
+        File.WriteAllText(orphanSidecar, "");
+
+        // recent entries — must survive regardless of locks
+        var recentDir = Path.Combine(root, "temp.recent");
+        Directory.CreateDirectory(recentDir);
+        var recentFile = Path.Combine(root, "temp.recentfile");
+        File.WriteAllText(recentFile, "junk");
+
+        TempUtil.CleanupAbandonedTempEntries(root);
+
+        Assert.True(Directory.Exists(inUseDir));
+        Assert.False(Directory.Exists(legacyDir));
+        Assert.False(Directory.Exists(crashedDir));
+        Assert.False(File.Exists(crashedSidecar));
+        Assert.False(File.Exists(abandonedFile));
+        Assert.False(File.Exists(orphanSidecar));
+        Assert.True(Directory.Exists(recentDir));
+        Assert.True(File.Exists(recentFile));
+
+        inUseHandle.Dispose();
+        Assert.False(Directory.Exists(inUseDir));
+        Assert.False(File.Exists(inUseDir + ".lock"));
+    }
+
+    [Fact]
+    public void TempEntryDisposerRemovesSidecarLock()
+    {
+        using var _root = TempUtil.GetTempDirectory(out var root);
+
+        var dirHandle = TempUtil.GetTempDirectory(out var dir, root);
+        var fileHandle = TempUtil.GetTempFileName(out var file, root);
+        File.WriteAllText(file, "junk");
+
+        Assert.True(File.Exists(dir + ".lock"));
+        Assert.True(File.Exists(file + ".lock"));
+
+        dirHandle.Dispose();
+        fileHandle.Dispose();
+
+        Assert.False(Directory.Exists(dir));
+        Assert.False(File.Exists(file));
+        Assert.False(File.Exists(dir + ".lock"));
+        Assert.False(File.Exists(file + ".lock"));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(root));
+    }
+
     //[Fact]
     //public void CreateFakePackageSmokeTest()
     //{
