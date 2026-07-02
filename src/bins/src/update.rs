@@ -54,6 +54,14 @@ fn root_command() -> Command {
     .disable_help_subcommand(true)
     .flatten_help(true);
 
+    #[cfg(target_os = "macos")]
+    let cmd = cmd.subcommand(Command::new("swap")
+        .about("Replace the installed app bundle with a newly extracted one. Used internally for elevated updates.")
+        .hide(true)
+        .arg(arg!(--old <DIR> "Temporary directory to move the old bundle into").required(true).value_parser(value_parser!(PathBuf)))
+        .arg(arg!(--new <DIR> "Directory containing the extracted new bundle").required(true).value_parser(value_parser!(PathBuf)))
+    );
+
     #[cfg(target_os = "windows")]
     let cmd = cmd.subcommand(Command::new("uninstall")
         .about("Remove all app shortcuts, files, and registry entries.")
@@ -210,6 +218,8 @@ fn main_inner() -> Result<()> {
         "start" => start(location_context, subcommand_matches).map_err(|e| anyhow!("Start error: {}", e)),
         "apply" => apply(location_context, subcommand_matches).map_err(|e| anyhow!("Apply error: {}", e)),
         "patch" => patch(location_context, subcommand_matches).map_err(|e| anyhow!("Patch error: {}", e)),
+        #[cfg(target_os = "macos")]
+        "swap" => swap(root_dir, subcommand_matches).map_err(|e| anyhow!("Swap error: {}", e)),
         _ => bail!("Unknown subcommand '{subcommand}'. Try `--help` for more information."),
     };
 
@@ -280,6 +290,24 @@ fn apply(context: LocationContext, matches: &ArgMatches) -> Result<()> {
     // parent spawns an elevated child (both would try to lock the same file).
     let _ = commands::apply(&locator, restart, wait, package, exe_args, commands::HookRunMode::All)?;
     Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn swap(root_dir: Option<&PathBuf>, matches: &ArgMatches) -> Result<()> {
+    let root = root_dir.ok_or_else(|| anyhow!("The --rootDir argument is required for the swap command."))?;
+    let old = matches
+        .get_one::<PathBuf>("old")
+        .ok_or_else(|| anyhow!("The --old argument is required."))?;
+    let new = matches
+        .get_one::<PathBuf>("new")
+        .ok_or_else(|| anyhow!("The --new argument is required."))?;
+
+    info!("Command: Swap");
+    info!("    Root: {:?}", root);
+    info!("    Old: {:?}", old);
+    info!("    New: {:?}", new);
+
+    commands::swap_bundles(root, old, new)
 }
 
 fn get_start_args(matches: &ArgMatches) -> (OperationWait, Option<&OsString>, Option<&OsString>, Option<Vec<OsString>>) {

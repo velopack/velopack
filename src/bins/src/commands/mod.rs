@@ -11,6 +11,8 @@ pub use patch::*;
 mod apply_linux_impl;
 #[cfg(target_os = "macos")]
 mod apply_osx_impl;
+#[cfg(target_os = "macos")]
+pub use apply_osx_impl::swap_bundles;
 #[cfg(target_os = "windows")]
 mod apply_windows_impl;
 
