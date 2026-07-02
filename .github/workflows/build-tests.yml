@@ -117,8 +117,9 @@ jobs:
         os: [windows, ubuntu, macos]
         include:
           - os: windows
-            # GitHub-hosted runner: the deployment tests run their services natively on Windows
-            # (start-windows-services.ps1); Blacksmith Windows runners were dropped here.
+            # GitHub-hosted runner: windows-latest (Server 2025) supports WSL2, which hosts the
+            # deployment-test docker services (start-windows-services.ps1). Blacksmith Windows
+            # runners do not support WSL2/nested virtualization.
             runner: windows-latest
             rust_flags: "--features windows"
           - os: ubuntu
@@ -143,8 +144,8 @@ jobs:
       - name: Start Deployment Test Services
         if: ${{ runner.os == 'Linux' }}
         run: docker compose -f test/Velopack.Deployment.Tests/docker/docker-compose.yml up -d --wait --wait-timeout 900
-      # Windows runners cannot run Linux containers, so the same services (minus gitlab, which has
-      # no Windows form) run natively: gitea binaries, azurite via npm, s3mock via java.
+      # windows-latest (Server 2025) supports WSL2, so the same compose stack runs inside WSL2
+      # docker — minus gitlab, which is slow to boot and fully covered by the Linux leg.
       - name: Start Deployment Test Services (Windows)
         if: ${{ runner.os == 'Windows' }}
         shell: pwsh
