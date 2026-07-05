@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,13 +11,11 @@ using Velopack.Core.Abstractions;
 using Velopack.Core.Json;
 using Velopack.Core.Validation;
 using Velopack.Deployment;
-using Velopack.Flow;
 using Velopack.Flow.Commands;
 using Velopack.Packaging.Commands;
 using Velopack.Packaging.Exceptions;
 using Velopack.Packaging.Unix.Commands;
 using Velopack.Packaging.Windows.Commands;
-using Velopack.Util;
 using Velopack.Vpk.Commands;
 using Velopack.Vpk.Commands.Deployment;
 using Velopack.Vpk.Commands.Flow;
@@ -154,6 +152,7 @@ public class Program
         downloadCommand.AddCommand<AzureDownloadCommand, AzureDownloadCommandRunner, AzureDownloadOptions>(provider);
         downloadCommand.AddCommand<LocalDownloadCommand, LocalDownloadCommandRunner, LocalDownloadOptions>(provider);
         downloadCommand.AddCommand<HttpDownloadCommand, HttpDownloadCommandRunner, HttpDownloadOptions>(provider);
+        HideCommand(downloadCommand.AddCommand<FlowDownloadCommand, FlowDownloadCommandRunner, FlowDownloadOptions>(provider));
         rootCommand.Add(downloadCommand);
 
         var uploadCommand = new Command("upload", "Upload local package(s) to a remote update source.");

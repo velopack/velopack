@@ -1,17 +1,13 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Diagnostics.CodeAnalysis;
 using Microsoft.Build.Framework;
-using Microsoft.Extensions.Logging;
-using Velopack.Core;
-using Velopack.Flow;
 
 namespace Velopack.Build;
 
-public class PublishTask : MSBuildAsyncTask
+public class PublishTask : VpkTask
 {
     [Required]
-    public string ReleaseDirectory { get; set; } = "";
+    [NotNull]
+    public string? ReleaseDirectory { get; set; }
 
     public string? ServiceUrl { get; set; }
 
@@ -23,41 +19,49 @@ public class PublishTask : MSBuildAsyncTask
 
     public bool WaitForLive { get; set; }
 
-    protected override async Task<bool> ExecuteAsync(CancellationToken cancellationToken)
+    protected override Dictionary<string, string> BuildEnvironmentVariables()
     {
-        double timeout;
-        if (double.TryParse(Timeout, out var parsedTimeout)) {
-            timeout = parsedTimeout;
-        } else {
-            timeout = 30d;
+        Dictionary<string, string> envVars = base.BuildEnvironmentVariables();
+        if (!string.IsNullOrWhiteSpace(ServiceUrl)) {
+            envVars["VPK_FLOW_SERVICE_URL"] = ServiceUrl!;
+        }
+        if (!string.IsNullOrWhiteSpace(ApiKey)) {
+            envVars["VPK_FLOW_API_KEY"] = ApiKey!;
+        }
+        return envVars;
+    }
+
+    protected override string GetSuccesMessage()
+        => "Successfully published release to Velopack Flow";
+
+    protected override string[] BuildArguments()
+    {
+        IEnumerable<string> GetArguments()
+        {
+            yield return "publish";
+            yield return "--legacyConsole";
+            yield return "--yes";
+
+            if (!string.IsNullOrWhiteSpace(ReleaseDirectory)) {
+                yield return "--outputDir";
+                yield return ReleaseDirectory;
+            }
+
+            if (!string.IsNullOrWhiteSpace(Channel)) {
+                yield return "--channel";
+                yield return Channel!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(Timeout)) {
+                yield return "--timeout";
+                yield return Timeout!;
+            }
+
+            if (WaitForLive) {
+                yield return "--waitForLive";
+            }
         }
 
-        //System.Diagnostics.Debugger.Launch();
-        var options = new VelopackFlowServiceOptions {
-            VelopackBaseUrl = ServiceUrl,
-            ApiKey = ApiKey,
-            Timeout = timeout,
-        };
-
-        var loginOptions = new VelopackFlowLoginOptions() {
-            AllowCacheCredentials = true,
-            AllowDeviceCodeFlow = false,
-            AllowInteractiveLogin = false,
-        };
-
-        var console = new LoggerConsole(Logger);
-        var client = new VelopackFlowServiceClient(options, Logger, console);
-        if (!await client.LoginAsync(loginOptions, false, cancellationToken).ConfigureAwait(false)) {
-            Logger.LogWarning("Not logged into Velopack Flow service, skipping publish. Please run vpk login.");
-            return true;
-        }
-
-        // todo: currently it's not possible to cross-compile for different OSes using Velopack.Build
-        var targetOs = VelopackRuntimeInfo.SystemOs;
-
-        await client.UploadLatestReleaseAssetsAsync(Channel, ReleaseDirectory, targetOs, WaitForLive, 100, cancellationToken)
-            .ConfigureAwait(false);
-
-        return true;
+        return [.. GetArguments()];
     }
 }

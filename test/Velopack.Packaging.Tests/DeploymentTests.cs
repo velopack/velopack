@@ -2,7 +2,6 @@ using NuGet.Versioning;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
 using Velopack.Deployment;
-using Velopack.Locators;
 using Velopack.Sources;
 using Velopack.TestCommon;
 using Velopack.Util;
