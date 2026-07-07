@@ -39,7 +39,7 @@ public class NuspecVelopackVersionTests
             TargetRuntime = RID.Parse("win-x64"),
         };
 
-        typeof(PackageBuilder<IPackOptions>)
+        typeof(PackageBuilder<IPackOptions, PackOptionsValidator<IPackOptions>>)
             .GetProperty("Options", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
             .SetValue(builder, options);
 
