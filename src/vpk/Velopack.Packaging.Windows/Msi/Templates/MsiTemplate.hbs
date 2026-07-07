@@ -210,14 +210,25 @@
         <CustomAction Id="UninstallHookDeferred" BinaryRef="RustDll" DllEntry="UninstallHookDeferred" Execute="deferred"
                       Impersonate="yes" Return="ignore"/>
 
+        <!-- Channel promotion tag: reads the channel override from the MSI's own Authenticode signature
+             (an unsigned, untrusted channel SELECTOR only) and patches current\sq.version. Runs on
+             install and repair; never fails the install. -->
+        <CustomAction Id="SetPatchChannelData" Property="PatchChannelDeferred"
+                      Value="[OriginalDatabase]&quot;[INSTALLFOLDER]" Execute="immediate" Return="check"/>
+        <CustomAction Id="PatchChannelDeferred" BinaryRef="RustDll" DllEntry="PatchChannelDeferred"
+                      Execute="deferred" Impersonate="no" Return="ignore"/>
+
         <InstallUISequence>
             <Custom Action="RustSetLocaleStrings" Before="AppSearch"/>
             <Custom Action="RustEarlyBootstrap" After="RustSetLocaleStrings" Condition="NOT REMOVE AND RustRuntimeDependencies"/>
         </InstallUISequence>
 
         <InstallExecuteSequence>
+            <Custom Action="SetPatchChannelData" Before="PatchChannelDeferred" Condition="NOT REMOVE"/>
+            <Custom Action="PatchChannelDeferred" After="InstallFiles" Condition="NOT REMOVE"/>
             <Custom Action="SetInstallHookData" Before="InstallHookDeferred" Condition="NOT REMOVE"/>
-            <Custom Action="InstallHookDeferred" After="InstallFiles" Condition="NOT REMOVE"/>
+            <!-- InstallHookDeferred runs after PatchChannelDeferred so the app hook sees the corrected channel -->
+            <Custom Action="InstallHookDeferred" After="PatchChannelDeferred" Condition="NOT REMOVE"/>
             <Custom Action="SetUninstallHookData" Before="UninstallHookDeferred" Condition="(REMOVE=&quot;ALL&quot;)"/>
             <Custom Action="UninstallHookDeferred" Before="RemoveFiles" Condition="(REMOVE=&quot;ALL&quot;)"/>
             <Custom Action="SetRustCleanupData" Before="RustCleanup" Condition="(REMOVE=&quot;ALL&quot;)"/>

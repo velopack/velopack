@@ -1,10 +1,16 @@
 #![cfg(windows)]
 
+mod channel_tag;
 mod msi;
 mod validate_path;
 use msi::*;
 
-use std::{ffi::c_uint, ffi::OsString, path::PathBuf, time::Duration};
+use std::{
+    ffi::c_uint,
+    ffi::OsString,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 use velopack::process::{self, WaitResult};
 use velopack_bins::windows::prerequisite;
 #[cfg(debug_assertions)]
@@ -195,6 +201,56 @@ fn run_hook_deferred(h_install: MSIHANDLE, hook_name: &str, timeout_secs: u64) -
             },
             Err(e) => {
                 show_debug_message(hook_name, format!("Failed to start hook process: {}", e));
+            }
+        }
+    }
+
+    ERROR_SUCCESS.0
+}
+
+/// Deferred custom action (`Impersonate="no"`, `After="InstallFiles"`, `Condition="NOT REMOVE"`):
+/// reads the channel tag from the MSI's own Authenticode signature (`\x05DigitalSignature` stream
+/// of `[OriginalDatabase]`) and, if present, patches `<channel>` in
+/// `{INSTALLFOLDER}\current\sq.version`. Runs on fresh install and repair — the cached MSI under
+/// `C:\Windows\Installer` is a bit-for-bit copy carrying the tag. Returns `ERROR_SUCCESS` always;
+/// an absent/malformed tag or any error is logged and swallowed, never faulting the install.
+///
+/// SECURITY: The tag is UNSIGNED, attacker-modifiable data — by construction it lives outside the
+/// Authenticode hash. Treat it as untrusted input: a channel selector ONLY. Never place anything
+/// trust-bearing there (feed URLs, keys, flags that gate trust/permissions). Validate the channel
+/// charset strictly on read. Its only effect is which `releases.<channel>.json` the app polls;
+/// every downloaded package is still signature/hash-verified as normal. This mirrors how Chrome
+/// treats brand codes.
+#[no_mangle]
+pub extern "system" fn PatchChannelDeferred(h_install: MSIHANDLE) -> c_uint {
+    let custom_data = msi_get_property(h_install, "CustomActionData");
+    show_debug_message("PatchChannelDeferred", format!("CustomActionData={:?}", custom_data));
+
+    if let Some(custom_data) = custom_data {
+        // custom data is marshaled by SetPatchChannelData as [OriginalDatabase]"[INSTALLFOLDER]
+        let mut parts = custom_data.split('"');
+        let original_db = parts.next().unwrap_or("");
+        let install_folder = parts.next().unwrap_or("");
+
+        show_debug_message(
+            "PatchChannelDeferred",
+            format!("original_db={:?}, install_folder={:?}", original_db, install_folder),
+        );
+
+        if original_db.is_empty() || install_folder.is_empty() {
+            show_debug_message("PatchChannelDeferred", "Missing original_db or install_folder, skipping".to_string());
+            return ERROR_SUCCESS.0;
+        }
+
+        match channel_tag::apply_msi_channel_override(Path::new(original_db), Path::new(install_folder)) {
+            Ok(Some(channel)) => {
+                show_debug_message("PatchChannelDeferred", format!("Patched installed channel to {:?}", channel));
+            }
+            Ok(None) => {
+                show_debug_message("PatchChannelDeferred", "No channel tag present, nothing to do".to_string());
+            }
+            Err(e) => {
+                show_debug_message("PatchChannelDeferred", format!("Failed to apply channel override (ignored): {:?}", e));
             }
         }
     }
