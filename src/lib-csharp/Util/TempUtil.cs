@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -6,6 +7,16 @@ namespace Velopack.Util
 {
     internal static class TempUtil
     {
+        // Guards temp-name allocation. xunit runs test collections on parallel threads that all
+        // share one temp root, and the "pick the lowest free temp.N" scan below returns a name
+        // without creating anything on disk (callers hand the path to external tools that expect
+        // it not to exist yet). Two threads could therefore be handed the same name before either
+        // materialised it - one would create it as a directory while the other expected a file.
+        // The lock makes the scan atomic and the reservation set marks a handed-out name as taken
+        // until its disposer runs, so the filesystem alone need not track in-flight allocations.
+        private static readonly object AllocationLock = new object();
+        private static readonly HashSet<string> ReservedNames = new HashSet<string>(StringComparer.Ordinal);
+
         public static string GetDefaultTempBaseDirectory()
         {
             string tempDir;
@@ -33,33 +44,42 @@ namespace Velopack.Util
             return di.FullName;
         }
 
-        private static string GetNextTempName(string tempDir)
+        private static string ReserveNextTempName(string tempDir)
         {
-            for (int i = 1; i < 1000; i++) {
-                string name = "temp." + i;
-                var target = Path.Combine(tempDir, name);
+            lock (AllocationLock) {
+                for (int i = 1; i < 1000; i++) {
+                    string name = "temp." + i;
+                    var target = Path.Combine(tempDir, name);
 
-                FileSystemInfo? info = null;
-                if (Directory.Exists(target)) info = new DirectoryInfo(target);
-                else if (File.Exists(target)) info = new FileInfo(target);
+                    // already handed out to another caller in this process, not yet disposed.
+                    if (ReservedNames.Contains(target)) {
+                        continue;
+                    }
 
-                // this dir/file does not exist, lets use it.
-                if (info == null) {
-                    return target;
-                }
+                    FileSystemInfo? info = null;
+                    if (Directory.Exists(target)) info = new DirectoryInfo(target);
+                    else if (File.Exists(target)) info = new FileInfo(target);
 
-                // this dir/file exists, but it is old, let's re-use it.
-                // this shouldn't generally happen, but crashes do exist.
-                if (DateTime.UtcNow - info.LastWriteTimeUtc > TimeSpan.FromDays(1)) {
-                    if (IoUtil.DeleteFileOrDirectoryHard(target, false, true)) {
-                        // the dir/file was deleted successfully.
+                    // this dir/file does not exist, lets use it.
+                    if (info == null) {
+                        ReservedNames.Add(target);
                         return target;
                     }
-                }
-            }
 
-            throw new Exception(
-                "Unable to find free temp path. Has the temp directory exceeded it's maximum number of items? (1000)");
+                    // this dir/file exists, but it is old, let's re-use it.
+                    // this shouldn't generally happen, but crashes do exist.
+                    if (DateTime.UtcNow - info.LastWriteTimeUtc > TimeSpan.FromDays(1)) {
+                        if (IoUtil.DeleteFileOrDirectoryHard(target, false, true)) {
+                            // the dir/file was deleted successfully.
+                            ReservedNames.Add(target);
+                            return target;
+                        }
+                    }
+                }
+
+                throw new Exception(
+                    "Unable to find free temp path. Has the temp directory exceeded it's maximum number of items? (1000)");
+            }
         }
 
         public static IDisposable GetTempDirectory(out string newTempDirectory)
@@ -81,9 +101,14 @@ namespace Velopack.Util
 
         public static IDisposable GetTempFileName(out string newTempFile, string rootTempDir)
         {
-            var path = GetNextTempName(rootTempDir);
+            var path = ReserveNextTempName(rootTempDir);
             newTempFile = path;
-            return Disposable.Create(() => IoUtil.DeleteFileOrDirectoryHard(path, throwOnFailure: false));
+            return Disposable.Create(() => {
+                IoUtil.DeleteFileOrDirectoryHard(path, throwOnFailure: false);
+                lock (AllocationLock) {
+                    ReservedNames.Remove(path);
+                }
+            });
         }
     }
 }
