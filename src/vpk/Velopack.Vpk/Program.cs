@@ -126,10 +126,6 @@ public class Program
         var provider = host.Services;
         var logger = provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger>();
 
-        // clean up abandoned temp entries left behind by previous vpk runs which crashed or were
-        // killed. runs in the background so it never delays the requested command.
-        _ = Task.Run(() => TempUtil.CleanupAbandonedTempEntries(logger.ToVelopackLogger()));
-
         if (targetOs != VelopackRuntimeInfo.SystemOs) {
             logger.LogInformation($"Directive enabled for cross-compiling from {VelopackRuntimeInfo.SystemOs} (current os) to {targetOs}.");
         }

@@ -25,10 +25,7 @@ namespace Velopack.Util
             _filePath = path;
         }
 
-        /// <param name="retries">How many times to re-attempt acquisition after the first failure.
-        /// Pass 0 for a single non-blocking try-lock, e.g. when probing whether another process
-        /// still holds the lock.</param>
-        public async Task LockAsync(int retries = 4)
+        public async Task LockAsync()
         {
             if (IsLocked) {
                 return;
@@ -44,8 +41,7 @@ namespace Velopack.Util
                         } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
                             UnixExclusiveLock();
                         }
-                    },
-                    retries).ConfigureAwait(false);
+                    }).ConfigureAwait(false);
 
                 IsLocked = true;
             } catch (Exception ex) {

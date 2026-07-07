@@ -343,21 +343,6 @@ impl VelopackLocator {
         Ok(lock_file)
     }
 
-    /// Deletes abandoned temporary files & directories left behind by previous velopack
-    /// operations which crashed or were killed before they could clean up after themselves.
-    /// The caller must be holding the exclusive packages lock (try_get_exclusive_lock),
-    /// because live entries in this app's private temp root (get_temp_dir_root) are only
-    /// ever created and used while that lock is held - so anything found in there belongs
-    /// to a dead process. The machine-wide velopack temp dir is written only by lib-csharp,
-    /// which cleans it up itself (see TempUtil.CleanupAbandonedTempEntries).
-    pub fn clean_abandoned_temp_entries(&self) {
-        if let Ok(entries) = std::fs::read_dir(self.get_temp_dir_root()) {
-            for entry in entries.flatten() {
-                remove_temp_entry_logged(&entry.path());
-            }
-        }
-    }
-
     fn get_or_create_staged_user_id(&self) -> String {
         let packages_dir = self.get_packages_dir();
         let beta_id_path = packages_dir.join(".betaId");
@@ -374,18 +359,6 @@ impl VelopackLocator {
             info!("Generated new staging userId: {}", new_id);
         }
         new_id.to_string()
-    }
-}
-
-fn remove_temp_entry_logged(path: &Path) {
-    info!("Removing abandoned temp entry: {:?}", path);
-    let result = if path.is_dir() {
-        std::fs::remove_dir_all(path)
-    } else {
-        std::fs::remove_file(path)
-    };
-    if let Err(e) = result {
-        warn!("Failed to remove abandoned temp entry {:?}: {}", path, e);
     }
 }
 
@@ -733,26 +706,4 @@ fn test_locator_staged_id_for_existing_user() {
     let staged_user_id = locator.get_staged_user_id();
 
     assert_eq!(expected_user_id, staged_user_id);
-}
-
-#[test]
-fn test_clean_abandoned_temp_entries_purges_private_temp_root() {
-    let tmp_dir = tempfile::TempDir::new().unwrap();
-
-    let mut paths = VelopackLocatorConfig::default();
-    paths.PackagesDir = tmp_dir.path().join("packages");
-    let locator = VelopackLocator::new_with_manifest(paths, Manifest::default());
-
-    let temp_root = locator.get_temp_dir_root();
-    let leftover_dir = temp_root.join("tmp_abandoned");
-    std::fs::create_dir_all(&leftover_dir).unwrap();
-    std::fs::write(leftover_dir.join("junk.txt"), "junk").unwrap();
-    let leftover_file = temp_root.join("tmp_stray_file");
-    std::fs::write(&leftover_file, "junk").unwrap();
-
-    locator.clean_abandoned_temp_entries();
-
-    assert!(!leftover_dir.exists());
-    assert!(!leftover_file.exists());
-    assert!(temp_root.exists());
 }
