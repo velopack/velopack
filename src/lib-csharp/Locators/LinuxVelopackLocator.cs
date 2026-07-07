@@ -88,7 +88,14 @@ namespace Velopack.Locators
                         AppContentDir = contentsDir;
                         UpdateExePath = updateExe;
                         CurrentlyInstalledVersion = manifest.Version;
-                        Channel = manifest.Channel;
+                        var channel = manifest.Channel;
+                        var channelOverride = AppImageChannelOverride.TryReadFromFile(AppImagePath!, initLog);
+                        if (channelOverride != null) {
+                            initLog.Info($"AppImage channel override trailer found: '{channelOverride}' (manifest channel was '{channel}').");
+                            channel = channelOverride;
+                        }
+
+                        Channel = channel;
                         logFilePath = Path.Combine(Path.GetTempPath(), $"velopack_{manifest.Id}.log");
                     } else {
                         initLog.Error("Unable to locate UpdateNix in " + contentsDir);

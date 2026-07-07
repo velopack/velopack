@@ -10,6 +10,90 @@ use uuid::Uuid;
 #[cfg(windows)]
 use crate::known_path::get_local_app_data;
 
+// SHA-256 of "velopack appimage channel override". MUST stay byte-identical to the C#
+// implementation (lib-csharp Velopack.Util.AppImageChannelOverride) and the velopack.api
+// promotion worker.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+static APPIMAGE_CHANNEL_MAGIC: [u8; 32] = [
+    0xde, 0xed, 0x1b, 0xad, 0x30, 0x15, 0xb1, 0x96, 0x9e, 0x6e, 0xbf, 0x7d, 0x09, 0x3f, 0x5d, 0xca, 0x6c, 0x6c, 0x52, 0xa1, 0xa0, 0xa2, 0x57, 0x57,
+    0x19, 0x91, 0x62, 0x83, 0x11, 0xd8, 0x03, 0x51,
+];
+
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+const APPIMAGE_TRAILER_SCAN_WINDOW: u64 = 1024; // trailer is at most 34 + 255 = 289 bytes; window gives slack
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+const APPIMAGE_TRAILER_HEADER: usize = 34; // 32 magic + 2 u16-le length
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+const APPIMAGE_TRAILER_MAX_CHANNEL: usize = 255;
+
+/// Parses the tail window of an AppImage for a channel-override trailer:
+/// `[MAGIC(32)][LENGTH u16-le(2)][CHANNEL utf8(1..=255)]` appended after the squashfs.
+/// Backward scan: the last VALID trailer wins; malformed occurrences are skipped.
+/// Channel bytes must all be printable ASCII (0x21..=0x7E); the value is used verbatim
+/// (no case folding, no trimming).
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn parse_appimage_channel_override(window: &[u8]) -> Option<String> {
+    if window.len() < APPIMAGE_TRAILER_HEADER + 1 {
+        return None;
+    }
+    for pos in (0..=window.len() - APPIMAGE_TRAILER_HEADER).rev() {
+        if window[pos..pos + 32] != APPIMAGE_CHANNEL_MAGIC {
+            continue;
+        }
+        let len = u16::from_le_bytes([window[pos + 32], window[pos + 33]]) as usize;
+        if !(1..=APPIMAGE_TRAILER_MAX_CHANNEL).contains(&len) {
+            continue;
+        }
+        let start = pos + APPIMAGE_TRAILER_HEADER;
+        if start + len > window.len() {
+            continue; // truncated channel
+        }
+        let channel = &window[start..start + len];
+        if channel.iter().any(|&b| !(0x21..=0x7E).contains(&b)) {
+            continue;
+        }
+        return Some(String::from_utf8_lossy(channel).into_owned()); // pure ASCII per the charset check above
+    }
+    None
+}
+
+/// Reads the last `APPIMAGE_TRAILER_SCAN_WINDOW` bytes of the file at `path` and parses a
+/// channel-override trailer (written server-side during channel promotion). Never errors:
+/// any IO or parse failure logs a warning and returns None so locator initialization can
+/// fall back to the manifest channel. Only the auto-locate path applies this override —
+/// `VelopackLocator::new` does not (matches C#, where only `LinuxVelopackLocator` reads the
+/// trailer). Version floor: apps built by SDK versions predating this reader ignore the
+/// override and keep using the manifest channel.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn try_read_appimage_channel_override(path: &Path) -> Option<String> {
+    use std::io::{Read, Seek, SeekFrom};
+    // Mirrors the C# FileInfo.Exists short-circuit (AppImageChannelOverride.TryReadFromFile):
+    // a missing/unopenable AppImage is simply "no trailer" — don't burn retry_io's ~2s of
+    // retries and warn logs on it during locator initialization.
+    if !path.is_file() {
+        return None;
+    }
+    let result: std::io::Result<Option<String>> = (|| {
+        let mut file = misc::retry_io(|| std::fs::File::open(path))?;
+        let size = file.metadata()?.len();
+        if size < (APPIMAGE_TRAILER_HEADER as u64) + 1 {
+            return Ok(None);
+        }
+        let win = std::cmp::min(APPIMAGE_TRAILER_SCAN_WINDOW, size);
+        file.seek(SeekFrom::End(-(win as i64)))?;
+        let mut buf = vec![0u8; win as usize];
+        file.read_exact(&mut buf)?;
+        Ok(parse_appimage_channel_override(&buf))
+    })();
+    match result {
+        Ok(v) => v,
+        Err(e) => {
+            warn!("Failed reading AppImage channel-override trailer from {:?}: {}", path, e);
+            None
+        }
+    }
+}
+
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     /// ShortcutLocationFlags is a bitflags enumeration of system shortcut locations.
@@ -534,7 +618,15 @@ pub fn auto_locate_app_manifest(context: LocationContext) -> Result<VelopackLoca
     };
     info!("Resolved AppImage path: {}", appimage_path.to_string_lossy());
 
-    let app = read_current_manifest(&metadata_path)?;
+    let mut app = read_current_manifest(&metadata_path)?;
+    if let Some(channel_override) = try_read_appimage_channel_override(&appimage_path) {
+        info!(
+            "AppImage channel override trailer found: '{}' (manifest channel was '{}')",
+            channel_override, app.channel
+        );
+        app.channel = channel_override;
+    }
+
     let packages_dir = if let Some(pkg_dir) = package_dir_override {
         pkg_dir
     } else {
@@ -706,4 +798,191 @@ fn test_locator_staged_id_for_existing_user() {
     let staged_user_id = locator.get_staged_user_id();
 
     assert_eq!(expected_user_id, staged_user_id);
+}
+
+#[cfg(test)]
+fn make_trailer(channel: &[u8], length_override: Option<u16>) -> Vec<u8> {
+    let len = length_override.unwrap_or(channel.len() as u16);
+    let mut v = Vec::with_capacity(APPIMAGE_TRAILER_HEADER + channel.len());
+    v.extend_from_slice(&APPIMAGE_CHANNEL_MAGIC);
+    v.extend_from_slice(&len.to_le_bytes());
+    v.extend_from_slice(channel);
+    v
+}
+
+#[cfg(test)]
+fn temp_file_with(body: &[u8]) -> (tempfile::TempDir, PathBuf) {
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = dir.path().join("test.AppImage");
+    std::fs::write(&path, body).unwrap();
+    (dir, path)
+}
+
+#[cfg(test)]
+fn pseudo_random_body(size: usize, seed: u8) -> Vec<u8> {
+    // Deterministic filler that can never contain the 32-byte magic (consecutive bytes
+    // always differ by exactly 31, which the magic sequence does not).
+    (0..size).map(|i| (i as u8).wrapping_mul(31).wrapping_add(seed)).collect()
+}
+
+#[test]
+fn test_appimage_trailer_absent() {
+    let body = pseudo_random_body(4096, 7);
+    assert_eq!(parse_appimage_channel_override(&body), None);
+    let (_dir, path) = temp_file_with(&body);
+    assert_eq!(try_read_appimage_channel_override(&path), None);
+}
+
+#[test]
+fn test_appimage_trailer_present_happy_path() {
+    let mut body = pseudo_random_body(4096, 1);
+    body.extend_from_slice(&make_trailer(b"stable", None));
+    assert_eq!(parse_appimage_channel_override(&body).as_deref(), Some("stable"));
+    let (_dir, path) = temp_file_with(&body);
+    assert_eq!(try_read_appimage_channel_override(&path).as_deref(), Some("stable"));
+}
+
+#[test]
+fn test_appimage_trailer_tiny_and_empty_files() {
+    let (_d1, p1) = temp_file_with(&[0u8; 10]);
+    assert_eq!(try_read_appimage_channel_override(&p1), None);
+    let (_d2, p2) = temp_file_with(&[]);
+    assert_eq!(try_read_appimage_channel_override(&p2), None);
+    // a file that is EXACTLY one trailer and nothing else
+    let (_d3, p3) = temp_file_with(&make_trailer(b"stable", None));
+    assert_eq!(try_read_appimage_channel_override(&p3).as_deref(), Some("stable"));
+}
+
+#[test]
+fn test_appimage_trailer_length_zero_is_invalid() {
+    let mut body = pseudo_random_body(512, 2);
+    body.extend_from_slice(&make_trailer(b"junkjunk", Some(0)));
+    assert_eq!(parse_appimage_channel_override(&body), None);
+}
+
+#[test]
+fn test_appimage_trailer_length_over_255_is_invalid() {
+    let mut body = pseudo_random_body(512, 3);
+    body.extend_from_slice(&make_trailer(&vec![b'a'; 300], Some(300)));
+    assert_eq!(parse_appimage_channel_override(&body), None);
+}
+
+#[test]
+fn test_appimage_trailer_truncated_channel_is_invalid() {
+    let mut body = pseudo_random_body(512, 4);
+    body.extend_from_slice(&make_trailer(b"short", Some(20))); // declares 20 bytes, only 5 present
+    assert_eq!(parse_appimage_channel_override(&body), None);
+}
+
+#[test]
+fn test_appimage_trailer_invalid_channel_bytes() {
+    for bad in [0x20u8, 0x00, 0x7F, 0xC3] {
+        let channel = [b's', b't', b'a', bad, b'l', b'e'];
+        let mut body = pseudo_random_body(512, 5);
+        body.extend_from_slice(&make_trailer(&channel, None));
+        assert_eq!(
+            parse_appimage_channel_override(&body),
+            None,
+            "channel byte 0x{:02x} should be invalid",
+            bad
+        );
+    }
+}
+
+#[test]
+fn test_appimage_trailer_invalid_at_eof_falls_back_to_earlier_valid() {
+    let mut body = pseudo_random_body(512, 6);
+    body.extend_from_slice(&make_trailer(b"beta", None));
+    body.extend_from_slice(&make_trailer(b"", Some(0))); // magic + u16le(0) at EOF
+    assert_eq!(parse_appimage_channel_override(&body).as_deref(), Some("beta"));
+}
+
+#[test]
+fn test_appimage_trailer_double_append_last_valid_wins() {
+    let mut body = pseudo_random_body(512, 7);
+    body.extend_from_slice(&make_trailer(b"beta", None));
+    body.extend_from_slice(&make_trailer(b"stable", None));
+    assert_eq!(parse_appimage_channel_override(&body).as_deref(), Some("stable"));
+}
+
+#[test]
+fn test_appimage_trailer_trailing_garbage_tolerated() {
+    let mut body = pseudo_random_body(512, 8);
+    body.extend_from_slice(&make_trailer(b"stable", None));
+    body.extend_from_slice(&pseudo_random_body(40, 9));
+    assert_eq!(parse_appimage_channel_override(&body).as_deref(), Some("stable"));
+}
+
+#[test]
+fn test_appimage_trailer_long_channel_and_no_case_folding() {
+    // exactly 255 chars from the allowed 0x21..=0x7E set, incl. mixed punctuation
+    let charset: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789-._~!#$%&";
+    let channel: Vec<u8> = (0..255).map(|i| charset[i % charset.len()]).collect();
+    let mut body = pseudo_random_body(512, 10);
+    body.extend_from_slice(&make_trailer(&channel, None));
+    let parsed = parse_appimage_channel_override(&body).unwrap();
+    assert_eq!(parsed.as_bytes(), &channel[..]);
+
+    // the reader does not normalize: mixed case is returned verbatim
+    let mut body2 = pseudo_random_body(512, 11);
+    body2.extend_from_slice(&make_trailer(b"StAbLe", None));
+    assert_eq!(parse_appimage_channel_override(&body2).as_deref(), Some("StAbLe"));
+}
+
+#[test]
+fn test_appimage_trailer_scan_window_boundary() {
+    // (a) magic starts exactly at the first byte of the 1024-byte window -> found
+    let mut body = pseudo_random_body(3072, 12);
+    body.extend_from_slice(&make_trailer(b"stable", None));
+    let pad = 4096 - body.len();
+    body.extend_from_slice(&pseudo_random_body(pad, 13));
+    assert_eq!(body.len(), 4096);
+    let (_d1, p1) = temp_file_with(&body);
+    assert_eq!(try_read_appimage_channel_override(&p1).as_deref(), Some("stable"));
+
+    // (b) magic starts one byte before the window -> not found
+    let mut body = pseudo_random_body(3071, 12);
+    body.extend_from_slice(&make_trailer(b"stable", None));
+    let pad = 4096 - body.len();
+    body.extend_from_slice(&pseudo_random_body(pad, 13));
+    assert_eq!(body.len(), 4096);
+    let (_d2, p2) = temp_file_with(&body);
+    assert_eq!(try_read_appimage_channel_override(&p2), None);
+
+    // (c) file smaller than the window with the trailer at offset 0 -> found
+    let mut body = make_trailer(b"stable", None);
+    body.extend_from_slice(&pseudo_random_body(460, 14));
+    assert_eq!(body.len(), 500);
+    let (_d3, p3) = temp_file_with(&body);
+    assert_eq!(try_read_appimage_channel_override(&p3).as_deref(), Some("stable"));
+}
+
+#[test]
+fn test_appimage_trailer_magic_constant_matches_contract() {
+    // Locks the constant against typos and mirrors the C# magic-sanity test.
+    use sha2::Digest;
+    let hash = sha2::Sha256::digest(b"velopack appimage channel override");
+    assert_eq!(APPIMAGE_CHANNEL_MAGIC[..], hash[..]);
+}
+
+#[test]
+fn test_appimage_trailer_golden_vector() {
+    // Shared cross-repo golden vector (CONTRACTS.md §1): MAGIC ++ u16le(6) ++ "stable".
+    // Identical bytes are asserted in the C# AppImageChannelOverrideTests and the
+    // velopack.api promotion worker tests — do not change without updating all three.
+    let mut vector: Vec<u8> = vec![
+        0xde, 0xed, 0x1b, 0xad, 0x30, 0x15, 0xb1, 0x96, 0x9e, 0x6e, 0xbf, 0x7d, 0x09, 0x3f, 0x5d, 0xca, 0x6c, 0x6c, 0x52, 0xa1, 0xa0, 0xa2, 0x57,
+        0x57, 0x19, 0x91, 0x62, 0x83, 0x11, 0xd8, 0x03, 0x51,
+    ];
+    vector.extend_from_slice(&[0x06, 0x00]);
+    vector.extend_from_slice(b"stable");
+    assert_eq!(vector, make_trailer(b"stable", None));
+    assert_eq!(parse_appimage_channel_override(&vector).as_deref(), Some("stable"));
+}
+
+#[test]
+fn test_appimage_trailer_missing_file_returns_none() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = dir.path().join("does-not-exist.AppImage");
+    assert_eq!(try_read_appimage_channel_override(&path), None);
 }

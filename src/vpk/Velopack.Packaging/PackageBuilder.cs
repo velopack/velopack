@@ -238,6 +238,12 @@ public abstract class PackageBuilder<T> : ICommand<T>
             addMetadata("machineArchitecture", rid.Architecture.ToString());
         }
 
+        // <velopackVersion> records the SDK release that built this package. The velopack.api
+        // promotion planner compares it against TRAILER_MIN_SDK_VERSION (CONTRACTS §1.6, see
+        // AppImageChannelTrailer) to decide whether Linux packages can read the AppImage
+        // channel-override trailer; its absence means the package predates the feature.
+        var velopackVersion = VelopackRuntimeInfo.VelopackNugetVersion.ToNormalizedString();
+
         string nuspec = $"""
             <?xml version="1.0" encoding="utf-8"?>
             <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
@@ -251,6 +257,7 @@ public abstract class PackageBuilder<T> : ICommand<T>
             <mainExe>{Options.EntryExecutableName}</mainExe>
             <os>{rid.BaseRID.GetOsShortName()}</os>
             <rid>{rid.ToDisplay(RidDisplayType.NoVersion)}</rid>
+            <velopackVersion>{velopackVersion}</velopackVersion>
             {extraMetadata.Trim()}
             </metadata>
             </package>

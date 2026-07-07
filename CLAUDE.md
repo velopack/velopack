@@ -129,6 +129,7 @@ Locators (`IVelopackLocator` in C#, `VelopackLocator` in Rust) resolve platform-
 - Layout inside the mounted AppImage: `{root}/usr/bin/UpdateNix`, `{root}/usr/bin/sq.version`, `{root}/usr/bin/<app files>`
 - Packages: `/var/tmp/velopack/{AppId}/packages/` (persists across reboots)
 - Never portable
+- Channel override: the locator scans the last 1024 bytes of the AppImage for a `[magic][u16-le length][channel]` trailer (written during server-side channel promotion) and, if valid, overrides the manifest channel. `ExplicitChannel` still wins. Implementations: `lib-csharp/Util/AppImageChannelOverride.cs`, `lib-rust/src/locator.rs`, writer `Velopack.Packaging.Unix/AppImageChannelTrailer.cs` — keep all three byte-identical.
 
 **macOS** (`OsxVelopackLocator` / `locator.rs`):
 - Discovers install by finding `.app/` in the current exe path, extracting the bundle root
