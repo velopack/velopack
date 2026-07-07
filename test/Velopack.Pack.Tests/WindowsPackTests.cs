@@ -97,6 +97,61 @@ public class WindowsPackTests
     }
 
     [Fact]
+    public void PortableStubNameMatchesUpdateStubName()
+    {
+        // Regression test for https://github.com/velopack/velopack/issues/982
+        // When --packTitle differs from --mainExe, the portable launcher created at
+        // pack time must have the same name as the launcher the updater re-extracts
+        // from the nupkg on update (nupkg stub with the "_ExecutionStub" suffix
+        // stripped). Otherwise updating leaves two differently-named launchers behind.
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+
+        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
+
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
+        using var _3 = TempUtil.GetTempDirectory(out var nupkgDir);
+        using var _4 = TempUtil.GetTempDirectory(out var portableDir);
+
+        var exe = "testapp.exe";
+        var id = "Test.Squirrel-App";
+        var version = "1.0.0";
+        var title = "Test Squirrel App"; // deliberately different from the main exe name
+
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+
+        var options = new WindowsPackOptions {
+            EntryExecutableName = exe,
+            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
+            PackId = id,
+            PackVersion = version,
+            TargetRuntime = RID.Parse("win-x64"),
+            PackTitle = title,
+            PackDirectory = tmpOutput,
+        };
+
+        var runner = WindowsTestHelper.GetPackRunner(logger);
+        runner.Run(options).GetAwaiterResult();
+
+        // The launcher the updater will produce: the "_ExecutionStub.exe" inside the
+        // nupkg, with the suffix stripped (mirrors Bundle.extract_stubs_to_dir in Rust).
+        var nupkgPath = Path.Combine(tmpReleaseDir, $"{id}-{version}-full.nupkg");
+        Assert.True(File.Exists(nupkgPath));
+        EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), nupkgPath, nupkgDir);
+        var nupkgStub = Directory.EnumerateFiles(nupkgDir, "*_ExecutionStub.exe", SearchOption.AllDirectories).Single();
+        var updaterLauncherName = Path.GetFileName(nupkgStub).Replace("_ExecutionStub.exe", ".exe");
+
+        // The launcher created at pack time in the portable package root.
+        var portablePath = Directory.EnumerateFiles(tmpReleaseDir, "*-Portable.zip").Single();
+        EasyZip.ExtractZipToDirectory(logger.ToVelopackLogger(), portablePath, portableDir);
+        var portableLauncherName = Directory.EnumerateFiles(portableDir, "*.exe")
+            .Select(Path.GetFileName)
+            .Single(n => !n.Equals("Update.exe", StringComparison.OrdinalIgnoreCase));
+
+        Assert.Equal(portableLauncherName, updaterLauncherName);
+    }
+
+    [Fact]
     public void PackBuildRefuseSameVersion()
     {
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
