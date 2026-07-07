@@ -13,7 +13,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Option<Vec<OsString>>) -> Result<()> {
+/// Installs the given package. Returns the resolved root install directory on success, or `None`
+/// if the user cancelled the installation (which is not an error).
+pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Option<Vec<OsString>>) -> Result<Option<PathBuf>> {
     // find and parse nuspec
     info!("Reading package manifest...");
     let app = pkg.read_manifest()?;
@@ -29,7 +31,7 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
 
     if !windows::prerequisite::prompt_and_install_all_missing(&app.title, &app.version.to_string(), &app.runtime_dependencies, None)? {
         info!("Cancelling setup. Pre-requisites not installed.");
-        return Ok(());
+        return Ok(None);
     }
 
     info!("Determining install directory...");
@@ -97,7 +99,7 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
         if !dialogs::show_overwrite_repair_dialog(&app.title, &app.version, &root_path, installed_version.as_ref()) {
             // user cancelled overwrite prompt
             error!("Directory already exists, and user cancelled overwrite.");
-            return Ok(());
+            return Ok(None);
         }
         info!("User chose to overwrite existing installation.");
 
@@ -162,7 +164,7 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
         install_result?;
     }
 
-    Ok(())
+    Ok(Some(root_path))
 }
 
 fn format_disk_space(bytes: u64) -> String {
