@@ -83,10 +83,13 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
 
         File.Copy(updatePath, Path.Combine(packDir, "Squirrel.exe"), true);
 
-        // create a stub for portable / MSI packages
+        // create a stub for portable / MSI packages. The stub is named after the
+        // final launcher name (packTitle) rather than the main exe, so that when the
+        // updater re-extracts it on update (stripping the "_ExecutionStub" suffix) it
+        // produces the same launcher name that was created at pack time. See #982.
         var mainExeName = Options.EntryExecutableName;
         var mainPath = Path.Combine(packDir, mainExeName);
-        var stubPath = Path.Combine(packDir, Path.GetFileNameWithoutExtension(mainExeName) + "_ExecutionStub.exe");
+        var stubPath = Path.Combine(packDir, GetStubBaseName() + "_ExecutionStub.exe");
         CreateExecutableStubForExe(mainPath, stubPath);
 
         Options.TargetRuntime.Architecture = Options.TargetRuntime.HasArchitecture
@@ -234,7 +237,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
             // move the stub to the root of the MSI package
             var msiStubPath = Path.Combine(
                 current.FullName,
-                Path.GetFileNameWithoutExtension(Options.EntryExecutableName) + "_ExecutionStub.exe");
+                GetStubBaseName() + "_ExecutionStub.exe");
             File.Move(msiStubPath, Path.Combine(dir.FullName, GetStubFileName()));
 
             File.Create(Path.Combine(dir.FullName, ".msi-installed")).Close();
@@ -268,7 +271,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
         // move the stub to the root of the portable package
         var stubPath = Path.Combine(
             current.FullName,
-            Path.GetFileNameWithoutExtension(Options.EntryExecutableName) + "_ExecutionStub.exe");
+            GetStubBaseName() + "_ExecutionStub.exe");
         File.Move(stubPath, Path.Combine(dir.FullName, GetStubFileName()));
 
         // create a .portable file to indicate this is a portable package
@@ -385,7 +388,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
         ];
     }
 
-    private string GetStubFileName() => (Options.PackTitle ?? Options.PackId) + ".exe";
+    // Base name (without extension) for the portable / MSI launcher stub. Kept in sync
+    // with the stub file created inside the package so the updater reproduces the same
+    // launcher name when it strips the "_ExecutionStub" suffix on update. See #982.
+    private string GetStubBaseName() => Options.PackTitle ?? Options.PackId;
+
+    private string GetStubFileName() => GetStubBaseName() + ".exe";
 
     private ShortcutLocation GetShortcuts()
     {
