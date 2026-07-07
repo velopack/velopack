@@ -2,7 +2,35 @@ mod common;
 
 use common::*;
 use std::sync::mpsc;
+use std::time::{Duration, Instant};
 use velopack::sources::{HttpSource, UpdateSource};
+use velopack::{HttpHeader, HttpOptions};
+
+fn timeout_options(timeout_milliseconds: u64) -> HttpOptions {
+    HttpOptions {
+        TimeoutMilliseconds: timeout_milliseconds,
+        ..Default::default()
+    }
+}
+
+fn hanging_server_url(delay: Duration) -> String {
+    use std::io::Read;
+    use std::net::TcpListener;
+    use std::thread;
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+
+    thread::spawn(move || {
+        if let Ok((mut stream, _)) = listener.accept() {
+            let mut buffer = [0u8; 1024];
+            let _ = stream.read(&mut buffer);
+            thread::sleep(delay);
+        }
+    });
+
+    format!("http://{}", addr)
+}
 
 #[test]
 fn feed_success() {
@@ -36,6 +64,54 @@ fn feed_server_error() {
     let manifest = test_manifest();
     let result = source.get_release_feed("stable", &manifest, "");
     assert!(result.is_err());
+}
+
+#[test]
+fn feed_timeout_errors() {
+    let source = HttpSource::new_with_options(hanging_server_url(Duration::from_secs(2)), timeout_options(100));
+    let manifest = test_manifest();
+    let started = Instant::now();
+    let result = source.get_release_feed("stable", &manifest, "");
+
+    assert!(result.is_err());
+    assert!(started.elapsed() < Duration::from_secs(2), "request did not respect configured timeout");
+}
+
+#[test]
+fn feed_sends_custom_headers() {
+    let server = MockHttpServer::empty();
+    server.add_route(MockRoute {
+        path_contains: "releases.stable.json".into(),
+        response_code: 200,
+        response_body: sample_feed_json().into_bytes(),
+        expected_headers: vec![("Authorization".to_string(), "Bearer token123".to_string())],
+    });
+
+    let options = HttpOptions {
+        Headers: vec![HttpHeader {
+            Name: "Authorization".to_string(),
+            Value: "Bearer token123".to_string(),
+        }],
+        ..Default::default()
+    };
+    let source = HttpSource::new_with_options(&server.url(), options);
+    let manifest = test_manifest();
+    let feed = source.get_release_feed("stable", &manifest, "").unwrap();
+    assert_eq!(feed.Assets.len(), 1);
+}
+
+#[test]
+fn download_timeout_errors() {
+    let source = HttpSource::new_with_options(hanging_server_url(Duration::from_secs(2)), timeout_options(100));
+    let asset = sample_asset();
+
+    let dir = tempfile::tempdir().unwrap();
+    let dest = dir.path().join("downloaded.nupkg");
+    let started = Instant::now();
+    let result = source.download_release_entry(&asset, &dest, None);
+
+    assert!(result.is_err());
+    assert!(started.elapsed() < Duration::from_secs(2), "download did not respect configured timeout");
 }
 
 #[test]

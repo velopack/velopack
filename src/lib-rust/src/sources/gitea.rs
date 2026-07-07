@@ -52,21 +52,29 @@ impl GiteaSource {
         }
     }
 
-    fn get_headers(&self, accept: &str) -> Vec<(String, String)> {
-        let mut headers = vec![("Accept".to_string(), accept.to_string())];
+    fn get_http_options(&self, accept: &str) -> HttpOptions {
+        let mut headers = vec![HttpHeader {
+            Name: "Accept".to_string(),
+            Value: accept.to_string(),
+        }];
         if let Some(ref token) = self.access_token {
-            headers.push(("Authorization".to_string(), format!("token {}", token)));
+            headers.push(HttpHeader {
+                Name: "Authorization".to_string(),
+                Value: format!("token {}", token),
+            });
         }
-        headers
+        HttpOptions {
+            Headers: headers,
+            ..Default::default()
+        }
     }
 
     fn get_releases(&self) -> Result<Vec<GiteaRelease>, Error> {
         let base = self.get_api_base_url();
         let path = self.repo_url.path();
         let url = format!("{}repos{}/releases?limit=10&page=1&draft=false", base, path);
-        let headers = self.get_headers("application/json");
-        let header_refs: Vec<(&str, &str)> = headers.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
-        let json = download::download_url_as_string_with_headers(&url, &header_refs)?;
+        let options = self.get_http_options("application/json");
+        let json = download::download_url_as_string(&url, Some(&options))?;
         let mut releases: Vec<GiteaRelease> = serde_json::from_str(&json)?;
         releases.sort_by(|a, b| b.published_at.cmp(&a.published_at));
         if !self.prerelease {
@@ -103,20 +111,18 @@ impl GiteaSource {
 impl UpdateSource for GiteaSource {
     fn get_release_feed(&self, channel: &str, _app: &Manifest, _staged_user_id: &str) -> Result<VelopackAssetFeed, Error> {
         let releases = self.get_releases()?;
-        let headers = self.get_headers("application/octet-stream");
-        let header_refs: Vec<(&str, &str)> = headers.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
-        get_git_release_feed(channel, &header_refs, releases.len(), |i, name| {
+        let options = self.get_http_options("application/octet-stream");
+        get_git_release_feed(channel, &options, releases.len(), |i, name| {
             self.get_asset_url_from_name(&releases[i], name)
         })
     }
 
     fn download_release_entry(&self, asset: &VelopackAsset, local_file: &Path, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
         let releases = self.get_releases()?;
-        let headers = self.get_headers("application/octet-stream");
-        let header_refs: Vec<(&str, &str)> = headers.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+        let options = self.get_http_options("application/octet-stream");
         for release in &releases {
             if let Ok(url) = self.get_asset_url_from_name(release, &asset.FileName) {
-                return download_git_release_entry(&url, &header_refs, local_file, progress_sender);
+                return download_git_release_entry(&url, &options, local_file, progress_sender);
             }
         }
         Err(Error::Other(format!("Could not find asset '{}' in any Gitea release.", asset.FileName)))

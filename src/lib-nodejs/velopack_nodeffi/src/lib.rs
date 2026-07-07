@@ -16,6 +16,74 @@ struct UpdateManagerWrapper {
 impl Finalize for UpdateManagerWrapper {}
 type BoxedUpdateManager = JsBox<RefCell<UpdateManagerWrapper>>;
 
+/// A JSON-serialized update source descriptor, produced by the TypeScript layer.
+#[derive(serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+enum SourceDescriptor {
+    Auto {
+        input: String,
+    },
+    File {
+        path: String,
+    },
+    Http {
+        url: String,
+        options: Option<HttpOptions>,
+    },
+    Github {
+        #[serde(rename = "repoUrl")]
+        repo_url: String,
+        #[serde(rename = "accessToken")]
+        access_token: Option<String>,
+        #[serde(default)]
+        prerelease: bool,
+    },
+    Gitlab {
+        #[serde(rename = "repoUrl")]
+        repo_url: String,
+        #[serde(rename = "accessToken")]
+        access_token: Option<String>,
+        #[serde(default)]
+        prerelease: bool,
+    },
+    Gitea {
+        #[serde(rename = "repoUrl")]
+        repo_url: String,
+        #[serde(rename = "accessToken")]
+        access_token: Option<String>,
+        #[serde(default)]
+        prerelease: bool,
+    },
+}
+
+impl SourceDescriptor {
+    fn into_source(self) -> Box<dyn UpdateSource> {
+        match self {
+            SourceDescriptor::Auto { input } => Box::new(AutoSource::new(&input)),
+            SourceDescriptor::File { path } => Box::new(FileSource::new(path)),
+            SourceDescriptor::Http { url, options } => match options {
+                Some(options) => Box::new(HttpSource::new_with_options(&url, options)),
+                None => Box::new(HttpSource::new(&url)),
+            },
+            SourceDescriptor::Github {
+                repo_url,
+                access_token,
+                prerelease,
+            } => Box::new(GithubSource::new(&repo_url, access_token, prerelease)),
+            SourceDescriptor::Gitlab {
+                repo_url,
+                access_token,
+                prerelease,
+            } => Box::new(GitlabSource::new(&repo_url, access_token, prerelease)),
+            SourceDescriptor::Gitea {
+                repo_url,
+                access_token,
+                prerelease,
+            } => Box::new(GiteaSource::new(&repo_url, access_token, prerelease)),
+        }
+    }
+}
+
 fn args_get_locator(cx: &mut FunctionContext, i: usize) -> NeonResult<Option<VelopackLocatorConfig>> {
     let arg_locator = cx.argument_opt(i);
     if let Some(js_value) = arg_locator {
@@ -59,8 +127,13 @@ fn js_new_update_manager(mut cx: FunctionContext) -> JsResult<BoxedUpdateManager
         options = Some(new_opt);
     }
 
-    let source = AutoSource::new(&arg_source);
-    let manager = UpdateManager::new(source, options, locator).or_else(|e| cx.throw_error(e.to_string()))?;
+    // The TypeScript layer passes a JSON source descriptor. A plain URL/path string
+    // (eg. from an older library version) falls back to auto-detection.
+    let source = match serde_json::from_str::<SourceDescriptor>(&arg_source) {
+        Ok(descriptor) => descriptor.into_source(),
+        Err(_) => Box::new(AutoSource::new(&arg_source)),
+    };
+    let manager = UpdateManager::new_boxed(source, options, locator).or_else(|e| cx.throw_error(e.to_string()))?;
     let wrapper = UpdateManagerWrapper { manager };
     Ok(cx.boxed(RefCell::new(wrapper)))
 }

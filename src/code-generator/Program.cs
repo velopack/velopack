@@ -15,6 +15,8 @@ string[] desiredStructs = [
     "UpdateInfo",
     "UpdateOptions",
     "VelopackLocatorConfig",
+    "HttpHeader",
+    "HttpOptions",
 ];
 
 List<RustStruct> availableStructs = new();
@@ -53,6 +55,8 @@ var types = new List<TypeMap>() {
     TypeMap.RustStruct("UpdateInfo", "vpkc_update_info_t"),
     TypeMap.RustStruct("UpdateOptions", "vpkc_update_options_t"),
     TypeMap.RustStruct("VelopackLocatorConfig", "vpkc_locator_config_t"),
+    TypeMap.RustStruct("HttpHeader", "vpkc_http_header_t"),
+    TypeMap.RustStruct("HttpOptions", "vpkc_http_options_t"),
     TypeMap.SystemType("String", "char", "string", "c_char"),
     TypeMap.SystemType("PathBuf", "char", "string", "c_char"),
     TypeMap.Primitive("bool", "bool", "boolean"),

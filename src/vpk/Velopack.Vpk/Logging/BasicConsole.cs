@@ -17,7 +17,9 @@ public class BasicConsole : IFancyConsole
 
     public string EscapeMarkup(string text)
     {
-        return text;
+        // log messages are stripped of markup tags before being printed (see ConsoleExpressionNoMarkup),
+        // so any literal square brackets (eg. a '[json]' directive example) must be escaped to survive.
+        return Spectre.Console.Markup.Escape(text);
     }
 
     public async Task ExecuteProgressAsync(Func<IFancyConsoleProgress, Task> action)

@@ -3,6 +3,6 @@
 public sealed class ApiOptions : VelopackFlowServiceOptions
 {
     public string Endpoint { get; set; } = "";
-    public string Method { get; set; } = "";
+    public string Method { get; set; } = "GET";
     public string? Body { get; set; }
 }

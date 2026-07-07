@@ -48,6 +48,15 @@
       "matchFileNames": ["src/**"]
     },
     {
+      // Microsoft.* / System.* first-party packages get their own group (non-test).
+      // Placed after the catch-all above so it overrides the group for these packages;
+      // everything else remains in "dotnet packages".
+      "groupName": "dotnet microsoft packages",
+      "matchDatasources": "nuget",
+      "matchFileNames": ["src/**"],
+      "matchPackageNames": ["/^Microsoft\\./i", "/^System\\./i"]
+    },
+    {
       "groupName": "dotnet test packages",
       "matchDatasources": "nuget",
       "matchFileNames": ["test/**"]
@@ -91,6 +100,10 @@
     {
       "matchPackageNames": "coverlet.msbuild",
       "allowedVersions": "< 7.0.0" // 8.x breaks instrumentation on net8.0 targets
+    },
+    {
+      "matchPackageNames": "/^WixToolset\\./",
+      "allowedVersions": "< 6.0.0" // 6.0+ requires OSMF license acceptance
     }
   ]
 }

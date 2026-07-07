@@ -135,27 +135,11 @@ public class MsiTests
     private static async Task PackTestAppWithMsi(string id, string version, string testString,
         string releaseDir, ILogger logger, InstallLocation instLocation)
     {
-        var projDir = PathHelper.GetTestRootPath("TestApp");
-        var testStringFile = Path.Combine(projDir, "Const.cs");
-        var oldText = File.ReadAllText(testStringFile);
+        using var _ = TempUtil.GetTempDirectory(out var workDir);
 
-        try {
-            File.WriteAllText(testStringFile, $"class Const {{ public const string TEST_STRING = \"{testString}\"; }}");
-            var args = new List<string> {
-                "publish", "--no-self-contained", "-c", "Release", "-r", "win-x64", "-o", "publish", "--tl:off"
-            };
-
-            var psi = new ProcessStartInfo("dotnet");
-            psi.WorkingDirectory = projDir;
-            psi.AppendArgumentListSafe(args, out var debug);
-
-            logger.Info($"TEST: Running {psi.FileName} {debug}");
-
-            using var p = Process.Start(psi);
-            p.WaitForExit();
-
-            if (p.ExitCode != 0)
-                throw new Exception($"dotnet publish failed with exit code {p.ExitCode}");
+        {
+            var publishDir = Path.Combine(workDir, "publish");
+            TestApp.PreparePublishDir(RID.Parse("win-x64"), testString, publishDir, logger);
 
             var options = new WindowsPackOptions {
                 EntryExecutableName = "TestApp.exe",
@@ -163,15 +147,13 @@ public class MsiTests
                 PackId = id,
                 PackVersion = version,
                 TargetRuntime = RID.Parse("win-x64"),
-                PackDirectory = Path.Combine(projDir, "publish"),
+                PackDirectory = publishDir,
                 BuildMsi = true,
                 InstLocation = instLocation,
             };
 
             var runner = WindowsTestHelper.GetPackRunner(logger);
             await runner.Run(options);
-        } finally {
-            File.WriteAllText(testStringFile, oldText);
         }
     }
 
@@ -318,7 +300,7 @@ public class MsiTests
             PackDirectory = tmpOutput,
             Shortcuts = "Desktop,StartMenuRoot",
             BuildMsi = true,
-            MsiVersionOverride = "4.5.6.1"
+            MsiVersionOverride = "4.5.6.0"
         };
 
         var runner = WindowsTestHelper.GetPackRunner(logger);
@@ -329,7 +311,126 @@ public class MsiTests
 
         using Database db = new Database(msiPath);
         var msiVersion = db.ExecuteScalar("SELECT `Value` FROM `Property` WHERE `Property` = 'ProductVersion'") as string;
-        Assert.Equal("4.5.6.1", msiVersion);
+        Assert.Equal("4.5.6.0", msiVersion);
+    }
+
+    [Theory]
+    [InlineData(InstallLocation.PerUser)]
+    [InlineData(InstallLocation.PerMachine)]
+    [InlineData(InstallLocation.Either)]
+    public async Task TestPackGeneratesMsiWithQuietDefaultInstallFolder(InstallLocation instLocation)
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+
+        using var logger = _output.BuildLoggerFor<MsiTests>();
+
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
+
+        var exe = "testapp.exe";
+        var id = "Test.Squirrel-App";
+
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+        PathHelper.CopyRustAssetTo(Path.ChangeExtension(exe, ".pdb"), tmpOutput);
+
+        var options = new WindowsPackOptions {
+            EntryExecutableName = exe,
+            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
+            PackId = id,
+            PackVersion = "1.2.3",
+            TargetRuntime = RID.Parse("win-x64"),
+            PackDirectory = tmpOutput,
+            BuildMsi = true,
+            InstLocation = instLocation,
+        };
+
+        var runner = WindowsTestHelper.GetPackRunner(logger);
+        await runner.Run(options);
+
+        string msiPath = Path.Combine(tmpReleaseDir, $"{id}-win.msi");
+        Assert.True(File.Exists(msiPath));
+
+        // quiet/passive installs don't run the UI publishes which normally set the default
+        // INSTALLFOLDER, so the MSI must contain execute-sequence custom actions applying the
+        // same defaults (#945)
+        const string perUserFolder = "[LocalAppDataFolder][ApplicationFolderName]";
+        const string perMachineFolder = "[ProgramFiles64Folder][ApplicationFolderName]";
+        const string baseCondition = "NOT Installed AND NOT VELOPACK_INSTALLDIR AND UILevel<5";
+
+        (string Action, string Target, string Condition)[] expected = instLocation switch {
+            InstallLocation.PerUser => [("SetQuietDefaultInstallFolder", perUserFolder, baseCondition)],
+            InstallLocation.PerMachine => [("SetQuietDefaultInstallFolder", perMachineFolder, baseCondition)],
+            _ => [
+                ("SetQuietDefaultInstallFolderPerUser", perUserFolder, $"{baseCondition} AND NOT ALLUSERS=1"),
+                ("SetQuietDefaultInstallFolderPerMachine", perMachineFolder, $"{baseCondition} AND ALLUSERS=1"),
+            ],
+        };
+
+        using Database db = new Database(msiPath);
+        foreach (var (action, target, condition) in expected) {
+            var caSource = db.ExecuteScalar($"SELECT `Source` FROM `CustomAction` WHERE `Action` = '{action}'") as string;
+            Assert.Equal("INSTALLFOLDER", caSource);
+            var caTarget = db.ExecuteScalar($"SELECT `Target` FROM `CustomAction` WHERE `Action` = '{action}'") as string;
+            Assert.Equal(target, caTarget);
+            var seqCondition = db.ExecuteScalar($"SELECT `Condition` FROM `InstallExecuteSequence` WHERE `Action` = '{action}'") as string;
+            Assert.Equal(condition, seqCondition);
+        }
+    }
+
+    [Fact]
+    public async Task TestPackGeneratesMsiWithBracketsInTitle()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+
+        using var logger = _output.BuildLoggerFor<MsiTests>();
+
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
+
+        var exe = "testapp.exe";
+        var id = "Test.Squirrel-App";
+        var title = "BracketApp [Staging]";
+
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+        PathHelper.CopyRustAssetTo(Path.ChangeExtension(exe, ".pdb"), tmpOutput);
+
+        var options = new WindowsPackOptions {
+            EntryExecutableName = exe,
+            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
+            PackId = id,
+            PackVersion = "1.2.3",
+            PackTitle = title,
+            TargetRuntime = RID.Parse("win-x64"),
+            PackDirectory = tmpOutput,
+            Shortcuts = "Desktop,StartMenuRoot",
+            BuildMsi = true,
+        };
+
+        var runner = WindowsTestHelper.GetPackRunner(logger);
+        await runner.Run(options);
+
+        string msiPath = Path.Combine(tmpReleaseDir, $"{id}-win.msi");
+        Assert.True(File.Exists(msiPath));
+
+        // in MSI "Formatted" columns, square brackets are property-reference syntax and must be
+        // escaped as [\[] / [\]] or they get stripped, breaking shortcut targets and ARP (#946)
+        const string escapedStub = @"[INSTALLFOLDER]BracketApp [\[]Staging[\]].exe";
+
+        using Database db = new Database(msiPath);
+
+        var shortcutTargets = db.ExecuteStringQuery("SELECT `Target` FROM `Shortcut`");
+        Assert.Equal(2, shortcutTargets.Count);
+        Assert.All(shortcutTargets, t => Assert.Equal(escapedStub, t));
+
+        // shortcut names are Filename columns (not Formatted), brackets must remain literal
+        var shortcutNames = db.ExecuteStringQuery("SELECT `Name` FROM `Shortcut`");
+        Assert.All(shortcutNames, n => Assert.Contains(title, n));
+
+        var displayName = db.ExecuteScalar("SELECT `Value` FROM `Registry` WHERE `Name` = 'DisplayName'") as string;
+        Assert.Equal(@"BracketApp [\[]Staging[\]]", displayName);
+
+        var displayIcon = db.ExecuteScalar("SELECT `Value` FROM `Registry` WHERE `Name` = 'DisplayIcon'") as string;
+        Assert.Equal(escapedStub, displayIcon);
     }
 
     [Fact]
@@ -361,9 +462,10 @@ public class MsiTests
             // save a copy before packing v2 overwrites msiPath
             File.Copy(msiPath, v1MsiPath, true);
 
-            // install via msiexec per-user (must pass INSTALLFOLDER for silent installs since UI events don't fire)
+            // install via msiexec per-user. no INSTALLFOLDER is passed on purpose: silent installs
+            // must default to %LocalAppData%\{packId} even though the UI events don't fire (#945)
             logger.Info("TEST: Installing MSI per-user...");
-            RunMsiExec($"/i \"{v1MsiPath}\" /qn INSTALLFOLDER=\"{installDir}\"", logger);
+            RunMsiExec($"/i \"{v1MsiPath}\" /qn", logger);
 
             // verify install
             Assert.True(File.Exists(appPath), $"TestApp.exe not found at {appPath}");
@@ -413,13 +515,12 @@ public class MsiTests
                 $"Downloaded nupkg not found in expected packages dir: {packagesPath}");
             logger.Info("TEST: nupkg downloaded to correct packages dir");
 
-            // apply update
+            // apply update; update.exe swaps the app in a separate process, so poll for the new version
             WindowsTestHelper.RunCoveredDotnet(appPath, ["apply", releaseDir], installDir, logger, exitCode: null);
-            Thread.Sleep(3000);
-
-            // verify update
-            var chk2version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
-            Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+            TestHelper.WaitUntil(() => {
+                var chk2version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
+                Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+            }, pollDelayMs: 1000);
             logger.Info("TEST: v2 update verified");
 
             // verify registry was updated to v2
@@ -552,10 +653,10 @@ public class MsiTests
             await PackTestAppWithMsi(id, "1.0.0", "version 1 test", releaseDir, logger, InstallLocation.Either);
             Assert.True(File.Exists(msiPath), $"MSI not found at {msiPath}");
 
-            // install via msiexec with ALLUSERS=1 (per-machine, requires admin)
-            // must pass INSTALLFOLDER for silent installs since UI events don't fire
+            // install via msiexec with ALLUSERS=1 (per-machine, requires admin). no INSTALLFOLDER
+            // is passed on purpose: silent per-machine installs must default to Program Files (#945)
             logger.Info("TEST: Installing MSI per-machine...");
-            RunMsiExec($"/i \"{msiPath}\" /qn ALLUSERS=1 INSTALLFOLDER=\"{installDir}\"", logger);
+            RunMsiExec($"/i \"{msiPath}\" /qn ALLUSERS=1", logger);
 
             // verify install
             Assert.True(File.Exists(appPath), $"TestApp.exe not found at {appPath}");
@@ -603,13 +704,14 @@ public class MsiTests
                 $"Update.exe not found in fallback dir: {fallbackUpdateExe}");
             logger.Info("TEST: Update.exe extracted to fallback dir");
 
-            // apply update as de-elevated user (Update.exe should self-elevate via UAC)
+            // apply update as de-elevated user (Update.exe should self-elevate via UAC); the UAC
+            // prompt + elevated apply + app restart happen in separate processes, so poll until the
+            // new version is observable (de-elevated to confirm the update was applied)
             RunCoveredDotnetDeelevated(appPath, ["apply", releaseDir], installDir, logger, exitCode: null);
-            Thread.Sleep(30000); // wait for UAC prompt + elevated apply + app restart
-
-            // verify update (de-elevated to confirm the update was applied)
-            var chk2version = RunCoveredDotnetDeelevated(appPath, ["version"], installDir, logger);
-            Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+            TestHelper.WaitUntil(() => {
+                var chk2version = RunCoveredDotnetDeelevated(appPath, ["version"], installDir, logger);
+                Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+            }, timeoutMs: 90_000, pollDelayMs: 2000);
             logger.Info("TEST: v2 update verified");
 
             // verify registry was updated to v2

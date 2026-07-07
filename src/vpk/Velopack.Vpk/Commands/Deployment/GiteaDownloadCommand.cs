@@ -6,7 +6,7 @@ public class GiteaDownloadCommand : GiteaBaseCommand
     public GiteaDownloadCommand()
         : base("gitea", "Download latest release from Gitea repository.")
     {
-        AddOption<bool>((v) => Prerelease = v, "--pre")
+        AddOption<bool>((v) => Prerelease = v, ["--pre"])
             .SetDescription("Get latest pre-release instead of stable.");
     }
 }

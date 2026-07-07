@@ -14,6 +14,18 @@ inputs:
 runs:
   using: "composite"
   steps:
+    # Defender realtime scanning adds significant IO overhead to builds/tests that spawn
+    # thousands of short-lived processes and files. CI runners are ephemeral, so disable it.
+    - name: Disable Windows Defender realtime scanning
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        try {
+          Set-MpPreference -DisableRealtimeMonitoring $true -ErrorAction Stop
+          Write-Host "Defender realtime monitoring disabled"
+        } catch {
+          Write-Host "Could not disable Defender realtime monitoring: $_"
+        }
     - name: Setup dotnet
       if: inputs.dotnet == 'true'
       uses: actions/setup-dotnet@v5

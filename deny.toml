@@ -7,6 +7,13 @@ ignore = [
     { id = "RUSTSEC-2024-0388", reason = "no drop-in replacement yet" },
     # time segfault only affects Unix with specific env manipulation; not exploitable in our context
     { id = "RUSTSEC-2020-0071", reason = "only affects Unix setenv race; not exploitable in our usage" },
+    # ttf-parser is unmaintained; pulled in transitively via xdialog -> winit -> sctk-adwaita -> ab_glyph, no replacement available
+    { id = "RUSTSEC-2026-0192", reason = "unmaintained transitive dep via xdialog/winit, no drop-in replacement" },
+    # quick-xml DoS advisories only affect parsing of untrusted XML; here quick-xml is used solely by wayland-scanner
+    # at build time to parse trusted local Wayland protocol files (via xdialog -> softbuffer). Latest wayland-scanner
+    # (0.31.10) still pins quick-xml ^0.39, so there is no upgrade path yet. Revisit when upstream bumps quick-xml.
+    { id = "RUSTSEC-2026-0194", reason = "quick-xml DoS via wayland-scanner build-time codegen; trusted XML, no upgrade path" },
+    { id = "RUSTSEC-2026-0195", reason = "quick-xml DoS via wayland-scanner build-time codegen; trusted XML, no upgrade path" },
 ]
 
 [licenses]

@@ -1,4 +1,5 @@
 ﻿using Riok.Mapperly.Abstractions;
+using Velopack.Core;
 using Velopack.Deployment;
 using Velopack.Flow.Commands;
 using Velopack.Packaging.Commands;
@@ -28,6 +29,13 @@ public static partial class OptionMapper
     public static partial GitHubDownloadOptions ToOptions(this GitHubDownloadCommand cmd);
 
     public static partial GitHubUploadOptions ToOptions(this GitHubUploadCommand cmd);
+
+    // GitHubUploadOptions no longer derives from GitHubDownloadOptions (both derive from the
+    // shared GitRelease*Options bases), so the generic Map<TDest> needs an explicit mapping
+    // to convert an upload command to download options.
+    public static partial GitHubDownloadOptions ToDownloadOptions(this GitHubUploadCommand cmd);
+
+    public static partial GiteaDownloadOptions ToDownloadOptions(this GiteaUploadCommand cmd);
 
     public static partial GiteaDownloadOptions ToOptions(this GiteaDownloadCommand cmd);
 
@@ -63,15 +71,18 @@ public static partial class OptionMapper
 
     private static DirectoryInfo StringToDirectoryInfo(string t)
     {
-        if (t == null) return null;
-        var di = new DirectoryInfo(t);
-        if (!di.Exists) di.Create();
-        return di;
+        // deliberately not created here - output directories are created at point of use,
+        // after validation, so that a bad path does not leave stray directories behind.
+        return t == null ? null : new DirectoryInfo(t);
     }
 
     private static RID StringToRID(string t)
     {
         if (t == null) return null;
-        return RID.Parse(t);
+        try {
+            return RID.Parse(t);
+        } catch (Exception ex) {
+            throw new UserInfoException($"Invalid runtime identifier '{t}': {ex.Message}");
+        }
     }
 }

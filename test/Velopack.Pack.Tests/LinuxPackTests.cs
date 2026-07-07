@@ -61,11 +61,11 @@ public class LinuxPackTests
         TestHelper.RunNoCoverage(appImagePath, ["apply", releaseDir], installDir, logger, exitCode: null);
         logger.Info($"TEST ({variant}): v2 applied");
 
-        Thread.Sleep(5000); // UpdateNix runs in separate process
-
-        // check app output after update
-        var chk2version = TestHelper.RunNoCoverage(appImagePath, ["version"], installDir, logger);
-        Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        // UpdateNix swaps the app in a separate process; poll until the new version is live
+        TestHelper.WaitUntil(() => {
+            var chk2version = TestHelper.RunNoCoverage(appImagePath, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        }, pollDelayMs: 1000);
         var chk2test = TestHelper.RunNoCoverage(appImagePath, ["test"], installDir, logger);
         Assert.EndsWith(Environment.NewLine + "version 2 test", chk2test);
         var chk2check2 = TestHelper.RunNoCoverage(appImagePath, ["check", releaseDir], installDir, logger);
@@ -109,10 +109,11 @@ public class LinuxPackTests
         TestHelper.RunNoCoverage(appImagePath, ["apply", releaseDir], installDir, logger, exitCode: null);
         logger.Info("TEST: v2 applied");
 
-        Thread.Sleep(5000);
-
-        var chk2version = TestHelper.RunNoCoverage(appImagePath, ["version"], installDir, logger);
-        Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        // UpdateNix swaps the app in a separate process; poll until the new version is live
+        TestHelper.WaitUntil(() => {
+            var chk2version = TestHelper.RunNoCoverage(appImagePath, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        }, pollDelayMs: 1000);
         var chk2test = TestHelper.RunNoCoverage(appImagePath, ["test"], installDir, logger);
         Assert.EndsWith(Environment.NewLine + "version 2 test", chk2test);
         logger.Info("TEST: v2 output verified / complete");
@@ -155,11 +156,11 @@ public class LinuxPackTests
         // run with --autoupdate
         TestHelper.RunNoCoverage(appImagePath, ["--autoupdate"], installDir, logger, exitCode: null);
 
-        Thread.Sleep(5000); // UpdateNix runs in separate process
-
-        // check version after auto-update
-        var chk1version = TestHelper.RunNoCoverage(appImagePath, ["version"], installDir, logger);
-        Assert.EndsWith(Environment.NewLine + "2.0.0", chk1version);
+        // UpdateNix swaps the app in a separate process; poll until the new version is live
+        TestHelper.WaitUntil(() => {
+            var chk1version = TestHelper.RunNoCoverage(appImagePath, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "2.0.0", chk1version);
+        }, pollDelayMs: 1000);
         logger.Info($"TEST ({variant}): auto-update verified / complete");
 
         // cleanup packages dir
@@ -212,27 +213,11 @@ public class LinuxPackTests
 
     private static async Task PackCSharpTestApp(string id, string version, string testString, string releaseDir, ILogger logger)
     {
-        var projDir = PathHelper.GetTestRootPath("TestApp");
-        var testStringFile = Path.Combine(projDir, "Const.cs");
-        var oldText = File.ReadAllText(testStringFile);
+        using var _ = TempUtil.GetTempDirectory(out var workDir);
 
-        try {
-            File.WriteAllText(testStringFile, $"class Const {{ public const string TEST_STRING = \"{testString}\"; }}");
-            var args = new List<string> {
-                "publish", "--no-self-contained", "-c", "Release", "-r", "linux-x64", "-o", "publish", "--tl:off"
-            };
-
-            var psi = new System.Diagnostics.ProcessStartInfo("dotnet");
-            psi.WorkingDirectory = projDir;
-            psi.AppendArgumentListSafe(args, out var debug);
-
-            logger.Info($"TEST: Running {psi.FileName} {debug}");
-
-            using var p = System.Diagnostics.Process.Start(psi);
-            p!.WaitForExit();
-
-            if (p.ExitCode != 0)
-                throw new Exception($"dotnet publish failed with exit code {p.ExitCode}");
+        {
+            var publishDir = Path.Combine(workDir, "publish");
+            TestApp.PreparePublishDir(RID.Parse("linux-x64"), testString, publishDir, logger);
 
             var console = new Velopack.Vpk.Logging.BasicConsole(logger, new Velopack.Vpk.VelopackDefaults(false));
             var options = new Velopack.Packaging.Unix.Commands.LinuxPackOptions {
@@ -241,13 +226,11 @@ public class LinuxPackTests
                 PackId = id,
                 PackVersion = version,
                 TargetRuntime = RID.Parse("linux-x64"),
-                PackDirectory = Path.Combine(projDir, "publish"),
+                PackDirectory = publishDir,
             };
 
             var runner = new Velopack.Packaging.Unix.Commands.LinuxPackCommandRunner(logger, console);
             await runner.Run(options);
-        } finally {
-            File.WriteAllText(testStringFile, oldText);
         }
     }
 }

@@ -19,6 +19,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 velopack.workspace = true
+serde.workspace = true
 serde_json.workspace = true
 semver.workspace = true
 log.workspace = true

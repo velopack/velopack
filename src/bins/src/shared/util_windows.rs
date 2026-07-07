@@ -39,7 +39,11 @@ unsafe fn get_processes_running_in_directory<P: AsRef<Path>>(dir: P) -> Result<V
     let mut full_path_vec = vec![0; i16::MAX as usize];
     let full_path_ptr = PWSTR(full_path_vec.as_mut_ptr());
 
-    for pid in get_pids()? {
+    let sw = simple_stopwatch::Stopwatch::start_new();
+    let pids = get_pids()?;
+    let total_pids = pids.len();
+
+    for pid in pids {
         let process = process::open_process(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE, false, pid);
         if process.is_err() {
             continue;
@@ -65,6 +69,12 @@ unsafe fn get_processes_running_in_directory<P: AsRef<Path>>(dir: P) -> Result<V
         }
     }
 
+    info!(
+        "Inspected {} running processes in {:.0}ms, {} matched directory",
+        total_pids,
+        sw.ms(),
+        oup.len()
+    );
     Ok(oup)
 }
 
@@ -87,6 +97,7 @@ fn _force_stop_package<P: AsRef<Path>>(root_dir: P) -> Result<()> {
         warn!("Killing process: {} ({})", path.display(), pid);
         process::kill_process(handle)?;
     }
+    info!("Force-stop check complete.");
     Ok(())
 }
 

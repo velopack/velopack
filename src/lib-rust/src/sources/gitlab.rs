@@ -50,20 +50,28 @@ impl GitlabSource {
         }
     }
 
-    fn get_headers(&self, accept: &str) -> Vec<(String, String)> {
-        let mut headers = vec![("Accept".to_string(), accept.to_string())];
+    fn get_http_options(&self, accept: &str) -> HttpOptions {
+        let mut headers = vec![HttpHeader {
+            Name: "Accept".to_string(),
+            Value: accept.to_string(),
+        }];
         if let Some(ref token) = self.access_token {
-            headers.push(("PRIVATE-TOKEN".to_string(), token.clone()));
+            headers.push(HttpHeader {
+                Name: "PRIVATE-TOKEN".to_string(),
+                Value: token.clone(),
+            });
         }
-        headers
+        HttpOptions {
+            Headers: headers,
+            ..Default::default()
+        }
     }
 
     fn get_releases(&self) -> Result<Vec<GitlabRelease>, Error> {
         let base = self.repo_url.as_str().trim_end_matches('/');
         let url = format!("{}/releases?per_page=10&page=1", base);
-        let headers = self.get_headers("application/json");
-        let header_refs: Vec<(&str, &str)> = headers.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
-        let json = download::download_url_as_string_with_headers(&url, &header_refs)?;
+        let options = self.get_http_options("application/json");
+        let json = download::download_url_as_string(&url, Some(&options))?;
         let mut releases: Vec<GitlabRelease> = serde_json::from_str(&json)?;
         releases.sort_by(|a, b| b.released_at.cmp(&a.released_at));
         if !self.prerelease {
@@ -111,20 +119,18 @@ impl GitlabSource {
 impl UpdateSource for GitlabSource {
     fn get_release_feed(&self, channel: &str, _app: &Manifest, _staged_user_id: &str) -> Result<VelopackAssetFeed, Error> {
         let releases = self.get_releases()?;
-        let headers = self.get_headers("application/octet-stream");
-        let header_refs: Vec<(&str, &str)> = headers.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
-        get_git_release_feed(channel, &header_refs, releases.len(), |i, name| {
+        let options = self.get_http_options("application/octet-stream");
+        get_git_release_feed(channel, &options, releases.len(), |i, name| {
             self.get_asset_url_from_name(&releases[i], name)
         })
     }
 
     fn download_release_entry(&self, asset: &VelopackAsset, local_file: &Path, progress_sender: Option<Sender<i16>>) -> Result<(), Error> {
         let releases = self.get_releases()?;
-        let headers = self.get_headers("application/octet-stream");
-        let header_refs: Vec<(&str, &str)> = headers.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+        let options = self.get_http_options("application/octet-stream");
         for release in &releases {
             if let Ok(url) = self.get_asset_url_from_name(release, &asset.FileName) {
-                return download_git_release_entry(&url, &header_refs, local_file, progress_sender);
+                return download_git_release_entry(&url, &options, local_file, progress_sender);
             }
         }
         Err(Error::Other(format!("Could not find asset '{}' in any GitLab release.", asset.FileName)))

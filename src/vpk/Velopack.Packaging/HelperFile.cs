@@ -6,17 +6,29 @@ namespace Velopack.Packaging;
 
 public static class HelperFile
 {
-    private static string GetUpdateExeName(RID target, ILogger log)
+    public static string GetUpdatePath(RID target, ILogger log)
     {
         switch (target.BaseRID) {
+#if DEBUG
         case RuntimeOs.Windows:
             return FindHelperFile("update.exe");
-#if DEBUG
         case RuntimeOs.Linux:
             return FindHelperFile("update");
         case RuntimeOs.OSX:
             return FindHelperFile("update");
 #else
+        case RuntimeOs.Windows:
+            if (!target.HasArchitecture) {
+                log.LogWarning("No architecture specified with --runtime, defaulting to x86. If this was not intended please specify via the --runtime parameter");
+                return FindHelperFile("update.exe");
+            }
+
+            return target.Architecture switch {
+                RuntimeCpu.arm64 => FindHelperFile("update_arm64.exe"),
+                RuntimeCpu.x64 => FindHelperFile("update_x64.exe"),
+                RuntimeCpu.x86 => FindHelperFile("update.exe"),
+                _ => throw new PlatformNotSupportedException($"Update binary is not available for this platform ({target})."),
+            };
         case RuntimeOs.Linux:
             if (!target.HasArchitecture) {
                 log.LogWarning("No architecture specified with --runtime, defaulting to x64. If this was not intended please specify via the --runtime parameter");
@@ -49,10 +61,7 @@ public static class HelperFile
             _ => throw new PlatformNotSupportedException($"Wix binary is not available for this platform ({target}).")
         };
 #endif
-        // return @"C:\Source\velopack\target\debug\velopack_wix.dll";
     }
-
-    public static string GetUpdatePath(RID target, ILogger log) => FindHelperFile(GetUpdateExeName(target, log));
 
     public static string GetZstdPath()
     {
@@ -79,9 +88,43 @@ public static class HelperFile
 
     public static string AppImageRuntimeX86 => FindHelperFile("appimagekit-runtime-i686");
 
-    public static string SetupPath => FindHelperFile("setup.exe");
+    public static string GetSetupPath(RID target, ILogger log)
+    {
+#if DEBUG
+        return FindHelperFile("setup.exe");
+#else
+        if (!target.HasArchitecture) {
+            log.LogWarning("No architecture specified with --runtime, defaulting to x86. If this was not intended please specify via the --runtime parameter");
+            return FindHelperFile("setup.exe");
+        }
 
-    public static string StubExecutablePath => FindHelperFile("stub.exe");
+        return target.Architecture switch {
+            RuntimeCpu.arm64 => FindHelperFile("setup_arm64.exe"),
+            RuntimeCpu.x64 => FindHelperFile("setup_x64.exe"),
+            RuntimeCpu.x86 => FindHelperFile("setup.exe"),
+            _ => throw new PlatformNotSupportedException($"Setup binary is not available for this platform ({target})."),
+        };
+#endif
+    }
+
+    public static string GetStubExecutablePath(RID target, ILogger log)
+    {
+#if DEBUG
+        return FindHelperFile("stub.exe");
+#else
+        if (!target.HasArchitecture) {
+            log.LogWarning("No architecture specified with --runtime, defaulting to x86. If this was not intended please specify via the --runtime parameter");
+            return FindHelperFile("stub.exe");
+        }
+
+        return target.Architecture switch {
+            RuntimeCpu.arm64 => FindHelperFile("stub_arm64.exe"),
+            RuntimeCpu.x64 => FindHelperFile("stub_x64.exe"),
+            RuntimeCpu.x86 => FindHelperFile("stub.exe"),
+            _ => throw new PlatformNotSupportedException($"Stub binary is not available for this platform ({target})."),
+        };
+#endif
+    }
 
     [SupportedOSPlatform("windows")]
     public static string WixPath => FindHelperFile($"wix\\wixc7.exe");

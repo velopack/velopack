@@ -1,19 +1,14 @@
-﻿using System.Text.RegularExpressions;
-using Velopack.NuGet;
+using System.Runtime.CompilerServices;
 
 namespace Velopack.Vpk.Commands;
 
-internal static class SystemCommandLineExtensions
+public static class SystemCommandLineExtensions
 {
+    private static readonly ConditionalWeakTable<Option, object> RequiredHints = new();
+
     public static string ToFullNameOrNull(this FileSystemInfo fsi)
     {
         return fsi?.FullName;
-    }
-
-    public static string ToAbsoluteOrNull(this Uri uri)
-    {
-        if (uri?.IsAbsoluteUri == true) return uri.AbsoluteUri;
-        return null;
     }
 
     public static Option<T> SetDescription<T>(this Option<T> option, string description)
@@ -40,10 +35,21 @@ internal static class SystemCommandLineExtensions
         return option;
     }
 
-    public static Option<T> SetRequired<T>(this Option<T> option, bool isRequired = true)
+    /// <summary>
+    /// Marks the option as required for help rendering purposes only. It does not set
+    /// <see cref="Option.Required"/>, because required options must be satisfiable via
+    /// VPK_* environment variables or a [json] config file, which are applied after
+    /// parsing. Required-ness is enforced by the FluentValidation validators in the
+    /// command runners, and this hint is derived from those validators at startup.
+    /// </summary>
+    public static void SetRequiredHint(this Option option)
     {
-        option.Required = isRequired;
-        return option;
+        RequiredHints.AddOrUpdate(option, new object());
+    }
+
+    public static bool IsRequiredHint(this Option option)
+    {
+        return RequiredHints.TryGetValue(option, out _);
     }
 
     public static Option<T> SetDefault<T>(this Option<T> option, T defaultValue)
@@ -52,312 +58,9 @@ internal static class SystemCommandLineExtensions
         return option;
     }
 
-    public static Option<int> SetValidRange(this Option<int> option, int minimum, int maximum)
-    {
-        option.Validators.Add(x => Validate.MustBeBetween(x, minimum, maximum));
-        return option;
-    }
-
     public static Option<T> SetArgumentHelpName<T>(this Option<T> option, string argumentHelpName)
     {
         option.HelpName = argumentHelpName;
         return option;
-    }
-
-    public static Option<int> MustBeBetween(this Option<int> option, int minimum, int maximum)
-    {
-        option.Validators.Add(x => Validate.MustBeBetween(x, minimum, maximum));
-        return option;
-    }
-
-    public static Option<Uri> MustBeValidHttpUri(this Option<Uri> option)
-    {
-        option.CustomParser = (v) => new Uri(v.Tokens.Single().Value, UriKind.RelativeOrAbsolute);
-        option.RequiresScheme(Uri.UriSchemeHttp, Uri.UriSchemeHttps).RequiresAbsolute();
-        return option;
-    }
-
-    public static Option<FileInfo> RequiresExtension(this Option<FileInfo> option, string extension)
-    {
-        option.Validators.Add(x => Validate.RequiresExtension(x, extension));
-        return option;
-    }
-
-    public static Option<DirectoryInfo> RequiresExtension(this Option<DirectoryInfo> option, string extension)
-    {
-        option.Validators.Add(x => Validate.RequiresExtension(x, extension));
-        return option;
-    }
-
-    public static Option<string> RequiresExtension(this Option<string> option, string extension)
-    {
-        option.Validators.Add(x => Validate.RequiresExtension(x, extension));
-        return option;
-    }
-
-    public static Command AreMutuallyExclusive(this Command command, params Option[] options)
-    {
-        command.Validators.Add(x => Validate.AreMutuallyExclusive(x, options));
-        return command;
-    }
-
-    //public static Command RequiredAllowObsoleteFallback(this Command command, Option option, Option obsoleteOption)
-    //{
-    //    command.AddValidator(x => Validate.AtLeastOneRequired(x, new[] { option, obsoleteOption }, true));
-    //    return command;
-    //}
-
-    public static Command AtLeastOneRequired(this Command command, params Option[] options)
-    {
-        command.Validators.Add(x => Validate.AtLeastOneRequired(x, options, false));
-        return command;
-    }
-
-    public static Option<string> MustContain(this Option<string> option, string value)
-    {
-        option.Validators.Add(x => Validate.MustContain(x, value));
-        return option;
-    }
-
-    public static Option<Uri> RequiresScheme(this Option<Uri> option, params string[] validSchemes)
-    {
-        option.Validators.Add(x => Validate.RequiresScheme(x, validSchemes));
-        return option;
-    }
-
-    public static Option<Uri> RequiresAbsolute(this Option<Uri> option, params string[] validSchemes)
-    {
-        option.Validators.Add(Validate.RequiresAbsolute);
-        return option;
-    }
-
-    public static Option<string> RequiresValidNuGetId(this Option<string> option)
-    {
-        option.Validators.Add(Validate.RequiresValidNuGetId);
-        return option;
-    }
-
-    //TODO: Could setup the options to accept type SemanticVersion and apply an appropriate parser for it
-    public static Option<string> RequiresSemverCompliant(this Option<string> option)
-    {
-        option.Validators.Add(Validate.RequiresSemverCompliant);
-        return option;
-    }
-
-    public static Option<DirectoryInfo> MustNotBeEmpty(this Option<DirectoryInfo> option)
-    {
-        option.Validators.Add(Validate.MustNotBeEmpty);
-        return option;
-    }
-
-    public static Option<string> MustBeValidMsiVersion(this Option<string> option)
-    {
-        option.Validators.Add(Validate.MustBeValidMsiVersion);
-        return option;
-    }
-
-    public static Option<string> MustBeSupportedRid(this Option<string> option)
-    {
-        option.Validators.Add(Validate.MustBeSupportedRid);
-        return option;
-    }
-
-    public static Option<FileInfo> MustExist(this Option<FileInfo> option)
-    {
-        option.Validators.Add(Validate.FileMustExist);
-        return option;
-    }
-
-    public static Option<DirectoryInfo> MustExist(this Option<DirectoryInfo> option)
-    {
-        option.Validators.Add(Validate.DirectoryMustExist);
-        return option;
-    }
-
-    public static Option MustBeOneOfStringValues(this Option<string> option, string[] validValues, bool caseInsensitive = true)
-    {
-        option.Validators.Add(x => Validate.MustBeOneOfValues(x, validValues, caseInsensitive));
-        return option;
-    }
-
-    private static class Validate
-    {
-        public static void MustBeOneOfValues(OptionResult result, string[] validValues, bool caseInsensitive)
-        {
-            for (int i = 0; i < result.Tokens.Count; i++) {
-                var value = result.Tokens[i].Value;
-                if (!validValues.Contains(value, caseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)) {
-                    result.AddError($"{result.IdentifierToken.Value} must be one of the following values: {string.Join(", ", validValues)}");
-                    break;
-                }
-            }
-        }
-
-        public static void MustBeBetween(OptionResult result, int minimum, int maximum)
-        {
-            for (int i = 0; i < result.Tokens.Count; i++) {
-                if (int.TryParse(result.Tokens[i].Value, out int value)) {
-                    if (value < minimum || value > maximum) {
-                        result.AddError($"The value for {result.IdentifierToken.Value} must be greater than {minimum} and less than {maximum}");
-                        break;
-                    }
-                } else {
-                    result.AddError($"{result.Tokens[i].Value} is not a valid integer for {result.IdentifierToken.Value}");
-                    break;
-                }
-            }
-        }
-
-        public static void RequiresExtension(OptionResult result, string extension)
-        {
-            for (int i = 0; i < result.Tokens.Count; i++) {
-                if (!string.Equals(Path.GetExtension(result.Tokens[i].Value), extension, StringComparison.InvariantCultureIgnoreCase)) {
-                    result.AddError($"{result.IdentifierToken.Value} does not have an {extension} extension");
-                    break;
-                }
-            }
-        }
-
-        public static void FileMustExist(OptionResult result)
-        {
-            for (int i = 0; i < result.Tokens.Count; i++) {
-                var fsi = new FileInfo(result.Tokens[i].Value);
-                if (!fsi.Exists) {
-                    result.AddError($"{result.IdentifierToken.Value} file is not found, but must exist");
-                    break;
-                }
-            }
-        }
-
-        public static void DirectoryMustExist(OptionResult result)
-        {
-            for (int i = 0; i < result.Tokens.Count; i++) {
-                var fsi = new DirectoryInfo(result.Tokens[i].Value);
-                if (!fsi.Exists) {
-                    result.AddError($"{result.IdentifierToken.Value} directory is not found, but must exist");
-                    break;
-                }
-            }
-        }
-
-        public static void AreMutuallyExclusive(CommandResult result, Option[] options)
-        {
-            var specifiedOptions = options
-                .Where(x => result.GetResult(x) is not null)
-                .ToList();
-            if (specifiedOptions.Count > 1) {
-                string optionsString = string.Join(" and ", specifiedOptions.Select(x => $"'{x.Name}'"));
-                result.AddError($"Cannot use {optionsString} options together, please choose one.");
-            }
-        }
-
-        public static void AtLeastOneRequired(CommandResult result, Option[] options, bool onlyShowFirst = false)
-        {
-            var anySpecifiedOptions = options
-                .Any(x => result.GetResult(x) is not null);
-            if (!anySpecifiedOptions) {
-                if (onlyShowFirst) {
-                    result.AddError($"Required argument missing for option: {options.First().Name}");
-                } else {
-                    string optionsString = string.Join(" and ", options.Select(x => $"'{x.Name}'"));
-                    result.AddError($"At least one of the following options are required {optionsString}.");
-                }
-            }
-        }
-
-        public static void MustContain(OptionResult result, string value)
-        {
-            for (int i = 0; i < result.Tokens.Count; i++) {
-                if (result.Tokens[i].Value?.Contains(value) == false) {
-                    result.AddError($"{result.IdentifierToken.Value} must contain '{value}'. Current value is '{result.Tokens[i].Value}'");
-                    break;
-                }
-            }
-        }
-
-        public static void RequiresScheme(OptionResult result, string[] validSchemes)
-        {
-            for (int i = 0; i < result.Tokens.Count; i++) {
-                if (Uri.TryCreate(result.Tokens[i].Value, UriKind.RelativeOrAbsolute, out Uri uri) &&
-                    uri.IsAbsoluteUri &&
-                    !validSchemes.Contains(uri.Scheme)) {
-                    result.AddError(
-                        $"{result.IdentifierToken.Value} must contain a Uri with one of the following schems: {string.Join(", ", validSchemes)}. Current value is '{result.Tokens[i].Value}'");
-                    break;
-                }
-            }
-        }
-
-        public static void RequiresAbsolute(OptionResult result)
-        {
-            for (int i = 0; i < result.Tokens.Count; i++) {
-                if (!Uri.TryCreate(result.Tokens[i].Value, UriKind.Absolute, out Uri _)) {
-                    result.AddError($"{result.IdentifierToken.Value} must contain an absolute Uri. Current value is '{result.Tokens[i].Value}'");
-                    break;
-                }
-            }
-        }
-
-        public static void RequiresValidNuGetId(OptionResult result)
-        {
-            for (int i = 0; i < result.Tokens.Count; i++) {
-                if (!NugetUtil.IsValidNuGetId(result.Tokens[i].Value)) {
-                    result.AddError(
-                        $"{result.IdentifierToken.Value} is an invalid NuGet package id. It must contain only alphanumeric characters, underscores, dashes, and dots.. Current value is '{result.Tokens[i].Value}'");
-                    break;
-                }
-            }
-        }
-
-        public static void RequiresSemverCompliant(OptionResult result)
-        {
-            for (int i = 0; i < result.Tokens.Count; i++) {
-                string version = result.Tokens[i].Value;
-                try {
-                    NugetUtil.ThrowIfVersionNotSemverCompliant(version);
-                } catch (ArgumentException ex) {
-                    result.AddError($"{result.IdentifierToken.Value} contains an invalid package version '{version}': {ex.Message}");
-                    break;
-                }
-            }
-        }
-
-        public static void MustNotBeEmpty(OptionResult result)
-        {
-            for (int i = 0; i < result.Tokens.Count; i++) {
-                var token = result.Tokens[i];
-
-                if (!Directory.Exists(token.Value) ||
-                    !Directory.EnumerateFileSystemEntries(token.Value).Any()) {
-                    result.AddError($"{result.IdentifierToken.Value} must be a non-empty directory, but the specified directory '{token.Value}' was empty.");
-                    return;
-                }
-            }
-        }
-
-        public static void MustBeValidMsiVersion(OptionResult result)
-        {
-            for (var i = 0; i < result.Tokens.Count; i++) {
-                var version = result.Tokens[i].Value;
-                if (Version.TryParse(version, out var parsed)) {
-                    if (parsed.Major > 255 || parsed.Minor > 255 || parsed.Build > 65535 || parsed.Revision > 0) {
-                        result.AddError($"MSI ProductVersion out of bounds '{version}'. Valid range is [0-255].[0-255].[0-65535].[0]");
-                    }
-                } else {
-                    result.AddError("Version string is invalid / could not be parsed.");
-                    break;
-                }
-            }
-        }
-
-        public static void MustBeSupportedRid(OptionResult result)
-        {
-            for (var i = 0; i < result.Tokens.Count; i++) {
-                if (!Regex.IsMatch(result.Tokens[i].Value, @"^(?<os>osx|linux|win)\.?(?<ver>[\d\.]+)?(?:-(?<arch>(?:x|arm)\d{2}))$")) {
-                    result.AddError($"Invalid or unsupported runtime '{result.IdentifierToken.Value}'. Valid example: win-x64, osx-arm64.");
-                    break;
-                }
-            }
-        }
     }
 }

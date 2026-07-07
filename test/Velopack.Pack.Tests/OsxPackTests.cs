@@ -88,11 +88,11 @@ public class OsxPackTests
         TestHelper.RunNoCoverage(appExe, ["apply", releaseDir], installDir, logger, exitCode: null);
         logger.Info($"TEST ({variant}): v2 applied");
 
-        Thread.Sleep(5000); // UpdateMac runs in separate process
-
-        // check app output after update
-        var chk2version = TestHelper.RunNoCoverage(appExe, ["version"], installDir, logger);
-        Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        // UpdateMac swaps the app in a separate process; poll until the new version is live
+        TestHelper.WaitUntil(() => {
+            var chk2version = TestHelper.RunNoCoverage(appExe, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        }, pollDelayMs: 1000);
         var chk2test = TestHelper.RunNoCoverage(appExe, ["test"], installDir, logger);
         Assert.EndsWith(Environment.NewLine + "version 2 test", chk2test);
         var chk2check2 = TestHelper.RunNoCoverage(appExe, ["check", releaseDir], installDir, logger);
@@ -144,11 +144,11 @@ public class OsxPackTests
         // run with --autoupdate
         TestHelper.RunNoCoverage(appExe, ["--autoupdate"], installDir, logger, exitCode: null);
 
-        Thread.Sleep(5000); // UpdateMac runs in separate process
-
-        // check version after auto-update
-        var chk1version = TestHelper.RunNoCoverage(appExe, ["version"], installDir, logger);
-        Assert.EndsWith(Environment.NewLine + "2.0.0", chk1version);
+        // UpdateMac swaps the app in a separate process; poll until the new version is live
+        TestHelper.WaitUntil(() => {
+            var chk1version = TestHelper.RunNoCoverage(appExe, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "2.0.0", chk1version);
+        }, pollDelayMs: 1000);
         logger.Info($"TEST ({variant}): auto-update verified / complete");
 
         // cleanup packages dir
@@ -191,10 +191,11 @@ public class OsxPackTests
         TestHelper.RunNoCoverage(appExe, ["apply", releaseDir], installDir, logger, exitCode: null);
         logger.Info("TEST: v2 applied");
 
-        Thread.Sleep(5000);
-
-        var chk2version = TestHelper.RunNoCoverage(appExe, ["version"], installDir, logger);
-        Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        // UpdateMac swaps the app in a separate process; poll until the new version is live
+        TestHelper.WaitUntil(() => {
+            var chk2version = TestHelper.RunNoCoverage(appExe, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        }, pollDelayMs: 1000);
         var chk2test = TestHelper.RunNoCoverage(appExe, ["test"], installDir, logger);
         Assert.EndsWith(Environment.NewLine + "version 2 test", chk2test);
         logger.Info("TEST: v2 output verified / complete");
@@ -250,29 +251,12 @@ public class OsxPackTests
 
     private static async Task PackCSharpTestApp(string id, string version, string testString, string releaseDir, ILogger logger)
     {
-        var projDir = PathHelper.GetTestRootPath("TestApp");
-        var testStringFile = Path.Combine(projDir, "Const.cs");
-        var oldText = File.ReadAllText(testStringFile);
+        using var _ = TempUtil.GetTempDirectory(out var workDir);
 
-        try {
-            File.WriteAllText(testStringFile, $"class Const {{ public const string TEST_STRING = \"{testString}\"; }}");
-
+        {
             var rid = RID.Parse(VelopackRuntimeInfo.SystemRid);
-            var args = new List<string> {
-                "publish", "--no-self-contained", "-c", "Release", "-r", rid.ToString(), "-o", "publish", "--tl:off"
-            };
-
-            var psi = new System.Diagnostics.ProcessStartInfo("dotnet");
-            psi.WorkingDirectory = projDir;
-            psi.AppendArgumentListSafe(args, out var debug);
-
-            logger.Info($"TEST: Running {psi.FileName} {debug}");
-
-            using var p = System.Diagnostics.Process.Start(psi);
-            p!.WaitForExit();
-
-            if (p.ExitCode != 0)
-                throw new Exception($"dotnet publish failed with exit code {p.ExitCode}");
+            var publishDir = Path.Combine(workDir, "publish");
+            TestApp.PreparePublishDir(rid, testString, publishDir, logger);
 
             var console = new Velopack.Vpk.Logging.BasicConsole(logger, new Velopack.Vpk.VelopackDefaults(false));
             var options = new Velopack.Packaging.Unix.Commands.OsxPackOptions {
@@ -281,13 +265,11 @@ public class OsxPackTests
                 PackId = id,
                 PackVersion = version,
                 TargetRuntime = rid,
-                PackDirectory = Path.Combine(projDir, "publish"),
+                PackDirectory = publishDir,
             };
 
             var runner = new Velopack.Packaging.Unix.Commands.OsxPackCommandRunner(logger, console);
             await runner.Run(options);
-        } finally {
-            File.WriteAllText(testStringFile, oldText);
         }
     }
 

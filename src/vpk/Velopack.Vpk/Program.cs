@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using FluentValidation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -7,6 +8,8 @@ using Serilog.Core;
 using Serilog.Events;
 using Velopack.Core;
 using Velopack.Core.Abstractions;
+using Velopack.Core.Json;
+using Velopack.Core.Validation;
 using Velopack.Deployment;
 using Velopack.Flow;
 using Velopack.Flow.Commands;
@@ -59,6 +62,10 @@ public class Program
         Description = "Show and run MacOS specific commands."
     };
 
+    public static Directive JsonDirective { get; } = new Directive("json") {
+        Description = "Read command options from a JSON config file (eg. 'vpk [json] pack myconfig.json')."
+    };
+
     public static readonly string INTRO
         = $"Velopack CLI {VelopackRuntimeInfo.VelopackDisplayVersion}, for distributing applications.";
 
@@ -74,6 +81,7 @@ public class Program
         rootCommand.Directives.Add(WindowsDirective);
         rootCommand.Directives.Add(LinuxDirective);
         rootCommand.Directives.Add(OsxDirective);
+        rootCommand.Directives.Add(JsonDirective);
 
         rootCommand.TreatUnmatchedTokensAsErrors = false;
         ParseResult parseResult = rootCommand.Parse(args);
@@ -140,20 +148,20 @@ public class Program
         }
 
         var downloadCommand = new Command("download", "Download's the latest release from a remote update source.");
-        downloadCommand.AddRepositoryDownload<GitHubDownloadCommand, GitHubRepository, GitHubDownloadOptions>(provider);
-        downloadCommand.AddRepositoryDownload<GiteaDownloadCommand, GiteaRepository, GiteaDownloadOptions>(provider);
-        downloadCommand.AddRepositoryDownload<S3DownloadCommand, S3Repository, S3DownloadOptions>(provider);
-        downloadCommand.AddRepositoryDownload<AzureDownloadCommand, AzureRepository, AzureDownloadOptions>(provider);
-        downloadCommand.AddRepositoryDownload<LocalDownloadCommand, LocalRepository, LocalDownloadOptions>(provider);
-        downloadCommand.AddRepositoryDownload<HttpDownloadCommand, HttpRepository, HttpDownloadOptions>(provider);
+        downloadCommand.AddCommand<GitHubDownloadCommand, GitHubDownloadCommandRunner, GitHubDownloadOptions>(provider);
+        downloadCommand.AddCommand<GiteaDownloadCommand, GiteaDownloadCommandRunner, GiteaDownloadOptions>(provider);
+        downloadCommand.AddCommand<S3DownloadCommand, S3DownloadCommandRunner, S3DownloadOptions>(provider);
+        downloadCommand.AddCommand<AzureDownloadCommand, AzureDownloadCommandRunner, AzureDownloadOptions>(provider);
+        downloadCommand.AddCommand<LocalDownloadCommand, LocalDownloadCommandRunner, LocalDownloadOptions>(provider);
+        downloadCommand.AddCommand<HttpDownloadCommand, HttpDownloadCommandRunner, HttpDownloadOptions>(provider);
         rootCommand.Add(downloadCommand);
 
         var uploadCommand = new Command("upload", "Upload local package(s) to a remote update source.");
-        uploadCommand.AddRepositoryUpload<GitHubUploadCommand, GitHubRepository, GitHubUploadOptions>(provider);
-        uploadCommand.AddRepositoryUpload<GiteaUploadCommand, GiteaRepository, GiteaUploadOptions>(provider);
-        uploadCommand.AddRepositoryUpload<S3UploadCommand, S3Repository, S3UploadOptions>(provider);
-        uploadCommand.AddRepositoryUpload<AzureUploadCommand, AzureRepository, AzureUploadOptions>(provider);
-        uploadCommand.AddRepositoryUpload<LocalUploadCommand, LocalRepository, LocalUploadOptions>(provider);
+        uploadCommand.AddCommand<GitHubUploadCommand, GitHubUploadCommandRunner, GitHubUploadOptions>(provider);
+        uploadCommand.AddCommand<GiteaUploadCommand, GiteaUploadCommandRunner, GiteaUploadOptions>(provider);
+        uploadCommand.AddCommand<S3UploadCommand, S3UploadCommandRunner, S3UploadOptions>(provider);
+        uploadCommand.AddCommand<AzureUploadCommand, AzureUploadCommandRunner, AzureUploadOptions>(provider);
+        uploadCommand.AddCommand<LocalUploadCommand, LocalUploadCommandRunner, LocalUploadOptions>(provider);
         rootCommand.Add(uploadCommand);
 
         var deltaCommand = new Command("delta", "Utilities for creating or applying delta packages.");
@@ -180,6 +188,7 @@ public class Program
         builder.Configuration.AddEnvironmentVariables("VPK_");
         TypeDescriptor.AddAttributes(typeof(FileInfo), new TypeConverterAttribute(typeof(FileInfoConverter)));
         TypeDescriptor.AddAttributes(typeof(DirectoryInfo), new TypeConverterAttribute(typeof(DirectoryInfoConverter)));
+        TypeDescriptor.AddAttributes(typeof(FileSystemInfo), new TypeConverterAttribute(typeof(FileSystemInfoConverter)));
         builder.Services.AddTransient(s => s.GetService<ILoggerFactory>().CreateLogger("vpk"));
     }
 
@@ -213,42 +222,24 @@ public static class ProgramCommandExtensions
 {
     public static Command AddCommand<TCli, TCmd, TOpt>(this Command parent, IServiceProvider provider)
         where TCli : BaseCommand, new()
-        where TCmd : ICommand<TOpt>
+        where TCmd : ValidatedCommand<TOpt>
         where TOpt : class, new()
     {
-        return parent.Add<TCli, TOpt>(provider, (options) => {
-            var runner = ActivatorUtilities.CreateInstance<TCmd>(provider);
-            return runner.Run(options);
-        });
+        var runner = ActivatorUtilities.CreateInstance<TCmd>(provider);
+        return parent.Add<TCli, TOpt>(provider, runner.Validator, runner.Run);
     }
 
-    public static Command AddRepositoryDownload<TCli, TCmd, TOpt>(this Command parent, IServiceProvider provider)
-        where TCli : BaseCommand, new()
-        where TCmd : IRepositoryCanDownload<TOpt>
-        where TOpt : RepositoryOptions, new()
-    {
-        return parent.Add<TCli, TOpt>(provider, (options) => {
-            var runner = ActivatorUtilities.CreateInstance<TCmd>(provider);
-            return runner.DownloadLatestFullPackageAsync(options);
-        });
-    }
-
-    public static Command AddRepositoryUpload<TCli, TCmd, TOpt>(this Command parent, IServiceProvider provider)
-        where TCli : BaseCommand, new()
-        where TCmd : IRepositoryCanUpload<TOpt>
-        where TOpt : RepositoryOptions, new()
-    {
-        return parent.Add<TCli, TOpt>(provider, (options) => {
-            var runner = ActivatorUtilities.CreateInstance<TCmd>(provider);
-            return runner.UploadMissingAssetsAsync(options);
-        });
-    }
-
-    private static Command Add<TCli, TOpt>(this Command parent, IServiceProvider provider, Func<TOpt, Task> fn)
+    private static Command Add<TCli, TOpt>(this Command parent, IServiceProvider provider, IValidator<TOpt> validator, Func<TOpt, Task> fn)
         where TCli : BaseCommand, new()
         where TOpt : class, new()
     {
         var command = new TCli();
+
+        // mark options as required in the help text when the runner's validator
+        // has a NotNull/NotEmpty rule for the property the option maps to.
+        if (validator != null) {
+            command.ApplyRequiredHints(validator.GetRequiredProperties());
+        }
         command.SetAction(async (ctx, token) => {
             var logger = provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger>();
             var console = provider.GetRequiredService<IFancyConsole>();
@@ -262,10 +253,42 @@ public static class ProgramCommandExtensions
             var updateCheck = new UpdateChecker(logger, defaults);
             await updateCheck.CheckForUpdates();
 
-            command.SetProperties(ctx, config, defaults.TargetOs);
-            var options = OptionMapper.Map<TOpt>(command);
-
             try {
+                bool jsonMode = ctx.GetResult(Program.JsonDirective) != null;
+                string jsonFile = ctx.GetValue(command.JsonConfigArgument);
+
+                if (jsonMode) {
+                    if (jsonFile == null) {
+                        throw new UserInfoException(
+                            $"The [json] directive requires a path to a JSON config file. Eg. 'vpk [json] {command.Name} myconfig.json'.");
+                    }
+
+                    var explicitOptions = command.GetExplicitOptionNames(ctx);
+                    if (explicitOptions.Any()) {
+                        throw new UserInfoException(
+                            $"When using the [json] directive, all options must be provided in the JSON file. " +
+                            $"The following command line options are not allowed: {string.Join(", ", explicitOptions)}.");
+                    }
+                } else if (jsonFile != null) {
+                    // only suggest the [json] directive when the stray token plausibly is a config file,
+                    // otherwise it is more likely a mistyped option or argument.
+                    if (!jsonFile.StartsWith('-') && jsonFile.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) {
+                        throw new UserInfoException(
+                            $"Unexpected argument '{jsonFile}'. Did you mean 'vpk [json] {command.Name} {jsonFile}'?");
+                    }
+
+                    throw new UserInfoException($"Unrecognized command or argument '{jsonFile}'.");
+                }
+
+                // hydrate the command from env vars and cli values/defaults, and map to options.
+                command.SetProperties(ctx, config, defaults.TargetOs);
+                var options = OptionMapper.Map<TOpt>(command);
+
+                if (jsonMode) {
+                    // overlay the json config on top, so precedence is json > env vars > defaults.
+                    JsonConfigLoader.Populate(jsonFile, options);
+                }
+
                 await fn(options);
                 // print the out of date warning again at the end as well.
                 await updateCheck.CheckForUpdates();

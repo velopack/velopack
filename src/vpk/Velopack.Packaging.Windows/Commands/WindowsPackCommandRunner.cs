@@ -11,7 +11,7 @@ using Velopack.Windows;
 
 namespace Velopack.Packaging.Windows.Commands;
 
-public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
+public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, WindowsPackOptionsValidator>
 {
     public WindowsPackCommandRunner(ILogger logger, IFancyConsole console)
         : base(RuntimeOs.Windows, logger, console)
@@ -83,10 +83,13 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
         File.Copy(updatePath, Path.Combine(packDir, "Squirrel.exe"), true);
 
-        // create a stub for portable / MSI packages
+        // create a stub for portable / MSI packages. The stub is named after the
+        // final launcher name (packTitle) rather than the main exe, so that when the
+        // updater re-extracts it on update (stripping the "_ExecutionStub" suffix) it
+        // produces the same launcher name that was created at pack time. See #982.
         var mainExeName = Options.EntryExecutableName;
         var mainPath = Path.Combine(packDir, mainExeName);
-        var stubPath = Path.Combine(packDir, Path.GetFileNameWithoutExtension(mainExeName) + "_ExecutionStub.exe");
+        var stubPath = Path.Combine(packDir, GetStubBaseName() + "_ExecutionStub.exe");
         CreateExecutableStubForExe(mainPath, stubPath);
 
         Options.TargetRuntime.Architecture = Options.TargetRuntime.HasArchitecture
@@ -112,10 +115,26 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
 
     protected string GetRuntimeDependencies()
     {
-        if (string.IsNullOrWhiteSpace(Options.Runtimes))
-            return "";
+        var validated = ParseRuntimeDependencies(Options.Runtimes);
 
-        var providedRuntimes = Options.Runtimes.ToLower()
+        foreach (var str in validated) {
+            Log.Info("Runtime Dependency: " + str);
+        }
+
+        return String.Join(",", validated);
+    }
+
+    /// <summary>
+    /// Parses and validates a comma/semicolon delimited list of runtime dependency names,
+    /// throwing a <see cref="UserInfoException"/> if any name is invalid. Also used by
+    /// <see cref="WindowsPackOptionsValidator"/> to validate the option up-front.
+    /// </summary>
+    public static List<string> ParseRuntimeDependencies(string runtimes)
+    {
+        if (string.IsNullOrWhiteSpace(runtimes))
+            return [];
+
+        var providedRuntimes = runtimes.ToLower()
             .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries);
 
         var valid = new string[] {
@@ -175,11 +194,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
                 $"The framework/runtime dependency '{str}' is not valid. See https://docs.velopack.io/packaging/bootstrapping");
         }
 
-        foreach (var str in validated) {
-            Log.Info("Runtime Dependency: " + str);
-        }
-
-        return String.Join(",", validated);
+        return validated;
     }
 
     protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe,
@@ -194,7 +209,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         List<string> filesToSign = new();
 
         var bundledZip = new ZipPackage(releasePkg);
-        IoUtil.Retry(() => File.Copy(HelperFile.SetupPath, targetSetupExe, true));
+        IoUtil.Retry(() => File.Copy(HelperFile.GetSetupPath(Options.TargetRuntime, Log), targetSetupExe, true));
         setupExeProgress(10);
 
         var editor = new ResourceEdit(targetSetupExe, Log);
@@ -222,7 +237,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
             // move the stub to the root of the MSI package
             var msiStubPath = Path.Combine(
                 current.FullName,
-                Path.GetFileNameWithoutExtension(Options.EntryExecutableName) + "_ExecutionStub.exe");
+                GetStubBaseName() + "_ExecutionStub.exe");
             File.Move(msiStubPath, Path.Combine(dir.FullName, GetStubFileName()));
 
             File.Create(Path.Combine(dir.FullName, ".msi-installed")).Close();
@@ -256,7 +271,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         // move the stub to the root of the portable package
         var stubPath = Path.Combine(
             current.FullName,
-            Path.GetFileNameWithoutExtension(Options.EntryExecutableName) + "_ExecutionStub.exe");
+            GetStubBaseName() + "_ExecutionStub.exe");
         File.Move(stubPath, Path.Combine(dir.FullName, GetStubFileName()));
 
         // create a .portable file to indicate this is a portable package
@@ -285,7 +300,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         }
 
         try {
-            IoUtil.Retry(() => File.Copy(HelperFile.StubExecutablePath, targetStubPath, true));
+            IoUtil.Retry(() => File.Copy(HelperFile.GetStubExecutablePath(Options.TargetRuntime, Log), targetStubPath, true));
             var edit = new ResourceEdit(targetStubPath, Log);
             edit.CopyResourcesFrom(exeToCopy);
             edit.Commit();
@@ -373,7 +388,12 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions>
         ];
     }
 
-    private string GetStubFileName() => (Options.PackTitle ?? Options.PackId) + ".exe";
+    // Base name (without extension) for the portable / MSI launcher stub. Kept in sync
+    // with the stub file created inside the package so the updater reproduces the same
+    // launcher name when it strips the "_ExecutionStub" suffix on update. See #982.
+    private string GetStubBaseName() => Options.PackTitle ?? Options.PackId;
+
+    private string GetStubFileName() => GetStubBaseName() + ".exe";
 
     private ShortcutLocation GetShortcuts()
     {

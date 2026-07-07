@@ -412,6 +412,7 @@ where
     T: Send + 'static,
     F: FnOnce() -> Result<T> + Send + 'static,
 {
+    let sw = simple_stopwatch::Stopwatch::start_new();
     let t = std::thread::spawn(move || {
         unsafe {
             let hr = CoInitializeEx(None, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
@@ -422,6 +423,7 @@ where
             // I don't know why we need it, but if we don't have it then subsequent COM calls
             // will break intermittently.
             std::thread::sleep(Duration::from_millis(1));
+            info!("COM context initialized in {:.0}ms", sw.ms());
             let result = delegate();
             CoUninitialize();
             result

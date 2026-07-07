@@ -50,6 +50,38 @@ pub extern "C" fn vpkc_new_source_http_url(psz_http_url: *const c_char) -> *mut 
     }
 }
 
+/// Create a new HttpSource update source for a given HTTP URL, with custom HTTP options.
+/// @param psz_http_url The URL to a remote update server.
+/// @param p_options Optional HTTP options (custom headers, timeout). Can be null.
+/// @returns A new vpkc_update_source_t instance, or null on error.
+#[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
+pub extern "C" fn vpkc_new_source_http_url_with_options(
+    psz_http_url: *const c_char,
+    p_options: *mut vpkc_http_options_t,
+) -> *mut vpkc_update_source_t {
+    let update_url = match c_to_String(psz_http_url) {
+        Ok(url) => url,
+        Err(_) => {
+            log::error!("psz_http_url is null");
+            return ptr::null_mut();
+        }
+    };
+    let options = if p_options.is_null() {
+        Ok(velopack::HttpOptions::default())
+    } else {
+        c_to_HttpOptions(p_options)
+    };
+    match options {
+        Ok(options) => UpdateSourceRawPtr::new(Box::new(sources::HttpSource::new_with_options(update_url, options))),
+        Err(e) => {
+            log::error!("p_options is invalid: {}", e);
+            ptr::null_mut()
+        }
+    }
+}
+
 /// Create a new GithubSource update source for a GitHub repository.
 /// @param psz_repo_url The GitHub repository URL (e.g. "https://github.com/user/repo").
 /// @param psz_access_token Optional access token for private repositories (can be null).

@@ -6,7 +6,7 @@ using Velopack.Util;
 
 namespace Velopack.Packaging.Commands;
 
-public class DeltaPatchCommandRunner : ICommand<DeltaPatchOptions>
+public class DeltaPatchCommandRunner : ValidatedCommand<DeltaPatchOptions, DeltaPatchOptionsValidator>
 {
     private readonly ILogger _logger;
     private readonly IFancyConsole _console;
@@ -17,18 +17,8 @@ public class DeltaPatchCommandRunner : ICommand<DeltaPatchOptions>
         _console = console;
     }
 
-    public async Task Run(DeltaPatchOptions options)
+    protected override async Task RunCoreAsync(DeltaPatchOptions options)
     {
-        if (options.PatchFiles.Length == 0) {
-            throw new UserInfoException("Must specify at least one patch file.");
-        }
-
-        foreach (var p in options.PatchFiles) {
-            if (p == null || !p.Exists) {
-                throw new UserInfoException($"Patch file '{p.FullName}' does not exist.");
-            }
-        }
-
         var tmp = TempUtil.GetDefaultTempBaseDirectory();
         using var _1 = TempUtil.GetTempDirectory(out var workDir);
 

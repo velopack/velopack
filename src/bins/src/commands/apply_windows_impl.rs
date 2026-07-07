@@ -33,6 +33,17 @@ use velopack::{bundle::load_bundle_from_file, constants, locator::VelopackLocato
 //     Ok(())
 // }
 
+fn remove_temp_dir_timed(path: &PathBuf) {
+    if !path.exists() {
+        return;
+    }
+    let sw = simple_stopwatch::Stopwatch::start_new();
+    match remove_dir_all::remove_dir_all(path) {
+        Ok(()) => info!("Removed temp dir {:?} in {:.0}ms", path, sw.ms()),
+        Err(e) => warn!("Failed to remove temp dir {:?} after {:.0}ms: {}", path, sw.ms(), e),
+    }
+}
+
 pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook_mode: super::HookRunMode) -> Result<VelopackLocator> {
     let root_path = old_locator.get_root_dir();
 
@@ -214,8 +225,8 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
         // should try and remove the temp dirs before recalculating the shortcuts,
         // because windows may try to use the "Distributed Link Tracking and Object Identifiers (DLT) service"
         // to update the shortcut to point at the temp/renamed location
-        let _ = remove_dir_all::remove_dir_all(&temp_path_new);
-        let _ = remove_dir_all::remove_dir_all(&temp_path_old);
+        remove_temp_dir_timed(&temp_path_new);
+        remove_temp_dir_timed(&temp_path_old);
 
         if !old_locator.get_is_portable() {
             crate::windows::create_or_update_manifest_lnks(&new_locator, Some(old_locator));
@@ -262,8 +273,8 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
     })();
 
     reporter.close();
-    let _ = remove_dir_all::remove_dir_all(&temp_path_new);
-    let _ = remove_dir_all::remove_dir_all(&temp_path_old);
+    remove_temp_dir_timed(&temp_path_new);
+    remove_temp_dir_timed(&temp_path_old);
     action?;
     Ok(new_locator)
 }

@@ -19,39 +19,33 @@ public class AzureBaseCommand : OutputCommand
     protected AzureBaseCommand(string name, string description)
         : base(name, description)
     {
-        AddOption<string>((v) => Account = v, "--account")
+        AddOption<string>((v) => Account = v, ["--account"])
             .SetDescription("Account name.")
-            .SetArgumentHelpName("ACCOUNT")
-            .SetRequired();
+            .SetArgumentHelpName("ACCOUNT");
 
-        var key = AddOption<string>((v) => Key = v, "--key")
+        AddOption<string>((v) => Key = v, ["--key"])
             .SetDescription("Account secret key.")
             .SetArgumentHelpName("KEY");
 
-        var sas = AddOption<string>((v) => SasToken = v, "--sas")
+        AddOption<string>((v) => SasToken = v, ["--sas"])
             .SetDescription("Shared access signature token (not the url).")
             .SetArgumentHelpName("TOKEN");
 
-        AddOption<string>((v) => Container = v, "--container")
+        AddOption<string>((v) => Container = v, ["--container"])
             .SetDescription("Azure storage container name.")
-            .SetArgumentHelpName("NAME")
-            .SetRequired();
+            .SetArgumentHelpName("NAME");
 
-        AddOption<string>((v) => Prefix = v, "--prefix")
+        AddOption<string>((v) => Prefix = v, ["--prefix"])
             .SetDescription("Optional blob filename path prefix.")
             .SetArgumentHelpName("PREFIX");
 
-        AddOption<Uri>((v) => Endpoint = v.ToAbsoluteOrNull(), "--endpoint")
+        AddOption<string>((v) => Endpoint = v, ["--endpoint"])
             .SetDescription("Service url (eg. https://<account-name>.blob.core.windows.net).")
-            .SetArgumentHelpName("URL")
-            .MustBeValidHttpUri();
+            .SetArgumentHelpName("URL");
 
-        AddOption<double>((v) => Timeout = v, "--timeout")
+        AddOption<double>((v) => Timeout = v, ["--timeout"])
             .SetDescription("Network timeout in minutes.")
             .SetArgumentHelpName("MINUTES")
             .SetDefault(30);
-
-        this.AtLeastOneRequired(sas, key);
-        this.AreMutuallyExclusive(sas, key);
     }
 }

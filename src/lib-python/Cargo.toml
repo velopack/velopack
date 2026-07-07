@@ -25,7 +25,7 @@ pyo3-stub-gen = { workspace = true, optional = true }
 # Enabled by default (and by maturin) to build the shipped abi3 extension module.
 # NB: not named "extension-module" on purpose — that name triggers maturin's deprecated feature auto-detection.
 default = ["extension"]
-extension = ["pyo3/extension-module", "pyo3/abi3", "pyo3/abi3-py37"]
+extension = ["pyo3/extension-module", "pyo3/abi3", "pyo3/abi3-py38"]
 # Used only when generating velopack.pyi via `cargo run --no-default-features --features stub-gen --bin stub_gen`.
 # Must be built WITHOUT abi3 so pyo3 targets the real interpreter (pyo3-stub-gen needs Py_3_10 types).
 stub-gen = ["dep:pyo3-stub-gen"]

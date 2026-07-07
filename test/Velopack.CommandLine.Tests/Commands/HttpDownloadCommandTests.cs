@@ -1,5 +1,7 @@
-﻿
+
 using System.CommandLine;
+using Velopack.Deployment;
+using Velopack.Vpk;
 using Velopack.Vpk.Commands.Deployment;
 
 namespace Velopack.CommandLine.Tests.Commands;
@@ -14,31 +16,101 @@ public class HttpDownloadCommandTests : BaseCommandTests<HttpDownloadCommand>
         ParseResult parseResult = command.ParseAndApply($"--url \"http://clowd.squirrel.com\"");
 
         Assert.Empty(parseResult.Errors);
-        Assert.Equal("http://clowd.squirrel.com/", command.Url);
+        Assert.Equal("http://clowd.squirrel.com", command.Url);
     }
 
     [Fact]
-    public void Url_WithNonHttpValue_ShowsError()
+    public void Url_WithNonHttpValue_FailsValidation()
     {
         var command = new HttpDownloadCommand();
+        command.ParseAndApply($"--url \"file://clowd.squirrel.com\"");
+        var options = OptionMapper.Map<HttpDownloadOptions>(command);
 
-        ParseResult parseResult = command.ParseAndApply($"--url \"file://clowd.squirrel.com\"");
+        var result = new HttpDownloadOptionsValidator().Validate(options);
 
-        Assert.Equal(1, parseResult.Errors.Count);
-        //Assert.Equal(command.Url, parseResult.Errors[0].SymbolResult?.Symbol);
-        Assert.StartsWith("--url must contain a Uri with one of the following schems: http, https.", parseResult.Errors[0].Message);
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("url must contain an absolute http / https Uri"));
     }
 
     [Fact]
-    public void Url_WithRelativeUrl_ShowsError()
+    public void Url_WithRelativeUrl_FailsValidation()
+    {
+        var command = new HttpDownloadCommand();
+        command.ParseAndApply($"--url \"clowd.squirrel.com\"");
+        var options = OptionMapper.Map<HttpDownloadOptions>(command);
+
+        var result = new HttpDownloadOptionsValidator().Validate(options);
+
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("url must contain an absolute http / https Uri"));
+    }
+
+    [Fact]
+    public void Header_WithMultipleValues_ParsesAndMaps()
     {
         var command = new HttpDownloadCommand();
 
-        ParseResult parseResult = command.ParseAndApply($"--url \"clowd.squirrel.com\"");
+        ParseResult parseResult = command.ParseAndApply(
+            $"--url \"https://clowd.squirrel.com\" --header \"Authorization: Bearer test\" --header \"X-API-Key: Bleh\"");
+        var options = OptionMapper.Map<HttpDownloadOptions>(command);
 
-        Assert.Equal(1, parseResult.Errors.Count);
-        //Assert.Equal(command.Url, parseResult.Errors[0].SymbolResult?.Symbol);
-        Assert.StartsWith("--url must contain an absolute Uri.", parseResult.Errors[0].Message);
+        Assert.Empty(parseResult.Errors);
+        Assert.Equal(new[] { "Authorization: Bearer test", "X-API-Key: Bleh" }, options.Headers);
+
+        var result = new HttpDownloadOptionsValidator().Validate(options);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Header_Missing_PassesValidation()
+    {
+        var command = new HttpDownloadCommand();
+        command.ParseAndApply($"--url \"https://clowd.squirrel.com\"");
+        var options = OptionMapper.Map<HttpDownloadOptions>(command);
+
+        var result = new HttpDownloadOptionsValidator().Validate(options);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Theory]
+    [InlineData("NoColonHere")]
+    [InlineData(": value-without-name")]
+    public void Header_WithInvalidFormat_FailsValidation(string header)
+    {
+        var command = new HttpDownloadCommand();
+        command.ParseAndApply($"--url \"https://clowd.squirrel.com\" --header \"{header}\"");
+        var options = OptionMapper.Map<HttpDownloadOptions>(command);
+
+        var result = new HttpDownloadOptionsValidator().Validate(options);
+
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("must be in the format 'Name: Value'"));
+        // the header value may contain a secret, so it must never be echoed back in the error message
+        Assert.All(result.Errors, e => Assert.DoesNotContain(header, e.ErrorMessage));
+    }
+
+    [Fact]
+    public void AllowEmptyChannel_WithFlag_ParsesAndMaps()
+    {
+        var command = new HttpDownloadCommand();
+
+        ParseResult parseResult = command.ParseAndApply($"--url \"https://clowd.squirrel.com\" --allowEmptyChannel");
+        var options = OptionMapper.Map<HttpDownloadOptions>(command);
+
+        Assert.Empty(parseResult.Errors);
+        Assert.True(command.AllowEmptyChannel);
+        Assert.True(options.AllowEmptyChannel);
+    }
+
+    [Fact]
+    public void AllowEmptyChannel_Missing_DefaultsToFalse()
+    {
+        var command = new HttpDownloadCommand();
+
+        ParseResult parseResult = command.ParseAndApply($"--url \"https://clowd.squirrel.com\"");
+        var options = OptionMapper.Map<HttpDownloadOptions>(command);
+
+        Assert.Empty(parseResult.Errors);
+        Assert.False(command.AllowEmptyChannel);
+        Assert.False(options.AllowEmptyChannel);
     }
 
     protected override string GetRequiredDefaultOptions()

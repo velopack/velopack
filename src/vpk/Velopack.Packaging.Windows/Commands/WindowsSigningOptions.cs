@@ -6,7 +6,7 @@ public class WindowsSigningOptions
 
     public string SignExclude { get; set; }
 
-    public int SignParallel { get; set; }
+    public int SignParallel { get; set; } = 10;
 
     public string SignTemplate { get; set; }
 

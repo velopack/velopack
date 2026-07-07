@@ -1,6 +1,9 @@
-﻿using Humanizer;
+﻿using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
+using Humanizer;
 using Microsoft.Extensions.Configuration;
 using Serilog.Core;
+using Velopack.Core;
 
 namespace Velopack.Vpk.Commands;
 
@@ -12,22 +15,48 @@ public class BaseCommand : Command
 
     private readonly Dictionary<Option, string> _envHelp = new();
 
+    private readonly Dictionary<Option, string> _targetProperties = new();
+
+    /// <summary>
+    /// Hidden positional argument which accepts the path to a JSON config file when the
+    /// [json] directive is used (eg. 'vpk [json] pack myconfig.json').
+    /// </summary>
+    public Argument<string> JsonConfigArgument { get; }
+
     protected BaseCommand(string name, string description)
         : base(name, description)
     {
+        JsonConfigArgument = new Argument<string>("jsonConfig") {
+            Arity = ArgumentArity.ZeroOrOne,
+            Hidden = true,
+            Description = "Path to a JSON config file, used with the [json] directive.",
+        };
+        Add(JsonConfigArgument);
     }
 
-    protected Option<T> AddOption<T>(Action<T> setValue, params string[] aliases)
+    protected Option<T> AddOption<T>(Action<T> setValue, string[] aliases,
+        [CallerArgumentExpression(nameof(setValue))] string setterExpression = null)
     {
-        return AddOption(setValue, new Option<T>(aliases.OrderByDescending(a => a.Length).First(), aliases));
+        var name = aliases.OrderByDescending(a => a.Length).First();
+        var opt = AddOption(setValue, new Option<T>(name, aliases.Where(a => a != name).ToArray()));
+
+        // extract the assignment target from the setter lambda (eg. "(v) => PackId = v" -> "PackId"),
+        // which is the property name the option maps to - used to match validator rules for help text.
+        var match = Regex.Match(setterExpression ?? "", @"=>\s*(\w+)\s*=");
+        if (match.Success) {
+            _targetProperties[opt] = match.Groups[1].Value;
+        }
+
+        return opt;
     }
 
     private Option<T> AddOption<T>(Action<T> setValue, Option<T> opt)
     {
         string optionName = opt.Name.TrimStart('-');
         string titleCase = String.Join("_", optionName.Humanize(LetterCasing.AllCaps).Split(' '));
+        string envName = "VPK_" + titleCase;
 
-        _envHelp[opt] = "VPK_" + titleCase;
+        _envHelp[opt] = envName;
         _setters[opt] = (ctx, config) => {
             // 1. if the option was set explicitly on the command line, only use that value
             var optionResult = ctx.GetResult(opt);
@@ -39,7 +68,25 @@ public class BaseCommand : Command
             // 2. if the option was not set explicitly on the command line, try to get IConfiguration value
             var configSection = config.GetSection(titleCase);
             if (configSection.Exists()) {
-                setValue(config.GetValue<T>(titleCase));
+                try {
+                    if (typeof(T).IsArray) {
+                        // multi-value options can not be expressed as a single env value, they are
+                        // bound from indexed children (eg. VPK_HEADER__0, VPK_HEADER__1).
+                        if (!configSection.GetChildren().Any()) {
+                            throw new UserInfoException(
+                                $"{envName} is a multi-value option, so it must be provided as indexed variables: eg. {envName}__0, {envName}__1.");
+                        }
+
+                        setValue(configSection.Get<T>());
+                    } else {
+                        setValue(config.GetValue<T>(titleCase));
+                    }
+                } catch (UserInfoException) {
+                    throw;
+                } catch (Exception ex) {
+                    throw new UserInfoException($"Invalid value for environment variable {envName}: {ex.Message}");
+                }
+
                 return;
             }
 
@@ -58,10 +105,41 @@ public class BaseCommand : Command
     {
         _setters.Remove(option);
         _envHelp.Remove(option);
+        _targetProperties.Remove(option);
         Options.Remove(option);
     }
 
+    /// <summary>
+    /// Returns the name of the options-class property this option maps to, or null if unknown.
+    /// </summary>
+    public string GetTargetPropertyName(Option option) => _targetProperties.TryGetValue(option, out string value) ? value : null;
+
+    /// <summary>
+    /// Marks any option whose target property appears in <paramref name="requiredProperties"/>
+    /// as required, for rendering '(REQUIRED)' in the help text.
+    /// </summary>
+    public void ApplyRequiredHints(IReadOnlyCollection<string> requiredProperties)
+    {
+        foreach (var opt in _targetProperties) {
+            if (requiredProperties.Contains(opt.Value)) {
+                opt.Key.SetRequiredHint();
+            }
+        }
+    }
+
     public string GetEnvVariableName(Option option) => _envHelp.TryGetValue(option, out string value) ? value : null;
+
+    /// <summary>
+    /// Returns the names of all options which were explicitly provided on the command line
+    /// (ie. excluding default values, and excluding global/recursive options).
+    /// </summary>
+    public IReadOnlyList<string> GetExplicitOptionNames(ParseResult context)
+    {
+        return _setters.Keys
+            .Where(opt => context.GetResult(opt) is { Implicit: false })
+            .Select(opt => opt.Name)
+            .ToList();
+    }
 
     public void SetProperties(ParseResult context, IConfiguration config, RuntimeOs targetOs)
     {

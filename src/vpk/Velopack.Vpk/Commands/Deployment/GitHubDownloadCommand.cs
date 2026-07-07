@@ -7,7 +7,7 @@ public class GitHubDownloadCommand : GitHubBaseCommand
     public GitHubDownloadCommand()
         : base("github", "Download latest release from GitHub repository.")
     {
-        AddOption<bool>((v) => Prerelease = v, "--pre")
+        AddOption<bool>((v) => Prerelease = v, ["--pre"])
             .SetDescription("Get latest pre-release instead of stable.");
     }
 }

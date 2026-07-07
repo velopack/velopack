@@ -22,6 +22,8 @@ dotnet build -c Release               # Build all .NET projects (Release)
 # Rust
 cargo build                           # Build all Rust workspace members (Debug)
 cargo build --release                  # Build all Rust workspace members (Release)
+cargo bw                              # Alias for `cargo build --features windows` — required on Windows
+                                      # to also build stub.exe/setup.exe (needed by packaging tests)
 ```
 
 ## Test Commands
@@ -30,20 +32,28 @@ cargo build --release                  # Build all Rust workspace members (Relea
 # Run all .NET tests
 dotnet test
 
-# Run a specific test project
-dotnet test test/Velopack.Tests
-dotnet test test/Velopack.CommandLine.Tests
-# Do NOT run all of Velopack.Packaging.Tests — it takes far too long.
-# Instead, run targeted subsets with --filter:
-dotnet test test/Velopack.Packaging.Tests --filter "FullyQualifiedName~MsiTests"
-dotnet test test/Velopack.Packaging.Tests --filter "FullyQualifiedName~MySpecificTest"
+# Run a specific test project (must use --project)
+dotnet test --project test/Velopack.Tests
+dotnet test --project test/Velopack.CommandLine.Tests
+# Velopack.Packaging.Tests runs in well under a minute since TestApp publishes are
+# cached per process and collections parallelize; running the whole project is fine.
+# Targeted subsets: tests use xunit v3 on Microsoft.Testing.Platform, so filters go
+# after `--` and use --filter-class / --filter-method with * wildcards
+# (NOT the old VSTest --filter "FullyQualifiedName~..." syntax):
+dotnet test --project test/Velopack.Packaging.Tests -- --filter-class "*MsiTests"
 
 # Run a single test by name
-dotnet test test/Velopack.Tests --filter "FullyQualifiedName~TestMethodName"
+dotnet test --project test/Velopack.Tests -- --filter-method "*TestMethodName*"
 
 # Rust tests
 cargo test
 ```
+
+**Run tests locally in Debug (the default), never `-c Release`.** In Debug, `HelperFile` and
+`PathHelper.GetRustBuildOutputDir()` resolve unsuffixed rust binaries from `target/debug`, so a plain
+`cargo build` (add `--features windows` on Windows) is all the setup needed. Release-mode tests
+expect CI's arch-suffixed vendored binaries (`update_x64.exe` etc.) — do not fake those locally by
+copying files into `target/release`.
 
 ## Repository Structure
 
@@ -73,6 +83,7 @@ test/
 ├── Velopack.Tests/              # Core library unit tests
 ├── Velopack.Packaging.Tests/    # Packaging/CLI tests
 ├── Velopack.CommandLine.Tests/  # CLI command parsing tests
+├── Velopack.Deployment.Tests/   # vpk destination + cross-language update-source tests (docker stack)
 ├── TestApp/                     # Test application used by integration tests
 ├── fixtures/                    # Test fixture files
 ├── PathHelper.cs                # Shared test utilities (linked into all test projects)
@@ -153,6 +164,29 @@ Locators (`IVelopackLocator` in C#, `VelopackLocator` in Rust) resolve platform-
 - **Max line length**: 150 characters (C# and Rust).
 - **Indent**: 4 spaces for C#, 2 spaces for XML/csproj/props, spaces everywhere (no tabs).
 - **Rust formatting**: Always run `rustfmt` on Rust files after finishing edits.
+
+## Deployment Tests (test/Velopack.Deployment.Tests)
+
+Covers every `vpk` upload/download destination (local, S3, Azure, Gitea x3 versions, GitHub) and
+update-*source* tests run cross-language via small CLI harnesses in 5 languages (C# in-process,
+Rust, C++, Node.js, Python — see `harnesses/`). Destinations/sources run against a local docker
+stack (Gitea, GitLab, Azurite, S3Mock), except GitHub which is live and uses a 5-repo lock pool
+(`caesay/velopack-test-{1..5}`).
+
+- **Start the stack once**, then re-run tests freely (see `test/Velopack.Deployment.Tests/docker/README.md`):
+  ```bash
+  docker compose -f test/Velopack.Deployment.Tests/docker/docker-compose.yml up -d
+  ```
+  GitLab takes several minutes to become healthy on first boot; other services are up in seconds.
+- Tests **self-skip (never fail)** when a service, toolchain, or token is unavailable.
+- Live GitHub tests need the `VELOPACK_DEPLOYMENT_TEST_TOKEN` env var (on Windows a User-level
+  variable works — tests also read `EnvironmentVariableTarget.User`).
+- Language harnesses are built once per test session (cargo / npm / maturin venv / cmake); a
+  missing toolchain skips just that language's rows.
+- **Avoid running test projects in parallel processes** — the C# TestApp is published once per
+  test process (cached in `Velopack.TestCommon.TestApp`; the test string is injected via a
+  `test_string.txt` file at pack time, not compiled in), but that publish still writes referenced
+  projects' outputs to the shared `build/{Configuration}/` dir, so concurrent processes can race.
 
 ## Python type stubs (lib-python)
 

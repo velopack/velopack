@@ -8,17 +8,27 @@ public class HttpDownloadCommand : OutputCommand
 
     public double Timeout { get; private set; }
 
+    public string[] Headers { get; private set; }
+
+    public bool AllowEmptyChannel { get; private set; }
+
     public HttpDownloadCommand()
         : base("http", "Download latest release from a HTTP source.")
     {
-        AddOption<Uri>((v) => Url = v.ToAbsoluteOrNull(), "--url")
-            .SetDescription("Url to download remote releases from.")
-            .MustBeValidHttpUri()
-            .SetRequired();
+        AddOption<string>((v) => Url = v, ["--url"])
+            .SetArgumentHelpName("URL")
+            .SetDescription("Url to download remote releases from.");
 
-        AddOption<double>((v) => Timeout = v, "--timeout")
+        AddOption<double>((v) => Timeout = v, ["--timeout"])
             .SetDescription("Network timeout in minutes.")
             .SetArgumentHelpName("MINUTES")
             .SetDefault(30);
+
+        AddOption<string[]>((v) => Headers = v, ["--header"])
+            .SetDescription("Add a custom http header, can be used multiple times.")
+            .SetArgumentHelpName("NAME:VALUE");
+
+        AddOption<bool>((v) => AllowEmptyChannel = v, ["--allowEmptyChannel"])
+            .SetDescription("Exit successfully if the channel releases file does not exist.");
     }
 }

@@ -1,6 +1,8 @@
 use pyo3::prelude::*;
 use velopack::sources::{AutoSource, GiteaSource, GithubSource, GitlabSource, HttpSource, UpdateSource};
 
+use crate::types::PyHttpOptions;
+
 /// Retrieves available releases from a GitHub repository. Supports both github.com
 /// and GitHub Enterprise instances.
 #[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pyclass)]
@@ -92,15 +94,17 @@ impl PyGiteaSource {
 #[derive(Clone)]
 pub struct PyHttpSource {
     pub url: String,
+    pub options: Option<PyHttpOptions>,
 }
 
 #[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyHttpSource {
-    /// Create a new HttpSource with the specified base URL.
+    /// Create a new HttpSource with the specified base URL and optional HTTP options.
     #[new]
-    pub fn new(url: String) -> Self {
-        PyHttpSource { url }
+    #[pyo3(signature = (url, options = None))]
+    pub fn new(url: String, options: Option<PyHttpOptions>) -> Self {
+        PyHttpSource { url, options }
     }
 }
 
@@ -121,7 +125,10 @@ impl PySourceArg {
             PySourceArg::Github(s) => Box::new(GithubSource::new(&s.repo_url, s.access_token, s.prerelease)),
             PySourceArg::Gitlab(s) => Box::new(GitlabSource::new(&s.repo_url, s.access_token, s.prerelease)),
             PySourceArg::Gitea(s) => Box::new(GiteaSource::new(&s.repo_url, s.access_token, s.prerelease)),
-            PySourceArg::Http(s) => Box::new(HttpSource::new(&s.url)),
+            PySourceArg::Http(s) => match s.options {
+                Some(options) => Box::new(HttpSource::new_with_options(&s.url, options.into())),
+                None => Box::new(HttpSource::new(&s.url)),
+            },
             PySourceArg::Auto(s) => Box::new(AutoSource::new(&s)),
         }
     }

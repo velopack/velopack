@@ -74,7 +74,7 @@ impl UpdateSource for VelopackFlowSource {
         }
 
         info!("Downloading releases from '{}'.", url);
-        let json = download::download_url_as_string(url.as_str())?;
+        let json = download::download_url_as_string(url.as_str(), None)?;
         let flow_assets: Vec<FlowReleaseAsset> = serde_json::from_str(&json)?;
 
         let mut ids = self.asset_ids.lock().unwrap();
@@ -100,7 +100,7 @@ impl UpdateSource for VelopackFlowSource {
 
         let download_url = format!("{}v1.0/download/{}", self.base_uri, release_id);
         info!("Downloading '{}' from '{}'.", asset.FileName, download_url);
-        download::download_url_to_file(&download_url, local_file, move |p| {
+        download::download_url_to_file(&download_url, local_file, None, move |p| {
             if let Some(progress_sender) = &progress_sender {
                 let _ = progress_sender.send(p);
             }

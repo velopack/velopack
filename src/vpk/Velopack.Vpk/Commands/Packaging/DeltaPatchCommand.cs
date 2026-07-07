@@ -12,21 +12,17 @@ public class DeltaPatchCommand : BaseCommand
         : base("patch", "Patch a base package and retrieve the original new package.")
 
     {
-        AddOption<FileInfo>((v) => BasePackage = v.ToFullNameOrNull(), "--base", "-b")
+        AddOption<FileInfo>((v) => BasePackage = v.ToFullNameOrNull(), ["--base", "-b"])
             .SetDescription("The base package for the created patch.")
-            .SetArgumentHelpName("PATH")
-            .RequiresExtension(".nupkg")
-            .MustExist()
-            .SetRequired();
+            .SetArgumentHelpName("PATH");
 
-        AddOption<FileInfo[]>((v) => PatchFiles = v, "--patch", "-p")
+        AddOption<FileInfo[]>((v) => PatchFiles = v, ["--patch", "-p"])
             .SetDescription("The resulting package for the created patch.")
             .AllowMultiple()
             .SetArgumentHelpName("PATH");
 
-        AddOption<FileInfo>((v) => OutputFile = v.ToFullNameOrNull(), "--output", "-o")
+        AddOption<FileInfo>((v) => OutputFile = v.ToFullNameOrNull(), ["--output", "-o"])
             .SetDescription("The output file path for the created patch.")
-            .SetArgumentHelpName("PATH")
-            .SetRequired();
+            .SetArgumentHelpName("PATH");
     }
 }

@@ -1,11 +1,12 @@
+use crate::setup_errors::SetupError;
 use crate::{dialogs, shared, windows};
 use velopack::constants;
 use velopack::locator::*;
 use velopack::{bundle::BundleZip, wide_strings::string_to_wide};
 
 use ::windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
-use anyhow::{anyhow, bail, Result};
-use pretty_bytes_rust::pretty_bytes;
+use anyhow::Result;
+use pretty_bytes_rust::{pretty_bytes, PrettyBytesOptions};
 use std::{
     ffi::OsString,
     fs::{self},
@@ -54,28 +55,36 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     let root_pcwstr = string_to_wide(&root_path);
     if let Ok(()) = unsafe { GetDiskFreeSpaceExW(root_pcwstr.as_pcwstr(), None, None, Some(&mut free_space)) } {
         if free_space < required_space {
-            bail!(
-                "{} requires at least {} disk space to be installed. There is only {} available.",
-                &app.title,
-                pretty_bytes(required_space, None),
-                pretty_bytes(free_space, None)
-            );
+            return Err(SetupError::InsufficientDiskSpace {
+                app_title: app.title.clone(),
+                required_space: format_disk_space(required_space),
+                available_space: format_disk_space(free_space),
+            }
+            .into());
         }
     }
 
     info!(
         "There is {} free space available at destination, this package requires {}.",
-        pretty_bytes(free_space, None),
-        pretty_bytes(required_space, None)
+        format_disk_space(free_space),
+        format_disk_space(required_space)
     );
 
     // does this app support this OS / architecture?
     if !app.os_min_version.is_empty() && !windows::is_os_version_or_greater(&app.os_min_version)? {
-        bail!("This application requires Windows {} or later.", &app.os_min_version);
+        return Err(SetupError::OsVersionRequired {
+            app_title: app.title.clone(),
+            os_version: app.os_min_version.clone(),
+        }
+        .into());
     }
 
     if !app.machine_architecture.is_empty() && !windows::is_cpu_architecture_supported(&app.machine_architecture)? {
-        bail!("This application ({}) does not support your CPU architecture.", &app.machine_architecture);
+        return Err(SetupError::CpuArchUnsupported {
+            app_title: app.title.clone(),
+            machine_arch: app.machine_architecture.clone(),
+        }
+        .into());
     }
 
     let mut root_path_renamed: Option<PathBuf> = None;
@@ -92,21 +101,16 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
         }
         info!("User chose to overwrite existing installation.");
 
-        shared::force_stop_package(&root_path).map_err(|z| {
-            anyhow!(
-                "Failed to stop application ({}), please close the application and try running the installer again.",
-                z
-            )
+        shared::force_stop_package(&root_path).map_err(|z| SetupError::StopApplicationFailed {
+            app_title: app.title.clone(),
+            error: z.to_string(),
         })?;
 
         let renamed = root_path.with_extension(shared::random_string(16));
         info!("Renaming existing directory to '{:?}' to allow rollback...", renamed);
 
-        shared::retry_io(|| fs::rename(&root_path, &renamed)).map_err(|_| {
-            anyhow!(
-                "Failed to remove existing application directory, please close the application and try running the installer again. \
-                If the issue persists, try uninstalling first via Programs & Features, or restarting your computer."
-            )
+        shared::retry_io(|| fs::rename(&root_path, &renamed)).map_err(|_| SetupError::RemoveExistingDirFailed {
+            app_title: app.title.clone(),
         })?;
 
         root_path_renamed = Some(renamed);
@@ -161,6 +165,25 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
     Ok(())
 }
 
+fn format_disk_space(bytes: u64) -> String {
+    pretty_bytes(
+        bytes,
+        Some(PrettyBytesOptions {
+            use_1024_instead_of_1000: Some(false),
+            number_of_decimal: Some(2),
+            remove_zero_decimal: Some(false),
+        }),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn format_disk_space_uses_byte_units() {
+        assert_eq!(super::format_disk_space(832_980_000), "832.98 MB");
+    }
+}
+
 fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &std::sync::mpsc::Sender<i16>, start_args: Option<Vec<OsString>>) -> Result<()> {
     info!("Starting installation!");
 
@@ -174,7 +197,9 @@ fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &std::sync::
     info!("Extracting Update.exe...");
     let _ = pkg
         .extract_zip_predicate_to_path(|name| name.ends_with("Squirrel.exe"), updater_path)
-        .map_err(|_| anyhow!("This installer is missing a critical binary (Update.exe). Please contact the application author."))?;
+        .map_err(|_| SetupError::UpdateExeMissing {
+            app_title: locator.get_manifest_title(),
+        })?;
 
     let _ = pkg.extract_stubs_to_dir(locator.get_root_dir());
     let _ = tx.send(5);
@@ -189,7 +214,10 @@ fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &std::sync::
     })?;
 
     if !main_exe_path.exists() {
-        bail!("The main executable could not be found in the package. Please contact the application author.");
+        return Err(SetupError::MainExeMissing {
+            app_title: locator.get_manifest_title(),
+        }
+        .into());
     }
 
     if locator.get_manifest_shortcut_locations() != ShortcutLocationFlags::NONE {

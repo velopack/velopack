@@ -91,6 +91,31 @@ public static class MsiBuilder
     public static string SanitizeDirectoryString(string name)
         => string.Join("_", name.Split(Path.GetInvalidPathChars()));
 
+    // In MSI "Formatted" columns (shortcut targets, registry keys/values, etc.), square brackets
+    // delimit property references, so literal brackets must be written as [\[] and [\]].
+    public static string EscapeMsiFormattedString(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return value;
+
+        StringBuilder sb = new(value.Length);
+        foreach (var c in value) {
+            switch (c) {
+            case '[':
+                sb.Append(@"[\[]");
+                break;
+            case ']':
+                sb.Append(@"[\]]");
+                break;
+            default:
+                sb.Append(c);
+                break;
+            }
+        }
+
+        return sb.ToString();
+    }
+
     public static string FormatXmlMessage(string message)
     {
         if (string.IsNullOrWhiteSpace(message))

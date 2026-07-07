@@ -4,7 +4,7 @@ using Velopack.Packaging.Compression;
 
 namespace Velopack.Packaging.Commands;
 
-public class DeltaGenCommandRunner : ICommand<DeltaGenOptions>
+public class DeltaGenCommandRunner : ValidatedCommand<DeltaGenOptions, DeltaGenOptionsValidator>
 {
     private readonly ILogger _logger;
     private readonly IFancyConsole _console;
@@ -15,7 +15,7 @@ public class DeltaGenCommandRunner : ICommand<DeltaGenOptions>
         _console = console;
     }
 
-    public async Task Run(DeltaGenOptions options)
+    protected override async Task RunCoreAsync(DeltaGenOptions options)
     {
         await _console.ExecuteProgressAsync(
             async (ctx) => {

@@ -45,6 +45,8 @@ fn velopack(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyUpdateInfo>()?;
     m.add_class::<PyUpdateOptions>()?;
     m.add_class::<PyVelopackLocatorConfig>()?;
+    m.add_class::<PyHttpHeader>()?;
+    m.add_class::<PyHttpOptions>()?;
 
     // update sources
     m.add_class::<PyGithubSource>()?;

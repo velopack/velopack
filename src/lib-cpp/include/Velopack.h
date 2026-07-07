@@ -1,7 +1,7 @@
 #ifndef VELOPACK_H
 #define VELOPACK_H
 
-/* Generated with cbindgen:0.29.2 */
+/* Generated with cbindgen:0.29.4 */
 
 /* THIS FILE IS AUTO-GENERATED - DO NOT EDIT */
 
@@ -14,9 +14,9 @@
  * The result of a call to check for updates. This can indicate that an update is available, or that an error occurred.
  */
 enum vpkc_update_check_t
-#ifdef __cplusplus
+#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
   : int8_t
-#endif // __cplusplus
+#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
  {
   UPDATE_ERROR = -1,
   UPDATE_AVAILABLE = 0,
@@ -24,13 +24,50 @@ enum vpkc_update_check_t
   REMOTE_IS_EMPTY = 2,
 };
 #ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef enum vpkc_update_check_t vpkc_update_check_t;
+#else
 typedef int8_t vpkc_update_check_t;
+#endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
 /**
  * Opaque type for a Velopack UpdateSource. Must be freed with `vpkc_free_update_source`.
  */
 typedef void vpkc_update_source_t;
+
+/**
+ * A single HTTP header (name and value pair) to be sent with a web request.
+ */
+typedef struct vpkc_http_header_t {
+  /**
+   * The name of the HTTP header (eg. "Authorization").
+   */
+  char *Name;
+  /**
+   * The value of the HTTP header.
+   */
+  char *Value;
+} vpkc_http_header_t;
+
+/**
+ * Options to customize HTTP requests (custom headers, timeout, etc).
+ */
+typedef struct vpkc_http_options_t {
+  /**
+   * Additional headers to send with each request.
+   */
+  struct vpkc_http_header_t **Headers;
+  /**
+   * The number of elements in the Headers array.
+   */
+  size_t HeadersCount;
+  /**
+   * Timeout applied to the entire request (connection + transfer), in milliseconds.
+   * The default of 0 means requests never time out.
+   */
+  uint64_t TimeoutMilliseconds;
+} vpkc_http_options_t;
 
 /**
  * User delegate for to fetch a release feed. This function should return the raw JSON string of the release.json feed.
@@ -220,6 +257,15 @@ vpkc_update_source_t *vpkc_new_source_file(const char *psz_file_path);
  * @returns A new vpkc_update_source_t instance, or null on error.
  */
 vpkc_update_source_t *vpkc_new_source_http_url(const char *psz_http_url);
+
+/**
+ * Create a new HttpSource update source for a given HTTP URL, with custom HTTP options.
+ * @param psz_http_url The URL to a remote update server.
+ * @param p_options Optional HTTP options (custom headers, timeout). Can be null.
+ * @returns A new vpkc_update_source_t instance, or null on error.
+ */
+vpkc_update_source_t *vpkc_new_source_http_url_with_options(const char *psz_http_url,
+                                                            struct vpkc_http_options_t *p_options);
 
 /**
  * Create a new GithubSource update source for a GitHub repository.
