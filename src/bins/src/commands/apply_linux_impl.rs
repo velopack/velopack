@@ -6,7 +6,6 @@ use velopack::{bundle, locator::VelopackLocator};
 
 pub fn apply_package_impl(locator: &VelopackLocator, pkg: &PathBuf, _hook_mode: super::HookRunMode) -> Result<VelopackLocator> {
     let _mutex = locator.try_get_exclusive_lock()?;
-    locator.clean_abandoned_temp_entries();
     // on linux, the current "dir" is actually an AppImage file which we need to replace.
     info!("Loading bundle from {:?}", pkg);
     let mut bundle = bundle::load_bundle_from_file(pkg).map_err(|e| {

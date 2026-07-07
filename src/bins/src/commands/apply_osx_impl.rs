@@ -51,7 +51,6 @@ fn replace_bundle(root_path: &Path, tmp_path_old: &Path, tmp_path_new: &Path) ->
 
 pub fn apply_package_impl(locator: &VelopackLocator, pkg: &PathBuf, _hook_mode: super::HookRunMode) -> Result<VelopackLocator> {
     let _mutex = locator.try_get_exclusive_lock()?;
-    locator.clean_abandoned_temp_entries();
     let root_path = locator.get_root_dir();
     let tmp_path_new = locator.get_temp_dir_rand16();
     let tmp_path_old = locator.get_temp_dir_rand16();
