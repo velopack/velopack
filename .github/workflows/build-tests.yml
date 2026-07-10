@@ -249,7 +249,7 @@ jobs:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
     steps:
       ## JOB SETUP
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Setup Job Environment
@@ -393,7 +393,7 @@ jobs:
       VELOPACK_DEPLOYMENT_TEST_TOKEN: ${{ secrets.VELOPACK_DEPLOYMENT_TEST_TOKEN }}
     steps:
       ## JOB SETUP
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Setup Job Environment
