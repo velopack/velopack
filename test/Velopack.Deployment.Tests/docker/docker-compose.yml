@@ -12,7 +12,7 @@ name: velopack-deployment-tests
 services:
   # Multiple Gitea versions so we catch API back-compat breaks.
   gitea-122:
-    image: gitea/gitea:1.22
+    image: gitea/gitea:1.26
     container_name: velopack-test-gitea-122
     environment:
       - GITEA__security__INSTALL_LOCK=true
@@ -31,7 +31,7 @@ services:
       retries: 30
 
   gitea-124:
-    image: gitea/gitea:1.24
+    image: gitea/gitea:1.26
     container_name: velopack-test-gitea-124
     environment:
       - GITEA__security__INSTALL_LOCK=true
