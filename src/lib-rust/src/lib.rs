@@ -96,12 +96,9 @@ pub mod locator;
 /// Sources are abstractions for custom update sources (eg. url, local file, github releases, etc).
 pub mod sources;
 
-/// Reader + patcher for the Windows installer channel tag (Authenticode superfluous-certificate tag).
-pub mod windows_channel_tag;
-
 #[cfg(target_os = "windows")]
 maybe_pub!(known_path, wide_strings);
-maybe_pub!(download, bundle, constants, lockfile, logging, misc);
+maybe_pub!(download, bundle, constants, lockfile, logging, misc, windows_channel_tag);
 
 pub use download::{HttpHeader, HttpOptions};
 maybe_pub_os!(process, "process_win.rs", "process_unix.rs");

@@ -2,7 +2,7 @@ use crate::setup_errors::SetupError;
 use crate::{dialogs, shared, windows};
 use velopack::constants;
 use velopack::locator::*;
-use velopack::{bundle::BundleZip, wide_strings::string_to_wide};
+use velopack::{bundle::BundleZip, wide_strings::string_to_wide, windows_channel_tag};
 
 use ::windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 use anyhow::Result;
@@ -13,9 +13,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// Installs the given package. Returns the resolved root install directory on success, or `None`
-/// if the user cancelled the installation (which is not an error).
-pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Option<Vec<OsString>>) -> Result<Option<PathBuf>> {
+/// Installs the given package. If `channel_override` is set, the installed manifest's `<channel>`
+/// is rewritten to it before any hooks run or the app is launched.
+pub fn install(
+    pkg: &mut BundleZip,
+    install_to: Option<&PathBuf>,
+    start_args: Option<Vec<OsString>>,
+    channel_override: Option<&str>,
+) -> Result<()> {
     // find and parse nuspec
     info!("Reading package manifest...");
     let app = pkg.read_manifest()?;
@@ -31,7 +36,7 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
 
     if !windows::prerequisite::prompt_and_install_all_missing(&app.title, &app.version.to_string(), &app.runtime_dependencies, None)? {
         info!("Cancelling setup. Pre-requisites not installed.");
-        return Ok(None);
+        return Ok(());
     }
 
     info!("Determining install directory...");
@@ -99,7 +104,7 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
         if !dialogs::show_overwrite_repair_dialog(&app.title, &app.version, &root_path, installed_version.as_ref()) {
             // user cancelled overwrite prompt
             error!("Directory already exists, and user cancelled overwrite.");
-            return Ok(None);
+            return Ok(());
         }
         info!("User chose to overwrite existing installation.");
 
@@ -144,7 +149,7 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
         )
     };
 
-    let install_result = install_impl(pkg, &locator, &tx, start_args);
+    let install_result = install_impl(pkg, &locator, &tx, start_args, channel_override);
     let _ = tx.send(windows::splash::MSG_CLOSE);
 
     if install_result.is_ok() {
@@ -164,7 +169,7 @@ pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Op
         install_result?;
     }
 
-    Ok(Some(root_path))
+    Ok(())
 }
 
 fn format_disk_space(bytes: u64) -> String {
@@ -186,7 +191,13 @@ mod tests {
     }
 }
 
-fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &std::sync::mpsc::Sender<i16>, start_args: Option<Vec<OsString>>) -> Result<()> {
+fn install_impl(
+    pkg: &mut BundleZip,
+    locator: &VelopackLocator,
+    tx: &std::sync::mpsc::Sender<i16>,
+    start_args: Option<Vec<OsString>>,
+    channel_override: Option<&str>,
+) -> Result<()> {
     info!("Starting installation!");
 
     // all application paths
@@ -214,6 +225,14 @@ fn install_impl(pkg: &mut BundleZip, locator: &VelopackLocator, tx: &std::sync::
     pkg.extract_lib_contents_to_path(&current_path, |p| {
         let _ = tx.send(((p as f32) / 100.0 * 80.0 + 10.0) as i16);
     })?;
+
+    // must happen before the install hook runs / the app is launched, so they see the new channel
+    if let Some(channel) = channel_override {
+        info!("Applying channel override '{}' to installed manifest...", channel);
+        if let Err(e) = windows_channel_tag::patch_installed_channel(&locator.get_root_dir(), channel) {
+            warn!("Failed to apply channel override (non-fatal): {}", e);
+        }
+    }
 
     if !main_exe_path.exists() {
         return Err(SetupError::MainExeMissing {

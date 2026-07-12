@@ -9,10 +9,7 @@ use clap::{arg, value_parser, Command};
 use memmap2::Mmap;
 use std::ffi::OsString;
 use std::fs::File;
-use std::{
-    env,
-    path::{Path, PathBuf},
-};
+use std::{env, path::PathBuf};
 use velopack_bins::*;
 
 #[used]
@@ -161,13 +158,16 @@ fn main_inner() -> Result<()> {
     if cfg!(debug_assertions) {
         if let Some(pkg) = debug {
             info!("Loading bundle from DEBUG nupkg file {:?}...", pkg);
+            let channel_override = env::current_exe()
+                .and_then(File::open)
+                .and_then(|f| unsafe { Mmap::map(&f) })
+                .map(|mmap| read_signature_channel_override(&mmap))
+                .unwrap_or_else(|e| {
+                    warn!("Failed to map own executable to look for a channel override (non-fatal): {}", e);
+                    None
+                });
             let mut bundle = velopack::bundle::load_bundle_from_file(pkg)?;
-            if let Some(root_dir) = commands::install(&mut bundle, install_to, exe_args)? {
-                match File::open(env::current_exe()?).and_then(|f| unsafe { Mmap::map(&f) }) {
-                    Ok(mmap) => apply_signature_channel_override(&mmap, &root_dir),
-                    Err(e) => warn!("Failed to map own executable to look for a channel override (non-fatal): {}", e),
-                }
-            }
+            commands::install(&mut bundle, install_to, exe_args, channel_override.as_deref())?;
             return Ok(());
         }
     }
@@ -181,50 +181,32 @@ fn main_inner() -> Result<()> {
         info!("Loading bundle from embedded zip...");
         let file = File::open(env::current_exe()?)?;
         let mmap = unsafe { Mmap::map(&file)? };
+        // the mmap covers our whole exe, so it also contains our own Authenticode signature
+        let channel_override = read_signature_channel_override(&mmap);
         let zip_range: &[u8] = &mmap[offset as usize..(offset + length) as usize];
         let mut bundle = velopack::bundle::load_bundle_from_memory(zip_range)?;
-        if let Some(root_dir) = commands::install(&mut bundle, install_to, exe_args)? {
-            // the mmap covers our whole exe, so reuse it to read our own Authenticode signature
-            apply_signature_channel_override(&mmap, &root_dir);
-        }
+        commands::install(&mut bundle, install_to, exe_args, channel_override.as_deref())?;
         return Ok(());
     }
 
     Err(setup_errors::SetupError::EmbeddedZipMissing.into())
 }
 
-/// Looks for a promoted-channel tag in our own Authenticode signature and, if present, patches the
-/// `<channel>` in the freshly-installed `current\sq.version`. An absent or malformed tag must
-/// never fault the install — all errors are logged and swallowed.
-///
-/// SECURITY: The tag is UNSIGNED, attacker-modifiable data — by construction it lives outside the
-/// Authenticode hash. Treat it as untrusted input: a channel selector ONLY. Never place anything
-/// trust-bearing there (feed URLs, keys, flags that gate trust/permissions). Validate the channel
-/// charset strictly on read. Its only effect is which `releases.<channel>.json` the app polls;
-/// every downloaded package is still signature/hash-verified as normal. This mirrors how Chrome
-/// treats brand codes.
-fn apply_signature_channel_override(exe_bytes: &[u8], root_app_dir: &Path) {
-    use velopack::windows_channel_tag;
-
-    // if several certificate entries carry valid tags, the last valid one wins (matching the
-    // last-valid-wins rule inside a single signature blob)
+/// Looks for a promoted-channel tag in our own Authenticode signature (see
+/// `velopack::windows_channel_tag`). If several certificate entries carry valid tags, the last
+/// valid one wins, matching the last-valid-wins rule inside a single signature blob.
+fn read_signature_channel_override(exe_bytes: &[u8]) -> Option<String> {
     let mut channel: Option<String> = None;
     for cert in pe_attribute_certificates(exe_bytes) {
-        if let Some(c) = windows_channel_tag::read_channel_from_signature(cert) {
+        if let Some(c) = velopack::windows_channel_tag::read_channel_from_signature(cert) {
             channel = Some(c);
         }
     }
-
-    let Some(channel) = channel else {
-        info!("No channel override tag found in installer signature.");
-        return;
-    };
-
-    info!("Installer signature carries a channel override: '{}'. Patching installed manifest...", channel);
-    match windows_channel_tag::patch_installed_channel(root_app_dir, &channel) {
-        Ok(()) => info!("Installed channel patched to '{}'.", channel),
-        Err(e) => warn!("Failed to apply channel override '{}' (non-fatal): {}", channel, e),
+    match &channel {
+        Some(c) => info!("Installer signature carries a channel override: '{}'", c),
+        None => info!("No channel override tag found in installer signature."),
     }
+    channel
 }
 
 /// Parses the attribute certificate table (`IMAGE_DIRECTORY_ENTRY_SECURITY`, data directory
@@ -304,17 +286,8 @@ fn pe_attribute_certificates(pe: &[u8]) -> Vec<&[u8]> {
 
 #[cfg(test)]
 mod tests {
-    use super::pe_attribute_certificates;
-
-    /// The pinned golden vector from CONTRACTS_windows_installer.md — marker + BE outer length +
-    /// record (MAGIC || 0x01 || u16le(4) || "beta"). Must match the lib-rust + C# fixtures.
-    const GOLDEN_VECTOR_BETA: [u8; 56] = [
-        0x06, 0x0b, 0x2b, 0x06, 0x01, 0x04, 0x01, 0xd6, 0x79, 0x02, 0x01, 0xce, 0x0f, 0x04, 0x82, //
-        0x00, 0x27, //
-        0x73, 0x12, 0x9e, 0x58, 0x64, 0xb5, 0x7b, 0x41, 0xfb, 0xca, 0xdb, 0x9d, 0x0b, 0xd5, 0x3f, 0x9d, //
-        0x70, 0xb0, 0x23, 0x71, 0xe8, 0xc7, 0xfd, 0x6b, 0x7f, 0xfe, 0x30, 0x5f, 0x14, 0x47, 0x9e, 0x2f, //
-        0x01, 0x04, 0x00, 0x62, 0x65, 0x74, 0x61, //
-    ];
+    use super::{pe_attribute_certificates, read_signature_channel_override};
+    use velopack::windows_channel_tag::test_support::GOLDEN_VECTOR_BETA;
 
     /// Builds a minimal-but-valid PE32+ image with an attribute certificate table containing a
     /// single WIN_CERTIFICATE whose payload is `sig`.
@@ -373,14 +346,7 @@ mod tests {
         let mut sig = vec![0x30, 0x82, 0x01, 0x00];
         sig.extend_from_slice(&GOLDEN_VECTOR_BETA);
         let pe = build_test_pe(&sig);
-
-        let mut channel = None;
-        for cert in pe_attribute_certificates(&pe) {
-            if let Some(c) = velopack::windows_channel_tag::read_channel_from_signature(cert) {
-                channel = Some(c);
-            }
-        }
-        assert_eq!(channel.as_deref(), Some("beta"));
+        assert_eq!(read_signature_channel_override(&pe).as_deref(), Some("beta"));
     }
 
     #[test]

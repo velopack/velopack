@@ -208,19 +208,12 @@ fn run_hook_deferred(h_install: MSIHANDLE, hook_name: &str, timeout_secs: u64) -
     ERROR_SUCCESS.0
 }
 
-/// Deferred custom action (`Impersonate="no"`, `After="InstallFiles"`, `Condition="NOT REMOVE"`):
-/// reads the channel tag from the MSI's own Authenticode signature (`\x05DigitalSignature` stream
-/// of `[OriginalDatabase]`) and, if present, patches `<channel>` in
-/// `{INSTALLFOLDER}\current\sq.version`. Runs on fresh install and repair — the cached MSI under
-/// `C:\Windows\Installer` is a bit-for-bit copy carrying the tag. Returns `ERROR_SUCCESS` always;
-/// an absent/malformed tag or any error is logged and swallowed, never faulting the install.
-///
-/// SECURITY: The tag is UNSIGNED, attacker-modifiable data — by construction it lives outside the
-/// Authenticode hash. Treat it as untrusted input: a channel selector ONLY. Never place anything
-/// trust-bearing there (feed URLs, keys, flags that gate trust/permissions). Validate the channel
-/// charset strictly on read. Its only effect is which `releases.<channel>.json` the app polls;
-/// every downloaded package is still signature/hash-verified as normal. This mirrors how Chrome
-/// treats brand codes.
+/// Deferred custom action: reads the channel tag from the MSI's own Authenticode signature
+/// (`\x05DigitalSignature` stream of `[OriginalDatabase]`) and, if present, patches `<channel>`
+/// in `{INSTALLFOLDER}\current\sq.version`. Runs on fresh install and repair — the cached MSI
+/// under `C:\Windows\Installer` carries the tag, so a repair re-applies the installer's channel
+/// even if the app has since switched channels via updates. Returns `ERROR_SUCCESS` always; an
+/// absent/malformed tag or any error is logged and swallowed, never faulting the install.
 #[no_mangle]
 pub extern "system" fn PatchChannelDeferred(h_install: MSIHANDLE) -> c_uint {
     let custom_data = msi_get_property(h_install, "CustomActionData");

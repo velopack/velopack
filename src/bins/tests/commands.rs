@@ -40,7 +40,7 @@ pub fn test_install_apply_uninstall() {
     let tmp_dir = tempdir().unwrap();
     let tmp_buf = tmp_dir.path().to_path_buf();
     let mut tmp_zip = load_bundle_from_file(nupkg).unwrap();
-    commands::install(&mut tmp_zip, Some(&tmp_buf), None).unwrap();
+    commands::install(&mut tmp_zip, Some(&tmp_buf), None, None).unwrap();
 
     assert!(!lnk_desktop_1.exists()); // desktop is created during update
     assert!(lnk_start_1.exists());
@@ -96,7 +96,7 @@ pub fn test_install_preserve_symlinks() {
     let tmp_buf = tmp_dir.path().to_path_buf();
     let mut tmp_zip = load_bundle_from_file(nupkg).unwrap();
 
-    commands::install(&mut tmp_zip, Some(&tmp_buf), None).unwrap();
+    commands::install(&mut tmp_zip, Some(&tmp_buf), None, None).unwrap();
 
     assert!(tmp_buf.join("current").join("actual").join("file.txt").exists());
     assert!(tmp_buf.join("current").join("other").join("syml").exists());
@@ -111,6 +111,83 @@ pub fn test_install_preserve_symlinks() {
         "hello",
         fs::read_to_string(tmp_buf.join("current").join("other").join("sym.txt")).unwrap()
     );
+}
+
+/// Copies the nupkg at `src` to `dest`, inserting `<channel>{channel}</channel>` into its nuspec.
+#[cfg(target_os = "windows")]
+fn repack_nupkg_with_channel(src: &Path, dest: &Path, channel: &str) {
+    use std::io::{Read, Write};
+    let mut src_zip = zip::ZipArchive::new(fs::File::open(src).unwrap()).unwrap();
+    let mut dest_zip = zip::ZipWriter::new(fs::File::create(dest).unwrap());
+    for i in 0..src_zip.len() {
+        if src_zip.by_index(i).unwrap().name().ends_with(".nuspec") {
+            let mut entry = src_zip.by_index(i).unwrap();
+            let name = entry.name().to_string();
+            let mut nuspec = String::new();
+            entry.read_to_string(&mut nuspec).unwrap();
+            drop(entry);
+            let patched = nuspec.replace("<version>", &format!("<channel>{}</channel><version>", channel));
+            assert!(patched.contains("</channel>"), "fixture nuspec should gain a channel element");
+            dest_zip.start_file(name, zip::write::SimpleFileOptions::default()).unwrap();
+            dest_zip.write_all(patched.as_bytes()).unwrap();
+        } else {
+            dest_zip.raw_copy_file(src_zip.by_index_raw(i).unwrap()).unwrap();
+        }
+    }
+    dest_zip.finish().unwrap();
+}
+
+/// Deletes the start menu shortcut created by installing the AvaloniaCrossPlat fixture.
+#[cfg(target_os = "windows")]
+fn remove_avalonia_shortcut() {
+    use velopack_bins::windows::known_path;
+    let start_menu = PathBuf::from(known_path::get_start_menu().unwrap());
+    let _ = fs::remove_file(start_menu.join("AvaloniaCrossPlat.lnk"));
+}
+
+#[cfg(target_os = "windows")]
+#[test]
+#[serial_test::file_serial(shortcuts)]
+pub fn test_install_channel_override_patches_manifest() {
+    dialogs::set_silent(true);
+    let fixtures = find_fixtures();
+
+    let tmp_dir = tempdir().unwrap();
+    let tmp_buf = tmp_dir.path().join("install");
+    let nupkg = tmp_dir.path().join("AvaloniaCrossPlat-1.0.11-win-full.nupkg");
+    repack_nupkg_with_channel(&fixtures.join("AvaloniaCrossPlat-1.0.11-win-full.nupkg"), &nupkg, "win-stable");
+
+    let mut tmp_zip = load_bundle_from_file(nupkg).unwrap();
+    commands::install(&mut tmp_zip, Some(&tmp_buf), None, Some("beta")).unwrap();
+    remove_avalonia_shortcut();
+
+    let manifest = fs::read_to_string(tmp_buf.join("current").join("sq.version")).unwrap();
+    assert!(manifest.contains("<channel>beta</channel>"));
+    assert!(!manifest.contains("win-stable"));
+
+    let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(tmp_buf.clone(), None)).unwrap();
+    assert_eq!("beta", locator.get_manifest_channel());
+}
+
+#[cfg(target_os = "windows")]
+#[test]
+#[serial_test::file_serial(shortcuts)]
+pub fn test_install_channel_override_without_channel_element_is_non_fatal() {
+    dialogs::set_silent(true);
+    let fixtures = find_fixtures();
+    // this fixture's nuspec has no <channel> element; the override cannot apply but the
+    // install must still succeed
+    let nupkg = fixtures.join("AvaloniaCrossPlat-1.0.11-win-full.nupkg");
+
+    let tmp_dir = tempdir().unwrap();
+    let tmp_buf = tmp_dir.path().to_path_buf();
+    let mut tmp_zip = load_bundle_from_file(nupkg).unwrap();
+    commands::install(&mut tmp_zip, Some(&tmp_buf), None, Some("beta")).unwrap();
+    remove_avalonia_shortcut();
+
+    assert!(tmp_buf.join("current").join("AvaloniaCrossPlat.exe").exists());
+    let manifest = fs::read_to_string(tmp_buf.join("current").join("sq.version")).unwrap();
+    assert!(!manifest.contains("<channel>"));
 }
 
 #[test]
@@ -156,7 +233,7 @@ pub fn test_apply_corrupt_package_is_deleted() {
     let tmp_dir = tempdir().unwrap();
     let tmp_buf = tmp_dir.path().to_path_buf();
     let mut tmp_zip = load_bundle_from_file(nupkg).unwrap();
-    commands::install(&mut tmp_zip, Some(&tmp_buf), None).unwrap();
+    commands::install(&mut tmp_zip, Some(&tmp_buf), None, None).unwrap();
 
     let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(tmp_buf.clone(), None)).unwrap();
 
@@ -193,7 +270,7 @@ pub fn test_apply_locked_dir_does_not_delete_package() {
     let tmp_dir = tempdir().unwrap();
     let tmp_buf = tmp_dir.path().to_path_buf();
     let mut tmp_zip = load_bundle_from_file(nupkg).unwrap();
-    commands::install(&mut tmp_zip, Some(&tmp_buf), None).unwrap();
+    commands::install(&mut tmp_zip, Some(&tmp_buf), None, None).unwrap();
 
     let locator = auto_locate_app_manifest(LocationContext::FromSpecifiedRootDir(tmp_buf.clone(), None)).unwrap();
 
