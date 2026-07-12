@@ -1,22 +1,18 @@
 //! Reader + patcher for the Windows installer channel tag.
 //!
-//! The promotion worker embeds the target channel as a dummy, self-signed certificate added to the
-//! `SignedData.certificates` SET of the installer's existing Authenticode signature (the
-//! Chrome/Omaha `certificate_tag` technique). The channel payload lives in a non-critical X.509
-//! extension under OID `1.3.6.1.4.1.11129.2.1.9999`. Adding a certificate changes no
-//! Authenticode-hashed bytes, so the existing signature stays valid with no re-signing.
+//! A promotion worker can retarget a Velopack installer at a different channel without re-signing
+//! it, by appending a dummy self-signed certificate to the `SignedData.certificates` SET of the
+//! installer's existing Authenticode signature (the Chrome/Omaha `certificate_tag` technique).
+//! The channel payload lives in a non-critical X.509 extension under [`CHANNEL_TAG_OID`]. Because
+//! the certificate SET is not covered by the Authenticode hash, adding the tag keeps the existing
+//! signature valid — and equally, anyone else can modify it. The tag is therefore validated
+//! against a strict charset and only ever selects which `releases.<channel>.json` feed the app
+//! polls; downloaded packages are still verified as normal.
 //!
-//! This module is the single source of truth for the tag format: both the Setup.exe stub and the
-//! MSI wix-dll custom action call [`read_channel_from_signature`] + [`patch_installed_channel`]
-//! and differ only in how they obtain the raw signature bytes (PE attribute certificate table vs.
+//! This module is the single source of truth for the tag format. The Setup.exe stub and the MSI
+//! wix-dll custom action both call [`read_channel_from_signature`] + [`patch_installed_channel`],
+//! differing only in how they obtain the raw signature bytes (PE attribute certificate table vs.
 //! the MSI `\x05DigitalSignature` compound-file stream).
-//!
-//! SECURITY: The tag is UNSIGNED, attacker-modifiable data — by construction it lives outside the
-//! Authenticode hash. Treat it as untrusted input: a channel selector ONLY. Never place anything
-//! trust-bearing there (feed URLs, keys, flags that gate trust/permissions). Validate the channel
-//! charset strictly on read. Its only effect is which `releases.<channel>.json` the app polls;
-//! every downloaded package is still signature/hash-verified as normal. This mirrors how Chrome
-//! treats brand codes.
 
 use std::fs;
 use std::path::Path;
@@ -65,13 +61,6 @@ fn is_valid_channel(channel: &str) -> bool {
 /// `MAGIC (32) || VERSION (1, 0x01) || LENGTH (u16 LE, 1..=64) || CHANNEL (ASCII [a-z0-9-])`.
 ///
 /// Never panics; returns `None` on any malformation.
-///
-/// SECURITY: The tag is UNSIGNED, attacker-modifiable data — by construction it lives outside the
-/// Authenticode hash. Treat it as untrusted input: a channel selector ONLY. Never place anything
-/// trust-bearing there (feed URLs, keys, flags that gate trust/permissions). Validate the channel
-/// charset strictly on read. Its only effect is which `releases.<channel>.json` the app polls;
-/// every downloaded package is still signature/hash-verified as normal. This mirrors how Chrome
-/// treats brand codes.
 pub fn read_channel_from_signature(raw_sig: &[u8]) -> Option<String> {
     let mut last_valid: Option<String> = None;
     let mut pos = 0usize;
@@ -125,8 +114,9 @@ pub fn read_channel_from_signature(raw_sig: &[u8]) -> Option<String> {
 
 /// Rewrite the `<channel>` element in `{root_app_dir}/current/sq.version` to `channel`.
 ///
-/// `channel` is validated against `^[a-z0-9-]{1,64}$` first; anything else is rejected. Returns an
-/// error if the manifest or its `<channel>` element cannot be found. Never panics.
+/// `channel` is validated against `^[a-z0-9-]{1,64}$` first; anything else is rejected. The
+/// manifest is replaced atomically (write temp + rename) so a crash cannot leave it truncated.
+/// Returns an error if the manifest or its `<channel>` element cannot be found. Never panics.
 pub fn patch_installed_channel(root_app_dir: &Path, channel: &str) -> Result<()> {
     if !is_valid_channel(channel) {
         bail!("Refusing to patch invalid channel (must match ^[a-z0-9-]{{1,64}}$)");
@@ -147,19 +137,26 @@ pub fn patch_installed_channel(root_app_dir: &Path, channel: &str) -> Result<()>
     patched.push_str(&xml[inner_start + inner_len..]);
 
     if patched != xml {
-        fs::write(&manifest_path, patched).with_context(|| format!("Failed to write patched manifest at {:?}", manifest_path))?;
+        let tmp_path = manifest_path.with_extension("version.tmp");
+        fs::write(&tmp_path, &patched).with_context(|| format!("Failed to write patched manifest at {:?}", tmp_path))?;
+        fs::rename(&tmp_path, &manifest_path).with_context(|| format!("Failed to replace manifest at {:?}", manifest_path))?;
     }
 
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#[doc(hidden)]
+pub mod test_support {
+    //! Shared test fixtures pinning the tag wire format, used by this module's tests and by the
+    //! consuming crates (Setup.exe stub, wix-dll). Not part of the public API.
 
-    /// Golden vector from the contract: marker + BE outer length + record for channel "beta".
-    /// Byte-for-byte shared with the C# mirror (`WindowsChannelTag.cs`) and the api worker tests.
-    const GOLDEN_VECTOR_BETA: [u8; 56] = [
+    use std::fs;
+    use std::path::{Path, PathBuf};
+
+    /// Pinned golden vector for channel "beta": 15-byte DER marker + 2-byte big-endian outer
+    /// length + record. [`super::read_channel_from_signature`] must parse it to "beta", and
+    /// [`valid_tag`] must reproduce it byte-for-byte.
+    pub const GOLDEN_VECTOR_BETA: [u8; 56] = [
         // 15-byte DER marker (OID 1.3.6.1.4.1.11129.2.1.9999 + 04 82)
         0x06, 0x0b, 0x2b, 0x06, 0x01, 0x04, 0x01, 0xd6, 0x79, 0x02, 0x01, 0xce, 0x0f, 0x04, 0x82, //
         // outer length N = 39 (0x0027), big-endian
@@ -175,49 +172,81 @@ mod tests {
         0x62, 0x65, 0x74, 0x61, //
     ];
 
-    /// Build a full tag blob (marker + BE length + record) for the given record fields.
-    fn build_tag(magic: &[u8], version: u8, length_field: u16, channel: &[u8], outer_len: Option<u16>) -> Vec<u8> {
+    /// Builds a full tag blob (marker + BE outer length + record) with arbitrary record fields,
+    /// for exercising malformed variants. `outer_len` overrides the computed outer length.
+    pub fn build_tag(magic: &[u8], version: u8, length_field: u16, channel: &[u8], outer_len: Option<u16>) -> Vec<u8> {
         let mut record = Vec::new();
         record.extend_from_slice(magic);
         record.push(version);
         record.extend_from_slice(&length_field.to_le_bytes());
         record.extend_from_slice(channel);
         let n = outer_len.unwrap_or(record.len() as u16);
-        let mut blob = OID_SEARCH_BYTES.to_vec();
+        let mut blob = super::OID_SEARCH_BYTES.to_vec();
         blob.extend_from_slice(&n.to_be_bytes());
         blob.extend_from_slice(&record);
         blob
     }
 
-    fn valid_tag(channel: &str) -> Vec<u8> {
-        build_tag(&CHANNEL_TAG_MAGIC, FORMAT_VERSION, channel.len() as u16, channel.as_bytes(), None)
+    /// Builds a well-formed tag blob for `channel`.
+    pub fn valid_tag(channel: &str) -> Vec<u8> {
+        build_tag(&super::CHANNEL_TAG_MAGIC, super::FORMAT_VERSION, channel.len() as u16, channel.as_bytes(), None)
     }
 
-    /// Wrap a tag in surrounding junk bytes, emulating its position inside a larger signature blob.
-    fn embed(tag: &[u8]) -> Vec<u8> {
+    /// Wraps a tag in surrounding junk bytes, emulating its position inside a larger signature blob.
+    pub fn embed_in_junk(tag: &[u8]) -> Vec<u8> {
         let mut sig = vec![0x30, 0x82, 0x10, 0x00, 0xde, 0xad, 0xbe, 0xef];
         sig.extend_from_slice(tag);
         sig.extend_from_slice(&[0x05, 0x00, 0xa0, 0x03, 0x02, 0x01, 0x02]);
         sig
     }
 
+    /// A representative installed `sq.version` manifest with `<channel>win</channel>`.
+    pub const SQ_VERSION_FIXTURE: &str = r#"<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+<metadata>
+<id>MyTestApp</id>
+<title>MyTestApp</title>
+<description>MyTestApp</description>
+<authors>MyTestApp</authors>
+<version>1.0.11</version>
+<channel>win</channel>
+<mainExe>MyTestApp.exe</mainExe>
+<os>win</os>
+<rid>win-x64</rid>
+</metadata>
+</package>"#;
+
+    /// Writes `{root}/current/sq.version` containing [`SQ_VERSION_FIXTURE`]; returns the manifest path.
+    pub fn write_install_fixture(root: &Path) -> PathBuf {
+        let current = root.join("current");
+        fs::create_dir_all(&current).unwrap();
+        let manifest = current.join("sq.version");
+        fs::write(&manifest, SQ_VERSION_FIXTURE).unwrap();
+        manifest
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::test_support::*;
+    use super::*;
+
     #[test]
     fn golden_vector_round_trips() {
-        // the exact pinned bytes from the contract must parse to "beta"
+        // the exact pinned bytes must parse to "beta", and the builder must reproduce them exactly
         assert_eq!(read_channel_from_signature(&GOLDEN_VECTOR_BETA), Some("beta".to_string()));
-        // and our builder must reproduce the pinned bytes exactly
         assert_eq!(valid_tag("beta"), GOLDEN_VECTOR_BETA.to_vec());
     }
 
     #[test]
     fn valid_tag_embedded_in_junk() {
-        assert_eq!(read_channel_from_signature(&embed(&valid_tag("stable-2"))), Some("stable-2".to_string()));
+        assert_eq!(read_channel_from_signature(&embed_in_junk(&valid_tag("stable-2"))), Some("stable-2".to_string()));
     }
 
     #[test]
     fn max_length_channel_is_accepted() {
         let channel = "a".repeat(MAX_CHANNEL_LEN);
-        assert_eq!(read_channel_from_signature(&embed(&valid_tag(&channel))), Some(channel));
+        assert_eq!(read_channel_from_signature(&embed_in_junk(&valid_tag(&channel))), Some(channel));
     }
 
     #[test]
@@ -235,7 +264,7 @@ mod tests {
     fn wrong_oid_returns_none() {
         let mut tag = valid_tag("beta");
         tag[7] = 0xd7; // corrupt one OID byte
-        assert_eq!(read_channel_from_signature(&embed(&tag)), None);
+        assert_eq!(read_channel_from_signature(&embed_in_junk(&tag)), None);
     }
 
     #[test]
@@ -249,14 +278,14 @@ mod tests {
     #[test]
     fn outer_length_exceeding_remaining_returns_none() {
         let tag = build_tag(&CHANNEL_TAG_MAGIC, FORMAT_VERSION, 4, b"beta", Some(1000));
-        assert_eq!(read_channel_from_signature(&embed(&tag)), None);
+        assert_eq!(read_channel_from_signature(&embed_in_junk(&tag)), None);
     }
 
     #[test]
     fn outer_length_too_small_returns_none() {
         // N < 36 can never hold a record
         let tag = build_tag(&CHANNEL_TAG_MAGIC, FORMAT_VERSION, 4, b"beta", Some(35));
-        assert_eq!(read_channel_from_signature(&embed(&tag)), None);
+        assert_eq!(read_channel_from_signature(&embed_in_junk(&tag)), None);
     }
 
     #[test]
@@ -264,74 +293,74 @@ mod tests {
         let mut magic = CHANNEL_TAG_MAGIC;
         magic[0] ^= 0xff;
         let tag = build_tag(&magic, FORMAT_VERSION, 4, b"beta", None);
-        assert_eq!(read_channel_from_signature(&embed(&tag)), None);
+        assert_eq!(read_channel_from_signature(&embed_in_junk(&tag)), None);
     }
 
     #[test]
     fn wrong_version_returns_none() {
         let tag = build_tag(&CHANNEL_TAG_MAGIC, 0x02, 4, b"beta", None);
-        assert_eq!(read_channel_from_signature(&embed(&tag)), None);
+        assert_eq!(read_channel_from_signature(&embed_in_junk(&tag)), None);
     }
 
     #[test]
     fn zero_length_channel_returns_none() {
         // LENGTH = 0 is out of range, even if the outer length allows a record
         let tag = build_tag(&CHANNEL_TAG_MAGIC, FORMAT_VERSION, 0, b"x", None);
-        assert_eq!(read_channel_from_signature(&embed(&tag)), None);
+        assert_eq!(read_channel_from_signature(&embed_in_junk(&tag)), None);
     }
 
     #[test]
     fn oversized_length_channel_returns_none() {
         let channel = "a".repeat(65);
         let tag = build_tag(&CHANNEL_TAG_MAGIC, FORMAT_VERSION, 65, channel.as_bytes(), None);
-        assert_eq!(read_channel_from_signature(&embed(&tag)), None);
+        assert_eq!(read_channel_from_signature(&embed_in_junk(&tag)), None);
     }
 
     #[test]
     fn length_exceeding_record_returns_none() {
         // LENGTH claims more channel bytes than the outer record contains
         let tag = build_tag(&CHANNEL_TAG_MAGIC, FORMAT_VERSION, 10, b"beta", None);
-        assert_eq!(read_channel_from_signature(&embed(&tag)), None);
+        assert_eq!(read_channel_from_signature(&embed_in_junk(&tag)), None);
     }
 
     #[test]
     fn uppercase_channel_returns_none() {
         let tag = build_tag(&CHANNEL_TAG_MAGIC, FORMAT_VERSION, 4, b"Beta", None);
-        assert_eq!(read_channel_from_signature(&embed(&tag)), None);
+        assert_eq!(read_channel_from_signature(&embed_in_junk(&tag)), None);
     }
 
     #[test]
     fn channel_with_space_returns_none() {
         let tag = build_tag(&CHANNEL_TAG_MAGIC, FORMAT_VERSION, 6, b"be ta ", None);
-        assert_eq!(read_channel_from_signature(&embed(&tag)), None);
+        assert_eq!(read_channel_from_signature(&embed_in_junk(&tag)), None);
     }
 
     #[test]
     fn non_ascii_channel_returns_none() {
         let tag = build_tag(&CHANNEL_TAG_MAGIC, FORMAT_VERSION, 5, &[0x62, 0x65, 0x74, 0xc3, 0xa4], None);
-        assert_eq!(read_channel_from_signature(&embed(&tag)), None);
+        assert_eq!(read_channel_from_signature(&embed_in_junk(&tag)), None);
     }
 
     #[test]
     fn multiple_valid_tags_last_wins() {
-        let mut sig = embed(&valid_tag("alpha"));
-        sig.extend_from_slice(&embed(&valid_tag("beta")));
+        let mut sig = embed_in_junk(&valid_tag("alpha"));
+        sig.extend_from_slice(&embed_in_junk(&valid_tag("beta")));
         assert_eq!(read_channel_from_signature(&sig), Some("beta".to_string()));
     }
 
     #[test]
     fn invalid_tag_then_valid_tag_returns_valid() {
         let bad = build_tag(&CHANNEL_TAG_MAGIC, 0x7f, 4, b"nope", None);
-        let mut sig = embed(&bad);
-        sig.extend_from_slice(&embed(&valid_tag("stable")));
+        let mut sig = embed_in_junk(&bad);
+        sig.extend_from_slice(&embed_in_junk(&valid_tag("stable")));
         assert_eq!(read_channel_from_signature(&sig), Some("stable".to_string()));
     }
 
     #[test]
     fn valid_tag_then_invalid_tag_returns_valid() {
         let bad = build_tag(&CHANNEL_TAG_MAGIC, FORMAT_VERSION, 4, b"NOPE", None);
-        let mut sig = embed(&valid_tag("stable"));
-        sig.extend_from_slice(&embed(&bad));
+        let mut sig = embed_in_junk(&valid_tag("stable"));
+        sig.extend_from_slice(&embed_in_junk(&bad));
         assert_eq!(read_channel_from_signature(&sig), Some("stable".to_string()));
     }
 
@@ -341,32 +370,14 @@ mod tests {
         let mut record_channel = b"beta".to_vec();
         record_channel.extend_from_slice(&[0x00, 0x00]); // padding inside the record
         let tag = build_tag(&CHANNEL_TAG_MAGIC, FORMAT_VERSION, 4, &record_channel, None);
-        assert_eq!(read_channel_from_signature(&embed(&tag)), Some("beta".to_string()));
+        assert_eq!(read_channel_from_signature(&embed_in_junk(&tag)), Some("beta".to_string()));
     }
 
     // ---- patch_installed_channel ----
 
-    const SQ_VERSION_FIXTURE: &str = r#"<?xml version="1.0" encoding="utf-8"?>
-<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
-<metadata>
-<id>MyTestApp</id>
-<title>MyTestApp</title>
-<description>MyTestApp</description>
-<authors>MyTestApp</authors>
-<version>1.0.11</version>
-<channel>win</channel>
-<mainExe>MyTestApp.exe</mainExe>
-<os>win</os>
-<rid>win-x64</rid>
-</metadata>
-</package>"#;
-
     fn make_install_fixture() -> (tempfile::TempDir, std::path::PathBuf) {
         let tmp = tempfile::tempdir().unwrap();
-        let current = tmp.path().join("current");
-        fs::create_dir_all(&current).unwrap();
-        let manifest = current.join("sq.version");
-        fs::write(&manifest, SQ_VERSION_FIXTURE).unwrap();
+        let manifest = write_install_fixture(tmp.path());
         (tmp, manifest)
     }
 
@@ -376,6 +387,8 @@ mod tests {
         patch_installed_channel(tmp.path(), "beta").unwrap();
         let patched = fs::read_to_string(&manifest).unwrap();
         assert_eq!(patched, SQ_VERSION_FIXTURE.replace("<channel>win</channel>", "<channel>beta</channel>"));
+        // the atomic-write temp file must not be left behind
+        assert!(!manifest.with_extension("version.tmp").exists());
     }
 
     #[test]

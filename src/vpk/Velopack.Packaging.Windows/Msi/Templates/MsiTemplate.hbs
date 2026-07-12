@@ -210,9 +210,9 @@
         <CustomAction Id="UninstallHookDeferred" BinaryRef="RustDll" DllEntry="UninstallHookDeferred" Execute="deferred"
                       Impersonate="yes" Return="ignore"/>
 
-        <!-- Channel promotion tag: reads the channel override from the MSI's own Authenticode signature
-             (an unsigned, untrusted channel SELECTOR only) and patches current\sq.version. Runs on
-             install and repair; never fails the install. -->
+        <!-- Channel promotion tag: reads the channel override from the MSI's own Authenticode
+             signature and patches current\sq.version. Runs on install and repair; never fails
+             the install. -->
         <CustomAction Id="SetPatchChannelData" Property="PatchChannelDeferred"
                       Value="[OriginalDatabase]&quot;[INSTALLFOLDER]" Execute="immediate" Return="check"/>
         <CustomAction Id="PatchChannelDeferred" BinaryRef="RustDll" DllEntry="PatchChannelDeferred"
