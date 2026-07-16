@@ -48,7 +48,7 @@
 //!         um.download_updates(&updates, None).unwrap();
 //!
 //!         // download completed, let's restart and update
-//!         um.apply_updates_and_restart(&updates).unwrap();
+//!         um.apply_updates_and_restart(&*updates).unwrap();
 //!     }
 //! }
 //! ```
