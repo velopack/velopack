@@ -15,24 +15,19 @@ use std::{
 
 /// Installs the given package. If `channel_override` is set, the installed manifest's `<channel>`
 /// is rewritten to it before any hooks run or the app is launched.
-pub fn install(
-    pkg: &mut BundleZip,
-    install_to: Option<&PathBuf>,
-    start_args: Option<Vec<OsString>>,
-    channel_override: Option<&str>,
-) -> Result<()> {
+pub fn install(pkg: &mut BundleZip, install_to: Option<&PathBuf>, start_args: Option<Vec<OsString>>, channel_override: Option<&str>) -> Result<()> {
     // find and parse nuspec
     info!("Reading package manifest...");
     let app = pkg.read_manifest()?;
 
     info!("Package manifest loaded successfully.");
-    info!("    Package ID: {}", &app.id);
-    info!("    Package Version: {}", &app.version);
-    info!("    Package Title: {}", &app.title);
-    info!("    Package Authors: {}", &app.authors);
-    info!("    Package Description: {}", &app.description);
-    info!("    Package Machine Architecture: {}", &app.machine_architecture);
-    info!("    Package Runtime Dependencies: {}", &app.runtime_dependencies);
+    info!("    Package ID: {}", app.id);
+    info!("    Package Version: {}", app.version);
+    info!("    Package Title: {}", app.title);
+    info!("    Package Authors: {}", app.authors);
+    info!("    Package Description: {}", app.description);
+    info!("    Package Machine Architecture: {}", app.machine_architecture);
+    info!("    Package Runtime Dependencies: {}", app.runtime_dependencies);
 
     if !windows::prerequisite::prompt_and_install_all_missing(&app.title, &app.version.to_string(), &app.runtime_dependencies, None)? {
         info!("Cancelling setup. Pre-requisites not installed.");

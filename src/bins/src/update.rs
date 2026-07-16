@@ -196,7 +196,7 @@ fn main_inner() -> Result<()> {
     info!("    Silent: {}", silent);
     info!("    Root Directory: {:?}", root_dir);
     info!("    Log File: {:?}", desired_log_file);
-    info!("    Context: {:?}", &location_context);
+    info!("    Context: {:?}", location_context);
 
     let (subcommand, subcommand_matches) = matches
         .subcommand()

@@ -158,7 +158,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
         // third, we try _REALLY HARD_ to stop the package
         let _ = shared::force_stop_package(&root_path);
         // fourth, we make as backup of the current dir to temp_path_old
-        info!("Backing up current dir to {:?}", &temp_path_old);
+        info!("Backing up current dir to {:?}", temp_path_old);
         shared::retry_io_ex(|| fs::rename(&current_dir, &temp_path_old), 1000, 10)
             .context("Unable to start the update, because one or more running processes prevented it. Try again later, or if the issue persists, restart your computer.")?;
 
@@ -171,7 +171,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
 
         // fifth, we try to replace the current dir with temp_path_new
         // if this fails we will yolo a rollback...
-        info!("Replacing current dir with {:?}", &temp_path_new);
+        info!("Replacing current dir with {:?}", temp_path_new);
         shared::retry_io_ex(|| fs::rename(&temp_path_new, &current_dir), 1000, 30).context(
             "Unable to complete the update, and the app was left in a broken state. You may need to re-install or repair this application manually.",
         )?;
@@ -249,7 +249,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
             same_file::is_same_file(default_update_exe, &current_update_exe),
         ) {
             (true, Ok(true)) => {
-                info!("Update.exe is already in the correct location: {:?}", &current_update_exe);
+                info!("Update.exe is already in the correct location: {:?}", current_update_exe);
             }
             (false, _) | (_, Ok(false)) => {
                 info!(
