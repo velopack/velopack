@@ -16,11 +16,18 @@ pub struct UpdateManagerWrapper {
 #[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl UpdateManagerWrapper {
+    /// Create a new UpdateManager.
+    /// - `source`: Where to fetch updates from. Accepts an explicit source class or a URL/path
+    ///   string (auto-detected). If omitted, the hosted Velopack Flow service is used.
+    /// - `options`: Optional settings to customise the update behaviour.
+    /// - `locator`: Optional locator overriding how the current app's paths are discovered.
     #[new]
-    #[pyo3(signature = (source, options = None, locator = None))]
-    pub fn new(source: PySourceArg, options: Option<PyUpdateOptions>, locator: Option<PyVelopackLocatorConfig>) -> Result<Self> {
-        let source = source.into_source();
-        let inner = VelopackUpdateManagerRust::new_boxed(source, options.map(Into::into), locator.map(Into::into))?;
+    #[pyo3(signature = (source = None, options = None, locator = None))]
+    pub fn new(source: Option<PySourceArg>, options: Option<PyUpdateOptions>, locator: Option<PyVelopackLocatorConfig>) -> Result<Self> {
+        let inner = match source {
+            Some(source) => VelopackUpdateManagerRust::new_boxed(source.into_source(), options.map(Into::into), locator.map(Into::into))?,
+            None => VelopackUpdateManagerRust::new_flow(options.map(Into::into), locator.map(Into::into))?,
+        };
         Ok(UpdateManagerWrapper { inner })
     }
 

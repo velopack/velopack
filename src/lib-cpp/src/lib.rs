@@ -250,6 +250,29 @@ pub extern "C" fn vpkc_new_update_manager(
     })
 }
 
+/// Create a new UpdateManager instance which retrieves updates from the hosted Velopack Flow service (https://velopack.io).
+/// This is a convenience function which is equivalent to creating a VelopackFlowSource and calling vpkc_new_update_manager_with_source.
+/// @param p_options Optional extra configuration for update manager.
+/// @param p_locator Optional explicit path configuration for Velopack. If null, the default locator will be used.
+/// @param p_manager A pointer to where the new vpkc_update_manager_t* instance will be stored.
+/// @returns True if the update manager was created successfully, false otherwise. If false, the error will be available via `vpkc_get_last_error`.
+#[no_mangle]
+#[logfn(Trace)]
+#[logfn_inputs(Trace)]
+pub extern "C" fn vpkc_new_update_manager_flow(
+    p_options: *mut vpkc_update_options_t,
+    p_locator: *mut vpkc_locator_config_t,
+    p_manager: *mut *mut vpkc_update_manager_t,
+) -> bool {
+    wrap_error(|| {
+        let options = c_to_UpdateOptions(p_options).ok();
+        let locator = c_to_VelopackLocatorConfig(p_locator).ok();
+        let manager = UpdateManager::new_flow(options, locator)?;
+        unsafe { *p_manager = UpdateManagerRawPtr::new(manager) };
+        Ok(())
+    })
+}
+
 /// Create a new UpdateManager instance with a custom UpdateSource.
 /// @param p_source A pointer to a custom UpdateSource.
 /// @param p_options Optional extra configuration for update manager.
@@ -816,5 +839,52 @@ mod tests {
         assert!(roundtripped.DeltasToTarget.is_empty());
 
         unsafe { free_UpdateInfo(c_update) };
+    }
+
+    #[test]
+    fn new_update_manager_flow_uses_flow_source() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let root_dir = temp_dir.path().join("root");
+        let packages_dir = root_dir.join("packages");
+        let current_binary_dir = root_dir.join("current");
+        let update_exe_path = root_dir.join("Update.exe");
+
+        std::fs::create_dir_all(&packages_dir).unwrap();
+        std::fs::create_dir_all(&current_binary_dir).unwrap();
+        std::fs::write(&update_exe_path, []).unwrap();
+
+        let manifest_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("test")
+            .join("fixtures")
+            .join("Test.Squirrel-App.nuspec");
+
+        let locator = velopack::locator::VelopackLocatorConfig {
+            RootAppDir: root_dir,
+            UpdateExePath: update_exe_path,
+            PackagesDir: packages_dir,
+            ManifestPath: manifest_path,
+            CurrentBinaryDir: current_binary_dir,
+            IsPortable: true,
+        };
+
+        let c_locator = unsafe { allocate_VelopackLocatorConfig(&locator) };
+        assert!(!c_locator.is_null());
+
+        let mut manager: *mut vpkc_update_manager_t = ptr::null_mut();
+        let ok = vpkc_new_update_manager_flow(ptr::null_mut(), c_locator, &mut manager);
+        unsafe { free_VelopackLocatorConfig(c_locator) };
+
+        assert!(ok, "vpkc_new_update_manager_flow failed: {}", get_last_error());
+        assert!(!manager.is_null());
+
+        let mut buf = [0 as c_char; 256];
+        let written = vpkc_get_app_id(manager, buf.as_mut_ptr(), buf.len());
+        assert!(written > 0);
+        let app_id = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) }.to_string_lossy().to_string();
+        assert_eq!(app_id, "Test.Squirrel-App");
+
+        vpkc_free_update_manager(manager);
     }
 }

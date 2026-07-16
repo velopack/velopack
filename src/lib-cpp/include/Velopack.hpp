@@ -974,6 +974,23 @@ public:
     };
 
     /**
+     * Create a new UpdateManager instance which retrieves updates from the hosted Velopack Flow service (https://velopack.io).
+     * This is a convenience constructor equivalent to creating a VelopackFlowSource and passing it to UpdateManager.
+     * @param options Optional extra configuration for update manager.
+     * @param locator Override the default locator configuration (usually used for testing / mocks).
+     */
+    UpdateManager(const UpdateOptions* options = nullptr, const VelopackLocatorConfig* locator = nullptr) {
+        vpkc_update_options_t* pOptions = alloc_c_UpdateOptions_ptr(options);
+        vpkc_locator_config_t* pLocator = alloc_c_VelopackLocatorConfig_ptr(locator);
+        bool result = vpkc_new_update_manager_flow(pOptions, pLocator, &m_pManager);
+        free_c_UpdateOptions(pOptions);
+        free_c_VelopackLocatorConfig(pLocator);
+        if (!result) {
+            throw_last_error();
+        }
+    };
+
+    /**
      * Destructor for UpdateManager.
      */
     ~UpdateManager() {

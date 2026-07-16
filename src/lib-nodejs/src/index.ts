@@ -5,7 +5,7 @@ export { HttpHeader, HttpOptions, UpdateInfo, UpdateOptions, VelopackLocatorConf
 
 type UpdateManagerOpaque = {};
 declare module "./load" {
-  function js_new_update_manager(source: string, options: string | null, locator: string | null): UpdateManagerOpaque;
+  function js_new_update_manager(source: string | null, options: string | null, locator: string | null): UpdateManagerOpaque;
 
   function js_get_current_version(um: UpdateManagerOpaque): string;
 
@@ -245,11 +245,22 @@ export class GiteaSource {
 }
 
 /**
+ * Retrieves updates from the hosted Velopack Flow service (https://api.velopack.io/).
+ */
+export class VelopackFlowSource {
+  /**
+   * Create a new VelopackFlowSource.
+   * @param baseUri Optional base URI of the Velopack Flow service. Defaults to the hosted service (https://api.velopack.io/).
+   */
+  constructor(public readonly baseUri?: string) {}
+}
+
+/**
  * A source that UpdateManager can retrieve updates from. A plain string is auto-detected:
  * a local path uses FileSource, a github.com/gitlab.com/gitea.com URL uses the matching
  * git source, and any other URL uses HttpSource.
  */
-export type UpdateSource = string | FileSource | HttpSource | GithubSource | GitlabSource | GiteaSource;
+export type UpdateSource = string | FileSource | HttpSource | GithubSource | GitlabSource | GiteaSource | VelopackFlowSource;
 
 function serializeSource(source: UpdateSource): string {
   if (typeof source === "string") {
@@ -283,6 +294,11 @@ function serializeSource(source: UpdateSource): string {
       accessToken: source.accessToken,
       prerelease: source.prerelease,
     });
+  } else if (source instanceof VelopackFlowSource) {
+    return JSON.stringify({
+      kind: "flow",
+      baseUri: source.baseUri,
+    });
   }
   throw new Error("Unsupported update source type");
 }
@@ -294,17 +310,52 @@ export class UpdateManager {
   private readonly opaque: UpdateManagerOpaque;
 
   /**
+   * Create a new UpdateManager instance that retrieves updates from the hosted Velopack Flow service.
+   * @param options Optional extra configuration for update manager.
+   * @param locator Override the default locator configuration (usually used for testing / mocks).
+   */
+  constructor(options?: UpdateOptions, locator?: VelopackLocatorConfig);
+  /**
    * Create a new UpdateManager instance.
    * @param source The source to check for updates: one of the update source classes, or a
    * URL / local path string which will be auto-detected.
    * @param options Optional extra configuration for update manager.
    * @param locator Override the default locator configuration (usually used for testing / mocks).
    */
-  constructor(source: UpdateSource, options?: UpdateOptions, locator?: VelopackLocatorConfig) {
+  constructor(source: UpdateSource, options?: UpdateOptions, locator?: VelopackLocatorConfig);
+  constructor(
+    sourceOrOptions?: UpdateSource | UpdateOptions,
+    optionsOrLocator?: UpdateOptions | VelopackLocatorConfig,
+    locator?: VelopackLocatorConfig,
+  ) {
+    const firstIsSource =
+      typeof sourceOrOptions === "string" ||
+      sourceOrOptions instanceof FileSource ||
+      sourceOrOptions instanceof HttpSource ||
+      sourceOrOptions instanceof GithubSource ||
+      sourceOrOptions instanceof GitlabSource ||
+      sourceOrOptions instanceof GiteaSource ||
+      sourceOrOptions instanceof VelopackFlowSource;
+
+    let source: UpdateSource | null;
+    let options: UpdateOptions | undefined;
+    let resolvedLocator: VelopackLocatorConfig | undefined;
+
+    if (firstIsSource) {
+      source = sourceOrOptions as UpdateSource;
+      options = optionsOrLocator as UpdateOptions | undefined;
+      resolvedLocator = locator;
+    } else {
+      // No explicit source: updates come from the hosted Velopack Flow service.
+      source = null;
+      options = sourceOrOptions as UpdateOptions | undefined;
+      resolvedLocator = optionsOrLocator as VelopackLocatorConfig | undefined;
+    }
+
     this.opaque = addon.js_new_update_manager(
-      serializeSource(source),
+      source !== null ? serializeSource(source) : null,
       options ? JSON.stringify(options) : "",
-      locator ? JSON.stringify(locator) : null,
+      resolvedLocator ? JSON.stringify(resolvedLocator) : null,
     );
   }
 
