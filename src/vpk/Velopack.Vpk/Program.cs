@@ -169,11 +169,11 @@ public class Program
         deltaCommand.AddCommand<DeltaPatchCommand, DeltaPatchCommandRunner, DeltaPatchOptions>(provider);
         rootCommand.Add(deltaCommand);
 
-        HideCommand(rootCommand.AddCommand<LoginCommand, LoginCommandRunner, LoginOptions>(provider));
-        HideCommand(rootCommand.AddCommand<LogoutCommand, LogoutCommandRunner, LogoutOptions>(provider));
-        HideCommand(rootCommand.AddCommand<PublishCommand, PublishCommandRunner, PublishOptions>(provider));
+        rootCommand.AddCommand<LoginCommand, LoginCommandRunner, LoginOptions>(provider);
+        rootCommand.AddCommand<LogoutCommand, LogoutCommandRunner, LogoutOptions>(provider);
+        rootCommand.AddCommand<PublishCommand, PublishCommandRunner, PublishOptions>(provider);
 
-        var flowCommand = new Command("flow", "Commands for interacting with Velopack Flow.") { Hidden = true };
+        var flowCommand = new Command("flow", "Commands for interacting with Velopack Flow.");
         HideCommand(flowCommand.AddCommand<ApiCommand, ApiCommandRunner, ApiOptions>(provider));
         rootCommand.Add(flowCommand); 
 
