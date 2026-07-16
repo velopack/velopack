@@ -72,20 +72,20 @@ pub fn apply_package_impl(locator: &VelopackLocator, pkg: &PathBuf, _hook_mode: 
     let action: Result<()> = (|| {
         // 1. extract the bundle to a temp dir
         fs::create_dir_all(&tmp_path_new)?;
-        info!("Extracting bundle to {:?}", &tmp_path_new);
+        info!("Extracting bundle to {:?}", tmp_path_new);
         bundle.extract_lib_contents_to_path(&tmp_path_new, |p| reporter.set_progress(p))?;
 
         // 2. attempt to replace the current bundle with the new one
         reporter.set_indeterminate();
         let result: Result<()> = (|| {
-            info!("Replacing bundle at {:?}", &root_path);
+            info!("Replacing bundle at {:?}", root_path);
             replace_bundle(&root_path, &tmp_path_old, &tmp_path_new)?;
             Ok(())
         })();
 
         let result = match result {
             Ok(()) => {
-                info!("Bundle extracted successfully to {:?}", &root_path);
+                info!("Bundle extracted successfully to {:?}", root_path);
                 Ok(())
             }
             Err(e) => {
