@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync, readFileSync } from "fs";
 import http from "http";
 import { AddressInfo } from "net";
-import { FileSource, HttpSource, UpdateManager, UpdateOptions, VelopackApp, VelopackLocatorConfig } from "../src";
+import { FileSource, HttpSource, UpdateManager, UpdateOptions, VelopackApp, VelopackFlowSource, VelopackLocatorConfig } from "../src";
 import path from "path";
 import { tempd3, fixture, updateExe } from "./helper";
 
@@ -134,5 +134,51 @@ test("UpdateManager downloads full update", async () => {
     await um.downloadUpdateAsync(update!, () => {});
 
     expect(existsSync(path.join(packagesDir, "AvaloniaCrossPlat-1.0.11-full.nupkg"))).toBe(true);
+  });
+});
+
+test("UpdateManager defaults to Velopack Flow when no source is given", async () => {
+  await tempd3(async (_tmpDir, packagesDir, rootDir) => {
+    const locator: VelopackLocatorConfig = {
+      ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
+      PackagesDir: packagesDir,
+      RootAppDir: rootDir,
+      UpdateExePath: updateExe(),
+      CurrentBinaryDir: path.join(rootDir, "current"),
+      IsPortable: true,
+    };
+
+    const options: UpdateOptions = {
+      AllowVersionDowngrade: false,
+      MaximumDeltasBeforeFallback: 10,
+    };
+
+    const um = new UpdateManager(options, locator);
+
+    expect(um.getAppId()).toBe("Test.Squirrel-App");
+    expect(um.getCurrentVersion()).toBe("1.0.0");
+  });
+});
+
+test("UpdateManager accepts an explicit VelopackFlowSource", async () => {
+  await tempd3(async (_tmpDir, packagesDir, rootDir) => {
+    const locator: VelopackLocatorConfig = {
+      ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
+      PackagesDir: packagesDir,
+      RootAppDir: rootDir,
+      UpdateExePath: updateExe(),
+      CurrentBinaryDir: path.join(rootDir, "current"),
+      IsPortable: true,
+    };
+
+    const options: UpdateOptions = {
+      AllowVersionDowngrade: false,
+      MaximumDeltasBeforeFallback: 10,
+    };
+
+    const um = new UpdateManager(new VelopackFlowSource(), options, locator);
+
+    expect(um.getAppId()).toBe("Test.Squirrel-App");
+    expect(um.getCurrentVersion()).toBe("1.0.0");
   });
 });

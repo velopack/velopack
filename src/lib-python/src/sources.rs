@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use velopack::sources::{AutoSource, GiteaSource, GithubSource, GitlabSource, HttpSource, UpdateSource};
+use velopack::sources::{AutoSource, GiteaSource, GithubSource, GitlabSource, HttpSource, UpdateSource, VelopackFlowSource};
 
 use crate::types::PyHttpOptions;
 
@@ -108,6 +108,26 @@ impl PyHttpSource {
     }
 }
 
+/// Retrieves updates from the hosted Velopack Flow service (https://velopack.io).
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pyclass)]
+#[pyclass(name = "VelopackFlowSource", from_py_object)]
+#[derive(Clone)]
+pub struct PyVelopackFlowSource {
+    pub base_uri: Option<String>,
+}
+
+#[cfg_attr(feature = "stub-gen", pyo3_stub_gen::derive::gen_stub_pymethods)]
+#[pymethods]
+impl PyVelopackFlowSource {
+    /// Create a new VelopackFlowSource.
+    /// - `base_uri`: Optional base URL, defaults to the hosted service ("https://api.velopack.io/").
+    #[new]
+    #[pyo3(signature = (base_uri = None))]
+    pub fn new(base_uri: Option<String>) -> Self {
+        PyVelopackFlowSource { base_uri }
+    }
+}
+
 /// A union type accepted by UpdateManager that can be either a URL/path string
 /// (auto-detected) or one of the explicit source classes.
 #[derive(FromPyObject)]
@@ -116,6 +136,7 @@ pub enum PySourceArg {
     Gitlab(PyGitlabSource),
     Gitea(PyGiteaSource),
     Http(PyHttpSource),
+    Flow(PyVelopackFlowSource),
     Auto(String),
 }
 
@@ -129,6 +150,7 @@ impl PySourceArg {
                 Some(options) => Box::new(HttpSource::new_with_options(&s.url, options.into())),
                 None => Box::new(HttpSource::new(&s.url)),
             },
+            PySourceArg::Flow(s) => Box::new(VelopackFlowSource::new(s.base_uri.as_deref())),
             PySourceArg::Auto(s) => Box::new(AutoSource::new(&s)),
         }
     }
@@ -136,4 +158,4 @@ impl PySourceArg {
 
 // FromPyObject unions aren't pyclasses, so stub-gen can't derive their Python type. Describe it explicitly.
 #[cfg(feature = "stub-gen")]
-pyo3_stub_gen::impl_stub_type!(PySourceArg = PyGithubSource | PyGitlabSource | PyGiteaSource | PyHttpSource | String);
+pyo3_stub_gen::impl_stub_type!(PySourceArg = PyGithubSource | PyGitlabSource | PyGiteaSource | PyHttpSource | PyVelopackFlowSource | String);

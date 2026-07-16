@@ -102,6 +102,18 @@ public class UpdateManagerTests
     }
 
     [Fact]
+    public void ConstructsWithFlowSourceWhenNoSourceProvided()
+    {
+        using var logger = _output.BuildLoggerFor<UpdateManagerTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var tempPath);
+        var locator = new TestVelopackLocator("MyCoolApp", "1.0.0", tempPath, logger.ToVelopackLogger());
+        var um = new UpdateManager(locator: locator);
+        Assert.Equal("MyCoolApp", um.AppId);
+        Assert.True(new SemanticVersion(1, 0, 0) == um.CurrentVersion);
+        Assert.True(um.IsInstalled);
+    }
+
+    [Fact]
     public async Task CanDownloadFilesAsUrl()
     {
         var fixture = PathHelper.GetFixture("AvaloniaCrossPlat-1.0.11-win-full.nupkg");

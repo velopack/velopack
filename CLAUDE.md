@@ -60,7 +60,7 @@ copying files into `target/release`.
 ```
 src/
 ├── lib-csharp/          # Core C# library (Velopack NuGet package)
-│   ├── Sources/         # Update sources (GitHub, GitLab, Gitea, S3, Azure, HTTP)
+│   ├── Sources/         # Update sources (Velopack Flow, GitHub, GitLab, Gitea, HTTP, file)
 │   ├── Locators/        # Platform-specific app locators (Windows, Linux, OSX)
 │   ├── NuGet/           # Package handling (ZipPackage, PackageManifest)
 │   └── UpdateManager.cs, VelopackApp.cs  # Primary public API

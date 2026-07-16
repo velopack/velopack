@@ -17,6 +17,7 @@ __all__ = [
     "UpdateManager",
     "UpdateOptions",
     "VelopackAsset",
+    "VelopackFlowSource",
     "VelopackLocatorConfig",
 ]
 
@@ -225,7 +226,14 @@ class UpdateInfo:
 
 @typing.final
 class UpdateManager:
-    def __new__(cls, source: GithubSource  |  GitlabSource  |  GiteaSource  |  HttpSource  |  builtins.str, options: typing.Optional[UpdateOptions] = None, locator: typing.Optional[VelopackLocatorConfig] = None) -> UpdateManager: ...
+    def __new__(cls, source: typing.Optional[GithubSource  |  GitlabSource  |  GiteaSource  |  HttpSource  |  VelopackFlowSource  |  builtins.str] = None, options: typing.Optional[UpdateOptions] = None, locator: typing.Optional[VelopackLocatorConfig] = None) -> UpdateManager:
+        r"""
+        Create a new UpdateManager.
+        - `source`: Where to fetch updates from. Accepts an explicit source class or a URL/path
+          string (auto-detected). If omitted, the hosted Velopack Flow service is used.
+        - `options`: Optional settings to customise the update behaviour.
+        - `locator`: Optional locator overriding how the current app's paths are discovered.
+        """
     def get_current_version(self) -> builtins.str: ...
     def get_app_id(self) -> builtins.str: ...
     def get_is_portable(self) -> builtins.bool: ...
@@ -390,6 +398,17 @@ class VelopackAsset:
         The release notes in HTML format, transformed from Markdown when packaging the release. This may be an empty string.
         """
     def __new__(cls, PackageId: builtins.str, Version: builtins.str, Type: builtins.str, FileName: builtins.str, SHA1: builtins.str, SHA256: builtins.str, Size: builtins.int, NotesMarkdown: builtins.str, NotesHtml: builtins.str) -> VelopackAsset: ...
+
+@typing.final
+class VelopackFlowSource:
+    r"""
+    Retrieves updates from the hosted Velopack Flow service (https://velopack.io).
+    """
+    def __new__(cls, base_uri: typing.Optional[builtins.str] = None) -> VelopackFlowSource:
+        r"""
+        Create a new VelopackFlowSource.
+        - `base_uri`: Optional base URL, defaults to the hosted service ("https://api.velopack.io/").
+        """
 
 @typing.final
 class VelopackLocatorConfig:

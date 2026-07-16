@@ -54,6 +54,10 @@ enum SourceDescriptor {
         #[serde(default)]
         prerelease: bool,
     },
+    Flow {
+        #[serde(rename = "baseUri")]
+        base_uri: Option<String>,
+    },
 }
 
 impl SourceDescriptor {
@@ -80,6 +84,7 @@ impl SourceDescriptor {
                 access_token,
                 prerelease,
             } => Box::new(GiteaSource::new(&repo_url, access_token, prerelease)),
+            SourceDescriptor::Flow { base_uri } => Box::new(VelopackFlowSource::new(base_uri.as_deref())),
         }
     }
 }
@@ -116,7 +121,6 @@ fn args_array_to_vec_string(cx: &mut FunctionContext, arg: Handle<JsArray>) -> N
 }
 
 fn js_new_update_manager(mut cx: FunctionContext) -> JsResult<BoxedUpdateManager> {
-    let arg_source = cx.argument::<JsString>(0)?.value(&mut cx);
     let arg_options = cx.argument::<JsString>(1)?.value(&mut cx);
 
     let mut options: Option<UpdateOptions> = None;
@@ -127,13 +131,33 @@ fn js_new_update_manager(mut cx: FunctionContext) -> JsResult<BoxedUpdateManager
         options = Some(new_opt);
     }
 
-    // The TypeScript layer passes a JSON source descriptor. A plain URL/path string
-    // (eg. from an older library version) falls back to auto-detection.
-    let source = match serde_json::from_str::<SourceDescriptor>(&arg_source) {
-        Ok(descriptor) => descriptor.into_source(),
-        Err(_) => Box::new(AutoSource::new(&arg_source)),
+    // The source argument is optional (may be null/undefined/empty from JS).
+    let mut arg_source: Option<String> = None;
+    if let Some(js_value) = cx.argument_opt(0) {
+        if js_value.is_a::<JsString, _>(&mut cx) {
+            if let Ok(js_string) = js_value.downcast::<JsString, _>(&mut cx) {
+                let value = js_string.value(&mut cx);
+                if !value.is_empty() {
+                    arg_source = Some(value);
+                }
+            }
+        }
+    }
+
+    let manager = match arg_source {
+        Some(arg_source) => {
+            // The TypeScript layer passes a JSON source descriptor. A plain URL/path string
+            // (eg. from an older library version) falls back to auto-detection.
+            let source = match serde_json::from_str::<SourceDescriptor>(&arg_source) {
+                Ok(descriptor) => descriptor.into_source(),
+                Err(_) => Box::new(AutoSource::new(&arg_source)),
+            };
+            UpdateManager::new_boxed(source, options, locator).or_else(|e| cx.throw_error(e.to_string()))?
+        }
+        // No source provided: retrieve updates from the hosted Velopack Flow service.
+        None => UpdateManager::new_flow(options, locator).or_else(|e| cx.throw_error(e.to_string()))?,
     };
-    let manager = UpdateManager::new_boxed(source, options, locator).or_else(|e| cx.throw_error(e.to_string()))?;
+
     let wrapper = UpdateManagerWrapper { manager };
     Ok(cx.boxed(RefCell::new(wrapper)))
 }
