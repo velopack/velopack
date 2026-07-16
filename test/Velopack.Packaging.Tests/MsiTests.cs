@@ -22,6 +22,18 @@ public class MsiTests
         _output = output;
     }
 
+    private static void WaitUntilInstallDirUnlocked(string installDir)
+    {
+        // After an apply, Update.exe / the restarted app / the coverage collector may still be
+        // exiting in the background. While any of them run from the install dir, the MSI cleanup
+        // action cannot remove the directory, so wait until every exe can be opened exclusively.
+        TestHelper.WaitUntil(() => {
+            foreach (var exe in Directory.EnumerateFiles(installDir, "*.exe", SearchOption.AllDirectories)) {
+                File.Open(exe, FileMode.Open, FileAccess.ReadWrite, FileShare.None).Dispose();
+            }
+        }, pollDelayMs: 1000);
+    }
+
     private static string RunMsiExec(string rawArgs, ILogger logger, int? exitCode = 0)
     {
         var outputFile = PathHelper.GetTestRootPath($"run.{WindowsTestHelper.RandomString(8)}.log");
@@ -531,6 +543,7 @@ public class MsiTests
 
             // uninstall using the same MSI that was used to install.
             // (msiexec /x requires the MSI's ProductCode to match a registered product.)
+            WaitUntilInstallDirUnlocked(installDir);
             logger.Info("TEST: Uninstalling MSI...");
             RunMsiExec($"/x \"{v1MsiPath}\" /qn", logger);
 
