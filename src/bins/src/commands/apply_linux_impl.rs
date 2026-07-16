@@ -40,7 +40,7 @@ pub fn apply_package_impl(locator: &VelopackLocator, pkg: &PathBuf, _hook_mode: 
         std::fs::set_permissions(&temp_path, fs::Permissions::from_mode(0o755))?;
 
         reporter.set_indeterminate();
-        info!("Moving temp AppImage to: {}", &appimage_path);
+        info!("Moving temp AppImage to: {}", appimage_path);
         // we use mv instead of fs::rename / fs::copy because rename fails cross-device
         // and copy fails if the process is running (presumably because rust opens the file for writing)
         // while mv works in both cases.
@@ -48,7 +48,7 @@ pub fn apply_package_impl(locator: &VelopackLocator, pkg: &PathBuf, _hook_mode: 
         let mv_output = Command::new("mv").args(mv_args).output()?;
 
         if mv_output.status.success() {
-            info!("AppImage moved successfully to: {}", &appimage_path);
+            info!("AppImage moved successfully to: {}", appimage_path);
             return Ok(());
         }
 
@@ -58,7 +58,7 @@ pub fn apply_package_impl(locator: &VelopackLocator, pkg: &PathBuf, _hook_mode: 
             mv_output
         );
         dialogs::ask_user_to_elevate(&manifest.title, &manifest.version.to_string())?;
-        let script = format!("#!/bin/sh\nmv -f '{}' '{}'", temp_path, &appimage_path);
+        let script = format!("#!/bin/sh\nmv -f '{}' '{}'", temp_path, appimage_path);
         info!("Writing script for elevation: \n{}", script);
         fs::write(&script_path, script)?;
         std::fs::set_permissions(
@@ -69,7 +69,7 @@ pub fn apply_package_impl(locator: &VelopackLocator, pkg: &PathBuf, _hook_mode: 
         info!("Attempting to elevate: pkexec {:?}", args);
         let elev_output = Command::new("pkexec").args(args).output()?;
         if elev_output.status.success() {
-            info!("AppImage moved (elevated) to {}", &appimage_path);
+            info!("AppImage moved (elevated) to {}", appimage_path);
             Ok(())
         } else {
             bail!("pkexec failed with status: {:?}", elev_output);
