@@ -286,6 +286,70 @@ public class MsiTests
     }
 
     [Fact]
+    public async Task TestPackGeneratesMsiWithCorrectBannerAndDialogImages()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+
+        using var logger = _output.BuildLoggerFor<MsiTests>();
+
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
+        using var _3 = TempUtil.GetTempDirectory(out var tmpAssets);
+
+        var exe = "testapp.exe";
+        var id = "Test.Squirrel-App";
+
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+        PathHelper.CopyRustAssetTo(Path.ChangeExtension(exe, ".pdb"), tmpOutput);
+
+        // WiX embeds the files verbatim without decoding them, so marker bytes are enough
+        // to tell which file ended up on which WiX binary
+        var bannerFile = Path.Combine(tmpAssets, "custom_banner.bmp");
+        var dialogFile = Path.Combine(tmpAssets, "custom_dialog.bmp");
+        var bannerBytes = "TOP_BANNER_493x58_MARKER"u8.ToArray();
+        var dialogBytes = "DIALOG_BACKGROUND_493x312_MARKER"u8.ToArray();
+        File.WriteAllBytes(bannerFile, bannerBytes);
+        File.WriteAllBytes(dialogFile, dialogBytes);
+
+        var options = new WindowsPackOptions {
+            EntryExecutableName = exe,
+            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
+            PackId = id,
+            PackVersion = "1.2.3",
+            TargetRuntime = RID.Parse("win-x64"),
+            PackDirectory = tmpOutput,
+            BuildMsi = true,
+            MsiTopBanner = bannerFile,
+            MsiDialogBackground = dialogFile,
+        };
+
+        var runner = WindowsTestHelper.GetPackRunner(logger);
+        await runner.Run(options);
+
+        string msiPath = Path.Combine(tmpReleaseDir, $"{id}-win.msi");
+        Assert.True(File.Exists(msiPath));
+
+        using Database db = new Database(msiPath);
+
+        // --msiTopBanner -> the 493x58 top strip, --msiDialogBackground -> the 493x312
+        // welcome/finish dialog background. these were applied swapped before (#1005)
+        Assert.Equal(bannerBytes, ReadMsiBinaryData(db, "WixUI_Bmp_Banner"));
+        Assert.Equal(dialogBytes, ReadMsiBinaryData(db, "WixUI_Bmp_Dialog"));
+    }
+
+    private static byte[] ReadMsiBinaryData(Database db, string name)
+    {
+        using var view = db.OpenView($"SELECT `Data` FROM `Binary` WHERE `Name` = '{name}'");
+        view.Execute();
+        using var record = view.Fetch();
+        Assert.NotNull(record);
+        using var stream = record.GetStream(1);
+        using var ms = new MemoryStream();
+        stream.CopyTo(ms);
+        return ms.ToArray();
+    }
+
+    [Fact]
     public async Task TestPackGeneratesMsiWithSpecifiedVersion()
     {
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");

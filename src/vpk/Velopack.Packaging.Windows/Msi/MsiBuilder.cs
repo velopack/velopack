@@ -172,8 +172,8 @@ public static class MsiBuilder
             StartMenuRootShortcut = shortcuts.HasFlag(ShortcutLocation.StartMenuRoot),
             StartupShortcut = shortcuts.HasFlag(ShortcutLocation.Startup),
             RustNativeModulePath = HelperFile.GetWixNativeModulePath(options.TargetRuntime),
-            SideBannerImagePath = options.MsiBanner,
-            TopBannerImagePath = options.MsiLogo,
+            BannerBmpPath = options.MsiTopBanner,
+            DialogBmpPath = options.MsiDialogBackground,
             RuntimeDependencies = runtimeDeps,
             ConclusionMessage = GetPlainTextMessage(options.InstConclusion),
             ReadmeRtfFilePath = GetRtfPath(options.InstReadme, "rendered_readme.rtf", portableDir.Parent),
@@ -192,8 +192,8 @@ public static class MsiBuilder
         var wixId = data.WixId;
         var wxsPath = Path.Combine(outputDir, wixId + ".wxs");
 
-        data.BannerBmpPath = data.HasTopBannerImage ? data.TopBannerImagePath : ExtractResource("banner.bmp", outputDir);
-        data.DialogBmpPath = data.HasSideBannerImage ? data.SideBannerImagePath : ExtractResource("dialog.bmp", outputDir);
+        if (!data.HasBannerBmp) data.BannerBmpPath = ExtractResource("banner.bmp", outputDir);
+        if (!data.HasDialogBmp) data.DialogBmpPath = ExtractResource("dialog.bmp", outputDir);
         data.ExclamIcoPath = ExtractResource("exclam.ico", outputDir);
         data.UpIcoPath = ExtractResource("up.ico", outputDir);
         data.NewIcoPath = ExtractResource("new.ico", outputDir);

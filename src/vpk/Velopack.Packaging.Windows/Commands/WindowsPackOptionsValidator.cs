@@ -16,8 +16,8 @@ public sealed class WindowsPackOptionsValidator : PackOptionsValidator<WindowsPa
         RuleFor(x => x.SignExclude).MustBeValidRegex();
         RuleFor(x => x.AzureTrustedSignFile).MustBeExistingFile();
         RuleFor(x => x.MsiVersionOverride).MustBeValidMsiVersion();
-        RuleFor(x => x.MsiBanner).MustHaveExtension(".bmp");
-        RuleFor(x => x.MsiLogo).MustHaveExtension(".bmp");
+        RuleFor(x => x.MsiTopBanner).MustHaveExtension(".bmp");
+        RuleFor(x => x.MsiDialogBackground).MustHaveExtension(".bmp");
         RuleFor(x => x.InstWelcome).MustBeExistingFile();
         RuleFor(x => x.InstReadme).MustBeExistingFile();
         RuleFor(x => x.InstLicense).MustBeExistingFile();
