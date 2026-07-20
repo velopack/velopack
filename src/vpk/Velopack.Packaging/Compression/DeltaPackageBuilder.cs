@@ -21,7 +21,6 @@ public class DeltaPackageBuilder
         public int New { get; set; }
         public int Same { get; set; }
         public int Changed { get; set; }
-        public int Warnings { get; set; }
         public int Processed { get; set; }
         public int Removed { get; set; }
     }
@@ -34,13 +33,7 @@ public class DeltaPackageBuilder
         if (String.IsNullOrEmpty(outputFile) || File.Exists(outputFile))
             throw new ArgumentException("The output file is null or already exists", nameof(outputFile));
 
-        Zstd zstd = null;
-        try {
-            zstd = new Zstd(HelperFile.GetZstdPath());
-        } catch (Exception ex) {
-            _logger.Error(ex.Message);
-            _logger.Warn("Zstd not available. Falling back to legacy bsdiff delta format. This will be a lot slower and more prone to breaking.");
-        }
+        var zstd = new Zstd(HelperFile.GetZstdPath());
 
         if (basePackage.Version >= newPackage.Version) {
             var message = String.Format(
@@ -62,7 +55,7 @@ public class DeltaPackageBuilder
             throw new FileNotFoundException("The new package release does not exist", newPackage.PackageFile);
         }
 
-        int fNew = 0, fSame = 0, fChanged = 0, fWarnings = 0, fProcessed = 0, fRemoved = 0;
+        int fNew = 0, fSame = 0, fChanged = 0, fProcessed = 0, fRemoved = 0;
 
         using (TempUtil.GetTempDirectory(out var baseTempPath))
         using (TempUtil.GetTempDirectory(out var tempPath)) {
@@ -90,7 +83,7 @@ public class DeltaPackageBuilder
             var newLibFiles = newLibDir.GetAllFilesRecursively().ToArray();
             var numNewFiles = newLibFiles.Length;
 
-            void createDeltaForSingleFile(FileInfo targetFile, DirectoryInfo workingDirectory, bool useZstd)
+            void createDeltaForSingleFile(FileInfo targetFile, DirectoryInfo workingDirectory)
             {
                 // NB: There are three cases here that we'll handle:
                 //
@@ -101,58 +94,40 @@ public class DeltaPackageBuilder
                 //
                 // The fourth case of "Exists only in old => delete it in new"
                 // is handled when we apply the delta package
-                try {
-                    var relativePath = targetFile.FullName.Replace(workingDirectory.FullName, "");
+                var relativePath = targetFile.FullName.Replace(workingDirectory.FullName, "");
 
-                    // 1. new file, leave it alone
-                    if (!baseLibFiles.ContainsKey(relativePath)) {
-                        _logger.Debug($"{relativePath} not found in base package, marking as new");
-                        Interlocked.Increment(ref fNew);
-                        return;
-                    }
-
-                    var oldFilePath = baseLibFiles[relativePath];
-                    _logger.Debug($"Delta patching {oldFilePath} => {targetFile.FullName}");
-
-                    if (AreFilesEqualFast(oldFilePath, targetFile.FullName)) {
-                        // 2. exists in both, keep it the same
-                        _logger.Debug($"{relativePath} hasn't changed, writing dummy file");
-                        File.Create(targetFile.FullName + ".diff").Dispose();
-                        File.Create(targetFile.FullName + ".shasum").Dispose();
-                        Interlocked.Increment(ref fSame);
-                    } else {
-                        // 3. changed, write a delta in new
-                        if (useZstd) {
-                            var diffOut = targetFile.FullName + ".zsdiff";
-                            zstd.CreatePatch(oldFilePath, targetFile.FullName, diffOut, mode);
-                        } else {
-                            var oldData = File.ReadAllBytes(oldFilePath);
-                            var newData = File.ReadAllBytes(targetFile.FullName);
-                            using (FileStream of = File.Create(targetFile.FullName + ".bsdiff")) {
-                                BinaryPatchUtility.Create(oldData, newData, of);
-                            }
-                        }
-
-                        using var newfs = File.OpenRead(targetFile.FullName);
-#pragma warning disable CS0618 // Type or member is obsolete
-                        var rl = ReleaseEntry.GenerateFromFile(newfs, targetFile.Name + ".shasum");
-#pragma warning restore CS0618 // Type or member is obsolete
-                        File.WriteAllText(targetFile.FullName + ".shasum", rl.EntryAsString, Encoding.UTF8);
-                        Interlocked.Increment(ref fChanged);
-                    }
-
-                    targetFile.Delete();
-                    baseLibFiles.Remove(relativePath);
-                    var p = Interlocked.Increment(ref fProcessed);
-                    progress(CoreUtil.CalculateProgress((int) ((double) p / numNewFiles * 100), 0, 70));
-                } catch (Exception ex) {
-                    _logger.Debug(ex, String.Format("Failed to create a delta for {0}", targetFile.Name));
-                    IoUtil.DeleteFileOrDirectoryHard(targetFile.FullName + ".bsdiff", throwOnFailure: false);
-                    IoUtil.DeleteFileOrDirectoryHard(targetFile.FullName + ".diff", throwOnFailure: false);
-                    IoUtil.DeleteFileOrDirectoryHard(targetFile.FullName + ".shasum", throwOnFailure: false);
-                    Interlocked.Increment(ref fWarnings);
-                    throw;
+                // 1. new file, leave it alone
+                if (!baseLibFiles.ContainsKey(relativePath)) {
+                    _logger.Debug($"{relativePath} not found in base package, marking as new");
+                    Interlocked.Increment(ref fNew);
+                    return;
                 }
+
+                var oldFilePath = baseLibFiles[relativePath];
+                _logger.Debug($"Delta patching {oldFilePath} => {targetFile.FullName}");
+
+                if (AreFilesEqualFast(oldFilePath, targetFile.FullName)) {
+                    // 2. exists in both, keep it the same
+                    _logger.Debug($"{relativePath} hasn't changed, writing dummy file");
+                    File.Create(targetFile.FullName + ".diff").Dispose();
+                    File.Create(targetFile.FullName + ".shasum").Dispose();
+                    Interlocked.Increment(ref fSame);
+                } else {
+                    // 3. changed, write a delta in new
+                    zstd.CreatePatch(oldFilePath, targetFile.FullName, targetFile.FullName + ".zsdiff", mode);
+
+                    using var newfs = File.OpenRead(targetFile.FullName);
+#pragma warning disable CS0618 // Type or member is obsolete
+                    var rl = ReleaseEntry.GenerateFromFile(newfs, targetFile.Name + ".shasum");
+#pragma warning restore CS0618 // Type or member is obsolete
+                    File.WriteAllText(targetFile.FullName + ".shasum", rl.EntryAsString, Encoding.UTF8);
+                    Interlocked.Increment(ref fChanged);
+                }
+
+                targetFile.Delete();
+                baseLibFiles.Remove(relativePath);
+                var p = Interlocked.Increment(ref fProcessed);
+                progress(CoreUtil.CalculateProgress((int) ((double) p / numNewFiles * 100), 0, 70));
             }
 
             try {
@@ -160,29 +135,10 @@ public class DeltaPackageBuilder
                     newLibFiles,
                     new ParallelOptions() { MaxDegreeOfParallelism = numParallel },
                     (f) => {
-                        // we try to use zstd first, if it fails we'll try bsdiff
-                        if (zstd != null) {
-                            try {
-                                createDeltaForSingleFile(f, tempInfo, true);
-                                return; // success, so return from this function
-                            } catch (ProcessFailedException ex) {
-                                _logger.Error(
-                                    $"Failed to create zstd diff for file '{f.FullName}' (will try to fallback to legacy bsdiff format - this will be much slower). " +
-                                    Environment.NewLine + ex.Message);
-                            } catch (Exception ex) {
-                                _logger.Error($"Failed to create zstd diff for file '{f.FullName}'. " + Environment.NewLine + ex.Message);
-                                throw;
-                            }
-                        }
-
-                        // if we're here, either zstd is not available or it failed
                         try {
-                            createDeltaForSingleFile(f, tempInfo, false);
-                            if (zstd != null) {
-                                _logger.Info($"Successfully created fallback bsdiff for file '{f.FullName}'.");
-                            }
+                            createDeltaForSingleFile(f, tempInfo);
                         } catch (Exception ex) {
-                            _logger.Error($"Failed to create bsdiff for file '{f.FullName}'. " + Environment.NewLine + ex.Message);
+                            _logger.Error($"Failed to create zstd diff for file '{f.FullName}'. " + Environment.NewLine + ex.Message);
                             throw;
                         }
                     });
@@ -199,14 +155,11 @@ public class DeltaPackageBuilder
                 $"Delta processed {fProcessed:D4} files. "
                 + $"{fChanged:D4} patched, {fSame:D4} unchanged, {fNew:D4} new, {fRemoved:D4} removed");
 
-            _logger.Debug(
-                $"Successfully created delta package for {basePackage.Version} -> {newPackage.Version}" +
-                (fWarnings > 0 ? $" (with {fWarnings} retries)" : "") +
-                ".");
+            _logger.Debug($"Successfully created delta package for {basePackage.Version} -> {newPackage.Version}.");
         }
 
         return (new ReleasePackage(outputFile), new DeltaStats {
-            New = fNew, Same = fSame, Changed = fChanged, Warnings = fWarnings, Processed = fProcessed, Removed = fRemoved,
+            New = fNew, Same = fSame, Changed = fChanged, Processed = fProcessed, Removed = fRemoved,
         });
     }
 

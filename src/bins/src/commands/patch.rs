@@ -98,8 +98,11 @@ pub fn delta<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(
             if relative_path.starts_with("lib") {
                 let file_name = relative_path.file_name().ok_or(anyhow!("Failed to get file name"))?;
                 let file_name_str = file_name.to_string_lossy();
+                // zero-length patches are "unchanged file" markers (always .diff). Non-empty .diff (msdelta)
+                // and .bsdiff patches are legacy formats that vpk can no longer produce; they are still
+                // matched here so a legacy delta fails loudly below instead of the patch file being
+                // copied into the output package as if it were a new file.
                 if file_name_str.ends_with(".zsdiff") || file_name_str.ends_with(".diff") || file_name_str.ends_with(".bsdiff") {
-                    // this is a zsdiff patch, we need to apply it to the old file
                     let file_without_extension = relative_path.with_extension("");
                     // let shasum_path = delta_dir.join(relative_path).with_extension("shasum");
                     let old_file_path = work_dir.join(&file_without_extension);
