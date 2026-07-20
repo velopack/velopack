@@ -92,6 +92,10 @@ pub fn uninstall_body() -> String {
     format_message(UNINSTALL_BODY, None)
 }
 
+pub fn uninstall_progress_body() -> String {
+    format_message(UNINSTALL_PROGRESS_BODY, None)
+}
+
 pub fn install_hook_body() -> String {
     format_message(INSTALL_HOOK_BODY, None)
 }
@@ -118,6 +122,12 @@ pub fn title_uninstall(app: &str) -> String {
     let mut args = FluentArgs::new();
     args.set("app_title", app.to_string());
     format_message(TITLE_UNINSTALL, Some(&args))
+}
+
+pub fn uninstall_progress_header(app: &str) -> String {
+    let mut args = FluentArgs::new();
+    args.set("app_title", app.to_string());
+    format_message(UNINSTALL_PROGRESS_HEADER, Some(&args))
 }
 
 pub fn error_title(program_name: &str) -> String {

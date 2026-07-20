@@ -44,6 +44,10 @@ overwrite-footer = Şu konuma yüklü: { $path }
 uninstall-header = Kaldırma Tamamlandı
 uninstall-body = Uygulama bilgisayarınızdan başarıyla kaldırıldı.
 
+# Uninstall progress (uninstall.rs)
+uninstall-progress-header = { $app_title } kaldırılıyor
+uninstall-progress-body = Dosyalar ve kısayollar kaldırılıyor, lütfen bekleyin...
+
 # Install hook failed (install.rs)
 install-hook-header = Yükleme Kısmen Başarılı
 install-hook-body = Yükleme tamamlandı, ancak bazı adımlar başarısız olmuş olabilir. Uygulama düzgün çalışmıyorsa yeniden yüklemeyi deneyebilir veya uygulama yazarıyla iletişime geçebilirsiniz.

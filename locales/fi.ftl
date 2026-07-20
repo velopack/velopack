@@ -44,6 +44,10 @@ overwrite-footer = Asennettu sijaintiin: { $path }
 uninstall-header = Poisto valmis
 uninstall-body = Sovellus on poistettu tietokoneestasi.
 
+# Uninstall progress (uninstall.rs)
+uninstall-progress-header = Poistetaan { $app_title }
+uninstall-progress-body = Poistetaan tiedostoja ja pikakuvakkeita, odota...
+
 # Install hook failed (install.rs)
 install-hook-header = Asennus onnistui osittain
 install-hook-body = Asennus on valmis, mutta jotkin vaiheet saattoivat epäonnistua. Jos sovellus ei toimi oikein, voit yrittää asentaa sen uudelleen tai ottaa yhteyttä sovelluksen tekijään.

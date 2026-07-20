@@ -44,6 +44,10 @@ overwrite-footer = Nainstalováno v: { $path }
 uninstall-header = Odinstalace dokončena
 uninstall-body = Aplikace byla úspěšně odebrána z počítače.
 
+# Uninstall progress (uninstall.rs)
+uninstall-progress-header = Odinstalace { $app_title }
+uninstall-progress-body = Odebírání souborů a zástupců, čekejte prosím...
+
 # Install hook failed (install.rs)
 install-hook-header = Instalace částečně úspěšná
 install-hook-body = Instalace byla dokončena, ale některé kroky se nemusely zdařit. Pokud aplikace nepracuje správně, můžete ji zkusit znovu nainstalovat nebo kontaktovat autora aplikace.

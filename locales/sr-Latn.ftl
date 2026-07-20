@@ -44,6 +44,10 @@ overwrite-footer = Instalirano u: { $path }
 uninstall-header = Deinstalacija je dovršena
 uninstall-body = Aplikacija je uspešno uklonjena sa vašeg računara.
 
+# Uninstall progress (uninstall.rs)
+uninstall-progress-header = Deinstaliranje aplikacije { $app_title }
+uninstall-progress-body = Uklanjanje datoteka i prečica, sačekajte...
+
 # Install hook failed (install.rs)
 install-hook-header = Instalacija je delimično uspela
 install-hook-body = Instalacija je dovršena, ali su neki koraci možda neuspeli. Ako aplikacija ne radi ispravno, možete pokušati ponovnu instalaciju ili se obratiti autoru aplikacije.

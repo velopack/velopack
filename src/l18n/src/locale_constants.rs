@@ -91,6 +91,8 @@ define_locale_keys! {
     OVERWRITE_FOOTER = "overwrite-footer",
     UNINSTALL_HEADER = "uninstall-header",
     UNINSTALL_BODY = "uninstall-body",
+    UNINSTALL_PROGRESS_HEADER = "uninstall-progress-header",
+    UNINSTALL_PROGRESS_BODY = "uninstall-progress-body",
     INSTALL_HOOK_HEADER = "install-hook-header",
     INSTALL_HOOK_BODY = "install-hook-body",
     SPLASH_HEADER = "splash-header",

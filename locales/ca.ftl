@@ -44,6 +44,10 @@ overwrite-footer = Instal·lat a: { $path }
 uninstall-header = Desinstal·lació completada
 uninstall-body = L'aplicació s'ha suprimit correctament de l'ordinador.
 
+# Uninstall progress (uninstall.rs)
+uninstall-progress-header = S'està desinstal·lant { $app_title }
+uninstall-progress-body = S'estan eliminant fitxers i dreceres, espereu...
+
 # Install hook failed (install.rs)
 install-hook-header = La instal·lació ha estat parcialment satisfactòria
 install-hook-body = La instal·lació s'ha completat, però alguns passos poden haver fallat. Si l'aplicació no funciona correctament, podeu provar de reinstal·lar-la o contactar amb l'autor de l'aplicació.

@@ -44,6 +44,10 @@ overwrite-footer = 安装位置: { $path }
 uninstall-header = 卸载完成
 uninstall-body = 应用程序已成功从您的计算机中删除。
 
+# Uninstall progress (uninstall.rs)
+uninstall-progress-header = 正在卸载 { $app_title }
+uninstall-progress-body = 正在删除文件和快捷方式，请稍候...
+
 # Install hook failed (install.rs)
 install-hook-header = 安装部分成功
 install-hook-body = 安装已完成，但某些步骤可能已失败。如果应用程序无法正常工作，您可以尝试重新安装或联系应用程序作者。
