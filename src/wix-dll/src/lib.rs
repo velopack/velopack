@@ -78,50 +78,123 @@ pub extern "system" fn EarlyBootstrap(h_install: MSIHANDLE) -> c_uint {
     }
 }
 
+/// Parses the CustomActionData marshaled by SetRustCleanupData / SetUserRustCleanupData:
+/// `[INSTALLFOLDER]"[RustAppId]"[TempFolder]"[LocalAppDataFolder]"[UPGRADINGPRODUCTCODE]`
+/// (the last field is only present for RustCleanup, and is empty unless the product is being
+/// removed as part of a major upgrade).
+struct CleanupData {
+    install_dir: String,
+    app_id: String,
+    temp_dir: String,
+    local_app_data: String,
+    is_upgrading: bool,
+}
+
+fn parse_cleanup_data(custom_data: &str) -> CleanupData {
+    let mut parts = custom_data.split('"');
+    CleanupData {
+        install_dir: parts.next().unwrap_or("").to_string(),
+        app_id: parts.next().unwrap_or("").to_string(),
+        temp_dir: parts.next().unwrap_or("").to_string(),
+        local_app_data: parts.next().unwrap_or("").to_string(),
+        is_upgrading: parts.next().map(|s| !s.is_empty()).unwrap_or(false),
+    }
+}
+
+fn remove_dir_logged(fn_name: &str, dir: &Path) {
+    if let Err(e) = remove_dir_all::remove_dir_all(dir) {
+        show_debug_message(fn_name, format!("Failed to remove directory: {:?} {}", dir, e));
+    }
+}
+
+fn remove_msi_arp_registry_keys(fn_name: &str, app_id: &str) {
+    use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
+    use winreg::RegKey;
+    const UNINSTALL_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
+    let subkey = format!("MSI:{}", app_id);
+    for root in [HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE] {
+        if let Ok(uninstall) = RegKey::predef(root).open_subkey(UNINSTALL_KEY) {
+            if let Err(e) = uninstall.delete_subkey_all(&subkey) {
+                show_debug_message(fn_name, format!("Did not remove uninstall registry key {:?}: {}", subkey, e));
+            }
+        }
+    }
+}
+
+/// Deferred, non-impersonated (elevated on per-machine installs). On a full uninstall this removes
+/// everything left in the install dir (files from in-app updates, logs, user data — mirroring the
+/// Setup.exe/Update.exe uninstall behavior) plus any leftover ARP registry key. During a major
+/// upgrade it only purges the `current` payload dir so the incoming MSI lays down a clean payload
+/// while files outside `current` (user data, packages) survive.
 #[no_mangle]
 pub extern "system" fn CleanupDeferred(h_install: MSIHANDLE) -> c_uint {
     let custom_data = msi_get_property(h_install, "CustomActionData");
     show_debug_message("CleanupDeferred", format!("CustomActionData={:?}", custom_data));
 
     if let Some(custom_data) = custom_data {
-        // custom data will be a list delimited by " (0x22)
-        let mut custom_data = custom_data.split('"');
-        let install_dir = custom_data.next();
-        let app_id = custom_data.next();
-        let temp_dir = custom_data.next();
-
-        show_debug_message(
-            "CleanupDeferred",
-            format!("install_dir={:?}, app_id={:?}, temp_dir={:?}", install_dir, app_id, temp_dir),
-        );
-
-        if let Some(install_dir) = install_dir {
-            if let Err(e) = remove_dir_all::remove_dir_all(install_dir) {
-                show_debug_message("CleanupDeferred", format!("Failed to remove install directory: {:?} {}", install_dir, e));
-            }
+        let data = parse_cleanup_data(&custom_data);
+        if data.install_dir.is_empty() {
+            show_debug_message("CleanupDeferred", "Missing install_dir, skipping".to_string());
+            return ERROR_SUCCESS.0;
         }
 
-        if let Some(app_id) = app_id {
-            if let Ok(appdata) = std::env::var("LOCALAPPDATA") {
-                let velopack_app_dir = PathBuf::from(appdata).join(app_id);
-                if let Err(e) = remove_dir_all::remove_dir_all(&velopack_app_dir) {
-                    show_debug_message(
-                        "CleanupDeferred",
-                        format!("Failed to remove local app data directory: {:?} {}", velopack_app_dir, e),
-                    );
-                }
-            }
+        let install_dir = Path::new(&data.install_dir);
+        if data.is_upgrading {
+            show_debug_message("CleanupDeferred", "Major upgrade in progress, only purging 'current' dir".to_string());
+            remove_dir_logged("CleanupDeferred", &install_dir.join("current"));
+            return ERROR_SUCCESS.0;
+        }
 
-            if let Some(temp_dir) = temp_dir {
-                let temp_dir = PathBuf::from(temp_dir);
-                let temp_dir = temp_dir.join(format!("velopack_{}", app_id));
-                if let Err(e) = remove_dir_all::remove_dir_all(&temp_dir) {
-                    show_debug_message("CleanupDeferred", format!("Failed to remove temp directory: {:?} {}", temp_dir, e));
-                }
-            }
+        // the app could still be running from the install dir, which would prevent deletion
+        if let Err(e) = velopack_bins::shared::force_stop_package(install_dir) {
+            show_debug_message("CleanupDeferred", format!("Failed to stop running processes: {}", e));
+        }
+
+        remove_dir_logged("CleanupDeferred", install_dir);
+
+        if !data.app_id.is_empty() {
+            // remove any ARP entry left behind (e.g. values written by Update.exe, or an orphaned
+            // entry from a previous side-by-side install of the same app)
+            remove_msi_arp_registry_keys("CleanupDeferred", &data.app_id);
         }
 
         show_debug_message("CleanupDeferred", "Done!".to_string());
+    }
+
+    ERROR_SUCCESS.0
+}
+
+/// Deferred, impersonated as the installing user. Runs on full uninstall only, and cleans up the
+/// per-user state which CleanupDeferred cannot reliably reach when it runs as SYSTEM on
+/// per-machine installs: shortcuts pointing into the install dir, the `%LocalAppData%\{AppId}`
+/// fallback dir (packages + Update.exe copied there when the install dir is not writable), the
+/// velopack temp dir, and the HKCU ARP key.
+#[no_mangle]
+pub extern "system" fn UserCleanupDeferred(h_install: MSIHANDLE) -> c_uint {
+    let custom_data = msi_get_property(h_install, "CustomActionData");
+    show_debug_message("UserCleanupDeferred", format!("CustomActionData={:?}", custom_data));
+
+    if let Some(custom_data) = custom_data {
+        let data = parse_cleanup_data(&custom_data);
+
+        if !data.install_dir.is_empty() {
+            velopack_bins::windows::remove_all_shortcuts_for_root_dir(&data.install_dir);
+        }
+
+        if !data.app_id.is_empty() {
+            if !data.local_app_data.is_empty() {
+                remove_dir_logged("UserCleanupDeferred", &PathBuf::from(&data.local_app_data).join(&data.app_id));
+            }
+            if !data.temp_dir.is_empty() {
+                remove_dir_logged(
+                    "UserCleanupDeferred",
+                    &PathBuf::from(&data.temp_dir).join(format!("velopack_{}", data.app_id)),
+                );
+            }
+            remove_msi_arp_registry_keys("UserCleanupDeferred", &data.app_id);
+        }
+
+        show_debug_message("UserCleanupDeferred", "Done!".to_string());
     }
 
     ERROR_SUCCESS.0
