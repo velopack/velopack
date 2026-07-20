@@ -36,8 +36,8 @@ public class WindowsPackOptions : WindowsReleasifyOptions, INugetPackCommand, IP
 
     public InstallLocation InstLocation { get; set; } = InstallLocation.Either;
 
-    public string MsiBanner { get; set; }
-    public string MsiLogo { get; set; }
+    public string MsiTopBanner { get; set; }
+    public string MsiDialogBackground { get; set; }
 
     public bool BuildMsi { get; set; }
 

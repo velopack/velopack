@@ -35,8 +35,8 @@ public class WindowsPackCommand : PackCommand
 
     public InstallLocation InstLocation { get; private set; }
 
-    public string MsiBanner { get; private set; }
-    public string MsiLogo { get; private set; }
+    public string MsiTopBanner { get; private set; }
+    public string MsiDialogBackground { get; private set; }
 
 
     public bool BuildMsi { get; private set; }
@@ -126,12 +126,12 @@ public class WindowsPackCommand : PackCommand
                 .SetDescription("Set the installation location.")
                 .SetArgumentHelpName("LOCATION");
 
-            AddOption<FileInfo>(v => MsiBanner = v.ToFullNameOrNull(), ["--msiBanner"])
-                .SetDescription("Set the top banner bitmap image for the MSI UI dialogs. The resolution must be 493x58.")
+            AddOption<FileInfo>(v => MsiTopBanner = v.ToFullNameOrNull(), ["--msiTopBanner"])
+                .SetDescription("Set the top banner strip of the MSI dialogs (493x58 BMP).")
                 .SetArgumentHelpName("PATH");
 
-            AddOption<FileInfo>(v => MsiLogo = v.ToFullNameOrNull(), ["--msiLogo"])
-                .SetDescription("Set the background logo bitmap image for the MSI UI dialogs. The resolution must be 493x312.")
+            AddOption<FileInfo>(v => MsiDialogBackground = v.ToFullNameOrNull(), ["--msiDialogBackground"])
+                .SetDescription("Set the MSI welcome/finish dialog background (493x312 BMP).")
                 .SetArgumentHelpName("PATH");
         }
     }

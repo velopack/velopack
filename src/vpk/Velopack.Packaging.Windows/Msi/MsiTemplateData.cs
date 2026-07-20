@@ -58,14 +58,19 @@ public class MsiTemplateData
     public bool HasReadme => !string.IsNullOrWhiteSpace(ReadmeRtfFilePath);
     public string ReadmeRtfFilePath;
 
-    public bool HasTopBannerImage => !string.IsNullOrWhiteSpace(TopBannerImagePath) && File.Exists(TopBannerImagePath);
-    public string TopBannerImagePath;
-
-    public bool HasSideBannerImage => !string.IsNullOrWhiteSpace(SideBannerImagePath) && File.Exists(SideBannerImagePath);
-    public string SideBannerImagePath;
-
+    /// <summary>
+    /// The narrow strip across the top of most MSI dialogs (WiX binary WixUI_Bmp_Banner, 493x58).
+    /// Set from --msiTopBanner; a default is substituted at compile time if unset or missing.
+    /// </summary>
     public string BannerBmpPath;
+    public bool HasBannerBmp => !string.IsNullOrWhiteSpace(BannerBmpPath) && File.Exists(BannerBmpPath);
+
+    /// <summary>
+    /// The full background of the MSI welcome/completion dialogs (WiX binary WixUI_Bmp_Dialog, 493x312).
+    /// Set from --msiDialogBackground; a default is substituted at compile time if unset or missing.
+    /// </summary>
     public string DialogBmpPath;
+    public bool HasDialogBmp => !string.IsNullOrWhiteSpace(DialogBmpPath) && File.Exists(DialogBmpPath);
     public string ExclamIcoPath;
     public string UpIcoPath;
     public string NewIcoPath;
