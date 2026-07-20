@@ -92,12 +92,22 @@ struct CleanupData {
 
 fn parse_cleanup_data(custom_data: &str) -> CleanupData {
     let mut parts = custom_data.split('"');
+    let install_dir = parts.next().unwrap_or("").to_string();
+    let mut app_id = parts.next().unwrap_or("").to_string();
+    let temp_dir = parts.next().unwrap_or("").to_string();
+    let local_app_data = parts.next().unwrap_or("").to_string();
+    let is_upgrading = parts.next().map(|s| !s.is_empty()).unwrap_or(false);
+    // app_id is joined onto profile paths and deleted recursively, so it must be a plain
+    // single path component
+    if app_id == "." || app_id == ".." || app_id.contains(['/', '\\', ':']) {
+        app_id = String::new();
+    }
     CleanupData {
-        install_dir: parts.next().unwrap_or("").to_string(),
-        app_id: parts.next().unwrap_or("").to_string(),
-        temp_dir: parts.next().unwrap_or("").to_string(),
-        local_app_data: parts.next().unwrap_or("").to_string(),
-        is_upgrading: parts.next().map(|s| !s.is_empty()).unwrap_or(false),
+        install_dir,
+        app_id,
+        temp_dir,
+        local_app_data,
+        is_upgrading,
     }
 }
 
@@ -113,6 +123,8 @@ fn remove_msi_arp_registry_keys(fn_name: &str, app_id: &str) {
     const UNINSTALL_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
     let subkey = format!("MSI:{}", app_id);
     for root in [HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE] {
+        // KEY_READ on the parent is enough: RegDeleteTreeW opens the named subkey itself with
+        // the rights it needs (covered by the unit test below, incl. foreign values/subkeys)
         if let Ok(uninstall) = RegKey::predef(root).open_subkey(UNINSTALL_KEY) {
             if let Err(e) = uninstall.delete_subkey_all(&subkey) {
                 show_debug_message(fn_name, format!("Did not remove uninstall registry key {:?}: {}", subkey, e));
@@ -361,4 +373,48 @@ fn show_debug_message(fn_name: &str, message: String) {
 #[cfg(not(debug_assertions))]
 fn show_debug_message(_fn_name: &str, _message: String) {
     // no-op
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use winreg::enums::HKEY_CURRENT_USER;
+    use winreg::RegKey;
+
+    #[test]
+    fn removes_arp_key_with_values_and_subkeys() {
+        // MSI only removes the registry values it authored; the helper must be able to delete a
+        // key that still holds foreign values and nested subkeys
+        let app_id = "VelopackWixArpTest";
+        let path = format!("Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\MSI:{}", app_id);
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        {
+            let (key, _) = hkcu.create_subkey(&path).unwrap();
+            key.set_value("DisplayName", &"leftover").unwrap();
+            let (nested, _) = key.create_subkey("Nested").unwrap();
+            nested.set_value("Extra", &1u32).unwrap();
+        }
+
+        remove_msi_arp_registry_keys("test", app_id);
+
+        assert!(hkcu.open_subkey(&path).is_err(), "ARP key should have been deleted");
+    }
+
+    #[test]
+    fn parse_cleanup_data_rejects_unsafe_app_id() {
+        let d = parse_cleanup_data("C:\\install\"..\\evil\"C:\\temp\"C:\\lad");
+        assert!(d.app_id.is_empty());
+
+        let d = parse_cleanup_data("C:\\install\"..\"C:\\temp\"C:\\lad\"{PRODUCT-CODE}");
+        assert!(d.app_id.is_empty());
+        assert!(d.is_upgrading);
+
+        let d = parse_cleanup_data("C:\\install\"MyApp\"C:\\temp\"C:\\lad\"");
+        assert_eq!(d.app_id, "MyApp");
+        assert!(!d.is_upgrading);
+
+        let d = parse_cleanup_data("C:\\install\"MyApp\"C:\\temp\"C:\\lad");
+        assert_eq!(d.app_id, "MyApp");
+        assert!(!d.is_upgrading);
+    }
 }

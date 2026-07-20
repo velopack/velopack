@@ -136,10 +136,12 @@
 
         <!-- Optional install-dir override for sysadmins, e.g. msiexec /i app.msi VELOPACK_INSTALLDIR="D:\App".
              When set, the forced default path (LocalAppData/ProgramFiles) is skipped in both UI and silent
-             installs. Secure so it survives the UI -> execute sequence handoff for elevated per-machine installs. -->
+             installs. Secure so it survives the UI -> execute sequence handoff for elevated per-machine installs.
+             Only applied on first install: on maintenance/uninstall INSTALLFOLDER must resolve from the
+             registered component paths, so the property cannot redirect what the elevated cleanup deletes. -->
         <Property Id="VELOPACK_INSTALLDIR" Secure="yes"/>
         <SetProperty Id="INSTALLFOLDER" Value="[VELOPACK_INSTALLDIR]" Before="CostFinalize" Sequence="execute"
-                     Condition="VELOPACK_INSTALLDIR"/>
+                     Condition="VELOPACK_INSTALLDIR AND NOT Installed"/>
 
         <!-- Quiet/passive/reduced installs (UILevel < 5) never run the UI publishes that set the
              default INSTALLFOLDER, which would otherwise resolve to {ROOTDRIVE}\{AppTitle}. Apply
@@ -181,7 +183,9 @@
         <Binary Id="WixUI_Bmp_New" SourceFile="{{NewIcoPath}}"/>
 
         <!-- MSI properties for app metadata (used by Rust custom actions) -->
-        <Property Id="RustAppId" Value="{{AppTitle}}"/>
+        <!-- Must be the pack ID (not the title): cleanup uses it to locate the %LocalAppData%
+             fallback dir, the velopack temp dir and the MSI:{AppId} ARP key -->
+        <Property Id="RustAppId" Value="{{AppId}}"/>
         <Property Id="RustAppTitle" Value="{{AppTitle}}"/>
         <Property Id="RustAppVersion" Value="{{AppVersion}}"/>
         {{#if HasRuntimeDependencies}}
