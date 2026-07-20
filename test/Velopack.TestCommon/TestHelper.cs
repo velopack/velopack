@@ -146,4 +146,22 @@ public static class TestHelper
 
         return RunImpl(psi, logger, exitCode);
     }
+
+    /// <summary>
+    /// Overwrites the -full.nupkg for each of the given versions with garbage, so an update can only
+    /// succeed via delta packages - a fallback to a full download will fail its checksum validation.
+    /// The full and delta packages must exist (in any channel naming), or this throws.
+    /// </summary>
+    public static void CorruptFullPackagesToForceDelta(string releaseDir, string id, string[] versions)
+    {
+        foreach (var version in versions) {
+            var fulls = Directory.GetFiles(releaseDir, $"{id}-{version}*-full.nupkg");
+            if (fulls.Length != 1)
+                throw new Exception($"Expected exactly one {id}-{version}*-full.nupkg in {releaseDir}, found {fulls.Length}.");
+            var deltas = Directory.GetFiles(releaseDir, $"{id}-{version}*-delta.nupkg");
+            if (deltas.Length != 1)
+                throw new Exception($"Expected exactly one {id}-{version}*-delta.nupkg in {releaseDir}, found {deltas.Length}.");
+            File.WriteAllText(fulls[0], "nope");
+        }
+    }
 }

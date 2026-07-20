@@ -70,7 +70,30 @@ public class LinuxPackTests
         Assert.EndsWith(Environment.NewLine + "version 2 test", chk2test);
         var chk2check2 = TestHelper.RunNoCoverage(appImagePath, ["check", releaseDir], installDir, logger);
         Assert.EndsWith(Environment.NewLine + "no updates", chk2check2);
-        logger.Info($"TEST ({variant}): v2 output verified / complete");
+        logger.Info($"TEST ({variant}): v2 output verified");
+
+        // pack v3
+        await PackTestAppVariant(variant, id, "3.0.0", "version 3 test", releaseDir, logger);
+
+        // corrupt the v3 full package, so the update can only succeed via the v2 -> v3
+        // delta (based on the v2 full downloaded above) - a fallback to a full update
+        // will fail its checksum
+        TestHelper.CorruptFullPackagesToForceDelta(releaseDir, id, ["3.0.0"]);
+
+        // delta update to v3
+        var chk3check = TestHelper.RunNoCoverage(appImagePath, ["check", releaseDir], installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "update: 3.0.0", chk3check);
+        TestHelper.RunNoCoverage(appImagePath, ["download", releaseDir], installDir, logger);
+        TestHelper.RunNoCoverage(appImagePath, ["apply", releaseDir], installDir, logger, exitCode: null);
+        logger.Info($"TEST ({variant}): v3 applied");
+
+        TestHelper.WaitUntil(() => {
+            var chk3version = TestHelper.RunNoCoverage(appImagePath, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "3.0.0", chk3version);
+        }, pollDelayMs: 1000);
+        var chk3test = TestHelper.RunNoCoverage(appImagePath, ["test"], installDir, logger);
+        Assert.EndsWith(Environment.NewLine + "version 3 test", chk3test);
+        logger.Info($"TEST ({variant}): v3 output verified / complete");
 
         // cleanup packages dir
         try {
