@@ -4623,6 +4623,7 @@ dependencies = [
  "velopack_bins",
  "velopack_l18n",
  "windows",
+ "winreg",
 ]
 
 [[package]]

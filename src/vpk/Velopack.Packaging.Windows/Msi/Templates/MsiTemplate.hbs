@@ -194,9 +194,21 @@
         <CustomAction Id="RustSetLocaleStrings" BinaryRef="RustDll" DllEntry="RustSetLocaleStrings" Execute="immediate" Return="check"/>
         <CustomAction Id="RustValidatePath" BinaryRef="RustDll" DllEntry="ValidatePath" Execute="immediate" Return="check"/>
         <CustomAction Id="RustEarlyBootstrap" BinaryRef="RustDll" DllEntry="EarlyBootstrap" Execute="immediate" Return="check"/>
-        <CustomAction Id="SetRustCleanupData" Property="RustCleanup" Value="[INSTALLFOLDER]&quot;[RustAppId]&quot;[TempFolder]" Execute="immediate"
-                      Return="check"/>
+        <!-- On full uninstall RustCleanup removes everything left in the install dir; during a
+             major upgrade ([UPGRADINGPRODUCTCODE] set in the old product being removed) it only
+             purges the `current` payload dir so user files outside it survive the upgrade.
+             UserRustCleanup runs impersonated on full uninstall only, to clean per-user state
+             (shortcuts, %LocalAppData% fallback dir, temp) that the non-impersonated action
+             cannot resolve when it runs as SYSTEM on per-machine installs. -->
+        <CustomAction Id="SetRustCleanupData" Property="RustCleanup"
+                      Value="[INSTALLFOLDER]&quot;[RustAppId]&quot;[TempFolder]&quot;[LocalAppDataFolder]&quot;[UPGRADINGPRODUCTCODE]"
+                      Execute="immediate" Return="check"/>
         <CustomAction Id="RustCleanup" BinaryRef="RustDll" DllEntry="CleanupDeferred" Execute="deferred" Impersonate="no" Return="ignore"/>
+        <CustomAction Id="SetUserRustCleanupData" Property="UserRustCleanup"
+                      Value="[INSTALLFOLDER]&quot;[RustAppId]&quot;[TempFolder]&quot;[LocalAppDataFolder]"
+                      Execute="immediate" Return="check"/>
+        <CustomAction Id="UserRustCleanup" BinaryRef="RustDll" DllEntry="UserCleanupDeferred" Execute="deferred" Impersonate="yes"
+                      Return="ignore"/>
         <CustomAction Id="RustLaunchApplication" BinaryRef="RustDll" DllEntry="LaunchApplication" Impersonate="yes" Execute="immediate"
                       Return="ignore"/>
 
@@ -229,10 +241,19 @@
             <Custom Action="SetInstallHookData" Before="InstallHookDeferred" Condition="NOT REMOVE"/>
             <!-- InstallHookDeferred runs after PatchChannelDeferred so the app hook sees the corrected channel -->
             <Custom Action="InstallHookDeferred" After="PatchChannelDeferred" Condition="NOT REMOVE"/>
-            <Custom Action="SetUninstallHookData" Before="UninstallHookDeferred" Condition="(REMOVE=&quot;ALL&quot;)"/>
-            <Custom Action="UninstallHookDeferred" Before="RemoveFiles" Condition="(REMOVE=&quot;ALL&quot;)"/>
+            <!-- The app uninstall hook and per-user cleanup only run on a real uninstall, not when
+                 the old product is removed as part of a major upgrade. RustCleanup runs in both
+                 cases; it decides what to remove based on [UPGRADINGPRODUCTCODE]. -->
+            <Custom Action="SetUninstallHookData" Before="UninstallHookDeferred"
+                    Condition="(REMOVE=&quot;ALL&quot;) AND NOT UPGRADINGPRODUCTCODE"/>
+            <Custom Action="UninstallHookDeferred" Before="RemoveFiles"
+                    Condition="(REMOVE=&quot;ALL&quot;) AND NOT UPGRADINGPRODUCTCODE"/>
             <Custom Action="SetRustCleanupData" Before="RustCleanup" Condition="(REMOVE=&quot;ALL&quot;)"/>
-            <Custom Action="RustCleanup" Before="RemoveFolders" Condition="(REMOVE=&quot;ALL&quot;)"/>
+            <Custom Action="RustCleanup" After="RemoveFiles" Condition="(REMOVE=&quot;ALL&quot;)"/>
+            <Custom Action="SetUserRustCleanupData" Before="UserRustCleanup"
+                    Condition="(REMOVE=&quot;ALL&quot;) AND NOT UPGRADINGPRODUCTCODE"/>
+            <Custom Action="UserRustCleanup" After="RustCleanup"
+                    Condition="(REMOVE=&quot;ALL&quot;) AND NOT UPGRADINGPRODUCTCODE"/>
         </InstallExecuteSequence>
 
         <UI>
