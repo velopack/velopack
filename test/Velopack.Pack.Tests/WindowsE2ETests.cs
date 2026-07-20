@@ -301,21 +301,30 @@ public class WindowsUpdateTests
         }, pollDelayMs: 1000);
     }
 
-    [Fact]
-    public async Task TestPackedAppCanDeltaUpdateToLatest()
+    [Theory]
+    [InlineData("csharp")]
+    [InlineData("rust")]
+    public async Task TestPackedAppCanDeltaUpdateToLatest(string variant)
     {
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
         using var _2 = TempUtil.GetTempDirectory(out var installDir);
-        string id = "SquirrelIntegrationTest";
+        string id = $"WinDeltaTest-{variant}";
+        var exeName = variant == "rust" ? "testapp.exe" : "TestApp.exe";
+        var appPath = Path.Combine(installDir, "current", exeName);
         string packagesPath = Path.Combine(installDir, "packages");
         if (Directory.Exists(packagesPath)) {
             Directory.Delete(packagesPath, true);
         }
 
+        // the rust testapp is not coverage-instrumented
+        string run(string[] args, int? exitCode = 0) => variant == "csharp"
+            ? WindowsTestHelper.RunCoveredDotnet(appPath, args, installDir, logger, exitCode)
+            : WindowsTestHelper.RunNoCoverage(appPath, args, installDir, logger, exitCode);
+
         // pack v1
-        await WindowsPackTests.PackTestApp(id, "1.0.0", "version 1 test", releaseDir, logger);
+        await WindowsPackTests.PackTestAppVariant(variant, id, "1.0.0", "version 1 test", releaseDir, logger);
 
         // install app
         var setupPath1 = Path.Combine(releaseDir, $"{id}-win-Setup.exe");
@@ -326,70 +335,75 @@ public class WindowsUpdateTests
             logger);
 
         // check app installed correctly
-        var appPath = Path.Combine(installDir, "current", "TestApp.exe");
         Assert.True(File.Exists(appPath));
-        var argsPath = Path.Combine(installDir, "args.txt");
-        Assert.True(File.Exists(argsPath));
-        var argsContent = File.ReadAllText(argsPath).Trim();
-        Assert.Equal("OnAfterInstallFastCallback: --veloapp-install 1.0.0", argsContent);
-        logger.Info("TEST: v1 installed");
+        if (variant == "csharp") {
+            var argsPath = Path.Combine(installDir, "args.txt");
+            Assert.True(File.Exists(argsPath));
+            var argsContent = File.ReadAllText(argsPath).Trim();
+            Assert.Equal("OnAfterInstallFastCallback: --veloapp-install 1.0.0", argsContent);
+        }
+
+        logger.Info($"TEST ({variant}): v1 installed");
 
         // check app output
-        var chk1test = WindowsTestHelper.RunCoveredDotnet(appPath, ["test"], installDir, logger);
+        var chk1test = run(["test"]);
         Assert.EndsWith(Environment.NewLine + "version 1 test", chk1test);
-        var chk1version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
+        var chk1version = run(["version"]);
         Assert.EndsWith(Environment.NewLine + "1.0.0", chk1version);
-        var chk1check = WindowsTestHelper.RunCoveredDotnet(appPath, ["check", releaseDir], installDir, logger);
+        var chk1check = run(["check", releaseDir]);
         Assert.EndsWith(Environment.NewLine + "no updates", chk1check);
-        logger.Info("TEST: v1 output verified");
+        logger.Info($"TEST ({variant}): v1 output verified");
 
         // pack v2
-        await WindowsPackTests.PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
+        await WindowsPackTests.PackTestAppVariant(variant, id, "2.0.0", "version 2 test", releaseDir, logger);
 
         // check can find v2 update
-        var chk2check = WindowsTestHelper.RunCoveredDotnet(appPath, ["check", releaseDir], installDir, logger);
+        var chk2check = run(["check", releaseDir]);
         Assert.EndsWith(Environment.NewLine + "update: 2.0.0", chk2check);
-        logger.Info("TEST: found v2 update");
+        logger.Info($"TEST ({variant}): found v2 update");
 
         // pack v3
-        await WindowsPackTests.PackTestApp(id, "3.0.0", "version 3 test", releaseDir, logger);
+        await WindowsPackTests.PackTestAppVariant(variant, id, "3.0.0", "version 3 test", releaseDir, logger);
 
-        // corrupt v2/v3 full packages as we want to test delta's
-        File.WriteAllText(Path.Combine(releaseDir, $"{id}-2.0.0-win-full.nupkg"), "nope");
-        File.WriteAllText(Path.Combine(releaseDir, $"{id}-3.0.0-win-full.nupkg"), "nope");
+        // corrupt the v2/v3 full packages, so the update can only succeed via the
+        // v2/v3 delta packages - a fallback to a full update will fail its checksum
+        TestHelper.CorruptFullPackagesToForceDelta(releaseDir, id, ["2.0.0", "3.0.0"]);
 
-        // perform full update, check that we get v3
+        // perform delta update, check that we get v3
         // apply should fail if there's not an update downloaded
-        WindowsTestHelper.RunCoveredDotnet(appPath, ["apply", releaseDir], installDir, logger, exitCode: -1);
-        WindowsTestHelper.RunCoveredDotnet(appPath, ["download", releaseDir], installDir, logger);
-        WindowsTestHelper.RunCoveredDotnet(appPath, ["apply", releaseDir], installDir, logger, exitCode: null);
-        logger.Info("TEST: v3 applied");
+        run(["apply", releaseDir], exitCode: -1);
+        run(["download", releaseDir]);
+        run(["apply", releaseDir], exitCode: null);
+        logger.Info($"TEST ({variant}): v3 applied");
 
-        // check app output
-        var chk3test = WindowsTestHelper.RunCoveredDotnet(appPath, ["test"], installDir, logger);
+        // update.exe swaps the app in a separate process; poll until the new version is live
+        TestHelper.WaitUntil(() => {
+            var chk3version = run(["version"]);
+            Assert.EndsWith(Environment.NewLine + "3.0.0", chk3version);
+        }, pollDelayMs: 1000);
+        var chk3test = run(["test"]);
         Assert.EndsWith(Environment.NewLine + "version 3 test", chk3test);
-        var chk3version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
-        Assert.EndsWith(Environment.NewLine + "3.0.0", chk3version);
-        var ch3check2 = WindowsTestHelper.RunCoveredDotnet(appPath, ["check", releaseDir], installDir, logger);
+        var ch3check2 = run(["check", releaseDir]);
         Assert.EndsWith(Environment.NewLine + "no updates", ch3check2);
-        logger.Info("TEST: v3 output verified");
+        logger.Info($"TEST ({variant}): v3 output verified");
 
         // print log output
         var logPath = WindowsTestHelper.GetLogFilePath(id);
-        logger.Info("TEST: log output - " + Environment.NewLine + File.ReadAllText(logPath));
-
+        logger.Info($"TEST ({variant}): log output - " + Environment.NewLine + File.ReadAllText(logPath));
 
         // check new obsoleted/updated hooks have run
-        var argsContentv3 = File.ReadAllText(argsPath).Trim();
-        Assert.Contains("--veloapp-install 1.0.0", argsContentv3);
-        Assert.Contains("--veloapp-obsolete 1.0.0", argsContentv3);
-        Assert.Contains("--veloapp-updated 3.0.0", argsContentv3);
-        logger.Info("TEST: hooks verified");
+        if (variant == "csharp") {
+            var argsContentv3 = File.ReadAllText(Path.Combine(installDir, "args.txt")).Trim();
+            Assert.Contains("--veloapp-install 1.0.0", argsContentv3);
+            Assert.Contains("--veloapp-obsolete 1.0.0", argsContentv3);
+            Assert.Contains("--veloapp-updated 3.0.0", argsContentv3);
+            logger.Info($"TEST ({variant}): hooks verified");
+        }
 
         // uninstall
         var updatePath = Path.Combine(installDir, "Update.exe");
         WindowsTestHelper.RunNoCoverage(updatePath, ["--silent", "--uninstall"], Environment.CurrentDirectory, logger);
-        logger.Info("TEST: uninstalled / complete");
+        logger.Info($"TEST ({variant}): uninstalled / complete");
     }
 }
 
