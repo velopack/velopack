@@ -1,8 +1,6 @@
 ﻿#nullable enable
-using System.Text;
 using System.Text.RegularExpressions;
 using Velopack.Core;
-using Velopack.Exceptions;
 using Velopack.Logging;
 using Velopack.Util;
 
@@ -132,34 +130,12 @@ namespace Velopack.Packaging.Compression
                 return;
             }
 
-            if (relativeFilePath.EndsWith(".zsdiff", StringComparison.InvariantCultureIgnoreCase)) {
-                Log.Trace($"Applying zstd diff to {relativeFilePath}");
-                ApplyZstdPatch(finalTarget, inputFile, tempTargetFile);
-            } else if (relativeFilePath.EndsWith(".bsdiff", StringComparison.InvariantCultureIgnoreCase)) {
-                using (var of = File.OpenWrite(tempTargetFile))
-                using (var inf = File.OpenRead(finalTarget)) {
-                    Log.Trace($"Applying bsdiff to {relativeFilePath}");
-                    BinaryPatchUtility.Apply(inf, () => File.OpenRead(inputFile), of);
-                }
-
-                verifyPatchedFile(relativeFilePath, inputFile, tempTargetFile);
-            } else if (relativeFilePath.EndsWith(".diff", StringComparison.InvariantCultureIgnoreCase)) {
-                Log.Trace($"Applying msdiff to {relativeFilePath}");
-
-                if (VelopackRuntimeInfo.IsWindows) {
-                    MsDeltaCompression.ApplyDelta(inputFile, finalTarget, tempTargetFile);
-                } else {
-                    throw new PlatformNotSupportedException("msdelta is not supported on non-windows platforms.");
-                }
-
-                verifyPatchedFile(relativeFilePath, inputFile, tempTargetFile);
-            } else {
-                using (var of = File.OpenWrite(tempTargetFile))
-                using (var inf = File.OpenRead(inputFile)) {
-                    Log.Trace($"Adding new file: {relativeFilePath}");
-                    inf.CopyTo(of);
-                }
+            if (!relativeFilePath.EndsWith(".zsdiff", StringComparison.InvariantCultureIgnoreCase)) {
+                throw new NotSupportedException($"Unsupported patch format: {relativeFilePath}");
             }
+
+            Log.Trace($"Applying zstd diff to {relativeFilePath}");
+            ApplyZstdPatch(finalTarget, inputFile, tempTargetFile);
 
             if (File.Exists(finalTarget)) File.Delete(finalTarget);
 
@@ -167,25 +143,6 @@ namespace Velopack.Packaging.Compression
             if (!targetPath.Exists) targetPath.Create();
 
             File.Move(tempTargetFile, finalTarget);
-        }
-
-        void verifyPatchedFile(string relativeFilePath, string inputFile, string tempTargetFile)
-        {
-            var shaFile = DIFF_SUFFIX.Replace(inputFile, ".shasum");
-#pragma warning disable CS0618 // Type or member is obsolete
-            var expectedReleaseEntry = ReleaseEntry.ParseReleaseEntry(File.ReadAllText(shaFile, Encoding.UTF8));
-            var actualReleaseEntry = ReleaseEntry.GenerateFromFile(tempTargetFile);
-#pragma warning restore CS0618 // Type or member is obsolete
-
-            if (expectedReleaseEntry.Filesize != actualReleaseEntry.Filesize) {
-                Log.Error($"Patched file {relativeFilePath} has incorrect size, expected {expectedReleaseEntry.Filesize}, got {actualReleaseEntry.Filesize}");
-                throw new ChecksumFailedException(relativeFilePath);
-            }
-
-            if (expectedReleaseEntry.SHA1 != actualReleaseEntry.SHA1) {
-                Log.Error($"Patched file {relativeFilePath} has incorrect SHA1, expected {expectedReleaseEntry.SHA1}, got {actualReleaseEntry.SHA1}");
-                throw new ChecksumFailedException(relativeFilePath);
-            }
         }
     }
 }
