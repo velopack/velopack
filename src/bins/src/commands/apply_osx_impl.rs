@@ -98,11 +98,11 @@ pub fn apply_package_impl(locator: &VelopackLocator, pkg: &PathBuf, _hook_mode: 
                     dialogs::ask_user_to_elevate(&manifest.title, &manifest.version.to_string())?;
                     let script = format!(
                         "do shell script \"mv -f '{}' '{}' && mv -f '{}' '{}' && rm -rf '{}'\" with administrator privileges",
-                        &root_path.to_string_lossy(),
-                        &tmp_path_old.to_string_lossy(),
-                        &tmp_path_new.to_string_lossy(),
-                        &root_path.to_string_lossy(),
-                        &tmp_path_old.to_string_lossy()
+                        root_path.to_string_lossy(),
+                        tmp_path_old.to_string_lossy(),
+                        tmp_path_new.to_string_lossy(),
+                        root_path.to_string_lossy(),
+                        tmp_path_old.to_string_lossy()
                     );
                     info!("Running elevated process via osascript: {}", script);
                     let output = Command::new("osascript").arg("-e").arg(&script).status()?;
