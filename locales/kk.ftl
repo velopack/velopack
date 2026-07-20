@@ -44,6 +44,10 @@ overwrite-footer = Мұнда орнатылған: { $path }
 uninstall-header = Жою аяқталды
 uninstall-body = Қолданба компьютеріңізден сәтті жойылды.
 
+# Uninstall progress (uninstall.rs)
+uninstall-progress-header = { $app_title } жойылуда
+uninstall-progress-body = Файлдар мен таңбашалар жойылуда, күте тұрыңыз...
+
 # Install hook failed (install.rs)
 install-hook-header = Орнату жартылай сәтті болды
 install-hook-body = Орнату аяқталды, бірақ кейбір қадамдар сәтсіз аяқталған болуы мүмкін. Қолданба дұрыс жұмыс істемесе, қайта орнатып көруге немесе қолданба авторына хабарласуға болады.

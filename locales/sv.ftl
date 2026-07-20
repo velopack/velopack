@@ -44,6 +44,10 @@ overwrite-footer = Installerad på: { $path }
 uninstall-header = Avinstallation klar
 uninstall-body = Programmet har tagits bort från din dator.
 
+# Uninstall progress (uninstall.rs)
+uninstall-progress-header = Avinstallerar { $app_title }
+uninstall-progress-body = Tar bort filer och genvägar, vänta...
+
 # Install hook failed (install.rs)
 install-hook-header = Installationen lyckades delvis
 install-hook-body = Installationen har slutförts, men några steg kan ha misslyckats. Om programmet inte fungerar korrekt kan du försöka installera om eller kontakta programmets utgivare.

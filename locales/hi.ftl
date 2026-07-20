@@ -44,6 +44,10 @@ overwrite-footer = स्थापित: { $path }
 uninstall-header = अनइंस्टॉल पूर्ण
 uninstall-body = अनुप्रयोग आपके कंप्यूटर से सफलतापूर्वक निकाल दिया गया है.
 
+# Uninstall progress (uninstall.rs)
+uninstall-progress-header = { $app_title } की स्थापना रद्द की जा रही है
+uninstall-progress-body = फ़ाइलें और शॉर्टकट हटाए जा रहे हैं, कृपया प्रतीक्षा करें...
+
 # Install hook failed (install.rs)
 install-hook-header = स्थापना आंशिक रूप से सफल हुई
 install-hook-body = स्थापना पूर्ण हो गई है, लेकिन कुछ चरण विफल हो सकते हैं. यदि अनुप्रयोग सही ढंग से कार्य नहीं करता है, तो आप पुनः स्थापित करने का प्रयास कर सकते हैं या अनुप्रयोग लेखक से संपर्क कर सकते हैं.

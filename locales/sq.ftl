@@ -44,6 +44,10 @@ overwrite-footer = I instaluar te: { $path }
 uninstall-header = Çinstalimi u plotësua
 uninstall-body = Aplikacioni u hoq me sukses prej kompjuterit tuaj.
 
+# Uninstall progress (uninstall.rs)
+uninstall-progress-header = Po çinstalohet { $app_title }
+uninstall-progress-body = Po hiqen skedarët dhe shkurtoret, ju lutemi prisni...
+
 # Install hook failed (install.rs)
 install-hook-header = Instalimi pati pjesërisht sukses
 install-hook-body = Instalimi u plotësua, por disa hapa mund të kenë dështuar. Nëse aplikacioni nuk funksionon si duhet, mund të provoni ta riinstaloni ose të lidheni me autorin e aplikacionit.

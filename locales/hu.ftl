@@ -44,6 +44,10 @@ overwrite-footer = Telepítve ide: { $path }
 uninstall-header = Az eltávolítás befejeződött
 uninstall-body = Az alkalmazás sikeresen el lett távolítva a számítógépről.
 
+# Uninstall progress (uninstall.rs)
+uninstall-progress-header = A(z) { $app_title } eltávolítása
+uninstall-progress-body = Fájlok és parancsikonok eltávolítása, kérjük, várjon...
+
 # Install hook failed (install.rs)
 install-hook-header = A telepítés részben sikerült
 install-hook-body = A telepítés befejeződött, de néhány lépés meghiúsulhatott. Ha az alkalmazás nem működik megfelelően, próbálja meg újratelepíteni vagy lépjen kapcsolatba az alkalmazás szerzőjével.

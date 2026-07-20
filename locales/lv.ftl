@@ -44,6 +44,10 @@ overwrite-footer = Instalēts vietā: { $path }
 uninstall-header = Atinstalēšana pabeigta
 uninstall-body = Lietojumprogramma ir veiksmīgi noņemta no datora.
 
+# Uninstall progress (uninstall.rs)
+uninstall-progress-header = Tiek atinstalēta { $app_title }
+uninstall-progress-body = Tiek noņemti faili un saīsnes, lūdzu, uzgaidiet...
+
 # Install hook failed (install.rs)
 install-hook-header = Instalēšana daļēji veiksmīga
 install-hook-body = Instalēšana ir pabeigta, taču dažas darbības, iespējams, neizdevās. Ja lietojumprogramma nedarbojas pareizi, varat mēģināt to atkārtoti instalēt vai sazināties ar lietojumprogrammas izstrādātāju.

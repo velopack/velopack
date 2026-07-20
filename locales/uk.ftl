@@ -44,6 +44,10 @@ overwrite-footer = Інстальовано у: { $path }
 uninstall-header = Видалення завершено
 uninstall-body = Застосунок успішно видалено з вашого комп’ютера.
 
+# Uninstall progress (uninstall.rs)
+uninstall-progress-header = Видалення { $app_title }
+uninstall-progress-body = Видалення файлів і ярликів, зачекайте...
+
 # Install hook failed (install.rs)
 install-hook-header = Інсталяцію частково завершено
 install-hook-body = Інсталяцію завершено, але деякі кроки могли не виконатися. Якщо застосунок працює неправильно, спробуйте перевстановити його або зверніться до автора застосунку.

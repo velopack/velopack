@@ -44,6 +44,10 @@ overwrite-footer = Папка установки: { $path }
 uninstall-header = Удаление завершено
 uninstall-body = Приложение успешно удалено с вашего компьютера.
 
+# Uninstall progress (uninstall.rs)
+uninstall-progress-header = Удаление { $app_title }
+uninstall-progress-body = Удаление файлов и ярлыков, пожалуйста, подождите...
+
 # Install hook failed (install.rs)
 install-hook-header = Установка завершена частично
 install-hook-body = Установка завершена, но некоторые шаги могли быть выполнены с ошибками. Если приложение работает неправильно, попробуйте переустановить его или обратитесь к разработчику.

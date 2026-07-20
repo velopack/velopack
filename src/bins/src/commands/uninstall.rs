@@ -11,6 +11,11 @@ pub fn uninstall(locator: &VelopackLocator, delete_self: bool) -> Result<()> {
     }
 
     let root_path = locator.get_root_dir();
+    let app_title = locator.get_manifest_title();
+
+    // open a dialog showing indeterminate progress. we have no notion of progress
+    // while deleting files or running the uninstall hook.
+    let reporter = dialogs::progress::show_uninstall_progress(&app_title);
 
     // the real app could be running at the moment
     let _ = shared::force_stop_package(&root_path);
@@ -34,9 +39,8 @@ pub fn uninstall(locator: &VelopackLocator, delete_self: bool) -> Result<()> {
         error!("Unable to remove uninstall registry entry ({}).", e);
     }
 
-    let app_title = locator.get_manifest_title();
-
     info!("Finished successfully.");
+    reporter.close();
     dialogs::show_uninstall_complete(&app_title);
 
     if delete_self {

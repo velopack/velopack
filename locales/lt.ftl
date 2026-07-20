@@ -44,6 +44,10 @@ overwrite-footer = Įdiegta vietoje: { $path }
 uninstall-header = Šalinimas baigtas
 uninstall-body = Programa sėkmingai pašalinta iš kompiuterio.
 
+# Uninstall progress (uninstall.rs)
+uninstall-progress-header = Šalinama { $app_title }
+uninstall-progress-body = Šalinami failai ir nuorodos, palaukite...
+
 # Install hook failed (install.rs)
 install-hook-header = Diegimas iš dalies sėkmingas
 install-hook-body = Diegimas baigtas, bet kai kurie veiksmai galėjo nepavykti. Jei programa veikia netinkamai, pabandykite ją iš naujo įdiegti arba kreipkitės į programos kūrėją.

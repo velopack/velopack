@@ -44,6 +44,10 @@ overwrite-footer = مثبت في: { $path }
 uninstall-header = اكتمل إلغاء التثبيت
 uninstall-body = تمت إزالة التطبيق بنجاح من الكمبيوتر الخاص بك.
 
+# Uninstall progress (uninstall.rs)
+uninstall-progress-header = جارٍ إلغاء تثبيت { $app_title }
+uninstall-progress-body = جارٍ إزالة الملفات والاختصارات، يرجى الانتظار...
+
 # Install hook failed (install.rs)
 install-hook-header = نجح التثبيت جزئيًا
 install-hook-body = اكتمل التثبيت، ولكن قد تكون بعض الخطوات قد فشلت. إذا لم يعمل التطبيق بشكل صحيح، يمكنك محاولة إعادة التثبيت أو الاتصال بمؤلف التطبيق.

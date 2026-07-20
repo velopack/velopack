@@ -44,6 +44,10 @@ overwrite-footer = Geïnstalleerd in: { $path }
 uninstall-header = Verwijderen voltooid
 uninstall-body = De toepassing is met succes van uw computer verwijderd.
 
+# Uninstall progress (uninstall.rs)
+uninstall-progress-header = { $app_title } wordt verwijderd
+uninstall-progress-body = Bestanden en snelkoppelingen worden verwijderd, even geduld...
+
 # Install hook failed (install.rs)
 install-hook-header = Installatie gedeeltelijk gelukt
 install-hook-body = De installatie is voltooid, maar sommige stappen kunnen zijn mislukt. Als de toepassing niet correct werkt, kunt u proberen deze opnieuw te installeren of contact opnemen met de auteur van de toepassing.

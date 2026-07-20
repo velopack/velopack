@@ -44,6 +44,10 @@ overwrite-footer = インストール場所: { $path }
 uninstall-header = アンインストール完了
 uninstall-body = アプリケーションはコンピューターから正常に削除されました。
 
+# Uninstall progress (uninstall.rs)
+uninstall-progress-header = { $app_title } をアンインストールしています
+uninstall-progress-body = ファイルとショートカットを削除しています。しばらくお待ちください...
+
 # Install hook failed (install.rs)
 install-hook-header = インストールが部分的に成功しました
 install-hook-body = インストールは完了しましたが、一部の手順が失敗した可能性があります。アプリケーションが正常に動作しない場合は、再インストールするか、アプリケーションの作者に連絡してください。

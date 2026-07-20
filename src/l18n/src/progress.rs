@@ -100,6 +100,16 @@ pub fn show_splash_progress(app_name: &str, app_version: &str) -> Box<dyn Progre
     show_progress_dialog(&title, &header, &body)
 }
 
+pub fn show_uninstall_progress(app_name: &str) -> Box<dyn ProgressReporter> {
+    let title = crate::locale_strings::title_uninstall(app_name);
+    let header = crate::locale_strings::uninstall_progress_header(app_name);
+    let body = crate::locale_strings::uninstall_progress_body();
+    let reporter = show_progress_dialog(&title, &header, &body);
+    // there is no meaningful progress to report while removing files and running hooks
+    reporter.set_indeterminate();
+    reporter
+}
+
 pub fn show_deps_download_progress(dep_name: &str, is_update: bool) -> Box<dyn ProgressReporter> {
     let title = if is_update {
         crate::locale_strings::title_update(dep_name)
