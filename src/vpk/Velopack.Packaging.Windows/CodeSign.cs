@@ -66,7 +66,7 @@ public class CodeSign
                 Log.Info("Preparing to codesign using a single file signing template, ignoring --signParallel option.");
                 parallelism = 1;
             } else if (signArguments.Contains("{{file...}}")) {
-                Log.Info($"Preparing to codesign using a single file signing template, with a parallelism of {parallelism}.");
+                Log.Info($"Preparing to codesign using a multiple file signing template, with a parallelism of {parallelism}.");
                 signArguments = signArguments.Replace("{{file...}}", "{{file}}");
             } else {
                 throw new UserInfoException(
@@ -82,19 +82,24 @@ public class CodeSign
             Log.Info($"{pendingSign.Count} file(s) will be signed, {diff} will be skipped.");
         }
 
+        // Escape once, before the loop. Escaping inside it re-escapes an already-escaped
+        // string, so every batch after the first was corrupted: a template containing
+        // \ $ ` " or ' would fail from the second batch onwards. That is the common case
+        // rather than an edge one, because a {{file}} template pins parallelism to 1 and
+        // so gives every file its own batch.
+        if (!VelopackRuntimeInfo.IsWindows) {
+            signArguments = EscapeForBash(signArguments);
+        }
+
         do {
             List<string> filesToSign = [];
             for (int i = Math.Max(1, Math.Min(pendingSign.Count, parallelism)); i > 0; i--) {
                 filesToSign.Add(pendingSign.Dequeue());
             }
 
-            string filesToSignStr;
-            if (VelopackRuntimeInfo.IsWindows) {
-                filesToSignStr = QuoteFileArgsWindows(filesToSign);
-            } else {
-                filesToSignStr = QuoteFileArgsBash(filesToSign);
-                signArguments = EscapeForBash(signArguments);
-            }
+            string filesToSignStr = VelopackRuntimeInfo.IsWindows
+                ? QuoteFileArgsWindows(filesToSign)
+                : QuoteFileArgsBash(filesToSign);
 
             string command;
             if (signAsTemplate) {
