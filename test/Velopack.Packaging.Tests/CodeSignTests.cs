@@ -700,6 +700,100 @@ public class CodeSignTests
     }
 
     [Fact]
+    public void Sign_Template_SingleFileTemplate_ManyFiles_TemplateNotDoubleEscaped()
+    {
+        // A {{file}} template pins parallelism to 1, so each file is its own batch.
+        // If the template is escaped inside the batch loop it gets re-escaped every
+        // time, and everything after the first file fails.
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "bash-only test");
+
+        using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
+        var console = new BasicConsole(logger, new VelopackDefaults(true));
+        var signer = new CodeSign(logger, console);
+
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+
+        var files = new[] {
+            Path.Combine(dir, "one.exe"),
+            Path.Combine(dir, "two.exe"),
+            Path.Combine(dir, "three.exe"),
+        };
+        foreach (var f in files) File.WriteAllText(f, "dummy");
+
+        // Contains the characters EscapeForBash exists to protect: quotes and '$'.
+        signer.Sign(files, "echo \"marker_$V\" {{file}}", 1, _ => { }, true);
+
+        var signOutput = GetSignToolOutput(logger);
+        foreach (var f in files) {
+            Assert.Contains(Path.GetFileName(f), signOutput);
+        }
+
+        // One line per batch, each with the literal marker: proof no batch was corrupted.
+        var markers = signOutput.Split("marker_$V").Length - 1;
+        Assert.Equal(files.Length, markers);
+    }
+
+    [Fact]
+    public void Sign_Template_MultiFileTemplate_MoreFilesThanParallelism_NotDoubleEscaped()
+    {
+        // Same defect via the {{file...}} path, where batching happens once the file
+        // count exceeds --signParallel.
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "bash-only test");
+
+        using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
+        var console = new BasicConsole(logger, new VelopackDefaults(true));
+        var signer = new CodeSign(logger, console);
+
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+
+        var files = new[] {
+            Path.Combine(dir, "a.exe"),
+            Path.Combine(dir, "b.exe"),
+            Path.Combine(dir, "c.exe"),
+            Path.Combine(dir, "d.exe"),
+            Path.Combine(dir, "e.exe"),
+        };
+        foreach (var f in files) File.WriteAllText(f, "dummy");
+
+        // 5 files at a parallelism of 2 gives batches of 2, 2 and 1.
+        signer.Sign(files, "echo \"marker_$V\" {{file...}}", 2, _ => { }, true);
+
+        var signOutput = GetSignToolOutput(logger);
+        foreach (var f in files) {
+            Assert.Contains(Path.GetFileName(f), signOutput);
+        }
+
+        var markers = signOutput.Split("marker_$V").Length - 1;
+        Assert.Equal(3, markers);
+    }
+
+    [Fact]
+    public void Sign_Template_MultipleBatches_CopyToQuotedDestination_Succeeds()
+    {
+        // The end-to-end shape a real signing template has: a quoted argument that
+        // must survive every batch, not just the first.
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "bash-only test");
+
+        using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
+        var console = new BasicConsole(logger, new VelopackDefaults(true));
+        var signer = new CodeSign(logger, console);
+
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+
+        var file1 = Path.Combine(dir, "first.exe");
+        var file2 = Path.Combine(dir, "second.exe");
+        File.WriteAllText(file1, "data-1");
+        File.WriteAllText(file2, "data-2");
+
+        var destFile = Path.Combine(dir, "dest_$V.bin");
+        signer.Sign([file1, file2], $"cp {{{{file}}}} \"{destFile}\"", 1, _ => { }, true);
+
+        // Both batches ran, so the destination holds the second file's contents.
+        Assert.True(File.Exists(destFile), "Destination must exist with '$' taken literally.");
+        Assert.Equal("data-2", File.ReadAllText(destFile));
+    }
+
+    [Fact]
     public void Sign_Template_WindowsCmdMetacharactersInDestination_Work()
     {
         // Windows: cmd-meaningful chars (parens, &, %) inside the quoted dest
