@@ -89,14 +89,16 @@ public class WindowsPackCommand : PackCommand
             .SetArgumentHelpName("LOC")
             .SetDefault("Desktop,StartMenuRoot");
 
+        // Trusted Signing goes over HTTPS rather than through signtool.exe, so unlike the
+        // options below it is not restricted to Windows.
+        AddOption<FileInfo>((v) => AzureTrustedSignFile = v.ToFullNameOrNull(), ["--azureTrustedSignFile"])
+            .SetDescription("Path to Azure Trusted Signing metadata.json.")
+            .SetArgumentHelpName("PATH");
+
         if (VelopackRuntimeInfo.IsWindows) {
             AddOption<string>((v) => SignParameters = v, ["--signParams", "-n"])
                 .SetDescription("Sign files via signtool.exe using these parameters.")
                 .SetArgumentHelpName("PARAMS");
-
-            AddOption<FileInfo>((v) => AzureTrustedSignFile = v.ToFullNameOrNull(), ["--azureTrustedSignFile"])
-                .SetDescription("Path to Azure Trusted Signing metadata.json.")
-                .SetArgumentHelpName("PATH");
 
             AddOption<bool>((v) => BuildMsi = v, ["--msi"])
                 .SetDescription("Compile a .msi machine-wide bootstrap package.");

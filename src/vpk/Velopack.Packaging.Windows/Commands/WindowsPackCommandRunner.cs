@@ -326,6 +326,13 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
             helper.Sign(filePaths, signTemplate, signParallel, progress, true);
         }
 
+        // Trusted Signing needs no signtool.exe, so it is the one signing method that can
+        // run anywhere. Windows keeps using the Dlib so its behaviour is unchanged.
+        if (!String.IsNullOrEmpty(trustedSignMetadataPath) && !VelopackRuntimeInfo.IsWindows) {
+            new NativeCodeSign(Log).SignWithTrustedSigning(filePaths, trustedSignMetadataPath, progress);
+            return;
+        }
+
         // signtool.exe does not work if we're not on windows.
         if (!VelopackRuntimeInfo.IsWindows) return;
 
