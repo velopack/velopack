@@ -18,8 +18,8 @@
     <PackageReference Include="AsmResolver.PE.Win32Resources" Version="6.0.0" />
     <PackageReference Include="Microsoft.Security.Extensions" Version="1.4.0" />
     <PackageReference Include="Handlebars.Net" Version="2.1.6" />
-    <PackageReference Include="SignUniversal" Version="1.0.32" />
-    <PackageReference Include="SignUniversal.Azure" Version="1.0.32" />
+    <PackageReference Include="SignUniversal" Version="1.0.34" />
+    <PackageReference Include="SignUniversal.Azure" Version="1.0.34" />
   </ItemGroup>
 
   <ItemGroup>
