@@ -10,10 +10,10 @@
 
   <ItemGroup>
     <PackageReference Include="FluentValidation" Version="12.1.1" />
-    <PackageReference Include="Microsoft.Identity.Client" Version="4.85.2" />
-    <PackageReference Include="Microsoft.Identity.Client.Broker" Version="4.85.2" />
-    <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.85.2" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.86.1" />
+    <PackageReference Include="Microsoft.Identity.Client.Broker" Version="4.86.1" />
+    <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.86.1" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.10" />
     <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="6.0.0" Aliases="HttpFormatting" />
   </ItemGroup>
 
