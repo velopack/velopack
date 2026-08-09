@@ -39,7 +39,11 @@ public static class TestHelper
     public static string ReadFileWithRetry(string path, ILogger logger)
     {
         return IoUtil.Retry(
-            () => File.ReadAllText(path),
+            () => {
+                using var fs = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var reader = new StreamReader(fs);
+                return reader.ReadToEnd();
+            },
             logger: logger.ToVelopackLogger(),
             retries: 10,
             retryDelay: 1000);

@@ -93,9 +93,11 @@ public class WindowsInstallTests
         WindowsTestHelper.RunCoveredDotnet(appPath, ["apply", releaseDir], installDir, logger, exitCode: null);
         logger.Info("TEST: v2 applied");
 
-        // check v2 is running
-        var chk2version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
-        Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        // update.exe swaps the app in a separate process; poll until the new version is live
+        TestHelper.WaitUntil(() => {
+            var chk2version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        }, timeoutMs: 60_000, pollDelayMs: 1000);
         var chk2test = WindowsTestHelper.RunCoveredDotnet(appPath, ["test"], installDir, logger);
         Assert.EndsWith(Environment.NewLine + "version 2 test", chk2test);
         logger.Info("TEST: v2 output verified");
@@ -179,8 +181,10 @@ public class WindowsInstallTests
         var date = DateTime.Now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         Assert.Equal(date, installDate.Trim('\0'));
 
-        var uninstOutput = WindowsTestHelper.RunNoCoverage(updatePath, ["--silent", "--uninstall"], Environment.CurrentDirectory, logger);
-        Assert.EndsWith(Environment.NewLine + "Y", uninstOutput); // this checks that the self-delete succeeded
+        WindowsTestHelper.RunNoCoverage(updatePath, ["--silent", "--uninstall"], Environment.CurrentDirectory, logger);
+
+        // uninstall schedules self-deletion in a child process after Update.exe exits
+        TestHelper.WaitUntil(() => Assert.False(Directory.Exists(tmpInstallDir)), timeoutMs: 30_000);
 
         Assert.False(File.Exists(startLnk));
         Assert.False(File.Exists(desktopLnk));
@@ -213,13 +217,11 @@ public class WindowsInstallTests
             logger);
 
         var argsPath = Path.Combine(installDir, "args.txt");
-        Assert.True(File.Exists(argsPath));
-        string contents = File.ReadAllText(argsPath).Trim();
-        Assert.Equal("OnAfterInstallFastCallback: --veloapp-install 1.0.0", contents);
-
         var firstRun = Path.Combine(installDir, "firstrun");
-        Assert.True(File.Exists(argsPath));
-        Assert.Equal("OnFirstRun: 1.0.0", File.ReadAllText(firstRun).Trim());
+        TestHelper.WaitUntil(() => {
+            Assert.Equal("OnAfterInstallFastCallback: --veloapp-install 1.0.0", File.ReadAllText(argsPath).Trim());
+            Assert.Equal("OnFirstRun: 1.0.0", File.ReadAllText(firstRun).Trim());
+        });
 
         // pack v2
         await WindowsPackTests.PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
@@ -239,7 +241,7 @@ public class WindowsInstallTests
         });
 
         var logFile = WindowsTestHelper.GetLogFilePath(id);
-        logger.Info("TEST: update log output - " + Environment.NewLine + File.ReadAllText(logFile));
+        logger.Info("TEST: update log output - " + Environment.NewLine + WindowsTestHelper.ReadFileWithRetry(logFile, logger));
 
         var updatePath = Path.Combine(installDir, "Update.exe");
         WindowsTestHelper.RunNoCoverage(updatePath, ["--silent", "--uninstall"], Environment.CurrentDirectory, logger);
@@ -387,18 +389,20 @@ public class WindowsUpdateTests
         Assert.EndsWith(Environment.NewLine + "no updates", ch3check2);
         logger.Info($"TEST ({variant}): v3 output verified");
 
-        // print log output
-        var logPath = WindowsTestHelper.GetLogFilePath(id);
-        logger.Info($"TEST ({variant}): log output - " + Environment.NewLine + File.ReadAllText(logPath));
-
         // check new obsoleted/updated hooks have run
         if (variant == "csharp") {
-            var argsContentv3 = File.ReadAllText(Path.Combine(installDir, "args.txt")).Trim();
-            Assert.Contains("--veloapp-install 1.0.0", argsContentv3);
-            Assert.Contains("--veloapp-obsolete 1.0.0", argsContentv3);
-            Assert.Contains("--veloapp-updated 3.0.0", argsContentv3);
+            TestHelper.WaitUntil(() => {
+                var argsContentv3 = File.ReadAllText(Path.Combine(installDir, "args.txt")).Trim();
+                Assert.Contains("--veloapp-install 1.0.0", argsContentv3);
+                Assert.Contains("--veloapp-obsolete 1.0.0", argsContentv3);
+                Assert.Contains("--veloapp-updated 3.0.0", argsContentv3);
+            });
             logger.Info($"TEST ({variant}): hooks verified");
         }
+
+        // print log output without requiring the relaunched app to release its log handle
+        var logPath = WindowsTestHelper.GetLogFilePath(id);
+        logger.Info($"TEST ({variant}): log output - " + Environment.NewLine + WindowsTestHelper.ReadFileWithRetry(logPath, logger));
 
         // uninstall
         var updatePath = Path.Combine(installDir, "Update.exe");
