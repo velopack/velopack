@@ -372,9 +372,11 @@ public class WindowsUpdateTests
         TestHelper.CorruptFullPackagesToForceDelta(releaseDir, id, ["2.0.0", "3.0.0"]);
 
         // perform delta update, check that we get v3
-        // apply should fail if there's not an update downloaded
+        // apply should fail if there's not an update downloaded. On Windows the failed apply can
+        // briefly leave the install directory unavailable while the helper process exits, so retry
+        // the following download until the installed app can be launched again.
         run(["apply", releaseDir], exitCode: -1);
-        run(["download", releaseDir]);
+        TestHelper.WaitUntil(() => run(["download", releaseDir]), timeoutMs: 30_000, pollDelayMs: 500);
         run(["apply", releaseDir], exitCode: null);
         logger.Info($"TEST ({variant}): v3 applied");
 
