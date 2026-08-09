@@ -14,21 +14,21 @@ jobs:
         target: [x86, x64, arm64]
         include:
           # The win7 targets are not rustup-distributed, so std is built from source
-          # (rust-src + -Z build-std on a pinned nightly); arm64 uses the regular distributed target.
+          # (rust-src + -Z build-std on nightly); arm64 uses the regular distributed target.
           # bin_suffix must match what Velopack.Packaging expects in the vendor dir.
           - target: x86
             runner: blacksmith-4vcpu-windows-2025
             rust_target: i686-win7-windows-msvc
-            toolchain: "+nightly-2026-08-07"
+            toolchain: "+nightly"
             build_flags: -Z build-std="core,alloc,std,panic_abort"
-            toolchain_setup: rustup component add rust-src --toolchain nightly-2026-08-07-x86_64-pc-windows-msvc
+            toolchain_setup: rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
             bin_suffix: ""
           - target: x64
             runner: blacksmith-4vcpu-windows-2025
             rust_target: x86_64-win7-windows-msvc
-            toolchain: "+nightly-2026-08-07"
+            toolchain: "+nightly"
             build_flags: -Z build-std="core,alloc,std,panic_abort"
-            toolchain_setup: rustup component add rust-src --toolchain nightly-2026-08-07-x86_64-pc-windows-msvc
+            toolchain_setup: rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
             bin_suffix: "_x64"
           - target: arm64
             # Native arm64 GitHub runner (free for public repos): blacksmith is x64-only and its
