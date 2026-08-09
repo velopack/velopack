@@ -9,6 +9,18 @@ namespace Velopack.TestCommon;
 public static class TestHelper
 {
     /// <summary>
+    /// Creates a temp directory whose name is unique across test and child-process lifetimes.
+    /// Use this for installed app roots: detached updater processes can outlive TempUtil's
+    /// in-process reservation and must never target a path later reused by another test.
+    /// </summary>
+    public static IDisposable GetIsolatedTempDirectory(out string path)
+    {
+        path = Path.Combine(Path.GetTempPath(), "velopack-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(path);
+        return Disposable.Create(() => IoUtil.DeleteFileOrDirectoryHard(path, throwOnFailure: false));
+    }
+
+    /// <summary>
     /// Repeatedly runs assertion until it stops throwing or timeoutMs elapses (the last attempt's
     /// exception propagates). Use instead of a fixed Thread.Sleep when waiting on work that happens
     /// in a separate process (e.g. update.exe applying an update) — the test continues as soon as

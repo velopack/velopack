@@ -40,7 +40,7 @@ public class WindowsInstallTests
 
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
-        using var _2 = TempUtil.GetTempDirectory(out var installDir);
+        using var _2 = TestHelper.GetIsolatedTempDirectory(out var installDir);
         using var _3 = TempUtil.GetTempDirectory(out var unzipDir);
         string id = "SquirrelSubfolderTest";
         string subfolder = "Folder1";
@@ -117,7 +117,7 @@ public class WindowsInstallTests
 
         using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
         using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
-        using var _3 = TempUtil.GetTempDirectory(out var tmpInstallDir);
+        using var _3 = TestHelper.GetIsolatedTempDirectory(out var tmpInstallDir);
 
         var exe = "testapp.exe";
         var pdb = Path.ChangeExtension(exe, ".pdb");
@@ -201,7 +201,7 @@ public class WindowsInstallTests
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
-        using var _2 = TempUtil.GetTempDirectory(out var installDir);
+        using var _2 = TestHelper.GetIsolatedTempDirectory(out var installDir);
         string id = "SquirrelHookTest";
         var appPath = Path.Combine(installDir, "current", "TestApp.exe");
 
@@ -268,7 +268,7 @@ public class WindowsUpdateTests
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
-        using var _2 = TempUtil.GetTempDirectory(out var installDir);
+        using var _2 = TestHelper.GetIsolatedTempDirectory(out var installDir);
         string id = $"WinAutoUpdate-{variant}";
         var exeName = variant == "rust" ? "testapp.exe" : "TestApp.exe";
         var appPath = Path.Combine(installDir, "current", exeName);
@@ -312,7 +312,7 @@ public class WindowsUpdateTests
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
-        using var _2 = TempUtil.GetTempDirectory(out var installDir);
+        using var _2 = TestHelper.GetIsolatedTempDirectory(out var installDir);
         string id = $"WinDeltaTest-{variant}";
         var exeName = variant == "rust" ? "testapp.exe" : "TestApp.exe";
         var appPath = Path.Combine(installDir, "current", exeName);
