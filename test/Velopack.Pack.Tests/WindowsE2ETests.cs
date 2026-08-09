@@ -17,13 +17,13 @@ using Velopack.TestCommon;
 
 namespace Velopack.Pack.Tests;
 
-// These end-to-end install/update/migration tests were split out of WindowsPackTests so that the
-// groups below run in parallel (xunit runs each class as its own collection). Tests within a class
-// still run serially; the legacy migration tests share %LocalAppData%\LegacyTestApp so they must
-// stay in the same class.
+// These end-to-end install/update/migration tests launch separate vpk/app processes. Those processes
+// cannot see TempUtil's in-process path reservations and may otherwise reuse another test's active
+// install directory as packaging scratch space. Keep all Windows E2E classes in one serial collection.
 
 // Setup.exe install / hooks / uninstall end-to-end tests.
 [SupportedOSPlatform("windows")]
+[Collection("Windows E2E")]
 public class WindowsInstallTests
 {
     private readonly ITestOutputHelper _output;
@@ -250,6 +250,7 @@ public class WindowsInstallTests
 
 // Auto-update and delta-update end-to-end tests.
 [SupportedOSPlatform("windows")]
+[Collection("Windows E2E")]
 public class WindowsUpdateTests
 {
     private readonly ITestOutputHelper _output;
@@ -372,11 +373,9 @@ public class WindowsUpdateTests
         TestHelper.CorruptFullPackagesToForceDelta(releaseDir, id, ["2.0.0", "3.0.0"]);
 
         // perform delta update, check that we get v3
-        // apply should fail if there's not an update downloaded. On Windows the failed apply can
-        // briefly leave the install directory unavailable while the helper process exits, so retry
-        // the following download until the installed app can be launched again.
+        // apply should fail if there's not an update downloaded
         run(["apply", releaseDir], exitCode: -1);
-        TestHelper.WaitUntil(() => run(["download", releaseDir]), timeoutMs: 30_000, pollDelayMs: 500);
+        run(["download", releaseDir]);
         run(["apply", releaseDir], exitCode: null);
         logger.Info($"TEST ({variant}): v3 applied");
 
@@ -415,6 +414,7 @@ public class WindowsUpdateTests
 
 // Migration from legacy Squirrel/Clowd/old-Velopack installs.
 [SupportedOSPlatform("windows")]
+[Collection("Windows E2E")]
 public class WindowsLegacyMigrationTests
 {
     private readonly ITestOutputHelper _output;
