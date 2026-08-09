@@ -5782,9 +5782,9 @@ checksum = "163b33ed8786455e2fa5d72f554057ce3f3182425434f756cd39c99839d88e23"
 
 [[package]]
 name = "xdialog"
-version = "3.1.2"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08a77e3a7e391568330b0a8b1c825d295284c16080b01bac98091f157d1b629c"
+checksum = "0af11df0f4657acc6c1f245c9d0861083627b9af521511254976f100c143a056"
 dependencies = [
  "block2 0.6.2",
  "cosmic-text",
