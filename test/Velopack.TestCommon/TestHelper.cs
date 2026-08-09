@@ -92,8 +92,11 @@ public static class TestHelper
 
             logger.Info($"TEST: Process exited with code {p.ExitCode} in {elapsed.TotalSeconds}s");
 
+            // The command may launch a child process which inherits the shell's redirected output
+            // handle and outlives the shell. Allow that child to retain the handle while we read the
+            // output produced by the command that has already exited.
             using var fs = IoUtil.Retry(
-                () => File.Open(outputFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None),
+                () => File.Open(outputFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete),
                 20,
                 1000,
                 logger.ToVelopackLogger());
