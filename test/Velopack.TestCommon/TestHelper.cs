@@ -15,9 +15,10 @@ public static class TestHelper
     /// </summary>
     public static IDisposable GetIsolatedTempDirectory(out string path)
     {
-        path = Path.Combine(Path.GetTempPath(), "velopack-tests", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(path);
-        return Disposable.Create(() => IoUtil.DeleteFileOrDirectoryHard(path, throwOnFailure: false));
+        var tempPath = Path.Combine(Path.GetTempPath(), "velopack-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempPath);
+        path = tempPath;
+        return Disposable.Create(() => IoUtil.DeleteFileOrDirectoryHard(tempPath, throwOnFailure: false));
     }
 
     /// <summary>
