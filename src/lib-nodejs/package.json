@@ -45,12 +45,12 @@
   ],
   "devDependencies": {
     "@tsconfig/node24": "24.0.4",
-    "@types/node": "25.9.4",
+    "@types/node": "25.9.5",
     "@vitest/coverage-v8": "4.1.10",
     "cross-env": "10.1.0",
     "del-cli": "7.0.0",
-    "prettier": "3.9.4",
-    "typescript": "6.0.3",
+    "prettier": "3.9.6",
+    "typescript": "7.0.2",
     "vitest": "4.1.10"
   },
   "dependencies": {
