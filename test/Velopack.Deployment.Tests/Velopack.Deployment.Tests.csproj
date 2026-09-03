@@ -14,7 +14,7 @@
     <PackageReference Include="Octokit" Version="14.0.0" />
     <!-- MTP-native code coverage: the coverlet.msbuild props injected by test/Directory.Build.props
          only hook VSTest targets, which never run under the Microsoft.Testing.Platform runner. -->
-    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.9.0" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.10.0" />
   </ItemGroup>
 
 </Project>
