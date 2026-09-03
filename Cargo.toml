@@ -95,7 +95,7 @@ pyo3-build-config = "0.29"
 pyo3-log = "0.13"
 pyo3-stub-gen = "0.23"
 winreg = "0.56"
-serial_test = { version = "3", features = ["file_locks"] }
+serial_test = { version = "4", features = ["file_locks"] }
 sys-locale = "0.3"
 unic-langid = "0.9"
 
