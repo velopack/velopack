@@ -2,5 +2,5 @@
 using System.Runtime.InteropServices;
 
 [assembly: ComVisible(false)]
-[assembly: CollectionBehavior(MaxParallelThreads = 1, DisableTestParallelization = true)]
+[assembly: Parallelization(MaxThreads = 1, Mode = ParallelMode.None)]
 [assembly: AssemblyMetadata("SquirrelAwareVersion", "1")]
