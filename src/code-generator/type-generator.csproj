@@ -9,7 +9,7 @@
   
   <ItemGroup>
     <PackageReference Include="Superpower" Version="3.2.1" />
-    <PackageReference Include="Handlebars.Net" Version="2.1.6" />
+    <PackageReference Include="Handlebars.Net" Version="2.4.3" />
   </ItemGroup>
 
   <ItemGroup>
