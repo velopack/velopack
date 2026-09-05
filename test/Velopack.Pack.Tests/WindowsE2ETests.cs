@@ -17,13 +17,13 @@ using Velopack.TestCommon;
 
 namespace Velopack.Pack.Tests;
 
-// These end-to-end install/update/migration tests were split out of WindowsPackTests so that the
-// groups below run in parallel (xunit runs each class as its own collection). Tests within a class
-// still run serially; the legacy migration tests share %LocalAppData%\LegacyTestApp so they must
-// stay in the same class.
+// These end-to-end install/update/migration tests launch separate vpk/app processes. Those processes
+// cannot see TempUtil's in-process path reservations and may otherwise reuse another test's active
+// install directory as packaging scratch space. Keep all Windows E2E classes in one serial collection.
 
 // Setup.exe install / hooks / uninstall end-to-end tests.
 [SupportedOSPlatform("windows")]
+[Collection("Windows E2E")]
 public class WindowsInstallTests
 {
     private readonly ITestOutputHelper _output;
@@ -40,7 +40,7 @@ public class WindowsInstallTests
 
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
-        using var _2 = TempUtil.GetTempDirectory(out var installDir);
+        using var _2 = TestHelper.GetIsolatedTempDirectory(out var installDir);
         using var _3 = TempUtil.GetTempDirectory(out var unzipDir);
         string id = "SquirrelSubfolderTest";
         string subfolder = "Folder1";
@@ -93,9 +93,11 @@ public class WindowsInstallTests
         WindowsTestHelper.RunCoveredDotnet(appPath, ["apply", releaseDir], installDir, logger, exitCode: null);
         logger.Info("TEST: v2 applied");
 
-        // check v2 is running
-        var chk2version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
-        Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        // update.exe swaps the app in a separate process; poll until the new version is live
+        TestHelper.WaitUntil(() => {
+            var chk2version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+        }, timeoutMs: 60_000, pollDelayMs: 1000);
         var chk2test = WindowsTestHelper.RunCoveredDotnet(appPath, ["test"], installDir, logger);
         Assert.EndsWith(Environment.NewLine + "version 2 test", chk2test);
         logger.Info("TEST: v2 output verified");
@@ -115,7 +117,7 @@ public class WindowsInstallTests
 
         using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
         using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
-        using var _3 = TempUtil.GetTempDirectory(out var tmpInstallDir);
+        using var _3 = TestHelper.GetIsolatedTempDirectory(out var tmpInstallDir);
 
         var exe = "testapp.exe";
         var pdb = Path.ChangeExtension(exe, ".pdb");
@@ -179,8 +181,10 @@ public class WindowsInstallTests
         var date = DateTime.Now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         Assert.Equal(date, installDate.Trim('\0'));
 
-        var uninstOutput = WindowsTestHelper.RunNoCoverage(updatePath, ["--silent", "--uninstall"], Environment.CurrentDirectory, logger);
-        Assert.EndsWith(Environment.NewLine + "Y", uninstOutput); // this checks that the self-delete succeeded
+        WindowsTestHelper.RunNoCoverage(updatePath, ["--silent", "--uninstall"], Environment.CurrentDirectory, logger);
+
+        // uninstall schedules self-deletion in a child process after Update.exe exits
+        TestHelper.WaitUntil(() => Assert.False(Directory.Exists(tmpInstallDir)), timeoutMs: 30_000);
 
         Assert.False(File.Exists(startLnk));
         Assert.False(File.Exists(desktopLnk));
@@ -197,7 +201,7 @@ public class WindowsInstallTests
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
-        using var _2 = TempUtil.GetTempDirectory(out var installDir);
+        using var _2 = TestHelper.GetIsolatedTempDirectory(out var installDir);
         string id = "SquirrelHookTest";
         var appPath = Path.Combine(installDir, "current", "TestApp.exe");
 
@@ -213,13 +217,11 @@ public class WindowsInstallTests
             logger);
 
         var argsPath = Path.Combine(installDir, "args.txt");
-        Assert.True(File.Exists(argsPath));
-        string contents = File.ReadAllText(argsPath).Trim();
-        Assert.Equal("OnAfterInstallFastCallback: --veloapp-install 1.0.0", contents);
-
         var firstRun = Path.Combine(installDir, "firstrun");
-        Assert.True(File.Exists(argsPath));
-        Assert.Equal("OnFirstRun: 1.0.0", File.ReadAllText(firstRun).Trim());
+        TestHelper.WaitUntil(() => {
+            Assert.Equal("OnAfterInstallFastCallback: --veloapp-install 1.0.0", File.ReadAllText(argsPath).Trim());
+            Assert.Equal("OnFirstRun: 1.0.0", File.ReadAllText(firstRun).Trim());
+        });
 
         // pack v2
         await WindowsPackTests.PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
@@ -239,7 +241,7 @@ public class WindowsInstallTests
         });
 
         var logFile = WindowsTestHelper.GetLogFilePath(id);
-        logger.Info("TEST: update log output - " + Environment.NewLine + File.ReadAllText(logFile));
+        logger.Info("TEST: update log output - " + Environment.NewLine + WindowsTestHelper.ReadFileWithRetry(logFile, logger));
 
         var updatePath = Path.Combine(installDir, "Update.exe");
         WindowsTestHelper.RunNoCoverage(updatePath, ["--silent", "--uninstall"], Environment.CurrentDirectory, logger);
@@ -248,6 +250,7 @@ public class WindowsInstallTests
 
 // Auto-update and delta-update end-to-end tests.
 [SupportedOSPlatform("windows")]
+[Collection("Windows E2E")]
 public class WindowsUpdateTests
 {
     private readonly ITestOutputHelper _output;
@@ -265,7 +268,7 @@ public class WindowsUpdateTests
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
-        using var _2 = TempUtil.GetTempDirectory(out var installDir);
+        using var _2 = TestHelper.GetIsolatedTempDirectory(out var installDir);
         string id = $"WinAutoUpdate-{variant}";
         var exeName = variant == "rust" ? "testapp.exe" : "TestApp.exe";
         var appPath = Path.Combine(installDir, "current", exeName);
@@ -309,7 +312,7 @@ public class WindowsUpdateTests
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
         using var logger = _output.BuildLoggerFor<WindowsPackTests>();
         using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
-        using var _2 = TempUtil.GetTempDirectory(out var installDir);
+        using var _2 = TestHelper.GetIsolatedTempDirectory(out var installDir);
         string id = $"WinDeltaTest-{variant}";
         var exeName = variant == "rust" ? "testapp.exe" : "TestApp.exe";
         var appPath = Path.Combine(installDir, "current", exeName);
@@ -387,18 +390,20 @@ public class WindowsUpdateTests
         Assert.EndsWith(Environment.NewLine + "no updates", ch3check2);
         logger.Info($"TEST ({variant}): v3 output verified");
 
-        // print log output
-        var logPath = WindowsTestHelper.GetLogFilePath(id);
-        logger.Info($"TEST ({variant}): log output - " + Environment.NewLine + File.ReadAllText(logPath));
-
         // check new obsoleted/updated hooks have run
         if (variant == "csharp") {
-            var argsContentv3 = File.ReadAllText(Path.Combine(installDir, "args.txt")).Trim();
-            Assert.Contains("--veloapp-install 1.0.0", argsContentv3);
-            Assert.Contains("--veloapp-obsolete 1.0.0", argsContentv3);
-            Assert.Contains("--veloapp-updated 3.0.0", argsContentv3);
+            TestHelper.WaitUntil(() => {
+                var argsContentv3 = File.ReadAllText(Path.Combine(installDir, "args.txt")).Trim();
+                Assert.Contains("--veloapp-install 1.0.0", argsContentv3);
+                Assert.Contains("--veloapp-obsolete 1.0.0", argsContentv3);
+                Assert.Contains("--veloapp-updated 3.0.0", argsContentv3);
+            });
             logger.Info($"TEST ({variant}): hooks verified");
         }
+
+        // print log output without requiring the relaunched app to release its log handle
+        var logPath = WindowsTestHelper.GetLogFilePath(id);
+        logger.Info($"TEST ({variant}): log output - " + Environment.NewLine + WindowsTestHelper.ReadFileWithRetry(logPath, logger));
 
         // uninstall
         var updatePath = Path.Combine(installDir, "Update.exe");
@@ -409,6 +414,7 @@ public class WindowsUpdateTests
 
 // Migration from legacy Squirrel/Clowd/old-Velopack installs.
 [SupportedOSPlatform("windows")]
+[Collection("Windows E2E")]
 public class WindowsLegacyMigrationTests
 {
     private readonly ITestOutputHelper _output;

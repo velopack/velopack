@@ -9,6 +9,19 @@ namespace Velopack.TestCommon;
 public static class TestHelper
 {
     /// <summary>
+    /// Creates a temp directory whose name is unique across test and child-process lifetimes.
+    /// Use this for installed app roots: detached updater processes can outlive TempUtil's
+    /// in-process reservation and must never target a path later reused by another test.
+    /// </summary>
+    public static IDisposable GetIsolatedTempDirectory(out string path)
+    {
+        var tempPath = Path.Combine(Path.GetTempPath(), "velopack-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempPath);
+        path = tempPath;
+        return Disposable.Create(() => IoUtil.DeleteFileOrDirectoryHard(tempPath, throwOnFailure: false));
+    }
+
+    /// <summary>
     /// Repeatedly runs assertion until it stops throwing or timeoutMs elapses (the last attempt's
     /// exception propagates). Use instead of a fixed Thread.Sleep when waiting on work that happens
     /// in a separate process (e.g. update.exe applying an update) — the test continues as soon as
@@ -39,7 +52,11 @@ public static class TestHelper
     public static string ReadFileWithRetry(string path, ILogger logger)
     {
         return IoUtil.Retry(
-            () => File.ReadAllText(path),
+            () => {
+                using var fs = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var reader = new StreamReader(fs);
+                return reader.ReadToEnd();
+            },
             logger: logger.ToVelopackLogger(),
             retries: 10,
             retryDelay: 1000);
@@ -92,8 +109,11 @@ public static class TestHelper
 
             logger.Info($"TEST: Process exited with code {p.ExitCode} in {elapsed.TotalSeconds}s");
 
+            // The command may launch a child process which inherits the shell's redirected output
+            // handle and outlives the shell. Allow that child to retain the handle while we read the
+            // output produced by the command that has already exited.
             using var fs = IoUtil.Retry(
-                () => File.Open(outputFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None),
+                () => File.Open(outputFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete),
                 20,
                 1000,
                 logger.ToVelopackLogger());
