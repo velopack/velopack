@@ -293,6 +293,10 @@ namespace Velopack
                 SystemOs = RuntimeOs.Linux;
             } else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
                 SystemOs = RuntimeOs.OSX;
+            } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Create("MACCATALYST"))) {
+                // Mac Catalyst (e.g. .NET MAUI desktop apps) does not report as OSX, but it produces
+                // a standard macOS .app bundle, so the osx locator / UpdateMac flow applies as-is.
+                SystemOs = RuntimeOs.OSX;
             }
 
             SystemArch = RuntimeInformation.OSArchitecture switch {
