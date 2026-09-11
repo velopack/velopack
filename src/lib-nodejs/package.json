@@ -46,12 +46,12 @@
   "devDependencies": {
     "@tsconfig/node24": "24.0.5",
     "@types/node": "25.9.5",
-    "@vitest/coverage-v8": "4.1.11",
+    "@vitest/coverage-v8": "5.0.0",
     "cross-env": "10.1.0",
     "del-cli": "7.0.0",
     "prettier": "3.9.6",
     "typescript": "7.0.2",
-    "vitest": "4.1.11"
+    "vitest": "5.0.0"
   },
   "dependencies": {
     "@neon-rs/load": "^0.2.0"
