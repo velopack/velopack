@@ -18,7 +18,10 @@ pub fn write_uninstall_entry(locator: &VelopackLocator) -> Result<()> {
     let updater_path = locator.get_update_path();
 
     let folder_size = fs_extra::dir::get_size(locator.get_current_bin_dir()).unwrap_or(0);
-    let folder_size_kb = folder_size / 1024;
+    // Windows reads EstimatedSize as a REG_DWORD, so a u64 (REG_QWORD) is ignored and
+    // no size is shown. Saturate rather than truncate: the value is in KB, so a u32
+    // covers ~4TB.
+    let folder_size_kb = u32::try_from(folder_size / 1024).unwrap_or(u32::MAX);
     let short_version = locator.get_manifest_version_short_string();
 
     let now = DateTime::now();
