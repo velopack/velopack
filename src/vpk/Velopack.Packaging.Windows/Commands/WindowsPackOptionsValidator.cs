@@ -25,6 +25,9 @@ public sealed class WindowsPackOptionsValidator : PackOptionsValidator<WindowsPa
         RuleFor(x => x.SignTemplate)
             .Must((opt, _) => new[] { opt.SignTemplate, opt.SignParameters, opt.AzureTrustedSignFile }.Count(v => !string.IsNullOrEmpty(v)) <= 1)
             .WithMessage("Cannot use more than one of 'signTemplate', 'signParams' and 'azureTrustedSignFile' options together, please choose one.");
+        RuleFor(x => x.NoStub)
+            .Must((opt, noStub) => !(noStub && opt.BuildMsi))
+            .WithMessage("Cannot use 'noStub' and 'msi' options together, the msi shortcuts and DisplayIcon target the launcher stub.");
         RuleFor(x => x.Shortcuts)
             .Must(v => string.IsNullOrEmpty(v) || v
                 .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries)
