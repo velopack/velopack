@@ -93,23 +93,23 @@
       "separateMajorMinor": false,
       "automerge": true
     },
-    // troublesome/frozen packages
-    {
-      "groupName": "frozen",
-      "matchPackageNames": ["@vercel/webpack-asset-relocator-loader"],
-      "dependencyDashboardApproval": true
-    },
+    // held-back packages
     {
       "matchPackageNames": "SixLabors.ImageSharp",
       "allowedVersions": "< 3.0.0"
     },
     {
       "matchPackageNames": "@electron/fuses",
-      "allowedVersions": "< 2.0.0" // 2.x is ESM-only, breaks webpack/forge setup
+      "allowedVersions": "< 2.0.0" // @electron-forge/plugin-fuses 7.x peer-depends on @electron/fuses ^1
     },
     {
-      "matchPackageNames": "coverlet.msbuild",
-      "allowedVersions": "< 7.0.0" // 8.x breaks instrumentation on net8.0 targets
+      "matchPackageNames": "typescript",
+      "matchFileNames": ["samples/NodeJSElectron/**"],
+      "allowedVersions": "< 7.0.0" // TS7 has no JS API yet; ts-loader, fork-ts-checker and ts-node (forge.config.ts) need it
+    },
+    {
+      "matchPackageNames": "@types/node",
+      "allowedVersions": "< 26.0.0" // keep types close to the Node version lib-nodejs targets (@tsconfig/node24)
     },
     {
       "matchPackageNames": "/^WixToolset\\./",
