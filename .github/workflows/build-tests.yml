@@ -456,25 +456,34 @@ jobs:
           files: ./test/coverage/junit.*.xml
           flags: vpk
 
+  # Advisories are published independently of our code, so this only fails on advisories the change
+  # itself introduces (compared to the base commit). Pre-existing ones are reported as warnings and
+  # tracked by the scheduled supply-chain.yml workflow, which files an issue.
   supply-chain:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Install cargo-deny
         uses: taiki-e/install-action@cargo-deny
-      - name: Audit Rust dependencies (cargo-deny)
-        run: cargo deny check
-
-      - name: Audit npm dependencies
-        run: cd src/lib-nodejs && npm audit
+      - name: Check Rust bans, licenses and sources (cargo-deny)
+        run: cargo deny check bans licenses sources
 
       - uses: astral-sh/setup-uv@v10.0.1
-      - name: Audit Python dependencies
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit advisories introduced by this change
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          pip install pip-audit
-          uv export --frozen --no-hashes --no-emit-project --directory src/lib-python > /tmp/python-requirements.txt
-          pip-audit -r /tmp/python-requirements.txt
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            python .github/scripts/supply_chain_audit.py report
+          else
+            python .github/scripts/supply_chain_audit.py diff --base "$BASE_SHA"
+          fi
 
   clippy:
     strategy:
