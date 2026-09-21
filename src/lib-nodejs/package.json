@@ -54,6 +54,6 @@
     "vitest": "5.0.1"
   },
   "dependencies": {
-    "@neon-rs/load": "^0.2.0"
+    "@neon-rs/load": "^0.2.6"
   }
 }
