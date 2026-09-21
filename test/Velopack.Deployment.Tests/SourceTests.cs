@@ -449,25 +449,4 @@ public sealed class GithubLiveContext : IAsyncLifetime
         if (_init is { IsCompletedSuccessfully: true })
             await (await _init).DisposeAsync();
     }
-
-    /// <summary>
-    /// Forwards to a per-test output logger but swallows logging failures. Neovolve's test-output
-    /// loggers throw once the test that owns them has finished, and the lease held by this context
-    /// logs during its release, which happens after the last row of the class.
-    /// </summary>
-    private sealed class PostTestSafeLogger(ILogger inner) : ILogger
-    {
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-
-        public bool IsEnabled(LogLevel logLevel) => true;
-
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-        {
-            try {
-                inner.Log(logLevel, eventId, state, exception, formatter);
-            } catch {
-                // The owning test is no longer active; drop the message.
-            }
-        }
-    }
 }
