@@ -36,9 +36,9 @@ namespace Velopack.Util
                 await IoUtil.RetryAsync(
                     async () => {
                         await Task.Delay(1).ConfigureAwait(false);
-                        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+                        if (VelopackRuntimeInfo.IsWindows) {
                             WindowsExclusiveLock();
-                        } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+                        } else if (VelopackRuntimeInfo.IsLinux || VelopackRuntimeInfo.IsOSX) {
                             UnixExclusiveLock();
                         }
                     }).ConfigureAwait(false);
@@ -132,7 +132,7 @@ namespace Velopack.Util
         {
             Interlocked.Exchange(ref this._fileStream, null)?.Dispose();
 
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+            if (VelopackRuntimeInfo.IsLinux || VelopackRuntimeInfo.IsOSX) {
                 if (_fileDescriptor > 0) {
                     close(_fileDescriptor);
                 }
