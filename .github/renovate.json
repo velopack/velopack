@@ -30,6 +30,16 @@
     "labels": ["security"],
     "prCreation": "immediate"
   },
+  // versions pinned in workflow env vars, annotated with a "# renovate:" comment on the line above
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/.+\\.ya?ml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+\\w+: (?<currentValue>\\S+)"
+      ]
+    }
+  ],
   // https://docs.renovatebot.com/key-concepts/automerge
   "packageRules": [
     {
