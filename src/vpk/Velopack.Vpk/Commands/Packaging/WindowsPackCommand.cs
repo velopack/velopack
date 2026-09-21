@@ -92,7 +92,8 @@ public class WindowsPackCommand : PackCommand
             .SetDefault("Desktop,StartMenuRoot");
 
         AddOption<bool>((v) => NoStub = v, ["--noStub"])
-            .SetDescription("Do not create the launcher stub. The app is started from the 'current' directory instead.");
+            .SetDescription("Do not create the launcher stub. The app is started from the 'current' directory instead.")
+            .SetHidden();
 
         if (VelopackRuntimeInfo.IsWindows) {
             AddOption<string>((v) => SignParameters = v, ["--signParams", "-n"])
