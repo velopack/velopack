@@ -36,10 +36,22 @@ public static class TestHelper
             [.. Enumerable.Repeat(chars, length).Select(s => s[_random.Next(s.Length)])]);
     }
 
+    /// <summary>
+    /// Reads a file's text while allowing other processes to keep it open for writing or deletion. Use for files an
+    /// app or update.exe may still be writing to (e.g. velopack logs, which are opened with FileShare.ReadWrite):
+    /// File.ReadAllText only shares Read, so it fails with a sharing violation while any writer holds the file.
+    /// </summary>
+    public static string ReadAllTextShared(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
     public static string ReadFileWithRetry(string path, ILogger logger)
     {
         return IoUtil.Retry(
-            () => File.ReadAllText(path),
+            () => ReadAllTextShared(path),
             logger: logger.ToVelopackLogger(),
             retries: 10,
             retryDelay: 1000);
