@@ -24,7 +24,7 @@
     <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
     <PackageReference Include="Serilog.Expressions" Version="5.0.0" />
     <PackageReference Include="System.CommandLine" Version="2.0.11" />
-    <PackageReference Include="NuGet.Protocol" Version="7.6.0" />
+    <PackageReference Include="NuGet.Protocol" Version="7.9.0" />
     <PackageReference Include="Spectre.Console" Version="0.57.2" />
     <PackageReference Include="Riok.Mapperly" Version="4.3.1" />
     <PackageReference Include="Humanizer.Core" Version="3.0.10" />
