@@ -139,7 +139,10 @@ mod tests {
         let result = apply_msi_channel_override(&msi, &install).unwrap();
         assert_eq!(result, Some("staging".to_string()));
         let patched = fs::read_to_string(&manifest).unwrap();
-        assert_eq!(patched, SQ_VERSION_FIXTURE.replace("<channel>win</channel>", "<channel>staging</channel>"));
+        assert_eq!(
+            patched,
+            SQ_VERSION_FIXTURE.replace("<channel>win</channel>", "<channel>staging</channel>")
+        );
     }
 
     #[test]
