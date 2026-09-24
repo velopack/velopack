@@ -139,12 +139,9 @@ public class Program
             break;
         case RuntimeOs.OSX:
             rootCommand.AddCommand<OsxBundleCommand, OsxBundleCommandRunner, OsxBundleOptions>(provider);
-            // pack also runs on Linux, signing and notarizing with rcodesign and without the .pkg installer
-            // (OsxPackCommandRunner). Not Windows: its portable zip must carry Unix file modes, which a zip written
-            // there cannot.
-            if (VelopackRuntimeInfo.IsOSX || VelopackRuntimeInfo.IsLinux) {
-                rootCommand.AddCommand<OsxPackCommand, OsxPackCommandRunner, OsxPackOptions>(provider);
-            }
+            // pack runs on every OS: off macOS it signs and notarizes with rcodesign, writes the portable zip itself,
+            // and builds no .pkg installer (OsxPackCommandRunner).
+            rootCommand.AddCommand<OsxPackCommand, OsxPackCommandRunner, OsxPackOptions>(provider);
             break;
         default:
             throw new NotSupportedException("Unsupported OS platform: " + VelopackRuntimeInfo.SystemOs.GetOsLongName());

@@ -7,7 +7,7 @@ using Velopack.Util;
 namespace Velopack.Packaging.Unix.Commands;
 
 /// <summary>
-/// Builds macOS releases. On macOS it uses Apple's own tools throughout. Off macOS (Linux), it builds everything except
+/// Builds macOS releases. On macOS it uses Apple's own tools throughout. Off macOS (Linux, Windows), it builds everything except
 /// the .pkg installer, which the options validator refuses there, and signs and notarizes with rcodesign
 /// (<see cref="RcodesignTools"/>) when given a certificate file, zipping the portable bundle with
 /// <see cref="OsxPortableZip"/> in place of ditto.
@@ -69,7 +69,14 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
         // in nupkg releases. Instead we can put it in the Resources dir and symlink to it. Symlinks don't need to be signed.
         var resourcesdir = structure.ResourcesDirectory;
         File.WriteAllText(Path.Combine(resourcesdir, "sq.version"), GenerateNuspecContent());
-        SymbolicLink.Create(Path.Combine(macosdir, "sq.version"), Path.Combine(resourcesdir, "sq.version"), false, true);
+        try {
+            SymbolicLink.Create(Path.Combine(macosdir, "sq.version"), Path.Combine(resourcesdir, "sq.version"), false, true);
+        } catch (Exception ex) when (OperatingSystem.IsWindows() && ex is UnauthorizedAccessException or IOException) {
+            // The same requirement FileUtil states for symlinks on Windows.
+            throw new UserInfoException(
+                "Packing for macOS on Windows creates a symlink (Contents/MacOS/sq.version), which Windows only allows " +
+                "with Developer Mode enabled or from an elevated prompt.", ex);
+        }
 
         progress(100);
         return Task.FromResult(dir.FullName);
@@ -87,7 +94,7 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
 
     protected override Task CodeSign(Action<int> progress, string packDir)
     {
-        if (!String.IsNullOrEmpty(Options.SignP12File) && (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())) {
+        if (!String.IsNullOrEmpty(Options.SignP12File)) {
             CodeSignWithRcodesign(progress, packDir);
         } else if (OperatingSystem.IsMacOS()) {
             CodeSignWithCodesign(progress, packDir);
@@ -99,8 +106,6 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
         return Task.CompletedTask;
     }
 
-    [SupportedOSPlatform("macos")]
-    [SupportedOSPlatform("linux")]
     private string GetEntitlements()
     {
         string entitlements = Options.SignEntitlements;
@@ -113,8 +118,6 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
         return entitlements;
     }
 
-    [SupportedOSPlatform("macos")]
-    [SupportedOSPlatform("linux")]
     private void CodeSignWithRcodesign(Action<int> progress, string packDir)
     {
         RcodesignTools.AssertInstalled();
