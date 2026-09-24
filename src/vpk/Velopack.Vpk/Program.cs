@@ -139,7 +139,10 @@ public class Program
             break;
         case RuntimeOs.OSX:
             rootCommand.AddCommand<OsxBundleCommand, OsxBundleCommandRunner, OsxBundleOptions>(provider);
-            if (VelopackRuntimeInfo.IsOSX) {
+            // pack also runs on Linux, signing and notarizing with rcodesign and without the .pkg installer
+            // (OsxPackCommandRunner). Not Windows: its portable zip must carry Unix file modes, which a zip written
+            // there cannot.
+            if (VelopackRuntimeInfo.IsOSX || VelopackRuntimeInfo.IsLinux) {
                 rootCommand.AddCommand<OsxPackCommand, OsxPackCommandRunner, OsxPackOptions>(provider);
             }
             break;
