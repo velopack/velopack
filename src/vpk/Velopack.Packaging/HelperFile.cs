@@ -79,9 +79,7 @@ public static class HelperFile
         return "mksquashfs";
     }
 
-    // Linux too: vpk [osx] pack signs there with rcodesign (OsxPackCommandRunner).
-    [SupportedOSPlatform("macos")]
-    [SupportedOSPlatform("linux")]
+    // Every OS: vpk [osx] pack also signs off macOS, with rcodesign (OsxPackCommandRunner).
     public static string VelopackEntitlements => FindHelperFile("Velopack.entitlements");
 
     public static string AppImageRuntimeArm64 => FindHelperFile("appimagekit-runtime-aarch64");
