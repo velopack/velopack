@@ -22,6 +22,12 @@ public class OsxPackCommand : OsxBundleCommand
 
     public string Keychain { get; private set; }
 
+    public string SignP12File { get; private set; }
+
+    public string SignP12PasswordFile { get; private set; }
+
+    public string NotaryApiKeyFile { get; private set; }
+
     public OsxPackCommand()
         : base("pack", "Converts application files into a release and installer.")
     {
@@ -64,5 +70,19 @@ public class OsxPackCommand : OsxBundleCommand
             .SetDescription("Path to keychain file to use for codesign and notarytool.")
             .SetArgumentHelpName("PATH")
             .SetHidden(true);
+
+        AddOption<FileInfo>((v) => SignP12File = v.ToFullNameOrNull(), ["--signP12File"])
+            .SetDescription("Sign with rcodesign using this Developer ID Application certificate (.p12) instead of a " +
+                            "keychain identity. Works on Linux as well as macOS.")
+            .SetArgumentHelpName("PATH");
+
+        AddOption<FileInfo>((v) => SignP12PasswordFile = v.ToFullNameOrNull(), ["--signP12PasswordFile"])
+            .SetDescription("File containing the password for --signP12File.")
+            .SetArgumentHelpName("PATH");
+
+        AddOption<FileInfo>((v) => NotaryApiKeyFile = v.ToFullNameOrNull(), ["--notaryApiKeyFile"])
+            .SetDescription("Notarize and staple with rcodesign using this App Store Connect API key " +
+                            "(JSON, from 'rcodesign encode-app-store-connect-api-key'). Requires --signP12File.")
+            .SetArgumentHelpName("PATH");
     }
 }
