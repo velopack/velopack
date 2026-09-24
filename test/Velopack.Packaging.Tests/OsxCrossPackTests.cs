@@ -24,20 +24,33 @@ public class OsxCrossPackTests(ITestOutputHelper output)
         var resources = Directory.CreateDirectory(Path.Combine(app, "Contents", "Resources")).FullName;
 
         File.WriteAllText(Path.Combine(app, "Contents", "Info.plist"), "<plist/>");
+
+        // A Mach-O header (MH_MAGIC_64), so the executable is recognised as one where modes are derived from content
+        // (Windows) as well as where they are read from the filesystem.
         var exe = Path.Combine(macos, "MyApp");
-        File.WriteAllText(exe, "not really mach-o");
-        File.SetUnixFileMode(exe, (UnixFileMode) 0x1ED); // 0755
+        var image = new byte[256];
+        BitConverter.GetBytes(0xFEEDFACFu).CopyTo(image, 0);
+        File.WriteAllBytes(exe, image);
+        if (!OperatingSystem.IsWindows()) {
+            File.SetUnixFileMode(exe, (UnixFileMode) 0x1ED); // 0755
+        }
+
         File.WriteAllText(Path.Combine(resources, "sq.version"), "<package/>");
 
-        // Velopack's own layout: the manifest lives in Resources and is symlinked into MacOS.
-        File.CreateSymbolicLink(Path.Combine(macos, "sq.version"), "../Resources/sq.version");
+        // Velopack's own layout: the manifest lives in Resources and is symlinked into MacOS. Windows only allows
+        // symlinks with Developer Mode or elevation, so a machine without either skips rather than fails.
+        try {
+            File.CreateSymbolicLink(Path.Combine(macos, "sq.version"), "../Resources/sq.version");
+        } catch (Exception ex) when (OperatingSystem.IsWindows() && ex is UnauthorizedAccessException or IOException) {
+            Assert.Skip("this Windows machine cannot create symlinks (Developer Mode is off)");
+        }
+
         return app;
     }
 
     [Fact]
     public void PortableZipKeepsTheBundleAsTheTopLevelEntry()
     {
-        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "Unix file modes cannot be written on Windows");
         using var logger = output.BuildLoggerFor<OsxCrossPackTests>();
         using var _ = TempUtil.GetTempDirectory(out var dir);
         var app = MakeBundle(dir);
@@ -53,7 +66,6 @@ public class OsxCrossPackTests(ITestOutputHelper output)
     [Fact]
     public void PortableZipRecordsExecutableBitAndSymlinks()
     {
-        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "Unix file modes cannot be written on Windows");
         using var logger = output.BuildLoggerFor<OsxCrossPackTests>();
         using var _ = TempUtil.GetTempDirectory(out var dir);
         var app = MakeBundle(dir);
@@ -76,11 +88,36 @@ public class OsxCrossPackTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void PortableZipIsMarkedAsMadeOnUnix()
+    {
+        // Without host 3 in "version made by", unzippers ignore the modes: a zip .NET writes on Windows says Windows.
+        using var logger = output.BuildLoggerFor<OsxCrossPackTests>();
+        using var _ = TempUtil.GetTempDirectory(out var dir);
+        var app = MakeBundle(dir);
+        var zipPath = Path.Combine(dir, "portable.zip");
+
+        OsxPortableZip.Create(logger, app, zipPath);
+
+        var bytes = File.ReadAllBytes(zipPath);
+        int entries = 0;
+        for (int i = 0; i + 46 <= bytes.Length; i++) {
+            if (BitConverter.ToUInt32(bytes, i) == 0x02014b50) {
+                Assert.Equal(3, bytes[i + 5]);
+                entries++;
+            }
+        }
+
+        using var zip = ZipFile.OpenRead(zipPath);
+        Assert.Equal(zip.Entries.Count, entries);
+    }
+
+    [Fact]
     public void PortableZipExpandsWithUnixMetadataIntact()
     {
         // The zip is only as good as what an unzipper does with it. Info-ZIP honours the same Unix attributes Archive
-        // Utility does, and is on both Linux and macOS images.
-        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "Unix file modes cannot be written on Windows");
+        // Utility does, and is on both Linux and macOS images; the test skips where it is not installed. Not on
+        // Windows, which has no modes to expand into (the zip's own attributes are checked above on every OS).
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "extracting Unix modes needs a Unix filesystem");
         using var logger = output.BuildLoggerFor<OsxCrossPackTests>();
         using var _ = TempUtil.GetTempDirectory(out var dir);
         var app = MakeBundle(dir);
@@ -100,7 +137,9 @@ public class OsxCrossPackTests(ITestOutputHelper output)
         Assert.Equal(0, unzip.ExitCode);
 
         var exe = Path.Combine(extractTo, "My.app", "Contents", "MacOS", "MyApp");
-        Assert.True(File.GetUnixFileMode(exe).HasFlag(UnixFileMode.UserExecute));
+        if (!OperatingSystem.IsWindows()) {
+            Assert.True(File.GetUnixFileMode(exe).HasFlag(UnixFileMode.UserExecute));
+        }
         var link = new FileInfo(Path.Combine(extractTo, "My.app", "Contents", "MacOS", "sq.version"));
         Assert.Equal("../Resources/sq.version", link.LinkTarget);
         Assert.Equal("<package/>", File.ReadAllText(link.FullName));
