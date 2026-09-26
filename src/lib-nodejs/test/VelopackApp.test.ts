@@ -117,3 +117,23 @@ test("VelopackApp should handle before-update hook", async () => {
   expect(tester.firstRun).toBe(false);
   expect(tester.version).toBe("1.2.3-test.4");
 });
+
+test("VelopackApp should forward library logs to the logger callback", async () => {
+  let messages: string[] = [];
+  let locator: VelopackLocatorConfig = {
+    ManifestPath: "../../test/fixtures/Test.Squirrel-App.nuspec",
+    PackagesDir: "",
+    RootAppDir: "",
+    UpdateExePath: updateExe(),
+    CurrentBinaryDir: "",
+    IsPortable: true,
+  };
+  VelopackApp.build()
+    .setLogger((_level, msg) => messages.push(msg))
+    .setLocator(locator)
+    .run();
+
+  await vi.waitFor(() => {
+    expect(messages.some((msg) => msg.includes("VelopackApp: Running with args"))).toBe(true);
+  });
+});
