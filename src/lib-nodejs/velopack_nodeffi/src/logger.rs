@@ -80,4 +80,12 @@ pub fn set_logger_callback(callback: Option<Root<JsFunction>>, cx: &mut Function
         }
         *cb_lock = callback;
     }
+
+    // Log records only reach the callback through this channel. It is unref'd so that
+    // holding on to it does not keep the Node event loop alive.
+    if let Ok(mut channel_lock) = LOGGER_CHANNEL.lock() {
+        let mut channel = cx.channel();
+        channel.unref(cx);
+        *channel_lock = Some(channel);
+    }
 }
