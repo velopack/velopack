@@ -45,6 +45,16 @@ impl RuntimeArch {
     }
 }
 
+/// The architecture this binary was compiled for.
+#[cfg(target_os = "windows")]
+const CURRENT_PROCESS_ARCH: RuntimeArch = if cfg!(target_arch = "x86_64") {
+    RuntimeArch::X64
+} else if cfg!(target_arch = "aarch64") {
+    RuntimeArch::Arm64
+} else {
+    RuntimeArch::X86
+};
+
 #[cfg(target_os = "windows")]
 fn check_arch_windows() -> Option<RuntimeArch> {
     use windows::Win32::Foundation::{FALSE, TRUE};
@@ -56,20 +66,21 @@ fn check_arch_windows() -> Option<RuntimeArch> {
             return RuntimeArch::from_u16(x);
         }
 
+        // IsWow64Process2 is only available since Windows 10 1709 (build 16299), so older
+        // systems (eg. Server 2016 / Windows 10 1607) fall back to IsWow64Process. That only
+        // tells us whether we're an x86 process emulated on a 64-bit OS - it reports FALSE for
+        // a native process, in which case the OS architecture is our own. ARM64 Windows always
+        // has IsWow64Process2, so TRUE here can only mean an x86 process on an x64 OS.
         let mut iswow64 = FALSE;
         if let Ok(()) = IsWow64Process(handle, &mut iswow64) {
             if iswow64 == TRUE {
                 return Some(RuntimeArch::X64);
             } else {
-                return Some(RuntimeArch::X86);
+                return Some(CURRENT_PROCESS_ARCH);
             }
         }
 
-        #[cfg(target_arch = "x86_64")]
-        return Some(RuntimeArch::X64);
-
-        #[cfg(not(target_arch = "x86_64"))]
-        return Some(RuntimeArch::X86);
+        Some(CURRENT_PROCESS_ARCH)
     }
 }
 
@@ -101,10 +112,12 @@ unsafe fn is_wow64_process2(handle: windows::Win32::Foundation::HANDLE) -> anyho
 #[test]
 #[cfg(target_os = "windows")]
 fn test_current_architecture() {
-    let arch = check_arch_windows();
-    assert!(arch.is_some());
-    let arch = arch.unwrap();
-    assert!(arch == RuntimeArch::X64);
+    let arch = check_arch_windows().unwrap();
+    // a 64-bit process can only run on a 64-bit OS, so we must never report x86 here
+    // (this used to happen when IsWow64Process2 was unavailable, see issue #1071)
+    if CURRENT_PROCESS_ARCH != RuntimeArch::X86 {
+        assert_eq!(arch, CURRENT_PROCESS_ARCH);
+    }
 }
 
 #[test]
