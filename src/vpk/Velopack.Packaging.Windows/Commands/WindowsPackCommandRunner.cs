@@ -333,8 +333,9 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
             Log.Info($"Use Azure Trusted Signing service for code signing. Metadata file path: {trustedSignMetadataPath}");
 
             string dlibPath = GetDlibPath();
+            var signDescription = Options.PackTitle ?? Options.PackId;
             signParams =
-                $"/fd SHA256 /tr http://timestamp.acs.microsoft.com /v /debug /td SHA256 /dlib {HelperFile.AzureDlibFileName} /dmdf \"{trustedSignMetadataPath}\"";
+                $"/d \"{signDescription}\" /fd SHA256 /tr http://timestamp.acs.microsoft.com /v /debug /td SHA256 /dlib {HelperFile.AzureDlibFileName} /dmdf \"{trustedSignMetadataPath}\"";
             helper.Sign(filePaths, signParams, signParallel, progress, false);
         } else if (!string.IsNullOrEmpty(signParams)) {
             helper.Sign(filePaths, signParams, signParallel, progress, false);

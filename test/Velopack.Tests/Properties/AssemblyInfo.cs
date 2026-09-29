@@ -2,5 +2,5 @@
 using System.Runtime.InteropServices;
 
 [assembly: ComVisible(false)]
-[assembly: CollectionBehavior(MaxParallelThreads = 1, DisableTestParallelization = true)]
+[assembly: Xunit.v3.Parallelization(MaxThreads = 1, Mode = Xunit.Sdk.ParallelMode.None)]
 [assembly: AssemblyMetadata("SquirrelAwareVersion", "1")]

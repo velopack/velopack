@@ -1,0 +1,61 @@
+name: Supply Chain Audit
+
+# PR builds only fail on advisories a change introduces (see the supply-chain job in build-tests.yml).
+# This audits develop daily for advisories published against dependencies we already ship, and keeps a
+# single tracking issue (label "supply-chain") open while any exist, closing it once the audit is clean.
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: supply-chain-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@cargo-deny
+      - uses: astral-sh/setup-uv@v10.0.1
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit advisories
+        id: audit
+        run: |
+          set +e
+          python .github/scripts/supply_chain_audit.py report --markdown "$RUNNER_TEMP/report.md"
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Update tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CODE: ${{ steps.audit.outputs.code }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          issue=$(gh issue list --label supply-chain --state open --limit 1 --json number --jq '.[0].number // empty')
+          if [ "$CODE" = "1" ]; then
+            printf '\n\nLast audited by %s\n' "$RUN_URL" >> "$RUNNER_TEMP/report.md"
+            if [ -n "$issue" ]; then
+              gh issue edit "$issue" --body-file "$RUNNER_TEMP/report.md"
+            else
+              gh label create supply-chain --color B60205 --description "Dependency advisories" --force
+              gh issue create --title "Supply-chain advisories found on develop" --label supply-chain \
+                --body-file "$RUNNER_TEMP/report.md"
+            fi
+          elif [ "$CODE" = "0" ] && [ -n "$issue" ]; then
+            gh issue close "$issue" --comment "The supply-chain audit is clean again ($RUN_URL)."
+          fi
+
+      - name: Fail on findings or audit errors
+        if: steps.audit.outputs.code != '0'
+        run: exit 1

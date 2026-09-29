@@ -31,8 +31,12 @@ public static class FlowApiExtensions
 {
     public static ApiErrorResult? ToErrorResult(this ApiException ex)
     {
-        if (ex.Response != null) {
-            return SimpleJson.DeserializeObject<ApiErrorResult>(ex.Response);
+        if (!string.IsNullOrWhiteSpace(ex.Response)) {
+            try {
+                return SimpleJson.DeserializeObject<ApiErrorResult>(ex.Response);
+            } catch {
+                return null;
+            }
         }
 
         return null;

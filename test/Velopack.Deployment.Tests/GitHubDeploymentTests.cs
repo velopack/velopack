@@ -2,12 +2,12 @@ namespace Velopack.Deployment.Tests;
 
 /// <summary>
 /// Runs the shared <see cref="GitReleaseDeploymentSuite"/> against the live GitHub test repo pool
-/// (caesay/velopack-test-{1..5}). Each test serially acquires an exclusive repo lease (the assembly has test
-/// parallelization disabled), which resets the repo to a pristine state on acquire and releases the lock on
-/// dispose. Tests skip when the token env var is not set.
+/// (caesay/velopack-test-{1..5}). The whole collection shares one exclusive repo lease
+/// (<see cref="GitHubSharedLeaseFixture"/>, released after the last test) and each test resets the repo to a pristine
+/// state first; tests within the collection run serially. Tests skip when the token env var is not set.
 /// </summary>
 [Collection("github")]
-public class GitHubDeploymentTests(ITestOutputHelper output) : GitReleaseDeploymentSuite(output)
+public class GitHubDeploymentTests(ITestOutputHelper output, GitHubSharedLeaseFixture leaseFixture) : GitReleaseDeploymentSuite(output)
 {
     // The 5-repo pool is shared by all CI legs; recreating a just-deleted tag name (every test would
     // otherwise tag '1.0.0') races GitHub's eventual consistency and fails with 'Validation Failed'.
@@ -22,5 +22,9 @@ public class GitHubDeploymentTests(ITestOutputHelper output) : GitReleaseDeploym
     }
 
     protected override async Task<IGitReleaseScope> CreateScopeAsync(ILogger log)
-        => new GitHubGitReleaseScope(await GitHubRepoLock.AcquireAsync(log));
+    {
+        var lease = await leaseFixture.GetAsync(log);
+        await lease.ResetAsync();
+        return new GitHubGitReleaseScope(lease, ownsLease: false);
+    }
 }

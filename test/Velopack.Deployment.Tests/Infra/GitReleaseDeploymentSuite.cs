@@ -145,8 +145,11 @@ public sealed class GiteaGitReleaseScope(GiteaTestRepo repo) : IGitReleaseScope
     public ValueTask DisposeAsync() => repo.DisposeAsync();
 }
 
-/// <summary> <see cref="IGitReleaseScope"/> over a leased live GitHub test repo (reset on acquire, lock released on dispose). </summary>
-public sealed class GitHubGitReleaseScope(GitHubRepoLease lease) : IGitReleaseScope
+/// <summary>
+/// <see cref="IGitReleaseScope"/> over a leased live GitHub test repo (reset on acquire). The lock is released on dispose
+/// only when <paramref name="ownsLease"/> is true; a shared lease is released by its owner instead.
+/// </summary>
+public sealed class GitHubGitReleaseScope(GitHubRepoLease lease, bool ownsLease = true) : IGitReleaseScope
 {
     public string RepoUrl => lease.RepoUrl;
 
@@ -202,7 +205,7 @@ public sealed class GitHubGitReleaseScope(GitHubRepoLease lease) : IGitReleaseSc
         return reference.Object.Sha;
     }
 
-    public ValueTask DisposeAsync() => lease.DisposeAsync();
+    public ValueTask DisposeAsync() => ownsLease ? lease.DisposeAsync() : default;
 }
 
 /// <summary>

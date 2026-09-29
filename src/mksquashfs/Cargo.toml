@@ -13,7 +13,7 @@ name = "mksquashfs"
 path = "src/main.rs"
 
 [dependencies]
-backhand = { version = "0.25.1", default-features = false, features = ["xz", "gzip", "zstd"] }
+backhand = { version = "0.25.3", default-features = false, features = ["xz", "gzip", "zstd"] }
 clap = { version = "4", features = ["derive"] }
 walkdir = "2"
 
