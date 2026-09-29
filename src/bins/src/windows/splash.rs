@@ -182,8 +182,8 @@ pub fn init_dpi_awareness() {
 }
 
 fn get_monitor_dpi_scale(h_monitor: HMONITOR) -> f32 {
-    // Lazy-load GetDpiForMonitor from shcore.dll (Win8.1+).
-    // Falls back to GetDpiForSystem (Vista+) if unavailable.
+    // Lazy-load GetDpiForMonitor from shcore.dll (Win8.1+), then GetDpiForSystem from
+    // user32.dll (Win10 1607+), then the screen DC, which works on anything.
     unsafe {
         type GetDpiForMonitorFn = unsafe extern "system" fn(hmonitor: HMONITOR, dpi_type: u32, dpi_x: *mut u32, dpi_y: *mut u32) -> HRESULT;
         if let Ok(lib) = libloading::Library::new("shcore.dll") {
@@ -196,9 +196,31 @@ fn get_monitor_dpi_scale(h_monitor: HMONITOR) -> f32 {
                 }
             }
         }
-        // Fallback to system DPI
-        use windows::Win32::UI::HiDpi::GetDpiForSystem;
-        GetDpiForSystem() as f32 / 96.0
+        // GetDpiForSystem is Windows 10 1607 and later despite the name, so it is resolved at
+        // runtime rather than imported. Importing it statically puts it in user32's import
+        // table, and the loader then refuses to start setup.exe at all on older Windows, even
+        // though this code would never run there.
+        type GetDpiForSystemFn = unsafe extern "system" fn() -> u32;
+        if let Ok(lib) = libloading::Library::new("user32.dll") {
+            if let Ok(func) = lib.get::<GetDpiForSystemFn>(b"GetDpiForSystem") {
+                let dpi = func();
+                if dpi > 0 {
+                    return dpi as f32 / 96.0;
+                }
+            }
+        }
+
+        // Older than Windows 10: the screen DC has reported system DPI since Windows 95.
+        let hdc = GetDC(None);
+        if !hdc.is_invalid() {
+            let dpi = GetDeviceCaps(Some(hdc), LOGPIXELSX);
+            ReleaseDC(None, hdc);
+            if dpi > 0 {
+                return dpi as f32 / 96.0;
+            }
+        }
+
+        1.0
     }
 }
 

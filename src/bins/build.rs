@@ -58,8 +58,15 @@ fn delay_load_exe(bin_name: &str) {
     //
     // This will work on all supported Windows versions but it relies on
     // us using `SetDefaultDllDirectories` before any libraries are loaded.
+    //
+    // combase is delay loaded for a second reason: it does not exist at all before Windows 8.
+    // windows-core imports CoTaskMemAlloc/CoTaskMemFree from it with raw-dylib, so a static
+    // import makes the loader fail before main() runs and update.exe and setup.exe cannot start
+    // on Windows 7. Delay loading it means combase is only resolved if one of those two
+    // functions is actually called, which for Velopack means only WebView2 version detection.
     let delay_load_dlls = [
         "gdi32", "advapi32", "shell32", "ole32", "psapi", "propsys", "secur32", "crypt32", "ws2_32", "oleaut32", "bcrypt", "comctl32",
+        "combase",
     ];
     for dll in delay_load_dlls {
         println!("cargo:rustc-link-arg-bin={bin_name}=/delayload:{dll}.dll");
