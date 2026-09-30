@@ -315,9 +315,15 @@ impl BundleZip<'_> {
         #[cfg(target_os = "windows")]
         {
             let nuspec_path = current_path.join("sq.version");
-            let _ = self
-                .extract_zip_predicate_to_path(|name| name.ends_with(".nuspec"), nuspec_path)
-                .map_err(|_| Error::InvalidPackage("No .nuspec manifest found".into()))?;
+            // Only a missing .nuspec is an invalid package. Any other failure here
+            // is a write error on disk (a locked or denied `sq.version`, typically a
+            // filesystem filter / antivirus rule), which must surface as itself so
+            // the user is not told their package is broken.
+            self.extract_zip_predicate_to_path(|name| name.ends_with(".nuspec"), &nuspec_path)
+                .map_err(|e| match e {
+                    Error::InvalidPackage(_) => Error::InvalidPackage("No .nuspec manifest found".into()),
+                    other => other,
+                })?;
         }
 
         // we extract the symlinks after, because the target must exist.
