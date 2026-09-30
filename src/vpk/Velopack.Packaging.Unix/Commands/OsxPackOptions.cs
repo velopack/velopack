@@ -35,6 +35,12 @@ public class OsxPackOptions : OsxBundleOptions, IPackOptions
 
     public string Keychain { get; set; }
 
+    public string SignP12File { get; set; }
+
+    public string SignP12PasswordFile { get; set; }
+
+    public string NotaryApiKeyFile { get; set; }
+
     public string Channel { get; set; }
 
     public string Exclude { get; set; } = @".*\.pdb";
