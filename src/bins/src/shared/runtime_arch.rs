@@ -47,8 +47,7 @@ impl RuntimeArch {
 
 #[cfg(target_os = "windows")]
 fn check_arch_windows() -> Option<RuntimeArch> {
-    use windows::Win32::Foundation::{FALSE, TRUE};
-    use windows::Win32::System::Threading::{GetCurrentProcess, IsWow64Process};
+    use windows::Win32::System::Threading::GetCurrentProcess;
 
     unsafe {
         let handle = GetCurrentProcess();
@@ -56,20 +55,39 @@ fn check_arch_windows() -> Option<RuntimeArch> {
             return RuntimeArch::from_u16(x);
         }
 
-        let mut iswow64 = FALSE;
-        if let Ok(()) = IsWow64Process(handle, &mut iswow64) {
-            if iswow64 == TRUE {
-                return Some(RuntimeArch::X64);
-            } else {
-                return Some(RuntimeArch::X86);
-            }
-        }
-
+        // Everything below is the pre Windows 10 1511 path, where IsWow64Process2 does not
+        // exist.
+        //
+        // IsWow64Process answers only "is this process running under WOW64", meaning a 32 bit
+        // process on 64 bit Windows. A 64 bit process is never under WOW64, so it answers FALSE
+        // on 64 bit Windows and the old code read that as a 32 bit machine. That is why the x64
+        // setup.exe refused to install on 64 bit Windows 7 with "this application (x64) does not
+        // support your CPU architecture": it decided the machine was x86.
+        //
+        // A 64 bit process can only be running on a 64 bit OS, so when this binary is 64 bit
+        // there is nothing to probe.
         #[cfg(target_arch = "x86_64")]
         return Some(RuntimeArch::X64);
 
-        #[cfg(not(target_arch = "x86_64"))]
-        return Some(RuntimeArch::X86);
+        #[cfg(target_arch = "aarch64")]
+        return Some(RuntimeArch::Arm64);
+
+        // Only a 32 bit process needs to ask, to tell 32 bit Windows apart from WOW64 on a
+        // 64 bit machine.
+        #[cfg(target_arch = "x86")]
+        {
+            use windows::Win32::Foundation::{FALSE, TRUE};
+            use windows::Win32::System::Threading::IsWow64Process;
+
+            let mut iswow64 = FALSE;
+            if let Ok(()) = IsWow64Process(handle, &mut iswow64) {
+                if iswow64 == TRUE {
+                    return Some(RuntimeArch::X64);
+                }
+            }
+
+            return Some(RuntimeArch::X86);
+        }
     }
 }
 
