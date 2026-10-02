@@ -25,7 +25,7 @@ jobs:
 
       - name: Install cargo-deny
         uses: taiki-e/install-action@cargo-deny
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@v10.1.0
       - name: Install pip-audit
         run: pip install pip-audit
 
