@@ -495,18 +495,29 @@ impl UpdateManager {
             output_file.clone().into(),
         ];
 
+        let count = update.DeltasToTarget.len() as f64;
         for (i, delta) in update.DeltasToTarget.iter().enumerate() {
             let delta_file = packages_dir.join(&delta.FileName);
             let partial_file = delta_file.with_extension("partial");
 
             info!("Downloading delta package: '{}'", delta.FileName);
-            self.inner.source.download_release_entry(delta, &partial_file, None)?;
+            // each delta reports its download within its share of the 0-70% range
+            let (delta_progress, forwarder) = progress
+                .as_ref()
+                .map(|progress| scale_progress(progress.clone(), i as f64 / count * 70.0, (i + 1) as f64 / count * 70.0))
+                .unzip();
+            let result = self.inner.source.download_release_entry(delta, &partial_file, delta_progress);
+            // the sender is dropped by now, so this returns once every value has been forwarded
+            if let Some(forwarder) = forwarder {
+                let _ = forwarder.join();
+            }
+            result?;
             self.verify_package_checksum(&partial_file, delta)?;
 
             fs::rename(&partial_file, &delta_file)?;
             debug!("Successfully downloaded file: '{}'", delta.FileName);
             if let Some(progress) = &progress {
-                let _ = progress.send(((i as f64 / update.DeltasToTarget.len() as f64) * 70.0) as i16);
+                let _ = progress.send(((i + 1) as f64 / count * 70.0) as i16);
             }
 
             args.push("--delta".into());
@@ -694,4 +705,28 @@ pub(crate) fn local_path_to_asset(manifest: &Manifest, path: &Path) -> VelopackA
         NotesMarkdown: manifest.release_notes.clone(),
         NotesHtml: manifest.release_notes_html.clone(),
     }
+}
+
+/// Returns a sender that forwards 0-100 progress values to `sender`, scaled into `start..end`,
+/// and the thread doing so, which ends once the returned sender is dropped.
+fn scale_progress(sender: Sender<i16>, start: f64, end: f64) -> (Sender<i16>, std::thread::JoinHandle<()>) {
+    let (scaled, receiver) = std::sync::mpsc::channel::<i16>();
+    let forwarder = std::thread::spawn(move || {
+        while let Ok(p) = receiver.recv() {
+            let _ = sender.send((start + (end - start) * p as f64 / 100.0) as i16);
+        }
+    });
+    (scaled, forwarder)
+}
+
+#[test]
+fn test_scale_progress_maps_into_range() {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let (scaled, forwarder) = scale_progress(sender, 35.0, 70.0);
+    for p in [0, 50, 100] {
+        scaled.send(p).unwrap();
+    }
+    drop(scaled);
+    forwarder.join().unwrap();
+    assert_eq!(receiver.try_iter().collect::<Vec<i16>>(), vec![35, 52, 70]);
 }
