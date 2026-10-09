@@ -31,7 +31,6 @@
   <Project Path="src/vpk/Velopack.Core/Velopack.Core.csproj" />
   <Project Path="src/vpk/Velopack.Deployment/Velopack.Deployment.csproj" />
   <Project Path="src/vpk/Velopack.Flow/Velopack.Flow.csproj" />
-  <Project Path="src/vpk/Velopack.IcoLib/Velopack.IcoLib.csproj" />
   <Project Path="src/vpk/Velopack.Packaging.Unix/Velopack.Packaging.Unix.csproj" />
   <Project Path="src/vpk/Velopack.Packaging.Windows/Velopack.Packaging.Windows.csproj" />
   <Project Path="src/vpk/Velopack.Packaging/Velopack.Packaging.csproj" />
