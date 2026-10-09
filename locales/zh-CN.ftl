@@ -229,3 +229,6 @@ msi-start-menu-shortcut-description = { $app_title } 开始菜单快捷方式
 # MSI Installer UI - Readme Dialog
 msi-readme-title = 自述信息
 msi-readme-description = 请在继续之前阅读以下信息。
+
+# MSI Installer UI - Downgrade Error
+msi-downgrade-error = 已安装较新版本的 { $app_title }。

@@ -229,3 +229,6 @@ msi-start-menu-shortcut-description = Acceso directo del menú Inicio para { $ap
 # MSI Installer UI - Readme Dialog
 msi-readme-title = Información importante
 msi-readme-description = Lea la siguiente información antes de continuar.
+
+# MSI Installer UI - Downgrade Error
+msi-downgrade-error = Ya está instalada una versión más reciente de { $app_title }.

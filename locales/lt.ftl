@@ -229,3 +229,6 @@ msi-start-menu-shortcut-description = { $app_title } meniu Pradžia sparčioji n
 # MSI Installer UI - Readme Dialog
 msi-readme-title = Svarbi informacija
 msi-readme-description = Prieš tęsdami perskaitykite šią informaciją.
+
+# MSI Installer UI - Downgrade Error
+msi-downgrade-error = Jau įdiegta naujesnė { $app_title } versija.

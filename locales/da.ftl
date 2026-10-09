@@ -229,3 +229,6 @@ msi-start-menu-shortcut-description = Genvej til { $app_title } i menuen Start
 # MSI Installer UI - Readme Dialog
 msi-readme-title = Vigtig information
 msi-readme-description = Læs venligst følgende oplysninger, før du fortsætter.
+
+# MSI Installer UI - Downgrade Error
+msi-downgrade-error = En nyere version af { $app_title } er allerede installeret.

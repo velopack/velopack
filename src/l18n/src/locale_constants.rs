@@ -240,6 +240,8 @@ define_locale_keys! {
     // MSI Installer UI - Shortcut Descriptions
     MSI_DESKTOP_SHORTCUT_DESCRIPTION = "msi-desktop-shortcut-description",
     MSI_START_MENU_SHORTCUT_DESCRIPTION = "msi-start-menu-shortcut-description",
+    // MSI Installer UI - Downgrade Error
+    MSI_DOWNGRADE_ERROR = "msi-downgrade-error",
 }
 
 #[cfg(test)]

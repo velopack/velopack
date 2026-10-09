@@ -229,3 +229,6 @@ msi-start-menu-shortcut-description = Startmenu-snelkoppeling voor { $app_title 
 # MSI Installer UI - Readme Dialog
 msi-readme-title = Belangrijke informatie
 msi-readme-description = Lees de volgende informatie voordat u verdergaat.
+
+# MSI Installer UI - Downgrade Error
+msi-downgrade-error = Er is al een nieuwere versie van { $app_title } geïnstalleerd.
