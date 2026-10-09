@@ -509,6 +509,69 @@ public class MsiTests
         Assert.Equal(escapedStub, displayIcon);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TestPackMsiLaunchTargetFollowsNoStub(bool noStub)
+    {
+        // https://github.com/velopack/velopack/issues/1060
+        // With --noStub there is no launcher at the install root, so the shortcuts, DisplayIcon
+        // and the finish-dialog launch (RustStubFileName) must target current\<main exe>.
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+
+        using var logger = _output.BuildLoggerFor<MsiTests>();
+
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
+
+        var exe = "testapp.exe";
+        var id = "Test.Squirrel-App";
+
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+
+        var options = new WindowsPackOptions {
+            EntryExecutableName = exe,
+            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
+            PackId = id,
+            PackVersion = "1.2.3",
+            TargetRuntime = RID.Parse("win-x64"),
+            PackDirectory = tmpOutput,
+            Shortcuts = "Desktop,StartMenuRoot",
+            BuildMsi = true,
+            NoStub = noStub,
+        };
+
+        var runner = WindowsTestHelper.GetPackRunner(logger);
+        await runner.Run(options);
+
+        string msiPath = Path.Combine(tmpReleaseDir, $"{id}-win.msi");
+        Assert.True(File.Exists(msiPath));
+
+        var launchFile = noStub ? @"current\testapp.exe" : $"{id}.exe";
+        var workDir = noStub ? "CURRENTFOLDER" : "INSTALLFOLDER";
+
+        using Database db = new Database(msiPath);
+
+        var shortcutTargets = db.ExecuteStringQuery("SELECT `Target` FROM `Shortcut`");
+        Assert.Equal(2, shortcutTargets.Count);
+        Assert.All(shortcutTargets, t => Assert.Equal($"[INSTALLFOLDER]{launchFile}", t));
+
+        var shortcutWorkDirs = db.ExecuteStringQuery("SELECT `WkDir` FROM `Shortcut`");
+        Assert.All(shortcutWorkDirs, w => Assert.Equal(workDir, w));
+
+        var displayIcon = db.ExecuteScalar("SELECT `Value` FROM `Registry` WHERE `Name` = 'DisplayIcon'") as string;
+        Assert.Equal($"[INSTALLFOLDER]{launchFile}", displayIcon);
+
+        var launchProp = db.ExecuteScalar("SELECT `Value` FROM `Property` WHERE `Property` = 'RustStubFileName'") as string;
+        Assert.Equal(launchFile, launchProp);
+
+        // File.FileName is "short|long" when the long name is not 8.3, so compare the long part.
+        var fileNames = db.ExecuteStringQuery("SELECT `FileName` FROM `File`").Select(n => n.Split('|').Last()).ToArray();
+        Assert.Contains("testapp.exe", fileNames);
+        Assert.Equal(!noStub, fileNames.Contains($"{id}.exe"));
+        Assert.DoesNotContain(fileNames, n => n.EndsWith("_ExecutionStub.exe"));
+    }
+
     [Fact]
     public async Task TestMsiPerUserInstallAndUpdate()
     {

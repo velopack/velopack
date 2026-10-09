@@ -244,11 +244,14 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
             CopyFiles(new DirectoryInfo(packDir), current, CoreUtil.CreateProgressDelegate(msiProgress, 0, 45));
             File.Delete(Path.Combine(current.FullName, "Squirrel.exe"));
 
-            // move the stub to the root of the MSI package
-            var msiStubPath = Path.Combine(
-                current.FullName,
-                GetStubBaseName() + "_ExecutionStub.exe");
-            File.Move(msiStubPath, Path.Combine(dir.FullName, GetStubFileName()));
+            // move the stub to the root of the MSI package. With --noStub there is none, and
+            // the msi template targets current\<main exe> instead.
+            if (!Options.NoStub) {
+                var msiStubPath = Path.Combine(
+                    current.FullName,
+                    GetStubBaseName() + "_ExecutionStub.exe");
+                File.Move(msiStubPath, Path.Combine(dir.FullName, GetStubFileName()));
+            }
 
             File.Create(Path.Combine(dir.FullName, ".msi-installed")).Close();
 

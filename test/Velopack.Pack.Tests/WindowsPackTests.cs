@@ -201,37 +201,6 @@ public class WindowsPackTests
     }
 
     [Fact]
-    public void NoStubIsRejectedWithMsi()
-    {
-        // The msi template targets the launcher stub for its shortcuts and DisplayIcon,
-        // so the combination cannot produce a working package.
-        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
-
-        using var logger = _output.BuildLoggerFor<WindowsPackTests>();
-
-        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
-        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
-
-        var exe = "testapp.exe";
-        PathHelper.CopyRustAssetTo(exe, tmpOutput);
-
-        var options = new WindowsPackOptions {
-            EntryExecutableName = exe,
-            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
-            PackId = "Test.Squirrel-App",
-            PackVersion = "1.0.0",
-            TargetRuntime = RID.Parse("win-x64"),
-            PackDirectory = tmpOutput,
-            NoStub = true,
-            BuildMsi = true,
-        };
-
-        var runner = WindowsTestHelper.GetPackRunner(logger);
-        var ex = Assert.Throws<UserInfoException>(() => runner.Run(options).GetAwaiterResult());
-        Assert.Contains("noStub", ex.Message);
-    }
-
-    [Fact]
     public void PackBuildRefuseSameVersion()
     {
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");

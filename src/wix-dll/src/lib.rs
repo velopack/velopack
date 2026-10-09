@@ -141,7 +141,10 @@ pub extern "system" fn LaunchApplication(h_install: MSIHANDLE) -> c_uint {
             );
 
             //NB: Need to start the process because the MSI starting a child process won't have any environment variables set.
-            if let Err(e) = process::start_process(stub_path, vec![], Some(&install_dir), false) {
+            // RustStubFileName is the root stub, or current\<main exe> when packed with --noStub.
+            // Start it from the target's own directory, which is INSTALLFOLDER for the stub.
+            let work_dir = stub_path.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from(&install_dir));
+            if let Err(e) = process::start_process(&stub_path, vec![], Some(&work_dir), false) {
                 show_debug_message("LaunchApplication", format!("Failed to launch application: {}", e));
             }
         }
