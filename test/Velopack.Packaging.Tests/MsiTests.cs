@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.Versioning;
 using Microsoft.Win32;
 using Velopack.Core;
@@ -536,7 +536,7 @@ public class MsiTests
             PackVersion = "1.2.3",
             TargetRuntime = RID.Parse("win-x64"),
             PackDirectory = tmpOutput,
-            Shortcuts = "Desktop,StartMenuRoot",
+            Shortcuts = "Desktop,StartMenu,StartMenuRoot,Startup",
             BuildMsi = true,
             NoStub = noStub,
         };
@@ -553,7 +553,7 @@ public class MsiTests
         using Database db = new Database(msiPath);
 
         var shortcutTargets = db.ExecuteStringQuery("SELECT `Target` FROM `Shortcut`");
-        Assert.Equal(2, shortcutTargets.Count);
+        Assert.Equal(4, shortcutTargets.Count);
         Assert.All(shortcutTargets, t => Assert.Equal($"[INSTALLFOLDER]{launchFile}", t));
 
         var shortcutWorkDirs = db.ExecuteStringQuery("SELECT `WkDir` FROM `Shortcut`");

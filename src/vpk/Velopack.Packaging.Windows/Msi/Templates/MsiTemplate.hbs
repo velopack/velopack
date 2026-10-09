@@ -16,6 +16,9 @@
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes"/>
         <StandardDirectory Id="TARGETDIR">
             <Directory Id="INSTALLFOLDER" Name="{{AppTitleSanitized}}" ComponentGuidGenerationSeed="{{ComponentGenerationSeedGuid}}">
+                {{!-- CURRENTFOLDER only names current\ for the --noStub shortcut WorkingDirectory. The harvested
+                     files keep their own auto-id "current" row, so file component GUIDs match stub-mode msis;
+                     do not move the harvest under it. --}}
                 <Directory {{#if NoStub}}Id="CURRENTFOLDER" {{/if}}Name="current"/>
                 <Directory Id="PACKAGES_DIR" Name="packages"/>
             </Directory>
@@ -35,9 +38,9 @@
 
         {{#if StartMenuShortcut}}
             <!-- Shortcut is placed in Start > Programs > AppPublisher -->
-            <Directory Id="ProgramMenuFolder">
+            <StandardDirectory Id="ProgramMenuFolder">
                 <Directory Id="AppPublisherProgramMenuDir" Name="{{AppPublisherSanitized}}"/>
-            </Directory>
+            </StandardDirectory>
             <DirectoryRef Id="AppPublisherProgramMenuDir">
                 <Component Id="ApplicationStartMenuShortcut">
                     <Shortcut
