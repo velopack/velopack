@@ -212,16 +212,16 @@
         <CustomAction Id="RustEarlyBootstrap" BinaryRef="RustDll" DllEntry="EarlyBootstrap" Execute="immediate" Return="check"/>
         <!-- On full uninstall RustCleanup removes everything left in the install dir; during a
              major upgrade ([UPGRADINGPRODUCTCODE] set in the old product being removed) it only
-             purges the `current` payload dir so user files outside it survive the upgrade.
+             purges the `current` payload dir and downloaded packages, so user files outside it survive the upgrade.
              UserRustCleanup runs impersonated on full uninstall only, to clean per-user state
              (shortcuts, %LocalAppData% fallback dir, temp) that the non-impersonated action
              cannot resolve when it runs as SYSTEM on per-machine installs. -->
         <CustomAction Id="SetRustCleanupData" Property="RustCleanup"
-                      Value="[INSTALLFOLDER]&quot;[RustAppId]&quot;[TempFolder]&quot;[LocalAppDataFolder]&quot;[UPGRADINGPRODUCTCODE]"
+                      Value="[INSTALLFOLDER]&quot;[RustAppId]&quot;[TempFolder]&quot;[LocalAppDataFolder]&quot;[UPGRADINGPRODUCTCODE]&quot;[ALLUSERS]"
                       Execute="immediate" Return="check"/>
         <CustomAction Id="RustCleanup" BinaryRef="RustDll" DllEntry="CleanupDeferred" Execute="deferred" Impersonate="no" Return="ignore"/>
         <CustomAction Id="SetUserRustCleanupData" Property="UserRustCleanup"
-                      Value="[INSTALLFOLDER]&quot;[RustAppId]&quot;[TempFolder]&quot;[LocalAppDataFolder]"
+                      Value="[INSTALLFOLDER]&quot;[RustAppId]&quot;[TempFolder]&quot;[LocalAppDataFolder]&quot;&quot;[ALLUSERS]"
                       Execute="immediate" Return="check"/>
         <CustomAction Id="UserRustCleanup" BinaryRef="RustDll" DllEntry="UserCleanupDeferred" Execute="deferred" Impersonate="yes"
                       Return="ignore"/>
@@ -232,6 +232,10 @@
         <CustomAction Id="SetInstallHookData" Property="InstallHookDeferred"
                       Value="[INSTALLFOLDER]&quot;[RustMainExeFileName]&quot;[RustAppVersion]" Execute="immediate" Return="check"/>
         <CustomAction Id="InstallHookDeferred" BinaryRef="RustDll" DllEntry="InstallHookDeferred" Execute="deferred"
+                      Impersonate="yes" Return="ignore"/>
+        <CustomAction Id="SetUpdatedHookData" Property="UpdatedHookDeferred"
+                      Value="[INSTALLFOLDER]&quot;[RustMainExeFileName]&quot;[RustAppVersion]" Execute="immediate" Return="check"/>
+        <CustomAction Id="UpdatedHookDeferred" BinaryRef="RustDll" DllEntry="UpdatedHookDeferred" Execute="deferred"
                       Impersonate="yes" Return="ignore"/>
         <CustomAction Id="SetUninstallHookData" Property="UninstallHookDeferred"
                       Value="[INSTALLFOLDER]&quot;[RustMainExeFileName]&quot;[RustAppVersion]" Execute="immediate" Return="check"/>
@@ -252,14 +256,20 @@
         </InstallUISequence>
 
         <InstallExecuteSequence>
-            <!-- Also in the execute sequence so silent installs (no UI sequence) get the localized
-                 downgrade message; properties already set by the UI sequence are left alone. -->
-            <Custom Action="RustSetLocaleStrings" Before="AppSearch"/>
+            <!-- Also in the execute sequence so silent installs (no UI sequence) get the localized downgrade
+                 message. Private properties set in the UI sequence do not carry over, so this sets them again.
+                 Only needed for the launch condition on first install; skipped on repair and uninstall so a
+                 failure here can never block removing the app. -->
+            <Custom Action="RustSetLocaleStrings" Before="AppSearch" Condition="NOT Installed"/>
             <Custom Action="SetPatchChannelData" Before="PatchChannelDeferred" Condition="NOT REMOVE"/>
             <Custom Action="PatchChannelDeferred" After="InstallFiles" Condition="NOT REMOVE"/>
-            <Custom Action="SetInstallHookData" Before="InstallHookDeferred" Condition="NOT REMOVE"/>
-            <!-- InstallHookDeferred runs after PatchChannelDeferred so the app hook sees the corrected channel -->
-            <Custom Action="InstallHookDeferred" After="PatchChannelDeferred" Condition="NOT REMOVE"/>
+            <!-- The app hooks run after PatchChannelDeferred so they see the corrected channel. When this MSI
+                 is upgrading an older product (WIX_UPGRADE_DETECTED) the app gets the "updated" hook, like an
+                 in-app update, instead of the "install" hook. -->
+            <Custom Action="SetInstallHookData" Before="InstallHookDeferred" Condition="NOT REMOVE AND NOT WIX_UPGRADE_DETECTED"/>
+            <Custom Action="InstallHookDeferred" After="PatchChannelDeferred" Condition="NOT REMOVE AND NOT WIX_UPGRADE_DETECTED"/>
+            <Custom Action="SetUpdatedHookData" Before="UpdatedHookDeferred" Condition="NOT REMOVE AND WIX_UPGRADE_DETECTED"/>
+            <Custom Action="UpdatedHookDeferred" After="PatchChannelDeferred" Condition="NOT REMOVE AND WIX_UPGRADE_DETECTED"/>
             <!-- The app uninstall hook and per-user cleanup only run on a real uninstall, not when
                  the old product is removed as part of a major upgrade. RustCleanup runs in both
                  cases; it decides what to remove based on [UPGRADINGPRODUCTCODE]. -->
