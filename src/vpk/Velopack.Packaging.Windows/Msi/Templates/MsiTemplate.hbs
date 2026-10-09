@@ -16,7 +16,7 @@
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes"/>
         <StandardDirectory Id="TARGETDIR">
             <Directory Id="INSTALLFOLDER" Name="{{AppTitleSanitized}}" ComponentGuidGenerationSeed="{{ComponentGenerationSeedGuid}}">
-                <Directory Name="current"/>
+                <Directory {{#if NoStub}}Id="CURRENTFOLDER" {{/if}}Name="current"/>
                 <Directory Id="PACKAGES_DIR" Name="packages"/>
             </Directory>
         </StandardDirectory>
@@ -25,7 +25,7 @@
             <StandardDirectory Id="DesktopFolder">
                 <Component Id="ApplicationDesktopShortcut">
                     <Shortcut Id="ApplicationDesktopShortcut" Name="{{AppTitle}}" Description="[MsiDesktopShortcutDescription]"
-                              Target="[INSTALLFOLDER]{{StubFileNameEscaped}}" WorkingDirectory="INSTALLFOLDER"/>
+                              Target="[INSTALLFOLDER]{{LaunchFileNameEscaped}}" WorkingDirectory="{{LaunchWorkingDirectoryId}}"/>
                     <RemoveFolder Id="CleanUpDesktopShortcut" Directory="INSTALLFOLDER" On="uninstall"/>
                     <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitizedEscaped}}&#92;{{AppId}}.DesktopShortcut"
                                    Name="installed" Type="integer" Value="1" KeyPath="yes"/>
@@ -44,8 +44,8 @@
                             Id="ApplicationStartMenuShortcut"
                             Name="{{AppTitle}}"
                             Description="[MsiStartMenuShortcutDescription]"
-                            Target="[INSTALLFOLDER]{{StubFileNameEscaped}}"
-                            WorkingDirectory="INSTALLFOLDER"/>
+                            Target="[INSTALLFOLDER]{{LaunchFileNameEscaped}}"
+                            WorkingDirectory="{{LaunchWorkingDirectoryId}}"/>
                     <RemoveFolder Id="CleanUpStartMenuShortcut" Directory="AppPublisherProgramMenuDir" On="uninstall"/>
                     <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitizedEscaped}}&#92;{{AppId}}.StartMenuShortcut"
                                    Name="installed" Type="integer" Value="1" KeyPath="yes"/>
@@ -61,8 +61,8 @@
                             Id="ApplicationStartMenuRootShortcut"
                             Name="{{AppTitle}}"
                             Description="[MsiStartMenuShortcutDescription]"
-                            Target="[INSTALLFOLDER]{{StubFileNameEscaped}}"
-                            WorkingDirectory="INSTALLFOLDER"/>
+                            Target="[INSTALLFOLDER]{{LaunchFileNameEscaped}}"
+                            WorkingDirectory="{{LaunchWorkingDirectoryId}}"/>
                     <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitizedEscaped}}&#92;{{AppId}}.StartMenuRootShortcut"
                                    Name="installed" Type="integer" Value="1" KeyPath="yes"/>
                 </Component>
@@ -74,8 +74,8 @@
                 <Component Id="ApplicationStartupShortcut">
                     <Shortcut Id="ApplicationStartupShortcut" Name="{{AppTitle}}"
                               Description="Startup shortcut for {{AppTitleEscaped}}"
-                              Target="[INSTALLFOLDER]{{StubFileNameEscaped}}"
-                              WorkingDirectory="INSTALLFOLDER"/>
+                              Target="[INSTALLFOLDER]{{LaunchFileNameEscaped}}"
+                              WorkingDirectory="{{LaunchWorkingDirectoryId}}"/>
                     <RegistryValue Root="HKMU" Key="Software&#92;{{AppPublisherSanitizedEscaped}}&#92;{{AppId}}.StartupShortcut"
                                    Name="installed" Type="integer" Value="1" KeyPath="yes"/>
                 </Component>
@@ -94,7 +94,7 @@
                 <RegistryKey Root="HKMU" Key="Software&#92;Microsoft&#92;Windows&#92;CurrentVersion&#92;Uninstall&#92;MSI:{{AppId}}">
                     <RegistryValue Name="DisplayName" Value="{{AppTitleEscaped}}" Type="string"/>
                     <RegistryValue Name="DisplayVersion" Value="{{AppVersion}}" Type="string"/>
-                    <RegistryValue Name="DisplayIcon" Value="[INSTALLFOLDER]{{StubFileNameEscaped}}" Type="string"/>
+                    <RegistryValue Name="DisplayIcon" Value="[INSTALLFOLDER]{{LaunchFileNameEscaped}}" Type="string"/>
                     <RegistryValue Name="Publisher" Value="{{AppPublisherEscaped}}" Type="string"/>
                     <RegistryValue Name="UninstallString" Value="msiexec.exe /x [ProductCode]" Type="string"/>
                     <RegistryValue Name="QuietUninstallString" Value="msiexec.exe /x [ProductCode] /qn" Type="string"/>
@@ -187,7 +187,7 @@
         {{#if HasRuntimeDependencies}}
             <Property Id="RustRuntimeDependencies" Value="{{RuntimeDependencies}}"/>
         {{/if}}
-        <Property Id="RustStubFileName" Value="{{StubFileName}}"/>
+        <Property Id="RustStubFileName" Value="{{LaunchFileName}}"/>
         <Property Id="RustMainExeFileName" Value="{{MainExeFileName}}"/>
 
         <!-- Custom actions -->
