@@ -139,8 +139,6 @@ public class Program
             break;
         case RuntimeOs.OSX:
             rootCommand.AddCommand<OsxBundleCommand, OsxBundleCommandRunner, OsxBundleOptions>(provider);
-            // pack runs on every OS: off macOS it signs and notarizes with rcodesign, writes the portable zip itself,
-            // and builds no .pkg installer (OsxPackCommandRunner).
             rootCommand.AddCommand<OsxPackCommand, OsxPackCommandRunner, OsxPackOptions>(provider);
             break;
         default:

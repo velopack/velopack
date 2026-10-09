@@ -308,10 +308,6 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
 
     protected virtual void CopyFiles(DirectoryInfo source, DirectoryInfo target, Action<int> progress, bool excludeAnnoyances = false)
     {
-        // On Windows, we can use our custom copy method to avoid annoying files.
-        // On OSX, it's a bit tricker because it's common practice to have internal symlinks which this will recursively copy as directories.
-        // We need to preserve the internal symlinks, so we will use 'cp -a' and then manually delete annoying files.
-
         Regex manualExclude = null;
         if (!String.IsNullOrEmpty(Options.Exclude)) {
             manualExclude = new Regex(Options.Exclude, RegexOptions.Compiled);
@@ -319,36 +315,38 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
 
         var defaultExclude = Options.NoDefaultExclude ? null : REGEX_EXCLUDES;
 
+        // The patterns are matched against each file's full destination path.
+        bool IsExcluded(string path) =>
+            excludeAnnoyances && (defaultExclude?.IsMatch(path) == true || manualExclude?.IsMatch(path) == true);
+
         if (!source.Exists) {
             throw new ArgumentException("Source directory does not exist: " + source.FullName);
         }
 
-        if (VelopackRuntimeInfo.IsWindows) {
-            Log.Debug($"Copying '{source}' to '{target}' (built-in recursive)");
-            var numFiles = source.EnumerateFiles("*", SearchOption.AllDirectories).Count();
-            int currentFile = 0;
+        // A macOS bundle's links end up in the nupkg, so they must stay inside it. Other targets keep accepting any link:
+        // AppImages store them as-is, and Windows packages built on Windows copy what they point to.
+        if (TargetOs == RuntimeOs.OSX) {
+            FileUtil.ValidateSymlinks(source.FullName, relativePath => IsExcluded(Path.Combine(target.FullName, relativePath)));
+        }
 
-            void CopyFilesInternal(DirectoryInfo source, DirectoryInfo target)
-            {
-                foreach (var fileInfo in source.GetFiles()) {
-                    var path = Path.Combine(target.FullName, fileInfo.Name);
-                    currentFile++;
-                    progress((int) ((double) currentFile / numFiles * 100));
-                    if (excludeAnnoyances && (defaultExclude?.IsMatch(path) == true || manualExclude?.IsMatch(path) == true)) {
-                        Log.Debug("Skipping because matched exclude pattern: " + path);
-                        continue;
+        if (VelopackRuntimeInfo.IsWindows) {
+            // On Windows only macOS targets keep symlinks as links (EasyZip stores them as .__symlink); 'cp -a' always keeps them.
+            var preserveSymlinks = TargetOs == RuntimeOs.OSX;
+            Log.Debug($"Copying '{source}' to '{target}' (built-in recursive, preserve symlinks: {preserveSymlinks})");
+            FileUtil.CopyFilesRecursive(
+                source,
+                target,
+                preserveSymlinks,
+                relativePath => {
+                    var destPath = Path.Combine(target.FullName, relativePath);
+                    if (IsExcluded(destPath)) {
+                        Log.Debug("Skipping because matched exclude pattern: " + destPath);
+                        return true;
                     }
 
-                    fileInfo.CopyTo(path, true);
-                }
-
-                foreach (var sourceSubDir in source.GetDirectories()) {
-                    var targetSubDir = target.CreateSubdirectory(sourceSubDir.Name);
-                    CopyFilesInternal(sourceSubDir, targetSubDir);
-                }
-            }
-
-            CopyFilesInternal(source, target);
+                    return false;
+                },
+                progress);
         } else {
             Log.Debug($"Copying '{source}' to '{target}' (preserving symlinks)");
             // copy the contents of the folder, not the folder itself.
@@ -357,8 +355,8 @@ public abstract class PackageBuilder<T, TValidator> : ValidatedCommand<T, TValid
             Log.Debug(Exe.InvokeAndThrowIfNonZero("cp", ["-a", src, dest], null));
 
             if (excludeAnnoyances) {
-                foreach (var f in target.EnumerateFiles("*", SearchOption.AllDirectories)) {
-                    if (defaultExclude?.IsMatch(f.FullName) == true || manualExclude?.IsMatch(f.FullName) == true) {
+                foreach (var f in FileUtil.EnumerateFilesWithoutFollowingSymlinks(target).ToArray()) {
+                    if (IsExcluded(f.FullName)) {
                         Log.Debug("Deleting because matched exclude pattern: " + f.FullName);
                         f.Delete();
                     }

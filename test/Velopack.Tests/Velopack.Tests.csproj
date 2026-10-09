@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <Compile Include="..\Velopack.TestCommon\PathHelper.cs" Link="PathHelper.cs" />
+    <Compile Include="..\Velopack.TestCommon\TestHelper.Skip.cs" Link="TestHelper.Skip.cs" />
   </ItemGroup>
 
   <ItemGroup>

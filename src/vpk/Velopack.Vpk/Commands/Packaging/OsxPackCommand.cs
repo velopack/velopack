@@ -15,7 +15,7 @@ public class OsxPackCommand : OsxBundleCommand
     public string SignInstallIdentity { get; private set; }
 
     public string SignEntitlements { get; private set; }
-    
+
     public bool SignDisableDeep { get; private set; }
 
     public string NotaryProfile { get; private set; }
@@ -29,31 +29,44 @@ public class OsxPackCommand : OsxBundleCommand
     public string NotaryApiKeyFile { get; private set; }
 
     public OsxPackCommand()
-        : base("pack", "Converts application files into a release and installer.")
+        : base(
+            "pack",
+            VelopackRuntimeInfo.IsOSX
+                ? "Converts application files into a release and installer."
+                : "Converts application files into a release and portable app.")
     {
-        AddOption<FileInfo>((v) => InstWelcome = v.ToFullNameOrNull(), ["--instWelcome"])
-            .SetDescription("Set the installer package welcome content.")
-            .SetArgumentHelpName("PATH");
+        // Apple's codesign, notarytool, keychain and pkgbuild only exist on macOS, so their options are only offered there.
+        // Elsewhere signing and notarization go through rcodesign (--signP12File, --notaryApiKeyFile).
+        if (VelopackRuntimeInfo.IsOSX) {
+            AddOption<FileInfo>((v) => InstWelcome = v.ToFullNameOrNull(), ["--instWelcome"])
+                .SetDescription("Set the installer package welcome content.")
+                .SetArgumentHelpName("PATH");
 
-        AddOption<FileInfo>((v) => InstReadme = v.ToFullNameOrNull(), ["--instReadme"])
-            .SetDescription("Set the installer package readme content.")
-            .SetArgumentHelpName("PATH");
+            AddOption<FileInfo>((v) => InstReadme = v.ToFullNameOrNull(), ["--instReadme"])
+                .SetDescription("Set the installer package readme content.")
+                .SetArgumentHelpName("PATH");
 
-        AddOption<FileInfo>((v) => InstLicense = v.ToFullNameOrNull(), ["--instLicense"])
-            .SetDescription("Set the installer package license content.")
-            .SetArgumentHelpName("PATH");
+            AddOption<FileInfo>((v) => InstLicense = v.ToFullNameOrNull(), ["--instLicense"])
+                .SetDescription("Set the installer package license content.")
+                .SetArgumentHelpName("PATH");
 
-        AddOption<FileInfo>((v) => InstConclusion = v.ToFullNameOrNull(), ["--instConclusion"])
-            .SetDescription("Set the installer package conclusion content.")
-            .SetArgumentHelpName("PATH");
+            AddOption<FileInfo>((v) => InstConclusion = v.ToFullNameOrNull(), ["--instConclusion"])
+                .SetDescription("Set the installer package conclusion content.")
+                .SetArgumentHelpName("PATH");
 
-        AddOption<string>((v) => SignAppIdentity = v, ["--signAppIdentity"])
-            .SetDescription("The subject name of the cert to use for app code signing.")
-            .SetArgumentHelpName("SUBJECT");
+            AddOption<string>((v) => SignAppIdentity = v, ["--signAppIdentity"])
+                .SetDescription("The subject name of the cert to use for app code signing.")
+                .SetArgumentHelpName("SUBJECT");
 
-        AddOption<string>((v) => SignInstallIdentity = v, ["--signInstallIdentity"])
-            .SetDescription("The subject name of the cert to use for installation packages.")
-            .SetArgumentHelpName("SUBJECT");
+            AddOption<string>((v) => SignInstallIdentity = v, ["--signInstallIdentity"])
+                .SetDescription("The subject name of the cert to use for installation packages.")
+                .SetArgumentHelpName("SUBJECT");
+        } else {
+            // No .pkg installer can be built, so the portable package is the only installable output and cannot be
+            // skipped either (OsxPackOptions.NoInst is always true off macOS).
+            RemoveOption(NoPortableOption);
+            RemoveOption(NoInstOption);
+        }
 
         AddOption<FileInfo>((v) => SignEntitlements = v.ToFullNameOrNull(), ["--signEntitlements"])
             .SetDescription("Path to entitlements file for hardened runtime signing.")
@@ -62,18 +75,19 @@ public class OsxPackCommand : OsxBundleCommand
         AddOption<bool>((v) => SignDisableDeep = v, ["--signDisableDeep"])
             .SetDescription("Disable deep signing, requires you to pre-sign your binaries.");
 
-        AddOption<string>((v) => NotaryProfile = v, ["--notaryProfile"])
-            .SetDescription("Name of profile containing Apple credentials stored with notarytool.")
-            .SetArgumentHelpName("NAME");
+        if (VelopackRuntimeInfo.IsOSX) {
+            AddOption<string>((v) => NotaryProfile = v, ["--notaryProfile"])
+                .SetDescription("Name of profile containing Apple credentials stored with notarytool.")
+                .SetArgumentHelpName("NAME");
 
-        AddOption<FileInfo>((v) => Keychain = v.ToFullNameOrNull(), ["--keychain"])
-            .SetDescription("Path to keychain file to use for codesign and notarytool.")
-            .SetArgumentHelpName("PATH")
-            .SetHidden(true);
+            AddOption<FileInfo>((v) => Keychain = v.ToFullNameOrNull(), ["--keychain"])
+                .SetDescription("Path to keychain file to use for codesign and notarytool.")
+                .SetArgumentHelpName("PATH")
+                .SetHidden(true);
+        }
 
         AddOption<FileInfo>((v) => SignP12File = v.ToFullNameOrNull(), ["--signP12File"])
-            .SetDescription("Sign with rcodesign using this Developer ID Application certificate (.p12) instead of a " +
-                            "keychain identity. Works on Linux as well as macOS.")
+            .SetDescription("Sign with rcodesign using this .p12 certificate file.")
             .SetArgumentHelpName("PATH");
 
         AddOption<FileInfo>((v) => SignP12PasswordFile = v.ToFullNameOrNull(), ["--signP12PasswordFile"])
@@ -81,8 +95,7 @@ public class OsxPackCommand : OsxBundleCommand
             .SetArgumentHelpName("PATH");
 
         AddOption<FileInfo>((v) => NotaryApiKeyFile = v.ToFullNameOrNull(), ["--notaryApiKeyFile"])
-            .SetDescription("Notarize and staple with rcodesign using this App Store Connect API key " +
-                            "(JSON, from 'rcodesign encode-app-store-connect-api-key'). Requires --signP12File.")
+            .SetDescription("Notarize with rcodesign using this App Store Connect key JSON.")
             .SetArgumentHelpName("PATH");
     }
 }
