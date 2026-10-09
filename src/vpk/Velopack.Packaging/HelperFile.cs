@@ -15,7 +15,7 @@ public static class HelperFile
         case RuntimeOs.Linux:
             return FindHelperFile("update");
         case RuntimeOs.OSX:
-            return FindHelperFile("update");
+            return FindDebugUpdateMac();
 #else
         case RuntimeOs.Windows:
             if (!target.HasArchitecture) {
@@ -79,7 +79,6 @@ public static class HelperFile
         return "mksquashfs";
     }
 
-    [SupportedOSPlatform("macos")]
     public static string VelopackEntitlements => FindHelperFile("Velopack.entitlements");
 
     public static string AppImageRuntimeArm64 => FindHelperFile("appimagekit-runtime-aarch64");
@@ -175,6 +174,35 @@ public static class HelperFile
             _searchPaths.Insert(0, path);
     }
 
+#if DEBUG
+    /// <summary>
+    /// A local cargo build only produces an update binary for the host OS. Prefer it when it is a Mach-O image (a build on
+    /// macOS), so local Rust changes get packed; elsewhere fall back to a prebuilt UpdateMac (e.g. dropped into vendor/), and
+    /// never pack anything that is not Mach-O.
+    /// </summary>
+    private static string FindDebugUpdateMac()
+    {
+        var path = FindHelperFile("update", BinDetect.IsMachOImage, throwWhenNotFound: false)
+                   ?? FindHelperFile("UpdateMac", BinDetect.IsMachOImage, throwWhenNotFound: false);
+        if (path != null) {
+            return path;
+        }
+
+        StringBuilder msg = new();
+        msg.AppendLine("HelperFile could not find a macOS (Mach-O) 'update' or 'UpdateMac' binary.");
+        msg.AppendLine("Debug builds of vpk only have one when built on macOS; elsewhere, copy a prebuilt UpdateMac into vendor/.");
+        AppendSearchPaths(msg);
+        throw new Exception(msg.ToString());
+    }
+#endif
+
+    private static void AppendSearchPaths(StringBuilder msg)
+    {
+        msg.AppendLine("Search paths:");
+        foreach (var path in _searchPaths)
+            msg.AppendLine($"  {Path.GetFullPath(path)}");
+    }
+
     public static string FindHelperFile(string toFind, Func<string, bool> predicate = null, bool throwWhenNotFound = true)
     {
         //var baseDirs = new[] {
@@ -197,9 +225,7 @@ public static class HelperFile
         if (result == null && throwWhenNotFound) {
             StringBuilder msg = new();
             msg.AppendLine($"HelperFile could not find '{toFind}'.");
-            msg.AppendLine("Search paths:");
-            foreach (var path in _searchPaths)
-                msg.AppendLine($"  {Path.GetFullPath(path)}");
+            AppendSearchPaths(msg);
             throw new Exception(msg.ToString());
         }
 

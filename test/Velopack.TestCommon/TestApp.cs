@@ -49,9 +49,9 @@ public static class TestApp
 
     /// <summary>
     /// Copies a cached TestApp publish for the given RID into destDir (replacing destDir if it
-    /// already exists) and writes testString to test_string.txt inside it.
+    /// already exists) and writes testString to test_string.txt inside it, unless it is null.
     /// </summary>
-    public static void PreparePublishDir(RID targetRid, string testString, string destDir, ILogger logger, bool singleFile = false)
+    public static void PreparePublishDir(RID targetRid, string? testString, string destDir, ILogger logger, bool singleFile = false)
     {
         var cached = GetCachedPublishDir(targetRid, singleFile, logger);
         if (Directory.Exists(destDir)) {
@@ -59,7 +59,9 @@ public static class TestApp
         }
 
         FileUtil.CopyDirectoryContents(cached, destDir);
-        File.WriteAllText(Path.Combine(destDir, TestStringFileName), testString);
+        if (testString != null) {
+            File.WriteAllText(Path.Combine(destDir, TestStringFileName), testString);
+        }
     }
 
     private static string GetCachedPublishDir(RID targetRid, bool singleFile, ILogger logger)
@@ -107,8 +109,35 @@ public static class TestApp
         return publishDir;
     }
 
-    public static void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
-        string? releaseNotes = null, string? channel = null, RID? targetRid = null, string? packTitle = null, string? azureTrustedSignFile = null)
+    /// <summary>
+    /// Returns why this machine cannot pack the TestApp for macOS, or null when it can. A macOS release needs a Mach-O
+    /// UpdateMac: CI vendors the universal one (the rust-macos artifact) into target/release on every OS, but a local
+    /// Debug build off macOS only has the host's own update binary, which macOS cannot run. The bundle also needs a
+    /// symlink, which a Windows machine without Developer Mode or elevation cannot create.
+    /// </summary>
+    public static string? GetOsxPackBlocker(ILogger logger)
+    {
+        string update;
+        try {
+            update = HelperFile.GetUpdatePath(RID.Parse("osx-arm64"), logger);
+        } catch (Exception ex) {
+            return "no UpdateMac to pack for macOS with: " + ex.Message;
+        }
+
+        if (!BinDetect.IsMachOImage(update)) {
+            return $"'{update}' is not a Mach-O image, so it cannot be packed as UpdateMac (off macOS, only CI's vendored binaries are)";
+        }
+
+        // the bundle links Contents/MacOS/sq.version to Contents/Resources/sq.version
+        return TestHelper.GetSymlinkBlocker();
+    }
+
+    /// <param name="testString">Written to test_string.txt next to the exe, or left out when null.</param>
+    /// <param name="singleFile">Packs a single-file publish of the TestApp.</param>
+    /// <param name="configureOsx">Adjusts the options of a macOS pack (signing, entitlements) before it runs.</param>
+    public static void PackTestApp(string id, string version, string? testString, string releaseDir, ILogger logger,
+        string? releaseNotes = null, string? channel = null, RID? targetRid = null, string? packTitle = null, string? azureTrustedSignFile = null,
+        bool singleFile = false, Action<OsxPackOptions>? configureOsx = null)
     {
         targetRid ??= RID.Parse(VelopackRuntimeInfo.SystemRid);
 
@@ -116,7 +145,7 @@ public static class TestApp
         var publishDir = Path.Combine(workDir, "publish");
 
         try {
-            PreparePublishDir(targetRid, testString, publishDir, logger);
+            PreparePublishDir(targetRid, testString, publishDir, logger, singleFile);
 
             var console = new BasicConsole(logger, new VelopackDefaults(false));
 
@@ -147,12 +176,9 @@ public static class TestApp
                     ReleaseNotes = releaseNotes,
                     Channel = channel,
                 };
-                if (VelopackRuntimeInfo.IsOSX) {
-                    var runner = new OsxPackCommandRunner(logger, console);
-                    runner.Run(options).GetAwaiterResult();
-                } else {
-                    throw new PlatformNotSupportedException();
-                }
+                configureOsx?.Invoke(options);
+                var runner = new OsxPackCommandRunner(logger, console);
+                runner.Run(options).GetAwaiterResult();
             } else if (targetRid.BaseRID == RuntimeOs.Linux) {
                 var options = new LinuxPackOptions {
                     EntryExecutableName = "TestApp",

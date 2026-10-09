@@ -1,6 +1,7 @@
 ﻿using System.IO.Compression;
 using System.Runtime.InteropServices;
 using Velopack.Logging;
+using Velopack.TestCommon;
 using Velopack.Util;
 using NCode.ReparsePoints;
 
@@ -27,6 +28,7 @@ public class SymbolicLinkTests
     [Fact]
     public void CreateDirectory_VerifyExists_GetTarget_Delete()
     {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         string targetFolder = Path.Combine(tempFolder, "ADirectory");
         string junctionPoint = Path.Combine(tempFolder, "SymLink");
@@ -70,6 +72,7 @@ public class SymbolicLinkTests
     [Fact]
     public void CreateFile_VerifyExists_GetTarget_Delete()
     {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var tmpFile = Path.Combine(tempFolder, "AFile");
         var symFile = Path.Combine(tempFolder, "SymFile");
@@ -98,6 +101,7 @@ public class SymbolicLinkTests
     [Fact]
     public void CreateFile_RelativePath()
     {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var subDir = Directory.CreateDirectory(Path.Combine(tempFolder, "SubDir")).FullName;
 
@@ -128,6 +132,7 @@ public class SymbolicLinkTests
     [Fact]
     public void CreateDirectory_RelativePath()
     {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var subDir = Directory.CreateDirectory(Path.Combine(tempFolder, "SubDir")).FullName;
         var subSubDir = Directory.CreateDirectory(Path.Combine(subDir, "SubSub")).FullName;
@@ -162,6 +167,7 @@ public class SymbolicLinkTests
     [Fact]
     public void Create_OverwritesIfSpecifiedAndDirectoryExists()
     {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         string targetFolder = Path.Combine(tempFolder, "ADirectory");
         string junctionPoint = Path.Combine(tempFolder, "SymLink");
@@ -233,6 +239,7 @@ public class SymbolicLinkTests
     [Fact]
     public async Task ComplexSymlinkDirGetsZippedCorrectly()
     {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var temp = new DirectoryInfo(tempFolder);
         var versions = temp.CreateSubdirectory("Versions");
@@ -276,6 +283,7 @@ public class SymbolicLinkTests
     [Fact]
     public void Create_SymlinkToNonExistentTarget_ShouldWork()
     {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var target = Path.Combine(tempFolder, "NonExistent");
         var link = Path.Combine(tempFolder, "Link");
@@ -293,6 +301,7 @@ public class SymbolicLinkTests
     [Fact]
     public void Create_MultipleLevelsOfSymlinks()
     {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var file = Path.Combine(tempFolder, "Original.txt");
         var link1 = Path.Combine(tempFolder, "Link1.txt");
@@ -320,6 +329,7 @@ public class SymbolicLinkTests
     [Fact]
     public void GetTarget_WithTrailingSlash_ShouldWork()
     {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var target = Path.Combine(tempFolder, "Target");
         var link = Path.Combine(tempFolder, "Link");
@@ -335,6 +345,7 @@ public class SymbolicLinkTests
     [Fact]
     public void Create_WithSpecialCharactersInPath()
     {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var target = Path.Combine(tempFolder, "Target With Spaces & Special-Chars");
         var link = Path.Combine(tempFolder, "Link With Spaces & Special-Chars");
@@ -351,6 +362,7 @@ public class SymbolicLinkTests
     [Fact]
     public void Create_AbsoluteVsRelativeComparison()
     {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var subdir = Directory.CreateDirectory(Path.Combine(tempFolder, "subdir")).FullName;
         var target = Path.Combine(tempFolder, "target.txt");
@@ -379,6 +391,7 @@ public class SymbolicLinkTests
     [Fact]
     public void FileSymlink_AllImplementationsAgree()
     {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var target = Path.Combine(tempFolder, "target.txt");
         var link = Path.Combine(tempFolder, "link.txt");
@@ -415,6 +428,7 @@ public class SymbolicLinkTests
     [Fact]
     public void DirectorySymlink_AllImplementationsAgree()
     {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var target = Path.Combine(tempFolder, "targetDir");
         var link = Path.Combine(tempFolder, "linkDir");
@@ -453,6 +467,7 @@ public class SymbolicLinkTests
     [Fact]
     public void RelativeSymlink_AllImplementationsAgree()
     {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var subdir = Directory.CreateDirectory(Path.Combine(tempFolder, "subdir")).FullName;
         var target = Path.Combine(tempFolder, "target.txt");
@@ -491,6 +506,7 @@ public class SymbolicLinkTests
     [Fact]
     public void MultipleLevelsOfSymlinks_AllImplementationsAgree()
     {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var file = Path.Combine(tempFolder, "original.txt");
         var link1 = Path.Combine(tempFolder, "link1.txt");
@@ -538,6 +554,7 @@ public class SymbolicLinkTests
     [Fact]
     public void Delete_OnlyDeletesLinkNotTarget()
     {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var target = Path.Combine(tempFolder, "target.txt");
         var link = Path.Combine(tempFolder, "link.txt");
@@ -605,6 +622,7 @@ public class SymbolicLinkTests
     [Fact]
     public void Create_OverwriteExistingSymlink()
     {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var _1 = TempUtil.GetTempDirectory(out var tempFolder);
         var target1 = Path.Combine(tempFolder, "target1.txt");
         var target2 = Path.Combine(tempFolder, "target2.txt");
