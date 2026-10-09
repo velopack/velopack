@@ -32,7 +32,8 @@ public class RcodesignTools
         "https://github.com/indygreg/apple-platform-rs/releases, and make sure it is on the PATH.";
 
     // rcodesign logs to stderr without level prefixes. It reports two problems while still signing and exiting 0. A file
-    // in a code directory (e.g. Contents/MacOS) that is not a Mach-O is left out of the signature:
+    // in a code directory (e.g. Contents/MacOS) that is not a Mach-O is left out of the signature (see
+    // RelocateNonMachOFiles, which keeps that from happening):
     private static readonly Regex UnsealedFileRegex = new(@"non Mach-O file with a nested rule:\s*(.+?)\s*$", RegexOptions.Multiline);
 
     // And a bundle whose Info.plist CFBundleExecutable names no file is sealed without a main executable, so the
@@ -61,17 +62,17 @@ public class RcodesignTools
     // Mach-O binary" (a standalone Mach-O, e.g. UpdateMac with --signDisableDeep).
     private static readonly string[] ProgressSigningSuffixes = { " in place", " as a Mach-O binary" };
 
-    // The code directories of a bundle (relative to Contents) whose files rcodesign must sign as nested code. This is the
-    // "nested" rule of the bundle's resource rules, which matches Apple's.
-    private static readonly string[] NestedCodeDirectories = {
-        "MacOS", "Frameworks", "SharedFrameworks", "PlugIns", "Plug-ins", "XPCServices", "Helpers",
-        "Library/Automator", "Library/Spotlight", "Library/LoginItems",
-    };
-
     // The extensions of the bundle types macOS nests in an app, e.g. in Contents/Frameworks or Contents/PlugIns.
     private static readonly string[] NestedBundleExtensions = {
         ".app", ".framework", ".appex", ".xpc", ".bundle", ".plugin", ".kext", ".systemextension",
     };
+
+    /// <summary>
+    /// Where <see cref="RelocateNonMachOFiles"/> moves files to, relative to Contents: a directory of its own, so the
+    /// files cannot collide with the bundle's real resources (the icon, a pre-built .app's own files) and
+    /// Contents/MacOS/X is always linked to the same Contents/Resources/MacOS/X.
+    /// </summary>
+    public const string RelocatedResourcesDirectory = "Resources/MacOS";
 
     private readonly string _p12File;
     private readonly string _p12PasswordFile;
@@ -183,23 +184,18 @@ public class RcodesignTools
     /// and <paramref name="nestedCode"/> do.
     /// </summary>
     /// <exception cref="UserInfoException">
-    /// The bundle has files rcodesign cannot seal (see <see cref="FindUnsealableFiles"/> and <see cref="ThrowIfUnsealed"/>),
-    /// or no main executable (see <see cref="ThrowIfNoMainExecutable"/>).
+    /// rcodesign left files out of the signature (see <see cref="ThrowIfUnsealed"/>; a bundle should have been through
+    /// <see cref="RelocateNonMachOFiles"/> first), or the bundle has no main executable (see <see cref="ThrowIfNoMainExecutable"/>).
     /// </exception>
     public void Sign(string path, string entitlements, bool shallow, bool forNotarization,
         IEnumerable<(string BundleRelativePath, string Entitlements)> nestedCode = null)
     {
-        if (Directory.Exists(path)) {
-            ThrowIfUnsealable(path, FindUnsealableFiles(path));
-        }
-
         var args = BuildSignArgs(path, _p12File, _p12PasswordFile, entitlements, shallow, forNotarization, nestedCode);
 
         Log.Debug($"Signing '{path}' with rcodesign{(shallow ? " (shallow)" : "")}...");
         var result = Exe.InvokeProcess(BinaryPath, args, null);
         ProcessFailedException.ThrowIfNonZero(result);
         LogOutput(result.StdOutput, result.StdErr, LogLevel.Debug);
-        // The scan above should leave rcodesign nothing to complain about; its own report backs it up.
         ThrowIfUnsealed(path, result.StdErr);
         ThrowIfNoMainExecutable(path, result.StdErr);
     }
@@ -325,82 +321,117 @@ public class RcodesignTools
         }
 
         foreach (var subDir in dir.EnumerateDirectories().OrderBy(d => d.Name, StringComparer.Ordinal)) {
-            var isNestedBundle = NestedBundleExtensions.Any(ext => subDir.Name.EndsWith(ext, StringComparison.OrdinalIgnoreCase));
-            if (subDir.LinkTarget == null && !isNestedBundle) {
+            if (subDir.LinkTarget == null && !IsNestedBundle(subDir)) {
                 CollectLooseMachOFiles(subDir, relativeDir + "/" + subDir.Name, found);
             }
         }
     }
 
-    /// <summary>
-    /// The bundle-relative paths (written with '/') of the files in <paramref name="bundlePath"/> that rcodesign cannot
-    /// seal: regular files in a code directory (Contents/MacOS, Contents/Frameworks...) that are not Mach-O. rcodesign
-    /// leaves them out of the signature and still exits 0, so they stay in the bundle unsealed and macOS reports the
-    /// signed app as damaged, even once notarized. Apple's codesign would seal them as resources.
-    ///
-    /// This follows rcodesign's walk: symlinks are sealed as links, and a directory with a '.' in its name is taken
-    /// for a nested bundle (or a .dSYM), which is signed on its own, so neither is looked into.
-    /// </summary>
-    public static IReadOnlyList<string> FindUnsealableFiles(string bundlePath)
+    private static bool IsNestedBundle(DirectoryInfo dir)
     {
-        var found = new List<string>();
-        foreach (var codeDir in NestedCodeDirectories) {
-            var dir = new DirectoryInfo(Path.Combine(bundlePath, "Contents", Path.Combine(codeDir.Split('/'))));
-            if (dir.Exists && dir.LinkTarget == null) {
-                CollectUnsealableFiles(dir, "Contents/" + codeDir, found);
-            }
-        }
-
-        return found;
+        return NestedBundleExtensions.Any(ext => dir.Name.EndsWith(ext, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static void CollectUnsealableFiles(DirectoryInfo dir, string relativeDir, List<string> found)
+    /// <summary>
+    /// Moves every regular file in <paramref name="bundlePath"/>'s Contents/MacOS that is not a Mach-O (a .NET app's
+    /// .dll, .json, .pdb...) to the same path under Contents/<see cref="RelocatedResourcesDirectory"/>, leaving a relative
+    /// symlink in its place (Contents/MacOS/App.dll -> ../Resources/MacOS/App.dll). rcodesign leaves such a file out of
+    /// the signature where it is, still exiting 0, and macOS then reports the signed app as damaged; as a resource it is
+    /// sealed, and the link is sealed as a link. Apple's codesign seals the file in place, so this is only for rcodesign.
+    ///
+    /// A subdirectory with no Mach-O anywhere inside (satellite assemblies, data) is moved whole and linked as a
+    /// directory: one link instead of many, and rcodesign takes a directory with a '.' in its name under Contents/MacOS
+    /// for a nested bundle, which a data directory cannot be. Mach-O files, existing symlinks and nested bundles (a
+    /// helper app, plug-in...) are left alone, so nothing rcodesign signs moves, and running this again moves nothing.
+    /// The links are relative, so they survive the nupkg and portable zip, and macOS follows them when the app opens
+    /// the files.
+    /// </summary>
+    /// <returns>
+    /// The bundle-relative paths (written with '/') of what was moved, in the order it was; a directory ends in '/'.
+    /// </returns>
+    /// <exception cref="UserInfoException">
+    /// The destination of a file already exists (nothing under Contents/Resources/MacOS is overwritten), or this Windows
+    /// machine cannot create symlinks.
+    /// </exception>
+    public static IReadOnlyList<string> RelocateNonMachOFiles(string bundlePath)
     {
+        var macos = new DirectoryInfo(Path.Combine(bundlePath, "Contents", "MacOS"));
+        var moved = new List<string>();
+        if (macos.Exists && macos.LinkTarget == null) {
+            var destination = Path.Combine(bundlePath, "Contents", Path.Combine(RelocatedResourcesDirectory.Split('/')));
+            RelocateNonMachOFiles(macos, destination, "Contents/MacOS", moved);
+        }
+
+        return moved;
+    }
+
+    private static void RelocateNonMachOFiles(DirectoryInfo dir, string destinationDir, string relativeDir, List<string> moved)
+    {
+        // Each listing is completed (sorted) before anything in it moves.
         foreach (var file in dir.EnumerateFiles().OrderBy(f => f.Name, StringComparer.Ordinal)) {
-            if (file.LinkTarget == null && file.Name != ".DS_Store" && !StartsWithMachOMagic(file)) {
-                found.Add(relativeDir + "/" + file.Name);
+            if (file.LinkTarget == null && !BinDetect.IsMachOImage(file.FullName)) {
+                MoveAndLink(file, Path.Combine(destinationDir, file.Name), relativeDir + "/" + file.Name, moved);
             }
         }
 
         foreach (var subDir in dir.EnumerateDirectories().OrderBy(d => d.Name, StringComparer.Ordinal)) {
-            if (subDir.LinkTarget == null && !subDir.Name.Contains('.')) {
-                CollectUnsealableFiles(subDir, relativeDir + "/" + subDir.Name, found);
+            if (subDir.LinkTarget != null || IsNestedBundle(subDir)) {
+                continue;
+            }
+
+            var relativePath = relativeDir + "/" + subDir.Name;
+            if (ContainsCode(subDir)) {
+                RelocateNonMachOFiles(subDir, Path.Combine(destinationDir, subDir.Name), relativePath, moved);
+            } else {
+                MoveAndLink(subDir, Path.Combine(destinationDir, subDir.Name), relativePath + "/", moved);
             }
         }
     }
 
-    // As rcodesign tells a Mach-O apart: by its first four bytes alone.
-    private static bool StartsWithMachOMagic(FileInfo file)
+    // Whether rcodesign has anything to sign in dir, at any depth: a Mach-O file or a nested bundle. Symlinks are not followed.
+    private static bool ContainsCode(DirectoryInfo dir)
     {
-        Span<byte> header = stackalloc byte[4];
-        using var stream = file.OpenRead();
-        return stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false) == header.Length && BinDetect.HasMachOMagic(header);
+        return dir.EnumerateFiles().Any(f => f.LinkTarget == null && BinDetect.IsMachOImage(f.FullName))
+               || dir.EnumerateDirectories().Any(d => d.LinkTarget == null && (IsNestedBundle(d) || ContainsCode(d)));
     }
 
-    /// <summary>
-    /// Throws if <paramref name="unsealable"/> (files found by <see cref="FindUnsealableFiles"/> in <paramref name="path"/>,
-    /// or reported by rcodesign) is not empty.
-    /// </summary>
-    /// <exception cref="UserInfoException">There is any such file.</exception>
-    public static void ThrowIfUnsealable(string path, IReadOnlyCollection<string> unsealable)
+    private static void MoveAndLink(FileSystemInfo source, string destinationPath, string relativePath, List<string> moved)
     {
-        if (unsealable.Count > 0) {
+        if (File.Exists(destinationPath) || Directory.Exists(destinationPath)) {
             throw new UserInfoException(
-                $"rcodesign cannot seal {unsealable.Count} non-Mach-O file(s) in a code directory of '{path}', so the signed " +
-                "bundle would fail verification on macOS: " + String.Join(", ", unsealable) + ". " +
-                "Publish the app as a single file (PublishSingleFile=true), pack a pre-built .app that keeps such files in " +
-                "Contents/Resources, or sign on macOS with --signAppIdentity.");
+                $"Cannot move '{relativePath}' to 'Contents/{RelocatedResourcesDirectory}/' to sign it with rcodesign: " +
+                "something is already there. That directory is reserved for the non-Mach-O files vpk moves out of " +
+                "Contents/MacOS, so move or rename what is in it.");
         }
+
+        // MoveTo re-points the info at the destination, so the link path is taken first.
+        var linkPath = source.FullName;
+        Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+        if (source is DirectoryInfo sourceDir) {
+            sourceDir.MoveTo(destinationPath);
+        } else {
+            ((FileInfo) source).MoveTo(destinationPath);
+        }
+
+        FileUtil.CreateRelativeSymlink(linkPath, destinationPath);
+        moved.Add(relativePath);
     }
 
     /// <summary>
     /// Throws if rcodesign's <paramref name="stdErr"/> says it left files out of the signature of <paramref name="path"/>
-    /// (see <see cref="FindUnsealedFiles"/>). It is the backup of the scan <see cref="Sign"/> does beforehand.
+    /// (see <see cref="FindUnsealedFiles"/>), which <see cref="RelocateNonMachOFiles"/> should have made impossible.
     /// </summary>
     /// <exception cref="UserInfoException">Any file was left out.</exception>
     public static void ThrowIfUnsealed(string path, string stdErr)
     {
-        ThrowIfUnsealable(path, FindUnsealedFiles(stdErr));
+        var unsealed = FindUnsealedFiles(stdErr);
+        if (unsealed.Count > 0) {
+            throw new UserInfoException(
+                $"rcodesign left {unsealed.Count} non-Mach-O file(s) in a code directory of '{path}' out of the signature, so the " +
+                "signed bundle would fail verification on macOS: " + String.Join(", ", unsealed) + ". vpk moves such files out of " +
+                "Contents/MacOS before signing, so this is most likely a bug in vpk: please report it, with the bundle's layout, at " +
+                "https://github.com/velopack/velopack/issues.");
+        }
     }
 
     /// <summary>

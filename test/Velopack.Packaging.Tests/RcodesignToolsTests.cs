@@ -195,64 +195,115 @@ public class RcodesignToolsTests
         var ex = Assert.Throws<UserInfoException>(() => RcodesignTools.ThrowIfUnsealed(Bundle, stdErr));
         Assert.Contains("2 non-Mach-O file(s)", ex.Message);
         Assert.Contains("Contents/MacOS/MyApp.dll, Contents/MacOS/MyApp.deps.json", ex.Message);
-        Assert.Contains("PublishSingleFile", ex.Message);
+        // vpk moves such files out of the way before signing, so this can only be a bug, not something the user did.
+        Assert.Contains("bug in vpk", ex.Message);
+        Assert.DoesNotContain("PublishSingleFile", ex.Message);
 
         RcodesignTools.ThrowIfUnsealed(Bundle, "signing Mach-O file Contents/MacOS/MyApp\nsealing Contents/Info.plist");
         RcodesignTools.ThrowIfUnsealed(Bundle, null);
     }
 
     [Fact]
-    public void UnsealableFilesAreFoundInCodeDirectoriesBeforeSigning()
-    {
-        using var _1 = TempUtil.GetTempDirectory(out var dir);
-        var bundle = Path.Combine(dir, "MyApp.app");
-        WriteMachO(bundle, "Contents/MacOS/MyApp");
-        WriteFile(bundle, "Contents/MacOS/MyApp.dll", new byte[512]);
-        WriteFile(bundle, "Contents/MacOS/runtimes/osx/native/config.json", new byte[16]);
-        WriteFile(bundle, "Contents/MacOS/.DS_Store", new byte[16]);
-        WriteFile(bundle, "Contents/Frameworks/README.txt", new byte[16]);
-        WriteFile(bundle, "Contents/Library/LoginItems/notes.txt", new byte[16]);
-        // rcodesign tells a Mach-O by its magic alone, however short the file.
-        WriteFile(bundle, "Contents/MacOS/tiny", new byte[] { 0xCF, 0xFA, 0xED, 0xFE });
-        // Resources are sealed as plain files, and a directory with a '.' is a nested bundle (or .dSYM), signed on its own.
-        WriteFile(bundle, "Contents/Info.plist", new byte[512]);
-        WriteFile(bundle, "Contents/Resources/MyApp.icns", new byte[512]);
-        WriteFile(bundle, "Contents/Library/Other/notes.txt", new byte[16]);
-        WriteFile(bundle, "Contents/Frameworks/Foo.framework/Versions/A/Resources/Info.plist", new byte[512]);
-        WriteFile(bundle, "Contents/MacOS/MyApp.dSYM/Contents/Info.plist", new byte[512]);
-
-        var unsealable = RcodesignTools.FindUnsealableFiles(bundle);
-
-        Assert.Equal(
-            new[] {
-                "Contents/MacOS/MyApp.dll",
-                "Contents/MacOS/runtimes/osx/native/config.json",
-                "Contents/Frameworks/README.txt",
-                "Contents/Library/LoginItems/notes.txt",
-            },
-            unsealable);
-        var ex = Assert.Throws<UserInfoException>(() => RcodesignTools.ThrowIfUnsealable(bundle, unsealable));
-        Assert.Contains("4 non-Mach-O file(s)", ex.Message);
-        Assert.Contains("PublishSingleFile", ex.Message);
-
-        Assert.Empty(RcodesignTools.FindUnsealableFiles(Path.Combine(dir, "Missing.app")));
-        RcodesignTools.ThrowIfUnsealable(bundle, Array.Empty<string>());
-    }
-
-    [Fact]
-    public void UnsealableFilesLeaveOutSymlinks()
+    public void NonMachOFilesAreMovedToResourcesAndLinked()
     {
         TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var _1 = TempUtil.GetTempDirectory(out var dir);
         var bundle = Path.Combine(dir, "MyApp.app");
         WriteMachO(bundle, "Contents/MacOS/MyApp");
-        WriteFile(bundle, "Contents/Resources/sq.version", new byte[16]);
-        WriteFile(bundle, "Contents/Resources/data/notes.txt", new byte[16]);
+        WriteMachO(bundle, "Contents/MacOS/UpdateMac");
+        WriteFile(bundle, "Contents/MacOS/MyApp.dll", "assembly");
+        WriteFile(bundle, "Contents/MacOS/MyApp.deps.json", "deps");
+        // a subdirectory with a Mach-O in it keeps its layout, each other file linked on its own
+        WriteMachO(bundle, "Contents/MacOS/runtimes/osx-arm64/native/libnative.dylib");
+        WriteFile(bundle, "Contents/MacOS/runtimes/osx-arm64/native/libnative.json", "config");
+        // one with no Mach-O anywhere is moved whole, including one whose '.' would make rcodesign take it for a bundle
+        WriteFile(bundle, "Contents/MacOS/cs/MyApp.resources.dll", "satellite");
+        WriteFile(bundle, "Contents/MacOS/Assets.Data/notes.txt", "notes");
+        // a nested bundle is signed on its own, with its own resources
+        WriteMachO(bundle, "Contents/MacOS/Helper.app/Contents/MacOS/Helper");
+        WriteFile(bundle, "Contents/MacOS/Helper.app/Contents/Info.plist", "plist");
+        // the rest of Contents is not a code directory
+        WriteFile(bundle, "Contents/Info.plist", "plist");
+        WriteFile(bundle, "Contents/Resources/MyApp.icns", "icon");
+
+        var moved = RcodesignTools.RelocateNonMachOFiles(bundle);
+
+        Assert.Equal(
+            new[] {
+                "Contents/MacOS/MyApp.deps.json",
+                "Contents/MacOS/MyApp.dll",
+                "Contents/MacOS/Assets.Data/",
+                "Contents/MacOS/cs/",
+                "Contents/MacOS/runtimes/osx-arm64/native/libnative.json",
+            },
+            moved);
+
+        AssertFileLink(bundle, "Contents/MacOS/MyApp.dll", "../Resources/MacOS/MyApp.dll", "assembly");
+        AssertFileLink(bundle, "Contents/MacOS/MyApp.deps.json", "../Resources/MacOS/MyApp.deps.json", "deps");
+        AssertFileLink(bundle, "Contents/MacOS/runtimes/osx-arm64/native/libnative.json",
+            "../../../../Resources/MacOS/runtimes/osx-arm64/native/libnative.json", "config");
+
+        AssertDirectoryLink(bundle, "Contents/MacOS/cs", "../Resources/MacOS/cs");
+        Assert.Equal("satellite", ReadFile(bundle, "Contents/MacOS/cs/MyApp.resources.dll"));
+        AssertDirectoryLink(bundle, "Contents/MacOS/Assets.Data", "../Resources/MacOS/Assets.Data");
+        Assert.Equal("notes", ReadFile(bundle, "Contents/MacOS/Assets.Data/notes.txt"));
+
+        foreach (var untouched in new[] {
+                     "Contents/MacOS/MyApp", "Contents/MacOS/UpdateMac", "Contents/MacOS/runtimes/osx-arm64/native/libnative.dylib",
+                     "Contents/MacOS/Helper.app/Contents/MacOS/Helper", "Contents/MacOS/Helper.app/Contents/Info.plist",
+                     "Contents/Info.plist", "Contents/Resources/MyApp.icns",
+                 }) {
+            Assert.Null(InfoOf(bundle, untouched).LinkTarget);
+        }
+
+        var relocatedDir = new DirectoryInfo(Path.Combine(bundle, "Contents", "Resources", "MacOS"));
+        Assert.Equal(
+            new[] { "Assets.Data", "MyApp.deps.json", "MyApp.dll", "cs", "runtimes" },
+            relocatedDir.EnumerateFileSystemInfos().Select(i => i.Name).Order(StringComparer.Ordinal));
+
+        // nothing is left to move: the links are left alone, so the Mach-O files beside them are signed where they are
+        Assert.Empty(RcodesignTools.RelocateNonMachOFiles(bundle));
+        Assert.Equal(new[] { "Contents/MacOS/MyApp", "Contents/MacOS/UpdateMac", "Contents/MacOS/runtimes/osx-arm64/native/libnative.dylib" },
+            RcodesignTools.FindLooseMachOFiles(bundle));
+    }
+
+    [Fact]
+    public void ExistingLinksInMacOSAreLeftAlone()
+    {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+        var bundle = Path.Combine(dir, "MyApp.app");
+        WriteMachO(bundle, "Contents/MacOS/MyApp");
+        WriteFile(bundle, "Contents/Resources/sq.version", "manifest");
+        WriteFile(bundle, "Contents/Resources/data/notes.txt", "notes");
         // rcodesign seals a symlink as a link, whatever it points to, and does not follow a linked directory.
         File.CreateSymbolicLink(Path.Combine(bundle, "Contents", "MacOS", "sq.version"), Path.Combine("..", "Resources", "sq.version"));
         Directory.CreateSymbolicLink(Path.Combine(bundle, "Contents", "MacOS", "data"), Path.Combine("..", "Resources", "data"));
 
-        Assert.Empty(RcodesignTools.FindUnsealableFiles(bundle));
+        Assert.Empty(RcodesignTools.RelocateNonMachOFiles(bundle));
+
+        AssertFileLink(bundle, "Contents/MacOS/sq.version", "../Resources/sq.version", "manifest");
+        AssertDirectoryLink(bundle, "Contents/MacOS/data", "../Resources/data");
+        Assert.False(Directory.Exists(Path.Combine(bundle, "Contents", "Resources", "MacOS")));
+    }
+
+    [Fact]
+    public void RelocationNeverOverwritesExistingResources()
+    {
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+        var bundle = Path.Combine(dir, "MyApp.app");
+        WriteMachO(bundle, "Contents/MacOS/MyApp");
+        WriteFile(bundle, "Contents/MacOS/MyApp.dll", "assembly");
+        WriteFile(bundle, "Contents/Resources/MacOS/MyApp.dll", "something else");
+
+        var ex = Assert.Throws<UserInfoException>(() => RcodesignTools.RelocateNonMachOFiles(bundle));
+
+        Assert.Contains("Contents/MacOS/MyApp.dll", ex.Message);
+        Assert.Contains("Contents/Resources/MacOS/", ex.Message);
+        Assert.Equal("assembly", ReadFile(bundle, "Contents/MacOS/MyApp.dll"));
+        Assert.Equal("something else", ReadFile(bundle, "Contents/Resources/MacOS/MyApp.dll"));
+
+        Assert.Empty(RcodesignTools.RelocateNonMachOFiles(Path.Combine(dir, "Missing.app")));
     }
 
     [Fact]
@@ -410,5 +461,40 @@ public class RcodesignToolsTests
         var path = Path.Combine(bundle, Path.Combine(relativePath.Split('/')));
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllBytes(path, content);
+    }
+
+    private static void WriteFile(string bundle, string relativePath, string content)
+    {
+        var path = Path.Combine(bundle, Path.Combine(relativePath.Split('/')));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, content);
+    }
+
+    /// <summary>Reads a file through whatever links are on its path.</summary>
+    private static string ReadFile(string bundle, string relativePath) =>
+        File.ReadAllText(Path.Combine(bundle, Path.Combine(relativePath.Split('/'))));
+
+    private static FileSystemInfo InfoOf(string bundle, string relativePath)
+    {
+        var path = Path.Combine(bundle, Path.Combine(relativePath.Split('/')));
+        return Directory.Exists(path) ? new DirectoryInfo(path) : new FileInfo(path);
+    }
+
+    // Windows stores a relative link target with backslashes; the packers write it with '/'.
+    private static string LinkTargetOf(FileSystemInfo info) => info.LinkTarget?.Replace('\\', '/');
+
+    private static void AssertFileLink(string bundle, string relativePath, string expectedTarget, string expectedContent)
+    {
+        var link = InfoOf(bundle, relativePath);
+        Assert.IsType<FileInfo>(link);
+        Assert.Equal(expectedTarget, LinkTargetOf(link));
+        Assert.Equal(expectedContent, ReadFile(bundle, relativePath));
+    }
+
+    private static void AssertDirectoryLink(string bundle, string relativePath, string expectedTarget)
+    {
+        var link = InfoOf(bundle, relativePath);
+        Assert.IsType<DirectoryInfo>(link);
+        Assert.Equal(expectedTarget, LinkTargetOf(link));
     }
 }

@@ -26,6 +26,13 @@ public class CrossCompile
     // PackCrossAppOsxSigned), so the macOS leg can check that the deep route gave it the hardened runtime.
     private const string DeepRouteExtraMachO = "helper";
 
+    // A directory of data files the signed rows pack beside the main executable, as satellite assemblies or content
+    // would sit: holding no Mach-O, vpk moves it out of Contents/MacOS whole and links it as a directory before rcodesign
+    // signs, so the macOS leg checks that a directory link is sealed and followed too (files are linked one by one).
+    private const string SignedRowsDataDirectory = "data";
+    private const string SignedRowsDataFile = "notes.txt";
+    private const string SignedRowsDataContent = "packed beside the executable";
+
     private readonly ITestOutputHelper _output;
 
     public CrossCompile(ITestOutputHelper output)
@@ -78,8 +85,10 @@ public class CrossCompile
     /// signature: only the deep route's scope for loose Mach-O files hardens it, so the macOS leg fails if that scope is
     /// lost or does not match on Windows. The --signDisableDeep route keeps such a binary's flags by design, so it is left out.
     ///
-    /// rcodesign cannot seal a non-Mach-O file in Contents/MacOS, so this is a single-file publish without
-    /// test_string.txt, packed without the .pdb and .xml files such a publish still puts beside the exe.
+    /// This is an ordinary (not single-file) publish, so the .dll, .json, .pdb and test_string.txt land beside the exe in
+    /// Contents/MacOS, where rcodesign cannot seal them: vpk must move them into Contents/Resources and link them, and the
+    /// macOS leg checks the links are sealed and that the app still finds its files through them. Both rows also pack
+    /// <see cref="SignedRowsDataDirectory"/>, which is moved and linked as a whole directory.
     /// </summary>
     [Theory]
     [InlineData(false)]
@@ -100,13 +109,15 @@ public class CrossCompile
         var appEntitlements = CreateAppEntitlements(signingDir);
 
         TestApp.PackTestApp(
-            id, "1.0.0", null, tempDir, logger, targetRid: rid, singleFile: true,
+            id, "1.0.0", id, tempDir, logger, targetRid: rid,
             configureOsx: options => {
                 if (!signDisableDeep) {
                     File.Copy(HelperFile.GetUpdatePath(rid, logger), Path.Combine(options.PackDirectory, DeepRouteExtraMachO));
                 }
 
-                options.Exclude = @".*\.(pdb|xml)$";
+                var dataDir = Directory.CreateDirectory(Path.Combine(options.PackDirectory, SignedRowsDataDirectory));
+                File.WriteAllText(Path.Combine(dataDir.FullName, SignedRowsDataFile), SignedRowsDataContent);
+
                 options.SignP12File = p12File;
                 options.SignP12PasswordFile = p12PasswordFile;
                 options.SignEntitlements = appEntitlements;
@@ -121,33 +132,45 @@ public class CrossCompile
         var expectedMachOs = signDisableDeep
             ? new[] { "TestApp", "UpdateMac" }
             : new[] { "TestApp", "UpdateMac", DeepRouteExtraMachO };
-        AssertMacOSDirIsAllMachO(src, id, signingDir, expectedMachOs);
+        AssertMacOSDirIsSealable(src, id, signingDir, expectedMachOs);
         File.Copy(src, Path.Combine(artifactsDir, id + ".zip"), overwrite: true);
     }
 
     /// <summary>
-    /// Asserts that every file in the zipped bundle's Contents/MacOS is a Mach-O, apart from the sq.version symlink (which
-    /// codesign seals as a link): anything else is what rcodesign leaves out of the signature, with only a warning.
-    /// Each of <paramref name="expectedMachOs"/> must be there too.
+    /// Asserts that everything in the zipped bundle's Contents/MacOS is a Mach-O file or a symlink: anything else is what
+    /// rcodesign leaves out of the signature, with only a warning. Each of <paramref name="expectedMachOs"/> must be
+    /// there, and every link but sq.version must point at the same path under Contents/Resources/MacOS, which the zip
+    /// must hold: the files vpk moved out of the way (the .dll, test_string.txt...) and <see cref="SignedRowsDataDirectory"/>.
     /// </summary>
-    private static void AssertMacOSDirIsAllMachO(string portableZip, string id, string scratchDir, string[] expectedMachOs)
+    private static void AssertMacOSDirIsSealable(string portableZip, string id, string scratchDir, string[] expectedMachOs)
     {
         var macosDir = $"{id}.app/Contents/MacOS/";
+        var relocatedDir = $"{id}.app/Contents/{RcodesignTools.RelocatedResourcesDirectory}/";
         var scratchFile = Path.Combine(scratchDir, "macho-check");
 
         using var zip = ZipFile.OpenRead(portableZip);
-        var files = zip.Entries
+        var entries = zip.Entries.ToDictionary(e => e.FullName);
+        var files = entries.Values
             .Where(e => e.FullName.StartsWith(macosDir, StringComparison.Ordinal) && !e.FullName.EndsWith('/'))
             .ToArray();
         foreach (var expected in expectedMachOs) {
             Assert.Contains(files, e => e.FullName == macosDir + expected);
         }
 
-        var notMachO = new List<string>();
+        var unsealable = new List<string>();
+        var links = new List<string>();
         foreach (var entry in files) {
             var name = entry.FullName.Substring(macosDir.Length);
             var type = UnixModeOf(entry) & S_IFMT;
-            if (type == S_IFLNK && name == "sq.version") {
+            if (type == S_IFLNK) {
+                if (name != "sq.version") {
+                    links.Add(name);
+                    Assert.Equal($"../{RcodesignTools.RelocatedResourcesDirectory}/{name}", ReadText(entry));
+                    Assert.True(
+                        entries.ContainsKey(relocatedDir + name) || entries.ContainsKey(relocatedDir + name + "/"),
+                        $"Expected the zip to hold {relocatedDir + name}, the target of the link {entry.FullName}");
+                }
+
                 continue;
             }
 
@@ -158,12 +181,20 @@ public class CrossCompile
                 }
             }
 
-            notMachO.Add(name);
+            unsealable.Add(name);
         }
 
         Assert.True(
-            notMachO.Count == 0,
-            $"Expected only Mach-O files in {macosDir}, as rcodesign leaves anything else unsealed, but found: {String.Join(", ", notMachO)}");
+            unsealable.Count == 0,
+            $"Expected only Mach-O files and links in {macosDir}, as rcodesign leaves anything else unsealed, " +
+            $"but found: {String.Join(", ", unsealable)}");
+
+        // the publish's loose files were moved and linked one by one, the data directory as a whole
+        Assert.Contains("TestApp.dll", links);
+        Assert.Contains(TestApp.TestStringFileName, links);
+        Assert.Contains(SignedRowsDataDirectory, links);
+        Assert.Equal(S_IFREG, UnixModeOf(entries[$"{relocatedDir}{SignedRowsDataDirectory}/{SignedRowsDataFile}"]) & S_IFMT);
+        Assert.DoesNotContain(entries.Keys, e => e.StartsWith($"{macosDir}{SignedRowsDataDirectory}/", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -247,8 +278,9 @@ public class CrossCompile
     /// <summary>
     /// Expands a macOS portable zip as Finder does (ditto), checks the executable bits and the sq.version symlink, and
     /// runs the app. Signed artifacts must also pass codesign's verification, with the hardened runtime on every Mach-O
-    /// and the expected entitlements. The unsigned artifacts only run on Apple Silicon because the .NET 9+ SDK ad-hoc
-    /// signs the osx apphost on any host (and macOS's linker ad-hoc signs UpdateMac).
+    /// and the expected entitlements, and hold the non-Mach-O files vpk moved out of Contents/MacOS as links into
+    /// Contents/Resources, which the app must find its files through. The unsigned artifacts only run on Apple Silicon
+    /// because the .NET 9+ SDK ad-hoc signs the osx apphost on any host (and macOS's linker ad-hoc signs UpdateMac).
     /// </summary>
     [Theory]
     [InlineData("from-win-targets-osx")]
@@ -301,19 +333,33 @@ public class CrossCompile
             Path.GetFullPath(Path.Combine(macosDir, manifestLink.LinkTarget)));
         Assert.Contains(artifactId, File.ReadAllText(manifestLink.FullName));
 
+        // the app's own loose files: moved into Resources and linked when rcodesign signed, left in place otherwise
+        var relocatedDir = Path.Combine(bundle, "Contents", Path.Combine(RcodesignTools.RelocatedResourcesDirectory.Split('/')));
+        var appAssembly = new FileInfo(Path.Combine(macosDir, "TestApp.dll"));
         if (signed) {
+            Assert.True(appAssembly.LinkTarget != null, $"Expected {appAssembly.FullName} to be a symlink");
+            Assert.Equal(Path.Combine(relocatedDir, "TestApp.dll"), Path.GetFullPath(Path.Combine(macosDir, appAssembly.LinkTarget)));
+            Assert.Null(new FileInfo(Path.Combine(relocatedDir, "TestApp.dll")).LinkTarget);
+
+            var dataLink = new DirectoryInfo(Path.Combine(macosDir, SignedRowsDataDirectory));
+            Assert.True(dataLink.LinkTarget != null, $"Expected {dataLink.FullName} to be a symlink");
+            Assert.Equal(Path.Combine(relocatedDir, SignedRowsDataDirectory), Path.GetFullPath(Path.Combine(macosDir, dataLink.LinkTarget)));
+            Assert.Equal(SignedRowsDataContent, File.ReadAllText(Path.Combine(dataLink.FullName, SignedRowsDataFile)));
+
             VerifySignedBundle(bundle, appExe, updateMac, executables, logger);
+        } else {
+            Assert.Null(appAssembly.LinkTarget);
+            Assert.False(Directory.Exists(relocatedDir), $"Expected no {relocatedDir} in an unsigned bundle");
         }
 
         var version = Exe.InvokeAndThrowIfNonZero(appExe, new[] { "version" }, null);
         logger.LogInformation(version);
         Assert.EndsWith("1.0.0", version.Trim());
 
-        if (!signed) {
-            var output = Exe.InvokeAndThrowIfNonZero(appExe, new[] { "test" }, null);
-            logger.LogInformation(output);
-            Assert.EndsWith(artifactId, output.Trim());
-        }
+        // test_string.txt is read from beside the exe: through a link, when signed
+        var output = Exe.InvokeAndThrowIfNonZero(appExe, new[] { "test" }, null);
+        logger.LogInformation(output);
+        Assert.EndsWith(artifactId, output.Trim());
     }
 
     [SupportedOSPlatform("osx")]

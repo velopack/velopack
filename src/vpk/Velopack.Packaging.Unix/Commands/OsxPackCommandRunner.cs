@@ -148,6 +148,17 @@ public class OsxPackCommandRunner : PackageBuilder<OsxPackOptions, OsxPackOption
         var entitlements = GetEntitlements();
         var notarize = !String.IsNullOrEmpty(Options.NotaryApiKeyFile);
 
+        // rcodesign cannot seal a non-Mach-O file in Contents/MacOS (a .NET app's .dll, .json...), where Apple's codesign
+        // would seal it as a resource, so such files are moved to Contents/Resources and linked from where they were.
+        var relocated = RcodesignTools.RelocateNonMachOFiles(packDir);
+        if (relocated.Count > 0) {
+            Log.Info($"Moved {relocated.Count} non-Mach-O file(s) and directories out of Contents/MacOS into " +
+                     $"Contents/{RcodesignTools.RelocatedResourcesDirectory}, leaving symlinks in their place, so rcodesign can seal them.");
+            Log.Debug(String.Join(Environment.NewLine, relocated));
+        }
+
+        progress(10);
+
         if (Options.SignDisableDeep) {
             // Sign what Velopack added, then seal the bundle without descending into nested bundles.
             Log.Info("Code signing Velopack binaries (rcodesign)...");

@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using Velopack.Core;
+using Velopack.Packaging.Unix;
 using Velopack.TestCommon;
 using Velopack.Util;
 using static Velopack.TestCommon.OsxTestUtil;
@@ -48,6 +49,11 @@ public class OsxFullPackTests(ITestOutputHelper output)
                 nupkgEntries, e => e.Key.EndsWith("Contents/MacOS/sq.version.__symlink", StringComparison.Ordinal));
             Assert.Equal("../Resources/sq.version", ReadText(manifestLinkEntry.Value));
             Assert.DoesNotContain(nupkgEntries.Keys, n => n.EndsWith("Contents/MacOS/sq.version", StringComparison.Ordinal));
+
+            // unsigned, the app's own files stay where they were published: only rcodesign needs them moved out of MacOS
+            Assert.Contains(nupkgEntries.Keys, n => n.EndsWith("Contents/MacOS/TestApp.dll", StringComparison.Ordinal));
+            var relocatedDir = $"Contents/{RcodesignTools.RelocatedResourcesDirectory}/";
+            Assert.DoesNotContain(nupkgEntries.Keys, n => n.Contains(relocatedDir, StringComparison.Ordinal));
         }
 
         // the portable zip: the bundle as its one top-level entry, with what it needs to launch on a Mac
