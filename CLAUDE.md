@@ -178,6 +178,8 @@ stack (Gitea, GitLab, Azurite, S3Mock), except GitHub which is live and uses a 5
   ```
   GitLab takes several minutes to become healthy on first boot; other services are up in seconds.
 - Tests **self-skip (never fail)** when a service, toolchain, or token is unavailable.
+- **Live GitHub tests are currently disabled** (`DeploymentTestEnv.GitHubTestsDisabled = true`): their lock-pool
+  polling shares the CI token's API rate limit and starved concurrent runs. Flip the flag to re-enable.
 - Live GitHub tests need the `VELOPACK_DEPLOYMENT_TEST_TOKEN` env var (on Windows a User-level
   variable works — tests also read `EnvironmentVariableTarget.User`).
 - Language harnesses are built once per test session (cargo / npm / maturin venv / cmake); a
