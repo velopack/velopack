@@ -507,9 +507,10 @@ public class MsiTests
         var cleanupCondition = db.ExecuteScalar("SELECT `Condition` FROM `InstallExecuteSequence` WHERE `Action` = 'RustCleanup'") as string;
         Assert.Equal("(REMOVE=\"ALL\")", cleanupCondition);
         var cleanupData = db.ExecuteScalar("SELECT `Target` FROM `CustomAction` WHERE `Action` = 'SetRustCleanupData'") as string;
-        Assert.Equal("[INSTALLFOLDER]\"[RustAppId]\"[TempFolder]\"[LocalAppDataFolder]\"[UPGRADINGPRODUCTCODE]", cleanupData);
+        // [ALLUSERS] scopes the ARP key sweep to the hive of the install being removed
+        Assert.Equal("[INSTALLFOLDER]\"[RustAppId]\"[TempFolder]\"[LocalAppDataFolder]\"[UPGRADINGPRODUCTCODE]\"[ALLUSERS]", cleanupData);
         var userCleanupData = db.ExecuteScalar("SELECT `Target` FROM `CustomAction` WHERE `Action` = 'SetUserRustCleanupData'") as string;
-        Assert.Equal("[INSTALLFOLDER]\"[RustAppId]\"[TempFolder]\"[LocalAppDataFolder]", userCleanupData);
+        Assert.Equal("[INSTALLFOLDER]\"[RustAppId]\"[TempFolder]\"[LocalAppDataFolder]\"\"[ALLUSERS]", userCleanupData);
 
         // RustCleanup must run non-impersonated (elevated for per-machine installs) so it can
         // remove a Program Files install dir; UserRustCleanup must run impersonated so it resolves
@@ -547,6 +548,21 @@ public class MsiTests
         var downgradeText = db.ExecuteScalar("SELECT `Description` FROM `LaunchCondition` WHERE `Condition` = 'NOT WIX_DOWNGRADE_DETECTED'") as string;
         Assert.Equal("[MsiDowngradeError]", downgradeText);
         Assert.True(Seq("RustSetLocaleStrings") < Seq("LaunchConditions"), "localized strings must be set before LaunchConditions");
+        // only needed for the first-install launch condition: must not run (and risk failing) on uninstall
+        var localeCondition = db.ExecuteScalar("SELECT `Condition` FROM `InstallExecuteSequence` WHERE `Action` = 'RustSetLocaleStrings'") as string;
+        Assert.Equal("NOT Installed", localeCondition);
+
+        // an MSI upgrade gives the app --veloapp-updated (like an in-app update), a fresh install --veloapp-install
+        foreach (var action in new[] { "SetInstallHookData", "InstallHookDeferred" }) {
+            var condition = db.ExecuteScalar($"SELECT `Condition` FROM `InstallExecuteSequence` WHERE `Action` = '{action}'") as string;
+            Assert.Equal("NOT REMOVE AND NOT WIX_UPGRADE_DETECTED", condition);
+        }
+        foreach (var action in new[] { "SetUpdatedHookData", "UpdatedHookDeferred" }) {
+            var condition = db.ExecuteScalar($"SELECT `Condition` FROM `InstallExecuteSequence` WHERE `Action` = '{action}'") as string;
+            Assert.Equal("NOT REMOVE AND WIX_UPGRADE_DETECTED", condition);
+        }
+        var updatedHookTarget = db.ExecuteScalar("SELECT `Target` FROM `CustomAction` WHERE `Action` = 'UpdatedHookDeferred'") as string;
+        Assert.Equal("UpdatedHookDeferred", updatedHookTarget);
 
         // VELOPACK_INSTALLDIR only applies on first install; on maintenance/uninstall the
         // INSTALLFOLDER handed to the elevated cleanup must come from the registered install state
@@ -847,6 +863,17 @@ public class MsiTests
             RunMsiExec($"/i \"{msiPath}\" /qn", logger);
             Assert.True(File.Exists(appPath), $"TestApp.exe not found at {appPath}");
             Assert.True(File.Exists(msiShortcut), $"Desktop shortcut not found at {msiShortcut}");
+            Assert.Contains("OnAfterInstallFastCallback: --veloapp-install 1.0.0", File.ReadAllText(hookFile));
+            File.Delete(hookFile);
+
+            // a package newer than the incoming MSI (e.g. downloaded by an in-app update) must be
+            // removed by the upgrade, or the app would auto-apply it on next start and undo the MSI
+            var packagesDir = Path.Combine(installDir, "packages");
+            Directory.CreateDirectory(packagesDir);
+            var newerPackage = Path.Combine(packagesDir, $"{id}-9.9.9-full.nupkg");
+            File.WriteAllText(newerPackage, "not a real package");
+            var betaIdFile = Path.Combine(packagesDir, ".betaId");
+            File.WriteAllText(betaIdFile, "staged rollout id");
 
             // simulate user state: a data dir outside `current` (must survive MSI upgrades) and a
             // stray file inside `current` (must be purged so the upgrade lays down a clean payload)
@@ -870,8 +897,14 @@ public class MsiTests
             Assert.True(found, "Uninstall entry should exist in HKCU after upgrade");
             Assert.Equal("2.0.0", displayVersion);
 
-            // the app uninstall hook must not fire when the old product is removed by the upgrade
+            Assert.False(File.Exists(newerPackage), "Downloaded packages should be purged by an MSI upgrade");
+            Assert.True(File.Exists(betaIdFile), "Non-package files in packages/ should survive an MSI upgrade");
+
+            // an MSI upgrade is an update from the app's point of view: --veloapp-updated, and neither the
+            // install hook nor the uninstall hook (the old product is removed as part of the upgrade)
             var hookContent = File.Exists(hookFile) ? File.ReadAllText(hookFile) : "";
+            Assert.Contains("OnAfterUpdateFastCallback: --veloapp-updated 2.0.0", hookContent);
+            Assert.DoesNotContain("OnAfterInstallFastCallback", hookContent);
             Assert.DoesNotContain("OnBeforeUninstallFastCallback", hookContent);
             logger.Info("TEST: v2 upgrade verified, user data intact, no uninstall hook");
 
@@ -890,6 +923,10 @@ public class MsiTests
                 Assert.NotNull(arpKey);
                 arpKey.SetValue("ForeignValue", "written by someone else");
             }
+
+            // something in the velopack temp dir, so the assertion below proves the cleanup removed it
+            Directory.CreateDirectory(velopackTempDir);
+            File.WriteAllText(Path.Combine(velopackTempDir, "leftover.txt"), "temp");
 
             // uninstall
             WaitUntilInstallDirUnlocked(installDir);
