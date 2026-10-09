@@ -133,6 +133,8 @@ export class VelopackApp {
 
   /**
    * Set a callback to receive log messages from VelopackApp.
+   * Messages are delivered asynchronously on the event loop, so a process that
+   * exits immediately after run() may not receive them.
    */
   setLogger(callback: (loglevel: LogLevel, msg: string) => void): VelopackApp {
     addon.js_set_logger_callback(callback);

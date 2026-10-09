@@ -47,17 +47,16 @@ impl Log for LoggerImpl {
         };
 
         if let Ok(channel_opt) = LOGGER_CHANNEL.lock() {
-            if channel_opt.is_some() {
-                let channel = channel_opt.as_ref().unwrap();
-
-                channel.send(move |mut cx| {
-                    if let Ok(cb_lock) = LOGGER_CB.lock() {
-                        if let Some(cb) = &*cb_lock {
-                            let undefined = cx.undefined();
-                            let args = vec![cx.string(level).upcast(), cx.string(text).upcast()];
-                            cb.to_inner(&mut cx).call(&mut cx, undefined, args)?;
-                            return Ok(());
-                        }
+            if let Some(channel) = channel_opt.as_ref() {
+                // try_send fails (rather than panicking like send) once Node is shutting down.
+                let _ = channel.try_send(move |mut cx| {
+                    // Release the lock before calling into JS, so the callback can call setLogger again.
+                    let cb = LOGGER_CB.lock().ok().and_then(|cb_lock| cb_lock.as_ref().map(|cb| cb.to_inner(&mut cx)));
+                    if let Some(cb) = cb {
+                        let undefined = cx.undefined();
+                        let args = vec![cx.string(level).upcast(), cx.string(text).upcast()];
+                        // An exception thrown by the callback must not become a fatal uncaught exception.
+                        let _ = cx.try_catch(|cx| cb.call(cx, undefined, args));
                     }
                     Ok(())
                 });
