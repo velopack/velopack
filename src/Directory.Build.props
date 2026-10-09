@@ -33,19 +33,6 @@
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
   </PropertyGroup>
 
-  <!--
-    SixLabors.ImageSharp is held below 3.0 (Six Labors Split License) and these advisories are only fixed in 4.1.2+.
-    Velopack.IcoLib only decodes/encodes PNG frames of the developer's own icon, so none of the affected code is reached:
-    HistogramEqualization, the TIFF CCITT encoders, ICC profile CLUT parsing and the BigTIFF decoder.
-  -->
-  <ItemGroup>
-    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-j3p4-wp97-rph4" />
-    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-j9gm-c75j-xc9q" />
-    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-jjfr-hcj7-qf5w" />
-    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-gwg2-r3hj-4w44" />
-    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-wmxv-xphr-5c9g" />
-  </ItemGroup>
-
   <ItemGroup Condition=" '$(MSBuildProjectExtension)'=='.csproj' ">
     <PackageReference Include="Nerdbank.GitVersioning" Version="3.10.94" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.401" PrivateAssets="All"/>
