@@ -19,6 +19,9 @@
   "automergeType": "pr",
   "automergeStrategy": "rebase",
   "platformAutomerge": false,
+  // only rebase on conflicts and only touch branches inside the schedule, so develop pushes do not re-run CI on every PR
+  "rebaseWhen": "conflicted",
+  "updateNotScheduled": false,
   // automatically upgrade lockfiles and automerge
   "lockFileMaintenance": {
     "enabled": true,
