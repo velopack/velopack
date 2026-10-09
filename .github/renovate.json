@@ -96,6 +96,13 @@
       "separateMajorMinor": false,
       "automerge": true
     },
+    // gitea 1.22/1.24 test images are intentional old-server compatibility pins (gitea:latest covers new releases)
+    {
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["gitea/gitea"],
+      "matchFileNames": ["test/Velopack.Deployment.Tests/docker/docker-compose.yml"],
+      "enabled": false
+    },
     // held-back packages
     {
       "matchPackageNames": "SixLabors.ImageSharp",
