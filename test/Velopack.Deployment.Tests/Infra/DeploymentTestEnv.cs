@@ -22,4 +22,17 @@ public static class DeploymentTestEnv
 
         return null;
     }
+
+    /// <summary>
+    /// Live GitHub tests are temporarily disabled: their lock-pool polling shares the CI token's API rate limit
+    /// and starves concurrent runs. Flip this back once they use their own token / cheaper locking.
+    /// </summary>
+    public const bool GitHubTestsDisabled = true;
+
+    /// <summary> Skips the current test unless live GitHub tests are enabled and a token is configured. </summary>
+    public static void SkipUnlessGitHubAvailable()
+    {
+        Assert.SkipWhen(GitHubTestsDisabled, "Live GitHub deployment tests are temporarily disabled.");
+        Assert.SkipWhen(GetGitHubToken() == null, $"{GitHubTokenVar} is not set.");
+    }
 }

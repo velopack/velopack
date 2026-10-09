@@ -15,9 +15,7 @@ public class GitHubDeploymentTests(ITestOutputHelper output, GitHubSharedLeaseFi
 
     protected override Task SkipUnlessReadyAsync()
     {
-        Assert.SkipWhen(
-            DeploymentTestEnv.GetGitHubToken() == null,
-            $"{DeploymentTestEnv.GitHubTokenVar} is not set.");
+        DeploymentTestEnv.SkipUnlessGitHubAvailable();
         return Task.CompletedTask;
     }
 

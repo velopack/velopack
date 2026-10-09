@@ -92,7 +92,7 @@ public class InfraCoreSmokeTests
     [Fact]
     public async Task GitHubLockAcquireRelease()
     {
-        Assert.SkipWhen(String.IsNullOrWhiteSpace(DeploymentTestEnv.GetGitHubToken()), $"{DeploymentTestEnv.GitHubTokenVar} is not set.");
+        DeploymentTestEnv.SkipUnlessGitHubAvailable();
         using var logger = _output.BuildLoggerFor<InfraCoreSmokeTests>();
 
         await using var lease = await GitHubRepoLock.AcquireAsync(logger, TimeSpan.FromMinutes(2));

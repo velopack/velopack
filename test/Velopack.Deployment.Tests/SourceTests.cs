@@ -337,9 +337,7 @@ public class GithubSourceLiveTests : IClassFixture<GithubLiveContext>
     [InlineData(HarnessLang.NodeJs)]
     public async Task GithubSourceLive(HarnessLang lang)
     {
-        Assert.SkipWhen(
-            String.IsNullOrWhiteSpace(DeploymentTestEnv.GetGitHubToken()),
-            $"{DeploymentTestEnv.GitHubTokenVar} is not set.");
+        DeploymentTestEnv.SkipUnlessGitHubAvailable();
         using var logger = _output.BuildLoggerFor<GithubSourceLiveTests>();
         await HarnessRunner.SkipUnlessAvailableAsync(lang, logger);
         var fixture = InstalledAppFixture.GetOrCreate(logger);
