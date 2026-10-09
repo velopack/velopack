@@ -2,6 +2,7 @@
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
+using AsmResolver;
 using AsmResolver.PE;
 using AsmResolver.PE.File;
 using AsmResolver.PE.Win32Resources.Icon;
@@ -119,6 +120,36 @@ public class ResourceEditTests
         Assert.Single(afterIcon.Groups);
         Assert.Equal(IconType.Icon, afterIcon.Groups.Single().Type);
         Assert.Equal(7, afterIcon.Groups.ToList()[0].Icons.Count());
+    }
+
+    [Fact]
+    public void SetIconWritesEveryFrameFieldIntoTheIconGroup()
+    {
+        using var logger = _output.BuildLoggerFor<ResourceEditTests>();
+
+        using var _1 = TempUtil.GetTempFileName(out var tempFile);
+        File.Copy(PathHelper.GetFixture("atom.exe"), tempFile);
+
+        var icon = PathHelper.GetFixture("clowd.ico");
+        var edit = new ResourceEdit(tempFile, logger);
+        edit.SetExeIcon(icon);
+        edit.Commit();
+
+        var afterRsrc = PEImage.FromFile(PEFile.FromFile(tempFile)).Resources;
+        Assert.NotNull(afterRsrc);
+        var entries = IconResource.FromDirectory(afterRsrc, IconType.Icon).Groups.Single().Icons.ToList();
+        var frames = IcoReader.ReadFrames(icon, logger);
+
+        Assert.Equal(frames.Count, entries.Count);
+        for (var i = 0; i < frames.Count; i++) {
+            Assert.Equal(frames[i].Width, entries[i].Width);
+            Assert.Equal(frames[i].Height, entries[i].Height);
+            Assert.Equal(frames[i].ColorCount, entries[i].ColorCount);
+            Assert.Equal(frames[i].BitsPerPixel, entries[i].BitsPerPixel);
+            Assert.Equal(1, entries[i].Planes);
+            Assert.Equal(0, entries[i].Reserved);
+            Assert.Equal(frames[i].PixelData, ((IReadableSegment) entries[i].PixelData!).ToArray());
+        }
     }
 
     [Fact]
