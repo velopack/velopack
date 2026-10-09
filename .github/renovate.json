@@ -109,10 +109,6 @@
       "allowedVersions": "< 3.0.0"
     },
     {
-      "matchPackageNames": "@electron/fuses",
-      "allowedVersions": "< 2.0.0" // @electron-forge/plugin-fuses 7.x peer-depends on @electron/fuses ^1
-    },
-    {
       "matchPackageNames": "typescript",
       "matchFileNames": ["samples/NodeJSElectron/**"],
       "allowedVersions": "< 7.0.0" // TS7 has no JS API yet; ts-loader, fork-ts-checker and ts-node (forge.config.ts) need it
