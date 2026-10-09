@@ -58,7 +58,6 @@ os_info.workspace = true
 bitflags.workspace = true
 regex.workspace = true
 normpath.workspace = true
-simple-stopwatch.workspace = true
 wait-timeout.workspace = true
 pretty-bytes-rust.workspace = true
 log-panics.workspace = true

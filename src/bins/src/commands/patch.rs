@@ -75,7 +75,7 @@ pub fn delta<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(
         }
     }
 
-    let time = simple_stopwatch::Stopwatch::start_new();
+    let time = std::time::Instant::now();
 
     info!("Extracting base package for delta patching: {:?}", temp_dir);
     let work_dir = temp_dir.join("_work");
@@ -160,7 +160,11 @@ pub fn delta<P1: AsRef<Path>, P2: AsRef<Path>, P3: AsRef<Path>>(
 
     fastzip::compress_directory(&work_dir, &output_file)?;
 
-    info!("Successfully applied {} delta patches in {}s.", delta_files.len(), time.s());
+    info!(
+        "Successfully applied {} delta patches in {}s.",
+        delta_files.len(),
+        time.elapsed().as_secs_f32()
+    );
     Ok(())
 }
 

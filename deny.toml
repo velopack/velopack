@@ -5,8 +5,6 @@ all-features = false
 ignore = [
     # derivative is unmaintained but deeply embedded; tracked for replacement
     { id = "RUSTSEC-2024-0388", reason = "no drop-in replacement yet" },
-    # time segfault only affects Unix with specific env manipulation; not exploitable in our context
-    { id = "RUSTSEC-2020-0071", reason = "only affects Unix setenv race; not exploitable in our usage" },
     # ttf-parser is unmaintained; pulled in transitively via xdialog -> cosmic-text -> fontdb, no replacement available
     { id = "RUSTSEC-2026-0192", reason = "unmaintained transitive dep via xdialog/cosmic-text, no drop-in replacement" },
 ]

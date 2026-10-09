@@ -1452,7 +1452,7 @@ checksum = "ff2abc00be7fca6ebc474524697ae276ad847ad0a6b3faa4bcb027e9a4614ad0"
 dependencies = [
  "cfg-if",
  "libc",
- "wasi 0.11.1+wasi-snapshot-preview1",
+ "wasi",
 ]
 
 [[package]]
@@ -3414,7 +3414,7 @@ dependencies = [
  "rustpython-parser",
  "serde",
  "serde_json",
- "time 0.3.55",
+ "time",
  "toml 1.1.6+spec-1.1.0",
 ]
 
@@ -4127,15 +4127,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
 
 [[package]]
-name = "simple-stopwatch"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea0b3bc19fbfbbc5823eb4f9f52a94f98a97f7b265e96defe319dfdac9692b51"
-dependencies = [
- "time 0.1.45",
-]
-
-[[package]]
 name = "simplelog"
 version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4143,7 +4134,7 @@ checksum = "16257adbfaef1ee58b1363bdc0664c9b8e1e30aed86049635fb5f147d065a9c0"
 dependencies = [
  "log",
  "termcolor",
- "time 0.3.55",
+ "time",
 ]
 
 [[package]]
@@ -4469,17 +4460,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.6",
-]
-
-[[package]]
-name = "time"
-version = "0.1.45"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b797afad3f312d1c66a56d11d0316f916356d11bd158fbc6ca6389ff6bf805a"
-dependencies = [
- "libc",
- "wasi 0.10.0+wasi-snapshot-preview1",
- "winapi",
 ]
 
 [[package]]
@@ -5010,7 +4990,7 @@ dependencies = [
  "simplelog",
  "tempfile",
  "thiserror 2.0.21",
- "time 0.3.55",
+ "time",
  "ureq",
  "url",
  "uuid",
@@ -5054,13 +5034,12 @@ dependencies = [
  "semver",
  "serial_test",
  "sha1_smol",
- "simple-stopwatch",
  "simplelog",
  "strsim 0.11.1",
  "strum",
  "tempfile",
  "thiserror 2.0.21",
- "time 0.3.55",
+ "time",
  "velopack",
  "velopack_l18n",
  "wait-timeout",
@@ -5181,12 +5160,6 @@ dependencies = [
  "same-file",
  "winapi-util",
 ]
-
-[[package]]
-name = "wasi"
-version = "0.10.0+wasi-snapshot-preview1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a143597ca7c7793eff794def352d41792a93c481eb1042423ff7ff72ba2c31f"
 
 [[package]]
 name = "wasi"
@@ -5880,7 +5853,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "709fe23a0424b6a435d82152b1bd3fdfb0833487d5fa90d05d42762a9891fef5"
 dependencies = [
  "stable_deref_trait",
- "yoke-derive 0.8.3",
+ "yoke-derive 0.8.4",
  "zerofrom",
 ]
 
@@ -5898,9 +5871,9 @@ dependencies = [
 
 [[package]]
 name = "yoke-derive"
-version = "0.8.3"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33811428bee40dbceb6d545e95754741d17a6aef9a4849f0fd62e2ba4f412a78"
+checksum = "ec8ebde2db3681e8c9980cc27822030e68752690ddfa9473e739aeb4dbde6d71"
 dependencies = [
  "proc-macro2",
  "quote",
