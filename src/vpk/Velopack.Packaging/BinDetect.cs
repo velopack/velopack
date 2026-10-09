@@ -1,4 +1,6 @@
-﻿namespace Velopack.Packaging;
+﻿using System.Buffers.Binary;
+
+namespace Velopack.Packaging;
 
 public class BinDetect
 {
@@ -20,9 +22,17 @@ public class BinDetect
             if (reader.BaseStream.Length < 256) // Header size
                 return false;
 
-            uint magic = reader.ReadUInt32();
-            return Enum.IsDefined(typeof(MagicMachO), magic);
+            return HasMachOMagic(reader.ReadBytes(4));
         }
+    }
+
+    /// <summary>
+    /// Whether <paramref name="header"/>, the first bytes of a file, starts with a Mach-O or FAT magic number. Unlike
+    /// <see cref="IsMachOImage"/> this does not check the file is at least a header long; the caller has the length.
+    /// </summary>
+    public static bool HasMachOMagic(ReadOnlySpan<byte> header)
+    {
+        return header.Length >= 4 && Enum.IsDefined(typeof(MagicMachO), BinaryPrimitives.ReadUInt32LittleEndian(header));
     }
 
     // First four bytes of valid ELF, as defined in https://github.com/torvalds/linux/blob/aae703b/include/uapi/linux/elf.h

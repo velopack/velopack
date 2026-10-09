@@ -16,5 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Neovolve.Logging.Xunit.Signed.v3" Version="7.2.0" />
+    <!-- Assert, for helpers such as TestHelper.SkipLocallyFailInCI; the version xunit.v3.mtp-v2 brings to the test projects -->
+    <PackageReference Include="xunit.v3.assert" Version="4.0.1" />
   </ItemGroup>
 </Project>

@@ -14,6 +14,8 @@ cross.log
 out/
 .claude/
 xdialog-rs/
+# a prebuilt UpdateMac copied in to pack macOS targets in Debug off macOS (see CLAUDE.md)
+vendor/UpdateMac
 
 #################
 ## Eclipse

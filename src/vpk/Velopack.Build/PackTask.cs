@@ -82,6 +82,12 @@ public class PackTask : MSBuildAsyncTask
 
     public string? Keychain { get; set; }
 
+    public string? SignP12File { get; set; }
+
+    public string? SignP12PasswordFile { get; set; }
+
+    public string? NotaryApiKeyFile { get; set; }
+
     public string? BundleId { get; set; }
 
     public string? InfoPlistPath { get; set; }

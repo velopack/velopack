@@ -1,6 +1,7 @@
 ﻿using System.IO.Packaging;
 using Velopack.Core;
 using Velopack.NuGet;
+using Velopack.TestCommon;
 using Velopack.Tests.TestHelpers;
 using Velopack.Util;
 using ZipPackage = Velopack.NuGet.ZipPackage;
@@ -18,6 +19,7 @@ public class ZipPackageTests
     [Fact]
     public void EazyZipPreservesSymlinks()
     {
+        TestHelper.SkipUnlessSymlinksCanBeCreated();
         using var logger = _output.BuildLoggerFor<ZipPackageTests>();
 
         using var _1 = TempUtil.GetTempDirectory(out var tempDir);

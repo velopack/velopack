@@ -55,6 +55,13 @@ cargo test
 expect CI's arch-suffixed vendored binaries (`update_x64.exe` etc.) — do not fake those locally by
 copying files into `target/release`.
 
+Packing for macOS (`vpk [osx] pack`, `osx-*` targets) off macOS in Debug needs a Mach-O `UpdateMac`: a local
+build only has the host's own update binary, so copy a prebuilt `UpdateMac` (e.g. from the `vpk` NuGet package's
+`vendor/`) into `vendor/`, or those tests skip. On Windows they also need symlinks, since vpk links the bundle's
+`Contents/MacOS/sq.version` (Developer Mode or an elevated prompt); without them, every test that creates symlinks
+skips locally (CI runs elevated, so there they fail instead) — use `TestHelper.SkipUnlessSymlinksCanBeCreated()` /
+`TestHelper.SkipLocallyFailInCI()` in new tests.
+
 ## Repository Structure
 
 ```
@@ -109,16 +116,18 @@ samples/                         # Example apps (C#, C++, Node.js, Python, Rust)
 
 ### Packaging Flow
 
-The `vpk pack` command (`PackageBuilder<T>` in `Velopack.Packaging`) runs platform-specific command runners:
+The `vpk pack` command (`PackageBuilder<T>` in `Velopack.Packaging`) runs platform-specific command runners. macOS targets
+(`vpk [osx] pack`) can be packed on any host: off macOS, Apple's tools are unavailable, so the Apple-tool options
+(`--signAppIdentity`, `--notaryProfile`, `--keychain`, `--inst*`, `--noInst`, `--noPortable`) are not registered and no `.pkg` is built.
 
 1. **Preprocessing**: Locates the main executable, detects CPU architecture from the binary, copies files to a staging directory. On Windows: embeds icon in Update.exe, removes ClickOnce manifests, creates execution stubs. On Linux: builds an AppDir with `AppRun` script, `.desktop` file, and icon hierarchy. On macOS: creates or validates `.app` bundle structure.
 
-2. **Code signing** (Windows and macOS): Signs all PE/Mach-O binaries. Supports `signtool.exe`, custom sign templates, Azure Trusted Signing (Windows), and `codesign` with optional notarization (macOS).
+2. **Code signing** (Windows and macOS targets): Signs all PE/Mach-O binaries. Supports `signtool.exe`, custom sign templates, Azure Trusted Signing (Windows), and for macOS targets either `codesign` + `notarytool` (macOS host only, keychain identity) or `rcodesign` on any host (`--signP12File`/`--signP12PasswordFile`, notarized with `--notaryApiKeyFile`, an App Store Connect key in rcodesign's JSON form; `RcodesignTools`). rcodesign cannot seal non-Mach-O files in `Contents/MacOS`, so vpk fails that pack before signing (`RcodesignTools.FindUnsealableFiles`): publish single-file (`PublishSingleFile=true`), pack a pre-built `.app` that keeps such files in `Contents/Resources`, or sign on macOS with `--signAppIdentity`.
 
 3. **Package creation** (parallel): Builds multiple outputs simultaneously:
-   - **Release package** (`.nupkg`): ZIP with `lib/app/` containing all app files + update binary + `sq.version` manifest, plus a `.nuspec` with metadata. This is the canonical package format.
-   - **Portable package**: On Windows: ZIP with `Update.exe`, `current/` dir, execution stub, and `.portable` marker. On Linux: AppImage (squashfs appended to runtime binary). On macOS: ditto ZIP of `.app` bundle.
-   - **Setup installer**: On Windows: `setup.exe` template with the `.nupkg` appended as a bundle (offset+length header + signature). Optional MSI via WiX 5 compilation from Handlebars templates. On macOS: `.pkg` via `pkgbuild`.
+   - **Release package** (`.nupkg`): ZIP with `lib/app/` containing all app files + update binary + `sq.version` manifest, plus a `.nuspec` with metadata. This is the canonical package format. For macOS targets the bundle's internal symlinks stay symlinks (`PackageBuilder.CopyFiles`), on every host.
+   - **Portable package**: On Windows: ZIP with `Update.exe`, `current/` dir, execution stub, and `.portable` marker. On Linux: AppImage (squashfs appended to runtime binary). On macOS: ZIP of the `.app` bundle, by `ditto` on a macOS host and the managed `OsxPortableZip` elsewhere (keeps Unix modes and symlinks).
+   - **Setup installer**: On Windows: `setup.exe` template with the `.nupkg` appended as a bundle (offset+length header + signature). Optional MSI via WiX 5 compilation from Handlebars templates. On macOS: `.pkg` via `pkgbuild` (macOS host only; signed and notarized with Apple's tools even when the app uses rcodesign).
    - **Delta package** (`.delta.nupkg`): Created if a previous release exists. Compares files between old and new releases — unchanged files get zero-length `.diff` markers, changed files get zstd patches (`.zsdiff`), new files included as-is. zstd is the only supported patch format (creation and apply); zstd being unavailable fails delta creation. Legacy `.bsdiff`/msdelta patches are rejected with an "Unsupported patch format" error on apply.
 
 4. **Post-processing**: Writes `releases.<channel>.json` (asset feed for update clients) and legacy `RELEASES` file.

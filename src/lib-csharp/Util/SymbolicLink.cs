@@ -13,6 +13,8 @@ namespace Velopack.Util
         /// <param name="targetPath">The target directory or file</param>
         /// <param name="overwrite">If true overwrites an existing reparse point or empty directory</param>
         /// <param name="relative">If true, stores a relative path from the link to the target, rather than an absolute path.</param>
+        /// <exception cref="UnauthorizedAccessException">On Windows, the process is not allowed to create symlinks
+        /// (see <see cref="WindowsPrivilegeNotHeldMessage"/>).</exception>
         public static void Create(string linkPath, string targetPath, bool overwrite = true, bool relative = false)
         {
             linkPath = Path.GetFullPath(linkPath);
@@ -41,6 +43,18 @@ namespace Velopack.Util
             } else {
                 throw new IOException("Target path does not exist.");
             }
+        }
+
+        /// <summary>
+        /// Creates a symlink at <paramref name="linkPath"/> storing <paramref name="linkTarget"/> exactly as given, so a relative
+        /// target stays relative to the link's directory. Unlike <see cref="Create"/>, the target does not need to exist and an
+        /// existing path is never overwritten.
+        /// </summary>
+        /// <exception cref="UnauthorizedAccessException">On Windows, the process is not allowed to create symlinks
+        /// (see <see cref="WindowsPrivilegeNotHeldMessage"/>).</exception>
+        public static void CreateWithTarget(string linkPath, string linkTarget, bool isDirectory)
+        {
+            CreateSymlink(linkPath, linkTarget, isDirectory ? SymbolicLinkFlag.Directory : SymbolicLinkFlag.File);
         }
 
         /// <summary>
@@ -102,12 +116,17 @@ namespace Velopack.Util
             linkPath = linkPath.TrimEnd('\\', '/');
 
 #if NET6_0_OR_GREATER
-            if (mode == SymbolicLinkFlag.File) {
-                File.CreateSymbolicLink(linkPath, targetPath);
-            } else if (mode == SymbolicLinkFlag.Directory) {
-                Directory.CreateSymbolicLink(linkPath, targetPath);
-            } else {
-                throw new ArgumentOutOfRangeException(nameof(mode), mode, "Invalid symbolic link mode.");
+            try {
+                if (mode == SymbolicLinkFlag.File) {
+                    File.CreateSymbolicLink(linkPath, targetPath);
+                } else if (mode == SymbolicLinkFlag.Directory) {
+                    Directory.CreateSymbolicLink(linkPath, targetPath);
+                } else {
+                    throw new ArgumentOutOfRangeException(nameof(mode), mode, "Invalid symbolic link mode.");
+                }
+            } catch (IOException ex) when (VelopackRuntimeInfo.IsWindows && ex.HResult == HRESULT_PRIVILEGE_NOT_HELD) {
+                // .NET reports ERROR_PRIVILEGE_NOT_HELD as a bare IOException; surface it as on the other target frameworks.
+                throw CreatePrivilegeNotHeldException(linkPath, ex);
             }
 #else
             if (VelopackRuntimeInfo.IsWindows) {
