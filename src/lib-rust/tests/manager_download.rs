@@ -64,7 +64,8 @@ fn download_updates_reports_progress_while_downloading_deltas() {
     // errors, and only the progress reported along the way matters here
     let _ = manager.download_updates(&update, Some(sender));
 
-    let progress: Vec<i16> = receiver.try_iter().collect();
+    // ends once every sender is dropped, including the forwarding thread's, which may outlive the call
+    let progress: Vec<i16> = receiver.iter().collect();
     assert!(
         progress.iter().any(|p| *p > 0 && *p < 70),
         "no progress while downloading the delta: {:?}",
