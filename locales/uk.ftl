@@ -229,3 +229,6 @@ msi-start-menu-shortcut-description = Ярлик { $app_title } у меню «П
 # MSI Installer UI - Readme Dialog
 msi-readme-title = Важлива інформація
 msi-readme-description = Будь ласка, прочитайте наступну інформацію перед продовженням.
+
+# MSI Installer UI - Downgrade Error
+msi-downgrade-error = Уже інстальовано новішу версію { $app_title }.

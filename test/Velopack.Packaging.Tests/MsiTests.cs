@@ -530,9 +530,23 @@ public class MsiTests
         Assert.True(Seq("UserRustCleanup") < Seq("RemoveFolders"), "UserRustCleanup should run before RemoveFolders");
 
         // the upgrade-mode `current` purge relies on the old product being removed (and cleaned)
-        // before the new payload is laid down — pin WiX's implicit early RemoveExistingProducts
-        Assert.True(Seq("RemoveExistingProducts") < Seq("InstallFiles"),
-            "RemoveExistingProducts must be scheduled before InstallFiles");
+        // before the new payload is laid down: MajorUpgrade is authored with afterInstallValidate
+        Assert.True(Seq("InstallValidate") < Seq("RemoveExistingProducts"), "RemoveExistingProducts must run after InstallValidate");
+        Assert.True(Seq("RemoveExistingProducts") < Seq("InstallInitialize"),
+            "RemoveExistingProducts must run before InstallInitialize (afterInstallValidate)");
+
+        // same-version upgrades are allowed: the upgrade row's max version is inclusive, so a
+        // prerelease and its release (same msi version) upgrade rather than install side by side
+        const int msidbUpgradeAttributesVersionMaxInclusive = 0x200;
+        var upgradeAttrs = Convert.ToInt32(db.ExecuteScalar(
+            "SELECT `Attributes` FROM `Upgrade` WHERE `ActionProperty` = 'WIX_UPGRADE_DETECTED'"));
+        Assert.True((upgradeAttrs & msidbUpgradeAttributesVersionMaxInclusive) != 0, "same-version upgrades should be allowed");
+
+        // the downgrade launch condition uses the localized message set by RustSetLocaleStrings,
+        // which runs in both sequences so silent installs get it too
+        var downgradeText = db.ExecuteScalar("SELECT `Description` FROM `LaunchCondition` WHERE `Condition` = 'NOT WIX_DOWNGRADE_DETECTED'") as string;
+        Assert.Equal("[MsiDowngradeError]", downgradeText);
+        Assert.True(Seq("RustSetLocaleStrings") < Seq("LaunchConditions"), "localized strings must be set before LaunchConditions");
 
         // VELOPACK_INSTALLDIR only applies on first install; on maintenance/uninstall the
         // INSTALLFOLDER handed to the elevated cleanup must come from the registered install state

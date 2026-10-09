@@ -158,6 +158,8 @@ pub fn locale_strings(app_title: &str) -> Vec<(&'static str, String)> {
         // Shortcuts
         ("MsiDesktopShortcutDescription", MSI_DESKTOP_SHORTCUT_DESCRIPTION, true, Normal),
         ("MsiStartMenuShortcutDescription", MSI_START_MENU_SHORTCUT_DESCRIPTION, true, Normal),
+        // Downgrade launch condition (MajorUpgrade/@DowngradeErrorMessage)
+        ("MsiDowngradeError", MSI_DOWNGRADE_ERROR, true, Normal),
     ];
 
     let mut result = Vec::with_capacity(entries.len());

@@ -229,3 +229,6 @@ msi-start-menu-shortcut-description = Prečac u izborniku Start za { $app_title 
 # MSI Installer UI - Readme Dialog
 msi-readme-title = Važne informacije
 msi-readme-description = Molimo pročitajte sljedeće informacije prije nastavka.
+
+# MSI Installer UI - Downgrade Error
+msi-downgrade-error = Novija verzija programa { $app_title } već je instalirana.

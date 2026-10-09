@@ -230,3 +230,6 @@ msi-resume-btn-install = &Install
 # MSI Installer UI - Shortcut Descriptions
 msi-desktop-shortcut-description = Desktop shortcut for { $app_title }
 msi-start-menu-shortcut-description = Start Menu shortcut for { $app_title }
+
+# MSI Installer UI - Downgrade Error
+msi-downgrade-error = A newer version of { $app_title } is already installed.

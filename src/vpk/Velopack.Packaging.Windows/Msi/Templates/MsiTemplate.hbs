@@ -14,6 +14,15 @@
              UpgradeCode="{{UpgradeCodeGuid}}">
 
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes"/>
+
+        <!-- Authored explicitly (rather than relying on WiX's implicit default) because the upgrade-aware
+             cleanup depends on RemoveExistingProducts running right after InstallValidate, before any
+             new files are laid down. Same-version upgrades are allowed because the msi version drops the
+             semver prerelease (2.0.0-beta.1 and 2.0.0 are both 2.0.0.0), which would otherwise install
+             side by side. The downgrade message is localized by RustSetLocaleStrings. -->
+        <MajorUpgrade Schedule="afterInstallValidate" AllowSameVersionUpgrades="yes"
+                      DowngradeErrorMessage="[MsiDowngradeError]"/>
+
         <StandardDirectory Id="TARGETDIR">
             <Directory Id="INSTALLFOLDER" Name="{{AppTitleSanitized}}" ComponentGuidGenerationSeed="{{ComponentGenerationSeedGuid}}">
                 {{!-- CURRENTFOLDER only names current\ for the --noStub shortcut WorkingDirectory. The harvested
@@ -243,6 +252,9 @@
         </InstallUISequence>
 
         <InstallExecuteSequence>
+            <!-- Also in the execute sequence so silent installs (no UI sequence) get the localized
+                 downgrade message; properties already set by the UI sequence are left alone. -->
+            <Custom Action="RustSetLocaleStrings" Before="AppSearch"/>
             <Custom Action="SetPatchChannelData" Before="PatchChannelDeferred" Condition="NOT REMOVE"/>
             <Custom Action="PatchChannelDeferred" After="InstallFiles" Condition="NOT REMOVE"/>
             <Custom Action="SetInstallHookData" Before="InstallHookDeferred" Condition="NOT REMOVE"/>

@@ -229,3 +229,6 @@ msi-start-menu-shortcut-description = Tuotteen { $app_title } Käynnistä-valiko
 # MSI Installer UI - Readme Dialog
 msi-readme-title = Tärkeitä tietoja
 msi-readme-description = Lue seuraavat tiedot ennen jatkamista.
+
+# MSI Installer UI - Downgrade Error
+msi-downgrade-error = Tuotteen { $app_title } uudempi versio on jo asennettu.

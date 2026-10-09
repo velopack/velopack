@@ -229,3 +229,6 @@ msi-start-menu-shortcut-description = Start menü parancsikon a(z) { $app_title 
 # MSI Installer UI - Readme Dialog
 msi-readme-title = Fontos információk
 msi-readme-description = Kérjük, olvassa el az alábbi információkat a folytatás előtt.
+
+# MSI Installer UI - Downgrade Error
+msi-downgrade-error = A(z) { $app_title } egy újabb verziója már telepítve van.
