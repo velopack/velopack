@@ -84,6 +84,7 @@ public class CodeSign
         }
 
         if (pendingSign.Count == 0) {
+            progress(100);
             return;
         }
 
@@ -151,29 +152,59 @@ public class CodeSign
 
     /// <summary>
     /// Replaces {{file}} in a bash command with the quoted file paths. If the placeholder sits inside a
-    /// "..." or '...' string, that string is closed around the paths so each path is still one word.
+    /// "...", '...' or $'...' string, that string is closed around the paths so each path is still one word.
     /// </summary>
     public static string SubstituteFilesBash(string template, IEnumerable<string> filePaths)
     {
         const string placeholder = "{{file}}";
         var quotedFiles = QuoteFileArgsBash(filePaths);
         var sb = new StringBuilder();
-        char quote = '\0';
+
+        // $(...), `...` and (...) each start a fresh quoting context, e.g. in "$(dirname {{file}})" the
+        // placeholder is unquoted. quote is '\0' (none), '\'', '"', or '$' for an ANSI-C $'...' string.
+        var contexts = new Stack<(char opener, char quote)>();
+        contexts.Push(('\0', '\0'));
+
+        void SetQuote(char q) => contexts.Push((contexts.Pop().opener, q));
 
         for (int i = 0; i < template.Length; i++) {
+            var (opener, quote) = contexts.Peek();
+
             if (String.CompareOrdinal(template, i, placeholder, 0, placeholder.Length) == 0) {
-                var q = quote == '\0' ? "" : quote.ToString();
-                sb.Append(q).Append(quotedFiles).Append(q);
+                var close = quote switch { '\0' => "", '$' => "'", _ => quote.ToString() };
+                var reopen = quote == '$' ? "$'" : close;
+                sb.Append(close).Append(quotedFiles).Append(reopen);
                 i += placeholder.Length - 1;
                 continue;
             }
 
             char c = template[i];
+            char next = i + 1 < template.Length ? template[i + 1] : '\0';
             sb.Append(c);
-            if (c == '\\' && quote != '\'' && i + 1 < template.Length) {
+
+            if (quote == '\'') {
+                if (c == '\'') SetQuote('\0');
+            } else if (c == '\\') {
+                if (next != '\0') sb.Append(template[++i]);
+            } else if (quote == '$') {
+                if (c == '\'') SetQuote('\0');
+            } else if (c == '$' && next == '(') {
                 sb.Append(template[++i]);
-            } else if ((c == '\'' || c == '"') && (quote == '\0' || quote == c)) {
-                quote = quote == c ? '\0' : c;
+                contexts.Push(('(', '\0'));
+            } else if (c == '$' && next == '\'' && quote == '\0') {
+                sb.Append(template[++i]);
+                SetQuote('$');
+            } else if (c == '`') {
+                if (opener == '`' && quote == '\0') contexts.Pop();
+                else contexts.Push(('`', '\0'));
+            } else if (quote == '"') {
+                if (c == '"') SetQuote('\0');
+            } else if (c == '"' || c == '\'') {
+                SetQuote(c);
+            } else if (c == '(') {
+                contexts.Push(('(', '\0'));
+            } else if (c == ')' && opener == '(') {
+                contexts.Pop();
             }
         }
 

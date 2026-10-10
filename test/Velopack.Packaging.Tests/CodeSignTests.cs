@@ -174,6 +174,22 @@ public class CodeSignTests
         Assert.Equal("[\"/a b.exe]", output);
     }
 
+    [Theory]
+    [InlineData("printf '[%s]\\n' \"$(dirname {{file}})/out\"", "[/a dir/out]")]
+    [InlineData("printf '[%s]\\n' \"`dirname {{file}}`/out\"", "[/a dir/out]")]
+    [InlineData("printf '[%s]\\n' \"$(echo \"in {{file}}\")\"", "[in /a dir/x.exe]")]
+    [InlineData("printf '[%s]\\n' $'it\\'s {{file}}'", "[it's /a dir/x.exe]")]
+    [InlineData("printf '[%s]\\n' $((1+2)) {{file}}.signed", "[3]\n[/a dir/x.exe.signed]")]
+    [InlineData("X=1\nprintf '[%s]\\n' \"$X\" --in={{file}}", "[1]\n[--in=/a dir/x.exe]")]
+    public void Bash_SubstituteFilesBash_NestedAndAdjacentPlaceholders_Work(string template, string expected)
+    {
+        using var _ = TempUtil.GetTempFileName(out var logFile);
+
+        var output = RunViaBash(CodeSign.SubstituteFilesBash(template, ["/a dir/x.exe"]), logFile);
+
+        Assert.Equal(expected, output.ReplaceLineEndings("\n"));
+    }
+
     [Fact]
     public void Bash_SubstituteFilesBash_TemplateIsInterpretedByBash()
     {
@@ -496,7 +512,7 @@ public class CodeSignTests
     }
 
     [Fact]
-    public void Sign_NoFilesToSign_DoesNothing()
+    public void Sign_NoFilesToSign_ReportsCompletion()
     {
         using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
         var console = new BasicConsole(logger, new VelopackDefaults(true));
@@ -508,7 +524,7 @@ public class CodeSignTests
         var progressValues = new List<int>();
         signer.Sign([missing], "echo {{file}}", 1, p => progressValues.Add(p), true);
 
-        Assert.Empty(progressValues);
+        Assert.Equal([100], progressValues);
     }
 
     [Fact]
@@ -777,6 +793,46 @@ public class CodeSignTests
         foreach (var n in names) {
             Assert.Equal(n, File.ReadAllText(Path.Combine(outDir, n)));
         }
+    }
+
+    [Fact]
+    public void Sign_Template_BashPlaceholderWithSuffix_Works()
+    {
+        // The usual shape for tools that can't sign in place, e.g. osslsigncode -in X -out X.signed.
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "bash-only test");
+
+        using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
+        var console = new BasicConsole(logger, new VelopackDefaults(true));
+        var signer = new CodeSign(logger, console);
+
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+
+        var srcFile = Path.Combine(dir, "it's an app.exe");
+        File.WriteAllText(srcFile, "data");
+
+        signer.Sign([srcFile], "cp {{file}} {{file}}.signed && mv {{file}}.signed {{file}}", 1, _ => { }, true);
+
+        Assert.Equal("data", File.ReadAllText(srcFile));
+        Assert.False(File.Exists(srcFile + ".signed"));
+    }
+
+    [Fact]
+    public void Sign_Template_BashFailure_ReportsOutputOfEveryCommand()
+    {
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "bash-only test");
+
+        using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
+        var console = new BasicConsole(logger, new VelopackDefaults(true));
+        var signer = new CodeSign(logger, console);
+
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+
+        var srcFile = Path.Combine(dir, "app.exe");
+        File.WriteAllText(srcFile, "data");
+
+        var ex = Assert.Throws<UserInfoException>(() => signer.Sign([srcFile], "echo early-output >&2 && false {{file}}", 1, _ => { }, true));
+
+        Assert.Contains("early-output", ex.Message);
     }
 
     [Fact]
