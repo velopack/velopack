@@ -133,8 +133,9 @@ public class CodeSign
             var cmdWithPasswordHidden = new Regex(@"\/p\s+?[^\s]+").Replace(fullCommand, "/p ********");
             Log.Debug($"Signing command failed - {Environment.NewLine}    {_console.EscapeMarkup(cmdWithPasswordHidden)}");
             var output = File.Exists(signLogFile) ? File.ReadAllText(signLogFile).Trim() : "No output file was created.";
+            var verboseHint = Log.IsEnabled(LogLevel.Debug) ? "" : " Specify --verbose argument to print signing command.";
             throw new UserInfoException(
-                $"Signing command failed. Specify --verbose argument to print signing command." + Environment.NewLine +
+                $"Signing command failed.{verboseHint}" + Environment.NewLine +
                 $"Output was:" + Environment.NewLine + output);
         }
     }
