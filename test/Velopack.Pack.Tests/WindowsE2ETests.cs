@@ -179,12 +179,14 @@ public class WindowsInstallTests
         var date = DateTime.Now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         Assert.Equal(date, installDate.Trim('\0'));
 
-        var uninstOutput = WindowsTestHelper.RunNoCoverage(updatePath, ["--silent", "--uninstall"], Environment.CurrentDirectory, logger);
-        Assert.EndsWith(Environment.NewLine + "Y", uninstOutput); // this checks that the self-delete succeeded
+        WindowsTestHelper.RunNoCoverage(updatePath, ["--silent", "--uninstall"], Environment.CurrentDirectory, logger);
 
         Assert.False(File.Exists(startLnk));
         Assert.False(File.Exists(desktopLnk));
         Assert.False(File.Exists(appPath));
+
+        // the uninstaller schedules the rmdir of its own directory ~3s after it exits; poll for it
+        TestHelper.WaitUntil(() => Assert.False(Directory.Exists(tmpInstallDir)), timeoutMs: 15_000);
 
         using var key2 = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)
             .OpenSubKey(uninstallRegSubKey + "\\" + id, RegistryKeyPermissionCheck.ReadSubTree);
