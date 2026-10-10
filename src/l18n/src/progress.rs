@@ -77,7 +77,8 @@ fn show_progress_dialog(title: &str, header: &str, body: &str) -> Box<dyn Progre
     if crate::dialogs::get_silent() {
         return Box::new(NoopProgressReporter);
     }
-    match xdialog::show_progress(title, header, body, xdialog::XDialogIcon::Information) {
+    let icon = crate::dialogs::general_icon(xdialog::XDialogIcon::Information);
+    match xdialog::show_progress_ex(crate::dialogs::dialog_options(title, header, body, icon, vec![])) {
         Ok(proxy) => Box::new(XDialogProgressReporter::new(proxy)),
         Err(e) => {
             warn!("Failed to show progress dialog: {:?}", e);

@@ -1,7 +1,9 @@
+mod app_icon;
 pub mod fastzip;
 pub mod runtime_arch;
 
 mod util_common;
+pub use app_icon::init_dialog_icon;
 pub use util_common::*;
 
 #[cfg(target_os = "windows")]

@@ -128,6 +128,16 @@ The `vpk pack` command (`PackageBuilder<T>` in `Velopack.Packaging`) runs platfo
 On bash, `{{file}}` is replaced with `'\''`-escaped single-quoted paths, closing any `"`/`'` string the
 placeholder sits in so each path stays one word. Do not reintroduce template escaping.
 
+## Dialogs (src/l18n, xdialog 4)
+
+All Setup/Update dialogs go through `velopack_l18n` (`dialogs.rs`, `progress.rs`) on xdialog 4. At startup the
+binaries call `shared::init_dialog_icon()` (`src/bins/src/shared/app_icon.rs`), which finds the `vpk pack --icon`
+image already in the package — no extra packaging needed: Windows reads icon group 1 that vpk embeds into
+Setup.exe/Update.exe and rebuilds an `.ico`; Linux reads `{AppImage root}/.DirIcon`; macOS reads
+`Contents/Resources/{CFBundleIconFile}`. Every dialog passes it as `icon_source` (window/taskbar icon).
+Info, progress and question dialogs use `XDialogIcon::Custom` (via `general_icon`, which falls back to a stock
+icon when no app icon was found); warning/error dialogs keep `Warning`/`Error`.
+
 ## Locators
 
 Locators (`IVelopackLocator` in C#, `VelopackLocator` in Rust) resolve platform-specific paths and app metadata. Both implementations follow the same logic and must stay in sync. All locators read app identity (ID, version, channel) from a `sq.version` manifest file.

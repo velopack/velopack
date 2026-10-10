@@ -62,6 +62,7 @@ fn main() {
 
 fn real_main() -> Result<()> {
     dialogs::init();
+    shared::init_dialog_icon();
     if let Err(e) = main_inner() {
         // The command parser uses `ignore_errors(true)`, so clap won't print --help / --version
         // itself; those requests arrive here as an error which we render manually. Setup is

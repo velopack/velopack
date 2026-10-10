@@ -93,6 +93,7 @@ windows = { workspace = true, features = [
     "Win32_System_Com_StructuredStorage",
     "Win32_System_ProcessStatus",
     "Win32_System_ApplicationInstallationAndServicing",
+    "Win32_System_LibraryLoader",
     "Win32_Storage_EnhancedStorage",
     "Win32_Storage_FileSystem",
 ] }
