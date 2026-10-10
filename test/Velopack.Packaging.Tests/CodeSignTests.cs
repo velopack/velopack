@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Neovolve.Logging.Xunit;
 using Velopack.Core;
 using Velopack.Packaging.Windows;
@@ -32,13 +32,13 @@ public class CodeSignTests
         var bash = GetBashPath();
         Assert.SkipWhen(bash == null, "bash not found");
 
-        var args = $"-c \"{command} >> \\\"{logFile}\\\" 2>&1\"";
         var psi = new ProcessStartInfo {
             FileName = bash,
-            Arguments = args,
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        psi.ArgumentList.Add("-c");
+        psi.ArgumentList.Add($"exec >> {CodeSign.QuoteFileArgsBash([logFile])} 2>&1\n{command}");
         using var process = Process.Start(psi);
         process.WaitForExit();
         return File.Exists(logFile) ? File.ReadAllText(logFile).Trim() : "";
@@ -60,15 +60,9 @@ public class CodeSignTests
         return File.Exists(logFile) ? File.ReadAllText(logFile).Trim() : "";
     }
 
-    private static (int exitCode, string output) RunViaShellArgs(string command, string logFile)
+    private static (int exitCode, string output) RunViaShellStartInfo(string command, string logFile)
     {
-        var (fileName, args) = CodeSign.BuildShellArgs(command, logFile);
-        var psi = new ProcessStartInfo {
-            FileName = fileName,
-            Arguments = args,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
+        var psi = CodeSign.BuildShellStartInfo(command, logFile);
         using var process = Process.Start(psi);
         process.WaitForExit();
         var output = File.Exists(logFile) ? File.ReadAllText(logFile).Trim() : "";
@@ -127,61 +121,70 @@ public class CodeSignTests
         Assert.Contains("My Spaced App.dll", output);
     }
 
-    [Fact]
-    public void Bash_QuoteFileArgsWindows_DoubleQuotes_BreakWithSpaces()
-    {
-        // Demonstrates the bug that the single-quote fix solves:
-        // double-quoted paths inside bash -c "..." lose their quoting.
-        using var _1 = TempUtil.GetTempDirectory(out var dir);
-        using var _2 = TempUtil.GetTempFileName(out var logFile);
-
-        var file1 = Path.Combine(dir, "Bus Monitor.exe");
-        File.WriteAllText(file1, "");
-
-        var fileArgs = CodeSign.QuoteFileArgsWindows([file1]);
-        var output = RunViaBash($"echo {fileArgs}", logFile);
-
-        Assert.DoesNotContain("Bus Monitor.exe", output);
-    }
-
-    [Fact]
-    public void Bash_EscapeForBash_DollarSign_IsNotExpanded()
+    [Theory]
+    [InlineData("it's.exe")]
+    [InlineData("quote\"d.exe")]
+    [InlineData("dollar $HOME.exe")]
+    [InlineData("tick `whoami`.exe")]
+    [InlineData("back\\slash.exe")]
+    [InlineData("semi;amp&pipe|.exe")]
+    public void Bash_QuoteFileArgsBash_SpecialCharacters_PassedLiterally(string fileName)
     {
         using var _ = TempUtil.GetTempFileName(out var logFile);
 
-        var escaped = CodeSign.EscapeForBash("$HOME");
-        var output = RunViaBash($"echo {escaped}", logFile);
+        var path = "/some dir/" + fileName;
+        var output = RunViaBash($"printf '[%s]\\n' {CodeSign.QuoteFileArgsBash([path])}", logFile);
 
-        Assert.Contains("$HOME", output);
-        // should NOT have been expanded to the actual home directory
-        Assert.DoesNotContain("/home/", output);
-        Assert.DoesNotContain("/Users/", output);
-        Assert.DoesNotContain("C:\\Users\\", output);
+        Assert.Equal($"[{path}]", output);
     }
 
-    [Fact]
-    public void Bash_EscapeForBash_Backtick_IsNotExpanded()
+    [Theory]
+    [InlineData("printf '[%s]\\n' {{file}}")]
+    [InlineData("printf '[%s]\\n' \"{{file}}\"")]
+    [InlineData("printf '[%s]\\n' '{{file}}'")]
+    public void Bash_SubstituteFilesBash_PlaceholderInAnyQuoting_GivesOneWordPerFile(string template)
     {
         using var _ = TempUtil.GetTempFileName(out var logFile);
 
-        var escaped = CodeSign.EscapeForBash("`echo injected`");
-        var output = RunViaBash($"echo {escaped}", logFile);
+        string[] files = ["/a dir/it's.exe", "/b dir/\"q\" $x.exe"];
+        var output = RunViaBash(CodeSign.SubstituteFilesBash(template, files), logFile);
 
-        // If the backticks were expanded, the output would be just "injected".
-        // Since they're escaped, the literal backtick characters are preserved.
-        Assert.Contains("`", output);
+        Assert.Equal($"[{files[0]}]\n[{files[1]}]", output.ReplaceLineEndings("\n"));
     }
 
     [Fact]
-    public void Bash_EscapeForBash_PlainText_PassesThroughUnchanged()
+    public void Bash_SubstituteFilesBash_PlaceholderInsideLargerQuotedString_KeepsSurroundingText()
     {
         using var _ = TempUtil.GetTempFileName(out var logFile);
 
-        var escaped = CodeSign.EscapeForBash("hello world");
-        var output = RunViaBash($"echo {escaped}", logFile);
+        var template = "printf '[%s]\\n' \"--file={{file}}\" '--x {{file}} y'";
+        var output = RunViaBash(CodeSign.SubstituteFilesBash(template, ["/a b/c.exe"]), logFile);
 
-        Assert.Contains("hello", output);
-        Assert.Contains("world", output);
+        Assert.Equal("[--file=/a b/c.exe]\n[--x /a b/c.exe y]", output.ReplaceLineEndings("\n"));
+    }
+
+    [Fact]
+    public void Bash_SubstituteFilesBash_EscapedQuote_DoesNotOpenString()
+    {
+        using var _ = TempUtil.GetTempFileName(out var logFile);
+
+        var template = "printf '[%s]\\n' \\\"{{file}}";
+        var output = RunViaBash(CodeSign.SubstituteFilesBash(template, ["/a b.exe"]), logFile);
+
+        Assert.Equal("[\"/a b.exe]", output);
+    }
+
+    [Fact]
+    public void Bash_SubstituteFilesBash_TemplateIsInterpretedByBash()
+    {
+        // The template is a bash command: single quotes group words, variables expand and
+        // command substitution runs, the same way cmd.exe interprets the template on Windows.
+        using var _ = TempUtil.GetTempFileName(out var logFile);
+
+        var template = "X=val; printf '[%s]\\n' 'a b' \"$X\" `echo sub` {{file}}";
+        var output = RunViaBash(CodeSign.SubstituteFilesBash(template, ["/f.exe"]), logFile);
+
+        Assert.Equal("[a b]\n[val]\n[sub]\n[/f.exe]", output.ReplaceLineEndings("\n"));
     }
 
     [Fact]
@@ -284,10 +287,10 @@ public class CodeSignTests
         }
     }
 
-    // ── BuildShellArgs: end-to-end through the actual shell ──────────
+    // ── BuildShellStartInfo: end-to-end through the actual shell ─────
 
     [Fact]
-    public void BuildShellArgs_SpacedFiles_RunCorrectly()
+    public void BuildShellStartInfo_SpacedFiles_RunCorrectly()
     {
         using var _1 = TempUtil.GetTempDirectory(out var dir);
         using var _2 = TempUtil.GetTempFileName(out var logFile);
@@ -303,14 +306,14 @@ public class CodeSignTests
         }
 
         var command = $"echo {fileArgs}";
-        var (exitCode, output) = RunViaShellArgs(command, logFile);
+        var (exitCode, output) = RunViaShellStartInfo(command, logFile);
 
         Assert.Equal(0, exitCode);
         Assert.Contains("My File.exe", output);
     }
 
     [Fact]
-    public void BuildShellArgs_SignTemplate_RunsCorrectly()
+    public void BuildShellStartInfo_SignTemplate_RunsCorrectly()
     {
         using var _1 = TempUtil.GetTempDirectory(out var dir);
         using var _2 = TempUtil.GetTempFileName(out var logFile);
@@ -329,7 +332,7 @@ public class CodeSignTests
 
         var signTemplate = "echo template-signing {{file}}";
         var command = signTemplate.Replace("{{file}}", fileArgs);
-        var (exitCode, output) = RunViaShellArgs(command, logFile);
+        var (exitCode, output) = RunViaShellStartInfo(command, logFile);
 
         Assert.Equal(0, exitCode);
         Assert.Contains("Spaced Name.dll", output);
@@ -337,16 +340,29 @@ public class CodeSignTests
     }
 
     [Fact]
-    public void BuildShellArgs_LogFileWithSpaces_WritesCorrectly()
+    public void BuildShellStartInfo_LogFileWithSpaces_WritesCorrectly()
     {
         using var _1 = TempUtil.GetTempDirectory(out var dir);
         var logFile = Path.Combine(dir, "my log file.txt");
 
         var command = "echo hello-from-shell";
-        var (exitCode, output) = RunViaShellArgs(command, logFile);
+        var (exitCode, output) = RunViaShellStartInfo(command, logFile);
 
         Assert.Equal(0, exitCode);
         Assert.Contains("hello-from-shell", output);
+    }
+
+    [Fact]
+    public void BuildShellStartInfo_Bash_CapturesOutputOfEveryCommand()
+    {
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "bash-only test");
+        using var _ = TempUtil.GetTempFileName(out var logFile);
+
+        var (exitCode, output) = RunViaShellStartInfo("echo first && echo second >&2; false", logFile);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("first", output);
+        Assert.Contains("second", output);
     }
 
     // ── CodeSign.Sign() integration tests ────────────────────────────
@@ -480,6 +496,22 @@ public class CodeSignTests
     }
 
     [Fact]
+    public void Sign_NoFilesToSign_DoesNothing()
+    {
+        using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
+        var console = new BasicConsole(logger, new VelopackDefaults(true));
+        var signer = new CodeSign(logger, console);
+
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+
+        var missing = Path.Combine(dir, "missing.exe");
+        var progressValues = new List<int>();
+        signer.Sign([missing], "echo {{file}}", 1, p => progressValues.Add(p), true);
+
+        Assert.Empty(progressValues);
+    }
+
+    [Fact]
     public void Sign_FilesWithParentheses()
     {
         using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
@@ -577,7 +609,7 @@ public class CodeSignTests
 
     // ── --signTemplate end-to-end tests ──────────────────────────────
     // These tests exercise the same code path as `vpk pack --signTemplate ...`:
-    // CodeSign.Sign -> BuildShellArgs -> Process.Start. The template actually
+    // CodeSign.Sign -> BuildShellStartInfo -> Process.Start. The template actually
     // copies {{file}} to a destination path and the test reads that file back,
     // which proves the file argument made it through the shell unmolested.
 
@@ -605,11 +637,9 @@ public class CodeSignTests
     }
 
     [Fact]
-    public void Sign_Template_BashDollarSignInTemplate_NotExpanded()
+    public void Sign_Template_BashSingleQuotedDollarAndBacktick_AreLiteral()
     {
-        // Regression coverage for shell escaping in the --signTemplate flow.
-        // If EscapeForBash is bypassed, $HOME gets expanded by bash and the
-        // file is written to the wrong path (or fails outright).
+        // The template is a bash command, so single quotes keep $ and ` literal.
         Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "bash-only test");
 
         using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
@@ -620,19 +650,18 @@ public class CodeSignTests
 
         var srcFile = Path.Combine(dir, "app.exe");
         File.WriteAllText(srcFile, "data");
-        var destFile = Path.Combine(dir, "with_$HOME_literal.bin");
+        var destFile = Path.Combine(dir, "with_$HOME_and_`whoami`_literal.bin");
 
-        var template = $"cp {{{{file}}}} \"{destFile}\"";
+        var template = $"cp {{{{file}}}} '{destFile}'";
         signer.Sign([srcFile], template, 1, _ => { }, true);
 
-        Assert.True(File.Exists(destFile), "Destination must exist literally; if $HOME was expanded the file is elsewhere.");
+        Assert.True(File.Exists(destFile), "Destination must exist literally; if $HOME or `whoami` was expanded the file is elsewhere.");
     }
 
     [Fact]
-    public void Sign_Template_BashBacktickInTemplate_NotExpanded()
+    public void Sign_Template_BashEnvironmentVariable_IsExpanded()
     {
-        // If the backtick weren't escaped, bash would run `whoami` and substitute
-        // its output into the destination path.
+        // Lets a template read secrets from the environment, like %VAR% does on Windows.
         Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "bash-only test");
 
         using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
@@ -643,12 +672,38 @@ public class CodeSignTests
 
         var srcFile = Path.Combine(dir, "app.exe");
         File.WriteAllText(srcFile, "data");
-        var destFile = Path.Combine(dir, "with_`whoami`_literal.bin");
+        var destFile = Path.Combine(dir, "from env var.bin");
 
-        var template = $"cp {{{{file}}}} \"{destFile}\"";
-        signer.Sign([srcFile], template, 1, _ => { }, true);
+        var varName = "VELOPACK_TEST_SIGN_DEST_" + Guid.NewGuid().ToString("N");
+        Environment.SetEnvironmentVariable(varName, destFile);
+        try {
+            signer.Sign([srcFile], $"cp {{{{file}}}} \"${varName}\"", 1, _ => { }, true);
+        } finally {
+            Environment.SetEnvironmentVariable(varName, null);
+        }
 
-        Assert.True(File.Exists(destFile), "Destination must exist literally; if `whoami` was expanded the file is elsewhere.");
+        Assert.Equal("data", File.ReadAllText(destFile));
+    }
+
+    [Fact]
+    public void Sign_Template_BashSingleQuotedArgument_StaysOneWord()
+    {
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "bash-only test");
+
+        using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
+        var console = new BasicConsole(logger, new VelopackDefaults(true));
+        var signer = new CodeSign(logger, console);
+
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+
+        var srcFile = Path.Combine(dir, "app.exe");
+        File.WriteAllText(srcFile, "data");
+
+        signer.Sign([srcFile], "printf '[%s]\\n' --pass 'a b' {{file}}", 1, _ => { }, true);
+
+        var signOutput = GetSignToolOutput(logger);
+        Assert.Contains("[a b]", signOutput);
+        Assert.Contains($"[{srcFile}]", signOutput);
     }
 
     [Fact]
@@ -700,11 +755,55 @@ public class CodeSignTests
     }
 
     [Fact]
-    public void Sign_Template_SingleFileTemplate_ManyFiles_TemplateNotDoubleEscaped()
+    public void Sign_Template_BashSourceFilesWithQuotes_ArePassedLiterally()
     {
-        // A {{file}} template pins parallelism to 1, so each file is its own batch.
-        // If the template is escaped inside the batch loop it gets re-escaped every
-        // time, and everything after the first file fails.
+        // ' and " can't appear in Windows file names, but are legal on Linux and macOS.
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "bash-only test");
+
+        using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
+        var console = new BasicConsole(logger, new VelopackDefaults(true));
+        var signer = new CodeSign(logger, console);
+
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+
+        var outDir = Path.Combine(dir, "out");
+        Directory.CreateDirectory(outDir);
+        string[] names = ["it's.exe", "say \"hi\".exe", "both ' and \".exe"];
+        var files = names.Select(n => Path.Combine(dir, n)).ToArray();
+        foreach (var f in files) File.WriteAllText(f, Path.GetFileName(f));
+
+        signer.Sign(files, $"cp {{{{file...}}}} '{outDir}'", 2, _ => { }, true);
+
+        foreach (var n in names) {
+            Assert.Equal(n, File.ReadAllText(Path.Combine(outDir, n)));
+        }
+    }
+
+    [Fact]
+    public void Sign_Template_BashPlaceholderInDoubleQuotes_IsOneWord()
+    {
+        Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "bash-only test");
+
+        using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
+        var console = new BasicConsole(logger, new VelopackDefaults(true));
+        var signer = new CodeSign(logger, console);
+
+        using var _1 = TempUtil.GetTempDirectory(out var dir);
+
+        var srcFile = Path.Combine(dir, "App With Spaces.exe");
+        File.WriteAllText(srcFile, "data");
+        var destFile = Path.Combine(dir, "dest.bin");
+
+        signer.Sign([srcFile], $"cp \"{{{{file}}}}\" '{destFile}'", 1, _ => { }, true);
+
+        Assert.Equal("data", File.ReadAllText(destFile));
+    }
+
+    [Fact]
+    public void Sign_Template_SingleFileTemplate_ManyFiles_EveryBatchIdentical()
+    {
+        // A {{file}} template pins parallelism to 1, so each file is its own batch, and
+        // every batch must run the template exactly as written.
         Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "bash-only test");
 
         using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
@@ -720,24 +819,19 @@ public class CodeSignTests
         };
         foreach (var f in files) File.WriteAllText(f, "dummy");
 
-        // Contains the characters EscapeForBash exists to protect: quotes and '$'.
-        signer.Sign(files, "echo \"marker_$V\" {{file}}", 1, _ => { }, true);
+        signer.Sign(files, "echo 'marker_$V' \"q\\\"x\" {{file}}", 1, _ => { }, true);
 
         var signOutput = GetSignToolOutput(logger);
         foreach (var f in files) {
-            Assert.Contains(Path.GetFileName(f), signOutput);
+            Assert.Contains($"marker_$V q\"x {f}", signOutput);
         }
-
-        // One line per batch, each with the literal marker: proof no batch was corrupted.
-        var markers = signOutput.Split("marker_$V").Length - 1;
-        Assert.Equal(files.Length, markers);
     }
 
     [Fact]
-    public void Sign_Template_MultiFileTemplate_MoreFilesThanParallelism_NotDoubleEscaped()
+    public void Sign_Template_MultiFileTemplate_MoreFilesThanParallelism_EveryBatchIdentical()
     {
-        // Same defect via the {{file...}} path, where batching happens once the file
-        // count exceeds --signParallel.
+        // Same via the {{file...}} path, where batching happens once the file count
+        // exceeds --signParallel.
         Assert.SkipWhen(VelopackRuntimeInfo.IsWindows, "bash-only test");
 
         using var logger = _output.BuildLoggerFor<CodeSignTests>(LogLevel.Debug);
@@ -756,15 +850,12 @@ public class CodeSignTests
         foreach (var f in files) File.WriteAllText(f, "dummy");
 
         // 5 files at a parallelism of 2 gives batches of 2, 2 and 1.
-        signer.Sign(files, "echo \"marker_$V\" {{file...}}", 2, _ => { }, true);
+        signer.Sign(files, "echo 'marker_$V' \"q\\\"x\" {{file...}}", 2, _ => { }, true);
 
         var signOutput = GetSignToolOutput(logger);
-        foreach (var f in files) {
-            Assert.Contains(Path.GetFileName(f), signOutput);
-        }
-
-        var markers = signOutput.Split("marker_$V").Length - 1;
-        Assert.Equal(3, markers);
+        Assert.Contains($"marker_$V q\"x {files[0]} {files[1]}", signOutput);
+        Assert.Contains($"marker_$V q\"x {files[2]} {files[3]}", signOutput);
+        Assert.Contains($"marker_$V q\"x {files[4]}", signOutput);
     }
 
     [Fact]
@@ -786,7 +877,7 @@ public class CodeSignTests
         File.WriteAllText(file2, "data-2");
 
         var destFile = Path.Combine(dir, "dest_$V.bin");
-        signer.Sign([file1, file2], $"cp {{{{file}}}} \"{destFile}\"", 1, _ => { }, true);
+        signer.Sign([file1, file2], $"cp {{{{file}}}} '{destFile}'", 1, _ => { }, true);
 
         // Both batches ran, so the destination holds the second file's contents.
         Assert.True(File.Exists(destFile), "Destination must exist with '$' taken literally.");
