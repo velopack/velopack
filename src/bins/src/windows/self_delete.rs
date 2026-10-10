@@ -8,7 +8,8 @@ use std::{
 pub fn register_intent_to_delete_self(delay_seconds: usize, root_dir: &Path) -> Result<()> {
     info!("Scheduling removal of install directory...");
     let root_str = root_dir.to_string_lossy().to_string();
-    let command = format!("choice /C Y /N /D Y /T {} & rmdir /s /q \"{}\"", delay_seconds, root_str);
+    // ping waits ~1s between echos; unlike choice/timeout it does not need console input, which we don't pass on
+    let command = format!("ping -n {} 127.0.0.1 >nul & rmdir /s /q \"{}\"", delay_seconds + 1, root_str);
     info!("Running: cmd.exe /C {}", command);
 
     let parent_dir = root_dir.parent().unwrap_or(root_dir);
