@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Runtime.Versioning;
 using Azure.Core;
 using Azure.Identity;
+using Velopack.Packaging.Tests.Signing;
 using Velopack.Packaging.Windows;
 using Velopack.Packaging.Windows.Signing;
 using Velopack.TestCommon;

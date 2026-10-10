@@ -21,13 +21,19 @@ public class CodeSign
         _console = console;
     }
 
+    /// <summary>Returns what Windows (WinVerifyTrust) reports about the Authenticode signature of <paramref name="filePath"/>.</summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    public static FileSignatureInfo GetSignatureInfo(string filePath)
+    {
+        using var fileStream = File.OpenRead(filePath);
+        return FileSignatureInfo.GetFromFileStream(fileStream);
+    }
+
     /// <summary>Returns true if Windows considers <paramref name="filePath"/> Authenticode signed and trusted.</summary>
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public static bool IsTrusted(string filePath)
     {
-        using var fileStream = File.OpenRead(filePath);
-        var targetPackageSignatureInfo = FileSignatureInfo.GetFromFileStream(fileStream);
-        return targetPackageSignatureInfo.State == SignatureState.SignedAndTrusted;
+        return GetSignatureInfo(filePath).State == SignatureState.SignedAndTrusted;
     }
 
     /// <summary>
