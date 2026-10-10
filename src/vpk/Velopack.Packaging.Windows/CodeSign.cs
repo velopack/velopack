@@ -153,13 +153,14 @@ public class CodeSign
     /// <summary>
     /// Replaces {{file}} in a bash command with the quoted file paths. If the placeholder sits inside a
     /// "...", '...' or $'...' string, that string is closed around the paths so each path is still one word.
+    /// Not tracked: heredoc bodies, ${...} expansions, and backslash rules inside `...` (use $(...) instead).
     /// </summary>
     public static string SubstituteFilesBash(string template, IEnumerable<string> filePaths)
     {
         const string placeholder = "{{file}}";
         var quotedFiles = QuoteFileArgsBash(filePaths);
         var sb = new StringBuilder();
-        template = template.ReplaceLineEndings("\n");
+        template = template.Replace("\r\n", "\n");
 
         // $(...), `...` and (...) each start a fresh quoting context, e.g. in "$(dirname {{file}})" the
         // placeholder is unquoted. quote is '\0' (none), '\'', '"', or '$' for an ANSI-C $'...' string.
