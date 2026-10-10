@@ -65,6 +65,12 @@ fn delay_load_exe(bin_name: &str) {
         println!("cargo:rustc-link-arg-bin={bin_name}=/delayload:{dll}.dll");
     }
 
+    // Delay load DLLs that dependencies import Windows 8+ APIs from, so that Windows 7 can start the
+    // binaries; src/windows/delay_load.rs substitutes the missing DLL/functions when they are called.
+    for dll in ["user32", "combase"] {
+        println!("cargo:rustc-link-arg-bin={bin_name}=/delayload:{dll}.dll");
+    }
+
     // When using delayload, it's necessary to also link delayimp.lib
     // https://learn.microsoft.com/en-us/cpp/build/reference/dependentloadflag?view=msvc-170
     println!("cargo:rustc-link-arg-bin={bin_name}=delayimp.lib");
