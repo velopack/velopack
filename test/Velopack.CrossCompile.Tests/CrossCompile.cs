@@ -67,7 +67,8 @@ public class CrossCompile
         IoUtil.DeleteFileOrDirectoryHard(feedDir);
         Directory.CreateDirectory(feedDir);
         var feedFiles = Directory.GetFiles(tempDir, "releases.*.json").Concat(Directory.GetFiles(tempDir, "*.nupkg")).ToArray();
-        Assert.Contains(feedFiles, f => f.EndsWith("-2.0.0-full.nupkg"));
+        // non-Windows channels are part of the file name, e.g. {id}-2.0.0-linux-full.nupkg
+        Assert.Contains(feedFiles, f => Path.GetFileName(f).StartsWith($"{id}-2.0.0-") && f.EndsWith("-full.nupkg"));
         foreach (var file in feedFiles) {
             File.Copy(file, Path.Combine(feedDir, Path.GetFileName(file)));
         }
