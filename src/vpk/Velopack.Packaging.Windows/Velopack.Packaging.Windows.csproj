@@ -17,6 +17,10 @@
     <PackageReference Include="AsmResolver.PE.Win32Resources" Version="6.0.1" />
     <PackageReference Include="Microsoft.Security.Extensions" Version="1.4.0" />
     <PackageReference Include="Handlebars.Net" Version="2.4.3" />
+    <PackageReference Include="Azure.CodeSigning.Sdk" Version="0.1.164" />
+    <PackageReference Include="Azure.Identity" Version="1.21.0" />
+    <PackageReference Include="AzureSign.Core" Version="7.0.1" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>

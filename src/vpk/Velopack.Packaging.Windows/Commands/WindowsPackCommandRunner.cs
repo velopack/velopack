@@ -6,6 +6,7 @@ using Velopack.Core;
 using Velopack.Core.Abstractions;
 using Velopack.NuGet;
 using Velopack.Packaging.Windows.Msi;
+using Velopack.Packaging.Windows.Signing;
 using Velopack.Util;
 using Velopack.Windows;
 
@@ -13,9 +14,22 @@ namespace Velopack.Packaging.Windows.Commands;
 
 public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, WindowsPackOptionsValidator>
 {
+    private AzureTrustedSigner _azureTrustedSigner;
+
     public WindowsPackCommandRunner(ILogger logger, IFancyConsole console)
         : base(RuntimeOs.Windows, logger, console)
     {
+    }
+
+    protected override async Task RunCoreAsync(WindowsPackOptions options)
+    {
+        try {
+            await base.RunCoreAsync(options).ConfigureAwait(false);
+        } finally {
+            // the Azure session (credential + certificate chain) is shared by every signing phase of one pack
+            _azureTrustedSigner?.Dispose();
+            _azureTrustedSigner = null;
+        }
     }
 
     protected override Task CodeSign(Action<int> progress, string packDir)
@@ -27,9 +41,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
             .Select(x => x.FullName)
             .ToArray();
 
-        SignFilesImpl(progress, filesToSign);
-
-        return Task.CompletedTask;
+        return SignFilesImplAsync(progress, filesToSign);
     }
 
     protected override Task<string> PreprocessPackDir(Action<int> progress, string packDir)
@@ -207,7 +219,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
         return validated;
     }
 
-    protected override Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe,
+    protected override async Task CreateSetupPackage(Action<int> progress, string releasePkg, string packDir, string targetSetupExe,
         Func<string, VelopackAssetType, string> createAsset)
     {
         var setupExeProgress = Options.BuildMsi
@@ -266,9 +278,8 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
         }
 
         Log.Debug("Signing Setup files");
-        SignFilesImpl(signingProgress, filesToSign.ToArray());
+        await SignFilesImplAsync(signingProgress, filesToSign.ToArray()).ConfigureAwait(false);
         progress(100);
-        return Task.CompletedTask;
     }
 
     protected override async Task CreatePortablePackage(Action<int> progress, string packDir, string outputPath)
@@ -325,7 +336,7 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
         }
     }
 
-    private void SignFilesImpl(Action<int> progress, params string[] filePaths)
+    private async Task SignFilesImplAsync(Action<int> progress, params string[] filePaths)
     {
         var signParams = Options.SignParameters;
         var signTemplate = Options.SignTemplate;
@@ -340,37 +351,27 @@ public class WindowsPackCommandRunner : PackageBuilder<WindowsPackOptions, Windo
 
         if (!string.IsNullOrEmpty(signTemplate)) {
             helper.Sign(filePaths, signTemplate, signParallel, progress, true);
-        }
-
-        // signtool.exe does not work if we're not on windows.
-        if (!VelopackRuntimeInfo.IsWindows) return;
-
-        if (!string.IsNullOrEmpty(trustedSignMetadataPath)) {
+        } else if (!string.IsNullOrEmpty(trustedSignMetadataPath)) {
+            // managed Authenticode signing, works on every OS (MSI files are only produced and signed on Windows).
             Log.Info($"Use Azure Trusted Signing service for code signing. Metadata file path: {trustedSignMetadataPath}");
-
-            string dlibPath = GetDlibPath();
             var signDescription = Options.PackTitle ?? Options.PackId;
-            signParams =
-                $"/d \"{signDescription}\" /fd SHA256 /tr http://timestamp.acs.microsoft.com /v /debug /td SHA256 /dlib {HelperFile.AzureDlibFileName} /dmdf \"{trustedSignMetadataPath}\"";
-            helper.Sign(filePaths, signParams, signParallel, progress, false);
-        } else if (!string.IsNullOrEmpty(signParams)) {
+            await SignWithAzureTrustedSigningAsync(filePaths, trustedSignMetadataPath, signDescription, signParallel, progress)
+                .ConfigureAwait(false);
+        } else if (!string.IsNullOrEmpty(signParams) && VelopackRuntimeInfo.IsWindows) {
+            // signtool.exe does not work if we're not on windows.
             helper.Sign(filePaths, signParams, signParallel, progress, false);
         }
     }
 
-    [SupportedOSPlatform("windows")]
-    private string GetDlibPath()
+    /// <summary>
+    /// Signs files with the Azure Trusted Signing certificate profile described by <paramref name="metadataPath"/>.
+    /// Virtual so tests can sign with a local key instead of the Azure service.
+    /// </summary>
+    protected virtual Task SignWithAzureTrustedSigningAsync(string[] filePaths, string metadataPath, string description,
+        int parallelism, Action<int> progress)
     {
-        // DLib library is required for Azure Trusted Signing. It must be in the same directory as SignTool.exe.
-        // https://learn.microsoft.com/azure/trusted-signing/how-to-signing-integrations#download-and-install-the-trusted-signing-dlib-package
-        var signToolPath = HelperFile.SignToolPath;
-        var signToolDirectory = Path.GetDirectoryName(signToolPath);
-        var dlibPath = Path.Combine(signToolDirectory, HelperFile.AzureDlibFileName);
-        if (File.Exists(dlibPath)) {
-            return dlibPath;
-        }
-
-        throw new NotSupportedException("Azure Trusted Signing is not supported in this version of Velopack.");
+        _azureTrustedSigner ??= new AzureTrustedSigner(Log);
+        return _azureTrustedSigner.SignFilesAsync(filePaths, metadataPath, description, parallelism, progress);
     }
 
     [SupportedOSPlatform("windows")]

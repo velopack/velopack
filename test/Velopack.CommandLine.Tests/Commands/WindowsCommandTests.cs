@@ -249,6 +249,30 @@ public class PackWindowsCommandTests : ReleaseCommandTests<WindowsPackCommand>
         Assert.Equal("signtool {{file}}", command.SignTemplate);
     }
 
+    [Fact]
+    public void AzureTrustedSignFile_ParsesOnAllPlatforms()
+    {
+        var command = new WindowsPackCommand();
+
+        string metadataPath = Path.GetFullPath("metadata.json");
+        string cli = GetRequiredDefaultOptions() + $"--azureTrustedSignFile \"{metadataPath}\"";
+        ParseResult parseResult = command.ParseAndApply(cli);
+
+        Assert.Empty(parseResult.Errors);
+        Assert.Equal(metadataPath, command.AzureTrustedSignFile);
+    }
+
+    [Fact]
+    public void AzureTrustedSignFile_WithSignTemplate_FailsValidation()
+    {
+        string metadataPath = CreateTempFile(name: "metadata.json").FullName;
+
+        string cli = GetRequiredDefaultOptions() + $"--signTemplate \"signtool {{{{file}}}}\" --azureTrustedSignFile \"{metadataPath}\"";
+        var result = Validate(ParseAndMap(cli));
+
+        Assert.Contains(result.Errors, e => e.ErrorMessage.Contains("Cannot use more than one of 'signTemplate', 'signParams'"));
+    }
+
     [WindowsOnlyFact]
     public void SignParameters_WithParameters_ParsesValue()
     {
