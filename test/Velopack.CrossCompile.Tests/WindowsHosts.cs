@@ -97,9 +97,39 @@ internal sealed class SshWindowsHost : IWindowsHost
         return remote;
     }
 
+    /// <summary>
+    /// Runs the command in the VM's (auto-logged-on) desktop session via a scheduled task, like a user would.
+    /// Running it directly over SSH is not equivalent: Win32-OpenSSH kills every process in the session's job
+    /// when the command returns, which would kill the Update.exe that `apply` / `--uninstall` leave running.
+    /// </summary>
     public (int ExitCode, string StdOutput) Run(string exe, params string[] args)
     {
-        return Shell($"\"{exe}\" " + String.Join(" ", args.Select(a => a.Contains(' ') ? $"\"{a}\"" : a)));
+        var command = $"\"{exe}\" " + String.Join(" ", args.Select(a => a.Contains(' ') ? $"\"{a}\"" : a));
+        var job = $@"{StageDir}\job";
+        using (TempUtil.GetTempDirectory(out var tempDir)) {
+            var script = Path.Combine(tempDir, "job.cmd");
+            File.WriteAllText(
+                script,
+                $"@echo off\r\n{command} > {job}.out 2> {job}.err\r\necho %ERRORLEVEL% > {job}.exit\r\n");
+            Shell($"del /f /q {job}.out {job}.err {job}.exit 2>nul");
+            Stage(script);
+        }
+
+        Shell($@"schtasks /create /f /tn velopack-test /tr {StageDir}\job.cmd /sc once /st 23:59 /it >nul");
+        Shell("schtasks /run /tn velopack-test");
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        int exitCode;
+        while (!int.TryParse(Shell($"type {job}.exit 2>nul").StdOutput.Trim(), out exitCode)) {
+            if (sw.Elapsed > TimeSpan.FromMinutes(3))
+                throw new TimeoutException($"'{command}' did not finish within 3 minutes on the VM");
+            Thread.Sleep(1000);
+        }
+
+        var output = Shell($"type {job}.out").StdOutput;
+        Shell($"type {job}.err");
+        _logger.Info($"VM> {command} (exit {exitCode})");
+        return (exitCode, output);
     }
 
     public bool Exists(string path) => Shell($"if exist \"{path}\" (echo yes) else (echo no)").StdOutput.Trim() == "yes";
