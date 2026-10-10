@@ -48,6 +48,23 @@ public static class TestApp
     }
 
     /// <summary>
+    /// True when the update/setup/stub binaries needed to pack a Windows target can be resolved. Locally (Debug) these come
+    /// from target/debug, which on Linux/macOS only has the host's binaries, so cross-OS Windows packing is unavailable there.
+    /// </summary>
+    public static bool CanPackWindowsTarget(RID targetRid)
+    {
+        try {
+            var log = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+            HelperFile.GetUpdatePath(targetRid, log);
+            HelperFile.GetSetupPath(targetRid, log);
+            HelperFile.GetStubExecutablePath(targetRid, log);
+            return true;
+        } catch (Exception) {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Copies a cached TestApp publish for the given RID into destDir (replacing destDir if it
     /// already exists) and writes testString to test_string.txt inside it.
     /// </summary>
@@ -108,7 +125,8 @@ public static class TestApp
     }
 
     public static void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
-        string? releaseNotes = null, string? channel = null, RID? targetRid = null, string? packTitle = null, string? azureTrustedSignFile = null)
+        string? releaseNotes = null, string? channel = null, RID? targetRid = null, string? packTitle = null, string? azureTrustedSignFile = null,
+        bool buildMsi = false)
     {
         targetRid ??= RID.Parse(VelopackRuntimeInfo.SystemRid);
 
@@ -131,7 +149,8 @@ public static class TestApp
                     PackDirectory = publishDir,
                     ReleaseNotes = releaseNotes,
                     Channel = channel,
-                    AzureTrustedSignFile = azureTrustedSignFile
+                    AzureTrustedSignFile = azureTrustedSignFile,
+                    BuildMsi = buildMsi,
                 };
                 var runner = new WindowsPackCommandRunner(logger, console);
                 runner.Run(options).GetAwaiterResult();

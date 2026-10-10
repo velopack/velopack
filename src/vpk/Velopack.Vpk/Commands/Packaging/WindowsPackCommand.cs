@@ -70,13 +70,17 @@ public class WindowsPackCommand : PackCommand
             .SetDescription("Use a custom signing command. {{file}} will be substituted.")
             .SetArgumentHelpName("COMMAND");
 
+        AddOption<FileInfo>((v) => AzureTrustedSignFile = v.ToFullNameOrNull(), ["--azureTrustedSignFile"])
+            .SetDescription("Path to Azure Trusted Signing metadata.json.")
+            .SetArgumentHelpName("PATH");
+
         AddOption<string>((v) => SignExclude = v, ["--signExclude"])
             .SetDescription("A regex which excludes matched files from signing.")
             .SetArgumentHelpName("REGEX")
             .SetHidden();
 
         AddOption<int>((v) => SignParallel = v, ["--signParallel"])
-            .SetDescription("The number of files to sign in each signing command.")
+            .SetDescription("Files per signing command, or concurrent Azure signs.")
             .SetArgumentHelpName("NUM")
             .SetHidden()
             .SetDefault(10);
@@ -98,10 +102,6 @@ public class WindowsPackCommand : PackCommand
             AddOption<string>((v) => SignParameters = v, ["--signParams", "-n"])
                 .SetDescription("Sign files via signtool.exe using these parameters.")
                 .SetArgumentHelpName("PARAMS");
-
-            AddOption<FileInfo>((v) => AzureTrustedSignFile = v.ToFullNameOrNull(), ["--azureTrustedSignFile"])
-                .SetDescription("Path to Azure Trusted Signing metadata.json.")
-                .SetArgumentHelpName("PATH");
 
             AddOption<bool>((v) => BuildMsi = v, ["--msi"])
                 .SetDescription("Compile a .msi machine-wide bootstrap package.");

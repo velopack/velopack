@@ -90,6 +90,7 @@
       SignExclude="$(VelopackSignExclude)"
       SignParallel="$(VelopackSignParallel)"
       SignTemplate="$(VelopackSignTemplate)"
+      AzureTrustedSignFile="$(VelopackAzureTrustedSignFile)"
       Categories="$(VelopackCategories)"
       Shortcuts="$(VelopackShortcuts)"
       Compression="$(VelopackAppImageCompression)"

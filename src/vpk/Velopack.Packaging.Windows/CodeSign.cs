@@ -20,29 +20,34 @@ public class CodeSign
         _console = console;
     }
 
-    private bool IsTrusted(string filePath)
+    /// <summary>Returns true if Windows considers <paramref name="filePath"/> Authenticode signed and trusted.</summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    public static bool IsTrusted(string filePath)
     {
         using var fileStream = File.OpenRead(filePath);
         var targetPackageSignatureInfo = FileSignatureInfo.GetFromFileStream(fileStream);
         return targetPackageSignatureInfo.State == SignatureState.SignedAndTrusted;
     }
 
-    private bool ShouldSign(string filePath)
+    /// <summary>
+    /// Returns false for files that do not exist, or (on Windows) that already have a trusted Authenticode signature.
+    /// </summary>
+    public static bool ShouldSign(ILogger log, string filePath)
     {
         if (String.IsNullOrWhiteSpace(filePath)) return true;
 
         if (!File.Exists(filePath)) {
-            Log.Warn($"Cannot sign '{filePath}', file does not exist.");
+            log.Warn($"Cannot sign '{filePath}', file does not exist.");
             return false;
         }
 
         try {
-            if (VelopackRuntimeInfo.IsWindows && IsTrusted(filePath)) {
-                Log.Debug($"'{filePath}' is already signed, skipping...");
+            if (OperatingSystem.IsWindows() && IsTrusted(filePath)) {
+                log.Debug($"'{filePath}' is already signed, skipping...");
                 return false;
             }
         } catch (Exception ex) {
-            Log.Error(ex, "Failed to determine signing status for " + filePath);
+            log.Error(ex, "Failed to determine signing status for " + filePath);
         }
 
         return true;
@@ -53,7 +58,7 @@ public class CodeSign
         Queue<string> pendingSign = new Queue<string>();
 
         foreach (var f in filePaths) {
-            if (ShouldSign(f)) {
+            if (ShouldSign(Log, f)) {
                 pendingSign.Enqueue(Path.GetFullPath(f));
             }
         }

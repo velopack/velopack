@@ -132,9 +132,6 @@ public static class HelperFile
     [SupportedOSPlatform("windows")]
     public static string SignToolPath => FindHelperFile("signing\\signtool.exe");
 
-    [SupportedOSPlatform("windows")]
-    public const string AzureDlibFileName = "Azure.CodeSigning.Dlib.dll";
-
     public static string GetDefaultAppIcon(RuntimeOs os)
     {
         switch (os) {
