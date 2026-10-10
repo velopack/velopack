@@ -69,7 +69,7 @@ tempfile = "3.27"
 ntest = "0.9"
 pretty_assertions = "1.4"
 waitpid-any = "0.3"
-xdialog = { version = "3.1", features = ["win32-direct"] }
+xdialog = { version = "4.1", features = ["win32-direct"] }
 fluent-bundle = "0.16"
 fluent = "0.17"
 fluent-langneg = { version = "0.14", features = ["cldr"] }

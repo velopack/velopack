@@ -137,6 +137,7 @@ fn main() {
 
 fn real_main() -> Result<()> {
     dialogs::init();
+    shared::init_dialog_icon();
     if let Err(e) = main_inner() {
         // The command parser uses `ignore_errors(true)` so that unknown / legacy arguments don't
         // abort the updater. A side effect is that clap no longer prints --help / --version itself;

@@ -2,11 +2,51 @@ use crate::locale_strings;
 use anyhow::{bail, Result};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::OnceLock;
 use std::time::Duration;
-use xdialog::{XDialogIcon, XDialogOptions, XDialogResult};
+use xdialog::{XDialogError, XDialogIcon, XDialogIconSource, XDialogOptions, XDialogResult};
 
 static SILENT: AtomicBool = AtomicBool::new(false);
 static DIALOG_TIMEOUT_MS: AtomicU64 = AtomicU64::new(0);
+static APP_ICON: OnceLock<&'static [u8]> = OnceLock::new();
+
+/// Sets the app icon (an `.ico`, `.png` or `.icns` image) used as the window / taskbar icon of
+/// every dialog, and shown in place of the information icon in general dialogs. Call once at startup.
+pub fn set_app_icon(icon: Vec<u8>) {
+    let _ = APP_ICON.set(icon.leak());
+}
+
+fn app_icon_source() -> Option<XDialogIconSource> {
+    APP_ICON.get().map(|icon| XDialogIconSource::Bytes((*icon).into()))
+}
+
+/// The icon for general (non-warning, non-error) dialogs: the app icon if one is set, else `fallback`.
+pub(crate) fn general_icon(fallback: XDialogIcon) -> XDialogIcon {
+    if APP_ICON.get().is_some() {
+        XDialogIcon::Custom
+    } else {
+        fallback
+    }
+}
+
+pub(crate) fn dialog_options(title: &str, header: &str, body: &str, icon: XDialogIcon, buttons: Vec<String>) -> XDialogOptions {
+    XDialogOptions {
+        title: title.to_string(),
+        main_instruction: header.to_string(),
+        message: body.to_string(),
+        icon,
+        icon_source: app_icon_source(),
+        buttons,
+    }
+}
+
+fn show_message(title: &str, header: &str, body: &str, icon: XDialogIcon, buttons: Vec<String>) -> Result<XDialogResult, XDialogError> {
+    let dialog = xdialog::show_message(dialog_options(title, header, body, icon, buttons));
+    match get_dialog_timeout() {
+        Some(timeout) => dialog.wait_timeout(timeout),
+        None => dialog.wait(),
+    }
+}
 
 pub fn set_silent(silent: bool) {
     SILENT.store(silent, Ordering::Relaxed);
@@ -33,47 +73,26 @@ fn show_error(title: &str, header: &str, body: &str) {
     if get_silent() {
         return;
     }
-    let _ = xdialog::show_message(
-        XDialogOptions {
-            title: title.to_string(),
-            main_instruction: header.to_string(),
-            message: body.to_string(),
-            icon: XDialogIcon::Error,
-            buttons: vec![locale_strings::btn_ok()],
-        },
-        get_dialog_timeout(),
-    );
+    let _ = show_message(title, header, body, XDialogIcon::Error, vec![locale_strings::btn_ok()]);
 }
 
 fn show_warn(title: &str, header: &str, body: &str) {
     if get_silent() {
         return;
     }
-    let _ = xdialog::show_message(
-        XDialogOptions {
-            title: title.to_string(),
-            main_instruction: header.to_string(),
-            message: body.to_string(),
-            icon: XDialogIcon::Warning,
-            buttons: vec![locale_strings::btn_ok()],
-        },
-        get_dialog_timeout(),
-    );
+    let _ = show_message(title, header, body, XDialogIcon::Warning, vec![locale_strings::btn_ok()]);
 }
 
 fn show_info(title: &str, header: &str, body: &str) {
     if get_silent() {
         return;
     }
-    let _ = xdialog::show_message(
-        XDialogOptions {
-            title: title.to_string(),
-            main_instruction: header.to_string(),
-            message: body.to_string(),
-            icon: XDialogIcon::Information,
-            buttons: vec![locale_strings::btn_ok()],
-        },
-        get_dialog_timeout(),
+    let _ = show_message(
+        title,
+        header,
+        body,
+        general_icon(XDialogIcon::Information),
+        vec![locale_strings::btn_ok()],
     );
 }
 
@@ -81,19 +100,9 @@ fn show_ok_cancel(title: &str, header: &str, body: &str, ok_text: Option<&str>) 
     if get_silent() {
         return false;
     }
-    let timeout = get_dialog_timeout();
     let ok_label = ok_text.map(|s| s.to_string()).unwrap_or_else(locale_strings::btn_ok);
     let cancel_label = locale_strings::btn_cancel();
-    let result = xdialog::show_message(
-        XDialogOptions {
-            title: title.to_string(),
-            main_instruction: header.to_string(),
-            message: body.to_string(),
-            icon: XDialogIcon::Warning,
-            buttons: vec![ok_label, cancel_label],
-        },
-        timeout,
-    );
+    let result = show_message(title, header, body, general_icon(XDialogIcon::Warning), vec![ok_label, cancel_label]);
     if matches!(result, Ok(XDialogResult::TimeoutElapsed)) {
         warn!("Dialog timed out, treating as cancel.");
     }
@@ -167,16 +176,7 @@ pub fn show_uninstall_complete_with_errors_dialog(app_title: &str, log_path: Opt
         let open_log_label = locale_strings::btn_open_log();
         let ok_label = locale_strings::btn_ok();
         let full_body = format!("{}\n\n{}", body, footer);
-        let result = xdialog::show_message(
-            XDialogOptions {
-                title,
-                main_instruction: header.clone(),
-                message: full_body,
-                icon: XDialogIcon::Warning,
-                buttons: vec![ok_label, open_log_label],
-            },
-            get_dialog_timeout(),
-        );
+        let result = show_message(&title, &header, &full_body, XDialogIcon::Warning, vec![ok_label, open_log_label]);
         if matches!(result, Ok(XDialogResult::ButtonPressed(1))) {
             open_path(Path::new(&log_str));
         }
@@ -230,16 +230,8 @@ pub fn show_overwrite_repair_dialog(
     let open_dir_label = locale_strings::btn_open_install_dir();
     let full_body = format!("{}\n\n{}", body, footer);
 
-    let result = xdialog::show_message(
-        XDialogOptions {
-            title,
-            main_instruction: instruction,
-            message: full_body,
-            icon: XDialogIcon::Warning,
-            buttons: vec![yes_label, open_dir_label, cancel_label],
-        },
-        get_dialog_timeout(),
-    );
+    let buttons = vec![yes_label, open_dir_label, cancel_label];
+    let result = show_message(&title, &instruction, &full_body, general_icon(XDialogIcon::Warning), buttons);
 
     match result {
         Ok(XDialogResult::ButtonPressed(0)) => true,
