@@ -124,6 +124,35 @@ public static class TestApp
         return publishDir;
     }
 
+    /// <summary>
+    /// Packs the rust testapp (src/bins/src/testapp.rs) for win-x64. It has no .NET runtime dependency and CI
+    /// builds it for the win7 target, so unlike TestApp its packages can also be installed on Windows 7.
+    /// </summary>
+    public static void PackRustTestAppWindows(string id, string version, string testString, string releaseDir, ILogger logger)
+    {
+        // CI ships the win7-target binary in the rust-windows-x64 artifact (testapp_x64.exe) to every OS;
+        // a local Windows build only produces the unsuffixed testapp.exe.
+        var rustBinary = new[] { "testapp_x64.exe", "testapp.exe" }
+            .Select(n => PathHelper.GetRustAsset(n))
+            .FirstOrDefault(File.Exists)
+            ?? throw new FileNotFoundException($"Rust testapp not found in {PathHelper.GetRustBuildOutputDir()}.");
+
+        using var _ = TempUtil.GetTempDirectory(out var packDir);
+        File.Copy(rustBinary, Path.Combine(packDir, "testapp.exe"));
+        File.WriteAllText(Path.Combine(packDir, TestStringFileName), testString);
+
+        var options = new WindowsPackOptions {
+            EntryExecutableName = "testapp.exe",
+            ReleaseDir = new DirectoryInfo(releaseDir),
+            PackId = id,
+            TargetRuntime = RID.Parse("win-x64"),
+            PackVersion = version,
+            PackDirectory = packDir,
+        };
+        var console = new BasicConsole(logger, new VelopackDefaults(false));
+        new WindowsPackCommandRunner(logger, console).Run(options).GetAwaiterResult();
+    }
+
     public static void PackTestApp(string id, string version, string testString, string releaseDir, ILogger logger,
         string? releaseNotes = null, string? channel = null, RID? targetRid = null, string? packTitle = null, string? azureTrustedSignFile = null,
         bool buildMsi = false)
