@@ -139,6 +139,19 @@ Setup.exe/Update.exe and rebuilds an `.ico`; Linux reads `{AppImage root}/.DirIc
 Info, progress and question dialogs use `XDialogIcon::Custom` (via `general_icon`, which falls back to a stock
 icon when no app icon was found); warning/error dialogs keep `Warning`/`Error`.
 
+## Windows 7 support
+
+The Windows x86/x64 binaries are built for the `*-win7-windows-msvc` targets and must keep loading on Windows 7:
+- Never statically import Windows 8+ APIs; resolve them at runtime with `libloading` (see `splash.rs`/`mitigate.rs`).
+- Dependencies that import them anyway (windows-core's `combase.dll`, xdialog's `SetThreadDpiAwarenessContext`) are
+  handled by delay-loading `user32`/`combase` (`src/bins/build.rs`) plus the delay-load failure hook in
+  `src/bins/src/windows/delay_load.rs`, which redirects/stubs them. A new missing import shows up as setup/update
+  exiting with `0xC0000139` (STATUS_ENTRYPOINT_NOT_FOUND) on Windows 7 — extend the hook or fix the caller.
+- CI covers this with the `win7` job in `build-tests.yml`: it boots a Win7 SP1 qcow2 under QEMU/KVM and runs
+  `CrossCompile.RunCrossAppWindows7` over SSH (`VELOPACK_WIN7_SSH=user:password@host:port`). The .NET 8 TestApp
+  can't run on Win7, so it uses the rust testapp packages (`-rust` artifact ids). Commands run through a scheduled
+  task in the desktop session, since Win32-OpenSSH kills a session's child processes (e.g. Update.exe) on exit.
+
 ## Locators
 
 Locators (`IVelopackLocator` in C#, `VelopackLocator` in Rust) resolve platform-specific paths and app metadata. Both implementations follow the same logic and must stay in sync. All locators read app identity (ID, version, channel) from a `sq.version` manifest file.

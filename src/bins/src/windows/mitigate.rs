@@ -37,4 +37,6 @@ pub fn pre_main_sideload_mitigation() {
     unsafe {
         set_default_dll_directories(LOAD_LIBRARY_SEARCH_SYSTEM32);
     }
+
+    super::delay_load::ensure_failure_hook_linked();
 }

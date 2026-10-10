@@ -1,4 +1,5 @@
 // pub mod locksmith;
+pub mod delay_load;
 pub mod known_path;
 pub mod mitigate;
 pub mod prerequisite;

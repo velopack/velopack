@@ -182,8 +182,8 @@ pub fn init_dpi_awareness() {
 }
 
 fn get_monitor_dpi_scale(h_monitor: HMONITOR) -> f32 {
-    // Lazy-load GetDpiForMonitor from shcore.dll (Win8.1+).
-    // Falls back to GetDpiForSystem (Vista+) if unavailable.
+    // Lazy-load GetDpiForMonitor from shcore.dll (Win8.1+), then GetDpiForSystem from user32.dll (Win10 1607+).
+    // Falls back to the screen DC's DPI (all versions) if neither is available.
     unsafe {
         type GetDpiForMonitorFn = unsafe extern "system" fn(hmonitor: HMONITOR, dpi_type: u32, dpi_x: *mut u32, dpi_y: *mut u32) -> HRESULT;
         if let Ok(lib) = libloading::Library::new("shcore.dll") {
@@ -197,8 +197,20 @@ fn get_monitor_dpi_scale(h_monitor: HMONITOR) -> f32 {
             }
         }
         // Fallback to system DPI
-        use windows::Win32::UI::HiDpi::GetDpiForSystem;
-        GetDpiForSystem() as f32 / 96.0
+        type GetDpiForSystemFn = unsafe extern "system" fn() -> u32;
+        if let Ok(lib) = libloading::Library::new("user32.dll") {
+            if let Ok(func) = lib.get::<GetDpiForSystemFn>(b"GetDpiForSystem") {
+                return func() as f32 / 96.0;
+            }
+        }
+        let hdc = GetDC(None);
+        let dpi = GetDeviceCaps(Some(hdc), LOGPIXELSX);
+        ReleaseDC(None, hdc);
+        if dpi > 0 {
+            dpi as f32 / 96.0
+        } else {
+            1.0
+        }
     }
 }
 
