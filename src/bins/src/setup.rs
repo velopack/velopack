@@ -5,7 +5,7 @@
 extern crate log;
 
 use anyhow::Result;
-use clap::{arg, value_parser, Command};
+use clap::{arg, value_parser, ArgMatches, Command};
 use memmap2::Mmap;
 use std::ffi::OsString;
 use std::fs::File;
@@ -92,7 +92,7 @@ fn real_main() -> Result<()> {
     Ok(())
 }
 
-fn main_inner() -> Result<()> {
+fn root_command() -> Command {
     #[rustfmt::skip]
     let mut arg_config = Command::new("Setup")
         .about(format!("Velopack Setup ({}) installs applications.\nhttps://velopack.io", env!("NGBV_VERSION")))
@@ -100,7 +100,7 @@ fn main_inner() -> Result<()> {
         .arg(arg!(-v --verbose "Print debug messages to console"))
         .arg(arg!(-l --log <FILE> "Enable file logging and set location").required(false).value_parser(value_parser!(PathBuf)))
         .arg(arg!(-t --installto <DIR> "Installation directory to install the application").required(false).value_parser(value_parser!(PathBuf)))
-        .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceded by '--'.").required(false).last(true).num_args(0..))
+        .arg(arg!([EXE_ARGS] "Arguments to pass to the started executable. Must be preceded by '--'.").required(false).last(true).num_args(0..).value_parser(value_parser!(OsString)))
         .ignore_errors(true);
 
     if cfg!(debug_assertions) {
@@ -111,7 +111,15 @@ fn main_inner() -> Result<()> {
         );
     }
 
-    let matches = arg_config.try_get_matches()?;
+    arg_config
+}
+
+fn get_exe_args(matches: &ArgMatches) -> Option<Vec<OsString>> {
+    matches.get_many::<OsString>("EXE_ARGS").map(|v| v.cloned().collect())
+}
+
+fn main_inner() -> Result<()> {
+    let matches = root_command().try_get_matches()?;
 
     let silent = matches.get_flag("silent");
     dialogs::set_silent(silent);
@@ -128,7 +136,7 @@ fn main_inner() -> Result<()> {
 
     let debug = matches.get_one::<PathBuf>("debug");
     let install_to = matches.get_one::<PathBuf>("installto");
-    let exe_args = matches.get_many::<OsString>("EXE_ARGS").map(|v| v.map(|f| f.to_os_string()).collect());
+    let exe_args = get_exe_args(&matches);
 
     info!("Starting Velopack Setup ({})", env!("NGBV_VERSION"));
     info!("    Location: {:?}", env::current_exe()?);
@@ -286,7 +294,8 @@ fn pe_attribute_certificates(pe: &[u8]) -> Vec<&[u8]> {
 
 #[cfg(test)]
 mod tests {
-    use super::{pe_attribute_certificates, read_signature_channel_override};
+    use super::{get_exe_args, pe_attribute_certificates, read_signature_channel_override, root_command};
+    use std::ffi::OsString;
     use velopack::windows_channel_tag::test_support::GOLDEN_VECTOR_BETA;
 
     /// Builds a minimal-but-valid PE32+ image with an attribute certificate table containing a
@@ -327,6 +336,21 @@ mod tests {
         pe[entry..entry + 4].copy_from_slice(&(table_offset as u32).to_le_bytes());
         pe[entry + 4..entry + 8].copy_from_slice(&(table_size as u32).to_le_bytes());
         pe
+    }
+
+    #[test]
+    fn exe_args_after_double_dash_are_parsed() {
+        let matches = root_command()
+            .try_get_matches_from(["Setup.exe", "--silent", "--", "--foo", "bar"])
+            .unwrap();
+        assert!(matches.get_flag("silent"));
+        assert_eq!(get_exe_args(&matches), Some(vec![OsString::from("--foo"), OsString::from("bar")]));
+    }
+
+    #[test]
+    fn exe_args_absent_without_double_dash() {
+        let matches = root_command().try_get_matches_from(["Setup.exe", "--silent"]).unwrap();
+        assert_eq!(get_exe_args(&matches), None);
     }
 
     #[test]
