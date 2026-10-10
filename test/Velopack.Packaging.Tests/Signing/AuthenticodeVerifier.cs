@@ -2,8 +2,9 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
+using Velopack.Packaging.Windows.Signing;
 
-namespace Velopack.Packaging.Windows.Signing;
+namespace Velopack.Packaging.Tests.Signing;
 
 /// <summary>The result of a successful <see cref="AuthenticodeVerifier.VerifyFile"/>.</summary>
 /// <param name="SignedCms">The decoded signature.</param>
@@ -13,7 +14,7 @@ namespace Velopack.Packaging.Windows.Signing;
 /// The RFC 3161 timestamp counter signature, if there is one that .NET can decode (see <paramref name="TimestampInfo"/>).
 /// </param>
 /// <param name="TimestampInfo">The verified TSTInfo of the RFC 3161 timestamp, if there is one.</param>
-public sealed record AuthenticodeVerificationResult(
+internal sealed record AuthenticodeVerificationResult(
     SignedCms SignedCms,
     X509Certificate2 SignerCertificate,
     HashAlgorithmName DigestAlgorithm,
@@ -25,7 +26,7 @@ public sealed record AuthenticodeVerificationResult(
 /// the file, the signature is valid for the embedded signer certificate, and any RFC 3161 timestamp is valid for the
 /// signature. Certificate trust is NOT evaluated.
 /// </summary>
-public static class AuthenticodeVerifier
+internal static class AuthenticodeVerifier
 {
     private const string TstInfoContentTypeOid = "1.2.840.113549.1.9.16.1.4";
 

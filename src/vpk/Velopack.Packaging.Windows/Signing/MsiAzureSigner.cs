@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using AzureSign.Core;
 using Microsoft.Extensions.Logging;
+using Microsoft.Security.Extensions;
 using Velopack.Core;
 
 namespace Velopack.Packaging.Windows.Signing;
@@ -19,6 +20,7 @@ public sealed class MsiAzureSigner : IMsiSigner
     private readonly CallbackSafeRsa _rsa;
     private readonly AuthenticodeKeyVaultSigner _signer;
     private readonly X509Certificate2 _certificate;
+    private readonly bool _timestamped;
 
     /// <param name="key">The signing key and certificates.</param>
     /// <param name="log">Logger.</param>
@@ -27,6 +29,7 @@ public sealed class MsiAzureSigner : IMsiSigner
     {
         _log = log ?? throw new ArgumentNullException(nameof(log));
         _certificate = key.Certificate;
+        _timestamped = timestampUrl != null;
         _rsa = new CallbackSafeRsa(key.PrivateKey);
         var timestamp = timestampUrl == null
             ? TimeStampConfiguration.None
@@ -61,28 +64,39 @@ public sealed class MsiAzureSigner : IMsiSigner
     }
 
     /// <summary>
-    /// Checks the new signature is intact and was made with our certificate. Trust is deliberately not required:
-    /// Private Trust and test certificate profiles chain to roots Windows does not trust, and the old signtool path
-    /// never checked it either.
+    /// Checks the new signature is intact, was made with our certificate, and carries the timestamp if one was requested.
+    /// Trust is deliberately not required: Private Trust and test certificate profiles chain to roots Windows does not
+    /// trust, and the old signtool path never checked it either.
     /// </summary>
     private void VerifySignature(string msiPath)
     {
-        uint result = WinTrust.Verify(msiPath);
-        if (!WinTrust.IsIntactSignature(result)) {
-            throw new UserInfoException($"'{msiPath}' was signed, but the signature does not verify (WinVerifyTrust 0x{result:X8}).");
+        var info = CodeSign.GetSignatureInfo(msiPath);
+        var signer = info.SigningCertificate;
+
+        // Microsoft.Security.Extensions reports every untrusted chain as Unsigned: a self-signed root as UntrustedRoot, and
+        // a chain that does not reach a root at all (CERT_E_CHAINING; roots are never embedded) as Unknown. A bad or
+        // mismatched signature is Unsigned/None or Invalid, and has no SigningCertificate if the signer cannot be found.
+        bool intact = info.State == SignatureState.SignedAndTrusted
+                      || (info.State == SignatureState.Unsigned
+                          && info.StateReason is SignatureStateReason.UntrustedRoot or SignatureStateReason.Unknown);
+        if (!intact || signer == null) {
+            throw new UserInfoException(
+                $"'{msiPath}' was signed, but the signature does not verify ({info.State}, {info.StateReason}).");
         }
 
-        if (result != 0) {
-            _log.Debug($"'{msiPath}' is signed, but its certificate chain is not trusted on this machine (0x{result:X8}).");
+        if (info.State != SignatureState.SignedAndTrusted) {
+            _log.Debug($"'{msiPath}' is signed, but its certificate chain is not trusted on this machine ({info.StateReason}).");
         }
 
-#pragma warning disable SYSLIB0057 // CreateFromSignedFile is the only managed way to read an MSI's embedded signer
-        using var signer = new X509Certificate2(X509Certificate.CreateFromSignedFile(msiPath));
-#pragma warning restore SYSLIB0057
         if (!signer.RawData.AsSpan().SequenceEqual(_certificate.RawData)) {
             throw new UserInfoException(
                 $"'{msiPath}' was signed with '{signer.Subject}' ({signer.Thumbprint}) instead of the expected certificate " +
                 $"({_certificate.Thumbprint}).");
+        }
+
+        // a corrupt timestamp is also reported as Unsigned/Unknown, but then Windows does not report the timestamp signer
+        if (_timestamped && info.TimestampCertificate == null) {
+            throw new UserInfoException($"'{msiPath}' was signed, but Windows does not recognize its timestamp.");
         }
     }
 

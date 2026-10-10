@@ -1,6 +1,9 @@
 #nullable enable
+using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Security.Extensions;
+using Velopack.Packaging.Windows;
 using Velopack.Packaging.Windows.Signing;
 
 namespace Velopack.Packaging.Tests.Signing;
@@ -84,6 +87,20 @@ public sealed class TestSigningCertificates : IDisposable
     {
         var rsa = new RemoteRsa(signer ?? new InMemoryDigestSigner(LeafKey), Leaf.GetRSAPublicKey()!);
         return new AuthenticodeSigningKey(rsa, Leaf, [Intermediate]);
+    }
+
+    /// <summary>
+    /// Asserts Windows (WinVerifyTrust) sees an intact signature by <see cref="Leaf"/> that it does not trust. The root is
+    /// never embedded, so the chain cannot be built (CERT_E_CHAINING), which Microsoft.Security.Extensions reports as
+    /// Unsigned/Unknown. A modified file is Invalid/BadDigest, and a bad signature value is Unsigned/None.
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    public FileSignatureInfo AssertIntactButUntrusted(string path)
+    {
+        var info = CodeSign.GetSignatureInfo(path);
+        Assert.Equal((SignatureState.Unsigned, SignatureStateReason.Unknown), (info.State, info.StateReason));
+        Assert.Equal(Leaf.Thumbprint, info.SigningCertificate?.Thumbprint);
+        return info;
     }
 
     /// <summary>The chain as Azure returns it: a PKCS#7 certs-only blob, in the given order.</summary>

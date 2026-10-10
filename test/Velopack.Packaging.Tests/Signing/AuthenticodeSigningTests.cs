@@ -7,8 +7,10 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Microsoft.Security.Extensions;
 using Neovolve.Logging.Xunit;
 using Velopack.Core;
+using Velopack.Packaging.Windows;
 using Velopack.Packaging.Windows.Signing;
 using Velopack.Util;
 
@@ -917,7 +919,8 @@ public class AuthenticodeSigningTests
         var bytes = File.ReadAllBytes(plain);
         bytes[0x10] ^= 0xFF;
         File.WriteAllBytes(plain, bytes);
-        Assert.Equal(WinTrust.TRUST_E_BAD_DIGEST, WinTrust.Verify(plain));
+        var tampered = CodeSign.GetSignatureInfo(plain);
+        Assert.Equal((SignatureState.Invalid, SignatureStateReason.BadDigest), (tampered.State, tampered.StateReason));
     }
 
     [Theory]
@@ -926,29 +929,29 @@ public class AuthenticodeSigningTests
     public void WinVerifyTrust_RecognizesTimestamp(string fixture)
     {
         // Trusted Signing leaf certificates live ~3 days, so a timestamp Windows ignores would break signatures soon after the
-        // pack. The WinVerifyTrust result above is the same chain error with or without it, so ask for the counter-signers.
+        // pack. The signature state above is the same chain error with or without it, so ask for the timestamp signer.
         Assert.SkipUnless(OperatingSystem.IsWindows(), "Windows only");
         using var tempDir = TempUtil.GetTempDirectory(out var dir);
 
         var plain = CopyFixture(fixture, dir, "plain-" + fixture);
         SignFile(plain);
-        Assert.Empty(WinTrustTimestampProbe.GetTimestampSigners(plain));
+        Assert.Null(CodeSign.GetSignatureInfo(plain).TimestampCertificate);
 
         var timestamped = CopyFixture(fixture, dir, "ts-" + fixture);
         SignFile(timestamped, timestamper: CreateFakeTimestamper(new FakeTimestampAuthority(Certs.TimestampAuthority)));
-        var timestampSigner = Assert.Single(WinTrustTimestampProbe.GetTimestampSigners(timestamped));
-        Assert.Equal(Certs.TimestampAuthority.Thumbprint, timestampSigner.Thumbprint);
+        Assert.Equal(Certs.TimestampAuthority.Thumbprint, CodeSign.GetSignatureInfo(timestamped).TimestampCertificate?.Thumbprint);
     }
 
     [SupportedOSPlatform("windows")]
     private void AssertOnlyUntrusted(string path)
     {
-        uint hr = WinTrust.Verify(path);
-        _output.WriteLine($"{Path.GetFileName(path)}: WinVerifyTrust 0x{hr:X8}");
-        Assert.True(hr is WinTrust.CERT_E_UNTRUSTEDROOT or WinTrust.CERT_E_CHAINING, $"Unexpected WinVerifyTrust result 0x{hr:X8}");
+        // Unsigned/Unknown is not specific to an untrusted chain, so also prove the signature itself is intact
+        AuthenticodeVerifier.VerifyFile(path);
+        var info = Certs.AssertIntactButUntrusted(path);
+        _output.WriteLine($"{Path.GetFileName(path)}: {info.State}, {info.StateReason}");
 
         // the trust check used to decide what to skip must not treat this signature as trusted
-        Assert.False(Velopack.Packaging.Windows.CodeSign.IsTrusted(path));
+        Assert.False(CodeSign.IsTrusted(path));
     }
 
     [Theory]
@@ -1076,9 +1079,7 @@ public class AuthenticodeSigningTests
             signer.SignFile(msi, ProgramName);
         }
 
-        uint hr = WinTrust.Verify(msi);
-        _output.WriteLine($"MSI WinVerifyTrust 0x{hr:X8}");
-        Assert.True(hr is WinTrust.CERT_E_UNTRUSTEDROOT or WinTrust.CERT_E_CHAINING, $"Unexpected WinVerifyTrust result 0x{hr:X8}");
+        Certs.AssertIntactButUntrusted(msi);
 
         // a failing remote signer surfaces its own exception, not an HRESULT or a crash
         var msi2 = CreateTestMsi(dir, "test2.msi");
@@ -1111,7 +1112,7 @@ public class AuthenticodeSigningTests
 
         Assert.Equal([50, 100], progress);
         AuthenticodeVerifier.VerifyFile(exe);
-        Assert.True(WinTrust.Verify(msi) is WinTrust.CERT_E_UNTRUSTEDROOT or WinTrust.CERT_E_CHAINING);
+        Certs.AssertIntactButUntrusted(msi);
     }
 
     [Fact]
@@ -1143,7 +1144,7 @@ public class AuthenticodeSigningTests
         Assert.Equal(1, provider.Refreshes);
         Assert.Equal(2, created.Count);
         Assert.NotSame(created[0], created[1]);
-        Assert.True(WinTrust.Verify(msi) is WinTrust.CERT_E_UNTRUSTEDROOT or WinTrust.CERT_E_CHAINING);
+        Certs.AssertIntactButUntrusted(msi);
     }
 
     /// <summary>Builds a tiny MSI with the vendored WiX (MSIs authored directly with msi.dll do not verify after signing).</summary>

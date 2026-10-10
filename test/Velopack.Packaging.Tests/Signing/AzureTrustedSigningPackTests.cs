@@ -87,16 +87,14 @@ public class AzureTrustedSigningPackTests
 
         AssertSignedByTestLeaf(Assert.Single(Directory.EnumerateFiles(releaseDir, "*-Setup.exe")));
         var msi = Assert.Single(Directory.EnumerateFiles(releaseDir, "*.msi"));
-        uint hr = WinTrust.Verify(msi);
-        Assert.True(hr is WinTrust.CERT_E_UNTRUSTEDROOT or WinTrust.CERT_E_CHAINING, $"Unexpected WinVerifyTrust result 0x{hr:X8}");
+        Certs.AssertIntactButUntrusted(msi);
     }
 
     private static void AssertSignedByTestLeaf(string file)
     {
         Assert.Equal(Certs.Leaf.Thumbprint, AuthenticodeVerifier.VerifyFile(file).SignerCertificate.Thumbprint);
         if (OperatingSystem.IsWindows()) {
-            uint hr = WinTrust.Verify(file);
-            Assert.True(hr is WinTrust.CERT_E_UNTRUSTEDROOT or WinTrust.CERT_E_CHAINING, $"Unexpected WinVerifyTrust result 0x{hr:X8}");
+            Certs.AssertIntactButUntrusted(file);
         }
     }
 
