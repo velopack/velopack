@@ -99,9 +99,7 @@ internal sealed class SshWindowsHost : IWindowsHost
 
     public (int ExitCode, string StdOutput) Run(string exe, params string[] args)
     {
-        var command = $"\"{exe}\" " + String.Join(" ", args.Select(a => a.Contains(' ') ? $"\"{a}\"" : a));
-        // cmd /c strips the outer quotes of a command line that starts with one, so wrap it once more
-        return Shell($"\"{command}\"", command);
+        return Shell($"\"{exe}\" " + String.Join(" ", args.Select(a => a.Contains(' ') ? $"\"{a}\"" : a)));
     }
 
     public bool Exists(string path) => Shell($"if exist \"{path}\" (echo yes) else (echo no)").StdOutput.Trim() == "yes";
@@ -109,14 +107,14 @@ internal sealed class SshWindowsHost : IWindowsHost
     public void Delete(string path) =>
         Shell($"if exist \"{path}\\*\" (rmdir /s /q \"{path}\") else if exist \"{path}\" (del /f /q \"{path}\")");
 
-    private (int ExitCode, string StdOutput) Shell(string command, string? display = null)
+    private (int ExitCode, string StdOutput) Shell(string command)
     {
         var args = new List<string> { "-p", _password, "ssh" };
         args.AddRange(SshOptions("-p"));
         args.Add($"{_user}@{_host}");
         args.Add(command);
         var result = Exe.InvokeProcess("sshpass", args, null);
-        _logger.Info($"VM> {display ?? command} (exit {result.ExitCode}){Environment.NewLine}{result.StdOutput}{Environment.NewLine}{result.StdErr}".TrimEnd());
+        _logger.Info($"VM> {command} (exit {result.ExitCode}){Environment.NewLine}{result.StdOutput}{Environment.NewLine}{result.StdErr}".TrimEnd());
         // stderr carries velopack's log output; keep it out of the value tests match against
         return (result.ExitCode, result.StdOutput);
     }
