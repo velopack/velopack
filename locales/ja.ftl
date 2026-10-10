@@ -229,3 +229,6 @@ msi-start-menu-shortcut-description = { $app_title } のスタート メニュ�
 # MSI Installer UI - Readme Dialog
 msi-readme-title = お読みください
 msi-readme-description = 続行する前に、以下の情報をお読みください。
+
+# MSI Installer UI - Downgrade Error
+msi-downgrade-error = { $app_title } の新しいバージョンが既にインストールされています。

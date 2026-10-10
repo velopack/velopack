@@ -178,6 +178,8 @@ stack (Gitea, GitLab, Azurite, S3Mock), except GitHub which is live and uses a 5
   ```
   GitLab takes several minutes to become healthy on first boot; other services are up in seconds.
 - Tests **self-skip (never fail)** when a service, toolchain, or token is unavailable.
+- **Live GitHub tests are currently disabled** (`DeploymentTestEnv.GitHubTestsDisabled = true`): their lock-pool
+  polling shares the CI token's API rate limit and starved concurrent runs. Flip the flag to re-enable.
 - Live GitHub tests need the `VELOPACK_DEPLOYMENT_TEST_TOKEN` env var (on Windows a User-level
   variable works — tests also read `EnvironmentVariableTarget.User`).
 - Language harnesses are built once per test session (cargo / npm / maturin venv / cmake); a
@@ -186,6 +188,12 @@ stack (Gitea, GitLab, Azurite, S3Mock), except GitHub which is live and uses a 5
   test process (cached in `Velopack.TestCommon.TestApp`; the test string is injected via a
   `test_string.txt` file at pack time, not compiled in), but that publish still writes referenced
   projects' outputs to the shared `build/{Configuration}/` dir, so concurrent processes can race.
+
+## Supply-chain audit
+
+- `.github/scripts/supply_chain_audit.py` audits advisories for Rust (`cargo deny`), npm (`src/lib-nodejs`) and Python (`src/lib-python`, pip-audit).
+- PR/push builds (`build-tests.yml` → `supply-chain`) gate on `cargo deny check bans licenses sources`, but only fail on advisories the change **introduces** vs the base commit (`diff --base`); pre-existing ones are warnings.
+- `supply-chain.yml` runs daily on `develop` (`report`) and keeps one open issue labelled `supply-chain` while advisories exist, closing it when clean. Fix those on `develop` directly.
 
 ## Python type stubs (lib-python)
 

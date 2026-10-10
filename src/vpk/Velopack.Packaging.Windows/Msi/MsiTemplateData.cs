@@ -28,6 +28,14 @@ public class MsiTemplateData
     public string StubFileName;
     public string StubFileNameEscaped => MsiBuilder.EscapeMsiFormattedString(StubFileName);
     public string MainExeFileName;
+
+    // With --noStub there is no launcher at the install root, so shortcuts, DisplayIcon and the
+    // finish-dialog launch target the main exe in current\ instead, as Setup.exe installs do.
+    public bool NoStub;
+    public string LaunchFileName => NoStub ? @"current\" + MainExeFileName.Replace('/', '\\') : StubFileName;
+    public string LaunchFileNameEscaped => MsiBuilder.EscapeMsiFormattedString(LaunchFileName);
+    public string LaunchWorkingDirectoryId => NoStub ? "CURRENTFOLDER" : "INSTALLFOLDER";
+
     public bool DesktopShortcut;
     public bool StartMenuShortcut;
     public bool StartMenuRootShortcut;

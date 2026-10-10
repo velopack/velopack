@@ -51,20 +51,19 @@ public class ResourceEdit
             Type = IconType.Icon,
         };
 
-        var extractor = new IcoExtract(_logger);
-        var frames = extractor.ExtractFrames(new FileInfo(iconPath));
+        var frames = IcoReader.ReadFrames(iconPath, _logger);
 
         for (var p = 0; p < frames.Count; p++) {
             var f = frames[p];
 
             var iconEntry = new IconEntry((ushort) (p + 1), _langId) {
-                Width = (byte) f.CookedData.Width,
-                Height = (byte) f.CookedData.Height,
-                ColorCount = (byte) f.Encoding.PaletteSize,
+                Width = f.Width,
+                Height = f.Height,
+                ColorCount = f.ColorCount,
                 Reserved = 0,
                 Planes = 1,
-                BitsPerPixel = (ushort) f.CookedData.PixelType.BitsPerPixel,
-                PixelData = new DataSegment(f.RawData),
+                BitsPerPixel = f.BitsPerPixel,
+                PixelData = new DataSegment(f.PixelData),
             };
 
             group.Icons.Add(iconEntry);

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.Versioning;
 using Microsoft.Win32;
 using Velopack.Core;
@@ -145,7 +145,7 @@ public class MsiTests
     }
 
     private static async Task PackTestAppWithMsi(string id, string version, string testString,
-        string releaseDir, ILogger logger, InstallLocation instLocation)
+        string releaseDir, ILogger logger, InstallLocation instLocation, string packTitle = null)
     {
         using var _ = TempUtil.GetTempDirectory(out var workDir);
 
@@ -158,6 +158,7 @@ public class MsiTests
                 ReleaseDir = new DirectoryInfo(releaseDir),
                 PackId = id,
                 PackVersion = version,
+                PackTitle = packTitle,
                 TargetRuntime = RID.Parse("win-x64"),
                 PackDirectory = publishDir,
                 BuildMsi = true,
@@ -454,6 +455,122 @@ public class MsiTests
     }
 
     [Fact]
+    public async Task TestPackGeneratesMsiWithUpgradeAwareCleanup()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+
+        using var logger = _output.BuildLoggerFor<MsiTests>();
+
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
+
+        var exe = "testapp.exe";
+        var id = "Test.Squirrel-App";
+
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+        PathHelper.CopyRustAssetTo(Path.ChangeExtension(exe, ".pdb"), tmpOutput);
+
+        var options = new WindowsPackOptions {
+            EntryExecutableName = exe,
+            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
+            PackId = id,
+            PackVersion = "1.2.3",
+            PackTitle = "Squirrel Test Title",
+            TargetRuntime = RID.Parse("win-x64"),
+            PackDirectory = tmpOutput,
+            BuildMsi = true,
+        };
+
+        var runner = WindowsTestHelper.GetPackRunner(logger);
+        await runner.Run(options);
+
+        string msiPath = Path.Combine(tmpReleaseDir, $"{id}-win.msi");
+        Assert.True(File.Exists(msiPath));
+
+        using Database db = new Database(msiPath);
+
+        // cleanup paths (LocalAppData fallback dir, temp dir, MSI:{id} ARP key) are derived from
+        // the pack ID, never from the display title
+        var rustAppId = db.ExecuteScalar("SELECT `Value` FROM `Property` WHERE `Property` = 'RustAppId'") as string;
+        Assert.Equal(id, rustAppId);
+
+        // the app uninstall hook and the per-user cleanup must only run on a real uninstall, not
+        // when the old product is removed as part of a major upgrade (#1004)
+        const string uninstallOnly = "(REMOVE=\"ALL\") AND NOT UPGRADINGPRODUCTCODE";
+        foreach (var action in new[] { "SetUninstallHookData", "UninstallHookDeferred", "SetUserRustCleanupData", "UserRustCleanup" }) {
+            var condition = db.ExecuteScalar($"SELECT `Condition` FROM `InstallExecuteSequence` WHERE `Action` = '{action}'") as string;
+            Assert.Equal(uninstallOnly, condition);
+        }
+
+        // RustCleanup runs on uninstall AND upgrade; the marshaled UPGRADINGPRODUCTCODE tells it
+        // whether to remove everything or only purge the `current` payload dir
+        var cleanupCondition = db.ExecuteScalar("SELECT `Condition` FROM `InstallExecuteSequence` WHERE `Action` = 'RustCleanup'") as string;
+        Assert.Equal("(REMOVE=\"ALL\")", cleanupCondition);
+        var cleanupData = db.ExecuteScalar("SELECT `Target` FROM `CustomAction` WHERE `Action` = 'SetRustCleanupData'") as string;
+        // [ALLUSERS] scopes the ARP key sweep to the hive of the install being removed
+        Assert.Equal("[INSTALLFOLDER]\"[RustAppId]\"[TempFolder]\"[LocalAppDataFolder]\"[UPGRADINGPRODUCTCODE]\"[ALLUSERS]", cleanupData);
+        var userCleanupData = db.ExecuteScalar("SELECT `Target` FROM `CustomAction` WHERE `Action` = 'SetUserRustCleanupData'") as string;
+        Assert.Equal("[INSTALLFOLDER]\"[RustAppId]\"[TempFolder]\"[LocalAppDataFolder]\"\"[ALLUSERS]", userCleanupData);
+
+        // RustCleanup must run non-impersonated (elevated for per-machine installs) so it can
+        // remove a Program Files install dir; UserRustCleanup must run impersonated so it resolves
+        // the installing user's profile (shortcuts, %LocalAppData% fallback dir) instead of the
+        // SYSTEM profile (#989)
+        const int msidbCustomActionTypeNoImpersonate = 2048;
+        var cleanupType = Convert.ToInt32(db.ExecuteScalar("SELECT `Type` FROM `CustomAction` WHERE `Action` = 'RustCleanup'"));
+        Assert.True((cleanupType & msidbCustomActionTypeNoImpersonate) != 0, "RustCleanup should be non-impersonated");
+        var userCleanupType = Convert.ToInt32(db.ExecuteScalar("SELECT `Type` FROM `CustomAction` WHERE `Action` = 'UserRustCleanup'"));
+        Assert.True((userCleanupType & msidbCustomActionTypeNoImpersonate) == 0, "UserRustCleanup should be impersonated");
+
+        // ordering: hook runs while the app files still exist; cleanup runs after MSI removed its
+        // own files and before RemoveFolders
+        int Seq(string action) => Convert.ToInt32(db.ExecuteScalar($"SELECT `Sequence` FROM `InstallExecuteSequence` WHERE `Action` = '{action}'"));
+        Assert.True(Seq("UninstallHookDeferred") < Seq("RemoveFiles"), "uninstall hook should run before RemoveFiles");
+        Assert.True(Seq("RemoveFiles") < Seq("RustCleanup"), "RustCleanup should run after RemoveFiles");
+        Assert.True(Seq("RustCleanup") < Seq("UserRustCleanup"), "UserRustCleanup should run after RustCleanup");
+        Assert.True(Seq("UserRustCleanup") < Seq("RemoveFolders"), "UserRustCleanup should run before RemoveFolders");
+
+        // the upgrade-mode `current` purge relies on the old product being removed (and cleaned)
+        // before the new payload is laid down: MajorUpgrade is authored with afterInstallValidate
+        Assert.True(Seq("InstallValidate") < Seq("RemoveExistingProducts"), "RemoveExistingProducts must run after InstallValidate");
+        Assert.True(Seq("RemoveExistingProducts") < Seq("InstallInitialize"),
+            "RemoveExistingProducts must run before InstallInitialize (afterInstallValidate)");
+
+        // same-version upgrades are allowed: the upgrade row's max version is inclusive, so a
+        // prerelease and its release (same msi version) upgrade rather than install side by side
+        const int msidbUpgradeAttributesVersionMaxInclusive = 0x200;
+        var upgradeAttrs = Convert.ToInt32(db.ExecuteScalar(
+            "SELECT `Attributes` FROM `Upgrade` WHERE `ActionProperty` = 'WIX_UPGRADE_DETECTED'"));
+        Assert.True((upgradeAttrs & msidbUpgradeAttributesVersionMaxInclusive) != 0, "same-version upgrades should be allowed");
+
+        // the downgrade launch condition uses the localized message set by RustSetLocaleStrings,
+        // which runs in both sequences so silent installs get it too
+        var downgradeText = db.ExecuteScalar("SELECT `Description` FROM `LaunchCondition` WHERE `Condition` = 'NOT WIX_DOWNGRADE_DETECTED'") as string;
+        Assert.Equal("[MsiDowngradeError]", downgradeText);
+        Assert.True(Seq("RustSetLocaleStrings") < Seq("LaunchConditions"), "localized strings must be set before LaunchConditions");
+        // only needed for the first-install launch condition: must not run (and risk failing) on uninstall
+        var localeCondition = db.ExecuteScalar("SELECT `Condition` FROM `InstallExecuteSequence` WHERE `Action` = 'RustSetLocaleStrings'") as string;
+        Assert.Equal("NOT Installed", localeCondition);
+
+        // an MSI upgrade gives the app --veloapp-updated (like an in-app update), a fresh install --veloapp-install
+        foreach (var action in new[] { "SetInstallHookData", "InstallHookDeferred" }) {
+            var condition = db.ExecuteScalar($"SELECT `Condition` FROM `InstallExecuteSequence` WHERE `Action` = '{action}'") as string;
+            Assert.Equal("NOT REMOVE AND NOT WIX_UPGRADE_DETECTED", condition);
+        }
+        foreach (var action in new[] { "SetUpdatedHookData", "UpdatedHookDeferred" }) {
+            var condition = db.ExecuteScalar($"SELECT `Condition` FROM `InstallExecuteSequence` WHERE `Action` = '{action}'") as string;
+            Assert.Equal("NOT REMOVE AND WIX_UPGRADE_DETECTED", condition);
+        }
+        var updatedHookTarget = db.ExecuteScalar("SELECT `Target` FROM `CustomAction` WHERE `Action` = 'UpdatedHookDeferred'") as string;
+        Assert.Equal("UpdatedHookDeferred", updatedHookTarget);
+
+        // VELOPACK_INSTALLDIR only applies on first install; on maintenance/uninstall the
+        // INSTALLFOLDER handed to the elevated cleanup must come from the registered install state
+        var overrideCondition = db.ExecuteScalar("SELECT `Condition` FROM `InstallExecuteSequence` WHERE `Action` = 'SetINSTALLFOLDER'") as string;
+        Assert.Equal("VELOPACK_INSTALLDIR AND NOT Installed", overrideCondition);
+    }
+
+    [Fact]
     public async Task TestPackGeneratesMsiWithBracketsInTitle()
     {
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
@@ -507,6 +624,69 @@ public class MsiTests
 
         var displayIcon = db.ExecuteScalar("SELECT `Value` FROM `Registry` WHERE `Name` = 'DisplayIcon'") as string;
         Assert.Equal(escapedStub, displayIcon);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TestPackMsiLaunchTargetFollowsNoStub(bool noStub)
+    {
+        // https://github.com/velopack/velopack/issues/1060
+        // With --noStub there is no launcher at the install root, so the shortcuts, DisplayIcon
+        // and the finish-dialog launch (RustStubFileName) must target current\<main exe>.
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+
+        using var logger = _output.BuildLoggerFor<MsiTests>();
+
+        using var _1 = TempUtil.GetTempDirectory(out var tmpOutput);
+        using var _2 = TempUtil.GetTempDirectory(out var tmpReleaseDir);
+
+        var exe = "testapp.exe";
+        var id = "Test.Squirrel-App";
+
+        PathHelper.CopyRustAssetTo(exe, tmpOutput);
+
+        var options = new WindowsPackOptions {
+            EntryExecutableName = exe,
+            ReleaseDir = new DirectoryInfo(tmpReleaseDir),
+            PackId = id,
+            PackVersion = "1.2.3",
+            TargetRuntime = RID.Parse("win-x64"),
+            PackDirectory = tmpOutput,
+            Shortcuts = "Desktop,StartMenu,StartMenuRoot,Startup",
+            BuildMsi = true,
+            NoStub = noStub,
+        };
+
+        var runner = WindowsTestHelper.GetPackRunner(logger);
+        await runner.Run(options);
+
+        string msiPath = Path.Combine(tmpReleaseDir, $"{id}-win.msi");
+        Assert.True(File.Exists(msiPath));
+
+        var launchFile = noStub ? @"current\testapp.exe" : $"{id}.exe";
+        var workDir = noStub ? "CURRENTFOLDER" : "INSTALLFOLDER";
+
+        using Database db = new Database(msiPath);
+
+        var shortcutTargets = db.ExecuteStringQuery("SELECT `Target` FROM `Shortcut`");
+        Assert.Equal(4, shortcutTargets.Count);
+        Assert.All(shortcutTargets, t => Assert.Equal($"[INSTALLFOLDER]{launchFile}", t));
+
+        var shortcutWorkDirs = db.ExecuteStringQuery("SELECT `WkDir` FROM `Shortcut`");
+        Assert.All(shortcutWorkDirs, w => Assert.Equal(workDir, w));
+
+        var displayIcon = db.ExecuteScalar("SELECT `Value` FROM `Registry` WHERE `Name` = 'DisplayIcon'") as string;
+        Assert.Equal($"[INSTALLFOLDER]{launchFile}", displayIcon);
+
+        var launchProp = db.ExecuteScalar("SELECT `Value` FROM `Property` WHERE `Property` = 'RustStubFileName'") as string;
+        Assert.Equal(launchFile, launchProp);
+
+        // File.FileName is "short|long" when the long name is not 8.3, so compare the long part.
+        var fileNames = db.ExecuteStringQuery("SELECT `FileName` FROM `File`").Select(n => n.Split('|').Last()).ToArray();
+        Assert.Contains("testapp.exe", fileNames);
+        Assert.Equal(!noStub, fileNames.Contains($"{id}.exe"));
+        Assert.DoesNotContain(fileNames, n => n.EndsWith("_ExecutionStub.exe"));
     }
 
     [Fact]
@@ -650,6 +830,152 @@ public class MsiTests
     }
 
     [Fact]
+    public async Task TestMsiUpgradeKeepsUserDataAndUninstallCleansEverything()
+    {
+        Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
+        using var logger = _output.BuildLoggerFor<MsiTests>();
+        using var _1 = TempUtil.GetTempDirectory(out var releaseDir);
+
+        string id = "MsiUpgradeTest";
+        // a title distinct from the ID: shortcuts/stub use the title, but cleanup paths
+        // (LocalAppData fallback, temp, ARP key) must be derived from the ID
+        string title = "Msi Upgrade Test App";
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var installDir = Path.Combine(localAppData, id);
+        var titleDir = Path.Combine(localAppData, title);
+        var msiPath = Path.Combine(releaseDir, $"{id}-win.msi");
+        var appPath = Path.Combine(installDir, "current", "TestApp.exe");
+        var hookTempDir = Path.Combine(Path.GetTempPath(), $"velopack_hooks_{id}");
+        var hookFile = Path.Combine(hookTempDir, "args.txt");
+        var velopackTempDir = Path.Combine(Path.GetTempPath(), $"velopack_{id}");
+        var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        var msiShortcut = Path.Combine(desktop, $"{title}.lnk");
+        var userShortcut = Path.Combine(desktop, $"{title} User Copy.lnk");
+
+        try {
+            // clean up any leftover hook files from previous runs
+            if (Directory.Exists(hookTempDir))
+                IoUtil.DeleteFileOrDirectoryHard(hookTempDir);
+
+            // pack + install v1
+            await PackTestAppWithMsi(id, "1.0.0", "version 1 test", releaseDir, logger, InstallLocation.PerUser, title);
+            logger.Info("TEST: Installing v1 MSI...");
+            RunMsiExec($"/i \"{msiPath}\" /qn", logger);
+            Assert.True(File.Exists(appPath), $"TestApp.exe not found at {appPath}");
+            Assert.True(File.Exists(msiShortcut), $"Desktop shortcut not found at {msiShortcut}");
+            Assert.Contains("OnAfterInstallFastCallback: --veloapp-install 1.0.0", File.ReadAllText(hookFile));
+            File.Delete(hookFile);
+
+            // a package newer than the incoming MSI (e.g. downloaded by an in-app update) must be
+            // removed by the upgrade, or the app would auto-apply it on next start and undo the MSI
+            var packagesDir = Path.Combine(installDir, "packages");
+            Directory.CreateDirectory(packagesDir);
+            var newerPackage = Path.Combine(packagesDir, $"{id}-9.9.9-full.nupkg");
+            File.WriteAllText(newerPackage, "not a real package");
+            var betaIdFile = Path.Combine(packagesDir, ".betaId");
+            File.WriteAllText(betaIdFile, "staged rollout id");
+
+            // simulate user state: a data dir outside `current` (must survive MSI upgrades) and a
+            // stray file inside `current` (must be purged so the upgrade lays down a clean payload)
+            var userDataFile = Path.Combine(installDir, "user-data", "settings.json");
+            Directory.CreateDirectory(Path.Combine(installDir, "user-data"));
+            File.WriteAllText(userDataFile, "{}");
+            var strayPayloadFile = Path.Combine(installDir, "current", "stray-old-file.txt");
+            File.WriteAllText(strayPayloadFile, "left behind by an in-app update");
+
+            // upgrade by running the v2 MSI directly (not via in-app update)
+            await PackTestAppWithMsi(id, "2.0.0", "version 2 test", releaseDir, logger, InstallLocation.PerUser, title);
+            WaitUntilInstallDirUnlocked(installDir);
+            logger.Info("TEST: Upgrading via v2 MSI...");
+            RunMsiExec($"/i \"{msiPath}\" /qn", logger);
+
+            var chk2version = WindowsTestHelper.RunCoveredDotnet(appPath, ["version"], installDir, logger);
+            Assert.EndsWith(Environment.NewLine + "2.0.0", chk2version);
+            Assert.True(File.Exists(userDataFile), "User data outside `current` should survive an MSI upgrade");
+            Assert.False(File.Exists(strayPayloadFile), "Files inside `current` should be purged by an MSI upgrade");
+            var (found, displayVersion) = FindUninstallEntry(Registry.CurrentUser, id);
+            Assert.True(found, "Uninstall entry should exist in HKCU after upgrade");
+            Assert.Equal("2.0.0", displayVersion);
+
+            Assert.False(File.Exists(newerPackage), "Downloaded packages should be purged by an MSI upgrade");
+            Assert.True(File.Exists(betaIdFile), "Non-package files in packages/ should survive an MSI upgrade");
+
+            // an MSI upgrade is an update from the app's point of view: --veloapp-updated, and neither the
+            // install hook nor the uninstall hook (the old product is removed as part of the upgrade)
+            var hookContent = File.Exists(hookFile) ? File.ReadAllText(hookFile) : "";
+            Assert.Contains("OnAfterUpdateFastCallback: --veloapp-updated 2.0.0", hookContent);
+            Assert.DoesNotContain("OnAfterInstallFastCallback", hookContent);
+            Assert.DoesNotContain("OnBeforeUninstallFastCallback", hookContent);
+            logger.Info("TEST: v2 upgrade verified, user data intact, no uninstall hook");
+
+            // simulate a user-created shortcut pointing into the install dir; uninstall cleanup
+            // should sweep it even though the MSI did not create it
+            File.Copy(msiShortcut, userShortcut, true);
+
+            // an unrelated dir named after the display title must NOT be deleted by cleanup
+            Directory.CreateDirectory(titleDir);
+            File.WriteAllText(Path.Combine(titleDir, "unrelated.txt"), "not velopack's data");
+
+            // a foreign value under the ARP key: MSI only removes the values it authored, so the
+            // cleanup sweep must delete the remainder of the key
+            using (var arpKey = Registry.CurrentUser.OpenSubKey(
+                       $@"Software\Microsoft\Windows\CurrentVersion\Uninstall\MSI:{id}", writable: true)) {
+                Assert.NotNull(arpKey);
+                arpKey.SetValue("ForeignValue", "written by someone else");
+            }
+
+            // something in the velopack temp dir, so the assertion below proves the cleanup removed it
+            Directory.CreateDirectory(velopackTempDir);
+            File.WriteAllText(Path.Combine(velopackTempDir, "leftover.txt"), "temp");
+
+            // uninstall
+            WaitUntilInstallDirUnlocked(installDir);
+            logger.Info("TEST: Uninstalling v2 MSI...");
+            RunMsiExec($"/x \"{msiPath}\" /qn", logger);
+
+            Assert.True(File.Exists(hookFile), $"Uninstall hook file not found at {hookFile}");
+            Assert.Contains("OnBeforeUninstallFastCallback: --veloapp-uninstall", File.ReadAllText(hookFile));
+            Assert.False(Directory.Exists(installDir),
+                $"Install directory (incl. user data) should have been removed: {installDir}");
+            var (found2, _) = FindUninstallEntry(Registry.CurrentUser, id);
+            Assert.False(found2, "Uninstall entry should be removed from HKCU after uninstall");
+            Assert.False(File.Exists(msiShortcut), "MSI desktop shortcut should be removed on uninstall");
+            Assert.False(File.Exists(userShortcut), "User-created shortcut into the install dir should be removed on uninstall");
+            Assert.False(Directory.Exists(velopackTempDir), $"Velopack temp dir should have been removed: {velopackTempDir}");
+            Assert.True(File.Exists(Path.Combine(titleDir, "unrelated.txt")),
+                "Unrelated dir named after the display title must not be touched by cleanup");
+            logger.Info("TEST: uninstall cleanup verified");
+        } finally {
+            // cleanup: uninstall MSI (best effort, may already be uninstalled)
+            try {
+                if (File.Exists(msiPath)) {
+                    RunMsiExec($"/x \"{msiPath}\" /qn", logger, exitCode: null);
+                }
+            } catch {
+                // best effort cleanup
+            }
+
+            foreach (var dir in new[] { installDir, hookTempDir, titleDir }) {
+                try {
+                    if (Directory.Exists(dir)) {
+                        IoUtil.Retry(() => IoUtil.DeleteFileOrDirectoryHard(dir), 10, 1000);
+                    }
+                } catch {
+                    // best effort cleanup
+                }
+            }
+
+            foreach (var lnk in new[] { msiShortcut, userShortcut }) {
+                try {
+                    File.Delete(lnk);
+                } catch {
+                    // best effort cleanup
+                }
+            }
+        }
+    }
+
+    [Fact]
     public async Task TestMsiInstallToCustomDirViaVelopackInstallDir()
     {
         Assert.SkipUnless(VelopackRuntimeInfo.IsWindows, "Windows only");
@@ -723,12 +1049,16 @@ public class MsiTests
         var fallbackDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), id);
         var msiPath = Path.Combine(releaseDir, $"{id}-win.msi");
+        // save v1 MSI path separately — packing v2 overwrites msiPath, and uninstalling requires
+        // an MSI whose ProductCode matches the installed product (in-app updates don't change it).
+        var v1MsiPath = Path.Combine(releaseDir, $"{id}-v1.msi");
         var appPath = Path.Combine(installDir, "current", "TestApp.exe");
 
         try {
             // pack v1
             await PackTestAppWithMsi(id, "1.0.0", "version 1 test", releaseDir, logger, InstallLocation.Either);
             Assert.True(File.Exists(msiPath), $"MSI not found at {msiPath}");
+            File.Copy(msiPath, v1MsiPath, true);
 
             // install via msiexec with ALLUSERS=1 (per-machine, requires admin). no INSTALLFOLDER
             // is passed on purpose: silent per-machine installs must default to Program Files (#945)
@@ -796,10 +1126,25 @@ public class MsiTests
             Assert.True(hklmFound2, "Uninstall entry should still exist in HKLM after update");
             Assert.Equal("2.0.0", hklmVersion2);
             logger.Info("TEST: registry entry verified in HKLM with version 2.0.0");
+
+            // uninstall: must remove the Program Files install dir, the HKLM ARP entry, AND the
+            // per-user fallback dir in %LocalAppData% which holds packages + Update.exe (#989)
+            WaitUntilInstallDirUnlocked(installDir);
+            logger.Info("TEST: Uninstalling MSI...");
+            RunMsiExec($"/x \"{v1MsiPath}\" /qn", logger);
+
+            Assert.False(Directory.Exists(installDir), $"Install directory should have been removed: {installDir}");
+            Assert.False(Directory.Exists(fallbackDir),
+                $"LocalAppData fallback directory should have been removed: {fallbackDir}");
+            var (hklmFound3, _) = FindUninstallEntry(Registry.LocalMachine, id);
+            Assert.False(hklmFound3, "Uninstall entry should be removed from HKLM after uninstall");
+            logger.Info("TEST: uninstall cleanup verified");
         } finally {
-            // cleanup: uninstall MSI
+            // cleanup: uninstall MSI (best effort, may already be uninstalled)
             try {
-                RunMsiExec($"/x \"{msiPath}\" /qn", logger, exitCode: null);
+                if (File.Exists(v1MsiPath)) {
+                    RunMsiExec($"/x \"{v1MsiPath}\" /qn", logger, exitCode: null);
+                }
             } catch {
                 // best effort cleanup
             }

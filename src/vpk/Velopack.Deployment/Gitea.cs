@@ -3,6 +3,8 @@ using Gitea.Net.Api;
 using Gitea.Net.Client;
 using Gitea.Net.Model;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Velopack.Core;
 using Velopack.Sources;
 
@@ -53,6 +55,28 @@ public class GiteaReleaseClient : GitReleaseClient<Release>
         }
 
         _client = new RepositoryApi(config);
+
+        // Gitea 28+ returns null for unset timestamps (e.g. published_at on a draft) where older servers sent a zero date.
+        // Gitea.Net models these as non-nullable DateTime and fails the whole response, so read null as default instead.
+        if (_client.AsynchronousClient is ApiClient apiClient) {
+            apiClient.SerializerSettings.Converters.Add(new NullAsDefaultDateTimeConverter());
+        }
+    }
+
+    private class NullAsDefaultDateTimeConverter : JsonConverter<DateTime>
+    {
+        public override bool CanWrite => false;
+
+        public override DateTime ReadJson(JsonReader reader, Type objectType, DateTime existingValue, bool hasExistingValue,
+            JsonSerializer serializer)
+        {
+            return reader.TokenType == JsonToken.Null ? default : JToken.Load(reader).ToObject<DateTime>();
+        }
+
+        public override void WriteJson(JsonWriter writer, DateTime value, JsonSerializer serializer)
+        {
+            throw new NotSupportedException();
+        }
     }
 
     public override async Task<IReadOnlyList<GitRelease>> GetReleasesAsync()

@@ -24,6 +24,8 @@ public class WindowsPackCommand : PackCommand
 
     public string Shortcuts { get; private set; }
 
+    public bool NoStub { get; private set; }
+
     public string InstWelcome { get; private set; }
 
     public string InstLicense { get; private set; }
@@ -88,6 +90,9 @@ public class WindowsPackCommand : PackCommand
             .SetDescription("List of locations to install shortcuts to during setup.")
             .SetArgumentHelpName("LOC")
             .SetDefault("Desktop,StartMenuRoot");
+
+        AddOption<bool>((v) => NoStub = v, ["--noStub"])
+            .SetDescription("Omit the launcher stub; start the app from 'current'.");
 
         if (VelopackRuntimeInfo.IsWindows) {
             AddOption<string>((v) => SignParameters = v, ["--signParams", "-n"])

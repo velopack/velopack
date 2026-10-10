@@ -495,18 +495,23 @@ impl UpdateManager {
             output_file.clone().into(),
         ];
 
+        let count = update.DeltasToTarget.len() as f64;
         for (i, delta) in update.DeltasToTarget.iter().enumerate() {
             let delta_file = packages_dir.join(&delta.FileName);
             let partial_file = delta_file.with_extension("partial");
 
             info!("Downloading delta package: '{}'", delta.FileName);
-            self.inner.source.download_release_entry(delta, &partial_file, None)?;
+            // each delta reports its download within its share of the 0-70% range
+            let delta_progress = progress
+                .as_ref()
+                .map(|progress| scale_progress(progress.clone(), i as f64 / count * 70.0, (i + 1) as f64 / count * 70.0));
+            self.inner.source.download_release_entry(delta, &partial_file, delta_progress)?;
             self.verify_package_checksum(&partial_file, delta)?;
 
             fs::rename(&partial_file, &delta_file)?;
             debug!("Successfully downloaded file: '{}'", delta.FileName);
             if let Some(progress) = &progress {
-                let _ = progress.send(((i as f64 / update.DeltasToTarget.len() as f64) * 70.0) as i16);
+                let _ = progress.send(((i + 1) as f64 / count * 70.0) as i16);
             }
 
             args.push("--delta".into());
@@ -694,4 +699,29 @@ pub(crate) fn local_path_to_asset(manifest: &Manifest, path: &Path) -> VelopackA
         NotesMarkdown: manifest.release_notes.clone(),
         NotesHtml: manifest.release_notes_html.clone(),
     }
+}
+
+/// Returns a sender that forwards 0-100 progress values to `sender`, scaled into `start..end`, from a background
+/// thread that ends once the returned sender is dropped. The thread is not joined, so that an update source holding
+/// on to the sender cannot block the update, which means a scaled value may arrive after values sent later directly.
+fn scale_progress(sender: Sender<i16>, start: f64, end: f64) -> Sender<i16> {
+    let (scaled, receiver) = std::sync::mpsc::channel::<i16>();
+    std::thread::spawn(move || {
+        while let Ok(p) = receiver.recv() {
+            let _ = sender.send((start + (end - start) * p as f64 / 100.0) as i16);
+        }
+    });
+    scaled
+}
+
+#[test]
+fn test_scale_progress_maps_into_range() {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let scaled = scale_progress(sender, 35.0, 70.0);
+    for p in [0, 50, 100] {
+        scaled.send(p).unwrap();
+    }
+    drop(scaled);
+    // the forwarding thread owns the only sender, so this ends once it has forwarded every value
+    assert_eq!(receiver.iter().collect::<Vec<i16>>(), vec![35, 52, 70]);
 }

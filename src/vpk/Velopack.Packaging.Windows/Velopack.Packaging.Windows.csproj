@@ -8,16 +8,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Velopack.IcoLib\Velopack.IcoLib.csproj" />
     <ProjectReference Include="..\Velopack.Packaging\Velopack.Packaging.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="FluentValidation" Version="12.1.1" />
-    <PackageReference Include="AsmResolver.DotNet" Version="6.0.0" />
-    <PackageReference Include="AsmResolver.PE.Win32Resources" Version="6.0.0" />
+    <PackageReference Include="AsmResolver.DotNet" Version="6.0.1" />
+    <PackageReference Include="AsmResolver.PE.Win32Resources" Version="6.0.1" />
     <PackageReference Include="Microsoft.Security.Extensions" Version="1.4.0" />
-    <PackageReference Include="Handlebars.Net" Version="2.1.6" />
+    <PackageReference Include="Handlebars.Net" Version="2.4.3" />
   </ItemGroup>
 
   <ItemGroup>

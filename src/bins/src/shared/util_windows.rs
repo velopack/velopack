@@ -39,7 +39,7 @@ unsafe fn get_processes_running_in_directory<P: AsRef<Path>>(dir: P) -> Result<V
     let mut full_path_vec = vec![0; i16::MAX as usize];
     let full_path_ptr = PWSTR(full_path_vec.as_mut_ptr());
 
-    let sw = simple_stopwatch::Stopwatch::start_new();
+    let sw = std::time::Instant::now();
     let pids = get_pids()?;
     let total_pids = pids.len();
 
@@ -70,9 +70,9 @@ unsafe fn get_processes_running_in_directory<P: AsRef<Path>>(dir: P) -> Result<V
     }
 
     info!(
-        "Inspected {} running processes in {:.0}ms, {} matched directory",
+        "Inspected {} running processes in {}ms, {} matched directory",
         total_pids,
-        sw.ms(),
+        sw.elapsed().as_millis(),
         oup.len()
     );
     Ok(oup)

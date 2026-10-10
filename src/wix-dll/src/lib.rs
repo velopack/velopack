@@ -78,50 +78,174 @@ pub extern "system" fn EarlyBootstrap(h_install: MSIHANDLE) -> c_uint {
     }
 }
 
+/// Parses the CustomActionData marshaled by SetRustCleanupData / SetUserRustCleanupData:
+/// `[INSTALLFOLDER]"[RustAppId]"[TempFolder]"[LocalAppDataFolder]"[UPGRADINGPRODUCTCODE]"[ALLUSERS]`
+/// UPGRADINGPRODUCTCODE is empty unless the product is being removed as part of a major upgrade
+/// (and always empty for UserRustCleanup); ALLUSERS is "1" for per-machine installs.
+struct CleanupData {
+    install_dir: String,
+    app_id: String,
+    temp_dir: String,
+    local_app_data: String,
+    is_upgrading: bool,
+    per_machine: bool,
+}
+
+fn parse_cleanup_data(custom_data: &str) -> CleanupData {
+    let mut parts = custom_data.split('"');
+    let install_dir = parts.next().unwrap_or("").to_string();
+    let mut app_id = parts.next().unwrap_or("").to_string();
+    let temp_dir = parts.next().unwrap_or("").to_string();
+    let local_app_data = parts.next().unwrap_or("").to_string();
+    let is_upgrading = parts.next().map(|s| !s.is_empty()).unwrap_or(false);
+    // [ALLUSERS] is "1" for per-machine installs and empty for per-user ones
+    let per_machine = parts.next().map(|s| s == "1").unwrap_or(false);
+    // app_id is joined onto profile paths and deleted recursively, so it must be a plain
+    // single path component
+    if app_id == "." || app_id == ".." || app_id.contains(['/', '\\', ':']) {
+        app_id = String::new();
+    }
+    CleanupData {
+        install_dir,
+        app_id,
+        temp_dir,
+        local_app_data,
+        is_upgrading,
+        per_machine,
+    }
+}
+
+fn remove_dir_logged(fn_name: &str, dir: &Path) {
+    if let Err(e) = remove_dir_all::remove_dir_all(dir) {
+        show_debug_message(fn_name, format!("Failed to remove directory: {:?} {}", dir, e));
+    }
+}
+
+/// Removes the `MSI:{AppId}` ARP key from one hive only: the hive belonging to the install being
+/// removed. A per-user and a per-machine install of a dual-scope package can coexist, and removing
+/// one must not orphan the other's entry.
+fn remove_msi_arp_registry_key(fn_name: &str, app_id: &str, per_machine: bool) {
+    use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
+    use winreg::RegKey;
+    const UNINSTALL_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
+    let subkey = format!("MSI:{}", app_id);
+    let root = if per_machine {
+        HKEY_LOCAL_MACHINE
+    } else {
+        HKEY_CURRENT_USER
+    };
+    // KEY_READ on the parent is enough: RegDeleteTreeW opens the named subkey itself with
+    // the rights it needs (covered by the unit test below, incl. foreign values/subkeys)
+    if let Ok(uninstall) = RegKey::predef(root).open_subkey(UNINSTALL_KEY) {
+        if let Err(e) = uninstall.delete_subkey_all(&subkey) {
+            show_debug_message(fn_name, format!("Did not remove uninstall registry key {:?}: {}", subkey, e));
+        }
+    }
+}
+
+/// Deletes the downloaded `*.nupkg` packages in a packages dir. Used on major upgrade: a package
+/// newer than the incoming MSI would otherwise be auto-applied on the next app start and silently
+/// undo the upgrade (or an admin's rollback). Packages can always be downloaded again.
+fn remove_packages_in_dir(fn_name: &str, dir: &Path) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let is_package = path.is_file() && path.extension().map(|e| e.eq_ignore_ascii_case("nupkg")).unwrap_or(false);
+        if is_package {
+            if let Err(e) = std::fs::remove_file(&path) {
+                show_debug_message(fn_name, format!("Failed to remove package {:?}: {}", path, e));
+            }
+        }
+    }
+}
+
+/// Deferred, non-impersonated (elevated on per-machine installs). On a full uninstall this removes
+/// everything left in the install dir (files from in-app updates, logs, user data — mirroring the
+/// Setup.exe/Update.exe uninstall behavior) plus any leftover ARP registry key. During a major
+/// upgrade it only purges the `current` payload dir (so the incoming MSI lays down a clean payload) and
+/// the downloaded packages; other files outside `current` (user data, logs) survive.
 #[no_mangle]
 pub extern "system" fn CleanupDeferred(h_install: MSIHANDLE) -> c_uint {
     let custom_data = msi_get_property(h_install, "CustomActionData");
     show_debug_message("CleanupDeferred", format!("CustomActionData={:?}", custom_data));
 
     if let Some(custom_data) = custom_data {
-        // custom data will be a list delimited by " (0x22)
-        let mut custom_data = custom_data.split('"');
-        let install_dir = custom_data.next();
-        let app_id = custom_data.next();
-        let temp_dir = custom_data.next();
-
-        show_debug_message(
-            "CleanupDeferred",
-            format!("install_dir={:?}, app_id={:?}, temp_dir={:?}", install_dir, app_id, temp_dir),
-        );
-
-        if let Some(install_dir) = install_dir {
-            if let Err(e) = remove_dir_all::remove_dir_all(install_dir) {
-                show_debug_message("CleanupDeferred", format!("Failed to remove install directory: {:?} {}", install_dir, e));
-            }
+        let data = parse_cleanup_data(&custom_data);
+        if data.install_dir.is_empty() {
+            show_debug_message("CleanupDeferred", "Missing install_dir, skipping".to_string());
+            return ERROR_SUCCESS.0;
         }
 
-        if let Some(app_id) = app_id {
-            if let Ok(appdata) = std::env::var("LOCALAPPDATA") {
-                let velopack_app_dir = PathBuf::from(appdata).join(app_id);
-                if let Err(e) = remove_dir_all::remove_dir_all(&velopack_app_dir) {
-                    show_debug_message(
-                        "CleanupDeferred",
-                        format!("Failed to remove local app data directory: {:?} {}", velopack_app_dir, e),
-                    );
-                }
+        let install_dir = Path::new(&data.install_dir);
+        if data.is_upgrading {
+            show_debug_message("CleanupDeferred", "Major upgrade in progress, purging 'current' and packages".to_string());
+            remove_dir_logged("CleanupDeferred", &install_dir.join("current"));
+            remove_packages_in_dir("CleanupDeferred", &install_dir.join("packages"));
+            if !data.app_id.is_empty() && !data.local_app_data.is_empty() {
+                // packages fallback used when the install dir is not writable (per-machine installs)
+                let fallback = PathBuf::from(&data.local_app_data).join(&data.app_id).join("packages");
+                remove_packages_in_dir("CleanupDeferred", &fallback);
             }
+            return ERROR_SUCCESS.0;
+        }
 
-            if let Some(temp_dir) = temp_dir {
-                let temp_dir = PathBuf::from(temp_dir);
-                let temp_dir = temp_dir.join(format!("velopack_{}", app_id));
-                if let Err(e) = remove_dir_all::remove_dir_all(&temp_dir) {
-                    show_debug_message("CleanupDeferred", format!("Failed to remove temp directory: {:?} {}", temp_dir, e));
-                }
-            }
+        // the app could still be running from the install dir, which would prevent deletion
+        if let Err(e) = velopack_bins::shared::force_stop_package(install_dir) {
+            show_debug_message("CleanupDeferred", format!("Failed to stop running processes: {}", e));
+        }
+
+        remove_dir_logged("CleanupDeferred", install_dir);
+
+        if !data.app_id.is_empty() && data.per_machine {
+            // remove any ARP entry left behind (e.g. values written by Update.exe). Per-machine only:
+            // this action runs as SYSTEM, so HKCU here is not the installing user's hive; the per-user
+            // entry is removed by UserCleanupDeferred.
+            remove_msi_arp_registry_key("CleanupDeferred", &data.app_id, true);
         }
 
         show_debug_message("CleanupDeferred", "Done!".to_string());
+    }
+
+    ERROR_SUCCESS.0
+}
+
+/// Deferred, impersonated as the installing user. Runs on full uninstall only, and cleans up the
+/// per-user state which CleanupDeferred cannot reliably reach when it runs as SYSTEM on
+/// per-machine installs: shortcuts pointing into the install dir, the `%LocalAppData%\{AppId}`
+/// fallback dir (packages + Update.exe copied there when the install dir is not writable), the
+/// velopack temp dir, and the HKCU ARP key.
+#[no_mangle]
+pub extern "system" fn UserCleanupDeferred(h_install: MSIHANDLE) -> c_uint {
+    let custom_data = msi_get_property(h_install, "CustomActionData");
+    show_debug_message("UserCleanupDeferred", format!("CustomActionData={:?}", custom_data));
+
+    if let Some(custom_data) = custom_data {
+        let data = parse_cleanup_data(&custom_data);
+
+        if !data.install_dir.is_empty() {
+            velopack_bins::windows::remove_all_shortcuts_for_root_dir(&data.install_dir);
+        }
+
+        if !data.app_id.is_empty() {
+            if !data.local_app_data.is_empty() {
+                remove_dir_logged("UserCleanupDeferred", &PathBuf::from(&data.local_app_data).join(&data.app_id));
+            }
+            if !data.temp_dir.is_empty() {
+                remove_dir_logged(
+                    "UserCleanupDeferred",
+                    &PathBuf::from(&data.temp_dir).join(format!("velopack_{}", data.app_id)),
+                );
+            }
+            if !data.per_machine {
+                // per-user installs only: a per-machine install never has an HKCU entry of its own, so
+                // one found during a per-machine uninstall belongs to a separate per-user install
+                remove_msi_arp_registry_key("UserCleanupDeferred", &data.app_id, false);
+            }
+        }
+
+        show_debug_message("UserCleanupDeferred", "Done!".to_string());
     }
 
     ERROR_SUCCESS.0
@@ -141,7 +265,10 @@ pub extern "system" fn LaunchApplication(h_install: MSIHANDLE) -> c_uint {
             );
 
             //NB: Need to start the process because the MSI starting a child process won't have any environment variables set.
-            if let Err(e) = process::start_process(stub_path, vec![], Some(&install_dir), false) {
+            // RustStubFileName is the root stub, or current\<main exe> when packed with --noStub.
+            // Start it from the target's own directory, which is INSTALLFOLDER for the stub.
+            let work_dir = stub_path.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from(&install_dir));
+            if let Err(e) = process::start_process(&stub_path, vec![], Some(&work_dir), false) {
                 show_debug_message("LaunchApplication", format!("Failed to launch application: {}", e));
             }
         }
@@ -256,6 +383,13 @@ pub extern "system" fn InstallHookDeferred(h_install: MSIHANDLE) -> c_uint {
     run_hook_deferred(h_install, "--veloapp-install", 30)
 }
 
+/// Runs instead of the install hook when this MSI is upgrading an older product, matching what
+/// Update.exe does for in-app updates.
+#[no_mangle]
+pub extern "system" fn UpdatedHookDeferred(h_install: MSIHANDLE) -> c_uint {
+    run_hook_deferred(h_install, "--veloapp-updated", 15)
+}
+
 #[no_mangle]
 pub extern "system" fn UninstallHookDeferred(h_install: MSIHANDLE) -> c_uint {
     run_hook_deferred(h_install, "--veloapp-uninstall", 60)
@@ -288,4 +422,89 @@ fn show_debug_message(fn_name: &str, message: String) {
 #[cfg(not(debug_assertions))]
 fn show_debug_message(_fn_name: &str, _message: String) {
     // no-op
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use winreg::enums::HKEY_CURRENT_USER;
+    use winreg::RegKey;
+
+    #[test]
+    fn removes_arp_key_with_values_and_subkeys() {
+        // MSI only removes the registry values it authored; the helper must be able to delete a
+        // key that still holds foreign values and nested subkeys
+        let app_id = "VelopackWixArpTest";
+        let path = format!("Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\MSI:{}", app_id);
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        {
+            let (key, _) = hkcu.create_subkey(&path).unwrap();
+            key.set_value("DisplayName", &"leftover").unwrap();
+            let (nested, _) = key.create_subkey("Nested").unwrap();
+            nested.set_value("Extra", &1u32).unwrap();
+        }
+
+        remove_msi_arp_registry_key("test", app_id, false);
+
+        assert!(hkcu.open_subkey(&path).is_err(), "ARP key should have been deleted");
+    }
+
+    #[test]
+    fn per_machine_arp_cleanup_leaves_hkcu_key() {
+        // removing a per-machine install must not delete a coexisting per-user install's entry
+        let app_id = "VelopackWixArpScopeTest";
+        let path = format!("Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\MSI:{}", app_id);
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        hkcu.create_subkey(&path).unwrap().0.set_value("DisplayName", &"per-user").unwrap();
+
+        remove_msi_arp_registry_key("test", app_id, true);
+        assert!(hkcu.open_subkey(&path).is_ok(), "per-machine cleanup must not touch the HKCU key");
+
+        remove_msi_arp_registry_key("test", app_id, false);
+        assert!(hkcu.open_subkey(&path).is_err());
+    }
+
+    #[test]
+    fn upgrade_package_purge_only_removes_nupkgs() {
+        let dir = std::env::temp_dir().join(format!("velopack_wix_pkg_test_{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("VelopackTemp")).unwrap();
+        for f in ["App-1.5.0-full.nupkg", "App-1.5.0-delta.NUPKG", ".betaId", ".velopack_lock"] {
+            std::fs::write(dir.join(f), b"x").unwrap();
+        }
+
+        remove_packages_in_dir("test", &dir);
+
+        assert!(!dir.join("App-1.5.0-full.nupkg").exists());
+        assert!(!dir.join("App-1.5.0-delta.NUPKG").exists());
+        assert!(dir.join(".betaId").exists(), "staged-rollout id must survive");
+        assert!(dir.join(".velopack_lock").exists());
+        assert!(dir.join("VelopackTemp").exists());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn parse_cleanup_data_rejects_unsafe_app_id() {
+        let d = parse_cleanup_data("C:\\install\"..\\evil\"C:\\temp\"C:\\lad");
+        assert!(d.app_id.is_empty());
+
+        let d = parse_cleanup_data("C:\\install\"..\"C:\\temp\"C:\\lad\"{PRODUCT-CODE}");
+        assert!(d.app_id.is_empty());
+        assert!(d.is_upgrading);
+
+        let d = parse_cleanup_data("C:\\install\"MyApp\"C:\\temp\"C:\\lad\"");
+        assert_eq!(d.app_id, "MyApp");
+        assert!(!d.is_upgrading);
+
+        let d = parse_cleanup_data("C:\\install\"MyApp\"C:\\temp\"C:\\lad");
+        assert_eq!(d.app_id, "MyApp");
+        assert!(!d.is_upgrading);
+        assert!(!d.per_machine);
+
+        let d = parse_cleanup_data("C:\\install\"MyApp\"C:\\temp\"C:\\lad\"\"1");
+        assert!(!d.is_upgrading);
+        assert!(d.per_machine);
+
+        let d = parse_cleanup_data("C:\\install\"MyApp\"C:\\temp\"C:\\lad\"\"");
+        assert!(!d.per_machine);
+    }
 }

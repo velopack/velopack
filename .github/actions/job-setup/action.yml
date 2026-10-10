@@ -28,7 +28,7 @@ runs:
         }
     - name: Setup dotnet
       if: inputs.dotnet == 'true'
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: |
           8.0.x

@@ -229,3 +229,6 @@ msi-start-menu-shortcut-description = اختصار قائمة ابدأ لـ { $a
 # MSI Installer UI - Readme Dialog
 msi-readme-title = معلومات الملف التمهيدي
 msi-readme-description = يرجى قراءة المعلومات التالية قبل المتابعة.
+
+# MSI Installer UI - Downgrade Error
+msi-downgrade-error = يوجد إصدار أحدث من { $app_title } مثبت بالفعل.

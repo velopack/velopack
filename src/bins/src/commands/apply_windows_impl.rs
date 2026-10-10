@@ -37,10 +37,10 @@ fn remove_temp_dir_timed(path: &PathBuf) {
     if !path.exists() {
         return;
     }
-    let sw = simple_stopwatch::Stopwatch::start_new();
+    let sw = std::time::Instant::now();
     match remove_dir_all::remove_dir_all(path) {
-        Ok(()) => info!("Removed temp dir {:?} in {:.0}ms", path, sw.ms()),
-        Err(e) => warn!("Failed to remove temp dir {:?} after {:.0}ms: {}", path, sw.ms(), e),
+        Ok(()) => info!("Removed temp dir {:?} in {}ms", path, sw.elapsed().as_millis()),
+        Err(e) => warn!("Failed to remove temp dir {:?} after {}ms: {}", path, sw.elapsed().as_millis(), e),
     }
 }
 

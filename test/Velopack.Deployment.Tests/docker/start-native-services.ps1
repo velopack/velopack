@@ -69,9 +69,12 @@ function Start-BackgroundProcess([string]$filePath, [object[]]$argumentList, [st
 }
 
 function Get-GiteaBinary([string]$version) {
+    # gitea 28+ dropped the minimum-OS-version segment (windows-4.0, darwin-10.12) from asset names.
+    $legacyNames = [version]$version -lt [version]"28.0"
     if ($onWindows) {
+        $os = if ($legacyNames) { "windows-4.0" } else { "windows" }
         $exe = Join-Path $cacheDir "gitea-$version.exe"
-        Get-CachedFile "https://dl.gitea.com/gitea/$version/gitea-$version-windows-4.0-amd64.exe" $exe
+        Get-CachedFile "https://dl.gitea.com/gitea/$version/gitea-$version-$os-amd64.exe" $exe
         return $exe
     }
 
@@ -79,7 +82,8 @@ function Get-GiteaBinary([string]$version) {
     $exe = Join-Path $cacheDir "gitea-$version"
     if (-not (Test-Path $exe)) {
         $arch = if ((uname -m) -eq "arm64") { "arm64" } else { "amd64" }
-        Get-CachedFile "https://dl.gitea.com/gitea/$version/gitea-$version-darwin-10.12-$arch.xz" "$exe.xz"
+        $os = if ($legacyNames) { "darwin-10.12" } else { "darwin" }
+        Get-CachedFile "https://dl.gitea.com/gitea/$version/gitea-$version-$os-$arch.xz" "$exe.xz"
         if (-not (Get-Command xz -ErrorAction SilentlyContinue)) { brew install xz }
         xz -d -f "$exe.xz"
         if ($LASTEXITCODE -ne 0) { throw "xz failed to decompress gitea $version" }

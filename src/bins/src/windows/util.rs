@@ -17,7 +17,7 @@ use windows::{
 };
 
 pub fn run_hook(locator: &VelopackLocator, hook_name: &str, timeout_secs: u64) -> bool {
-    let sw = simple_stopwatch::Stopwatch::start_new();
+    let sw = std::time::Instant::now();
     let root_dir = locator.get_root_dir();
     let current_path = locator.get_current_bin_dir();
     let main_exe_path = locator.get_main_exe_path();
@@ -41,7 +41,7 @@ pub fn run_hook(locator: &VelopackLocator, hook_name: &str, timeout_secs: u64) -
         }
         Ok(WaitResult::ExitCode(code)) => {
             if code == 0 {
-                info!("Hook executed successfully (took {}ms)", sw.ms());
+                info!("Hook executed successfully (took {}ms)", sw.elapsed().as_millis());
                 success = true;
             } else {
                 warn!("Hook exited with non-zero exit code: {}", code);

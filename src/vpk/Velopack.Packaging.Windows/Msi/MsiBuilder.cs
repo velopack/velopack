@@ -167,6 +167,7 @@ public static class MsiBuilder
             IconPath = options.Icon,
             StubFileName = (options.PackTitle ?? options.PackId) + ".exe",
             MainExeFileName = options.EntryExecutableName,
+            NoStub = options.NoStub,
             DesktopShortcut = shortcuts.HasFlag(ShortcutLocation.Desktop),
             StartMenuShortcut = shortcuts.HasFlag(ShortcutLocation.StartMenu),
             StartMenuRootShortcut = shortcuts.HasFlag(ShortcutLocation.StartMenuRoot),

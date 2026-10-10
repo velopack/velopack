@@ -152,7 +152,7 @@ public class WindowsInstallTests
 
         var argsPath = Path.Combine(tmpInstallDir, "current", "args.txt");
         Assert.True(File.Exists(argsPath));
-        var argsContent = File.ReadAllText(argsPath).Trim();
+        var argsContent = TestHelper.ReadAllTextShared(argsPath).Trim();
         Assert.Equal("--veloapp-install 1.0.0", argsContent);
 
         void CheckShortcut(string path)
@@ -214,12 +214,12 @@ public class WindowsInstallTests
 
         var argsPath = Path.Combine(installDir, "args.txt");
         Assert.True(File.Exists(argsPath));
-        string contents = File.ReadAllText(argsPath).Trim();
+        string contents = TestHelper.ReadAllTextShared(argsPath).Trim();
         Assert.Equal("OnAfterInstallFastCallback: --veloapp-install 1.0.0", contents);
 
         var firstRun = Path.Combine(installDir, "firstrun");
         Assert.True(File.Exists(argsPath));
-        Assert.Equal("OnFirstRun: 1.0.0", File.ReadAllText(firstRun).Trim());
+        Assert.Equal("OnFirstRun: 1.0.0", TestHelper.ReadAllTextShared(firstRun).Trim());
 
         // pack v2
         await WindowsPackTests.PackTestApp(id, "2.0.0", "version 2 test", releaseDir, logger);
@@ -232,14 +232,14 @@ public class WindowsInstallTests
         // file is written last, so poll until the full end state is observable
         var restartedPath = Path.Combine(installDir, "restarted");
         TestHelper.WaitUntil(() => {
-            Assert.Contains("--veloapp-obsolete 1.0.0", File.ReadAllText(argsPath).Trim());
-            Assert.Contains("--veloapp-updated 2.0.0", File.ReadAllText(argsPath).Trim());
+            Assert.Contains("--veloapp-obsolete 1.0.0", TestHelper.ReadAllTextShared(argsPath).Trim());
+            Assert.Contains("--veloapp-updated 2.0.0", TestHelper.ReadAllTextShared(argsPath).Trim());
             Assert.True(File.Exists(restartedPath));
-            Assert.Equal("OnRestarted: 2.0.0,test,args !!", File.ReadAllText(restartedPath).Trim());
+            Assert.Equal("OnRestarted: 2.0.0,test,args !!", TestHelper.ReadAllTextShared(restartedPath).Trim());
         });
 
         var logFile = WindowsTestHelper.GetLogFilePath(id);
-        logger.Info("TEST: update log output - " + Environment.NewLine + File.ReadAllText(logFile));
+        logger.Info("TEST: update log output - " + Environment.NewLine + WindowsTestHelper.ReadFileWithRetry(logFile, logger));
 
         var updatePath = Path.Combine(installDir, "Update.exe");
         WindowsTestHelper.RunNoCoverage(updatePath, ["--silent", "--uninstall"], Environment.CurrentDirectory, logger);
@@ -339,7 +339,7 @@ public class WindowsUpdateTests
         if (variant == "csharp") {
             var argsPath = Path.Combine(installDir, "args.txt");
             Assert.True(File.Exists(argsPath));
-            var argsContent = File.ReadAllText(argsPath).Trim();
+            var argsContent = TestHelper.ReadAllTextShared(argsPath).Trim();
             Assert.Equal("OnAfterInstallFastCallback: --veloapp-install 1.0.0", argsContent);
         }
 
@@ -389,11 +389,11 @@ public class WindowsUpdateTests
 
         // print log output
         var logPath = WindowsTestHelper.GetLogFilePath(id);
-        logger.Info($"TEST ({variant}): log output - " + Environment.NewLine + File.ReadAllText(logPath));
+        logger.Info($"TEST ({variant}): log output - " + Environment.NewLine + WindowsTestHelper.ReadFileWithRetry(logPath, logger));
 
         // check new obsoleted/updated hooks have run
         if (variant == "csharp") {
-            var argsContentv3 = File.ReadAllText(Path.Combine(installDir, "args.txt")).Trim();
+            var argsContentv3 = TestHelper.ReadAllTextShared(Path.Combine(installDir, "args.txt")).Trim();
             Assert.Contains("--veloapp-install 1.0.0", argsContentv3);
             Assert.Contains("--veloapp-obsolete 1.0.0", argsContentv3);
             Assert.Contains("--veloapp-updated 3.0.0", argsContentv3);
