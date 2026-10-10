@@ -95,12 +95,11 @@ public sealed class TestSigningCertificates : IDisposable
     /// Unsigned/Unknown. A modified file is Invalid/BadDigest, and a bad signature value is Unsigned/None.
     /// </summary>
     [SupportedOSPlatform("windows")]
-    public FileSignatureInfo AssertIntactButUntrusted(string path)
+    public void AssertIntactButUntrusted(string path)
     {
         var info = CodeSign.GetSignatureInfo(path);
         Assert.Equal((SignatureState.Unsigned, SignatureStateReason.Unknown), (info.State, info.StateReason));
         Assert.Equal(Leaf.Thumbprint, info.SigningCertificate?.Thumbprint);
-        return info;
     }
 
     /// <summary>The chain as Azure returns it: a PKCS#7 certs-only blob, in the given order.</summary>
