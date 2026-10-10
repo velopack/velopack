@@ -314,7 +314,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: cross-${{ matrix.os }}
-          path: test/artifacts/*
+          path: test/artifacts/
           retention-days: 1
       ## START COVERAGE TESTING
       - name: Clean Rust Build
@@ -365,6 +365,84 @@ jobs:
         with:
           directory: ./test/coverage
           flags: vpk
+      - name: Upload Test Results
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: ./test/coverage/junit.*.xml
+          flags: vpk
+
+  # Installs and updates the cross-compiled rust testapp packages on Windows 7. GitHub cannot host a runner
+  # on Windows 7, so a prebuilt Win7 SP1 image (OpenSSH server, SHA-2 updates, user velo/velopack) boots
+  # under QEMU/KVM with -snapshot, so every run starts clean, and the tests drive it over SSH.
+  win7:
+    runs-on: ubuntu-latest
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+      WIN7_IMAGE_URL: https://pub-0302165a08f941e2b7c9bb0bcc15c438.r2.dev/fd5df5c4b6ac/win7-velopack.qcow2
+      WIN7_IMAGE_SHA256: 02dde94efa0283b9e7f6d2b7509f0d2f69539754c3c2ea88846d993a9d1dbf4a
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils sshpass
+      - name: Download Windows 7 Image
+        run: |
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/win7.qcow2" "$WIN7_IMAGE_URL"
+          echo "$WIN7_IMAGE_SHA256  $RUNNER_TEMP/win7.qcow2" | sha256sum -c
+      # boots in the background while .NET builds and the cross-compile artifacts are produced
+      - name: Boot Windows 7 VM
+        run: >-
+          qemu-system-x86_64 -machine pc,accel=kvm -cpu host -smp 2 -m 4096 -snapshot
+          -drive file="$RUNNER_TEMP/win7.qcow2",if=ide
+          -rtc base=utc -nic user,model=e1000,hostfwd=tcp:127.0.0.1:2222-:22
+          -display none -daemonize -pidfile "$RUNNER_TEMP/qemu.pid"
+      - name: Setup Job Environment
+        uses: ./.github/actions/job-setup
+        with:
+          dotnet: true
+      - name: Build Tests
+        run: dotnet build test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj -c Release
+      - name: Wait for Artifacts
+        uses: ./.github/actions/wait-artifact
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max_wait_seconds: 1800
+          artifacts: cross-macos,cross-ubuntu,cross-windows
+          verbose: true
+      - name: Download Cross Artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: test/artifacts
+          pattern: cross-*
+          merge-multiple: true
+      - name: Wait for Windows 7 SSH
+        run: |
+          for i in $(seq 1 60); do
+            sshpass -p velopack ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+              -o ConnectTimeout=10 -o LogLevel=ERROR velo@127.0.0.1 ver && exit 0
+            sleep 5
+          done
+          echo "Windows 7 VM did not accept SSH connections"
+          exit 1
+      - name: Test Cross-Compiled Apps on Windows 7
+        env:
+          VELOPACK_WIN7_SSH: velo:velopack@127.0.0.1:2222
+        run: >-
+          dotnet test --project test/Velopack.CrossCompile.Tests/Velopack.CrossCompile.Tests.csproj
+          --no-build -c Release
+          --filter-method '*RunCrossAppWindows7*'
+          --report-github
+          --report-spekt-junit --report-spekt-junit-filename ./test/coverage/junit.CrossCompile.Win7.xml
       - name: Upload Test Results
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
