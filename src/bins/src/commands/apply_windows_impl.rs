@@ -1,37 +1,12 @@
 use crate::{dialogs, shared, windows};
 use anyhow::{bail, Context, Result};
-use std::{ffi::OsString, fs, path::PathBuf, time::Duration};
+use std::{
+    ffi::OsString,
+    fs,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 use velopack::{bundle::load_bundle_from_file, constants, locator::VelopackLocator, process};
-
-// fn ropycopy<P1: AsRef<Path>, P2: AsRef<Path>>(source: &P1, dest: &P2) -> Result<()> {
-//     let source = source.as_ref();
-//     let dest = dest.as_ref();
-
-//     // robocopy C:\source\something.new C:\destination\something /MIR /ZB /W:5 /R:5 /MT:8 /LOG:C:\logs\copy_log.txt
-//     let cmd = std::process::Command::new("robocopy")
-//         .arg(source)
-//         .arg(dest)
-//         .arg("/MIR")
-//         .arg("/IS")
-//         .arg("/W:1")
-//         .arg("/R:5")
-//         .arg("/MT:2")
-//         .output()?;
-
-//     let stdout = String::from_utf8_lossy(&cmd.stdout);
-//     let stderr = String::from_utf8_lossy(&cmd.stderr);
-
-//     let exit_code = cmd.status.code().unwrap_or(-9999);
-//     if (0..7).contains(&exit_code) {
-//         info!("{stdout}");
-//         info!("Robocopy completed successfully.");
-//     } else {
-//         error!("{stdout}");
-//         error!("{stderr}");
-//         bail!("Robocopy failed with code: {:?}", exit_code);
-//     }
-//     Ok(())
-// }
 
 fn remove_temp_dir_timed(path: &PathBuf) {
     if !path.exists() {
@@ -42,6 +17,45 @@ fn remove_temp_dir_timed(path: &PathBuf) {
         Ok(()) => info!("Removed temp dir {:?} in {}ms", path, sw.elapsed().as_millis()),
         Err(e) => warn!("Failed to remove temp dir {:?} after {}ms: {}", path, sw.elapsed().as_millis(), e),
     }
+}
+
+/// Removes both temp dirs, but never the backup of the old version while the current dir is missing,
+/// because then the backup is the only copy of the app.
+fn remove_temp_dirs(current_dir: &Path, temp_path_new: &PathBuf, temp_path_old: &PathBuf) {
+    remove_temp_dir_timed(temp_path_new);
+    if current_dir.exists() {
+        remove_temp_dir_timed(temp_path_old);
+    } else if temp_path_old.exists() {
+        error!(
+            "Current dir {:?} is missing, keeping the previous version in {:?}",
+            current_dir, temp_path_old
+        );
+    }
+}
+
+/// Moves the current dir to temp_path_old and then temp_path_new into its place.
+/// If the second move fails, the old version is moved back.
+fn replace_current_dir(current_dir: &Path, temp_path_old: &Path, temp_path_new: &Path, retry_delay_ms: i32) -> Result<()> {
+    info!("Backing up current dir to {:?}", temp_path_old);
+    shared::retry_io_ex(|| fs::rename(current_dir, temp_path_old), retry_delay_ms, 10)
+        .context("Unable to start the update, because one or more running processes prevented it. Try again later, or if the issue persists, restart your computer.")?;
+
+    info!("Replacing current dir with {:?}", temp_path_new);
+    if let Err(e) = shared::retry_io_ex(|| fs::rename(temp_path_new, current_dir), retry_delay_ms, 30) {
+        // restore the old version, otherwise the cleanup would delete the only copy of the app
+        error!("Failed to replace current dir ({}), restoring the previous version...", e);
+        if let Err(e2) = shared::retry_io_ex(|| fs::rename(temp_path_old, current_dir), retry_delay_ms, 10) {
+            error!("Failed to restore the previous version ({}), it is still in {:?}", e2, temp_path_old);
+            return Err(e).context(
+                "Unable to complete the update, and the app was left in a broken state. You may need to re-install or repair this application manually.",
+            );
+        }
+        info!("Restored the previous version to {:?}", current_dir);
+        return Err(e).context(
+            "Unable to complete the update, the previous version was restored. Try again later, or if the issue persists, restart your computer.",
+        );
+    }
+    Ok(())
 }
 
 pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook_mode: super::HookRunMode) -> Result<VelopackLocator> {
@@ -157,52 +171,8 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
 
         // third, we try _REALLY HARD_ to stop the package
         let _ = shared::force_stop_package(&root_path);
-        // fourth, we make as backup of the current dir to temp_path_old
-        info!("Backing up current dir to {:?}", temp_path_old);
-        shared::retry_io_ex(|| fs::rename(&current_dir, &temp_path_old), 1000, 10)
-            .context("Unable to start the update, because one or more running processes prevented it. Try again later, or if the issue persists, restart your computer.")?;
-
-        // let mut requires_robocopy = false;
-        // if let Err(e) = fs::rename(&current_dir, &temp_path_old) {
-        //     warn!("Failed to rename current_dir to temp_path_old ({}). Retrying with robocopy...", e);
-        //     ropycopy(&current_dir, &temp_path_old)?;
-        //     requires_robocopy = true;
-        // }
-
-        // fifth, we try to replace the current dir with temp_path_new
-        // if this fails we will yolo a rollback...
-        info!("Replacing current dir with {:?}", temp_path_new);
-        shared::retry_io_ex(|| fs::rename(&temp_path_new, &current_dir), 1000, 30).context(
-            "Unable to complete the update, and the app was left in a broken state. You may need to re-install or repair this application manually.",
-        )?;
-
-        // if !requires_robocopy {
-        //     // if we didn't need robocopy for the backup, we don't need it for the deploy hopefully
-        //     if let Err(e1) = fs::rename(&temp_path_new, &current_dir) {
-        //         warn!("Failed to rename temp_path_new to current_dir ({}). Retrying with robocopy...", e1);
-        //         requires_robocopy = true;
-        //     }
-        // }
-
-        // if requires_robocopy {
-        //     if let Err(e2) = ropycopy(&temp_path_new, &current_dir) {
-        //         error!("Failed to robocopy temp_path_new to current_dir ({}). Will attempt a rollback...", e2);
-        //         let _ = ropycopy(&temp_path_old, &current_dir);
-        //         let _ = tx.send(splash::MSG_CLOSE);
-
-        //         info!("Showing error dialog...");
-        //         let title = format!("{} Update", &new_locator.get_manifest_title());
-        //         let header = "Failed to update";
-        //         let body = format!(
-        //             "Failed to update {} to version {}. Please check the logs for more details.",
-        //             &new_locator.get_manifest_title(),
-        //             &new_locator.get_manifest_version_full_string()
-        //         );
-        //         dialogs::show_error(&title, Some(header), &body);
-
-        //         bail!("Fatal error performing update.");
-        //     }
-        // }
+        // fourth, we move the current dir to temp_path_old, and fifth, we move temp_path_new into its place
+        replace_current_dir(&current_dir, &temp_path_old, &temp_path_new, 1000)?;
 
         // from this point on, we're past the point of no return and should not bail
         // sixth, we write the uninstall entry
@@ -273,8 +243,97 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
     })();
 
     reporter.close();
-    remove_temp_dir_timed(&temp_path_new);
-    remove_temp_dir_timed(&temp_path_old);
+    remove_temp_dirs(&current_dir, &temp_path_new, &temp_path_old);
     action?;
     Ok(new_locator)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_base(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("velopack_apply_test_{}_{}", name, std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn make_app_dir(dir: &Path, version: &str) {
+        fs::create_dir_all(dir).unwrap();
+        fs::write(dir.join("sq.version"), version).unwrap();
+    }
+
+    #[test]
+    fn test_replace_current_dir_moves_new_version_into_place() {
+        let base = temp_base("swap");
+        let current = base.join("current");
+        let tmp_old = base.join("tmp_old");
+        let tmp_new = base.join("tmp_new");
+        make_app_dir(&current, "old");
+        make_app_dir(&tmp_new, "new");
+
+        replace_current_dir(&current, &tmp_old, &tmp_new, 10).unwrap();
+
+        assert_eq!(fs::read_to_string(current.join("sq.version")).unwrap(), "new");
+        assert_eq!(fs::read_to_string(tmp_old.join("sq.version")).unwrap(), "old");
+        assert!(!tmp_new.exists());
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_replace_current_dir_restores_old_version_on_failure() {
+        let base = temp_base("undo");
+        let current = base.join("current");
+        let tmp_old = base.join("tmp_old");
+        let tmp_new = base.join("tmp_new");
+        make_app_dir(&current, "old");
+        // tmp_new does not exist, so the second rename fails
+
+        assert!(replace_current_dir(&current, &tmp_old, &tmp_new, 10).is_err());
+        assert_eq!(fs::read_to_string(current.join("sq.version")).unwrap(), "old");
+        assert!(!tmp_old.exists());
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_replace_current_dir_restores_old_version_when_new_version_is_locked() {
+        let base = temp_base("locked");
+        let current = base.join("current");
+        let tmp_old = base.join("tmp_old");
+        let tmp_new = base.join("tmp_new");
+        make_app_dir(&current, "old");
+        make_app_dir(&tmp_new, "new");
+        // an open file inside tmp_new blocks renaming it, as when antivirus scans the extracted files
+        let locked = fs::File::open(tmp_new.join("sq.version")).unwrap();
+
+        assert!(replace_current_dir(&current, &tmp_old, &tmp_new, 10).is_err());
+        assert_eq!(fs::read_to_string(current.join("sq.version")).unwrap(), "old");
+        assert!(!tmp_old.exists());
+
+        drop(locked);
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_remove_temp_dirs_keeps_backup_while_current_dir_is_missing() {
+        let base = temp_base("cleanup");
+        let current = base.join("current");
+        let tmp_old = base.join("tmp_old");
+        let tmp_new = base.join("tmp_new");
+        make_app_dir(&tmp_old, "old");
+        make_app_dir(&tmp_new, "new");
+
+        remove_temp_dirs(&current, &tmp_new, &tmp_old);
+        assert!(!tmp_new.exists());
+        assert_eq!(fs::read_to_string(tmp_old.join("sq.version")).unwrap(), "old");
+
+        make_app_dir(&current, "old");
+        remove_temp_dirs(&current, &tmp_new, &tmp_old);
+        assert!(!tmp_old.exists());
+
+        let _ = fs::remove_dir_all(&base);
+    }
 }
