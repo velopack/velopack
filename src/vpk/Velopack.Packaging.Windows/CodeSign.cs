@@ -159,6 +159,7 @@ public class CodeSign
         const string placeholder = "{{file}}";
         var quotedFiles = QuoteFileArgsBash(filePaths);
         var sb = new StringBuilder();
+        template = template.ReplaceLineEndings("\n");
 
         // $(...), `...` and (...) each start a fresh quoting context, e.g. in "$(dirname {{file}})" the
         // placeholder is unquoted. quote is '\0' (none), '\'', '"', or '$' for an ANSI-C $'...' string.
@@ -199,6 +200,12 @@ public class CodeSign
                 else contexts.Push(('`', '\0'));
             } else if (quote == '"') {
                 if (c == '"') SetQuote('\0');
+            } else if (c == '#' && (i == 0 || " \t\n;&|(".Contains(template[i - 1]))) {
+                // a comment runs to the end of the line, and quotes inside it mean nothing
+                int end = template.IndexOf('\n', i);
+                if (end < 0) end = template.Length;
+                sb.Append(template, i + 1, end - i - 1);
+                i = end - 1;
             } else if (c == '"' || c == '\'') {
                 SetQuote(c);
             } else if (c == '(') {

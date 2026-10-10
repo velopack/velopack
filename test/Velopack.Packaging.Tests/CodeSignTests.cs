@@ -181,6 +181,10 @@ public class CodeSignTests
     [InlineData("printf '[%s]\\n' $'it\\'s {{file}}'", "[it's /a dir/x.exe]")]
     [InlineData("printf '[%s]\\n' $((1+2)) {{file}}.signed", "[3]\n[/a dir/x.exe.signed]")]
     [InlineData("X=1\nprintf '[%s]\\n' \"$X\" --in={{file}}", "[1]\n[--in=/a dir/x.exe]")]
+    [InlineData("X=1\r\nprintf '[%s]\\n' \"$X\" {{file}}\r\n", "[1]\n[/a dir/x.exe]")]
+    [InlineData("# don't\nprintf '[%s]\\n' {{file}} # it's", "[/a dir/x.exe]")]
+    [InlineData("printf '[%s]\\n' a#b\"{{file}}\"", "[a#b/a dir/x.exe]")]
+    [InlineData("printf '[%s]\\n' \"$(echo \"it's {{file}}\")\"", "[it's /a dir/x.exe]")]
     public void Bash_SubstituteFilesBash_NestedAndAdjacentPlaceholders_Work(string template, string expected)
     {
         using var _ = TempUtil.GetTempFileName(out var logFile);
