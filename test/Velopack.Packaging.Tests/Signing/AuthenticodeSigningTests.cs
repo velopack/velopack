@@ -919,8 +919,7 @@ public class AuthenticodeSigningTests
         var bytes = File.ReadAllBytes(plain);
         bytes[0x10] ^= 0xFF;
         File.WriteAllBytes(plain, bytes);
-        var tampered = CodeSign.GetSignatureInfo(plain);
-        Assert.Equal((SignatureState.Invalid, SignatureStateReason.BadDigest), (tampered.State, tampered.StateReason));
+        AssertBadDigest(plain);
     }
 
     [Theory]
@@ -935,20 +934,31 @@ public class AuthenticodeSigningTests
 
         var plain = CopyFixture(fixture, dir, "plain-" + fixture);
         SignFile(plain);
-        Assert.Null(CodeSign.GetSignatureInfo(plain).TimestampCertificate);
+        Assert.Null(GetTimestampThumbprint(plain));
 
         var timestamped = CopyFixture(fixture, dir, "ts-" + fixture);
         SignFile(timestamped, timestamper: CreateFakeTimestamper(new FakeTimestampAuthority(Certs.TimestampAuthority)));
-        Assert.Equal(Certs.TimestampAuthority.Thumbprint, CodeSign.GetSignatureInfo(timestamped).TimestampCertificate?.Thumbprint);
+        Assert.Equal(Certs.TimestampAuthority.Thumbprint, GetTimestampThumbprint(timestamped));
     }
+
+    // Microsoft.Security.Extensions types only appear in these helpers: the runtime loads the (Windows-only) assembly when it
+    // compiles a method that references them, which would fail Linux/macOS test bodies before their Windows skip check runs.
+    [SupportedOSPlatform("windows")]
+    private static void AssertBadDigest(string path)
+    {
+        var info = CodeSign.GetSignatureInfo(path);
+        Assert.Equal((SignatureState.Invalid, SignatureStateReason.BadDigest), (info.State, info.StateReason));
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static string? GetTimestampThumbprint(string path) => CodeSign.GetSignatureInfo(path).TimestampCertificate?.Thumbprint;
 
     [SupportedOSPlatform("windows")]
     private void AssertOnlyUntrusted(string path)
     {
         // Unsigned/Unknown is not specific to an untrusted chain, so also prove the signature itself is intact
         AuthenticodeVerifier.VerifyFile(path);
-        var info = Certs.AssertIntactButUntrusted(path);
-        _output.WriteLine($"{Path.GetFileName(path)}: {info.State}, {info.StateReason}");
+        Certs.AssertIntactButUntrusted(path);
 
         // the trust check used to decide what to skip must not treat this signature as trusted
         Assert.False(CodeSign.IsTrusted(path));
