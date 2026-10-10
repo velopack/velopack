@@ -17,6 +17,7 @@ jobs:
           - CPlusPlusWidgets
           - CPlusPlusWin32
           - CSharpAvalonia
+          - CSharpMaui
           - CSharpUno
           - CSharpWpf
           - NodeJSElectron
@@ -35,6 +36,8 @@ jobs:
             sample: CPlusPlusWin32
           - os: macos
             sample: CPlusPlusWin32
+          - os: ubuntu
+            sample: CSharpMaui
           - os: ubuntu
             sample: CSharpWpf
           - os: macos
@@ -91,6 +94,12 @@ jobs:
             8.0.x
             9.0.x
             10.0.x
+      - name: Install MAUI workload (Windows)
+        run: dotnet workload install maui-windows
+        if: ${{ matrix.sample == 'CSharpMaui' && matrix.os == 'windows' }}
+      - name: Install MAUI workload (macOS)
+        run: dotnet workload install maui-maccatalyst
+        if: ${{ matrix.sample == 'CSharpMaui' && matrix.os == 'macos' }}
       - name: Install VPK
         run: dotnet tool install -g --prerelease vpk
       - name: Pack Sample (Windows)

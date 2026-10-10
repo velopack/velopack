@@ -1,0 +1,17 @@
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="CSharpMaui.MainPage">
+  <Grid RowDefinitions="Auto,15,*">
+    <VerticalStackLayout>
+      <Label Margin="10" x:Name="TextStatus" />
+      <HorizontalStackLayout Margin="10" Spacing="10">
+        <Button x:Name="BtnCheckUpdate" Text="Check for Updates" Clicked="BtnCheckUpdateClick" />
+        <Button x:Name="BtnDownloadUpdate" Text="Download" Clicked="BtnDownloadUpdateClick" IsEnabled="False" />
+        <Button x:Name="BtnRestartApply" Text="Restart &amp; Apply" Clicked="BtnRestartApplyClick" IsEnabled="False" />
+      </HorizontalStackLayout>
+    </VerticalStackLayout>
+    <ScrollView x:Name="ScrollLog" Grid.Row="2">
+      <Label x:Name="TextLog" BackgroundColor="BlueViolet" TextColor="White" LineBreakMode="WordWrap" />
+    </ScrollView>
+  </Grid>
+</ContentPage>
