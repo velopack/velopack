@@ -8,23 +8,85 @@ fn main() {
 
     let version = env!("CARGO_PKG_VERSION");
     let ver = semver::Version::parse(version).expect("Unable to parse ngbv output as semver version");
-    let ver: u64 = ver.major << 48 | ver.minor << 32 | ver.patch << 16;
-    let desc = format!("Velopack {}", version);
 
     println!("cargo:rustc-env=NGBV_VERSION={}", version);
 
     #[cfg(target_os = "windows")]
-    winres::WindowsResource::new()
-        .set_manifest_file("app.manifest")
-        .set_version_info(winres::VersionInfo::PRODUCTVERSION, ver)
-        .set_version_info(winres::VersionInfo::FILEVERSION, ver)
-        .set("CompanyName", "Velopack")
-        .set("ProductName", "Velopack")
-        .set("ProductVersion", version)
-        .set("FileDescription", &desc)
-        .set("LegalCopyright", "Caelan Sayler (c) 2023, Velopack Ltd. (c) 2024")
-        .compile()
-        .unwrap();
+    version_resources(&ver);
+}
+
+/// Compiles a version resource (plus app.manifest) for each binary, so per-binary fields like
+/// OriginalFilename can be set. AppLocker publisher rules need the OriginalFilename of Update.exe (#729).
+#[cfg(target_os = "windows")]
+fn version_resources(ver: &semver::Version) {
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    // app.manifest is referenced by file name in the .rc, so the manifest dir is passed as an include dir
+    let include = || embed_resource::ParamsIncludeDirs([&manifest_dir]);
+    let write_rc = |name: &str, original_filename: Option<&str>| {
+        let rc = format!("{out_dir}/{name}.rc");
+        std::fs::write(&rc, version_rc(ver, original_filename)).unwrap();
+        rc
+    };
+
+    for (bin, original_filename) in [
+        ("update", "Update.exe"),
+        ("setup", "Setup.exe"),
+        ("stub", "stub.exe"),
+        ("testapp", "testapp.exe"),
+    ] {
+        let rc = write_rc(bin, Some(original_filename));
+        embed_resource::compile_for(rc, [bin], include()).manifest_required().unwrap();
+    }
+
+    // Test executables need the manifest too: without its supportedOS entries Windows reports itself as 6.2,
+    // which fails the os_min_version check exercised by the integration tests.
+    let rc = write_rc("tests", None);
+    embed_resource::compile_for_tests(rc, include()).manifest_required().unwrap();
+}
+
+#[cfg(target_os = "windows")]
+fn version_rc(ver: &semver::Version, original_filename: Option<&str>) -> String {
+    let version = ver.to_string();
+    let (major, minor, patch) = (ver.major, ver.minor, ver.patch);
+    let file_name_values = original_filename
+        .map(|f| {
+            format!(
+                "VALUE \"InternalName\", \"{}\"\nVALUE \"OriginalFilename\", \"{f}\"\n",
+                f.trim_end_matches(".exe")
+            )
+        })
+        .unwrap_or_default();
+    format!(
+        r#"#pragma code_page(65001)
+1 VERSIONINFO
+FILEVERSION {major}, {minor}, {patch}, 0
+PRODUCTVERSION {major}, {minor}, {patch}, 0
+FILEOS 0x40004
+FILETYPE 0x1
+FILESUBTYPE 0x0
+FILEFLAGSMASK 0x3f
+FILEFLAGS 0x0
+{{
+BLOCK "StringFileInfo"
+{{
+BLOCK "000004b0"
+{{
+VALUE "CompanyName", "Velopack"
+VALUE "FileDescription", "Velopack {version}"
+VALUE "FileVersion", "{version}"
+{file_name_values}VALUE "LegalCopyright", "Caelan Sayler (c) 2023, Velopack Ltd. (c) 2024"
+VALUE "ProductName", "Velopack"
+VALUE "ProductVersion", "{version}"
+}}
+}}
+BLOCK "VarFileInfo" {{
+VALUE "Translation", 0x0, 0x04b0
+}}
+}}
+1 24 "app.manifest"
+"#
+    )
 }
 
 #[cfg(target_os = "windows")]
