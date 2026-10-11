@@ -22,7 +22,18 @@ public abstract class DownloadCommandRunner<TOpt, TValidator>(ILogger logger) : 
 
         var latest = releases.Where(r => r.Type == VelopackAssetType.Full).OrderByDescending(r => r.Version).FirstOrDefault();
         if (latest == null) {
+            if (options.InfoJson) {
+                throw new UserInfoException($"No full release was found in channel '{options.Channel}'.");
+            }
+
             Log.Warn("No full / applicable release was found to download. Aborting.");
+            return;
+        }
+
+        if (options.InfoJson) {
+            // stdout is reserved for this payload (vpk routes its logs to stderr in this mode),
+            // so it is written directly rather than through the logger or console abstractions.
+            Console.Out.WriteLine(SimpleJson.SerializeObject(latest));
             return;
         }
 

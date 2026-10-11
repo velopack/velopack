@@ -12,6 +12,8 @@ public class HttpDownloadCommand : OutputCommand
 
     public bool AllowEmptyChannel { get; private set; }
 
+    public bool InfoJson { get; private set; }
+
     public HttpDownloadCommand()
         : base("http", "Download latest release from a HTTP source.")
     {
@@ -30,5 +32,8 @@ public class HttpDownloadCommand : OutputCommand
 
         AddOption<bool>((v) => AllowEmptyChannel = v, ["--allowEmptyChannel"])
             .SetDescription("Exit successfully if the channel releases file does not exist.");
+
+        AddOption<bool>((v) => InfoJson = v, ["--info-json"])
+            .SetDescription("Print the latest release as JSON instead of downloading.");
     }
 }

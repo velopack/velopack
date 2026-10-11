@@ -1,3 +1,4 @@
+using System.Threading;
 using Velopack.Core;
 using Velopack.Deployment;
 using Velopack.Util;
@@ -103,6 +104,86 @@ public class LocalDeploymentTests(ITestOutputHelper output) : ObjectStoreDeploym
         } finally {
             TryDeleteDir(pack.ReleaseDir);
         }
+    }
+
+    [Fact]
+    public async Task InfoJsonPrintsLatestFullReleaseWithoutDownloading()
+    {
+        using var log = CreateLogger();
+        await using var scope = await CreateScopeAsync(log);
+
+        var pack = ReleaseFixtures.GetCachedPack(AppId, Channel, log, "1.0.0", "2.0.0");
+        try {
+            await UploadAsync(pack.ReleaseDir, Channel, 0, log);
+
+            using var _1 = TempUtil.GetTempDirectory(out var tempDir);
+            var releaseDir = Path.Combine(tempDir, "Releases");
+            var stdout = await CaptureStdoutAsync(() => new LocalDownloadCommandRunner(log).Run(new LocalDownloadOptions {
+                TargetPath = new DirectoryInfo(_targetDir),
+                ReleaseDir = new DirectoryInfo(releaseDir),
+                Channel = Channel,
+                InfoJson = true,
+            }));
+
+            // stdout must be exactly one line of JSON describing the newest full package
+            var lines = stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var line = Assert.Single(lines);
+            var asset = SimpleJson.DeserializeObject<VelopackAsset>(line);
+            Assert.NotNull(asset);
+            Assert.Equal("2.0.0", asset!.Version.ToString());
+            Assert.Equal(VelopackAssetType.Full, asset.Type);
+            Assert.Equal(FullNupkgName("2.0.0"), asset.FileName);
+            Assert.Equal(AppId, asset.PackageId);
+            Assert.False(string.IsNullOrEmpty(asset.SHA256));
+            Assert.True(asset.Size > 0);
+
+            // nothing was downloaded, not even the output directory was created
+            Assert.False(Directory.Exists(releaseDir));
+        } finally {
+            TryDeleteDir(pack.ReleaseDir);
+        }
+    }
+
+    [Fact]
+    public async Task InfoJsonFailsWhenFeedHasNoFullRelease()
+    {
+        using var log = CreateLogger();
+        await using var scope = await CreateScopeAsync(log);
+
+        File.WriteAllText(Path.Combine(_targetDir, $"releases.{Channel}.json"), "{\"Assets\":[]}");
+        using var _1 = TempUtil.GetTempDirectory(out var downloadDir);
+
+        var stdout = await CaptureStdoutAsync(async () => {
+            var ex = await Assert.ThrowsAsync<UserInfoException>(() => new LocalDownloadCommandRunner(log).Run(new LocalDownloadOptions {
+                TargetPath = new DirectoryInfo(_targetDir),
+                ReleaseDir = new DirectoryInfo(downloadDir),
+                Channel = Channel,
+                InfoJson = true,
+            }));
+            Assert.Contains("No full release was found", ex.Message);
+        });
+
+        Assert.Equal("", stdout);
+        Assert.Empty(Directory.GetFiles(downloadDir));
+    }
+
+    private static readonly SemaphoreSlim _stdoutLock = new(1, 1);
+
+    /// <summary> Runs <paramref name="action"/> with Console.Out redirected, returning what it wrote to stdout. </summary>
+    private static async Task<string> CaptureStdoutAsync(Func<Task> action)
+    {
+        await _stdoutLock.WaitAsync();
+        var original = Console.Out;
+        var writer = new StringWriter();
+        try {
+            Console.SetOut(writer);
+            await action();
+        } finally {
+            Console.SetOut(original);
+            _stdoutLock.Release();
+        }
+
+        return writer.ToString();
     }
 
     [Fact]

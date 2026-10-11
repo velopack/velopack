@@ -113,6 +113,32 @@ public class HttpDownloadCommandTests : BaseCommandTests<HttpDownloadCommand>
         Assert.False(options.AllowEmptyChannel);
     }
 
+    [Fact]
+    public void InfoJson_WithFlag_ParsesAndMaps()
+    {
+        var command = new HttpDownloadCommand();
+
+        ParseResult parseResult = command.ParseAndApply($"--url \"https://clowd.squirrel.com\" --info-json");
+        var options = OptionMapper.Map<HttpDownloadOptions>(command);
+
+        Assert.Empty(parseResult.Errors);
+        Assert.True(command.InfoJson);
+        Assert.True(options.InfoJson);
+    }
+
+    [Fact]
+    public void InfoJson_Missing_DefaultsToFalse()
+    {
+        var command = new HttpDownloadCommand();
+
+        ParseResult parseResult = command.ParseAndApply($"--url \"https://clowd.squirrel.com\"");
+        var options = OptionMapper.Map<HttpDownloadOptions>(command);
+
+        Assert.Empty(parseResult.Errors);
+        Assert.False(command.InfoJson);
+        Assert.False(options.InfoJson);
+    }
+
     protected override string GetRequiredDefaultOptions()
     {
         return $"--url \"https://clowd.squirrel.com\" ";

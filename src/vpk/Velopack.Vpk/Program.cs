@@ -197,20 +197,22 @@ public class Program
         var levelSwitch = new LoggingLevelSwitch {
             MinimumLevel = verbose ? LogEventLevel.Debug : LogEventLevel.Information
         };
+        var outputSwitch = new LogOutputSwitch();
         var conf = new LoggerConfiguration()
             .MinimumLevel.ControlledBy(levelSwitch)
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
             .MinimumLevel.Override("System", LogEventLevel.Warning);
-        
+
         if (legacyConsole) {
             // spectre can have issues with redirected output, so we disable it.
             builder.Services.AddSingleton<IFancyConsole, BasicConsole>();
-            conf.WriteTo.ConsoleNoMarkup();
+            conf.WriteTo.ConsoleNoMarkup(outputSwitch);
         } else {
             builder.Services.AddSingleton<IFancyConsole, SpectreConsole>();
-            conf.WriteTo.Spectre();
+            conf.WriteTo.Spectre(outputSwitch);
         }
         builder.Services.AddSingleton(levelSwitch);
+        builder.Services.AddSingleton(outputSwitch);
         builder.Services.AddSingleton<IConsole>(sp => sp.GetRequiredService<IFancyConsole>());
 
         Log.Logger = conf.CreateLogger();
@@ -246,12 +248,7 @@ public static class ProgramCommandExtensions
             var config = provider.GetRequiredService<IConfiguration>();
             var defaults = provider.GetRequiredService<VelopackDefaults>();
             var logLevelSwitch = provider.GetRequiredService<LoggingLevelSwitch>();
-
-            command.Initialize(logLevelSwitch);
-
-            logger.LogInformation($"[bold]{Program.INTRO}[/]");
-            var updateCheck = new UpdateChecker(logger, defaults);
-            await updateCheck.CheckForUpdates();
+            var logOutputSwitch = provider.GetRequiredService<LogOutputSwitch>();
 
             try {
                 bool jsonMode = ctx.GetResult(Program.JsonDirective) != null;
@@ -288,6 +285,17 @@ public static class ProgramCommandExtensions
                     // overlay the json config on top, so precedence is json > env vars > defaults.
                     JsonConfigLoader.Populate(jsonFile, options);
                 }
+
+                if (options is RepositoryOptions { InfoJson: true }) {
+                    // stdout is reserved for the JSON payload, so nothing may be logged to it.
+                    logOutputSwitch.UseStandardError = true;
+                }
+
+                command.Initialize(logLevelSwitch);
+
+                logger.LogInformation($"[bold]{Program.INTRO}[/]");
+                var updateCheck = new UpdateChecker(logger, defaults);
+                await updateCheck.CheckForUpdates();
 
                 await fn(options);
                 // print the out of date warning again at the end as well.
