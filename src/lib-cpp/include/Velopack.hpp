@@ -1029,6 +1029,34 @@ public:
     };
 
     /**
+     * Returns the release notes (markdown) of the currently installed version, as provided to 'vpk pack --releaseNotes'.
+     * @returns The release notes, or std::nullopt if the release was packed without release notes.
+     */
+    std::optional<std::string> GetCurrentReleaseNotesMarkdown() noexcept {
+        size_t neededSize = vpkc_get_current_release_notes_markdown(m_pManager, nullptr, 0);
+        if (neededSize == 0) {
+            return std::nullopt;
+        }
+        std::string strNotes(neededSize, '\0');
+        vpkc_get_current_release_notes_markdown(m_pManager, &strNotes[0], neededSize);
+        return strNotes;
+    };
+
+    /**
+     * Returns the release notes (rendered HTML) of the currently installed version, as provided to 'vpk pack --releaseNotes'.
+     * @returns The release notes, or std::nullopt if the release was packed without release notes.
+     */
+    std::optional<std::string> GetCurrentReleaseNotesHtml() noexcept {
+        size_t neededSize = vpkc_get_current_release_notes_html(m_pManager, nullptr, 0);
+        if (neededSize == 0) {
+            return std::nullopt;
+        }
+        std::string strNotes(neededSize, '\0');
+        vpkc_get_current_release_notes_html(m_pManager, &strNotes[0], neededSize);
+        return strNotes;
+    };
+
+    /**
      * Returns a VelopackAsset object if there is an update downloaded which still needs to be applied.
      * You can pass this object to WaitExitThenApplyUpdates to apply the update.
      * @returns A VelopackAsset object if there is a pending update, otherwise null.

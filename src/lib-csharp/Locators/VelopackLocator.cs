@@ -115,6 +115,18 @@ namespace Velopack.Locators
         /// <inheritdoc/>
         public abstract SemanticVersion? CurrentlyInstalledVersion { get; }
 
+        /// <summary>
+        /// The release notes (markdown) of the currently installed version, as provided to 'vpk pack --releaseNotes'.
+        /// Null if the app is not installed or the release was packed without release notes.
+        /// </summary>
+        public virtual string? CurrentReleaseNotesMarkdown => null;
+
+        /// <summary>
+        /// The release notes (rendered HTML) of the currently installed version, as provided to 'vpk pack --releaseNotes'.
+        /// Null if the app is not installed or the release was packed without release notes.
+        /// </summary>
+        public virtual string? CurrentReleaseNotesHtml => null;
+
         internal CombinedVelopackLogger? CombinedLogger { get; set; }
 
         /// <inheritdoc/>

@@ -43,6 +43,12 @@ namespace Velopack.Locators
         /// <inheritdoc />
         public override string? AppUserModelId { get; }
 
+        /// <inheritdoc />
+        public override string? CurrentReleaseNotesMarkdown { get; }
+
+        /// <inheritdoc />
+        public override string? CurrentReleaseNotesHtml { get; }
+
         /// <inheritdoc cref="WindowsVelopackLocator" />
         public WindowsVelopackLocator(IProcessImpl? processImpl, IVelopackLogger? customLog)
         {
@@ -82,6 +88,8 @@ namespace Velopack.Locators
                     UpdateExePath = possibleUpdateExe;
                     AppContentDir = myDirPath;
                     Channel = manifest.Channel;
+                    CurrentReleaseNotesMarkdown = manifest.ReleaseNotes;
+                    CurrentReleaseNotesHtml = manifest.ReleaseNotesHtml;
                     AppUserModelId = !string.IsNullOrEmpty(manifest.ShortcutAumid)
                         ? manifest.ShortcutAumid
                         : CoreUtil.GetAppUserModelId(manifest.Id!);
@@ -113,6 +121,8 @@ namespace Velopack.Locators
                     CurrentlyInstalledVersion = manifest.Version;
                     AppContentDir = currentDir;
                     Channel = manifest.Channel;
+                    CurrentReleaseNotesMarkdown = manifest.ReleaseNotes;
+                    CurrentReleaseNotesHtml = manifest.ReleaseNotesHtml;
                     AppUserModelId = !string.IsNullOrEmpty(manifest.ShortcutAumid)
                         ? manifest.ShortcutAumid
                         : CoreUtil.GetAppUserModelId(manifest.Id!);
