@@ -8,7 +8,7 @@ use std::{
 };
 use velopack::{bundle::load_bundle_from_file, constants, locator::VelopackLocator, process};
 
-fn remove_temp_dir_timed(path: &PathBuf) {
+fn remove_temp_dir_timed(path: &Path) {
     if !path.exists() {
         return;
     }
@@ -19,17 +19,14 @@ fn remove_temp_dir_timed(path: &PathBuf) {
     }
 }
 
-/// Removes both temp dirs, but never the backup of the old version while the current dir is missing,
-/// because then the backup is the only copy of the app.
-fn remove_temp_dirs(current_dir: &Path, temp_path_new: &PathBuf, temp_path_old: &PathBuf) {
+/// Removes both temp dirs, but keeps the backup of the old version if the update failed. A failed update has either
+/// restored the backup to the current dir already, or could not, in which case the backup is the only copy of the app.
+fn remove_temp_dirs(update_succeeded: bool, temp_path_new: &Path, temp_path_old: &Path) {
     remove_temp_dir_timed(temp_path_new);
-    if current_dir.exists() {
+    if update_succeeded {
         remove_temp_dir_timed(temp_path_old);
     } else if temp_path_old.exists() {
-        error!(
-            "Current dir {:?} is missing, keeping the previous version in {:?}",
-            current_dir, temp_path_old
-        );
+        error!("The update failed, keeping the previous version in {:?}", temp_path_old);
     }
 }
 
@@ -207,7 +204,13 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
 
         // Sync Update.exe to root directory if we're running from a different location
         let default_update_exe = &root_path.join("Update.exe");
-        let current_update_exe = std::env::current_exe()?;
+        let current_update_exe = match std::env::current_exe() {
+            Ok(p) => p,
+            Err(e) => {
+                warn!("Failed to get current Update.exe path ({}), skipping default path sync", e);
+                return Ok(());
+            }
+        };
 
         if !current_update_exe.exists() {
             warn!("Current Update.exe path does not exist, skipping default path sync (this shouldn't happen)");
@@ -243,7 +246,7 @@ pub fn apply_package_impl(old_locator: &VelopackLocator, package: &PathBuf, hook
     })();
 
     reporter.close();
-    remove_temp_dirs(&current_dir, &temp_path_new, &temp_path_old);
+    remove_temp_dirs(action.is_ok(), &temp_path_new, &temp_path_old);
     action?;
     Ok(new_locator)
 }
@@ -318,20 +321,18 @@ mod tests {
     }
 
     #[test]
-    fn test_remove_temp_dirs_keeps_backup_while_current_dir_is_missing() {
+    fn test_remove_temp_dirs_keeps_backup_when_update_failed() {
         let base = temp_base("cleanup");
-        let current = base.join("current");
         let tmp_old = base.join("tmp_old");
         let tmp_new = base.join("tmp_new");
         make_app_dir(&tmp_old, "old");
         make_app_dir(&tmp_new, "new");
 
-        remove_temp_dirs(&current, &tmp_new, &tmp_old);
+        remove_temp_dirs(false, &tmp_new, &tmp_old);
         assert!(!tmp_new.exists());
         assert_eq!(fs::read_to_string(tmp_old.join("sq.version")).unwrap(), "old");
 
-        make_app_dir(&current, "old");
-        remove_temp_dirs(&current, &tmp_new, &tmp_old);
+        remove_temp_dirs(true, &tmp_new, &tmp_old);
         assert!(!tmp_old.exists());
 
         let _ = fs::remove_dir_all(&base);
