@@ -22,7 +22,9 @@ pub fn write_uninstall_entry(locator: &VelopackLocator) -> Result<()> {
     // no size is shown. Saturate rather than truncate: the value is in KB, so a u32
     // covers ~4TB.
     let folder_size_kb = u32::try_from(folder_size / 1024).unwrap_or(u32::MAX);
-    let short_version = locator.get_manifest_version_short_string();
+    // DisplayVersion is free-form text, so show the full semver (including prerelease
+    // and build metadata) to match what the MSI writes and what the app reports.
+    let display_version = locator.get_manifest_version_full_string();
 
     let now = DateTime::now();
     let formatted_date = format!("{}{:02}{:02}", now.year(), now.month(), now.day());
@@ -44,7 +46,7 @@ pub fn write_uninstall_entry(locator: &VelopackLocator) -> Result<()> {
 
     reg_app.set_value("DisplayIcon", &main_exe_path.as_os_str())?;
     reg_app.set_value("DisplayName", &app_title)?;
-    reg_app.set_value("DisplayVersion", &short_version)?;
+    reg_app.set_value("DisplayVersion", &display_version)?;
     reg_app.set_value("InstallDate", &formatted_date)?;
     reg_app.set_value("InstallLocation", &root_path.as_os_str())?;
     reg_app.set_value("Publisher", &app_authors)?;
@@ -86,21 +88,21 @@ pub fn update_uninstall_entry(old_locator: &VelopackLocator, new_locator: &Velop
 
 pub fn update_msi_uninstall_entry(locator: &VelopackLocator) -> Result<()> {
     let app_id = locator.get_manifest_id();
-    let short_version = locator.get_manifest_version_short_string();
+    let display_version = locator.get_manifest_version_full_string();
     let reg_path = format!("{}\\MSI:{}", UNINSTALL_REGISTRY_KEY, app_id);
 
-    info!("Updating MSI uninstall entry for {} to version {}", app_id, short_version);
+    info!("Updating MSI uninstall entry for {} to version {}", app_id, display_version);
 
     // Try HKCU first (per-user MSI install), then HKLM (per-machine MSI install)
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
 
     if let Ok(reg_app) = hkcu.open_subkey_with_flags(&reg_path, KEY_SET_VALUE) {
-        info!("Updating DisplayVersion in HKCU to {}", short_version);
-        reg_app.set_value("DisplayVersion", &short_version)?;
+        info!("Updating DisplayVersion in HKCU to {}", display_version);
+        reg_app.set_value("DisplayVersion", &display_version)?;
     } else if let Ok(reg_app) = hklm.open_subkey_with_flags(&reg_path, KEY_SET_VALUE) {
-        info!("Updating DisplayVersion in HKLM to {}", short_version);
-        reg_app.set_value("DisplayVersion", &short_version)?;
+        info!("Updating DisplayVersion in HKLM to {}", display_version);
+        reg_app.set_value("DisplayVersion", &display_version)?;
     } else {
         bail!("Could not find MSI uninstall registry key for {} in HKCU or HKLM.", app_id);
     }
